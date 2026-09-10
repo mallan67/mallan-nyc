@@ -200,11 +200,13 @@ During Coming Soon status:
 | Renter | Email + password / magic link | 30-day cookie | Optional |
 | Landlord | Email + password / magic link | 30-day cookie | Optional |
 
-### Cookie-Based Auth (Current)
+### Session Auth (current)
 
-- Cookie name: `pc_auth`
-- Protected by: `PRIVATE_COLLECTION_PASS` environment variable
-- HttpOnly, Secure, SameSite=Strict
+- **Portal + CRM session cookie:** `session_token` — httpOnly, `Secure` in production, `path=/`, DB-backed (`crypto.randomUUID()`, `lib/auth/session.ts`). Set by `POST /api/auth/login`; read by `lib/auth/middleware.ts` (`SESSION_COOKIE`). No Bearer tokens, no localStorage. Full contract: `compliance/AUTH-AND-API-SECURITY.md` §1.
+- **Per-role TTL and SameSite** (`lib/auth/cookie-config.ts` + `SESSION_TTL_MS` in `lib/auth/session.ts` — these two must stay in sync, and they match the table above): broker 24h / `SameSite=Strict`; agent 8h sliding / `SameSite=Lax`; client (buyer, seller, renter, landlord) 30 days / `SameSite=Lax`. Sessions inside the last hour before expiry are silently renewed (`REFRESH_THRESHOLD_MS`).
+- **Private-collection gate (separate — NOT portal auth):** `pc_auth`, compared against `PRIVATE_COLLECTION_PASS` in `lib/middleware/route-guards.ts:72-74`, where it is an alternative to a real session for `/admin` only. It is a shared pass with **no user identity**, so it **must never** be used to authenticate a portal user or to satisfy any data-isolation rule in §6.
+
+> **Corrected 2026-09-10.** This section was headed "Cookie-Based Auth (Current)" and named `pc_auth` / `PRIVATE_COLLECTION_PASS` as the auth mechanism under a heading covering all six portals. It is not: it carries no user identity and cannot support per-user isolation. The portal session has always been `session_token`.
 
 ---
 

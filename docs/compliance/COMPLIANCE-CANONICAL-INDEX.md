@@ -155,7 +155,7 @@
 |---|---|
 | **Canonical** | `app/listing/[...slug]/page.tsx` (rental FARE disclosure block); `lib/idx/trestle-mapper.ts` fields. Canonical FARE public-display fields are the **live Property** fields `MoveInCosts`, `MoveInCostsAmount`, `MoveInCostsComments`, `OngoingFees`, `TenantPays`, `TenantPaysDescription`; `AdditionalFee*` / `FeeFrequency` are **legacy CustomProperty fallback**. |
 | **Backup** | `.claude/skills/rebny-compliance/SKILL.md` §5; `data/UCBA-2026-Requirements.md` (Standard Active / Non-Syndicated rental categories, Aug 1 2025) |
-| **Validator** | `npm run compliance-check` (FARE Act section grep). **GAP NOTE 2026-05-20:** the source-grep validator passes, but the live-page rendering on production rentals was verified MISSING in `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` A4 — a rendering-conditional bug, not a missing file. New PR required. |
+| **Validator** | `npm run compliance-check` (FARE Act section grep). **GAP CLOSED 2026-09-10:** the rendering-conditional bug recorded as `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` A4 was fixed by PRs #346 / #347 / #348 / #350 (`da5cbd33`, `8a009eaf`, `2548774d`, `399bd37e`). The rental FARE disclosure block now renders at `app/listing/[...slug]/page.tsx:1780`, the Trestle-direct path discloses move-in fees, and the publish gate keys on display-ready status rather than `!isDraft`. Kept as history: from 2026-05-20 this row read "**GAP NOTE 2026-05-20:** the source-grep validator passes, but the live-page rendering on production rentals was verified MISSING … New PR required." — the standing lesson survives the fix: a passing source-grep is not proof of rendering (CLAUDE.md §F). |
 | **When to read** | Any rental listing display path; any new rental-fee CRM form; any rental syndication work |
 | **Fail-closed** | Tenant cannot be required to pay broker fee unless tenant specifically engaged the broker. If landlord does NOT pay → `InternetEntireListingDisplayYN = False` → excluded from IDX/VOW/syndication. DCWP penalties: §20-699.21 $1,000–$1,800; §20-699.22 up to $2,000 per violation. Litigation status: REBNY 2nd Circuit appeal pending (filed July 2025); law in force and enforceable. |
 
@@ -197,7 +197,7 @@
 | **Backup** | `docs/backend-crm-current-gap-audit-2026-05-18.md` (current gap inventory + 10 Class-A items); `lib/notifications/engine.ts` (per-agent notification — partial wiring) |
 | **Validator** | `tests/runtime/contact-form-consent.test.ts`; `tests/runtime/agent-inquiry.test.ts`; `tests/runtime/inquiry-effect.test.ts` |
 | **When to read** | Any new lead form; any new agent-assignment routing change; any new email/SMS send path; any new portal access; any new role/permission gate |
-| **Fail-closed** | Every public lead-capture POST: `consent_captured_at` recorded; honeypot in place; rate-limited; AuditEvent written; Lead row upserted by email with role-merge (don't erase prior roles). Per-listing inquiry SHOULD notify the listing's owning agent (gap B2 in `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md`). |
+| **Fail-closed** | Every public lead-capture POST: `consent_captured_at` recorded; honeypot in place; rate-limited; AuditEvent written; Lead row upserted by email with role-merge (don't erase prior roles). Per-listing inquiry SHOULD notify the listing's owning agent (gap B2 in `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` — **status unverified since 2026-05-20; re-confirm against `lib/notifications/engine.ts` before citing this as an open gap**). |
 
 ## 17. Seller / landlord intake compliance
 
@@ -207,7 +207,7 @@
 | **Backup** | `lib/compliance/rebny-validator.ts` (10-section validator); `lib/cotality/live-contract.ts` (field existence and live vocabularies); `lib/listings/mallan-form-contract.ts` (the Mallan form bindings) |
 | **Validator** | `npm run rls:validate`; `npm run crm:test` (172/172 smoke); CRM POST returns HTTP 422 on `!passed` (see `app/api/crm/listings/route.ts:191-207`) |
 | **When to read** | Any field added/removed/renamed on the sale or rental form; any picklist value change; any new mandatory-field rule; any new content-restriction scanner pattern |
-| **Fail-closed** | All 6 distribution gates evaluated at CRM-write time. Fair Housing scanner runs on all free-text fields. Sale form has 18 commercial sub-types + 5 ownership types with "mallan.nyc only" warning banner for commercial. Rental form must include all FARE Act fee fields. Currently 1 warning: rental form missing `ComingSoon` enum value in `MlsStatus` picklist (`docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` C1). |
+| **Fail-closed** | All 6 distribution gates evaluated at CRM-write time. Fair Housing scanner runs on all free-text fields. Sale form has 18 commercial sub-types + 5 ownership types with "mallan.nyc only" warning banner for commercial. Rental form must include all FARE Act fee fields. **`ComingSoon` MUST NOT appear in the rental form's `MlsStatus` picklist** — it is prohibited for rentals per REBNY RLS Sec. 2.05(d) / UCBA D1. `public/crm/RENTAL-FORM-REDESIGN.html:553` removes the option, and lines 7951-7994 strip it at runtime (hard-block script + the `DENY` list in the server-driven vocabulary builder) even if a future payload offered one. **CORRECTION 2026-09-10:** this row previously read "Currently 1 warning: rental form missing `ComingSoon` enum value in `MlsStatus` picklist (`docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` C1)" — that audit warning read a deliberate removal as a missing enum value. Do NOT "restore" it. |
 
 ## 18. Mallan exclusives / syndication eligibility
 
@@ -230,6 +230,7 @@
 
 ## Cross-references
 
+- `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` — the product/system authority. This index is authoritative for **compliance rules only**; what the applications are and where a feature belongs is decided there, not here.
 - `CLAUDE.md` — lean command center (this index is its §H pointer for compliance)
 - `.claude/skills/rebny-compliance/SKILL.md` — the auto-loaded skill mirror
 - `NEON.md` — DB-side rules (separate index)
@@ -238,3 +239,4 @@
 - `docs/idx/post-reconciliation-tightening-audit-2026-05-20.md` — most recent IDX-side audit
 - `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` — canonical incident report (the 2026-04-30 7,594-row corruption)
 - `memory/REFACTOR-2026-04-25.md` — 10-PR master plan
+- `docs/compliance/MEDIA-TOMBSTONE-RETENTION.md` — approved 2026-08-02 media-tombstone payload compaction (30-day, `status='deleted'`); the §14 retention schedule does not currently name it.

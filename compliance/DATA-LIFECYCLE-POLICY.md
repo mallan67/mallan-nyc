@@ -4,6 +4,16 @@
 > Effective: March 10, 2026
 > Regulatory basis: NY SHIELD Act (GBL 899-aa), REBNY RLS Rules, UCBA 2026, TCPA, CAN-SPAM, IRS 26 USC 6001
 
+> **SUPERSEDED IN PART (2026-09-10).** This file records the retention policy as approved on 2026-03-10 and is kept for that history. It is **no longer the operative source** for audit-event or media retention. Where this file and `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` §14/§15 disagree, **the index wins**. Specifically:
+>
+> - **Audit events ARE auto-deleted.** The rows below saying they are "never auto-deleted" describe an earlier design. `app/api/cron/data-retention/route.ts:84` hard-deletes `AuditEvent` rows older than 2 years and reports `audit_events_purged_over_2yr`.
+> - **Two `AuditEvent` actions are purged at 30 days**, not 2 years — `idx_sync_listing_upsert_failure` and `idx_sync_syncstate_failure`, per `docs/compliance/OPERATIONAL-DIAGNOSTIC-RETENTION.md` (approved 2026-08-02). The allowlist is exact; nothing else moves.
+> - **Deleted `listing_media` payload is compacted at 30 days** per `docs/compliance/MEDIA-TOMBSTONE-RETENTION.md` (approved 2026-08-02).
+> - **Closed listing data and transaction/commission records: use 6 years** (COMPLIANCE-CANONICAL-INDEX §14), not the 7 years stated below.
+> - The eighth consent-capture endpoint is `/api/identity/capture`, not `/api/favorites/sync` (that route does not exist in the repo).
+>
+> Do not edit the schedule below to "fix" it — amend the canonical index row instead, then leave this file as the March 2026 record.
+
 ---
 
 ## 1. Retention Schedule

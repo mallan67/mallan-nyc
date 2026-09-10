@@ -1,14 +1,12 @@
-# 🟢 RESTART POINTER → GitHub Issue #415 is the CANONICAL board
+# 🟢 NEON / #415 LANE POINTER — one lane, not the session entry point
 
-> **If resuming after a disconnect: READ THIS FILE, then `gh issue view 415 --comments`.**
-> Do NOT restart from chat history. Do NOT guess. Do NOT argue A6 from memory — let the
-> read-only Phase D precheck prove it.
+> **Authority order (`CLAUDE.md` / `AGENTS.md`): 1. `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` — the ONLY product/system authority, what the platform IS and which applications exist · 2. `MALLAN-CONTINUOUS-EXECUTION-STATE.md` — execution state · 3. `AGENTS.md` / `CLAUDE.md`. This file ranks below all three.** It was previously headed "RESTART POINTER → GitHub Issue #415 is the CANONICAL board" and opened "If resuming after a disconnect: READ THIS FILE"; that framing is retracted — this file is scoped to ONE lane (the Neon cleanup / legacy-JSON board, GitHub issue #415) and says nothing about application ownership.
 >
-> #415 = "NEON cleanup master execution board — legacy JSON removal, storage reclaim, and handoff memory"
+> **Within that lane only:** this local file is a pointer + quick-status echo; the authoritative record is #415 + the P2-MONEY tracker. #415 = "NEON cleanup master execution board — legacy JSON removal, storage reclaim, and handoff memory". Do NOT restart from chat history. Do NOT guess. Do NOT argue A6 from memory — let the read-only Phase D precheck prove it.
 >
-> This local file is a pointer + quick-status echo; the authoritative record is #415 + the
-> P2-MONEY tracker. Mirror policy §A.3: this file is mirrored byte-identical to
-> `C:\Users\MayaAllan\Desktop\memory\HANDOFF.md`.
+> ⚠️ **Mirror correction (2026-09-10):** this file previously asserted, as present fact, that it "is mirrored byte-identical to `C:\Users\MayaAllan\Desktop\memory\HANDOFF.md`". **That directory does not exist on this machine** (verified 2026-09-10). `CLAUDE.md` §A.3 requires a byte-identical mirror of every `memory/**` file; until the directory is recreated or §A.3 is amended, no `memory/` file is mirrored and no agent should claim otherwise.
+>
+> ⚠️ **Storage figures below are point-in-time.** The "DB = 1364 MB (286% of cap)" reading below is from 2026-06-24; `memory/NEON-CPU-STORAGE-2026-08-02.md` measured ~555 MB on 2026-08-02. Re-measure before quoting.
 
 ---
 

@@ -1,5 +1,25 @@
 > **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/operations/evidence-2026-09-08/provider-system/REMOVAL-2026-09-08.md`.
 
+> **SUPERSEDED — dated header added 2026-09-10. Retained as history. Do not act on this document as current direction, and do not execute its phases.**
+>
+> This file calls itself the "Master Project Document" and "master reference". It is neither. Authority order:
+> 1. `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` — the ONLY product/system authority
+> 2. `MALLAN-CONTINUOUS-EXECUTION-STATE.md` — execution state
+> 3. `AGENTS.md` · `CLAUDE.md` — agent operating instructions
+>
+> **What is superseded.** This document names `public/crm/dashboard.html` its "Primary File" and then
+> specifies, for hundreds of lines, the **Backend Agent Search / Listings** feature set — search form,
+> results table, view modes, column presets, CMA, My Listings. Those belong to `public/crm/index.html` →
+> `index-built.html`, served at **`/crm/search`**, a separate application from the Brokerage CRM at
+> `/crm`. See `AGENTS.md` §1.0 and the routing proof in `vercel.json` (`/crm` → `dashboard.html`,
+> `/crm/search` → `index-built.html`). The FILE STRUCTURE block showing `public/crm/` containing only
+> `dashboard.html` is wrong; the directory holds nine HTML surfaces.
+>
+> **Do not execute PHASE 2–5.** In particular "PHASE 4 · Create My Listings panel" would recreate the
+> duplicate My Listings deleted in `da8e3046`, which `AGENTS.md` §1.0 forbids resurrecting.
+>
+> Last substantive update: 2026-03-13.
+
 # MALLAN NYC CRM - Master Project Document
 ## Ultra-Luxury Real Estate CRM Platform
 

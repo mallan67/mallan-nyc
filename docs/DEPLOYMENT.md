@@ -34,10 +34,12 @@ This document describes the deployment pipeline for `mallan-nyc`, a production N
 
 **Purpose:** Static build for deployment (no database at build time)
 
-**What it does:**
+**What it does** (live `vercel.json` `buildCommand`: `node public/crm/build.js && npx prisma generate && npm run build`):
 1. Runs `npm ci` (triggers `postinstall` → `prisma generate`)
-2. Runs `next build` (compiles, type-checks, generates static pages)
-3. Deploys to edge network
+2. Runs `node public/crm/build.js` — regenerates `public/crm/index-built.html`, the **Backend Agent Search / Listings** runtime shell served at `/crm/search`, by inlining its CSS, HTML partials and JS. **A source change under `public/crm/{index.html, html/, css/, js/}` is not live until this runs.** The Brokerage CRM at `/crm` (`public/crm/dashboard.html` + `public/crm/js/dashboard/**`) is served directly and is not produced by this step.
+3. Runs `npx prisma generate`
+4. Runs `npm run build` (`next build` — compiles, type-checks, generates static pages)
+5. Deploys to edge network
 
 **When it runs:** Push to `main` (production), push to PR branches (preview)
 
@@ -52,6 +54,7 @@ This document describes the deployment pipeline for `mallan-nyc`, a production N
 | SQL views | ✅ Applied (non-blocking) | ❌ N/A | Views require live DB |
 | Seeding | ✅ Runs (non-blocking) | ❌ N/A | Seeds require live DB |
 | `prisma generate` | ✅ Via postinstall | ✅ Via postinstall | Client generation needs only schema file, no DB |
+| `node public/crm/build.js` | ⚠️ Not in this integration pipeline — covered out-of-band by `.github/workflows/crm-validate.yml` (path-filtered to `public/crm/**`) and the `scripts/ci/check-crm-build.mjs` drift guard in `.github/workflows/guardrails.yml` | ✅ First build step | Vercel regenerates the Backend Agent Search shell at deploy time; CI proves the committed shell is not drifted rather than rebuilding it inside the integration build |
 | Type-check | ✅ Explicit step | ✅ During `next build` | Both verify types |
 | Build | ✅ `next build` | ✅ `next build` | Same build command |
 

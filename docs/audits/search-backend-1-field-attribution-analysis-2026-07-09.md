@@ -1,3 +1,7 @@
+> ⚠️ **SUPERSEDED FOR PLANNING (2026-09-10) — analysis retained, sequence NOT authoritative.**
+> The §10 contract proposal and the §15.K 12-PR sequence below are **not** the plan of record. The only product/system authority is `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` — read §5 (Search), in particular §5.5 Search field contract, §5.6 Correct Search ordering and §5.19 Search acceptance, plus §6 (CMA) and §7 (Backend Listing Workspace) — before acting on anything here.
+> Retained as a dated evidence record of real surface/field/attribution defects (§1–§9). Per this document’s own `[E]` staleness caveat, re-verify every cited `file:line` at current HEAD, and re-verify every `[needs probe]` claim live against `api.cotality.com/trestle`, before acting on it.
+
 # Backend-Search-1 — Systematic Field / Attribution / UI / Logic Analysis
 
 **Status:** ANALYSIS ONLY. No code, no schema change, no PR. Awaiting Maya review before any Backend-Search-1 contract work begins.

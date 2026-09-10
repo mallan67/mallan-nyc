@@ -1,5 +1,7 @@
 > **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/operations/evidence-2026-09-08/provider-system/REMOVAL-2026-09-08.md`.
 
+> **SUPERSEDED HEADER (2026-09-10).** Retained as reference; **no longer the source of truth.** Two authorities now cover this ground: (1) `lib/cotality/live-contract.ts` + `lib/cotality/generated/contract.ts` + `data/cotality-contract/**` are the **ONLY** authority for Cotality field names, types, enums, resources and entitlements (CLAUDE.md §H) — regenerate with `npm run cotality:authority -- refresh`; (2) `docs/architecture/COTALITY-COMPLETE-REFERENCE.md` is the broader written reference for the same integration. §1's claim to be the “Source of truth for all Cotality/Trestle/RESO integration” **no longer holds**. Never treat a field, enum or permission statement in this file as provider truth without re-verifying it against the live contract. The §15 “must cite this contract” rule is satisfied by citing the live contract or COTALITY-COMPLETE-REFERENCE.md instead.
+
 # Cotality/Trestle Operational Contract
 
 > Source of truth for all Cotality/Trestle/RESO integration on mallan.nyc.

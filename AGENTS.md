@@ -113,10 +113,18 @@ website." It has downstream consumers: search, CRM, portal, media, compliance, a
    org** `Vercel: maya` / `org-wild-king-99967357`) · default branch **`main` = `br-crimson-frog-adr7g9gt`**
    · endpoint **`ep-cold-waterfall-adno3ao2`**. **Stale / do-not-serve:** `morning-bread-68708332` /
    `ep-royal-dawn-ad6eh8t2` (personal org). Never target the stale one. Full rules: `NEON.md`.
-2. **Live Cotality/Trestle cadence is intentional** — `/api/cron/idx-sync` **every 10 min**,
-   `/api/cron/media-sync` **every 15 min**, `/api/cron/db-keepalive` **every 15 min** (source of truth =
-   `vercel.json`). Some route-file **comments are stale** (say "4 hours" / "4 minutes"). **Fix the
-   comments, never the schedule**, unless Maya explicitly asks.
+2. **Live Cotality/Trestle cadence is intentional** — there is ONE scheduled entry point:
+   `/api/cron/one-cycle-preflight` **every 10 minutes** (`*/10 * * * *`), which drives `idx-sync` and
+   `media-sync` as **in-process members** of `/api/cron/one-cycle` (`app/api/cron/one-cycle/route.ts`
+   `MEMBER_NAMES` / `runIdxSyncMember` / `runMediaSyncMember`). Neither `idx-sync` nor `media-sync`
+   has its own `crons[]` entry any more, and `/api/cron/db-keepalive` **no longer exists** (route
+   deleted 2026-08-07, `2e641f11`). Source of truth = the `crons[]` array in `vercel.json`
+   (20 entries today), always read live, never quoted from memory.
+   **Correction 2026-09-10:** this invariant previously read "`/api/cron/idx-sync` **every 10 min**,
+   `/api/cron/media-sync` **every 15 min**, `/api/cron/db-keepalive` **every 15 min**" — none of those
+   three has a `crons[]` entry, and the two stale route-file comments it cited ("4 hours" /
+   "4 minutes") are not present in the repo either. If you find a route-file **comment** quoting an
+   old cadence, **fix the comment, never the schedule**, unless Maya explicitly asks.
 3. **Proof-first** — a change is not "done" without a failing test that flips green, a live URL/runtime-log
    proof, or a direct source read (static claims only). Source-grep alone never proves rendering/behavior.
 4. **Fail-closed** — if a REBNY/RLS/IDX/FARE/Fair-Housing rule is unclear or a canonical file is missing,

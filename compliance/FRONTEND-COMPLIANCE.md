@@ -1,6 +1,6 @@
 # Frontend Compliance — Public Website Rules
 
-> **Website:** mallan.nyc | **Platform:** Next.js 14 / Vercel
+> **Website:** mallan.nyc | **Platform:** Next.js 16 (App Router + Turbopack) / Vercel  *(corrected 2026-09-10; this line read "Next.js 14" — package.json pins ^16.1.6)*
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 
 ---

@@ -186,6 +186,8 @@ VOW (Virtual Office Website) provides more data than IDX but requires consumer r
 
 ### Field Availability on IDX Plus Feed
 
+> **AUTHORITY UPDATE (2026-09-10).** The "In IDX Plus CSV?" column below, and every "in the REBNY IDX Plus CSV (902 fields)" citation in this file, are **retained as the 2026-03-26 reasoning record only**. They are **not** a field authority and are no longer verifiable — the REBNY CSVs were removed from the repo on 2026-09-08 (`docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` §0 item 2). To answer "does this field exist / may it be displayed", read the live Cotality contract: `lib/cotality/live-contract.ts` · `lib/cotality/generated/contract.ts` · `data/cotality-contract/**` · `data/cotality-enums.live.json` (refresh with `npm run cotality:authority -- refresh`; prove with `node scripts/cotality/generate-contract-types.mjs --check`). The **conclusions** below — ClosePrice, CloseDate, OriginalListPrice, PreviousListPrice, DaysOnMarket and CumulativeDaysOnMarket are displayable on IDX Plus — still stand; only the evidence path has moved. Anything marked "Needs verification" **fails closed to NON-DISPLAY** until confirmed against the live contract.
+
 > **Corrected 2026-03-26:** ClosePrice, CloseDate, OriginalListPrice, PreviousListPrice are IN the
 > IDX Plus CSV and CAN be displayed publicly. The previous version of this section incorrectly
 > classified them as "VOW-Only." The REBNY IDX/VOW Compliance Checklist has no such restriction.
@@ -195,7 +197,7 @@ VOW (Virtual Office Website) provides more data than IDX but requires consumer r
 > Fields returned by Trestle on your feed are authorized — Trestle filters payloads per feed type.
 > IDX_PLUS_EXCLUDED_FIELDS in `trestle-mapper.ts` was validated live against Trestle on 2026-03-04.
 
-| Field | In IDX Plus CSV? | Returned by Trestle IDX Plus feed? | Notes |
+| Field | In the retired REBNY CSV? *(historical, not authority)* | Returned by Trestle IDX Plus feed? *(verify in the live contract)* | Notes |
 |-------|:---:|:---:|-------|
 | ClosePrice | YES | YES | IDX-safe |
 | CloseDate | YES | YES | IDX-safe |

@@ -366,22 +366,46 @@ GET /api/idx/search?type=sale&minPrice=1000000
 
 ## Architecture
 
-### Topology (Current)
+### Topology (Current — corrected 2026-09-10, `928f31c4`)
+
+Three applications, three addresses, one owner each. Mirrored from
+`docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` §5.1 (the only product/system
+authority) and `AGENTS.md` §1.0. This README is not an architecture authority.
 
 ```
 Vercel (mallan.nyc)
-  public/crm/                      app/api/
-  ├── login.html          ──→     ├── auth/login
-  ├── CRM (FINAL2.html)   ──→     ├── crm/*
-  ├── index-built.html     ──→     ├── crm/listings
-  ├── SALE-FORM-WITH-TOOLS ──→     ├── crm/listings/[id]
-  └── RENTAL-FORM-WITH-TOOLS ──→   └── portal/*
+
+  BROKERAGE CRM          public/crm/dashboard.html + public/crm/js/dashboard/**
+                         /crm  (compat /crm/dashboard)     ──→  app/api/crm/*
+
+  BACKEND AGENT SEARCH   public/crm/index.html ──build──> public/crm/index-built.html
+  / LISTINGS             /crm/search                       ──→  app/api/idx/search
+                                                                app/api/crm/listings
+                                                                app/api/media/*
+
+  CONSUMER SEARCH        app/search/page.tsx
+                         /search  /buy  /rent  (public, compliance-filtered)
+
+  Listing + deal forms   public/crm/SALE-FORM-REDESIGN.html, RENTAL-FORM-REDESIGN.html,
+                         BUYER-DEAL-FORM.html, TENANT-DEAL-FORM.html
+  Login                  public/crm/login.html             ──→  app/api/auth/login
+  Client portals         app/portal/**                     ──→  app/api/portal/*
 ```
 
-- **CRM Backend:** `https://mallan.nyc/crm/` (same-origin static files)
+- **Brokerage CRM:** `https://mallan.nyc/crm` — `vercel.json` rewrites `/crm` and `/crm/dashboard` to `/crm/dashboard.html`
+- **Backend Agent Search / Listings:** `https://mallan.nyc/crm/search` — `vercel.json` rewrites it to `/crm/index-built.html`
+- **Consumer Search:** `https://mallan.nyc/search`, `/buy`, `/rent` (App Router pages, no rewrite)
 - **API:** `https://mallan.nyc/api/` (Vercel, Next.js 16.1.6 App Router)
 - **Database:** PostgreSQL on Neon (Prisma ORM)
 - **Auth:** httpOnly cookie only (`session_token`, SameSite=Lax, Secure)
+
+Backend Search may consume CRM APIs, but must not require `dashboard.html` or the CRM router to boot.
+The dependency runs **CRM → Backend Search**, never the reverse.
+
+> **Correction note (2026-09-10).** This block previously read ``├── CRM (FINAL2.html)   ──→     ├── crm/*``
+> and listed `SALE-FORM-WITH-TOOLS` / `RENTAL-FORM-WITH-TOOLS`. None of those three files exists in
+> `public/crm/`, and `dashboard.html` — the actual Brokerage CRM — was absent from the diagram
+> altogether. That omission is part of the application-ownership confusion corrected in `928f31c4`.
 
 ### Auth (Cookie Only)
 
@@ -697,10 +721,18 @@ Internal TypeScript code uses UCBA names (mapped by normalizer before hitting Tr
 
 ---
 
-## CRM Search Page (`index-built.html`) — Architecture & Audit
+## Backend Agent Search / Listings (`/crm/search`) — Architecture & Audit
 
-> **File:** `public/crm/index-built.html` (~35,700 lines, monolithic)
+> **Source:** `public/crm/index.html` → generated artifact `public/crm/index-built.html`
+> (39,554 lines as of 2026-09-10; a source change under `public/crm/{index.html, html/, css/, js/}`
+> is not live until `node public/crm/build.js` / `npm run crm:build` runs)
+> **Application:** Backend Agent Search / Listings — a **separate application** from the Brokerage CRM
+> (`public/crm/dashboard.html` + `public/crm/js/dashboard/**`, served at `/crm`). See `AGENTS.md` §1.0.
 > **Last audited:** 2026-03-20 — 172/172 smoke test PASS, 0 issues
+>
+> **Heading corrected 2026-09-10.** This section was titled "CRM Search Page (`index-built.html`)" and
+> described `index-built.html` as if it were the source file. It is the generated artifact, and the page
+> it serves is its own application, not a page of the CRM.
 
 ### Components
 

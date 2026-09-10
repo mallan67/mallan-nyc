@@ -1,3 +1,14 @@
+> ⚠️ **SUPERSEDED — header added 2026-09-10. This is a dated 2026-04-28 close-of-day snapshot, NOT "the first doc to read."**
+>
+> Read in this order instead: 1. `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` (the ONLY product/system authority) · 2. `MALLAN-CONTINUOUS-EXECUTION-STATE.md` (execution state) · 3. `AGENTS.md` / `CLAUDE.md`.
+>
+> Specifically superseded below, verified 2026-09-10:
+> - "Both major plans are now complete — 10/10 PRs merged" conflicts with `memory/REFACTOR-2026-04-25.md`'s own status table, where PRs 3–10 and 12 all still read `NOT_STARTED`. The two files disagree; check `git log` and `gh pr list --state open` rather than trusting either.
+> - The "~216 MB / 43 % of 500 MB cap", "~9 months" runway and "Free tier holds" forecast were overtaken: ≈1,364 MB at 2026-06-24 (`memory/HANDOFF.md`) and ≈555 MB at 2026-08-02 (`memory/NEON-CPU-STORAGE-2026-08-02.md`).
+> - "Option B — Search redesign … never executed" is obsolete. Search has since been split into two applications per the Master Plan: CONSUMER SEARCH (`app/search/page.tsx`, served at `/search` `/buy` `/rent`) and BACKEND AGENT SEARCH (`public/crm/index.html` → generated `index-built.html`, served at `/crm/search` — `vercel.json` line 75). Do not resurrect the archived 2026-03 search specs this section points at.
+>
+> The session record it summarizes is correct as history — see `memory/SESSION-2026-04-28-allnighter.md`.
+
 # Next Session Entry Point — 2026-04-28 (close-of-day)
 
 > **First doc to read in the next session.** Supersedes `memory/OUTSTANDING-WORK-2026-04-27.md` (now stale — every "remaining" item from that snapshot landed on `main` during the 2026-04-28 session). This file is the resume signal for whoever picks up next.

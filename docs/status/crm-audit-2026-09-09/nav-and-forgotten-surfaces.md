@@ -1,3 +1,9 @@
+> **STATUS HEADER (added 2026-09-10) — findings preserved; the fix plan below has already been executed.** This is the dated read-only audit of 2026-09-09. Its §2 and §3 were carried out on 2026-09-09/10: `stickyNavBuilding` / `stickyNavComps` ids were added, `updateStickyNavActive()` was extended to all six destinations and is now called from both `_serverSearch` render blocks, and `tests/runtime/crm-sticky-nav-destinations.test.ts` is green (25/25, re-run 2026-09-10). What actually changed is recorded in `docs/status/crm-audit-2026-09-09/repair/search-cma-nav.md` §7.
+>
+> **One caveat about that repair report, verified 2026-09-10:** its "NEEDS ANOTHER OWNER" item 4 says the `mallan:data:ready` restore path in `public/crm/js/init/init-hash-routing.js` still does not call `updateStickyNavActive()`. **That item has since been closed** — the call is present (now `public/crm/js/init/init-hash-routing.js:442`, added in commit `dc057054`, with a comment citing parity with the two sibling restore paths). Re-verify the repair report’s other open items against current HEAD before acting on them, rather than trusting either document’s status line.
+>
+> **Do not re-execute the plan from this file — read that repair report first.** Architecture note: the surfaces audited here belong to the **Backend Agent Search / Listings** application (`public/crm/index.html` → generated `index-built.html`, entry `/crm/search`), not to the Brokerage CRM (`public/crm/dashboard.html` + `js/dashboard/**`, served at `/crm`). See `CLAUDE.md` §A.0 and Master Plan §5.1.
+
 ## 1. DEFECTS
 
 ### A. The six sticky-nav destinations

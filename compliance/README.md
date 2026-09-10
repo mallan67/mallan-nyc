@@ -25,6 +25,10 @@ The former "FIELD AUTHORITY ORDER … RLS overrides RESO/IDX … RESO/IDX fills 
 
 ---
 
+> **Read `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` FIRST.** That index is the per-area canonical map — 18 numbered areas, each with canonical file · backup · validator · when-to-read · fail-closed instruction — and it is what `CLAUDE.md` §D sends you to. This README is the directory of the long-form reference documents in `compliance/`. When the two disagree, **the canonical index wins**.
+>
+> **Application architecture is not decided here.** For what the applications are and where a feature belongs, the authority is `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md`.
+
 ## Directory
 
 | File | Purpose | Audience |
@@ -42,6 +46,10 @@ The former "FIELD AUTHORITY ORDER … RLS overrides RESO/IDX … RESO/IDX fills 
 | [`THIRD-PARTY-AND-FEED-GOVERNANCE.md`](THIRD-PARTY-AND-FEED-GOVERNANCE.md) | Trestle/Cotality API, StreetEasy, syndication portals, data license rules | Backend, Ops |
 | [`UPDATES.md`](UPDATES.md) | Running changelog — REBNY, RESO, Cotality, FARE Act updates with dates | All |
 | [`AUTH-AND-API-SECURITY.md`](AUTH-AND-API-SECURITY.md) | Sprint 9 auth architecture — dual auth (Bearer + cookie), CORS, rate limiting, session management, cross-origin security | Backend, Security |
+| [`DATA-LIFECYCLE-POLICY.md`](DATA-LIFECYCLE-POLICY.md) | Retention schedule + cron enforcement — **superseded on audit-event and media retention by `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` §14/§15** | Backend, Ops |
+| [`VALIDATOR-FRAMEWORK.md`](VALIDATOR-FRAMEWORK.md) | Validator truth framework — Layer 1/2 + release-truth aggregator; how to migrate a UCBA rule and add a workflow | Developers |
+| [`pii-and-distribution-checklist.md`](pii-and-distribution-checklist.md) | PII + 6-gate pre-commit checklist | Developers |
+| [`REACT-PATTERNS-AUDIT-2026-04-27.md`](REACT-PATTERNS-AUDIT-2026-04-27.md) | Dated audit record (2026-04-27) — history, not direction | Developers |
 
 ## Machine-Readable Enforcement
 

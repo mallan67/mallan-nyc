@@ -1,3 +1,25 @@
+> **SUPERSEDED — dated header added 2026-09-10. Retained as a field shopping-list reference. This is not a live plan; do not implement from it.**
+>
+> Authority order: `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` →
+> `MALLAN-CONTINUOUS-EXECUTION-STATE.md` → `AGENTS.md` · `CLAUDE.md`. This file is none of those, and its
+> closing line "This is the production specification. When implementing:" must not be read as direction.
+>
+> **Why.**
+> 1. PART 1–3 and PART 5 duplicate `MALLAN-NYC-CRM-PROJECT.md` "NOT YET IMPLEMENTED" almost
+>    field-for-field. Two root documents specifying one unbuilt feature set is the drift this header exists
+>    to stop.
+> 2. The "CRM" of the title is the **Backend Agent Search / Listings** application
+>    (`public/crm/index.html` → `index-built.html`, served at **`/crm/search`**), not the Brokerage CRM at
+>    `/crm`. See `AGENTS.md` §1.0.
+> 3. "PRIORITY 3: LISTING MANAGEMENT DASHBOARD / My Listings Panel" would recreate the duplicate
+>    My Listings deleted in `da8e3046`, which `AGENTS.md` §1.0 forbids resurrecting.
+> 4. **PART 4 (LISTING UPLOAD & SYNDICATION) is on HOLD.** Syndication exports and partner integrations
+>    require explicit Maya approval (`CLAUDE.md` §C); `MALLAN_OFFICE_MLS_IDS=[]` blocks every row today,
+>    and REBNY RLS submission happens outside this system.
+> 5. The field inventories in PART 1 and PART 6 are hand-written. The **only** field / enum / permission
+>    authority is the live Cotality contract (`lib/cotality/generated/contract.ts`,
+>    `data/cotality-contract/**`), refreshed with `npm run cotality:authority -- refresh`.
+
 # MALLAN NYC CRM Enhancement Specification
 ## Comprehensive Search, Results Management & Syndication
 

@@ -1,5 +1,28 @@
 > **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/operations/evidence-2026-09-08/provider-system/REMOVAL-2026-09-08.md`.
 
+> **PARTIALLY SUPERSEDED — dated header added 2026-09-10. Do not delete: Section 0 is corroborating evidence for the current architecture. Do not treat the rest as a live work queue.**
+>
+> Authority order: `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` →
+> `MALLAN-CONTINUOUS-EXECUTION-STATE.md` → `AGENTS.md` · `CLAUDE.md`. This file's "READ THIS FIRST BEFORE
+> TOUCHING ANY FILE" banner is from 2026-02-23 and does not outrank them.
+>
+> **What still holds.** Section 0's roles agree with the architecture proven in `928f31c4`:
+> `dashboard.html` is the CRM HUB and `index-built.html` is the IDX SEARCH surface the CRM *opens*.
+> This file never claimed `index-built.html` was the CRM, and never claimed `dashboard.html` was retired.
+>
+> **What no longer holds.**
+> - `SALE-FORM-WITH-TOOLS.html` and `RENTAL-FORM-WITH-TOOLS.html` are not in the repository. Every item
+>   that converts, wires, masks or tests them (§3, PHASE F, PHASE T) is dead work against phantom files.
+> - The "8 CRM Files" framing predates the three-application model. Backend Agent Search / Listings
+>   (`index.html` → `index-built.html`, `/crm/search`) is a **separate application**, not a CRM file, and
+>   **Consumer Search** (`app/search/page.tsx`, `/search` `/buy` `/rent`) is missing here entirely.
+>   The current statement of all three is `AGENTS.md` §1.0.
+> - Header facts have expired: the Trestle "hard deadline March 31, 2026" has passed, the 225-finding
+>   count was last reconciled 2026-02-23, and the phase/gate checkboxes have not been maintained since
+>   2026-03-13.
+>
+> Before starting any task from this file, confirm it against the Master Plan and `AGENTS.md` §1.0.
+
 # Master Project Tree v3.3 — Mallan Real Estate Inc.
 
 > **Project:** Mallan Real Estate Inc. | **License:** #10991205323

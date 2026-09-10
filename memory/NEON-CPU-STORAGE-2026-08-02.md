@@ -4,9 +4,15 @@ Canonical record of what was done, how, and what is deliberately NOT done.
 Companion measurement artifact:
 `docs/operations/neon-cpu-storage-evidence-2026-08-02.md`.
 
-**Status: draft, unmerged. Production CPU and storage are UNCHANGED until
-this merges, deploys, the nightly cleanup runs, and post-deployment
-measurement proves the effect.**
+**Status: MERGED — PR #593 landed as `aafdd4c9`, and that merge commit is the one
+that added this file.** The wording it originally carried ("draft, unmerged —
+production CPU and storage are UNCHANGED until this merges") was already false at
+commit time and is retracted here rather than deleted, so the record of the mistake
+survives. The preflight + heartbeat code has been on `main` since that merge
+(verified 2026-09-10: `aafdd4c9` is an ancestor of `main`). §7 below lists the
+measurements that were still outstanding **as of 2026-08-02** — treat it as a dated
+to-verify list, not as evidence that nothing shipped, and not as proof that the
+effect has since been measured in production.
 
 ---
 
@@ -194,7 +200,7 @@ settles.
 
 ## 7. Post-deployment proof still required
 
-None of this is proven in production yet:
+As of 2026-08-02 none of the following had yet been measured in production. Re-measure before quoting any of it as current:
 
 - no-change polls reporting `neon_touched:false`
 - `freshness_heartbeat_due` appearing at the expected rate

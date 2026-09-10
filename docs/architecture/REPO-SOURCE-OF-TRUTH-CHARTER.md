@@ -2,9 +2,18 @@
 
 # Repo Source-of-Truth Charter
 
-**Version:** 1.0 · **Created:** 2026-05-01 · **Status:** ACTIVE — mandatory
+**Version:** 1.1 · **Created:** 2026-05-01 · **Amended:** 2026-09-10 · **Status:** ACTIVE — mandatory, and subordinate to the Master Plan
 
-This charter is the architecture rulebook for mallan-nyc. **Every AI/Codex/Claude session and every human contributor must read this before creating, renaming, moving, or editing files in any of the domains it covers** (Public Search, CRM Search, Featured/Exclusives, Neighborhoods, Media, IDX/Trestle).
+> **AUTHORITY ORDER (added 2026-09-10).** This charter governs **file placement and naming**. It is **not** the product/system authority.
+>
+> 1. `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` — the ONLY product/system authority.
+> 2. `MALLAN-CONTINUOUS-EXECUTION-STATE.md` — execution state.
+> 3. `AGENTS.md` / `CLAUDE.md` — agent operating instructions.
+> 4. This charter — canonical file paths and naming within the domains listed below.
+>
+> Where this charter and the Master Plan disagree about what the system **is**, the Master Plan wins and this charter is amended to match. The “OVERRIDES any older document” language in Section 1 rule 9 and Section 1A applies to **older** documents only — it has never applied to the Master Plan.
+
+This charter is the file-placement and naming rulebook for mallan-nyc; the architecture itself is defined by the Master Plan. **Every AI/Codex/Claude session and every human contributor must read this before creating, renaming, moving, or editing files in any of the domains it covers** (Consumer Search, Backend Agent Search / Listings, Brokerage CRM, Featured/Exclusives, Neighborhoods, Media, IDX/Trestle).
 
 The repo has accumulated multiple files with similar names. AI tools have repeatedly invented new files (`search-v2.ts`, `featured-new.tsx`, `location-stuff.json`, `crm-search-final.js`) instead of using the correct existing source files. The charter exists to make those mistakes detectable and refusable.
 
@@ -142,7 +151,8 @@ Use these exact terms in code, comments, commit messages, and documentation:
 | Canonical term | Use for |
 |---|---|
 | **Public Search** | The user-facing search at `/search` (public website, DB-backed) |
-| **CRM Search** | The agent-facing search at `/crm/search` (Trestle-live, auth-required) |
+| **Backend Agent Search / Listings** | The authenticated professional Search & Listings **application** at `/crm/search` (`public/crm/index.html` -> generated `public/crm/index-built.html`). Property search, My Listings, listing detail/workspace, professional saved searches, sale + rental editors, buildings intelligence, media, open houses, compare/CMA, listing reports and distribution, listing tools and calculators. **Formerly called “CRM Search” — do not use that term.** It is not a CRM feature. |
+| **Brokerage CRM** | The broker/agent business **application** at `/crm` (compat `/crm/dashboard`) — `public/crm/dashboard.html` + `public/crm/js/dashboard/**`. Broker dashboard, agent roster, clients, leads, deals, commissions, referrals, finance, compliance, brokerage documents, tasks/communications, Agent My Business, administration. |
 | **Featured Properties** | Broker-curated merchandising shown on the public homepage |
 | **Exclusives** | Listings the broker has explicitly marked or pinned via the FeaturedConfig system |
 | **Neighborhoods** | NYC neighborhood data — names, slugs, ZIPs, boroughs |
@@ -205,13 +215,17 @@ These are NOT duplicates. They are layers of the same pipeline. **Do not consoli
 
 ---
 
-## Section 4 — CRM Search Source-of-Truth
+## Section 4 — Backend Agent Search / Listings Source-of-Truth
 
-The CRM search is a **separate** pipeline from public search. Different shell, different API, different mapper, different gates option.
+> **RENAMED 2026-09-10.** This section was titled “CRM Search Source-of-Truth” and described this application as the CRM’s search feature. That framing was wrong. Per the Master Plan, **Backend Agent Search / Listings is its own application** — the file map below was already correct, the ownership story around it was not.
+
+Backend Agent Search / Listings is a **separate application** from both Consumer Search and the Brokerage CRM: different shell, different API, different mapper, different gates.
+
+**Dependency rule (Master Plan — non-negotiable).** The dependency is **CRM -> Backend Agent Search / Listings, and NEVER the reverse.** Backend Agent Search MUST NOT require `public/crm/dashboard.html` or the CRM router to boot, render or execute. It must direct-load and run standalone at `/crm/search`. A CRM-shell failure must not make professional Search, My Listings, the Sale/Rental editors or any other Listing tool unavailable. URL namespace does not determine ownership: the `/crm/*` path is historical compatibility only.
 
 | Layer | Canonical file | Notes |
 |---|---|---|
-| CRM search URL | `/crm/search` | Vercel rewrite |
+| Backend Agent Search URL | `/crm/search` | Vercel rewrite. **`/crm` and `/crm/dashboard` are a different application** — the Brokerage CRM (`public/crm/dashboard.html` + `public/crm/js/dashboard/**`), defined in Section 2; this charter has no dedicated Brokerage CRM section of its own. |
 | URL rewrite | `vercel.json` line `{ "source": "/crm/search", "destination": "/crm/index-built.html" }` | Do not change without coordinating with build pipeline. |
 | **Runtime shell** (generated) | `public/crm/index-built.html` | **GENERATED. DO NOT HAND-EDIT.** |
 | Source shell template | `public/crm/index.html` | 180-line orchestrator with `@include` + `<script src=...>` directives |
