@@ -15,7 +15,8 @@
  *   5. the forms carry the current binding names only (data-cotality-field / data-mallan-field / data-mallan-ignore);
  *   6. the rule manifest and the agent instructions point at the live contract.
  */
-import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
+import { execFileSync } from 'child_process';
+import { existsSync, readFileSync, readdirSync } from 'fs';
 import { join, relative } from 'path';
 
 const ROOT = join(__dirname, '../..');
@@ -67,22 +68,38 @@ const GUARDS = new Set([
   'scripts/cotality/search-coverage-matrix.mjs',
 ]);
 
-const SCAN_ROOTS = ['lib', 'app', 'scripts', 'tests', 'mcp/trestle-fields', 'public/crm', 'compliance', 'data', '.claude/skills', '.claude/agents'];
+// ─── THE CORPUS IS THE REPOSITORY, NOT THIS DISK ────────────────────────────────────────────────
+//
+// This ratchet used to walk the filesystem, which quietly meant it scanned a DIFFERENT corpus on
+// every machine:
+//
+//   - `.claude/skills` and `.claude/agents` were in SCAN_ROOTS, but `.gitignore:155` ignores
+//     `.claude/*`. On a clean checkout those roots do not exist, and `walk()` returned `[]` for a
+//     missing root — so six instruction files vanished from the scan and the suite still reported
+//     green. The `files.length > 500` floor could not notice: 1,826 files on a checkout vs 1,832
+//     here, both far above the floor.
+//   - `scripts/` holds 316 scannable files locally but only 201 tracked; 115 untracked `scripts/__*`
+//     probes were scanned here and absent on CI, so LOCAL could fail where CI passed.
+//
+// A ratchet whose corpus silently empties is worse than no ratchet — it counts as coverage.
+// CLAUDE.md §A.0 says exactly this about validators that grep.
+//
+// So the corpus now comes from `git ls-files`. Local and CI scan byte-identical sets, an ignored
+// root visibly contributes zero rather than disappearing, and no local scratch file can change the
+// answer.
+const SCAN_ROOTS = ['lib', 'app', 'scripts', 'tests', 'mcp/trestle-fields', 'public/crm', 'compliance', 'data'];
 const SCAN_FILES = ['package.json', 'CLAUDE.md', 'AGENTS.md', 'README.md', 'vercel.json', 'jest.config.js', 'tsconfig.json'];
-const SKIP_DIRS = new Set(['node_modules', 'dist', '.next', 'coverage']);
 const SCAN_EXT = /\.(ts|tsx|js|mjs|cjs|json|md|html|yml|yaml|sh)$/;
 
-function walk(dir: string, out: string[] = []): string[] {
-  const abs = join(ROOT, dir);
-  if (!existsSync(abs)) return out;
-  for (const name of readdirSync(abs)) {
-    if (SKIP_DIRS.has(name)) continue;
-    const rel = `${dir}/${name}`;
-    const st = statSync(join(ROOT, rel));
-    if (st.isDirectory()) walk(rel, out);
-    else if (SCAN_EXT.test(name) && !/validator-results\.json$|rls-report\.html$/.test(name)) out.push(rel);
-  }
-  return out;
+/** Every TRACKED file under `dir`, as forward-slash paths relative to the repo root. */
+function walk(dir: string): string[] {
+  const listed = execFileSync('git', ['ls-files', '-z', '--', dir], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+    .split('\0')
+    .filter(Boolean);
+  // A tracked root that returns nothing means the root moved or was deleted. Fail loudly rather
+  // than shrink the corpus in silence — that silence is the defect this rewrite exists to remove.
+  if (listed.length === 0) throw new Error(`no tracked files under "${dir}" — the scan corpus is wrong, not empty`);
+  return listed.filter((rel) => SCAN_EXT.test(rel) && !/validator-results\.json$|rls-report\.html$/.test(rel));
 }
 
 describe('1. the removed provider reference files, generators and validators do not exist', () => {
@@ -176,11 +193,42 @@ describe('6. the rule manifest and the agent instructions point at the live cont
     expect(JSON.stringify(active)).not.toMatch(/RealPlus|lmp/);
     expect(active.formControlConfig.controlAliases).toBe('data/mallan-form-control-aliases.json');
   });
-  it('the REBNY skill names the live contract as the only field authority and no snapshot command', () => {
-    const skill = read('.claude/skills/rebny-compliance/SKILL.md');
-    expect(skill).toMatch(/COTALITY LIVE CONTRACT/);
-    expect(skill).toMatch(/npm run cotality:authority -- refresh/);
-    expect(skill).not.toMatch(/RLS TRUMPS ALL|RESO\/IDX fills gaps|get-metadata|rebny-field-tables|ALL_RLS_FIELDS|IDX_PLUS_SELECT_FIELDS/);
+  it('the canonical compliance index names the live contract as the only field authority and no snapshot command', () => {
+    // WAS: read('.claude/skills/rebny-compliance/SKILL.md').
+    //
+    // That file is ignored by `.gitignore:155` (`.claude/*`), so it exists on the author's machine
+    // and in NO checkout. The assertion therefore did not fail on CI — it ERRORED with ENOENT, and
+    // it errored on any clean checkout, Windows included. It was never a Linux problem; CI is just
+    // the only place that ever gets a clean checkout.
+    //
+    // The INVARIANT it protects is real and worth keeping: the instruction text that agents read as
+    // field authority must name the live Cotality contract, must name the refresh command, and must
+    // not still name the retired CSV/registry/snapshot system. So the assertion is RE-POINTED at the
+    // tracked canonical that already carries that statement verbatim, rather than skipped — a skip
+    // reads as coverage in the report.
+    //
+    // Owner instruction 2026-09-10: "Do not commit private/local .claude state merely to satisfy CI."
+    const idx = read('docs/compliance/COMPLIANCE-CANONICAL-INDEX.md');
+    expect(idx).toMatch(/COTALITY LIVE CONTRACT/);
+    expect(idx).toMatch(/npm run cotality:authority -- refresh/);
+    expect(idx).not.toMatch(/RLS TRUMPS ALL|RESO\/IDX fills gaps|get-metadata|rebny-field-tables|ALL_RLS_FIELDS|IDX_PLUS_SELECT_FIELDS/);
+  });
+
+  it('every file this suite reads is tracked, so the answer cannot depend on one machine', () => {
+    // The defect above was not "one wrong path" — it was a suite that treated a working tree as a
+    // repository. This pins the class, not the instance.
+    const readPaths = Array.from(read('tests/runtime/no-legacy-provider-system.test.ts')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '')
+      .matchAll(/\bread\('([^']+)'\)/g)).map((m) => m[1]);
+    expect(readPaths.length).toBeGreaterThan(5);
+    const untracked = readPaths.filter(
+      (p) => execFileSync('git', ['ls-files', '--', p], { cwd: ROOT, encoding: 'utf8' }).trim() === ''
+    );
+    expect({
+      untracked,
+      why: 'A guard that reads an untracked file passes or errors according to who ran it. It must read the repository.',
+    }).toEqual({ untracked: [], why: expect.any(String) });
   });
   it('CLAUDE.md §H points at the live contract, not a registry, CSV or snapshot', () => {
     const cc = read('CLAUDE.md');
