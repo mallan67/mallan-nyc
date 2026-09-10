@@ -6,8 +6,8 @@
 
 > **AUTHORITY ORDER (added 2026-09-10).** This charter governs **file placement and naming**. It is **not** the product/system authority.
 >
-> 1. `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` — the ONLY product/system authority.
-> 2. `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` — execution state (STATUS ONLY).
+> 1. `MALLAN-PLATFORM-MASTER-PLAN.md` (repo root, on PR #595 / `agent/publish-mallan-platform-master-plan-2026-08-04`) — the ONLY product/system authority.
+> 2. `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` (same lineage) — execution state (STATUS ONLY).
 > 3. `AGENTS.md` / `CLAUDE.md` — agent operating instructions.
 > 4. This charter — canonical file paths and naming within the domains listed below.
 >

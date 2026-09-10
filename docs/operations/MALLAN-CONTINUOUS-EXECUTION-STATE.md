@@ -1,3 +1,23 @@
+> # NON-AUTHORITATIVE LOCAL MIRROR — NOT RANK 2
+>
+> **The canonical execution state is the copy on the governance lineage:**
+> `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` on
+> **PR #595 / `agent/publish-mallan-platform-master-plan-2026-08-04`**, refreshed there in `f3d8279b`.
+>
+> This file is a mirror on an implementation branch. It is **not** rank 2, it must not be edited as a
+> second execution-state truth, and where it disagrees with the canonical copy the canonical copy wins.
+>
+> Why it says so out loud: I recovered this file onto the implementation branch on 2026-09-10 after
+> wrongly reporting it did not exist. Owner correction, same day: *"I would not preserve a second
+> authoritative Continuous Execution State on #630 ... we should not create two rank-2 truths that
+> will diverge."* That is the same defect this whole cleanup exists to remove — solving a duplicate
+> Master Plan problem by creating a duplicate execution-state problem.
+>
+> **Disposition pending.** The current-state facts it carried have been transferred to the canonical
+> copy. It is retained here, labelled, only until the owner decides whether it is deleted outright.
+
+---
+
 # MALLAN CONTINUOUS EXECUTION STATE
 
 > **STATUS ONLY.** This file does not define product/business/system architecture.

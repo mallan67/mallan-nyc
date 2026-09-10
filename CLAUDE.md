@@ -8,8 +8,8 @@
 >
 > | Rank | File | What it is authority for |
 > |---|---|---|
-> | 1 | `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` | **The ONLY product/system authority.** What the platform IS, which applications exist, what each owns. |
-> | 2 | `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` | Where execution currently stands. **STATUS ONLY** — it never defines architecture. |
+> | 1 | **`MALLAN-PLATFORM-MASTER-PLAN.md`** (repo root, on the canonical governance lineage: PR #595 / `agent/publish-mallan-platform-master-plan-2026-08-04`) | **The ONLY product/system authority.** What the platform IS, which applications exist, what each owns. |
+> | 2 | **`docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md`** (same canonical governance lineage) | Where execution currently stands. **STATUS ONLY** — it never defines architecture. |
 > | 3 | `AGENTS.md` · `CLAUDE.md` (this file) | **How agents work without violating 1 and 2.** Operating instructions and a mirror of critical invariants. |
 >
 > This file and `AGENTS.md` are **NOT** a competing product or system authority and must never
@@ -22,12 +22,18 @@
 > agent's instructions while another agent is still told the opposite is not a correction. **Both files
 > move together, always.**
 >
-> *(Correction, 2026-09-10 — this note previously said `MALLAN-CONTINUOUS-EXECUTION-STATE.md` "does not
-> currently exist anywhere in the repository or working tree" and was "Maya's document to create". **That
-> was wrong.** It had existed at `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` since 2026-08,
-> last updated 2026-09-08 (`14459f21`) on the PR #595 branch. It was never deleted — it simply never
-> reached `main`, so branches cut from `main` never had it. I had checked the working tree and the current
-> branch and never checked git history or other refs. It is **recovered**, not created: rank 2 is filled.)*
+> *(**Where these two files live, 2026-09-10.** Both rank-1 and rank-2 live on the canonical governance
+> lineage PR #595 / `agent/publish-mallan-platform-master-plan-2026-08-04`, not on this implementation branch. Neither is
+> expected to exist in this checkout, and nothing here should create a local copy of either — that is
+> how a second competing authority gets made. Read them on that branch.
+>
+> Two corrections are recorded here rather than erased. First: an earlier note claimed the execution
+> state "does not exist anywhere in the repository or working tree" and was Maya's to create. It
+> existed at `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` since 2026-08; I had checked only
+> the working tree and current branch, never git history or other refs. Second: rank 1 was pointed at
+> `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md`. That file is the
+> **integration/reconciliation working copy** — evidence and input, never authority. Owner ruling,
+> 2026-09-10: "The canonical Master Plan is the ROOT file on PR #595.")*
 >
 > **Cross-agent operating instructions → `AGENTS.md`.** Claude reads it (pointer here), **Codex reads it
 > natively** during PR review, and it is paste-ready for ChatGPT. Keep the two in sync — `AGENTS.md` is

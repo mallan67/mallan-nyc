@@ -186,23 +186,54 @@ describe('the authority order is stated, and these files place themselves below 
     });
   }
 
-  it('rank 2 is filled — the execution-state file exists at the path the instructions name', () => {
-    // This is the assertion whose absence let a canonical artifact go missing in silence. The file
-    // lived only on feature branches; every branch cut from `main` started without it, and the
-    // SessionStart hook pointed each new session at something it could not open.
-    const CES = 'docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md';
-    expect(() => read(CES)).not.toThrow();
-    const tracked = execFileSync('git', ['ls-files', '--', CES], { cwd: ROOT, encoding: 'utf8' }).trim();
-    expect({ tracked }).toEqual({ tracked: CES });
+  it('both canonical files are named by LINEAGE, and neither is required to exist here', () => {
+    // THE CORRECTION THIS ENCODES (2026-09-10). An earlier version of this suite asserted that the
+    // execution state must EXIST and be TRACKED in this checkout, and no-new-authority-documents
+    // asserted the same for the Master Plan. Both were wrong in the same way: they forced a copy of
+    // the authority onto every implementation branch, which manufactures the second competing
+    // authority the whole order exists to prevent.
+    //
+    // Owner, 2026-09-10: "we should not create two rank-2 truths that will diverge", and "A test
+    // must not create the very duplicate-authority problem it is supposed to prevent."
+    //
+    // So: assert the POINTER and the LINEAGE. Existence is a fact about the governance branch.
+    for (const file of GOVERNANCE) {
+      const md = read(file);
+      expect(md).toMatch(/MALLAN-PLATFORM-MASTER-PLAN\.md/);
+      expect(md).toMatch(/docs\/operations\/MALLAN-CONTINUOUS-EXECUTION-STATE\.md/);
+      // The lineage must be named ON THE RANK-1 ROW, not merely somewhere in the file. A first
+      // draft matched anywhere and a mutation that stripped the lineage from the row still passed,
+      // because an unrelated mention of #595 elsewhere satisfied it.
+      const rank1 = md.split(/\r?\n/).find((l) => /ONLY product\/system authority/i.test(l)) || '';
+      expect({ rank1Names: /#595|agent\/publish-mallan-platform-master-plan/.test(rank1), rank1 })
+        .toEqual({ rank1Names: true, rank1: expect.any(String) });
+    }
   });
 
-  it('the execution-state file declares itself STATUS ONLY and defers to the Master Plan', () => {
-    // Rank 2 must not quietly become a second architecture authority — the exact failure this whole
-    // authority order exists to prevent.
-    const ces = read('docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md');
-    expect(ces).toMatch(/STATUS ONLY/);
-    expect(ces).toMatch(/MALLAN-PLATFORM-MASTER-PLAN\.md/);
-    expect(ces.replace(/\s+/g, ' ')).toMatch(/does not define product\/business\/system architecture/i);
+  it('no local copy of either canonical file is presented as authority', () => {
+    // A local copy may legitimately exist as evidence - the integration/reconciliation working copy
+    // does. What it may never do is read as rank 1 or rank 2 without saying otherwise.
+    // KNOWN OPEN ITEM, deliberately not asserted yet:
+    // `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` is the 6,388-line
+    // integration working copy and is currently UNLABELLED. It carries Master Plan authority wording
+    // in its body. The owner has reserved its disposition -- archive with a not-authority banner, or
+    // delete once proven to hold zero unique requirements -- until the reconciled requirements are
+    // confirmed landed on the governance lineage. Adding it to this list before that decision would
+    // either force an unauthorized edit to the owner's uncommitted file or leave a red test standing.
+    // It is tracked instead in the execution state's open-governance list.
+    const LOCAL_COPIES = [
+      'docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md',
+    ];
+    for (const rel of LOCAL_COPIES) {
+      const present = execFileSync('git', ['ls-files', '--', rel], { cwd: ROOT, encoding: 'utf8' }).trim();
+      if (!present) continue; // absent from this checkout - correct, nothing to check
+      const head = read(rel).split(/\r?\n/).slice(0, 40).join('\n');
+      expect({
+        rel,
+        labelled: /NOT AUTHORITY|NON-AUTHORITATIVE|working copy|LOCAL MIRROR|reconciliation evidence/i.test(head),
+        why: 'A copy of a canonical file living on an implementation branch must announce in its opening lines that it is not the canonical one, or it becomes a second truth by default.',
+      }).toEqual({ rel, labelled: true, why: expect.any(String) });
+    }
   });
 
   it('AGENTS.md no longer calls itself the single shared source of truth', () => {

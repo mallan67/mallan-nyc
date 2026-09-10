@@ -57,8 +57,18 @@ const tracked = (pattern: string) =>
     .map((s) => s.trim())
     .filter(Boolean);
 
-/** The rank-1 product/system authority. The ONLY file permitted to call itself that. */
-const MASTER_PLAN = 'docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md';
+/**
+ * The rank-1 product/system authority is `MALLAN-PLATFORM-MASTER-PLAN.md` at repo ROOT on the
+ * canonical governance lineage (PR #595 / agent/publish-mallan-platform-master-plan-2026-08-04).
+ * It is deliberately NOT expected to exist on an implementation branch: requiring that would
+ * duplicate the authority onto every branch, which is the failure this suite exists to prevent.
+ *
+ * The path below is the integration/reconciliation WORKING COPY that happens to live in this
+ * checkout. It is evidence, never authority. It is named here only so the self-declaration scan can
+ * exempt the one file whose body legitimately carries Master Plan wording.
+ */
+const MASTER_PLAN_FILENAME = 'MALLAN-PLATFORM-MASTER-PLAN.md';
+const INTEGRATION_WORKING_COPY = 'docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md';
 
 /**
  * Every root-level markdown file, and what it is. Adding a file to the repository root without
@@ -131,7 +141,7 @@ describe('only the Master Plan is the product/system authority', () => {
 
   it('no document except the Master Plan declares itself the source of truth', () => {
     const offenders = candidates
-      .filter((f) => f !== MASTER_PLAN)
+      .filter((f) => f !== INTEGRATION_WORKING_COPY)
       .map((f) => ({ f, hit: CLAIMS_AUTHORITY.find((re) => re.test(opening(read(f)))) }))
       .filter((x) => x.hit)
       .map((x) => `${x.f}  ~  ${String(x.hit)}`);
@@ -149,11 +159,15 @@ describe('only the Master Plan is the product/system authority', () => {
     expect({ offenders }).toEqual({ offenders: [] });
   });
 
-  it('the Master Plan is tracked, and both instruction files name it as rank 1', () => {
-    expect(tracked(MASTER_PLAN)).toEqual([MASTER_PLAN]);
+  it('both instruction files name the Master Plan and its lineage as rank 1', () => {
+    // NOT a path-existence check. The canonical Master lives on the governance lineage; demanding a
+    // local copy is how the duplicate-authority problem gets recreated by the guard meant to stop it.
     for (const f of ['CLAUDE.md', 'AGENTS.md']) {
-      expect(read(f)).toMatch(/MALLAN-PLATFORM-MASTER-PLAN\.md/);
+      expect(read(f)).toContain(MASTER_PLAN_FILENAME);
       expect(read(f)).toMatch(/ONLY product\/system authority/i);
+      const rank1 = read(f).split(/\r?\n/).find((l) => /ONLY product\/system authority/i.test(l)) || '';
+      expect({ f, lineageOnRank1Row: /#595|agent\/publish-mallan-platform-master-plan/.test(rank1) })
+        .toEqual({ f, lineageOnRank1Row: true });
     }
   });
 });
