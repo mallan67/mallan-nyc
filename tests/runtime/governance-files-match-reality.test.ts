@@ -210,6 +210,24 @@ describe('the authority order is stated, and these files place themselves below 
     }
   });
 
+  it('the canonical execution state is NOT duplicated onto this implementation branch', () => {
+    // THE INVARIANT, stated positively rather than merely permitted:
+    //   the canonical execution state lives on the governance lineage (PR #595);
+    //   implementation branches POINT to it;
+    //   a local mirror is not required, and must not be created.
+    //
+    // This assertion exists because I created exactly that mirror on 2026-09-10 - recovering the
+    // file onto this branch after wrongly reporting it did not exist anywhere. Owner: "we should not
+    // create two rank-2 truths that will diverge." A guard that merely tolerates a local copy would
+    // let the next session recreate it in good faith, as I did.
+    const CES = 'docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md';
+    const localCopy = execFileSync('git', ['ls-files', '--', CES], { cwd: ROOT, encoding: 'utf8' }).trim();
+    expect({
+      localCopy,
+      why: 'The canonical execution state belongs to PR #595 / agent/publish-mallan-platform-master-plan-2026-08-04. CLAUDE.md and AGENTS.md point at it there. A tracked copy on an implementation branch is a second rank-2 truth that will drift.',
+    }).toEqual({ localCopy: '', why: expect.any(String) });
+  });
+
   it('no local copy of either canonical file is presented as authority', () => {
     // A local copy may legitimately exist as evidence - the integration/reconciliation working copy
     // does. What it may never do is read as rank 1 or rank 2 without saying otherwise.
