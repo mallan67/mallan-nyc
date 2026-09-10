@@ -1,5 +1,7 @@
 > **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/operations/evidence-2026-09-08/provider-system/REMOVAL-2026-09-08.md`.
 
+> **ARCHITECTURE NOTE (2026-09-10) — UI placement in this spec predates the three-application split.** This spec was written 2026-04-30, when "the CRM" meant one agent application. It does not any more. Mallan has three applications (Master Plan §5.1, mirrored in `CLAUDE.md` §A.0, commit `928f31c4`): the **Brokerage CRM** (`public/crm/dashboard.html` + `public/crm/js/dashboard/**`, served at `/crm`); the **Backend Agent Search / Listings** application (`public/crm/index.html` → generated `index-built.html`, served at `/crm/search`), which owns property search, My Listings, listing detail/workspace and the sale + rental editors; and **Consumer Search** (`app/search/page.tsx`). Every "CRM UI" row below that adds, lists, edits, opens or searches *listing inventory* is a **Backend Agent Search / Listings** surface, not a `js/dashboard/**` panel. The dependency direction is fixed: CRM → Backend Search, never the reverse. Re-decide the exact file placement against Master Plan §5.1 before any implementation; the compliance rules, the never-public firewall and the data model below are unaffected. This note corrects the spec's architecture framing only — external-inventory implementation remains **HELD** pending Maya's explicit approval (`CLAUDE.md` §C; `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`).
+
 # External (Non-RLS) Inventory Listings — Design Spec
 
 > **Status:** DRAFT (parked until after PR 4 closes)
@@ -57,8 +59,8 @@ This spec scopes Phase 1 in detail. Phases 2 and 3 are noted with their gating c
 | Capability | Surface |
 |---|---|
 | New `external_inventory_listings` table (and `external_inventory_client_shares` join) | DB schema |
-| CRM "Add Off-Market" form for agent manual entry | `app/api/crm/external-inventory/route.ts` (POST) + CRM UI |
-| CRM list view, detail view, edit, soft-delete | `app/api/crm/external-inventory/[id]/route.ts` + CRM UI |
+| Off-market "Add" form for agent manual entry | `app/api/crm/external-inventory/route.ts` (POST) + Backend Agent Search / Listings UI (`/crm/search`) |
+| Off-market list view, detail view, edit, soft-delete | `app/api/crm/external-inventory/[id]/route.ts` + Backend Agent Search / Listings UI (`/crm/search`) |
 | CRM IDX search toggle: "Include non-RLS inventory" (default OFF) | `app/api/idx/search/route.ts` extended union read |
 | Owner PII reveal flow with audit + agent attestation | `app/api/crm/external-inventory/[id]/owner-contact/route.ts` |
 | Per-client share (1-of-1 invite) | `app/api/crm/external-inventory/[id]/share/route.ts` (POST) |
@@ -375,7 +377,7 @@ On save:
 
 ### 7.2 CRM IDX search toggle
 
-`/api/idx/search` and the dashboard search UI gain a single new boolean parameter: `include_external_inventory` (default **false**).
+`/api/idx/search` and the Backend Agent Search UI (`/crm/search`) gain a single new boolean parameter: `include_external_inventory` (default **false**).
 
 When true, the response unions:
 - Trestle/RLS results (existing logic, unchanged)
@@ -561,7 +563,7 @@ Files this spec proposes to add or touch — **for the Phase 1 implementation PR
 | `app/api/portal/external-inventory/route.ts` | GET (client-portal list of shared) |
 | `app/api/portal/external-inventory/[id]/route.ts` | GET (client-portal detail of shared) |
 | `app/api/portal/external-inventory/[id]/react/route.ts` | POST (client reaction) |
-| `public/crm/js/dashboard/panels/external-inventory.js` | CRM UI |
+| Backend Agent Search / Listings inventory surface — exact file assigned under Master Plan §5.1 at implementation time; **NOT** `public/crm/js/dashboard/panels/**` | Agent inventory UI |
 | `app/portal/buyer/external-inventory/page.tsx` (and tenant/seller/landlord variants) | Portal UI |
 
 ### 10.2 Modified files

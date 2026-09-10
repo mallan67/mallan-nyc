@@ -1,5 +1,11 @@
 > **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/operations/evidence-2026-09-08/provider-system/REMOVAL-2026-09-08.md`.
 
+> **SUPERSEDED AS PLAN-OF-RECORD (2026-09-10) — retained as the record of the A1–A17 batch track.** Product and sequencing authority for search, listings and agent workflow is `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` (rank 1 in the authority order in `CLAUDE.md` / `AGENTS.md`), whose §5.1 separates Frontend Consumer Search from Backend Agent Search. The closing instruction below — "Next session should review §8 phase order and authorize the next batch" — is spent; do not open a batch from this document.
+>
+> **Naming, for anyone reading the body:** Mallan has three applications (Master Plan §5.1, mirrored in `CLAUDE.md` §A.0, commit `928f31c4`) — Brokerage CRM (`public/crm/dashboard.html` + `js/dashboard/**`, `/crm`); Backend Agent Search / Listings (`public/crm/index.html` → generated `index-built.html`, `/crm/search`); Consumer Search (`app/search/page.tsx`). Everywhere this 2026-05-04 document says "the CRM" about search, results, detail, refine or saved searches, it means the **Backend Agent Search / Listings** application. Its canonical file list in §10 remains accurate. The Quick Search Option A/B/C decision at §4a is superseded by the Master Plan's Search sections — do not re-open it from here.
+>
+> Still useful as evidence: the landed-patch chronology, the test catalog, and the decision log.
+
 # CRM / Search / Agent Workflow Rebuild — Design Doc
 
 **Date:** 2026-05-04
