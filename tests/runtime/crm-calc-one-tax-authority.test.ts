@@ -96,6 +96,45 @@ describe('the report calculators and the core agree on every band', () => {
   });
 });
 
+describe('the retired calculator modules cannot come back', () => {
+  const { existsSync, readdirSync } = require('fs');
+
+  it('js/dashboard/panels/tools is gone', () => {
+    expect(existsSync(resolve(ROOT, 'public/crm/js/dashboard/panels/tools'))).toBe(false);
+  });
+
+  it('no shipped file outside js/calc defines a calculator module', () => {
+    // The twelve retired modules each declared a `XxxCalc` singleton that owned its own arithmetic
+    // and read its own DOM ids. That shape is what allowed twelve copies of the same maths to drift
+    // apart. Calculations live in js/calc/** as pure functions; a UI consumes them.
+    const offenders: string[] = [];
+    const CRM = resolve(ROOT, 'public/crm');
+    const DECLARES_CALC = /\bvar\s+[A-Za-z0-9_]*Calc\s*=\s*\(function/;
+    const walk = (dir: string, rel: string) => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const childRel = rel ? `${rel}/${e.name}` : e.name;
+        if (e.isDirectory()) { walk(`${dir}/${e.name}`, childRel); continue; }
+        if (!e.name.endsWith('.js')) continue;
+        if (childRel.startsWith('js/calc/')) continue;      // the one home
+        if (childRel === 'index-built.html') continue;
+        if (DECLARES_CALC.test(readFileSync(`${dir}/${e.name}`, 'utf8'))) offenders.push(childRel);
+      }
+    };
+    walk(CRM, '');
+    expect({
+      offenders,
+      why: 'Calculations belong in js/calc/** as pure functions returning the shared contract, consumed by CrmCalcUI. A XxxCalc singleton that owns arithmetic and DOM ids is the shape that produced twelve drifting copies.',
+    }).toEqual({ offenders: [], why: expect.any(String) });
+  });
+
+  it('nothing loads a tools module script', () => {
+    const dash = read('public/crm/dashboard.html');
+    const index = read('public/crm/index.html');
+    expect(dash).not.toMatch(/panels\/tools\/[a-z0-9-]+\.js/);
+    expect(index).not.toMatch(/panels\/tools\/[a-z0-9-]+\.js/);
+  });
+});
+
 describe('there is no second tax table anywhere in the shipped CRM', () => {
   /** Every shipped source that hardcodes a New York transaction-tax rate. */
   const offenders = (() => {

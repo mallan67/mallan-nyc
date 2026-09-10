@@ -325,7 +325,7 @@ var CrmCalcUI = (function () {
         _pick(out, 'propertyValue', client.estimated_value != null ? client.estimated_value : client.list_price);
         _pick(out, 'mortgagePayoff', client.mortgage_balance);
         _pick(out, 'mortgageBalance', client.mortgage_balance);
-        _pick(out, 'monthlyRent', client.monthly_rent);
+        _pick(out, 'monthlyRent', client.monthly_rent != null ? client.monthly_rent : client.rent_per_month);
         _pick(out, 'annualExpenses', client.annual_operating_expenses);
         _pick(out, 'operatingExpenses', client.annual_operating_expenses);
 
@@ -341,6 +341,12 @@ var CrmCalcUI = (function () {
         var type = String(client.client_type || '').toLowerCase();
         var stage = String(client.stage || '').toLowerCase();
         var keys = ['net-proceeds', 'seller-closing-costs', 'equity', 'carrying-cost', 'break-even-price'];
+
+        // A landlord or tenant is a RENTAL relationship: the sale-side net sheet and break-even are
+        // not the conversation. Give them the rental economics set instead of appending to it.
+        if (type === 'landlord' || type === 'tenant') {
+            return ['vacancy-cost', 'rental-yield', 'cap-rate', 'carrying-cost'].filter(function (k) { return !!REGISTRY[k]; });
+        }
 
         if (type === 'buyer' || stage === 'exclusive' || stage === 'listed') keys.push('buyer-closing-costs');
         if (type === 'investor') keys = keys.concat(['cap-rate', 'cash-on-cash', 'roi', 'rental-yield', 'exchange-1031']);

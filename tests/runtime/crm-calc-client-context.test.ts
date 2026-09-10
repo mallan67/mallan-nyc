@@ -157,6 +157,41 @@ describe('mounting for a client renders a working calculator with the client alr
   });
 });
 
+/** A landlord client as the Rentals CRM stores one. */
+const LANDLORD = {
+  id: 'L-55', client_type: 'landlord',
+  rent_per_month: 6_400, estimated_value: 1_900_000, annual_operating_expenses: 32_000,
+  property_type: 'condo',
+};
+
+describe('landlord clients get the rental set, prefilled from the rental record', () => {
+  const t = boot();
+  const forClient = (c: unknown) => JSON.parse(t.win.eval(`JSON.stringify(CrmCalcUI.calculatorsForClient(${JSON.stringify(c)}))`));
+
+  it('offers vacancy cost, rental yield and cap rate', () => {
+    expect(forClient(LANDLORD)).toEqual(expect.arrayContaining(['vacancy-cost', 'rental-yield', 'cap-rate']));
+  });
+
+  it('does NOT offer buyer closing costs to a landlord', () => {
+    expect(forClient(LANDLORD)).not.toContain('buyer-closing-costs');
+  });
+
+  it('rent_per_month becomes the monthly rent — the Rentals CRM field name, mapped', () => {
+    const i = JSON.parse(t.win.eval(`JSON.stringify(CrmCalcUI.inputsFromClient(${JSON.stringify(LANDLORD)}))`));
+    expect(i.monthlyRent).toBe(6_400);
+    expect(i.propertyValue).toBe(1_900_000);
+    expect(i.operatingExpenses).toBe(32_000);
+  });
+
+  it('mounting for a landlord prefills the rent', () => {
+    const t2 = boot();
+    t2.win.eval(`CrmCalcUI.mountForClient(document.getElementById('host'), ${JSON.stringify(LANDLORD)}, 'rental-yield')`);
+    const rent = t2.win.document.querySelector('[data-calc-field="monthlyRent"]') as any;
+    expect(rent.value).toBe('6400');
+    t2.close();
+  });
+});
+
 describe('PARITY — the client path and the tools path are the same calculation', () => {
   it('a seller net sheet is identical whether reached from the client or from /tools', () => {
     const t = boot();

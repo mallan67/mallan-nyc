@@ -870,42 +870,27 @@ var RentalsCRM = (function () {
     });
   }
 
-  // ── TOOLS ─────────────────────────────────────────────────────────────
+  // ── TOOLS ─────────────────────────────────────────────────────────────  // ── TOOLS — through the ONE calculation core ────────────────────────────────────────────────
+  //
+  // This used to render VacancyCostCalc / RentalYieldCalc / CapRateCalc into three #rcalc-<id> divs,
+  // each with its own arithmetic and its own DOM ids. Those three modules were the last consumers of
+  // js/dashboard/panels/tools/**; with this they have none and are deleted.
+  //
+  // The rental prefill is preserved: cl.rent_per_month maps to monthlyRent through
+  // CrmCalcUI.inputsFromClient, and stays an editable assumption rather than a hidden fact.
   function _lwsTools(el, cl) {
-    var h = '<div class="space-y-4">';
-    h += '<div class="flex flex-wrap gap-2 mb-4">';
-    var calcs = [
-      { id: 'vacancy', label: 'Vacancy Cost', icon: 'fa-door-open' },
-      { id: 'rental-yield', label: 'Rental Yield', icon: 'fa-percentage' },
-      { id: 'cap-rate', label: 'Cap Rate', icon: 'fa-chart-line' },
-    ];
-    calcs.forEach(function (c, i) {
-      h += '<button onclick="RentalsCRM._showCalc(\'' + c.id + '\')" id="rcalc-btn-' + c.id + '" ' +
-        'class="flex items-center gap-1.5 px-3 py-2 border rounded-lg text-xs font-semibold ' +
-        (i === 0 ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400') + '">' +
-        '<i class="fas ' + c.icon + '"></i> ' + E(c.label) + '</button>';
-    });
-    h += '</div>';
-    h += '<div id="rcalc-area">';
-    h += '<div id="rcalc-vacancy" class="bg-white border rounded-xl p-5">' + (typeof VacancyCostCalc !== 'undefined' ? VacancyCostCalc.render({ monthly_rent: Number(cl.rent_per_month || 0) }) : '') + '</div>';
-    h += '<div id="rcalc-rental-yield" class="bg-white border rounded-xl p-5" style="display:none;">' + (typeof RentalYieldCalc !== 'undefined' ? RentalYieldCalc.render() : '') + '</div>';
-    h += '<div id="rcalc-cap-rate" class="bg-white border rounded-xl p-5" style="display:none;">' + (typeof CapRateCalc !== 'undefined' ? CapRateCalc.render() : '') + '</div>';
-    h += '</div></div>';
-    el.innerHTML = h;
+    if (typeof CrmCalcUI === 'undefined' || !CrmCalcUI.mountForClient) {
+      el.innerHTML = '<div class="text-xs text-red-500">Calculation core not loaded.</div>';
+      return;
+    }
+    el.innerHTML = '<div class="text-xs text-gray-500 mb-2">Pre-filled from this landlord where the CRM holds the figures. Every value is an assumption you can change.</div><div data-rentals-calc-host></div>';
+    CrmCalcUI.mountForClient(el.querySelector('[data-rentals-calc-host]'), cl);
   }
 
   function _showCalc(id) {
-    document.querySelectorAll('[id^="rcalc-"]:not([id^="rcalc-btn"]):not([id="rcalc-area"])').forEach(function (el) { el.style.display = 'none'; });
-    var t = document.getElementById('rcalc-' + id);
-    if (t) t.style.display = 'block';
-    document.querySelectorAll('[id^="rcalc-btn-"]').forEach(function (b) {
-      b.classList.remove('bg-gray-900', 'text-white', 'border-gray-900');
-      b.classList.add('bg-white', 'text-gray-600', 'border-gray-200');
-    });
-    var ab = document.getElementById('rcalc-btn-' + id);
-    if (ab) { ab.classList.add('bg-gray-900', 'text-white', 'border-gray-900'); ab.classList.remove('bg-white', 'text-gray-600', 'border-gray-200'); }
+    // Thin shim: existing callers still address calculators by id.
+    if (typeof CrmCalcUI !== 'undefined' && CrmCalcUI.showForClient) CrmCalcUI.showForClient(id);
   }
-
   // ── ACTIVITY ──────────────────────────────────────────────────────────
   function _lwsActivity(el, cl) {
     var events = _s.ws.activity || [];
