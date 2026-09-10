@@ -33,6 +33,7 @@
  * POSITIVE ones that quoted history cannot satisfy.
  */
 export {};
+import { execFileSync } from 'child_process';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -170,8 +171,13 @@ describe('the authority order is stated, and these files place themselves below 
       expect(md).toMatch(/ONLY product\/system authority/i);
     });
 
-    it(`${file}: names the execution-state tracker in second place`, () => {
-      expect(md).toMatch(/MALLAN-CONTINUOUS-EXECUTION-STATE\.md/);
+    it(`${file}: names the execution-state tracker in second place, BY ITS REAL PATH`, () => {
+      // The path matters. On 2026-09-10 both files named the file without its directory and asserted
+      // it "does not exist ... Maya's document to create". It did exist, at docs/operations/, since
+      // 2026-08 — it had simply never reached `main`, so branches cut from `main` never had it. A
+      // bare filename is what let that go unnoticed: nothing could be checked against the filesystem.
+      expect(md).toMatch(/docs\/operations\/MALLAN-CONTINUOUS-EXECUTION-STATE\.md/);
+      expect(md).not.toMatch(/execution-state[^\n]{0,80}does not exist/i);
     });
 
     it(`${file}: declares itself operating instructions, not a competing authority`, () => {
@@ -179,6 +185,25 @@ describe('the authority order is stated, and these files place themselves below 
       expect(md).toMatch(/Master Plan wins/i);
     });
   }
+
+  it('rank 2 is filled — the execution-state file exists at the path the instructions name', () => {
+    // This is the assertion whose absence let a canonical artifact go missing in silence. The file
+    // lived only on feature branches; every branch cut from `main` started without it, and the
+    // SessionStart hook pointed each new session at something it could not open.
+    const CES = 'docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md';
+    expect(() => read(CES)).not.toThrow();
+    const tracked = execFileSync('git', ['ls-files', '--', CES], { cwd: ROOT, encoding: 'utf8' }).trim();
+    expect({ tracked }).toEqual({ tracked: CES });
+  });
+
+  it('the execution-state file declares itself STATUS ONLY and defers to the Master Plan', () => {
+    // Rank 2 must not quietly become a second architecture authority — the exact failure this whole
+    // authority order exists to prevent.
+    const ces = read('docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md');
+    expect(ces).toMatch(/STATUS ONLY/);
+    expect(ces).toMatch(/MALLAN-PLATFORM-MASTER-PLAN\.md/);
+    expect(ces.replace(/\s+/g, ' ')).toMatch(/does not define product\/business\/system architecture/i);
+  });
 
   it('AGENTS.md no longer calls itself the single shared source of truth', () => {
     // It is what Codex reads. Left as "single source of truth" it outranks the Master Plan in the

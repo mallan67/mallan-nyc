@@ -9,7 +9,7 @@
 > | Rank | File | What it is authority for |
 > |---|---|---|
 > | 1 | `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` | **The ONLY product/system authority.** What the platform IS, which applications exist, what each owns. |
-> | 2 | `MALLAN-CONTINUOUS-EXECUTION-STATE.md` | Where execution currently stands, when present and current. |
+> | 2 | `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` | Where execution currently stands. **STATUS ONLY** — it never defines architecture. |
 > | 3 | `AGENTS.md` · `CLAUDE.md` (this file) | **How agents work without violating 1 and 2.** Operating instructions and a mirror of critical invariants. |
 >
 > This file and `AGENTS.md` are **NOT** a competing product or system authority and must never
@@ -22,9 +22,12 @@
 > agent's instructions while another agent is still told the opposite is not a correction. **Both files
 > move together, always.**
 >
-> *(Status note, 2026-09-10: `MALLAN-CONTINUOUS-EXECUTION-STATE.md` does not currently exist anywhere in
-> the repository or working tree, although the session-start hook names it. Rank 2 is therefore vacant.
-> Do not invent a replacement — that is Maya's document to create.)*
+> *(Correction, 2026-09-10 — this note previously said `MALLAN-CONTINUOUS-EXECUTION-STATE.md` "does not
+> currently exist anywhere in the repository or working tree" and was "Maya's document to create". **That
+> was wrong.** It had existed at `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` since 2026-08,
+> last updated 2026-09-08 (`14459f21`) on the PR #595 branch. It was never deleted — it simply never
+> reached `main`, so branches cut from `main` never had it. I had checked the working tree and the current
+> branch and never checked git history or other refs. It is **recovered**, not created: rank 2 is filled.)*
 >
 > **Cross-agent operating instructions → `AGENTS.md`.** Claude reads it (pointer here), **Codex reads it
 > natively** during PR review, and it is paste-ready for ChatGPT. Keep the two in sync — `AGENTS.md` is

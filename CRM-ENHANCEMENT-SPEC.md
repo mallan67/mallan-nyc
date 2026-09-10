@@ -1,7 +1,7 @@
 > **SUPERSEDED — dated header added 2026-09-10. Retained as a field shopping-list reference. This is not a live plan; do not implement from it.**
 >
 > Authority order: `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` →
-> `MALLAN-CONTINUOUS-EXECUTION-STATE.md` → `AGENTS.md` · `CLAUDE.md`. This file is none of those, and its
+> `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` → `AGENTS.md` · `CLAUDE.md`. This file is none of those, and its
 > closing line "This is the production specification. When implementing:" must not be read as direction.
 >
 > **Why.**

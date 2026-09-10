@@ -10,7 +10,7 @@
 > | Rank | File | What it is authority for |
 > |---|---|---|
 > | 1 | `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` | **The ONLY product/system authority.** What the platform IS, which applications exist, what each owns. |
-> | 2 | `MALLAN-CONTINUOUS-EXECUTION-STATE.md` | Where execution currently stands, when present and current. |
+> | 2 | `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` | Where execution currently stands. **STATUS ONLY** — it never defines architecture. |
 > | 3 | **`AGENTS.md` (this file) · `CLAUDE.md`** | **How agents work without violating 1 and 2.** |
 >
 > This file is **NOT** a product or system authority and must never override the Master Plan. Where it
@@ -23,9 +23,11 @@
 > reads. Correcting one agent's instructions while another agent is still told the opposite is not a
 > correction. **`AGENTS.md` and `CLAUDE.md` move together, always.**
 >
-> *(Status note, 2026-09-10: `MALLAN-CONTINUOUS-EXECUTION-STATE.md` does not currently exist anywhere
-> in the repository or working tree, although the session-start hook names it. Rank 2 is vacant. Do
-> not invent a replacement — that is Maya's document to create.)*
+> *(Correction, 2026-09-10 — this note previously said the execution-state file "does not currently
+> exist anywhere in the repository or working tree" and was "Maya's document to create". **That was
+> wrong.** It had existed at `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` since 2026-08, last
+> updated 2026-09-08 (`14459f21`) on the PR #595 branch, and was never deleted — it simply never reached
+> `main`, so branches cut from `main` never had it. It is **recovered**, not created: rank 2 is filled.)*
 
 This project is a **live Cotality/Trestle (REBNY IDX Plus) synchronization platform** — not "an IDX
 website." It has downstream consumers: search, CRM, portal, media, compliance, archive, email, contact.
@@ -251,7 +253,7 @@ or system authority; the Master Plan is. These are where OPERATING truth is reco
 | Topic | File |
 |---|---|
 | **Product / system authority — what the platform IS** | `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` |
-| **Execution state — where work currently stands** | `MALLAN-CONTINUOUS-EXECUTION-STATE.md` *(does not exist as of 2026-09-10)* |
+| **Execution state — where work currently stands** | `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` — STATUS ONLY; recovered 2026-09-10 |
 | Cross-agent operating instructions (this) | `AGENTS.md` |
 | Live operational status | `docs/PROJECT-HEALTH-DASHBOARD.md` (auto tier via `npm run health:probe`) |
 | **All tracked issues / incidents / debt / risks** | `docs/PLATFORM-ISSUE-REGISTRY.md` (IDs, Evidence Scores, hypotheses) |
