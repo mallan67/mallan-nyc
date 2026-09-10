@@ -1,9 +1,31 @@
-# AGENTS.md — Cross-Agent Constitution (Claude · Codex · ChatGPT)
+# AGENTS.md — Cross-Agent Operating Instructions (Claude · Codex · ChatGPT)
 
-> **Single shared source of truth for every AI agent working on `mallan67/mallan-nyc`.**
+> **Shared OPERATING INSTRUCTIONS for every AI agent working on `mallan67/mallan-nyc`.**
 > Claude reads this (pointer in `CLAUDE.md`), **Codex reads this natively** during PR review, and it
-> is **paste-ready for ChatGPT**. When any tool's private memory disagrees with this file, **this file
-> wins** — do not act on stale chat memory.
+> is **paste-ready for ChatGPT**. When any tool's private chat memory disagrees with this file, **this
+> file wins over the memory** — do not act on stale chat memory.
+>
+> ## AUTHORITY ORDER — this file is rank 3, and knows it
+>
+> | Rank | File | What it is authority for |
+> |---|---|---|
+> | 1 | `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` | **The ONLY product/system authority.** What the platform IS, which applications exist, what each owns. |
+> | 2 | `MALLAN-CONTINUOUS-EXECUTION-STATE.md` | Where execution currently stands, when present and current. |
+> | 3 | **`AGENTS.md` (this file) · `CLAUDE.md`** | **How agents work without violating 1 and 2.** |
+>
+> This file is **NOT** a product or system authority and must never override the Master Plan. Where it
+> states an architectural invariant it **MIRRORS** the Master Plan — it does not define it.
+> **If this file disagrees with the Master Plan, the Master Plan wins and this file is the defect.**
+> Say so and correct it; do not act on the stale copy. Do not create another authority document.
+>
+> Why this is written down: on 2026-09-10 §1 invariant 0 below, and `CLAUDE.md` §A.0, were found
+> asserting an architecture the repository had already disproven — and this file is what **Codex**
+> reads. Correcting one agent's instructions while another agent is still told the opposite is not a
+> correction. **`AGENTS.md` and `CLAUDE.md` move together, always.**
+>
+> *(Status note, 2026-09-10: `MALLAN-CONTINUOUS-EXECUTION-STATE.md` does not currently exist anywhere
+> in the repository or working tree, although the session-start hook names it. Rank 2 is vacant. Do
+> not invent a replacement — that is Maya's document to create.)*
 
 This project is a **live Cotality/Trestle (REBNY IDX Plus) synchronization platform** — not "an IDX
 website." It has downstream consumers: search, CRM, portal, media, compliance, archive, email, contact.
@@ -22,25 +44,70 @@ website." It has downstream consumers: search, CRM, portal, media, compliance, a
 
 ## 1. Invariants (never violate)
 
-0. **ONE CRM. Never build a second one.** The CRM is `public/crm/index.html` -> built to
-   `public/crm/index-built.html`, served at **`/crm`**. It holds Property Search (sale + rental, basic +
-   advanced), Building search, Comparables/CMA, Manage Listings, Open Houses, saved searches and the
-   sale/rental form entry points. **Add every CRM feature there.** Do NOT create a new shell, a new
-   route table, a `*-v2` / `*-new` / `dashboard-*` page, or "a cleaner modular rebuild" - and do not add
-   features to `public/crm/dashboard.html`, which is the RETIRED duplicate.
-   - How this went wrong: `9716752d` "CRM v2 - modular dashboard replacing monolith" added a second CRM
-     and repointed `/crm` at it. The monolith was never retired. Both shipped for months, agents worked
-     in both, and on 2026-09-09 the owner reported *"i have no search right now"* - the real CRM was
-     deployed and healthy the whole time and simply unreachable. A census found 72 routes in the
-     duplicate: 2 already existed in the canonical app, 14 were dead stubs, 56 were unique.
-   - Owner ruling, 2026-09-09: *"do not just point the crm, remove duplicates, agents go in there and
-     create changes in that one and then they create another one... this cannot happen ever again."*
-   - Enforced, not merely written down: `tests/runtime/crm-one-application.test.ts` fails if a page
-     appears under `public/crm/` without a declared role, if any file outside the retired shell owns a
-     `Router.register` table, if the retired shell grows, or if `/crm` stops serving the canonical app.
-     `tests/runtime/crm-single-entry-point.test.ts` pins the front door.
-   - `public/crm/dashboard.html` and `public/crm/js/dashboard/**` may only SHRINK, as its 56 unique
-     capabilities are moved into the canonical CRM and it is deleted.
+0. **THREE APPLICATIONS, THREE ADDRESSES, ONE OWNER EACH.** Mirrored from Master Plan §5.1. The
+   separation is a **compliance and audience-rights boundary**, not a refactoring opportunity.
+
+   **ONE BROKERAGE CRM** — `public/crm/dashboard.html` + `public/crm/js/dashboard/**`.
+   Canonical human entry **`/crm`**; compatibility **`/crm/dashboard`**. It owns brokerage-operating
+   capabilities: broker dashboard · agent roster · clients · leads · deals · commissions · referrals ·
+   finance · compliance · brokerage documents · tasks/communications · Agent My Business ·
+   administration.
+   **DO NOT** create another CRM shell, another CRM route table, or an alternate dashboard.
+   **DO NOT** migrate Search/Listings into the CRM merely to "converge" applications.
+
+   **ONE BACKEND AGENT SEARCH / LISTINGS PLATFORM** — `public/crm/index.html` → generated
+   `public/crm/index-built.html`. Current professional entry **`/crm/search`**. It owns professional
+   listing work: backend agent property search · My Listings · listing detail / listing workspace ·
+   professional saved searches · sale listing editor · rental listing editor · buildings and property
+   intelligence · media · open houses · compare/CMA · listing reports and distribution ·
+   listing-related tools and calculators.
+   It **may consume CRM APIs and data** where brokerage workflow requires it. It **MUST NOT require
+   `dashboard.html` or the CRM router to boot, render or execute.** The CRM may launch it.
+   Dependency: **CRM → Backend Search/Listings**, never Backend Search → CRM shell.
+   **DO NOT** create another Backend Search, another My Listings, or another listing writer.
+
+   **FRONTEND CONSUMER SEARCH REMAINS SEPARATE** — `app/search/page.tsx`, at **`/search` `/buy`
+   `/rent`**. This is the public Consumer Search, deliberately separate from Backend Agent Search for
+   compliance and audience-rights reasons.
+   **DO NOT** move professional/member-only Search functionality into `/search`.
+   **DO NOT** expose professional, member-only or private data through the Consumer Search DTO.
+   The two products **may share** verified lower-level infrastructure — Cotality client/auth ·
+   semantic mappings · vocabulary · listing identity · building identity · media authority ·
+   normalization · address/status — but **retain separate** DTOs · permissions · filter contracts ·
+   caches · tests · Saved Search semantics · user actions.
+
+   - `index-built.html` INLINES all its JavaScript — a source change is not live until
+     `node public/crm/build.js` runs. `tests/runtime/crm-build-drift.test.ts` proves the artifact
+     reproduces from source byte for byte, identically on Windows and Linux.
+   - Enforced, not merely written down: `tests/runtime/crm-single-entry-point.test.ts` pins each
+     application to its own address and keeps the public and professional applications from resolving
+     to each other. `tests/runtime/crm-one-application.test.ts` fails if a page appears under
+     `public/crm/` without a declared role, if a second hashchange owner appears, or if a runtime
+     module addresses the CRM by build artifact instead of by route.
+
+   **HISTORICAL CORRECTION — do not erase this.** Until 2026-09-10 this invariant read *"ONE CRM.
+   Never build a second one. The CRM is `public/crm/index.html` → `index-built.html`, served at
+   `/crm` … `public/crm/dashboard.html`, which is the RETIRED duplicate"*, told agents to **add every
+   CRM feature** to `index-built.html`, claimed Property Search / My Listings / CMA / Open Houses
+   belong inside the CRM, and declared that `dashboard.html` and `js/dashboard/**` **"may only SHRINK
+   … and it is deleted."** **Every one of those statements is disproven and must not be reinstated.**
+
+   The real defect was never "two CRMs". It was **application-ownership and routing confusion**:
+   Backend Search/Listings and the CRM were mistaken for duplicate shells of a single product, and
+   `/crm` was repointed at Backend Search. A browser at `/crm` therefore reached Search while the
+   installed PWA (`start_url` `/crm/dashboard`) reached the CRM — which is exactly why the owner
+   reported *"i have no search right now"* and *"seriously how it can be that there are two crms?"*
+   about applications that were deployed and healthy the whole time. A forensic census settled it:
+   `dashboard.html` carries 71 `Router.register` routes and **no search engine**; `index-built.html`
+   carries the search form, executor and renderer and **no CRM panels**. Corrected in `928f31c4`.
+
+   - Owner ruling, 2026-09-09, which still stands and is about DUPLICATES, not about applications:
+     *"do not just point the crm, remove duplicates, agents go in there and create changes in that one
+     and then they create another one... this cannot happen ever again."*
+   - The duplicate **My Listings** implementation deleted in `da8e3046` was a genuine duplicate and
+     **stays deleted.** Do not resurrect it.
+   - The CRM's **Property Search control is a LAUNCHER** into Backend Search. A launcher is not a
+     duplicate Search. It is legitimate and it remains.
 
 1. **Canonical Neon production** — project `hidden-mountain-87248164` ("neon-green-school", **Vercel-managed
    org** `Vercel: maya` / `org-wild-king-99967357`) · default branch **`main` = `br-crimson-frog-adr7g9gt`**
@@ -170,9 +237,14 @@ notification dispatcher · open-house v2 · admin merge bypass · force-push to 
 
 ## 3. Where truth lives
 
+**The authority order at the top of this file governs this table.** Nothing listed here is a product
+or system authority; the Master Plan is. These are where OPERATING truth is recorded.
+
 | Topic | File |
 |---|---|
-| Cross-agent constitution (this) | `AGENTS.md` |
+| **Product / system authority — what the platform IS** | `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` |
+| **Execution state — where work currently stands** | `MALLAN-CONTINUOUS-EXECUTION-STATE.md` *(does not exist as of 2026-09-10)* |
+| Cross-agent operating instructions (this) | `AGENTS.md` |
 | Live operational status | `docs/PROJECT-HEALTH-DASHBOARD.md` (auto tier via `npm run health:probe`) |
 | **All tracked issues / incidents / debt / risks** | `docs/PLATFORM-ISSUE-REGISTRY.md` (IDs, Evidence Scores, hypotheses) |
 | Dated session snapshot | `docs/operations/site-audit-handoff-YYYY-MM-DD.md` |
@@ -182,9 +254,11 @@ notification dispatcher · open-house v2 · admin merge bypass · force-push to 
 | REBNY skill | `.claude/skills/rebny-compliance/SKILL.md` |
 | **Cotality enum truth (status/field/picklist)** | `data/cotality-enums.live.json` (generated live via `npm run cotality:pull`; guarded by `npm run cotality:verify`). The live API is authority; this file is its verified mirror. |
 
-### Canonical Documentation (Maya directive 2026-07-01)
+### Canonical Documentation (Maya directive 2026-07-01, scope clarified 2026-09-10)
 
-These files are the authoritative operational documents for this repository:
+These are the authoritative **OPERATIONAL** documents for this repository — how work is run,
+tracked and handed off. They are **not** product or system authority; that is the Master Plan, and
+the authority order at the top of this file governs.
 
 1. `AGENTS.md`
 2. `docs/PROJECT-HEALTH-DASHBOARD.md`
@@ -192,8 +266,9 @@ These files are the authoritative operational documents for this repository:
 4. `docs/operations/site-audit-handoff-YYYY-MM-DD.md`
 5. `docs/operations/handoff-neon-gate6-YYYY-MM-DD.md`
 
-**Do not create parallel governance documents** (no `STATUS.md`, `NOTES.md`, `TODO.md`, or other
-competing sources of truth). Extend or update these instead.
+**Do not create parallel governance documents** (no `STATUS.md`, `NOTES.md`, `TODO.md`, or another
+authority file). Extend or update these instead. If one of them states an architectural fact that
+contradicts the Master Plan, the Master Plan wins and the operational document is the defect.
 
 ## 4. Handoff rule (binds every agent, every session)
 

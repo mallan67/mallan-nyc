@@ -4,7 +4,33 @@
 >
 > **Compliance-first.** When a task touches anything in §D, READ `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` FIRST. The index has per-area canonical pointers, validators, and fail-closed instructions for REBNY, RLS, UCBA, IDX Plus, Trestle/Cotality, Fair Housing, NY DOS, FARE Act, TCPA, NY SHIELD, audit retention, CRM lead routing, seller/landlord intake, and Mallan exclusives/syndication.
 
-> **Cross-agent constitution → `AGENTS.md`.** The shared source of truth for **Claude · Codex · ChatGPT** (invariants, non-negotiable holds, where truth lives, and the per-session handoff rule). Read it alongside this file; keep the two in sync — `AGENTS.md` is the concise cross-agent essentials, this file is the Claude-specific depth. **Live operational status → `docs/PROJECT-HEALTH-DASHBOARD.md`** — refresh its auto tier with `npm run health:probe` (read-only) before every handoff. Dated session narrative → `docs/operations/site-audit-handoff-YYYY-MM-DD.md`.
+> ## AUTHORITY ORDER (read this before treating any file as truth)
+>
+> | Rank | File | What it is authority for |
+> |---|---|---|
+> | 1 | `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` | **The ONLY product/system authority.** What the platform IS, which applications exist, what each owns. |
+> | 2 | `MALLAN-CONTINUOUS-EXECUTION-STATE.md` | Where execution currently stands, when present and current. |
+> | 3 | `AGENTS.md` · `CLAUDE.md` (this file) | **How agents work without violating 1 and 2.** Operating instructions and a mirror of critical invariants. |
+>
+> This file and `AGENTS.md` are **NOT** a competing product or system authority and must never
+> override the Master Plan. Where they mirror an invariant, they mirror it — they do not define it.
+> **If this file disagrees with the Master Plan, the Master Plan wins and this file is the defect.**
+> Say so and correct it; do not act on the stale copy.
+>
+> Why this ordering is written down: on 2026-09-10 §A.0 below was found asserting an architecture the
+> repository had already disproven, and `AGENTS.md` asserted the same thing to Codex. Correcting one
+> agent's instructions while another agent is still told the opposite is not a correction. **Both files
+> move together, always.**
+>
+> *(Status note, 2026-09-10: `MALLAN-CONTINUOUS-EXECUTION-STATE.md` does not currently exist anywhere in
+> the repository or working tree, although the session-start hook names it. Rank 2 is therefore vacant.
+> Do not invent a replacement — that is Maya's document to create.)*
+>
+> **Cross-agent operating instructions → `AGENTS.md`.** Claude reads it (pointer here), **Codex reads it
+> natively** during PR review, and it is paste-ready for ChatGPT. Keep the two in sync — `AGENTS.md` is
+> the concise cross-agent essentials, this file is the Claude-specific depth. When a tool's private chat
+> memory disagrees with these files, these files win over the memory; when these files disagree with the
+> Master Plan, the Master Plan wins over these files. **Live operational status → `docs/PROJECT-HEALTH-DASHBOARD.md`** — refresh its auto tier with `npm run health:probe` (read-only) before every handoff. Dated session narrative → `docs/operations/site-audit-handoff-YYYY-MM-DD.md`.
 
 > ## 🛑 AGENT STOP — Neon/Vercel database facts (read before ANY db / Neon / Vercel / deploy action)
 >
@@ -21,15 +47,46 @@
 
 ## A. Absolute hard rules
 
-0. **ONE CRM — `public/crm/index.html` -> `index-built.html`, served at `/crm`.** Every CRM feature goes
-   there. Never create a second shell, a second `Router.register` table, or a `*-v2` / `dashboard-*`
-   page; never add features to `public/crm/dashboard.html`, the RETIRED duplicate. `9716752d` added a
-   second CRM and repointed `/crm` at it without retiring the first; both shipped for months and the
-   owner lost access to her own Property Search. Enforced by
-   `tests/runtime/crm-one-application.test.ts` + `tests/runtime/crm-single-entry-point.test.ts`.
-   `index-built.html` INLINES all its JavaScript - a source change is not live until
-   `node public/crm/build.js` runs, and `tests/runtime/crm-build-drift.test.ts` proves it. See
-   `AGENTS.md` §1.0.
+0. **THREE APPLICATIONS, THREE ADDRESSES, ONE OWNER EACH.** Mirrored from the Master Plan §5.1;
+   full text in `AGENTS.md` §1.0. The separation is a **compliance and audience-rights boundary**,
+   not a refactoring opportunity.
+
+   | Application | Files | Entry | Owns |
+   |---|---|---|---|
+   | **Brokerage CRM** | `public/crm/dashboard.html` + `public/crm/js/dashboard/**` | `/crm` (compat: `/crm/dashboard`) | broker dashboard, agent roster, clients, leads, deals, commissions, referrals, finance, compliance, brokerage documents, tasks/communications, Agent My Business, administration |
+   | **Backend Agent Search / Listings** | `public/crm/index.html` → generated `public/crm/index-built.html` | `/crm/search` | backend agent property search, My Listings, listing detail/workspace, professional saved searches, sale + rental listing editors, buildings intelligence, media, open houses, compare/CMA, listing reports/distribution, listing tools/calculators |
+   | **Consumer Search** | `app/search/page.tsx` | `/search` `/buy` `/rent` | the public, compliance-filtered search |
+
+   - **DO NOT** create another CRM shell, another CRM route table, or an alternate dashboard.
+   - **DO NOT** migrate Search/Listings into the CRM merely to "converge" applications.
+   - **DO NOT** create another Backend Search, another My Listings, or another listing writer.
+   - **DO NOT** move professional/member-only Search functionality into `/search`, and never expose
+     member-only or private data through the Consumer Search DTO.
+   - Backend Search may consume CRM APIs and data, but **MUST NOT require `dashboard.html` or the
+     CRM router to boot, render or execute.** The dependency runs **CRM → Backend Search**, never
+     the reverse. The CRM's Property Search control is a **launcher** into Backend Search: legitimate,
+     and it stays.
+   - The two Search products may share verified lower-level infrastructure — Cotality client/auth,
+     semantic mappings, vocabulary, listing identity, building identity, media authority,
+     normalization, address/status — but keep **separate** DTOs, permissions, filter contracts,
+     caches, tests, Saved Search semantics and user actions.
+   - `index-built.html` INLINES all its JavaScript — a source change is not live until
+     `node public/crm/build.js` runs, and `tests/runtime/crm-build-drift.test.ts` proves it byte for
+     byte on Windows and Linux alike.
+   - Enforced, not merely written down: `tests/runtime/crm-single-entry-point.test.ts` and
+     `tests/runtime/crm-one-application.test.ts`.
+
+   **HISTORICAL CORRECTION — do not erase this.** Until 2026-09-10 this rule read *"ONE CRM —
+   `public/crm/index.html` → `index-built.html`, served at `/crm` … `dashboard.html`, the RETIRED
+   duplicate"*, and instructed agents to add every CRM feature to `index-built.html` and to let
+   `js/dashboard/**` shrink until deleted. **That was a misclassification and is now disproven.** The
+   real defect was never "two CRMs": it was application-ownership and routing confusion. Backend
+   Search and the CRM were mistaken for duplicate shells of one product, and `/crm` was pointed at
+   Backend Search — which is why a browser at `/crm` reached Search while the installed PWA reached
+   the CRM, and why the owner reported *"i have no search right now"* about an application that was
+   deployed and healthy the whole time. Corrected in `928f31c4`. The duplicate **My Listings**
+   implementation deleted earlier (`da8e3046`) was a genuine duplicate and **stays deleted** — do not
+   resurrect it.
 
 0. **SEMANTIC AUTHORITY — read `AGENTS.md` §1A before touching any field, control, criterion or mapping.**
    No surface control, API field, persisted fact, Search criterion, CMA field, report field or compliance
