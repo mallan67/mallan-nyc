@@ -2347,4 +2347,29 @@ try {
 } catch (e) { /* ignore */ }
 
 const effectiveCritical = STRICT_PROMOTION ? (totalCritical + totalWarning) : totalCritical;
-process.exit(effectiveCritical > 0 ? 1 : 0);
+
+// ─── EXIT STATUS, WITHOUT THROWING AWAY THE REPORT ──────────────────────────────────────────────
+//
+// This was `process.exit(effectiveCritical > 0 ? 1 : 0)`, and it silently truncated this script's
+// own output on Linux.
+//
+// The report is ~52 KB emitted in one burst at the very end — the section summaries, the TOTAL line
+// and the Final line, about 1,380 separate console.log calls. On POSIX, a `process.stdout` backed
+// by a PIPE is a non-blocking socket: once a write cannot complete inline, every subsequent write
+// is queued in libuv. `process.exit()` tears the process down immediately and never drains that
+// queue. So whatever had not yet been flushed was discarded, at a byte offset that varied run to
+// run (measured cuts at 10,595 / 16,797 / 36,280 / 49,611 of 52,270 bytes). Windows pipes are
+// synchronous, so the queue is always empty at exit and the bug is invisible there.
+//
+// The symptom: tests/runtime/idx-validate-mapper-lists.test.ts spawns this script and looks for the
+// TOTAL line. On Linux CI it found `""` and failed — not because the line was never printed, but
+// because it never survived the pipe. The script really did compute and log it, and exited 0.
+//
+// `process.exitCode` records the status and lets Node exit naturally once stdout has drained. This
+// script registers no timers, sockets or open handles, so it still exits immediately. The CI gate is
+// unchanged: a run with criticals still exits 1.
+//
+// NOTE FOR ANYONE EDITING THIS FILE: do not "restore" process.exit() here. A bare process.exit() in
+// a script whose output is consumed through a pipe is a data-loss bug on every POSIX platform, and
+// it cannot be reproduced on Windows.
+process.exitCode = effectiveCritical > 0 ? 1 : 0;
