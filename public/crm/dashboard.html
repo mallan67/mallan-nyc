@@ -172,8 +172,9 @@
 <script src="/crm/js/dashboard/panels/intake/landlord-intake.js"></script>
 <script src="/crm/js/dashboard/panels/intake/renter-intake.js"></script>
 <!-- 8. Tool calculators (one per client type + investment scenarios) -->
-<!-- THE one New York transaction-tax authority. Loaded here so this retired shell's tool
-     modules delegate to it instead of carrying their own tables. Owner ruling 2026-09-09:
+<!-- THE one New York transaction-tax authority, shared by BOTH applications: this CRM and the
+     Backend Agent Search application (public/crm/index.html) load the same two files. The CRM's
+     own tool panels delegate to it instead of carrying their own tables. Owner ruling 2026-09-09:
      "If an old consumer differs, replace its math with the canonical engine; do not preserve
      its result for compatibility." -->
 <script src="/crm/js/calc/transaction-costs.js"></script>

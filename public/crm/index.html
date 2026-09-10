@@ -88,9 +88,11 @@ function toggleSection(header) {
 <!-- THE browser status presentation authority. Loads FIRST: every renderer, output builder and compliance
      gate below turns a status into display text through it, and nothing else may. -->
 <script src="js/core/status-presentation.js"></script>
-<!-- THE one hashchange owner. Must load BEFORE js/init/init-hash-routing.js, which hands its search
-     handler to it instead of registering a second listener. Brokerage panels migrating out of the
-     retired dashboard shell register here too, so the CRM never runs two routers over one address bar. -->
+<!-- THE one hashchange owner FOR THIS APPLICATION. Must load BEFORE js/init/init-hash-routing.js,
+     which hands its search handler to it instead of registering a second listener. Panel-style
+     routes served by this application (js/calc/calculator-ui.js registers /tools/*) register here
+     too, so one page never runs two routers over one address bar. The CRM is a separate application
+     and keeps its own single router (js/dashboard/router.js); the two never share a page. -->
 <script src="js/core/crm-routing.js"></script>
 <!-- Calculation core: pure functions, no DOM. The same objects a CMA, a net-sheet or a buy-vs-rent
      report renders, so those never grow a second engine. The UI is one generic renderer over the

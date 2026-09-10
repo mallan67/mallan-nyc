@@ -9,8 +9,9 @@
 // NEW YORK TRANSACTION TAXES — DELEGATED, NOT DUPLICATED
 //
 // This file used to carry its own MANSION_TAX_RATES table and its own transfer-tax rates. On
-// 2026-09-09 the CRM held FOUR copies of these tables, with three different sets of defects, and
-// this one shipped a real overcharge in the canonical CRM:
+// 2026-09-09 the platform held FOUR copies of these tables, with three different sets of defects.
+// This copy is loaded by public/crm/index.html — the Backend Agent Search / Listings application —
+// so its defect shipped, live, to the screen agents price deals on:
 //
 //     { min: 5000000, max: 9999999, rate: 0.025 }        <-- statutory rate is 0.0225
 //

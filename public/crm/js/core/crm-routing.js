@@ -1,13 +1,18 @@
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
 // CRM ROUTING — THE ONE HASHCHANGE OWNER
 //
-// The CRM has two hash namespaces, and until 2026-09-09 it had two independent routers listening to
-// the same address bar:
+// Two hash namespaces exist across the platform, and until 2026-09-09 a page could end up with two
+// independent routers listening to the same address bar:
 //
 //   search / listing   #main  #results  #detail/<id>  #my  #last  #manage      (NO leading slash)
 //                      owned by js/init/init-hash-routing.js
-//   brokerage panels   #/broker/*  #/ops/*  #/settings/*  #/workspace/...      (LEADING slash)
-//                      owned by js/dashboard/router.js, in the duplicate shell
+//   panel routes       #/tools/*  #/broker/*  #/ops/*  #/workspace/...          (LEADING slash)
+//                      the shape js/dashboard/router.js established in the CRM
+//
+// This module is loaded by public/crm/index.html — the Backend Agent Search / Listings application —
+// which carries BOTH: its own unslashed search hashes, plus panel routes like /tools/* that
+// js/calc/calculator-ui.js registers. The brokerage CRM (dashboard.html) is a SEPARATE application
+// and keeps its own single router; the two are never loaded into one page.
 //
 // Loading both listeners into one page is the trap this module exists to avoid. Each router treats
 // the other's hashes as unknown AND has a default: init-hash-routing falls back to route 'main', so

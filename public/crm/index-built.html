@@ -3245,13 +3245,16 @@ function toggleSection(header) {
     <div id="generalNavBar" class="px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
         <div class="flex items-center gap-3 flex-shrink-0">
             <div class="text-lg sm:text-xl font-bold tracking-wider" style="color: #C4A052;">MALLAN</div>
-            <!-- This IS the CRM. The link below goes to the legacy dashboard shell, which still holds
-                 the broker console (approvals, payouts, agents, clients, workspaces) until those are
-                 merged in here. It used to read "CRM" / "Back to CRM Dashboard", which framed the
-                 duplicate as home and sent operators out of their own CRM. -->
-            <a href="/crm/dashboard" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md bg-white/10 text-gray-300 hover:text-white hover:bg-white/20 transition-all flex items-center gap-1.5" title="Broker console — legacy shell, being merged into this CRM">
+            <!-- This application is Backend Agent Search / Listings. The link below launches the
+                 brokerage CRM, which is a SEPARATE application (Master Plan §5.1): clients, agents,
+                 deals, finance, compliance.
+                 It is a launch link, not a dependency — Search boots, authenticates and executes with
+                 the CRM entirely unavailable (proven by crm-backend-search-independence.test.ts).
+                 Addressed by ROUTE (/crm), never by build artifact (dashboard.html), so the coupling
+                 is to a product rather than to a filename. -->
+            <a href="/crm" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md bg-white/10 text-gray-300 hover:text-white hover:bg-white/20 transition-all flex items-center gap-1.5" title="Open the brokerage CRM">
                 <i class="fas fa-briefcase text-[10px]"></i>
-                <span class="hidden sm:inline">Broker</span>
+                <span class="hidden sm:inline">CRM</span>
             </a>
         </div>
         <nav class="flex gap-1.5 sm:gap-2 mx-3">
@@ -12356,21 +12359,28 @@ function toggleSection(header) {
         if (typeof window !== 'undefined') window.MallanStatus = MallanStatus;
 
 </script>
-<!-- THE one hashchange owner. Must load BEFORE js/init/init-hash-routing.js, which hands its search
-     handler to it instead of registering a second listener. Brokerage panels migrating out of the
-     retired dashboard shell register here too, so the CRM never runs two routers over one address bar. -->
+<!-- THE one hashchange owner FOR THIS APPLICATION. Must load BEFORE js/init/init-hash-routing.js,
+     which hands its search handler to it instead of registering a second listener. Panel-style
+     routes served by this application (js/calc/calculator-ui.js registers /tools/*) register here
+     too, so one page never runs two routers over one address bar. The CRM is a separate application
+     and keeps its own single router (js/dashboard/router.js); the two never share a page. -->
 <script>
 // ═══ js/core/crm-routing.js ═══
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
 // CRM ROUTING — THE ONE HASHCHANGE OWNER
 //
-// The CRM has two hash namespaces, and until 2026-09-09 it had two independent routers listening to
-// the same address bar:
+// Two hash namespaces exist across the platform, and until 2026-09-09 a page could end up with two
+// independent routers listening to the same address bar:
 //
 //   search / listing   #main  #results  #detail/<id>  #my  #last  #manage      (NO leading slash)
 //                      owned by js/init/init-hash-routing.js
-//   brokerage panels   #/broker/*  #/ops/*  #/settings/*  #/workspace/...      (LEADING slash)
-//                      owned by js/dashboard/router.js, in the duplicate shell
+//   panel routes       #/tools/*  #/broker/*  #/ops/*  #/workspace/...          (LEADING slash)
+//                      the shape js/dashboard/router.js established in the CRM
+//
+// This module is loaded by public/crm/index.html — the Backend Agent Search / Listings application —
+// which carries BOTH: its own unslashed search hashes, plus panel routes like /tools/* that
+// js/calc/calculator-ui.js registers. The brokerage CRM (dashboard.html) is a SEPARATE application
+// and keeps its own single router; the two are never loaded into one page.
 //
 // Loading both listeners into one page is the trap this module exists to avoid. Each router treats
 // the other's hashes as unknown AND has a default: init-hash-routing falls back to route 'main', so
@@ -12552,8 +12562,11 @@ if (typeof window !== 'undefined') window.CrmRouting = CrmRouting;
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
 // TRANSACTION-COST CALCULATION CORE — pure, structured, reusable
 //
-// Tranche 1 of moving the 12 calculators out of the retired dashboard shell (js/dashboard/panels/
-// tools/**) into the canonical CRM.
+// Tranche 1 of collapsing the 12 hand-built calculator modules (js/dashboard/panels/tools/**, now
+// deleted) onto ONE engine. Both applications load this file: the brokerage CRM (dashboard.html)
+// and the Backend Agent Search / Listings application (index.html). That is the point — a shared
+// calculation core is the only way the same purchase cannot be quoted two different numbers
+// depending on which application the agent opened.
 //
 // THIS FILE TOUCHES NO DOM. It takes a plain object and returns a plain object. That is deliberate:
 // the dashboard versions read `document.getElementById(id).value` and painted HTML, which makes them
@@ -13922,9 +13935,9 @@ var CrmCalcUI = (function () {
     // ═══════════════════════════════════════════════════════════════════════════════════════════
     // CLIENT CONTEXT — the calculators are callable from a client, not only from a Tools page
     //
-    // The retired shell's Sales CRM workspace had a Calculators tab that rendered twelve hand-built
-    // modules into twelve #calc-<id> divs and prefilled them from the client record. That tab was
-    // the only reason those twelve modules could not be deleted.
+    // The CRM's Sales workspace had a Calculators tab that rendered twelve hand-built modules into
+    // twelve #calc-<id> divs and prefilled them from the client record. That tab was the only
+    // reason those twelve modules could not be deleted.
     //
     // Here the arithmetic is the shared engines and only the PREFILL is client-specific. A prefilled
     // value becomes an ordinary input, so it appears in `assumptions` with source 'user' and stays
@@ -16710,10 +16723,12 @@ function manageAutoUpdate(id) {
 
 // Create / Edit Listing
 // The listing forms open by their GOVERNED ABSOLUTE routes (vercel.json), never relative.
-// A relative form filename resolves against the directory of the address in the bar, and
-// /crm -> /crm/index-built.html is a rewrite the browser cannot see. Entered at /crm/search it
-// resolved under /crm/ and worked; entered at /crm it resolved at the site root and every
-// create/edit opened a 404. Sale and rental keep separate routes, as they must.
+// A relative form filename resolves against the directory of the address in the bar, and every
+// /crm/* address is a rewrite the browser cannot see: /crm/search serves index-built.html and /crm
+// serves dashboard.html, but the bar still reads /crm/search or /crm. So a relative filename
+// resolved under /crm/ from /crm/search and worked, and resolved at the SITE ROOT from /crm, where
+// every create/edit opened a 404. Absolute routes are immune to which address the operator entered
+// by. Sale and rental keep separate routes, as they must.
 var CRM_SALE_FORM_ROUTE = '/crm/sale-listing';
 var CRM_RENTAL_FORM_ROUTE = '/crm/rental-listing';
 
@@ -21801,10 +21816,19 @@ function getMyClients() {
     return clients;
 }
 
-// Navigate to client workspace in CRM dashboard
+// Launch the client workspace in the brokerage CRM.
+//
+// This file is loaded by public/crm/index.html — the Backend Agent Search / Listings application.
+// The CRM is a SEPARATE application (Master Plan §5.1), so this is a LAUNCH LINK across a product
+// boundary, not a dependency: Search boots, authenticates and executes with the CRM unavailable.
+//
+// Addressed by ROUTE, never by build artifact. It used to say '/crm/dashboard.html', which couples
+// Search to a filename inside the CRM's build output and breaks the moment that file is renamed.
+// '/crm' is the CRM's governed address (vercel.json), and '#/workspace/client/:id/overview' is a
+// route the CRM's own router registers (js/dashboard/app.js).
 function openClientWorkspace(clientId) {
     if (!clientId) return;
-    window.location.href = '/crm/dashboard.html#/workspace/client/' + encodeURIComponent(clientId) + '/overview';
+    window.location.href = '/crm#/workspace/client/' + encodeURIComponent(clientId) + '/overview';
 }
 
 // Dynamically render client card grid (replaces hardcoded HTML cards)
@@ -29741,8 +29765,9 @@ function openPrintableWindow(html, options) {
 // NEW YORK TRANSACTION TAXES — DELEGATED, NOT DUPLICATED
 //
 // This file used to carry its own MANSION_TAX_RATES table and its own transfer-tax rates. On
-// 2026-09-09 the CRM held FOUR copies of these tables, with three different sets of defects, and
-// this one shipped a real overcharge in the canonical CRM:
+// 2026-09-09 the platform held FOUR copies of these tables, with three different sets of defects.
+// This copy is loaded by public/crm/index.html — the Backend Agent Search / Listings application —
+// so its defect shipped, live, to the screen agents price deals on:
 //
 //     { min: 5000000, max: 9999999, rate: 0.025 }        <-- statutory rate is 0.0225
 //

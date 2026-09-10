@@ -40,15 +40,25 @@ const read = (rel: string) => readFileSync(resolve(ROOT, rel), 'utf8');
 /**
  * Every page under public/crm/, and what it IS. Adding a file without adding it here fails the suite.
  *
- *   application-shell  a CRM application: its own navigation and its own route table. EXACTLY ONE.
- *   generated          build output of an application-shell. Never hand-edited.
- *   standalone-form    a single-purpose form page, opened from the shell. Owns no routes.
- *   auth               the sign-in page.
- *   retired            an application being removed. May only shrink. See QUARANTINE.
- *   dev-only           never served in production.
+ * ── CORRECTED 2026-09-10 ───────────────────────────────────────────────────────────────────────
+ *
+ * This map used to declare index.html the sole 'application-shell' and dashboard.html 'retired'.
+ * That was my error. A forensic census proved they are two DIFFERENT products, not two copies of
+ * one: dashboard.html carries 71 routes of broker/agent panels and no search engine; index.html
+ * carries the search form, executor and renderer and no CRM panels. Master Plan §5.1 makes the
+ * separation a compliance boundary, so the guard now protects TWO named applications and fails if a
+ * THIRD appears — rather than trying to collapse them.
+ *
+ *   crm-application      the brokerage CRM: clients, agents, deals, finance, compliance.
+ *   search-application   Backend Agent Search / Listings: professional, member-audience.
+ *   generated            build output of an application. Never hand-edited.
+ *   standalone-form      a single-purpose editor, launched by an application. Owns no routes.
+ *   auth                 the sign-in page.
+ *   retired              superseded and being removed. May only shrink.
+ *   dev-only             never served in production.
  */
-const PAGES: Record<string, 'application-shell' | 'generated' | 'standalone-form' | 'auth' | 'retired' | 'dev-only'> = {
-  'index.html': 'application-shell',
+const PAGES: Record<string, 'crm-application' | 'search-application' | 'generated' | 'standalone-form' | 'auth' | 'retired' | 'dev-only'> = {
+  'index.html': 'search-application',
   'index-built.html': 'generated',
 
   'SALE-FORM-REDESIGN.html': 'standalone-form',
@@ -67,43 +77,37 @@ const PAGES: Record<string, 'application-shell' | 'generated' | 'standalone-form
   'login.html': 'auth',
   'dev.html': 'dev-only',
 
-  // The duplicate CRM. Being removed; 56 unique capabilities must move to the canonical app first.
-  'dashboard.html': 'retired',
+  // THE BROKERAGE CRM. Not retired, not a duplicate — it is the CRM, and it answers at /crm.
+  'dashboard.html': 'crm-application',
 };
-
-/**
- * The retired application's files. This list may SHRINK as capabilities move across and files are
- * deleted. It may never grow: a new file under js/dashboard/ is new work in a shell being removed.
- */
-const QUARANTINE_DIR = 'public/crm/js/dashboard';
-
-/** Route-table count in the retired shell at the moment the guard was installed. Must only go down. */
-const RETIRED_ROUTE_COUNT_CEILING = 72;
 
 const htmlPages = readdirSync(CRM).filter((f) => f.endsWith('.html'));
 
-describe('exactly one CRM application exists', () => {
+describe('exactly two applications exist, and a third cannot appear', () => {
   it('every page under public/crm/ has a declared role', () => {
     const undeclared = htmlPages.filter((f) => !(f in PAGES));
     expect({
       undeclared,
-      why: 'A new page under public/crm/ must declare its role in PAGES in this file. If it is a second CRM, it is not allowed - extend the one at index.html instead.',
+      why: 'A new page under public/crm/ must declare its role in PAGES in this file. There are exactly two applications — the CRM (dashboard.html) and Backend Agent Search (index.html). A third is not allowed; extend one of them.',
     }).toEqual({ undeclared: [], why: expect.any(String) });
   });
 
-  it('there is exactly one application shell, and it is index.html', () => {
-    const shells = Object.entries(PAGES).filter(([, role]) => role === 'application-shell').map(([f]) => f);
-    expect(shells).toEqual(['index.html']);
+  it('there is exactly one CRM application, and it is dashboard.html', () => {
+    const crm = Object.entries(PAGES).filter(([, role]) => role === 'crm-application').map(([f]) => f);
+    expect(crm).toEqual(['dashboard.html']);
   });
 
-  it('no page is declared an application shell alongside a retired one that also still ships', () => {
-    // A "retired" page is tolerated only while it is genuinely being removed. It is never a shell.
-    const retired = Object.entries(PAGES).filter(([, r]) => r === 'retired').map(([f]) => f);
-    for (const f of retired) expect(PAGES[f]).not.toBe('application-shell');
+  it('there is exactly one Backend Search application, and it is index.html', () => {
+    const search = Object.entries(PAGES).filter(([, role]) => role === 'search-application').map(([f]) => f);
+    expect(search).toEqual(['index.html']);
+  });
+
+  it('index-built.html is the GENERATED artifact of Backend Search, not a third product', () => {
+    expect(PAGES['index-built.html']).toBe('generated');
   });
 });
 
-describe('only the canonical application owns a route table', () => {
+describe('each application owns its own navigation — and only its own', () => {
   /** Owning a route table is what makes a page an application rather than a form. */
   const routeTableOwners = (() => {
     const out: string[] = [];
@@ -112,7 +116,7 @@ describe('only the canonical application owns a route table', () => {
         const childRel = rel ? `${rel}/${entry.name}` : entry.name;
         if (entry.isDirectory()) { walk(`${dir}/${entry.name}`, childRel); continue; }
         if (!/\.(js|html)$/.test(entry.name)) continue;
-        if (childRel === 'index-built.html') continue; // generated artifact of the shell
+        if (childRel === 'index-built.html') continue; // generated artifact
         const src = readFileSync(resolve(CRM, dir, entry.name), 'utf8');
         if (/Router\.register\(/.test(src)) out.push(childRel);
       }
@@ -121,16 +125,18 @@ describe('only the canonical application owns a route table', () => {
     return out.sort();
   })();
 
-  it('the ONLY route table in the CRM belongs to the shell being retired', () => {
-    // When dashboard.html is deleted this becomes [] and the CRM has a single navigation model.
+  it('the CRM has exactly one route table, in js/dashboard/app.js', () => {
+    // Two applications legitimately have two routers. What must never happen is TWO ROUTERS IN ONE
+    // APPLICATION — that is the failure that put the Ops Dashboard's late render over Property
+    // Search. The per-application ownership is proven by the hashchange guard below.
     expect(routeTableOwners).toEqual(['js/dashboard/app.js']);
   });
 
-  it('a second route table cannot appear outside the retired shell', () => {
+  it('Backend Search does not grow a Router.register table of its own', () => {
     const strays = routeTableOwners.filter((f) => !f.startsWith('js/dashboard/'));
     expect({
       strays,
-      why: 'A file registering its own routes is a new CRM application. Add features to the canonical app (public/crm/index.html + html/** + js/**) instead.',
+      why: 'Backend Search navigates by hash section + CrmRouting. A Router.register table outside js/dashboard/ means a second CRM is being built inside the Search application.',
     }).toEqual({ strays: [], why: expect.any(String) });
   });
 });
@@ -176,19 +182,40 @@ describe('one routing authority — a second hashchange owner cannot appear', ()
   });
 });
 
-describe('the retired shell may only shrink', () => {
-  it('its route count never grows', () => {
-    const app = read(`${QUARANTINE_DIR}/app.js`.replace('public/crm/', 'public/crm/'));
-    const routes = (app.match(/Router\.register\(/g) || []).length;
-    expect(routes).toBeLessThanOrEqual(RETIRED_ROUTE_COUNT_CEILING);
+describe('Backend Search launches the CRM without depending on it', () => {
+  // Backend Search may LAUNCH the CRM — that is ordinary navigation across a product boundary.
+  // What it must not do is address the CRM by its build artifact, which bypasses the governed
+  // route and pins the coupling to a filename inside another application's build output.
+  //
+  // Assert STRUCTURALLY, on the destinations the browser actually navigates to. An earlier version
+  // of this test grepped the raw file for /dashboard\.html/ and failed on a source COMMENT that
+  // explained this very rule — the fifth time in this convergence that a text-scanning guard fired
+  // on prose rather than on behaviour. A guard that cannot tell a link from a comment is worse than
+  // no guard: it reads as coverage while proving nothing about what the page does.
+  const linkTargets = (html: string) =>
+    Array.from(html.matchAll(/(?:href|src|action)\s*=\s*"([^"]*)"/g)).map((m) => m[1]);
+
+  it('no link, script or form in the Search chrome addresses the CRM by filename', () => {
+    const offenders = linkTargets(read('public/crm/html/nav.html')).filter((t) => /dashboard\.html/.test(t));
+    expect({
+      offenders,
+      why: '`dashboard.html` in a destination is a dependency on a file; `/crm` is a link to a product.',
+    }).toEqual({ offenders: [], why: expect.any(String) });
   });
 
-  it('nothing outside the retired shell links to it as if it were the CRM', () => {
-    // The canonical nav used to carry <a href="/crm/dashboard" title="Back to CRM Dashboard">, which
-    // framed the duplicate as home and walked operators out of their own CRM.
-    const nav = read('public/crm/html/nav.html');
-    expect(nav).not.toMatch(/title="Back to CRM Dashboard"/);
-    expect(nav).not.toMatch(/>\s*CRM\s*<\/span>/);
+  it('the Search chrome does link to the CRM, by its governed route', () => {
+    expect(linkTargets(read('public/crm/html/nav.html'))).toContain('/crm');
+  });
+
+  it('no Backend Search runtime module navigates to the CRM by filename', () => {
+    // The launcher that regressed: js/crm/client-database.js used to send the operator to
+    // '/crm/dashboard.html#/workspace/client/<id>/overview'. Scan executable lines only, so the
+    // explanation of the rule cannot break the enforcement of it.
+    const stripComments = (js: string) =>
+      js.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    const modules = ['js/crm/client-database.js', 'js/manage/manage-listings.js', 'js/output/calculators.js'];
+    const offenders = modules.filter((m) => /dashboard\.html/.test(stripComments(read(`public/crm/${m}`))));
+    expect({ offenders }).toEqual({ offenders: [] });
   });
 });
 
@@ -245,16 +272,24 @@ describe('there is exactly one Sale editor and one Rental editor', () => {
   });
 });
 
-describe('routing sends every operator to the one CRM', () => {
+describe('each application answers at its own address', () => {
   const vercel = JSON.parse(read('vercel.json')) as { rewrites: { source: string; destination: string }[] };
-  const shellTargets = vercel.rewrites.filter((r) => /\/crm\/(index-built|dashboard)\.html$/.test(r.destination));
+  const dest = (source: string) => vercel.rewrites.find((r) => r.source === source)?.destination;
 
-  it('/crm is the canonical application', () => {
-    expect(vercel.rewrites.find((r) => r.source === '/crm')!.destination).toBe('/crm/index-built.html');
+  it('/crm is the CRM', () => {
+    expect(dest('/crm')).toBe('/crm/dashboard.html');
   });
 
-  it('the retired shell is reachable by exactly one explicit route, and never by the bare entry', () => {
-    const toRetired = shellTargets.filter((r) => r.destination.endsWith('dashboard.html')).map((r) => r.source);
-    expect(toRetired).toEqual(['/crm/dashboard']);
+  it('/crm/dashboard is a compatibility address for the SAME CRM', () => {
+    expect(dest('/crm/dashboard')).toBe('/crm/dashboard.html');
+    expect(dest('/crm/dashboard')).toBe(dest('/crm'));
+  });
+
+  it('/crm/search is Backend Agent Search', () => {
+    expect(dest('/crm/search')).toBe('/crm/index-built.html');
+  });
+
+  it('the two applications never resolve to each other', () => {
+    expect(dest('/crm')).not.toBe(dest('/crm/search'));
   });
 });

@@ -1247,10 +1247,12 @@ function manageAutoUpdate(id) {
 
 // Create / Edit Listing
 // The listing forms open by their GOVERNED ABSOLUTE routes (vercel.json), never relative.
-// A relative form filename resolves against the directory of the address in the bar, and
-// /crm -> /crm/index-built.html is a rewrite the browser cannot see. Entered at /crm/search it
-// resolved under /crm/ and worked; entered at /crm it resolved at the site root and every
-// create/edit opened a 404. Sale and rental keep separate routes, as they must.
+// A relative form filename resolves against the directory of the address in the bar, and every
+// /crm/* address is a rewrite the browser cannot see: /crm/search serves index-built.html and /crm
+// serves dashboard.html, but the bar still reads /crm/search or /crm. So a relative filename
+// resolved under /crm/ from /crm/search and worked, and resolved at the SITE ROOT from /crm, where
+// every create/edit opened a 404. Absolute routes are immune to which address the operator entered
+// by. Sale and rental keep separate routes, as they must.
 var CRM_SALE_FORM_ROUTE = '/crm/sale-listing';
 var CRM_RENTAL_FORM_ROUTE = '/crm/rental-listing';
 

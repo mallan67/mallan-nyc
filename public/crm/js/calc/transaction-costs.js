@@ -1,8 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
 // TRANSACTION-COST CALCULATION CORE — pure, structured, reusable
 //
-// Tranche 1 of moving the 12 calculators out of the retired dashboard shell (js/dashboard/panels/
-// tools/**) into the canonical CRM.
+// Tranche 1 of collapsing the 12 hand-built calculator modules (js/dashboard/panels/tools/**, now
+// deleted) onto ONE engine. Both applications load this file: the brokerage CRM (dashboard.html)
+// and the Backend Agent Search / Listings application (index.html). That is the point — a shared
+// calculation core is the only way the same purchase cannot be quoted two different numbers
+// depending on which application the agent opened.
 //
 // THIS FILE TOUCHES NO DOM. It takes a plain object and returns a plain object. That is deliberate:
 // the dashboard versions read `document.getElementById(id).value` and painted HTML, which makes them

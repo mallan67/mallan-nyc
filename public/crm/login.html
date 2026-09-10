@@ -336,7 +336,7 @@
             function devLogin() {
               fetch('/api/auth/dev-login', { method: 'POST', credentials: 'same-origin' })
                 .then(function(r) { return r.json(); })
-                .then(function(d) { if (d.success) window.location.href = '/crm/dashboard.html'; else alert(d.error); })
+                .then(function(d) { if (d.success) window.location.href = '/crm'; else alert(d.error); })
                 .catch(function(e) { alert('Dev login failed: ' + e.message); });
             }
             </script>
@@ -396,11 +396,19 @@
         }).catch(function () { /* not logged in */ });
 
         // ── Redirect target ──
-        // Sign-in lands on /crm, which serves the CANONICAL CRM (public/crm/index-built.html):
-        // Property Search, Building search, Comparables, Manage Listings, Open Houses.
-        // It used to land on /crm/dashboard, the duplicate "CRM v2" shell introduced by 9716752d,
-        // which contains no Property Search at all — the reason the owner reported having no search
-        // on 2026-09-09 while the canonical app was deployed and healthy the entire time.
+        // Sign-in lands on /crm, which serves the brokerage CRM (public/crm/dashboard.html):
+        // clients, agents, deals, finance, compliance.
+        //
+        // CORRECTION, 2026-09-10. An earlier comment here described dashboard.html as a "duplicate
+        // CRM v2 shell" and index-built.html as "the canonical CRM". That was wrong. A forensic
+        // census proved they are two DIFFERENT applications: dashboard.html IS the CRM, and
+        // index-built.html is the Backend Agent Search / Listings application, which answers at
+        // /crm/search. For a period /crm was pointed at Search, which is why a browser and the
+        // installed PWA appeared to open two different CRMs. The route is corrected; this
+        // destination is unchanged and now means what it says.
+        //
+        // An agent signing in wants the CRM. An explicit ?redirect= (e.g. to /crm/search) is
+        // honoured, so a deep link into Search still works.
         function getRedirectTarget() {
             var params = new URLSearchParams(window.location.search);
             var explicit = params.get('redirect');

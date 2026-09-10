@@ -4,13 +4,16 @@
     <div id="generalNavBar" class="px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
         <div class="flex items-center gap-3 flex-shrink-0">
             <div class="text-lg sm:text-xl font-bold tracking-wider" style="color: #C4A052;">MALLAN</div>
-            <!-- This IS the CRM. The link below goes to the legacy dashboard shell, which still holds
-                 the broker console (approvals, payouts, agents, clients, workspaces) until those are
-                 merged in here. It used to read "CRM" / "Back to CRM Dashboard", which framed the
-                 duplicate as home and sent operators out of their own CRM. -->
-            <a href="/crm/dashboard" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md bg-white/10 text-gray-300 hover:text-white hover:bg-white/20 transition-all flex items-center gap-1.5" title="Broker console — legacy shell, being merged into this CRM">
+            <!-- This application is Backend Agent Search / Listings. The link below launches the
+                 brokerage CRM, which is a SEPARATE application (Master Plan §5.1): clients, agents,
+                 deals, finance, compliance.
+                 It is a launch link, not a dependency — Search boots, authenticates and executes with
+                 the CRM entirely unavailable (proven by crm-backend-search-independence.test.ts).
+                 Addressed by ROUTE (/crm), never by build artifact (dashboard.html), so the coupling
+                 is to a product rather than to a filename. -->
+            <a href="/crm" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md bg-white/10 text-gray-300 hover:text-white hover:bg-white/20 transition-all flex items-center gap-1.5" title="Open the brokerage CRM">
                 <i class="fas fa-briefcase text-[10px]"></i>
-                <span class="hidden sm:inline">Broker</span>
+                <span class="hidden sm:inline">CRM</span>
             </a>
         </div>
         <nav class="flex gap-1.5 sm:gap-2 mx-3">

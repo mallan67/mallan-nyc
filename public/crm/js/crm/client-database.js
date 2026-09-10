@@ -19,10 +19,19 @@ function getMyClients() {
     return clients;
 }
 
-// Navigate to client workspace in CRM dashboard
+// Launch the client workspace in the brokerage CRM.
+//
+// This file is loaded by public/crm/index.html — the Backend Agent Search / Listings application.
+// The CRM is a SEPARATE application (Master Plan §5.1), so this is a LAUNCH LINK across a product
+// boundary, not a dependency: Search boots, authenticates and executes with the CRM unavailable.
+//
+// Addressed by ROUTE, never by build artifact. It used to say '/crm/dashboard.html', which couples
+// Search to a filename inside the CRM's build output and breaks the moment that file is renamed.
+// '/crm' is the CRM's governed address (vercel.json), and '#/workspace/client/:id/overview' is a
+// route the CRM's own router registers (js/dashboard/app.js).
 function openClientWorkspace(clientId) {
     if (!clientId) return;
-    window.location.href = '/crm/dashboard.html#/workspace/client/' + encodeURIComponent(clientId) + '/overview';
+    window.location.href = '/crm#/workspace/client/' + encodeURIComponent(clientId) + '/overview';
 }
 
 // Dynamically render client card grid (replaces hardcoded HTML cards)

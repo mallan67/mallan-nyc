@@ -294,9 +294,9 @@ var CrmCalcUI = (function () {
     // ═══════════════════════════════════════════════════════════════════════════════════════════
     // CLIENT CONTEXT — the calculators are callable from a client, not only from a Tools page
     //
-    // The retired shell's Sales CRM workspace had a Calculators tab that rendered twelve hand-built
-    // modules into twelve #calc-<id> divs and prefilled them from the client record. That tab was
-    // the only reason those twelve modules could not be deleted.
+    // The CRM's Sales workspace had a Calculators tab that rendered twelve hand-built modules into
+    // twelve #calc-<id> divs and prefilled them from the client record. That tab was the only
+    // reason those twelve modules could not be deleted.
     //
     // Here the arithmetic is the shared engines and only the PREFILL is client-specific. A prefilled
     // value becomes an ordinary input, so it appears in `assumptions` with source 'user' and stays
