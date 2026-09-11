@@ -11,8 +11,10 @@
  *   - Every comp select's default option carried no `value`, so `el.value === "Any Min"` and
  *     `parseInt("Any Min") === NaN` reached the wire as `minBeds=NaN`; both Subject Buildings and General
  *     Criteria 400'd out of the box.
- *   - `buildingName` and `minSqft`/`maxSqft` were assigned and then dropped — neither is an executable
- *     parameter of this Search.
+ *   - `buildingName` and `minSqft`/`maxSqft` were assigned and then dropped. (As of 2026-09-11 both
+ *     ARE executable criteria of the main Search — Backend Agent Search P0, Correction Slice 1 — but
+ *     the Comparables panels carry no SqFt and no building-name control at all, so
+ *     `serializeCompCriteria` still produces neither, and the assertions below are unaffected.)
  *   - 54 status checkboxes across two panels had no id, no data-field and no reader; 12 of their labels
  *     were Mallan WORKFLOW words the executor refuses by name.
  *   - The "Sold Date" column rendered `ModificationTimestamp`; the Price column rendered the ASK of a

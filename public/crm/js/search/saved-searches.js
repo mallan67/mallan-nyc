@@ -219,14 +219,43 @@
             // A saved search is a GENERAL search. Without this it was restored into a form the Comparables
             // tab was covering, and then run.
             if (typeof toggleSearchType === 'function') toggleSearchType('general');
-            if (typeof toggleSearchTab === 'function') toggleSearchTab(tab); else currentSearchTab = tab;
+            // WHICH PANEL a saved search restores into is part of the restore, not a detail.
+            // BuildingName is owned by exactly one control, #adv-building-name, which exists ONLY in
+            // the Advanced panel — so a saved search carrying it has to be restored into Advanced
+            // mode, and then every other criterion has to be restored into the ADVANCED controls too,
+            // because _restoreParity re-serializes whatever panel is showing and refuses on any
+            // difference. Passing the mode explicitly also makes the basic case deterministic:
+            // toggleSearchTab(tab) alone falls back to the remembered sessionStorage mode, so
+            // restoring basic ids while the advanced panel happened to be showing produced a parity
+            // refusal that read like a corrupt saved search.
+            var wantAdvanced = !!p.buildingName;
+            if (typeof toggleSearchTab === 'function') toggleSearchTab(tab, wantAdvanced ? 'advanced' : 'basic');
+            else currentSearchTab = tab;
             var prefix = tab === 'rent' ? 'rental' : 'sale';
-            _setSelectValue(prefix === 'rental' ? 'rentalMinRent' : 'saleMinPrice', p.minPrice);
-            _setSelectValue(prefix === 'rental' ? 'rentalMaxRent' : 'saleMaxPrice', p.maxPrice);
-            _setSelectValue(prefix + 'MinBeds', p.minBeds);
-            _setSelectValue(prefix + 'MaxBeds', p.maxBeds);
-            _setSelectValue(prefix + 'MinBaths', p.minBaths);
-            _setSelectValue(prefix + 'MaxBaths', p.maxBaths);
+            if (wantAdvanced) {
+                _setSelectValue(tab === 'rent' ? 'advRentalMinRent' : 'advSaleMinPrice', p.minPrice);
+                _setSelectValue(tab === 'rent' ? 'advRentalMaxRent' : 'advSaleMaxPrice', p.maxPrice);
+                _setSelectValue('adv-min-beds', p.minBeds);
+                _setSelectValue('adv-max-beds', p.maxBeds);
+                _setSelectValue('adv-min-baths', p.minBaths);
+                _setSelectValue('adv-max-baths', p.maxBaths);
+                _setSelectValue('adv-min-sqft', p.minSqft);
+                _setSelectValue('adv-max-sqft', p.maxSqft);
+                var bnEl = document.getElementById('adv-building-name');
+                if (bnEl) bnEl.value = p.buildingName; else issues.push('buildingName: no control');
+            } else {
+                _setSelectValue(prefix === 'rental' ? 'rentalMinRent' : 'saleMinPrice', p.minPrice);
+                _setSelectValue(prefix === 'rental' ? 'rentalMaxRent' : 'saleMaxPrice', p.maxPrice);
+                _setSelectValue(prefix + 'MinBeds', p.minBeds);
+                _setSelectValue(prefix + 'MaxBeds', p.maxBeds);
+                _setSelectValue(prefix + 'MinBaths', p.minBaths);
+                _setSelectValue(prefix + 'MaxBaths', p.maxBaths);
+                // LivingArea: #saleMinSqft / #saleMaxSqft / #rentalMinSqft / #rentalMaxSqft. Without
+                // these two lines a saved SqFt search stored a parameter it could not put back, and
+                // _restoreParity refused the restore on the difference.
+                _setSelectValue(prefix + 'MinSqft', p.minSqft);
+                _setSelectValue(prefix + 'MaxSqft', p.maxSqft);
+            }
             var zipEl = document.getElementById(prefix + 'QuickZip');
             if (p.zip) { if (zipEl) zipEl.value = p.zip; else issues.push('zip: no control'); }
             var rlsEl = document.getElementById(prefix + 'QuickRls');

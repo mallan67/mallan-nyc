@@ -305,14 +305,19 @@
             return set;
         }
         // Shell criteria keys the executor does not execute (UI labels only — not vocabulary).
+        // `address` is the "Address or Building Name" AUTOCOMPLETE and stays refused: it is a different
+        // criterion from the explicit Building Name control, and splitting free text into
+        // address-vs-BuildingName needs parsing rules the provider contract does not give us.
+        // `sqftMin`/`sqftMax`/`buildingName` were removed from this list on 2026-09-11 — see the
+        // serializer below for the executed path that replaced the refusal.
         var _NOT_EXECUTABLE = [
             ['address', 'Address / Building Name'], ['unit', 'Unit #'], ['keyword', 'Keyword'],
-            ['roomsMin', 'Min Rooms'], ['roomsMax', 'Max Rooms'], ['sqftMin', 'Min SqFt'], ['sqftMax', 'Max SqFt'],
+            ['roomsMin', 'Min Rooms'], ['roomsMax', 'Max Rooms'],
             ['managementCompany', 'Management Company'], ['dateFrom', 'Listing Activity date'], ['dateTo', 'Listing Activity date'],
             ['dateActivityType', 'Listing Activity type'], ['contractDateFrom', 'Contract date'], ['contractDateTo', 'Contract date'],
             ['soldDateFrom', 'Sold date'], ['soldDateTo', 'Sold date'], ['yearMin', 'Year Built'], ['yearMax', 'Year Built'],
             ['floorsMin', 'Floors'], ['floorsMax', 'Floors'], ['unitsMin', 'Units'], ['unitsMax', 'Units'],
-            ['buildingName', 'Building Name'], ['openHouseDateFrom', 'Open House date'], ['openHouseDateTo', 'Open House date'],
+            ['openHouseDateFrom', 'Open House date'], ['openHouseDateTo', 'Open House date'],
             // MaximumFinancingPercent does not exist on live Cotality Property and there is no financing
             // criterion in the executor. This key used to be the ONE key collectSearchCriteria produced that
             // was neither executed nor refused — it was dropped in silence, which widens the universe.
@@ -339,6 +344,17 @@
             if (criteria.bedsMax != null) params.maxBeds = criteria.bedsMax;
             if (criteria.bathsMin) params.minBaths = criteria.bathsMin;
             if (criteria.bathsMax) params.maxBaths = criteria.bathsMax;
+            // LivingArea / BuildingName are EXECUTED server-side: `minSqft`, `maxSqft` and
+            // `buildingName` are all in EXECUTED_PARAMS (lib/search/engine/criteria.ts), and
+            // provider-query.ts emits `LivingArea ge|le` and `tolower(BuildingName) eq`. The browser
+            // names the range sqftMin/sqftMax; the WIRE names it minSqft/maxSqft — that translation is
+            // the whole reason this has to happen here.
+            // Until 2026-09-11 all three sat in _NOT_EXECUTABLE, and because performSearch RETURNS as
+            // soon as anything is refused, choosing a square footage did not merely fail to narrow the
+            // search — it ABORTED it, for a criterion the provider supports on 417,652 rows.
+            if (criteria.sqftMin != null && criteria.sqftMin !== '') params.minSqft = criteria.sqftMin;
+            if (criteria.sqftMax != null && criteria.sqftMax !== '') params.maxSqft = criteria.sqftMax;
+            if (criteria.buildingName) params.buildingName = criteria.buildingName;
             if (criteria.neighborhoods && criteria.neighborhoods.length > 0) params.neighborhood = criteria.neighborhoods.join(',');
             // EVERY selected borough is sent; the executor ORs CityRegion across provider and Mallan rows.
             if (criteria.boroughs && criteria.boroughs.length > 0) params.borough = criteria.boroughs.join(',');
@@ -731,6 +747,14 @@
             // Price range — use the correct IDs based on search tab and mode (basic vs advanced)
             var _advMode = document.getElementById('searchAdvancedMode');
             var _isAdvanced = _advMode && _advMode.style.display !== 'none' && !_advMode.classList.contains('hidden');
+            // The Buildings tab owns its own basic panel (#searchBasicModeBuilding), and that panel
+            // carries ONLY RLS id, zip and neighborhood. It has no price / beds / baths / rooms / sqft
+            // control, so a basic Buildings search must collect NONE of them. Without this guard the
+            // `else` branches below fall through to the HIDDEN Sale panel and silently narrow the
+            // building universe by whatever the agent last set on the Sale tab. Advanced mode has no
+            // Buildings panel (see the status-mount comment below), so an advanced Building search
+            // legitimately reads the advanced controls the agent is actually looking at.
+            var _buildingBasic = (currentSearchTab === 'building') && !_isAdvanced;
             var priceMin, priceMax, customMinId, customMaxId;
             if (_isAdvanced) {
                 if (currentSearchTab === 'rent') {
@@ -750,7 +774,7 @@
                     priceMax = document.getElementById('rentalMaxRent');
                     customMinId = 'rentalMinRentCustom';
                     customMaxId = 'rentalMaxRentCustom';
-                } else {
+                } else if (!_buildingBasic) {
                     priceMin = document.getElementById('saleMinPrice');
                     priceMax = document.getElementById('saleMaxPrice');
                     customMinId = 'saleMinPriceCustom';
@@ -792,7 +816,7 @@
             } else if (currentSearchTab === 'rent') {
                 bedsMin = document.getElementById('rentalMinBeds');
                 bedsMax = document.getElementById('rentalMaxBeds');
-            } else {
+            } else if (!_buildingBasic) {
                 bedsMin = document.getElementById('saleMinBeds');
                 bedsMax = document.getElementById('saleMaxBeds');
             }
@@ -813,7 +837,7 @@
             } else if (currentSearchTab === 'rent') {
                 bathsMin = document.getElementById('rentalMinBaths');
                 bathsMax = document.getElementById('rentalMaxBaths');
-            } else {
+            } else if (!_buildingBasic) {
                 bathsMin = document.getElementById('saleMinBaths');
                 bathsMax = document.getElementById('saleMaxBaths');
             }
@@ -834,7 +858,7 @@
             } else if (currentSearchTab === 'rent') {
                 roomsMin = document.getElementById('rentalMinRooms');
                 roomsMax = document.getElementById('rentalMaxRooms');
-            } else {
+            } else if (!_buildingBasic) {
                 roomsMin = document.getElementById('saleMinRooms');
                 roomsMax = document.getElementById('saleMaxRooms');
             }
@@ -855,7 +879,7 @@
             } else if (currentSearchTab === 'rent') {
                 sqftMin = document.getElementById('rentalMinSqft');
                 sqftMax = document.getElementById('rentalMaxSqft');
-            } else {
+            } else if (!_buildingBasic) {
                 sqftMin = document.getElementById('saleMinSqft');
                 sqftMax = document.getElementById('saleMaxSqft');
             }
@@ -1110,9 +1134,21 @@
                 if (!isNaN(fmx)) criteria.floorsMax = fmx;
             }
 
-            // Building name search
-            var buildingNameEl = document.getElementById('buildingSearchAddress') || document.getElementById('buildingNameSearch');
-            if (buildingNameEl && buildingNameEl.value.trim() && currentSearchTab === 'building') {
+            // Building name — the explicit BuildingName criterion (Property.BuildingName, equality on
+            // the lowercased value; 221,140 populated rows, filterable, probeHttp 200).
+            // It is owned by exactly ONE control: #adv-building-name in the Advanced panel. Until
+            // 2026-09-11 this read #buildingSearchAddress and #buildingNameSearch — NEITHER id exists
+            // anywhere in the shipped partial — and then gated the result on the Buildings tab, whose
+            // panel has no building-name control either. So the criterion could never be collected
+            // from anywhere, which is why removing it from _NOT_EXECUTABLE alone would have changed
+            // nothing but the toast.
+            // The `saleSearchAddress` / `rentalSearchAddress` / `advancedSearchAddress` boxes are the
+            // "Address or Building Name" AUTOCOMPLETE. They feed `criteria.address`, a DIFFERENT
+            // criterion that is still refused by name. They are deliberately not mapped here.
+            // Gated on _isAdvanced for the same reason as every other adv-* control: a value left in a
+            // hidden panel must not narrow a search the agent is running somewhere else.
+            var buildingNameEl = _isAdvanced ? document.getElementById('adv-building-name') : null;
+            if (buildingNameEl && buildingNameEl.value.trim()) {
                 criteria.buildingName = buildingNameEl.value.trim();
             }
 

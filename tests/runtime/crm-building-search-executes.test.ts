@@ -81,6 +81,7 @@ function boot() {
         // reaches the wire. Mirror that here so a "sent" parameter in this test means actually sent.
         const forwarded: Record<string, unknown> = {};
         for (const k of ['type', 'minPrice', 'maxPrice', 'minBeds', 'maxBeds', 'minBaths', 'maxBaths',
+          'minSqft', 'maxSqft', 'buildingName',
           'neighborhood', 'borough', 'status', 'listingId', 'zip', 'ownership', 'StructureType',
           'sort', 'limit', 'skip']) {
           const v = (params as any)[k];
@@ -301,19 +302,34 @@ describe('a Building search SERIALIZES into executable parameters (no blanket re
       floorsMax: 2, buildingName: 'One57', checkboxFilters: { StructureType: ['HighRise'] },
     };
     const r = h.win.serializeSearchCriteria(produced);
+    // A key counts as EXECUTED only if it actually produces a parameter. Merely listing it used to be
+    // enough, which made this test a rubber stamp for precisely the defect Correction Slice 1 fixed:
+    // sqftMin / sqftMax / buildingName were collected and then dropped, and nothing here noticed.
+    const EXECUTES: Record<string, string> = {
+      searchTab: 'type', priceMin: 'minPrice', priceMax: 'maxPrice', bedsMin: 'minBeds',
+      bedsMax: 'maxBeds', bathsMin: 'minBaths', bathsMax: 'maxBaths', ownership: 'ownership',
+      propertySubType: 'StructureType', statuses: 'status', backOnMarket: 'backOnMarket',
+      neighborhoods: 'neighborhood', boroughs: 'borough', borough: 'borough', rlsId: 'listingId',
+      zip: 'zip', checkboxFilters: 'StructureType',
+      // LivingArea / BuildingName — executed since 2026-09-11 (Backend Agent Search P0, Slice 1).
+      // The server had executed them all along; the browser refused them.
+      sqftMin: 'minSqft', sqftMax: 'maxSqft', buildingName: 'buildingName',
+    };
+    for (const key of Object.keys(EXECUTES)) {
+      const param = EXECUTES[key];
+      expect({ key, param, emitted: (r.params as Record<string, unknown>)[param] !== undefined })
+        .toEqual({ key, param, emitted: true });
+    }
     // Anything not turned into a parameter must appear, by name, in the refusal list.
-    const executedKeys = new Set(['searchTab', 'priceMin', 'priceMax', 'bedsMin', 'bedsMax', 'bathsMin',
-      'bathsMax', 'ownership', 'propertySubType', 'statuses', 'backOnMarket', 'neighborhoods', 'boroughs',
-      'borough', 'rlsId', 'zip', 'checkboxFilters']);
-    const unaccounted = Object.keys(produced).filter((k) => !executedKeys.has(k)).filter((k) => {
+    const unaccounted = Object.keys(produced).filter((k) => !(k in EXECUTES)).filter((k) => {
       const labels: Record<string, string> = {
-        roomsMin: 'Min Rooms', roomsMax: 'Max Rooms', sqftMin: 'Min SqFt', sqftMax: 'Max SqFt',
+        roomsMin: 'Min Rooms', roomsMax: 'Max Rooms',
         address: 'Address / Building Name', unit: 'Unit #', keyword: 'Keyword',
         managementCompany: 'Management Company', financingMin: 'Building Financing %',
         dateActivityType: 'Listing Activity type', dateFrom: 'Listing Activity date', dateTo: 'Listing Activity date',
         contractDateFrom: 'Contract date', contractDateTo: 'Contract date', soldDateFrom: 'Sold date',
         soldDateTo: 'Sold date', yearMin: 'Year Built', yearMax: 'Year Built', unitsMin: 'Units', unitsMax: 'Units',
-        floorsMin: 'Floors', floorsMax: 'Floors', buildingName: 'Building Name',
+        floorsMin: 'Floors', floorsMax: 'Floors',
       };
       return !r.refused.includes(labels[k]);
     });
