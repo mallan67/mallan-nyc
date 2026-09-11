@@ -26,14 +26,17 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { hasContractField } from './cotality-contract-facts';
+// addressIdentityKey resolves the borough through the canonical location interpretation
+// (lib/listings/canonical-location.ts, 2026-09-08); the eval harness injects the real helper.
+import { boroughFromCityRegion } from '../../lib/listings/canonical-location';
 
 const ROUTE = readFileSync(resolve(__dirname, '../../app/api/buildings/search/route.ts'), 'utf8');
 const FORM = readFileSync(resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'), 'utf8');
-const META = readFileSync(resolve(__dirname, '../../artifacts/metadata.xml'), 'utf8');
 // addressIdentityKey now canonicalizes dir/suffix/ordinal via the shared NYC
 // normalizer, so the eval block must include those helpers + their lookup maps.
 const NORM = readFileSync(resolve(__dirname, '../../lib/address/nyc-address-normalizer.ts'), 'utf8');
-const hasField = (f: string) => new RegExp(`Property Name="${f}"`).test(META);
+const hasField = (f: string) => hasContractField(f); // the committed live Cotality contract
 
 // ── Load the route's identity + profile helpers via Function-eval ─────────────
 // Strip TS-only syntax from the const map + the two helper functions so they
@@ -82,8 +85,9 @@ function loadHelpers() {
   );
   // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
   return new Function(
+    'boroughFromCityRegion',
     `${block}; return { SAVED_PROFILE_CONTRACT_TO_FORM, addressIdentityKey, addressOnlyKey, findRegisteredBuilding, promoteIdentity, registerBuilding, extractSavedProfileValues };`,
-  )();
+  )(boroughFromCityRegion);
 }
 const H = loadHelpers();
 

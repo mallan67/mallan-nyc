@@ -11,9 +11,8 @@
         function _initListingTracker() {
             if (typeof MallanAPI === 'undefined') return;
             MallanAPI.onReady(function() {
-                // Fetch sale count — ALL statuses on RLS (matches RealPlus total ~14K+)
-                // status=* skips status filter entirely for accurate RLS total
-                MallanAPI.idx.search({ type: 'sale', limit: 1, status: '*' }).then(function(result) {
+                // Active sale inventory — the same executor and the same default status as Search.
+                MallanAPI.idx.search({ type: 'sale', limit: 1 }).then(function(result) {
                     var count = 0;
                     if (result && result.totalCount) {
                         count = result.totalCount;
@@ -28,8 +27,8 @@
                     _updateTrackerTotal();
                 }).catch(function() {});
 
-                // Fetch rental count — ALL statuses on RLS
-                MallanAPI.idx.search({ type: 'rental', limit: 1, status: '*' }).then(function(result) {
+                // Active rental inventory — the same executor and the same default status as Search.
+                MallanAPI.idx.search({ type: 'rental', limit: 1 }).then(function(result) {
                     var count = 0;
                     if (result && result.totalCount) {
                         count = result.totalCount;

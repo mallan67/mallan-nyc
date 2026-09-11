@@ -24,6 +24,7 @@ import { getAccessToken } from '@/lib/idx/auth';
 import prisma from '@/lib/prisma';
 import { evaluateDisplayGate } from '@/lib/compliance/gates';
 import { DISPLAYABLE_STATUSES } from '@/lib/idx/db-to-public-dto';
+import { cotalityFields } from '@/lib/cotality/contract';
 
 // ── Shared scope constants (imported by app/api/open-houses/route.ts too — single source of truth).
 
@@ -33,9 +34,34 @@ import { DISPLAYABLE_STATUSES } from '@/lib/idx/db-to-public-dto';
 // consolidate. Verified live 2026-06-23: ListOfficeMlsId '7041' = "MAllan Real Estate Inc".
 export const MALLAN_OH_OFFICE_MLS_IDS = ['7041'] as const;
 
-// Open-house-eligible statuses: Active + ActiveUnderContract. ComingSoon is excluded — a Coming Soon
-// listing must have NO public open house (UCBA Art. I §16; the showing write path also rejects it).
+// Open-house-eligible statuses: every publicly displayable status except ComingSoon — Active,
+// ActiveUnderContract and Pending (the feed's in-contract status, shown publicly as "In Contract";
+// Maya 2026-09-08). ComingSoon is excluded — a Coming Soon listing must have NO public open house
+// (UCBA Art. I §16; the showing write path also rejects it).
 export const OPEN_HOUSE_ELIGIBLE_STATUSES = DISPLAYABLE_STATUSES.filter((s) => s !== 'ComingSoon');
+
+// ── The one OpenHouse selection authority (Domain 2, 2026-09-08). Compile-checked against the live contract;
+// every OpenHouse query (this module, app/api/open-houses/route.ts) sends these lists, never a local literal
+// (tests/runtime/provider-select-authority.test.ts).
+
+/** Every OpenHouse field the interpreters read: identity, schedule, the By-Appointment signal, remarks. */
+export const OPEN_HOUSE_SELECT_FIELDS = cotalityFields('OpenHouse', [
+  'OpenHouseKey', 'ListingKey', 'ListingId', 'OpenHouseDate', 'OpenHouseStartTime', 'OpenHouseEndTime',
+  'OpenHouseType', 'AppointmentRequiredYN', 'OpenHouseRemarks',
+]);
+
+/** The Property facts an open-house card needs (expand or batch hydration): gates, address, card facts.
+ *  No agent identity — this feeds public surfaces and nothing renders ListAgentFullName (census 2026-09-08). */
+export const OPEN_HOUSE_PROPERTY_SELECT_FIELDS = cotalityFields('Property', [
+  'ListingKey', 'ListingId', 'ListPrice', 'StreetNumber', 'StreetDirPrefix', 'StreetName', 'StreetSuffix', 'StreetDirSuffix',
+  'UnitNumber', 'City', 'PostalCode', 'PropertyType', 'CommonInterest', 'BedroomsTotal', 'BathroomsFull', 'BathroomsHalf',
+  'LivingArea', 'ListOfficeName', 'PublicRemarks', 'Permission', 'InternetEntireListingDisplayYN', 'InternetAddressDisplayYN',
+  'StandardStatus', 'MlsStatus', 'CloseDate',
+]);
+
+/** Public-only, active open houses — the only events a public surface may show or count (Broker-only and
+ *  Private events never surface; cancelled/inactive events are excluded). */
+export const OPEN_HOUSE_PUBLIC_FILTER = "OpenHouseType eq 'Public' and OpenHouseStatus eq 'Active'";
 
 /** A LOCAL open house is Mallan's own only when the listing is a website-only Mallan exclusive
  *  (rls_eligible=false) or carries the Mallan CRM exclusive prefix (SL-/RL-). Synced RLS listings are
@@ -278,15 +304,15 @@ async function fetchTrestleUpcoming(): Promise<UpcomingEntry[]> {
     const listingScope = mallanIds.map((id) => `ListingId eq '${id.replace(/'/g, "''")}'`).join(' or ');
 
     const params = new URLSearchParams();
-    params.set('$filter', `OpenHouseDate ge ${today} and OpenHouseType eq 'Public' and OpenHouseStatus eq 'Active' and (${listingScope})`);
+    params.set('$filter', `OpenHouseDate ge ${today} and ${OPEN_HOUSE_PUBLIC_FILTER} and (${listingScope})`);
     // AppointmentRequiredYN + OpenHouseRemarks carry the "By Appointment" signal (see
     // resolvePublicOpenHouseType). Verified live: appt-only Mallan open houses are Public with
     // AppointmentRequiredYN=true, not a distinct OpenHouseType.
-    params.set('$select', 'OpenHouseKey,ListingKey,ListingId,OpenHouseDate,OpenHouseStartTime,OpenHouseEndTime,OpenHouseType,AppointmentRequiredYN,OpenHouseRemarks');
+    params.set('$select', OPEN_HOUSE_SELECT_FIELDS.join(','));
     params.set('$orderby', 'OpenHouseDate asc');
     params.set('$top', '50');
     // Property expand: gate fields + address for the twin-safe address key.
-    params.set('$expand', 'Property($select=StreetNumber,StreetName,UnitNumber,Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN,StandardStatus,MlsStatus,CloseDate)');
+    params.set('$expand', `Property($select=${OPEN_HOUSE_PROPERTY_SELECT_FIELDS.join(',')})`);
 
     const res = await fetch(`${base}/odata/OpenHouse?${params}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -299,11 +325,14 @@ async function fetchTrestleUpcoming(): Promise<UpcomingEntry[]> {
       const propRaw = r.Property;
       const prop = ((Array.isArray(propRaw) ? propRaw[0] : propRaw) || {}) as Record<string, unknown>;
       // idxPlusPreFiltered: REBNY pre-filtered feed — null IELD = displayable (fail-OPEN).
-      if (!evaluateDisplayGate(prop, { idxPlusPreFiltered: true }).displayable) continue;
+      const gate = evaluateDisplayGate(prop, { idxPlusPreFiltered: true });
+      if (!gate.displayable) continue;
       const listingId = String(r.ListingId || r.ListingKey || '');
       out.push({
         listingId,
-        addressKey: normalizeAddressKey({ streetNumber: prop.StreetNumber, streetName: prop.StreetName, unitNumber: prop.UnitNumber }),
+        // An address-suppressed listing (InternetAddressDisplayYN false) never emits an address key; the twin
+        // merge then falls back to listingId, exactly as app/api/open-houses/route.ts does.
+        addressKey: gate.addressDisplayable ? normalizeAddressKey({ streetNumber: prop.StreetNumber, streetName: prop.StreetName, unitNumber: prop.UnitNumber }) : '',
         date: String(r.OpenHouseDate || '').split('T')[0],
         startTime: formatEasternTime(r.OpenHouseStartTime as string),
         endTime: formatEasternTime(r.OpenHouseEndTime as string),

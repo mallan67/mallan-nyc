@@ -16,11 +16,35 @@
  * Active — Trestle IDX Plus WebAPI provides all 1,363 fields. VOW display is
  * authorized for registered/logged-in portal consumers per REBNY RLS rules.
  *
- * FIELD AUTHORITY ORDER: UCBA → RLS TRUMPS ALL → RESO/IDX fills gaps → INTERNAL-ONLY → Fail closed
+ * AUTHORITY: COTALITY LIVE CONTRACT → provider facts · REBNY / UCBA → compliance / display rules ·
+ * MALLAN → form / workflow / storage · RESO = vocabulary only · Fail closed = non-display.
  */
 
 import { affirmPermission, isOwnerOptOut, isParticipantOnly } from "./gates";
 import { resolveListingAgentInfo, type ResolvableListingAgent } from "@/lib/listings/agent-info-resolver";
+import { statusPresentation } from "@/lib/crm/status-mapping";
+
+/**
+ * The portal's status projection (owner ruling, Maya 2026-09-08 / 2026-09-09).
+ *
+ * `status` is the live Cotality StandardStatus token the row stores — legacy Mallan spellings ('Sold',
+ * 'Rented', 'Leased', 'Cancelled', 'Draft') are normalized to their token, never re-emitted. `status_label`
+ * is the BROKER LANGUAGE for that token IN THIS TRANSACTION: a sale's Closed reads "Sold", a rental's Closed
+ * reads "Rented", a sale's Pending reads "In Contract". A row recorded off the feed reads the Mallan presence
+ * state ("Off Market"), which is never a provider status.
+ *
+ * Fail-closed: an unresolvable state is "Status unavailable" — a portal reader NEVER fabricates "Active" and
+ * never re-derives a label of its own from the raw token.
+ */
+function statusProjection(listing: {
+  status: unknown; listing_type?: unknown; raw_data?: unknown; sync_status?: unknown; terminal_since?: unknown;
+}): { status: unknown; status_label: string } {
+  const presentation = statusPresentation(listing);
+  return {
+    status: presentation.status ?? listing.status,
+    status_label: presentation.label,
+  };
+}
 
 // ─── Fields that MUST NEVER appear in portal or public responses ──────────
 
@@ -105,9 +129,9 @@ const IDX_SUPPRESSED_FIELDS = [
  * ExpirationDate which is hidden from all public display.
  *
  * Sources:
- *   - REBNY IDX Plus CSV: data/rebny-rls-property-fields.csv (902 fields, "IDX Plus" feed)
+ *   - The live Cotality contract (lib/cotality/live-contract.ts; data/cotality-contract/**) — the IDX Plus field set as delivered
  *   - REBNY IDX/VOW Compliance Checklist (Dec 2021): no field-level VOW-only restrictions
- *   - Trestle metadata: artifacts/metadata.xml (no IDX/VOW field annotations)
+ *   - Cotality $metadata (live; no IDX/VOW field annotations)
  *   - NAR IDX Policy 7.58: sold data must be on IDX when publicly accessible (NYC has ACRIS)
  */
 const VOW_ENRICHED_FIELDS = [
@@ -363,10 +387,15 @@ export function sanitizeListingForPortal(
   // now also blocks display.
   if (!affirmPermission(listing.internet_entire_listing_display_yn)) return null;
 
+  // The token + its transaction label, computed on the server. The portal RENDERS `status_label`; it never
+  // re-derives a label from `status` and never reads a provider status field.
+  const projected = statusProjection(listing);
+
   const flat: Record<string, unknown> = {
     id: listing.id.toString(),
     listing_id: listing.listing_id,
-    status: listing.status,
+    status: projected.status,
+    status_label: projected.status_label,
     listing_type: listing.listing_type,
     property_type: listing.property_type,
     property_sub_type: listing.property_sub_type,
@@ -440,10 +469,15 @@ export function sanitizeOwnedListingForOwner(
   listing: PortalListingInput,
   portalRole: string
 ): Record<string, unknown> {
+  // Same server-computed projection as the buyer/public portal: the stored token plus this transaction's
+  // broker label (an owner's Closed sale reads "Sold", an owner's Closed rental reads "Rented").
+  const projected = statusProjection(listing);
+
   const flat: Record<string, unknown> = {
     id: listing.id.toString(),
     listing_id: listing.listing_id,
-    status: listing.status,
+    status: projected.status,
+    status_label: projected.status_label,
     listing_type: listing.listing_type,
     property_type: listing.property_type,
     property_sub_type: listing.property_sub_type,

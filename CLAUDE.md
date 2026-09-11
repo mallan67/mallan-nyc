@@ -4,7 +4,42 @@
 >
 > **Compliance-first.** When a task touches anything in §D, READ `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` FIRST. The index has per-area canonical pointers, validators, and fail-closed instructions for REBNY, RLS, UCBA, IDX Plus, Trestle/Cotality, Fair Housing, NY DOS, FARE Act, TCPA, NY SHIELD, audit retention, CRM lead routing, seller/landlord intake, and Mallan exclusives/syndication.
 
-> **Cross-agent constitution → `AGENTS.md`.** The shared source of truth for **Claude · Codex · ChatGPT** (invariants, non-negotiable holds, where truth lives, and the per-session handoff rule). Read it alongside this file; keep the two in sync — `AGENTS.md` is the concise cross-agent essentials, this file is the Claude-specific depth. **Live operational status → `docs/PROJECT-HEALTH-DASHBOARD.md`** — refresh its auto tier with `npm run health:probe` (read-only) before every handoff. Dated session narrative → `docs/operations/site-audit-handoff-YYYY-MM-DD.md`.
+> ## AUTHORITY ORDER (read this before treating any file as truth)
+>
+> | Rank | File | What it is authority for |
+> |---|---|---|
+> | 1 | **`MALLAN-PLATFORM-MASTER-PLAN.md`** (repo root, on the canonical governance lineage: PR #595 / `agent/publish-mallan-platform-master-plan-2026-08-04`) | **The ONLY product/system authority.** What the platform IS, which applications exist, what each owns. |
+> | 2 | **`docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md`** (same canonical governance lineage) | Where execution currently stands. **STATUS ONLY** — it never defines architecture. |
+> | 3 | `AGENTS.md` · `CLAUDE.md` (this file) | **How agents work without violating 1 and 2.** Operating instructions and a mirror of critical invariants. |
+>
+> This file and `AGENTS.md` are **NOT** a competing product or system authority and must never
+> override the Master Plan. Where they mirror an invariant, they mirror it — they do not define it.
+> **If this file disagrees with the Master Plan, the Master Plan wins and this file is the defect.**
+> Say so and correct it; do not act on the stale copy.
+>
+> Why this ordering is written down: on 2026-09-10 §A.0 below was found asserting an architecture the
+> repository had already disproven, and `AGENTS.md` asserted the same thing to Codex. Correcting one
+> agent's instructions while another agent is still told the opposite is not a correction. **Both files
+> move together, always.**
+>
+> *(**Where these two files live, 2026-09-10.** Both rank-1 and rank-2 live on the canonical governance
+> lineage PR #595 / `agent/publish-mallan-platform-master-plan-2026-08-04`, not on this implementation branch. Neither is
+> expected to exist in this checkout, and nothing here should create a local copy of either — that is
+> how a second competing authority gets made. Read them on that branch.
+>
+> Two corrections are recorded here rather than erased. First: an earlier note claimed the execution
+> state "does not exist anywhere in the repository or working tree" and was Maya's to create. It
+> existed at `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` since 2026-08; I had checked only
+> the working tree and current branch, never git history or other refs. Second: rank 1 was pointed at
+> `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md`. That file is the
+> **integration/reconciliation working copy** — evidence and input, never authority. Owner ruling,
+> 2026-09-10: "The canonical Master Plan is the ROOT file on PR #595.")*
+>
+> **Cross-agent operating instructions → `AGENTS.md`.** Claude reads it (pointer here), **Codex reads it
+> natively** during PR review, and it is paste-ready for ChatGPT. Keep the two in sync — `AGENTS.md` is
+> the concise cross-agent essentials, this file is the Claude-specific depth. When a tool's private chat
+> memory disagrees with these files, these files win over the memory; when these files disagree with the
+> Master Plan, the Master Plan wins over these files. **Live operational status → `docs/PROJECT-HEALTH-DASHBOARD.md`** — refresh its auto tier with `npm run health:probe` (read-only) before every handoff. Dated session narrative → `docs/operations/site-audit-handoff-YYYY-MM-DD.md`.
 
 > ## 🛑 AGENT STOP — Neon/Vercel database facts (read before ANY db / Neon / Vercel / deploy action)
 >
@@ -21,6 +56,59 @@
 
 ## A. Absolute hard rules
 
+0. **THREE APPLICATIONS, THREE ADDRESSES, ONE OWNER EACH.** Mirrored from the Master Plan §5.1;
+   full text in `AGENTS.md` §1.0. The separation is a **compliance and audience-rights boundary**,
+   not a refactoring opportunity.
+
+   | Application | Files | Entry | Owns |
+   |---|---|---|---|
+   | **Brokerage CRM** | `public/crm/dashboard.html` + `public/crm/js/dashboard/**` | `/crm` (compat: `/crm/dashboard`) | broker dashboard, agent roster, clients, leads, deals, commissions, referrals, finance, compliance, brokerage documents, tasks/communications, Agent My Business, administration |
+   | **Backend Agent Search / Listings** | `public/crm/index.html` → generated `public/crm/index-built.html` | `/crm/search` | backend agent property search, My Listings, listing detail/workspace, professional saved searches, sale + rental listing editors, buildings intelligence, media, open houses, compare/CMA, listing reports/distribution, listing tools/calculators |
+   | **Consumer Search** | `app/search/page.tsx` | `/search` `/buy` `/rent` | the public, compliance-filtered search |
+
+   - **DO NOT** create another CRM shell, another CRM route table, or an alternate dashboard.
+   - **DO NOT** migrate Search/Listings into the CRM merely to "converge" applications.
+   - **DO NOT** create another Backend Search, another My Listings, or another listing writer.
+   - **DO NOT** move professional/member-only Search functionality into `/search`, and never expose
+     member-only or private data through the Consumer Search DTO.
+   - Backend Search may consume CRM APIs and data, but **MUST NOT require `dashboard.html` or the
+     CRM router to boot, render or execute.** The dependency runs **CRM → Backend Search**, never
+     the reverse. The CRM's Property Search control is a **launcher** into Backend Search: legitimate,
+     and it stays.
+   - The two Search products may share verified lower-level infrastructure — Cotality client/auth,
+     semantic mappings, vocabulary, listing identity, building identity, media authority,
+     normalization, address/status — but keep **separate** DTOs, permissions, filter contracts,
+     caches, tests, Saved Search semantics and user actions.
+   - `index-built.html` INLINES all its JavaScript — a source change is not live until
+     `node public/crm/build.js` runs, and `tests/runtime/crm-build-drift.test.ts` proves it byte for
+     byte on Windows and Linux alike.
+   - Enforced, not merely written down: `tests/runtime/crm-single-entry-point.test.ts` and
+     `tests/runtime/crm-one-application.test.ts`.
+
+   **HISTORICAL CORRECTION — do not erase this.** Until 2026-09-10 this rule read *"ONE CRM —
+   `public/crm/index.html` → `index-built.html`, served at `/crm` … `dashboard.html`, the RETIRED
+   duplicate"*, and instructed agents to add every CRM feature to `index-built.html` and to let
+   `js/dashboard/**` shrink until deleted. **That was a misclassification and is now disproven.** The
+   real defect was never "two CRMs": it was application-ownership and routing confusion. Backend
+   Search and the CRM were mistaken for duplicate shells of one product, and `/crm` was pointed at
+   Backend Search — which is why a browser at `/crm` reached Search while the installed PWA reached
+   the CRM, and why the owner reported *"i have no search right now"* about an application that was
+   deployed and healthy the whole time. Corrected in `928f31c4`. The duplicate **My Listings**
+   implementation deleted earlier (`da8e3046`) was a genuine duplicate and **stays deleted** — do not
+   resurrect it.
+
+0. **SEMANTIC AUTHORITY — read `AGENTS.md` §1A before touching any field, control, criterion or mapping.**
+   No surface control, API field, persisted fact, Search criterion, CMA field, report field or compliance
+   rule may refer directly to an **assumed** provider meaning. Every active datum resolves through **one**
+   Mallan semantic concept. A provider binding must identify the verified **resource, path, field, type and
+   entitlement** — `fieldName → yes/no` is not a provider check and produces confident wrong answers
+   (`ManagementCompanyName`: absent on Property, present on `Building`, `Building` is 403). A fact can be
+   **observed in delivered payloads without being a first-class field**. An alias is never authority.
+   Controls belong to concepts, not the reverse. Unresolved active writable concepts **fail closed**.
+   Exhaust the evidence packet before escalating a question to Maya. Runtime census, never HTML grep — a
+   validator that greps is worse than none, because it counts as coverage.
+   **Do not** hand-expand the kernel's seed concepts or repair its 16 aliases one at a time; the order is
+   runtime census → evidence graph → classification → surface manifests → compiler → delete the greps.
 1. **NEON discipline** — READ `NEON.md` before any Prisma schema, migration, `prisma migrate deploy`, `prisma db push`, `vercel.json buildCommand`, `db-keepalive` cron, or new column / FK / index / table work. Failing to read it is how the 2026-04-19 silent-drift incident happened.
 2. **Source-of-truth charter** — READ `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` before creating, renaming, moving, or editing any file in search, CRM, featured/exclusives, neighborhoods/locations, media, listings, or IDX. No parallel `*-v2`/`*-new`/`*-final` files. No editing generated files (`public/crm/index-built.html` is built via `npm run crm:build`).
 3. **Memory file mirror policy** — every file created/updated under `memory/` must also be mirrored to `C:\Users\MayaAllan\Desktop\memory\` in the same session (byte-identical). Verify with `cmp` after write. The `memory/archive/` subdirectory itself is not mirrored, only its parent file movements.
@@ -112,7 +200,7 @@ Guardrail docs: `docs/engineering/pr-verification-checklist.md` + `docs/engineer
 npm run type-check          # 0 TypeScript errors required
 npm run rls:validate        # 10-section REBNY RLS validator
 npm run compliance-check    # 93+ rules — BLOCKER+STRICT must be 0 failures
-npm run ucba:audit          # 145-rule UCBA — REGRESSIONS must be 0
+npm run ucba:audit          # 46-rule UCBA checklist — REGRESSIONS must be 0
 npm run idx:validate        # 32-section IDX Plus — 0 critical
 npm run crm:test            # if public/crm/** touched (172/172 smoke)
 npm run ops:health          # before major deploys (see NEON.md)
@@ -132,12 +220,8 @@ CI runs the same chain via `.github/workflows/pr-check.yml`. Don't merge with re
 | REBNY skill (auto-loaded at session start) | `.claude/skills/rebny-compliance/SKILL.md` |
 | Neon / Prisma / DB rules | `NEON.md` |
 | Repo source-of-truth charter | `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` |
-| Trestle field registry (all 12 resources, ~1,364 fields) | `data/RLS-FIELD-REGISTRY.md` |
-| IDX Plus field CSV (902 fields, 7 resources) | `data/rebny-rls-property-fields.csv` |
-| Picklist values (2,066 lookups) | `data/rebny-rls-property-lookup.csv` |
-| UCBA 2026 rules (extracted from 56-page PDF) | `data/UCBA-2026-Requirements.md` |
-| Syndication research (RLS feeds, vendors, costs, providers) | `data/RLS-Syndication-Research.md` |
-| Trestle live OData $metadata | `artifacts/metadata.xml` |
+| **Cotality live provider contract** — the ONLY field / enum / permission authority | `lib/cotality/live-contract.ts` · `lib/cotality/generated/contract.ts` · `data/cotality-contract/**` · `data/cotality-enums.live.json` (regenerate from the live feed: `npm run cotality:authority -- refresh`; prove: `node scripts/cotality/generate-contract-types.mjs --check`) |
+| UCBA 2026 rules (extracted from 56-page PDF) | `data/UCBA-2026-Requirements.md` (REBNY business rules — never a field authority) |
 | Master refactor plan (10-PR backend rebuild) | `memory/REFACTOR-2026-04-25.md` |
 | Most recent comprehensive audit | `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` |
 | Post-reconciliation tightening audit (Phase A scope rationale) | `docs/idx/post-reconciliation-tightening-audit-2026-05-20.md` |
@@ -178,11 +262,11 @@ Codex is a **static code-path reviewer only.** Codex reads the repo; it does **n
 
 **J.3 — Codex is NOT authority for Class B / C / D.** Do not act on, repeat, or write into a PR any Codex claim that: a field exists / is populated live on IDX Plus · a field moved to another resource · a REBNY/Trestle rule changed · production DB / env state is correct. For B/C/D, Codex output is a **hypothesis to verify**, never a conclusion.
 
-**J.4 — B/C/D require independent proof.** One of: `npm run trestle:audit-server` · `npm run trestle:diff` · `npm run trestle:probe` / a live `$metadata` query · a refreshed `artifacts/metadata.xml` **plus** a live proof capture · a dated REBNY/Trestle notice (Class C) · a read-only runtime/Vercel/Neon proof as applicable (Class D). No PR CI check queries live Cotality — live verification is a manual step Claude performs.
+**J.4 — B/C/D require independent proof.** One of: `npm run trestle:audit-server` · `npm run trestle:diff` · `npm run trestle:probe` / `npm run cotality:query` (a live `$metadata` or row query) · `npm run cotality:authority -- refresh` (recompiles the committed contract from the live feed) **plus** a live proof capture · a dated REBNY/Trestle notice (Class C) · a read-only runtime/Vercel/Neon proof as applicable (Class D). No PR CI check queries live Cotality — live verification is a manual step Claude performs.
 
 **J.5 — Every Cotality field change must trace end-to-end** (each link confirmed, not assumed): live field exists → selected from Trestle → route-local select lists checked → mapped → `raw_data` preserved if needed → public DTO **DB path** checked → public DTO **Trestle-direct path** checked → rendered if public → form save/hydrate checked if CRM → legacy fallback zero-safe if numeric → tests added.
 
-**J.6 — Every generated-artifact PR (Class E) must prove:** the generator actually ran · source files unchanged unless explicitly in scope · generated "unknown" count is zero or explicitly accepted · `npm run test:rls` passes before merge. Note: **`test:rls` is NOT in PR CI today** (`.github/workflows/pr-check.yml` does not run it) — run it by hand and state the result, or state plainly that it was not run.
+**J.6 — Every generated-artifact PR (Class E) must prove:** the generator actually ran · source files unchanged unless explicitly in scope · generated "unknown" count is zero or explicitly accepted · `npm run test:rls` passes before merge. Note: **`test:rls` is NOT in PR CI today** (`.github/workflows/pr-check.yml` does not run it) — it now runs the canonical form-binding + RLS-reporter Jest suites (the old CSV-derived resolver script is retired); run it by hand and state the result, or state plainly that it was not run.
 
 **J.7 — Status / compliance gates use explicit status semantics:** normalize draft-like statuses before comparing · Draft / Incomplete / empty must not be blocked by publish-only gates · public / display-ready statuses stay **fail-closed** · do not reuse a narrow helper for a broader compliance gate unless the status sets are **proven** equivalent.
 

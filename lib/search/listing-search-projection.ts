@@ -22,6 +22,8 @@ import { Prisma } from "@prisma/client";
 
 import { AMENITY_FIELD_MAP, type AmenityFilter } from "@/lib/search/types";
 import { isMallanExclusiveListing } from "@/lib/listings/exclusive-agent-assignment";
+import { lifecycleFromStoredRow } from "@/lib/listings/canonical-lifecycle";
+import { normalizeStoredStatus } from "@/lib/listings/mallan-status";
 // The canonical all-status fallback policy. Imported rather than reimplemented
 // so the projection cannot hold a second opinion about when the legacy media
 // JSON may still be read — see extractProjectionFeatureFlags.
@@ -59,6 +61,8 @@ export interface ListingProjectionSource {
 
   // Filter columns
   status?: string | null;
+  /** The Mallan presence fact (lib/listings/canonical-lifecycle.ts); optional — absent means unknown. */
+  sync_status?: string | null;
   listing_type?: string | null;
   property_type?: string | null;
   property_sub_type?: string | null;
@@ -121,6 +125,13 @@ export interface ListingProjectionSource {
    * `DbMediaCompositionInput.hadRelationalRows` (lib/media/db-media-composition.ts:55-67).
    */
   hadRelationalRows?: boolean;
+  /**
+   * The stored provider payload (keep-list slimmed). The 3D/video facet reads its
+   * VirtualTourURL* carriers: exhaustive live census 2026-09-08 — the Media subsection has 0 Video /
+   * 0 VirtualTour rows in any status, so a facet derived from media rows alone was false on every one
+   * of the 26,501 projection rows while 3,262 listings carried a tour URL.
+   */
+  raw_data?: Record<string, unknown> | null;
 }
 
 /**
@@ -381,6 +392,17 @@ export function extractProjectionFeatureFlags(listing: ListingProjectionSource):
     flags.has_virtual_tour = hasVirtualTour;
   }
 
+  // The provider's 3D/video carriers are these Property fields (live 2026-09-08, every row: Unbranded 26,371 ·
+  // Unbranded2 2,382 · Unbranded3 354 · Branded 13,878; the Media subsection has 0 tour/video rows). A tour
+  // URL proves a tour; it NEVER proves a video (has_video stays a Media-row fact — classifying a URL by its
+  // host would be a Mallan invention, not a provider fact).
+  const rawData = (listing.raw_data ?? {}) as Record<string, unknown>;
+  const hasTourUrl = [
+    rawData.VirtualTourURLUnbranded, rawData.VirtualTourURLUnbranded2, rawData.VirtualTourURLUnbranded3,
+    rawData.VirtualTourURLBranded, rawData.VirtualTourURLBranded2, rawData.VirtualTourURLBranded3,
+  ].some((v) => typeof v === "string" && v.trim().length > 0);
+  if (hasTourUrl) flags.has_virtual_tour = true;
+
   if (features) {
     const furnished = String(features.Furnished ?? "").toLowerCase();
     flags.is_furnished = furnished === "furnished";
@@ -388,6 +410,15 @@ export function extractProjectionFeatureFlags(listing: ListingProjectionSource):
     const pets = String(features.PetsAllowed ?? "").toLowerCase();
     flags.is_pet_friendly = !!pets && (!pets.includes("no") || pets.includes("catsok") || pets.includes("dogsok"));
   }
+
+  // Lifecycle signals from the retained provider evidence (lib/listings/canonical-lifecycle.ts): In Contract
+  // = Pending (+ PurchaseContractDate); Back on Market = Active + MajorChangeType BackOnMarket.
+  // Recorded only when true (absence = false), so rows with no signals keep their existing flag shape.
+  const lifecycle = lifecycleFromStoredRow({ status: listing.status, listing_type: listing.listing_type, raw_data: listing.raw_data, sync_status: listing.sync_status });
+  if (lifecycle.inContract) flags.in_contract = true;
+  if (lifecycle.backOnMarket) flags.back_on_market = true;
+  // Presence: recorded off the current feed (the Mallan Off Market state; provider status preserved in mls_status).
+  if (lifecycle.presence === 'off_feed') flags.off_feed = true;
 
   return Object.keys(flags).length > 0 ? flags : null;
 }
@@ -438,7 +469,10 @@ export function buildListingSearchProjectionFromListing(
     listing_id: listing.listing_id,
     listing_key: stringFrom(features.ListingKey) ?? stringFrom(address.ListingKey) ?? null,
     source_system: stringFrom(features.SourceSystem) ?? stringFrom(features.SourceSystemKey) ?? null,
-    mls_status: stringFrom(features.MlsStatus) ?? stringFrom(listing.status),
+    // The stored status IS the live StandardStatus token (a legacy spelling resolves to it). Never the provider's
+    // MlsStatus (not filterable, null on the feed) and never a Mallan workflow word (owner ruling 2026-09-08). The
+    // column keeps its historical name; renaming it is a schema change (held).
+    mls_status: normalizeStoredStatus(listing.status) ?? stringFrom(listing.status),
     listing_type: stringFrom(listing.listing_type),
     property_type: stringFrom(listing.property_type),
     property_sub_type: propertySubType,
@@ -719,7 +753,6 @@ export interface DualWriteProjectionPrisma {
  *   - app/api/cron/feed-reconcile/route.ts        (orphan-recovery cron)
  *   - app/api/idx/ensure-listing/route.ts         (on-demand listing create)
  *   - app/api/crm/listings/reset-sync/route.ts    (broker re-sync)
- *   - scripts/import-closed-from-trestle.ts       (closed-listing import)
  *
  * Uses the same canonical projection shape as `npm run ops:projection-backfill`
  * — never invents partial projection rows.
@@ -771,6 +804,8 @@ export async function dualWriteProjectionForListingId(
       // unfiltered; filtering it would make it agree with `listing_media` above
       // and answer nothing.
       _count: { select: { listing_media: true } },
+      // The provider's 3D/video carriers (VirtualTourURL*) live in the stored payload.
+      raw_data: true,
     },
   })) as Record<string, unknown> | null;
 
@@ -821,6 +856,7 @@ export async function dualWriteProjectionForListingId(
       typeof (listing._count as { listing_media?: number } | undefined)?.listing_media === "number"
         ? (listing._count as { listing_media: number }).listing_media > 0
         : undefined,
+    raw_data: (listing.raw_data as Record<string, unknown> | null | undefined) ?? null,
   };
 
   const projection = buildListingSearchProjectionFromListing(input);

@@ -5,7 +5,7 @@
  * Background
  * ----------
  * When a CRM-created exclusive (listing_id prefix `SL-` / `RL-`) is
- * submitted separately through RealPlus to REBNY RLS (OUTSIDE this system), the
+ * submitted separately to REBNY RLS (OUTSIDE this system), the
  * Trestle sync subsequently pulls
  * the listing back into our DB as a separate row keyed by REBNY's
  * ListingKey (e.g. `RLS20093870`). The two rows are the same physical unit

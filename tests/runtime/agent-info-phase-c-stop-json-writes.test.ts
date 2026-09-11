@@ -24,7 +24,7 @@ const TYPED_KEYS = [
 
 function mapped() {
   return mapTrestleToPrisma({
-    ListingId: "RLS-C-1", ListingKey: "RLS-C-1", StandardStatus: "Active",
+    ListingId: "RLS-C-1", ListingKey: "RLS-C-1", StandardStatus: "Active", PropertyType: "Residential", ListPrice: 1000000, ModificationTimestamp: "2026-09-01T00:00:00Z",
     ListAgentFullName: "Jane Doe", ListOfficeName: "Acme Realty",
     ListAgentEmail: "jane@acme.com", ListAgentDirectPhone: "212-555-0100",
     ListOfficeMlsId: "OFF1", ListAgentMlsId: "AG1",
@@ -75,7 +75,6 @@ describe("Phase C — STATIC GUARD: no producer persists agent_info JSON", () =>
     "app/api/crm/listings/[id]/route.ts",
     "app/api/crm/listings/reset-sync/route.ts",
     "app/api/cron/feed-reconcile/route.ts",
-    "scripts/import-closed-from-trestle.ts",
     "scripts/ops/set-exclusive-listing-agent.mjs",
     "scripts/ops/repair-exclusive-agent-assignment.mjs",
   ];

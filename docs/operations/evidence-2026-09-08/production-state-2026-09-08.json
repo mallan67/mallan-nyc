@@ -1,0 +1,38 @@
+{
+  "source": "Neon canonical production branch — read-only SELECT via the Neon MCP (project hidden-mountain-87248164, branch br-crimson-frog-adr7g9gt), 2026-09-08",
+  "purpose": "Production-state facts the coverage matrix cannot derive from code: what the stored rows actually carry today. No mutation was performed.",
+  "queries": [
+    {
+      "sql": "SELECT (SELECT count(*) FROM listings) AS listings_rows, (SELECT count(*) FROM listings WHERE address->>'Latitude' IS NOT NULL) AS address_latitude_present, (SELECT count(*) FROM listings WHERE raw_data->>'Latitude' IS NOT NULL) AS raw_latitude_present, (SELECT count(*) FROM listings WHERE raw_data->>'DaysOnMarket' IS NOT NULL) AS raw_dom_present, (SELECT count(*) FROM listings WHERE raw_data->>'MlsStatus' IS NOT NULL) AS raw_mlsstatus_present, (SELECT count(*) FROM listings WHERE raw_data->>'InternetEntireListingDisplayYN' IS NOT NULL) AS raw_ieldy_present, (SELECT count(*) FROM listing_search_projection) AS projection_rows, (SELECT count(*) FROM listing_search_projection WHERE latitude IS NOT NULL) AS projection_latitude_present, (SELECT string_agg(column_name, ',' ORDER BY ordinal_position) FROM information_schema.columns WHERE table_name = 'listing_search_projection') AS projection_columns",
+      "result": {
+        "listings_rows": 26510,
+        "address_latitude_present": 0,
+        "raw_latitude_present": 0,
+        "raw_dom_present": 0,
+        "raw_mlsstatus_present": 7,
+        "raw_ieldy_present": 7,
+        "projection_rows": 26510,
+        "projection_latitude_present": 0,
+        "projection_columns": "id,listing_id,listing_key,source_system,mls_status,listing_type,property_type,property_sub_type,borough,neighborhood,postal_code,city,state,list_price,bedrooms,bathrooms,living_area,year_built,latitude,longitude,is_commercial,is_new_development,is_exclusive,is_rental,rls_eligible,idx_display_yn,internet_entire_listing_display_yn,internet_address_display_yn,participant_only_yn,searchable_text,amenity_keys,feature_flags,modified_at,created_at,updated_at"
+      }
+    },
+    {
+      "sql": "SELECT (SELECT count(*) FROM listing_search_projection WHERE (feature_flags->>'has_virtual_tour') = 'true') AS projection_has_tour_true, (SELECT count(*) FROM listings WHERE raw_data ? 'VirtualTourURLUnbranded' AND raw_data->>'VirtualTourURLUnbranded' IS NOT NULL) AS raw_unbranded_present, (SELECT count(*) FROM listings WHERE raw_data->>'VirtualTourURLBranded' IS NOT NULL) AS raw_branded_present, (SELECT count(*) FROM listings WHERE raw_data->>'VirtualTourURLUnbranded2' IS NOT NULL) AS raw_unbranded2_present, (SELECT count(*) FROM listings WHERE raw_data ? 'VirtualTourURLBranded2') AS raw_branded2_key_present, (SELECT count(*) FROM listings WHERE raw_data->>'VideosCount' IS NOT NULL) AS raw_videoscount_present, (SELECT count(*) FROM listings WHERE status = 'Active') AS active_listings, (SELECT count(*) FROM listings WHERE raw_data IS NOT NULL AND raw_data::text <> '{}') AS raw_data_nonempty",
+      "result": {
+        "projection_has_tour_true": 0,
+        "raw_unbranded_present": 3262,
+        "raw_branded_present": 663,
+        "raw_unbranded2_present": 0,
+        "raw_branded2_key_present": 0,
+        "raw_videoscount_present": 0,
+        "active_listings": 7641,
+        "raw_data_nonempty": 26510
+      }
+    }
+  ],
+  "readings": [
+    "Coordinates: the provider suppresses Latitude/Longitude (null on all 591,597 live rows — suppressed census); the stored address container carries 0 of 26,510, the Search projection carries 0 of 26,510. The map has no provider coordinates and the geocoder (lib/geo/geocode.ts, scripts/batch-geocode.js) has backfilled none.",
+    "Tours: production stores VirtualTourURLUnbranded on 3,262 rows and VirtualTourURLBranded on 663, yet feature_flags.has_virtual_tour is true on 0 projection rows — the branch's has_virtual_tour derivation from the Property carriers is not deployed and the projection has not been backfilled. Unbranded2/3, Branded2/3 and VideosCount are absent from every stored raw_data (the keep-list additions are on this branch only).",
+    "Suppressed gates: InternetEntireListingDisplayYN is present in raw_data on 7 rows only (non-provider rows); the provider nulls it on every one of 591,597 rows. DaysOnMarket is stored nowhere (provider-suppressed); Mallan's DOM is computed, never read from the feed."
+  ]
+}

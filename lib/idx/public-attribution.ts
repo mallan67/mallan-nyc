@@ -5,7 +5,7 @@
  * ----------------------
  * Three independent paths build a public listing view:
  *
- *   A  lib/idx/public-dto.ts            Trestle/IDXListing -> PublicListingDTO
+ *   A  lib/idx/cotality-public-dto.ts   live Cotality record -> canonical chain -> PublicListingDTO
  *   B  lib/idx/db-to-public-dto.ts      DB row             -> PublicListingDTO
  *   C  app/listing/[...slug]/page.tsx   DB row             -> inline DTO
  *

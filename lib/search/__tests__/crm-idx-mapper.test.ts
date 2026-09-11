@@ -8,7 +8,10 @@ describe("crm idx mapper", () => {
   it("maps display property type without using Apartment as a display label", () => {
     expect(mapDisplayPropertyType({ CommonInterest: "Condominium" })).toBe("Condo");
     expect(mapDisplayPropertyType({ CommonInterest: "StockCooperative" })).toBe("Co-op");
-    expect(mapDisplayPropertyType({ PropertySubType: "Apartment" })).toBe("Residential");
+    // "Apartment" alone carries no classification: unknown stays unknown (null), never an invented
+    // "Residential". With the provider's own PropertyType present, that value is shown.
+    expect(mapDisplayPropertyType({ PropertySubType: "Apartment" })).toBeNull();
+    expect(mapDisplayPropertyType({ PropertySubType: "Apartment", PropertyType: "Residential" })).toBe("Residential");
   });
 
   it("classifies media category using RESO content category", () => {
@@ -121,9 +124,15 @@ describe("crm idx mapper", () => {
       OriginalListPrice: 1300000,
       TaxAnnualAmount: 12000,
       AssociationFee: 1100,
+      // Live: every fee-bearing active row carries a frequency; a fee is monthly only when the provider says so.
+      AssociationFeeFrequency: "Monthly",
       RoomsTotal: 5,
       BedroomsTotal: 2,
-      BathroomsTotalInteger: 2.5,
+      BathroomsFull: 2,
+      BathroomsHalf: 1,
+      // Present with a value that disagrees with the components: baths must be 2.5 from
+      // BathroomsFull + 0.5 x BathroomsHalf, proving the integer field is not read.
+      BathroomsTotalInteger: 7,
       LivingArea: 1100,
       MlsStatus: "ActiveUnderContract",
       SubdivisionName: "Chelsea",
@@ -155,7 +164,14 @@ describe("crm idx mapper", () => {
       price: 1200000,
       totalMonthly: 2100,
       baths: 2.5,
-      status: "PENDING",
+      // The input at MlsStatus above is the live member ActiveUnderContract. This expectation used to read
+      // "PENDING" — that WAS the status-collapse defect: two distinct live members (ActiveUnderContract and
+      // Pending) were flattened into one invented word, so a sale under contract could not be told from a
+      // sale with an accepted offer. The DTO now carries the exact live token.
+      status: "ActiveUnderContract",
+      // Broker language for THAT token in THIS transaction (sale), from lib/crm/status-mapping.ts.
+      status_label: "Active Under Contract",
+      status_transaction: "sale",
       propertyType: "Condo",
       neighborhood: "Chelsea",
       borough: "Manhattan",
@@ -179,6 +195,14 @@ describe("crm idx mapper", () => {
       url: "https://cdn.example.com/floor.pdf",
       mediaType: "FloorPlan",
     });
+    // The collapse is proven gone only if the OTHER member still maps to itself and to its own label.
+    const pending = mapTrestleToCrmListing({
+      ListingId: "RLS457", PropertyType: "Residential", StandardStatus: "Pending",
+      InternetEntireListingDisplayYN: true, InternetAddressDisplayYN: true,
+    }, 0);
+    expect(pending.status).toBe("Pending");
+    expect(pending.status_label).toBe("In Contract");
+    expect(pending.status).not.toBe(listing.status);
   });
 
   it("maps rentals with monthly rent as total monthly", () => {
@@ -207,62 +231,91 @@ describe("crm idx mapper", () => {
   // ═══════════════════════════════════════════════════════════════════
 
   describe("status mapper — UCBA Art. I §5(D) compliance", () => {
+    const saleRow = (status: string) => mapTrestleToCrmListing({
+      ListingId: "X",
+      PropertyType: "Residential",
+      MlsStatus: status,
+      InternetEntireListingDisplayYN: true,
+      InternetAddressDisplayYN: true,
+    }, 0);
+
     const offMarketVariants = ["Off Market", "Off-Market", "OffMarket", "off market"];
 
     for (const variant of offMarketVariants) {
-      it(`maps MlsStatus "${variant}" to WITHDRAWN, never to "OFF MARKET"`, () => {
-        const listing = mapTrestleToCrmListing({
-          ListingId: "X",
-          MlsStatus: variant,
-          InternetEntireListingDisplayYN: true,
-          InternetAddressDisplayYN: true,
-        }, 0);
-        expect(listing.status).toBe("WITHDRAWN");
+      // "Off Market" is not a live Cotality StandardStatus member and is not one of the legacy Mallan
+      // storage spellings (lib/listings/mallan-status.ts LEGACY_STORAGE_ALIASES). It therefore resolves to
+      // NOTHING. This expectation used to read "OFF_MARKET" — a Mallan word in no contract, which UCBA
+      // Art. I §5(D) forbids advertising and which no renderer could label. `status` is now an exact live
+      // token or null, and null reads as "Status unavailable", never as live inventory.
+      it(`refuses the unresolvable MlsStatus "${variant}" — null, never an invented OFF_MARKET word`, () => {
+        const listing = saleRow(variant);
+        expect(listing.status).toBeNull();
+        expect(listing.status).not.toBe("OFF_MARKET");
         expect(listing.status).not.toBe("OFF MARKET");
-        expect(listing.status).not.toMatch(/OFF.MARKET/i);
+        expect(listing.status).not.toBe("Active");
+        // A refused status is presented as unavailable, not relabelled and not defaulted.
+        expect(listing.status_label).toBe("Status unavailable");
       });
     }
 
-    it("falls back unmapped values to UNKNOWN (not raw uppercase)", () => {
-      // Vendor- or feed-specific status that nobody has mapped yet
-      // must NOT surface as raw uppercase text in the UI. UNKNOWN is
-      // a safe sentinel that renderers can suppress or display
-      // neutrally.
-      const listing = mapTrestleToCrmListing({
-        ListingId: "X",
-        MlsStatus: "SomeFutureStatusEnum",
-        InternetEntireListingDisplayYN: true,
-        InternetAddressDisplayYN: true,
-      }, 0);
-      expect(listing.status).toBe("UNKNOWN");
+    it("refuses an unmapped vendor status — null, never a sentinel and never raw uppercase", () => {
+      // A vendor- or feed-specific status nobody has mapped must not surface at all. The previous
+      // "UNKNOWN" sentinel was itself an invented vocabulary word that renderers had to special-case.
+      const listing = saleRow("SomeFutureStatusEnum");
+      expect(listing.status).toBeNull();
+      expect(listing.status).not.toBe("UNKNOWN");
       expect(listing.status).not.toBe("SOMEFUTURESTATUSENUM");
+      expect(listing.status_label).toBe("Status unavailable");
     });
 
-    it("preserves all canonical mappings (regression guard)", () => {
-      const cases: Array<[string, string]> = [
-        ["Active", "ACTIVE"],
-        ["ComingSoon", "COMING_SOON"],
-        ["Coming Soon", "COMING_SOON"],
-        ["ActiveUnderContract", "PENDING"],
-        ["Active Under Contract", "PENDING"],
-        ["Pending", "PENDING"],
-        ["Closed", "CLOSED"],
-        ["Expired", "EXPIRED"],
-        ["Withdrawn", "WITHDRAWN"],
-        ["Hold", "HOLD"],
-        ["Incomplete", "INCOMPLETE"],
-        ["Canceled", "CANCELLED"],
-        ["Cancelled", "CANCELLED"],
-      ];
-      for (const [input, expected] of cases) {
-        const listing = mapTrestleToCrmListing({
-          ListingId: "X",
-          MlsStatus: input,
-          InternetEntireListingDisplayYN: true,
-          InternetAddressDisplayYN: true,
-        }, 0);
-        expect(listing.status).toBe(expected);
-      }
+    // The eleven live Cotality StandardStatus members, verbatim (lib/listings/mallan-status.ts
+    // MALLAN_STORAGE_STATUSES = the live enum). The DTO emits the token ITSELF — identity — so there is no
+    // presentation vocabulary to drift from. Note `Canceled`, one L: the retired table produced the two-L
+    // "CANCELLED" this project bans.
+    const LIVE_MEMBERS = [
+      "Active", "ActiveUnderContract", "Canceled", "Closed", "ComingSoon",
+      "Delete", "Expired", "Hold", "Incomplete", "Pending", "Withdrawn",
+    ];
+
+    it.each(LIVE_MEMBERS)("emits the live member %s unchanged (identity, not a presentation word)", (member) => {
+      const listing = saleRow(member);
+      expect(listing.status).toBe(member);
+      // …and never the retired uppercase / snake-cased presentation form of itself.
+      expect(listing.status).not.toBe(member.toUpperCase());
+      expect(listing.status).not.toBe(member.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toUpperCase());
+    });
+
+    it("keeps ActiveUnderContract and Pending distinct, and Canceled single-L", () => {
+      expect(saleRow("ActiveUnderContract").status).toBe("ActiveUnderContract");
+      expect(saleRow("Pending").status).toBe("Pending");
+      expect(saleRow("ActiveUnderContract").status).not.toBe(saleRow("Pending").status);
+      // The legacy Mallan double-L spelling is READ-compatible and normalises to the live single-L token.
+      expect(saleRow("Cancelled").status).toBe("Canceled");
+      expect(saleRow("Canceled").status).toBe("Canceled");
+    });
+
+    it("normalises the legacy Mallan storage spellings to their live token", () => {
+      // lib/listings/mallan-status.ts LEGACY_STORAGE_ALIASES — read-compatibility for rows written before
+      // the 2026-09-08 correction. Nothing writes these any more.
+      expect(saleRow("Sold").status).toBe("Closed");
+      expect(saleRow("Rented").status).toBe("Closed");
+      expect(saleRow("Leased").status).toBe("Closed");
+      expect(saleRow("Draft").status).toBe("Incomplete");
+      // Case variants of a live member resolve; the token is still emitted in its live casing.
+      expect(saleRow("active").status).toBe("Active");
+      expect(saleRow("COMINGSOON").status).toBe("ComingSoon");
+    });
+
+    it("refuses the SPACED spellings — they are not live members and not legacy aliases", () => {
+      // "Coming Soon" / "Active Under Contract" are DISPLAY labels (lib/crm/status-mapping.ts
+      // canonicalLabels), never stored tokens, and `normalizeStoredStatus` matches exactly,
+      // by legacy alias, or case-insensitively — never separator-insensitively. A label arriving where a
+      // token belongs is refused rather than guessed at, which is the fail-closed behaviour this project
+      // requires of a status. See the handoff note if these are ever meant to resolve.
+      expect(saleRow("Coming Soon").status).toBeNull();
+      expect(saleRow("Active Under Contract").status).toBeNull();
+      expect(saleRow("Coming Soon").status_label).toBe("Status unavailable");
+      expect(saleRow("Active Under Contract").status_label).toBe("Status unavailable");
     });
   });
 
@@ -277,16 +330,20 @@ describe("crm idx mapper", () => {
   // ═══════════════════════════════════════════════════════════════════
 
   describe("comingSoonDate — UCBA Art. I §16(C)", () => {
-    it("populates from raw.ActivationDate when status is Coming Soon", () => {
+    it("populates from raw.ActivationDate, preferring it over OnMarketDate", () => {
       const listing = mapTrestleToCrmListing({
         ListingId: "X",
-        MlsStatus: "Coming Soon",
+        // The LIVE member is ComingSoon — one word. The old fixture sent the display label "Coming Soon",
+        // which is not a token and no longer resolves, so it could never have proven the date rule.
+        StandardStatus: "ComingSoon",
+        PropertyType: "Residential",
         ActivationDate: "2026-06-15T00:00:00Z",
         OnMarketDate: "2026-06-10T00:00:00Z",
         InternetEntireListingDisplayYN: true,
         InternetAddressDisplayYN: true,
       }, 0);
-      expect(listing.status).toBe("COMING_SOON");
+      expect(listing.status).toBe("ComingSoon");
+      expect(listing.status_label).toBe("Coming Soon");
       expect(listing.comingSoonDate).toBe("2026-06-15");
     });
 
@@ -298,6 +355,7 @@ describe("crm idx mapper", () => {
         InternetEntireListingDisplayYN: true,
         InternetAddressDisplayYN: true,
       }, 0);
+      expect(listing.status).toBe("ComingSoon");
       expect(listing.comingSoonDate).toBe("2026-07-01");
     });
 
@@ -307,10 +365,12 @@ describe("crm idx mapper", () => {
       // never invent a vague "until active date" string.
       const listing = mapTrestleToCrmListing({
         ListingId: "X",
-        MlsStatus: "Coming Soon",
+        StandardStatus: "ComingSoon",
+        PropertyType: "Residential",
         InternetEntireListingDisplayYN: true,
         InternetAddressDisplayYN: true,
       }, 0);
+      expect(listing.status).toBe("ComingSoon");
       expect(listing.comingSoonDate).toBeNull();
     });
 
@@ -323,7 +383,7 @@ describe("crm idx mapper", () => {
         InternetEntireListingDisplayYN: true,
         InternetAddressDisplayYN: true,
       }, 0);
-      expect(listing.status).toBe("ACTIVE");
+      expect(listing.status).toBe("Active");
       expect(listing.comingSoonDate).toBeNull();
     });
   });
@@ -434,5 +494,19 @@ describe("crm idx mapper", () => {
       );
       expect(l.sponsorUnit).toBeNull();
     });
+  });
+});
+
+describe("virtualTourUrl — every provider carrier (2026-09-08 live: Unbranded2 2,382 rows and Unbranded3 354 were dropped before)", () => {
+  const base = { ListingKey: "k", PropertyType: "Residential", StandardStatus: "Active", ListPrice: 1 };
+  it("falls through Unbranded → Unbranded2 → Unbranded3 → Branded (unbranded preferred, UCBA §5(C))", () => {
+    expect(mapTrestleToCrmListing({ ...base, VirtualTourURLUnbranded2: "https://t/2", VirtualTourURLBranded: "https://t/b" }, 0).virtualTourUrl).toBe("https://t/2");
+    expect(mapTrestleToCrmListing({ ...base, VirtualTourURLUnbranded3: "https://t/3", VirtualTourURLBranded: "https://t/b" }, 0).virtualTourUrl).toBe("https://t/3");
+    expect(mapTrestleToCrmListing({ ...base, VirtualTourURLBranded: "https://t/b" }, 0).virtualTourUrl).toBe("https://t/b");
+    expect(mapTrestleToCrmListing(base, 0).virtualTourUrl).toBeNull();
+  });
+  it("exposes every carrier in order as virtualTourUrls", () => {
+    const l = mapTrestleToCrmListing({ ...base, VirtualTourURLUnbranded: "https://t/1", VirtualTourURLUnbranded3: "https://t/3", VirtualTourURLBranded: "https://t/b" }, 0);
+    expect(l.virtualTourUrls).toEqual(["https://t/1", "https://t/3", "https://t/b"]);
   });
 });

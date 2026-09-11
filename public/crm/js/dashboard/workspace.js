@@ -2880,17 +2880,52 @@ var Workspace = (function () {
     recsEl.innerHTML = html;
   }
 
+  // POST /api/crm/cma requires the SUBJECT, not a client id: the route 400s on a body without
+  // `property_address`, so this panel never produced a CMA at all. It now sends what the route requires —
+  // the transaction (a landlord/renter is a RENTAL comparison, everyone else a sale), the location, the
+  // property type and the beds/baths — and refuses locally when the client record cannot state them, because
+  // the engine never widens a comp search to the whole city (Maya, 2026-09-09).
+  function _cmaSubject() {
+    var cl = _client || {};
+    var prefs = cl.preferences || {};
+    var clientType = (cl.portal_role || cl.type || cl.client_type || (cl.roles && cl.roles[0]) || '').toLowerCase();
+    var isRental = clientType === 'landlord' || clientType === 'renter';
+    return {
+      property_address: cl.property_address || '',
+      neighborhood: cl.neighborhood || (prefs.neighborhoods || [])[0] || '',
+      borough: cl.borough || '',
+      listing_type: isRental ? 'rent' : 'sale',
+      property_type: cl.property_type || prefs.propertyType || '',
+      bedrooms: cl.bedrooms != null ? Number(cl.bedrooms) : (prefs.minBeds != null ? Number(prefs.minBeds) : undefined),
+      bathrooms: cl.bathrooms != null ? Number(cl.bathrooms) : (prefs.minBaths != null ? Number(prefs.minBaths) : undefined),
+      living_area: cl.sqft ? Number(cl.sqft) : undefined,
+    };
+  }
+
   function _generateCMA() {
     var cmaEl = document.getElementById('wsMarketCMA');
     if (!cmaEl) return;
+
+    var subject = _cmaSubject();
+    var isRental = subject.listing_type === 'rent';
+    if (!subject.property_address) {
+      cmaEl.innerHTML = '<p class="text-sm text-gray-500">Add the property address to this client before running a CMA.</p>' +
+        '<button class="btn btn-sm btn-outline mt-2" onclick="Workspace._editProperty()"><i class="fas fa-pen mr-1"></i> Edit Property</button>';
+      return;
+    }
+    if (!subject.neighborhood && !subject.borough) {
+      cmaEl.innerHTML = '<p class="text-sm text-gray-500">Add the neighborhood or borough before running a CMA — a comparable search is never widened to the whole city.</p>' +
+        '<button class="btn btn-sm btn-outline mt-2" onclick="Workspace._editPreferences()"><i class="fas fa-pen mr-1"></i> Edit Preferences</button>';
+      return;
+    }
     cmaEl.innerHTML = UI.loading();
 
     MallanAPI._fetch('/api/crm/cma', {
       method: 'POST',
-      body: JSON.stringify({ client_id: _clientId }),
+      body: JSON.stringify(subject),
       headers: { 'Content-Type': 'application/json' },
     }).then(function (data) {
-      var r = data.report || data;
+      var r = data.item || data.report || data;
       var comps = r.comps || r.comparables || [];
       var cHtml = '<div class="space-y-3">' +
         '<div class="grid grid-cols-3 gap-3">' +
@@ -2899,12 +2934,17 @@ var Workspace = (function () {
           '<div class="p-3 bg-purple-50 rounded-lg text-center"><p class="text-xs text-gray-500">Confidence</p><p class="text-lg font-bold text-purple-700">' + (r.confidence || r.confidenceLevel || '—') + '</p></div>' +
         '</div>';
       if (comps.length > 0) {
-        cHtml += '<h5 class="text-xs font-bold text-gray-500 uppercase mt-2">Comparable Sales</h5>';
+        // The heading is the TRANSACTION's word, and each comp shows the server's per-transaction status label
+        // (a sale's Closed reads "Sold", a rental's reads "Rented") next to its real closing price.
+        cHtml += '<h5 class="text-xs font-bold text-gray-500 uppercase mt-2">' + (isRental ? 'Comparable Rentals' : 'Comparable Sales') + '</h5>';
         cHtml += '<div class="space-y-1">';
         comps.slice(0, 5).forEach(function (c) {
+          var evidence = c.close_price != null ? $(c.close_price) : $(c.list_price || 0) + ' asking';
+          var label = c.status_label || c.status || '';
           cHtml += '<div class="flex items-center gap-3 p-2 rounded-lg bg-gray-50">' +
-            '<div class="flex-1 min-w-0"><p class="text-sm font-medium truncate">' + E(c.address || c.UnparsedAddress || 'Comp') + '</p>' +
-              '<p class="text-xs text-gray-500">' + $(c.price || c.ClosePrice || 0) + ' · ' + (c.bedrooms || c.BedroomsTotal || '?') + 'bd / ' + (c.bathrooms || c.BathroomsTotalInteger || '?') + 'ba</p></div>' +
+            '<div class="flex-1 min-w-0"><p class="text-sm font-medium truncate">' + E(c.address || 'Comp') + '</p>' +
+              '<p class="text-xs text-gray-500">' + evidence + ' · ' + (c.bedrooms != null ? c.bedrooms : '?') + 'bd / ' + (c.bathrooms != null ? c.bathrooms : '?') + 'ba' +
+              (label ? ' · ' + E(label) : '') + (c.close_date ? ' · ' + E(String(c.close_date).slice(0, 10)) : '') + '</p></div>' +
           '</div>';
         });
         cHtml += '</div>';
@@ -3630,10 +3670,25 @@ var Workspace = (function () {
 
   function _calcClosing() {
     var price = parseFloat(document.getElementById('closingPrice').value) || 0;
+    // New York transaction taxes come from the ONE authority. FAIL CLOSED: no local fallback.
+    //
+    // What this used to be, and what it cost:
+    //   mansionTax  = price >= 1000000 ? price * 0.01 : 0
+    //                 A FLAT 1%, against the eight statutory bands of NYS Tax Law §1402-a.
+    //                 $5,000,000 quoted $50,000 instead of $112,500 — $62,500 low.
+    //                 $25,000,000 quoted $250,000 instead of $975,000 — $725,000 low.
+    //   transferTax = NYC RPTT only, omitting NYS transfer tax (0.40% / 0.65% at $3M+).
+    //
+    // Both survived because the one-tax-authority guard exempted js/dashboard/** as "the retired
+    // shell". It is the CRM, it is permanent, and the exemption is gone.
+    if (typeof CrmCalc === 'undefined' || !CrmCalc) {
+      throw new Error('Workspace closing-cost estimator requires js/calc/transaction-costs.js — refusing to quote a buyer with a local tax rate.');
+    }
     var titleIns = Math.round(price * 0.005);
     var attorney = 3500;
-    var mansionTax = price >= 1000000 ? Math.round(price * 0.01) : 0;
-    var transferTax = price >= 500000 ? Math.round(price * 0.01425) : Math.round(price * 0.01);
+    var mansionBand = CrmCalc.mansionTaxBand(price);
+    var mansionTax = Math.round(price * mansionBand.rate);
+    var transferTax = Math.round(price * CrmCalc.rpttRate(price)) + Math.round(price * CrmCalc.nysTransferRate(price));
     var recording = 500;
     var total = titleIns + attorney + mansionTax + transferTax + recording;
 
@@ -3642,8 +3697,8 @@ var Workspace = (function () {
     resEl.innerHTML = '<div class="space-y-2 text-sm">' +
       '<div class="flex justify-between"><span>Title Insurance</span><span class="font-bold">' + $(titleIns) + '</span></div>' +
       '<div class="flex justify-between"><span>Attorney Fees</span><span class="font-bold">' + $(attorney) + '</span></div>' +
-      '<div class="flex justify-between"><span>Mansion Tax' + (price >= 1000000 ? ' (1%)' : ' (N/A)') + '</span><span class="font-bold">' + $(mansionTax) + '</span></div>' +
-      '<div class="flex justify-between"><span>Transfer Tax (' + (price >= 500000 ? '1.425%' : '1%') + ')</span><span class="font-bold">' + $(transferTax) + '</span></div>' +
+      '<div class="flex justify-between"><span>Mansion Tax (' + mansionBand.label + ')</span><span class="font-bold">' + $(mansionTax) + '</span></div>' +
+      '<div class="flex justify-between"><span>Transfer Tax (NYC ' + (CrmCalc.rpttRate(price) * 100).toFixed(3).replace(/0+$/, '').replace(/\.$/, '') + '% + NYS ' + (CrmCalc.nysTransferRate(price) * 100).toFixed(2) + '%)</span><span class="font-bold">' + $(transferTax) + '</span></div>' +
       '<div class="flex justify-between"><span>Recording Fees</span><span class="font-bold">' + $(recording) + '</span></div>' +
       '<div class="flex justify-between border-t pt-2 mt-2"><span class="font-bold">Estimated Total</span><span class="font-bold text-gold">' + $(total) + '</span></div>' +
       '<p class="text-xs text-gray-400 mt-2">NYC estimate. Co-op vs condo differences apply.</p>' +
@@ -4814,7 +4869,14 @@ var Workspace = (function () {
     var l = _listing;
     var address = _resolveAddr(l.address) || l.UnparsedAddress || 'No address';
     var price = l.ListPrice || l.price || l.list_price;
-    var status = l.status || l.StandardStatus || 'Active';
+    // The SERVER's label for this listing's transaction (app/api/crm/listings/[id] -> form_status, or the
+    // portal DTO's status_label). Never re-derived here, never a provider status field, and an unresolvable
+    // state reads "Status unavailable" - not a fabricated "Active".
+    var statusToken = (l.status_presentation && (l.status_presentation.token || l.status_presentation.status)) || l.status || '';
+    var statusLabel = (l.status_presentation && l.status_presentation.label)
+        || (l.form_status && l.form_status.label)
+        || l.status_label
+        || 'Status unavailable';
 
     var html = '<div class="space-y-0">';
 
@@ -4825,12 +4887,12 @@ var Workspace = (function () {
           '<h2 class="text-xl font-bold text-gray-900">' + E(address) + '</h2>' +
           '<div class="flex items-center gap-3 mt-1">' +
             '<span class="text-lg font-bold text-gold">' + $(price) + '</span>' +
-            UI.statusBadge(status) +
+            UI.statusBadge(statusToken, statusLabel) +
             '<span class="text-xs text-gray-500">DOM: ' + (l.cumulative_dom || l.days_on_market || '0') + '</span>' +
           '</div>' +
         '</div>' +
         '<div class="flex gap-2">' +
-          '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/sale-view?id=' + E(_listingId) + '\',\'_blank\')"><i class="fas fa-eye"></i> View</button>' +
+          '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/sale-listing?id=' + E(_listingId) + '\',\'_blank\')"><i class="fas fa-eye"></i> View</button>' +
           (Permissions.canEditListing(l) ? '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/sale-listing?id=' + E(_listingId) + '\',\'_blank\')"><i class="fas fa-edit"></i> Edit</button>' : '') +
         '</div>' +
       '</div>' +
@@ -5168,7 +5230,10 @@ var Workspace = (function () {
       '<div class="space-y-2">' +
         '<h3 class="text-sm font-bold text-gray-700">Details</h3>' +
         _infoRow('MLS ID', l.mlsId || l.ListingId || l.listing_id) +
-        _infoRow('Status', l.status || l.StandardStatus) +
+        _infoRow('Status', (l.status_presentation && l.status_presentation.label)
+            || (l.form_status && l.form_status.label)
+            || l.status_label
+            || 'Status unavailable') +
         _infoRow('List Date', D(l.ListDate || l.list_date || l.created_at)) +
         _infoRow('DOM', l.cumulative_dom || l.days_on_market || '0') +
         '<div class="flex justify-between"><span class="text-xs text-gray-500">Owner Agent</span><span class="text-sm font-medium">' + E(agentName) + '</span></div>' +
@@ -6149,8 +6214,8 @@ var Workspace = (function () {
     var l = _listing;
     var isRLS = l.rls_eligible !== false;
     var isFeatured = !!(l.featuredFlag || l.featured);
-    var idxDisplay = l.IDXEntireListingDisplayYN !== false && l.idx_display_yn !== false;
-    var vowDisplay = l.VOWEntireListingDisplayYN !== false && l.vow_display_yn !== false;
+    var idxDisplay = l.idx_display_yn !== false;
+    var vowDisplay = l.vow_display_yn !== false; // Mallan column; VOW display is a licence tier, not a provider field
     var internetAddress = l.InternetAddressDisplayYN !== false && l.internet_address_display_yn !== false;
     var syncedAt = l.syncedAt || l.synced_at || l.updated_at || l.updatedAt;
     var lastPublished = l.publishedAt || l.published_at || syncedAt;
@@ -6368,6 +6433,7 @@ var Workspace = (function () {
     _addPipelineTask: _addPipelineTask,
     _submitPipelineTask: _submitPipelineTask,
     _generateCMA: _generateCMA,
+    _cmaSubject: _cmaSubject,
 
     // Quick slide-overs (action bar)
     _quickAddNote: _quickAddNote,

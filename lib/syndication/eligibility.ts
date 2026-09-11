@@ -94,12 +94,16 @@ export interface MallanSyndicationEligibility {
 // If REBNY adds a status, this list must be updated alongside the
 // mapper. Source-regex test enforces no `lib/idx` import.
 const TERMINAL_STATUSES: ReadonlySet<string> = new Set([
+  // the live StandardStatus terminal tokens (owner ruling 2026-09-08: one-L Canceled) …
   "Closed",
+  "Withdrawn",
+  "Expired",
+  "Canceled",
+  "Delete",
+  // … plus the legacy spellings written before the token correction
   "Sold",
   "Leased",
   "Rented",
-  "Withdrawn",
-  "Expired",
   "Cancelled",
 ]);
 

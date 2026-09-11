@@ -285,8 +285,12 @@ describe('A1 · ContractDecision discriminated-union narrowing', () => {
   });
 });
 
-describe('A1 · no runtime reader imports the canonical package (NOT WIRED)', () => {
-  it('no file under app/, lib/ (excluding canonical) or public/ imports the canonical package', () => {
+describe('A1 · the canonical package is wired to EXACTLY the Search executor vocabulary link', () => {
+  // Search Consolidation Packet 1 (2026-09-05): the ONE vocabulary authority is
+  //   data/cotality-enums.live.json → canonical/live-truth.ts → engine/criteria.ts → engine/contract.ts.
+  // Only those two engine modules may import the canonical package; any other runtime reader
+  // is sprawl (a second consumer of "truth" outside the executor) and fails this guard.
+  it('only lib/search/engine/{criteria,contract}.ts import the canonical package', () => {
     const repoRoot = path.resolve(__dirname, '../../../');
     const SKIP_DIRS = new Set(['node_modules', '.next', 'dist', '.git', '__tests__', 'tests', 'coverage']);
     const CANONICAL_DIR = path.join(repoRoot, 'lib', 'search', 'canonical').replace(/\\/g, '/');
@@ -323,6 +327,8 @@ describe('A1 · no runtime reader imports the canonical package (NOT WIRED)', ()
       }
     }
 
-    expect(offenders).toEqual([]);
+    // lib/comps/fetch-comps.ts is the designated consumer of the comp-eligibility AUTHORITY the package hosts
+    // (CloseDate windowing + ownership segmentation, Domain 7 2026-09-08) — not a second vocabulary reader.
+    expect(offenders.sort()).toEqual(['lib/comps/fetch-comps.ts', 'lib/search/engine/contract.ts', 'lib/search/engine/criteria.ts']);
   }, 60000);
 });

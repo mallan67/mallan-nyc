@@ -1,6 +1,8 @@
 # Validator Truth Framework — 2026-04-26
 
-> **Status:** ACTIVE · **Created:** 2026-04-26 · **Owner:** Maya Allan
+> **Status:** DELIVERED — all 5 phases merged. **Created:** 2026-04-26 · **Owner:** Maya Allan
+>
+> ⚠️ **Do NOT "resume" this plan.** This file was previously headed `Status: ACTIVE` with every phase marked OPEN, and §"How to resume" told the reader to execute the lowest unstarted phase. Verified 2026-09-10: Phase 1 `40c892b0` (#63), Phase 2 `150a7c14` (#64), Phase 3 `5094e061` (#65), Phase 4 `84daeb01` (#66) and Phase 5 `65d4c1a5` (#67) are all on `main`, and `scripts/release-truth-check.js`, `scripts/validate-workflow-completeness.js`, `scripts/validate-migration-discipline.js`, `scripts/validate-release-status.js`, `scripts/validate-live-site.js`, `compliance/rules/workflow-map.json` and `compliance/rules/operational-actions.json` all exist. This document is retained as the DESIGN RECORD for the validator framework; the "How to resume" and "Phase status" sections below are historical and must not be executed.
 >
 > Source: full architectural spec provided by user 2026-04-26 to replace
 > pattern-based confidence with release truth. Replaces "patterns exist"
@@ -127,13 +129,13 @@ Delivers the *truth* part of the framework. Subsequent phases plug into it.
 
 | Phase | Title | Status |
 |---|---|---|
-| 1 | Foundation — schema + UCBA truth | **OPEN — PR #63** |
-| 2 | Schema & Deploy Truth + aggregator | **OPEN — PR #64** (stacked on #63) |
-| 3 | Runtime Effect Tests (infrastructure + 12) | **OPEN — PR #65** (stacked on #64) |
-| 4 | Live Truth + CI Hardening | **OPEN — PR #66** (stacked on #65) |
-| 5 | Completeness pass — §15/§16 upgrades + 13 more runtime tests + claim mapping | **OPEN — PR #67** (stacked on #66) |
+| 1 | Foundation — schema + UCBA truth | **MERGED — `40c892b0` (#63)** |
+| 2 | Schema & Deploy Truth + aggregator | **MERGED — `150a7c14` (#64)** |
+| 3 | Runtime Effect Tests (infrastructure + 12) | **MERGED — `5094e061` (#65)** |
+| 4 | Live Truth + CI Hardening | **MERGED — `84daeb01` (#66)** |
+| 5 | Completeness pass — §15/§16 upgrades + 13 more runtime tests + claim mapping | **MERGED — `65d4c1a5` (#67)** |
 
-All four phases delivered as stacked PRs. Merge in order #63 → #64 → #65 → #66 and the framework is live end-to-end.
+All five phases merged; the framework is live end-to-end on `main`.
 
 ## What's deferred (intentional, can be added incrementally later)
 

@@ -3,7 +3,15 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
-import agentsJson from '@/data/agents.json';
+import { isReservedAgentSegment } from '@/lib/agents/reserved-slug';
+import {
+  resolvePublicAgent,
+  AgentDirectoryUnavailable,
+  type DbAgentRow,
+} from '@/lib/agents/public-profile-authority';
+
+/** Paragraph separator in stored biographies. */
+const PARAGRAPH_BREAK = String.fromCharCode(10, 10);
 import ActiveListingsTabs from './ActiveListingsTabs';
 import PastDealsSection from '../PastDealsSection';
 import { getPastDeals } from '../past-deals-loader';
@@ -29,7 +37,12 @@ interface AgentProfile {
 async function getAgentBySlug(slug: string): Promise<AgentProfile | null> {
   const nameFromSlug = slug.replace(/-/g, ' ');
 
-  try {
+  // Same authority as the profile page: the Agent record answers, a null is
+  // authoritative, and an unreachable database fails closed rather than
+  // republishing a withdrawn licensee from Git. This surface also used to
+  // hardcode 'Licensed Real Estate Salesperson' as its title default, which is
+  // exactly how an Associate Broker was publicly mislabelled.
+  const profile = await resolvePublicAgent(slug, async () => {
     const agent = await prisma.agent.findFirst({
       where: {
         OR: [
@@ -39,48 +52,19 @@ async function getAgentBySlug(slug: string): Promise<AgentProfile | null> {
         status: 'active',
       },
       select: {
-        public_slug: true,
-        full_name: true,
-        first_name: true,
-        last_name: true,
-        title: true,
-        photo: true,
-        phone: true,
-        email: true,
-        bio: true,
-        specialties: true,
-        languages: true,
-        featured: true,
+        public_slug: true, full_name: true, first_name: true, last_name: true,
+        title: true, license_type: true, photo: true, phone: true,
+        email: true, bio: true, specialties: true, languages: true, featured: true,
       },
     });
-    if (agent) {
-      const fullBio = agent.bio || '';
-      return {
-        id: agent.public_slug || slug,
-        name: agent.full_name || `${agent.first_name} ${agent.last_name}`,
-        title: agent.title || 'Licensed Real Estate Salesperson',
-        photo: agent.photo || '/images/agent-placeholder.svg',
-        phone: agent.phone || '',
-        email: agent.email,
-        bio: fullBio,
-        shortBio: fullBio.split('\n\n')[0] || fullBio.substring(0, 300),
-        specialties: agent.specialties,
-        languages: agent.languages,
-        featured: agent.featured,
-      };
-    }
-  } catch {
-    // DB unavailable — fall through
-  }
+    return agent as DbAgentRow | null;
+  });
 
-  const staticAgent = agentsJson.agents.find(
-    (a) => a.id === slug || a.name.toLowerCase().replace(/\s+/g, '-') === slug
-  );
-  if (!staticAgent) return null;
-  const fullBio = staticAgent.bio || '';
+  if (!profile) return null;
+  const fullBio = profile.bio || '';
   return {
-    ...staticAgent,
-    shortBio: fullBio.split('\n\n')[0] || fullBio.substring(0, 300),
+    ...profile,
+    shortBio: fullBio.split(PARAGRAPH_BREAK)[0] || fullBio.substring(0, 300),
   };
 }
 
@@ -106,10 +90,45 @@ async function getAgentListings(slug: string): Promise<AgentListingsData> {
   }
 }
 
+/**
+ * Same three-state contract as the profile page. resolvePublicAgent throws on a
+ * database outage so a stale Git identity can never be substituted; both
+ * callers here were letting that escape as an unhandled server-component error.
+ */
+type ListingsResolution =
+  | { state: 'found'; agent: AgentProfile }
+  | { state: 'not_found' }
+  | { state: 'unavailable' };
+
+async function resolveAgent(slug: string): Promise<ListingsResolution> {
+  // ROUTE BOUNDARY. Before any Agent database read, and deliberately so.
+  //
+  // /agents/sitemap.xml used to reach the Agent lookup and, during an outage,
+  // render the profile "temporarily unavailable" page with HTTP 200. A segment
+  // that cannot be an agent must be rejected from the segment alone, so the
+  // answer never depends on whether the authority can be reached.
+  if (isReservedAgentSegment(slug)) return { state: 'not_found' };
+
+  try {
+    const agent = await getAgentBySlug(slug);
+    return agent ? { state: 'found', agent } : { state: 'not_found' };
+  } catch (err) {
+    if (err instanceof AgentDirectoryUnavailable) return { state: 'unavailable' };
+    throw err;
+  }
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { name } = await params;
-  const agent = await getAgentBySlug(name);
-  if (!agent) return { title: 'Agent Not Found | Mallan Real Estate' };
+  const resolved = await resolveAgent(name);
+  if (resolved.state === 'unavailable') {
+    return {
+      title: 'Agent Listings Temporarily Unavailable | Mallan Real Estate',
+      robots: { index: false, follow: false },
+    };
+  }
+  if (resolved.state === 'not_found') return { title: 'Agent Not Found | Mallan Real Estate' };
+  const agent = resolved.agent;
   return {
     title: `${agent.name} — Listings | Mallan Real Estate`,
     description: `View active listings and past deals by ${agent.name}, ${agent.title} at Mallan Real Estate.`,
@@ -118,11 +137,33 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function AgentListingsPage({ params }: Props) {
   const { name } = await params;
-  const agent = await getAgentBySlug(name);
+  const resolved = await resolveAgent(name);
 
-  if (!agent) {
+  if (resolved.state === 'unavailable') {
+    return (
+      <div className="min-h-screen bg-[#FEFEFE] font-sans">
+        <main className="pt-20">
+          <section className="py-24">
+            <div className="max-w-2xl mx-auto px-4 text-center">
+              <h1 className="text-2xl font-light text-brand-dark mb-3">
+                Listings temporarily unavailable
+              </h1>
+              <p className="text-brand-dark/80">
+                Please try again shortly, or call{' '}
+                <a className="underline" href="tel:+16462584460">(646) 258-4460</a>.
+              </p>
+            </div>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
+  if (resolved.state === 'not_found') {
     notFound();
   }
+
+  const agent = resolved.agent;
 
   const { activeSales, activeRentals } = await getAgentListings(name);
   const { sales: pastSales, rentals: pastRentals } = await getPastDeals(name);

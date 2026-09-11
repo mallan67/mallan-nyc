@@ -75,7 +75,9 @@ function providerRow(overrides: Partial<ProviderRow> = {}): ProviderRow {
     StandardStatus: "Active",
     PropertyType: "Residential",
     InternetEntireListingDisplayYN: null,
-    Permission: "Public",
+    // 'IDX' is the only Permission member the authorized IDX Plus feed serves (591,536/591,536 live rows,
+    // 2026-09-06) and the only token `derivePermissionGates` treats as permitted. Any other token fails closed.
+    Permission: "IDX",
     MlsStatus: "Active",
     ...overrides,
   };
@@ -292,13 +294,26 @@ describe("display_gate_mismatch", () => {
     ).toEqual([]);
   });
 
-  it("does NOT fire when a CURRENT provider owner-opt-out explains the hidden row", () => {
+  it("does NOT fire when ANY CURRENT non-IDX provider Permission token explains the hidden row", () => {
+    // 'Officeidxoptout' is a live ListingPermission member. It is not read as a Mallan decision; it is simply
+    // not the served 'IDX' permission, so the provider fact alone explains the hidden row.
+    expect(
+      classifyProviderRow(
+        providerRow({ Permission: "Officeidxoptout" }),
+        locallyGatedRow({}),
+      ),
+    ).toEqual([]);
+  });
+
+  it("does NOT read MlsStatus as an owner-opt-out sentinel (it is not a permission fact)", () => {
+    // Retired arm: MlsStatus has no 'OwnerOptOut' member on the live contract and the mapper never consulted
+    // it as a permission. A hidden row with Permission='IDX' is therefore NOT explained by MlsStatus.
     expect(
       classifyProviderRow(
         providerRow({ MlsStatus: "OwnerOptOut" }),
         locallyGatedRow({ owner_opt_out: true }),
       ),
-    ).toEqual([]);
+    ).toContain("display_gate_mismatch");
   });
 
   it("does NOT fire when rls_eligible=false explains the hidden row", () => {
@@ -366,11 +381,12 @@ describe("display_gate_mismatch", () => {
       InternetEntireListingDisplayYN: false,
     });
     const underDisplayed = providerRow({ ListingId: "RLS-UNDER", ListingKey: "K-UNDER" });
-    // Explained by a CURRENT provider gate — the local column merely agrees.
+    // Explained by a CURRENT provider gate (a non-IDX Permission token) — the
+    // stored Mallan column is irrelevant to the explanation.
     const explained = providerRow({
       ListingId: "RLS-EXPL",
       ListingKey: "K-EXPL",
-      MlsStatus: "OwnerOptOut",
+      Permission: "Officeidxoptout",
     });
 
     const manifest = manifestOf(
@@ -431,12 +447,13 @@ describe("display_gate_mismatch", () => {
 // stored state and a source-side Permission change could never be detected.
 
 describe("display gate is derived from CURRENT provider Permission", () => {
-  it("FIRES when Permission went Private -> Public and the local gate is stale", () => {
-    // THE bug. Provider says Public today; we still hold participant_only=true
-    // and idx_display_yn=false. The old classifier used that stale `true` to
-    // "explain" the stale `false` and emitted nothing — the row could never be
-    // repaired by the generator whose job is to schedule its repair.
-    const provider = providerRow({ Permission: "Public" });
+  it("FIRES when Permission went Private -> IDX and the local gate is stale", () => {
+    // THE bug. Provider serves the IDX permission today; we still hold the
+    // retired derivation participant_only=true and idx_display_yn=false. The old
+    // classifier used that stale `true` to "explain" the stale `false` and
+    // emitted nothing — the row could never be repaired by the generator whose
+    // job is to schedule its repair.
+    const provider = providerRow({ Permission: "IDX" });
     const stale = locallyGatedRow({ participant_only: true });
 
     expect(expectedIdxDisplay(provider, stale)).toBe(true);
@@ -461,14 +478,22 @@ describe("display gate is derived from CURRENT provider Permission", () => {
     expect(manifestOf([provider], [gated]).entries).toHaveLength(0);
   });
 
-  it("honours the MlsStatus arm of owner-opt-out, not just Permission", () => {
-    // `derivePermissionGates` reads BOTH fields. Selecting only Permission
-    // would silently drop this arm and manufacture a false mismatch.
-    const provider = providerRow({ Permission: "Public", MlsStatus: "OwnerOptOut" });
-    const gated = locallyGatedRow({ owner_opt_out: true });
+  it("fails closed on any live Permission member other than the served 'IDX' (no member meaning is asserted)", () => {
+    // 'Public' is a live ListingPermission member but nothing authorized proves it permits IDX display, so
+    // a locally displayed row with Permission='Public' is an OVER-display mismatch, and a Multi-Enum value
+    // that carries a non-IDX token alongside 'IDX' blocks the same way.
+    expect(expectedIdxDisplay(providerRow({ Permission: "Public" }), localRow())).toBe(false);
+    expect(classifyProviderRow(providerRow({ Permission: "Public" }), localRow())).toContain(
+      "display_gate_mismatch",
+    );
+    expect(expectedIdxDisplay(providerRow({ Permission: "IDX,Private" }), localRow())).toBe(false);
+    expect(expectedIdxDisplay(providerRow({ Permission: ["IDX"] as unknown as string }), localRow())).toBe(true);
+  });
 
-    expect(expectedIdxDisplay(provider, gated)).toBe(false);
-    expect(classifyProviderRow(provider, gated)).toEqual([]);
+  it("an ABSENT Permission fact has no effect on the expectation (no replacement mapping is invented)", () => {
+    const provider = providerRow({ Permission: null as unknown as string });
+    expect(expectedIdxDisplay(provider, localRow())).toBe(true);
+    expect(classifyProviderRow(provider, localRow())).toEqual([]);
   });
 
   it("still treats rls_eligible as LOCAL authority", () => {
@@ -476,7 +501,7 @@ describe("display gate is derived from CURRENT provider Permission", () => {
     // emits it, it is absent from LISTING_SYNC_COMPARE_SELECT, and the Trestle
     // path hard-codes the constant true. The provider cannot answer it, so the
     // local value is the authority and must keep explaining a hidden row.
-    const provider = providerRow({ Permission: "Public", MlsStatus: "Active" });
+    const provider = providerRow({ Permission: "IDX", MlsStatus: "Active" });
     const websiteOnly = locallyGatedRow({ rls_eligible: false });
 
     expect(expectedIdxDisplay(provider, websiteOnly)).toBe(false);
@@ -495,10 +520,12 @@ describe("display gate is derived from CURRENT provider Permission", () => {
   });
 
   it("counts stale stored gate columns as a diagnostic without emitting a reason", () => {
-    // Benign drift: Permission moved Private -> Public but idx_display_yn was
-    // already corrected. The stored column is stale, yet no display outcome is
-    // wrong, so this must be MEASURED and not turned into recovery work.
-    const provider = providerRow({ Permission: "Public" });
+    // Benign drift: the stored participant_only=true is a retired derivation
+    // (participant_only / owner_opt_out are Mallan decisions and are never derived
+    // from Permission any more) but idx_display_yn was already corrected. The
+    // stored column is stale, yet no display outcome is wrong, so this must be
+    // MEASURED and not turned into recovery work.
+    const provider = providerRow({ Permission: "IDX" });
     const staleButHarmless = localRow({ idx_display_yn: true, participant_only: true });
 
     expect(localPermissionGatesAreStale(provider, staleButHarmless)).toBe(true);
@@ -515,8 +542,10 @@ describe("display gate is derived from CURRENT provider Permission", () => {
   });
 
   it("selects Permission AND MlsStatus from the provider", () => {
-    // Without both fields on the wire the de-circularization is inert: the
-    // evaluator would see undefined and fall back to gates-open for every row.
+    // Permission is the provider permission fact; MlsStatus is compared as a
+    // status (it is NOT a permission sentinel). Without Permission on the wire
+    // the de-circularization is inert: the evaluator would see undefined and
+    // fall back to gates-open for every row.
     expect(PROVIDER_SELECT_FIELDS).toContain("Permission");
     expect(PROVIDER_SELECT_FIELDS).toContain("MlsStatus");
   });

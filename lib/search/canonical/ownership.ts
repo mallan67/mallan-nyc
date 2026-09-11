@@ -33,6 +33,24 @@ export function ownershipClass(commonInterest: unknown): OwnershipClass {
   return CLASSIFY[v] ?? (OTHER_MEMBERS.has(v) ? 'other' : 'unknown');
 }
 
+/**
+ * The CommonInterest value of a row — a provider row (`CommonInterest`) or a stored Mallan row (the features
+ * bucket first, then the retained raw_data). The ONE place outside the mapper that reads the raw name for
+ * ownership (boundary module), so comps / CMA callers classify ownership without touching provider names.
+ */
+export function commonInterestOf(
+  row: { CommonInterest?: unknown; features?: unknown; raw_data?: unknown } | null | undefined,
+): string | null {
+  if (!row || typeof row !== 'object') return null;
+  const direct = row.CommonInterest;
+  if (typeof direct === 'string' && direct.trim()) return direct.trim();
+  for (const bucket of [row.features, row.raw_data]) {
+    const v = bucket && typeof bucket === 'object' ? (bucket as Record<string, unknown>).CommonInterest : undefined;
+    if (typeof v === 'string' && v.trim()) return v.trim();
+  }
+  return null;
+}
+
 /** Exact live CommonInterest value(s) to filter for an ownership class. */
 export function commonInterestFor(cls: OwnershipClass): readonly string[] {
   switch (cls) {

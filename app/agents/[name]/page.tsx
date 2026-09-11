@@ -3,7 +3,13 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
-import agentsJson from '@/data/agents.json';
+import { isReservedAgentSegment } from '@/lib/agents/reserved-slug';
+import {
+  resolvePublicAgent,
+  AgentDirectoryUnavailable,
+  type PublicAgentProfile,
+  type DbAgentRow,
+} from '@/lib/agents/public-profile-authority';
 import ActiveListingsTabs from './listings/ActiveListingsTabs';
 import PastDealsSection from './PastDealsSection';
 import { getPastDeals } from './past-deals-loader';
@@ -12,71 +18,46 @@ type Props = {
   params: Promise<{ name: string }>;
 };
 
-interface AgentProfile {
-  id: string;
-  name: string;
-  title: string;
-  photo: string;
-  phone: string;
-  email: string;
-  bio: string;
-  specialties: string[];
-  languages: string[];
-  featured: boolean;
-}
 
-async function getAgentBySlug(slug: string): Promise<AgentProfile | null> {
+/**
+ * The Agent record is the authority.
+ *
+ * This used to fall back to data/agents.json whenever it found no ACTIVE
+ * database agent - including when the database answered fine and simply had no
+ * such agent. A Git-tracked file could therefore RESURRECT a deactivated or
+ * permanently deleted agent, and OVERRIDE the canonical record with stale
+ * name/title/photo/contact data.
+ *
+ * Now: a database that replies is final, null included. An unreachable database
+ * makes the profile TEMPORARILY UNAVAILABLE — it does not fall back to the
+ * static roster, because that would republish a withdrawn licensee's employment
+ * and licence status for the duration of any outage.
+ */
+async function getAgentBySlug(slug: string): Promise<PublicAgentProfile | null> {
   const nameFromSlug = slug.replace(/-/g, ' ');
 
-  try {
-    const agent = await prisma.agent.findFirst({
-      where: {
-        OR: [
-          { public_slug: slug },
-          { full_name: { equals: nameFromSlug, mode: 'insensitive' } },
-        ],
-        status: 'active',
-      },
-      select: {
-        public_slug: true,
-        full_name: true,
-        first_name: true,
-        last_name: true,
-        title: true,
-        photo: true,
-        phone: true,
-        email: true,
-        bio: true,
-        specialties: true,
-        languages: true,
-        featured: true,
-      },
-    });
-    if (agent) {
-      return {
-        id: agent.public_slug || slug,
-        name: agent.full_name || `${agent.first_name} ${agent.last_name}`,
-        title: agent.title || 'Licensed Real Estate Salesperson',
-        photo: agent.photo || '/images/agent-placeholder.svg',
-        phone: agent.phone || '',
-        email: agent.email,
-        bio: agent.bio || '',
-        specialties: agent.specialties,
-        languages: agent.languages,
-        featured: agent.featured,
-      };
-    }
-  } catch {
-    // DB unavailable — fall through to static JSON
-  }
-
-  const staticAgent = agentsJson.agents.find(
-    (a) => a.id === slug || a.name.toLowerCase().replace(/\s+/g, '-') === slug
+  return resolvePublicAgent(
+    slug,
+    async () => {
+      const agent = await prisma.agent.findFirst({
+        where: {
+          OR: [
+            { public_slug: slug },
+            { full_name: { equals: nameFromSlug, mode: 'insensitive' } },
+          ],
+          status: 'active',
+        },
+        select: {
+          public_slug: true, full_name: true, first_name: true, last_name: true,
+          title: true, license_type: true, photo: true, phone: true,
+          email: true, bio: true, specialties: true, languages: true, featured: true,
+        },
+      });
+      return agent as DbAgentRow | null;
+    },
   );
-  return staticAgent || null;
 }
 
- 
 async function getAgentListings(slug: string): Promise<{
   activeSales: any[];
   activeRentals: any[];
@@ -96,10 +77,53 @@ async function getAgentListings(slug: string): Promise<{
   }
 }
 
+/**
+ * THREE distinct outcomes, and the callers must handle all three:
+ *
+ *   { state: 'found' }        the database answered with an active agent
+ *   { state: 'not_found' }    the database answered, and there is none -> 404
+ *   { state: 'unavailable' }  the database could NOT answer
+ *
+ * The third is the one that bit: resolvePublicAgent deliberately THROWS on an
+ * outage so a stale Git identity can never be substituted, and both callers
+ * were letting that escape as an unhandled server-component error. The policy
+ * was right; the presentation was missing.
+ */
+type ProfileResolution =
+  | { state: 'found'; agent: PublicAgentProfile }
+  | { state: 'not_found' }
+  | { state: 'unavailable' };
+
+async function resolveProfile(slug: string): Promise<ProfileResolution> {
+  // ROUTE BOUNDARY. Before any Agent database read, and deliberately so.
+  //
+  // /agents/sitemap.xml used to reach the Agent lookup and, during an outage,
+  // render the profile "temporarily unavailable" page with HTTP 200. A segment
+  // that cannot be an agent must be rejected from the segment alone, so the
+  // answer never depends on whether the authority can be reached.
+  if (isReservedAgentSegment(slug)) return { state: 'not_found' };
+
+  try {
+    const agent = await getAgentBySlug(slug);
+    return agent ? { state: 'found', agent } : { state: 'not_found' };
+  } catch (err) {
+    if (err instanceof AgentDirectoryUnavailable) return { state: 'unavailable' };
+    throw err;
+  }
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { name } = await params;
-  const agent = await getAgentBySlug(name);
-  if (!agent) return { title: 'Agent Not Found | Mallan Real Estate' };
+  const resolved = await resolveProfile(name);
+  if (resolved.state === 'unavailable') {
+    // Do NOT let a transient outage be indexed as the agent's real page.
+    return {
+      title: 'Agent Profile Temporarily Unavailable | Mallan Real Estate',
+      robots: { index: false, follow: false },
+    };
+  }
+  if (resolved.state === 'not_found') return { title: 'Agent Not Found | Mallan Real Estate' };
+  const agent = resolved.agent;
   const ogImage = agent.photo && !agent.photo.includes('placeholder')
     ? agent.photo
     : 'https://mallan.nyc/images/og-default.png';
@@ -128,11 +152,37 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function AgentPage({ params }: Props) {
   const { name } = await params;
-  const agent = await getAgentBySlug(name);
+  const resolved = await resolveProfile(name);
 
-  if (!agent) {
+  if (resolved.state === 'unavailable') {
+    return (
+      <div className="min-h-screen bg-[#FEFEFE] font-sans">
+        <main className="pt-20">
+          <section className="py-24">
+            <div className="max-w-2xl mx-auto px-4 text-center">
+              <h1 className="text-2xl font-light text-brand-dark mb-3">
+                Profile temporarily unavailable
+              </h1>
+              <p className="text-brand-dark/80 mb-6">
+                We could not load this agent&apos;s profile just now. Please try again shortly.
+              </p>
+              <p className="text-brand-dark/80">
+                <a className="underline" href="tel:+16462584460">(646) 258-4460</a>
+                {' · '}
+                <Link className="underline" href="/agents">All agents</Link>
+              </p>
+            </div>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
+  if (resolved.state === 'not_found') {
     notFound();
   }
+
+  const agent = resolved.agent;
 
   // Fetch listings and past deals in parallel
   const [listingsData, pastDealsData] = await Promise.all([
@@ -261,7 +311,7 @@ export default async function AgentPage({ params }: Props) {
                   {agent.bio}
                 </div>
 
-                {/* Specialties & Languages */}
+                {/* Specialties */}
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
                   {agent.specialties.map((specialty, idx) => (
                     <span
@@ -271,12 +321,24 @@ export default async function AgentPage({ params }: Props) {
                       {specialty}
                     </span>
                   ))}
-                  {agent.languages.length > 1 && (
-                    <span className="px-2.5 py-1 ring-1 ring-black/5 text-xs text-brand-dark/90 rounded-full">
-                      {agent.languages.join(' · ')}
-                    </span>
-                  )}
                 </div>
+
+                {/*
+                  Languages — LABELLED and visually distinct from the specialty
+                  chips above. They used to render as one more identical pill,
+                  so "Buyer Representation" and "English · Spanish" read as a
+                  single undifferentiated list and the languages looked missing.
+                  Also gated on `> 1` before, so an agent with one language
+                  showed none at all. Applies to every agent who has languages.
+                */}
+                {agent.languages.length > 0 && (
+                  <p className="mt-3 text-xs text-brand-dark/85 text-center md:text-left">
+                    <span className="uppercase tracking-wide text-brand-dark/55 mr-1.5">
+                      Languages
+                    </span>
+                    {agent.languages.join(', ')}
+                  </p>
+                )}
               </div>
             </div>
           </div>

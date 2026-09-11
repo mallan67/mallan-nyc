@@ -13,10 +13,13 @@
 import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { TERMINAL_STATUSES as MAPPER_TERMINAL_STATUSES } from "@/lib/idx/trestle-mapper";
+import { TERMINAL_STATUS_FILTER_VALUES } from "@/lib/listings/mallan-status";
 import { Prisma } from "@prisma/client";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { buildingAndManifestInvalidationTags, listingCacheTag, newRevalidationCounters, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 import { ARCHIVE_SELECT, archiveOneListing } from "@/lib/retention/archive-terminals";
+import { OFF_FEED_SYNC_STATUS } from "@/lib/listings/canonical-lifecycle";
 import { archiveControlState, archiveWritesEnabled } from "@/lib/retention/archive-controls";
 import { purgeExpiredDiagnostics } from "@/lib/retention/system-diagnostic-cleanup";
 
@@ -26,7 +29,9 @@ export const maxDuration = 60;
 const T30_BATCH_CAP = 1000;
 const T180_BATCH_CAP = 500;
 
-const TERMINAL_STATUSES = ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled"] as const;
+// ONE terminal set (lib/listings/mallan-status.ts): the provider tokens the mapper exports, plus the legacy
+// spellings written before the 2026-09-08 token correction so no stored row escapes the §2.05 clock.
+const TERMINAL_STATUSES = [...new Set([...MAPPER_TERMINAL_STATUSES, ...TERMINAL_STATUS_FILTER_VALUES])] as string[];
 
 // (T+180 archive summary/strip helpers moved to lib/retention/archive-terminals.ts — Gate 6,
 // shared with the controlled operator drain so the two paths cannot drift.)
@@ -142,7 +147,7 @@ export async function GET(req: NextRequest) {
   const closedCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const staleClosedListings = await prisma.listing.findMany({
     where: {
-      status: { in: ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled"] },
+      status: { in: TERMINAL_STATUSES },
       status_changed_at: { lt: closedCutoff },
       idx_display_yn: true, // still marked for IDX display
     },
@@ -284,7 +289,10 @@ export async function GET(req: NextRequest) {
       : { status_changed_at: { lt: oneEightyDayCutoff } };
 
     const archiveWhere: Prisma.ListingWhereInput = {
-      status: { in: [...TERMINAL_STATUSES] },
+      // A terminal provider status OR a row recorded off the feed (its provider status is preserved on-market;
+      // the presence fact is what left the marketed set) — identical to lib/retention/archive-terminals.ts
+      // archiveEligibilityWhere and the monitor mirror scripts/archive-backlog-predicate.js.
+      OR: [{ status: { in: [...TERMINAL_STATUSES] } }, { sync_status: OFF_FEED_SYNC_STATUS }],
       sync_status: { not: "archived" },
       ...eligibilityWhere,
     };

@@ -1,0 +1,1139 @@
+This is the heart of the solution.
+
+Create a deterministic orchestrator such as:
+
+scripts/search/closure/
+    run.mjs
+    capture-git-state.mjs
+    compile-capability-graph.mjs
+    verify-provider-contract.mjs
+    verify-lineage.mjs
+    verify-universe.mjs
+    verify-consumers.mjs
+    verify-browser.mjs
+    verify-performance.mjs
+    build-proof-bundle.mjs
+
+And package scripts conceptually like:
+
+search:contract
+search:graph
+search:differential
+search:universe
+search:consumers
+search:e2e
+search:perf
+search:closure
+
+search:closure is the only command allowed to say Search passed.
+
+Its final state is exactly:
+
+PASS
+BLOCKED
+UNVERIFIED
+
+Never “mostly green.”
+
+2. Build a generated Search Capability Graph
+
+This is how you stop depending on Claude remembering 200 findings.
+
+Do not hand-write another spreadsheet or authority file.
+
+The compiler reads the actual system:
+
+FIELD_REGISTRY
+canonical workflow criteria
+specialized vocabularies
+visible CRM controls
+serializer
+/api/idx/search
+Cotality select fields
+Cotality filter executor
+Mallan-local executor
+mapper
+Listing / projection storage
+result DTO
+Grid
+Gallery
+Summary
+Master/Detail
+Map
+Saved Search
+Reports
+Compare
+CMA
+
+and combines it with the current live Cotality contract.
+
+For each active broker criterion it produces evidence like:
+
+workflow: rental
+
+ui:
+  visible: yes
+  enabled: yes
+  basic: yes
+  advanced: yes
+
+canonical:
+  key: furnished
+  owner: FIELD_REGISTRY
+
+provider:
+  resource: Property
+  field: Furnished
+  declared: true
+  populated: ?
+  filterable: ?
+  values: [...]
+  semantic_equivalence: VERIFIED / UNVERIFIED
+
+mallan:
+  storage_fact: ...
+  executable: true / false
+
+execution:
+  provider: true
+  mallan_local: true
+  same_semantics: true
+
+consumers:
+  grid: true
+  detail: true
+  saved_search: true
+  map: n/a
+  reports: true
+  cma: n/a
+
+tests:
+  positive: PASS
+  negative: PASS
+  roundtrip: PASS
+
+This is generated evidence, not a second authority.
+
+The compiler should fail when it discovers:
+
+VISIBLE + ENABLED + NO CANONICAL OWNER
+CANONICAL + NO EXECUTOR
+SELECTED FROM COTALITY + NO READER
+EXECUTOR + NO LIVE VERIFIED PROVIDER CONTRACT
+SAVED + CANNOT RESTORE
+REPORT FIELD + NO CANONICAL FACT
+BASIC AND ADVANCED DIFFERENT MEANING
+SALE CRITERION LEAKED INTO RENTAL
+
+That immediately converts all of our previous findings into a living system.
+
+3. Use differential testing, not normal unit tests, to fix Search
+
+This is the most important technical change.
+
+Claude must stop asking only:
+
+Does our code return the expected mocked result?
+
+Instead it asks:
+
+For the SAME canonical question:
+
+What does live Cotality say?
+What does Mallan's executor say?
+What does /api/idx/search say?
+What does the browser show?
+
+Build a differential runner.
+
+For a scenario such as:
+
+Rental
+Manhattan
+$4,000–$6,000
+1–2 bedrooms
+1.5+ baths
+Furnished
+Updated newest first
+
+the runner captures:
+
+canonical criteria
+↓
+exact Cotality filter
+↓
+Cotality candidate identities
+↓
+Mallan-local candidates
+↓
+return-copy suppression
+↓
+compliance exclusions
+↓
+complete-corpus filters
+↓
+final canonical identities
+↓
+final count
+↓
+ordered pages
+↓
+API result identities
+↓
+browser result identities
+
+Then compare them.
+
+Not vague assertions.
+
+Core invariant
+
+For a static test universe:
+
+page1 ∪ page2 ∪ ... ∪ pageN
+=
+FINAL SEARCH UNIVERSE
+
+And:
+
+page_i ∩ page_j = ∅
+for i != j
+
+And:
+
+reported exact total
+=
+size(FINAL SEARCH UNIVERSE)
+
+This catches the actual class of defects that kept recurring.
+
+4. Generate Search scenarios automatically from Cotality
+
+Claude should not manually dream up filters one at a time.
+
+Use the existing live Cotality compiler to produce scenario seeds from real:
+
+PropertyType
+PropertySubType
+StandardStatus
+MlsStatus where legitimately used
+CommonInterest
+Permission
+Furnished
+Pets
+fee frequencies
+neighborhoods/boroughs
+date fields
+CustomFields capabilities
+OpenHouse
+related resource availability
+
+Then produce three layers of tests:
+
+Layer A — one criterion
+
+Every executable criterion individually.
+
+Layer B — interaction pairs
+
+This catches bugs that single-field testing misses:
+
+borough + neighborhood
+price + sort
+beds + baths
+ownership + property subtype
+status + date
+open house + pagination
+Sponsor Unit + price
+Maximum Financing + ownership
+rental type + furnished
+Layer C — real broker scenarios
+
+A smaller permanent pack:
+
+Manhattan condo sale
+Manhattan co-op sale
+Active rental
+Furnished rental
+Closed-sale comp search
+Open-house search
+Mallan exclusive mixed with Cotality inventory
+deep pagination
+Saved Search restore
+
+Claude fixes failing families, not random tests.
+
+5. Make Claude operate as one writer plus separate verifiers
+
+Do not run five coding agents modifying Search.
+
+That recreates the mess.
+
+Use:
+
+MAIN CLAUDE
+Coordinator + sole writer
+
+SUBAGENT 1
+Cotality Contract Verifier — read-only
+
+SUBAGENT 2
+Search Lineage Verifier — read-only
+
+SUBAGENT 3
+Differential/Universe Verifier — read-only
+
+SUBAGENT 4
+Runtime Browser Verifier — read-only
+
+SUBAGENT 5
+Closure Red Team — read-only
+
+Claude Code supports explicit subagent tool allowlists. A verifier can be restricted to Read/Grep/Glob/Bash and prevented from using Write/Edit or MCP tools it does not require.
+
+That separation matters.
+
+The builder cannot certify its own work.
+
+6. Add actual Claude project skills
+
+These are operating procedures, not product logic.
+
+.claude/skills/
+    search-repair/
+        SKILL.md
+
+    search-closure/
+        SKILL.md
+
+    cotality-contract-change/
+        SKILL.md
+
+    search-red-test/
+        SKILL.md
+/search-repair
+
+Runs this exact loop:
+
+take failing closure case
+→ prove wrong answer
+→ identify common root cause
+→ enumerate all readers/writers
+→ write RED behavioral test
+→ correct root cause
+→ run affected test family
+→ run differential case
+→ run downstream consumers
+→ leave evidence
+
+Not:
+
+test failed
+→ patch
+→ next test
+→ patch
+/search-closure
+
+No development.
+
+Only proof.
+
+It invokes the closure harness against current SHA.
+
+Claude Code skills can run in forked contexts and choose a specific subagent, making them suitable for isolated verification tasks.
+
+7. Add Claude hooks so Claude physically cannot wander away
+
+This is where the system becomes enforceable.
+
+Claude Code now exposes PreToolUse, TaskCompleted, Stop, ConfigChange, SubagentStart/Stop, FileChanged and other lifecycle hooks. PreToolUse can block a tool call; TaskCompleted and Stop can also control completion.
+
+For Mallan Search:
+
+.claude/hooks/
+    guard-search-scope.ps1
+    guard-dangerous-mutation.ps1
+    require-red-before-fix.ps1
+    require-search-evidence.ps1
+    require-closure-before-stop.ps1
+guard-search-scope
+
+Blocks Claude from wandering into:
+
+Neon
+R2
+DOM
+agent roster
+unrelated schema
+Production deploy
+
+while operating /search-repair.
+
+guard-dangerous-mutation
+
+Blocks:
+
+migration
+schema
+environment
+Production
+destructive DB
+R2
+workflow changes
+
+unless an explicit authorization token/state exists.
+
+require-closure-before-stop
+
+If Claude says:
+
+Search fixed
+Section closed
+ready to merge
+done
+
+but the exact HEAD has no valid Search proof manifest:
+
+deny Stop.
+
+Claude continues working.
+
+This is much stronger than a prompt saying “please don't forget.”
+
+8. Use Playwright correctly
+
+This is another place my earlier answer was incomplete.
+
+For Claude Code, I would use Playwright CLI for routine engineering and CI, because Playwright explicitly recommends it for coding agents and notes that it is more token-efficient for large codebases.
+
+Install its Claude skills:
+
+playwright-cli install --skills
+
+Then use Playwright MCP for interactive exploratory acceptance where Claude needs to inspect the actual UI, network calls, console and state.
+
+Official Playwright supports Claude Code directly and exposes browser navigation, forms, screenshots, network inspection, storage state and more.
+
+Do not trust Playwright Healer for acceptance
+
+Playwright now has test agents including a Healer that can adjust broken tests.
+
+That is useful during development.
+
+It should not be allowed in Mallan final acceptance.
+
+If the broker journey fails, the product must be fixed.
+
+The verifier must never rewrite the failing acceptance test until it turns green.
+
+9. The browser test is one broker journey, not 100 unrelated UI tests
+
+The permanent E2E scenario should look like this:
+
+LOGIN
+
+SALE SEARCH
+↓
+Basic inputs
+↓
+Advanced
+↓
+confirm criteria retained
+↓
+execute
+↓
+count
+↓
+sort
+↓
+page 2
+↓
+page 3
+↓
+change view
+↓
+Map
+↓
+detail
+↓
+return
+↓
+selection remains
+↓
+Search Within Results
+↓
+save
+↓
+reload page
+↓
+restore Saved Search
+↓
+same canonical criteria
+↓
+same search meaning
+↓
+select listings
+↓
+Compare
+↓
+Report
+↓
+CMA input
+
+Then repeat for Rental.
+
+And execute at:
+
+1440 desktop
+1024 tablet
+390 mobile
+
+Same canonical criteria.
+
+Same universe.
+
+That turns mobile into a correctness test, not a later CSS project.
+
+10. Detail resources are tested separately from Search acquisition
+
+Do not make Search expand six Cotality resources for every card.
+
+The route should be:
+
+SEARCH
+Property facts needed to establish membership/order/card
+
+OPEN LISTING
+↓
+detail hydration
+├── CustomProperty
+├── Media
+├── OpenHouse
+├── Office
+├── Member
+└── verified building evidence
+
+This gives speed and full brokerage information.
+
+Then the harness checks:
+
+Search card fact
+=
+Detail canonical fact
+=
+Report fact
+=
+CMA fact where applicable
+
+No read-then-discard.
+
+No second interpretation.
+
+11. Reports, Compare and CMA become consumers of a Search Snapshot
+
+This is the structural fix for downstream drift.
+
+When Search executes, create an in-memory/request-level Search Snapshot contract, not necessarily a new DB table:
+
+SearchSnapshot
+    canonicalCriteria
+    executionFingerprint
+    sourceContractFingerprint
+    sort
+    countMeaning
+    finalUniverseIdentity
+    selectedListingIds
+    generatedAt
+
+Reports must request:
+
+CURRENT_PAGE
+SELECTED
+ALL_RESULTS
+
+against this authoritative Search identity.
+
+They cannot independently rebuild criteria.
+
+Compare uses selected canonical Listing IDs.
+
+CMA receives:
+
+subject
++
+SearchSnapshot reference/criteria
++
+broker-selected comparable identities
+
+and performs its own CMA business analysis without reconstructing Search.
+
+That directly stops Search → Report → CMA drift.
+
+12. Add a proof bundle tied to the exact Git SHA
+
+Every closure run creates something like:
+
+artifacts/search-closure/
+  <git-sha>/
+      manifest.json
+      git-state.json
+      cotality-contract.json
+      capability-graph.json
+      differential-results.json
+      universe-conservation.json
+      sale-e2e.json
+      rental-e2e.json
+      desktop.json
+      tablet.json
+      mobile.json
+      performance.json
+      compliance.json
+      screenshots/
+      traces/
+
+manifest.json contains hashes of everything.
+
+A result from yesterday's SHA cannot certify today's code.
+
+13. Run an independent Claude after the builder finishes
+
+This is an excellent use of Claude Code's headless/bare mode.
+
+Claude supports claude -p for programmatic execution. --bare deliberately skips the project's hooks, skills, subagents, MCP servers and CLAUDE.md, giving a cleaner independent execution environment.
+
+So final CI can run a separate read-only adversarial review against:
+
+current source
++
+generated Search proof bundle
+
+It asks:
+
+Can the claimed PASS be contradicted by the supplied evidence?
+Are any required scenarios absent?
+Does any arithmetic fail?
+Is any evidence from another SHA?
+Is any provider fact UNVERIFIED?
+Did browser proof actually exercise the claimed criterion?
+
+Builder Claude never sees or controls that verdict.
+
+14. GitHub/Vercel become deployment proof, not development authority
+
+The closure sequence should be:
+
+LOCAL CLOSURE
+PASS
+↓
+push exact SHA
+↓
+GitHub targeted Search checks
+PASS
+↓
+Vercel Preview for exact SHA
+READY
+↓
+Playwright authenticated Preview run
+PASS
+↓
+independent verifier
+PASS
+↓
+SEARCH_PREVIEW_VERIFIED
+
+Production remains separately authorization-gated.
+
+Do not call Search finished because Vercel built successfully.
+
+15. This is what Claude should build first
+
+The first implementation packet is not “fix bathrooms” or “fix pagination.”
+
+It is:
+
+PACKET 1 — SEARCH HARNESS
+
+1. .claude Search coordinator/verifier structure
+2. Search closure orchestrator
+3. generated Search capability graph
+4. differential runner
+5. exact-SHA proof bundle
+6. Playwright broker-journey seed
+7. Stop/TaskCompleted closure hook
+
+Once that runs, feed the current d19 through it.
+
+It will produce a finite defect set grouped by common root cause.
+
+Then Claude fixes those groups until the harness says PASS.
+
+That is the difference between another audit and an engineering system.
+
+The Claude directive I would use
+
+We are no longer doing another Search audit or another sequence of isolated patches.
+
+Build an EXECUTABLE, REUSABLE SEARCH REPAIR AND CLOSURE SYSTEM inside mallan67/mallan-nyc and then use that system to finish authenticated brokerage Search end to end.
+
+The system must make it impossible to declare Search complete from prose, source greps, individual green tests or a successful Vercel build.
+
+ARCHITECTURAL RULE:
+
+COTALITY RAW CONTRACT → VERIFIED MAPPING → MALLAN STORAGE/PROJECTION → MALLAN BUSINESS RULE → SEARCH UNIVERSE → BROKER CONSUMERS
+
+Do not create a second FIELD_REGISTRY, second Search engine, second criteria vocabulary, second listing identity or second CMA search implementation.
+
+Reuse the substantial existing Search foundation on PR #618.
+
+Existing components to reuse include:
+
+scripts/cotality/query-live.mjs
+scripts/cotality/compile-live-contract.mjs
+scripts/cotality/verify-search-live.mjs
+scripts/search/registry-vs-executor-census.mjs
+canonical workflow criteria
+FIELD_REGISTRY
+canonical specialized vocabularies/contracts
+lib/search/final-universe.ts
+current mixed Mallan/Cotality Search source code
+existing runtime tests
+CRM build/test system
+compliance validators
+existing live-only trestle-fields MCP
+
+FIRST, PROVE THE EXACT WORKTREE/PR STATE.
+
+Then build the following.
+
+A. ONE SEARCH CLOSURE COMMAND
+
+Create a deterministic command conceptually equivalent to:
+
+npm run search:closure
+
+It must produce only:
+
+PASS
+BLOCKED
+or
+UNVERIFIED.
+
+No "mostly passed."
+
+The command must bind its result to the exact Git SHA and dirty state.
+
+B. GENERATED SEARCH CAPABILITY GRAPH
+
+Create a compiler that reads the CURRENT CODE and LIVE COTALITY contract and generates evidence for every active authenticated Search capability.
+
+Do not hand-maintain a duplicate field matrix.
+
+For every active visible criterion determine:
+
+workflow: Sale / Rental / Building / Comparable;
+UI surface and whether visible/enabled;
+Basic and Advanced ownership;
+canonical key;
+registry/specialized authority owner;
+exact provider resource/field where provider-backed;
+provider type;
+enum/multi-enum encoding;
+null/sentinel semantics;
+filter/operator/sort capability where applicable;
+live population where material;
+semantic equivalence;
+Mallan-local execution source;
+storage/projection source;
+serializer;
+route executor;
+mapper;
+Saved Search support;
+Grid/Gallery/Summary/Master-Detail reader;
+Map involvement;
+Report involvement;
+Compare involvement;
+CMA involvement;
+explicit unsupported/refusal behavior.
+
+Machine-fail at least:
+
+visible enabled control with no canonical owner;
+canonical executable criterion with no execution owner;
+selected provider fact with no downstream reader;
+active executor mapping not live-verified;
+Basic/Advanced semantic disagreement;
+Sale/Rental leakage;
+Saved Search that cannot restore the same meaning;
+report/CMA reader rebuilding a different Search mapping.
+
+Generated output is EVIDENCE ONLY. It is not a new product authority.
+
+C. DIFFERENTIAL SEARCH ENGINE
+
+For one canonical Search request compare:
+
+live Cotality raw answer;
+Mallan-local answer;
+return-copy suppression;
+eligibility/distribution exclusions;
+complete-corpus Mallan filters;
+final canonical universe;
+/api/idx/search answer;
+browser-visible answer.
+
+Capture identities, not just counts.
+
+For a static test universe prove:
+
+UNION(all pages) = FINAL UNIVERSE
+
+and every pair of pages is disjoint.
+
+Prove sort order across the entire final universe.
+
+Keep separately:
+
+provider matched;
+provider rows traversed;
+identity failures;
+gate exclusions;
+provider duplicates;
+Mallan canonical rows;
+suppressed return copies;
+complete-corpus exclusions;
+final count.
+
+Do not manufacture conservation by mixing different populations.
+
+D. SCENARIO GENERATOR
+
+Generate tests from current live provider values rather than manually inventing one field at a time.
+
+Maintain three test layers:
+
+every supported criterion individually;
+important interaction pairs;
+permanent real-broker scenarios.
+
+Permanent scenarios must include at least:
+
+Manhattan condo Sale;
+Manhattan co-op Sale;
+Rental;
+furnished Rental if live-verified;
+Closed Sale/Comparable search;
+Open House;
+Mallan-authored listing mixed with Cotality third-party inventory;
+Mallan return-copy suppression;
+deep pagination;
+Saved Search restore.
+
+Include half-bath boundary cases.
+
+Include unknown/null/sentinel negative cases.
+
+E. ROOT-CAUSE REPAIR LOOP
+
+For a failing case:
+
+WRONG ANSWER
+→ RED behavioral test
+→ common root cause
+→ all affected readers/writers
+→ correction
+→ targeted family tests
+→ differential proof
+→ downstream proof.
+
+Do not run:
+
+test fails → patch → next test fails → patch
+
+without identifying the common root cause.
+
+Fix capability families together where they share the same source/mapping/execution defect.
+
+F. CLAUDE PROJECT OPERATING SYSTEM
+
+After Maya authorization for .claude/**, implement project-level Claude support.
+
+Create appropriate rules for:
+
+Cotality authority;
+Search architecture;
+compliance;
+mutation boundaries.
+
+Create project skills conceptually:
+
+search-repair
+search-closure
+cotality-contract-change
+search-red-test
+
+Use ONE writer.
+
+Verifier agents are read-only.
+
+Create separate read-only agents for:
+
+Cotality contract verification;
+Search lineage verification;
+final-universe/differential verification;
+browser/runtime verification;
+closure red-team.
+
+Do not allow multiple agents to concurrently write Search code.
+
+G. CLAUDE HOOK ENFORCEMENT
+
+After Maya authorization for .claude/**, use Claude Code lifecycle hooks to enforce the program.
+
+PreToolUse must prevent Search work from casually mutating:
+
+schema/migrations;
+Production;
+environment;
+Neon/R2;
+unrelated DOM/compliance work;
+Agent Roster;
+unrelated product lanes.
+
+TaskCompleted/Stop must refuse a "Search complete/fixed/closed" state unless a valid exact-SHA Search closure artifact exists.
+
+A prompt saying "remember to run tests" is insufficient.
+
+H. PLAYWRIGHT
+
+Use Playwright CLI as the routine coding-agent/CI browser tool.
+
+Use Playwright MCP where exploratory headed browser interaction is valuable.
+
+Do not use an auto-healer as final acceptance authority.
+
+The final verifier may not change acceptance tests merely to produce green.
+
+Build durable Playwright tests from human-readable broker scenarios.
+
+I. ONE BROKER JOURNEY
+
+The browser test is not "page loads."
+
+For SALE and RENTAL prove:
+
+login
+→ Basic criteria
+→ Advanced
+→ criteria retained
+→ execute
+→ truthful count
+→ global sort
+→ page 2
+→ page 3
+→ change result view
+→ Map
+→ detail
+→ return
+→ selection persists
+→ Search Within Results
+→ Save Search
+→ reload
+→ restore same canonical meaning
+→ select
+→ client action
+→ Compare
+→ Report
+→ CMA input
+→ attribution/compliance.
+
+Run at:
+
+desktop 1440;
+tablet 1024;
+mobile 390.
+
+Same criteria must retain the same meaning.
+
+J. DETAIL HYDRATION
+
+Do not make every Search request fetch every provider resource.
+
+Search list acquisition uses only facts required for:
+
+universe membership;
+eligibility;
+ordering;
+result card.
+
+On listing open, hydrate verified related data as needed from:
+
+CustomProperty;
+Media;
+OpenHouse;
+Office;
+Member;
+verified building/parcel evidence.
+
+Prove:
+
+Search fact = canonical detail fact = report fact = CMA fact where applicable.
+
+No read-then-discard.
+
+No fabricated missing facts.
+
+K. AUTHORITATIVE SEARCH SNAPSHOT
+
+Reports, Compare and CMA must consume the authoritative Search state rather than rebuild Search independently.
+
+Define an application-level Search snapshot/response contract carrying at minimum:
+
+canonical criteria;
+execution fingerprint;
+provider-contract fingerprint;
+sort;
+count meaning;
+final-universe identity/evidence;
+current page;
+selected canonical Listing identities.
+
+Do not create a database table unless existing structures are proven insufficient and Maya explicitly authorizes schema change.
+
+Reports must explicitly distinguish:
+
+CURRENT PAGE;
+SELECTED;
+ALL RESULTS.
+
+"All Results" may not mean loaded rows.
+
+Compare consumes canonical selected listing identities.
+
+CMA receives subject + authoritative Search/selection evidence and must not build an independent provider-search mapping.
+
+L. EXACT-SHA PROOF BUNDLE
+
+Every closure run creates a durable evidence bundle conceptually under:
+
+artifacts/search-closure/<git-sha>/
+
+containing:
+
+Git/branch/dirty state;
+provider contract fingerprint;
+generated capability graph;
+differential results;
+universe conservation;
+Sale browser proof;
+Rental browser proof;
+desktop/tablet/mobile proof;
+Saved Search proof;
+report/Compare/CMA handoff proof;
+attribution/compliance proof;
+performance measurements;
+failure-state tests;
+screenshots/traces where useful.
+
+Evidence from another SHA does not certify the current SHA.
+
+M. INDEPENDENT VERIFICATION
+
+After the builder finishes an exact SHA, run an independent read-only verifier that does not consume the builder's narrative as truth.
+
+Prefer a separate Claude headless/bare verification pass or equivalent independent process over the proof bundle and source.
+
+It must attempt to DISPROVE closure.
+
+Questions include:
+
+Does the proof bundle belong to this SHA?
+Is any required workflow missing?
+Can any arithmetic be contradicted?
+Is an "exact" count actually incomplete?
+Is an unsupported/unverified provider fact displayed as supported?
+Did a browser test really send the criteria it claims?
+Did a report rebuild a different universe?
+Did Basic → Advanced alter criteria?
+Did mobile execute a different question?
+Did a Mallan return-copy reappear?
+Can a visible active control still be ignored?
+
+The builder cannot override this verdict.
+
+N. PREVIEW
+
+Only after local closure passes:
+
+push exact SHA;
+targeted GitHub Search checks;
+exact-SHA Vercel Preview;
+authenticated Playwright against Preview;
+independent verification.
+
+Preview build success alone is not Search closure.
+
+Production remains separately authorized.
+
+O. PERFORMANCE
+
+Record actual timings for:
+
+Search submit;
+page transition;
+sort;
+detail hydration;
+Map;
+Saved Search restore;
+Report.
+
+Do not "optimize" by reducing result truth, skipping source data or changing semantics.
+
+P. HOW TO USE ALL PRIOR FINDINGS
+
+Do not throw away the previous deep Search findings.
+
+Do not blindly re-fix them either.
+
+Run every prior finding against current HEAD and classify it:
+
+STILL_BROKEN
+FIXED_BUT_UNPROVEN
+PROVEN_CLOSED
+SUPERSEDED
+NOT_APPLICABLE.
+
+That classification becomes part of the proof evidence.
+
+The closure harness, not memory, decides whether a historical defect remains active.
+
+FIRST IMPLEMENTATION PACKET
+
+Do not begin by fixing an individual Search field.
+
+Implement first:
+
+Search closure orchestrator;
+generated Search capability graph;
+differential/universe verifier;
+exact-SHA proof bundle;
+initial Sale + Rental Playwright broker journey;
+independent read-only verifier path;
+Claude scope/closure hooks after Maya's .claude/** authorization.
+
+Then run CURRENT PR #618 through the harness.
+
+The harness must produce the first bounded set of current WRONG ANSWERS.
+
+Fix those root-cause groups continuously until the full Search closure command passes.
+
+Do not stop at §6.
+
+§6, §7, §8, §9 and §10 are internal layers of ONE Search closure.
+
+Search is complete only when the actual broker can perform the entire Sale and Rental journey with the same truthful canonical Search from input to client-facing output.
+
+That is the system I would put in front of Claude.
+
+It gives Claude a route, an operating model, specific tools, executable gates and a permanent use afterward. It also uses what you already paid to build instead of launching a thirteenth Search architecture.
+
+The single most important change is this: Claude should stop being the thing that decides whether Search is finished. search:closure decides. Claude's job is to make that command pass.

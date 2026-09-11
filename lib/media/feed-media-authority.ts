@@ -25,7 +25,7 @@
  * A denormalized flag would have to be maintained correctly by every feed insert, tombstone,
  * recovery, deletion and future repair path — duplicated derived state, in a codebase that has
  * already produced several write-path drift defects. Authority is derived from canonical
- * `listing_media` instead. Read shape follows `hydrateSearchListingMedia` (lib/search/core.ts:295):
+ * `listing_media` instead. Read shape (formerly `hydrateSearchListingMedia` in the retired lib/search/core.ts):
  * ONE opt-in batched query per page, never N per-listing reads.
  *
  * FAIL-CLOSED CONTRACT

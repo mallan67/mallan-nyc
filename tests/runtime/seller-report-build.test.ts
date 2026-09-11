@@ -678,15 +678,16 @@ describe('isLocalOpenHousePubliclyEligible — RSVP gate == feed gate (Codex #47
   });
 
   // Codex #472 r14: the RLS branch used only evaluateDisplayGate(), which passes any
-  // non-terminal displayable status — so ComingSoon/Pending RLS listings could count
+  // non-terminal displayable status — so ComingSoon RLS listings could count
   // RSVPs the open-house FEED never exposes (feed uses OPEN_HOUSE_ELIGIBLE_STATUSES =
-  // {Active, ActiveUnderContract}). Both branches must require that status.
+  // {Active, ActiveUnderContract, Pending} — every active or in-contract status; ComingSoon
+  // excluded). Both branches must require that status.
   const rlsBase = { ...base, rls_eligible: true as const };
   it('RLS ComingSoon with display flags true → NOT eligible (feed excludes ComingSoon)', () => {
     expect(isLocalOpenHousePubliclyEligible({ ...rlsBase, status: 'ComingSoon' })).toBe(false);
   });
-  it('RLS Pending with display flags true → NOT eligible', () => {
-    expect(isLocalOpenHousePubliclyEligible({ ...rlsBase, status: 'Pending' })).toBe(false);
+  it('RLS Pending with display flags true → eligible (Pending is the feed\'s in-contract status — the same stage as ActiveUnderContract, publicly displayable as In Contract since 2026-09-08)', () => {
+    expect(isLocalOpenHousePubliclyEligible({ ...rlsBase, status: 'Pending' })).toBe(true);
   });
   it('RLS Active → eligible (display gate passes)', () => {
     expect(isLocalOpenHousePubliclyEligible({ ...rlsBase, status: 'Active' })).toBe(true);

@@ -9,6 +9,7 @@
  */
 
 import prisma from '@/lib/prisma';
+import { boroughFromCityRegion } from '@/lib/listings/canonical-location';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -192,7 +193,9 @@ export async function upsertBuildingFromRecords(
       street_dir: richestStr(records, 'StreetDirPrefix') ?? richestStr(records, 'StreetDirSuffix'),
       street_suffix: richestStr(records, 'StreetSuffix'),
       neighborhood: richestStr(records, 'SubdivisionName'),
-      borough: richestStr(records, 'CityRegion'),
+      // Canonical borough (CityRegion → Mallan form, "Staten Island"); an unrecognised value is kept
+      // verbatim rather than dropped, so it stays visible for correction.
+      borough: boroughFromCityRegion(richestStr(records, 'CityRegion')) ?? richestStr(records, 'CityRegion'),
       zip: richestStr(records, 'PostalCode'),
       city: richestStr(records, 'PostalCity') ?? richestStr(records, 'City'),
       latitude: richestDecimal(records, 'Latitude'),
@@ -411,7 +414,7 @@ export async function upsertBuildingFromSearchResult(
         first(record['StreetDirPrefix']) ?? first(record['StreetDirSuffix']),
       street_suffix: first(record['StreetSuffix']),
       neighborhood: first(record['SubdivisionName']),
-      borough: first(record['CityRegion']),
+      borough: boroughFromCityRegion(first(record['CityRegion'])) ?? first(record['CityRegion']),
       zip: first(record['PostalCode']),
       city: first(record['PostalCity']) ?? first(record['City']),
       latitude: firstDecimal(record['Latitude']),

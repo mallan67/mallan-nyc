@@ -1,6 +1,6 @@
 # Validator Truth Framework
 
-> **Status:** Phase 1 (Foundation) — schema rich-format + workflow completeness layer.
+> **Status:** Phase 1 shipped (rule truth + workflow completeness). Phases 2 and 4 also landed on `main` on 2026-04-26 (`150a7c14`, `84daeb01`) — release-truth aggregator, per-merge audit mode, migration-discipline, deploy-status, live-site and toolchain validators. *(This line read "Phase 1 (Foundation) — schema rich-format + workflow completeness layer" until 2026-09-10; the phase table below was already out of date.)*
 > **Source spec:** `memory/VALIDATOR-FRAMEWORK-2026-04-26.md`
 > **Created:** 2026-04-26
 
@@ -141,18 +141,20 @@ Currently registered:
 
 ## What's NOT shipped yet (Phase 2-4)
 
+> **CORRECTED 2026-09-10 — this heading is no longer true for six of the eleven rows.** Verified against `package.json` and `git log`: the migration-discipline, deploy-status, release-truth-aggregator and per-merge rows shipped in `150a7c14` (2026-04-26); the live-site and toolchain rows shipped in `84daeb01` (2026-04-26). Rows are marked **SHIPPED** in place rather than deleted, so the original plan stays readable. Two Phase-3 rows have partial coverage in `tests/runtime/` (`inquiry-effect.test.ts`, `prospect-import-parse.test.ts`) — treat them as partial, not done. Only **PR claim verification** and **target-platform CI build** are genuinely unstarted.
+
 | Layer | Phase | Description |
 |---|---|---|
-| Migration discipline validator | 2 | Schema PR has migration + rollout note + prod migrate status |
-| Deploy status validator | 2 | GH check + Vercel state per commit SHA |
-| Release truth aggregator | 2 | Single verdict combining all layers |
-| Per-merge audit mode | 2 | `--per-merge --from-sha X --to-sha Y` |
-| Runtime side-effect tests | 3 | Inquiry / Offer / Auth / Import route effect proof |
-| Parser fixture tests | 3 | csv/xlsx/blank/malformed against `parse.ts` |
-| Live site smoke validator | 4 | Homepage / search / freshness / loading-state |
+| Migration discipline validator | 2 | **SHIPPED `150a7c14`** — `npm run validator:migration` (`scripts/validate-migration-discipline.js`). Schema PR has migration + rollout note + prod migrate status |
+| Deploy status validator | 2 | **SHIPPED `150a7c14`** — `npm run validator:deploy` (`scripts/validate-release-status.js`). GH check + Vercel state per commit SHA |
+| Release truth aggregator | 2 | **SHIPPED `150a7c14`** — `npm run release:truth` (`scripts/release-truth-check.js`). Single verdict combining all layers |
+| Per-merge audit mode | 2 | **SHIPPED `150a7c14`** — `npm run release:truth -- --per-merge --from-sha X --to-sha Y` |
+| Runtime side-effect tests | 3 | **PARTIAL** — `tests/runtime/inquiry-effect.test.ts` exists; Offer / Auth / Import route effect proof still missing |
+| Parser fixture tests | 3 | **PARTIAL** — `tests/runtime/prospect-import-parse.test.ts` exists; full csv/xlsx/blank/malformed fixture matrix against `parse.ts` still missing |
+| Live site smoke validator | 4 | **SHIPPED `84daeb01`** — `npm run validator:live-site` (`scripts/validate-live-site.js`). Homepage / search / freshness / loading-state |
 | PR claim verification | 4 | Compare claim phrases to evidence |
 | Target-platform CI build | 4 | Linux runner with Node engines match |
-| Toolchain validator | 4 | Node/npm version policy |
+| Toolchain validator | 4 | **SHIPPED `84daeb01`** — `npm run validator:toolchain` (`scripts/validate-toolchain.js`). Node/npm version policy |
 
 ## How to migrate a UCBA rule from v1 to v2
 
@@ -183,16 +185,18 @@ Currently registered:
 ## Run everything
 
 ```bash
-npm run ucba:audit              # Layer 1
-npm run validator:workflows     # Layer 2
-npm run ci                      # Existing CI gates (lint + type-check + idx + build)
+npm run ucba:audit              # Layer 1 — rule truth
+npm run validator:workflows     # Layer 2 — workflow completeness
+npm run validator:migration     # Phase 2 — migration discipline
+npm run validator:deploy        # Phase 2 — deploy / release status per SHA
+npm run validator:live-site     # Phase 4 — live-site smoke
+npm run validator:toolchain     # Phase 4 — Node/npm version policy
+npm run release:truth           # Aggregator across layers
+npm run release:truth -- --per-merge --from-sha A --to-sha B   # Per-merge audit
+npm run ci                      # lint + type-check + compliance-check + idx:validate + build
 ```
 
-When Phase 2+ ships:
-```bash
-npm run release:truth           # Aggregator across all layers (Phase 2)
-npm run release:truth -- --per-merge --from-sha A --to-sha B   # Per-merge audit
-```
+> *(Corrected 2026-09-10: this block previously headed the last two commands "When Phase 2+ ships:". Phase 2 shipped 2026-04-26.)*
 
 ## See also
 

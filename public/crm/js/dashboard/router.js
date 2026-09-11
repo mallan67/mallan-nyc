@@ -56,6 +56,27 @@ var Router = (function () {
     return null;
   }
 
+  // ─── Content-pane ownership ────────────────────────────────────
+  // A panel that paints AFTER an await must not reach the screen once the operator has moved on.
+  //
+  // Production defect, 2026-09-09: the Property Search tab rendered the Ops Dashboard body. Property
+  // Search was not broken - it had been painted over. HomeScreen.render() captures the pane, issues
+  // eight API calls, and writes _renderCards(c, ...) when they resolve ~2s later, without re-checking
+  // the route. Any panel that paints synchronously loses that race, every time.
+  //
+  // The fix belongs here rather than in each of the ~40 panels: navigating RETIRES the pane and installs
+  // a fresh node carrying the same id and layout classes. A renderer still holding the previous node
+  // writes into a detached element, so a late reply can no longer overwrite the panel that replaced it.
+  // The retired node keeps `data-retired-route` so a stale write is identifiable when debugging.
+  function _retirePane(outgoingPath) {
+    var old = document.getElementById('content');
+    if (!old || !old.parentNode) return;
+    var fresh = old.cloneNode(false); // same tag and attributes, no children
+    old.removeAttribute('id');        // a stale getElementById('content') must never find the old pane
+    old.setAttribute('data-retired-route', outgoingPath || '');
+    old.parentNode.replaceChild(fresh, old);
+  }
+
   // ─── Navigation ──────────────────────────────────────────────────────
   function navigate(path, opts) {
     opts = opts || {};
@@ -92,6 +113,9 @@ var Router = (function () {
     for (var i = 0; i < _beforeHooks.length; i++) {
       if (_beforeHooks[i](result) === false) return;
     }
+
+    // Retire the outgoing panel's content pane BEFORE the new handler paints (see _retirePane).
+    _retirePane(_current ? _current.path : null);
 
     _current = result;
     Store.setRoute(result.path);

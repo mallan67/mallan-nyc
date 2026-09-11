@@ -2,7 +2,7 @@
  * Auction sub-section wiring — runtime test (C3c).
  *
  * Asserts public/crm/SALE-FORM-REDESIGN.html carries the auction toggle,
- * the four data-rls-field=auction_* inputs, the visibility-toggle handler,
+ * the four data-cotality-field=auction_* inputs, the visibility-toggle handler,
  * and the snake_case mapping block in collectSaleFormData() that the API
  * validator (AU-001..AU-005, lib/compliance/rls-enforcement.ts) expects.
  *
@@ -38,11 +38,11 @@ describe('SALE-FORM-REDESIGN.html — auction sub-section (C3c)', () => {
   it('includes the auction-on toggle wired to the visibility handler', () => {
     expect(html).toContain('id="saleAuctionYn"');
     expect(html).toContain('onchange="toggleSaleAuctionFields()"');
-    // Toggle carries data-rls-field=auction_yn so the validator path sees it.
-    expect(html).toMatch(/id="saleAuctionYn"[^>]*data-rls-field="auction_yn"/);
+    // Toggle carries data-cotality-field=auction_yn so the validator path sees it.
+    expect(html).toMatch(/id="saleAuctionYn"[^>]*data-cotality-field="auction_yn"/);
   });
 
-  it('includes the four field inputs each with the expected data-rls-field attr', () => {
+  it('includes the four field inputs each with the expected data-cotality-field attr', () => {
     const expected: Array<[string, string, string]> = [
       ['saleAuctionType', 'auction_type', 'select'],
       ['saleAuctionStartDate', 'auction_start_date', 'datetime-local'],
@@ -52,8 +52,8 @@ describe('SALE-FORM-REDESIGN.html — auction sub-section (C3c)', () => {
     for (const [id, field] of expected) {
       // id present
       expect(html).toContain(`id="${id}"`);
-      // data-rls-field present on the same element
-      const re = new RegExp(`id="${id}"[^>]*data-rls-field="${field}"`);
+      // data-cotality-field present on the same element
+      const re = new RegExp(`id="${id}"[^>]*data-cotality-field="${field}"`);
       expect(html).toMatch(re);
     }
   });

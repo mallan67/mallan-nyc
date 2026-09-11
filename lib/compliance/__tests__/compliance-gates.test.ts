@@ -11,76 +11,14 @@
  */
 
 import { checkDistributionGates, validateRequiredFields, mapTrestleToPrisma } from '@/lib/idx/trestle-mapper';
-import { toPublicDTO } from '@/lib/idx/public-dto';
+import { cotalityRecordToPublicDTO } from '@/lib/idx/cotality-public-dto';
 import { filterDisplayableDbListings } from '@/lib/idx/db-to-public-dto';
 import type { DbListing } from '@/lib/idx/db-to-public-dto';
 import { evaluateDisplayGate } from '@/lib/compliance/gates';
 import { assertRlsCompliantPayload } from '@/lib/compliance/rls-enforcement';
 import { escapeHtml } from '@/lib/sanitize';
-import type { IDXListing } from '@/lib/idx/types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-/** Build a complete IDXListing with sensible defaults. Override any field via partial. */
-function buildMockListing(overrides: Partial<IDXListing> = {}): IDXListing {
-  return {
-    listingId: 'TEST-123',
-    mlsId: 'MLS-456',
-    standardStatus: 'Active',
-    listingType: 'sale',
-    listPrice: 1500000,
-    originalListPrice: 1600000,
-    closePrice: null,
-    bedroomsTotal: 2,
-    bathroomsFull: 2,
-    bathroomsHalf: 0,
-    livingArea: 1200,
-    lotSizeArea: null,
-    yearBuilt: 2020,
-    propertyType: 'Residential',
-    propertySubType: null,
-    commonInterest: 'Condominium',
-    listOfficeName: 'Test Brokerage',
-    listOfficeMlsId: 'OFFICE-789',
-    listAgentFullName: 'Test Agent',
-    listAgentMlsId: 'AGENT-001',
-    listAgentEmail: 'agent@test.com',
-    media: [
-      { url: 'https://api.cotality.com/trestle/media/123.jpg', mediaType: 'Photo', order: 0 },
-    ],
-    photosCount: 1,
-    publicRemarks: 'Beautiful apartment in the heart of Chelsea.',
-    privateRemarks: 'Seller motivated. Will accept 1.4M.',
-    listingContractDate: '2026-01-01',
-    modificationTimestamp: '2026-03-01T00:00:00Z',
-    onMarketDate: '2026-01-15',
-    closeDate: undefined,
-    address: {
-      streetNumber: '100',
-      streetName: 'Main St',
-      unitNumber: '5A',
-      city: 'New York',
-      stateOrProvince: 'NY',
-      postalCode: '10001',
-      county: 'New York',
-      latitude: 40.7,
-      longitude: -74.0,
-      cityRegion: 'Chelsea',
-    },
-    internetAddressDisplayYN: true,
-    idxEntireListingDisplayYN: true,
-    internetEntireListingDisplayYN: true,
-    participantOnlyYN: false,
-    _source: 'idx',
-    _lastFetched: '2026-03-01T00:00:00Z',
-    _displayCompliance: {
-      requiresAttribution: true,
-      attributionText: 'Listing courtesy of REBNY RLS',
-      disclaimerRequired: true,
-    },
-    ...overrides,
-  };
-}
 
 /** Build a raw Trestle record for distribution gate / validation tests. */
 function buildRawTrestle(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -144,25 +82,44 @@ describe('checkDistributionGates', () => {
   // do NOT exist on the Trestle $metadata schema (verified live 2026-04-19).
   // They were transcribed from the REBNY English-language checklist, not the
   // OData schema. The live schema uses:
-  //   - `Permission` enum (values: OwnerOptOut, Private, ...) — see Gates 1 & 2
+  //   - `Permission` Multi-Enum (live ListingPermission; the authorized IDX Plus feed serves 'IDX' on
+  //     every row, verified 2026-09-06). It has NO 'OwnerOptOut' member, and no authorized feed contract
+  //     proves 'Private' means participant-only — see Gate 0 (provider permission, fail-closed on any
+  //     non-IDX token). Owner opt-out / participant-only are Mallan decisions (Gates 1 & 2) read from the
+  //     Mallan columns / `_mallanPermission`, never from the provider field.
   //   - `InternetEntireListingDisplayYN` boolean — see Gate 3
-  // See `lib/idx/trestle-mapper.ts:745-810` (checkDistributionGates) and
-  // `compliance/IDX-VOW-DISPLAY-RULES.md:31,41` for authoritative mapping.
+  // See `lib/idx/trestle-mapper.ts` (derivePermissionGates / checkDistributionGates).
 
-  it('blocks owner opt-out listings (Permission = "OwnerOptOut")', () => {
+  it('blocks a non-IDX provider Permission token (Permission = "Officeidxoptout") — no Mallan decision is derived', () => {
     const result = checkDistributionGates(
-      buildRawTrestle({ Permission: 'OwnerOptOut' })
+      buildRawTrestle({ Permission: 'Officeidxoptout' })
     );
     expect(result.displayable).toBe(false);
-    expect(result.reason).toContain('Owner opted out');
+    expect(result.reason).toContain('Provider permission does not permit IDX display');
   });
 
-  it('blocks participant-only listings (Permission = "Private")', () => {
+  it('blocks Permission = "Private" as a non-IDX provider token, NOT as participant-only', () => {
     const result = checkDistributionGates(
       buildRawTrestle({ Permission: 'Private' })
     );
     expect(result.displayable).toBe(false);
-    expect(result.reason).toContain('Participant-only');
+    expect(result.reason).toContain('Provider permission does not permit IDX display');
+    expect(result.reason).not.toContain('Participant-only');
+  });
+
+  it('blocks a Multi-Enum Permission value that carries a non-IDX token alongside IDX', () => {
+    expect(checkDistributionGates(buildRawTrestle({ Permission: 'IDX,Private' })).displayable).toBe(false);
+    expect(checkDistributionGates(buildRawTrestle({ Permission: ['IDX', 'Private'] as unknown as string })).displayable).toBe(false);
+    expect(checkDistributionGates(buildRawTrestle({ Permission: ['IDX'] as unknown as string })).displayable).toBe(true);
+  });
+
+  it('an absent Permission fact has no effect (no replacement mapping is invented)', () => {
+    expect(checkDistributionGates(buildRawTrestle({ Permission: null })).displayable).toBe(true);
+  });
+
+  it('the Mallan owner-opt-out / participant-only decisions still block, read from the Mallan side only', () => {
+    expect(checkDistributionGates(buildRawTrestle({ _mallanPermission: 'OwnerOptOut' } as never)).reason).toContain('Owner opted out');
+    expect(checkDistributionGates(buildRawTrestle({ _mallanPermission: 'Private' } as never)).reason).toContain('Participant-only');
   });
 
   it('blocks when internet display is disabled (InternetEntireListingDisplayYN = false)', () => {
@@ -207,24 +164,23 @@ describe('checkDistributionGates', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 2. PUBLIC DTO (toPublicDTO)
+// 2. PUBLIC DTO (the canonical chain: cotalityRecordToPublicDTO)
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('toPublicDTO', () => {
-  it('suppresses address when internetAddressDisplayYN = false', () => {
-    const listing = buildMockListing({ internetAddressDisplayYN: false });
-    const dto = toPublicDTO(listing);
+describe('public DTO through THE canonical chain (cotalityRecordToPublicDTO)', () => {
+  const dtoOf = (overrides: Record<string, unknown> = {}) =>
+    cotalityRecordToPublicDTO(buildRawTrestle({ Latitude: 40.7, Longitude: -74.0, UnitNumber: '5A', ...overrides }), { alreadyGated: true })!;
 
+  it('suppresses address when InternetAddressDisplayYN = false', () => {
+    const dto = dtoOf({ InternetAddressDisplayYN: false });
     expect(dto.address.streetName).toBe('Address Undisclosed');
     expect(dto.address.streetNumber).toBe('');
     expect(dto.address.latitude).toBeUndefined();
     expect(dto.address.longitude).toBeUndefined();
   });
 
-  it('includes full address when internetAddressDisplayYN = true', () => {
-    const listing = buildMockListing({ internetAddressDisplayYN: true });
-    const dto = toPublicDTO(listing);
-
+  it('includes full address when InternetAddressDisplayYN = true', () => {
+    const dto = dtoOf({ InternetAddressDisplayYN: true });
     expect(dto.address.streetName).toBe('Main St');
     expect(dto.address.streetNumber).toBe('100');
     expect(dto.address.latitude).toBe(40.7);
@@ -232,20 +188,14 @@ describe('toPublicDTO', () => {
   });
 
   it('strips agent PII — no email, no MLS IDs in output', () => {
-    const listing = buildMockListing({
-      listAgentEmail: 'secret@brokerage.com',
-      listAgentMlsId: 'AGENT-SECRET-001',
-      listOfficeMlsId: 'OFFICE-SECRET-789',
+    const dto = dtoOf({
+      ListAgentEmail: 'secret@brokerage.com',
+      ListAgentMlsId: 'AGENT-SECRET-001',
+      ListOfficeMlsId: 'OFFICE-SECRET-789',
     });
-    const dto = toPublicDTO(listing);
     const json = JSON.stringify(dto);
-
-    // Office name IS included (public attribution = broker/office only)
     expect(dto.listOfficeName).toBe('Test Brokerage');
-    // Agent name must NOT be in public DTO (REBNY: public attribution = office only)
     expect(json).not.toContain('listAgentFullName');
-
-    // PII must NOT be present anywhere in the DTO
     expect(json).not.toContain('secret@brokerage.com');
     expect(json).not.toContain('AGENT-SECRET-001');
     expect(json).not.toContain('OFFICE-SECRET-789');
@@ -255,58 +205,40 @@ describe('toPublicDTO', () => {
   });
 
   it('never includes private remarks', () => {
-    const listing = buildMockListing({
-      privateRemarks: 'TOP SECRET: Seller desperate, will take lowball.',
-    });
-    const dto = toPublicDTO(listing);
+    const dto = dtoOf({ PrivateRemarks: 'TOP SECRET: Seller desperate, will take lowball.' });
     const json = JSON.stringify(dto);
-
     expect(json).not.toContain('TOP SECRET');
     expect(json).not.toContain('privateRemarks');
     expect(json).not.toContain('Seller desperate');
   });
 
-  it('proxies Trestle media URLs through /api/media/proxy', () => {
-    const listing = buildMockListing({
-      media: [
-        { url: 'https://api.cotality.com/trestle/media/photo1.jpg', mediaType: 'Photo', order: 0 },
-        { url: 'https://cdn.example.com/photo2.jpg', mediaType: 'Photo', order: 1 },
+  it('proxies Cotality media URLs through /api/media/proxy', () => {
+    const dto = dtoOf({
+      Media: [
+        { MediaURL: 'https://api.cotality.com/trestle/media/photo1.jpg', MediaCategory: 'Photo', Order: 0 },
+        { MediaURL: 'https://cdn.example.com/photo2.jpg', MediaCategory: 'Photo', Order: 1 },
       ],
     });
-    const dto = toPublicDTO(listing);
-
-    // Trestle URL should be proxied
     expect(dto.media[0].url).toContain('/api/media/proxy');
     expect(dto.media[0].url).toContain(encodeURIComponent('https://api.cotality.com/trestle/media/photo1.jpg'));
-
-    // Non-Trestle URL should pass through unchanged
     expect(dto.media[1].url).toBe('https://cdn.example.com/photo2.jpg');
   });
 
   it('sets comingSoon flag in _displayCompliance for Coming Soon listings', () => {
-    // Canonical value — the DB stores 'ComingSoon' (no space) per RESO.
-    // This was previously 'Coming Soon' which never fired the badge branch
-    // because public-dto compared against the wrong format.
-    const listing = buildMockListing({ standardStatus: 'ComingSoon' });
-    const dto = toPublicDTO(listing);
-
+    const dto = dtoOf({ StandardStatus: 'ComingSoon', MlsStatus: 'ComingSoon' });
     expect(dto._displayCompliance.comingSoon).toBe(true);
   });
 
   it('does not set comingSoon flag for Active listings', () => {
-    const listing = buildMockListing({ standardStatus: 'Active' });
-    const dto = toPublicDTO(listing);
-
-    expect(dto._displayCompliance.comingSoon).toBeUndefined();
+    expect(dtoOf({ StandardStatus: 'Active' })._displayCompliance.comingSoon).toBeUndefined();
   });
 
   it('includes REBNY attribution in _displayCompliance', () => {
-    const listing = buildMockListing();
-    const dto = toPublicDTO(listing);
-
+    const dto = dtoOf();
     expect(dto._displayCompliance.requiresAttribution).toBe(true);
     expect(dto._displayCompliance.attributionText).toBeTruthy();
     expect(dto._displayCompliance.disclaimerRequired).toBe(true);
+    expect(dto._source).toBe('idx');
   });
 });
 
@@ -368,8 +300,8 @@ describe('assertRlsCompliantPayload', () => {
       StructureType: 'HighRise',
       CommonInterest: 'Condominium',
       ListPrice: 1500000,
-      MlsStatus: 'Active',
-      StandardStatus: 'Active',
+      // the Mallan business status under the Mallan key (a Mallan-authored payload carries no provider status)
+      _mallanStatus: 'Active',
       // Agent / Office / Agreement
       ListAgentMlsId: 'AGENT-001',
       ListingAgreement: 'ExclusiveRightToSell',
@@ -393,12 +325,16 @@ describe('assertRlsCompliantPayload', () => {
       PetsAllowed: 'UnitYes',
       BuildingTaxLot: '1234',
       TaxBlock: '567',
-      ElevatorsTotal: 2,
+      // Mallan facts under their Mallan keys. Neither `ElevatorsTotal` nor `NewDevelopmentYN` is a live
+      // Cotality Property field (both proven absent from the dated contract pull), so the REBNY/UCBA
+      // mandatory list names `_mallanElevatorsTotal` / `_mallanNewDevelopmentYN` — the keys
+      // SALE-FORM-REDESIGN.html now emits. The FACTS are unchanged and still mandatory.
+      _mallanElevatorsTotal: 2,
       GarageYN: false,
       NumberOfUnitsTotal: 100,
       StoriesTotal: 20,
       NewConstructionYN: false,
-      NewDevelopmentYN: false,
+      _mallanNewDevelopmentYN: false,
       YearBuilt: 2005,
       // Unit info
       BathroomsFull: 2,
@@ -423,16 +359,19 @@ describe('assertRlsCompliantPayload', () => {
       OriginalEntryTimestamp: '2026-01-01T00:00:00Z',
       OnMarketDate: '2026-01-15',
       SourceSystemKey: 'SYS-123',
-      // Condo conditional fields (required since CommonInterest=Condominium)
+      // Condo conditional fields (required since CommonInterest=Condominium). Same rename: none of the
+      // co-op / condo financial facts is a live Cotality Property field, so CONDO-001 / COOPCONDO-001 /
+      // FLIPTAX-001 / TAXABATE-001 name them under `_mallan*`. AssociationFee, AssociationFeeFrequency,
+      // SpecialListingConditions and LivingArea ARE live fields and keep their provider names.
       AssociationFee: 1200,
       AssociationFeeFrequency: 'Monthly',
-      FlipTax: 0,
-      MaximumFinancingPercent: 90,
-      MaximumFinancingRemarks: 'Standard financing',
-      TaxAbatementYN: false,
+      _mallanFlipTax: 0,
+      _mallanMaximumFinancingPercent: 90,
+      _mallanMaximumFinancingRemarks: 'Standard financing',
+      _mallanTaxAbatementYN: false,
       SpecialListingConditions: 'Standard',
-      PercentOfCommonElements: 1.5,
-      TaxMonthlyAmount: 800,
+      _mallanPercentOfCommonElements: 1.5,
+      _mallanTaxMonthlyAmount: 800,
       LivingArea: 1200,
       LivingAreaUnits: 'SquareFeet',
       TaxLot: '1234',
@@ -498,7 +437,7 @@ describe('assertRlsCompliantPayload', () => {
 
   it('blocks Coming Soon status on rental listings (UCBA D1)', () => {
     const payload = buildValidPayload({
-      MlsStatus: 'ComingSoon',
+      _mallanStatus: 'ComingSoon',
       ActivationDate: '2026-02-01',
     });
     const result = assertRlsCompliantPayload(payload, rentCtx);
@@ -509,7 +448,7 @@ describe('assertRlsCompliantPayload', () => {
 
   it('blocks Coming Soon period exceeding 14 days (UCBA D2)', () => {
     const payload = buildValidPayload({
-      MlsStatus: 'ComingSoon',
+      _mallanStatus: 'ComingSoon',
       ActivationDate: '2026-02-20',
       OnMarketDate: '2026-01-01', // 50 days gap
     });
@@ -871,88 +810,30 @@ describe('mapTrestleToPrisma — fail-closed on missing AVM/consumer-comment fla
   });
 });
 
-describe('toPublicDTO suppressAddress — fail-closed on null permission', () => {
-  function buildMinimalIdx(overrides: Partial<IDXListing> = {}): IDXListing {
-    return {
-      listingId: 'IDX-TEST-1',
-      mlsId: 'MLS-IDX-1',
-      standardStatus: 'Active',
-      listingType: 'sale',
-      listPrice: 1000000,
-      originalListPrice: 1000000,
-      closePrice: null,
-      bedroomsTotal: 1,
-      bathroomsFull: 1,
-      bathroomsHalf: 0,
-      livingArea: 800,
-      lotSizeArea: null,
-      yearBuilt: 2020,
-      propertyType: 'Residential',
-      propertySubType: null,
-      commonInterest: 'Condominium',
-      listOfficeName: 'Test',
-      listOfficeMlsId: 'OFF-1',
-      listAgentFullName: 'A',
-      listAgentMlsId: 'AGT-1',
-      listAgentEmail: 'a@b.com',
-      media: [],
-      photosCount: 0,
-      publicRemarks: '',
-      privateRemarks: '',
-      listingContractDate: '2026-01-01',
-      modificationTimestamp: '2026-03-01T00:00:00Z',
-      onMarketDate: '2026-01-01',
-      closeDate: undefined,
-      address: {
-        streetNumber: '100',
-        streetName: 'Main',
-        unitNumber: '5',
-        city: 'NYC',
-        stateOrProvince: 'NY',
-        postalCode: '10001',
-        county: 'New York',
-        latitude: 40.7,
-        longitude: -74.0,
-      },
-      internetAddressDisplayYN: true,
-      idxEntireListingDisplayYN: true,
-      internetEntireListingDisplayYN: true,
-      participantOnlyYN: false,
-      _source: 'idx',
-      _lastFetched: '2026-03-01T00:00:00Z',
-      _displayCompliance: {
-        requiresAttribution: true,
-        attributionText: 'x',
-        disclaimerRequired: true,
-      },
-      ...overrides,
-    };
-  }
+describe('canonical chain address suppression — live-record flags', () => {
+  // A LIVE record's null display flags mean "REBNY pre-filtered this row in" (displayable); only
+  // an explicit false suppresses. The former second builder was fail-closed on null at the DTO
+  // layer because its input was already a mapped object; that layer no longer exists. The
+  // fail-closed-on-null contract for PERSISTED rows is pinned by
+  // 'filterDisplayableDbListings — fail-closed on null permission flags' above.
+  const dtoOf = (overrides: Record<string, unknown>) =>
+    cotalityRecordToPublicDTO(buildRawTrestle({ Latitude: 40.7, Longitude: -74.0, ...overrides }), { alreadyGated: true })!;
 
-  it('suppresses address when internetAddressDisplayYN is null (was leaking before fix)', () => {
-    const dto = toPublicDTO(buildMinimalIdx({
-      internetAddressDisplayYN: null as unknown as boolean,
-    }));
+  it('null InternetAddressDisplayYN on a live record is displayable (IDX Plus pre-filter)', () => {
+    const dto = dtoOf({ InternetAddressDisplayYN: null });
+    expect(dto.address.streetName).toBe('Main St');
+    expect(dto.address.latitude).toBe(40.7);
+  });
+
+  it('explicit false InternetAddressDisplayYN suppresses address and coordinates', () => {
+    const dto = dtoOf({ InternetAddressDisplayYN: false });
     expect(dto.address.streetName).toBe('Address Undisclosed');
     expect(dto.address.streetNumber).toBe('');
     expect(dto.address.latitude).toBeUndefined();
   });
 
-  it('suppresses address when internetEntireListingDisplayYN is null (cascade)', () => {
-    const dto = toPublicDTO(buildMinimalIdx({
-      internetEntireListingDisplayYN: null as unknown as boolean,
-    }));
-    expect(dto.address.streetName).toBe('Address Undisclosed');
-    expect(dto.address.latitude).toBeUndefined();
-  });
-
-  it('shows address only when BOTH flags are explicitly true', () => {
-    const dto = toPublicDTO(buildMinimalIdx({
-      internetAddressDisplayYN: true,
-      internetEntireListingDisplayYN: true,
-    }));
-    expect(dto.address.streetName).toBe('Main');
-    expect(dto.address.latitude).toBe(40.7);
+  it('explicit false InternetEntireListingDisplayYN is refused by the distribution gate', () => {
+    expect(cotalityRecordToPublicDTO(buildRawTrestle({ InternetEntireListingDisplayYN: false }))).toBeNull();
   });
 });
 
@@ -1109,7 +990,7 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
       expect(mapped.idx_display_yn).toBe(false);
     });
 
-    it('idx_display_yn is false when Permission is Private (participant-only) — even with null entire/address', () => {
+    it('idx_display_yn is false when Permission is Private (a non-IDX provider token) — even with null entire/address; participant_only IS derived (owner ruling 2026-09-07)', () => {
       const mapped = mapTrestleToPrisma(
         buildRawTrestle({
           InternetEntireListingDisplayYN: null,
@@ -1119,18 +1000,20 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
       );
       expect(mapped.idx_display_yn).toBe(false);
       expect(mapped.participant_only).toBe(true);
+      expect(mapped.owner_opt_out).toBe(false);
     });
 
-    it('idx_display_yn is false when Permission is OwnerOptOut — even with null entire/address', () => {
+    it('idx_display_yn is false for any other non-IDX Permission token — even with null entire/address; owner_opt_out is NOT derived', () => {
       const mapped = mapTrestleToPrisma(
         buildRawTrestle({
           InternetEntireListingDisplayYN: null,
           InternetAddressDisplayYN: null,
-          Permission: 'OwnerOptOut',
+          Permission: 'Officeidxoptout',
         })
       );
       expect(mapped.idx_display_yn).toBe(false);
-      expect(mapped.owner_opt_out).toBe(true);
+      expect(mapped.owner_opt_out).toBe(false);
+      expect(mapped.participant_only).toBe(false);
     });
   });
 });
@@ -1187,18 +1070,18 @@ describe('checkDistributionGates — Trestle-live IDX Plus pre-filter semantics'
     expect(result.reason).toContain('Internet display disabled');
   });
 
-  it('still blocks when Permission = OwnerOptOut, even with null entire-listing flag', () => {
+  it('still blocks a non-IDX Permission token (Officeidxoptout), even with null entire-listing flag', () => {
     const result = checkDistributionGates(
       buildRawTrestle({
         InternetEntireListingDisplayYN: null,
-        Permission: 'OwnerOptOut',
+        Permission: 'Officeidxoptout',
       })
     );
     expect(result.displayable).toBe(false);
-    expect(result.reason).toContain('Owner opted out');
+    expect(result.reason).toContain('Provider permission does not permit IDX display');
   });
 
-  it('still blocks when Permission = Private (participant-only), even with null entire-listing flag', () => {
+  it('still blocks when Permission = Private (a non-IDX provider token), even with null entire-listing flag', () => {
     const result = checkDistributionGates(
       buildRawTrestle({
         InternetEntireListingDisplayYN: null,
@@ -1206,7 +1089,7 @@ describe('checkDistributionGates — Trestle-live IDX Plus pre-filter semantics'
       })
     );
     expect(result.displayable).toBe(false);
-    expect(result.reason).toContain('Participant-only');
+    expect(result.reason).toContain('Provider permission does not permit IDX display');
   });
 
   it('still blocks closed listings > 24 hours, even with null entire-listing flag', () => {

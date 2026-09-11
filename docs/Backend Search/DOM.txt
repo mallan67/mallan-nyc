@@ -1,0 +1,344 @@
+REBNY RLS defines the business rule. Cotality/Trestle carries the RLS listing state, dates, DOM values, and history. Mallan should consume that result, not create a competing RLS clock.
+
+1. What REBNY RLS actually requires
+
+The current 2026 UCBA change notice, effective January 20, 2026, is explicit: an Exclusive Listing in Coming Soon does not accrue Days on Market. The same is true while permission is Participant Only. Accrual starts only when the relevant status or permission changes. REBNY also changed the reset threshold to 30 consecutive days in Withdrawn or Cancelled.
+
+REBNY's current Coming Soon guidance is also explicit that the status is limited to 14 days, there can be no public showings, and DOM does not accrue during that period. Visibility/distribution is separately controlled by the Participant Only, IDX, VOW, and syndication choices.
+
+That distinction is important:
+
+Status controls lifecycle/DOM. Permission controls who may see or receive the listing.
+
+Those must not be collapsed into one field.
+
+REBNY's current RLS compliance guidance also requires status changes to be reflected simultaneously with public changes, or within 24 hours after the authorized change is received, whichever rule applies.
+
+And REBNY itself says its RLS backend was migrated to CoreLogic, while Trestle is the distribution/data-management platform through which RLS data is licensed and distributed.
+
+So the authority chain is:
+
+REBNY UCBA/RLS rule → RLS/CoreLogic backend → Cotality/Trestle API → Mallan
+
+That is the architecture I would use.
+
+2. Coming Soon has a very specific lifecycle
+
+There is another piece of evidence worth separating from the high-level 2026 summary.
+
+The REBNY Coming Soon authorization language historically requires a Showing Start Date, states that the listing becomes Active on that date, prohibits showings while Coming Soon, and says DOM starts when the listing becomes Active. A current 2025 RLS-hosted listing attachment containing REBNY Exhibit G has exactly that language.
+
+The older published UCBA text likewise states that Coming Soon advertisements must identify when showings start and that the listing moves to Active when the Coming Soon period concludes.
+
+One caution: the current 2026 public REBNY summary confirms the 14-day/no-DOM rule but does not publicly reproduce every sentence of Exhibit G. Therefore, I would use the current 2026 REBNY page as the governing DOM authority and treat the exact Showing Start Date mechanics as a rule that should be verified against the current 2026 Exhibit G before encoding immutability into Mallan.
+
+That is more defensible than assuming an older form remained completely unchanged.
+
+3. Cotality/Trestle exposes several different dates — and they are not interchangeable
+
+This is where the previous implementation can easily go wrong.
+
+Cotality Property field	Cotality's own meaning	Correct role
+StandardStatus	Current listing contractual/status state	Determines whether the row is ComingSoon, Active, etc.
+StartShowingDate	Date broker expects to begin showings	Best semantic match to REBNY's Showing Start Date
+ActivationDate	Date agent intends to change property to Active	Planned date, not proof Active occurred
+OnMarketDate	Date listing was placed on market; contractual/agent-entered where possible	Market-effective date
+OnMarketTimestamp	System-recorded time the status was set to Active/Backup	Strong transactional evidence of actual activation
+StatusChangeTimestamp	System-recorded time of the last status change	Status audit, but not necessarily Active
+OriginalEntryTimestamp	Time listing entered and became visible to MLS members	Not DOM start
+ModificationTimestamp	Any listing modification	Never use as DOM start
+DaysOnMarket	Days listing is on market according to MLS business rules	Provider/RLS DOM
+CumulativeDaysOnMarket	Cumulative number of market days according to MLS business rules	Separate provider metric
+BackOnMarketDate / Timestamp	Date/time a previously off-market listing returned to market	Return-to-market evidence
+
+These definitions come directly from Cotality's current Property documentation. ActivationDate is explicitly an intended Active date; OnMarketTimestamp is automatically recorded when the status is actually set to an on-market status; StatusChangeTimestamp records the latest status change.
+
+StartShowingDate has its own independent definition: the expected date that the agent/broker will begin showing the property.
+
+And Cotality defines both DaysOnMarket and CumulativeDaysOnMarket according to the MLS's business rules.
+
+That last sentence is critical.
+
+For a REBNY RLS listing, the relevant MLS business rule is the REBNY UCBA DOM rule.
+
+Therefore:
+
+Mallan does not need to reinterpret what constitutes a DOM day for a Cotality-origin REBNY listing. Cotality is already delivering a DOM number produced under the source system's business rules.
+
+4. ActivationDate should NOT be the DOM authority
+
+This is now proven much more clearly.
+
+Cotality says:
+
+ActivationDate = when the listing agent intends to make it Active.
+
+Compare that with:
+
+OnMarketTimestamp = when the MLS system actually recorded the transition into an on-market state.
+
+Those are fundamentally different facts.
+
+Example:
+
+ComingSoon entered: September 1
+StartShowingDate: September 10
+ActivationDate: September 10
+Actual Active transition: September 10 at 8:17 AM
+Mallan sync sees it: September 10 at 10:42 AM
+
+The correct hierarchy is approximately:
+
+StandardStatus = ComingSoon
+→ no RLS DOM accrual
+
+then
+
+StandardStatus = Active
+
+actual OnMarketTimestamp
+→ RLS DOM begins
+
+Mallan's 10:42 AM sync time should have nothing to do with the RLS market clock.
+
+And ActivationDate alone cannot prove the listing became Active, because Cotality expressly describes it as intent.
+
+5. StartShowingDate is not the same thing as ActivationDate
+
+This is another important correction.
+
+Cotality has both fields.
+
+StartShowingDate:
+
+broker expects to start showing the property.
+
+ActivationDate:
+
+agent intends to change it to Active.
+
+Under REBNY Coming Soon policy, those dates normally need to converge operationally: showings cannot occur while Coming Soon and the property is expected to become Active for showings.
+
+But because Cotality intentionally publishes two independent fields, Mallan must not simply alias one to the other.
+
+This earlier Mallan comment is therefore suspect:
+
+“FirstShowingDate removed... The activation timestamp is ActivationDate.”
+
+That reasoning is incomplete.
+
+The nonexistent FirstShowingDate may correctly have been removed.
+
+But the real Cotality field:
+
+StartShowingDate
+
+does exist.
+
+So the replacement should have been evaluated as:
+
+FirstShowingDate ❌ nonexistent
+StartShowingDate ✅ actual Cotality field
+ActivationDate ✅ different Cotality field
+
+—not:
+
+FirstShowingDate → ActivationDate.
+
+6. DelayedMarketingDate is yet another concept
+
+Cotality also publishes:
+
+DelayedMarketingYN
+
+and
+
+DelayedMarketingDate.
+
+The official definition says delayed marketing means the property will not be actively marketed or publicly advertised until the specified future date.
+
+That sounds superficially similar to Coming Soon, but it is not sufficient evidence that REBNY maps Coming Soon to DelayedMarketingYN/Date.
+
+Cotality's generic enumeration documentation even exposes multiple concepts such as Coming Soon and Delayed Marketing separately.
+
+Therefore Mallan should not do:
+
+ComingSoon == DelayedMarketingYN
+
+unless the REBNY-specific Field/Lookup contract proves it.
+
+This is precisely why your rule:
+
+COTALITY RAW CONTRACT → VERIFIED MAPPING
+
+matters.
+
+7. The Cotality ComingSoon definition reinforces REBNY's model
+
+Cotality's StandardStatus documentation describes ComingSoon as a listing under an executed listing contract that has not yet been on market under that contract but will be soon. It distinguishes Coming Soon from Hold and Withdrawn, which can apply to properties that were already on market.
+
+That fits REBNY's business rule very well:
+
+Coming Soon is a pre-market lifecycle status.
+
+It is not simply another flavor of Active.
+
+This also raises a warning about a theoretical transition such as:
+
+Active → ComingSoon
+
+Cotality's standard semantic definition says Coming Soon is for a listing that has not previously been on market under the current listing contract.
+
+So Mallan should not casually allow an agent to move an existing Active REBNY listing back to Coming Soon merely to pause DOM.
+
+That would conflict with the intended lifecycle semantics and could become a DOM-manipulation path.
+
+8. REBNY also expressly prevents DOM manipulation
+
+REBNY's FAQ addresses exactly this type of behavior. An owner cannot simply ask a broker to relist a property so DOM returns to zero. The reset is governed by RLS rules, not by a broker inventing a new listing record.
+
+The current 2026 rule says DOM resets at:
+
+Closed, or after 30 consecutive days Withdrawn, or after 30 consecutive days Cancelled.
+
+There is one nuance I would not guess:
+
+REBNY's public 2026 page says “days on market” resets. Cotality separately provides DaysOnMarket and CumulativeDaysOnMarket.
+
+I have not found public REBNY documentation explicitly saying whether CumulativeDaysOnMarket also resets under those exact conditions or intentionally retains prior exposure.
+
+Therefore Mallan should ingest both provider fields independently.
+
+Do not implement:
+
+CumulativeDaysOnMarket = DaysOnMarket
+
+without actual REBNY/Cotality evidence.
+
+That is currently unproven.
+
+9. Trestle gives us an audit mechanism too
+
+Cotality exposes a separate:
+
+HistoryTransactional
+
+resource.
+
+It contains:
+
+FieldName
+PreviousValue
+NewValue
+ModificationTimestamp
+StandardStatus
+ListingPermission
+ResourceRecordKey / ResourceRecordID
+
+and other identity fields.
+
+That means there is a much stronger way to verify a disputed DOM transition than Mallan's current local clock.
+
+For a real REBNY listing we could potentially correlate:
+
+StandardStatus
+ComingSoon → Active
+
+with:
+
+StatusChangeTimestamp
+
+OnMarketTimestamp
+
+DaysOnMarket
+
+CumulativeDaysOnMarket
+
+and the corresponding HistoryTransactional entries.
+
+That provides an audit trail instead of an inference.
+
+I say “potentially” deliberately: Cotality documents that HistoryTransactional supports field-level changes, but we still need a real REBNY record to prove exactly which DOM/status changes the RLS publishes into that history resource.
+
+10. The important provider/compliance distinction for Mallan
+
+This is how I would define the architecture:
+
+REBNY RLS is NOT Mallan's feed provider.
+
+REBNY supplies the NYC brokerage rules and RLS business semantics.
+
+Cotality/Trestle is Mallan's data provider/API.
+
+REBNY itself describes Trestle as the platform used for data distribution and syndication and says the RLS backend moved to CoreLogic.
+
+Therefore the code should not introduce an additional “REBNY feed” or “RLS API.”
+
+It should be:
+
+REBNY rule
+→ tells us what the Cotality values mean for NYC compliance
+
+Cotality API
+→ supplies the actual listing record and authoritative provider values
+
+Mallan
+→ stores and enforces them correctly.
+
+That fits your required architecture exactly.
+
+What I would change in the DOM contract
+
+For Cotality-origin listings, I would establish these rules:
+
+Provider DaysOnMarket is the canonical RLS DOM value. Store it directly. Do not replace it with Date.now() - Mallan status_changed_at.
+Preserve separately:
+DaysOnMarket,
+CumulativeDaysOnMarket,
+StartShowingDate,
+ActivationDate,
+OnMarketDate,
+OnMarketTimestamp,
+BackOnMarketDate,
+BackOnMarketTimestamp,
+StatusChangeTimestamp,
+OriginalEntryTimestamp.
+StandardStatus=ComingSoon must not cause local DOM accrual. REBNY explicitly prohibits accrual.
+Do not treat OriginalEntryTimestamp as first-active date. Cotality says it represents when the listing entered the MLS and became visible to members; a Coming Soon listing can exist there before Active.
+Do not treat ModificationTimestamp as status time. It records any listing modification.
+Do not treat ActivationDate as proof the listing is Active. It is intended activation.
+For actual Active-transition evidence, use StandardStatus, provider DOM, OnMarketDate/OnMarketTimestamp, and StatusChangeTimestamp together.
+Preserve StartShowingDate. The existing Mallan conclusion that there is no showing-date provider field is demonstrably obsolete because Cotality currently documents that exact field.
+Keep REBNY's 14-day/no-showing rule as a Mallan compliance guard for Mallan-authored listings, not as a replacement calculation for data already returned by Cotality.
+For a Mallan-authored listing that has not yet returned through Cotality, Mallan can maintain a temporary local lifecycle state. Once the corresponding Cotality/RLS record arrives, reconcile to the single canonical listing identity and make the Cotality RLS values authoritative for provider-derived DOM.
+The deeper conclusion
+
+The earlier diagnosis was slightly too simple.
+
+The problem is not merely that Mallan should use StartShowingDate instead of ActivationDate.
+
+The correct model is:
+
+Coming Soon authorization date
+≠ listing contract date
+≠ RLS entry timestamp
+≠ Showing Start Date
+≠ intended activation date
+≠ actual Active timestamp
+≠ generic modification timestamp
+≠ DOM
+
+They are separate facts.
+
+And Cotality provides separate fields precisely so systems do not collapse them.
+
+For REBNY, the decisive business rule is:
+
+Coming Soon → no DOM.
+Active → DOM accrues.
+Participant Only → no DOM.
+30-day Withdrawn/Cancelled reset rule applies under the 2026 UCBA.
+
+Cotality then supplies the actual status, system timestamps and already-computed DOM according to those source-system business rules.
+
+One limitation in this verification: I also tried the authenticated Mallan Cotality connector again today, and its MCP endpoint returned a 404. So I am not claiming a new authenticated subscription-level query from that connector. The Cotality evidence above comes from Cotality's current official metadata documentation plus the live Cotality Property-field capture already in the Search branch. The next strongest proof would be to select a real REBNY Coming Soon listing and trace ComingSoon → Active through Property + HistoryTransactional, comparing all nine timestamps/DOM fields. That would settle the exact RLS/Trestle behavior empirically rather than only from documentation.

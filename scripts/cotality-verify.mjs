@@ -1,69 +1,159 @@
 /**
- * cotality:verify — READ-ONLY drift guard for the single source of Cotality enum truth.
+ * cotality:verify — READ-ONLY drift guard for the single source of Cotality vocabulary truth.
  *
- * Pulls the LIVE Cotality $metadata and compares it to the committed
- * `data/cotality-enums.live.json`. Fails if the committed source has drifted from live —
- * so no copy of the enum truth can silently go stale.
+ * Pulls the LIVE Cotality Lookup endpoint (per ResourceName + FieldName) and compares it to the
+ * committed `data/cotality-enums.live.json`. Fails if the committed source has drifted from live —
+ * so no copy of the vocabulary truth can silently go stale.
+ *
+ * WHY LOOKUP AND NOT $metadata (corrected 2026-09-06): $metadata declares EnumTypes that are shared
+ * across resources, named differently from the fields that use them, and over-declare what the feed
+ * publishes. Verified live: EnumType 'Permission' has 20 members while Property.Permission publishes
+ * 18 and Media.Permission publishes 7 (with different casing). Diffing EnumTypes therefore proved
+ * nothing about any field's real vocabulary. See scripts/cotality/pull-enums.mjs.
  *
  * Law (Maya 2026-07-05): the live Cotality API is the SOLE authority.
  *
  * Exit: 0 = committed source matches live · 1 = DRIFT · 2 = could not reach Cotality (unverified).
- * Usage:  IDX_CLIENT_ID=… IDX_CLIENT_SECRET=… node scripts/cotality-verify.mjs
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 const BASE = (process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle').replace(/\/$/, '');
+const CLIENT_ID = process.env.IDX_CLIENT_ID || '';
+const CLIENT_SECRET = process.env.IDX_CLIENT_SECRET || '';
+const RESOURCES = ['Property', 'Media', 'OpenHouse'];
 
-let committed;
+let committedDoc;
 try {
-  committed = JSON.parse(readFileSync(path.resolve('data/cotality-enums.live.json'), 'utf8')).enums;
-} catch (e) {
+  committedDoc = JSON.parse(readFileSync(path.resolve('data/cotality-enums.live.json'), 'utf8'));
+} catch {
   console.error('[cotality:verify] cannot read data/cotality-enums.live.json — run `npm run cotality:pull` first.');
   process.exit(1);
 }
+if (!committedDoc.resources) {
+  console.error('[cotality:verify] the committed file has no `resources` map — it predates the Lookup-based pull. Run `npm run cotality:pull`.');
+  process.exit(1);
+}
+const committedResources = committedDoc.resources;
 
-let token, xml;
+let token;
 try {
   const tokRes = await fetch(`${BASE}/oidc/connect/token`, {
-    method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ client_id: process.env.IDX_CLIENT_ID || '', client_secret: process.env.IDX_CLIENT_SECRET || '', grant_type: 'client_credentials', scope: 'api' }),
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ client_id: CLIENT_ID, client_secret: CLIENT_SECRET, grant_type: 'client_credentials', scope: 'api' }),
   });
   token = tokRes.ok ? (await tokRes.json()).access_token : null;
   if (!token) throw new Error(`auth ${tokRes.status}`);
-  const metaRes = await fetch(`${BASE}/odata/$metadata`, { headers: { authorization: `Bearer ${token}` } });
-  if (!metaRes.ok) throw new Error(`$metadata ${metaRes.status}`);
-  xml = await metaRes.text();
 } catch (e) {
-  console.error(`[cotality:verify] UNVERIFIED — could not reach live Cotality (${e.message}). Set IDX_CLIENT_ID/IDX_CLIENT_SECRET.`);
+  console.error(`[cotality:verify] UNVERIFIED — could not authenticate: ${e?.message || e}`);
   process.exit(2);
 }
 
-const live = {};
-for (const m of xml.matchAll(/<EnumType Name="([^"]+)"[\s\S]*?<\/EnumType>/g)) {
-  live[m[1]] = [...m[0].matchAll(/<Member Name="([^"]+)"/g)].map((x) => x[1]);
+async function getJson(url) {
+  const res = await fetch(url, { headers: { authorization: `Bearer ${token}`, accept: 'application/json' } });
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${url.slice(BASE.length)}`);
+  return res.json();
+}
+
+/**
+ * EXISTENCE GATE (2026-09-08): the Lookup catalogue is platform-wide and carries rows for names that are
+ * NOT fields on this subscription (`PermissionPrivate`, `SyndicationDuplicateYN`: in Field/Lookup, absent
+ * from $metadata, unselectable). pull-enums.mjs drops those; verify must apply the same gate or it reports
+ * catalogue-only names as "vocabularies the committed file lacks" forever.
+ */
+const declaredFields = {};
+try {
+  const metaRes = await fetch(`${BASE}/odata/$metadata`, { headers: { authorization: `Bearer ${token}` } });
+  if (!metaRes.ok) throw new Error(`HTTP ${metaRes.status}`);
+  const xml = await metaRes.text();
+  for (const m of xml.matchAll(/<EntityType\s+Name="([^"]+)"[^>]*>([\s\S]*?)<\/EntityType>/g)) {
+    const names = new Set();
+    for (const p of m[2].matchAll(/<Property\s+Name="([^"]+)"/g)) names.add(p[1]);
+    declaredFields[m[1]] = names;
+  }
+} catch (e) {
+  console.error(`[cotality:verify] UNVERIFIED — could not read $metadata: ${e?.message || e}`);
+  process.exit(2);
+}
+
+/** Page Lookup to completion for one resource. Never returns a partial vocabulary. */
+async function liveVocabulary(resource) {
+  const declared = declaredFields[resource];
+  if (!declared || declared.size === 0) throw new Error(`${resource}: no fields declared in $metadata`);
+  const qs = new URLSearchParams({
+    $filter: `ResourceName eq '${resource}'`,
+    $select: 'FieldName,LookupValue',
+    $top: '1000',
+    $count: 'true',
+  }).toString();
+  let next = `${BASE}/odata/Lookup?${qs}`;
+  const rows = [];
+  let odataCount = null;
+  let pages = 0;
+  while (next) {
+    if (pages > 5000) throw new Error(`${resource}: pagination exceeded 5000 pages`);
+    pages += 1;
+    const json = await getJson(next);
+    const batch = Array.isArray(json.value) ? json.value : [];
+    if (odataCount == null && json['@odata.count'] != null) odataCount = Number(json['@odata.count']);
+    rows.push(...batch);
+    const candidate = json['@odata.nextLink'];
+    next = candidate ? (candidate.startsWith('http') ? candidate : `${BASE}/${candidate.replace(/^\//, '')}`) : null;
+    if (batch.length === 0 && next) throw new Error(`${resource}: empty page with a nextLink`);
+  }
+  if (odataCount != null && odataCount !== rows.length) throw new Error(`${resource}: @odata.count ${odataCount} vs ${rows.length} rows`);
+  const byField = {};
+  const catalogueOnly = new Set();
+  for (const row of rows) {
+    if (typeof row.FieldName !== 'string' || typeof row.LookupValue !== 'string' || !row.FieldName || !row.LookupValue) continue;
+    if (!declared.has(row.FieldName)) { catalogueOnly.add(row.FieldName); continue; }
+    (byField[row.FieldName] ||= new Set()).add(row.LookupValue);
+  }
+  if (catalogueOnly.size) console.error(`[cotality:verify] ${resource}: ignoring ${catalogueOnly.size} catalogue-only names absent from $metadata: ${[...catalogueOnly].sort().join(', ')}`);
+  return Object.fromEntries(Object.keys(byField).sort().map((f) => [f, [...byField[f]].sort()]));
+}
+
+const liveResources = {};
+try {
+  for (const resource of RESOURCES) liveResources[resource] = await liveVocabulary(resource);
+} catch (e) {
+  console.error(`[cotality:verify] UNVERIFIED — Cotality unreachable or refused: ${e?.message || e}`);
+  process.exit(2);
 }
 
 const drift = [];
-const allNames = new Set([...Object.keys(committed), ...Object.keys(live)]);
-for (const name of allNames) {
-  const c = committed[name] || null;
-  const l = live[name] || null;
-  if (!c) { drift.push(`+ live has NEW enum '${name}' (${l.length}) not in committed source`); continue; }
-  if (!l) { drift.push(`- committed enum '${name}' no longer exists live`); continue; }
-  const cs = JSON.stringify([...c].sort()), ls = JSON.stringify([...l].sort());
-  if (cs !== ls) {
-    const added = l.filter((x) => !c.includes(x));
-    const removed = c.filter((x) => !l.includes(x));
-    drift.push(`~ '${name}': live added [${added.join(', ')}] removed [${removed.join(', ')}]`);
+let fieldsChecked = 0;
+for (const resource of RESOURCES) {
+  const c0 = committedResources[resource] || {};
+  const l0 = liveResources[resource] || {};
+  for (const field of new Set([...Object.keys(c0), ...Object.keys(l0)])) {
+    fieldsChecked += 1;
+    const c = c0[field] || null;
+    const l = l0[field] || null;
+    if (!c) { drift.push(`+ live ${resource}.${field} publishes a vocabulary (${l.length}) the committed file lacks`); continue; }
+    if (!l) { drift.push(`- committed ${resource}.${field} no longer has a live vocabulary`); continue; }
+    const cs = JSON.stringify([...c].sort()), ls = JSON.stringify([...l].sort());
+    if (cs !== ls) {
+      const added = l.filter((x) => !c.includes(x));
+      const removed = c.filter((x) => !l.includes(x));
+      drift.push(`~ ${resource}.${field}: live added [${added.join(', ')}] removed [${removed.join(', ')}]`);
+    }
   }
 }
 
+// The top-level `enums` map must stay an exact mirror of the Property table — every consumer reads it.
+for (const field of new Set([...Object.keys(committedDoc.enums || {}), ...Object.keys(committedResources.Property || {})])) {
+  const a = JSON.stringify(committedDoc.enums?.[field] ?? null);
+  const b = JSON.stringify(committedResources.Property?.[field] ?? null);
+  if (a !== b) drift.push(`! committed file is internally inconsistent: enums.${field} ≠ resources.Property.${field}`);
+}
+
 if (drift.length) {
-  console.error(`[cotality:verify] DRIFT — committed source disagrees with live Cotality on ${drift.length} enum(s):`);
+  console.error(`[cotality:verify] DRIFT — the committed vocabulary disagrees with live Cotality on ${drift.length} field(s):`);
   for (const d of drift) console.error(`  ${d}`);
   console.error('  Fix: `npm run cotality:pull` to regenerate from live, then review the diff.');
   process.exit(1);
 }
-console.log(`[cotality:verify] PASS — committed source matches live Cotality (${Object.keys(live).length} enums).`);
+console.log(`[cotality:verify] PASS — committed vocabulary matches live Cotality Lookup (${fieldsChecked} resource+field vocabularies across ${RESOURCES.join(', ')}).`);
 process.exit(0);

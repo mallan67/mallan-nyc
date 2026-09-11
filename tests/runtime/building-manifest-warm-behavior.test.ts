@@ -351,3 +351,7 @@ describe("row-ceiling BOUNDARY — the terminal page cannot smuggle a shard past
     expect(r.shards_warmed).toBe(BUILDING_MANIFEST_SHARDS.length);
   });
 });
+
+// A module of its own: the global-scope `store` collided with the identically named constant of another
+// script-scoped test file under one tsc program (cannot redeclare block-scoped variable). Nothing else changes.
+export {};

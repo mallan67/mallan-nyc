@@ -1,0 +1,495 @@
+The REBNY rule is clear: Coming Soon and Participant Only do not accrue DOM; accrual begins when the relevant status or permission changes. The 2026 UCBA also says DOM resets to zero when the listing closes, or after 30 consecutive days Withdrawn/Cancelled. REBNY’s April 2026 guidance separately confirms Participant Only does not accrue DOM and Coming Soon is limited to 14 days with no public showings.
+
+What Claude got wrong
+
+His claimed defect:
+
+"Participant Only Network" is coded, but live Cotality uses "Private", so suppression can never fire.
+
+is already stale. The current Search branch code contains both:
+
+const DOM_SUPPRESSING_PERMISSIONS = new Set([
+  "Participant Only Network",
+  "Private",
+]);
+
+and there is already a unit test asserting that "Private" suppresses DOM.
+
+Cotality's current documentation independently confirms Private is a valid ListingPermission value.
+
+So do not add another Private string patch.
+
+The actual Participant Only defect is deeper
+
+The canonical mapper is already doing the right interpretation:
+
+const permissionTokens = enumValueTokens('Permission', raw.Permission);
+const participantOnly = permissionTokens.includes('Private');
+
+and persists that as the typed participant_only boolean.
+
+But the DOM subsystem then throws that canonical interpretation away.
+
+On Cotality sync, DOM transition logic receives:
+
+permissions: null // historical permissions not persisted
+
+for the existing row, and — much worse — it invokes computeDomTransition() only when status changes:
+
+if (existing && existing.status !== mapped.status) {
+    statusTransition = computeDomTransition(...)
+}
+
+That violates the exact REBNY rule. REBNY says DOM starts when the status OR permission changes.
+
+Consider an Active Participant Only listing:
+
+Active + Private → Active + IDX
+
+No status change occurs.
+
+Under REBNY, DOM must begin accruing at that permission change.
+
+Mallan currently performs no DOM transition at all.
+
+The opposite is also broken:
+
+Active + IDX → Active + Private
+
+REBNY says DOM must stop accruing when it becomes Participant Only.
+
+Mallan currently performs no DOM transition because status stayed Active.
+
+That is the real Participant Only clock defect.
+
+There is also a broken DOM read path
+
+The agent sales listing route asks getCurrentDom() for the permission by reading:
+
+listing.compliance.Permissions
+
+But the Cotality sync deliberately does not persist provider permission state in that compliance JSON anymore. The canonical persisted representation is already the typed:
+
+participant_only Boolean
+
+column.
+
+So the read path can see:
+
+participant_only = true
+
+while passing:
+
+permissions = null
+
+to the DOM calculator.
+
+That can make an Active Participant Only listing continue accumulating displayed DOM despite the mapper having correctly identified it as Participant Only.
+
+That is a genuine end-to-end defect.
+
+Claude's “#2 requires a new column” is also wrong
+
+It does not necessarily require schema growth.
+
+Mallan already has:
+
+status_changed_at DateTime?
+first_active_date DateTime?
+days_on_market
+cumulative_days_on_market
+participant_only
+
+Cotality provides StatusChangeTimestamp, and Cotality defines it as the timestamp automatically recorded by the source system when the listing status last changed. StartShowingDate and DaysOnMarket are also real Property fields.
+
+Therefore the first architectural question should be:
+
+Why can't existing listings.status_changed_at hold Cotality StatusChangeTimestamp for Cotality-origin listings?
+
+That is exactly your no casual schema growth rule.
+
+For Mallan-authored records, Mallan can set the local transition timestamp.
+
+For Cotality-origin records, the existing column can represent the upstream source transition timestamp.
+
+There may be a reason not to do that, but that reason needs to be proven before anyone adds another column.
+
+I also do not accept Claude's statement that “Section 1 works today”
+
+Current Coming Soon enforcement says:
+
+if (payload.ActivationDate && payload.OnMarketDate) {
+    diffDays = ActivationDate - OnMarketDate
+    if (diffDays > 14) block
+}
+
+That does not convincingly enforce a 14-day Coming Soon window.
+
+Why?
+
+Because Cotality defines OnMarketDate as an on-market date, while Coming Soon is specifically a listing that has not yet been on market. Cotality defines ComingSoon as a pre-market status and separately exposes StartShowingDate.
+
+So while the listing is actually Coming Soon, OnMarketDate may legitimately be absent. If it is absent, this code performs no 14-day calculation whatsoever.
+
+And after the listing becomes Active, the enclosing:
+
+if (mallanStatus === "ComingSoon")
+
+no longer runs.
+
+That means the statement:
+
+“Section 1 ... ≤14 days, enforced ... works today”
+
+is not proven.
+
+The correct 14-day baseline needs to be established from the REBNY/Cotality lifecycle facts — likely the Coming Soon submission/status transition versus scheduled activation/showing date — rather than subtracting two dates whose semantics do not represent the duration of the Coming Soon state.
+
+There is a fourth inconsistency: Closed DOM
+
+Claude summarized:
+
+“Closed freezes.”
+
+But current REBNY Article I §11 actually says the calculation of DOM shall be reset to zero when the listing is sold or rented / Closed.
+
+Mallan currently does this:
+
+if (newStatus === "Sold" || newStatus === "Rented") {
+    return {
+        days_on_market: currentDom,
+        cumulative_days_on_market: currentDom,
+    }
+}
+
+and its unit tests explicitly require DOM to freeze, rather than reset.
+
+That is a direct textual conflict with the current UCBA.
+
+I would not blindly change it to zero yet, because Mallan may legitimately need to retain the closed listing's historical exposure for comps/reporting. The correct model may be:
+
+days_on_market = 0 for the post-close RLS clock
+
+while preserving prior exposure separately in cumulative/history/reporting.
+
+But that needs deliberate reconciliation. The existing “freeze” behavior cannot simply be called UCBA-compliant.
+
+What I would send Search/Claude now
+
+STOP. Do not perform the proposed one-line Participant Only fix.
+
+The side verification found that the current Search branch already contains:
+
+DOM_SUPPRESSING_PERMISSIONS = [
+"Participant Only Network",
+"Private"
+]
+
+and dom-tracker.test.ts already tests:
+
+isDomSuppressedByPermissions("Private") === true.
+
+Therefore the proposed defect "#1 — replace/add the live Private token" is stale and must NOT be patched.
+
+The actual DOM defects are deeper and must be handled as one impact graph.
+
+Current 2026 UCBA Article I §11:
+
+Coming Soon does not accrue DOM.
+Participant Only Network does not accrue DOM.
+DOM starts when the relevant STATUS OR PERMISSION changes.
+DOM resets after 30 consecutive days Withdrawn.
+DOM resets after 30 consecutive days Cancelled.
+DOM resets when Sold/Rented / Closed.
+DOM cannot be reset through re-naming/re-listing.
+
+Keep STATUS and PERMISSION as separate axes.
+
+The Cotality mapper already canonicalizes:
+
+Permission
+→ enumValueTokens()
+→ permissionTokens.includes("Private")
+→ participant_only Boolean
+
+That is the canonical Mallan interpretation.
+
+But lib/idx/sync.ts calls computeDomTransition ONLY when:
+
+existing.status !== mapped.status
+
+That is insufficient.
+
+REBNY explicitly says the DOM clock changes when STATUS OR PERMISSION changes.
+
+These transitions must be tested:
+
+
+
+
+Active + Private
+→ Active + IDX
+
+Status unchanged.
+Participant Only removed.
+DOM must START at the permission-transition time.
+
+
+
+
+Active + IDX
+→ Active + Private
+
+Status unchanged.
+Participant Only begins.
+DOM must FREEZE at the permission-transition time.
+
+Current code misses both because no status change occurs.
+
+Do not create another permission string authority.
+
+Use the already-canonical typed participant_only fact.
+
+The current sync passes:
+
+permissions: null // historical permissions not persisted
+
+into the existing side of computeDomTransition.
+
+But Listing already stores:
+
+participant_only Boolean
+
+Therefore the DOM transition cannot accurately determine whether the prior interval was accruing.
+
+Correct the DOM model to consume the canonical persisted visibility fact rather than reconstructing permission state from obsolete JSON.
+
+Do NOT add another provider-permission column unless existing participant_only is proven insufficient.
+
+app/api/crm/sales/listings/route.ts currently derives DOM permissions from:
+
+listing.compliance.Permissions
+
+But Cotality sync deliberately stopped using compliance JSON as provider permission storage.
+
+The typed canonical field is:
+
+listing.participant_only
+
+Therefore read-path DOM can currently accrue on a Participant Only record even when participant_only=true.
+
+Trace every getCurrentDom reader.
+
+Replace stale permission-source assumptions with the canonical typed state.
+
+Do not recreate compliance JSON as another provider authority.
+
+Do NOT request a schema change yet.
+
+Listing already has:
+
+status_changed_at DateTime?
+first_active_date DateTime?
+days_on_market Int
+cumulative_days_on_market Int
+participant_only Boolean
+
+Cotality supplies:
+
+StatusChangeTimestamp
+OnMarketTimestamp
+OnMarketDate
+BackOnMarketTimestamp
+BackOnMarketDate
+ActivationDate
+
+For a Cotality-origin listing, prove whether the existing:
+
+status_changed_at
+
+can simply be sourced from Cotality StatusChangeTimestamp.
+
+For a Mallan-authored listing, the same field can hold the actual Mallan transition time until Cotality reconciliation.
+
+This follows the rule:
+
+EXHAUST EXISTING SCHEMA BEFORE ADDING COLUMNS.
+
+The current behavior:
+
+status_changed_at = new Date()
+
+when Mallan happens to ingest the provider transition
+
+must not remain the authoritative Cotality RLS clock if the upstream transition timestamp is available.
+
+StatusChangeTimestamp is a STATUS timestamp.
+
+A Permission change may occur without status changing.
+
+Therefore do not assume StatusChangeTimestamp alone solves Participant Only DOM.
+
+Determine which live provider timestamp changes when Permission changes.
+
+Candidates must be empirically verified against the Cotality record:
+
+ModificationTimestamp
+or another provider transactional/history timestamp.
+
+Do not guess.
+
+If the feed provides no permission-specific timestamp, define a documented fail-safe strategy rather than pretending status time represents permission time.
+
+Do not let DOM compare the entire raw Permission string using Set.has().
+
+The mapper already treats Permission as a tokenized multi-value provider fact through enumValueTokens().
+
+If DOM must inspect raw permission values at any boundary, use that same canonical tokenizer.
+
+Test at minimum:
+
+"Private"
+"IDX"
+"Private,IDX" or the exact Cotality wire representation if multi-valued combinations are allowed.
+
+Do not add another parser.
+
+Do not report Section 1 as working.
+
+Current rls-enforcement.ts calculates:
+
+ActivationDate - OnMarketDate
+
+only when BOTH values exist, inside:
+
+mallanStatus === "ComingSoon".
+
+That does not prove the duration of the Coming Soon state.
+
+Cotality semantics distinguish:
+
+StartShowingDate
+ActivationDate
+OnMarketDate
+OnMarketTimestamp
+StatusChangeTimestamp
+OriginalEntryTimestamp
+
+Re-establish the correct 14-day lifecycle calculation against current REBNY rules and actual Cotality behavior.
+
+StartShowingDate exists on live Property even though our current subscription sample apparently populates it on zero rows.
+
+Do not call it phantom.
+
+Do not substitute ActivationDate merely because StartShowingDate is presently unpopulated.
+
+And do not rely on OnMarketDate for a Coming Soon record without proving that REBNY/Cotality populates it before activation.
+
+Current UCBA says DOM is reset to zero when a listing is Sold/Rented/Closed.
+
+Current Mallan dom-tracker freezes the final DOM instead.
+
+Current tests explicitly assert freezing.
+
+Do NOT silently change this yet.
+
+Determine the required storage semantics:
+
+current RLS DOM after Closed;
+historical final market exposure for reports/comps;
+cumulative DOM semantics.
+
+If historical exposure must be preserved, preserve it in the proper historical/cumulative layer while implementing the actual UCBA DOM rule.
+
+Do not call "freeze on Closed" compliant until this is resolved.
+
+Your live evidence says DaysOnMarket and CumulativeDaysOnMarket are declared but null throughout this Mallan subscription.
+
+Treat that as subscription-specific empirical evidence.
+
+Therefore Mallan currently has to calculate DOM locally.
+
+But local calculation must be:
+
+REBNY RULE
++
+COTALITY EVENT FACTS
++
+CANONICAL MALLAN TYPED STATE
+
+not:
+
+Date.now()
++
+sync arrival time
++
+stale compliance JSON.
+
+Do not remove the local DOM calculator until the provider actually supplies usable values.
+
+Build failing tests for the actual defects before changing behavior:
+
+ComingSoon 10 days → Active
+DOM begins at Active, prior 10 days excluded.
+ComingSoon 14 days
+valid boundary.
+ComingSoon >14 days
+blocked before invalid publication/state transition.
+Active + Private for 20 days
+DOM remains 0.
+Active + Private → Active + IDX
+no status change; DOM starts on permission transition.
+Active + IDX for 7 days → Active + Private
+no status change; DOM freezes at 7.
+Active + Private → Withdrawn
+the Participant Only interval must not be added to DOM.
+Active → Withdrawn 29 days → Active
+no reset.
+Active → Withdrawn 30 days → Active
+reset to 0.
+Same pair for Cancelled.
+Delayed Cotality sync
+provider status changed hours before Mallan sees it;
+DOM uses provider event time, not ingestion wall clock.
+Read path with participant_only=true
+getCurrentDom must suppress even when compliance JSON contains no Permissions key.
+Permission multi-value representation
+Private token must suppress regardless of valid wire combination/order.
+Closed
+resolve the UCBA reset-vs-historical-display contract explicitly and test it.
+
+This belongs in the active Search/Cotality convergence lane because it touches:
+
+lib/compliance/**
+lib/idx/**
+Cotality lifecycle facts
+search/report DOM consumers
+CRM readers.
+
+Do not let the cleanup lane independently patch it.
+
+No schema migration is authorized.
+
+No production mutation is authorized.
+
+First produce:
+
+Proven Defect
+→ Root Cause
+→ All Readers/Writers
+→ Existing Schema Capability
+→ Correct Mapping
+→ Direct/Negative Tests
+→ Integration Test
+→ Search/CMA/CRM downstream proof
+→ Compliance proof.
+
+Do not implement another isolated one-line fix.
+
+One additional limit on the evidence
+
+I independently confirmed the current REBNY rules, official Cotality field definitions, and current repository code. I also attempted the authenticated Mallan Cotality connector again; it is presently returning a 404. So I cannot independently certify Claude's exact population counts such as 591,597, 46,095, or “zero rows” from your subscription. Those remain Claude's live-query evidence, not mine.
+
+But the architectural defects above do not depend on those counts. They are visible directly in the current code and the current REBNY rule.
+
+The biggest correction is this: you likely do not need a schema change for the Cotality status clock. You already have status_changed_at and participant_only; the system is simply not using those existing canonical columns correctly.

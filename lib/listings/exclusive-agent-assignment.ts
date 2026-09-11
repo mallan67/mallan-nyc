@@ -102,16 +102,92 @@ export interface ExclusiveAgentAssignment {
 }
 
 /**
- * True when the listing is a Mallan-authored exclusive: either its
- * listing_id carries the `SL-`/`RL-` CRM prefix, or it is an explicit
- * website-only row (`rls_eligible === false`). These are the rows Mallan
- * itself listed — the only rows that get a Mallan agent stamped.
+ * ── THE ONE CANONICAL MALLAN SOURCE-OWNERSHIP RULE ────────────────────────────────────────────────────────────
+ *
+ * "Mallan authored this row" was implemented three separate times — `isMallanExclusiveListing` here,
+ * `isMallanLocalListing` in mallan-source-identity.ts, and `buildMallanOwnedListingWhere` in media-sync.ts — and
+ * all three said the same wrong thing: `SL-`/`RL-` prefix **OR** `rls_eligible === false`. They now all delegate
+ * here so the rule cannot drift again.
+ *
+ * WHY THE OLD SECOND ARM WAS WRONG (owner review 2026-09-09). `rls_eligible === false` does not mean "Mallan owns
+ * this row". It means "commercial / website-only — not RLS inventory", and it is an INPUT to the mapper
+ * (`computeGateColumns`, lib/idx/trestle-mapper.ts: `input.rls_eligible !== false`), not a provenance fact the
+ * feed asserts. Trestle never serializes it, so a pure feed row defaults to `true` — but nothing structurally
+ * stops a third-party COMMERCIAL row from being ingested with `false`, and the moment one is, it would be
+ * classified as Mallan-owned. The listing-expiration cron would then write `expiration_date` /
+ * `idx_display_yn` / `modification_timestamp` onto another brokerage's listing: a source mutation Mallan has no
+ * authority to make, and the exact hazard that cron's own header says it was fixed to prevent.
+ *
+ * THE FIX. The `SL-`/`RL-` prefix stays definitive on its own — it is assigned by Mallan's own CRM and the feed
+ * cannot mint one. The `rls_eligible === false` arm now additionally requires the ABSENCE of provider provenance.
+ *
+ * VERIFIED READ-ONLY 2026-09-09 against production (27,031 listings): this is a pure future-safety tightening
+ * with zero behaviour change on current data. All 7 `rls_eligible = false` rows carry the Mallan prefix, and none
+ * of them carries any provenance signal, so the old rule and the new rule select the identical 7 rows today.
+ * (Separately: 33 rows have a null `last_synced_from_trestle` without the Mallan prefix, which is why the absence
+ * of a sync stamp is NOT sufficient on its own and is only ever read together with `rls_eligible === false`.)
+ */
+
+/** The columns that prove a row came from the provider feed rather than Mallan's CRM. */
+export interface MallanOwnershipRow {
+  listing_id?: string | null;
+  rls_eligible?: boolean | null;
+  /** Stamped by the Trestle sync. A CRM-authored row never has one. */
+  last_synced_from_trestle?: Date | string | null;
+  /** Provider list-office identifier. Only a feed row carries one. */
+  list_office_mls_id?: string | null;
+  /** Provider MLS identifier. */
+  mls_id?: string | null;
+}
+
+/**
+ * TRUE when any provider-provenance column is populated — i.e. this row came from the feed.
+ *
+ * Deliberately column-only. `raw_data.StandardStatus` is an equally strong signal, but proving a JSON key is
+ * ABSENT is awkward in Prisma, and using it here while the SQL form below could not would leave the in-memory
+ * predicate and the database predicate disagreeing. The three columns already separate the populations cleanly.
+ */
+export function hasProviderProvenance(row: MallanOwnershipRow): boolean {
+  if (row.last_synced_from_trestle != null) return true;
+  if (typeof row.list_office_mls_id === 'string' && row.list_office_mls_id.trim() !== '') return true;
+  if (typeof row.mls_id === 'string' && row.mls_id.trim() !== '') return true;
+  return false;
+}
+
+/** THE canonical rule. Every other ownership predicate in the codebase delegates to this one. */
+export function isMallanAuthoredListing(row: MallanOwnershipRow): boolean {
+  const id = String(row.listing_id ?? '');
+  if (CRM_PREFIXES.some((p) => id.startsWith(p))) return true;
+  // Website-only / commercial, AND nothing says the feed sent it.
+  return row.rls_eligible === false && !hasProviderProvenance(row);
+}
+
+/**
+ * Prisma `where` form of {@link isMallanAuthoredListing}. Kept in lockstep with it by
+ * tests/runtime/mallan-ownership-authority.test.ts, which drives both forms over the same fixture rows.
+ */
+export function mallanAuthoredListingWhere(): {
+  OR: Array<Record<string, unknown>>;
+} {
+  return {
+    OR: [
+      ...MALLAN_EXCLUSIVE_LISTING_ID_PREFIXES.map((p) => ({ listing_id: { startsWith: p } })),
+      {
+        rls_eligible: false,
+        last_synced_from_trestle: null,
+        OR: [{ list_office_mls_id: null }, { list_office_mls_id: '' }],
+        mls_id: null,
+      },
+    ],
+  };
+}
+
+/**
+ * True when the listing is a Mallan-authored exclusive — the rows Mallan itself listed, and the only rows that
+ * get a Mallan agent stamped. Delegates to the canonical rule above.
  */
 export function isMallanExclusiveListing(listing: ExclusiveAssignmentListing): boolean {
-  const id = String(listing.listing_id ?? '');
-  if (CRM_PREFIXES.some((p) => id.startsWith(p))) return true;
-  if (listing.rls_eligible === false) return true;
-  return false;
+  return isMallanAuthoredListing(listing as MallanOwnershipRow);
 }
 
 /** Resolve a display full name from whatever name parts the identity carries. */

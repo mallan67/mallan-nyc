@@ -45,7 +45,9 @@ var RentalPitchPacket = (function () {
       '<i class="fas fa-spinner fa-spin text-gold text-xl"></i>' +
       '<span class="text-sm text-gray-500 ml-2">Loading rental comps...</span></div>';
 
-    MallanAPI._fetch('/api/crm/sales/prospects/' + id + '/comps')
+    // A rental pitch packet compares RENTALS: the transaction travels with the request so the server filters
+    // PropertyType eq 'ResidentialLease' and StandardStatus eq 'Closed' (a closed lease; broker word "Rented").
+    MallanAPI._fetch('/api/crm/sales/prospects/' + id + '/comps?transaction=rental')
       .then(function (data) {
         _comps = data.comps || [];
         _overrides = data.overrides || {};
@@ -102,15 +104,23 @@ var RentalPitchPacket = (function () {
           var cmaComps = data.item.comps;
           if (Array.isArray(cmaComps)) {
             cmaComps.forEach(function (c) {
+              // ONLY a closed lease is a rental comparable. The engine returns Active competition too, whose
+              // list_price is an ASKING rent and whose on-market date is not a closing: importing those as
+              // close_price / close_date presented asking rents as achieved rents (Maya, 2026-09-09).
+              var isClosedLease = c.status === 'Closed' && !!c.close_date && Number(c.close_price) > 0;
+              if (!isClosedLease) return;
               _comps.push({
                 mls_id: c.listing_id || c.mls_id || '',
                 address: c.address || '',
                 unit: c.unit || '',
-                close_price: c.close_price || c.list_price || 0,
+                status: 'Closed',
+                status_label: c.status_label || 'Rented',
+                transaction: 'rental',
+                close_price: Number(c.close_price),
                 beds: c.bedrooms || 0,
                 baths: c.bathrooms || 0,
                 sqft: c.living_area || 0,
-                close_date: c.close_date || c.on_market_date || '',
+                close_date: String(c.close_date).slice(0, 10),
                 note: '',
                 added_at: new Date().toISOString(),
                 source: 'auto-cma',
@@ -233,9 +243,12 @@ var RentalPitchPacket = (function () {
         h += '<div class="text-sm font-semibold text-gray-900 truncate">' +
           E(r.address || '-') + (r.unit ? ' #' + E(r.unit) : '') + '</div>';
         h += '<div class="flex gap-3 text-xs text-gray-500 mt-1">';
-        h += '<span>' + (r.list_price ? $(r.list_price) + '/mo' : '-') + '</span>';
+        h += '<span>' + (r.close_price ? $(r.close_price) + '/mo' : '-') + '</span>';
         h += '<span>' + (r.beds || '-') + 'bd/' + (r.baths || '-') + 'ba</span>';
         h += '<span>' + (r.sqft ? Number(r.sqft).toLocaleString() + ' sqft' : '-') + '</span>';
+        h += '<span>' + (r.close_date ? D(r.close_date) : '-') + '</span>';
+        // the broker word for this comp's transaction, supplied by the server ("Rented" on a rental)
+        h += '<span class="text-green-700 font-semibold">' + E(r.status_label || r.status || '') + '</span>';
         if (r.mls_id) h += '<span class="text-gray-400">' + E(r.mls_id) + '</span>';
         h += '</div></div>';
         if (alreadyAdded) {
@@ -267,7 +280,8 @@ var RentalPitchPacket = (function () {
     h += '</tr></thead><tbody>';
 
     _comps.forEach(function (c, i) {
-      var rent = c.close_price || c.list_price || 0;
+      // a comp's rent is the rent it CLOSED at; there is no asking-price fallback on a comparable
+      var rent = Number(c.close_price) || 0;
       var psf = (rent && c.sqft && Number(c.sqft) > 0) ? (rent / Number(c.sqft)).toFixed(2) : '-';
       h += '<tr class="border-b border-gray-100 hover:bg-gray-50">';
       h += '<td class="px-3 py-2 font-medium">' + E(c.address || '-') +
@@ -440,11 +454,14 @@ var RentalPitchPacket = (function () {
       '<span class="text-xs ' + (cls || '') + '">' + E(value || '\u2014') + '</span></div>';
   }
 
+  // The median is achieved rent per sqft: only a CLOSED lease's own ClosePrice counts. An asking rent is
+  // market context and never enters a valuation (owner ruling 2026-09-08).
   function _calcMedianRentPsf() {
     var vals = [];
     _comps.forEach(function (c) {
-      var rent = c.close_price || c.list_price || 0;
-      if (rent && c.sqft && Number(c.sqft) > 0) {
+      if (c.status !== 'Closed') return;
+      var rent = Number(c.close_price) || 0;
+      if (rent > 0 && c.sqft && Number(c.sqft) > 0) {
         vals.push(rent / Number(c.sqft));
       }
     });
@@ -468,23 +485,17 @@ var RentalPitchPacket = (function () {
     var q = input ? input.value.trim() : '';
     if (!q) return;
 
-    CRM.toast('Searching rental comps...', 'info');
-    // Use the listings API to search rentals
-    MallanAPI._fetch('/api/listings?type=rent&address=' + encodeURIComponent(q) + '&limit=10')
+    CRM.toast('Searching closed rental comps...', 'info');
+    // The public listings API served ACTIVE rentals — asking prices with no closing at all — which were then
+    // added as comps. Search the prospect comps route instead: closed leases only, of THIS transaction, each
+    // with its own CloseDate and ClosePrice (Maya, 2026-09-09).
+    MallanAPI._fetch('/api/crm/sales/prospects/' + _prospect.id + '/comps?transaction=rental&q=' + encodeURIComponent(q))
       .then(function (data) {
-        _searchResults = (data.listings || []).map(function (l) {
-          return {
-            mls_id: l.id || l.mlsId || '',
-            address: l.address ? (l.address.streetNumber + ' ' + l.address.streetName) : '',
-            unit: l.address ? (l.address.unitNumber || '') : '',
-            list_price: l.listPrice || 0,
-            beds: l.bedroomsTotal || 0,
-            baths: l.bathroomsFull || 0,
-            sqft: l.livingArea || 0,
-          };
+        _searchResults = (data.results || []).filter(function (r) {
+          return r.status === 'Closed' && r.close_date && Number(r.close_price) > 0;
         });
         if (_searchResults.length === 0) {
-          CRM.toast('No rental results for "' + q + '"', 'info');
+          CRM.toast('No closed rental comps for "' + q + '"', 'info');
         }
         _renderFull(_el);
         var newInput = document.getElementById('rpp-comp-search');
@@ -498,8 +509,15 @@ var RentalPitchPacket = (function () {
   function _addComp(idx) {
     var comp = _searchResults[idx];
     if (!comp) return;
+    // Fail closed: only a dated, priced closed lease may become a comp.
+    if (comp.status !== 'Closed' || !comp.close_date || !(Number(comp.close_price) > 0)) {
+      CRM.toast('Only closed rentals with a closing date and rent can be used as comps', 'error');
+      return;
+    }
     var exists = _comps.some(function (c) { return c.mls_id === comp.mls_id; });
     if (exists) { CRM.toast('Comp already added', 'info'); return; }
+    comp.transaction = 'rental';
+    comp.status_label = comp.status_label || 'Rented';
     comp.added_at = new Date().toISOString();
     _comps.push(comp);
     CRM.toast('Added: ' + (comp.address || comp.mls_id), 'success');
@@ -527,7 +545,7 @@ var RentalPitchPacket = (function () {
     CRM.toast('Saving rental comps...', 'info');
     MallanAPI._fetch('/api/crm/sales/prospects/' + _prospect.id + '/comps', {
       method: 'POST',
-      body: JSON.stringify({ comps: _comps, overrides: _overrides })
+      body: JSON.stringify({ transaction: 'rental', comps: _comps, overrides: _overrides })
     })
       .then(function () { CRM.toast('Comps saved', 'success'); })
       .catch(function (err) { CRM.toast('Save failed: ' + (err.message || ''), 'error'); });

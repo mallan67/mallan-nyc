@@ -1,15 +1,21 @@
         function renderGalleryView() {
             var container = document.getElementById('galleryResults');
             container.innerHTML = getFilteredListings().map(listing => {
-                var stC = listing.status === 'ACTIVE' ? '#16a34a' : listing.status === 'PENDING' ? '#ea580c' : listing.status === 'COMING_SOON' ? '#7c3aed' : '#6b7280';
-                var stB = listing.status === 'ACTIVE' ? '#dcfce7' : listing.status === 'PENDING' ? '#fff7ed' : listing.status === 'COMING_SOON' ? '#f5f3ff' : '#f3f4f6';
-                var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
+                // Status presentation — token, broker label and colours all come from THE ONE authority
+                // (public/crm/js/core/status-presentation.js). The card used to carry its own three-case
+                // colour ternary keyed on the retired uppercase words, so a real Closed / Canceled / Expired /
+                // Hold row was painted like a row with no status at all and printed the raw token as its label.
+                var stColors = MallanStatus.colors(listing);
+                var stC = stColors.fg;
+                var stB = stColors.bg;
+                var statusToken = MallanStatus.token(listing);
+                var statusLabel = escapeHtml(MallanStatus.label(listing));
                 var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
                 var displayUnit = listing.addressDisplayYN !== false ? escapeHtml(listing.unit) : '';
                 var selected = searchResultsState.selectedListings.includes(listing.id);
-                var csGalleryBadge = listing.status === 'COMING_SOON' ? '<div class="absolute bottom-3 left-3 px-2.5 py-1 bg-purple-600 text-white text-[11px] font-bold rounded-lg z-10" data-reso-field="MlsStatus" data-reso-value="ComingSoon" data-compliance="coming-soon-badge" title="UCBA D7: Coming Soon — max 14 days (D2). No showings or open houses.">Coming Soon' + (listing.comingSoonDate ? ' &mdash; No Showings Until <span' + resoData('comingSoonDate', listing.comingSoonDate) + '>' + escapeHtml(listing.comingSoonDate) + '</span>' : '') + '</div>' : '';
+                var csGalleryBadge = MallanStatus.isComingSoon(listing) ? '<div class="absolute bottom-3 left-3 px-2.5 py-1 bg-purple-600 text-white text-[11px] font-bold rounded-lg z-10"' + resoData('status', 'ComingSoon') + ' data-compliance="coming-soon-badge" title="UCBA D7: Coming Soon — max 14 days (D2). No showings or open houses.">Coming Soon' + (listing.comingSoonDate ? ' &mdash; No Showings Until <span' + resoData('comingSoonDate', listing.comingSoonDate) + '>' + escapeHtml(listing.comingSoonDate) + '</span>' : '') + '</div>' : '';
                 return `
-                <div class="listing-card gallery-card bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-reso-field="SourceSystemKey" data-reso-value="${escapeHtml(listing.wid || listing.lid || listing.id)}" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" data-source="REBNY-RLS">
+                <div class="listing-card gallery-card bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-reso-field="SourceSystemKey" data-reso-value="${escapeHtml(listing.wid || listing.lid || listing.id)}" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" data-source="${listing._source === 'mallan' ? 'MALLAN-LOCAL' : 'COTALITY-API'}">
                     <!-- Photo -->
                     <div class="relative cursor-pointer group" onclick="openListingInNewTab('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
                         <div class="cm-photo-wrap cm-card-photo">
@@ -33,20 +39,20 @@
                                 <h4 class="font-bold text-[15px] text-gray-900 truncate">${displayAddress}${displayUnit ? ', ' + displayUnit : ''}</h4>
                                 <p class="text-[12px] text-gray-500 font-light mt-0.5">${escapeHtml(listing.era || '--')} &middot; ${ownershipLabel(listing.ownership)} &middot; ${escapeHtml(listing.neighborhood)}</p>
                             </div>
-                            <span class="text-base font-bold text-gray-900 whitespace-nowrap"${resoData('price', listing.price)}>$${listing.price.toLocaleString()}</span>
+                            <span class="text-base font-bold text-gray-900 whitespace-nowrap"${resoData('price', listing.price)}>${listing.price == null ? '—' : '$' + listing.price.toLocaleString()}</span>
                         </div>
                         <p class="text-[13px] text-gray-600 font-light">
-                            ${listing.beds} bd &middot; ${listing.baths} ba${listing.intSqft ? ' &middot; ' + listing.intSqft.toLocaleString() + ' sf' : ''}
+                            ${listing.beds == null ? '—' : listing.beds} bd &middot; ${listing.baths == null ? '—' : listing.baths} ba${listing.intSqft ? ' &middot; ' + listing.intSqft.toLocaleString() + ' sf' : ''}
                         </p>
                         ${listing.maintCC ? '<p class="text-[11px] text-gray-400 font-light mt-0.5">CC: $' + listing.maintCC.toLocaleString() + '/mo</p>' : ''}
                         <!-- Status + Agent -->
                         <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
                             <div class="flex items-center gap-1.5">
-                                <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold" style="background:${stB};color:${stC}"${resoData('status', listing.status)}>${statusLabel}</span>
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold" style="background:${stB};color:${stC}" data-status-badge${resoData('status', statusToken)}>${statusLabel}</span>
                                 ${participantOnlyBadge(listing)}
                                 ${syndicationBadge(listing)}
                             </div>
-                            <span class="text-[10px] text-gray-400"${resoData('totalMonthly', listing.totalMonthly)}>MT: $${listing.totalMonthly.toLocaleString()}</span>
+                            <span class="text-[10px] text-gray-400"${resoData('totalMonthly', listing.totalMonthly)}>MT: ${listing.totalMonthly == null ? '—' : '$' + listing.totalMonthly.toLocaleString()}</span>
                         </div>
                         ${listing.listingCategory === 'rental' ? fareActDisclosure(listing) : ''}
                         <!-- Attribution -->

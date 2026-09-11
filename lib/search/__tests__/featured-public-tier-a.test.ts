@@ -77,11 +77,12 @@ describe("Featured/Public Tier A P0 — A-2 unitNumber suppressed when address i
     );
   });
 
-  it("lib/idx/public-dto.ts suppressed branch sets unitNumber: null", () => {
+  it("lib/idx/public-dto.ts carries NO second suppression branch (one builder, Packet 2 closure)", () => {
+    // The former toPublicDTO(IDXListing) builder duplicated the suppression logic; it is gone.
+    // Live Cotality records reach dbListingToPublicDTO through lib/idx/cotality-public-dto.ts.
     const src = readFile(PUBDTO);
-    expect(src).toMatch(
-      /streetName:\s*['"]Address Undisclosed['"][\s\S]{0,160}?unitNumber:\s*null/
-    );
+    expect(src).not.toMatch(/export function toPublicDTO\(/);
+    expect(src).not.toMatch(/streetName:\s*['"]Address Undisclosed['"]/);
   });
 
   it("app/listing/[...slug]/page.tsx DELEGATES suppression to the canonical builder", () => {

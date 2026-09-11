@@ -18,6 +18,7 @@
  * @module lib/listings/terminal-since
  */
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
+import { statusDateFactsFrom } from "@/lib/listings/canonical-lifecycle";
 
 /** Sanity window — reject impossible dates (e.g. a bogus CloseDate of year 2814). */
 const SANITY_MIN_MS = Date.UTC(2000, 0, 1); // 2000-01-01
@@ -70,16 +71,24 @@ export function deriveTerminalSince(input: {
   now?: Date;
 }): Date | null {
   const now = input.now ?? new Date();
-  const raw = (input.raw_data ?? {}) as Record<string, unknown>;
-  const feat = (input.features ?? {}) as Record<string, unknown>;
   const normalized = normalizeStandardStatus(input.status);
-  const candidates: unknown[] = [raw.CloseDate, feat.CloseDate, raw.OffMarketDate];
-  if (normalized === "Expired") {
-    // raw/feature ExpirationDate first; if blank/invalid/impossible it fails its own
+  // The status ↔ date association (owner ruling 2026-09-08; every field a live Cotality Property field):
+  // Closed → CloseDate; Expired → ExpirationDate (never OffMarketDate as its own date); Withdrawn → WithdrawnDate;
+  // Canceled → CancellationDate. OffMarketDate is the removal fallback when the status's own date is absent.
+  // The provider dates are read inside the Cotality boundary (lib/listings/canonical-lifecycle.ts); this module
+  // never touches a raw provider key.
+  const facts = statusDateFactsFrom(input.raw_data, input.features);
+  const candidates: unknown[] = [];
+  if (normalized === "Closed") candidates.push(...facts.closeDate);
+  else if (normalized === "Expired") {
+    // the ExpirationDate candidates first; if blank/invalid/impossible each fails its own
     // sanity check below and we fall through to the typed expirationDateFallback.
-    candidates.push(raw.ExpirationDate);
+    candidates.push(...facts.expirationDate);
     if (input.expirationDateFallback != null) candidates.push(input.expirationDateFallback);
-  }
+  } else if (normalized === "Withdrawn") candidates.push(...facts.withdrawnDate);
+  else if (normalized === "Canceled") candidates.push(...facts.cancellationDate);
+  candidates.push(...facts.offMarketDate);
+  if (normalized !== "Closed") candidates.push(...facts.closeDate);
   for (const cand of candidates) {
     const d = parseStableDate(cand, now);
     if (d) return d;

@@ -121,7 +121,7 @@ describe('guardArchivedRehydration — ACTIVE re-emit unarchives (Codex #465, RE
     };
   }
 
-  it.each(['Active', 'ActiveUnderContract', 'ComingSoon'])(
+  it.each(['Active', 'ActiveUnderContract', 'ComingSoon', 'Pending'])(
     'archived + re-emit status %s → FULL update flows (unarchive: raw_data/media/sync_status retained)',
     (status) => {
       const out = guardArchivedRehydration(activePayload(status), { sync_status: 'archived' });
@@ -145,7 +145,7 @@ describe('guardArchivedRehydration — ACTIVE re-emit unarchives (Codex #465, RE
     },
   );
 
-  it.each(['Closed', 'Expired', 'Withdrawn', 'Pending'])(
+  it.each(['Closed', 'Expired', 'Withdrawn', 'Hold'])(
     'archived + re-emit status %s (non-active-display) → strip preserved + display fields frozen (no unarchive, no churn, no direct-URL exposure)',
     (status) => {
       const out = guardArchivedRehydration(activePayload(status), { sync_status: 'archived' });
@@ -157,8 +157,11 @@ describe('guardArchivedRehydration — ACTIVE re-emit unarchives (Codex #465, RE
     },
   );
 
-  it('archived + Pending re-emit (non-terminal → mapper CAN set idx_display_yn=true) → display fields MUST be frozen (Codex #465 r3 direct-URL exposure)', () => {
-    const p = { ...activePayload('Pending'), idx_display_yn: true };
+  // Pending unarchives since 2026-09-08 (it is the feed's in-contract status and is publicly
+  // displayable as "In Contract"); Hold is the non-terminal, non-displayable status that keeps the
+  // direct-URL exposure case alive.
+  it('archived + Hold re-emit (non-terminal → mapper CAN set idx_display_yn=true) → display fields MUST be frozen (Codex #465 r3 direct-URL exposure)', () => {
+    const p = { ...activePayload('Hold'), idx_display_yn: true };
     const out = guardArchivedRehydration(p, { sync_status: 'archived' });
     expect(out.idx_display_yn).toBe(false); // r4: forced false even when the incoming payload says true
     expect('status' in out).toBe(false);

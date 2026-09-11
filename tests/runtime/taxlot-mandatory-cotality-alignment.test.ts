@@ -14,7 +14,7 @@
  * `TaxLot` did not satisfy the gate. Post-fix it flips green.
  */
 import { assertRlsCompliantPayload, type ListingContext } from '@/lib/compliance/rls-enforcement';
-import { REBNY_FIELD_TABLES } from '@/lib/compliance/rebny-field-tables';
+import { REBNY_UCBA_RULES } from '@/lib/compliance/rebny-ucba-rules';
 
 const CTX: ListingContext = { listingType: 'sale', rlsEligible: true };
 
@@ -54,7 +54,7 @@ describe('H1 — TaxLot is the mandatory Cotality field (BuildingTaxLot is phant
   });
 
   it('agentSubmitted mandatory list contains TaxLot and NOT the phantom BuildingTaxLot', () => {
-    const required = REBNY_FIELD_TABLES.requiredFields.agentSubmitted as readonly string[];
+    const required = REBNY_UCBA_RULES.requiredFields.agentSubmitted as readonly string[];
     expect(required).toContain('TaxLot');
     expect(required).not.toContain('BuildingTaxLot');
   });

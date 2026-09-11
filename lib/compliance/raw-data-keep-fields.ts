@@ -67,6 +67,27 @@ export const RAW_DATA_KEEP_FIELDS: readonly string[] = [
   'CloseDate',
   'ListingContractDate',
   'ExpirationDate',
+  // The status ↔ date associations (owner ruling 2026-09-08): Withdrawn → WithdrawnDate, Canceled →
+  // CancellationDate. Both are live Property fields (selected by the mapper) and are the retained facts the
+  // lifecycle, terminal_since and the forms read.
+  'WithdrawnDate',
+  'CancellationDate',
+  // Lifecycle evidence (whole-corpus census 2026-09-08, lib/listings/canonical-lifecycle.ts): In Contract is
+  // Pending + PurchaseContractDate (MajorChangeType Pending/ActiveUnderContract); Back on Market is
+  // MajorChangeType BackOnMarket + BackOnMarketDate. These were selected from the feed and then stripped here,
+  // so production carried them on 0 of 26,510 rows and no reader could derive either state.
+  'MajorChangeType',
+  'MajorChangeTimestamp',
+  'PurchaseContractDate',
+  'PendingTimestamp',
+  'ContractStatusChangeDate',
+  'StatusChangeTimestamp',
+  'BackOnMarketDate',
+  'BackOnMarketTimestamp',
+  'OnMarketTimestamp',
+  'OffMarketTimestamp',
+  'OriginalEntryTimestamp',
+  'PriceChangeTimestamp',
 
   // ── Pricing (sale + rental) ────────────────────────────────────────
   // db-to-public-dto.ts pulls these for the public listing detail page,
@@ -163,6 +184,15 @@ export const RAW_DATA_KEEP_FIELDS: readonly string[] = [
   'ListOfficeMlsId',
   'CoListAgentFullName',
   'CoListOfficeName',
+  // Co-list agents 2 / 3 and the second co-list office are populated scalars (50,994 / 7,993 rows; the
+  // CoListAgent navigation returns only the first). The buyer-side OFFICE ids are the only buyer-side facts
+  // the feed delivers besides the private agent id (Domain 4, 2026-09-08).
+  'CoListAgent2FullName',
+  'CoListAgent3FullName',
+  'CoListOffice2Name',
+  'CoListOffice2MlsId',
+  'BuyerOfficeMlsId',
+  'CoBuyerOfficeMlsId',
 
   // ── Media metadata (compliance audit photo count + virtual tour) ───
   // The compliance audit route does `raw.Media ?? raw.photos ?? []` to
@@ -190,8 +220,18 @@ export const RAW_DATA_KEEP_FIELDS: readonly string[] = [
   // on BOTH sides so a legacy row and a canonical slim row compare EQUAL — that
   // is what prevents a one-time whole-table rewrite storm on first deploy.
   'PhotosCount',
+  // EVERY 3D/video carrier (exhaustive live census 2026-09-08): the Media subsection has 0 Video /
+  // 0 VirtualTour rows in any status; tours and videos exist ONLY here. Unbranded 26,371 · Unbranded2
+  // 2,382 · Unbranded3 354 · Branded 13,878 · Branded2/3 declared 0. Unbranded2/3 were fetched by the
+  // mapper and DROPPED here, so the public DTO's reads of them were always empty. VideosCount (31,505
+  // rows > 0; RESO: "videos or virtual tours") is kept as the provider's count fact — never a video source.
   'VirtualTourURLBranded',
+  'VirtualTourURLBranded2',
+  'VirtualTourURLBranded3',
   'VirtualTourURLUnbranded',
+  'VirtualTourURLUnbranded2',
+  'VirtualTourURLUnbranded3',
+  'VideosCount',
 
   // ── Sale/rental specifics (form populate; agents re-edit) ──────────
   'AssociationFee',

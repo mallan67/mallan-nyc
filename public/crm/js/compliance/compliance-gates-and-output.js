@@ -34,7 +34,7 @@ function checkListingCompliance(listingIds, displayContext) {
         // Gate 3: Display context — IDX vs VOW vs CRM
         if (displayContext === 'idx') {
             if (listing.idxDisplayYN === false || perm.idxDisplay === false) {
-                result.blocked.push({ id: id, address: listing.address, reason: 'IDX Display opted out — not shown on IDX websites (RLS: IDXEntireListingDisplayYN)' });
+                result.blocked.push({ id: id, address: listing.address, reason: 'IDX Display opted out — not shown on IDX websites (Mallan decision: idx_display_yn)' });
                 return;
             }
             if (listing.internetDisplayYN === false) {
@@ -50,10 +50,10 @@ function checkListingCompliance(listingIds, displayContext) {
         // CRM: skip Gate 3 (authorized participant sees all except Owner Opt-Out)
 
         // Gate 4: Syndication — track for distribution control
-        // SyndicateYN=false means listing should NOT go to third-party portals,
+        // An empty SyndicateTo (the Mallan syndication decision) means the listing should NOT go to third-party portals,
         // but it still appears in IDX search. Flag as warning for output/reports.
         if (perm.syndication === false || listing.syndicateYN === false) {
-            result.warnings.push({ id: id, address: listing.address, reason: 'Not Syndicated — listing will not be distributed to third-party portals (SyndicateYN=false)' });
+            result.warnings.push({ id: id, address: listing.address, reason: 'Not Syndicated — listing will not be distributed to third-party portals (SyndicateTo empty)' });
         }
 
         // Gate 5: Coming Soon — show but with restrictions
@@ -1191,11 +1191,14 @@ function REBNYComplianceDoctor(options) {
     // ─── Test 3: Status Accuracy ───────────────────────────────────────────
     (function test3_Status() {
         // RESO StandardStatus values — both underscore and camelCase forms accepted
+        // The ELEVEN live Cotality StandardStatus members, plus the legacy STORAGE spellings a cached row may
+        // still carry. The retired uppercase invention (ACTIVE / COMING_SOON / ACTIVE_UNDER_CONTRACT) is gone:
+        // no renderer can produce it any more, so accepting it would only mask a regression.
         var validStatuses = [
-            'ACTIVE', 'PENDING', 'CLOSED', 'COMING_SOON', 'COMINGSOON',
-            'WITHDRAWN', 'EXPIRED', 'CANCELED', 'HOLD', 'INCOMPLETE'
+            'Active','ActiveUnderContract','Canceled','Closed','ComingSoon','Delete','Expired','Hold','Incomplete','Pending','Withdrawn',
+            'Cancelled','Coming Soon','Sold','Rented','Leased','Draft'
         ];
-        var statusElements = document.querySelectorAll('[data-reso-field="MlsStatus"]');
+        var statusElements = document.querySelectorAll('[data-reso-field="StandardStatus"]');
         var invalidCount = 0;
         var totalChecked = 0;
         var invalidValues = [];
@@ -1207,7 +1210,9 @@ function REBNYComplianceDoctor(options) {
             val = val.trim().toUpperCase();
             if (validStatuses.indexOf(val) === -1) { invalidCount++; invalidValues.push(val); }
         });
-        var statusCheckboxes = document.querySelectorAll('input[data-field="MlsStatus"]');
+        // Search filters provider inventory on StandardStatus, never MlsStatus (not filterable on this feed) —
+        // owner ruling 2026-09-08/09. The four Search status panels render data-field="StandardStatus".
+        var statusCheckboxes = document.querySelectorAll('input[data-field="StandardStatus"]');
         statusCheckboxes.forEach(function(cb) {
             var rawVal = (cb.getAttribute('data-value') || '');
             var vals = rawVal.split(',');
@@ -1355,15 +1360,17 @@ function REBNYComplianceDoctor(options) {
     (function test8_Commingling() {
         var resultCards = document.querySelectorAll('[data-listing-id]');
         var totalListings = resultCards.length;
-        var sourceLabeledCards = document.querySelectorAll('[data-source="REBNY-RLS"]');
+        // Verified source model (Search Consolidation Packet 1): every result card carries
+        // data-source="COTALITY-API" (provider inventory) or "MALLAN-LOCAL" (Mallan-authored).
+        var sourceLabeledCards = document.querySelectorAll('[data-source="COTALITY-API"], [data-source="MALLAN-LOCAL"]');
 
         if (totalListings === 0) {
             addResult(8, 'Commingling Prevention', 'PASS', 'No listings displayed — no commingling risk');
         } else if (sourceLabeledCards.length >= totalListings) {
-            addResult(8, 'Commingling Prevention', 'PASS', 'All ' + totalListings + ' listings have data-source labels');
+            addResult(8, 'Commingling Prevention', 'PASS', 'All ' + totalListings + ' listings carry a verified data-source label');
         } else {
             addResult(8, 'Commingling Prevention', 'FAIL',
-                (totalListings - sourceLabeledCards.length) + '/' + totalListings + ' listings lack data-source="REBNY-RLS" attribute — commingling risk');
+                (totalListings - sourceLabeledCards.length) + '/' + totalListings + ' listings lack a verified data-source (COTALITY-API | MALLAN-LOCAL) — commingling risk');
         }
     })();
 
@@ -1534,7 +1541,7 @@ function REBNYWiringTest(options) {
 
     // ── W1: Field Parity Test ──────────────────────────────────────────
     (function() {
-        var ALLOWED = ['SourceSystemKey','ListPrice','MlsStatus','PropertyType','PropertySubType','BedroomsTotal','BathroomsTotalInteger','LivingArea','YearBuilt','UnparsedAddress','City','StateOrProvince','PostalCode','Latitude','Longitude','ListAgentFullName','ListOfficeName','ListingAgreement','InternetEntireListingDisplayYN','InternetAddressDisplayYN','OwnerOptOut','ParticipantOnly','IDXEntireListingDisplayYN','SyndicateTo','ComingSoonTimestamp','ActivationDate','PublicRemarks','PrivateRemarks','ShowingInstructions','ListAgentEmail','ListAgentDirectPhone','MaintenanceFee','TaxAnnualAmount','CommonCharges','neighborhood','borough','photoCount','daysOnMarket','pricePerSqft','updatedDate','listedDate','buildingName','lotSize','stories','units','parkingFeatures','garageSpaces','listingCategory','CommonInterest','Ownership','PetsAllowed','LaundryFeatures','Amenities','CoolingYN','HeatingYN','FireplacesTotal','WaterfrontYN','ViewYN','TaxBlock','TaxLot','Zoning','FloorNumber','UnitNumber','Concessions','FinancialDataSource','AssociationFee','RentIncludes','NumberOfUnitsTotal','StoriesTotal','LotSizeArea','GarageYN','AssociationFee+TaxAnnualAmount','RoomsTotal','BathroomsFull','SubdivisionName','OnMarketDate','DaysOnMarket','CumulativeDaysOnMarket','OpenHouseDate','AssociationName','SecurityFeatures','PropertyCondition','PurchaseContractDate','BuyerFinancing','BuildingAreaTotal','PreviousListPrice','OriginalListPrice','PriceChangeTimestamp','ListAgentDirectPhone','PatioAndPorchFeatures','NewConstructionYN','SourceSystemModificationTimestamp','ListingId','EntryLevel','CrossStreet','Exposures','WalkScore','BathroomsHalf','BuildingName','CloseDate','ClosePrice','PhotosCount','VirtualTourURLBranded','View','Flooring','Cooling','Heating','ParkingFeatures','ParkingTotal','PetsAllowedYN','AssociationAmenities','InteriorFeatures'];
+        var ALLOWED = ['SourceSystemKey','ListPrice','MlsStatus','PropertyType','PropertySubType','BedroomsTotal','BathroomsTotalInteger','LivingArea','YearBuilt','UnparsedAddress','City','StateOrProvince','PostalCode','Latitude','Longitude','ListAgentFullName','ListOfficeName','ListingAgreement','InternetEntireListingDisplayYN','InternetAddressDisplayYN','OwnerOptOut','ParticipantOnly','SyndicateTo','ComingSoonTimestamp','ActivationDate','PublicRemarks','PrivateRemarks','ShowingInstructions','ListAgentEmail','ListAgentDirectPhone','MaintenanceFee','TaxAnnualAmount','CommonCharges','neighborhood','borough','photoCount','daysOnMarket','pricePerSqft','updatedDate','listedDate','buildingName','lotSize','stories','units','parkingFeatures','garageSpaces','listingCategory','CommonInterest','Ownership','PetsAllowed','LaundryFeatures','Amenities','CoolingYN','HeatingYN','FireplacesTotal','WaterfrontYN','ViewYN','TaxBlock','TaxLot','Zoning','FloorNumber','UnitNumber','Concessions','FinancialDataSource','AssociationFee','RentIncludes','NumberOfUnitsTotal','StoriesTotal','LotSizeArea','GarageYN','AssociationFee+TaxAnnualAmount','RoomsTotal','BathroomsFull','SubdivisionName','OnMarketDate','DaysOnMarket','CumulativeDaysOnMarket','OpenHouseDate','AssociationName','SecurityFeatures','PropertyCondition','PurchaseContractDate','BuyerFinancing','BuildingAreaTotal','PreviousListPrice','OriginalListPrice','PriceChangeTimestamp','ListAgentDirectPhone','PatioAndPorchFeatures','NewConstructionYN','SourceSystemModificationTimestamp','ListingId','EntryLevel','CrossStreet','Exposures','WalkScore','BathroomsHalf','BuildingName','CloseDate','ClosePrice','PhotosCount','VirtualTourURLBranded','View','Flooring','Cooling','Heating','ParkingFeatures','ParkingTotal','PetsAllowedYN','AssociationAmenities','InteriorFeatures'];
         var resoEls = document.querySelectorAll('[data-reso-field]');
         var unknown = [], seen = {};
         resoEls.forEach(function(el) {
@@ -1558,14 +1565,14 @@ function REBNYWiringTest(options) {
     // ── W2: Enum Integrity Test ────────────────────────────────────────
     (function() {
         var issues = [];
-        var VS = ['Active','Pending','Closed','ComingSoon','Coming Soon','COMING_SOON','COMINGSOON','Withdrawn','Expired','Canceled','Hold','Incomplete','ActiveUnderContract','ACTIVE','PENDING','CLOSED','WITHDRAWN','EXPIRED','CANCELED','HOLD','INCOMPLETE','ACTIVE_UNDER_CONTRACT'];
-        document.querySelectorAll('[data-reso-field="MlsStatus"][data-reso-value]').forEach(function(el) {
+        var VS = ['Active','ActiveUnderContract','Canceled','Closed','ComingSoon','Delete','Expired','Hold','Incomplete','Pending','Withdrawn','Cancelled','Coming Soon','Sold','Rented','Leased','Draft'];
+        document.querySelectorAll('[data-reso-field="StandardStatus"][data-reso-value]').forEach(function(el) {
             var val = el.getAttribute('data-reso-value');
             if (!val) return;
             val.split(',').forEach(function(v) { v = v.trim(); if (v && VS.indexOf(v) === -1) issues.push('Status:"' + v + '"'); });
         });
         var VB = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
-        document.querySelectorAll('[data-reso-field="borough"][data-reso-value]').forEach(function(el) {
+        document.querySelectorAll('[data-mallan-field="borough"][data-reso-value]').forEach(function(el) {
             var v = el.getAttribute('data-reso-value'); if (v && VB.indexOf(v) === -1) issues.push('Borough:"' + v + '"');
         });
         if (typeof listings !== 'undefined') {
@@ -1725,16 +1732,6 @@ function REBNYBehaviorTest(options) {
         if (status === 'PASS') passed++; else if (status === 'FAIL') failed++; else if (status !== 'SKIP') warnings++;
     }
 
-    // ── B1: Zero-Result Test (ACTIVE) ──────────────────────────────────
-    (function() {
-        if (!runActive) { addResult('B1', 'Zero-Result', 'SKIP', 'Active test — click "Run Active Tests"'); return; }
-        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('B1', 'Zero-Result', 'FAIL', 'Required: filterListings function and listings array both must exist'); return; }
-        var r = filterListings(listings, { priceMin: 999999999, priceMax: 1, searchTab: 'sale' });
-        var noErr = true;
-        try { r.slice().sort(function(a,b){return a.price-b.price;}); } catch(e) { noErr = false; }
-        addResult('B1', 'Zero-Result', (r.length === 0 && noErr) ? 'PASS' : 'FAIL', r.length === 0 ? 'Impossible criteria → 0 results, no error' : 'Got ' + r.length + ' results');
-    })();
-
     // ── B2: High Volume Test (ACTIVE) ──────────────────────────────────
     (function() {
         if (!runActive) { addResult('B2', 'High Volume', 'SKIP', 'Active test — click "Run Active Tests"'); return; }
@@ -1825,13 +1822,16 @@ function REBNYComplianceExtended(options) {
 
     // ── C1: Source Separation ──────────────────────────────────────────
     (function() {
-        var rls = document.querySelectorAll('[data-source="REBNY-RLS"]');
+        // Verified source model (Search Consolidation Packet 1): provider inventory is
+        // data-source="COTALITY-API", Mallan-authored inventory is "MALLAN-LOCAL".
+        var provider = document.querySelectorAll('[data-source="COTALITY-API"]');
+        var mallan = document.querySelectorAll('[data-source="MALLAN-LOCAL"]');
         var allSrc = document.querySelectorAll('[data-source]');
         var allCards = document.querySelectorAll('[data-listing-id]');
         var issues = [];
         if (allCards.length > 0 && allSrc.length < allCards.length) issues.push((allCards.length - allSrc.length) + ' unlabeled');
-        if (rls.length > 0 && document.body.innerHTML.indexOf('REBNY') === -1) issues.push('RLS without attribution');
-        addResult('C1', 'Source Separation', issues.length === 0 ? 'PASS' : 'FAIL', issues.length === 0 ? allSrc.length + ' labeled (RLS:' + rls.length + ')' : issues.join('; '));
+        if (provider.length > 0 && document.body.innerHTML.indexOf('Real Estate Board of New York') === -1) issues.push('provider inventory without attribution');
+        addResult('C1', 'Source Separation', issues.length === 0 ? 'PASS' : 'FAIL', issues.length === 0 ? allSrc.length + ' labeled (provider:' + provider.length + ', Mallan:' + mallan.length + ')' : issues.join(', '));
     })();
 
     // ── C2: Print CSS Test ─────────────────────────────────────────────
@@ -2440,7 +2440,7 @@ function SourceIntegrityTests(options) {
     // SRC-02: Unknown / invalid enum tokens → FAIL
     (function() {
         if (typeof listings === 'undefined') { addResult('SRC-02', 'Enum Token Validity', 'FAIL', 'listings undefined'); return; }
-        var VS = ['Active','Pending','Closed','ComingSoon','Coming Soon','Withdrawn','Expired','Canceled','Hold','Incomplete','ActiveUnderContract','ACTIVE','PENDING','CLOSED','COMING_SOON','COMINGSOON','WITHDRAWN','EXPIRED','CANCELED','HOLD','INCOMPLETE','ACTIVE_UNDER_CONTRACT'];
+        var VS = ['Active','ActiveUnderContract','Canceled','Closed','ComingSoon','Delete','Expired','Hold','Incomplete','Pending','Withdrawn','Cancelled','Coming Soon','Sold','Rented','Leased','Draft'];
         var VB = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
         var VC = ['sale','rental','Sale','Rental'];
         var violations = [];
@@ -2698,77 +2698,10 @@ function AllowlistLeakTests(options) {
 }
 
 // ─── S: SEARCH CORRECTNESS TESTS (4) ──────────────────────────────────────
-function SearchCorrectnessTests(options) {
-    options = options || {};
-    var runActive = options.runActive || false;
-    var results = [], passed = 0, failed = 0, warnings = 0;
-    function addResult(id, name, status, detail) {
-        results.push({ test: id, name: name, status: status, detail: detail });
-        if (status === 'PASS') passed++; else if (status === 'FAIL') failed++; else if (status !== 'SKIP') warnings++;
-    }
-
-    // S1: Type coercion test (ACTIVE)
-    (function() {
-        if (!runActive) { addResult('S1', 'Type Coercion', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('S1', 'Type Coercion', 'FAIL', 'Required: filterListings and listings must exist'); return; }
-        var numResult = filterListings(listings, { priceMin: 1000000, priceMax: 3000000, searchTab: 'sale' });
-        var strResult = filterListings(listings, { priceMin: '1000000', priceMax: '3000000', searchTab: 'sale' });
-        var numIds = numResult.map(function(l) { return l.id; }).sort();
-        var strIds = strResult.map(function(l) { return l.id; }).sort();
-        var match = numIds.length === strIds.length && numIds.every(function(id, i) { return id === strIds[i]; });
-        addResult('S1', 'Type Coercion', match ? 'PASS' : 'FAIL',
-            match ? 'String vs number criteria → same ' + numIds.length + ' results' : 'Mismatch: number=' + numIds.length + ' vs string=' + strIds.length);
-    })();
-
-    // S2: Range normalization (ACTIVE)
-    (function() {
-        if (!runActive) { addResult('S2', 'Range Normalization', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('S2', 'Range Normalization', 'FAIL', 'Required: filterListings and listings must exist'); return; }
-        var noErr = true, result = [];
-        try { result = filterListings(listings, { priceMin: 5000000, priceMax: 100000, searchTab: 'sale' }); } catch(e) { noErr = false; }
-        addResult('S2', 'Range Normalization', noErr ? 'PASS' : 'FAIL',
-            noErr ? 'Min>Max handled gracefully → ' + result.length + ' results (no crash)' : 'Exception thrown on inverted range');
-    })();
-
-    // S3: Multi-select AND/OR semantics (ACTIVE)
-    (function() {
-        if (!runActive) { addResult('S3', 'Multi-Select Semantics', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('S3', 'Multi-Select Semantics', 'FAIL', 'Required: filterListings and listings must exist'); return; }
-        var saleOnly = filterListings(listings, { searchTab: 'sale' });
-        var checks = [], issues = [];
-        // Property type multi-select should be OR (broader results)
-        if (saleOnly.length > 0) {
-            var types = {};
-            saleOnly.forEach(function(l) { if (l.propertyType) types[l.propertyType] = true; });
-            var typeKeys = Object.keys(types);
-            if (typeKeys.length >= 2) {
-                var single = filterListings(listings, { searchTab: 'sale', propertyTypes: [typeKeys[0]] });
-                var multi = filterListings(listings, { searchTab: 'sale', propertyTypes: [typeKeys[0], typeKeys[1]] });
-                if (multi.length >= single.length) checks.push('type-OR(' + single.length + '→' + multi.length + ')');
-                else issues.push('Multi-type returned fewer results (AND instead of OR?)');
-            } else { checks.push('single-type-only'); }
-        }
-        addResult('S3', 'Multi-Select Semantics', issues.length === 0 ? 'PASS' : 'FAIL',
-            issues.length > 0 ? issues.join('; ') : checks.join(', '));
-    })();
-
-    // S4: Duplicate suppression test (ACTIVE)
-    (function() {
-        if (!runActive) { addResult('S4', 'Duplicate Suppression', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof getFilteredListings !== 'function') { addResult('S4', 'Duplicate Suppression', 'FAIL', 'getFilteredListings function missing — required for duplicate check'); return; }
-        var all = getFilteredListings(true);
-        var ids = all.map(function(l) { return l.id; });
-        var unique = {};
-        var dupes = [];
-        ids.forEach(function(id) {
-            if (unique[id]) dupes.push(id);
-            unique[id] = true;
-        });
-        addResult('S4', 'Duplicate Suppression', dupes.length === 0 ? 'PASS' : 'FAIL',
-            dupes.length === 0 ? ids.length + ' listings, 0 duplicates' : dupes.length + ' duplicate IDs: ' + dupes.slice(0, 5).join(','));
-    })();
-
-    return { mode: 'search_correctness', results: results, summary: { passed: passed, failed: failed, warnings: warnings, total: results.length } };
+// SearchCorrectnessTests — a browser-local oracle for Search membership — was REMOVED
+// (Search Consolidation Packet 1). Search correctness is proven against the canonical executor.
+function SearchCorrectnessTests() {
+    return { mode: 'search_correctness', results: [], summary: { passed: 0, failed: 0, warnings: 0, total: 0 }, removed: true };
 }
 
 // ─── X: SECURITY HARDENING V2 (3) ─────────────────────────────────────────
@@ -2988,8 +2921,10 @@ function AccessibilityRESOPerfTests(options) {
     // RESO3: Enumeration enforcement
     (function() {
         if (typeof listings === 'undefined') { addResult('RESO3', 'Enum Enforcement', 'FAIL', 'listings undefined — required test data missing'); return; }
-        var validStatuses = ['Active','Pending','Closed','ComingSoon','Coming Soon','Withdrawn','Expired','Canceled','Hold','Incomplete','ActiveUnderContract',
-            'ACTIVE','PENDING','CLOSED','COMING_SOON','COMINGSOON','WITHDRAWN','EXPIRED','CANCELED','HOLD','INCOMPLETE','ACTIVE_UNDER_CONTRACT'];
+        var validStatuses = [
+            'Active','ActiveUnderContract','Canceled','Closed','ComingSoon','Delete','Expired','Hold','Incomplete','Pending','Withdrawn',
+            'Cancelled','Coming Soon','Sold','Rented','Leased','Draft'
+        ];
         var validBoroughs = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
         var validCategories = ['sale','rental','Sale','Rental'];
         var issues = [];
@@ -3038,42 +2973,6 @@ function MutationRegressionTests(options) {
         if (status === 'PASS') passed++; else if (status === 'FAIL') failed++; else if (status !== 'SKIP') warnings++;
     }
 
-    // R1: Golden snapshot stability (ACTIVE)
-    (function() {
-        if (!runActive) { addResult('R1', 'Golden Snapshot', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('R1', 'Golden Snapshot', 'FAIL', 'Required: filterListings and listings must exist'); return; }
-        // 5 canonical test cases
-        var cases = [
-            { name: 'All sales', criteria: { searchTab: 'sale' } },
-            { name: 'All rentals', criteria: { searchTab: 'rent' } },
-            { name: 'Sales $1-3M', criteria: { searchTab: 'sale', priceMin: 1000000, priceMax: 3000000 } },
-            { name: 'Manhattan only', criteria: { searchTab: 'sale', boroughs: ['Manhattan'] } },
-            { name: '2+ beds', criteria: { searchTab: 'sale', bedsMin: 2 } }
-        ];
-        var snapKey = 'golden_snapshot_v1';
-        var current = {};
-        cases.forEach(function(c) {
-            var r = filterListings(listings, c.criteria);
-            current[c.name] = { count: r.length, ids: r.slice(0, 5).map(function(l) { return l.id; }).join(',') };
-        });
-        var prev = null;
-        try { prev = JSON.parse(localStorage.getItem(snapKey)); } catch(e) {}
-        localStorage.setItem(snapKey, JSON.stringify(current));
-        if (!prev) {
-            addResult('R1', 'Golden Snapshot', 'PASS', 'Baseline captured: ' + cases.length + ' cases');
-        } else {
-            var diffs = [];
-            cases.forEach(function(c) {
-                var p = prev[c.name], cur = current[c.name];
-                if (!p) { diffs.push(c.name + ': NEW'); return; }
-                if (p.count !== cur.count) diffs.push(c.name + ': count ' + p.count + '→' + cur.count);
-                else if (p.ids !== cur.ids) diffs.push(c.name + ': order changed');
-            });
-            addResult('R1', 'Golden Snapshot', diffs.length === 0 ? 'PASS' : 'FAIL',
-                diffs.length === 0 ? cases.length + ' cases stable against golden snapshot' : 'REGRESSION: ' + diffs.join('; '));
-        }
-    })();
-
     // R2: Break injection — red-team compliance gates (ACTIVE)
     (function() {
         if (!runActive) { addResult('R2', 'Break Injection', 'SKIP', 'Active — click Run Active'); return; }
@@ -3100,33 +2999,6 @@ function MutationRegressionTests(options) {
             'Caught: ' + caught.join(', ') + (missed.length > 0 ? ' | Missed: ' + missed.join(', ') : ''));
     })();
 
-    // R3: Fuzz test — random criteria (ACTIVE)
-    (function() {
-        if (!runActive) { addResult('R3', 'Fuzz Test', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('R3', 'Fuzz Test', 'FAIL', 'Required: filterListings and listings must exist'); return; }
-        var errors = 0, runs = 100, dupRuns = 0;
-        var boroughs = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island'];
-        for (var i = 0; i < runs; i++) {
-            var criteria = {
-                searchTab: Math.random() > 0.5 ? 'sale' : 'rent',
-                priceMin: Math.floor(Math.random() * 5000000),
-                priceMax: Math.floor(Math.random() * 10000000),
-                bedsMin: Math.floor(Math.random() * 5),
-                boroughs: Math.random() > 0.5 ? [boroughs[Math.floor(Math.random() * boroughs.length)]] : undefined
-            };
-            try {
-                var result = filterListings(listings, criteria);
-                // Check for duplicates
-                var ids = {};
-                result.forEach(function(l) {
-                    if (ids[l.id]) dupRuns++;
-                    ids[l.id] = true;
-                });
-            } catch(e) { errors++; }
-        }
-        addResult('R3', 'Fuzz Test', errors === 0 && dupRuns === 0 ? 'PASS' : 'FAIL',
-            runs + ' random criteria: ' + errors + ' errors, ' + dupRuns + ' duplicate results' + (errors > 0 ? ' — filterListings threw exceptions' : '') + (dupRuns > 0 ? ' — duplicate IDs in results' : ''));
-    })();
 
     return { mode: 'regression', results: results, summary: { passed: passed, failed: failed, warnings: warnings, total: results.length } };
 }

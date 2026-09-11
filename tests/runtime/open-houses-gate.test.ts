@@ -13,6 +13,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { evaluateDisplayGate } from '@/lib/compliance/gates';
+import { OPEN_HOUSE_SELECT_FIELDS } from '@/lib/open-houses/upcoming-open-houses';
 
 const ROUTE = readFileSync(resolve(__dirname, '../../app/api/open-houses/route.ts'), 'utf8');
 const CARD = readFileSync(resolve(__dirname, '../../app/components/OpenHousesList.tsx'), 'utf8');
@@ -57,7 +58,8 @@ describe('open-houses — local path honors website-only (rls_eligible=false) by
 
 describe('open-houses — only ACTIVE Cotality open houses display (P1)', () => {
   it('both Trestle feed filters require OpenHouseStatus eq Active (no cancelled OH)', () => {
-    const actives = ROUTE.match(/OpenHouseType eq 'Public' and OpenHouseStatus eq 'Active'/g) || [];
+    // The public-only filter is the shared OPEN_HOUSE_PUBLIC_FILTER (lib/open-houses/upcoming-open-houses.ts).
+    const actives = ROUTE.match(/\$\{OPEN_HOUSE_PUBLIC_FILTER\}/g) || [];
     expect(actives.length).toBe(2); // $expand path + flat fallback path
   });
 });
@@ -154,8 +156,10 @@ describe('open-houses card — photo loads via native <img> (next/image optimize
 
 describe('open-houses — By Appointment designation surfaces (public API + /open-houses card + sidebar)', () => {
   it('API selects the Cotality appointment signal AppointmentRequiredYN (both Trestle paths)', () => {
-    const sel = ROUTE.match(/AppointmentRequiredYN/g) || [];
-    expect(sel.length).toBeGreaterThanOrEqual(2); // $expand $select + flat $select (+ DTO derivations)
+    // Both Trestle paths send the one OpenHouse select, which carries AppointmentRequiredYN.
+    const sel = ROUTE.match(/OPEN_HOUSE_SELECT_FIELDS\.join/g) || [];
+    expect(sel.length).toBeGreaterThanOrEqual(2); // $expand path + flat path
+    expect(OPEN_HOUSE_SELECT_FIELDS).toContain('AppointmentRequiredYN');
   });
   it('API derives openHouseType from the canonical resolver on all 3 paths, not the raw field', () => {
     const derived = ROUTE.match(/openHouseType:\s*resolvePublicOpenHouseType\(/g) || [];

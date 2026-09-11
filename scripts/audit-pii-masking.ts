@@ -12,7 +12,7 @@
 //   1. Find every public-facing GET route under app/api/ that returns
 //      listing data (heuristic: NextResponse.json containing listing fields).
 //   2. For each, verify EITHER:
-//        a) It goes through toPublicDTO() / sanitizeForVOW() / displayAdapter, OR
+//        a) It goes through the canonical public projection / sanitizeForVOW() / displayAdapter, OR
 //        b) It is explicitly authenticated as agent/broker (requireAgentOrBroker).
 //   3. Scan public components for direct render of HID fields.
 //
@@ -60,7 +60,7 @@ const AUTH_GATES = [
 
 // Markers indicating PII has been sanitized.
 const SANITIZE_MARKERS = [
-  /toPublicDTO/,
+  /cotalityRecordToPublicDTO|cotalityRecordsToPublicDTOs|dbListingToPublicDTO/,
   /sanitizeForVOW/,
   /toPortalDTO/,
   /maskAgentPII/,

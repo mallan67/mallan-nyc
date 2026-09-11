@@ -37,8 +37,9 @@ describe('Agent-page listing card — exclusive vs RLS attribution', () => {
     expect(tabs).toContain('Exclusive listing by Mallan Real Estate Inc.');
   });
 
-  it('third-party → keeps the required RLS courtesy line', () => {
-    expect(tabs).toMatch(/RLS · Listing Courtesy of \$\{listing\.listOfficeName \|\| 'Mallan Real Estate Inc\.'\}/);
+  it('third-party → keeps the required RLS courtesy line, falling back to the NEUTRAL attribution (never Mallan — a third-party listing is not ours)', () => {
+    expect(tabs).toMatch(/RLS · Listing Courtesy of \$\{publicListOfficeName\(listing\.listOfficeName\)\}/);
+    expect(tabs).not.toMatch(/listOfficeName \|\| 'Mallan Real Estate Inc\.'/);
   });
 
   it('the RLS courtesy line is no longer hardcoded unconditionally', () => {

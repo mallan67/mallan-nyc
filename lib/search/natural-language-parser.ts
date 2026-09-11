@@ -143,10 +143,9 @@ const AMENITY_MAP: Record<string, AmenityFilter> = {
   'gut renovated': 'renovated',
   'move-in ready': 'renovated',
   'move in ready': 'renovated',
-  // no-fee and no broker fee are handled by lingo (matchLingo) — kept here
-  // as fallback in case lingo doesn't catch them
-  'no fee': 'no-fee',
-  'no broker fee': 'no-fee',
+  // 'no fee' / 'no broker fee' are recognised by lingo (matchLingo) and add NO criterion: under the FARE
+  // Act every rental that reaches IDX display is landlord-paid, and the feed carries no fee-payer field
+  // (ListingTerms has 0 rows) — see lib/search/types.ts (Domain 6, 2026-09-08).
 };
 
 // ── Keyword patterns (matched as keywords for PublicRemarks text search) ──

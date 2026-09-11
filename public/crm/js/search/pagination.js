@@ -1,21 +1,40 @@
-        // Pagination functions — use getFilteredListings(true) to get total count without pagination
-        function goToFirstPage() { searchResultsState.currentPage = 1; renderSearchResults(); }
-        function goToPrevPage() { if (searchResultsState.currentPage > 1) { searchResultsState.currentPage--; renderSearchResults(); } }
-        function goToNextPage() {
-            var total = Math.ceil(getFilteredListings(true).length / searchResultsState.perPage);
-            if (searchResultsState.currentPage < total) { searchResultsState.currentPage++; renderSearchResults(); }
+        // Pagination — every page is the executor's page (Search Consolidation Packet 1).
+        function goToFirstPage() { if (window.goToServerPage) goToServerPage(1); }
+        function goToPrevPage() { if (window.goToServerPage) goToServerPage((searchResultsState.currentPage || 1) - 1); }
+        function goToNextPage() { if (window.goToServerPage) goToServerPage((searchResultsState.currentPage || 1) + 1); }
+        function goToLastPage() { if (window.goToServerPage) goToServerPage(Math.ceil((searchResultsState.serverTotal || 0) / (searchResultsState.perPage || 50))); }
+        function changePerPage() {
+            searchResultsState.perPage = parseInt(document.getElementById('perPageSelect').value); searchResultsState.currentPage = 1;
+            if (window.reissueServerSearch) reissueServerSearch();
         }
-        function goToLastPage() { searchResultsState.currentPage = Math.ceil(getFilteredListings(true).length / searchResultsState.perPage); renderSearchResults(); }
-        function changePerPage() { searchResultsState.perPage = parseInt(document.getElementById('perPageSelect').value); searchResultsState.currentPage = 1; renderSearchResults(); }
 
-        // Column sort toggle
+        // ── Column sort ───────────────────────────────────────────────────────────────────────────────
+        // The executor sorts the WHOLE universe and hands back one ordered page; the browser never re-sorts
+        // a page. It can express exactly three orders (_serverSortKey: newest | price_asc | price_desc), so
+        // only the two columns behind them are sortable. Clicking any other header used to mutate
+        // searchResultsState.sortField, re-render the same page in the same order (no visible change), and
+        // then silently re-ask the executor in price_desc on the next page turn.
+        var SORTABLE_COLUMNS = { price: 1, listedDate: 1 };
+        window.SORTABLE_COLUMNS = SORTABLE_COLUMNS;
+        function isSortableColumn(field) { return !!SORTABLE_COLUMNS[field]; }
+        window.isSortableColumn = isSortableColumn;
+
         function toggleColumnSort(field) {
+            if (!isSortableColumn(field)) {
+                if (typeof showToast === 'function') {
+                    showToast('This Search can order results by price or by newest only — ' + field + ' is not a sortable column.', 'info');
+                }
+                return;
+            }
             if (searchResultsState.sortField === field) {
                 searchResultsState.sortOrder = searchResultsState.sortOrder === 'asc' ? 'desc' : 'asc';
             } else {
                 searchResultsState.sortField = field;
-                searchResultsState.sortOrder = 'asc';
+                searchResultsState.sortOrder = field === 'listedDate' ? 'desc' : 'asc';
             }
+            // Re-ask the executor for page 1 in the new order. A local re-render would show a page that is
+            // ordered differently from the universe the next page comes out of.
+            if (typeof reissueServerSearch === 'function' && reissueServerSearch()) return;
             renderSearchResults();
         }
 
@@ -49,7 +68,12 @@
 
         // Open listing detail in a standalone new browser tab
         function openListingInNewTab(listingId) {
-            window.open(location.pathname + '#detail/' + listingId, '_blank');
+            // The executor binds every listing to its universe (Sale or Rental); the
+            // detail view must ask for it in that universe — never a bare id.
+            var l = (typeof listings !== 'undefined') ? listings.find(function(x) { return x.id === listingId; }) : null;
+            var type = l ? (l.listingCategory === 'rental' ? 'rental' : 'sale')
+                         : ((typeof currentSearchTab !== 'undefined' && currentSearchTab === 'rent') ? 'rental' : 'sale');
+            window.open(location.pathname + '#detail/' + encodeURIComponent(listingId) + '?type=' + type, '_blank');
         }
 
         var _detailCurrentId = null;
@@ -60,16 +84,9 @@
             try {
             var listing = listings.find(l => l.id === listingId);
             if (!listing) return;
-            // Null-safe defaults for detail view rendering
-            if (listing.price == null) listing.price = 0;
-            if (listing.totalMonthly == null) listing.totalMonthly = 0;
-            if (listing.maintCC == null) listing.maintCC = 0;
-            if (listing.reTaxes == null) listing.reTaxes = 0;
-            if (listing.beds == null) listing.beds = 0;
-            if (listing.baths == null) listing.baths = 0;
-            if (listing.rooms == null) listing.rooms = 0;
-            if (listing.dom == null) listing.dom = 0;
-            if (!listing.status) listing.status = 'ACTIVE';
+            // Unknown facts stay unknown in the detail view (Search Consolidation Packet 1
+            // closure): no price/fee/tax/beds/baths/rooms/DOM is ever coerced to 0 and no
+            // missing status becomes Active. Presentation strings below only default text.
             if (!listing.address) listing.address = 'Address Unavailable';
             if (!listing.unit) listing.unit = '';
             if (!listing.neighborhood) listing.neighborhood = '';
@@ -96,8 +113,18 @@
             }
             var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
             var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + escapeHtml(listing.unit) : '';
-            var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
+            // The transaction's broker word, from THE status authority. This used to print the raw internal
+            // token (and mapped only the retired 'COMING_SOON' spelling), so a rental closing read "CLOSED".
+            var statusLabel = (typeof MallanStatus !== 'undefined' && MallanStatus)
+                ? MallanStatus.label(listing)
+                : (listing.status_label || 'Status unavailable');
             var isSale = listing.listingCategory !== 'rental';
+            // Money that may legitimately be null. price / maintCC / totalMonthly are ALL nullable in the
+            // executor DTO, and calling .toLocaleString() on a null threw a TypeError that the blanket
+            // catch below swallowed — the drawer then rendered nothing at all, with no error to the user.
+            function _money(v) {
+                return (typeof v === 'number' && isFinite(v)) ? '$' + v.toLocaleString() : 'Unavailable';
+            }
             var transitScore = computeTransitScore(listing);
             var bikeScore = computeBikeScore(listing);
             var photos = listing.images || [];
@@ -115,11 +142,11 @@
 
             // Header right: status + price + financials
             document.getElementById('detailHeaderRight').innerHTML =
-                '<span class="px-2 py-0.5 ' + getStatusBadgeClasses(listing.status) + ' rounded text-xs font-semibold">' + statusLabel + '</span>'
-                + '<span class="text-lg font-bold ml-2">$' + listing.price.toLocaleString() + '</span>'
+                '<span class="px-2 py-0.5 ' + getStatusBadgeClasses(listing.status) + ' rounded text-xs font-semibold">' + escapeHtml(statusLabel) + '</span>'
+                + '<span class="text-lg font-bold ml-2">' + _money(listing.price) + '</span>'
                 + '<div class="flex items-center gap-4 ml-4 text-xs text-gray-500">'
-                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400">' + (isSale ? 'Maintenance' : 'Rent') + '</div><div class="font-semibold text-gray-700">$' + listing.maintCC.toLocaleString() + '</div></div>'
-                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400">Est. Monthly</div><div class="font-semibold text-gray-700">$' + listing.totalMonthly.toLocaleString() + ' <i class="fas fa-calculator text-gray-400"></i></div></div>'
+                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400">' + (isSale ? 'Maintenance' : 'Rent') + '</div><div class="font-semibold text-gray-700">' + _money(listing.maintCC) + '</div></div>'
+                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400">Est. Monthly</div><div class="font-semibold text-gray-700">' + _money(listing.totalMonthly) + ' <i class="fas fa-calculator text-gray-400"></i></div></div>'
                 + '</div>';
 
             // ── Helper: only show a field row if it has real data ──
@@ -175,7 +202,7 @@
                 <div class="lux-stat-bar mb-4">
                     <div class="lux-stat-item"><div class="lux-stat-value">${listing.rooms || '—'}</div><div class="lux-stat-label">Rooms</div></div>
                     <div class="lux-stat-item"><div class="lux-stat-value">${listing.beds === 0 ? 'Studio' : listing.beds}</div><div class="lux-stat-label">Beds</div></div>
-                    <div class="lux-stat-item"><div class="lux-stat-value">${listing.baths}</div><div class="lux-stat-label">Baths</div></div>
+                    <div class="lux-stat-item"><div class="lux-stat-value">${listing.baths == null ? '—' : listing.baths}</div><div class="lux-stat-label">Baths</div></div>
                     <div class="lux-stat-item"><div class="lux-stat-value">${listing.intSqft ? listing.intSqft.toLocaleString() : '—'}</div><div class="lux-stat-label">SqFt</div></div>
                     <div class="lux-stat-item"><div class="lux-stat-value">${listing.intSqft ? '$' + Math.round(listing.price / listing.intSqft).toLocaleString() : '—'}</div><div class="lux-stat-label">$/SqFt</div></div>
                 </div>
@@ -201,8 +228,8 @@
                         <div class="lux-card mb-4">
                             <div class="grid grid-cols-5 gap-3 text-xs">
                                 <div><div class="text-gray-400 uppercase text-[9px] font-semibold mb-0.5">Status</div><span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-[10px] font-semibold">${statusLabel}</span></div>
-                                <div><div class="text-gray-400 uppercase text-[9px] font-semibold mb-0.5">DOM</div><div class="text-sm font-bold text-gray-900">${listing.dom}</div></div>
-                                <div><div class="text-gray-400 uppercase text-[9px] font-semibold mb-0.5">CDOM</div><div class="text-sm font-bold text-gray-900">${listing.cdom || listing.dom}</div></div>
+                                <div><div class="text-gray-400 uppercase text-[9px] font-semibold mb-0.5">DOM</div><div class="text-sm font-bold text-gray-900">${listing.dom == null ? '—' : listing.dom}</div></div>
+                                <div><div class="text-gray-400 uppercase text-[9px] font-semibold mb-0.5">CDOM</div><div class="text-sm font-bold text-gray-900">${listing.cdom != null ? listing.cdom : (listing.dom == null ? '—' : listing.dom)}</div></div>
                                 <div><div class="text-gray-400 uppercase text-[9px] font-semibold mb-0.5">Listed</div><div class="text-xs font-semibold text-gray-700">${listing.listedDate}</div></div>
                                 <div><div class="text-gray-400 uppercase text-[9px] font-semibold mb-0.5">Updated</div><div class="text-xs font-semibold text-gray-700">${listing.updatedDate || '—'}</div></div>
                             </div>
@@ -212,11 +239,11 @@
                         <div class="lux-card mb-4">
                             <h3 class="lux-section-title"><i class="fas fa-dollar-sign text-gray-400"></i> Financial</h3>
                             <div class="grid grid-cols-3 gap-x-6 gap-y-1 text-sm">
-                                <div class="lux-field"><span>${isSale ? 'List Price' : 'Monthly Rent'}</span><span class="text-base font-bold">$${listing.price.toLocaleString()}</span></div>
+                                <div class="lux-field"><span>${isSale ? 'List Price' : 'Monthly Rent'}</span><span class="text-base font-bold">${listing.price == null ? '—' : '$' + listing.price.toLocaleString()}</span></div>
                                 ${listing.originalPrice && listing.originalPrice !== listing.price ? '<div class="lux-field"><span>Original Price</span><span class="text-red-600">$' + listing.originalPrice.toLocaleString() + '</span></div>' : ''}
-                                <div class="lux-field"><span>${isSale ? 'Maint/CC' : 'Net Effective'}</span><span>$${listing.maintCC.toLocaleString()}/mo</span></div>
+                                <div class="lux-field"><span>${isSale ? 'Maint/CC' : 'Net Effective'}</span><span>${listing.maintCC == null ? '—' : '$' + listing.maintCC.toLocaleString() + '/mo'}</span></div>
                                 ${listing.reTaxes ? '<div class="lux-field"><span>RE Taxes</span><span>$' + listing.reTaxes.toLocaleString() + '/mo</span></div>' : ''}
-                                <div class="lux-field"><span>Est. Total Monthly</span><span class="text-green-700 font-bold">$${listing.totalMonthly.toLocaleString()}/mo</span></div>
+                                <div class="lux-field"><span>Est. Total Monthly</span><span class="text-green-700 font-bold">${listing.totalMonthly == null ? '—' : '$' + listing.totalMonthly.toLocaleString()}/mo</span></div>
                                 ${listing.intSqft ? '<div class="lux-field"><span>$/SqFt</span><span>$' + Math.round(listing.price / listing.intSqft).toLocaleString() + '</span></div>' : ''}
                                 ${listing.rooms ? '<div class="lux-field"><span>$/Room</span><span>$' + Math.round(listing.price / listing.rooms).toLocaleString() + '</span></div>' : ''}
                                 ${isSale ? '<div class="lux-field"><span>Financing</span><span>---</span></div><div class="lux-field"><span>Flip Tax</span><span>---</span></div>' : ''}
@@ -291,11 +318,11 @@
                                 <div class="grid grid-cols-3 gap-x-8">
                                     <!-- Col 1: Price / Financial -->
                                     <div class="space-y-2 text-sm">
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">${isSale ? 'List Price' : 'Monthly Rent'}</span><span class="font-semibold">$${listing.price.toLocaleString()}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Original Price</span><span class="font-semibold">${listing.originalPrice ? '$' + listing.originalPrice.toLocaleString() : '$' + listing.price.toLocaleString()}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">${isSale ? 'List Price' : 'Monthly Rent'}</span><span class="font-semibold">${listing.price == null ? '—' : '$' + listing.price.toLocaleString()}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Original Price</span><span class="font-semibold">${listing.originalPrice ? '$' + listing.originalPrice.toLocaleString() : (listing.price == null ? '—' : '$' + listing.price.toLocaleString())}</span></div>
                                         ${isSale ? '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Maintenance / CC</span><span class="font-semibold">$' + listing.maintCC.toLocaleString() + '</span></div>' : '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Net Effective Rent</span><span class="font-semibold">---</span></div>'}
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">RE Taxes</span><span class="font-semibold">${listing.reTaxes ? '$' + listing.reTaxes.toLocaleString() + '/mo' : '---'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Est. Total Monthly</span><span class="font-semibold">$${listing.totalMonthly.toLocaleString()}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Est. Total Monthly</span><span class="font-semibold">${listing.totalMonthly == null ? '—' : '$' + listing.totalMonthly.toLocaleString()}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">$ Per SqFt</span><span class="font-semibold">${listing.intSqft ? '$' + Math.round(listing.price / listing.intSqft).toLocaleString() : '---'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">$ Per Room</span><span class="font-semibold">${listing.rooms ? '$' + Math.round(listing.price / listing.rooms).toLocaleString() : '---'}</span></div>
                                         ${isSale ? '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Shares</span><span class="font-semibold">---</span></div>' : '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Security Deposit</span><span class="font-semibold">---</span></div>'}
@@ -330,8 +357,8 @@
                                     <!-- Col 3: Status / Dates / IDs -->
                                     <div class="space-y-2 text-sm">
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Status</span><span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-xs font-semibold">${statusLabel}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Days on Market</span><span class="font-semibold text-blue-600">${listing.dom}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Cumulative DOM</span><span class="font-semibold">${listing.cdom || listing.dom}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Days on Market</span><span class="font-semibold text-blue-600">${listing.dom == null ? '—' : listing.dom}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Cumulative DOM</span><span class="font-semibold">${listing.cdom != null ? listing.cdom : (listing.dom == null ? '—' : listing.dom)}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Updated Date</span><span class="font-semibold">${listing.updatedDate || '---'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Date Listed</span><span class="font-semibold">${listing.listedDate}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">${isSale ? 'Available for Showing' : 'Available Date'}</span><span class="font-semibold">---</span></div>
@@ -364,7 +391,7 @@
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Approx Exterior SqFt</span><span class="font-semibold">---</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Ceiling Height</span><span class="font-semibold">---</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Total Rooms</span><span class="font-semibold">${listing.rooms || '---'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Bedrooms</span><span class="font-semibold">${listing.beds}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Bedrooms</span><span class="font-semibold">${listing.beds == null ? '—' : listing.beds}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Full Bathrooms</span><span class="font-semibold">${listing.fullBaths || listing.baths}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Half Bathrooms</span><span class="font-semibold">${listing.halfBaths || 0}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Staff Bedrooms</span><span class="font-semibold">---</span></div>
@@ -1066,13 +1093,15 @@
             var nearbyListings = allListings.filter(function(l) { return l.id !== listing.id && l.neighborhood !== listing.neighborhood; }).slice(0, 3);
             var renderMiniCard = function(l) {
                 var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address);
-                var st = l.status === 'COMING_SOON' ? 'CS' : l.status;
+                var st = (typeof MallanStatus !== 'undefined' && MallanStatus)
+                    ? MallanStatus.label(l)
+                    : (l.status_label || 'Status unavailable');
                 return '<div class="border rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onclick="openListingInNewTab(\'' + l.id + '\')">'
                     + '<div class="h-[140px] cm-photo-wrap"><img src="' + getListingPhoto(l) + '" alt="' + addr + '" class="cm-photo" loading="lazy"></div>'
                     + '<div class="p-3"><div class="font-semibold text-sm truncate">' + addr + (l.unit ? ', ' + escapeHtml(l.unit) : '') + '</div>'
                     + '<div class="text-xs text-gray-500 mt-0.5">' + ownershipLabel(l.ownership) + ' <span class="text-gray-300">|</span> ' + escapeHtml(l.neighborhood) + '</div>'
                     + '<div class="text-xs mt-1"><strong>' + l.beds + '</strong> Beds &nbsp; <strong>' + l.baths + '</strong> Baths</div>'
-                    + '<div class="flex items-center justify-between mt-2"><div class="flex items-center gap-1.5"><span class="px-1.5 py-0.5 ' + getStatusBadgeClasses(l.status) + ' rounded text-[10px] font-semibold">' + st + '</span><span class="font-bold text-sm">$' + l.price.toLocaleString() + '</span></div>'
+                    + '<div class="flex items-center justify-between mt-2"><div class="flex items-center gap-1.5"><span class="px-1.5 py-0.5 ' + getStatusBadgeClasses(l.status) + ' rounded text-[10px] font-semibold">' + escapeHtml(st) + '</span><span class="font-bold text-sm">' + (typeof l.price === 'number' && isFinite(l.price) ? '$' + l.price.toLocaleString() : 'Price unavailable') + '</span></div>'
                     + '<div class="text-[10px] text-gray-400">Listed<br>' + l.listedDate + '</div></div></div></div>';
             };
             var nhEl = document.getElementById('detailSimilarNeighborhood');
@@ -1233,15 +1262,19 @@
             var url = 'https://mallan.nyc/' + (isSale ? 'buy' : 'rent') + '/' + slug + '-' + listing.id;
             // RLS ID = ListingId (REBNY canonical); fall back to internal id
             var rlsId = listing.lid || listing.id || '';
-            // Status — render the canonical mapped status (post-A14
-            // mapper exhaustiveness guarantees no "OFF MARKET" string).
-            var status = listing.status || 'ACTIVE';
-            var statusLabel = status === 'COMING_SOON' ? 'Coming Soon'
-                : status === 'PENDING' ? 'In Contract'
-                : status.charAt(0) + status.slice(1).toLowerCase();
+            // Status — THE status authority, in this listing's own transaction's language. This used to
+            // default a blank status to ACTIVE and then re-case the token by hand, which also labelled a
+            // RENTAL Pending "In Contract" in a message sent to another brokerage.
+            var statusLabel = (typeof MallanStatus !== 'undefined' && MallanStatus)
+                ? MallanStatus.label(listing)
+                : (listing.status_label || 'Status unavailable');
             var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : {};
             var fromName = agent.name || '';
-            var fromTitle = agent.licenseTitle || agent.title || 'Licensed Real Estate Broker';
+            // The designation, or nothing. This defaulted to the principal
+            // broker designation, so an inquiry sent by an agent whose licence
+            // class was unknown told the RECEIVING BROKER that the sender was
+            // the firm's principal broker.
+            var fromTitle = agent.licenseTitle || agent.title || '';
             var fromCompany = agent.company || 'Mallan Real Estate Inc.';
             var fromPhone = agent.phone || '';
             var fromEmail = agent.email || '';
@@ -1258,7 +1291,7 @@
                 'View Listing: ' + url + '\n\n' +
                 '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
                 'From: ' + fromName + '\n' +
-                fromTitle + '\n' +
+                (fromTitle ? fromTitle + '\n' : '') +
                 fromCompany + ' · License ' + brokerageLicense + '\n' +
                 brokerageAddress + '\n' +
                 fromPhone + (fromEmail ? ' · ' + fromEmail : '') + '\n\n' +
@@ -1331,7 +1364,10 @@
                     listing_address: listing.address || '',
                     listing_unit: listing.unit || null,
                     listing_price: Number(listing.price || 0),
-                    listing_status: listing.status || 'ACTIVE',
+                    // The exact live token, or null. Never a fabricated Active.
+                    listing_status: (typeof MallanStatus !== 'undefined' && MallanStatus)
+                        ? MallanStatus.token(listing)
+                        : (listing.status || null),
                     listing_url: listingUrl,
                     listing_neighborhood: listing.neighborhood || null,
                     listing_borough: listing.borough || 'Manhattan',
@@ -1628,11 +1664,19 @@
             var isSale = listing.listingCategory !== 'rental';
             var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
             var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + listing.unit : '';
-            var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
+            var statusLabel = (typeof MallanStatus !== 'undefined' && MallanStatus)
+                ? MallanStatus.label(listing)
+                : (listing.status_label || 'Status unavailable');
             var today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             var primaryPhoto = listing.images && listing.images[0] ? listing.images[0].url : '';
 
-            var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: 'Licensed Real Estate Broker', phone: '', email: '', company: '', companyLicense: '', license: '', address: '' };
+            // A seeded designation in this fallback is the same fabrication
+            // wearing an object literal: with no AGENT_PROFILE there is no
+            // licence evidence at all, so the only honest value is none.
+            var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: '', phone: '', email: '', company: '', companyLicense: '', license: '', address: '' };
+            // Resolved ONCE for this sheet, so the header, the prepared-by
+            // block and the footer all omit their designation together.
+            var _agentTitle = _agent.licenseTitle || _agent.title || '';
 
             // Build full HTML string (CSP-safe — no document.write)
             var h = '<!DOCTYPE html><html><head><title>' + displayAddress + displayUnit + ' — Listing Detail</title>';
@@ -1670,11 +1714,11 @@
             h += '<div class="print-page">';
 
             // Header with branding
-            h += '<div class="print-header"><div><div class="print-brand">mallan<span>.nyc</span></div><div style="font-size:11px;color:#888;margin-top:2px">' + _agent.company + ' &middot; ' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + '</div></div><div class="agent-block"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#B8860B">Prepared</div><div>' + today + '</div></div></div>';
+            h += '<div class="print-header"><div><div class="print-brand">mallan<span>.nyc</span></div><div style="font-size:11px;color:#888;margin-top:2px">' + _agent.company + (_agentTitle ? ' &middot; ' + _agentTitle : '') + '</div></div><div class="agent-block"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#B8860B">Prepared</div><div>' + today + '</div></div></div>';
 
             // Dual agent blocks — prepared by (our agent) + listing agent (from RLS)
             h += '<div class="dual-agent">';
-            h += '<div><div class="label">Prepared By</div><div class="name">' + _agent.name + '</div><div class="info">' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + '<br>' + _agent.company + ' &middot; Lic. ' + (_agent.companyLicense || '') + '<br>' + (_agent.address || '') + '<br>' + _agent.phone + ' &middot; ' + _agent.email + '<br>' + (_agent.license ? 'License ' + _agent.license : '') + '</div></div>';
+            h += '<div><div class="label">Prepared By</div><div class="name">' + _agent.name + '</div><div class="info">' + (_agentTitle ? _agentTitle + '<br>' : '') + _agent.company + ' &middot; Lic. ' + (_agent.companyLicense || '') + '<br>' + (_agent.address || '') + '<br>' + _agent.phone + ' &middot; ' + _agent.email + '<br>' + (_agent.license ? 'License ' + _agent.license : '') + '</div></div>';
             h += '<div><div class="label">Listing Agent</div><div class="name">' + escapeHtml(listing.agentName || '---') + '</div><div class="info">' + escapeHtml(listing.company || '---') + '<br>' + escapeHtml(listing.agentPhone || '') + (listing.agentEmail ? ' &middot; ' + escapeHtml(listing.agentEmail) : '') + '<br>' + escapeHtml(listing.listingType || 'Exclusive') + '</div></div>';
             h += '</div>';
 
@@ -1737,7 +1781,7 @@
             h += '<div class="print-ref">Reference: L-ID ' + (listing.lid || '---') + ' &middot; W-ID ' + (listing.wid || '---') + ' &middot; SourceSystemKey ' + (listing.wid || listing.lid || listing.id) + '</div>';
 
             // Footer
-            h += '<div class="print-footer">Listing data courtesy of the REBNY Listing Service (RLS) via Trestle &middot; ' + _agent.company + ' ' + (_agent.companyLicense || '') + ' &middot; Information deemed reliable but not guaranteed<br>&copy; ' + new Date().getFullYear() + ' ' + _agent.company + ' &middot; ' + (_agent.address || '') + (_agent.phone ? ' &middot; ' + _agent.phone : '') + '<br>' + _agent.name + ', ' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + (_agent.license ? ' &middot; Lic. ' + _agent.license : '') + '<span class="eho">&bull; Equal Housing Opportunity</span></div>';
+            h += '<div class="print-footer">Listing data courtesy of the REBNY Listing Service (RLS) via Trestle &middot; ' + _agent.company + ' ' + (_agent.companyLicense || '') + ' &middot; Information deemed reliable but not guaranteed<br>&copy; ' + new Date().getFullYear() + ' ' + _agent.company + ' &middot; ' + (_agent.address || '') + (_agent.phone ? ' &middot; ' + _agent.phone : '') + '<br>' + _agent.name + (_agentTitle ? ', ' + _agentTitle : '') + (_agent.license ? ' &middot; Lic. ' + _agent.license : '') + '<span class="eho">&bull; Equal Housing Opportunity</span></div>';
 
             // Toolbar (hidden when printing)
             h += '<div class="print-toolbar" style="position:sticky;top:0;z-index:100;background:#1e293b;padding:10px 20px;display:flex;align-items:center;gap:16px;font-family:Manrope,sans-serif;margin:-32px -36px 20px -36px"><span style="color:#fff;font-weight:700;font-size:15px">' + displayAddress + displayUnit + '</span><span style="flex:1"></span><button onclick="window.print()" style="background:#2563eb;color:#fff;border:none;padding:8px 20px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="fas fa-print"></i> Print</button><button onclick="window.close()" style="background:#475569;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:14px;cursor:pointer">Close</button></div>';
@@ -1757,14 +1801,19 @@
                 return;
             }
 
-            var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: 'Licensed Real Estate Broker', phone: '', email: '', company: 'Mallan Real Estate Inc.', companyLicense: '#10991205323', license: '' };
+            var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: '', phone: '', email: '', company: 'Mallan Real Estate Inc.', companyLicense: '#10991205323', license: '' };
             var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
             var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + listing.unit : '';
             var subject = encodeURIComponent(displayAddress + displayUnit + ' — $' + listing.price.toLocaleString() + ' — ' + listing.beds + 'BR/' + listing.baths + 'BA');
 
             // Use sending agent info, NOT listing agent — per UCBA Art. I Sec. 5(C)
+            // This site defaulted to SALESPERSON while every other site in
+            // this file defaulted to BROKER: one unknown input, two different
+            // fabrications, in outbound email to outside brokers. It now
+            // asserts nothing, and the signature line is omitted with it.
+            var _agentTitle = _agent.licenseTitle || _agent.title || '';
             var agentBlock = _agent.name + '\n' +
-                (_agent.licenseTitle || 'Licensed Real Estate Salesperson') + '\n' +
+                (_agentTitle ? _agentTitle + '\n' : '') +
                 (_agent.company || 'Mallan Real Estate Inc.') + '\n' +
                 (_agent.phone ? 'Phone: ' + _agent.phone + '\n' : '') +
                 (_agent.email ? 'Email: ' + _agent.email + '\n' : '') +
@@ -2596,8 +2645,12 @@
                     detail: '$' + listing.originalPrice.toLocaleString() + ' → $' + listing.price.toLocaleString()
                 });
             }
-            if (listing.status && listing.status !== 'ACTIVE') {
-                events.push({ date: listing.updatedDate || 'N/A', label: 'Status: ' + listing.status, detail: '' });
+            var _timelineToken = (typeof MallanStatus !== 'undefined' && MallanStatus)
+                ? MallanStatus.token(listing) : (listing.status || null);
+            if (_timelineToken && _timelineToken !== 'Active') {
+                var _timelineLabel = (typeof MallanStatus !== 'undefined' && MallanStatus)
+                    ? MallanStatus.label(listing) : _timelineToken;
+                events.push({ date: listing.updatedDate || 'N/A', label: 'Status: ' + _timelineLabel, detail: '' });
             }
             events.push({ date: 'Current', label: 'DOM: ' + (listing.dom || 0) + ' | CDOM: ' + (listing.cdom || 0), detail: '$' + (listing.price || 0).toLocaleString() });
 

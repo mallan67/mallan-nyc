@@ -111,24 +111,25 @@ describe("computeGateColumns — status normalization reaches the guard", () => 
     expect(result.idx_display_yn).toBe(false);
   });
 
-  it("accepts known alias (canceled → Cancelled) and blocks", () => {
+  it("accepts a case variant of the live member (canceled → Canceled) and blocks", () => {
     const result = computeGateColumns({
       status: "canceled",
       internetEntireListingDisplayYN: true,
     });
-    expect(result.normalized_status).toBe("Cancelled");
+    expect(result.normalized_status).toBe("Canceled");
     expect(result.idx_display_yn).toBe(false);
   });
 
-  it("defaults null/undefined/non-string status to Active (displayable)", () => {
+  it("treats null/undefined/non-string status as UNKNOWN ('') and NOT displayable (fail-closed)", () => {
+    // Packet 2 closure: no status is never "Active". Unknown is unknown and closes the gate.
     for (const input of [null, undefined, 0, 1, {}, []] as unknown[]) {
       const result = computeGateColumns({
         status: input,
         internetEntireListingDisplayYN: true,
       });
-      expect(result.normalized_status).toBe("Active");
+      expect(result.normalized_status).toBe("");
       expect(result.is_terminal).toBe(false);
-      expect(result.idx_display_yn).toBe(true);
+      expect(result.idx_display_yn).toBe(false);
     }
   });
 });

@@ -6,7 +6,7 @@
  *   - status / listing-type / commercial / price / beds / baths / sqft
  *   - propertySubTypes / new-development / ownershipTypes / propertyType
  *   - yearBuilt / furnished / address / keywords
- *   - borough → CountyOrParish, neighborhood → ZIP, zipCodes
+ *   - borough → CityRegion (canonical location 2026-09-08), neighborhood → ZIP, zipCodes
  *   - safe OData string escaping
  *
  * Intentionally NOT owned by this helper:
@@ -24,6 +24,7 @@
  */
 
 import { lookupNeighborhoodZips } from "@/lib/geo/neighborhood-zips";
+import { cityRegionForBorough } from "@/lib/listings/canonical-location";
 
 const ALLOWED_STATUSES = ["Active", "ComingSoon", "ActiveUnderContract"];
 const DEFAULT_STATUS_CLAUSE =
@@ -43,15 +44,6 @@ const COMMON_INTEREST_MAP: Record<string, string> = {
   Condop: "Condop",
 };
 
-// NYC borough names → REBNY CountyOrParish values. Trestle stores the county
-// name (e.g. "New York" for Manhattan), not the borough name.
-const BOROUGH_TO_COUNTY: Record<string, string> = {
-  manhattan: "New York",
-  brooklyn: "Kings",
-  queens: "Queens",
-  bronx: "Bronx",
-  "staten island": "Richmond",
-};
 
 // New-development heuristics live in PublicRemarks because NewConstructionYN
 // and NewDevelopmentYN are NOT exposed on IDX Plus and PropertySubType pushes
@@ -160,7 +152,11 @@ function buildStatusFilterPart(params: URLSearchParams): string {
 
 function buildListingTypeFilterPart(params: URLSearchParams): string | null {
   const listingType = params.get("type");
-  if (listingType === "sale" || listingType === "buy") return "PropertyType ne 'ResidentialLease'";
+  // Positive membership — the one sale-universe rule shared with the engine and the registry
+  // (the live-truth module, PROPERTY_TYPE_SALE). Live 2026-09-08 the feed carries exactly
+  // Residential (215,520) and ResidentialLease (376,079), so the two forms agree today; the positive form
+  // cannot widen if the provider adds a type.
+  if (listingType === "sale" || listingType === "buy") return "PropertyType eq 'Residential'";
   if (listingType === "rent") return "PropertyType eq 'ResidentialLease'";
   return null;
 }
@@ -283,8 +279,10 @@ function buildNeighborhoodFilterPart(params: URLSearchParams): string | null {
 function buildBoroughFilterPart(params: URLSearchParams): string | null {
   const borough = params.get("borough");
   if (!borough) return null;
-  const countyValue = BOROUGH_TO_COUNTY[borough.toLowerCase()] || borough;
-  return `CountyOrParish eq '${escapeOData(countyValue)}'`;
+  // The borough IS CityRegion on this feed (canonical location, 2026-09-08 — exactly the five boroughs
+  // on every live row; CountyOrParish is the county and disagrees on 35 rows). An unrecognised value is
+  // sent as asked and matches nothing, rather than being silently widened.
+  return `CityRegion eq '${escapeOData(cityRegionForBorough(borough) ?? borough)}'`;
 }
 
 function buildKeywordsFilterParts(params: URLSearchParams): string[] {
@@ -335,7 +333,8 @@ export function buildPublicListingTrestleFilter(params: URLSearchParams): string
   if (yearBuilt === "pre-war") filterParts.push("YearBuilt le 1946");
   else if (yearBuilt === "post-war") filterParts.push("YearBuilt ge 1947");
 
-  if (params.get("furnished") === "true") filterParts.push("Furnished eq 'Furnished'");
+  // furnished is a rental-only criterion (Domain 6, 2026-09-08): it never narrows a sale search.
+  if (params.get("furnished") === "true" && params.get("type") === "rent") filterParts.push("Furnished eq 'Furnished'");
 
   const addressParam = params.get("address");
   if (addressParam) {

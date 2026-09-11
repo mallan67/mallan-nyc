@@ -75,8 +75,6 @@
     { "source": "/crm/search", "destination": "/crm/index-built.html" },
     { "source": "/crm/sale-listing", "destination": "/crm/SALE-FORM-REDESIGN.html" },
     { "source": "/crm/rental-listing", "destination": "/crm/RENTAL-FORM-REDESIGN.html" },
-    { "source": "/crm/sale-view", "destination": "/crm/SALE-FORM-WITH-TOOLS.html" },
-    { "source": "/crm/rental-view", "destination": "/crm/RENTAL-FORM-WITH-TOOLS.html" },
     { "source": "/crm/buyer-deal", "destination": "/crm/BUYER-DEAL-FORM.html" },
     { "source": "/crm/tenant-deal", "destination": "/crm/TENANT-DEAL-FORM.html" },
     { "source": "/crm/tests/:path*", "destination": "/404" },

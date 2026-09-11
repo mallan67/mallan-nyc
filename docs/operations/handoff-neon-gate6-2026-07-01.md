@@ -6,14 +6,27 @@
 
 ## Read First
 
-Before making any recommendations or changes, read:
+> **Authority-list correction, 2026-09-10.** As written on 2026-07-01 this section named
+> `AGENTS.md` and two derived dashboards as “the authoritative project documents”. That ordering is
+> superseded. The Master Plan did not exist when this handoff was authored; it now outranks every
+> file listed below.
 
-- `AGENTS.md`
-- `docs/PROJECT-HEALTH-DASHBOARD.md`
+Authority order — read in this order, and where they disagree the higher one wins:
+
+1. `MALLAN-PLATFORM-MASTER-PLAN.md` (repo root, canonical lineage PR #595 / `agent/publish-mallan-platform-master-plan-2026-08-04` — the ONLY product /
+   system authority.
+2. `MALLAN-CONTINUOUS-EXECUTION-STATE.md` — execution state.
+3. `AGENTS.md` / `CLAUDE.md` — agent operating instructions (identical cross-agent rules).
+
+Then, for this Neon / Gate 6 lane specifically — operational status, not authority:
+
+- `docs/PROJECT-HEALTH-DASHBOARD.md` (refresh the auto tier with `npm run health:probe`)
 - `docs/PLATFORM-ISSUE-REGISTRY.md`
-- `docs/operations/site-audit-handoff-2026-07-01.md`
+- `docs/operations/site-audit-handoff-2026-07-01.md` — superseded in part by the later
+  `docs/operations/site-audit-handoff-2026-08-02.md`; a later dated handoff in
+  `docs/operations/` always supersedes an earlier one.
 
-These are the authoritative project documents. **Do not create parallel documentation.**
+**Do not create parallel documentation.**
 
 ## Current Objective
 

@@ -111,7 +111,21 @@ export default function AgentsGrid({ initialAgents }: { initialAgents?: Agent[] 
 
               {/* Bio */}
               <div ref={bioRef}>
-                <p className="text-brand-gold-deep text-[13px] font-medium mb-3 gold-glow-text tracking-wide">Principal Broker</p>
+                {/*
+                  The eyebrow above this name was the literal string
+                  "Principal Broker" — a regulated designation hard-coded into
+                  the PUBLIC agent directory, asserted for whichever agent
+                  happens to be `featured` and independent of the Agent record.
+                  Directly beneath it, `{featured.title}` already renders the
+                  designation DERIVED through the one title authority
+                  (lib/agents/professional-title), so the card was publishing
+                  two professional identities for the same person and only one
+                  of them was governed. If the featured agent changes, or a
+                  licence changes, the hard-coded one keeps its old claim —
+                  a false statement about a licensee under NY DOS 19 NYCRR
+                  175.25. Removed; the derived designation below is the only
+                  one that may speak.
+                */}
                 <h2 className="font-display font-bold text-3xl md:text-4xl tracking-tight text-brand-dark mb-2">
                   {featured.name}
                 </h2>

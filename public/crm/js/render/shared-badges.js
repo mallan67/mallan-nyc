@@ -25,11 +25,19 @@
 
         // ── Coming Soon Badge Helper — full version (Gallery/ShortSum/Summary/MasterDetail) ──
         // UCBA Art. I Sec. 5(C): No showings, open houses, or negotiations. D7/D2/D1.
+        // The stored status IS the live Cotality StandardStatus token (owner ruling 2026-09-08); the older
+        // 'COMING_SOON' / 'Coming Soon' spellings are read-compatible only and are never written.
+        // Resolution is THE browser status authority's (public/crm/js/core/status-presentation.js) — this
+        // file keeps no token list of its own.
+        function _isComingSoonToken(status) {
+            return MallanStatus.isComingSoon(status);
+        }
+
         function comingSoonBadge(listing) {
-            if (listing.status !== 'COMING_SOON') return '';
+            if (!_isComingSoonToken(listing.status)) return '';
             var dateTag = listing.comingSoonDate ? ' <span' + resoData('comingSoonDate', listing.comingSoonDate) + '>' + listing.comingSoonDate + '</span>' : '';
             return '<div class="bg-purple-50 border-b border-purple-200 px-3 py-1.5 text-xs text-purple-700 font-semibold"'
-                + ' data-reso-field="MlsStatus" data-reso-value="ComingSoon"'
+                + ' data-status-token="ComingSoon"'
                 + ' data-compliance="coming-soon-badge"'
                 + ' title="UCBA D7: Coming Soon — max 14 days (D2). Sales only (D1). No showings, no open houses, no negotiations. Unsolicited offers may be conveyed."'
                 + '><i class="fas fa-clock mr-1"></i> Coming Soon'
@@ -40,9 +48,9 @@
 
         // ── Coming Soon Badge — compact version (Grid/Map) ──
         function comingSoonBadgeCompact(listing) {
-            if (listing.status !== 'COMING_SOON') return '';
+            if (!_isComingSoonToken(listing.status)) return '';
             return '<span class="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px] font-bold"'
-                + ' data-reso-field="MlsStatus" data-reso-value="ComingSoon"'
+                + ' data-status-token="ComingSoon"'
                 + ' data-compliance="coming-soon-badge"'
                 + ' title="UCBA D7: Coming Soon — max 14 days. No showings or open houses until ' + (listing.comingSoonDate || 'active date') + '."'
                 + '>CS' + (listing.comingSoonDate ? ' ' + listing.comingSoonDate : '')
@@ -50,7 +58,7 @@
         }
 
         // ── Syndication Badge Helper (Gate 4) ──
-        // UCBA: SyndicateYN=false → listing not distributed to third-party portals.
+        // UCBA: SyndicateTo empty (the Mallan syndication decision) → listing not distributed to third-party portals.
         // Listing still appears in IDX search. Badge informs agent of distribution status.
         function syndicationBadge(listing) {
             var perm = listing.permissions || {};
@@ -58,7 +66,7 @@
             return '<span class="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-[9px] font-bold"'
                 + ' data-reso-field="SyndicateTo" data-reso-value="None"'
                 + ' data-compliance="syndication-gate"'
-                + ' title="SyndicateYN=false — this listing is not distributed to third-party syndication portals (StreetEasy, Zillow, etc.)."'
+                + ' title="SyndicateTo empty — this listing is not distributed to third-party syndication portals (StreetEasy, Zillow, etc.)."'
                 + '>NOT SYNDICATED</span>';
         }
 
@@ -77,10 +85,10 @@
         // Returns a text notice for Coming Soon listings: "No Showings or Open House until [date]"
         // Used in detail views and action bars to inform agent that showings are blocked.
         function comingSoonShowingNotice(listing) {
-            if (listing.status !== 'COMING_SOON') return '';
+            if (!_isComingSoonToken(listing.status)) return '';
             var dateStr = listing.comingSoonDate || 'active date';
             return '<div class="bg-purple-50 border border-purple-200 rounded px-2.5 py-1.5 text-xs text-purple-700 font-medium"'
-                + ' data-reso-field="MlsStatus" data-reso-value="ComingSoon"'
+                + ' data-status-token="ComingSoon"'
                 + ' data-compliance="coming-soon-showing-block"'
                 + ' title="UCBA Art. I Sec. 5(C): No showings, open houses, or negotiations until listing is active."'
                 + '><i class="fas fa-ban mr-1 text-purple-400"></i>'
@@ -91,7 +99,7 @@
         // ── Helper: is listing Coming Soon? ──
         // Used to conditionally disable Schedule Showing buttons across views.
         function isComingSoon(listing) {
-            if (listing.status === 'COMING_SOON') return true;
+            if (_isComingSoonToken(listing.status)) return true;
             if (listing.comingSoonDate) {
                 var csDate = new Date(listing.comingSoonDate);
                 if (!isNaN(csDate.getTime()) && csDate > new Date()) return true;
@@ -147,11 +155,15 @@
         function domDisplay(listing) {
             var dom = listing.dom;
             if (dom == null) return '<span class="text-xs text-gray-400">--</span>';
-            var status = 'accruing';
-            if (listing.permissions && listing.permissions.participantOnly) status = 'exempt';
-            else if (listing.status === 'COMING_SOON' || listing.status === 'Coming Soon') status = 'exempt';
-            else if (listing.status === 'Temp Off Market' || listing.status === 'WITHDRAWN' || listing.status === 'Withdrawn') status = 'paused';
-            else if (listing.status === 'CLOSED' || listing.status === 'Sold' || listing.status === 'Leased') status = 'stopped';
+            // THE clock rule lives in public/crm/js/core/status-presentation.js, keyed by the live Cotality
+            // StandardStatus token. 'Sold' / 'Leased' / 'Rented' are broker LABELS, not statuses — a closed
+            // sale and a closed rental are both the token Closed and stop the clock identically.
+            //
+            // This used to be two hand-kept arrays. They listed the token spellings but NOT the uppercase
+            // presentation words the DTO mapper actually delivered, so a Canceled, Expired, Deleted or Hold
+            // row matched neither array and rendered a still-accruing red DOM count instead of (final) /
+            // (paused). Delegating removes the second list that could lag the first.
+            var status = MallanStatus.domClock(listing);
 
             var color;
             if (status === 'exempt') color = '#9ca3af';

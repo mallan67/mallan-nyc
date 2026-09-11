@@ -10,7 +10,82 @@ var MallanAPI = (function () {
   'use strict';
 
   // ─── Configuration ───────────────────────────────────────────────────────
-  var _baseUrl = ''; // Same origin when served from Next.js; set via MallanAPI.configure()
+  // ─── API BASE URL — the ONE governed resolver ──────────────────────────
+  //
+  // CANONICAL RULE: when the CRM and the API are served by the same Mallan
+  // deployment, use SAME-ORIGIN. That is true of every deployed environment,
+  // so the base URL is '' (relative) everywhere:
+  //
+  //     Preview CRM     -> Preview API     -> QA Neon
+  //     Production CRM  -> Production API  -> Production Neon
+  //
+  // REMOVED 2026-09-04 — host sniffing. agent-context.js, login.html and the
+  // two standalone forms each carried a variant of:
+  //
+  //     if (window.location.origin.indexOf('mallan.nyc') === -1) {
+  //         MallanAPI.configure({ baseUrl: 'https://mallan.nyc' });
+  //     }
+  //
+  // On any origin without the literal "mallan.nyc" — every *.vercel.app
+  // Preview, every branch alias, localhost — that repointed the CRM's API
+  // authority at PRODUCTION. Two consequences, both real:
+  //   1. Cross-environment authority: a Preview CRM read and wrote the
+  //      Production API and Production Neon.
+  //   2. A login redirect loop: the CRM CSP is `connect-src 'self'`, so the
+  //      browser refused the cross-origin /api/auth/me probe, _fetch's
+  //      rejection was coerced to { authenticated: false }, app.js sent the
+  //      user to /crm/login.html — which never loaded agent-context.js, so it
+  //      stayed same-origin, saw a valid session, and bounced back to the
+  //      dashboard. Reproduced live: 33 navigations in 14 seconds.
+  // The original rationale ("GitHub Pages -> mallan.nyc") is dead: there is
+  // no Pages deployment; /crm is served by the same Next.js app as /api.
+  //
+  // LOCAL DEVELOPMENT is the one explicitly governed exception, and it is
+  // OPT-IN ONLY — never a silent fallthrough. `next dev` serves the CRM and
+  // the API together, so same-origin is correct there too (and required: the
+  // session cookie is same-origin) and is the default on localhost. A
+  // developer who deliberately wants a local CRM to read a remote API sets
+  // this in an inline script BEFORE this file loads:
+  //
+  //     window.MALLAN_API_BASE_URL = 'https://<host>';
+  //
+  // That override is honoured on localhost / 127.0.0.1 / ::1 ONLY. It is
+  // never consulted on a deployed origin, so no deployed CRM can be pointed
+  // off-origin by page content.
+
+  var LOCAL_HOSTNAMES = ['localhost', '127.0.0.1', '[::1]', '::1', ''];
+
+  /** @returns {object|null} the current Location, or null outside a browser */
+  function _currentLocation() {
+    return (typeof window !== 'undefined' && window.location) ? window.location : null;
+  }
+
+  /** @returns {boolean} true only for a local development origin */
+  function _isLocalOrigin(loc) {
+    if (!loc) return false;
+    return LOCAL_HOSTNAMES.indexOf(String(loc.hostname || '')) !== -1;
+  }
+
+  /** Strip trailing slashes so '' and 'https://x/' compare cleanly. */
+  function _normalizeBase(value) {
+    return String(value == null ? '' : value).replace(/\/+$/, '');
+  }
+
+  /**
+   * Resolve the base URL for the origin currently serving the CRM.
+   * Same-origin ('') everywhere, except an explicit localhost opt-in.
+   */
+  function _resolveInitialBaseUrl() {
+    var loc = _currentLocation();
+    if (!_isLocalOrigin(loc)) return '';
+    var override = (typeof window !== 'undefined') ? window.MALLAN_API_BASE_URL : null;
+    if (typeof override === 'string' && /^https?:\/\//i.test(override)) {
+      return _normalizeBase(override);
+    }
+    return '';
+  }
+
+  var _baseUrl = _resolveInitialBaseUrl();
   var _user = null;  // Populated by init()
   var _context = null; // Full /api/auth/me response (principalType, role, portalRole, user)
   var _ready = false;
@@ -51,9 +126,26 @@ var MallanAPI = (function () {
       }
       if (!res.ok) {
         return res.json().then(function (data) {
-          return Promise.reject(new Error(data.error || 'Request failed: ' + res.status));
-        }).catch(function () {
-          return Promise.reject(new Error('Request failed: ' + res.status));
+          // The server's REBNY/UCBA refusal is STRUCTURED: a 422 from the RLS enforcement gate carries
+          // `blockers` (the mandatory facts that are missing), and a status refusal carries `field` and
+          // `code` (STATUS_FACT_REQUIRED). Rejecting with `new Error(data.error)` alone THREW THAT AWAY,
+          // so the agent saw "Listing blocked by RLS enforcement gate" and was never told WHICH fields.
+          // These safeguards exist to prevent REBNY penalties; discarding their detail defeats them.
+          var err = new Error(data.error || 'Request failed: ' + res.status);
+          err.status = res.status;
+          err.blockers = Array.isArray(data.blockers) ? data.blockers : [];
+          err.warnings = Array.isArray(data.warnings) ? data.warnings : [];
+          if (data.field) err.field = data.field;
+          if (data.code) err.code = data.code;
+          if (data.required) err.required = data.required;
+          err.payload = data;
+          return Promise.reject(err);
+        }).catch(function (e) {
+          if (e instanceof Error && e.status) return Promise.reject(e);
+          var err2 = new Error('Request failed: ' + res.status);
+          err2.status = res.status;
+          err2.blockers = [];
+          return Promise.reject(err2);
         });
       }
       return res.json();
@@ -205,10 +297,33 @@ var MallanAPI = (function () {
       });
     },
 
-    updateStatus: function (id, newStatus) {
+    /**
+     * Transition a listing's status.
+     *
+     * `newStatus` is the Mallan WORKFLOW word the agent picked on the form (a sale's
+     * ContractSigned / Sold, a rental's LeaseSigned / Rented) or an already-canonical live
+     * Cotality StandardStatus token. The SERVER resolves it through THAT listing's transaction
+     * mapping (lib/crm/status-mapping.ts) — the browser never translates.
+     *
+     * `facts` carries the Cotality date (and the close price) the status requires — a sale's
+     * PurchaseContractDate, CloseDate + ClosePrice, ExpirationDate, WithdrawnDate,
+     * CancellationDate, BackOnMarketDate; a rental's _mallanLeaseSignedDate. Omitted when the
+     * transition carries none. The server refuses a missing fact by name (422 STATUS_FACT_REQUIRED)
+     * and an unknown one (400 STATUS_FACT_UNKNOWN).
+     */
+    updateStatus: function (id, newStatus, facts) {
+      var payload = { status: newStatus };
+      if (facts && typeof facts === 'object') {
+        var carried = {};
+        Object.keys(facts).forEach(function (k) {
+          var v = facts[k];
+          if (v !== undefined && v !== null && v !== '') carried[k] = v;
+        });
+        if (Object.keys(carried).length > 0) payload.facts = carried;
+      }
       return _fetch('/api/crm/listings/' + encodeURIComponent(id) + '/status', {
         method: 'PATCH',
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify(payload),
       });
     },
 
@@ -617,7 +732,20 @@ var MallanAPI = (function () {
     /**
      * Search listings via Trestle/REBNY RLS.
      * Returns listings in CRM flat shape (same as listings).
-     * @param {object} params - { type, minPrice, maxPrice, minBeds, minBaths, neighborhood, borough, status, limit, skip, minYear, maxYear, minFloors, maxFloors, minUnits, maxUnits, buildingName }
+     *
+     * EVERY parameter named here is forwarded, and every parameter forwarded is named here. The list is
+     * exactly the executor's executable set (lib/search/engine/criteria.ts EXECUTED_PARAMS, published to
+     * the browser at GET /api/idx/search/contract). Advertising a parameter this function drops is how
+     * `backOnMarket` looked wired for the four Search panels and the Refine bar while never leaving the
+     * browser; minYear / maxYear / minFloors / maxFloors / minUnits / maxUnits were advertised the same
+     * way and are NOT executable (the executor has no YearBuilt / StoriesTotal / NumberOfUnitsTotal
+     * criterion), so they are named nowhere and are refused upstream by name rather than dropped here.
+     *
+     * @param {object} params - {
+     *   type, status, backOnMarket, minPrice, maxPrice, minBeds, maxBeds, minBaths, maxBaths,
+     *   minSqft, maxSqft, neighborhood, buildingName, borough, zip, ownership, StructureType,
+     *   listingId, sort, limit, skip
+     * }
      */
     search: function (params) {
       params = params || {};
@@ -629,32 +757,25 @@ var MallanAPI = (function () {
       if (params.maxBeds != null) qs.push('maxBeds=' + params.maxBeds);
       if (params.minBaths) qs.push('minBaths=' + params.minBaths);
       if (params.maxBaths) qs.push('maxBaths=' + params.maxBaths);
+      // LivingArea bounds — executable (Edm.Decimal, filterable live). `!= null` so an explicit 0 is sent.
+      if (params.minSqft != null && params.minSqft !== '') qs.push('minSqft=' + encodeURIComponent(params.minSqft));
+      if (params.maxSqft != null && params.maxSqft !== '') qs.push('maxSqft=' + encodeURIComponent(params.maxSqft));
       if (params.neighborhood) qs.push('neighborhood=' + encodeURIComponent(params.neighborhood));
+      // BuildingName — executable (Edm.String, filterable live); executed as tolower(BuildingName) eq.
+      if (params.buildingName) qs.push('buildingName=' + encodeURIComponent(params.buildingName));
       if (params.borough) qs.push('borough=' + encodeURIComponent(params.borough));
       if (params.status) qs.push('status=' + encodeURIComponent(params.status));
-      if (params.propertySubType) qs.push('propertySubType=' + encodeURIComponent(params.propertySubType));
-      if (params.address) qs.push('address=' + encodeURIComponent(params.address));
+      // Back On Market is a REFINEMENT of Active (Active + BackOnMarketDate), offered by all four Search
+      // panels and by Refine. serializeSearchCriteria sets params.backOnMarket = '1' and the executor
+      // accepts it — this line is the missing link that kept it from ever reaching the server.
+      if (params.backOnMarket) qs.push('backOnMarket=' + encodeURIComponent(params.backOnMarket));
+      // Only the executor's executable parameters can leave the browser (Search Consolidation
+      // Packet 1). Anything else is refused upstream by serializeSearchCriteria; it is not
+      // silently forwarded here either.
       if (params.listingId) qs.push('listingId=' + encodeURIComponent(params.listingId));
       if (params.zip) qs.push('zip=' + encodeURIComponent(params.zip));
-      if (params.minRooms) qs.push('minRooms=' + params.minRooms);
-      if (params.maxRooms) qs.push('maxRooms=' + params.maxRooms);
-      if (params.minSqft) qs.push('minSqft=' + params.minSqft);
-      if (params.maxSqft) qs.push('maxSqft=' + params.maxSqft);
-      if (params.dateFrom) qs.push('dateFrom=' + encodeURIComponent(params.dateFrom));
-      if (params.dateTo) qs.push('dateTo=' + encodeURIComponent(params.dateTo));
-      if (params.dateType) qs.push('dateType=' + encodeURIComponent(params.dateType));
-      if (params.closeDateFrom) qs.push('closeDateFrom=' + encodeURIComponent(params.closeDateFrom));
-      if (params.closeDateTo) qs.push('closeDateTo=' + encodeURIComponent(params.closeDateTo));
       if (params.ownership) qs.push('ownership=' + encodeURIComponent(params.ownership));
-      if (params.sponsorUnit) qs.push('sponsorUnit=' + encodeURIComponent(params.sponsorUnit));
-      // Building-specific filters (OData: YearBuilt, StoriesTotal, NumberOfUnitsTotal)
-      if (params.minYear) qs.push('minYear=' + params.minYear);
-      if (params.maxYear) qs.push('maxYear=' + params.maxYear);
-      if (params.minFloors) qs.push('minFloors=' + params.minFloors);
-      if (params.maxFloors) qs.push('maxFloors=' + params.maxFloors);
-      if (params.minUnits) qs.push('minUnits=' + params.minUnits);
-      if (params.maxUnits) qs.push('maxUnits=' + params.maxUnits);
-      if (params.buildingName) qs.push('buildingName=' + encodeURIComponent(params.buildingName));
+      if (params.StructureType) qs.push('StructureType=' + encodeURIComponent(params.StructureType));
       if (params.sort) qs.push('sort=' + encodeURIComponent(params.sort));
       if (params.limit) qs.push('limit=' + params.limit);
       if (params.skip) qs.push('skip=' + params.skip);
@@ -667,6 +788,10 @@ var MallanAPI = (function () {
      */
     status: function () {
       return _fetch('/api/idx/status');
+    },
+    /** The executor's executable parameters and vocabularies — the browser's ONLY source. */
+    contract: function () {
+      return _fetch('/api/idx/search/contract');
     },
 
     /**
@@ -720,14 +845,40 @@ var MallanAPI = (function () {
 
   return {
     /**
-     * Configure the API base URL and validate connection.
-     * Call once before any API use.
+     * Override the API base URL.
+     *
+     * FAIL-CLOSED (2026-09-04): on a DEPLOYED origin this accepts only a base
+     * equal to the current origin (or '' — same-origin). Any off-origin base
+     * is REFUSED and logged, so no page, panel or future caller can point a
+     * Preview CRM at Production (or Production at a Preview). Localhost may
+     * still be pointed anywhere — see the governed-resolver note at the top
+     * of this file.
+     *
      * @param {object} opts - { baseUrl: string }
      */
     configure: function (opts) {
-      if (opts && opts.baseUrl) {
-        _baseUrl = opts.baseUrl.replace(/\/$/, '');
-      }
+      if (!opts || !opts.baseUrl) return;
+      var next = _normalizeBase(opts.baseUrl);
+      if (next === '') { _baseUrl = ''; return; }
+
+      var loc = _currentLocation();
+      if (next === _normalizeBase(loc && loc.origin)) { _baseUrl = next; return; }
+      if (_isLocalOrigin(loc)) { _baseUrl = next; return; }
+
+      console.error(
+        '[MallanAPI] Refusing off-origin API base "' + next + '" on ' +
+        _normalizeBase(loc && loc.origin) + '. The CRM and the API are served ' +
+        'by the same deployment; same-origin is the only permitted authority.'
+      );
+    },
+
+    /**
+     * The base URL currently prepended to every API path.
+     * '' means same-origin. Exposed so the invariant is assertable.
+     * @returns {string}
+     */
+    getBaseUrl: function () {
+      return _baseUrl;
     },
 
     /**
@@ -788,6 +939,27 @@ var MallanAPI = (function () {
         portalRole: null,
         user: null,
       };
+    },
+
+    // Render the server's status projection; never translate provider/workflow values in the browser.
+    renderListingStatus: function (id, listing) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      var raw = listing.raw_data || {};
+      var projection = listing.form_status;
+      var value = projection ? projection.value : (raw._crmWorkflowStatus || raw[id] || listing.status || '');
+      var label = projection ? projection.label : (value || 'Status unavailable');
+      var option = Array.prototype.find.call(el.options, function (o) { return o.value === value; });
+      if (!option) {
+        option = document.createElement('option');
+        option.value = value;
+        option.disabled = !value;
+        el.appendChild(option);
+      }
+      option.textContent = label;
+      el.value = value;
+      var provider = document.getElementById(id.replace(/Status$/, 'CotalityStatus'));
+      if (provider) provider.textContent = (projection ? projection.providerStatus : raw.StandardStatus) || 'Not provided';
     },
 
     // Internal fetch — exposed for CRM modules (featured-config, analytics, etc.)

@@ -1,7 +1,7 @@
 /// <reference types="jest" />
 /**
  * Sale-form open-house scheduling now PERSISTS (2026-06-23). Previously saveSaleOpenHouse only
- * inserted an HTML card (data-rls-ignore inputs, no API call), so open houses were discarded on
+ * inserted an HTML card (data-mallan-ignore inputs, no API call), so open houses were discarded on
  * save and never reached the public /open-houses page or the listing detail banner.
  *
  * Fix: open houses are stored as `showing` rows tied to the listing via POST /api/crm/showings,

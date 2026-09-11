@@ -1,0 +1,778 @@
+The strongest architecture I would build
+
+Call it the Mallan Search Verification OS.
+
+                         COTALITY LIVE CONTRACT
+                                │
+                    COTALITY CONTRACT LOCK
+                                │
+                                ▼
+                     CANONICAL CAPABILITY GRAPH
+                                │
+             ┌──────────────────┼───────────────────┐
+             │                  │                   │
+             ▼                  ▼                   ▼
+      PRODUCTION SEARCH    REFERENCE ORACLE    PROVIDER ORACLE
+             │                  │                   │
+             └──────────────┬───┴───────────────────┘
+                            ▼
+                       ORACLE MESH
+           ┌─────────────────────────────────┐
+           │ differential                    │
+           │ metamorphic                     │
+           │ property-based                  │
+           │ model/state-machine             │
+           │ t-way combinatorial             │
+           │ mutation testing                │
+           │ historical defect replay        │
+           │ browser/API equivalence         │
+           └─────────────────────────────────┘
+                            │
+                            ▼
+                   SEARCH FLIGHT RECORDER
+                            │
+                            ▼
+                    PLAYWRIGHT BROKER LAB
+                            │
+                            ▼
+                    INDEPENDENT RED TEAM
+                            │
+                            ▼
+                   EXACT-SHA CLOSURE PROOF
+                            │
+                     PASS / BLOCKED /
+                        UNVERIFIED
+
+The jewels are below. Several of these are much more powerful than conventional tests.
+
+Jewel	What I would implement in Mallan	Why this is unusually powerful
+1. SQLancer-style Search Oracles	Adapt database logic-bug techniques to Mallan Search. Build queries whose relationships must be true even when we don't know the exact listing answer.	SQLancer specifically targets wrong result sets, including omitted records, using metamorphic and differential oracles rather than relying only on known answers.
+2. Test-only Reference Search Interpreter	A deliberately slow, simple, pure Search implementation used only by tests. No cache, no continuation, no optimization. It consumes canonical criteria and controlled raw records, then filters → gates → dedupes → merges → sorts.	This gives the optimized production engine an independently implemented oracle. It is analogous to SQLancer's NoREC idea: compare an optimized answer with a simpler equivalent computation. It is NOT another production Search engine.
+3. Metamorphic Search Laws	Encode mathematical laws Search must obey: tightening criteria cannot add records; sort cannot change membership; page size cannot change the universe; save/restore cannot change semantics; Basic/Advanced cannot change semantics.	This finds bugs without requiring us to hand-author the expected result of 20,000 searches. Metamorphic testing was created specifically for cases where a complete test oracle is unavailable.
+4. Ternary Partition Oracle	For nullable provider facts, partition an unfiltered Search into true / false / unknown or < X / = X / > X / unknown, then recombine. The union must reproduce the original universe.	This is especially suited to Cotality because null, unknown and sentinels have repeatedly caused Mallan defects. SQLancer's Ternary Logic Partitioning finds DB logic bugs through this exact class of relation.
+5. Stateful Model-Based Broker Testing	Use fast-check to generate sequences: Sale → set borough → Advanced → change baths → Search → sort → next → save → reload → restore → detail → back → select → report. Maintain a tiny reference model of what state should survive.	This catches the type of Mallan bug where each operation works alone but the sequence destroys criteria/state. fast-check explicitly supports model-based/stateful testing and automatically searches sequences.
+6. Automatic Failure Shrinking	When a generated 14-filter Search fails, let fast-check shrink it to the minimum reproducer—perhaps Rental + 1.5 baths + page 2.	Claude gets a tiny root cause instead of drowning in a monster scenario. fast-check generates hundreds of inputs and shrinks failures to minimal counterexamples.
+7. NIST t-way Interaction Testing	Generate guaranteed 2-way/3-way coverage across all Search dimensions, with 4–6-way strength on dangerous clusters: workflow × status × geography × ownership × sort × paging.	Search has too many filters for exhaustive combination testing. NIST covering arrays can compress enormous interaction spaces into manageable test sets; NIST notes that faults often arise from relatively few interacting factors.
+8. Mallan Search Mutation Lab	Deliberately inject the exact bugs we fear: remove return-copy suppression; move a filter after pagination; replace ClosePrice with ListPrice; change >= to >; turn unknown into 0; omit Mallan inventory; mark lower-bound exact; break half-baths. Closure must catch every one.	Instead of asking “do we have tests?”, ask “can the tests detect the actual bug?” Stryker automates mutation testing by changing production code and checking whether tests fail.
+9. Incremental Mutation Testing	Mutation-test only changed Search code during development; full Search mutation suite at release.	Stryker supports incremental mutation testing, so this does not have to become painfully slow.
+10. Cotality Contract Lockfile	Compile the live provider contract into a release-specific lock: hashes + every Mallan-used resource/field/token/type/operator/capability. Builds use the lock; daily verification compares live against it.	Cotality additions never automatically become Mallan capability. Removals/semantic changes cannot silently pass. This is the provider equivalent of a package lockfile.
+11. Capability Lattice, not Boolean “supported”	Every provider criterion moves through DISCOVERED → DECLARED → SELECTABLE → POPULATED → OPERATOR_VERIFIED → SEMANTICALLY_VERIFIED → EXECUTABLE.	A field existing in metadata can never again magically become a working Search filter.
+12. Typed Impossible States	Replace contradictory loose flags with discriminated unions such as ExactCount, LowerBoundCount, UnverifiedCount. Do the same for Known<T> / Unknown / Unavailable.	Code literally cannot represent “1000+ Results / Page 1 of 5” if LowerBoundCount has no totalPages. This moves correctness from comments/tests into the type system.
+13. Search Execution Envelope	Every Search execution carries executionId, codeSHA, contractHash, criteriaHash, workflow, sort, count disposition, page, source accounting and result-universe digest.	This becomes the golden thread from Search → Saved Search → Report → Compare → CMA.
+14. Universe Fingerprint	For deterministic runs, hash the sorted canonical listing IDs. universeHash(Sale/Search) must stay identical across view changes, page-size changes, Saved Search restore and Reports “All Results.”	Comparing one SHA-256 digest is enough to detect that two consumers are secretly describing different universes.
+15. Search Flight Recorder	Add OpenTelemetry spans around parse → provider query → Mallan-local → gates → dedupe → corpus filter → sort → page → DTO. Propagate one execution context.	If Maya says “this Search is wrong,” Claude can replay the exact logical journey rather than starting another audit. OpenTelemetry's Context exists specifically to propagate execution-scoped trace state across async boundaries.
+16. Sanitized Real-Query Replay Corpus	Save only normalized workflow/criteria/sort shapes from real agent usage—no client identity. Replay the most-used unique Search shapes against Preview after changes.	Future testing evolves with the actual brokerage instead of a static test author's imagination.
+17. Change Impact Router	npm run search:impact -- --base=<sha> computes which canonical Search nodes a diff touched and therefore which tests, consumers and closure packs are mandatory.	Claude no longer runs either one tiny test or the entire repo. It runs the complete transitive impact set.
+18. Semantic Static Linter	Fail builds for dangerous code patterns: raw provider field reads outside approved mapping layers; `	
+19. Provider Chaos Simulator	Mutate the compiled Cotality contract and API behavior: field disappears, enum changes, malformed CustomFields, 429, 500, timeout, empty non-exhausted page, duplicates, resource 403.	We prove Mallan fails UNVERIFIED or refuses only the affected capability instead of silently answering a looser question.
+20. Capability-Level Circuit Breakers	If Furnished becomes unverified, disable/refuse Furnished—not necessarily all Search. If ListingKey integrity breaks, block Search because identity is foundational.	Future provider changes degrade precisely instead of either failing everything or lying silently.
+21. Playwright as a State Verifier, not a Screenshot Tool	Browser test captures request payload/fingerprint and compares it with visible controls and returned Search envelope.	This directly catches “visible field is not the field that was sent,” exactly like the hidden Rental-control problem.
+22. No Healer in Final Acceptance	Use Playwright planner/generator to produce scenarios; never allow the healer to mutate final acceptance tests automatically.	Playwright's healer can patch tests or even skip a test it believes reflects broken functionality. That is useful for development, dangerous as your final oracle.
+23. Shadow/Replayed Search Before Promotion	Replay real sanitized Search shapes against the candidate Preview while current production remains untouched; compare counts, universe digests and latency.	Shadow testing is used specifically to compare a candidate against real workloads without serving its result to users.
+24. Exact-SHA Independent Claude Jury	Builder Claude produces evidence. A separate claude --bare -p instance receives only source + proof artifacts and tries to disprove PASS.	Bare mode deliberately skips project hooks, skills, subagents, MCP and CLAUDE.md, reducing correlated self-confirmation and making it ideal for scripted independent verification.
+25. Claude Physically Cannot Declare Victory	TaskCompleted and Stop hooks inspect the closure manifest for current HEAD; if absent/failed/stale, completion is blocked.	Claude Code supports blocking PreToolUse, TaskCompleted, and Stop, so this can be enforcement rather than a prompt request.
+The jewel I think changes Mallan the most: Search algebra
+
+This is the part I would prioritize above almost everything else.
+
+Instead of writing 500 expected-output tests, define laws that any valid Search implementation must satisfy.
+
+For canonical criteria C, listing universe S(C):
+
+TIGHTENING
+S(C AND moreRestrictiveFilter) ⊆ S(C)
+
+RELAXATION
+S(C) ⊆ S(C with filter relaxed)
+
+SORT INVARIANCE
+set(S(C, sort=A)) = set(S(C, sort=B))
+
+PAGE-SIZE INVARIANCE
+unionPages(S(C, size=20)) = unionPages(S(C, size=100))
+
+VIEW INVARIANCE
+GridUniverse = GalleryUniverse = SummaryUniverse
+
+BASIC/ADVANCED INVARIANCE
+normalize(Basic → Advanced → Basic) = original canonical criteria
+
+SAVE/RESTORE INVARIANCE
+normalize(save → reload → restore) = original canonical criteria
+
+REFINE
+S(C + refinement) ⊆ S(C)
+
+SOURCE CONSERVATION
+Final =
+  EligibleMallan
+  ∪ EligibleThirdPartyCotality
+  − SuppressedReturnCopies
+
+REPORT ALL
+Report(AllResults).universeHash = Search.universeHash
+
+COMPARE
+CompareIDs ⊆ Search.universeIDs
+
+SELECTION
+SelectedIDs persist independent of page/view
+
+DETAIL IDENTITY
+Detail.listingIdentity = selected Search canonical identity
+
+These properties are extremely difficult for a superficially patched system to fake.
+
+And then add partition laws inspired directly by SQLancer:
+
+BASELINE PRICE UNIVERSE
+=
+price < X
+∪ price = X
+∪ price > X
+∪ price unknown
+
+Those partitions must be disjoint.
+
+Do the same for:
+
+Furnished
+Status
+Ownership
+Bedrooms
+Bathrooms
+Fee frequency
+Permission
+CustomField boolean values
+
+This is particularly valuable because Mallan's historic failures repeatedly involve null, unknown, enum translation and page-local filtering.
+
+The second major leap: Claude gets a minimal reproducer automatically
+
+Today Claude sees:
+
+Rental Search has 19 filters and page 4 differs.
+
+It wanders.
+
+With fast-check, the system can generate a complex failing scenario and then shrink it. Property-based testing is designed to generate large numbers of cases and minimize the counterexample when a property fails.
+
+So Claude receives:
+
+FAILURE #S-2841
+
+Original:
+Rental + Manhattan + Yorkville + $3,500-$6,000 +
+1-2 bed + 1.5 bath + Furnished + Pets + Active +
+updated_desc + page 4 + page size 20
+
+MINIMAL REPRODUCER:
+Rental
+minBaths=1.5
+pageSize 20 → 50
+
+PROPERTY VIOLATED:
+PAGE-SIZE INVARIANCE
+
+missing canonical ID:
+ABC123
+
+That would transform Claude's productivity.
+
+The third leap: generated sequences rather than static E2E
+
+Search is a stateful application. A lot of your worst problems came from transitions:
+
+Sale → Rental
+Basic → Advanced
+Search → sort
+Search → page
+Search → Map
+Save → restore
+Detail → return
+Refine → save
+Selection → page
+
+fast-check's model-based testing lets us represent those as commands, generate random legal sequences, execute them against the application and a simple model, and shrink the failing command sequence.
+
+One day it may discover:
+
+Rental
+→ set ownership=Condo
+→ switch Advanced
+→ clear price
+→ Basic
+→ Save
+→ Reload
+→ Restore
+
+FAIL:
+ownership disappears
+
+No person had to think to write that exact test.
+
+That is future adaptability.
+
+The fourth leap: covering arrays for your enormous Advanced Search
+
+You have far too many controls to exhaustively test every combination.
+
+NIST's combinatorial testing work is almost ideal here. It is based on the observation that most faults arise from interactions among relatively few parameters. Their ACTS tooling can create compact t-way covering arrays, including constraints; NIST gives an example where more than 1.3 billion three-way combinations are covered by only 71 generated tests.
+
+For Mallan I would use:
+
+all Search criteria:              2-way + 3-way
+high-risk criteria cluster:       4-way
+identity/count/paging cluster:    5-way
+release deep test:                selected 6-way
+
+High-risk cluster:
+
+Sale/Rental
+× status
+× geography
+× ownership/subtype
+× sort
+× page-size/continuation
+
+This is a much more intelligent definition of “massive testing” than brute force.
+
+The fifth leap: tests that test the tests
+
+I would add two mutation systems.
+
+Generic Stryker over changed Search code catches weak assertions. Mutation testing deliberately changes production code and expects the tests to fail; surviving mutations expose ineffective tests.
+
+But I would also create a Mallan-specific historical mutant catalog:
+
+M001 remove return-copy suppression
+M002 move Open House filter after pagination
+M003 use provider count as final count
+M004 remove half-bath component
+M005 substitute ModificationTimestamp for ListingContractDate
+M006 map missing numeric to zero
+M007 remove Mallan-local source
+M008 collapse Pending to ActiveUnderContract
+M009 drop one Saved Search criterion on restore
+M010 treat lower-bound count as exact
+M011 remove ListingKey tie-break
+M012 apply client-side filter after server count
+M013 make unknown permission allowed
+M014 replace ClosePrice with ListPrice
+M015 ignore AssociationFeeFrequency
+
+Every release must kill the historical mutations applicable to changed Search code.
+
+That means the bugs you already paid to discover become permanent weapons.
+
+The sixth leap: a Cotality lockfile
+
+This is how I would make provider evolution controlled instead of frightening.
+
+Conceptually:
+
+cotality-search-contract.lock.json
+
+acquiredAt
+serviceDocumentHash
+metadataHash
+fieldHash
+lookupHash
+
+Property.ListPrice
+  type
+  nullable
+  selectable
+  filterOperators
+  sortable
+  observedPopulation
+  semanticDecision
+  MallanCriterion
+
+Property.Furnished
+  ...
+
+CustomProperty.CustomFields.MaximumFinancingPercent
+  container
+  encoding
+  observedValues
+  semanticDecision
+  executableStrategy
+
+OpenHouse.ListingKey
+  relationshipToProperty
+
+The runtime does not blindly update itself when Cotality changes.
+
+A watcher compares live Cotality with the release lock and returns:
+
+SAFE_ADDITIVE
+SEMANTIC_REVIEW_REQUIRED
+BREAKING
+PROVIDER_ANOMALY
+UNVERIFIED
+
+A new provider field stays discovered but disabled until Mallan proves what it means.
+
+That is adaptable without being reckless.
+
+The seventh leap: Search Flight Recorder + Golden Thread
+
+OpenTelemetry can propagate execution context across Node asynchronous operations and attach child spans to the same logical request.
+
+For every authenticated Search, I would create:
+
+SearchExecutionEnvelope
+
+executionId
+gitSha
+providerContractHash
+canonicalCriteriaHash
+workflow
+sort
+sourceComposition
+countState
+page
+elapsedMs
+
+And trace:
+
+search.normalize
+search.compile-provider
+search.provider-read
+search.local-read
+search.return-copy-suppression
+search.gates
+search.corpus-filter
+search.dedupe
+search.sort
+search.page
+search.dto
+
+No sensitive client data in tracing.
+
+Then:
+
+Saved Search
+Report
+Compare
+CMA
+
+carry the criteriaHash/executionId.
+
+When something disagrees, Claude can see exactly where the universe split.
+
+This attacks the root problem behind four months of fragmented debugging.
+
+The eighth leap: Search Impact Router
+
+This makes Claude significantly faster.
+
+The capability graph becomes a DAG:
+
+bath_contract
+   ↓
+SaleCriteria
+RentalCriteria
+   ↓
+provider compiler
+Mallan compiler
+   ↓
+final universe
+   ↓
+pagination
+   ├── Grid
+   ├── Gallery
+   ├── Map
+   ├── Saved Search
+   ├── Reports
+   └── CMA
+
+If Claude changes bath-contract.ts, run:
+
+search:impact
+
+Affected:
+- Sale
+- Rental
+- provider executor
+- Mallan-local executor
+- final universe
+- Saved Search
+- reports
+- CMA input
+
+Required packs:
+P-BATH
+P-CROSSSOURCE
+P-SAVED
+P-REPORT
+P-CMA
+
+If Claude changes only a Gallery CSS rule:
+
+Affected:
+Gallery
+mobile/tablet/desktop
+
+Required:
+UI-GALLERY
+E2E-DEVICE
+
+No full-repo insanity.
+
+No under-testing either.
+
+Claude Code even supports asynchronous hooks after edits, so a hook can calculate impact and feed the required packs back to Claude while it continues working.
+
+The ninth leap: Claude specialization without multiple writers
+
+Claude Code can restrict a subagent to Read, Grep, Glob, Bash, meaning it cannot Write/Edit or use MCPs; MCP access can also be scoped per subagent.
+
+I would use exactly one writer:
+
+SEARCH COORDINATOR / BUILDER
+    only writer
+
+COTALITY CONTRACT JUDGE
+    read-only
+    Cotality MCP
+
+SEARCH ORACLE JUDGE
+    read-only
+    property/metamorphic results
+
+BROWSER JUDGE
+    read-only
+    Playwright MCP only
+
+COMPLIANCE JUDGE
+    read-only
+
+RED TEAM JUDGE
+    read-only
+
+The Browser Judge doesn't need Cotality MCP.
+
+The Cotality Judge doesn't need Playwright.
+
+That reduces context pollution and prevents one agent from unconsciously changing the thing it is supposed to verify. Claude Code supports both restricted tool allowlists and subagent-specific MCP servers.
+
+Skills can run in isolated fork contexts and target specific custom agents.
+
+The tenth leap: Claude cannot quit early
+
+This is not theoretical.
+
+Claude Code's current hook system says PreToolUse can block a tool, and TaskCompleted and Stop can control whether completion proceeds.
+
+So:
+
+PreToolUse
+    blocks forbidden Search-scope mutations
+
+TaskCompleted
+    checks required impact packs
+    checks RED-before/GREEN-after evidence
+
+Stop
+    checks:
+      current SHA
+      search:closure result
+      proof bundle SHA
+      independent verdict
+
+If:
+
+HEAD = ABC
+proof bundle = XYZ
+
+Claude gets:
+
+BLOCKED:
+closure evidence belongs to a different SHA.
+Continue.
+
+If Claude says “everything fixed” after five unit tests:
+
+BLOCKED:
+SEARCH_E2E_SALE missing
+SEARCH_E2E_RENTAL missing
+METAMORPHIC pack missing
+MUTATION pack missing
+
+That is the kind of control you need.
+
+I would change the closure command itself
+
+Not just:
+
+npm run search:closure
+
+I would make it orchestrate a test ladder:
+
+T0  SOURCE / CONTRACT
+    typed invariants
+    capability graph
+    semantic static lint
+    provider contract diff
+
+T1  TARGETED
+    impact-selected unit/integration packs
+
+T2  ORACLE
+    reference interpreter
+    differential oracle
+    metamorphic laws
+    property-based generation
+
+T3  INTERACTION
+    t-way covering arrays
+    model-based command sequences
+    historical regression corpus
+
+T4  TEST THE TESTS
+    domain mutants
+    Stryker incremental mutation
+
+T5  BROWSER
+    Sale broker journey
+    Rental broker journey
+    desktop/tablet/mobile
+
+T6  DOWNSTREAM
+    Saved Search
+    Map
+    detail
+    Compare
+    Reports
+    CMA handoff
+
+T7  PROVIDER FAILURE
+    429
+    500
+    timeout
+    contract drift
+    malformed/null data
+
+T8  PREVIEW
+    exact-SHA Vercel
+    real authenticated browser
+    sanitized real-query replay
+
+T9  INDEPENDENT VERDICT
+    fresh/bare Claude red team
+
+FINAL
+    PASS / BLOCKED / UNVERIFIED
+
+And T0–T4 should normally run without a Vercel deployment. That keeps Claude moving quickly.
+
+Preview is expensive late-stage evidence, not the debugging environment.
+
+There is also one architectural change I strongly recommend
+
+Make impossible Search states impossible to represent.
+
+Today systems tend to have things like:
+
+total: number;
+isExact: boolean;
+totalPages: number | null;
+
+Those fields can contradict each other.
+
+Instead:
+
+type SearchCount =
+  | {
+      state: "exact";
+      total: number;
+      totalPages: number;
+    }
+  | {
+      state: "lower_bound";
+      lowerBound: number;
+      totalPages: null;
+    }
+  | {
+      state: "unverified";
+      reason: string;
+      totalPages: null;
+    };
+
+And eventually for dangerous facts:
+
+type Fact<T> =
+  | { state: "known"; value: T }
+  | { state: "unknown"; reason: string }
+  | { state: "unavailable"; reason: string };
+
+Then:
+
+unknown fee → $0
+unknown beds → Studio
+unknown location → Manhattan
+unknown permission → allowed
+
+becomes structurally harder to write.
+
+That directly attacks an entire historical Mallan defect family.
+
+One more jewel: a real-query evolutionary corpus
+
+Every time an agent actually searches Mallan, store only a privacy-safe shape:
+
+workflow: rental
+criteria:
+    borough
+    price-range-present
+    beds
+    baths
+    furnished
+    ownership
+sort
+pageSize
+deviceClass
+
+Not client identity.
+
+Not the actual recipient.
+
+Not a raw Cotality response.
+
+Then periodically select the most common and most novel shapes and replay them in the Search lab.
+
+The suite evolves with the brokerage.
+
+If agents suddenly begin doing a lot of:
+
+Rental + furnished + open house + pets
+
+that combination automatically gains test weight.
+
+This is how future adaptability becomes real rather than theoretical.
+
+And a failure becomes a permanent asset
+
+Every real Search bug should create:
+
+tests/search/corpus/S-2026-0042.json
+
+containing:
+
+minimal canonical reproduction
+violated invariant
+root-cause family
+first bad SHA
+fixed SHA
+affected workflows
+required oracle
+
+The system reruns it forever.
+
+Claude does not write another three-page postmortem and forget it.
+
+It adds another weapon to the corpus.
+
+What I would actually authorize Claude to build
+
+This is the implementation structure I recommend:
+
+scripts/search-os/
+    closure.mjs
+    status.mjs
+    impact.mjs
+    contract-lock.mjs
+    capability-graph.mjs
+    replay.mjs
+
+    oracle/
+        reference-interpreter.ts
+        differential.ts
+        metamorphic.ts
+        partitions.ts
+        conservation.ts
+
+    generators/
+        property.ts
+        combinatorial.ts
+        real-query-corpus.ts
+
+    mutations/
+        historical-mutants.ts
+        provider-chaos.ts
+
+    proof/
+        manifest.ts
+        hash.ts
+        evidence.ts
+
+tests/search-os/
+    properties/
+    model/
+    corpus/
+    mutants/
+    scenarios/
+
+tests/e2e/search/
+    seed.spec.ts
+    sale-broker.spec.ts
+    rental-broker.spec.ts
+    search-state.spec.ts
+
+.claude/
+    agents/
+        search-coordinator.md
+        cotality-contract-judge.md
+        search-oracle-judge.md
+        browser-judge.md
+        closure-red-team.md
+
+    skills/
+        search-repair/
+        search-closure/
+        search-root-cause/
+        cotality-contract-change/
+
+    hooks/
+        guard-search-scope.ps1
+        search-impact.ps1
+        require-task-evidence.ps1
+        require-closure-before-stop.ps1
+
+The .claude/** files still require your explicit authorization under your project rules. Workflow changes, new dependencies, Production telemetry, schema work and deployments remain separate approvals.
+
+The first implementation should require no schema change and no Production modification.
+
+New tooling I believe is worth adding
+
+fast-check is the highest-value new dev dependency I found for this project. It is designed for JS/TS property-based testing, model-based testing, fuzzing and automatic shrinking, and it works with Jest.
+
+StrykerJS is the second. It tests the quality of your tests, supports TypeScript/Jest and has incremental mode.
+
+NIST ACTS is valuable as a test-generation tool, not an application runtime dependency. NIST distributes ACTS specifically for t-way test generation and supports constraints and variable-strength testing.
+
+Playwright should remain the browser authority. Its official agent tooling now provides Planner, Generator and Healer flows for Claude Code. I would use Planner/Generator but keep the final acceptance suite immutable to the Healer.
+
+OpenTelemetry is the right standard for the Search Flight Recorder. JavaScript traces and metrics are stable.
+
+The standard I would set
+
+I would not promise you that any system can make Search literally incapable of ever having a bug.
+
+I would set a much stronger and defensible objective:
+
+No Search semantic change, provider-contract change, UI-state change, result-universe change, or downstream-consumer divergence can silently ship unless it defeats multiple independent oracles at once.
+
+And:
+
+Every newly discovered Search defect becomes a permanent generative, regression or mutation test so the system becomes harder to break over time.
+
+That is a very different engineering system from what Mallan has been doing.
+
+Right now Claude is largely being asked to reason well.
+
+The architecture above makes Claude operate inside a system where reasoning incorrectly produces a counterexample, a failed invariant, a surviving mutant, a mismatched universe hash, a state-machine failure, or a blocked Stop hook.
+
+That is the level I would build toward.

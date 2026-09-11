@@ -4,6 +4,12 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { hashPassword } from "@/lib/auth/password";
+import {
+  rejectNonCanonicalLicenseType,
+  rejectUnverifiedMemberMlsId,
+  canonicalTitleFor,
+} from "@/lib/agents/license-designation";
+import { requireBrokerageRole } from "@/lib/agents/brokerage-role";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 export async function GET(req: NextRequest) {
@@ -23,6 +29,7 @@ export async function GET(req: NextRequest) {
       license_no: true,
       license_type: true,
       license_expiry: true,
+      trestle_mls_id: true,
       sale_split: true,
       rental_split: true,
       role: true,
@@ -94,6 +101,61 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // SERVER BOUNDARY INVARIANT. A stale browser, a malformed request or a
+  // direct API caller must not be able to put a designation display string -
+  // or any other text - into a column whose canonical values are
+  // broker | salesperson. Refuse BEFORE any write.
+  const licenseTypeError = rejectNonCanonicalLicenseType(body.license_type);
+  if (licenseTypeError) {
+    return NextResponse.json({ error: licenseTypeError }, { status: 400 });
+  }
+
+  // ONBOARDING CONTRACT. The form marks the licence designation, the NY DOS
+  // licence number and the expiry as required; the server enforced none of
+  // them, so an active brokerage account could be created with no licence
+  // facts at all. HTML `required` is not a contract.
+  const missingLicence: string[] = [];
+  if (!body.license_type) missingLicence.push("license_type");
+  if (!body.license_no) missingLicence.push("license_no");
+  if (!body.license_expiry) missingLicence.push("license_expiry");
+  if (missingLicence.length > 0) {
+    return NextResponse.json(
+      {
+        error: "Missing required licence facts: " + missingLicence.join(", "),
+        message: "An active brokerage agent account requires a licence designation, "
+          + "NY DOS licence number and expiry.",
+      },
+      { status: 400 }
+    );
+  }
+
+  // Provider identity is resolved and verified, never typed. See
+  // rejectUnverifiedMemberMlsId.
+  const mlsIdError = rejectUnverifiedMemberMlsId(body.trestle_mls_id);
+  if (mlsIdError) {
+    return NextResponse.json({ error: mlsIdError }, { status: 400 });
+  }
+
+  // THE BROKERAGE PROFESSIONAL ROLE IS RECORDED, NOT COMPUTED, AND REQUIRED.
+  //
+  // It correlates with the licence class but is not derived from it: they agree
+  // because both are set from known facts, and a future licensee may break the
+  // symmetry. There is NO default - a missing role is refused rather than
+  // silently written as the retired "AGENT", which never named a profession.
+  // Every branch below returns BEFORE any row is created.
+  const roleError = requireBrokerageRole(body.role);
+  if (roleError) {
+    return NextResponse.json({ error: roleError }, { status: 400 });
+  }
+  // This path never mints BROKER: the principal broker of the brokerage is not
+  // created through the roster form.
+  if (body.role === "BROKER") {
+    return NextResponse.json(
+      { error: "The principal-broker role cannot be assigned through the roster form." },
+      { status: 400 }
+    );
+  }
+
   const existing = await prisma.agent.findUnique({ where: { email } });
   if (existing) {
     return NextResponse.json(
@@ -121,12 +183,25 @@ export async function POST(req: NextRequest) {
       phone: (body.phone as string) ?? null,
       license_no: (body.license_no as string) ?? null,
       license_type: (body.license_type as string) ?? null,
+      // Both columns already exist on Agent and PATCH writes them; create did
+      // not, so a licence expiry typed on the Add Agent form was collected and
+      // then dropped. GET even selects license_expiry, which made the loss
+      // invisible until you reopened the record.
+      license_expiry: body.license_expiry ? new Date(body.license_expiry as string) : null,
+      // Always NULL at creation - see rejectUnverifiedMemberMlsId.
+      trestle_mls_id: null,
       sale_split: body.sale_split != null ? Number(body.sale_split) : null,
       rental_split: body.rental_split != null ? Number(body.rental_split) : null,
-      role: "AGENT",
+      // Recorded from the form, verbatim. Validated above as one of the exact
+      // canonical values, so there is nothing to normalise and nothing to
+      // default: a new row can only ever carry a canonical professional role.
+      role: body.role as string,
       status: "active",
       // Public profile fields
-      title: (body.title as string) ?? null,
+      // DERIVED from the LICENCE CLASS alone. Never client input: the title
+      // is a regulated statement about the licence (NY DOS 19 NYCRR 175.25),
+      // and `role` is an authorisation grant that cannot manufacture one.
+      title: canonicalTitleFor(body.license_type as string),
       bio: (body.bio as string) ?? null,
       photo: (body.photo as string) ?? null,
       public_slug: slug,

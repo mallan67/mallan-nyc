@@ -5,9 +5,10 @@
 
 ---
 
-> ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
-> 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+> ### AUTHORITY (Packet 2 closure, 2026-09-06)
+> **COTALITY LIVE CONTRACT** (`lib/cotality/live-contract.ts`, the dated live pulls) → provider facts: field existence, enum members.
+> **REBNY / UCBA** (`lib/compliance/rebny-ucba-rules.ts`) → compliance / business rules. **MALLAN** (`lib/listings/mallan-form-contract.ts`, `lib/listings/mallan-status.ts`) → form / workflow / storage.
+> **RESO = vocabulary only.** Fail closed = NON-DISPLAY. (The former "RLS overrides RESO/IDX" ordering is retired: no CSV, RESO document or hand-typed table is a field authority.)
 
 ---
 
@@ -100,6 +101,8 @@
 
 ## 3. Evidence Retention Schedule
 
+> **Read with `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` §14/§15 (2026-09-10).** The table below is the **regulatory floor** — what the law and REBNY require you to be able to produce. What the system actually *does* is narrower and is enforced by `app/api/cron/data-retention/route.ts`: `AuditEvent` rows are hard-deleted at 2 years, and exactly two write-only sync-diagnostic actions at 30 days per `docs/compliance/OPERATIONAL-DIAGNOSTIC-RETENTION.md` (approved 2026-08-02). Where a legal floor below is wider than the AuditEvent window, the evidence must live in a longer-lived model (CommissionPayment, Deal, ProtectedPeriod, ListingMedia) — never in AuditEvent alone. For closed listings and financial transactions use **6 years** (index §14), not the 7 shown below.
+
 | Data Type | Retention Period | Reason |
 |-----------|-----------------|--------|
 | Listing data (active) | Duration of listing + 3 years | UCBA compliance, statute of limitations |
@@ -123,24 +126,25 @@
 
 ### Standard Log Entry
 
-```json
+```jsonc
+// The real contract is the Prisma `AuditEvent` model (`prisma/schema.prisma`,
+// table `audit_events`). Write ONLY through logAuditEvent() in
+// lib/auth/middleware.ts — the single writer in the repo.
 {
-  "timestamp": "2026-02-21T14:30:00.000Z",
-  "event_type": "listing.edit",
-  "user_id": "agent_maya_allan",
-  "user_role": "broker",
-  "ip_address": "192.168.1.1",
-  "resource_type": "listing",
-  "resource_id": "RLS1234567",
-  "action": "update",
-  "details": {
-    "field": "ListPrice",
-    "old_value": "1500000",
-    "new_value": "1450000"
+  "action": "status_change",            // verb; the retention allowlist keys on this exact string
+  "entity_type": "listing",             // "listing" | "deal" | "lead" | "agent" | "session"
+  "entity_id": "RLS1234567",
+  "user_type": "agent",                 // "agent" | "lead" | "system"
+  "user_id": 42,                        // BigInt FK, nullable
+  "changes": {                          // JSONB diff — { field: { old, new } }
+    "ListPrice": { "old": "1500000", "new": "1450000" }
   },
-  "compliance_flags": ["price_change_24hr_sla"]
+  "ip_address": "192.168.1.1",          // nullable
+  "created_at": "2026-02-21T14:30:00.000Z"
 }
 ```
+
+> **Corrected 2026-09-10.** This block previously specified `event_type` / `user_role` / `resource_type` / `resource_id` / `details` / `compliance_flags` — a shape that was never built, and following it would have created a second, incompatible event schema. Field authority for audit events is `prisma/schema.prisma` (`model AuditEvent`) plus `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` §15.
 
 ### Log Storage
 

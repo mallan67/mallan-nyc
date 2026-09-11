@@ -20,22 +20,12 @@ import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { checkFeeDisclosure, isDisplayReadyStatus } from "@/lib/crm/fee-disclosure";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
+import { allowedCanonicalTransitions, requiredFactsFor, resolveCanonicalStatusForListing, STATUS_FACT_FIELDS } from "@/lib/crm/status-mapping";
+import type { Prisma } from "@prisma/client";
 
-// REBNY RLS status state machine
-// Valid transitions map: current → allowed next statuses
-const STATUS_TRANSITIONS: Record<string, string[]> = {
-  Draft: ["Active", "ComingSoon"],
-  ComingSoon: ["Active", "Withdrawn"],
-  Active: ["ActiveUnderContract", "Pending", "Hold", "Withdrawn", "Expired"],
-  ActiveUnderContract: ["Active", "Pending", "Hold", "Withdrawn"],
-  Pending: ["Sold", "Rented", "Active", "Withdrawn"],
-  Hold: ["Active", "Draft"],
-  Sold: [], // Terminal
-  Rented: [], // Terminal
-  Withdrawn: ["Active", "Draft"],
-  Expired: ["Active", "Draft"],
-  Cancelled: [], // Terminal
-};
+// The status state machine lives in lib/crm/status-mapping.ts, ONE PER TRANSACTION (owner ruling 2026-09-08):
+// a sale listing moves through the sale mapping (Pending → Sold) and a rental through the rental mapping
+// (Pending → Rented). This route never holds a shared table.
 
 export async function PATCH(
   req: NextRequest,
@@ -78,24 +68,110 @@ export async function PATCH(
     );
   }
 
-  let body: { status: string };
+  // `facts` carries the status's associated Cotality date (and the close price) with the transition — the
+  // Contract Signed date, the close date + price, the expiration / withdrawn / cancellation date, the
+  // Back on Market date, or the rental's Mallan lease-signed date (lib/crm/status-mapping.ts STATUS_FACT_FIELDS).
+  let body: { status: string; facts?: Record<string, unknown> };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const newStatus = body.status;
-  if (!newStatus) {
+  const requested = body.status;
+  if (!requested) {
     return NextResponse.json(
       { error: "Missing 'status' field" },
       { status: 400 }
     );
   }
 
-  // Validate transition
+  // SERVER-OWNED conversion (Packet 2 closure): the client sends the Mallan workflow value
+  // (e.g. "OfferOut" on a sale, "AppOut" on a rental) or an already-canonical status; the server resolves it
+  // through THIS listing's transaction mapping only. The form's saved-state "Closed" resolves to the
+  // transaction close (sale → Sold, rent → Rented); the other transaction's words are unknown → 400.
+  const newStatus = resolveCanonicalStatusForListing(requested, listing.listing_type);
+  if (!newStatus) {
+    return NextResponse.json(
+      { error: `Unrecognized status: ${String(requested)}`, code: "form_mapping" },
+      { status: 400 }
+    );
+  }
+
   const currentStatus = listing.status;
-  const allowed = STATUS_TRANSITIONS[currentStatus];
+
+  // The status's associated facts are read BEFORE the idempotent-status short-circuit below: an agent who
+  // re-submits the same status with a CORRECTED date or price (a re-keyed CloseDate, a fixed ClosePrice) must have
+  // that correction persisted. Returning early on an unchanged status used to discard it silently.
+  const storedRaw = (listing.raw_data as Record<string, unknown>) ?? {};
+  const acceptedFacts: Record<string, unknown> = {};
+  if (body.facts && typeof body.facts === "object") {
+    for (const [k, v] of Object.entries(body.facts)) {
+      if (!STATUS_FACT_FIELDS.includes(k)) {
+        return NextResponse.json(
+          { error: `"${k}" is not a status fact this transition may carry`, field: k, code: "STATUS_FACT_UNKNOWN", allowed: STATUS_FACT_FIELDS },
+          { status: 400 }
+        );
+      }
+      if (v !== undefined && v !== null && v !== "") acceptedFacts[k] = v;
+    }
+  }
+  const existingRaw: Record<string, unknown> = { ...storedRaw, ...acceptedFacts };
+  const requiredFacts = requiredFactsFor(requested, listing.listing_type) ?? [];
+  for (const field of requiredFacts) {
+    const v = existingRaw[field];
+    const present = typeof v === "number" ? Number.isFinite(v) && v > 0 : v !== undefined && v !== null && String(v).trim() !== "";
+    if (!present) {
+      return NextResponse.json(
+        {
+          error: `${field} is required before marking a listing as ${newStatus}`,
+          field,
+          code: "STATUS_FACT_REQUIRED",
+          required: requiredFacts,
+        },
+        { status: 422 }
+      );
+    }
+  }
+
+  // Idempotent submit: the form re-sends its workflow status on every save. An unchanged canonical status skips the
+  // transition check and the DOM/gate recompute — but any CORRECTED fact it carried is still written.
+  if (newStatus === currentStatus) {
+    const correctedFacts = Object.keys(acceptedFacts).filter((k) => storedRaw[k] !== acceptedFacts[k]);
+    if (correctedFacts.length > 0) {
+      await prisma.listing.update({
+        where: { id: listing.id },
+        data: { raw_data: existingRaw as Prisma.InputJsonValue, modification_timestamp: new Date() },
+      });
+      await logAuditEvent(
+        "status_facts_corrected",
+        "listing",
+        listing.id.toString(),
+        auth,
+        { status: currentStatus, corrected: correctedFacts, values: Object.fromEntries(correctedFacts.map((k) => [k, acceptedFacts[k]])) },
+        req.headers.get("x-forwarded-for") ?? undefined
+      );
+      safeRevalidateTags([
+        listingCacheTag(listing.listing_id),
+        ...buildingAndManifestInvalidationTags(listing.address),
+        SEARCH_CACHE_TAG,
+      ]);
+      try {
+        await dualWriteProjectionForListingId(prisma, listing.listing_id);
+      } catch { /* the projection cron is the belt-and-suspenders; a correction must not fail on it */ }
+    }
+    return NextResponse.json({
+      id: listing.id.toString(),
+      listing_id: listing.listing_id,
+      previous_status: currentStatus,
+      status: currentStatus,
+      unchanged: true,
+      facts_updated: correctedFacts,
+    });
+  }
+
+  // Validate the transition on this listing's transaction state machine (sale or rental — never both).
+  const allowed = allowedCanonicalTransitions(currentStatus, listing.listing_type);
 
   if (!allowed) {
     return NextResponse.json(
@@ -118,30 +194,16 @@ export async function PATCH(
     );
   }
 
-  // Terminal statuses (Sold/Rented) require broker approval
-  if (
-    (newStatus === "Sold" || newStatus === "Rented") &&
-    auth.role !== "BROKER"
-  ) {
+  // The close (the provider's Closed — Sold on a sale, Rented on a rental) requires broker approval
+  if (newStatus === "Closed" && auth.role !== "BROKER") {
     return NextResponse.json(
-      { error: "Sold/Rented status requires broker approval" },
+      { error: "Closing a listing (Sold / Rented) requires broker approval" },
       { status: 403 }
     );
   }
 
-  // C12: ClosePrice required when transitioning to Sold/Rented
-  const existingRaw = (listing.raw_data as Record<string, unknown>) ?? {};
-  if (newStatus === "Sold" || newStatus === "Rented") {
-    if (!existingRaw.ClosePrice) {
-      return NextResponse.json(
-        {
-          error: `ClosePrice is required before marking a listing as ${newStatus} (UCBA C12)`,
-          field: "ClosePrice",
-        },
-        { status: 422 }
-      );
-    }
-  }
+  // (the status's associated facts were read and enforced above, before the idempotent short-circuit, so a
+  //  correction submitted with an unchanged status is never discarded)
 
   // FARE Act fee-disclosure gate (NYC LL 119/2024) — rentals going display-ready
   // (Active / ComingSoon). Applies to CRM rental exclusives too (NOT skipped like
@@ -165,7 +227,7 @@ export async function PATCH(
   const isCrmCreated = !listing.mls_id;
   if (listing.rls_eligible && !isCrmCreated) {
     const enforcement = assertRlsCompliantPayload(
-      { ...existingRaw, MlsStatus: newStatus },
+      { ...existingRaw, _mallanStatus: newStatus },
       {
         listingType: (listing.listing_type as "sale" | "rent") ?? "sale",
         isNewDevelopment: (existingRaw.NewDevelopmentYN as boolean) === true,
@@ -192,6 +254,9 @@ export async function PATCH(
   const domUpdate = computeDomTransition(
     {
       status: currentStatus,
+      // UCBA 2026 Art. I §11 carve-out: a participant-only listing accrues no
+      // DOM even while Active. Canonical typed column — never a provider string.
+      participant_only: listing.participant_only,
       status_changed_at: listing.status_changed_at,
       first_active_date: listing.first_active_date,
       days_on_market: listing.days_on_market,
@@ -199,9 +264,10 @@ export async function PATCH(
     newStatus
   );
 
-  // D9: Mark listings that were Coming Soon so one-time-per-address check works
-  const updatedRaw = currentStatus === "ComingSoon" && newStatus !== "ComingSoon"
-    ? { ...existingRaw, _wasComingSoon: true }
+  // D9: Mark listings that were Coming Soon so one-time-per-address check works; persist the accepted facts.
+  const wasComingSoon = currentStatus === "ComingSoon" && newStatus !== "ComingSoon";
+  const updatedRaw = wasComingSoon || Object.keys(acceptedFacts).length > 0
+    ? { ...existingRaw, ...(wasComingSoon ? { _wasComingSoon: true } : {}) }
     : undefined;
 
   // Phase A W1 — recompute display gates against the new status.
@@ -369,7 +435,7 @@ export async function PATCH(
     previous_status: currentStatus,
     status: newStatus,
     publicUrl: urls.publicUrl,
-    realPlusUrl: urls.realPlusUrl,
+    rebnyListingUrl: urls.rebnyListingUrl,
     days_on_market: domUpdate.days_on_market,
     ...(domReset ? { dom_reset: true } : {}),
   });

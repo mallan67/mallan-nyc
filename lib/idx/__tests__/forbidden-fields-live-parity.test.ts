@@ -1,5 +1,4 @@
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { contractNames } from '../../../tests/runtime/cotality-contract-facts';
 import {
   FORBIDDEN_FIELDS,
   FORBIDDEN_LIVE_ALLOWLIST,
@@ -9,8 +8,8 @@ import {
  * SNAPSHOT parity guard for the FORBIDDEN_FIELDS list (the server-code phantom
  * guard that `npm run trestle:audit-server` enforces).
  *
- * Scope: this checks the list against the CAPTURED $metadata snapshot in
- * artifacts/metadata.xml — a fast, creds-free SNAPSHOT guard, NOT a live-drift
+ * Scope: this checks the list against the COMMITTED live Cotality contract
+ * (data/cotality-contract/**) — a fast, creds-free contract guard, NOT a live-drift
  * guard. Fresh vendor drift (Cotality adding a forbidden name to the live feed)
  * is caught by `detectForbiddenNowLive` in the audit, run daily against the live
  * feed by .github/workflows/trestle-live-audit.yml — see
@@ -30,13 +29,7 @@ import {
 describe('FORBIDDEN_FIELDS snapshot parity (server phantom guard)', () => {
   const forbiddenKeys = Object.keys(FORBIDDEN_FIELDS);
 
-  const xml = readFileSync(
-    resolve(__dirname, '../../../artifacts/metadata.xml'),
-    'utf-8'
-  );
-  const snapshotNames = new Set(
-    [...xml.matchAll(/Name="([A-Za-z0-9_]+)"/g)].map((m) => m[1])
-  );
+  const snapshotNames = contractNames(); // every name the committed live contract declares
 
   it('parsed a non-trivial FORBIDDEN_FIELDS list and a populated snapshot', () => {
     expect(forbiddenKeys.length).toBeGreaterThanOrEqual(14);

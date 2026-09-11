@@ -34,9 +34,9 @@ describe('CRM form save/load field parity', () => {
         'ListingAgreement', 'BuildingFeatures', 'CoBrokeAgreement',
         // Checkbox-array groups newly added by PR #268 + this PR. These are
         // restored via SALE_CHECKBOX_ARRAY_MAP, NOT SALE_FIELD_MAP, so they
-        // have no `rls: 'X'` entry in SALE_FIELD_MAP. The corresponding
-        // CHECKBOX_ARRAY_MAP entries (e.g. {rls:'Heating',name:'saleHeating'},
-        // {rls:'BuildingHeating',name:'saleBldgHeating'}, etc.) provide the
+        // have no `mallan: 'X'` entry in SALE_FIELD_MAP. The corresponding
+        // CHECKBOX_ARRAY_MAP entries (e.g. {cotality: 'Heating',name:'saleHeating'},
+        // {mallan: 'BuildingHeating',name:'saleBldgHeating'}, etc.) provide the
         // round-trip restore. See:
         //   - sale-form-save-load-retention.test.ts (PR #268 fields)
         //   - sale-form-all-radio-checkbox-coverage.test.ts (this PR — full
@@ -58,12 +58,18 @@ describe('CRM form save/load field parity', () => {
         // Canonical RESO writes from form radios / single-id booleans.
         // saleInternetAVMDisplayYN radio → InternetAutomatedValuationDisplayYN
         // canonical (per-row opt-out, fail-CLOSED). Same for ConsumerComment.
-        // Both restored via SALE_RADIO_MAP / SALE_FIELD_MAP fallbackRls keys.
+        // Both restored via SALE_RADIO_MAP / SALE_FIELD_MAP legacyFallback keys.
         'InternetAutomatedValuationDisplayYN', 'InternetConsumerCommentYN',
       ].includes(f)
     );
+    // Boundary rename (Maya ruling 2026-09-09): a SALE_FIELD_MAP entry declares which side of the
+    // Mallan/Cotality boundary it is on — `cotality:` is an EXACT live Cotality Property field,
+    // `mallan:` a Mallan-owned fact. The old undifferentiated `rls:` key no longer exists. Every
+    // capital-letter field collectSaleFormData emits is a canonical provider field, so each one must
+    // be declared `cotality: 'X'` — the same round-trip binding the old assertion proved, now also
+    // proving the emitted field sits on the Cotality side of the boundary.
     for (const field of uniqueRls) {
-      expect(formSource).toContain("rls: '" + field + "'");
+      expect(formSource).toContain("cotality: '" + field + "'");
     }
   });
 

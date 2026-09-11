@@ -10,7 +10,7 @@
  *   1. Pure residential  → always RLS-eligible
  *   2. Mixed-use, ≤5 units (small building) → RLS-eligible per UCBA Sec. 5(F)
  *   3. Mixed-use, >5 units (large building) → website-only
- *   4. Pure commercial (Office, Retail, etc. with PropertyType "Commercial") → website-only
+ *   4. Commercial PropertyType ("CommercialLease" / "CommercialSale") → website-only
  *   5. Explicit opt-out (rls_eligible=false) → website-only
  */
 
@@ -40,41 +40,44 @@ const MIXED_USE_SUBTYPES = new Set([
  */
 const RESIDENTIAL_SUBTYPES = new Set([
   "Apartment",
-  "Condo",
   "Condominium",
-  "CommunityApartment",
   "CoOwnership",
   "DeededParking",
   "Duplex",
-  "GardenApartment",
   "Loft",
   "MultiFamily",
-  "MultiFamilyTownhouse",
   "Quadruplex",
   "SingleFamilyResidence",
-  "SingleFamilyTownhouse",
   "Timeshare",
+  "Townhouse",           // the live member (both Mallan townhouse form values map to it)
   "Triplex",
   "UnimprovedLand",
-  "UnitDuplex",
-  "UnitQuadruplex",
-  "UnitTriplex",
 ]);
 
 /**
  * Classify a listing's RLS eligibility based on UCBA rules.
  *
- * @param payload - The listing payload (RESO field names)
+ * @param payload - The POST-SERVER-MAPPING listing payload. Both callers reassign
+ *   `body = applyServerFormMapping(...).body` before calling this, so provider-named keys here
+ *   (PropertyType, PropertySubType, NumberOfUnitsTotal) already carry live Cotality vocabulary;
+ *   that mapping refuses unknown values rather than defaulting them. This is NOT a raw Cotality
+ *   record and NOT the raw browser form payload.
  * @param overrides - Explicit opt-out or commercial classification from the form
  */
 export function classifyRlsEligibility(
   payload: Record<string, unknown>,
   overrides?: {
-    /** Explicit opt-out from the form (e.g., agent marked as website-only) */
+    /** MALLAN-OWNED. Explicit opt-out from the form (agent marked the listing website-only).
+     *  Derived by the callers from `listings.rls_eligible === false` or an InHouse listing type. */
     explicitOptOut?: boolean;
-    /** Commercial sub-type from form (e.g., "RetailStore", "OfficeSpace") */
+    /** MALLAN-OWNED, not Cotality. Backed by `listings.commercial_sub_type`
+     *  (prisma/schema.prisma:463, e.g. "RetailStore", "OfficeSpace", "Restaurant").
+     *  Used here only as a PRESENCE flag — its value is never compared. */
     commercialSubType?: string;
-    /** Commercial ownership from form (e.g., "CommercialCondo") */
+    /** MALLAN-OWNED, not Cotality. Backed by `listings.commercial_ownership`
+     *  (prisma/schema.prisma:464, e.g. "CommercialCondo", "CommercialCoop").
+     *  ACCEPTED BUT UNUSED — the function body never reads it. Both callers pass it. Left in
+     *  place rather than removed so the call sites are untouched by this scoped change. */
     commercialOwnership?: string;
   }
 ): RlsEligibilityResult {
@@ -93,9 +96,12 @@ export function classifyRlsEligibility(
   const numberOfUnits = parseNumberOfUnits(payload);
   const hasCommercialSubType = !!(overrides?.commercialSubType);
 
-  // Priority 2: PropertyType = "Commercial" or "CommercialLease" → always website-only
+  // Priority 2: a commercial PropertyType → always website-only.
+  // Only "CommercialLease" and "CommercialSale" are tested: both are VERIFIED live
+  // PropertyType members. A bare "Commercial" was tested here previously and is NOT a live
+  // PropertyType member (13 live members, verified 2026-09-07), so that branch was dead.
+  // "Commercial" IS a live PropertySubType member — a different field — and is not tested here.
   if (
-    propertyType === "Commercial" ||
     propertyType === "CommercialLease" ||
     propertyType === "CommercialSale"
   ) {
@@ -126,9 +132,22 @@ export function classifyRlsEligibility(
     // If we don't know the unit count, we can't determine eligibility.
     // Fail closed: require the agent to provide NumberOfUnitsTotal.
     if (numberOfUnits === null) {
-      // Mixed-use with no unit count: warn but default to RLS-eligible
-      // (agent must provide NumberOfUnitsTotal — the field is already required
-      // for MixedUse/MultiFamily in rebny-field-tables.ts BUILDING-001)
+      // Mixed-use with no unit count: default to RLS-eligible so the listing is routed INTO
+      // the stricter RLS path rather than silently becoming website-only.
+      //
+      // CITATION CORRECTED 2026-09-07: this previously claimed NumberOfUnitsTotal is "already
+      // required ... in rebny-ucba-rules.ts BUILDING-001". That is FALSE. BUILDING-001 requires
+      // BuildingAreaTotal, TaxAnnualAmount, LotSizeArea and LotSizeDimensions — not
+      // NumberOfUnitsTotal. The field IS mandatory, but via
+      // REBNY_UCBA_RULES.requiredFields.agentSubmitted.
+      //
+      // DEFECT REPORTED, NOT FIXED HERE (out of this file's scope): that mandatory set is only
+      // enforced by assertRlsCompliantPayload, which the CRM write paths do not reach for a
+      // CRM-created listing. POST calls validateListing(body) with NO rls context, and
+      // validateListing only runs the required/conditional gate `if (rls)`. PATCH does call
+      // assertRlsCompliantPayload but skips it when `isCrmCreated` (no mls_id). So a CRM-created
+      // mixed-use listing can persist with rls_eligible = true and an unknown unit count. See
+      // docs/operations/STEP3-FORBIDDEN-AUTHORITY-LEDGER.md Part 8.
       return {
         rlsEligible: true,
         reason: "Mixed-use property — NumberOfUnitsTotal not provided. Defaulting to RLS-eligible. Agent must provide unit count for accurate classification.",

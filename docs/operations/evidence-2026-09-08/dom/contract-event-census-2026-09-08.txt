@@ -1,0 +1,316 @@
+# Contract-event date census — live Cotality feed Trestle-11371-20, pulled 2026-09-08
+# Samples: 500 rows per class ordered by ModificationTimestamp desc (Closed by CloseDate desc); all 3 live ComingSoon rows; 178 = every Active row carrying a PurchaseContractDate.
+# 'gap A -> B' = B minus A in whole days. DaysOnMarket / CumulativeDaysOnMarket: null on every sampled row (filter suppressed, HTTP 400).
+
+
+##### comingsoon n=3
+  populated: OnMarketDate=3 OnMarketTimestamp=0 ListingContractDate=3 ActivationDate=3 PurchaseContractDate=0 PendingTimestamp=0 ContractStatusChangeDate=3 StatusChangeTimestamp=3 OffMarketDate=0 BackOnMarketDate=0 CloseDate=0 DaysOnMarket=0 CumulativeDaysOnMarket=0 StartShowingDate=0 WithdrawnDate=0
+  PCD == ContractStatusChangeDate         0/0
+  PCD == date(PendingTimestamp)           0/0
+  PCD == date(StatusChangeTimestamp)      0/0
+  PCD == OffMarketDate                    0/0
+  PCD == CloseDate                        0/0
+  ContractStatusChangeDate == CloseDate   0/0
+  ContractStatusChangeDate == date(StatusChangeTs) 3/3 (100.0%)
+  OnMarketDate == ListingContractDate     3/3 (100.0%)
+  OnMarketDate == ActivationDate          0/3 (0.0%)
+  OnMarketDate == date(OnMarketTimestamp) 0/0
+  OnMarketDate == date(OriginalEntryTs)   2/3 (66.7%)
+  OffMarketDate == CloseDate              0/0
+  gap PCD -> date(PendingTs)         n/a
+  gap PCD -> CloseDate               n/a
+  gap OnMarketDate -> PCD            n/a
+  gap ActivationDate -> OnMarketDate n=3 min=-13 p25=-13 med=-13 p75=-13 max=-13 zeros=0
+  gap OriginalEntry -> OnMarketDate  n=3 min=-5 p25=-5 med=0 p75=0 max=0 zeros=2
+  gap ListingContractDate -> OnMarketDate n=3 min=0 p25=0 med=0 p75=0 max=0 zeros=3
+  gap OnMarketDate -> today          n=3 min=6 p25=6 med=7 p75=12 max=12 zeros=0
+  gap BackOnMarketDate -> today      n/a
+  DaysOnMarket                       n/a
+  CumulativeDaysOnMarket             n/a
+  CumDOM - DOM                       n/a
+  DOM - (today-OnMarketDate)         n/a
+  DOM - (today-ListingContractDate)  n/a
+  DOM - (today-BackOnMarketDate)     n/a
+  DOM - (today-ActivationDate)       n/a
+  DOM - (PCD-OnMarketDate)           n/a
+  DOM - (PCD-ListingContractDate)    n/a
+  DOM - (CloseDate-OnMarketDate)     n/a
+  DOM - (OffMarketDate-OnMarketDate) n/a
+  DOM - (OffMarketDate-ListingContractDate) n/a
+  DOM - (CloseDate-ListingContractDate) n/a
+  MajorChangeType {"ComingSoon":3}
+
+##### pending-sale n=500
+  populated: OnMarketDate=500 OnMarketTimestamp=500 ListingContractDate=500 ActivationDate=491 PurchaseContractDate=500 PendingTimestamp=499 ContractStatusChangeDate=500 StatusChangeTimestamp=500 OffMarketDate=19 BackOnMarketDate=52 CloseDate=0 DaysOnMarket=0 CumulativeDaysOnMarket=0 StartShowingDate=0 WithdrawnDate=0
+  PCD == ContractStatusChangeDate         472/500 (94.4%)
+  PCD == date(PendingTimestamp)           305/499 (61.1%)
+  PCD == date(StatusChangeTimestamp)      283/500 (56.6%)
+  PCD == OffMarketDate                    6/19 (31.6%)
+  PCD == CloseDate                        0/0
+  ContractStatusChangeDate == CloseDate   0/0
+  ContractStatusChangeDate == date(StatusChangeTs) 276/500 (55.2%)
+  OnMarketDate == ListingContractDate     319/500 (63.8%)
+  OnMarketDate == ActivationDate          365/491 (74.3%)
+  OnMarketDate == date(OnMarketTimestamp) 393/500 (78.6%)
+  OnMarketDate == date(OriginalEntryTs)   390/500 (78.0%)
+  OffMarketDate == CloseDate              0/0
+  gap PCD -> date(PendingTs)         n=499 min=-566 p25=0 med=0 p75=1 max=358 zeros=305
+  gap PCD -> CloseDate               n/a
+  gap OnMarketDate -> PCD            n=500 min=-231 p25=34 med=76 p75=128 max=1253 zeros=34
+  gap ActivationDate -> OnMarketDate n=491 min=-302 p25=0 med=0 p75=0 max=863 zeros=365
+  gap OriginalEntry -> OnMarketDate  n=500 min=-302 p25=0 med=0 p75=0 max=863 zeros=390
+  gap ListingContractDate -> OnMarketDate n=500 min=-300 p25=0 med=0 p75=6 max=863 zeros=319
+  gap OnMarketDate -> today          n=500 min=0 p25=104 med=146 p75=218 max=1454 zeros=1
+  gap BackOnMarketDate -> today      n=52 min=6 p25=63 med=131 p75=200 max=495 zeros=0
+  DaysOnMarket                       n/a
+  CumulativeDaysOnMarket             n/a
+  CumDOM - DOM                       n/a
+  DOM - (today-OnMarketDate)         n/a
+  DOM - (today-ListingContractDate)  n/a
+  DOM - (today-BackOnMarketDate)     n/a
+  DOM - (today-ActivationDate)       n/a
+  DOM - (PCD-OnMarketDate)           n/a
+  DOM - (PCD-ListingContractDate)    n/a
+  DOM - (CloseDate-OnMarketDate)     n/a
+  DOM - (OffMarketDate-OnMarketDate) n/a
+  DOM - (OffMarketDate-ListingContractDate) n/a
+  DOM - (CloseDate-ListingContractDate) n/a
+  MajorChangeType {"Pending":497,"null":2,"ActiveUnderContract":1}
+
+##### pending-rent n=355
+  populated: OnMarketDate=347 OnMarketTimestamp=354 ListingContractDate=355 ActivationDate=318 PurchaseContractDate=347 PendingTimestamp=355 ContractStatusChangeDate=355 StatusChangeTimestamp=355 OffMarketDate=67 BackOnMarketDate=26 CloseDate=2 DaysOnMarket=0 CumulativeDaysOnMarket=0 StartShowingDate=0 WithdrawnDate=0
+  PCD == ContractStatusChangeDate         345/347 (99.4%)
+  PCD == date(PendingTimestamp)           180/347 (51.9%)
+  PCD == date(StatusChangeTimestamp)      186/347 (53.6%)
+  PCD == OffMarketDate                    44/67 (65.7%)
+  PCD == CloseDate                        0/2 (0.0%)
+  ContractStatusChangeDate == CloseDate   0/2 (0.0%)
+  ContractStatusChangeDate == date(StatusChangeTs) 190/355 (53.5%)
+  OnMarketDate == ListingContractDate     295/347 (85.0%)
+  OnMarketDate == ActivationDate          298/318 (93.7%)
+  OnMarketDate == date(OnMarketTimestamp) 302/347 (87.0%)
+  OnMarketDate == date(OriginalEntryTs)   303/347 (87.3%)
+  OffMarketDate == CloseDate              2/2 (100.0%)
+  gap PCD -> date(PendingTs)         n=347 min=-128 p25=0 med=0 p75=5 max=541 zeros=180
+  gap PCD -> CloseDate               n=2 min=6 p25=6 med=29 p75=29 max=29 zeros=0
+  gap OnMarketDate -> PCD            n=347 min=0 p25=9 med=23 p75=47 max=668 zeros=6
+  gap ActivationDate -> OnMarketDate n=318 min=-614 p25=0 med=0 p75=0 max=55 zeros=298
+  gap OriginalEntry -> OnMarketDate  n=347 min=-614 p25=0 med=0 p75=0 max=52 zeros=303
+  gap ListingContractDate -> OnMarketDate n=347 min=-614 p25=0 med=0 p75=0 max=1335 zeros=295
+  gap OnMarketDate -> today          n=347 min=3 p25=40 med=93 p75=266 max=1575 zeros=0
+  gap BackOnMarketDate -> today      n=26 min=7 p25=22 med=64 p75=162 max=503 zeros=0
+  DaysOnMarket                       n/a
+  CumulativeDaysOnMarket             n/a
+  CumDOM - DOM                       n/a
+  DOM - (today-OnMarketDate)         n/a
+  DOM - (today-ListingContractDate)  n/a
+  DOM - (today-BackOnMarketDate)     n/a
+  DOM - (today-ActivationDate)       n/a
+  DOM - (PCD-OnMarketDate)           n/a
+  DOM - (PCD-ListingContractDate)    n/a
+  DOM - (CloseDate-OnMarketDate)     n/a
+  DOM - (OffMarketDate-OnMarketDate) n/a
+  DOM - (OffMarketDate-ListingContractDate) n/a
+  DOM - (CloseDate-ListingContractDate) n/a
+  MajorChangeType {"Pending":340,"null":10,"ActiveUnderContract":2,"PriceChange":3}
+
+##### active-pcd n=178
+  populated: OnMarketDate=178 OnMarketTimestamp=178 ListingContractDate=178 ActivationDate=168 PurchaseContractDate=178 PendingTimestamp=103 ContractStatusChangeDate=178 StatusChangeTimestamp=177 OffMarketDate=11 BackOnMarketDate=98 CloseDate=11 DaysOnMarket=0 CumulativeDaysOnMarket=0 StartShowingDate=0 WithdrawnDate=11
+  PCD == ContractStatusChangeDate         11/178 (6.2%)
+  PCD == date(PendingTimestamp)           97/103 (94.2%)
+  PCD == date(StatusChangeTimestamp)      6/177 (3.4%)
+  PCD == OffMarketDate                    11/11 (100.0%)
+  PCD == CloseDate                        11/11 (100.0%)
+  ContractStatusChangeDate == CloseDate   3/11 (27.3%)
+  ContractStatusChangeDate == date(StatusChangeTs) 58/177 (32.8%)
+  OnMarketDate == ListingContractDate     161/178 (90.4%)
+  OnMarketDate == ActivationDate          143/168 (85.1%)
+  OnMarketDate == date(OnMarketTimestamp) 145/178 (81.5%)
+  OnMarketDate == date(OriginalEntryTs)   145/178 (81.5%)
+  OffMarketDate == CloseDate              11/11 (100.0%)
+  gap PCD -> date(PendingTs)         n=103 min=0 p25=0 med=0 p75=0 max=46 zeros=97
+  gap PCD -> CloseDate               n=11 min=0 p25=0 med=0 p75=0 max=0 zeros=11
+  gap OnMarketDate -> PCD            n=178 min=-350 p25=28 med=59 p75=112 max=731 zeros=8
+  gap ActivationDate -> OnMarketDate n=168 min=-11 p25=0 med=0 p75=0 max=370 zeros=143
+  gap OriginalEntry -> OnMarketDate  n=178 min=-11 p25=0 med=0 p75=0 max=622 zeros=145
+  gap ListingContractDate -> OnMarketDate n=178 min=-7 p25=0 med=0 p75=0 max=1105 zeros=161
+  gap OnMarketDate -> today          n=178 min=14 p25=111 med=179 p75=350 max=1190 zeros=0
+  gap BackOnMarketDate -> today      n=98 min=2 p25=47 med=82 p75=141 max=488 zeros=0
+  DaysOnMarket                       n/a
+  CumulativeDaysOnMarket             n/a
+  CumDOM - DOM                       n/a
+  DOM - (today-OnMarketDate)         n/a
+  DOM - (today-ListingContractDate)  n/a
+  DOM - (today-BackOnMarketDate)     n/a
+  DOM - (today-ActivationDate)       n/a
+  DOM - (PCD-OnMarketDate)           n/a
+  DOM - (PCD-ListingContractDate)    n/a
+  DOM - (CloseDate-OnMarketDate)     n/a
+  DOM - (OffMarketDate-OnMarketDate) n/a
+  DOM - (OffMarketDate-ListingContractDate) n/a
+  DOM - (CloseDate-ListingContractDate) n/a
+  MajorChangeType {"null":68,"BackOnMarket":64,"NewListing":46}
+
+##### active-sale n=500
+  populated: OnMarketDate=500 OnMarketTimestamp=500 ListingContractDate=500 ActivationDate=497 PurchaseContractDate=9 PendingTimestamp=15 ContractStatusChangeDate=500 StatusChangeTimestamp=497 OffMarketDate=0 BackOnMarketDate=66 CloseDate=0 DaysOnMarket=0 CumulativeDaysOnMarket=0 StartShowingDate=0 WithdrawnDate=0
+  PCD == ContractStatusChangeDate         0/9 (0.0%)
+  PCD == date(PendingTimestamp)           7/8 (87.5%)
+  PCD == date(StatusChangeTimestamp)      0/9 (0.0%)
+  PCD == OffMarketDate                    0/0
+  PCD == CloseDate                        0/0
+  ContractStatusChangeDate == CloseDate   0/0
+  ContractStatusChangeDate == date(StatusChangeTs) 269/497 (54.1%)
+  OnMarketDate == ListingContractDate     299/500 (59.8%)
+  OnMarketDate == ActivationDate          342/497 (68.8%)
+  OnMarketDate == date(OnMarketTimestamp) 367/500 (73.4%)
+  OnMarketDate == date(OriginalEntryTs)   357/500 (71.4%)
+  OffMarketDate == CloseDate              0/0
+  gap PCD -> date(PendingTs)         n=8 min=0 p25=0 med=0 p75=0 max=1 zeros=7
+  gap PCD -> CloseDate               n/a
+  gap OnMarketDate -> PCD            n=9 min=-256 p25=59 med=113 p75=137 max=204 zeros=0
+  gap ActivationDate -> OnMarketDate n=497 min=-787 p25=0 med=0 p75=0 max=5651 zeros=342
+  gap OriginalEntry -> OnMarketDate  n=500 min=-787 p25=0 med=0 p75=0 max=964 zeros=357
+  gap ListingContractDate -> OnMarketDate n=500 min=-503 p25=0 med=0 p75=18 max=5651 zeros=299
+  gap OnMarketDate -> today          n=500 min=0 p25=0 med=53 p75=134 max=790 zeros=156
+  gap BackOnMarketDate -> today      n=66 min=0 p25=0 med=29 p75=70 max=270 zeros=22
+  DaysOnMarket                       n/a
+  CumulativeDaysOnMarket             n/a
+  CumDOM - DOM                       n/a
+  DOM - (today-OnMarketDate)         n/a
+  DOM - (today-ListingContractDate)  n/a
+  DOM - (today-BackOnMarketDate)     n/a
+  DOM - (today-ActivationDate)       n/a
+  DOM - (PCD-OnMarketDate)           n/a
+  DOM - (PCD-ListingContractDate)    n/a
+  DOM - (CloseDate-OnMarketDate)     n/a
+  DOM - (OffMarketDate-OnMarketDate) n/a
+  DOM - (OffMarketDate-ListingContractDate) n/a
+  DOM - (CloseDate-ListingContractDate) n/a
+  MajorChangeType {"NewListing":293,"null":143,"BackOnMarket":64}
+
+##### active-rent n=500
+  populated: OnMarketDate=500 OnMarketTimestamp=500 ListingContractDate=500 ActivationDate=500 PurchaseContractDate=2 PendingTimestamp=14 ContractStatusChangeDate=500 StatusChangeTimestamp=500 OffMarketDate=0 BackOnMarketDate=25 CloseDate=0 DaysOnMarket=0 CumulativeDaysOnMarket=0 StartShowingDate=0 WithdrawnDate=0
+  PCD == ContractStatusChangeDate         0/2 (0.0%)
+  PCD == date(PendingTimestamp)           2/2 (100.0%)
+  PCD == date(StatusChangeTimestamp)      0/2 (0.0%)
+  PCD == OffMarketDate                    0/0
+  PCD == CloseDate                        0/0
+  ContractStatusChangeDate == CloseDate   0/0
+  ContractStatusChangeDate == date(StatusChangeTs) 324/500 (64.8%)
+  OnMarketDate == ListingContractDate     378/500 (75.6%)
+  OnMarketDate == ActivationDate          452/500 (90.4%)
+  OnMarketDate == date(OnMarketTimestamp) 417/500 (83.4%)
+  OnMarketDate == date(OriginalEntryTs)   417/500 (83.4%)
+  OffMarketDate == CloseDate              0/0
+  gap PCD -> date(PendingTs)         n=2 min=0 p25=0 med=0 p75=0 max=0 zeros=2
+  gap PCD -> CloseDate               n/a
+  gap OnMarketDate -> PCD            n=2 min=10 p25=10 med=55 p75=55 max=55 zeros=0
+  gap ActivationDate -> OnMarketDate n=500 min=-4906 p25=0 med=0 p75=0 max=265 zeros=452
+  gap OriginalEntry -> OnMarketDate  n=500 min=-4906 p25=0 med=0 p75=0 max=265 zeros=417
+  gap ListingContractDate -> OnMarketDate n=500 min=-4020 p25=0 med=0 p75=0 max=1570 zeros=378
+  gap OnMarketDate -> today          n=500 min=0 p25=8 med=19 p75=40 max=5093 zeros=5
+  gap BackOnMarketDate -> today      n=25 min=0 p25=6 med=12 p75=21 max=309 zeros=1
+  DaysOnMarket                       n/a
+  CumulativeDaysOnMarket             n/a
+  CumDOM - DOM                       n/a
+  DOM - (today-OnMarketDate)         n/a
+  DOM - (today-ListingContractDate)  n/a
+  DOM - (today-BackOnMarketDate)     n/a
+  DOM - (today-ActivationDate)       n/a
+  DOM - (PCD-OnMarketDate)           n/a
+  DOM - (PCD-ListingContractDate)    n/a
+  DOM - (CloseDate-OnMarketDate)     n/a
+  DOM - (OffMarketDate-OnMarketDate) n/a
+  DOM - (OffMarketDate-ListingContractDate) n/a
+  DOM - (CloseDate-ListingContractDate) n/a
+  MajorChangeType {"NewListing":367,"null":113,"BackOnMarket":20}
+
+##### closed-sale n=500
+  populated: OnMarketDate=443 OnMarketTimestamp=464 ListingContractDate=500 ActivationDate=435 PurchaseContractDate=498 PendingTimestamp=495 ContractStatusChangeDate=500 StatusChangeTimestamp=500 OffMarketDate=500 BackOnMarketDate=32 CloseDate=500 DaysOnMarket=0 CumulativeDaysOnMarket=0 StartShowingDate=0 WithdrawnDate=0
+  PCD == ContractStatusChangeDate         5/498 (1.0%)
+  PCD == date(PendingTimestamp)           313/495 (63.2%)
+  PCD == date(StatusChangeTimestamp)      6/498 (1.2%)
+  PCD == OffMarketDate                    7/498 (1.4%)
+  PCD == CloseDate                        7/498 (1.4%)
+  ContractStatusChangeDate == CloseDate   490/500 (98.0%)
+  ContractStatusChangeDate == date(StatusChangeTs) 304/500 (60.8%)
+  OnMarketDate == ListingContractDate     242/443 (54.6%)
+  OnMarketDate == ActivationDate          265/435 (60.9%)
+  OnMarketDate == date(OnMarketTimestamp) 330/443 (74.5%)
+  OnMarketDate == date(OriginalEntryTs)   318/443 (71.8%)
+  OffMarketDate == CloseDate              500/500 (100.0%)
+  gap PCD -> date(PendingTs)         n=495 min=-776 p25=0 med=0 p75=1 max=627 zeros=313
+  gap PCD -> CloseDate               n=498 min=0 p25=58 med=83 p75=120 max=182769 zeros=7
+  gap OnMarketDate -> PCD            n=443 min=-20 p25=29 med=56 p75=105 max=875 zeros=24
+  gap ActivationDate -> OnMarketDate n=435 min=-180 p25=0 med=0 p75=7 max=529 zeros=265
+  gap OriginalEntry -> OnMarketDate  n=443 min=-180 p25=0 med=0 p75=0 max=529 zeros=318
+  gap ListingContractDate -> OnMarketDate n=443 min=-178 p25=0 med=0 p75=14 max=692 zeros=242
+  gap OnMarketDate -> today          n=443 min=7 p25=120 med=152 p75=203 max=925 zeros=0
+  gap BackOnMarketDate -> today      n=32 min=13 p25=84 med=157 p75=181 max=337 zeros=0
+  DaysOnMarket                       n/a
+  CumulativeDaysOnMarket             n/a
+  CumDOM - DOM                       n/a
+  DOM - (today-OnMarketDate)         n/a
+  DOM - (today-ListingContractDate)  n/a
+  DOM - (today-BackOnMarketDate)     n/a
+  DOM - (today-ActivationDate)       n/a
+  DOM - (PCD-OnMarketDate)           n/a
+  DOM - (PCD-ListingContractDate)    n/a
+  DOM - (CloseDate-OnMarketDate)     n/a
+  DOM - (OffMarketDate-OnMarketDate) n/a
+  DOM - (OffMarketDate-ListingContractDate) n/a
+  DOM - (CloseDate-ListingContractDate) n/a
+  MajorChangeType {"PriceChange":2,"Closed":494,"null":4}
+
+##### closed-rent n=500
+  populated: OnMarketDate=389 OnMarketTimestamp=488 ListingContractDate=500 ActivationDate=389 PurchaseContractDate=389 PendingTimestamp=450 ContractStatusChangeDate=500 StatusChangeTimestamp=500 OffMarketDate=500 BackOnMarketDate=20 CloseDate=500 DaysOnMarket=0 CumulativeDaysOnMarket=0 StartShowingDate=0 WithdrawnDate=0
+  PCD == ContractStatusChangeDate         194/389 (49.9%)
+  PCD == date(PendingTimestamp)           265/389 (68.1%)
+  PCD == date(StatusChangeTimestamp)      163/389 (41.9%)
+  PCD == OffMarketDate                    201/389 (51.7%)
+  PCD == CloseDate                        201/389 (51.7%)
+  ContractStatusChangeDate == CloseDate   493/500 (98.6%)
+  ContractStatusChangeDate == date(StatusChangeTs) 289/500 (57.8%)
+  OnMarketDate == ListingContractDate     305/389 (78.4%)
+  OnMarketDate == ActivationDate          358/389 (92.0%)
+  OnMarketDate == date(OnMarketTimestamp) 337/389 (86.6%)
+  OnMarketDate == date(OriginalEntryTs)   337/389 (86.6%)
+  OffMarketDate == CloseDate              500/500 (100.0%)
+  gap PCD -> date(PendingTs)         n=389 min=-120 p25=0 med=0 p75=1 max=76 zeros=265
+  gap PCD -> CloseDate               n=389 min=0 p25=0 med=0 p75=6 max=84 zeros=201
+  gap OnMarketDate -> PCD            n=389 min=-64 p25=7 med=15 p75=38 max=802 zeros=24
+  gap ActivationDate -> OnMarketDate n=389 min=-796 p25=0 med=0 p75=0 max=35 zeros=358
+  gap OriginalEntry -> OnMarketDate  n=389 min=-796 p25=0 med=0 p75=0 max=35 zeros=337
+  gap ListingContractDate -> OnMarketDate n=389 min=-796 p25=0 med=0 p75=0 max=3936 zeros=305
+  gap OnMarketDate -> today          n=389 min=6 p25=26 med=38 p75=60 max=824 zeros=0
+  gap BackOnMarketDate -> today      n=20 min=0 p25=23 med=29 p75=48 max=95 zeros=1
+  DaysOnMarket                       n/a
+  CumulativeDaysOnMarket             n/a
+  CumDOM - DOM                       n/a
+  DOM - (today-OnMarketDate)         n/a
+  DOM - (today-ListingContractDate)  n/a
+  DOM - (today-BackOnMarketDate)     n/a
+  DOM - (today-ActivationDate)       n/a
+  DOM - (PCD-OnMarketDate)           n/a
+  DOM - (PCD-ListingContractDate)    n/a
+  DOM - (CloseDate-OnMarketDate)     n/a
+  DOM - (OffMarketDate-OnMarketDate) n/a
+  DOM - (OffMarketDate-ListingContractDate) n/a
+  DOM - (CloseDate-ListingContractDate) n/a
+  MajorChangeType {"PriceChange":5,"Closed":495}
+
+##### active-pcd extra
+  BackOnMarketDate present 98/178 (55.1%)
+  PCD after today 0
+  PCD < BackOnMarketDate (relic of a fallen contract) 92
+  no-BOM rows 80 | PendingTimestamp present 10 | StatusChangeTs after PCD 11 | OnMarketDate after PCD 2
+  no-BOM: gap PCD->today n=80 min=5 p25=26 med=56 p75=95 max=712 zeros=0
+  no-BOM: gap PCD->date(StatusChangeTs) n=79 min=-653 p25=-100 med=-50 p75=-14 max=209 zeros=4
+   ROW {"k":"1179552610","t":"ResidentialLease","pcd":"2026-08-20","pend":"2026-08-20T00:00:00.000-00:00","sct":"2026-08-25T13:27:24.000-00:00","csc":"2026-08-10","om":"2026-08-10","omts":"2026-08-10T00:00:00.000-00:00","mct":null,"mcts":"2026-09-05T11:51:47.000-00:00","dom":null,"cdom":null}
+   ROW {"k":"1176112899","t":"ResidentialLease","pcd":"2026-08-20","pend":"2026-08-20T00:00:00.000-00:00","sct":"2026-09-03T12:29:38.000-00:00","csc":"2026-06-26","om":"2026-06-26","omts":"2026-06-26T00:00:00.000-00:00","mct":null,"mcts":"2026-09-05T11:50:21.000-00:00","dom":null,"cdom":null}
+   ROW {"k":"1171022684","t":"Residential","pcd":"2026-09-01","pend":null,"sct":"2026-05-30T09:27:20.000-00:00","csc":"2026-05-30","om":"2026-05-30","omts":"2026-05-30T00:00:00.000-00:00","mct":"NewListing","mcts":"2026-05-30T09:27:20.000-00:00","dom":null,"cdom":null}
+   ROW {"k":"1177038361","t":"Residential","pcd":"2026-09-03","pend":null,"sct":"2026-07-14T15:58:19.000-00:00","csc":"2026-07-14","om":"2026-07-14","omts":"2026-07-14T00:00:00.000-00:00","mct":"NewListing","mcts":"2026-07-14T15:58:19.000-00:00","dom":null,"cdom":null}
+   ROW {"k":"1111725094","t":"Residential","pcd":"2026-07-10","pend":null,"sct":"2025-04-14T12:19:24.000-00:00","csc":"2025-04-14","om":"2025-04-14","omts":"2025-04-14T00:00:00.000-00:00","mct":null,"mcts":"2026-05-14T09:03:20.000-00:00","dom":null,"cdom":null}
+   ROW {"k":"1168761142","t":"Residential","pcd":"2026-08-31","pend":null,"sct":"2026-05-19T18:22:16.000-00:00","csc":"2026-05-19","om":"2026-05-19","omts":"2026-05-19T00:00:00.000-00:00","mct":null,"mcts":"2026-08-15T18:07:38.000-00:00","dom":null,"cdom":null}
+   ROW {"k":"1159986061","t":"Residential","pcd":"2026-09-02","pend":null,"sct":"2026-05-13T15:11:16.000-00:00","csc":"2026-05-13","om":"2026-05-13","omts":"2026-05-13T00:00:00.000-00:00","mct":null,"mcts":"2026-06-08T16:57:36.000-00:00","dom":null,"cdom":null}
+   ROW {"k":"1174157728","t":"Residential","pcd":"2026-08-05","pend":null,"sct":"2026-06-11T11:57:17.000-00:00","csc":"2026-06-11","om":"2026-06-12","omts":"2026-06-11T00:00:00.000-00:00","mct":"NewListing","mcts":"2026-06-11T11:57:17.000-00:00","dom":null,"cdom":null}

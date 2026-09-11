@@ -1,0 +1,32 @@
+{
+  "source": "LIVE_COTALITY",
+  "resource": "Property",
+  "field": "CountyOrParish",
+  "scope": null,
+  "distinct": 5,
+  "values": [
+    "Bronx",
+    "Kings",
+    "New York",
+    "Queens",
+    "Richmond"
+  ],
+  "counts": {
+    "Bronx": 8436,
+    "Kings": 151504,
+    "New York": 397913,
+    "Queens": 32960,
+    "Richmond": 783
+  },
+  "sum_of_counts": 591596,
+  "non_null_total": 591596,
+  "complete": true,
+  "quota": {
+    "minuteLimit": 280,
+    "minuteAvailable": 226,
+    "hourLimit": 8400,
+    "hourAvailable": 8183,
+    "hourResetTime": 1788849395017,
+    "seenAt": 1788846134113
+  }
+}

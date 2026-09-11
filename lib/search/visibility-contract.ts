@@ -28,11 +28,16 @@
 export type Audience = 'public' | 'client' | 'agent' | 'internal_report';
 export type LifecycleStatus =
   | 'active'
-  | 'pending'
+  // The feed's in-contract status is Pending (5,590 live rows; ActiveUnderContract never arrives). Maya
+  // 2026-09-08: In Contract listings are publicly displayable with that label.
+  | 'in_contract'
   | 'temp_off_market'
   | 'withdrawn'
   | 'canceled'
   | 'expired'
+  // Off the current feed with no verified reason — the Mallan presence state, never a provider status
+  // (lib/listings/canonical-lifecycle.ts). Blocked publicly; agents keep the preserved provider facts.
+  | 'off_market'
   | 'closed_sold'
   | 'closed_rented'
   // Fail-closed fallback for an unrecognized/blank provider status. Blocked for
@@ -99,10 +104,12 @@ export function resolveVisibility(input: VisibilityInput): VisibilityDecision {
   // Public website — the most restricted audience.
   switch (status) {
     case 'active':
-      // Active / ComingSoon / ActiveUnderContract (the canonical public
-      // active-display set, lib/compliance/status.ts). 'pending' (true signed-
-      // contract Pending) is NOT here → falls through to the blocked default.
+      // Active / ComingSoon (the canonical public active-display set, lib/compliance/status.ts).
       return decide(true, input, 'public: active-family displayable');
+    case 'in_contract':
+      // Pending / ActiveUnderContract: delivered by the IDX Plus feed under Permission IDX; shown
+      // publicly as "In Contract" (Maya 2026-09-08).
+      return decide(true, input, 'public: in-contract displayable with the In Contract label');
     case 'closed_sold':
       return source === 'acris'
         ? decide(true, input, 'public: ACRIS public-record closed sale')
@@ -110,7 +117,7 @@ export function resolveVisibility(input: VisibilityInput): VisibilityDecision {
     case 'closed_rented':
       return decide(false, input, 'public: closed rentals are not public sale history');
     default:
-      // temp_off_market | withdrawn | canceled | expired | unknown
+      // temp_off_market | withdrawn | canceled | expired | off_market | unknown
       return decide(false, input, `public: ${status} not publicly displayed`);
   }
 }
@@ -132,11 +139,16 @@ export function toLifecycleStatus(standardStatus: string, transactionType: Trans
     case 'active under contract':
     case 'activeundercontract':
     case 'under contract':
-      // ActiveUnderContract is in the public active-display set
-      // (lib/compliance/status.ts); only true 'Pending' is hidden from public.
-      return 'active';
+    case 'in contract':
     case 'pending':
-      return 'pending';
+      // The feed's in-contract status is Pending; ActiveUnderContract is a live member with 0 rows. Both are
+      // In Contract and publicly displayable (lib/listings/canonical-lifecycle.ts, Maya 2026-09-08).
+      return 'in_contract';
+    case 'off market':
+    case 'off_market':
+    case 'off-market':
+      // The Mallan presence state (never a provider status): off the feed, no verified reason.
+      return 'off_market';
     case 'hold':
     case 'temp off market':
     case 'temporarily off market':

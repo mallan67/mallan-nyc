@@ -1,8 +1,19 @@
+> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/operations/evidence-2026-09-08/provider-system/REMOVAL-2026-09-08.md`.
+
 # Repo Source-of-Truth Charter
 
-**Version:** 1.0 · **Created:** 2026-05-01 · **Status:** ACTIVE — mandatory
+**Version:** 1.1 · **Created:** 2026-05-01 · **Amended:** 2026-09-10 · **Status:** ACTIVE — mandatory, and subordinate to the Master Plan
 
-This charter is the architecture rulebook for mallan-nyc. **Every AI/Codex/Claude session and every human contributor must read this before creating, renaming, moving, or editing files in any of the domains it covers** (Public Search, CRM Search, Featured/Exclusives, Neighborhoods, Media, IDX/Trestle).
+> **AUTHORITY ORDER (added 2026-09-10).** This charter governs **file placement and naming**. It is **not** the product/system authority.
+>
+> 1. `MALLAN-PLATFORM-MASTER-PLAN.md` (repo root, on PR #595 / `agent/publish-mallan-platform-master-plan-2026-08-04`) — the ONLY product/system authority.
+> 2. `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` (same lineage) — execution state (STATUS ONLY).
+> 3. `AGENTS.md` / `CLAUDE.md` — agent operating instructions.
+> 4. This charter — canonical file paths and naming within the domains listed below.
+>
+> Where this charter and the Master Plan disagree about what the system **is**, the Master Plan wins and this charter is amended to match. The “OVERRIDES any older document” language in Section 1 rule 9 and Section 1A applies to **older** documents only — it has never applied to the Master Plan.
+
+This charter is the file-placement and naming rulebook for mallan-nyc; the architecture itself is defined by the Master Plan. **Every AI/Codex/Claude session and every human contributor must read this before creating, renaming, moving, or editing files in any of the domains it covers** (Consumer Search, Backend Agent Search / Listings, Brokerage CRM, Featured/Exclusives, Neighborhoods, Media, IDX/Trestle).
 
 The repo has accumulated multiple files with similar names. AI tools have repeatedly invented new files (`search-v2.ts`, `featured-new.tsx`, `location-stuff.json`, `crm-search-final.js`) instead of using the correct existing source files. The charter exists to make those mistakes detectable and refusable.
 
@@ -140,7 +151,8 @@ Use these exact terms in code, comments, commit messages, and documentation:
 | Canonical term | Use for |
 |---|---|
 | **Public Search** | The user-facing search at `/search` (public website, DB-backed) |
-| **CRM Search** | The agent-facing search at `/crm/search` (Trestle-live, auth-required) |
+| **Backend Agent Search / Listings** | The authenticated professional Search & Listings **application** at `/crm/search` (`public/crm/index.html` -> generated `public/crm/index-built.html`). Property search, My Listings, listing detail/workspace, professional saved searches, sale + rental editors, buildings intelligence, media, open houses, compare/CMA, listing reports and distribution, listing tools and calculators. **Formerly called “CRM Search” — do not use that term.** It is not a CRM feature. |
+| **Brokerage CRM** | The broker/agent business **application** at `/crm` (compat `/crm/dashboard`) — `public/crm/dashboard.html` + `public/crm/js/dashboard/**`. Broker dashboard, agent roster, clients, leads, deals, commissions, referrals, finance, compliance, brokerage documents, tasks/communications, Agent My Business, administration. |
 | **Featured Properties** | Broker-curated merchandising shown on the public homepage |
 | **Exclusives** | Listings the broker has explicitly marked or pinned via the FeaturedConfig system |
 | **Neighborhoods** | NYC neighborhood data — names, slugs, ZIPs, boroughs |
@@ -203,13 +215,17 @@ These are NOT duplicates. They are layers of the same pipeline. **Do not consoli
 
 ---
 
-## Section 4 — CRM Search Source-of-Truth
+## Section 4 — Backend Agent Search / Listings Source-of-Truth
 
-The CRM search is a **separate** pipeline from public search. Different shell, different API, different mapper, different gates option.
+> **RENAMED 2026-09-10.** This section was titled “CRM Search Source-of-Truth” and described this application as the CRM’s search feature. That framing was wrong. Per the Master Plan, **Backend Agent Search / Listings is its own application** — the file map below was already correct, the ownership story around it was not.
+
+Backend Agent Search / Listings is a **separate application** from both Consumer Search and the Brokerage CRM: different shell, different API, different mapper, different gates.
+
+**Dependency rule (Master Plan — non-negotiable).** The dependency is **CRM -> Backend Agent Search / Listings, and NEVER the reverse.** Backend Agent Search MUST NOT require `public/crm/dashboard.html` or the CRM router to boot, render or execute. It must direct-load and run standalone at `/crm/search`. A CRM-shell failure must not make professional Search, My Listings, the Sale/Rental editors or any other Listing tool unavailable. URL namespace does not determine ownership: the `/crm/*` path is historical compatibility only.
 
 | Layer | Canonical file | Notes |
 |---|---|---|
-| CRM search URL | `/crm/search` | Vercel rewrite |
+| Backend Agent Search URL | `/crm/search` | Vercel rewrite. **`/crm` and `/crm/dashboard` are a different application** — the Brokerage CRM (`public/crm/dashboard.html` + `public/crm/js/dashboard/**`), defined in Section 2; this charter has no dedicated Brokerage CRM section of its own. |
 | URL rewrite | `vercel.json` line `{ "source": "/crm/search", "destination": "/crm/index-built.html" }` | Do not change without coordinating with build pipeline. |
 | **Runtime shell** (generated) | `public/crm/index-built.html` | **GENERATED. DO NOT HAND-EDIT.** |
 | Source shell template | `public/crm/index.html` | 180-line orchestrator with `@include` + `<script src=...>` directives |
@@ -234,7 +250,7 @@ The CRM search is a **separate** pipeline from public search. Different shell, d
 | Trestle HTTP client | `lib/idx/fetch.ts` | Pulls from Cotality/Trestle API |
 | Trestle OAuth | `lib/idx/auth.ts` | Bearer token refresh, 8h TTL |
 | CRM media batch endpoint | `app/api/media/batch/route.ts` | Bulk photo backfill (auth-gated) |
-| Trestle field arrays + mapper | `lib/idx/trestle-mapper.ts` | `ALL_RLS_FIELDS`, `RESO_TO_RLS_RENAMES`, `mapTrestleToPrisma`, `checkDistributionGates` wrapper |
+| Cotality field arrays + mapper | `lib/idx/trestle-mapper.ts` | `COTALITY_PROPERTY_FIELDS`, `IDX_PLUS_SELECT_FIELDS`, `REQUIRED_COTALITY_FIELDS`, `mapTrestleToPrisma`, `checkDistributionGates` wrapper (no alias table) |
 
 **Hard rule:** never hand-edit `public/crm/index-built.html`. Edit source files (`public/crm/{index.html, html/, css/, js/}`) and run `npm run crm:build`. CI will run `crm:check-build` and fail if the bundle drifts.
 
@@ -334,7 +350,7 @@ The data flow has three distinct layers. Conflating them is how compliance bugs 
 
 | Layer | Canonical file | Notes |
 |---|---|---|
-| Trestle field arrays | `lib/idx/trestle-mapper.ts` exports `ALL_RLS_FIELDS`, `RESO_TO_RLS_RENAMES`, `IDX_PLUS_SELECT_FIELDS`, `REQUIRED_RLS_FIELDS` | Single source of truth for field names |
+| Cotality field arrays | `lib/idx/trestle-mapper.ts` exports `COTALITY_PROPERTY_FIELDS`, `IDX_PLUS_SELECT_FIELDS`, `REQUIRED_COTALITY_FIELDS` | Live Cotality Property field names only (guarded against the dated live pull); no alias table |
 | Trestle → Prisma mapper | `lib/idx/trestle-mapper.ts` `mapTrestleToPrisma()` | Writer-side: Trestle → DB |
 | Distribution gate wrapper (Trestle records) | `lib/idx/trestle-mapper.ts` `checkDistributionGates()` | Passes `idxPlusPreFiltered: true` to evaluateDisplayGate |
 | IDX sync orchestrator | `lib/idx/sync.ts` | Cron-run sync. **Do not touch IDX sync without explicit authorization.** |
@@ -344,13 +360,10 @@ The data flow has three distinct layers. Conflating them is how compliance bugs 
 | Distribution gates (reader) | `lib/compliance/gates.ts` | `evaluateDisplayGate`, `isInternetEntireListingDisplayable`, `isAddressDisplayable`. Has `idxPlusPreFiltered` option for Trestle-live records. |
 | Compliance status | `lib/compliance/status.ts` | RESO status normalization |
 | RLS validator | `lib/compliance/rebny-validator.ts` | 10-section validator (CI-gateable) |
-| Field tables | `lib/compliance/rebny-field-tables.ts` | Authority table for required fields |
+| REBNY / UCBA rules | `lib/compliance/rebny-ucba-rules.ts` | Compliance contract (required-under-condition, Coming Soon, content, display, DOM rules) applied AFTER the live Cotality field contract (`lib/cotality/live-contract.ts`); Mallan persistence + form aliases in `lib/listings/mallan-form-contract.ts`; status domains in `lib/listings/mallan-status.ts` |
 | Compliance DTO sanitizer | `lib/compliance/dto.ts` | Public/portal/CRM tier sanitizer |
-| RLS field CSV | `data/rebny-rls-property-fields.csv` | 902+ REBNY IDX Plus fields. Replaced 2026-03-19. |
-| RLS lookup CSV | `data/rebny-rls-property-lookup.csv` | 2,066+ picklist values |
-| RLS field registry doc | `data/RLS-FIELD-REGISTRY.md` | Human-readable registry |
+| Cotality live contract | `lib/cotality/live-contract.ts` · `lib/cotality/generated/contract.ts` · `data/cotality-contract/**` | The only field / vocabulary / permission authority — compiled from the live feed, checked by `generate-contract-types.mjs --check`. (The REBNY CSVs and the hand-written registry were removed 2026-09-08.) |
 | UCBA rules | `data/UCBA-2026-Requirements.md` | Extracted from PDF |
-| Trestle metadata snapshot | `artifacts/metadata.xml` | Full Trestle OData metadata |
 
 **Rules:**
 
@@ -372,10 +385,7 @@ The following files are **generated**. Do not hand-edit:
 | `public/crm/index-built.html` | `node public/crm/build.js` | After any change to `public/crm/{index.html, html/, css/, js/}`. CI fails if drifted. |
 | `public/crm/data/validator-results.json` | `npm run idx:validate` | Daily / on demand. Consumed by CRM System Health dashboard. |
 | `.idx-validate/run-history.local.json` | `npm run idx:validate` | Validator run history (local-only, gitignored). |
-| `data/MASTER_REGISTRY.json` | `node scripts/generate-master-registry.js` | When schema/CSV changes. |
-| `data/FIELD_REGISTRY.json` | (generator script in scripts/) | When schema/CSV changes. |
-| `artifacts/reso-drift/latest.json` | `npm run reso:drift` | Regularly. |
-| `artifacts/schema-audit.json` | `npm run reso:schema-audit` | On demand. |
+| `lib/cotality/generated/contract.ts` + `data/cotality-contract/**` | `npm run cotality:authority -- refresh` (live) · `node scripts/cotality/generate-contract-types.mjs --check` (prove) | When the live feed changes (`npm run trestle:diff` = `cotality:authority detect`, daily). |
 
 **Rules:**
 
@@ -483,7 +493,7 @@ If you are an AI/Codex/Claude session reading this charter:
 | `CLAUDE.md` (top of repo) | Per-session AI rules. Points here at the top. |
 | `NEON.md` (top of repo) | DB / Prisma / migration discipline. Read before any schema change. |
 | `MASTER-PROJECT-TREE-v3.3.md` | Codebase reference. Larger and older than this charter; treat as background context, not authoritative. |
-| `data/RLS-FIELD-REGISTRY.md` | Trestle field registry. Authoritative for field names. |
+| `lib/cotality/live-contract.ts` | The live Cotality contract. Authoritative for field names, types and vocabularies. |
 | `data/UCBA-2026-Requirements.md` | UCBA rules. Authoritative for compliance. |
 | `.claude/skills/rebny-compliance/SKILL.md` | REBNY compliance gate. Read at session start. |
 

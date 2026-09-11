@@ -162,75 +162,40 @@
             try {
                 // Collect search criteria from the active form
                 activeSearchCriteria = collectSearchCriteria();
-
                 if (typeof searchResultsState === 'undefined' || !searchResultsState) {
                     showToast('Error: Search state not initialized. Please refresh the page.', 'error');
                     return;
                 }
-
-                // ── P1 multi-borough advisory ─────────────────────────────
-                // collectSearchCriteria() at search-engine.js:880-895
-                // intentionally leaves criteria.borough unset when 2+
-                // borough-level chips are selected, because the backend
-                // OData builder cannot OR multiple CityRegion values
-                // through a single param. Without this notice, the user
-                // would see their two borough chips and assume the result
-                // set was constrained to those boroughs — when in fact
-                // the borough constraint was silently dropped, BROADENING
-                // the search to all NYC. Surface the advisory once per
-                // submission so the user can react before paging through.
-                try {
-                    var _activeTagsId = (typeof _resolveActiveNeighborhoodTagsId === 'function')
-                        ? _resolveActiveNeighborhoodTagsId()
-                        : 'saleNeighborhoodTags';
-                    var _selectedBoroughs = (typeof getSelectedBoroughs === 'function')
-                        ? getSelectedBoroughs(_activeTagsId)
-                        : [];
-                    if (_selectedBoroughs.length > 1) {
-                        showToast(
-                            'Multi-borough filter is not supported — borough constraint dropped. ' +
-                            'For precise results, pick neighborhoods in each borough instead.',
-                            'warning'
-                        );
-                    }
-                } catch (_advErr) {
-                    // Non-fatal — advisory failure must not block the search.
+                // ── Canonical executor contract (Search Browser Integration P0, 2026-09-05) ──
+                // The browser sends criteria to /api/idx/search and renders ONLY what the
+                // executor returns for the requested page: no local pre-render over rows
+                // fetched earlier, no local filtering, no local pagination, no local
+                // sorting. A criterion the executor does not execute is REFUSED here by
+                // name (mirroring the route's 400 UNSUPPORTED_CRITERION) — never dropped
+                // into a silently broader search.
+                var _ser = window.serializeSearchCriteria(activeSearchCriteria);
+                if (_ser.contractMissing) {
+                    showToast('Search is unavailable: the Search contract did not load. Reload the page.', 'error');
+                    return;
                 }
-
-                // Filter locally loaded listings only when the criteria set is
-                // fully server-honored. Programmatic callers can still pass old
-                // Open House/transit/grid keys; the server strips those, so a
-                // local pre-render would briefly show a narrower, false result.
-                var hasLocalData = typeof listings !== 'undefined' && listings && listings.length > 0;
-                var hasServerIgnoredCriteria = _hasServerIgnoredCriteria(activeSearchCriteria);
-                var localResults = (hasLocalData && !hasServerIgnoredCriteria)
-                    ? filterListings(listings, activeSearchCriteria)
-                    : [];
-
-                // Show results section (with local results or empty while server loads)
-                searchResultsState.filteredListings = localResults;
+                if (_ser.refused.length > 0) {
+                    showToast('Not executable in this Search: ' + _ser.refused.join(', ') + '. Clear those controls and search again.', 'warning');
+                    return;
+                }
+                // A new search establishes a NEW result set — never adds to the old one.
+                searchResultsState.filteredListings = [];
+                searchResultsState.serverPaged = true;
+                searchResultsState.serverTotal = null;
+                searchResultsState.serverCountMeaning = null;
                 searchResultsState.currentPage = 1;
                 _showSearchResults();
-
-                // Always also query the server for fresh results
                 if (typeof MallanAPI !== 'undefined') {
-                    _serverSearch(activeSearchCriteria, localResults);
+                    _serverSearch(activeSearchCriteria);
                 }
             } catch (err) {
                 showToast('Search error: ' + err.message + '. Check browser console (F12) for details.', 'error');
             }
         }
-
-        function _hasServerIgnoredCriteria(criteria) {
-            return Boolean(criteria && (
-                criteria.openHouseDateFrom ||
-                criteria.openHouseDateTo ||
-                criteria._transitLines ||
-                criteria._transitBounds ||
-                criteria._gridBounds
-            ));
-        }
-
         // Show search results UI (extracted for reuse by server search)
         function _showSearchResults() {
             // Save for "Last Search" recall
@@ -279,230 +244,290 @@
         // reflects the same Trestle filter the Search button will run. Live
         // tracker can override `limit: 1` to get a count-only response.
         // Window-attached so init-tracker.js can call it.
-        window.buildIdxSearchParams = function(criteria) {
-            var params = {};
-            if (!criteria) return params;
-            if (criteria.searchTab === 'rent') params.type = 'rental';
-            else if (criteria.searchTab === 'sale') params.type = 'sale';
-            if (criteria.address) params.address = criteria.address;
+        // ── Canonical criteria serializer (Search Consolidation Packet 1, 2026-09-05) ──
+        // The browser carries NO vocabulary. Every member list and the executable parameter set
+        // come from GET /api/idx/search/contract, which is the executor's own source verbatim
+        // (data/cotality-enums.live.json → canonical/live-truth.ts → engine/criteria.ts).
+        // Without a loaded contract the browser refuses to search (fail loud, no fallback).
+        var _SEARCH_CONTRACT = null;
+        window.loadSearchContract = function() {
+            if (typeof MallanAPI === 'undefined' || !MallanAPI.idx || typeof MallanAPI.idx.contract !== 'function') {
+                return Promise.reject(new Error('MallanAPI.idx.contract unavailable'));
+            }
+            return MallanAPI.idx.contract().then(function(c) {
+                if (!c || !c.members || !c.members.StandardStatus || !Array.isArray(c.executableParams)) throw new Error('malformed Search contract');
+                if (!c.statusChoices || !c.statusChoices.sale || !c.statusChoices.rental) throw new Error('malformed Search contract: statusChoices');
+                _SEARCH_CONTRACT = c;
+                window.SEARCH_CONTRACT = c;
+                renderStatusPanels(c);
+                return c;
+            });
+        };
+
+        // ── Status panels — ONE authority, per transaction (owner ruling 2026-09-08/09) ──────────────────
+        // All four Search modes (basic sale, basic rental, advanced sale, advanced rental) render from the
+        // executor contract's statusChoices, which the server derives from lib/crm/status-mapping.ts. The sale
+        // list and the rental list are separate and cannot drift into each other: a sale panel never shows a
+        // rental term and vice versa, the rental panel has no Coming Soon (sales only), and Closed is labelled
+        // "Sold" on a sale and "Rented" on a rental.
+        //
+        // Every input carries data-field="StandardStatus" with an exact live Cotality token. MlsStatus is NEVER
+        // used: it is not filterable on this feed. The former sub-status boxes (Offer Out, Contract Signed,
+        // Lease Signed, Sold Thru Us …) are gone — those are Mallan WORKFLOW words, the executor has no workflow
+        // criterion, and a control that can never execute is a lie to the agent. "Back On Market" survives
+        // because it IS executable: it narrows Active by the provider's BackOnMarketDate.
+        window.renderStatusPanels = function renderStatusPanels(contract) {
+            var mounts = document.querySelectorAll('[data-status-mount]');
+            Array.prototype.forEach.call(mounts, function(mount) {
+                var transaction = mount.getAttribute('data-transaction') === 'rental' ? 'rental' : 'sale';
+                var choices = (contract.statusChoices && contract.statusChoices[transaction]) || [];
+                // A mount may name its own default token. Comparables default to Closed (a comp is a
+                // completed transaction); every Search panel defaults to Active. The default is still a
+                // contract token — never a word the panel invented.
+                var defaultToken = mount.getAttribute('data-status-default') || 'Active';
+                var html = '<p class="text-xs font-semibold text-gray-700 mb-2">Status</p><div class="space-y-1 text-xs">';
+                choices.forEach(function(choice) {
+                    var isDefault = choice.token === defaultToken && !choice.refine;
+                    html += '<label class="flex items-center gap-1.5 cursor-pointer ' + (isDefault ? 'font-semibold text-blue-600' : 'text-gray-700') + '">'
+                        + '<input type="checkbox" class="w-3 h-3"' + (isDefault ? ' checked' : '')
+                        + ' data-field="StandardStatus" data-value="' + choice.token + '"'
+                        + (choice.refine ? ' data-refine="' + choice.refine + '"' : '')
+                        + '><span>' + choice.label + '</span></label>';
+                });
+                html += '</div>';
+                mount.innerHTML = html;
+            });
+        };
+        function _contractTokens(field) {
+            var set = {};
+            var m = _SEARCH_CONTRACT && _SEARCH_CONTRACT.members && _SEARCH_CONTRACT.members[field];
+            (m || []).forEach(function(x) { set[x.token] = true; });
+            return set;
+        }
+        // Shell criteria keys the executor does not execute (UI labels only — not vocabulary).
+        // `address` is the "Address or Building Name" AUTOCOMPLETE and stays refused: it is a different
+        // criterion from the explicit Building Name control, and splitting free text into
+        // address-vs-BuildingName needs parsing rules the provider contract does not give us.
+        // `sqftMin`/`sqftMax`/`buildingName` were removed from this list on 2026-09-11 — see the
+        // serializer below for the executed path that replaced the refusal.
+        var _NOT_EXECUTABLE = [
+            ['address', 'Address / Building Name'], ['unit', 'Unit #'], ['keyword', 'Keyword'],
+            ['roomsMin', 'Min Rooms'], ['roomsMax', 'Max Rooms'],
+            ['managementCompany', 'Management Company'], ['dateFrom', 'Listing Activity date'], ['dateTo', 'Listing Activity date'],
+            ['dateActivityType', 'Listing Activity type'], ['contractDateFrom', 'Contract date'], ['contractDateTo', 'Contract date'],
+            ['soldDateFrom', 'Sold date'], ['soldDateTo', 'Sold date'], ['yearMin', 'Year Built'], ['yearMax', 'Year Built'],
+            ['floorsMin', 'Floors'], ['floorsMax', 'Floors'], ['unitsMin', 'Units'], ['unitsMax', 'Units'],
+            ['openHouseDateFrom', 'Open House date'], ['openHouseDateTo', 'Open House date'],
+            // MaximumFinancingPercent does not exist on live Cotality Property and there is no financing
+            // criterion in the executor. This key used to be the ONE key collectSearchCriteria produced that
+            // was neither executed nor refused — it was dropped in silence, which widens the universe.
+            ['financingMin', 'Building Financing %'], ['financingMax', 'Building Financing %'],
+            ['_transitLines', 'Transit'], ['_transitBounds', 'Transit'], ['_gridBounds', 'Map grid']
+        ];
+        function _isSet(v) { return !(v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0)); }
+        window.serializeSearchCriteria = function(criteria) {
+            var params = {}; var refused = []; var seen = {};
+            function refuse(label) { if (!seen[label]) { seen[label] = true; refused.push(label); } }
+            if (!criteria) return { params: params, refused: refused, contractMissing: !_SEARCH_CONTRACT };
+            if (!_SEARCH_CONTRACT) return { params: params, refused: ['Search contract not loaded'], contractMissing: true };
+            var STATUS = _contractTokens('StandardStatus');
+            var OWNERSHIP = _contractTokens('CommonInterest');
+            var STRUCTURE = _contractTokens('StructureType');
+            // A Building search is a PROPERTY query on the sale universe, grouped into buildings by
+            // renderBuildingResults(). There is no entitled Cotality Building resource (HTTP 403) and
+            // BuildingKeyNumeric is suppressed, so there is nothing else it could be. Its panel carries only
+            // criteria this serializer executes, so it needs no special case beyond the transaction.
+            params.type = criteria.searchTab === 'rent' ? 'rental' : 'sale';
             if (criteria.priceMin) params.minPrice = criteria.priceMin;
             if (criteria.priceMax) params.maxPrice = criteria.priceMax;
             if (criteria.bedsMin != null) params.minBeds = criteria.bedsMin;
             if (criteria.bedsMax != null) params.maxBeds = criteria.bedsMax;
             if (criteria.bathsMin) params.minBaths = criteria.bathsMin;
             if (criteria.bathsMax) params.maxBaths = criteria.bathsMax;
-            if (criteria.neighborhoods && criteria.neighborhoods.length > 0) {
-                params.neighborhood = criteria.neighborhoods.join(',');
-            }
-            if (criteria.borough) params.borough = criteria.borough;
-            if (criteria.propertySubType) params.propertySubType = criteria.propertySubType;
-            if (criteria.rlsId) params.listingId = criteria.rlsId;
-            if (criteria.zip) params.zip = criteria.zip;
-            if (criteria.unit) params.unit = criteria.unit;
-            if (criteria.keyword) params.keyword = criteria.keyword;
-            if (criteria.roomsMin) params.minRooms = criteria.roomsMin;
-            if (criteria.roomsMax) params.maxRooms = criteria.roomsMax;
-            if (criteria.sqftMin) params.minSqft = criteria.sqftMin;
-            if (criteria.sqftMax) params.maxSqft = criteria.sqftMax;
-            if (criteria.managementCompany) params.managementCompany = criteria.managementCompany;
-            if (criteria.dateFrom) params.dateFrom = criteria.dateFrom;
-            if (criteria.dateTo) params.dateTo = criteria.dateTo;
-            if (criteria.dateActivityType) params.dateType = criteria.dateActivityType;
-            if (criteria.contractDateFrom) params.contractDateFrom = criteria.contractDateFrom;
-            if (criteria.contractDateTo) params.contractDateTo = criteria.contractDateTo;
-            if (criteria.soldDateFrom) params.closeDateFrom = criteria.soldDateFrom;
-            if (criteria.soldDateTo) params.closeDateTo = criteria.soldDateTo;
-            // ── Codex Risk P0 fix: programmatic block of unsupported params ──
-            // Open House date range and (when reached via programmatic
-            // path) transit/grid bounds do not produce any backend OData
-            // clause — see lib/search/__tests__/crm-idx-filter.test.ts
-            // BATCH 2 dead-pattern tests. The UI controls are disabled
-            // by public/crm/js/init/init-disable-dead-controls.js, but
-            // criteria can still arrive via saved-search reload or a
-            // programmatic call. Strip the keys here and emit a console
-            // warning instead of silently submitting a request whose
-            // narrowing intent the backend will drop. The user-facing
-            // toast on multi-borough advisory at performSearch() also
-            // covers borough-multi; this block covers OH/transit/grid.
-            if (criteria.openHouseDateFrom || criteria.openHouseDateTo) {
-                console.warn('[CRM Search] Stripped unsupported openHouseDate criteria — backend has no OpenHouse handler. See init-disable-dead-controls.js.');
-            }
-            // Note: criteria._transitBounds / criteria._gridBounds are
-            // SET by transit-search.js / manhattan-grid.js only when
-            // the user interacts with those panels, which P1 disabled.
-            // Strip defensively in case a future programmatic path
-            // populates them (REBNY IDX feed has no Latitude/Longitude
-            // — Lat/Lng OData clauses match zero rows at runtime).
-            if (criteria._transitBounds) {
-                console.warn('[CRM Search] Stripped _transitBounds — REBNY IDX feed has no Lat/Lng.');
-            }
-            if (criteria._gridBounds) {
-                console.warn('[CRM Search] Stripped _gridBounds — REBNY IDX feed has no Lat/Lng.');
-            }
-            if (criteria.ownership && criteria.ownership.length > 0) {
-                params.ownership = criteria.ownership.join(',');
-            }
-            if (criteria.yearMin) params.minYear = criteria.yearMin;
-            if (criteria.yearMax) params.maxYear = criteria.yearMax;
-            if (criteria.floorsMin) params.minFloors = criteria.floorsMin;
-            if (criteria.floorsMax) params.maxFloors = criteria.floorsMax;
-            if (criteria.unitsMin) params.minUnits = criteria.unitsMin;
-            if (criteria.unitsMax) params.maxUnits = criteria.unitsMax;
+            // LivingArea / BuildingName are EXECUTED server-side: `minSqft`, `maxSqft` and
+            // `buildingName` are all in EXECUTED_PARAMS (lib/search/engine/criteria.ts), and
+            // provider-query.ts emits `LivingArea ge|le` and `tolower(BuildingName) eq`. The browser
+            // names the range sqftMin/sqftMax; the WIRE names it minSqft/maxSqft — that translation is
+            // the whole reason this has to happen here.
+            // Until 2026-09-11 all three sat in _NOT_EXECUTABLE, and because performSearch RETURNS as
+            // soon as anything is refused, choosing a square footage did not merely fail to narrow the
+            // search — it ABORTED it, for a criterion the provider supports on 417,652 rows.
+            if (criteria.sqftMin != null && criteria.sqftMin !== '') params.minSqft = criteria.sqftMin;
+            if (criteria.sqftMax != null && criteria.sqftMax !== '') params.maxSqft = criteria.sqftMax;
             if (criteria.buildingName) params.buildingName = criteria.buildingName;
-            // Status: CRM uppercase -> RESO PascalCase
+            if (criteria.neighborhoods && criteria.neighborhoods.length > 0) params.neighborhood = criteria.neighborhoods.join(',');
+            // EVERY selected borough is sent; the executor ORs CityRegion across provider and Mallan rows.
+            if (criteria.boroughs && criteria.boroughs.length > 0) params.borough = criteria.boroughs.join(',');
+            else if (criteria.borough) params.borough = criteria.borough;
+            if (criteria.rlsId) params.listingId = String(criteria.rlsId).split(',').map(function(s) { return s.trim(); }).filter(Boolean).join(',');
+            if (criteria.zip) params.zip = criteria.zip;
             if (criteria.statuses && criteria.statuses.length > 0) {
-                var statusMap = { 'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'ActiveUnderContract', 'CONTRACT': 'ActiveUnderContract', 'UNDER_CONTRACT': 'ActiveUnderContract', 'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Canceled', 'CANCELLED': 'Canceled', 'EXPIRED': 'Expired', 'HOLD': 'Hold', 'FUTURE': 'Incomplete', 'INCOMPLETE': 'Incomplete' };
-                var resoStatuses = criteria.statuses.map(function(s) { return statusMap[s] || s; }).filter(function(s, i, arr) { return arr.indexOf(s) === i; });
-                params.status = resoStatuses.join(',');
+                var st = [];
+                criteria.statuses.forEach(function(s) {
+                    // A legacy saved search may still carry a Mallan workflow token ("sub:ContractSigned"). The
+                    // executor has no workflow criterion, so it is refused BY NAME — never widened to Pending.
+                    if (typeof s === 'string' && s.indexOf('sub:') === 0) { refuse('Mallan workflow status "' + s.slice(4) + '" (Search filters provider status only)'); return; }
+                    if (STATUS[s]) { if (st.indexOf(s) === -1) st.push(s); } else refuse('Status "' + s + '"');
+                });
+                if (st.length) params.status = st.join(',');
             }
-            // Bug A11 — SponsorUnit lives inside CustomProperty.CustomFields
-            // (REBNY-specific JSON-string field), NOT a top-level OData
-            // property. The generic checkboxFilters loop on the backend
-            // (lib/search/crm-idx-filter.ts:239-277) would silently drop
-            // it because "SponsorUnit" is not in the odataSafe whitelist.
-            // Pull it out into a dedicated `sponsorUnit` param so the
-            // route handler can apply a post-fetch filter against the
-            // mapper's parsed listing.sponsorUnit field.
-            if (criteria.checkboxFilters && criteria.checkboxFilters.SponsorUnit) {
-                var _sp = criteria.checkboxFilters.SponsorUnit;
-                if (Array.isArray(_sp) && (_sp.indexOf('true') !== -1 || _sp.indexOf('Yes') !== -1)) {
-                    params.sponsorUnit = 'true';
-                }
-                // Remove from the JSON payload so the backend doesn't try to
-                // OData-filter on it.
-                delete criteria.checkboxFilters.SponsorUnit;
+            // Back on Market is executable: Active narrowed by the provider's BackOnMarketDate.
+            if (criteria.backOnMarket) params.backOnMarket = '1';
+            var own = [], structure = [];
+            (criteria.ownership || []).forEach(function(o) {
+                if (OWNERSHIP[o]) own.push(o);
+                else if (STRUCTURE[o]) structure.push(o);
+                else refuse('Ownership "' + o + '"');
+            });
+            if (criteria.propertySubType) {
+                String(criteria.propertySubType).split(',').forEach(function(v) {
+                    v = v.trim(); if (!v) return;
+                    if (STRUCTURE[v]) structure.push(v); else refuse('Property type "' + v + '"');
+                });
             }
             if (criteria.checkboxFilters) {
-                var _cbJson = JSON.stringify(criteria.checkboxFilters);
-                if (_cbJson !== '{}') params.checkboxFilters = _cbJson;
+                Object.keys(criteria.checkboxFilters).forEach(function(k) {
+                    var v = criteria.checkboxFilters[k]; if (!_isSet(v)) return;
+                    if (k === 'StructureType') {
+                        (Array.isArray(v) ? v : [v]).forEach(function(m) { if (STRUCTURE[m]) structure.push(m); else refuse('Building form "' + m + '"'); });
+                    } else refuse(k);
+                });
             }
-            // ── Codex Risk P0 fix: transit/grid panels are disabled at
-            //    container level (init-disable-dead-controls.js) AND
-            //    the underlying REBNY IDX feed does not populate
-            //    Latitude/Longitude per CLAUDE.md. The two blocks below
-            //    previously turned criteria._transitBounds /
-            //    criteria._gridBounds into a `gridFilter` param that
-            //    matched zero Trestle rows at runtime. They are now
-            //    short-circuited; the warning was emitted above. When
-            //    geocoded coordinates land on the projection (master
-            //    plan PR 5), restore both blocks AND remove the
-            //    transit/grid entries from DEAD_CONTAINERS in
-            //    init-disable-dead-controls.js. Both must move together.
-            return params;
+            if (own.length) params.ownership = own.filter(function(x, i, a) { return a.indexOf(x) === i; }).join(',');
+            if (structure.length) params.StructureType = structure.filter(function(x, i, a) { return a.indexOf(x) === i; }).join(',');
+            _NOT_EXECUTABLE.forEach(function(p) { if (_isSet(criteria[p[0]])) refuse(p[1]); });
+            return { params: params, refused: refused, contractMissing: false };
         };
-
+        // Kept for the live count badge (init-tracker.js) and any other caller: the
+        // executable parameters only. Refusals are surfaced by performSearch.
+        window.buildIdxSearchParams = function(criteria) {
+            return window.serializeSearchCriteria(criteria).params;
+        };
         // Server-side search: query Trestle API with criteria — this is the PRIMARY data source
-        function _serverSearch(criteria, localResults) {
-            var params = window.buildIdxSearchParams(criteria);
-
-            // ≤200: server sends inline photos via $expand=Media (fast, one request)
-            // >200: server sends listings without photos, photo-loader.js lazy-loads
-            //       via /api/media/batch + IntersectionObserver
-            params.limit = 200;
-
-            console.log('[Search] Querying Trestle API:', JSON.stringify(params));
+        // The executor sorts the WHOLE universe (price_desc | price_asc | newest);
+        // the browser never re-sorts a page. Other sort fields are not executable.
+        function _serverSortKey() {
+            var f = searchResultsState.sortField, o = searchResultsState.sortOrder;
+            if (f === 'listedDate') return 'newest';
+            if (f === 'price' && o === 'asc') return 'price_asc';
+            return 'price_desc';
+        }
+        var _serverSearchSeq = 0;
+        // Server-side search: ONE page of the executor's settled universe. The executor
+        // owns the universe, the criteria, the exact total, the order and the page.
+        function _serverSearch(criteria) {
+            var ser = window.serializeSearchCriteria(criteria);
+            if (ser.refused.length > 0) {
+                showToast('Not executable in this Search: ' + ser.refused.join(', '), 'warning');
+                return;
+            }
+            var params = ser.params;
+            var perPage = Math.min(Math.max(parseInt(searchResultsState.perPage, 10) || 50, 1), 200);
+            var page = Math.max(parseInt(searchResultsState.currentPage, 10) || 1, 1);
+            params.limit = perPage;
+            params.skip = (page - 1) * perPage;
+            params.sort = _serverSortKey();
+            var requestSeq = ++_serverSearchSeq;
             if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = true;
+            if (typeof _showResultsSkeleton === 'function') { try { _showResultsSkeleton(); } catch (e0) {} }
             MallanAPI.idx.search(params).then(function(result) {
+                if (requestSeq !== _serverSearchSeq) return; // superseded by a newer search
+                // What the executor actually ran — the only thing a saved search may store.
+                var executedParams = {};
+                Object.keys(params).forEach(function(k) { if (k !== 'limit' && k !== 'skip' && k !== 'offset' && params[k] != null && params[k] !== '') executedParams[k] = String(params[k]); });
+                window._lastExecutedSearch = { params: executedParams, total: (result && typeof result.total === 'number') ? result.total : null, at: new Date().toISOString() };
                 if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
-                console.log('[Search] Trestle returned:', result ? (result.listings ? result.listings.length + ' listings' : 'no listings array') : 'null');
-                if (!result || !result.listings || result.listings.length === 0) {
-                    // Server returned 0. Trestle is the source of truth for IDX
-                    // search — DO NOT keep the pre-display local fixture
-                    // results visible, because they include cross-borough
-                    // fixture rows that don't match the actual IDX query
-                    // (e.g. Manhattan + 1 bed search briefly showing Bronx/
-                    // Queens fixtures while server loads). Clear the display
-                    // so the empty-state + toast surfaces honestly.
-                    searchResultsState.filteredListings = [];
-                    searchResultsState.currentPage = 1;
-                    try {
-                        if (typeof initializeSearchResults === 'function') initializeSearchResults();
-                        if (typeof updateResultsCount === 'function') updateResultsCount();
-                        if (typeof refreshResultsMap === 'function') refreshResultsMap();
-                    } catch (renderErr) {
-                        console.error('[Search] Render after zero-result failed:', renderErr);
-                    }
-                    _saveSearchState();
-                    showToast('No listings found. Try broadening your search criteria.', 'warning');
-                    return;
-                }
-
-                // Server results are the primary data — they're already in CRM flat shape
-                var serverListings = result.listings;
-
-                // Apply neighborhood resolution and defaults
-                serverListings.forEach(function(l) {
-                    if (l.price == null) l.price = 0;
-                    if (l.totalMonthly == null) l.totalMonthly = 0;
-                    if (l.maintCC == null) l.maintCC = 0;
-                    if (l.reTaxes == null) l.reTaxes = 0;
-                    if (l.beds == null) l.beds = 0;
-                    if (l.baths == null) l.baths = 0;
-                    if (l.rooms == null) l.rooms = 0;
-                    if (l.dom == null) l.dom = 0;
+                var rows = (result && Array.isArray(result.listings)) ? result.listings : [];
+                rows.forEach(function(l) {
+                    // Presentation defaults ONLY where renderers need a string. Numeric
+                    // provider facts stay null when the executor says null: a missing
+                    // carrying cost or bath count is shown as unavailable, never as 0.
                     if (l.photoCount == null) l.photoCount = (l.images && l.images.length) || 0;
-                    if (!l.status) l.status = 'ACTIVE';
                     if (!l.address) l.address = 'Address Unavailable';
                     if (!l.unit) l.unit = '';
                     if (!l.neighborhood) l.neighborhood = '';
                     if (!l.zip) l.zip = '';
-                    if (!l.borough) l.borough = 'Manhattan';
+                    if (!l.borough) l.borough = '';
                     if (!l.listedDate) l.listedDate = '--';
                     if (!l.company) l.company = '';
                     if (!l.permissions) l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: true, internetDisplay: true, syndication: true };
                     if (typeof resolveNeighborhoodCanonical === 'function') resolveNeighborhoodCanonical(l);
                 });
-
-                // Merge server results into listings (preserving existing data with photos)
-                var existingById = {};
-                listings.forEach(function(l) { existingById[l.id] = l; });
-                var existingByLid = {};
-                listings.forEach(function(l) { if (l.lid) existingByLid[l.lid] = l; });
-                serverListings.forEach(function(l) {
-                    var existing = existingById[l.id] || (l.lid ? existingByLid[l.lid] : null);
-                    if (existing) {
-                        // Update existing listing but preserve images if server has none
-                        if ((!l.images || l.images.length === 0) && existing.images && existing.images.length > 0) {
-                            l.images = existing.images;
-                        }
+                // The global `listings` index only serves detail/photo lookups by id.
+                // It is NEVER a result set: nothing is counted or rendered from it.
+                var byId = {};
+                listings.forEach(function(l, i) { byId[l.id] = i; });
+                rows.forEach(function(l) {
+                    var i = byId[l.id];
+                    if (i !== undefined) {
+                        var ex = listings[i];
+                        if ((!l.images || l.images.length === 0) && ex.images && ex.images.length > 0) l.images = ex.images;
+                        listings[i] = l;
                     } else {
                         listings.push(l);
                     }
                 });
-
-                // REPLACE the pre-display local fixture results with the
-                // authoritative Trestle server results. Previously this
-                // merged `localResults` (fixture-side filter output) with
-                // `serverListings`, which polluted IDX search results with
-                // cross-borough fixtures — e.g. Manhattan+1bed search would
-                // render Bronx/Queens fixture rows above the actual Manhattan
-                // listings because filterListings(listings, criteria) on the
-                // ~126-row local fixture set is not borough/neighborhood-
-                // strict and IDX search is server-authoritative anyway.
-                // serverListings has been merged into the global `listings`
-                // array above so existing-by-id lookups still work; we just
-                // stop polluting the rendered list.
-                searchResultsState.filteredListings = serverListings;
-                searchResultsState.currentPage = 1;
+                searchResultsState.serverPaged = true;
+                searchResultsState.filteredListings = rows;
+                searchResultsState.serverTotal = (result && typeof result.total === 'number') ? result.total : rows.length;
+                searchResultsState.serverCountMeaning = (result && result.countMeaning) || 'exact';
+                if (result && result.attribution) {
+                    var _attrEl = document.getElementById('searchAttributionText');
+                    if (_attrEl) _attrEl.textContent = result.attribution;
+                }
+                var totalPages = Math.max(1, Math.ceil(searchResultsState.serverTotal / perPage));
+                if (page > totalPages) searchResultsState.currentPage = totalPages;
                 try {
                     if (typeof initializeSearchResults === 'function') initializeSearchResults();
                     if (typeof updateResultsCount === 'function') updateResultsCount();
+                    // The sticky nav label and count are computed from the SAME answer, at the same moment.
+                    // They used to be computed only in _showSearchResults(), which runs BEFORE the request.
+                    if (typeof updateStickyNavActive === 'function') updateStickyNavActive();
                     if (typeof refreshResultsMap === 'function') refreshResultsMap();
-                } catch(renderErr) {
-                    console.error('[Search] Render after server search failed:', renderErr);
+                } catch (renderErr) {
+                    console.error('[Search] Render after executor response failed:', renderErr);
                 }
                 _saveSearchState();
-                console.log('[Search] Rendered ' + serverListings.length + ' listings from Trestle');
+                if (rows.length === 0 && page === 1) showToast('No listings match these criteria.', 'warning');
             }).catch(function(err) {
+                if (requestSeq !== _serverSearchSeq) return;
                 if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
-                console.error('[Search] Trestle search failed:', err);
-                // Keep local results visible — they're already rendered
-                if (localResults.length === 0) {
-                    showToast('Search temporarily unavailable. Please try again.', 'error');
-                }
+                console.error('[Search] Executor request failed:', err);
+                // A failed search shows NOTHING in its place — never stale or partial rows.
+                searchResultsState.filteredListings = [];
+                searchResultsState.serverTotal = 0;
+                searchResultsState.serverCountMeaning = 'exact';
+                try {
+                    if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                    if (typeof updateResultsCount === 'function') updateResultsCount();
+                    if (typeof updateStickyNavActive === 'function') updateStickyNavActive();
+                } catch (e2) {}
+                var d = err && err.data;
+                var msg = (d && (d.code === 'UNSUPPORTED_CRITERION' || d.code === 'INVALID_CRITERION'))
+                    ? 'The Search executor refused: ' + ((d.unsupported || []).concat((d.invalid || []).map(function(i) { return i.param + ' (' + i.reason + ')'; })).join(', '))
+                    : 'Search failed (' + ((err && err.message) || 'error') + '). Nothing was shown in its place — try again.';
+                showToast(msg, 'error');
             });
         }
-
+        window._serverSearch = _serverSearch;
+        // Page navigation asks the executor for the page. Returns false when the
+        // current result set is not server-paged (legacy local sets keep their slice).
+        window.goToServerPage = function(n) {
+            if (!searchResultsState || !searchResultsState.serverPaged) return false;
+            var perPage = Math.min(Math.max(parseInt(searchResultsState.perPage, 10) || 50, 1), 200);
+            var totalPages = Math.max(1, Math.ceil((searchResultsState.serverTotal || 0) / perPage));
+            n = Math.min(Math.max(parseInt(n, 10) || 1, 1), totalPages);
+            if (n === searchResultsState.currentPage) return true;
+            searchResultsState.currentPage = n;
+            if (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) _serverSearch(activeSearchCriteria);
+            return true;
+        };
+        window.reissueServerSearch = function() {
+            if (!searchResultsState || !searchResultsState.serverPaged) return false;
+            searchResultsState.currentPage = 1;
+            if (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) _serverSearch(activeSearchCriteria);
+            return true;
+        };
         // Quick Search — formerly gated submission on RLS/Zip/Address/
         // Neighborhood being present. Removed 2026-05-03 after telemetry +
         // user reports confirmed agents expected the quick-card Search button
@@ -626,13 +651,13 @@
                                 'bg-gray-100 text-gray-600';
                 return '<div class="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b last:border-0" ' +
                     'onclick="selectSearchAddress(this, \'' + resultsDivId + '\')"' +
-                    ' data-address="' + escapeHtml(b.address) + '" data-name="' + escapeHtml(b.name || '') + '" data-zip="' + escapeHtml(b.zip || '') + '" data-neighborhood="' + escapeHtml(b.neighborhood || '') + '">' +
+                    ' data-address="' + _compEscape(b.address) + '" data-name="' + _compEscape(b.name || '') + '" data-zip="' + _compEscape(b.zip || '') + '" data-neighborhood="' + _compEscape(b.neighborhood || '') + '">' +
                     '<div class="flex justify-between items-center">' +
                     '<div>' +
-                    '<p class="font-medium text-gray-800">' + escapeHtml(b.address) + '</p>' +
-                    '<p class="text-gray-500">' + (b.name ? escapeHtml(b.name) + ' | ' : '') + escapeHtml(b.neighborhood) + ', ' + escapeHtml(b.borough) + '</p>' +
+                    '<p class="font-medium text-gray-800">' + _compEscape(b.address) + '</p>' +
+                    '<p class="text-gray-500">' + (b.name ? _compEscape(b.name) + ' | ' : '') + _compEscape(b.neighborhood) + ', ' + _compEscape(b.borough) + '</p>' +
                     '</div>' +
-                    (b.type ? '<span class="px-1.5 py-0.5 text-[10px] font-bold rounded-full ' + typeColor + ' ml-2 whitespace-nowrap">' + escapeHtml(b.type) + '</span>' : '') +
+                    (b.type ? '<span class="px-1.5 py-0.5 text-[10px] font-bold rounded-full ' + typeColor + ' ml-2 whitespace-nowrap">' + _compEscape(b.type) + '</span>' : '') +
                     '</div></div>';
             }).join('');
             resultsDiv.classList.remove('hidden');
@@ -642,8 +667,10 @@
         function _serverAddressSearch(query, resultsDivId, localMatches) {
             var resultsDiv = document.getElementById(resultsDivId);
             if (!resultsDiv) return;
-            // Call our search API with address filter
-            MallanAPI.idx.search({ address: query, limit: 10 }).then(function(result) {
+            // The Search executor executes NO address criterion (it is refused by name), so the
+            // autocomplete never asks it (Search Consolidation Packet 1). Suggestions come from
+            // the local building index only. Kept as a no-op shape so callers are unchanged.
+            Promise.resolve({ listings: [] }).then(function(result) {
                 if (!result || !result.listings) return;
                 var serverMatches = localMatches.slice(); // start with local
                 var existingAddrs = {};
@@ -700,16 +727,34 @@
             return parts[2] + '-' + parts[0].padStart(2, '0') + '-' + parts[1].padStart(2, '0');
         }
 
+        // The basic panel that belongs to a tab. Each tab has its OWN panel; toggleSearchTab shows exactly
+        // one of them. (Before 2026-09-09 only #searchBasicMode was ever shown, so both the Rentals tab and
+        // the Buildings tab rendered — and collected from — the SALE form.)
+        function _basicPanelIdFor(tab) {
+            if (tab === 'rent') return 'searchBasicModeRental';
+            if (tab === 'building') return 'searchBasicModeBuilding';
+            return 'searchBasicMode';
+        }
+        window._basicPanelIdFor = _basicPanelIdFor;
+
         function collectSearchCriteria() {
             var criteria = {};
             criteria.searchTab = currentSearchTab; // 'sale', 'rent', or 'building'
 
-            // Unified basic form (all tabs share one form, data-show-on handles visibility)
-            var activeBasicForm = document.getElementById('searchBasicMode');
+            // The basic panel of THIS tab — not a single shared form.
+            var activeBasicForm = document.getElementById(_basicPanelIdFor(currentSearchTab));
 
             // Price range — use the correct IDs based on search tab and mode (basic vs advanced)
             var _advMode = document.getElementById('searchAdvancedMode');
             var _isAdvanced = _advMode && _advMode.style.display !== 'none' && !_advMode.classList.contains('hidden');
+            // The Buildings tab owns its own basic panel (#searchBasicModeBuilding), and that panel
+            // carries ONLY RLS id, zip and neighborhood. It has no price / beds / baths / rooms / sqft
+            // control, so a basic Buildings search must collect NONE of them. Without this guard the
+            // `else` branches below fall through to the HIDDEN Sale panel and silently narrow the
+            // building universe by whatever the agent last set on the Sale tab. Advanced mode has no
+            // Buildings panel (see the status-mount comment below), so an advanced Building search
+            // legitimately reads the advanced controls the agent is actually looking at.
+            var _buildingBasic = (currentSearchTab === 'building') && !_isAdvanced;
             var priceMin, priceMax, customMinId, customMaxId;
             if (_isAdvanced) {
                 if (currentSearchTab === 'rent') {
@@ -729,7 +774,7 @@
                     priceMax = document.getElementById('rentalMaxRent');
                     customMinId = 'rentalMinRentCustom';
                     customMaxId = 'rentalMaxRentCustom';
-                } else {
+                } else if (!_buildingBasic) {
                     priceMin = document.getElementById('saleMinPrice');
                     priceMax = document.getElementById('saleMaxPrice');
                     customMinId = 'saleMinPriceCustom';
@@ -771,7 +816,7 @@
             } else if (currentSearchTab === 'rent') {
                 bedsMin = document.getElementById('rentalMinBeds');
                 bedsMax = document.getElementById('rentalMaxBeds');
-            } else {
+            } else if (!_buildingBasic) {
                 bedsMin = document.getElementById('saleMinBeds');
                 bedsMax = document.getElementById('saleMaxBeds');
             }
@@ -792,7 +837,7 @@
             } else if (currentSearchTab === 'rent') {
                 bathsMin = document.getElementById('rentalMinBaths');
                 bathsMax = document.getElementById('rentalMaxBaths');
-            } else {
+            } else if (!_buildingBasic) {
                 bathsMin = document.getElementById('saleMinBaths');
                 bathsMax = document.getElementById('saleMaxBaths');
             }
@@ -813,7 +858,7 @@
             } else if (currentSearchTab === 'rent') {
                 roomsMin = document.getElementById('rentalMinRooms');
                 roomsMax = document.getElementById('rentalMaxRooms');
-            } else {
+            } else if (!_buildingBasic) {
                 roomsMin = document.getElementById('saleMinRooms');
                 roomsMax = document.getElementById('saleMaxRooms');
             }
@@ -834,7 +879,7 @@
             } else if (currentSearchTab === 'rent') {
                 sqftMin = document.getElementById('rentalMinSqft');
                 sqftMax = document.getElementById('rentalMaxSqft');
-            } else {
+            } else if (!_buildingBasic) {
                 sqftMin = document.getElementById('saleMinSqft');
                 sqftMax = document.getElementById('saleMaxSqft');
             }
@@ -869,51 +914,27 @@
                 criteria.propertySubType = propertySubTypeChecked.join(',');
             }
 
-            // Status checkboxes (MlsStatus) — collect all checked statuses
-            // Determine which container has the status checkboxes
-            var statusContainer = activeBasicForm;
+            // Status checkboxes — the panel of THIS mode and THIS transaction (owner ruling 2026-09-08/09).
+            // Each mode owns its own mount: basic sale, basic rental, advanced sale, advanced rental. The rental
+            // tabs read the RENTAL panel (they used to read the sale block, so a rental search collected sale
+            // labels). Values are exact live StandardStatus tokens; "Back On Market" is a refinement of Active.
+            var wantTransaction = currentSearchTab === 'rent' ? 'rental' : 'sale';
             var advancedMode = document.getElementById('searchAdvancedMode');
-            if (advancedMode && advancedMode.style.display !== 'none') {
-                // In advanced mode, use the visible status options div
-                var saleOpts = document.getElementById('saleStatusOptions');
-                var rentalOpts = document.getElementById('rentalStatusOptions');
-                if (rentalOpts && rentalOpts.style.display !== 'none') {
-                    statusContainer = rentalOpts;
-                } else if (saleOpts && saleOpts.style.display !== 'none') {
-                    statusContainer = saleOpts;
-                } else {
-                    statusContainer = saleOpts; // default to sale
-                }
-            }
+            var wantMode = (advancedMode && advancedMode.style.display !== 'none') ? 'advanced' : 'basic';
+            // The Buildings tab owns its own mount (basic-building). Advanced mode has no Buildings panel,
+            // so an advanced Building search reads the advanced sale mount.
+            var wantMountName = (wantMode === 'basic' && currentSearchTab === 'building')
+                ? 'basic-building'
+                : (wantMode + '-' + wantTransaction);
+            var statusContainer = document.querySelector('[data-status-mount="' + wantMountName + '"]');
             if (statusContainer) {
-                var statusChecks = statusContainer.querySelectorAll('[data-field="MlsStatus"]:checked');
+                var statusChecks = statusContainer.querySelectorAll('[data-field="StandardStatus"]:checked');
                 if (statusChecks.length > 0) {
                     criteria.statuses = [];
                     statusChecks.forEach(function(cb) {
                         var val = cb.getAttribute('data-value');
-                        var sub = cb.getAttribute('data-sub-status');
-                        if (sub) {
-                            // Sub-status checkbox (e.g., "Offer Accepted", "Contract Out")
-                            criteria.statuses.push(sub);
-                        } else if (val) {
-                            // Handle comma-separated values (e.g., "Withdrawn,Canceled,Expired,Hold")
-                            var parts = val.split(',');
-                            parts.forEach(function(part) {
-                                var s = part.trim();
-                                // Map to uppercase
-                                if (s === 'Active' || s === 'BackOnMarket') criteria.statuses.push('ACTIVE');
-                                else if (s === 'ComingSoon') criteria.statuses.push('COMING_SOON');
-                                else if (s === 'Future') criteria.statuses.push('FUTURE');
-                                else if (s === 'Pending') criteria.statuses.push('PENDING');
-                                else if (s === 'Closed') criteria.statuses.push('CLOSED');
-                                else if (s === 'Withdrawn') criteria.statuses.push('WITHDRAWN');
-                                else if (s === 'Canceled') criteria.statuses.push('CANCELED');
-                                else if (s === 'Expired') criteria.statuses.push('EXPIRED');
-                                else if (s === 'Hold') criteria.statuses.push('HOLD');
-                                else if (s === 'Incomplete') criteria.statuses.push('INCOMPLETE');
-                                else criteria.statuses.push(s.toUpperCase());
-                            });
-                        }
+                        if (cb.getAttribute('data-refine') === 'backOnMarket') criteria.backOnMarket = true;
+                        if (val && criteria.statuses.indexOf(val) === -1) criteria.statuses.push(val);
                     });
                 }
             }
@@ -953,14 +974,14 @@
 
                 // Borough resolution — explicit borough chip wins; otherwise
                 // derive from neighborhoods only when all are in one borough.
-                if (selectedBoroughs.length === 1) {
-                    criteria.borough = selectedBoroughs[0];
+                if (selectedBoroughs.length > 0) {
+                    // ALL selected boroughs — the executor ORs CityRegion (provider) and the
+                    // borough storage variants (Mallan rows). No selected borough is ever dropped.
+                    criteria.boroughs = selectedBoroughs.slice();
                 } else if (selectedNeighborhoods.length > 0) {
                     var boroughs = selectedNeighborhoods.map(function(n) { return _findBoroughForNeighborhood(n); }).filter(Boolean);
                     var uniqueBoroughs = boroughs.filter(function(b, i, arr) { return arr.indexOf(b) === i; });
-                    if (uniqueBoroughs.length === 1) {
-                        criteria.borough = uniqueBoroughs[0];
-                    }
+                    if (uniqueBoroughs.length > 0) criteria.boroughs = uniqueBoroughs;
                 }
                 // selectedBoroughs.length > 1 (multi-borough): leave
                 // criteria.borough unset — backend cannot OR multiple
@@ -975,9 +996,13 @@
                 zipInputId = 'adv-zip';
                 unitInputId = 'searchQuickUnit';
             } else {
-                rlsInputId = 'searchQuickRls';
-                zipInputId = 'searchQuickZip';
-                unitInputId = 'searchQuickUnit';
+                // Basic form ids are per tab (saleQuick* / rentalQuick* / buildingQuick*); the old
+                // 'searchQuick*' ids never existed, which left these controls inert. The Buildings tab used
+                // to fall through to the SALE ids, so #buildingQuickRls / #buildingQuickZip were never read.
+                var _qp = currentSearchTab === 'rent' ? 'rental' : currentSearchTab === 'building' ? 'building' : 'sale';
+                rlsInputId = _qp + 'QuickRls';
+                zipInputId = _qp + 'QuickZip';
+                unitInputId = _qp + 'QuickUnit';
             }
             var rlsInput = document.getElementById(rlsInputId);
             var zipInput = document.getElementById(zipInputId);
@@ -1000,7 +1025,11 @@
                 criteria.managementCompany = mgmtEl.value.trim();
             }
 
-            // Building Financing % (MaximumFinancingPercent on CRM, BuyerFinancing on Trestle)
+            // Building Financing % — the controls are GONE (MaximumFinancingPercent does not exist on live
+            // Cotality Property and the executor has no financing criterion). The read is kept, and
+            // `financingMin`/`financingMax` are in _NOT_EXECUTABLE, so if a control ever reappears — or a
+            // legacy saved search carries the key — it is refused BY NAME instead of dropped in silence.
+            // This was the one key collectSearchCriteria produced that was neither executed nor refused.
             var finMinId = currentSearchTab === 'rent' ? 'rentalBuildingFinancingMin' :
                            currentSearchTab === 'building' ? 'buildingFinancingMin' : 'saleBuildingFinancingMin';
             var finMinEl = document.getElementById(finMinId);
@@ -1105,9 +1134,21 @@
                 if (!isNaN(fmx)) criteria.floorsMax = fmx;
             }
 
-            // Building name search
-            var buildingNameEl = document.getElementById('buildingSearchAddress') || document.getElementById('buildingNameSearch');
-            if (buildingNameEl && buildingNameEl.value.trim() && currentSearchTab === 'building') {
+            // Building name — the explicit BuildingName criterion (Property.BuildingName, equality on
+            // the lowercased value; 221,140 populated rows, filterable, probeHttp 200).
+            // It is owned by exactly ONE control: #adv-building-name in the Advanced panel. Until
+            // 2026-09-11 this read #buildingSearchAddress and #buildingNameSearch — NEITHER id exists
+            // anywhere in the shipped partial — and then gated the result on the Buildings tab, whose
+            // panel has no building-name control either. So the criterion could never be collected
+            // from anywhere, which is why removing it from _NOT_EXECUTABLE alone would have changed
+            // nothing but the toast.
+            // The `saleSearchAddress` / `rentalSearchAddress` / `advancedSearchAddress` boxes are the
+            // "Address or Building Name" AUTOCOMPLETE. They feed `criteria.address`, a DIFFERENT
+            // criterion that is still refused by name. They are deliberately not mapped here.
+            // Gated on _isAdvanced for the same reason as every other adv-* control: a value left in a
+            // hidden panel must not narrow a search the agent is running somewhere else.
+            var buildingNameEl = _isAdvanced ? document.getElementById('adv-building-name') : null;
+            if (buildingNameEl && buildingNameEl.value.trim()) {
                 criteria.buildingName = buildingNameEl.value.trim();
             }
 
@@ -1120,7 +1161,7 @@
             // Collects ALL checked checkboxes with data-field/data-value
             // that aren't already handled above.
             // ═══════════════════════════════════════════════════════════
-            var _handledFields = { 'MlsStatus': 1, 'CommonInterest': 1, 'PropertySubType': 1 };
+            var _handledFields = { 'StandardStatus': 1, 'CommonInterest': 1, 'PropertySubType': 1 };
 
             // Determine container: advanced mode if visible, else active basic form
             var _scanContainer = activeBasicForm;
@@ -1176,8 +1217,11 @@
         }
 
         function clearSearchForm() {
-            // Reset all select elements in basic form (unified — one form for all tabs)
-            var forms = ['searchBasicMode'];
+            // Each tab owns its OWN basic panel since 2026-09-09. Clear resets ALL of them, so no stale
+            // criterion survives in a hidden tab's panel and silently re-enters the next search there.
+            // (This read only '#searchBasicMode', so Clear on a rental or building search did nothing
+            // visible: every field of the panel the agent was looking at stayed populated.)
+            var forms = ['searchBasicMode', 'searchBasicModeRental', 'searchBasicModeBuilding'];
             forms.forEach(function(formId) {
                 var form = document.getElementById(formId);
                 if (!form) return;
@@ -1218,16 +1262,10 @@
                 advMode.querySelectorAll('select').forEach(function(sel) { sel.selectedIndex = 0; });
                 advMode.querySelectorAll('input[type="text"], input[type="number"]').forEach(function(inp) { inp.value = ''; });
             }
-            // Re-check the "Active" checkbox by default (sale basic form)
-            var activeCheck = document.querySelector('#searchBasicMode [data-field="MlsStatus"][data-value="Active"]');
-            if (activeCheck) activeCheck.checked = true;
-            // (rental form unified — no separate re-check needed)
-            // Re-check the "Active" checkbox in advanced mode (sale status)
-            var advSaleActive = document.querySelector('#saleStatusOptions [data-field="MlsStatus"][data-value="Active"]');
-            if (advSaleActive) advSaleActive.checked = true;
-            // Re-check the "Active" checkbox in advanced mode (rental status)
-            var advRentalActive = document.querySelector('#rentalStatusOptions [data-field="MlsStatus"][data-value="Active"]');
-            if (advRentalActive) advRentalActive.checked = true;
+            // Re-check "Active" in EVERY status panel (all four modes render from the contract).
+            document.querySelectorAll('[data-status-mount] [data-field="StandardStatus"][data-value="Active"]').forEach(function(cb) {
+                cb.checked = !cb.getAttribute('data-refine'); // the plain Active box, not the Back On Market refinement
+            });
             // Clear neighborhood tags and internal selection state
             if (typeof clearAllNeighborhoods === 'function') clearAllNeighborhoods();
 
@@ -1266,12 +1304,13 @@
             var count = 0;
             var advForm = document.getElementById('searchAdvancedMode');
             var form = (advForm && advForm.style.display !== 'none' && !advForm.classList.contains('hidden'))
-                ? advForm : document.getElementById('searchBasicMode');
+                ? advForm
+                : document.getElementById(_basicPanelIdFor(typeof currentSearchTab !== 'undefined' ? currentSearchTab : 'sale'));
             if (!form) return;
             form.querySelectorAll('select').forEach(function(s) { if (s.selectedIndex > 0) count++; });
             form.querySelectorAll('input[type="text"], input[type="number"]').forEach(function(i) { if (i.value.trim()) count++; });
             form.querySelectorAll('input[type="checkbox"]:checked').forEach(function(cb) {
-                if (cb.getAttribute('data-field') === 'MlsStatus' && cb.getAttribute('data-value') === 'Active') return;
+                if (cb.getAttribute('data-field') === 'StandardStatus' && cb.getAttribute('data-value') === 'Active' && !cb.getAttribute('data-refine')) return;
                 count++;
             });
             form.querySelectorAll('.drp-wrapper[data-from]').forEach(function(w) {
@@ -1283,10 +1322,10 @@
 
         // Wire filter count to form changes (delegated)
         document.addEventListener('change', function(e) {
-            if (e.target.closest('#searchBasicMode, #searchAdvancedMode')) updateFilterCount();
+            if (e.target.closest('#searchBasicMode, #searchBasicModeRental, #searchBasicModeBuilding, #searchAdvancedMode')) updateFilterCount();
         });
         document.addEventListener('input', function(e) {
-            if (e.target.closest('#searchBasicMode, #searchAdvancedMode') && (e.target.type === 'text' || e.target.type === 'number')) {
+            if (e.target.closest('#searchBasicMode, #searchBasicModeRental, #searchBasicModeBuilding, #searchAdvancedMode') && (e.target.type === 'text' || e.target.type === 'number')) {
                 clearTimeout(window._filterCountDebounce);
                 window._filterCountDebounce = setTimeout(updateFilterCount, 300);
             }
@@ -1431,336 +1470,43 @@
             searchDisplayContext = 'vow';
         }
 
-        function filterListings(listings, criteria, displayContext) {
-            // displayContext: 'idx' (default/public) | 'vow' (authenticated client) | 'crm' (agent/broker)
-            displayContext = displayContext || searchDisplayContext || 'idx';
+        // filterListings() — the browser-local Search membership engine — was REMOVED
+        // (Search Consolidation Packet 1, 2026-09-05). Search membership, count, order and
+        // pages come from the canonical executor only.
 
-            return listings.filter(function(listing) {
-
-                // ═══════════════════════════════════════════════════════════
-                // REBNY DISTRIBUTION GATES — UCBA 2026 Art. I Sec. 4-5
-                // These gates MUST be enforced BEFORE any other filter.
-                // ═══════════════════════════════════════════════════════════
-
-                var perm = listing.permissions || {};
-
-                // Gate 1: Owner Opt-Out — NEVER display in ANY context (UCBA Art. I Sec. 4(A))
-                if (perm.ownerOptOut === true) return false;
-
-                // Gate 2: Participant Only — CRM only (authorized RLS participants)
-                if (perm.participantOnly === true) {
-                    if (displayContext !== 'crm') return false;
-                }
-
-                // Gate 3: Display context — IDX vs VOW vs CRM
-                if (displayContext === 'idx') {
-                    // IDX: both IDX and Internet gates must be true
-                    if (listing.idxDisplayYN === false || perm.idxDisplay === false) return false;
-                    if (listing.internetDisplayYN === false) return false;
-                } else if (displayContext === 'vow') {
-                    // VOW: only InternetEntireListingDisplayYN matters (IDX flag irrelevant)
-                    if (listing.internetDisplayYN === false) return false;
-                }
-                // CRM: no Gate 3 filtering (authorized participant sees all except Owner Opt-Out)
-
-                // Gate 4: Syndication — SyndicateYN controls third-party distribution.
-                // In IDX search context, listing still appears but is flagged as non-syndicated.
-                // The badge is rendered in the view layer (shared-badges.js → syndicationBadge).
-                // No filtering here — syndication does NOT block IDX display.
-
-                // Gate 5: Coming Soon — listing IS displayed in search results, but:
-                // - "Coming Soon" badge is shown (view layer)
-                // - Schedule Showing button is disabled (view layer)
-                // - Text: "Coming Soon. No Showings or Open House until [date]" (view layer)
-                // No filtering here — Coming Soon listings are visible in IDX search.
-
-                // Gate 6: Closed Status — suppress listings closed > 24 hours
-                if (listing.status === 'CLOSED' && listing.closedDate) {
-                    var closedTime = new Date(listing.closedDate).getTime();
-                    var now = Date.now();
-                    var hoursSinceClosed = (now - closedTime) / (1000 * 60 * 60);
-                    if (hoursSinceClosed > 24) return false;
-                }
-
-                // ═══════════════════════════════════════════════════════════
-                // Standard search filters
-                // ═══════════════════════════════════════════════════════════
-
-                // Search tab filter — only show sale or rental listings
-                if (criteria.searchTab === 'rent' && listing.listingCategory !== 'rental') return false;
-                if (criteria.searchTab === 'sale' && listing.listingCategory === 'rental') return false;
-
-                // Price filter
-                if (criteria.priceMin && listing.price < criteria.priceMin) return false;
-                if (criteria.priceMax && listing.price > criteria.priceMax) return false;
-
-                // Beds filter — explicit null check (beds=0 is valid for studios)
-                if (criteria.bedsMin !== undefined && criteria.bedsMin !== null && listing.beds < criteria.bedsMin) return false;
-                if (criteria.bedsMax !== undefined && criteria.bedsMax !== null && listing.beds > criteria.bedsMax) return false;
-
-                // Baths filter — explicit null check (0 is valid)
-                if (criteria.bathsMin !== undefined && criteria.bathsMin !== null && listing.baths < criteria.bathsMin) return false;
-                if (criteria.bathsMax !== undefined && criteria.bathsMax !== null && listing.baths > criteria.bathsMax) return false;
-
-                // Rooms filter — explicit null check (0 is valid)
-                if (criteria.roomsMin !== undefined && criteria.roomsMin !== null && listing.rooms < criteria.roomsMin) return false;
-                if (criteria.roomsMax !== undefined && criteria.roomsMax !== null && listing.rooms > criteria.roomsMax) return false;
-
-                // Sqft filter — exclude listings with null/undefined sqft when filter is set
-                if (criteria.sqftMin !== undefined && criteria.sqftMin !== null) {
-                    if (!listing.intSqft && listing.intSqft !== 0) return false; // null sqft excluded
-                    if (listing.intSqft < criteria.sqftMin) return false;
-                }
-                if (criteria.sqftMax !== undefined && criteria.sqftMax !== null) {
-                    if (!listing.intSqft && listing.intSqft !== 0) return false;
-                    if (listing.intSqft > criteria.sqftMax) return false;
-                }
-
-                // Ownership filter — exact match (not indexOf, to prevent Condo matching Condop)
-                if (criteria.ownership && criteria.ownership.length > 0) {
-                    var match = criteria.ownership.some(function(o) {
-                        return listing.ownership.toLowerCase() === o.toLowerCase();
-                    });
-                    if (!match) return false;
-                }
-
-                // PropertySubType filter
-                if (criteria.propertySubType) {
-                    var pstValues = criteria.propertySubType.split(',').map(function(v) { return v.toLowerCase(); });
-                    var sub = (listing.propertySubType || '').toLowerCase();
-                    var pstMatch = pstValues.some(function(v) { return sub.indexOf(v) !== -1; });
-                    if (!pstMatch) return false;
-                }
-
-                // Address / building name filter — partial match
-                if (criteria.address) {
-                    var normAddr = normalizeAddress(criteria.address);
-                    var addrMatch = normalizeAddress(listing.address).indexOf(normAddr) !== -1;
-                    var bldgMatch = listing.buildingName && normalizeAddress(listing.buildingName).indexOf(normAddr) !== -1;
-                    if (!addrMatch && !bldgMatch) return false;
-                }
-
-                // Neighborhood filter — single value (Quick Search) or multi-select (tree/map)
-                if (criteria.neighborhood) {
-                    var nLower = criteria.neighborhood.toLowerCase();
-                    var nHit = (listing.neighborhood && listing.neighborhood.toLowerCase().indexOf(nLower) !== -1)
-                            || (listing.neighborhoodCanonical && listing.neighborhoodCanonical.toLowerCase().indexOf(nLower) !== -1);
-                    if (!nHit) return false;
-                }
-                if (criteria.neighborhoods && criteria.neighborhoods.length > 0) {
-                    var nLookup = {};
-                    criteria.neighborhoods.forEach(function(n) { nLookup[n.toLowerCase()] = true; });
-                    var nMatch = (listing.neighborhood && nLookup[listing.neighborhood.toLowerCase()])
-                              || (listing.neighborhoodCanonical && nLookup[listing.neighborhoodCanonical.toLowerCase()]);
-                    // Also check multi-canonical array (e.g. "Chelsea / Flatiron" → ["Chelsea", "Flatiron"])
-                    if (!nMatch && listing.neighborhoodCanonicals) {
-                        for (var nc = 0; nc < listing.neighborhoodCanonicals.length; nc++) {
-                            if (nLookup[listing.neighborhoodCanonicals[nc].toLowerCase()]) { nMatch = true; break; }
-                        }
-                    }
-                    if (!nMatch) return false;
-                }
-
-                // Status filter — check both StandardStatus (listing.status) and MlsStatus sub-statuses
-                if (criteria.statuses && criteria.statuses.length > 0) {
-                    var statusMatch = criteria.statuses.some(function(s) {
-                        var sl = s.toLowerCase();
-                        // Match against main status (ACTIVE, PENDING, CLOSED, etc.)
-                        if (listing.status && listing.status.toLowerCase() === sl) return true;
-                        // Match against MlsStatus sub-status (OfferOut, ContractSigned, BoardApproved, etc.)
-                        if (listing.mlsStatus && listing.mlsStatus.toLowerCase().indexOf(sl) !== -1) return true;
-                        return false;
-                    });
-                    if (!statusMatch) return false;
-                }
-
-                // RLS ID filter (comma-separated, check lid, wid, and id)
-                if (criteria.rlsId) {
-                    var ids = criteria.rlsId.split(',').map(function(s) { return s.trim().toLowerCase(); });
-                    var idMatch = ids.some(function(id) {
-                        return (listing.lid && listing.lid.toLowerCase() === id) ||
-                               (listing.wid && listing.wid.toLowerCase() === id) ||
-                               (String(listing.id) === id);
-                    });
-                    if (!idMatch) return false;
-                }
-
-                // Zip filter
-                if (criteria.zip && listing.zip !== criteria.zip) return false;
-
-                // Unit filter
-                if (criteria.unit && listing.unit && listing.unit.toLowerCase() !== criteria.unit.toLowerCase()) return false;
-
-                // Management Company filter — matches against ListOfficeName
-                if (criteria.managementCompany) {
-                    var mc = criteria.managementCompany.toLowerCase();
-                    if (!listing.company || listing.company.toLowerCase().indexOf(mc) === -1) return false;
-                }
-
-                // Keyword filter — search in description (PublicRemarks)
-                if (criteria.keyword) {
-                    var kw = criteria.keyword.toLowerCase();
-                    var desc = (listing.description || '').toLowerCase();
-                    var addr = (listing.address || '').toLowerCase();
-                    if (desc.indexOf(kw) === -1 && addr.indexOf(kw) === -1) return false;
-                }
-
-                // Date range filters
-                if (criteria.dateFrom) {
-                    var from = new Date(criteria.dateFrom);
-                    var to = new Date(criteria.dateTo || criteria.dateFrom);
-                    to.setHours(23, 59, 59); // include end date
-                    var type = criteria.dateActivityType;
-                    if (type === 'Listed' || type === 'ListedAndUpdated') {
-                        var listed = listing.listedDate ? new Date(listing.listedDate) : null;
-                        if (type === 'Listed') {
-                            if (!listed || listed < from || listed > to) return false;
-                        } else {
-                            // ListedAndUpdated: either listed or updated must be in range
-                            var updated = listing.updatedDate ? new Date(listing.updatedDate) : null;
-                            var listedOk = listed && listed >= from && listed <= to;
-                            var updatedOk = updated && updated >= from && updated <= to;
-                            if (!listedOk && !updatedOk) return false;
-                        }
-                    } else if (type === 'Updated') {
-                        var updated = listing.updatedDate ? new Date(listing.updatedDate) : null;
-                        if (!updated || updated < from || updated > to) return false;
-                    }
-                }
-                if (criteria.contractDateFrom) {
-                    var cFrom = new Date(criteria.contractDateFrom);
-                    var cTo = new Date(criteria.contractDateTo || criteria.contractDateFrom);
-                    cTo.setHours(23, 59, 59);
-                    var contractDate = listing.contractDate ? new Date(listing.contractDate) : null;
-                    if (!contractDate || contractDate < cFrom || contractDate > cTo) return false;
-                }
-                if (criteria.soldDateFrom) {
-                    var sFrom = new Date(criteria.soldDateFrom);
-                    var sTo = new Date(criteria.soldDateTo || criteria.soldDateFrom);
-                    sTo.setHours(23, 59, 59);
-                    var closedDate = listing.closedDate ? new Date(listing.closedDate) : null;
-                    if (!closedDate || closedDate < sFrom || closedDate > sTo) return false;
-                }
-
-                // Transit proximity filter — is listing near a selected subway station?
-
-                // ═══════════════════════════════════════════════════════════
-                // GENERIC CHECKBOX FILTER
-                // Matches criteria.checkboxFilters against listing properties.
-                // OR within a field (any value matches), AND across fields.
-                // ═══════════════════════════════════════════════════════════
-                if (criteria.checkboxFilters) {
-                    // Map HTML data-field names → listing property names
-                    // (where they differ between CRM HTML and Trestle/API)
-                    var _fieldMap = {
-                        'BuildingLaundryFeatures': 'LaundryFeatures',
-                        'BuildingSecurityFeatures': 'SecurityFeatures',
-                        'BuildingPoolFeatures': 'PoolFeatures',
-                        'BuildingPetsAllowed': 'PetsAllowedYN',
-                        'BuildingSmokeFreeYN': 'SmokeFree',
-                        'LeaseType': 'AvailableLeaseType',
-                        'ConstructionType': 'ConstructionMaterials',
-                        'NewConstruction': 'NewConstructionYN',
-                        'CRM': null // skip CRM-internal fields
-                    };
-
-                    // YN fields: filter checks for boolean true
-                    var _ynFields = {
-                        'LandLeaseYN': 1, 'CoolingYN': 1, 'GarageYN': 1,
-                        'PetsAllowedYN': 1, 'NewConstructionYN': 1,
-                        'BuildingSmokeFreeYN': 1, 'BuildingPetsAllowed': 1
-                    };
-
-                    for (var _fk in criteria.checkboxFilters) {
-                        if (!criteria.checkboxFilters.hasOwnProperty(_fk)) continue;
-
-                        // Skip CRM-internal or unmappable fields
-                        if (_fieldMap[_fk] === null) continue;
-
-                        // Skip distribution gate filters (handled above)
-                        if (_fk === 'InternetEntireListingDisplayYN' || _fk === 'RLSParticipantOnly') continue;
-
-                        var _vals = criteria.checkboxFilters[_fk];
-                        var _propName = _fieldMap[_fk] || _fk;
-
-                        // Resolve listing value — try exact prop, then lowercase first char
-                        var _listVal = listing[_propName];
-                        if (_listVal === undefined) {
-                            var _lcProp = _propName.charAt(0).toLowerCase() + _propName.slice(1);
-                            _listVal = listing[_lcProp];
-                        }
-
-                        // YN boolean fields
-                        if (_ynFields[_fk]) {
-                            var _wantTrue = _vals.indexOf('true') !== -1 || _vals.indexOf('Yes') !== -1;
-                            var _wantFalse = _vals.indexOf('false') !== -1 || _vals.indexOf('No') !== -1;
-                            if (_wantTrue && !_wantFalse) {
-                                if (_listVal !== true && _listVal !== 'true' && _listVal !== 'Yes') return false;
-                            } else if (_wantFalse && !_wantTrue) {
-                                if (_listVal === true || _listVal === 'true' || _listVal === 'Yes') return false;
-                            }
-                            continue;
-                        }
-
-                        // ListOfficeMlsId — exact match for "my office" filter
-                        if (_fk === 'ListOfficeMlsId') {
-                            if (listing.company) {
-                                // listing.company = ListOfficeName, not MlsId — skip server match
-                                // This filter is best handled server-side via OData
-                            }
-                            continue;
-                        }
-
-                        // MaximumFinancingPercent — range filter, not checkbox match
-                        if (_fk === 'MaximumFinancingPercent') continue;
-
-                        // Skip if listing doesn't have this field (don't exclude — field may
-                        // not be in API response yet; server-side OData handles it)
-                        if (_listVal == null || _listVal === '') continue;
-
-                        // Multi-value match: Trestle may return comma-separated values
-                        // (e.g. "FullTimeDoorman,VirtualDoorman") or single values
-                        var _listStr = String(_listVal).toLowerCase();
-                        var _matched = false;
-                        for (var _vi = 0; _vi < _vals.length; _vi++) {
-                            if (_listStr.indexOf(_vals[_vi].toLowerCase()) !== -1) {
-                                _matched = true;
-                                break;
-                            }
-                        }
-                        if (!_matched) return false;
-                    }
-                }
-
-                return true;
-            });
+        /**
+         * ONE result-count sentence, for every place that shows one (the results toolbar and the sticky nav).
+         * Two readers computing the count from two different sources is how a 4,821-result search came to
+         * read "4,821 Results" and "0 results" on the same screen.
+         */
+        function _resultsCount() {
+            if (searchResultsState.serverPaged && searchResultsState.serverTotal != null) return searchResultsState.serverTotal;
+            return (searchResultsState.filteredListings || listings).length;
         }
+        function _resultsCountLabel() {
+            var count = _resultsCount();
+            var lowerBound = searchResultsState.serverPaged && searchResultsState.serverTotal != null
+                && searchResultsState.serverCountMeaning === 'lower_bound';
+            return (lowerBound ? 'At least ' : '') + count.toLocaleString() + ' Results';
+        }
+        window._resultsCountLabel = _resultsCountLabel;
 
         function updateResultsCount() {
-            var filtered = searchResultsState.filteredListings || listings;
-            var count = filtered.length;
             var perPage = searchResultsState.perPage || 50;
+            var count = _resultsCount();
+            var label = _resultsCountLabel();
             var totalPages = Math.max(1, Math.ceil(count / perPage));
-
-            // Update all results count elements (top + bottom)
             var countEls = document.querySelectorAll('#resultsCount, #resultsCount2');
-            countEls.forEach(function(el) { el.textContent = count + ' Results'; });
-
-            // Update top pagination
+            countEls.forEach(function(el) { el.textContent = label; });
             var totalPagesEl = document.getElementById('totalPages');
             if (totalPagesEl) totalPagesEl.textContent = totalPages;
-
             var currentPageEl = document.getElementById('currentPage');
             if (currentPageEl) currentPageEl.textContent = searchResultsState.currentPage;
-
-            // Update bottom pagination
             var bottomTotalPagesEl = document.getElementById('bottomTotalPages');
             if (bottomTotalPagesEl) bottomTotalPagesEl.textContent = totalPages;
-
             var bottomCurrentPageEl = document.getElementById('bottomCurrentPage');
             if (bottomCurrentPageEl) bottomCurrentPageEl.textContent = searchResultsState.currentPage;
         }
-
         // Back to search - show search form, hide results
         function backToSearch() {
             // Close refine panel if open
@@ -1771,22 +1517,10 @@
             var searchFormContainer = document.getElementById('searchFormContainer');
             if (searchFormContainer) searchFormContainer.style.display = 'block';
 
-            // Restore the proper search mode display
+            // Restore the proper search mode display through the ONE place that owns panel visibility.
             var _sm;
             try { _sm = sessionStorage.getItem('searchMode'); } catch(e) {}
-            var isBasicMode = _sm !== 'advanced';
-
-            var basicMode = document.getElementById('searchBasicMode');
-            var advancedMode = document.getElementById('searchAdvancedMode');
-
-            // Toggle between basic (unified) and advanced mode
-            if (isBasicMode) {
-                if (basicMode) basicMode.style.display = 'block';
-                if (advancedMode) advancedMode.style.display = 'none';
-            } else {
-                if (basicMode) basicMode.style.display = 'none';
-                if (advancedMode) advancedMode.style.display = 'block';
-            }
+            toggleSearchMode(_sm === 'advanced' ? 'advanced' : 'basic');
 
             // Hide search results section
             var searchResultsSection = document.getElementById('searchResultsSection');
@@ -1828,6 +1562,27 @@
             if (_refinePanelOpen) populateRefinePanel();
         }
 
+        // ── Refine status: ONE authority, the same per-transaction contract mount the four Search panels use ──
+        // The former five hand-written checkboxes wrote ACTIVE / COMING_SOON / PENDING / CONTRACT /
+        // UNDER_CONTRACT / CLOSED. None of those is a live Cotality StandardStatus member, so
+        // serializeSearchCriteria refused every one BY NAME and every Apply, every pill removal and every
+        // Clear aborted before a request was issued — the whole panel was dead. They also spoke sale
+        // language on a rental search (a rental has no Coming Soon and no "Contract").
+        function _refineTransactionOf(c) {
+            var tab = (c && c.searchTab) || currentSearchTab || 'sale';
+            return tab === 'rent' ? 'rental' : 'sale';
+        }
+        function _refineStatusMount(transaction) {
+            return document.querySelector('[data-status-mount="refine-' + transaction + '"]');
+        }
+        /** Show the mount of THIS transaction and hide the other, so a rental can never show sale terms. */
+        function _showRefineStatusFor(transaction) {
+            var sale = document.getElementById('refineStatusSale');
+            var rental = document.getElementById('refineStatusRental');
+            if (sale) sale.style.display = transaction === 'rental' ? 'none' : 'block';
+            if (rental) rental.style.display = transaction === 'rental' ? 'block' : 'none';
+        }
+
         function populateRefinePanel() {
             var c = (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) ? activeSearchCriteria : {};
 
@@ -1850,19 +1605,18 @@
             setSelectValue('refineMinBaths', c.bathsMin != null ? c.bathsMin : '');
             setSelectValue('refineMaxBaths', c.bathsMax != null ? c.bathsMax : '');
 
-            // Statuses
-            var statuses = c.statuses || ['ACTIVE'];
-            var el;
-            el = document.getElementById('refineStatusActive');
-            if (el) el.checked = statuses.indexOf('ACTIVE') !== -1;
-            el = document.getElementById('refineStatusComingSoon');
-            if (el) el.checked = statuses.indexOf('COMING_SOON') !== -1;
-            el = document.getElementById('refineStatusPending');
-            if (el) el.checked = statuses.indexOf('PENDING') !== -1;
-            el = document.getElementById('refineStatusContract');
-            if (el) el.checked = statuses.indexOf('CONTRACT') !== -1 || statuses.indexOf('UNDER_CONTRACT') !== -1;
-            el = document.getElementById('refineStatusClosed');
-            if (el) el.checked = statuses.indexOf('CLOSED') !== -1;
+            // Statuses — exact live tokens, in this transaction's panel
+            var transaction = _refineTransactionOf(c);
+            _showRefineStatusFor(transaction);
+            var mount = _refineStatusMount(transaction);
+            if (mount) {
+                var want = Array.isArray(c.statuses) && c.statuses.length ? c.statuses : ['Active'];
+                Array.prototype.forEach.call(mount.querySelectorAll('[data-field="StandardStatus"]'), function(cb) {
+                    var refine = cb.getAttribute('data-refine');
+                    if (refine === 'backOnMarket') { cb.checked = c.backOnMarket === true; return; }
+                    cb.checked = want.indexOf(cb.getAttribute('data-value')) !== -1;
+                });
+            }
 
             // Build applied filters pills
             buildRefineFilterPills(c);
@@ -1942,16 +1696,32 @@
 
         function removeRefineFilter(key) {
             if (!activeSearchCriteria) return;
-            if (key === 'price') { delete activeSearchCriteria.priceMin; delete activeSearchCriteria.priceMax; }
-            else if (key === 'beds') { delete activeSearchCriteria.bedsMin; delete activeSearchCriteria.bedsMax; }
-            else if (key === 'baths') { delete activeSearchCriteria.bathsMin; delete activeSearchCriteria.bathsMax; }
-            else if (key === 'neighborhoods') { delete activeSearchCriteria.neighborhoods; }
+            // The panel CONTROL has to be cleared too, not only the criteria key: applyRefinedSearch reads
+            // the panel, so clearing the key alone let the still-selected dropdown put it straight back and
+            // the pill never went away.
+            function _clearRefineSelect(id) {
+                var el = document.getElementById(id);
+                if (el) el.selectedIndex = 0;
+            }
+            if (key === 'price') {
+                delete activeSearchCriteria.priceMin; delete activeSearchCriteria.priceMax;
+                _clearRefineSelect('refineMinPrice'); _clearRefineSelect('refineMaxPrice');
+            } else if (key === 'beds') {
+                delete activeSearchCriteria.bedsMin; delete activeSearchCriteria.bedsMax;
+                _clearRefineSelect('refineMinBeds'); _clearRefineSelect('refineMaxBeds');
+            } else if (key === 'baths') {
+                delete activeSearchCriteria.bathsMin; delete activeSearchCriteria.bathsMax;
+                _clearRefineSelect('refineMinBaths'); _clearRefineSelect('refineMaxBaths');
+            } else if (key === 'neighborhoods') { delete activeSearchCriteria.neighborhoods; }
             else if (key === 'ownership') { delete activeSearchCriteria.ownership; }
             applyRefinedSearch();
         }
 
-        function applyRefinedSearch() {
-            // Build criteria from refine panel controls
+        /**
+         * The criteria the refine panel currently expresses, as an object the canonical serializer accepts.
+         * Exposed so a test (and any future caller) can prove the panel emits nothing the executor refuses.
+         */
+        window.refineCriteriaFromPanel = function refineCriteriaFromPanel() {
             var c = (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) ? activeSearchCriteria : {};
             c.searchTab = c.searchTab || currentSearchTab || 'sale';
 
@@ -1973,14 +1743,25 @@
             if (baMin && baMin.value !== '') c.bathsMin = parseFloat(baMin.value); else delete c.bathsMin;
             if (baMax && baMax.value !== '') c.bathsMax = parseFloat(baMax.value); else delete c.bathsMax;
 
-            // Statuses
+            // Statuses — exact live StandardStatus tokens read off THIS transaction's contract mount.
+            var mount = _refineStatusMount(_refineTransactionOf(c));
             var statuses = [];
-            if (document.getElementById('refineStatusActive') && document.getElementById('refineStatusActive').checked) statuses.push('ACTIVE');
-            if (document.getElementById('refineStatusComingSoon') && document.getElementById('refineStatusComingSoon').checked) statuses.push('COMING_SOON');
-            if (document.getElementById('refineStatusPending') && document.getElementById('refineStatusPending').checked) statuses.push('PENDING');
-            if (document.getElementById('refineStatusContract') && document.getElementById('refineStatusContract').checked) { statuses.push('CONTRACT'); statuses.push('UNDER_CONTRACT'); }
-            if (document.getElementById('refineStatusClosed') && document.getElementById('refineStatusClosed').checked) statuses.push('CLOSED');
+            var backOnMarket = false;
+            if (mount) {
+                Array.prototype.forEach.call(mount.querySelectorAll('[data-field="StandardStatus"]:checked'), function(cb) {
+                    if (cb.getAttribute('data-refine') === 'backOnMarket') { backOnMarket = true; return; }
+                    var v = cb.getAttribute('data-value');
+                    if (v && statuses.indexOf(v) === -1) statuses.push(v);
+                });
+            }
             if (statuses.length > 0) c.statuses = statuses; else delete c.statuses;
+            if (backOnMarket) c.backOnMarket = true; else delete c.backOnMarket;
+            return c;
+        };
+
+        function applyRefinedSearch() {
+            // Build criteria from refine panel controls
+            var c = window.refineCriteriaFromPanel();
 
             // Update activeSearchCriteria
             activeSearchCriteria = c;
@@ -2044,6 +1825,22 @@
             setSelectValue(prefix + 'MaxBeds', c.bedsMax != null ? c.bedsMax : '');
             setSelectValue(prefix + 'MinBaths', c.bathsMin != null ? c.bathsMin : '');
             setSelectValue(prefix + 'MaxBaths', c.bathsMax != null ? c.bathsMax : '');
+
+            // STATUS TOO. Without this the main form and the refine panel disagreed the moment a status was
+            // refined: "Full Search" would re-run the OLD status set. The target is the mount of this
+            // transaction and this mode — the same one collectSearchCriteria reads.
+            var advanced = document.getElementById('searchAdvancedMode');
+            var mode = (advanced && advanced.style.display !== 'none') ? 'advanced' : 'basic';
+            var mountName = (mode === 'basic' && c.searchTab === 'building')
+                ? 'basic-building'
+                : (mode + '-' + (isRental ? 'rental' : 'sale'));
+            var mainMount = document.querySelector('[data-status-mount="' + mountName + '"]');
+            if (!mainMount) return;
+            var want = Array.isArray(c.statuses) ? c.statuses : [];
+            Array.prototype.forEach.call(mainMount.querySelectorAll('[data-field="StandardStatus"]'), function(cb) {
+                if (cb.getAttribute('data-refine') === 'backOnMarket') { cb.checked = c.backOnMarket === true; return; }
+                cb.checked = want.indexOf(cb.getAttribute('data-value')) !== -1;
+            });
         }
 
         function clearRefinePanel() {
@@ -2052,57 +1849,80 @@
                 var el = document.getElementById(id);
                 if (el) el.selectedIndex = 0;
             });
-            var cb = document.getElementById('refineStatusActive');
-            if (cb) cb.checked = true;
-            ['refineStatusComingSoon','refineStatusPending','refineStatusContract','refineStatusClosed'].forEach(function(id) {
-                var el = document.getElementById(id);
-                if (el) el.checked = false;
-            });
+            // Status returns to the contract's own default (Active), expressed as a live token.
+            var mount = _refineStatusMount(_refineTransactionOf(activeSearchCriteria));
+            if (mount) {
+                Array.prototype.forEach.call(mount.querySelectorAll('[data-field="StandardStatus"]'), function(cb) {
+                    cb.checked = cb.getAttribute('data-value') === 'Active' && !cb.getAttribute('data-refine');
+                });
+            }
             // Apply immediately
             applyRefinedSearch();
         }
 
+        // ── The ONE reader of the current search mode. The sticky Back button used to re-derive
+        // basic/advanced from a CSS class on #btnSearchBasic — a second copy of state that any restyle
+        // would silently flip. sessionStorage['searchMode'] is the state; this is how you read it.
+        function currentSearchMode() {
+            var m;
+            try { m = sessionStorage.getItem('searchMode'); } catch (e) {}
+            return m === 'advanced' ? 'advanced' : 'basic';
+        }
+        window.currentSearchMode = currentSearchMode;
+
+        /** The sticky nav's Back button. Same destination the agent last had, read from state. */
+        function backToSearchForm() {
+            jumpToSearch(currentSearchTab || 'sale', currentSearchMode());
+        }
+        window.backToSearchForm = backToSearchForm;
+
         // Highlight the active search type/mode on the sticky dark nav bar
+        var _stickyNavIds = ['stickyNavSaleBasic', 'stickyNavSaleAdv', 'stickyNavRentBasic',
+                             'stickyNavRentAdv', 'stickyNavBuilding', 'stickyNavComps'];
         function updateStickyNavActive() {
+            var basic = currentSearchMode() === 'basic';
+            var comparablesOpen = false;
+            var compsSection = document.getElementById('comparablesSection');
+            if (compsSection && compsSection.style.display !== 'none') comparablesOpen = true;
+
             // Update active label
             var label = document.getElementById('stickyNavActiveLabel');
             if (label) {
-                var tab = currentSearchTab || 'sale';
-                var _smode;
-                try { _smode = sessionStorage.getItem('searchMode'); } catch(e) {}
-                var isBasic = _smode !== 'advanced';
-                var mode = isBasic ? 'Basic' : 'Advanced';
-                var tabLabel = tab === 'rent' ? 'Rentals' : tab === 'building' ? 'Buildings' : 'Sales';
-                label.textContent = tabLabel + ' · ' + mode;
+                if (comparablesOpen) {
+                    label.textContent = 'Comparables';
+                } else {
+                    var tab = currentSearchTab || 'sale';
+                    var tabLabel = tab === 'rent' ? 'Rentals' : tab === 'building' ? 'Buildings' : 'Sales';
+                    label.textContent = tabLabel + ' · ' + (basic ? 'Basic' : 'Advanced');
+                }
             }
 
-            // Highlight the matching nav button
-            var ids = ['stickyNavSaleBasic','stickyNavSaleAdv','stickyNavRentBasic','stickyNavRentAdv'];
-            ids.forEach(function(id) {
+            // Highlight the matching nav button. Buildings and Comps used to be unreachable: they carried no
+            // id and were absent from this list, so clicking either left every button unhighlighted.
+            _stickyNavIds.forEach(function(id) {
                 var el = document.getElementById(id);
                 if (!el) return;
                 el.classList.remove('bg-white/15', 'text-white');
                 el.classList.add('text-gray-400');
             });
-            var _smode2;
-            try { _smode2 = sessionStorage.getItem('searchMode'); } catch(e) {}
-            var basic = _smode2 !== 'advanced';
             var activeId = null;
-            if (currentSearchTab === 'sale') activeId = basic ? 'stickyNavSaleBasic' : 'stickyNavSaleAdv';
+            if (comparablesOpen) activeId = 'stickyNavComps';
+            else if (currentSearchTab === 'building') activeId = 'stickyNavBuilding';
             else if (currentSearchTab === 'rent') activeId = basic ? 'stickyNavRentBasic' : 'stickyNavRentAdv';
+            else activeId = basic ? 'stickyNavSaleBasic' : 'stickyNavSaleAdv';
             var activeBtn = activeId ? document.getElementById(activeId) : null;
             if (activeBtn) {
                 activeBtn.classList.remove('text-gray-400');
                 activeBtn.classList.add('bg-white/15', 'text-white');
             }
 
-            // Update results count in nav
+            // Update results count in nav — the EXECUTOR's total, the same quantity and the same wording the
+            // results toolbar shows. It used to read getFilteredListings(true).length, which is the current
+            // PAGE, so a 4,821-result search showed "4,821 Results" and "0 results" on one screen.
             var countEl = document.getElementById('stickyNavResultCount');
-            if (countEl) {
-                var total = getFilteredListings(true).length;
-                countEl.textContent = total.toLocaleString() + ' results';
-            }
+            if (countEl) countEl.textContent = _resultsCountLabel();
         }
+        window.updateStickyNavActive = updateStickyNavActive;
 
         // Jump to a specific search form from results sticky nav
         function jumpToSearch(tab, mode) {
@@ -2118,11 +1938,15 @@
             var searchFormContainer = document.getElementById('searchFormContainer');
             if (searchFormContainer) searchFormContainer.style.display = 'block';
 
-            // Switch to the correct tab (sale, rent, building) — uses existing function
-            toggleSearchTab(tab);
+            // A tab destination is a GENERAL search destination. Without this the agent landed on the
+            // Comparables form with the Sales tab styled active, believing they were on Sales.
+            if (typeof toggleSearchType === 'function') toggleSearchType('general');
 
-            // Switch to the correct mode (basic or advanced) — uses existing function
-            toggleSearchMode(mode);
+            // Mode first, then tab, so the tab is applied against the mode it is going to run in.
+            toggleSearchMode(mode || currentSearchMode());
+            toggleSearchTab(tab, mode || currentSearchMode());
+
+            updateStickyNavActive();
 
             // Update hash so refresh returns to search form
             history.pushState(null, '', '#main');
@@ -2137,6 +1961,7 @@
             var searchFormContainer = document.getElementById('searchFormContainer');
             if (searchFormContainer) searchFormContainer.style.display = 'block';
             if (typeof toggleSearchType === 'function') toggleSearchType('comparables');
+            updateStickyNavActive();
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -2169,6 +1994,9 @@
                     mode: curMode,
                     page: searchResultsState.currentPage || 1,
                     address: addr,
+                    serverPaged: !!searchResultsState.serverPaged,
+                    serverTotal: searchResultsState.serverTotal,
+                    criteria: (searchResultsState.serverPaged && typeof activeSearchCriteria !== 'undefined') ? activeSearchCriteria : null,
                     ts: Date.now()
                 }));
             } catch (e) { /* sessionStorage full or unavailable */ }
@@ -2207,6 +2035,20 @@
                 }
 
                 // Rebuild filteredListings from saved IDs
+                if (state.serverPaged && state.criteria) {
+                    // Server-paged set: the page is re-fetched from the executor, never
+                    // rebuilt from whatever rows happen to be cached in the browser.
+                    activeSearchCriteria = state.criteria;
+                    searchResultsState.serverPaged = true;
+                    searchResultsState.serverTotal = (typeof state.serverTotal === 'number') ? state.serverTotal : null;
+                    searchResultsState.serverCountMeaning = null;
+                    searchResultsState.filteredListings = [];
+                    searchResultsState.currentPage = state.page || 1;
+                    if (typeof MallanAPI !== 'undefined' && typeof MallanAPI.onReady === 'function') {
+                        MallanAPI.onReady(function() { _serverSearch(activeSearchCriteria); });
+                    }
+                    return true;
+                }
                 var idSet = {};
                 state.filteredIds.forEach(function(id) { idSet[id] = true; });
                 searchResultsState.filteredListings = listings.filter(function(l) { return idSet[l.id]; });
@@ -2219,20 +2061,25 @@
         // Track current search tab mode globally (sale, rent, building)
         var currentSearchTab = 'sale';
 
-        // New unified function for switching between Sales, Rentals, and Buildings tabs
-        function toggleSearchTab(tab) {
+        // New unified function for switching between Sales, Rentals, and Buildings tabs.
+        // `mode` is optional; when omitted the stored mode is used. Passing it explicitly lets
+        // jumpToSearch set tab and mode in one pass instead of applying the tab against the OLD mode.
+        function toggleSearchTab(tab, mode) {
             currentSearchTab = tab;
             try { sessionStorage.setItem('searchTab', tab); } catch(e) {}
             var btnSale = document.getElementById('btnSale');
             var btnRent = document.getElementById('btnRent');
             var btnBuilding = document.getElementById('btnBuilding');
 
-            // Unified basic form (data-show-on handles section visibility per tab)
-            var basicMode = document.getElementById('searchBasicMode');
+            // Each tab has its OWN basic panel. Before 2026-09-09 only #searchBasicMode was ever shown, so
+            // clicking RENTALS or BUILDINGS recoloured the button and left the SALE form on screen — and
+            // collectSearchCriteria read that same sale form. The rental and building panels were dead DOM.
             var advancedMode = document.getElementById('searchAdvancedMode');
+            var basicPanels = ['searchBasicMode', 'searchBasicModeRental', 'searchBasicModeBuilding'];
+            var wantPanelId = _basicPanelIdFor(tab);
 
-            var _storedMode;
-            try { _storedMode = sessionStorage.getItem('searchMode'); } catch(e) {}
+            var _storedMode = mode;
+            if (!_storedMode) { try { _storedMode = sessionStorage.getItem('searchMode'); } catch(e) {} }
             var isBasicMode = _storedMode !== 'advanced';
 
             // Reset all tab buttons
@@ -2243,14 +2090,13 @@
                 }
             });
 
-            // Show unified basic form or advanced mode
-            if (isBasicMode) {
-                if (basicMode) basicMode.style.display = 'block';
-                if (advancedMode) advancedMode.style.display = 'none';
-            } else {
-                if (basicMode) basicMode.style.display = 'none';
-                if (advancedMode) advancedMode.style.display = 'block';
-            }
+            // Show exactly the basic panel of this tab, or advanced mode
+            basicPanels.forEach(function(id) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                el.style.display = (isBasicMode && id === wantPanelId) ? 'block' : 'none';
+            });
+            if (advancedMode) advancedMode.style.display = isBasicMode ? 'none' : 'block';
 
             // Activate selected tab button
             var activeBtn = tab === 'rent' ? btnRent : tab === 'building' ? btnBuilding : btnSale;
@@ -2399,29 +2245,28 @@
         function toggleSearchMode(mode) {
             var btnBasic = document.getElementById('btnSearchBasic');
             var btnAdvanced = document.getElementById('btnSearchAdvanced');
-            var basicMode = document.getElementById('searchBasicMode');
             var advancedMode = document.getElementById('searchAdvancedMode');
             var expandControls = document.getElementById('expandCollapseControls');
 
             try { sessionStorage.setItem('searchMode', mode); } catch(e) {}
 
             if (mode === 'basic') {
-                btnBasic.classList.remove('text-gray-500');
-                btnBasic.classList.add('bg-gray-900', 'text-white');
-                btnAdvanced.classList.remove('bg-gray-900', 'text-white');
-                btnAdvanced.classList.add('text-gray-500');
+                if (btnBasic) { btnBasic.classList.remove('text-gray-500'); btnBasic.classList.add('bg-gray-900', 'text-white'); }
+                if (btnAdvanced) { btnAdvanced.classList.remove('bg-gray-900', 'text-white'); btnAdvanced.classList.add('text-gray-500'); }
                 if (expandControls) expandControls.classList.add('hidden');
-                if (basicMode) basicMode.style.display = 'block';
                 if (advancedMode) advancedMode.style.display = 'none';
             } else {
-                btnAdvanced.classList.remove('text-gray-500');
-                btnAdvanced.classList.add('bg-gray-900', 'text-white');
-                btnBasic.classList.remove('bg-gray-900', 'text-white');
-                btnBasic.classList.add('text-gray-500');
+                if (btnAdvanced) { btnAdvanced.classList.remove('text-gray-500'); btnAdvanced.classList.add('bg-gray-900', 'text-white'); }
+                if (btnBasic) { btnBasic.classList.remove('bg-gray-900', 'text-white'); btnBasic.classList.add('text-gray-500'); }
                 if (expandControls) { expandControls.classList.remove('hidden'); expandControls.classList.add('flex'); }
                 if (advancedMode) advancedMode.style.display = 'block';
-                if (basicMode) basicMode.style.display = 'none';
             }
+            // Basic panel visibility is per TAB (each tab owns its own panel), so it is decided in one place.
+            ['searchBasicMode', 'searchBasicModeRental', 'searchBasicModeBuilding'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                el.style.display = (mode === 'basic' && id === _basicPanelIdFor(currentSearchTab)) ? 'block' : 'none';
+            });
             if (typeof updateFilterCount === 'function') updateFilterCount();
         }
 
@@ -2509,275 +2354,517 @@
             var btnComparables = document.getElementById('btnComparables');
             var generalSection = document.getElementById('generalSearchSection');
             var comparablesSection = document.getElementById('comparablesSection');
+            // The sticky Search button runs the GENERAL search. It used to stay visible over the
+            // Comparables form, so pressing it there silently ran a normal search on the hidden form.
+            var stickyActions = document.getElementById('searchStickyActions');
 
             if (type === 'general') {
-                btnGeneral.classList.add('border-b-3', 'border-blue-600', 'text-blue-700', 'bg-white');
-                btnGeneral.classList.remove('text-gray-700', 'border-transparent', 'bg-gray-50');
-                btnComparables.classList.remove('border-blue-600', 'border-purple-600', 'text-blue-700', 'text-purple-700', 'bg-white');
-                btnComparables.classList.add('text-gray-700', 'border-transparent', 'bg-gray-50');
-
-                generalSection.style.display = 'block';
-                comparablesSection.style.display = 'none';
+                if (btnGeneral) {
+                    btnGeneral.classList.add('border-b-3', 'border-blue-600', 'text-blue-700', 'bg-white');
+                    btnGeneral.classList.remove('text-gray-700', 'border-transparent', 'bg-gray-50');
+                }
+                if (btnComparables) {
+                    btnComparables.classList.remove('border-blue-600', 'border-purple-600', 'text-blue-700', 'text-purple-700', 'bg-white');
+                    btnComparables.classList.add('text-gray-700', 'border-transparent', 'bg-gray-50');
+                }
+                if (generalSection) generalSection.style.display = 'block';
+                if (comparablesSection) comparablesSection.style.display = 'none';
+                if (stickyActions) stickyActions.style.display = '';
             } else {
-                btnComparables.classList.add('border-b-3', 'border-purple-600', 'text-purple-700', 'bg-white');
-                btnComparables.classList.remove('text-gray-700', 'border-transparent', 'bg-gray-50');
-                btnGeneral.classList.remove('border-blue-600', 'text-blue-700', 'bg-white');
-                btnGeneral.classList.add('text-gray-700', 'border-transparent', 'bg-gray-50');
-
-                comparablesSection.style.display = 'block';
-                generalSection.style.display = 'none';
+                if (btnComparables) {
+                    btnComparables.classList.add('border-b-3', 'border-purple-600', 'text-purple-700', 'bg-white');
+                    btnComparables.classList.remove('text-gray-700', 'border-transparent', 'bg-gray-50');
+                }
+                if (btnGeneral) {
+                    btnGeneral.classList.remove('border-blue-600', 'text-blue-700', 'bg-white');
+                    btnGeneral.classList.add('text-gray-700', 'border-transparent', 'bg-gray-50');
+                }
+                if (comparablesSection) comparablesSection.style.display = 'block';
+                if (generalSection) generalSection.style.display = 'none';
+                if (stickyActions) stickyActions.style.display = 'none';
             }
+            if (typeof updateStickyNavActive === 'function') updateStickyNavActive();
         }
+        window.toggleSearchType = toggleSearchType;
+
+        // ══════════════════════════════════════════════════════════════════════════════════════════════
+        // COMPARABLES (rebuilt 2026-09-09)
+        //
+        // A comp set is assembled from the SAME executor the rest of Search uses, so it can only carry
+        // criteria that executor executes. What it will NOT do any more:
+        //   · require an address, then discard it and sweep every closed listing in the feed
+        //   · send parseInt("Any Min") === NaN because a default <option> carried no value
+        //   · assign address / buildingName / minSqft / maxSqft and drop them on the way to the wire
+        //   · date a closing by ModificationTimestamp, or price it at the ask
+        //   · print a raw token, or the literal "CLOSED", where a broker word belongs
+        // Anything the executor cannot carry is REFUSED BY NAME and no request is issued.
+        // ══════════════════════════════════════════════════════════════════════════════════════════════
+
+        /** The comp result set of each mode, exactly as returned and rendered. Read by openCompReport. */
+        window._compResults = { property: [], building: [], general: [] };
+        /** The mode whose results are on screen, so the landing-page Generate Report knows what to report. */
+        var _activeCompPage = null;
+        /** Sale or rental — one comp set is one transaction; they never mix. */
+        var currentCompTransaction = 'sale';
 
         function openCompPage(method) {
-            // Hide selection page
             document.getElementById('comparablesSelectionPage').style.display = 'none';
-
-            // Show the selected page
-            if (method === 'property') {
-                document.getElementById('subjectPropertyPage').style.display = 'block';
-            } else if (method === 'building') {
-                document.getElementById('subjectBuildingsPage').style.display = 'block';
-            } else if (method === 'general') {
-                document.getElementById('generalCriteriaPage').style.display = 'block';
-            }
+            if (method === 'property') document.getElementById('subjectPropertyPage').style.display = 'block';
+            else if (method === 'building') document.getElementById('subjectBuildingsPage').style.display = 'block';
+            else if (method === 'general') document.getElementById('generalCriteriaPage').style.display = 'block';
+            _activeCompPage = method;
         }
 
         function backToCompSelection() {
-            // Hide all comp pages
-            document.querySelectorAll('.comparables-page').forEach(page => {
-                page.style.display = 'none';
-            });
-
-            // Show selection page
+            document.querySelectorAll('.comparables-page').forEach(function(page) { page.style.display = 'none'; });
             document.getElementById('comparablesSelectionPage').style.display = 'block';
         }
 
         function toggleCompSaleRent(type) {
-            // Selection page elements
-            var compSaleDates = document.getElementById('compSaleDates');
-            var compRentalDates = document.getElementById('compRentalDates');
+            currentCompTransaction = type === 'rent' || type === 'rental' ? 'rental' : 'sale';
+            var isSale = currentCompTransaction === 'sale';
 
-            // Subject Buildings page elements
-            var compBuildingPriceLabel = document.getElementById('compBuildingPriceLabel');
-            var compBuildingSaleDates = document.getElementById('compBuildingSaleDates');
-            var compBuildingRentalDates = document.getElementById('compBuildingRentalDates');
-
-            // General Criteria page elements
-            var compGeneralPriceLabel = document.getElementById('compGeneralPriceLabel');
-            var compGeneralSaleDates = document.getElementById('compGeneralSaleDates');
-            var compGeneralRentalDates = document.getElementById('compGeneralRentalDates');
-
-            // Update all sale/rent buttons in comparables
             var saleBtns = ['btnCompSale', 'btnCompPropertySale', 'btnCompBuildingSale', 'btnCompGeneralSale'];
             var rentBtns = ['btnCompRent', 'btnCompPropertyRent', 'btnCompBuildingRent', 'btnCompGeneralRent'];
+            var on = isSale ? saleBtns : rentBtns;
+            var off = isSale ? rentBtns : saleBtns;
+            on.forEach(function(id) {
+                var btn = document.getElementById(id);
+                if (btn) { btn.classList.remove('bg-gray-200', 'text-gray-700'); btn.classList.add('bg-blue-600', 'text-white'); }
+            });
+            off.forEach(function(id) {
+                var btn = document.getElementById(id);
+                if (btn) { btn.classList.remove('bg-blue-600', 'text-white'); btn.classList.add('bg-gray-200', 'text-gray-700'); }
+            });
 
-            if (type === 'sale') {
-                // Update button styling
-                saleBtns.forEach(id => {
-                    var btn = document.getElementById(id);
-                    if (btn) {
-                        btn.classList.remove('bg-gray-200', 'text-gray-700');
-                        btn.classList.add('bg-blue-600', 'text-white');
-                    }
+            var priceWord = isSale ? 'Price' : 'Rent';
+            ['compBuildingPriceLabel', 'compGeneralPriceLabel'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.textContent = priceWord;
+            });
+
+            // Show the status panel of THIS transaction only. A rental comp panel must never offer Coming
+            // Soon or sale-contract language, and vice versa.
+            [['compBuildingStatusSale', 'compBuildingStatusRental'], ['compGeneralStatusSale', 'compGeneralStatusRental']]
+                .forEach(function(pair) {
+                    var s = document.getElementById(pair[0]);
+                    var r = document.getElementById(pair[1]);
+                    if (s) s.style.display = isSale ? 'block' : 'none';
+                    if (r) r.style.display = isSale ? 'none' : 'block';
                 });
-                rentBtns.forEach(id => {
-                    var btn = document.getElementById(id);
-                    if (btn) {
-                        btn.classList.remove('bg-blue-600', 'text-white');
-                        btn.classList.add('bg-gray-200', 'text-gray-700');
-                    }
-                });
-
-                // Update labels to "Price"
-                if (compBuildingPriceLabel) compBuildingPriceLabel.textContent = 'Price';
-                if (compGeneralPriceLabel) compGeneralPriceLabel.textContent = 'Price';
-
-                // Show sale dates, hide rental dates
-                if (compSaleDates) compSaleDates.style.display = 'block';
-                if (compRentalDates) compRentalDates.style.display = 'none';
-                if (compBuildingSaleDates) compBuildingSaleDates.style.display = 'block';
-                if (compBuildingRentalDates) compBuildingRentalDates.style.display = 'none';
-                if (compGeneralSaleDates) compGeneralSaleDates.style.display = 'block';
-                if (compGeneralRentalDates) compGeneralRentalDates.style.display = 'none';
-            } else {
-                // Update button styling
-                rentBtns.forEach(id => {
-                    var btn = document.getElementById(id);
-                    if (btn) {
-                        btn.classList.remove('bg-gray-200', 'text-gray-700');
-                        btn.classList.add('bg-blue-600', 'text-white');
-                    }
-                });
-                saleBtns.forEach(id => {
-                    var btn = document.getElementById(id);
-                    if (btn) {
-                        btn.classList.remove('bg-blue-600', 'text-white');
-                        btn.classList.add('bg-gray-200', 'text-gray-700');
-                    }
-                });
-
-                // Update labels to "Rent"
-                if (compBuildingPriceLabel) compBuildingPriceLabel.textContent = 'Rent';
-                if (compGeneralPriceLabel) compGeneralPriceLabel.textContent = 'Rent';
-
-                // Show rental dates, hide sale dates
-                if (compRentalDates) compRentalDates.style.display = 'block';
-                if (compSaleDates) compSaleDates.style.display = 'none';
-                if (compBuildingRentalDates) compBuildingRentalDates.style.display = 'block';
-                if (compBuildingSaleDates) compBuildingSaleDates.style.display = 'none';
-                if (compGeneralRentalDates) compGeneralRentalDates.style.display = 'block';
-                if (compGeneralSaleDates) compGeneralSaleDates.style.display = 'none';
-            }
         }
 
-        function showCompResults(page) {
-            // Determine if we're in sale or rental mode by checking button states
-            var isSaleMode = true;
-            if (page === 'property') {
-                var btn = document.getElementById('btnCompPropertySale');
-                isSaleMode = btn && btn.classList.contains('bg-blue-600');
-            } else if (page === 'building') {
-                var btn = document.getElementById('btnCompBuildingSale');
-                isSaleMode = btn && btn.classList.contains('bg-blue-600');
-            } else if (page === 'general') {
-                var btn = document.getElementById('btnCompGeneralSale');
-                isSaleMode = btn && btn.classList.contains('bg-blue-600');
-            }
+        /** A select whose default option carries value="" reads as "no criterion", never as NaN. */
+        function _compSelectNumber(id, parse) {
+            var el = document.getElementById(id);
+            if (!el || el.value === '' || el.value == null) return null;
+            var n = (parse || parseInt)(el.value, 10);
+            return Number.isFinite(n) ? n : null;
+        }
+        function _compText(id) {
+            var el = document.getElementById(id);
+            return el && el.value ? el.value.trim() : '';
+        }
+        function _compCheckedValues(containerId) {
+            var box = document.getElementById(containerId);
+            if (!box) return [];
+            return Array.prototype.map.call(box.querySelectorAll('input:checked'), function(cb) {
+                return cb.getAttribute('data-value');
+            }).filter(Boolean);
+        }
+        function _compStatusTokens(page) {
+            var mount = document.querySelector('[data-status-mount="comps-' + page + '-' + currentCompTransaction + '"]');
+            if (!mount) return [];
+            var out = [];
+            Array.prototype.forEach.call(mount.querySelectorAll('[data-field="StandardStatus"]:checked'), function(cb) {
+                if (cb.getAttribute('data-refine')) return;
+                var v = cb.getAttribute('data-value');
+                if (v && out.indexOf(v) === -1) out.push(v);
+            });
+            return out;
+        }
 
-            // Show results section and update label
-            var pageKey = page.charAt(0).toUpperCase() + page.slice(1);
-            var resultsDiv = document.getElementById('comp' + pageKey + 'Results');
-            var resultsTypeSpan = document.getElementById('comp' + pageKey + 'ResultsType');
-
-            if (resultsDiv) resultsDiv.style.display = 'block';
-            if (resultsTypeSpan) resultsTypeSpan.textContent = isSaleMode ? 'Comps for Sale' : 'Comps for Rental';
-
-            // ── Collect comp criteria and query the search API ──
+        /**
+         * Turn a comps panel into { params, refused, transaction }. `params` holds ONLY parameters
+         * MallanAPI.idx.search forwards and the executor executes; anything else is named in `refused` and
+         * nothing is sent. This is the comps twin of serializeSearchCriteria — same rule, same discipline.
+         */
+        window.serializeCompCriteria = function serializeCompCriteria(page) {
             var params = {};
-            params.type = isSaleMode ? 'sale' : 'rental';
-            // Comps = Closed/Sold/Rented listings
-            params.status = 'Closed';
+            var refused = [];
+            var transaction = currentCompTransaction;
+            params.type = transaction === 'rental' ? 'rental' : 'sale';
 
-            if (page === 'property') {
-                // Subject Property: search by address for sold comps
-                var addrEl = document.getElementById('compPropertyAddress');
-                if (addrEl && addrEl.value.trim()) {
-                    params.address = addrEl.value.trim();
-                } else {
-                    showToast('Please enter an address or building name.', 'warning');
-                    return;
-                }
-            } else if (page === 'building') {
-                // Subject Buildings: address + unit criteria
-                var bAddrEl = document.getElementById('compBuildingAddress');
-                if (bAddrEl && bAddrEl.value.trim()) {
-                    params.buildingName = bAddrEl.value.trim();
-                }
-                var _readSelect = function(id) {
-                    var el = document.getElementById(id);
-                    return (el && el.value && el.value !== '' && el.value !== 'custom') ? el.value : null;
-                };
-                var bpMin = _readSelect('compBuildingMinPrice');
-                var bpMax = _readSelect('compBuildingMaxPrice');
-                if (bpMin) params.minPrice = parseInt(bpMin);
-                if (bpMax) params.maxPrice = parseInt(bpMax);
-                var bbMin = _readSelect('compBuildingMinBeds');
-                var bbMax = _readSelect('compBuildingMaxBeds');
-                if (bbMin != null) params.minBeds = parseInt(bbMin);
-                if (bbMax != null) params.maxBeds = parseInt(bbMax);
-                var baMin = _readSelect('compBuildingMinBaths');
-                var baMax = _readSelect('compBuildingMaxBaths');
-                if (baMin) params.minBaths = parseFloat(baMin);
-                if (baMax) params.maxBaths = parseFloat(baMax);
-                var sfMin = _readSelect('compBuildingMinSqft');
-                var sfMax = _readSelect('compBuildingMaxSqft');
-                if (sfMin) params.minSqft = parseInt(sfMin);
-                if (sfMax) params.maxSqft = parseInt(sfMax);
-            } else if (page === 'general') {
-                // General Criteria: flexible search
-                var gAddrEl = document.getElementById('compGeneralAddress');
-                if (gAddrEl && gAddrEl.value.trim()) {
-                    params.address = gAddrEl.value.trim();
-                }
-                var _rs = function(id) {
-                    var el = document.getElementById(id);
-                    return (el && el.value && el.value !== '' && el.value !== 'custom') ? el.value : null;
-                };
-                var gpMin = _rs('compGeneralMinPrice');
-                var gpMax = _rs('compGeneralMaxPrice');
-                if (gpMin) params.minPrice = parseInt(gpMin);
-                if (gpMax) params.maxPrice = parseInt(gpMax);
-                var gbMin = _rs('compGeneralMinBeds');
-                var gbMax = _rs('compGeneralMaxBeds');
-                if (gbMin != null) params.minBeds = parseInt(gbMin);
-                if (gbMax != null) params.maxBeds = parseInt(gbMax);
-                var gaMin = _rs('compGeneralMinBaths');
-                var gaMax = _rs('compGeneralMaxBaths');
-                if (gaMin) params.minBaths = parseFloat(gaMin);
-                if (gaMax) params.maxBaths = parseFloat(gaMax);
-                var gsMin = _rs('compGeneralMinSqft');
-                var gsMax = _rs('compGeneralMaxSqft');
-                if (gsMin) params.minSqft = parseInt(gsMin);
-                if (gsMax) params.maxSqft = parseInt(gsMax);
+            var neighborhood = _compText(page === 'building' ? 'compBuildingNeighborhood' : 'compGeneralNeighborhood');
+            var zip = _compText(page === 'building' ? 'compBuildingZip' : 'compGeneralZip');
+            var boroughs = _compCheckedValues(page === 'building' ? 'compBuildingBoroughs' : 'compGeneralBoroughs');
+            var ownership = _compCheckedValues(page === 'building' ? 'compBuildingOwnership' : 'compGeneralOwnership');
+            var structure = _compCheckedValues('compGeneralStructure');
+
+            if (neighborhood) params.neighborhood = neighborhood.split(',').map(function(s) { return s.trim(); }).filter(Boolean).join(',');
+            if (boroughs.length) params.borough = boroughs.join(',');
+            if (zip) params.zip = zip;
+            if (ownership.length) params.ownership = ownership.join(',');
+            if (page === 'general' && structure.length) params.StructureType = structure.join(',');
+
+            var prefix = page === 'building' ? 'compBuilding' : 'compGeneral';
+            var minPrice = _compSelectNumber(prefix + 'MinPrice');
+            var maxPrice = _compSelectNumber(prefix + 'MaxPrice');
+            var minBeds = _compSelectNumber(prefix + 'MinBeds');
+            var maxBeds = _compSelectNumber(prefix + 'MaxBeds');
+            var minBaths = _compSelectNumber(prefix + 'MinBaths', parseFloat);
+            var maxBaths = _compSelectNumber(prefix + 'MaxBaths', parseFloat);
+            if (minPrice != null) params.minPrice = minPrice;
+            if (maxPrice != null) params.maxPrice = maxPrice;
+            if (minBeds != null) params.minBeds = minBeds;
+            if (maxBeds != null) params.maxBeds = maxBeds;
+            if (minBaths != null) params.minBaths = minBaths;
+            if (maxBaths != null) params.maxBaths = maxBaths;
+
+            var statuses = _compStatusTokens(page);
+            if (!statuses.length) statuses = ['Closed'];
+            params.status = statuses.join(',');
+
+            if (!params.neighborhood && !params.borough && !params.zip) {
+                refused.push('a comp set needs a neighborhood, a borough or a zip — it is never widened to the whole city');
             }
+            return { params: params, refused: refused, transaction: transaction };
+        };
 
-            params.limit = 100;
+        function _compResultsElements(page) {
+            var key = page.charAt(0).toUpperCase() + page.slice(1);
+            return { div: document.getElementById('comp' + key + 'Results') };
+        }
 
-            // Show loading state
-            if (resultsDiv) {
-                resultsDiv.innerHTML = '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-2xl text-blue-600"></i><p class="text-sm text-gray-600 mt-2">Searching comparables...</p></div>';
-            }
+        /** Local HTML escape — the comps renderer must not depend on another module being loaded. */
+        function _compEscape(v) {
+            return String(v == null ? '' : v)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
 
-            console.log('[Comps] Searching:', JSON.stringify(params));
-            if (typeof MallanAPI === 'undefined') {
-                if (resultsDiv) resultsDiv.innerHTML = '<div class="text-center py-8 text-red-600">API not available. Please refresh.</div>';
+        function _compMoney(v) {
+            return (typeof v === 'number' && Number.isFinite(v) && v > 0) ? '$' + Math.round(v).toLocaleString() : '—';
+        }
+        function _compDate(iso) {
+            if (!iso) return null;
+            var d = new Date(iso);
+            if (isNaN(d.getTime())) return null;
+            // A provider CloseDate is a calendar date; render it as one, without a timezone shift.
+            var m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (m) return Number(m[2]) + '/' + Number(m[3]) + '/' + m[1];
+            return d.toLocaleDateString('en-US');
+        }
+        function _compClosePrice(l) {
+            var v = (l.closePrice != null) ? l.closePrice : l.close_price;
+            return (typeof v === 'number' && Number.isFinite(v) && v > 0) ? v : null;
+        }
+        function _compCloseDate(l) {
+            return l.closedDate || l.close_date || null;
+        }
+        function _compStatusToken(l) {
+            return (typeof MallanStatus !== 'undefined' && MallanStatus) ? MallanStatus.token(l) : (l && l.status) || null;
+        }
+        function _compStatusLabel(l) {
+            if (typeof MallanStatus !== 'undefined' && MallanStatus) return MallanStatus.label(l);
+            return (l && l.status_label) || 'Status unavailable';
+        }
+
+        /**
+         * A closed comp is only shown as a closing when the provider gave a close DATE. Dating a closing by
+         * ModificationTimestamp is what admitted any old listing that had merely been touched.
+         */
+        function _compEligible(l) {
+            if (_compStatusToken(l) !== 'Closed') return true;
+            return !!_compCloseDate(l);
+        }
+
+        function _renderCompResults(page, rows) {
+            var el = _compResultsElements(page).div;
+            if (!el) return;
+            var isSale = currentCompTransaction === 'sale';
+            var closeWord = isSale ? 'Sold' : 'Rented';
+            var eligible = rows.filter(_compEligible);
+            var dropped = rows.length - eligible.length;
+            window._compResults[page] = eligible;
+            _activeCompPage = page;
+
+            if (eligible.length === 0) {
+                el.innerHTML = '<div class="text-center py-8"><i class="fas fa-search text-3xl text-gray-400 mb-2"></i>'
+                    + '<p class="text-sm text-gray-600">No comparable listings found. Try broadening your criteria.</p></div>';
+                el.style.display = 'block';
                 return;
             }
 
-            MallanAPI.idx.search(params).then(function(result) {
-                if (!result || !result.listings || result.listings.length === 0) {
-                    if (resultsDiv) {
-                        resultsDiv.innerHTML = '<div class="text-center py-8"><i class="fas fa-search text-3xl text-gray-400 mb-2"></i><p class="text-sm text-gray-600">No comparable listings found. Try broadening your criteria.</p></div>';
-                    }
-                    return;
-                }
-                var compListings = result.listings;
-                console.log('[Comps] Found:', compListings.length, 'results');
+            var html = '<div class="flex items-center justify-between mb-4">'
+                + '<h3 class="text-lg font-semibold text-gray-900"><span id="comp' + (page.charAt(0).toUpperCase() + page.slice(1)) + 'ResultsType">'
+                + (isSale ? 'Comps for Sale' : 'Comps for Rental') + '</span></h3>'
+                + '<span class="text-sm text-gray-600" data-comp-count>' + eligible.length + ' comparables</span></div>';
+            if (dropped > 0) {
+                html += '<p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 mb-3">'
+                    + dropped + ' closed ' + (dropped === 1 ? 'row was' : 'rows were') + ' not shown: the provider published no close date, '
+                    + 'and a closing is never dated by anything else.</p>';
+            }
+            html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="border-b bg-gray-50 text-left">';
+            html += '<th class="px-3 py-2">Address</th><th class="px-3 py-2">Unit</th>';
+            html += '<th class="px-3 py-2 text-right">List Price</th>';
+            html += '<th class="px-3 py-2 text-right">' + closeWord + ' Price</th>';
+            html += '<th class="px-3 py-2">Beds</th><th class="px-3 py-2">Baths</th>';
+            html += '<th class="px-3 py-2">SqFt</th><th class="px-3 py-2">Status</th>';
+            html += '<th class="px-3 py-2">' + closeWord + ' Date</th>';
+            html += '</tr></thead><tbody>';
+            eligible.forEach(function(l, i) {
+                var rowClass = i % 2 === 0 ? '' : 'bg-gray-50';
+                var closePrice = _compClosePrice(l);
+                var closeDate = _compDate(_compCloseDate(l));
+                var sqftStr = l.intSqft ? Number(l.intSqft).toLocaleString() + ' SF' : '—';
+                html += '<tr class="border-b ' + rowClass + ' hover:bg-blue-50 cursor-pointer" onclick="showListingDetail(\'' + (l.lid || l.id) + '\')">';
+                html += '<td class="px-3 py-2 font-medium">' + _compEscape(l.address || '—') + '</td>';
+                html += '<td class="px-3 py-2">' + _compEscape(l.unit || '—') + '</td>';
+                html += '<td class="px-3 py-2 text-right">' + _compMoney(l.price) + '</td>';
+                html += '<td class="px-3 py-2 text-right font-semibold">' + _compMoney(closePrice) + '</td>';
+                html += '<td class="px-3 py-2">' + (l.beds != null ? l.beds : '—') + '</td>';
+                html += '<td class="px-3 py-2">' + (l.baths != null ? l.baths : '—') + '</td>';
+                html += '<td class="px-3 py-2">' + sqftStr + '</td>';
+                // The transaction's broker word, per ROW — the executor can return a row of the other
+                // transaction, and a rental closing must never read "Sold".
+                html += '<td class="px-3 py-2"><span data-comp-status class="px-2 py-0.5 rounded text-xs font-medium '
+                    + ((typeof MallanStatus !== 'undefined' && MallanStatus) ? MallanStatus.classes(l) : 'bg-gray-100 text-gray-600')
+                    + '">' + _compEscape(_compStatusLabel(l)) + '</span></td>';
+                html += '<td class="px-3 py-2">' + (closeDate || '—') + '</td>';
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+            html += '<p class="text-[10px] text-gray-400 mt-3">Close price and close date are the provider’s own facts. '
+                + 'A dash means the provider published none; it is never inferred from the asking price or a modification timestamp.</p>';
+            el.innerHTML = html;
+            el.style.display = 'block';
+        }
 
-                // Render comp results as a table
-                var html = '<div class="flex items-center justify-between mb-4"><h3 class="text-lg font-semibold text-gray-900"><span>' + (isSaleMode ? 'Comps for Sale' : 'Comps for Rental') + '</span></h3><span class="text-sm text-gray-600">' + compListings.length + ' Results</span></div>';
-                html += '<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="border-b bg-gray-50 text-left">';
-                html += '<th class="px-3 py-2">Address</th><th class="px-3 py-2">Unit</th>';
-                html += '<th class="px-3 py-2 text-right">' + (isSaleMode ? 'Price' : 'Rent') + '</th>';
-                html += '<th class="px-3 py-2">Beds</th><th class="px-3 py-2">Baths</th>';
-                html += '<th class="px-3 py-2">SqFt</th><th class="px-3 py-2">Status</th>';
-                html += '<th class="px-3 py-2">' + (isSaleMode ? 'Sold Date' : 'Rented Date') + '</th>';
-                html += '</tr></thead><tbody>';
-                compListings.forEach(function(l, i) {
-                    var rowClass = i % 2 === 0 ? '' : 'bg-gray-50';
-                    var priceStr = l.price ? '$' + Number(l.price).toLocaleString() : '--';
-                    var sqftStr = l.intSqft ? Number(l.intSqft).toLocaleString() + ' SF' : '--';
-                    var dateStr = l.updatedDate || l.listedDate || '--';
-                    html += '<tr class="border-b ' + rowClass + ' hover:bg-blue-50 cursor-pointer" onclick="showListingDetail(\'' + (l.lid || l.id) + '\')">';
-                    html += '<td class="px-3 py-2 font-medium">' + (l.address || '--') + '</td>';
-                    html += '<td class="px-3 py-2">' + (l.unit || '--') + '</td>';
-                    html += '<td class="px-3 py-2 text-right font-semibold">' + priceStr + '</td>';
-                    html += '<td class="px-3 py-2">' + (l.beds != null ? l.beds : '--') + '</td>';
-                    html += '<td class="px-3 py-2">' + (l.baths != null ? l.baths : '--') + '</td>';
-                    html += '<td class="px-3 py-2">' + sqftStr + '</td>';
-                    html += '<td class="px-3 py-2"><span class="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">' + (l.status || 'CLOSED') + '</span></td>';
-                    html += '<td class="px-3 py-2">' + dateStr + '</td>';
-                    html += '</tr>';
-                });
-                html += '</tbody></table></div>';
+        function _compRefuse(page, refused) {
+            var el = _compResultsElements(page).div;
+            if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+            window._compResults[page] = [];
+            showToast('Not executable in these Comparables: ' + refused.join('; ') + '.', 'warning');
+        }
 
-                if (resultsDiv) resultsDiv.innerHTML = html;
+        function _compLoading(page) {
+            var el = _compResultsElements(page).div;
+            if (!el) return;
+            el.style.display = 'block';
+            el.innerHTML = '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-2xl text-blue-600"></i>'
+                + '<p class="text-sm text-gray-600 mt-2">Searching comparables...</p></div>';
+        }
+
+        function _compError(page, err) {
+            var el = _compResultsElements(page).div;
+            if (!el) return;
+            el.style.display = 'block';
+            el.innerHTML = '<div class="text-center py-8 text-red-600"><i class="fas fa-exclamation-circle mr-2"></i>'
+                + 'Error loading comparables: ' + _compEscape((err && err.message) || 'error') + '</div>';
+        }
+
+        function showCompResults(page) {
+            if (typeof MallanAPI === 'undefined') {
+                _compError(page, new Error('API not available. Please refresh.'));
+                return;
+            }
+            if (page === 'property') return _showSubjectPropertyComps();
+
+            var ser = window.serializeCompCriteria(page);
+            if (ser.refused.length) return _compRefuse(page, ser.refused);
+            var params = ser.params;
+            params.limit = 100;
+            _compLoading(page);
+            return MallanAPI.idx.search(params).then(function(result) {
+                _renderCompResults(page, (result && result.listings) || []);
             }).catch(function(err) {
                 console.error('[Comps] Error:', err);
-                if (resultsDiv) resultsDiv.innerHTML = '<div class="text-center py-8 text-red-600"><i class="fas fa-exclamation-circle mr-2"></i>Error loading comparables: ' + err.message + '</div>';
+                _compError(page, err);
             });
         }
+
+        /**
+         * Subject Property: the subject is a real listing, resolved by its ListingId (the ONLY subject
+         * identity this Search can execute — it carries no address criterion). Its own neighborhood and unit
+         * profile then drive the comp query, mirroring the bands lib/comps/defaults.ts uses for area comps
+         * (beds +/- 1, baths +/- 1, price 0.75x - 1.25x).
+         */
+        function _showSubjectPropertyComps() {
+            var listingId = _compText('compPropertyListingId');
+            var subjectBox = document.getElementById('compPropertySubject');
+            if (subjectBox) { subjectBox.style.display = 'none'; subjectBox.innerHTML = ''; }
+            if (!listingId) {
+                return _compRefuse('property', ['a subject listing ID is required — this Search executes no address criterion']);
+            }
+            _compLoading('property');
+            var transaction = currentCompTransaction;
+            return MallanAPI.idx.search({ type: transaction === 'rental' ? 'rental' : 'sale', listingId: listingId, limit: 1 })
+                .then(function(result) {
+                    var subject = result && result.listings && result.listings[0];
+                    if (!subject) {
+                        var el = _compResultsElements('property').div;
+                        if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+                        window._compResults.property = [];
+                        showToast('No listing found for ' + listingId + ' on this feed. Nothing was searched.', 'warning');
+                        return;
+                    }
+                    if (subjectBox) {
+                        subjectBox.style.display = 'block';
+                        subjectBox.innerHTML = '<span class="font-semibold">Subject:</span> ' + _compEscape(subject.address || '')
+                            + (subject.unit ? ' ' + _compEscape(subject.unit) : '')
+                            + (subject.neighborhood ? ' · ' + _compEscape(subject.neighborhood) : '');
+                    }
+                    var area = subject.neighborhood || '';
+                    var borough = subject.borough || '';
+                    var zip = subject.zip || '';
+                    if (!area && !borough && !zip) {
+                        return _compRefuse('property', ['the subject listing carries no neighborhood, borough or zip — a comp set is never widened to the whole city']);
+                    }
+                    var params = { type: transaction === 'rental' ? 'rental' : 'sale', limit: 100 };
+                    if (area) params.neighborhood = area;
+                    else if (borough) params.borough = borough;
+                    else params.zip = zip;
+                    if (subject.beds != null) {
+                        params.minBeds = Math.max(0, Number(subject.beds) - 1);
+                        params.maxBeds = Number(subject.beds) + 1;
+                    }
+                    if (subject.baths != null) {
+                        params.minBaths = Math.max(0, Number(subject.baths) - 1);
+                        params.maxBaths = Number(subject.baths) + 1;
+                    }
+                    if (typeof subject.price === 'number' && subject.price > 0) {
+                        params.minPrice = Math.round(subject.price * 0.75);
+                        params.maxPrice = Math.round(subject.price * 1.25);
+                    }
+                    if (subject.ownership) params.ownership = subject.ownership;
+                    params.status = 'Closed';
+                    return MallanAPI.idx.search(params).then(function(compResult) {
+                        _renderCompResults('property', (compResult && compResult.listings) || []);
+                    });
+                })
+                .catch(function(err) {
+                    console.error('[Comps] Error:', err);
+                    _compError('property', err);
+                });
+        }
+
+        // ── The comparables toolbar: four controls that used to do nothing at all ─────────────────────
+        var _COMP_CONTROL_IDS = [
+            'compPropertyListingId',
+            'compBuildingNeighborhood', 'compBuildingZip', 'compBuildingMinPrice', 'compBuildingMaxPrice',
+            'compBuildingMinBeds', 'compBuildingMaxBeds', 'compBuildingMinBaths', 'compBuildingMaxBaths',
+            'compGeneralNeighborhood', 'compGeneralZip', 'compGeneralMinPrice', 'compGeneralMaxPrice',
+            'compGeneralMinBeds', 'compGeneralMaxBeds', 'compGeneralMinBaths', 'compGeneralMaxBaths'
+        ];
+        var _COMP_CHECK_CONTAINERS = ['compBuildingBoroughs', 'compBuildingOwnership',
+                                      'compGeneralBoroughs', 'compGeneralOwnership', 'compGeneralStructure'];
+        var _COMP_CRITERIA_KEY = 'mallan_comp_criteria';
+
+        function clearCompCriteria() {
+            _COMP_CONTROL_IDS.forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            _COMP_CHECK_CONTAINERS.forEach(function(id) {
+                var box = document.getElementById(id);
+                if (!box) return;
+                Array.prototype.forEach.call(box.querySelectorAll('input'), function(cb) { cb.checked = false; });
+            });
+            // Status returns to the comps default (Closed) in both transactions.
+            document.querySelectorAll('[data-status-mount^="comps-"]').forEach(function(mount) {
+                Array.prototype.forEach.call(mount.querySelectorAll('[data-field="StandardStatus"]'), function(cb) {
+                    cb.checked = cb.getAttribute('data-value') === 'Closed' && !cb.getAttribute('data-refine');
+                });
+            });
+            showToast('Comparables criteria cleared.', 'info');
+        }
+        window.clearCompCriteria = clearCompCriteria;
+
+        function saveCompCriteria() {
+            var payload = { transaction: currentCompTransaction, fields: {}, checks: {}, statuses: {} };
+            _COMP_CONTROL_IDS.forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) payload.fields[id] = el.value;
+            });
+            _COMP_CHECK_CONTAINERS.forEach(function(id) {
+                payload.checks[id] = _compCheckedValues(id);
+            });
+            ['building', 'general'].forEach(function(page) {
+                payload.statuses[page] = _compStatusTokens(page);
+            });
+            try {
+                localStorage.setItem(_COMP_CRITERIA_KEY, JSON.stringify(payload));
+                showToast('Comparables criteria saved.', 'success');
+            } catch (e) {
+                showToast('Could not save comparables criteria: ' + e.message, 'error');
+            }
+        }
+        window.saveCompCriteria = saveCompCriteria;
+
+        function loadCompCriteria() {
+            var raw;
+            try { raw = localStorage.getItem(_COMP_CRITERIA_KEY); } catch (e) { raw = null; }
+            if (!raw) { showToast('No saved comparables criteria found. Save one first.', 'info'); return; }
+            var payload;
+            try { payload = JSON.parse(raw); } catch (e) { showToast('Saved comparables criteria could not be read.', 'error'); return; }
+            if (payload.transaction) toggleCompSaleRent(payload.transaction === 'rental' ? 'rent' : 'sale');
+            Object.keys(payload.fields || {}).forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.value = payload.fields[id];
+            });
+            Object.keys(payload.checks || {}).forEach(function(id) {
+                var box = document.getElementById(id);
+                if (!box) return;
+                var want = payload.checks[id] || [];
+                Array.prototype.forEach.call(box.querySelectorAll('input'), function(cb) {
+                    cb.checked = want.indexOf(cb.getAttribute('data-value')) !== -1;
+                });
+            });
+            Object.keys(payload.statuses || {}).forEach(function(page) {
+                var mount = document.querySelector('[data-status-mount="comps-' + page + '-' + currentCompTransaction + '"]');
+                if (!mount) return;
+                var want = payload.statuses[page] || [];
+                Array.prototype.forEach.call(mount.querySelectorAll('[data-field="StandardStatus"]'), function(cb) {
+                    cb.checked = want.indexOf(cb.getAttribute('data-value')) !== -1;
+                });
+            });
+            showToast('Comparables criteria loaded.', 'success');
+        }
+        window.loadCompCriteria = loadCompCriteria;
+
+        /**
+         * Generate Report on the ACTUAL returned comp set — not on whatever the general search last held.
+         * The report engine reads searchResultsState.filteredListings, so the comp rows are put there before
+         * the modal opens. With no comp set, it refuses rather than reporting on something else.
+         */
+        function openCompReport(page) {
+            var key = page || _activeCompPage;
+            var rows = (key && window._compResults[key]) || [];
+            if (!rows.length) {
+                showToast('Run a comparables search first — there is no comp set to report on.', 'warning');
+                return;
+            }
+            if (typeof openReportsModal !== 'function') {
+                showToast('Reports are not available on this page.', 'error');
+                return;
+            }
+            if (typeof searchResultsState !== 'undefined' && searchResultsState) {
+                searchResultsState.filteredListings = rows.slice();
+                searchResultsState.serverPaged = false;
+                searchResultsState.serverTotal = rows.length;
+                searchResultsState.selectedListings = [];
+            }
+            if (typeof listings !== 'undefined' && Array.isArray(listings)) {
+                var byId = {};
+                listings.forEach(function(l, i) { byId[l.id] = i; });
+                rows.forEach(function(l) {
+                    if (byId[l.id] !== undefined) listings[byId[l.id]] = l; else listings.push(l);
+                });
+            }
+            openReportsModal(rows.map(function(l) { return l.id; }), 'print');
+        }
+        window.openCompReport = openCompReport;
 
         // ═══════════════════════════════════════════════════════
         // CUSTOM VALUE HANDLER — Converts select to text input when "Custom" is chosen

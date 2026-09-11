@@ -13,6 +13,55 @@ var Panels = (function () {
 
   function _container() { return CRM.getContent(); }
 
+  // ── Status vocabulary: the SERVER's mapping, one per transaction ───────────────────────────────────────
+  // Owner ruling (Maya, 2026-09-08): the stored status IS the live Cotality StandardStatus token; the broker
+  // word ("Sold" on a sale, "Rented" on a rental, "In Contract" on a sale's Pending) is a LABEL applied per
+  // transaction. This module therefore holds no status vocabulary of its own - it renders the labels
+  // GET /api/crm/status-options?type=sale|rental sends, and a token it cannot resolve reads
+  // "Status unavailable" rather than a fabricated "Active".
+  var _listingStatusOptions = { sale: null, rent: null };
+  var _listingStatusLoading = { sale: false, rent: false };
+
+  function _loadListingStatusOptions(transaction, cb) {
+    if (_listingStatusOptions[transaction]) { if (cb) cb(); return; }
+    if (_listingStatusLoading[transaction]) return;
+    if (typeof MallanAPI === 'undefined' || typeof MallanAPI._fetch !== 'function') return;
+    _listingStatusLoading[transaction] = true;
+    MallanAPI._fetch('/api/crm/status-options?type=' + (transaction === 'sale' ? 'sale' : 'rental')).then(function (data) {
+      _listingStatusOptions[transaction] = data;
+      _listingStatusLoading[transaction] = false;
+      if (cb) cb();
+    }).catch(function () { _listingStatusLoading[transaction] = false; });
+  }
+
+  /** This transaction's label for a live StandardStatus token, or null while the mapping is still loading. */
+  function _listingStatusLabel(transaction, token) {
+    var opts = _listingStatusOptions[transaction];
+    if (!opts || !opts.canonical || !token) return null;
+    for (var i = 0; i < opts.canonical.length; i++) {
+      if (opts.canonical[i].token === token) return opts.canonical[i].label;
+    }
+    return null;
+  }
+
+  /**
+   * The token + printable label a listing row carries, straight from the server projection.
+   * When a row arrives without a label (an older endpoint), the label is looked up in ITS OWN transaction's
+   * server mapping - which is fetched on first miss so the next paint has it. Nothing is invented: a row whose
+   * state cannot be resolved reads "Status unavailable", never "Active".
+   */
+  function _rowStatus(l) {
+    var pres = l && l.status_presentation;
+    var token = (pres && (pres.token || pres.status)) || (l && l.status) || null;
+    var label = (pres && pres.label) || (l && l.status_label) || null;
+    if (!label) {
+      var transaction = (l && l._isRental) ? 'rent' : 'sale';
+      label = _listingStatusLabel(transaction, token);
+      if (!label && token) _loadListingStatusOptions(transaction);
+    }
+    return { token: token, label: label || 'Status unavailable' };
+  }
+
   // ── Client normalizer — delegates to shared ClientNormalizer ──
   function _normalizeClient(cl) { return ClientNormalizer.normalize(cl); }
   function _normalizeClients(clients) { return ClientNormalizer.normalizeAll(clients); }
@@ -118,7 +167,7 @@ var Panels = (function () {
         if (l.rls_eligible === false) return;
         var issues = [];
         if (l.OwnerOptOut || l.owner_opt_out) issues.push('Owner Opt-Out active');
-        if (l.IDXEntireListingDisplayYN === false) issues.push('IDX display disabled');
+        if (l.idx_display_yn === false) issues.push('IDX display disabled');
         if (issues.length > 0) {
           items.push({
             id: l.id || l.listing_id,
@@ -305,7 +354,7 @@ var Panels = (function () {
       listings.forEach(function (l) {
         if (l.rls_eligible === false) return;
         if (l.OwnerOptOut || l.owner_opt_out) compViolations++;
-        if (l.rls_eligible !== false && !l.IDXEntireListingDisplayYN && l.IDXEntireListingDisplayYN !== undefined && l.IDXEntireListingDisplayYN !== true) compViolations++;
+        if (l.rls_eligible !== false && l.idx_display_yn === false) compViolations++;
       });
 
       var pendingDocs = docs.filter(function (d) { return d.status === 'pending_approval'; });
@@ -671,9 +720,20 @@ var Panels = (function () {
           '<div class="relative flex-1 max-w-xs"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>' +
             '<input type="text" id="rosterSearch" placeholder="Search agents..." class="form-input pl-9 text-sm" oninput="Panels._filterRoster()"></div>' +
           '<select id="rosterRoleFilter" class="form-input form-select text-sm" style="width:auto" onchange="Panels._filterRoster()">' +
+            // BROKERAGE ROLES, labelled as roles.
+            //
+            // This offered value "AGENT" — retired, so it matched nobody — had
+            // no ASSOCIATE_BROKER option at all, and labelled the two it did
+            // offer with §175.25 DESIGNATION strings ("Licensed Broker",
+            // "Licensed Salesperson"), conflating what someone IS in the firm
+            // with what the State licensed them as. Those are separate facts
+            // and neither implies the other. The canonical roles are
+            // BROKER | ASSOCIATE_BROKER | SALESPERSON; legacy "AGENT" rows are
+            // read-tolerated and stay visible under "All Roles".
             '<option value="">All Roles</option>' +
-            '<option value="BROKER">Licensed Broker</option>' +
-            '<option value="AGENT">Licensed Salesperson</option>' +
+            '<option value="BROKER">Broker</option>' +
+            '<option value="ASSOCIATE_BROKER">Associate Broker</option>' +
+            '<option value="SALESPERSON">Salesperson</option>' +
           '</select>' +
         '</div>' +
         '<button class="btn btn-sm btn-gold" onclick="Panels._addAgent()"><i class="fas fa-user-plus mr-1"></i> Add Agent</button>' +
@@ -700,8 +760,17 @@ var Panels = (function () {
   function _agentCard(a, idx) {
     var name = a.full_name || a.name || a.email || 'Agent';
     var initials = Utils.initials(name);
-    var role = (a.role || 'AGENT').toUpperCase();
-    var roleLabel = role === 'BROKER' ? 'Licensed Broker' : 'Licensed Salesperson';
+    // The role is REPORTED, never invented: defaulting a row with no recorded
+    // role to the retired "AGENT" stamped a value onto it that the record does
+    // not carry. An unknown role stays empty and the card shows under
+    // "All Roles" only.
+    var role = (a.role || '').toUpperCase();
+    // The DESIGNATION comes from the LICENCE CLASS, never from the role. This
+    // read `role === 'BROKER' ? 'Licensed Broker' : 'Licensed Salesperson'`,
+    // which labelled every associate broker a salesperson in the roster and
+    // used the bare "Licensed Broker" form. The server derives `a.title` from
+    // the licence class; the mirror below covers a row that has none yet.
+    var roleLabel = a.title || _designationFromStored(a.license_type, a.title) || '';
     var license = a.license_no || a.licenseNumber || a.license_number || '';
     var photo = a.photo || '';
 
@@ -729,7 +798,9 @@ var Panels = (function () {
             avatarHtml +
             '<div>' +
               '<p class="text-sm font-semibold text-gray-900">' + E(name) + '</p>' +
-              '<p class="text-xs text-gray-500">' + E(roleLabel) + (license ? ' · #' + E(license) : '') + '</p>' +
+              // No designation resolves -> the line carries the licence number
+              // alone, with no leading separator. Absence reads as absence.
+              '<p class="text-xs text-gray-500">' + E(roleLabel) + (license ? (roleLabel ? ' · ' : '') + '#' + E(license) : '') + '</p>' +
             '</div>' +
           '</div>' +
           '<i class="fas fa-chevron-down text-gray-300 text-xs transition-transform" id="agentChevron_' + idx + '"></i>' +
@@ -751,7 +822,9 @@ var Panels = (function () {
         '<div class="px-4 py-3 border-t bg-white">' +
           // Quick actions
           '<div class="flex items-center justify-between mb-3">' +
-            '<div class="sm:hidden"><span class="px-2 py-0.5 border border-gray-200 text-gray-500 rounded text-[10px] font-semibold">' + E(roleLabel) + '</span></div>' +
+            // The designation badge is omitted entirely, not rendered empty,
+            // when the licence class does not resolve.
+            '<div class="sm:hidden">' + (roleLabel ? '<span class="px-2 py-0.5 border border-gray-200 text-gray-500 rounded text-[10px] font-semibold">' + E(roleLabel) + '</span>' : '') + '</div>' +
             '<div class="flex items-center gap-2">' +
               '<button onclick="CRM.doImpersonate(\'' + E(a.id) + '\')" class="px-3 py-1.5 bg-gray-800 text-white rounded-lg text-xs font-semibold hover:bg-gray-700 flex items-center gap-1.5"><i class="fas fa-user-secret"></i> Impersonate</button>' +
               '<button onclick="Panels._editAgent(\'' + E(a.id) + '\')" class="px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 flex items-center gap-1.5"><i class="fas fa-edit"></i> Edit</button>' +
@@ -784,18 +857,23 @@ var Panels = (function () {
     var listings = a._allListings || [];
     var filterStatus = (agentIdx !== undefined && _rosterListingFilter[agentIdx]) ? _rosterListingFilter[agentIdx] : '';
 
-    // RLS-aligned status counts
+    // An agent's roster mixes sales and rentals, so these pills are the NEUTRAL provider tokens: a broker word
+    // ("Sold" / "Rented") belongs to one transaction and cannot label a mixed count. Canceled carries the
+    // provider's one-L spelling. Each listing row prints its OWN per-transaction label (see _rowStatus).
+    function _rosterCount(token) {
+      return listings.filter(function (l) { return _rowStatus(l).token === token; }).length;
+    }
     var statusDefs = [
-      { key: '',                    label: 'All',                         count: listings.length },
-      { key: 'Active',              label: 'Active',                      count: listings.filter(function (l) { return l.status === 'Active'; }).length },
-      { key: 'Pending',             label: 'Pending',                     count: listings.filter(function (l) { return l.status === 'Pending'; }).length },
-      { key: 'ActiveUnderContract', label: 'In Contract',                 count: listings.filter(function (l) { return l.status === 'ActiveUnderContract'; }).length },
-      { key: 'Closed',              label: 'Closed',                      count: listings.filter(function (l) { return l.status === 'Closed'; }).length },
-      { key: 'ComingSoon',          label: 'Coming Soon',                 count: listings.filter(function (l) { return l.status === 'ComingSoon'; }).length },
-      { key: 'Hold',                label: 'Hold (Temp Off Market)',      count: listings.filter(function (l) { return l.status === 'Hold'; }).length },
-      { key: 'Withdrawn',           label: 'Withdrawn (Perm Off Market)', count: listings.filter(function (l) { return l.status === 'Withdrawn'; }).length },
-      { key: 'Expired',             label: 'Expired',                     count: listings.filter(function (l) { return l.status === 'Expired'; }).length },
-      { key: 'Canceled',            label: 'Canceled',                    count: listings.filter(function (l) { return l.status === 'Canceled'; }).length },
+      { key: '',                    label: 'All',                   count: listings.length },
+      { key: 'Active',              label: 'Active',                count: _rosterCount('Active') },
+      { key: 'Pending',             label: 'Pending',               count: _rosterCount('Pending') },
+      { key: 'ActiveUnderContract', label: 'Active Under Contract', count: _rosterCount('ActiveUnderContract') },
+      { key: 'Closed',              label: 'Closed',                count: _rosterCount('Closed') },
+      { key: 'ComingSoon',          label: 'Coming Soon',           count: _rosterCount('ComingSoon') },
+      { key: 'Hold',                label: 'Hold',                  count: _rosterCount('Hold') },
+      { key: 'Withdrawn',           label: 'Withdrawn',             count: _rosterCount('Withdrawn') },
+      { key: 'Expired',             label: 'Expired',               count: _rosterCount('Expired') },
+      { key: 'Canceled',            label: 'Canceled',              count: _rosterCount('Canceled') },
     ];
 
     var html = '<div class="flex flex-wrap gap-1 mb-3">';
@@ -811,7 +889,7 @@ var Panels = (function () {
     // Apply filter
     var filtered = listings;
     if (filterStatus) {
-      filtered = listings.filter(function (l) { return l.status === filterStatus; });
+      filtered = listings.filter(function (l) { return _rowStatus(l).token === filterStatus; });
     }
 
     if (filtered.length === 0) {
@@ -837,7 +915,9 @@ var Panels = (function () {
           '<td class="px-3 py-2 text-xs hidden md:table-cell">' + E(neighborhood) + '</td>' +
           '<td class="px-3 py-2 text-xs">' + E(typeLabel) + (subType ? ' <span class="text-gray-400">· ' + E(subType) + '</span>' : '') + '</td>' +
           '<td class="px-3 py-2 text-sm font-bold">' + $(price) + '</td>' +
-          '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'active') + '</td>' +
+          // The SERVER's per-transaction label (a sale's Closed reads "Sold", a rental's "Rented"); the token
+          // drives the chip class only, and an unresolved row reads "Status unavailable", never "active".
+          '<td class="px-3 py-2">' + UI.statusBadge(_rowStatus(l).token, _rowStatus(l).label) + '</td>' +
           '<td class="px-3 py-2 text-xs hidden sm:table-cell">' + (l.cumulative_dom || l.days_on_market || '-') + '</td>' +
           '<td class="px-3 py-2"><button class="text-gold hover:underline text-xs font-semibold" onclick="Router.navigate(\'/workspace/listing/' + E(l.id || l.listing_id) + '/overview\')">View</button></td>' +
         '</tr>';
@@ -1057,19 +1137,19 @@ var Panels = (function () {
         '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-user text-gold"></i> Personal Information</h3>' +
         '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
           '<div class="form-group"><label class="form-label">First Name *</label><input class="form-input" name="first_name" required placeholder="First name"></div>' +
-          '<div class="form-group"><label class="form-label">Middle Name</label><input class="form-input" name="middle_name" placeholder="Middle name"></div>' +
+          '<div class="form-group"><label class="form-label">Middle Name</label><input class="form-input" name="middle_name" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." placeholder="Middle name"></div>' +
           '<div class="form-group"><label class="form-label">Last Name *</label><input class="form-input" name="last_name" required placeholder="Last name"></div>' +
         '</div>' +
         '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
           '<div class="form-group"><label class="form-label">Email *</label><input class="form-input" type="email" name="email" required placeholder="agent@mallan.nyc"></div>' +
           '<div class="form-group"><label class="form-label">Phone *</label><input class="form-input" type="tel" name="phone" required placeholder="646-XXX-XXXX"></div>' +
-          '<div class="form-group"><label class="form-label">Secondary Phone</label><input class="form-input" type="tel" name="secondary_phone" placeholder="Optional"></div>' +
+          '<div class="form-group"><label class="form-label">Secondary Phone</label><input class="form-input" type="tel" name="secondary_phone" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." placeholder="Optional"></div>' +
         '</div>' +
         '<div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mt-3">' +
-          '<div class="form-group"><label class="form-label">Home Address</label><input class="form-input" name="home_address" placeholder="Street address"></div>' +
-          '<div class="form-group"><label class="form-label">City</label><input class="form-input" name="city" value="New York" placeholder="City"></div>' +
-          '<div class="form-group"><label class="form-label">State</label><input class="form-input" name="state" value="NY" placeholder="State"></div>' +
-          '<div class="form-group"><label class="form-label">Zip</label><input class="form-input" name="zip" placeholder="10001"></div>' +
+          '<div class="form-group"><label class="form-label">Home Address</label><input class="form-input" name="home_address" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." placeholder="Street address"></div>' +
+          '<div class="form-group"><label class="form-label">City</label><input class="form-input" name="city" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." value="New York" placeholder="City"></div>' +
+          '<div class="form-group"><label class="form-label">State</label><input class="form-input" name="state" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." value="NY" placeholder="State"></div>' +
+          '<div class="form-group"><label class="form-label">Zip</label><input class="form-input" name="zip" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." placeholder="10001"></div>' +
         '</div>' +
         '<div class="mt-3">' +
           '<label class="form-label">Agent Headshot</label>' +
@@ -1093,31 +1173,51 @@ var Panels = (function () {
             '<select class="form-input form-select" name="license_type" required>' +
               '<option value="">Select...</option>' +
               '<option value="Licensed Real Estate Salesperson">Licensed Real Estate Salesperson</option>' +
-              '<option value="Licensed Associate Broker">Licensed Associate Broker</option>' +
-              '<option value="Licensed Broker">Licensed Broker</option>' +
+              '<option value="Licensed Associate Real Estate Broker">Licensed Associate Real Estate Broker</option>' +
+              // The principal-broker designation is deliberately NOT offered
+              // here: this path hardcodes the AGENT authorisation server-side,
+              // and offering it would mint a contradictory record.
+
             '</select></div>' +
           '<div class="form-group"><label class="form-label">NY DOS License # *</label><input class="form-input" name="license_number" required placeholder="10XXXXXXXXX"></div>' +
+          // The BROKERAGE PROFESSIONAL ROLE is a separate recorded fact. It is
+          // NOT computed from the licence designation beside it: they normally
+          // agree, but they agree because both are known, not because either
+          // implies the other. BROKER is not offered - the principal broker of
+          // the brokerage is not created through this form, and the server
+          // refuses it here as well.
+          '<div class="form-group"><label class="form-label">Brokerage Role *</label>' +
+            '<select class="form-input form-select" name="role" required>' +
+              '<option value="">Select...</option>' +
+              '<option value="SALESPERSON">Salesperson</option>' +
+              '<option value="ASSOCIATE_BROKER">Associate Broker</option>' +
+            '</select></div>' +
+          '<div class="form-group sm:col-span-3"><label class="form-label">Public Title</label><input class="form-input bg-gray-100" name="title" readonly data-derived-from="license_type" placeholder="Set automatically by the licence designation above"><p class="text-xs text-gray-500 mt-1">This is the regulated professional designation, derived from the licence. It is not a free-form tagline.</p></div>' +
+          '<div class="form-group sm:col-span-3"><label class="form-label">Public Biography</label><textarea class="form-input" name="bio" rows="4" placeholder="Shown on the public agent profile"></textarea></div>' +
+          '<div class="form-group"><label class="form-label">Languages</label><input class="form-input" name="languages" placeholder="English, Spanish"></div>' +
+          '<div class="form-group"><label class="form-label">Specialties</label><input class="form-input" name="specialties" placeholder="Co-op Board Approvals, Negotiation"></div>' +
+          '<div class="form-group"><label class="form-label">Public URL slug</label><input class="form-input" name="public_slug" placeholder="firstname-lastname"></div>' +
           '<div class="form-group"><label class="form-label">License Expiration *</label><input class="form-input" type="date" name="license_expiry" required></div>' +
         '</div>' +
         '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
           '<div class="form-group"><label class="form-label">DOS License Status</label>' +
-            '<select class="form-input form-select" name="license_status">' +
+            '<select class="form-input form-select" name="license_status" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved.">' +
               '<option value="Active">Active</option>' +
               '<option value="Inactive">Inactive</option>' +
               '<option value="Expired">Expired</option>' +
               '<option value="Suspended">Suspended</option>' +
               '<option value="Revoked">Revoked</option>' +
             '</select></div>' +
-          '<div class="form-group"><label class="form-label">REBNY Member ID</label><input class="form-input" name="rebny_member_id" placeholder="REBNY Member ID"></div>' +
-          '<div class="form-group"><label class="form-label">NRD/NRDS ID</label><input class="form-input" name="nrds_id" placeholder="NRD/NRDS ID"></div>' +
+          '<div class="form-group"><label class="form-label">MLS Member ID</label><input class="form-input" name="mls_member_id" disabled data-requires-provider-verification="true" title="Not stored - a Cotality MemberMlsId must be resolved and verified against the live Member resource, not typed. Left NULL until then." placeholder="Cotality MemberMlsId, e.g. 39361"></div>' +
+          '<div class="form-group"><label class="form-label">NRD/NRDS ID</label><input class="form-input" name="nrds_id" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." placeholder="NRD/NRDS ID"></div>' +
         '</div>' +
         '<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-3">' +
           '<h4 class="text-xs font-bold text-yellow-800 uppercase mb-2"><i class="fas fa-graduation-cap mr-1"></i> Continuing Education (CE) Hours</h4>' +
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
-            '<div class="form-group mb-0"><label class="form-label">CE Hours Completed</label><input class="form-input" type="number" name="ce_hours_completed" min="0" max="100" placeholder="0"></div>' +
-            '<div class="form-group mb-0"><label class="form-label">CE Cycle End Date</label><input class="form-input" type="date" name="ce_cycle_end_date"></div>' +
+            '<div class="form-group mb-0"><label class="form-label">CE Hours Completed</label><input class="form-input" type="number" name="ce_hours_completed" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." min="0" max="100" placeholder="0"></div>' +
+            '<div class="form-group mb-0"><label class="form-label">CE Cycle End Date</label><input class="form-input" type="date" name="ce_cycle_end_date" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved."></div>' +
             '<div class="form-group mb-0"><label class="form-label">Fair Housing Completed</label>' +
-              '<select class="form-input form-select" name="fair_housing_completed">' +
+              '<select class="form-input form-select" name="fair_housing_completed" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved.">' +
                 '<option value="">Select...</option>' +
                 '<option value="Yes">Yes</option>' +
                 '<option value="No">No</option>' +
@@ -1130,13 +1230,13 @@ var Panels = (function () {
       '<div class="border-t pt-5">' +
         '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-handshake text-gold"></i> Brokerage &amp; Commission</h3>' +
         '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
-          '<div class="form-group"><label class="form-label">Start Date *</label><input class="form-input" type="date" name="start_date" required></div>' +
+          '<div class="form-group"><label class="form-label">Start Date *</label><input class="form-input" type="date" name="start_date" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." required></div>' +
           '<div class="form-group"><label class="form-label">Agent Commission Split %</label>' +
             '<input class="form-input" type="number" name="agent_split" value="60" min="0" max="100" oninput="var bk=document.getElementById(\'brokerageSideCalc\');if(bk)bk.textContent=(100-Number(this.value||0))+\'%\';">' +
             '<p class="text-xs text-gray-400 mt-1">Brokerage side: <span id="brokerageSideCalc" class="font-semibold text-gray-600">40%</span></p>' +
           '</div>' +
           '<div class="form-group"><label class="form-label">Team / Department</label>' +
-            '<select class="form-input form-select" name="team">' +
+            '<select class="form-input form-select" name="team" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved.">' +
               '<option value="">No Team</option>' +
               '<option value="Sales Team A">Sales Team A</option>' +
               '<option value="Rental Team">Rental Team</option>' +
@@ -1145,10 +1245,10 @@ var Panels = (function () {
             '</select></div>' +
         '</div>' +
         '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
-          '<div class="form-group"><label class="form-label">Desk Fee (Monthly)</label><input class="form-input" type="number" name="desk_fee" min="0" placeholder="$0.00"></div>' +
-          '<div class="form-group"><label class="form-label">Referral Fee %</label><input class="form-input" type="number" name="referral_fee_pct" min="0" max="100" placeholder="0"></div>' +
+          '<div class="form-group"><label class="form-label">Desk Fee (Monthly)</label><input class="form-input" type="number" name="desk_fee" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." min="0" placeholder="$0.00"></div>' +
+          '<div class="form-group"><label class="form-label">Referral Fee %</label><input class="form-input" type="number" name="referral_fee_pct" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." min="0" max="100" placeholder="0"></div>' +
           '<div class="form-group"><label class="form-label">Contract Term</label>' +
-            '<select class="form-input form-select" name="contract_term">' +
+            '<select class="form-input form-select" name="contract_term" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved.">' +
               '<option value="">Select...</option>' +
               '<option value="1 Year">1 Year</option>' +
               '<option value="2 Years">2 Years</option>' +
@@ -1162,21 +1262,21 @@ var Panels = (function () {
         '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-file-upload text-gold"></i> Broker Document Upload</h3>' +
         '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">' +
           '<div>' +
-            '<label class="form-label">Signed ICA (Independent Contractor Agreement) *</label>' +
+            '<label class="form-label">Signed ICA (Independent Contractor Agreement) - upload not yet available</label>' +
             '<div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gold transition cursor-pointer" onclick="this.querySelector(\'input\').click()">' +
               '<i class="fas fa-cloud-upload-alt text-gray-400 text-2xl mb-2"></i>' +
               '<p class="text-sm text-gray-500">Click to upload or drag &amp; drop</p>' +
               '<p class="text-xs text-gray-400 mt-1">PDF, DOC, DOCX (max 10MB)</p>' +
-              '<input type="file" name="ica_document" accept=".pdf,.doc,.docx" class="hidden" onchange="var n=this.parentElement.querySelector(\'p\');if(this.files[0])n.textContent=this.files[0].name">' +
+              '<input type="file" name="ica_document" disabled data-no-canonical-owner="true" title="Not stored yet - the document writer cannot target a newly created agent, so nothing selected here is saved." accept=".pdf,.doc,.docx" class="hidden" onchange="var n=this.parentElement.querySelector(\'p\');if(this.files[0])n.textContent=this.files[0].name">' +
             '</div>' +
           '</div>' +
           '<div>' +
-            '<label class="form-label">Other Documents</label>' +
+            '<label class="form-label">Other Documents - upload not yet available</label>' +
             '<div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gold transition cursor-pointer" onclick="this.querySelector(\'input\').click()">' +
               '<i class="fas fa-cloud-upload-alt text-gray-400 text-2xl mb-2"></i>' +
               '<p class="text-sm text-gray-500">Click to upload or drag &amp; drop</p>' +
               '<p class="text-xs text-gray-400 mt-1">PDF, DOC, DOCX (max 10MB)</p>' +
-              '<input type="file" name="other_documents" accept=".pdf,.doc,.docx" multiple class="hidden" onchange="var n=this.parentElement.querySelector(\'p\');if(this.files.length)n.textContent=this.files.length+\' file(s) selected\'">' +
+              '<input type="file" name="other_documents" disabled data-no-canonical-owner="true" title="Not stored yet - the document writer cannot target a newly created agent, so nothing selected here is saved." accept=".pdf,.doc,.docx" multiple class="hidden" onchange="var n=this.parentElement.querySelector(\'p\');if(this.files.length)n.textContent=this.files.length+\' file(s) selected\'">' +
             '</div>' +
           '</div>' +
         '</div>' +
@@ -1203,7 +1303,7 @@ var Panels = (function () {
       // ── Section 6: Internal Notes ──
       '<div class="border-t pt-5">' +
         '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-sticky-note text-gold"></i> Internal Notes</h3>' +
-        '<div class="form-group mb-0"><textarea class="form-input" name="internal_notes" rows="3" placeholder="Optional notes about this agent (broker eyes only)..."></textarea></div>' +
+        '<div class="form-group mb-0"><textarea class="form-input" name="internal_notes" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." rows="3" placeholder="Optional notes about this agent (broker eyes only)..."></textarea></div>' +
       '</div>' +
 
     '</form>';
@@ -1214,8 +1314,14 @@ var Panels = (function () {
         '<p class="text-xs text-gray-400"><i class="fas fa-shield-alt mr-1"></i> Data protected under NY SHIELD Act</p>' +
         '<div class="flex items-center gap-2">' +
           '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
-          '<button class="btn btn-outline" onclick="Panels._submitAddAgent(\'draft\')"><i class="fas fa-save mr-1"></i> Save Draft</button>' +
-          '<button class="btn btn-gold" onclick="Panels._submitAddAgent(\'invite\')"><i class="fas fa-paper-plane mr-1"></i> Send Invite</button>' +
+          // "Save Draft" was a lie: it called the same create endpoint, which
+          // hardcodes status "active" server-side, so it produced a real,
+          // live, loggable-in account. There is no non-active Agent state to
+          // implement it against without schema growth, so the control is gone
+          // rather than renamed - a second button that silently does the same
+          // thing as Send Invite is how the erroneous record got made twice.
+
+          '<button class="btn btn-gold" onclick="Panels._submitAddAgent(\'create\')"><i class="fas fa-user-plus mr-1"></i> Create Agent Account</button>' +
         '</div>' +
       '</div>',
     });
@@ -1231,10 +1337,92 @@ var Panels = (function () {
     reader.readAsDataURL(input.files[0]);
   }
 
+  /**
+   * MIRROR of lib/agents/license-designation.ts + professional-title.ts.
+   *
+   * The browser cannot import the TypeScript module, so these values are
+   * duplicated here - but the server module is the AUTHORITY, the server
+   * refuses any non-canonical license_type at the API boundary, and a test
+   * asserts this table matches it exactly. This is a mirror, not a rival
+   * truth table. THE DESIGNATION STRINGS LIVE IN
+   * lib/agents/professional-title.ts PROFESSIONAL_DESIGNATIONS - change both
+   * together or the mirror test fails.
+   *
+   * Three separate facts, never derived from one another:
+   *   license_type  the NY LICENCE CLASS stored. EXACTLY
+   *                 "salesperson" | "associate_broker" | "broker".
+   *   role          "BROKER" | "AGENT", the Mallan AUTHORISATION grant
+   *   title         the advertised designation, DERIVED from license_type alone
+   *
+   * An Associate Broker is stored as license_type "associate_broker". She is
+   * NOT "broker narrowed by role AGENT" - that inference used an authorisation
+   * grant to manufacture a licence class and has been removed everywhere.
+   */
+  var LICENSE_DESIGNATIONS = {
+    'Licensed Real Estate Salesperson': {
+      license_type: 'salesperson',
+      title: 'Licensed Real Estate Salesperson',
+      requiresBrokerRole: false,
+    },
+    'Licensed Associate Real Estate Broker': {
+      license_type: 'associate_broker',
+      title: 'Licensed Associate Real Estate Broker',
+      requiresBrokerRole: false,
+    },
+    'Licensed Real Estate Broker': {
+      license_type: 'broker',
+      title: 'Licensed Real Estate Broker',
+      requiresBrokerRole: true,
+    },
+  };
+
+  function _designationFor(selected) {
+    return LICENSE_DESIGNATIONS[selected]
+      || { license_type: null, title: null, requiresBrokerRole: false };
+  }
+
+  /**
+   * REVERSE: given what is STORED, pick the designation to preselect.
+   *
+   * Reads the LICENCE CLASS. It does NOT read `role` - an authorisation grant
+   * cannot tell you which licence someone holds, and the version that used it
+   * is exactly the defect this correction removes.
+   *
+   * The second argument is the row's STORED TITLE, used only for the legacy
+   * ambiguity guard: rows written under the retired two-class design stored an
+   * Associate Broker as "broker". If such a row's title already STATES the
+   * associate designation (either word order), it preselects Associate Broker,
+   * so re-saving cannot ESCALATE her to principal broker. A designation string
+   * is evidence about the licence; `role` is not.
+   */
+  function _designationFromStored(licenseType, storedTitle) {
+    var lt = String(licenseType || '').trim().toLowerCase();
+    if (lt === 'salesperson') return 'Licensed Real Estate Salesperson';
+    if (lt === 'associate_broker') return 'Licensed Associate Real Estate Broker';
+    if (lt === 'broker') {
+      var t = String(storedTitle || '').trim().toLowerCase();
+      return (t === 'licensed associate real estate broker'
+              || t === 'licensed real estate associate broker'
+              || t === 'licensed associate broker')
+        ? 'Licensed Associate Real Estate Broker'
+        : 'Licensed Real Estate Broker';
+    }
+    return '';   // unknown / never set - force an explicit choice
+  }
+
+  var _addAgentBusy = false;
+
   function _submitAddAgent(mode) {
     var form = document.getElementById('addAgentForm');
     if (!form) return;
-    if (mode === 'invite' && !form.checkValidity()) { form.reportValidity(); return; }
+    // Only one submit path remains, so validity is always enforced.
+    if (!form.checkValidity()) { form.reportValidity(); return; }
+
+    // IDEMPOTENCE. Every click used to fire its own POST. The first succeeded
+    // and the rest hit the server email-uniqueness check and came back 409, so
+    // the UI reported "Error" over an account that HAD been created. One
+    // in-flight submission at a time.
+    if (_addAgentBusy) return;
 
     var raw = {};
     new FormData(form).forEach(function (v, k) {
@@ -1242,16 +1430,40 @@ var Panels = (function () {
       if (v) raw[k] = v;
     });
 
-    // Map form fields to API field names
+    var designation = _designationFor(raw.license_type);
+
+    // FIELD OWNERSHIP. This previously sent 8 fields and silently dropped every
+    // other input the form renders - including `title`, which is why an
+    // Associate Broker was stored with a NULL title and then advertised on the
+    // public site as a "Licensed Real Estate Salesperson" by the display
+    // default. If the form collects it, it is sent.
     var data = {
       first_name: raw.first_name || '',
       last_name: raw.last_name || '',
-      email: raw.email || '',
+      email: (raw.email || '').trim(),
       phone: raw.phone || null,
       license_no: raw.license_number || raw.license_no || null,
-      license_type: raw.license_type || null,
-      sale_split: raw.sale_split ? Number(raw.sale_split) / 100 : null,
-      rental_split: raw.rental_split ? Number(raw.rental_split) / 100 : null,
+      license_expiry: raw.license_expiry || null,
+      // The schema comment for trestle_mls_id names it the REBNY MLS member ID.
+      trestle_mls_id: raw.mls_member_id || null,
+      license_type: designation.license_type,
+      // recorded from its own field, never derived from the designation above
+      role: raw.role || null,
+      // The form field is `agent_split`; the API takes sale_split/rental_split.
+      // Reading raw.sale_split meant the split was silently dropped every time.
+      sale_split: raw.agent_split ? Number(raw.agent_split) / 100 : null,
+      rental_split: raw.agent_split ? Number(raw.agent_split) / 100 : null,
+      // Public professional identity - part of the same governed record.
+      // derived from the licence designation, never free text
+      title: designation.title,
+      bio: raw.bio || null,
+      public_slug: raw.public_slug
+        || ((raw.first_name || '') + '-' + (raw.last_name || '')).toLowerCase().replace(/\s+/g, '-'),
+      languages: raw.languages
+        ? String(raw.languages).split(',').map(function (x) { return x.trim(); }).filter(Boolean) : [],
+      specialties: raw.specialties
+        ? String(raw.specialties).split(',').map(function (x) { return x.trim(); }).filter(Boolean) : [],
+      featured: false,
     };
 
     if (!data.first_name || !data.last_name || !data.email) {
@@ -1259,43 +1471,69 @@ var Panels = (function () {
       return;
     }
 
+    _addAgentBusy = true;
+    CRM.toast('Creating agent...', 'info');
+
     MallanAPI.agents.create(data).then(function (res) {
       var agentId = res.id;
       var tempPw = res.tempPassword || '';
 
-      // Upload photo if provided
+      // TRUTHFUL STATES. The account now EXISTS. Everything after this point is
+      // a follow-up step that can fail on its own, and a failure in one must
+      // never be reported as "the agent was not created".
+      CRM.toast('Account created for ' + data.first_name + ' ' + data.last_name, 'success');
+
       var photoInput = document.getElementById('addAgentPhotoInput');
       var photoFile = photoInput && photoInput.files && photoInput.files[0];
-      if (photoFile && agentId) {
-        var formData = new FormData();
-        formData.append('file', photoFile);
-        fetch('/api/crm/agents/' + agentId + '/photo', {
-          method: 'POST',
-          credentials: 'include',
-          body: formData,
-        }).then(function (r) { return r.json(); }).then(function (photoRes) {
-          if (photoRes.url) {
-            // Update agent with photo URL
-            MallanAPI.agents.update(agentId, { photo: photoRes.url }).catch(function () { /* best effort */ });
-          }
-        }).catch(function () { /* photo upload is best-effort */ });
-      }
+      if (!(photoFile && agentId)) return { agentId: agentId, tempPw: tempPw, photo: 'none' };
 
+      var formData = new FormData();
+      formData.append('file', photoFile);
+      return fetch('/api/crm/agents/' + agentId + '/photo', {
+        method: 'POST', credentials: 'include', body: formData,
+      }).then(function (r) {
+        if (!r.ok) throw new Error('photo upload returned ' + r.status);
+        return r.json();
+      }).then(function (photoRes) {
+        // The route responds { photo }, not { url }. Reading `url` meant this
+        // branch never ran - and the follow-up PATCH was redundant anyway,
+        // because the photo route already writes agent.photo itself.
+        return { agentId: agentId, tempPw: tempPw, photo: photoRes.photo ? 'uploaded' : 'no-url' };
+      }).catch(function (err) {
+        // Loud, and explicitly NOT a creation failure.
+        CRM.toast('Account created, but the headshot did not upload: '
+          + (err.message || 'unknown') + '. Add it from Edit.', 'warning');
+        return { agentId: agentId, tempPw: tempPw, photo: 'failed' };
+      });
+    }).then(function (out) {
       CRM.closeModal();
-      if (mode === 'invite' && tempPw) {
-        CRM.toast('Agent created. Temp password: ' + tempPw, 'success');
-      } else {
-        CRM.toast('Agent added successfully', 'success');
+      if (mode === 'create' && out && out.tempPw) {
+        // NOT an invitation. Nothing is sent to anyone. The broker hands this
+        // password over out of band until real invitation delivery exists,
+        // with its own pending/sent/failed/accepted states.
+        CRM.toast('Account created. No invitation was sent. Temporary password: '
+          + out.tempPw + ' - give this to the agent directly.', 'success');
       }
       agentRoster();
     }).catch(function (err) {
-      CRM.toast('Error: ' + (err.message || 'Failed to add agent'), 'error');
-    });
+      var msg = err.message || 'Failed to add agent';
+      // A duplicate is not a mystery error: the account already exists.
+      if (/already exists/i.test(msg)) {
+        CRM.toast('An agent with that email already exists - no new record was created.', 'warning');
+        agentRoster();
+      } else {
+        CRM.toast('Agent was NOT created: ' + msg, 'error');
+      }
+    }).then(function () { _addAgentBusy = false; });
   }
 
   function _editAgent(id) {
     MallanAPI._fetch('/api/crm/agents/' + encodeURIComponent(id)).then(function (data) {
       var a = data.agent || data || {};
+      // Resolve the STORED licence + title back to a designation. Comparing
+      // display strings to a.license_type never matched, because storage is
+      // 'broker' / 'salesperson'.
+      var _editDesignation = _designationFromStored(a.license_type, a.title);
       var nameParts = (a.full_name || '').split(' ').filter(Boolean);
       var firstName = a.first_name || (nameParts.length > 0 ? nameParts[0] : '');
       var middleName = nameParts.length === 3 ? nameParts[1] : '';
@@ -1331,11 +1569,17 @@ var Panels = (function () {
           '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Personal Information</h3>' +
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
             '<div class="form-group"><label class="form-label">First Name *</label><input class="form-input" name="first_name" value="' + E(firstName) + '" required></div>' +
-            '<div class="form-group"><label class="form-label">Middle Name</label><input class="form-input" name="middle_name" value="' + E(middleName) + '" placeholder="Middle name"></div>' +
+            '<div class="form-group"><label class="form-label">Middle Name</label><input class="form-input" name="middle_name" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." value="' + E(middleName) + '" placeholder="Middle name"></div>' +
             '<div class="form-group"><label class="form-label">Last Name *</label><input class="form-input" name="last_name" value="' + E(lastName) + '" required></div>' +
           '</div>' +
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
-            '<div class="form-group"><label class="form-label">Title / Tagline</label><input class="form-input" name="title" value="' + E(a.title || '') + '" placeholder="e.g. Senior Sales Associate"></div>' +
+            // The placeholder read "e.g. Senior Sales Associate". §175.25(c)(4)
+            // expressly PROHIBITS "sales associate" as a licensee title, and DOS
+            // treats corporate-style titles ("Senior", "VP", "Director") on a
+            // licensee as misleading advertising — so this field, whose whole
+            // point is that the designation is DERIVED from the licence, was
+            // hinting at a title no Mallan licensee may lawfully advertise.
+            '<div class="form-group"><label class="form-label">Public Title (derived)</label><input class="form-input bg-gray-100" readonly data-derived-from="license_type" name="title" value="' + E(a.title || '') + '" placeholder="Set automatically by the licence designation"></div>' +
             '<div class="form-group"><label class="form-label">Status</label>' +
               '<select class="form-input form-select" name="status">' +
                 '<option value="active"' + (a.status === 'active' ? ' selected' : '') + '>Active</option>' +
@@ -1347,13 +1591,13 @@ var Panels = (function () {
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
             '<div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" name="email" value="' + E(a.email || '') + '" readonly class="bg-gray-50 text-gray-500 cursor-not-allowed"></div>' +
             '<div class="form-group"><label class="form-label">Phone</label><input class="form-input" type="tel" name="phone" value="' + E(a.phone || '') + '" placeholder="646-XXX-XXXX"></div>' +
-            '<div class="form-group"><label class="form-label">Secondary Phone</label><input class="form-input" type="tel" name="secondary_phone" placeholder="Optional"></div>' +
+            '<div class="form-group"><label class="form-label">Secondary Phone</label><input class="form-input" type="tel" name="secondary_phone" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." placeholder="Optional"></div>' +
           '</div>' +
           '<div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mt-3">' +
-            '<div class="form-group"><label class="form-label">Home Address</label><input class="form-input" name="home_address" placeholder="Street address"></div>' +
-            '<div class="form-group"><label class="form-label">City</label><input class="form-input" name="city" placeholder="City"></div>' +
-            '<div class="form-group"><label class="form-label">State</label><input class="form-input" name="state" placeholder="State"></div>' +
-            '<div class="form-group"><label class="form-label">Zip</label><input class="form-input" name="zip" placeholder="10001"></div>' +
+            '<div class="form-group"><label class="form-label">Home Address</label><input class="form-input" name="home_address" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." placeholder="Street address"></div>' +
+            '<div class="form-group"><label class="form-label">City</label><input class="form-input" name="city" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." placeholder="City"></div>' +
+            '<div class="form-group"><label class="form-label">State</label><input class="form-input" name="state" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." placeholder="State"></div>' +
+            '<div class="form-group"><label class="form-label">Zip</label><input class="form-input" name="zip" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." placeholder="10001"></div>' +
           '</div>' +
           '<div class="mt-3">' +
             '<label class="form-label">Photo</label>' +
@@ -1376,32 +1620,32 @@ var Panels = (function () {
             '<div class="form-group"><label class="form-label">License Type</label>' +
               '<select class="form-input form-select" name="license_type">' +
                 '<option value="">Select...</option>' +
-                '<option value="Licensed Real Estate Salesperson"' + (a.license_type === 'Licensed Real Estate Salesperson' ? ' selected' : '') + '>Licensed Real Estate Salesperson</option>' +
-                '<option value="Licensed Associate Broker"' + (a.license_type === 'Licensed Associate Broker' ? ' selected' : '') + '>Licensed Associate Broker</option>' +
-                '<option value="Licensed Broker"' + (a.license_type === 'Licensed Broker' ? ' selected' : '') + '>Licensed Broker</option>' +
+                '<option value="Licensed Real Estate Salesperson"' + (_editDesignation === 'Licensed Real Estate Salesperson' ? ' selected' : '') + '>Licensed Real Estate Salesperson</option>' +
+                '<option value="Licensed Associate Real Estate Broker"' + (_editDesignation === 'Licensed Associate Real Estate Broker' ? ' selected' : '') + '>Licensed Associate Real Estate Broker</option>' +
+                '<option value="Licensed Real Estate Broker"' + (_editDesignation === 'Licensed Real Estate Broker' ? ' selected' : '') + '>Licensed Real Estate Broker</option>' +
               '</select></div>' +
             '<div class="form-group"><label class="form-label">NY DOS License #</label><input class="form-input" name="license_no" value="' + E(a.license_no || '') + '" placeholder="10XXXXXXXXX"></div>' +
             '<div class="form-group"><label class="form-label">License Expiration</label><input class="form-input" type="date" name="license_expiry" value="' + E(licExpiryStr) + '"></div>' +
           '</div>' +
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
             '<div class="form-group"><label class="form-label">DOS License Status</label>' +
-              '<select class="form-input form-select" name="license_status">' +
+              '<select class="form-input form-select" name="license_status" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved.">' +
                 '<option value="Active"' + (a.license_status === 'Active' || (!a.license_status && a.status === 'active') ? ' selected' : '') + '>Active</option>' +
                 '<option value="Inactive"' + (a.license_status === 'Inactive' ? ' selected' : '') + '>Inactive</option>' +
                 '<option value="Expired"' + (a.license_status === 'Expired' ? ' selected' : '') + '>Expired</option>' +
                 '<option value="Suspended"' + (a.license_status === 'Suspended' ? ' selected' : '') + '>Suspended</option>' +
                 '<option value="Revoked"' + (a.license_status === 'Revoked' ? ' selected' : '') + '>Revoked</option>' +
               '</select></div>' +
-            '<div class="form-group"><label class="form-label">REBNY Member ID</label><input class="form-input" name="rebny_member_id" value="' + E(a.rebny_member_id || '') + '" placeholder="REBNY Member ID"></div>' +
-            '<div class="form-group"><label class="form-label">NRD/NRDS ID</label><input class="form-input" name="nrds_id" value="' + E(a.nrds_id || '') + '" placeholder="NRD/NRDS ID"></div>' +
+            '<div class="form-group"><label class="form-label">MLS Member ID</label><input class="form-input" name="mls_member_id" disabled data-requires-provider-verification="true" title="Not stored - a Cotality MemberMlsId must be resolved and verified against the live Member resource, not typed. Left NULL until then." value="' + E(a.trestle_mls_id || '') + '" placeholder="Cotality MemberMlsId, e.g. 39361"></div>' +
+            '<div class="form-group"><label class="form-label">NRD/NRDS ID</label><input class="form-input" name="nrds_id" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." value="' + E(a.nrds_id || '') + '" placeholder="NRD/NRDS ID"></div>' +
           '</div>' +
           '<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-3">' +
             '<h4 class="text-xs font-bold text-yellow-800 uppercase mb-2"><i class="fas fa-graduation-cap mr-1"></i> Continuing Education (CE) Hours</h4>' +
             '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
-              '<div class="form-group mb-0"><label class="form-label">CE Hours Completed</label><input class="form-input" type="number" name="ce_hours_completed" min="0" max="100" value="' + E(a.ce_hours_completed || '') + '" placeholder="0"></div>' +
-              '<div class="form-group mb-0"><label class="form-label">CE Cycle End Date</label><input class="form-input" type="date" name="ce_cycle_end_date" value="' + E(a.ce_cycle_end_date ? String(a.ce_cycle_end_date).substring(0, 10) : '') + '"></div>' +
+              '<div class="form-group mb-0"><label class="form-label">CE Hours Completed</label><input class="form-input" type="number" name="ce_hours_completed" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." min="0" max="100" value="' + E(a.ce_hours_completed || '') + '" placeholder="0"></div>' +
+              '<div class="form-group mb-0"><label class="form-label">CE Cycle End Date</label><input class="form-input" type="date" name="ce_cycle_end_date" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." value="' + E(a.ce_cycle_end_date ? String(a.ce_cycle_end_date).substring(0, 10) : '') + '"></div>' +
               '<div class="form-group mb-0"><label class="form-label">Fair Housing Completed</label>' +
-                '<select class="form-input form-select" name="fair_housing_completed">' +
+                '<select class="form-input form-select" name="fair_housing_completed" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved.">' +
                   '<option value="">Select...</option>' +
                   '<option value="Yes"' + (a.fair_housing_completed === 'Yes' ? ' selected' : '') + '>Yes</option>' +
                   '<option value="No"' + (a.fair_housing_completed === 'No' ? ' selected' : '') + '>No</option>' +
@@ -1422,13 +1666,13 @@ var Panels = (function () {
         '<div class="border-t pt-5">' +
           '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Brokerage &amp; Commission</h3>' +
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
-            '<div class="form-group"><label class="form-label">Start Date</label><input class="form-input" type="date" name="start_date" value="' + E(a.start_date ? String(a.start_date).substring(0, 10) : '') + '"></div>' +
+            '<div class="form-group"><label class="form-label">Start Date</label><input class="form-input" type="date" name="start_date" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." value="' + E(a.start_date ? String(a.start_date).substring(0, 10) : '') + '"></div>' +
             '<div class="form-group"><label class="form-label">Agent Commission Split %</label>' +
               '<input class="form-input" type="number" name="sale_split" value="' + splitSale + '" min="0" max="100" oninput="var bk=document.getElementById(\'editBrokerageSideCalc\');if(bk)bk.textContent=(100-Number(this.value||0))+\'%\';">' +
               '<p class="text-xs text-gray-400 mt-1">Brokerage side: <span id="editBrokerageSideCalc" class="font-semibold text-gray-600">' + (100 - splitSale) + '%</span></p>' +
             '</div>' +
             '<div class="form-group"><label class="form-label">Team / Department</label>' +
-              '<select class="form-input form-select" name="team">' +
+              '<select class="form-input form-select" name="team" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved.">' +
                 '<option value="">No Team</option>' +
                 '<option value="Sales Team A"' + (a.team === 'Sales Team A' ? ' selected' : '') + '>Sales Team A</option>' +
                 '<option value="Rental Team"' + (a.team === 'Rental Team' ? ' selected' : '') + '>Rental Team</option>' +
@@ -1437,10 +1681,10 @@ var Panels = (function () {
               '</select></div>' +
           '</div>' +
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
-            '<div class="form-group"><label class="form-label">Desk Fee (Monthly)</label><input class="form-input" type="number" name="desk_fee" min="0" value="' + E(a.desk_fee || '') + '" placeholder="$0.00"></div>' +
-            '<div class="form-group"><label class="form-label">Referral Fee %</label><input class="form-input" type="number" name="referral_fee_pct" min="0" max="100" value="' + E(a.referral_fee_pct || '') + '" placeholder="0"></div>' +
+            '<div class="form-group"><label class="form-label">Desk Fee (Monthly)</label><input class="form-input" type="number" name="desk_fee" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." min="0" value="' + E(a.desk_fee || '') + '" placeholder="$0.00"></div>' +
+            '<div class="form-group"><label class="form-label">Referral Fee %</label><input class="form-input" type="number" name="referral_fee_pct" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." min="0" max="100" value="' + E(a.referral_fee_pct || '') + '" placeholder="0"></div>' +
             '<div class="form-group"><label class="form-label">Contract Term</label>' +
-              '<select class="form-input form-select" name="contract_term">' +
+              '<select class="form-input form-select" name="contract_term" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved.">' +
                 '<option value="">Select...</option>' +
                 '<option value="1 Year"' + (a.contract_term === '1 Year' ? ' selected' : '') + '>1 Year</option>' +
                 '<option value="2 Years"' + (a.contract_term === '2 Years' ? ' selected' : '') + '>2 Years</option>' +
@@ -1477,7 +1721,7 @@ var Panels = (function () {
         // ── Section 5: Internal Notes ──
         '<div class="border-t pt-5">' +
           '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Internal Notes</h3>' +
-          '<div class="form-group mb-0"><textarea class="form-input" name="internal_notes" rows="3" placeholder="Internal notes about this agent (broker eyes only)...">' + E(a.internal_notes || '') + '</textarea></div>' +
+          '<div class="form-group mb-0"><textarea class="form-input" name="internal_notes" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." rows="3" placeholder="Internal notes about this agent (broker eyes only)...">' + E(a.internal_notes || '') + '</textarea></div>' +
         '</div>' +
 
       '</form>';
@@ -1514,9 +1758,22 @@ var Panels = (function () {
     if (raw.last_name) data.last_name = raw.last_name;
     if (raw.phone) data.phone = raw.phone;
     if (raw.license_no) data.license_no = raw.license_no;
-    if (raw.license_type) data.license_type = raw.license_type;
+    // ONE owner for both CREATE and EDIT. Posting raw.license_type would put a
+    // designation display string into a column holding broker|salesperson -
+    // the exact defect this PR was opened to fix.
+    if (raw.license_type) {
+      var editDesignation = _designationFor(raw.license_type);
+      data.license_type = editDesignation.license_type;
+      // The title is DERIVED, never an override - it is the regulated
+      // designation, and letting it drift is what made a title-based
+      // reverse resolver unsafe in the first place.
+      data.title = editDesignation.title;
+    }
+    if (raw.mls_member_id !== undefined) data.trestle_mls_id = raw.mls_member_id || null;
     if (raw.license_expiry) data.license_expiry = raw.license_expiry;
-    if (raw.title) data.title = raw.title;
+    // NOT here: title is derived from the licence designation above. A
+    // generic override would let a tagline overwrite the regulated
+    // professional designation.
     if (raw.bio) data.bio = raw.bio;
     if (raw.status) data.status = raw.status;
     if (raw.public_slug) data.public_slug = raw.public_slug;
@@ -5389,7 +5646,7 @@ var Panels = (function () {
     // 5. Feed/Display problems (RLS-eligible only)
     if (isRLS) {
       var ownerOptOut = listing.OwnerOptOut || listing.owner_opt_out;
-      var idxDisplay = listing.IDXEntireListingDisplayYN !== false && listing.idx_display_yn !== false;
+      var idxDisplay = listing.idx_display_yn !== false;
       if (ownerOptOut) {
         issues.push({ type: 'Feed/Display Problems', severity: 'critical', description: 'Owner Opt-Out is enabled — listing must not display publicly' });
       }
@@ -5618,7 +5875,9 @@ var Panels = (function () {
           '<td class="px-3 py-2"><span class="text-sm font-medium cursor-pointer hover:text-gold" onclick="Router.navigate(\'/workspace/listing/' + lid + '/overview\')">' + E(addr) + '</span></td>' +
           '<td class="px-3 py-2"><span style="display:inline-block;padding:1px 6px;font-size:10px;font-weight:700;border-radius:4px;background:' + typeBg + '15;color:' + typeBg + '">' + E(l._typeBadge) + '</span></td>' +
           '<td class="px-3 py-2 text-sm font-bold">' + (price ? $(price) : '-') + '</td>' +
-          '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'active') + '</td>' +
+          // The SERVER's per-transaction label (a sale's Closed reads "Sold", a rental's "Rented"); the token
+          // drives the chip class only, and an unresolved row reads "Status unavailable", never "active".
+          '<td class="px-3 py-2">' + UI.statusBadge(_rowStatus(l).token, _rowStatus(l).label) + '</td>' +
           '<td class="px-3 py-2 text-xs">' + E(l._agentName) + '</td>' +
           '<td class="px-3 py-2 text-center"><span class="text-sm ' + domClass + '">' + dom + '</span></td>' +
           '<td class="px-3 py-2 text-center"><span style="display:inline-block;padding:1px 6px;font-size:10px;font-weight:700;border-radius:4px;background:' + (syncBg[l._syncFreshness] || syncBg.outdated) + ';color:' + (syncColors[l._syncFreshness] || syncColors.outdated) + '">' + E(l._syncLabel) + '</span></td>' +
@@ -6205,7 +6464,7 @@ var Panels = (function () {
           var addr = l.address || l.UnparsedAddress || 'No address';
           var ownerOpt = l.OwnerOptOut || l.owner_opt_out;
           var participantOnly = l.ParticipantOnly || l.participant_only;
-          var idxOk = l.IDXEntireListingDisplayYN !== false && l.idx_display_yn !== false;
+          var idxOk = l.idx_display_yn !== false;
           var syndOk = l.SyndicationOptInYN !== false && l.syndication_opt_in !== false;
           var comingSoon = (l.status || '').toLowerCase() === 'coming soon' || (l.status || '').toLowerCase() === 'comingsoon';
           var closed = (l.status || '').toLowerCase() === 'closed';
@@ -7835,14 +8094,34 @@ var Panels = (function () {
           else if (days <= 60) { statusColor = '#DC2626'; statusLabel = 'Critical'; }
           else if (days <= 90) { statusColor = '#F59E0B'; statusLabel = 'Expiring Soon'; }
           else { statusColor = '#059669'; statusLabel = 'Current'; }
-          var role = (a.role || 'AGENT').toUpperCase();
-          var licType = role === 'BROKER' ? 'Licensed Broker' : 'Licensed Salesperson';
+          // THE LICENCE TYPE COLUMN, on the licence-tracking screen itself.
+          //
+          // This read:
+          //     var role = (a.role || 'AGENT').toUpperCase();
+          //     var licType = role === 'BROKER' ? 'Licensed Broker' : 'Licensed Salesperson';
+          //
+          // — a licence class manufactured from the BROKERAGE ROLE, defaulting
+          // to the retired "AGENT", and emitting two strings that are not
+          // §175.25 designations at all (the bare "broker" form is expressly
+          // prohibited by §175.25(c)(4)). Every ASSOCIATE_BROKER was displayed
+          // as a salesperson, on the one screen whose whole purpose is to state
+          // what licence each person holds.
+          //
+          // It now routes through the SAME mirror the roster card uses —
+          // _designationFromStored, which reproduces the server's
+          // designationFromStored including its legacy bare-"broker"
+          // non-escalation guard — and reads the licence class alone.
+          var licType = a.title || _designationFromStored(a.license_type, a.title) || '';
           var issueDate = a.license_issue_date || a.licenseIssueDate || '';
           var dosVerified = a.dos_verified || a.dosVerified || false;
           html += '<tr class="border-b hover:bg-gray-50">' +
             '<td class="px-3 py-2 text-sm font-medium">' + E(a.full_name || a.name || a.email) + '</td>' +
             '<td class="px-3 py-2 text-xs font-mono">' + E(a.license_no || a.licenseNumber || a.license_number || '-') + '</td>' +
-            '<td class="px-3 py-2 text-xs">' + E(licType) + '</td>' +
+            // "-" is not a designation: it is this table's existing marker for
+            // a fact the record does not carry, used by the licence-number,
+            // issue-date and expiry columns beside it. An unknown licence class
+            // is now VISIBLY unknown instead of being guessed.
+            '<td class="px-3 py-2 text-xs">' + E(licType || '-') + '</td>' +
             '<td class="px-3 py-2 text-xs">' + (issueDate ? D(issueDate) : '-') + '</td>' +
             '<td class="px-3 py-2 text-xs">' + (exp ? D(exp) : '-') + '</td>' +
             '<td class="px-3 py-2 text-sm text-right font-bold" style="color:' + statusColor + '">' + (days !== null ? days : '-') + '</td>' +
@@ -8047,7 +8326,7 @@ var Panels = (function () {
           else { rStatus = 'Active'; rColor = '#059669'; }
           html += '<tr class="border-b hover:bg-gray-50">' +
             '<td class="px-3 py-2 text-sm font-medium">' + E(a.full_name || a.name || a.email) + '</td>' +
-            '<td class="px-3 py-2 text-xs font-mono">' + E(a.rebnyMemberId || a.rebny_member_id || '-') + '</td>' +
+            '<td class="px-3 py-2 text-xs font-mono">' + E(a.trestle_mls_id || a.rebnyMemberId || '-') + '</td>' +
             '<td class="px-3 py-2 text-xs">' + E(a.rebnyMembershipType || a.rebny_membership_type || '-') + '</td>' +
             '<td class="px-3 py-2 text-xs">' + E(a.rebnyDues || a.rebny_dues || '-') + '</td>' +
             '<td class="px-3 py-2 text-xs">' + (a.rebnyLastPayment || a.rebny_last_payment ? D(a.rebnyLastPayment || a.rebny_last_payment) : '-') + '</td>' +
@@ -9276,436 +9555,15 @@ var Panels = (function () {
   }
 
   // ─── My Listings ─────────────────────────────────────────────────────
-  var _myListingsData = [];
-  var _myListingsType = 'sale'; // 'sale' or 'rental'
-  var _myListingsStatus = 'all';
+  // ── My Listings: DELETED 2026-09-09 ─────────────────────────────────────────────────────────────
+  // The old implementation lived here (myListings, _renderMyListings, _switchMyListings*, _deleteListing,
+  // _addOpenHouse, _submitOpenHouse). It was a SECOND listing manager competing with
+  // public/crm/js/manage/manage-listings.js, and production navigation pointed at this one while the
+  // canonical manager was unreachable. It also merged /api/crm/past-deals into the listing set, so My
+  // Listings reported historical transactions as managed inventory.
+  // There is no wrapper, alias or fallback here on purpose: one business function, one implementation.
+  // Canonical entry: window.mountManageListings() in public/crm/js/manage/manage-listings.js.
 
-  function myListings() {
-    CRM.setPanelTitle('My Listings');
-    var c = _container(); c.innerHTML = UI.loading();
-
-    // Load from BOTH DB (all statuses including closed/expired) AND past deals
-    Promise.all([
-      MallanAPI.listings.list({ limit: 500 }).catch(function () { return { listings: [] }; }),
-      MallanAPI._fetch('/api/crm/past-deals?limit=200').catch(function () { return { deals: [] }; }),
-    ]).then(function (r) {
-      var dbListings = r[0].listings || [];
-      var pastDeals = r[1].deals || [];
-
-      // Merge: DB listings are primary, past deals fill in closed/sold/rented history
-      var seenIds = {};
-      _myListingsData = [];
-
-      dbListings.forEach(function (l) {
-        var lid = l.id || l.listing_id;
-        if (lid) seenIds[lid] = true;
-        _myListingsData.push(l);
-      });
-
-      // Add past deals that aren't already in DB listings
-      pastDeals.forEach(function (d) {
-        var lid = d.trestle_listing_id || d.id;
-        if (lid && seenIds[lid]) return;
-        if (lid) seenIds[lid] = true;
-        var addr = d.street || d.address || d.property_address || 'Past Deal';
-        if (d.unit) addr += ', #' + d.unit;
-        _myListingsData.push({
-          id: d.id,
-          listing_id: d.trestle_listing_id || ('PD-' + d.id),
-          address: { street: addr },
-          neighborhood: d.neighborhood || '',
-          list_price: d.close_price || 0,
-          ListPrice: d.close_price || 0,
-          price: d.close_price || 0,
-          status: 'Closed',
-          property_type: d.property_type || 'Residential',
-          property_sub_type: d.property_type || '',
-          listing_type: d.deal_type || 'sale',
-          bedrooms_total: d.beds,
-          bathrooms_full: d.baths_full,
-          living_area: d.sqft,
-          cumulative_dom: 0,
-          updated_at: d.close_date || d.created_at,
-          _fromPastDeals: true,
-          _pastDealId: d.id,
-        });
-      });
-
-      // Compute per-listing flags
-      var now = new Date();
-      _myListingsData.forEach(function (l) {
-        var dom = l.cumulative_dom || l.days_on_market || 0;
-        var hasPhotos = (l.photos && l.photos.length > 0) || (l.Media && l.Media.length > 0);
-        l._isStale = dom > 60 && (l.status === 'Active' || l.status === 'active');
-        l._noPhotos = !hasPhotos;
-        l._isFeatured = l.featuredFlag || l.featured;
-
-        // Refresh tracking — REBNY requires weekly refresh
-        var lastRefresh = l.ModificationTimestamp || l.updated_at || l.updatedAt || l.syncedAt;
-        if (lastRefresh) {
-          var daysSinceRefresh = Math.floor((now - new Date(lastRefresh)) / 86400000);
-          l._daysSinceRefresh = daysSinceRefresh;
-          l._needsRefresh = daysSinceRefresh >= 7 && (l.status === 'Active' || l.status === 'active' || l.status === 'ComingSoon');
-        } else {
-          l._daysSinceRefresh = null;
-          l._needsRefresh = false;
-        }
-
-        // Listing type: listing_type is "sale" or "rent", property_type for rentals is "ResidentialLease"
-        var lt = (l.listing_type || '').toLowerCase();
-        var pt = (l.property_type || l.PropertySubType || '').toLowerCase();
-        l._isRental = lt === 'rent' || pt === 'residentiallease' || pt.indexOf('rent') !== -1 || pt.indexOf('lease') !== -1;
-      });
-
-      _renderMyListings(c);
-    }).catch(function (err) {
-      console.error('My Listings error:', err);
-      c.innerHTML = '<div class="space-y-4"><h2 class="text-lg font-bold text-gray-900">My Listings</h2>' +
-        UI.emptyState('fa-building', 'Unable to load listings') + '</div>';
-    });
-  }
-
-  function _renderMyListings(c) {
-    var listings = _myListingsData;
-    var typeTab = _myListingsType;
-    var statusTab = _myListingsStatus;
-    var now = new Date();
-
-    // Split by sale vs rental
-    var sales = listings.filter(function (l) { return !l._isRental; });
-    var rentals = listings.filter(function (l) { return l._isRental; });
-    var typeListings = typeTab === 'rental' ? rentals : sales;
-
-    // Status filter within type
-    var filtered = typeListings;
-    if (statusTab && statusTab !== 'all') {
-      filtered = typeListings.filter(function (l) { return (l.status || '') === statusTab; });
-    }
-
-    // Status counts for this type
-    var statusCounts = {};
-    var statuses = ['Draft', 'Active', 'Pending', 'ActiveUnderContract', 'Closed', 'ComingSoon', 'Hold', 'Withdrawn', 'Expired', 'Canceled'];
-    statuses.forEach(function (s) { statusCounts[s] = typeListings.filter(function (l) { return l.status === s; }).length; });
-    // Include localStorage browser drafts in Draft count — suppress if DB has the listing
-    try {
-      var _ldRaw = localStorage.getItem('mallan_draft_sale');
-      if (_ldRaw) {
-        var _ld = JSON.parse(_ldRaw);
-        var _ldId = _ld && (_ld._saleEditListingId || _ld._listingId || '');
-        var _ldDbIdMatch = _ldId && typeListings.some(function (l) { return l.listing_id === _ldId || l.id === _ldId; });
-        // Address-based match for legacy drafts saved before listing_id was attached
-        var _ldStreet = (_ld && (_ld.saleStreetAddress || _ld.saleUnparsedAddress || '')).toString().trim().toLowerCase();
-        var _ldUnit = (_ld && (_ld.saleUnitNumber || '')).toString().trim().toLowerCase().replace(/[\s-]/g, '');
-        var _ldDbAddrMatch = false;
-        // Require BOTH street AND unit present in the draft before treating an
-        // address+unit DB match as proof the draft is stale. A draft with only
-        // the building street and no unit could otherwise be wrongly auto-
-        // cleared just because another unit at the same building exists.
-        if (_ldStreet && _ldUnit) {
-          _ldDbAddrMatch = typeListings.some(function (l) {
-            var addr = l.address || {};
-            var dbStreet = (addr.UnparsedAddress || ((addr.StreetNumber || '') + ' ' + (addr.StreetDirPrefix || '') + ' ' + (addr.StreetName || '') + ' ' + (addr.StreetSuffix || ''))).toString().trim().toLowerCase().replace(/\s+/g, ' ');
-            var dbUnit = (addr.UnitNumber || '').toString().trim().toLowerCase().replace(/[\s-]/g, '');
-            var streetMatch = dbStreet && (dbStreet.indexOf(_ldStreet.replace(/\s+/g, ' ')) >= 0 || _ldStreet.indexOf(dbStreet) >= 0);
-            var unitMatch = dbUnit && dbUnit === _ldUnit;
-            return streetMatch && unitMatch;
-          });
-        }
-        var _ldDbMatch = _ldDbIdMatch || _ldDbAddrMatch;
-        // Auto-clear the stale localStorage draft so it stops re-appearing
-        if (_ldDbMatch) {
-          try { localStorage.removeItem('mallan_draft_sale'); } catch (e) {}
-        }
-        if (!_ldDbMatch && _ld && _ld._savedAt && (Date.now() - new Date(_ld._savedAt).getTime()) < 604800000) {
-          statusCounts['Draft'] = (statusCounts['Draft'] || 0) + 1;
-        }
-      }
-    } catch (e) {}
-
-    // Expiring listings
-    var expiringSoon = [];
-    typeListings.forEach(function (l) {
-      var expDate = l.ExpirationDate || l.expiration_date || l.listing_expiry;
-      if (!expDate) return;
-      var daysLeft = Math.ceil((new Date(expDate) - now) / 86400000);
-      if (daysLeft > 0 && daysLeft <= 30) { l._expiresIn = daysLeft; expiringSoon.push(l); }
-    });
-
-    var html = '<div class="space-y-4">';
-
-    // Add buttons (title comes from CRM.setPanelTitle, no duplicate)
-    html += '<div class="flex items-center justify-end gap-2 flex-wrap">' +
-      '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/sale-listing\',\'_blank\')"><i class="fas fa-plus mr-1"></i> Add Sale</button>' +
-      '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/rental-listing\',\'_blank\')"><i class="fas fa-plus mr-1"></i> Add Rental</button>' +
-      '<button class="btn btn-sm btn-outline" onclick="Panels._addPastDeal()"><i class="fas fa-history mr-1"></i> Add Past Deal</button>' +
-    '</div>';
-
-    // Sale / Rental tabs — primary level
-    html += '<div class="flex gap-0 border-b border-gray-200">' +
-      '<button class="px-6 py-2.5 text-sm font-semibold border-b-2 transition-all ' +
-        (typeTab === 'sale' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700') +
-        '" onclick="Panels._switchMyListingsType(\'sale\')">Sales (' + sales.length + ')</button>' +
-      '<button class="px-6 py-2.5 text-sm font-semibold border-b-2 transition-all ' +
-        (typeTab === 'rental' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700') +
-        '" onclick="Panels._switchMyListingsType(\'rental\')">Rentals (' + rentals.length + ')</button>' +
-    '</div>';
-
-    // Status sub-tabs
-    html += '<div class="flex gap-1 overflow-x-auto pb-1">';
-    html += '<button class="px-3 py-1.5 rounded text-sm font-medium border transition-all ' +
-      (statusTab === 'all' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400') +
-      '" onclick="Panels._switchMyListingsStatus(\'all\')">All (' + typeListings.length + ')</button>';
-    statuses.forEach(function (s) {
-      var count = statusCounts[s] || 0;
-      var label = s;
-      if (s === 'ActiveUnderContract') label = 'In Contract';
-      else if (s === 'ComingSoon') label = 'Coming Soon';
-      else if (s === 'Hold') label = 'Temp Off Market';
-      else if (s === 'Withdrawn') label = 'Perm Off Market';
-      html += '<button class="px-3 py-1.5 rounded text-sm font-medium border transition-all whitespace-nowrap ' +
-        (statusTab === s ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400') +
-        '" onclick="Panels._switchMyListingsStatus(\'' + s + '\')">' + label + ' (' + count + ')</button>';
-    });
-    html += '</div>';
-
-    // Expiring listings alert
-    if (expiringSoon.length > 0) {
-      html += '<div class="p-3 border border-yellow-300 rounded-lg bg-yellow-50">' +
-        '<p class="text-sm font-semibold text-yellow-800"><i class="fas fa-clock mr-1"></i> ' + expiringSoon.length + ' listing' + (expiringSoon.length > 1 ? 's' : '') + ' expiring soon</p>' +
-        '<div class="mt-2 space-y-1">';
-      expiringSoon.sort(function (a, b) { return a._expiresIn - b._expiresIn; });
-      expiringSoon.forEach(function (l) {
-        var addr = _resolveAddress(l);
-        var urgency = l._expiresIn <= 7 ? 'text-red-700 font-bold' : 'text-yellow-700';
-        html += '<div class="flex items-center justify-between text-xs">' +
-          '<span class="cursor-pointer hover:underline" onclick="Router.navigate(\'/workspace/listing/' + E(l.id || l.listing_id) + '/overview\')">' + E(addr) + '</span>' +
-          '<span class="' + urgency + '">' + (l._expiresIn <= 7 ? 'Expires in ' + l._expiresIn + ' days!' : 'Expires in ' + l._expiresIn + ' days') + '</span>' +
-        '</div>';
-      });
-      html += '</div></div>';
-    }
-
-    // REBNY weekly refresh alert
-    var needsRefresh = listings.filter(function (l) { return l._needsRefresh; });
-    if (needsRefresh.length > 0) {
-      html += '<div class="p-3 border border-red-300 rounded-lg bg-red-50">' +
-        '<p class="text-sm font-semibold text-red-800"><i class="fas fa-sync-alt mr-1"></i> ' + needsRefresh.length + ' listing' + (needsRefresh.length > 1 ? 's' : '') + ' need REBNY weekly refresh</p>' +
-        '<p class="text-xs text-red-600 mt-1">REBNY RLS requires all active listings to be refreshed weekly. Click Edit to update.</p>' +
-        '<div class="mt-2 space-y-1">';
-      needsRefresh.forEach(function (l) {
-        var addr = _resolveAddress(l);
-        var isRental = l._isRental;
-        var lid = l.id || l.listing_id;
-        html += '<div class="flex items-center justify-between text-xs">' +
-          '<span>' + E(addr) + ' — <span class="text-red-700">' + l._daysSinceRefresh + ' days since last update</span></span>' +
-          '<button class="text-red-700 font-semibold hover:underline" onclick="event.stopPropagation();window.open(\'/crm/' + (isRental ? 'rental' : 'sale') + '-listing?id=' + E(lid) + '\',\'_blank\')">Edit & Refresh</button>' +
-        '</div>';
-      });
-      html += '</div></div>';
-    }
-
-    // LocalStorage draft recovery — inject as table row in Draft/All tabs
-    // Suppress + auto-clear if a matching DB listing already exists (by listing_id OR address+unit)
-    var _localDraftRow = '';
-    if (statusTab === 'Draft' || statusTab === 'all') {
-      try {
-        var localDraftRaw = localStorage.getItem('mallan_draft_sale');
-        if (localDraftRaw) {
-          var localDraft = JSON.parse(localDraftRaw);
-          var _draftListingId = localDraft && (localDraft._saleEditListingId || localDraft._listingId || '');
-          var _dbHasIdMatch = _draftListingId && filtered.some(function (l) { return l.listing_id === _draftListingId || l.id === _draftListingId; });
-          // Address-based match for legacy drafts saved before listing_id was attached
-          var _draftStreet = (localDraft && (localDraft.saleStreetAddress || localDraft.saleUnparsedAddress || '')).toString().trim().toLowerCase();
-          var _draftUnit = (localDraft && (localDraft.saleUnitNumber || '')).toString().trim().toLowerCase().replace(/[\s-]/g, '');
-          var _dbHasAddrMatch = false;
-          // Require BOTH street AND unit present in the draft (see count-block
-          // comment above) — empty draft unit must NOT collapse to "matches any
-          // unit at this building" or a new-listing draft would be wrongly
-          // cleared just because another unit at the same address exists.
-          if (_draftStreet && _draftUnit) {
-            _dbHasAddrMatch = filtered.some(function (l) {
-              var addr = l.address || {};
-              var dbStreet = (addr.UnparsedAddress || ((addr.StreetNumber || '') + ' ' + (addr.StreetDirPrefix || '') + ' ' + (addr.StreetName || '') + ' ' + (addr.StreetSuffix || ''))).toString().trim().toLowerCase().replace(/\s+/g, ' ');
-              var dbUnit = (addr.UnitNumber || '').toString().trim().toLowerCase().replace(/[\s-]/g, '');
-              var streetMatch = dbStreet && (dbStreet.indexOf(_draftStreet.replace(/\s+/g, ' ')) >= 0 || _draftStreet.indexOf(dbStreet) >= 0);
-              var unitMatch = dbUnit && dbUnit === _draftUnit;
-              return streetMatch && unitMatch;
-            });
-          }
-          var _dbHasMatch = _dbHasIdMatch || _dbHasAddrMatch;
-          // Auto-clear the stale localStorage draft so it stops re-appearing
-          if (_dbHasMatch) {
-            try { localStorage.removeItem('mallan_draft_sale'); } catch (e) {}
-          }
-          if (!_dbHasMatch && localDraft && localDraft._savedAt) {
-            var draftAge = Date.now() - new Date(localDraft._savedAt).getTime();
-            if (draftAge < 7 * 24 * 60 * 60 * 1000) {
-              var draftAddr = localDraft.saleStreetAddress || localDraft.saleUnparsedAddress || localDraft.saleBuildingSearch || localDraft.unparsedAddress || 'Untitled';
-              var draftUnit = localDraft.saleUnitNumber || '';
-              if (draftUnit) draftAddr += ', #' + draftUnit;
-              var draftPrice = localDraft.salePrice ? '$' + Number(localDraft.salePrice).toLocaleString() : '—';
-              var draftTime = new Date(localDraft._savedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-              _localDraftRow = '<tr class="border-b bg-amber-50 hover:bg-amber-100">' +
-                '<td class="px-3 py-2"><p class="text-sm font-medium text-gray-900">' + E(draftAddr) + '</p><p class="text-[10px] text-amber-600">Browser draft — ' + E(draftTime) + '</p></td>' +
-                '<td class="px-3 py-2 text-xs text-gray-500">Sale</td>' +
-                '<td class="px-3 py-2 text-sm font-semibold">' + draftPrice + '</td>' +
-                '<td class="px-3 py-2"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-800">DRAFT (browser)</span></td>' +
-                '<td class="px-3 py-2 text-xs text-gray-400">—</td>' +
-                '<td class="px-3 py-2 text-xs text-gray-400">—</td>' +
-                '<td class="px-3 py-2 text-xs text-gray-400">—</td>' +
-                '<td class="px-3 py-2"><div class="flex gap-1" onclick="event.stopPropagation()">' +
-                '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/sale-listing?restore=local\',\'_blank\')" title="Continue editing this draft"><i class="fas fa-edit"></i></button>' +
-                '<button class="btn btn-sm btn-outline text-red-500" onclick="if(confirm(\'Discard this unsaved draft?\')){localStorage.removeItem(\'mallan_draft_sale\');Panels.myListings();}" title="Discard draft"><i class="fas fa-trash"></i></button>' +
-                '</div></td></tr>';
-            }
-          }
-        }
-      } catch (e) { /* localStorage unavailable */ }
-    }
-
-    // Listing table
-    if (filtered.length === 0 && !_localDraftRow) {
-      html += '<div class="text-center py-12 text-gray-400">' +
-        '<i class="fas fa-building text-3xl mb-3"></i>' +
-        '<p class="text-sm">No listings to display.</p>' +
-      '</div>';
-    } else {
-      html += '<div class="data-table"><div style="overflow-x:auto"><table class="w-full"><thead class="bg-gray-50 text-xs"><tr>' +
-        '<th class="text-left px-3 py-2">Address</th>' +
-        '<th class="text-left px-3 py-2">Type</th>' +
-        '<th class="text-left px-3 py-2">Price</th>' +
-        '<th class="text-left px-3 py-2">Status</th>' +
-        '<th class="text-left px-3 py-2">DOM</th>' +
-        '<th class="text-left px-3 py-2">Expiry</th>' +
-        '<th class="text-left px-3 py-2">Last Refreshed</th>' +
-        '<th class="text-left px-3 py-2">Actions</th>' +
-      '</tr></thead><tbody>';
-      if (_localDraftRow) html += _localDraftRow;
-      filtered.forEach(function (l) {
-        var addr = _resolveAddress(l);
-        var dom = l.cumulative_dom || l.cumulative_days_on_market || l.days_on_market || 0;
-        var lid = l.id || l.listing_id;
-
-        // Price: handle different field names from API
-        var price = l.list_price || l.ListPrice || l.price || 0;
-
-        // Expiry
-        var expDate = l.ExpirationDate || l.expiration_date || l.listing_expiry;
-        var expiryHtml = '—';
-        if (expDate) {
-          var daysLeft = Math.ceil((new Date(expDate) - now) / 86400000);
-          if (daysLeft <= 0) expiryHtml = '<span class="text-xs text-red-600 font-semibold">Expired</span>';
-          else if (daysLeft <= 7) expiryHtml = '<span class="text-xs text-red-600 font-semibold">' + daysLeft + 'd left</span>';
-          else if (daysLeft <= 30) expiryHtml = '<span class="text-xs text-yellow-600">' + daysLeft + 'd left</span>';
-          else expiryHtml = '<span class="text-xs text-gray-500">' + D(expDate) + '</span>';
-        }
-
-        html += '<tr class="border-b hover:bg-gray-50 cursor-pointer" onclick="Router.navigate(\'/workspace/listing/' + E(lid) + '/overview\')">' +
-          '<td class="px-3 py-2"><p class="text-sm font-medium text-gray-900">' + E(addr) + '</p></td>' +
-          '<td class="px-3 py-2 text-xs text-gray-500">' + E(l._isRental ? 'Rental' : 'Sale') + '</td>' +
-          '<td class="px-3 py-2 text-sm font-semibold">' + $(price) + '</td>' +
-          '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'Active') + '</td>' +
-          '<td class="px-3 py-2 text-xs text-gray-600">' + dom + '</td>' +
-          '<td class="px-3 py-2">' + expiryHtml + '</td>' +
-          '<td class="px-3 py-2">' + (function () {
-            if (l._daysSinceRefresh === null) return '<span class="text-xs text-gray-400">—</span>';
-            if (l._needsRefresh) return '<span class="text-xs text-red-600 font-semibold">' + l._daysSinceRefresh + 'd ago <i class="fas fa-exclamation-circle"></i></span>';
-            return '<span class="text-xs text-gray-500">' + l._daysSinceRefresh + 'd ago</span>';
-          })() + '</td>' +
-          '<td class="px-3 py-2"><div class="flex gap-1" onclick="event.stopPropagation()">' +
-            (l._fromPastDeals
-              ? '<button class="btn btn-sm btn-outline" onclick="Panels._editPastDeal(\'' + E(l._pastDealId || l.id) + '\')" title="Edit Past Deal"><i class="fas fa-edit"></i></button>' +
-                '<button class="btn btn-sm btn-outline text-red-500 hover:text-red-700" onclick="Panels._deletePastDeal(\'' + E(l._pastDealId || l.id) + '\')" title="Delete Past Deal"><i class="fas fa-trash"></i></button>'
-              : '<button class="btn btn-sm btn-gold" onclick="openListingCampaign(\'' + E(l.listing_id || lid) + '\')" title="Eblast investors — create the investor / 1031 marketing email from this listing"><i class="fas fa-paper-plane mr-1"></i>Eblast Investors</button>' +
-                '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/' + (l._isRental ? 'rental' : 'sale') + '-listing?id=' + E(lid) + '\',\'_blank\')" title="Edit Listing"><i class="fas fa-edit"></i></button>' +
-                '<button class="btn btn-sm btn-outline" onclick="Panels._addOpenHouse(\'' + E(lid) + '\',\'' + E(addr) + '\')" title="Add Open House"><i class="fas fa-door-open"></i></button>' +
-                (!l.mls_id ? '<button class="btn btn-sm btn-outline text-red-500 hover:text-red-700" onclick="Panels._deleteListing(\'' + E(lid) + '\',\'' + E(addr) + '\')" title="Withdraw Listing"><i class="fas fa-trash"></i></button>' : '')) +
-          '</div></td>' +
-        '</tr>';
-      });
-      html += '</tbody></table></div></div>';
-    }
-
-    html += '</div>';
-    c.innerHTML = html;
-  }
-
-  function _switchMyListingsView(view) {
-    // Legacy — map to new system
-    _myListingsStatus = view;
-    _renderMyListings(_container());
-  }
-
-  function _switchMyListingsType(type) {
-    _myListingsType = type;
-    _myListingsStatus = 'all';
-    _renderMyListings(_container());
-  }
-
-  function _switchMyListingsStatus(status) {
-    _myListingsStatus = status;
-    _renderMyListings(_container());
-  }
-
-  function _deleteListing(listingId, address) {
-    if (!confirm('Withdraw listing "' + address + '"?\n\nThis sets the status to Withdrawn. The listing will no longer appear publicly.')) return;
-    MallanAPI.listings.remove(listingId).then(function () {
-      showToast('Listing withdrawn: ' + address, 'success');
-      myListings();
-    }).catch(function (err) {
-      showToast('Failed to withdraw: ' + err.message, 'error');
-    });
-  }
-
-  function _addOpenHouse(listingId, address) {
-    CRM.openModal('Schedule Open House — ' + address,
-      '<form id="openHouseForm" class="space-y-4">' +
-        '<input type="hidden" name="listing_id" value="' + E(listingId) + '">' +
-        '<div class="grid grid-cols-2 gap-4">' +
-          '<div class="form-group"><label class="form-label">Date *</label><input class="form-input" type="date" name="date" required></div>' +
-          '<div class="form-group"><label class="form-label">Start Time *</label><input class="form-input" type="time" name="start_time" required></div>' +
-        '</div>' +
-        '<div class="grid grid-cols-2 gap-4">' +
-          '<div class="form-group"><label class="form-label">End Time *</label><input class="form-input" type="time" name="end_time" required></div>' +
-          '<div class="form-group"><label class="form-label">Type</label>' +
-            '<select class="form-input form-select" name="type">' +
-              '<option value="open_house">Public Open House</option>' +
-              '<option value="broker_open">Broker Open House</option>' +
-              '<option value="virtual">Virtual Open House</option>' +
-            '</select></div>' +
-        '</div>' +
-        '<div class="form-group"><label class="form-label">Notes</label>' +
-          '<textarea class="form-input" name="notes" rows="2" placeholder="Any special instructions..."></textarea></div>' +
-      '</form>',
-      {
-        footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
-          '<button class="btn btn-gold" onclick="Panels._submitOpenHouse()"><i class="fas fa-calendar-plus mr-1"></i> Schedule</button>',
-      }
-    );
-  }
-
-  function _submitOpenHouse() {
-    var form = document.getElementById('openHouseForm');
-    if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
-    var data = {};
-    new FormData(form).forEach(function (v, k) { if (v) data[k] = v; });
-
-    MallanAPI.showings.create({
-      listing_id: data.listing_id,
-      date: data.date,
-      time: data.start_time + ' - ' + data.end_time,
-      type: data.type || 'open_house',
-      notes: data.notes || '',
-    }).then(function () {
-      Events.log('showing_scheduled', 'listing', data.listing_id, { type: data.type, date: data.date });
-      CRM.closeModal();
-      CRM.toast('Open house scheduled', 'success');
-    }).catch(function (err) {
-      CRM.toast('Failed: ' + (err.message || 'Try again'), 'error');
-    });
-  }
-
-  // ─── My Clients ──────────────────────────────────────────────────────
   var _myClientsData = [];
   var _myClientsView = 'all';
   var _myClientsSearch = '';
@@ -12081,8 +11939,15 @@ var Panels = (function () {
         l._isNew = listDate >= sevenDaysAgo;
         l._isPriceChange = l.PriceChangeTimestamp ? new Date(l.PriceChangeTimestamp) >= thirtyDaysAgo : false;
         l._isStatusChange = modDate >= sevenDaysAgo && (l.StatusChangeTimestamp || l.status_changed_at);
-        l._isClosed = (l.status || '').toLowerCase() === 'closed';
-        l._isComp = l._isClosed && new Date(l.CloseDate || l.close_date || modDate) >= thirtyDaysAgo;
+        // A closing is the live Cotality `Closed` token; the legacy Mallan spellings ('Sold' / 'Rented' /
+        // 'Leased', written before the 2026-09-08 token correction) mean the same closing and stay readable.
+        var _st = String(l.status || l.StandardStatus || '').toLowerCase();
+        l._isClosed = _st === 'closed' || _st === 'sold' || _st === 'rented' || _st === 'leased';
+        // A comp is dated by its OWN CloseDate and by nothing else. ModificationTimestamp dated a closing by
+        // the day the row was last touched, so any old closing that was merely edited appeared as a recent
+        // comp (Maya, 2026-09-08). A closed row with no CloseDate is simply not a dated comparable.
+        l._closeDate = l.CloseDate || l.close_date || null;
+        l._isComp = l._isClosed && l._closeDate ? new Date(l._closeDate) >= thirtyDaysAgo : false;
         l._type = (l.property_type || l.listing_type || l.PropertySubType || '').toLowerCase();
         l._isRental = l._type.indexOf('rent') !== -1;
         l._neighborhood = l.MLSAreaMajor || l.neighborhood || l.area || '';
@@ -12172,8 +12037,9 @@ var Panels = (function () {
               '<p class="text-sm font-medium truncate">' + E(addr) + '</p>' +
               '<div class="flex items-center gap-3 text-xs text-gray-500">' +
                 '<span class="font-bold text-gray-900">' + $(price) + '</span>' +
-                UI.statusBadge(l.status || 'Active') +
+                UI.statusBadge(_rowStatus(l).token, _rowStatus(l).label) +
                 '<span>' + dom + ' DOM</span>' +
+                (_marketTab === 'comps' && l._closeDate ? '<span>Closed ' + E(String(l._closeDate).slice(0, 10)) + '</span>' : '') +
                 (l._neighborhood ? '<span>' + E(l._neighborhood) + '</span>' : '') +
               '</div>' +
             '</div>' +
@@ -12661,6 +12527,158 @@ var Panels = (function () {
   // SETTINGS
   // ═══════════════════════════════════════════════════════════════════════
 
+  // ── My Profile — ONE field table, read by BOTH hydration and save ───────
+  //
+  // 2026-09-01: opening My Profile and pressing Save Changes WITHOUT TOUCHING
+  // ANYTHING sent
+  //     {"title":"","bio":"","specialties":"","languages":"","phone":"..."}
+  // and destroyed a 2,829-character bio, four specialties and two languages,
+  // while the UI reported success. Two independent faults combined:
+  //
+  //   1. HYDRATION. GET /api/crm/agents/me returns the profile at the TOP
+  //      LEVEL. This panel read `res.agent` — always undefined — and fell
+  //      back to Store.session.currentUser, the /api/auth/me shape, which
+  //      carries `name` and `phone` but has no bio, specialties, languages or
+  //      title. That is exactly why those four rendered blank and the other
+  //      two did not.
+  //   2. SERIALISATION. The save posted EVERY editable control
+  //      unconditionally, so each blank DOM default overwrote stored data.
+  //
+  // Fixing (1) alone would leave the next unhydrated control free to do the
+  // same thing, so the writable set is defined ONCE, here, and a control may
+  // be written back ONLY IF the server actually delivered its key on GET.
+  // A control with no delivered value has no known stored value, so "blank"
+  // cannot be told apart from "cleared" and MUST NOT be written.
+  //
+  //   api     — the key on GET /api/crm/agents/me AND on the PATCH body.
+  //             Deliberately the same key: a mismatch here is a save that
+  //             silently does nothing.
+  //   control — the form control's `name` attribute.
+  //   type    — 'text' for a String column, 'list' for a Postgres text[].
+  //             A 'list' is comma-separated in the UI and an ARRAY on the
+  //             wire. Sending the string is what stored [] every time.
+  //
+  // `title`, `role` and `status` are deliberately ABSENT. `title` is the
+  // regulated 19 NYCRR §175.25 professional designation derived from the
+  // licence class — displayed read-only here, never sent from this path.
+  var PROFILE_FIELDS = [
+    { api: 'bio', control: 'bio', type: 'text' },
+    { api: 'phone', control: 'phone', type: 'text' },
+    { api: 'specialties', control: 'specialties', type: 'list' },
+    { api: 'languages', control: 'languages', type: 'list' }
+  ];
+
+  // Broker-only self-editable fields. DELIBERATELY EMPTY.
+  //
+  // This table held `license_type`, so a BROKER's My Profile offered an
+  // editable licence-class control and PATCH /api/crm/agents/me accepted it
+  // and re-derived `title` from it. That made this self-service form a SECOND
+  // writer of a governed regulated identity fact whose one canonical writer is
+  // Broker Agent Management (PATCH /api/crm/agents/[id], requireBroker).
+  //
+  // The route now refuses a supplied `license_type` with 403, and the control
+  // is rendered read-only for EVERYONE — brokers included — so the UI cannot
+  // present a write that cannot happen. Nothing may be added here without a
+  // matching self-editable field on that route: an entry with no server
+  // counterpart is a save that silently does nothing.
+  var PROFILE_BROKER_FIELDS = [];
+
+  // The display-form values from the last SUCCESSFUL GET, per writable field.
+  // `null` means there is NO authority and this form may not write anything.
+  var _profileAuthority = null;
+
+  function _profileFieldsFor(isBroker) {
+    return isBroker ? PROFILE_FIELDS.concat(PROFILE_BROKER_FIELDS) : PROFILE_FIELDS;
+  }
+
+  /** Postgres text[] -> the comma-separated string the control displays. */
+  function _profileListToDisplay(v) {
+    if (Array.isArray(v)) return v.join(', ');
+    return v == null ? '' : String(v);
+  }
+
+  /** The control's comma-separated string -> the ARRAY the column stores. */
+  function _profileDisplayToList(s) {
+    var out = [];
+    var parts = String(s == null ? '' : s).split(',');
+    for (var i = 0; i < parts.length; i++) {
+      var t = parts[i].trim();
+      if (t) out.push(t);
+    }
+    return out;
+  }
+
+  function _profileText(v) {
+    return v == null ? '' : String(v);
+  }
+
+  /** GET body -> the view model every control and the preview card read. */
+  function _profileViewModel(res) {
+    var r = res || {};
+    var name = _profileText(r.full_name);
+    if (!name) {
+      name = (_profileText(r.first_name) + ' ' + _profileText(r.last_name)).trim();
+    }
+    return {
+      photoUrl: _profileText(r.photo),
+      name: name,
+      title: _profileText(r.title),
+      bio: _profileText(r.bio),
+      specialties: _profileListToDisplay(r.specialties),
+      languages: _profileListToDisplay(r.languages),
+      slug: _profileText(r.public_slug),
+      email: _profileText(r.email),
+      phone: _profileText(r.phone),
+      licenseType: _profileText(r.license_type),
+      licenseNumber: _profileText(r.license_no),
+      licenseExpiry: _profileText(r.license_expiry)
+    };
+  }
+
+  /**
+   * Reference-only view model for the case where the profile GET FAILED.
+   * `licenseTitle` is the designation /api/auth/me already derived from the
+   * licence class (null when unknown) — it is displayed, never invented.
+   */
+  function _profileSessionViewModel() {
+    var u = Store.session.currentUser || {};
+    return {
+      photoUrl: _profileText(u.photo),
+      name: _profileText(u.name),
+      title: _profileText(u.licenseTitle),
+      bio: '',
+      specialties: '',
+      languages: '',
+      slug: '',
+      email: _profileText(u.email),
+      phone: _profileText(u.phone),
+      licenseType: '',
+      licenseNumber: _profileText(u.license),
+      licenseExpiry: ''
+    };
+  }
+
+  /**
+   * The authority snapshot: for each writable field the server ACTUALLY
+   * delivered, the exact display string its stored value produces.
+   *
+   * A key the response omits is left OUT of `values` — not defaulted to ''.
+   * That distinction is the whole fail-safe, and it is why a field added to
+   * this form years from now that fails to hydrate still cannot destroy data.
+   */
+  function _profileSnapshot(res, isBroker) {
+    var values = {};
+    var fields = _profileFieldsFor(isBroker);
+    for (var i = 0; i < fields.length; i++) {
+      var f = fields[i];
+      if (!res || !Object.prototype.hasOwnProperty.call(res, f.api)) continue;
+      values[f.api] = f.type === 'list'
+        ? _profileListToDisplay(res[f.api])
+        : _profileText(res[f.api]);
+    }
+    return { values: values };
+  }
+
   function profile() {
     CRM.setPanelTitle('My Profile');
     var c = _container();
@@ -12668,38 +12686,38 @@ var Panels = (function () {
 
     var isBroker = Permissions.isBroker();
 
+    // A baseline from a PREVIOUS successful load must never survive a failed
+    // reload — that would let the new blank form write over the record it
+    // could not read.
+    _profileAuthority = null;
+
     MallanAPI._fetch('/api/crm/agents/me').then(function (res) {
-      var agent = (res && res.agent) || Store.session.currentUser || {};
-      // Update local session cache
-      if (res && res.agent) {
-        Store.session.currentUser = Object.assign(Store.session.currentUser || {}, res.agent);
-      }
-      _renderProfileForm(c, agent, isBroker);
+      var vm = _profileViewModel(res);
+      _profileAuthority = _profileSnapshot(res, isBroker);
+      // Refresh only the keys the session cache actually owns. Assigning the
+      // whole response would put snake_case duplicates into the cache that
+      // every other CRM surface would then have to disambiguate.
+      Store.session.currentUser = Object.assign(Store.session.currentUser || {}, {
+        name: vm.name,
+        email: vm.email,
+        phone: vm.phone
+      });
+      _renderProfileForm(c, vm, isBroker, true);
     }).catch(function () {
-      // Fallback to cached session data
-      var agent = Store.session.currentUser || {};
-      _renderProfileForm(c, agent, isBroker);
+      // No authority. The form is rendered from cache FOR REFERENCE ONLY and
+      // cannot be saved — see the fail-closed guard in _saveProfile.
+      _profileAuthority = null;
+      _renderProfileForm(c, _profileSessionViewModel(), isBroker, false);
     });
   }
 
-  function _renderProfileForm(c, agent, isBroker) {
-    var photoUrl = agent.photoUrl || agent.photo_url || '';
-    var name = agent.name || '';
-    var title = agent.title || '';
-    var bio = agent.bio || '';
-    var specialties = agent.specialties || '';
-    var languages = agent.languages || '';
-    var slug = agent.slug || '';
-    var email = agent.email || '';
-    var phone = agent.phone || '';
-    var licenseType = agent.licenseType || agent.license_type || '';
-    var licenseNumber = agent.licenseNumber || agent.license_number || '';
-    var licenseExpiry = agent.licenseExpiry || agent.license_expiry || '';
+  function _renderProfileForm(c, vm, isBroker, hydrated) {
+    var slug = vm.slug || '';
 
     // Determine if profile is incomplete
-    var isIncomplete = !photoUrl || !bio || !specialties;
+    var isIncomplete = !vm.photoUrl || !vm.bio || !vm.specialties;
 
-    var incompleteCallout = isIncomplete
+    var incompleteCallout = (hydrated && isIncomplete)
       ? '<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 flex items-start gap-3">' +
           '<i class="fas fa-exclamation-triangle text-yellow-600 mt-0.5"></i>' +
           '<div>' +
@@ -12709,6 +12727,25 @@ var Panels = (function () {
         '</div>'
       : '';
 
+    // The profile could not be read. Saying so, and refusing the save, is the
+    // only honest option: a form full of blanks that posts is how the record
+    // got destroyed.
+    var unavailableCallout = hydrated
+      ? ''
+      : '<div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 flex items-start gap-3">' +
+          '<i class="fas fa-exclamation-circle text-red-600 mt-0.5"></i>' +
+          '<div>' +
+            '<p class="text-sm font-semibold text-red-800">Your profile could not be loaded</p>' +
+            '<p class="text-sm text-red-700">Saving is disabled so nothing can be written over your stored profile. Reload the page to try again.</p>' +
+          '</div>' +
+        '</div>';
+
+    // NOTE ON ESCAPING: no stored value is interpolated into an attribute
+    // below. Every control ships empty and is filled through the DOM in
+    // _hydrateProfileForm, which is both the hydration path and the source of
+    // the save baseline. Utils.esc escapes & < > but NOT quotes, so a bio or
+    // specialty containing a double quote would have broken out of a
+    // value="..." attribute the moment these fields started hydrating.
     c.innerHTML = '<div class="space-y-4">' +
       UI.sectionHeader('My Profile', '') +
 
@@ -12717,6 +12754,8 @@ var Panels = (function () {
         '<i class="fas fa-info-circle text-blue-500 mt-0.5"></i>' +
         '<p class="text-sm text-blue-700">Your profile information appears on your public agent page at <strong>mallan.nyc/agents/' + E(slug || 'your-name') + '</strong>. Changes sync automatically.</p>' +
       '</div>' +
+
+      unavailableCallout +
 
       // Incomplete callout
       incompleteCallout +
@@ -12732,9 +12771,7 @@ var Panels = (function () {
             '<label class="form-label">Profile Photo</label>' +
             '<div class="flex items-center gap-4">' +
               '<div id="profilePhotoPreview" class="w-20 h-20 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">' +
-                (photoUrl
-                  ? '<img src="' + E(photoUrl) + '" class="w-full h-full object-cover" alt="Profile photo">'
-                  : '<i class="fas fa-user text-3xl text-gray-300"></i>') +
+                '<i class="fas fa-user text-3xl text-gray-300"></i>' +
               '</div>' +
               '<div class="flex-1">' +
                 '<input type="file" id="profilePhotoFile" accept="image/jpeg,image/png,image/webp" class="form-input text-sm" onchange="Panels._previewProfilePhoto(this)">' +
@@ -12747,40 +12784,46 @@ var Panels = (function () {
           '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">' +
             '<div class="form-group">' +
               '<label class="form-label">Name</label>' +
-              '<input class="form-input bg-gray-50" name="name" value="' + E(name) + '" readonly>' +
+              '<input class="form-input bg-gray-50" name="name" readonly>' +
               '<p class="text-xs text-gray-400 mt-1">Only the broker can change your name.</p>' +
             '</div>' +
             '<div class="form-group">' +
               '<label class="form-label">Public URL</label>' +
-              '<input class="form-input bg-gray-50" value="mallan.nyc/agents/' + E(slug || 'your-name') + '" readonly>' +
+              '<input class="form-input bg-gray-50" id="profilePublicUrl" readonly>' +
             '</div>' +
           '</div>' +
 
-          // Title / Tagline
+          // Public Title - the regulated professional designation, derived
+          // from the licence. READ-ONLY here for the same reason it is
+          // read-only in Add/Edit Agent, and now visibly so: the field was
+          // rendered editable while the server ignored every value posted to
+          // it, so typing a designation and pressing Save reported success
+          // and changed nothing.
           '<div class="form-group mb-4">' +
-            '<label class="form-label">Title / Tagline</label>' +
-            '<input class="form-input" name="title" value="' + E(title) + '" placeholder="e.g. Licensed Real Estate Broker" maxlength="100">' +
-            '<p class="text-xs text-gray-400 mt-1">Appears below your name on your agent page.</p>' +
+            '<label class="form-label">Public Title (derived)</label>' +
+            // A hint may describe the field; it may not propose a licence.
+            '<input class="form-input bg-gray-50" name="title" placeholder="Set from your licence designation" maxlength="100" readonly>' +
+            '<p class="text-xs text-gray-400 mt-1">Appears below your name on your agent page. Derived from your licence designation — only the broker can change it.</p>' +
           '</div>' +
 
           // Bio
           '<div class="form-group mb-4">' +
             '<label class="form-label">Bio</label>' +
-            '<textarea class="form-input" name="bio" rows="5" placeholder="Write a professional bio that tells clients about your experience, approach, and areas of expertise...">' + E(bio) + '</textarea>' +
+            '<textarea class="form-input" name="bio" rows="5" placeholder="Write a professional bio that tells clients about your experience, approach, and areas of expertise..."></textarea>' +
             '<p class="text-xs text-gray-400 mt-1">Displayed on your public profile. Keep it professional and engaging.</p>' +
           '</div>' +
 
           // Specialties
           '<div class="form-group mb-4">' +
             '<label class="form-label">Specialties</label>' +
-            '<input class="form-input" name="specialties" value="' + E(specialties) + '" placeholder="e.g. Upper East Side, Luxury Condos, First-Time Buyers">' +
+            '<input class="form-input" name="specialties" placeholder="e.g. Upper East Side, Luxury Condos, First-Time Buyers">' +
             '<p class="text-xs text-gray-400 mt-1">Comma-separated. Shown as badges on your profile.</p>' +
           '</div>' +
 
           // Languages
           '<div class="form-group">' +
             '<label class="form-label">Languages</label>' +
-            '<input class="form-input" name="languages" value="' + E(languages) + '" placeholder="e.g. English, Spanish, Mandarin">' +
+            '<input class="form-input" name="languages" placeholder="e.g. English, Spanish, Mandarin">' +
             '<p class="text-xs text-gray-400 mt-1">Comma-separated. Helps clients find agents who speak their language.</p>' +
           '</div>'
         ) +
@@ -12790,12 +12833,12 @@ var Panels = (function () {
           '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">' +
             '<div class="form-group">' +
               '<label class="form-label">Email</label>' +
-              '<input class="form-input bg-gray-50" name="email" value="' + E(email) + '" readonly>' +
+              '<input class="form-input bg-gray-50" name="email" readonly>' +
               '<p class="text-xs text-gray-400 mt-1">Contact your broker to change your email.</p>' +
             '</div>' +
             '<div class="form-group">' +
               '<label class="form-label">Phone</label>' +
-              '<input class="form-input" name="phone" value="' + E(phone) + '" placeholder="e.g. 212-555-1234">' +
+              '<input class="form-input" name="phone" placeholder="e.g. 212-555-1234">' +
             '</div>' +
           '</div>'
         ) +
@@ -12803,42 +12846,48 @@ var Panels = (function () {
         // ── License Information ──
         UI.card('<i class="fas fa-id-badge text-gold mr-2"></i>License Information',
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
+            // The LICENCE CLASS — read-only for EVERYONE, brokers included.
+            //
+            // It was an editable input for a broker, and the route accepted it,
+            // which is precisely the duplicate authority being removed: the one
+            // canonical writer of this fact is Broker Agent Management. It is
+            // READ-ONLY, NOT HIDDEN — the licensee still sees the class on
+            // record; they simply cannot change it from a self-service form.
             '<div class="form-group">' +
               '<label class="form-label">License Type</label>' +
-              (isBroker
-                ? '<input class="form-input" name="license_type" value="' + E(licenseType) + '" placeholder="e.g. Real Estate Broker">'
-                : '<input class="form-input bg-gray-50" value="' + E(licenseType) + '" readonly>') +
+              '<input class="form-input bg-gray-50" id="profileLicenseType" readonly>' +
             '</div>' +
             '<div class="form-group">' +
               '<label class="form-label">License #</label>' +
-              (isBroker
-                ? '<input class="form-input" name="license_number" value="' + E(licenseNumber) + '">'
-                : '<input class="form-input bg-gray-50" value="' + E(licenseNumber) + '" readonly>') +
+              '<input class="form-input bg-gray-50" id="profileLicenseNumber" readonly>' +
             '</div>' +
             '<div class="form-group">' +
               '<label class="form-label">License Expiry</label>' +
-              (isBroker
-                ? '<input class="form-input" name="license_expiry" type="date" value="' + E(licenseExpiry ? licenseExpiry.substring(0, 10) : '') + '">'
-                : '<input class="form-input bg-gray-50" value="' + E(licenseExpiry ? D(licenseExpiry) : 'N/A') + '" readonly>') +
+              '<input class="form-input bg-gray-50" id="profileLicenseExpiry" readonly>' +
             '</div>' +
           '</div>' +
-          (isBroker ? '' : '<p class="text-xs text-gray-400 mt-2"><i class="fas fa-lock text-gray-300 mr-1"></i>License fields are managed by the broker.</p>')
+          // Names where the regulated change is actually made, so the copy
+          // matches what the controls now do. A broker can go there directly;
+          // everyone else asks the broker to.
+          '<p class="text-xs text-gray-400 mt-2"><i class="fas fa-lock text-gray-300 mr-1"></i>' +
+            (isBroker
+              ? 'Licence class, number and expiry are managed in Agent Management.'
+              : 'Licence class, number and expiry are managed by your broker in Agent Management.') +
+          '</p>'
         ) +
 
         // ── Preview Card ──
         UI.card('<i class="fas fa-eye text-gold mr-2"></i>Profile Preview',
           '<p class="text-xs text-gray-500 mb-3">This is how your profile will appear on mallan.nyc.</p>' +
-          '<div id="profilePreviewCard" class="border rounded-xl p-5 bg-white max-w-md">' +
-            _buildProfilePreview(agent) +
-          '</div>'
+          '<div id="profilePreviewCard" class="border rounded-xl p-5 bg-white max-w-md"></div>'
         ) +
 
         // ── Save Button ──
         '<div class="flex items-center gap-3">' +
-          '<button type="button" class="btn btn-gold" onclick="Panels._saveProfile()" id="profileSaveBtn">' +
+          '<button type="button" class="btn btn-gold" onclick="Panels._saveProfile()" id="profileSaveBtn"' + (hydrated ? '' : ' disabled') + '>' +
             '<i class="fas fa-save mr-1"></i> Save Changes' +
           '</button>' +
-          '<span id="profileSaveStatus" class="text-sm text-gray-500"></span>' +
+          '<span id="profileSaveStatus" class="text-sm text-gray-500">' + (hydrated ? '' : 'Saving is disabled until your profile loads.') + '</span>' +
         '</div>' +
 
       '</form>' +
@@ -12876,6 +12925,8 @@ var Panels = (function () {
       ) +
     '</div>';
 
+    _hydrateProfileForm(vm);
+
     // Wire up live preview updates
     var formEl = document.getElementById('profileForm');
     if (formEl) {
@@ -12883,6 +12934,58 @@ var Panels = (function () {
         _updateProfilePreview();
       });
     }
+  }
+
+  /**
+   * Put the stored values into the controls. This is THE hydration path, and
+   * the values it writes are exactly the ones _profileSnapshot recorded as
+   * the save baseline — one source, so a control can never disagree with the
+   * baseline it is compared against.
+   */
+  function _hydrateProfileForm(vm) {
+    var form = document.getElementById('profileForm');
+    if (!form) return;
+
+    function setByName(name, value) {
+      var el = form.querySelector('[name="' + name + '"]');
+      if (el) el.value = value == null ? '' : value;
+    }
+    function setById(id, value) {
+      var el = document.getElementById(id);
+      if (el) el.value = value == null ? '' : value;
+    }
+
+    setByName('name', vm.name);
+    setByName('title', vm.title);
+    setByName('bio', vm.bio);
+    setByName('specialties', vm.specialties);
+    setByName('languages', vm.languages);
+    setByName('email', vm.email);
+    setByName('phone', vm.phone);
+    setById('profilePublicUrl', 'mallan.nyc/agents/' + (vm.slug || 'your-name'));
+
+    // The stored licence class is still SHOWN — one read-only control, the
+    // same for every role. The stored value is displayed as stored; no
+    // designation is derived here (see _designationFromStored, the one
+    // sanctioned browser mirror, used on the surfaces that advertise one).
+    setById('profileLicenseType', vm.licenseType);
+    setById('profileLicenseNumber', vm.licenseNumber);
+    setById(
+      'profileLicenseExpiry',
+      vm.licenseExpiry ? D(vm.licenseExpiry) : 'N/A'
+    );
+
+    var photoEl = document.getElementById('profilePhotoPreview');
+    if (photoEl && vm.photoUrl) {
+      var img = document.createElement('img');
+      img.src = vm.photoUrl;
+      img.className = 'w-full h-full object-cover';
+      img.alt = 'Profile photo';
+      photoEl.innerHTML = '';
+      photoEl.appendChild(img);
+    }
+
+    _updateProfilePreview();
   }
 
   function _buildProfilePreview(agent) {
@@ -12958,51 +13061,122 @@ var Panels = (function () {
     reader.readAsDataURL(input.files[0]);
   }
 
+  /**
+   * Build the PATCH body from the CHANGED controls only.
+   *
+   * Returns null when there is no authority — no successful GET — in which
+   * case nothing at all may be written. Otherwise returns an object holding
+   * only the fields whose control value differs from the value the server
+   * delivered, converted to the type the column owns.
+   *
+   * THE CLEARING RULE, stated plainly:
+   *
+   *   A field is CLEARED when the server delivered a value for it and the
+   *   user has emptied the control. That is a difference, so it is sent —
+   *   '' for a text column, [] for an array column — and the clear persists.
+   *
+   *   A control that is empty because the server delivered nothing for it —
+   *   an absent key, or a failed GET — is UNKNOWN, not cleared. Unknown is
+   *   never sent. Blankness only ever means "cleared" when there is a known
+   *   stored value to have cleared.
+   *
+   *   A control that is empty because the stored value was already empty is
+   *   unchanged, so it is not sent either.
+   */
+  function _collectProfileChanges(form, isBroker) {
+    if (!_profileAuthority) return null;
+
+    var data = {};
+    var fields = _profileFieldsFor(isBroker);
+    for (var i = 0; i < fields.length; i++) {
+      var f = fields[i];
+      // NEVER hydrated => no known stored value => not writable. This is the
+      // guard that holds for a field added to this form years from now.
+      if (!Object.prototype.hasOwnProperty.call(_profileAuthority.values, f.api)) continue;
+
+      var input = form.querySelector('[name="' + f.control + '"]');
+      if (!input) continue;
+
+      var current = input.value == null ? '' : String(input.value);
+      if (current === _profileAuthority.values[f.api]) continue;
+
+      data[f.api] = f.type === 'list' ? _profileDisplayToList(current) : current;
+    }
+    return data;
+  }
+
+  /** Adopt the just-saved control values as the new baseline. */
+  function _commitProfileBaseline(form, sentKeys, isBroker) {
+    if (!_profileAuthority) return;
+    var fields = _profileFieldsFor(isBroker);
+    for (var i = 0; i < fields.length; i++) {
+      var f = fields[i];
+      if (sentKeys.indexOf(f.api) < 0) continue;
+      var input = form.querySelector('[name="' + f.control + '"]');
+      if (!input) continue;
+      _profileAuthority.values[f.api] = input.value == null ? '' : String(input.value);
+    }
+  }
+
   function _saveProfile() {
     var form = document.getElementById('profileForm');
     if (!form) return;
     var saveBtn = document.getElementById('profileSaveBtn');
     var statusEl = document.getElementById('profileSaveStatus');
+    var isBroker = Permissions.isBroker();
+
+    function setStatus(text, cls) {
+      if (statusEl) {
+        statusEl.textContent = text;
+        statusEl.className = 'text-sm ' + (cls || 'text-gray-500');
+      }
+    }
+
+    var data = _collectProfileChanges(form, isBroker);
+
+    // FAIL CLOSED. Without a successful GET there is no stored value to
+    // compare against, so every control is unknown and none may be written.
+    if (data === null) {
+      CRM.toast('Your profile has not loaded — nothing was saved. Reload and try again.', 'error');
+      setStatus('Not saved — profile not loaded', 'text-red-500');
+      return;
+    }
+
+    var photoInput = document.getElementById('profilePhotoFile');
+    var hasNewPhoto = !!(photoInput && photoInput.files && photoInput.files[0]);
+    var sentKeys = Object.keys(data);
+
+    if (sentKeys.length === 0 && !hasNewPhoto) {
+      setStatus('No changes to save');
+      return;
+    }
 
     // Disable button during save
     if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Saving...'; }
-    if (statusEl) statusEl.textContent = '';
+    setStatus('');
 
-    // Collect editable fields (skip readonly: name, email)
-    var data = {};
-    var editableFields = ['title', 'bio', 'specialties', 'languages', 'phone'];
-    // Broker can also edit license fields
-    var isBroker = Permissions.isBroker();
-    if (isBroker) {
-      editableFields.push('license_type', 'license_number', 'license_expiry');
-    }
-
-    for (var i = 0; i < editableFields.length; i++) {
-      var field = editableFields[i];
-      var input = form.querySelector('[name="' + field + '"]');
-      if (input) data[field] = input.value;
-    }
-
-    // Check if there is a new photo to upload
-    var photoInput = document.getElementById('profilePhotoFile');
-    var hasNewPhoto = photoInput && photoInput.files && photoInput.files[0];
-
+    // The photo is stored by its own endpoint, which writes agent.photo
+    // itself. It is NOT a PATCH field, and it is no longer accepted as one:
+    // POST /api/crm/agents/me/photo is the ONE self-service photo writer,
+    // because it is the only path that validates the image, strips EXIF/GPS,
+    // produces the WebP variants and stores the object in R2.
+    //
+    // THE PART NAME IS `file`, BECAUSE THAT IS WHAT THE ROUTE READS.
+    // It was `photo` here while both photo routes read `file`, so every
+    // headshot chosen in My Profile was answered 400 Missing 'file' field —
+    // the feature could not work at all. Do not rename this without
+    // renaming formData.get('file') in app/api/crm/agents/me/photo/route.ts.
     var uploadPhotoPromise;
     if (hasNewPhoto) {
       var formData = new FormData();
-      formData.append('photo', photoInput.files[0]);
+      formData.append('file', photoInput.files[0]);
       uploadPhotoPromise = MallanAPI._fetch('/api/crm/agents/me/photo', {
         method: 'POST',
         body: formData,
         rawBody: true
-      }).then(function (res) {
-        if (res && res.url) {
-          data.photo_url = res.url;
-        }
-        return res;
       }).catch(function (err) {
         CRM.toast('Photo upload failed: ' + (err.message || 'Unknown error'), 'error');
-        // Continue with other fields even if photo fails
+        // Continue with the other fields even if the photo fails.
         return null;
       });
     } else {
@@ -13010,19 +13184,23 @@ var Panels = (function () {
     }
 
     uploadPhotoPromise.then(function () {
+      if (sentKeys.length === 0) return null;
       return MallanAPI._fetch('/api/crm/agents/me', {
         method: 'PATCH',
         body: JSON.stringify(data)
       });
-    }).then(function (res) {
-      if (res && res.agent) {
-        Store.session.currentUser = Object.assign(Store.session.currentUser || {}, res.agent);
+    }).then(function () {
+      _commitProfileBaseline(form, sentKeys, isBroker);
+      if (Object.prototype.hasOwnProperty.call(data, 'phone')) {
+        Store.session.currentUser = Object.assign(Store.session.currentUser || {}, {
+          phone: data.phone
+        });
       }
-      CRM.toast('Profile updated \u2014 changes will appear on mallan.nyc shortly', 'success');
-      if (statusEl) statusEl.textContent = 'Saved';
+      CRM.toast('Profile updated — changes will appear on mallan.nyc shortly', 'success');
+      setStatus('Saved');
     }).catch(function (err) {
       CRM.toast('Failed to save profile: ' + (err.message || 'Unknown error'), 'error');
-      if (statusEl) { statusEl.textContent = 'Save failed'; statusEl.className = 'text-sm text-red-500'; }
+      setStatus('Save failed', 'text-red-500');
     }).then(function () {
       // Always re-enable button (finally equivalent)
       if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save mr-1"></i> Save Changes'; }
@@ -13285,7 +13463,6 @@ var Panels = (function () {
     // Operations
     opsDashboard: opsDashboard,
     propertySearch: propertySearch,
-    myListings: myListings,
     myClients: myClients,
     pipeline: pipeline,
     tasks: tasks,
@@ -13452,12 +13629,6 @@ var Panels = (function () {
     _editPastDeal: _editPastDeal,
     _submitPastDeal: _submitPastDeal,
     _deletePastDeal: _deletePastDeal,
-    _switchMyListingsView: _switchMyListingsView,
-    _switchMyListingsType: _switchMyListingsType,
-    _switchMyListingsStatus: _switchMyListingsStatus,
-    _addOpenHouse: _addOpenHouse,
-    _deleteListing: _deleteListing,
-    _submitOpenHouse: _submitOpenHouse,
     _switchMyClientsView: _switchMyClientsView,
     _searchMyClients: _searchMyClients,
     _toggleSection: _toggleSection,

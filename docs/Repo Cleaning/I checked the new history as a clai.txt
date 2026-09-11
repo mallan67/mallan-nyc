@@ -1,0 +1,153 @@
+I checked the new history as a **claim ledger**, not as a trustworthy handoff. The pasted session contains a mixture of GitHub facts, local-Windows facts, dated Cotality observations, inferred conclusions, and claims about tests that were never published as durable evidence. 
+
+The most important result is that **a substantial part of the prior session is correct, but several claims were stated more strongly than their evidence allows.**
+
+## Independent claim audit
+
+| Claim from the history                                  | Verdict                             | What I independently found                                                                                                                                          |
+| ------------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Current `main` is `2a83952a…`                           | **PROVEN**                          | GitHub currently resolves `main` to `2a83952a31c7aaa9367141763c1685269c51c380`.                                                                                     |
+| Remote cleanup branch exists                            | **PROVEN**                          | `chore/remove-ai-reference-sprawl-2026-09-06` exists remotely at `7be9ae99…`.                                                                                       |
+| `7be9…` was based directly on current main              | **PROVEN**                          | Its only parent is `2a83952a…`.                                                                                                                                     |
+| `7be9…` changes 30 files                                | **PROVEN**                          | GitHub comparison reports exactly 30 changed files.                                                                                                                 |
+| `7be9…` is +4,167 / −8,800                              | **PROVEN**                          | GitHub commit stats are 4,167 additions and 8,800 deletions.                                                                                                        |
+| Local cleanup commit `e7017225` exists                  | **LOCAL-ONLY / NOT REVERIFIED**     | GitHub cannot resolve `e7017225`. That does **not** prove it never existed locally; it means it is not durable GitHub evidence available to me now.                 |
+| `e7017225` changed 153 files / −16,309                  | **NOT REVERIFIED**                  | Requires the local Git object or rescue bundle. The Windows machine is not connected to the Desktop tool right now.                                                 |
+| `e7017` and `7be9` differ in 127 files                  | **NOT REVERIFIED**                  | Same reason: I can inspect `7be9`; I cannot inspect the local-only `e7017`.                                                                                         |
+| Main lacks the Master Plan                              | **PROVEN**                          | `MALLAN-PLATFORM-MASTER-PLAN.md` is still absent from current `main`.                                                                                               |
+| Main lacks Continuous Execution State                   | **PROVEN**                          | `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` is still absent from current `main`.                                                                         |
+| Main still has `CLAUDE.md`                              | **PROVEN**                          | It remains a “Project Command Center” and still points to `AGENTS.md` as shared authority.                                                                          |
+| There are 34 remote branches                            | **PROVEN**                          | Current GitHub branch census returns 34 branches.                                                                                                                   |
+| 33 of 34 branches contain `CLAUDE.md`                   | **NOT RECOUNTED**                   | The denominator 34 is proven. I have not performed 34 independent blob reads, so I will not repeat 33/34 as fact.                                                   |
+| There were 20 worktrees                                 | **LOCAL-ONLY / NOT REVERIFIED**     | Cannot inspect `.git/worktrees` on Maya's Windows machine while no Desktop device is connected.                                                                     |
+| All worktrees are now gone                              | **LOCAL-ONLY / NOT REVERIFIED**     | Same limitation.                                                                                                                                                    |
+| Patch backups contain 63 / 15 / 14 files                | **LOCAL-ONLY / NOT REVERIFIED**     | Requires the local `.cache` files.                                                                                                                                  |
+| 64 untracked files were rescued into Desktop quarantine | **LOCAL-ONLY / NOT REVERIFIED**     | Requires the local rescue directory.                                                                                                                                |
+| `all-local-refs.bundle` contains `e7017`                | **LOCAL-ONLY / NOT REVERIFIED**     | Requires opening/verifying that bundle.                                                                                                                             |
+| Nothing was lost during restart                         | **NOT PROVEN FROM REMOTE EVIDENCE** | It may be true, but the proof resides on the local machine/rescue bundle, not GitHub.                                                                               |
+| Search branch is 53 commits ahead of main               | **PROVEN**                          | `search/browser-integration-2026-09-05` is exactly 53 commits ahead and 0 behind current main.                                                                      |
+| Search branch touches ~335 files                        | **NOT EXACTLY REVERIFIED**          | It undeniably has a very large cross-system diff, but I am not certifying the exact 335 count from the available comparison response.                               |
+| Search branch contains newer provider-contract work     | **PROVEN**                          | Yes. It adds the live-contract system, provider evidence, field/picklist corrections and extensive Search changes.                                                  |
+| Cleanup and Search will collide                         | **PROVEN STRUCTURALLY**             | Search modifies files such as `CLAUDE.md`, README, old project docs, verification docs and `memory/AUDITOR-LOG.md` that the cleanup independently deletes/replaces. |
+
+## The Cotality findings
+
+The **central provider conclusion is supported**.
+
+The September Search evidence records a direct live Cotality study. It found **18 entity sets**, 17 metadata resources, 1,456 fields, 181 enums and 31 navigations. More importantly, the live `Field` resource showed 243 Property fields with a `LookupName`, with 61 of those using a LookupName different from the field name. Its resulting rule is:
+
+**Field → LookupName → Lookup rows**
+
+rather than assuming a field's valid values can be obtained by looking up a `$metadata` EnumType with the same name.
+
+That means the prior session was correct about the **architectural defect**: `$metadata` type information and the provider's field-published vocabulary are not interchangeable.
+
+The Search branch's independent live checkpoint also records the provider's StandardStatus tokens, including **`Canceled` with one L**.
+
+However, I am **not independently certifying these later transcript numbers as current facts**:
+
+* 621 published field vocabularies
+* 325 with no EnumType
+* 339 missed by old indexing
+* 30 shared EnumTypes
+* 27 divergent value sets
+* Trestle 5.9
+* 280/min and 8,400/hour quota
+
+Those may have been obtained by the local Claude session, but I did not find all those exact aggregate values in the durable evidence I inspected. More importantly, the Cotality connector is currently failing at its MCP tunnel with a 404, so I cannot perform a fresh live census today.
+
+So the correct status is:
+
+**Lookup-vs-EnumType defect = independently supported.**
+
+**Those exact later aggregate numbers = not freshly reproduced by me.**
+
+## The terminal-status finding is real — but the count “8 definitions” is not reliable
+
+Current `main` still defines provider terminal statuses using:
+
+`Closed, Sold, Leased, Rented, Withdrawn, Expired, Cancelled`
+
+with double-L `Cancelled`.
+
+`normalizeStandardStatus()` converts single-L `canceled` to Mallan's double-L `Cancelled`, and `computeGateColumns()` normalizes **before** evaluating terminal status. That confirms the prior session's claim that the primary writer does not miss `Canceled`.
+
+But the daily retention route separately redeclares the raw double-L list rather than consuming the normalized canonical helper.
+
+So the stated **latent cron exposure is real statically**.
+
+What I would correct is the claim that there are “8 competing TERMINAL_STATUSES definitions.” Current main code search shows at least **nine listing-domain declarations or independent status sets**, before counting separately named mirrors such as `ARCHIVE_TERMINAL_STATUSES`. Examples exist in compliance status, CRM status mapping, ghost reconciliation, syndication, data retention, public filtering, feed reconciliation, RLS enforcement and the Trestle mapper.
+
+So the **problem is confirmed; the number 8 was an undercount or definition-dependent count**.
+
+I cannot verify the claimed current Production counts—7,591 Active, 6,975 Withdrawn, 6,089 Closed, etc.—or “zero displayed” today because those require the Production database evidence used in that prior session. I will not carry them forward as current facts.
+
+## RealPlus is still an actual application contract on `main`
+
+This part of the history is correct and important.
+
+`realPlusUrl` is not merely stale prose. Current main still contains it in the canonical listing URL helper and in **three CRM write/status API paths**.
+
+And the actual sale form still does this:
+
+* reads `result.realPlusUrl`;
+* requires it for the “published” path;
+* labels the UI **“RealPlus URL”**;
+* exposes a copy button for that value.
+
+So a blind text replacement in `public/crm/**` would indeed be dangerous. It touches a real current contract.
+
+The exact claim of “310 RESO occurrences under `public/crm`” is not independently reproduced. GitHub's current default-branch code search finds **55 files** under `public/crm` containing `RESO`; that measures files, not raw occurrence count, so it neither proves nor disproves the local count of 310 occurrences.
+
+## The cleanup validation was overstated
+
+The durable remote cleanup commit `7be9…` has a successful READY Vercel Preview, and I verified that Preview corresponds exactly to that SHA.
+
+But GitHub currently shows:
+
+* **no PR** for this cleanup branch;
+* **zero GitHub Actions workflow runs associated with the commit**;
+* only the Vercel success status.
+
+Therefore the remote cleanup cannot currently be described as “independently validated,” “CI green,” or “all gates green.”
+
+A Vercel build succeeding is useful evidence. It is **not equivalent to the full Mallan validator suite**.
+
+Likewise, the transcript's claims:
+
+`type-check 0`
+`compliance 95/95`
+`test:compliance 429/429`
+`test:rls 41/41`
+`test:runtime 0`
+`4,264 / 4,267 runtime tests`
+
+cannot presently be independently tied by me to `e7017225`, because that commit is local-only and I cannot run that checkout. The transcript itself eventually acknowledged that the 4,264/4,267 claim was unconfirmed. 
+
+## The branch-collision problem itself is unquestionably real
+
+There is a remote cleanup implementation at `7be9…`.
+
+The pasted history says a different local implementation existed as `e7017225`, using the **same branch name, same intent and same commit message**, while doing substantially more cleanup. 
+
+I cannot independently inspect the local commit today, but the remote side is definite, and GitHub has no `e7017` object available.
+
+That makes the critical operational lesson sound:
+
+**a local branch name did not provide cross-session coordination.**
+
+There is only one durable remote ref carrying that name, and it points to `7be9…`.
+
+## What I would carry forward as verified fact
+
+After stripping out session narrative and unsupported exact counts, these are solid:
+
+1. `main` is still `2a83952a…`; neither intended authority file is on main, and the old `CLAUDE.md` authority system remains there.
+2. Remote cleanup `7be9…` is one commit directly above main, changes 30 files, deletes 8,800 lines, and has only Preview/build evidence—not PR/CI closure.
+3. Search is 53 commits ahead of the same main and contains newer provider-contract work.
+4. The naive `$metadata EnumType` approach is not sufficient for field vocabulary; the live provider exposes the `Field.LookupName → Lookup` relationship.
+5. Provider `StandardStatus` uses `Canceled`; main normalizes it on the primary writer but still has independently redeclared terminal-status consumers.
+6. `realPlusUrl` is still a real current API/UI contract on main, so that surface is not safely handled by a global textual purge.
+7. `e7017225`, the worktree census, rescue/quarantine completeness, patch contents and local Git bundle are **not independently verified in this session** because the Windows machine is not currently connected.
+
+I have **not changed anything and I am not yet recommending which branch to merge, what to delete, or which cleanup to keep**. The remaining evidence gap is now very specific: the local-only `e7017225`/rescue/bundle claims must be inspected from Maya's Windows checkout before they are allowed into the canonical record.

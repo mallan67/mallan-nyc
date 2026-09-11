@@ -1,0 +1,718 @@
+A change cannot merge unless its complete impact graph is classified.
+A Search implementation cannot pass by testing itself against itself.
+A provider failure cannot masquerade as zero results.
+A browser workflow cannot be called complete unless the underlying API/data/persistence workflow also passes.
+Verification from an older SHA cannot transfer to a newer SHA.
+Production cannot be certified unless the exact reviewed SHA is the exact deployment being served.
+Any missing evidence is UNVERIFIED, never PASS.
+
+That is the level Mallan should target.
+
+I found four major holes today
+Current condition	Why it prevents a real guarantee
+Main requires only pr-check	The active GitHub ruleset requires just one status check. release-truth, guardrails, live Cotality verification, Claude review, and browser E2E are not merge-blocking. Required approval count is also zero.
+Playwright is not in CI	The project's own Playwright config explicitly says E2E is not wired into CI.
+Live Cotality audit can skip green	The scheduled audit deliberately exits cleanly when Cotality credentials are absent. Fine for a daily monitor; unacceptable as release proof.
+Production smoke is shallow	The hourly live-site monitor verifies /search loads, attribution exists, freshness, sitemap, etc. It does not execute professional criteria and prove membership/count/pagination/Saved Search/CMA semantics.
+
+And there is another significant weakness inside pr-check: SQL views/constraints and seed setup are currently continue-on-error. So certain failures in test-environment construction can be tolerated while the required check remains green.
+
+That is the first thing I would fix in the assurance architecture—not Search code.
+
+What should actually guarantee Search
+
+I would create one required status called mallan-closure.
+
+Not another product authority. Not another Search engine. Not another Cotality manifest.
+
+It is simply the machine that certifies whether the existing canonical architecture has been proven for the exact SHA:
+
+MASTER PLAN REQUIREMENT
+        ↓
+CURRENT CANONICAL CODE
+        ↓
+IMPACT GRAPH
+        ↓
+LIVE PROVIDER PROOF
+        ↓
+INDEPENDENT ORACLE
+        ↓
+INVARIANT / ADVERSARIAL TESTS
+        ↓
+PERSISTENCE + WORKFLOW TEST
+        ↓
+REAL BROWSER PREVIEW
+        ↓
+EXACT SHA / DEPLOYMENT ID
+        ↓
+PASS | FAIL | BLOCKED | UNVERIFIED
+
+Then GitHub main becomes:
+
+PR
+ │
+ ├── pr-check
+ │
+ └── mallan-closure
+          │
+          ├── architecture
+          ├── provider
+          ├── behavioral
+          ├── persistence
+          ├── differential
+          ├── compliance
+          └── preview E2E
+                    ↓
+              BOTH MUST PASS
+                    ↓
+                  MAIN
+
+That is far stronger than simply adding six unrelated required checks.
+
+mallan-closure dynamically determines what proof pack the change requires. A Search change invokes Search proof. A Listing writer invokes Listing proof. A media change invokes Media proof. A CRM identity change invokes Identity proof.
+
+Search needs three independent answers, not one
+
+This is the most important technical change.
+
+Today the current Search branch is structurally much better than it used to be. /api/idx/search calls the canonical criteria parser and shared executor, exposes detailed provider/Mallan/page/hydration accounting, and refuses unsupported criteria instead of silently ignoring them.
+
+The shared executor also already services Agent Search, Saved Search execution/count and alert matching, with membership/order/total/page decided centrally. Do not rebuild this engine.
+
+Instead, verify it with three independent calculations:
+
+Oracle	Calculates
+A — Provider oracle	Direct Cotality query independently returns IDs/count for criteria that Cotality supports
+B — Independent raw-row oracle	Reads complete raw provider/Mallan facts and applies a deliberately simple independent predicate
+C — Mallan Search	Runs the real canonical engine
+
+For every testable criterion:
+
+A membership
+      =
+B membership
+      =
+C membership
+
+and:
+
+A/B complete count = C total
+
+and for deterministic sorting:
+
+A/B order = C order
+
+The oracle must not import the production Search executor.
+
+Otherwise you create:
+
+buggy implementation
+      ↓
+shared buggy helper
+      ↓
+test using same helper
+      ↓
+GREEN
+
+That is exactly the class of failure you have been fighting.
+
+Add a conservation-of-inventory proof
+
+This may be the single strongest Search invariant Mallan can add.
+
+Every listing entering Search must either survive or receive an explicit exclusion reason.
+
+For example:
+
+provider eligible rows
++ Mallan eligible rows
+=
+suppressed return copies
++ duplicates
++ compliance exclusions
++ workflow/type exclusions
++ criteria exclusions
++ final Search universe
+
+Nothing disappears anonymously.
+
+Then:
+
+final universe
+=
+page 1
++ page 2
++ page 3
+...
+
+with:
+
+page A ∩ page B = ∅
+
+This catches:
+
+filters applied after slicing;
+disappearing rows;
+duplicate pages;
+dedupe after pagination;
+return-copy re-injection;
+count/result disagreement;
+hydration losses;
+post-filter shrinkage.
+
+Your current route already exposes much of the necessary stage accounting—providerRows, mallanRows, suppressedOfficeIds, missing, gateExcluded, media completeness, etc.
+
+So this is an extension of existing architecture, not another telemetry system.
+
+For Search acceptance, I would also make this hard:
+
+countMeaning !== "exact" = not closed.
+
+The application can operate in a degraded state if necessary, but Search cannot be certified complete while its final universe is merely a lower bound.
+
+Add property-based and state-machine testing
+
+Example-based tests will never exhaust professional Search.
+
+fast-check is particularly suited to Mallan because it generates many inputs, shrinks failures to a minimal counterexample, and supports model-based sequences and even scheduled async execution for race-condition discovery. Critically, its own documentation warns that the model should remain a simplified independent representation rather than a copy of the implementation.
+
+The Search invariants should include things such as:
+
+adding a genuinely restrictive filter cannot expand the universe;
+removing that restriction cannot shrink it;
+sort changes order, not membership;
+pagination never overlaps;
+all pages reconstruct the complete universe;
+total === complete universe size;
+Basic → Advanced → Basic loses no hidden criteria;
+Saved Search → reload produces the same normalized criteria hash;
+temporary Search edits do not alter Saved Search until explicitly saved;
+Sale criteria cannot silently execute as Rental;
+provider 400/403/429/500/timeout can never become [];
+failed Cotality acquisition becomes UNVERIFIED;
+one canonical listing never appears twice because a return-copy exists.
+
+But we can go further.
+
+Model the whole client Search workflow
+
+Have fast-check generate sequences such as:
+
+select client
+→ load saved search
+→ modify criterion
+→ run
+→ sort
+→ page
+→ save
+→ reload
+→ send listing
+→ client views
+→ comment
+→ schedule showing
+→ reject
+→ provider price changes
+→ search reruns
+→ listing becomes RECONSIDER
+→ manually resend
+→ add to CMA
+
+After every command, compare the real application state to a very small model of what should be true.
+
+That is how you find defects that only happen after seven interactions rather than during one isolated request.
+
+Attack the tests themselves
+
+After the Search test suite passes, deliberately damage Search.
+
+StrykerJS mutation testing does exactly this: it injects bugs and checks whether your tests catch them. A mutant that survives proves the tests did not distinguish correct behavior from broken behavior.
+
+Examples worth deliberately mutating:
+
+AND → OR
+>= → >
+>= → <=
+true → false
+sort ASC → DESC
+offset + limit → offset
+exact → lower_bound
+suppressed → included
+Sale → Rental
+400 → []
+provider error → empty set
+duplicate removal disabled
+
+Stryker can also fail CI below an explicit mutation-score threshold.
+
+I would not run mutation testing on 300,000 lines.
+
+Run it against the small set of modules that decide:
+
+identity, membership, mapping, compliance, count, pagination and persistence.
+
+And stronger than an arbitrary percentage:
+
+no unexplained surviving mutant in the Search-critical invariant set.
+
+Equivalent mutants can be documented explicitly.
+
+Architecture itself must be executable
+
+Use dependency-cruiser plus an AST guard.
+
+Dependency-cruiser supports forbidden, allowed and required dependency rules, including transitive reachability.
+
+Then encode things like:
+
+CMA
+  MUST depend on canonical Search
+  MUST NOT depend directly on Cotality provider client
+
+Saved Search
+  MUST depend on canonical Search executor
+  MUST NOT contain another OData compiler
+
+CRM Search UI
+  MUST depend on canonical criteria contract
+  MUST NOT own Cotality enum vocabulary
+
+Public Search
+  MAY consume shared canonical facts
+  MUST NOT reach through CRM implementation internals
+
+The AST guard handles things dependency graphs cannot easily see:
+
+provider field literals;
+$filter assembly;
+direct raw Cotality URLs;
+duplicated enum arrays;
+handwritten generated artifacts.
+
+That makes architectural drift a compiler/CI failure instead of an audit finding three months later.
+
+Add fault injection, not just happy-path E2E
+
+Recent Vercel error clusters include Search provider 500s, Saved Search provider failures and a Search timeout on Preview deployments.
+
+So Search acceptance must deliberately test:
+
+Injected failure	Required behavior
+Cotality 429	explicit temporary-unavailable response; never empty Search
+Cotality 500	fail closed
+timeout	fail closed and observable
+empty page + nextLink	UNVERIFIED, not complete
+Redis unavailable	deterministic defined fallback, no membership change
+missing hydrated listing	degraded state explicitly accounted for
+Media failure	listing identity/membership remains correct
+DB failure while saving Search	no partial “saved” state
+response lost after successful save	retry remains idempotent
+duplicate submit	no duplicate Saved Search/client event
+stale cache	same criteria cannot silently return incompatible universes
+
+This is where race testing later becomes important for the entire brokerage.
+
+Real browser proof must become mandatory
+
+There are already several Search Playwright specs on the current Search branch—mobile, map, cards, photos, toolbar, carousel and related behavior.
+
+The problem is not absence.
+
+They are not a required execution layer.
+
+For closure, Playwright should run against the exact Vercel Preview deployment for the exact SHA, using a controlled authenticated QA user/database.
+
+The Search acceptance run should exercise:
+
+Surface	Required proof
+Desktop	full Advanced professional Search
+Tablet	same state and results
+Mobile	Basic representation while preserving hidden Advanced criteria
+Saved Search	save → leave → return → identical criteria
+Results	count, sorting, pagination, list/table/map parity
+Listing detail	open → back → Search state preserved
+Client	load client → history overlays correctly
+Showing/comment	action visible on return
+CMA	selected Search results transfer intact
+Failure UI	provider error is visibly degraded, never “0 properties”
+
+And run at minimum Chromium plus one independent engine; eventually Chromium, Firefox and WebKit.
+
+Failure artifacts should retain:
+
+Playwright trace;
+network calls;
+console;
+screenshots;
+exact deployment ID;
+exact SHA.
+Current GitHub protection is not enough
+
+This is a concrete configuration defect in the assurance model.
+
+The current Protect main ruleset requires only pr-check.
+
+Meanwhile release-truth explicitly says its PR result is advisory; production proof happens after push to main.
+
+But release-truth itself contains something extremely good that I would preserve: it already binds production proof to the exact SHA + deployment ID + mallan.nyc alias, runs smoke, and then reconfirms the identity afterward to catch an alias switch during verification.
+
+That exact-identity principle should move earlier.
+
+Recommended merge requirement:
+
+pr-check              PASS
+mallan-closure        PASS
+──────────────────────────
+MERGE ALLOWED
+
+mallan-closure internally requires the domain-specific subproofs.
+
+This is better than making ten GitHub statuses required individually.
+
+Add a Vercel gate after GitHub
+
+GitHub controls what enters main.
+
+Vercel should independently control what receives the production alias.
+
+Vercel now supports project Deployment Checks that can explicitly block production alias assignment.
+
+So:
+
+GitHub exact SHA
+       ↓
+Vercel build
+       ↓
+Preview READY
+       ↓
+Mallan closure artifact verified
+       ↓
+Vercel Deployment Check PASS
+       ↓
+production alias allowed
+
+That gives you two independent barriers.
+
+And Vercel's current rolling-release support gives another layer for major system changes:
+
+5%
+↓ verify
+25%
+↓ verify
+100%
+
+with an automated gate configured to rollback when monitored errors cross the threshold.
+
+Because your traffic is relatively low, I would not rely on passive traffic alone. The canary needs targeted synthetics.
+
+Production needs synthetic proof because real traffic is insufficient
+
+I queried the last 24 hours of production /api/idx/search logs and found no matching Search logs.
+
+That does not mean Search is healthy.
+
+It means there may have been insufficient production Search traffic to prove anything.
+
+Therefore after a Search release:
+
+exact deployed SHA confirmed
+      ↓
+read-only synthetic Sale Search
+      ↓
+read-only synthetic Rental Search
+      ↓
+count/page invariant check
+      ↓
+Saved Search read/execute test where safe
+      ↓
+runtime telemetry check
+
+Run the expensive write-based CRM scenarios against Preview/QA, not continuously against Production.
+
+That respects your Neon-cost work.
+
+Instrument Search as a proof trace
+
+You already have useful Search telemetry.
+
+Extend it instead of creating a second observability system.
+
+Every Search request should be able to identify:
+
+git_sha
+deployment_id
+request_id
+
+criteria_hash
+workflow
+query_plan_hash
+
+provider_evidence_sha
+registry_sha
+
+provider_input_count
+mallan_input_count
+
+suppression_count
+dedupe_count
+business_rule_exclusion_count
+
+final_universe_count
+
+page_offset
+page_size
+page_returned
+
+hydration_missing
+compliance_excluded
+
+count_meaning
+duration
+
+No client names. No free-text remarks. No PII.
+
+Vercel's Pro observability stack can export logs/traces through Drains/OpenTelemetry, so later you can follow:
+
+browser
+→ /api/idx/search
+→ criteria normalization
+→ Cotality
+→ Mallan rows
+→ settlement
+→ suppression
+→ pagination
+→ hydration
+→ response
+
+instead of trying to reconstruct failures from isolated console lines.
+
+The existing daily Cotality check needs two modes
+
+Current scheduled trestle-live-audit makes a deliberate choice: missing credentials = warning + skip + clean exit.
+
+Keep that for the scheduled monitor if you want.
+
+But the release path must be different:
+
+DAILY MONITOR
+missing credentials
+→ SKIPPED/WARNING
+
+RELEASE CLOSURE
+missing credentials
+→ UNVERIFIED
+→ BLOCK MERGE
+
+Today's Cotality connector in this ChatGPT session actually failed at the MCP transport layer when I attempted a fresh DaysOnMarket lookup.
+
+That is a useful demonstration of the rule:
+
+I cannot honestly certify that Cotality fact today from that connector. Therefore the answer is UNVERIFIED, not “probably fine.”
+
+The same rule must exist in the software.
+
+Use #627's exact-head discipline everywhere
+
+PR #627 contains one of the strongest processes currently in your repo: an independent acceptance result is tied to the exact head and environment, and when the head changes, previous PASS results explicitly do not transfer.
+
+Make that universal.
+
+A proof bundle should contain:
+
+proof_run_id
+commit_sha
+deployment_id
+environment
+
+master_plan_sha
+execution_state_sha
+
+provider_evidence_sha
+canonical_registry_sha
+
+impact_graph_sha
+criteria/query-plan hashes
+
+test results
+differential results
+mutation results
+
+browser trace artifact
+runtime trace IDs
+
+PASS / FAIL / BLOCKED / UNVERIFIED
+
+Push one line of code?
+
+Old bundle is invalid.
+
+New SHA means new proof.
+
+This eliminates one of the biggest causes of false confidence in the project.
+
+What this becomes for the entire Mallan system
+
+Do not create a new “master architecture.”
+
+Create one reusable Mallan Closure Engine underneath the existing Master Plan.
+
+The Master Plan says what must be true.
+
+The Closure Engine proves whether it is true.
+
+Each business area supplies a proof profile:
+
+Domain	End-to-end proof
+Search	Cotality → mapping → universe → count/page → Saved Search → client history → CMA
+Listing writer	form → validation → write → reload → edit → reload → workspace → public → distribution/reconciliation
+Identity	Individual/Party/Client/Agent → role → relationship → every consumer
+Media	source → ingest → DB → R2 → resolver → workspace → public → retirement
+Seller/Landlord	Client → owner → listing → marketing → showing → offer/application → deal
+Buyer/Tenant	Client → opportunity → Search → listing history → showing → offer/application → deal
+Communications	recipient → message → delivery → audit → suppression → retry
+Compliance	raw fact → interpretation → DB → business gate → every exposed audience
+CMA	Search universe → candidates → selected comps → adjustments → report
+Agent lifecycle	create → persist → invite → login → My Business → public profile → deactivate
+Post-deal	deal → documents → commission/referral → historical client/property timeline
+
+Same closure infrastructure.
+
+Different invariants.
+
+Where formal methods actually belong
+
+I looked deeper at formal verification too.
+
+TLA+/PlusCal and the TLC model checker can explore concurrent state machines and check both safety and liveness properties.
+
+I would not model all of Search in TLA+.
+
+That would become another massive project.
+
+Use it selectively later for the few Mallan workflows where races or retries could damage permanent business state:
+
+Agent create + invitation + retry
+Listing publication + Cotality return-copy reconciliation
+Email send + suppression + retry
+Listing status transition
+Deal transition
+Media replacement/deletion
+Destructive cleanup
+
+PlusCal is specifically intended for concurrent algorithms; full formal proof is possible but considerably more work and is seldom necessary.
+
+So:
+
+fast-check for real application sequences.
+TLA+ only for dangerous state machines.
+
+The control model I recommend
+
+This is the final architecture I would hold fixed:
+
+                   MALLAN MASTER PLAN
+                          │
+                    requirement IDs
+                          │
+                          ▼
+                CANONICAL IMPLEMENTATION
+                          │
+                    changed Git SHA
+                          │
+                          ▼
+                  IMPACT GRAPH BUILDER
+                          │
+             ┌────────────┼─────────────┐
+             ▼            ▼             ▼
+       architecture    live facts    business rules
+          guard         Cotality      persistence
+             │            │             │
+             └────────────┼─────────────┘
+                          ▼
+                INDEPENDENT ORACLES
+                          │
+             ┌────────────┼────────────┐
+             ▼            ▼            ▼
+        differential   properties    state model
+             │            │            │
+             └────────────┼────────────┘
+                          ▼
+                  FAULT INJECTION
+                          ▼
+                MUTATION TESTING
+                          ▼
+             REAL PREVIEW BROWSER E2E
+                          ▼
+               COMPLIANCE / AUDIENCE
+                          ▼
+                  MALLAN-CLOSURE
+                   PASS REQUIRED
+                          ▼
+                     GITHUB MAIN
+                          ▼
+                VERCEL DEPLOYMENT
+                          ▼
+                DEPLOYMENT CHECK
+                          ▼
+                CANARY / SYNTHETIC
+                          ▼
+               EXACT SHA RECONFIRM
+                          ▼
+                     PRODUCTION
+                          ▼
+               CONTINUOUS MONITORING
+
+That is the first design I would call capable of breaking the four-month loop.
+
+Not because it magically makes Claude infallible.
+
+Because Claude no longer decides whether Claude succeeded.
+
+The deterministic gates and independent evidence decide.
+
+What I would have Claude do next
+
+Do not start another Search audit and do not build another Cotality contract, Search engine, provider client, mapping manifest, or architectural authority.
+
+The next foundation is the executable MALLAN CLOSURE ENFORCEMENT layer, subordinate to MALLAN-PLATFORM-MASTER-PLAN.md and the existing canonical implementations.
+
+Before changing code, verify every statement below against the current exact branch/head and report any conflict.
+
+Build one deterministic mallan-closure orchestrator whose verdict is PASS / FAIL / BLOCKED / UNVERIFIED and is cryptographically/exact-head bound to the Git SHA and Preview deployment. Evidence from any earlier SHA must never transfer.
+For Search, reuse the current canonical criteria/parser/executor/FIELD_REGISTRY/live-Cotality tooling. Do not create parallel authorities.
+Build a generated impact graph from the actual diff covering affected provider facts, canonical mappings, readers, writers, storage/projection, caches, jobs, forms, Saved Search, client history, reports/CMA, public/CRM consumers and compliance. No changed Search file or changed canonical fact may remain UNCLASSIFIED.
+Build an independent Search oracle that does NOT import the production query executor to compute expected membership. For provider-filterable criteria, compare direct Cotality membership/count with the canonical Search. Where a Mallan-side/derived predicate is necessary, independently evaluate complete raw facts. Compare canonical listing IDs, count, sort and pagination.
+Add conservation-of-universe accounting:
+every provider/Mallan input row must either survive into the final universe or have one explicit exclusion reason.
+Final universe must equal the disjoint union of all pages.
+No unexplained row loss or duplication is acceptable.
+Add fast-check property and state-model tests. Include filter monotonicity where logically applicable, pagination disjointness/completeness, exact-count equality, sort-membership stability, Basic/Advanced zero-loss criteria parity, Saved Search round-trip parity, Sale/Rental separation and fail-loud provider error semantics.
+Add stateful sequences for:
+Client → Saved Search → run → sort/page → modify/save/reload → listing send → view/comment/showing → rejection → price/status change → Reconsider/resend → CMA handoff.
+The model must be simpler and independent, not a copy of implementation logic.
+Add failure injection for provider 429/500/timeout, incomplete pagination, DB failure, cache failure/staleness, missing hydration, media failure, duplicate submit, lost response and retries. No external or infrastructure failure may become empty successful data or a partial successful write.
+Add targeted StrykerJS mutation testing to Search-critical membership, mapping, identity, count, pagination, compliance and persistence modules. Critical mutation survivors must be investigated rather than hidden behind a coverage percentage.
+Add dependency-cruiser and TypeScript AST authority guards proving that CMA/Saved Search/forms/public consumers cannot bypass their canonical owners, construct rival provider queries/vocabularies, or directly depend on forbidden lower layers.
+Wire the existing Playwright Search/browser scenarios into an exact-Preview acceptance job. Expand the final professional workflow to authenticated desktop, tablet and mobile, Saved Search persistence, list/table/map, detail/back-state, client history, actions and CMA handoff. Preserve trace/network/screenshot artifacts on failure.
+Extend existing non-PII Search telemetry into a proof trace containing exact SHA/deployment, criteria hash, query-plan hash, provider evidence hash, input/exclusion/final-universe cardinalities, page accounting and countMeaning.
+Make missing live Cotality credentials or failed live acquisition UNVERIFIED and merge-blocking in the closure path. The scheduled daily audit may continue its current warning/skip behavior, but that behavior is forbidden for release certification.
+Do not rely only on pr-check. Prepare the GitHub change required for mallan-closure to become a REQUIRED main-branch check in addition to pr-check. Do not alter the ruleset until explicitly authorized.
+Prepare a Vercel Deployment Check that can block production alias assignment unless the exact reviewed SHA has a valid Mallan closure bundle. Do not activate or change Vercel production settings until explicitly authorized.
+Preserve and reuse the existing release-truth exact-deployment identity model: exact Git SHA, exact dpl_ ID, mallan.nyc production alias, post-smoke identity reconfirmation. Generalize it rather than replace it.
+Add a low-cost post-deploy Search synthetic because lack of real Search traffic cannot prove production correctness. Heavy CRM writes remain Preview/QA-only unless explicitly authorized.
+Design the closure framework generically so later proof profiles can cover Listing Writer, Identity, Media, Seller/Landlord, Buyer/Tenant, Communications, Compliance, CMA, Agent Lifecycle, Deal and Post-deal without creating a new business architecture.
+Every escaped historical defect becomes a permanent regression/invariant in a defect corpus. A defect fixed once must become structurally difficult to reintroduce.
+Do not mutate schema, Neon, R2, environment, GitHub rulesets, Vercel production configuration, aliases or Production in this phase without Maya's explicit authorization.
+
+Return first:
+
+exact existing components being reused;
+exact missing enforcement components;
+proposed files;
+dependency/impact graph;
+how mallan-closure makes false-green Search impossible;
+what remains fundamentally unprovable;
+confirmation that no new business/provider/Search authority is being created.
+
+Do not implement a large control plane before this bounded design is reconciled with the current exact head.
+
+I would make this the immediate foundation before Claude continues correcting individual Search criteria. Once the closure mechanism itself is proven on one bounded Search defect, you can reuse it criterion by criterion and then domain by domain across Mallan.

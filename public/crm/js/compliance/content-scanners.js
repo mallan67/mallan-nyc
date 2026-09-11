@@ -146,7 +146,7 @@
             if (!entireEl) return;
 
             var cascadeTargets = [
-                prefix + 'IDXEntireListingDisplayYN',
+                prefix + 'Dist_IDX', // the Mallan IDX-display control (no provider field exists)
                 prefix + 'InternetAddressDisplayYN',
             ];
 

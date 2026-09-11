@@ -1,0 +1,145 @@
+This is now disciplined again. I independently verified the remote state:
+
+* `main` is still exactly **`2a83952a31c7aaa9367141763c1685269c51c380`**.
+* `search/browser-integration-2026-09-05` is still exactly **`79efbc04d6440893f89cf144e586e1caf42bddff`**.
+
+So nothing accidental reached GitHub. Phase 0 can be considered restored, subject to Claude's local clean-tree verification.
+
+There is, however, **one important correction to Claude's proposed next step**: after you switch to the Search lane, I would **not start Phase 3 cleanup immediately**.
+
+The newly discovered `SystemReferences` issue means **Phase 2 is still open and actually invalidates part of the current branch's latest Cotality vocabulary implementation**.
+
+The current `79efbc04` commit explicitly says vocabulary is taken from Lookup keyed by `(ResourceName, FieldName)` and discusses Property `Permission` as publishing 18 members.  Claude's later investigation says those are the **combined Lookup values across systems**, and that `SystemReferences` must scope them to the authorized source before Mallan can call them valid for its subscription.
+
+That is load-bearing. We cannot clean mappings against the wrong vocabulary again.
+
+### The exact next sequence should be
+
+First, run the branch switch Claude requested:
+
+```bash
+git checkout search/browser-integration-2026-09-05
+```
+
+Then Claude must re-prove:
+
+```text
+branch = search/browser-integration-2026-09-05
+HEAD = 79efbc04d6440893f89cf144e586e1caf42bddff
+origin HEAD = same
+tracked dirty = 0
+staged = 0
+```
+
+After that, **finish Phase 2 before Phase 3**:
+
+1. **Correct Lookup scoping**
+
+   * `Field.LookupName`
+   * → `Lookup.LookupName`
+   * → deduplicated `LookupValue`
+   * → correctly scoped using `SystemReferences`
+   * not merely all values that Cotality publishes globally.
+
+2. **Resolve the reported 757-vs-810 field discrepancy.**
+   There cannot be two unexplained counts in the supposed canonical provider contract.
+
+3. **Correct `lib/cotality/live-contract.ts` and generated vocabulary data** if the current implementation does not scope `SystemReferences`.
+
+4. Re-run the known examples:
+
+   * `Permission`
+   * `StandardStatus`
+   * `InteriorFeatures`
+   * `CurrentUse`
+   * `AvailableLeaseType`
+   * plus representative Media/OpenHouse fields.
+
+5. Prove Lookup duplicates are handled correctly rather than silently selecting one duplicate row.
+
+6. Preserve `$metadata` for **type/schema** and Lookup for **published values**, but with the proper subscription/system scope.
+
+Only after those checks pass should the ledger say:
+
+> **Phase 2 = CLOSED**
+
+Then Phase 3 starts.
+
+### The raw `"RLS"` exception needs to be narrower than Claude described
+
+Claude is right that raw Cotality records can contain literal values like:
+
+```text
+OriginatingSystemName = "RLS"
+OriginatingSystemSubName = "RLS_REBNY"
+ListingId = "RLS..."
+```
+
+We absolutely should not corrupt provider data just to get a string count to zero.
+
+But I would enforce this boundary:
+
+```text
+COTALITY RAW CONTRACT
+    may contain provider literal "RLS"
+              ↓
+COTALITY ADAPTER
+    interprets raw provider provenance
+              ↓
+MALLAN
+    neutral semantic concept
+```
+
+For example, code outside the raw Cotality layer should consume something conceptually like:
+
+```text
+isAuthorizedProviderOrigin(...)
+isCotalityProviderListing(...)
+providerOrigin
+providerListingId
+```
+
+—not:
+
+```text
+startsWith("RLS")
+RLS listing
+RLS feed
+RLS search
+```
+
+That means the three `feed-reconcile` checks Claude found should eventually stop independently knowing that the provider's identifier happens to begin with `"RLS"`. That provider literal should be interpreted once at the Cotality boundary.
+
+The only other legitimate use of **RLS** outside that boundary is your actual **REBNY/RLS compliance/business rule layer**.
+
+### Do not wholesale reapply the saved 152 KB patch
+
+Keep it as evidence.
+
+Claude should **not** simply apply the whole patch to the Search branch. It was generated:
+
+* on the wrong branch,
+* before the authority matrix finished,
+* before the SystemReferences discovery,
+* and by agents that violated the read-only instruction.
+
+Use it as a source of candidate corrections. Reimplement/reapply each relevant change only after its impact graph is reviewed.
+
+### My accepted ledger now
+
+| Phase                                 | Status                                                             |
+| ------------------------------------- | ------------------------------------------------------------------ |
+| **0 — Branch discipline**             | **CLOSED / restored**                                              |
+| **1 — Authority matrix**              | **PROVISIONAL evidence**                                           |
+| **2 — Cotality truth**                | **OPEN — must resolve SystemReferences + field-count discrepancy** |
+| **3 — RESO / RealPlus / RLS cleanup** | **NOT STARTED**                                                    |
+| **4 — One Cotality layer**            | Not started                                                        |
+| **5 — One Search engine**             | Existing foundation present, convergence not closed                |
+| **6 — Consumer migration**            | Not closed                                                         |
+| **7 — Duplicate deletion**            | Not started systematically                                         |
+| **8 — Brokerage workflow closure**    | Not closed                                                         |
+| **9 — Preview / production proof**    | Not started for final converged system                             |
+
+So: **yes, proceed with the branch switch—but tell Claude to finish Phase 2 first. Do not let it jump directly into the 3,645-string cleanup yet.**
+
+That is the exact kind of sequencing mistake that would send this back into another circle.

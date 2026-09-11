@@ -1,10 +1,12 @@
 // Cotality ref: docs/architecture/COTALITY-COMPLETE-REFERENCE.md §18 (CRM Building Lookup)
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { boroughFromCityRegion } from '@/lib/listings/canonical-location';
 import { requireAgentOrBroker, isAuthError } from '@/lib/auth';
 import { sanitizeOData } from '@/lib/sanitize';
 import { getAccessToken } from '@/lib/idx/auth';
 import { canonicalizeDirection, canonicalizeSuffix, canonicalizeStreetName } from '@/lib/address/nyc-address-normalizer';
+import { cotalityFields } from '@/lib/cotality/contract';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -139,7 +141,8 @@ function addressIdentityKey(rec: Record<string, unknown>): string {
   // Don't duplicate a direction already embedded in StreetName (e.g. "E 46TH").
   const nameHasDir = dir && name.toUpperCase().startsWith(dir.toUpperCase() + ' ');
   const addrPart = `${num} ${dir && !nameHasDir ? dir + ' ' : ''}${name} ${suffix}`.replace(/\s+/g, ' ').trim();
-  const borough = String(rec.CityRegion ?? '').trim();
+  // Canonical borough so a DB address ("Staten Island") and a Cotality record ("StatenIsland") key alike.
+  const borough = boroughFromCityRegion(rec.CityRegion) ?? String(rec.CityRegion ?? '').trim();
   const zip = String(rec.PostalCode ?? '').trim();
   // Borough + zip incorporated when present, else plain full address (fallback).
   return `${addrPart}|${borough}|${zip}`.toUpperCase();
@@ -240,7 +243,7 @@ function registerBuilding(
 /**
  * Real-Cotality parking / laundry / documents / pets fields surfaced for the
  * CRM building-modal auto-fill (Track 1). EVERY field below is verified present
- * in live $metadata (artifacts/metadata.xml, 2026-05-30):
+ * in the live Cotality contract (first verified 2026-05-30; committed snapshot data/cotality-contract/**):
  *   GarageYN, AttachedGarageYN, GarageSpaces, OpenParkingSpaces, CoveredSpaces,
  *   ParkingFeatures, LaundryFeatures, DocumentsAvailable, PetsAllowed,
  *   PetsAllowedYN.
@@ -760,7 +763,7 @@ export async function GET(request: NextRequest) {
         const token = await getAccessToken();
         const cleanNum = sanitizeOData(parsed.streetNumber);
 
-        const SELECT = [
+        const SELECT = cotalityFields('Property', [
           'ListingId', 'BuildingName', 'YearBuilt', 'StoriesTotal',
           'NumberOfUnitsInCommunity', 'CommonInterest', 'OwnershipType',
           'PropertyType', 'PropertySubType', 'StructureType',
@@ -775,7 +778,7 @@ export async function GET(request: NextRequest) {
           // upstream.
           // 2026-05-29: REMOVED AttendanceType, NewDevelopmentYN, SponsorUnitYN,
           // RentingAllowedYN — none exist on the live Cotality Property entity
-          // (verified against artifacts/metadata.xml). Their presence made
+          // (verified against the live Cotality contract). Their presence made
           // Trestle reject the whole $select with HTTP 400 (no 4xx retry),
           // silently killing the Cotality building lookup. Concierge / on-site
           // manager are derived from BuildingFeatures (valid Multi enum); the
@@ -801,14 +804,13 @@ export async function GET(request: NextRequest) {
           // fields (Building*-prefixed members = building-level); building facts +
           // association; BuildingKeyNumeric for cross-unit aggregation.
           'BuildingKeyNumeric', 'BuildingAreaTotal', 'BuildingAreaUnits', 'BuildingAreaSource',
-          'YearBuiltDetails', 'YearBuiltSource',
-          'NumberOfUnitsInCommunity', 'PropertyCondition', 'OwnershipType', 'PropertyAttachedYN',
+          'PropertyCondition', 'PropertyAttachedYN',
           'AssociationYN', 'AssociationPhone', 'AssociationFee2',
           // All SIX amenity feature fields the resolver unions must be fetched —
           // AssociationAmenities was missing, so association-only amenities
           // (Concierge/IndoorPool) never filled on the Cotality path. (Codex #301)
           'ExteriorFeatures', 'CommunityFeatures', 'AccessibilityFeatures', 'AssociationAmenities',
-        ].join(',');
+        ]).join(',');
 
         const filterParts = [`startswith(StreetNumber,'${cleanNum}')`];
         if (parsed.streetDirPrefix) {

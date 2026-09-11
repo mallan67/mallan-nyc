@@ -36,6 +36,11 @@ import {
   isMallanRlsReturnCopy,
   type MallanSourceIdentityRow,
 } from '@/lib/listings/mallan-source-identity';
+import {
+  isLicenseeAccessRole,
+  isPrincipalBroker,
+  normaliseBrokerageRole,
+} from '@/lib/agents/brokerage-role';
 
 /**
  * Which of the three charter concepts this row is.
@@ -55,7 +60,11 @@ export type ListingSourceClass =
 /** The authenticated Mallan staff member making the request. */
 export interface CapabilityActor {
   userId: bigint;
-  /** `"BROKER"` | `"AGENT"` (schema.prisma:42 default `"AGENT"`). */
+  /**
+   * The BROKERAGE PROFESSIONAL ROLE: `"BROKER"` | `"ASSOCIATE_BROKER"` |
+   * `"SALESPERSON"`, plus the legacy `"AGENT"` still present on un-migrated
+   * rows. Read for staff ELIGIBILITY only — never to state a licence class.
+   */
   role: string;
 }
 
@@ -202,7 +211,7 @@ export function classifyListingSource(listing: CapabilityListing): ListingSource
  * role.
  */
 function normalizeRole(role: string): string {
-  return String(role ?? '').trim().toUpperCase();
+  return normaliseBrokerageRole(role);
 }
 
 /** TRUE when the actor is this listing's recorded association. */
@@ -225,8 +234,14 @@ export function listingCapabilities(
 ): ListingCapabilities {
   const sourceClass = classifyListingSource(listing);
   const role = normalizeRole(actor.role);
-  const isBroker = role === 'BROKER';
-  const isStaff = isBroker || role === 'AGENT';
+  // PRINCIPAL broker only. Deliberately narrow - an associate broker is not
+  // the principal broker, and that distinction is what the old model got right.
+  const isBroker = isPrincipalBroker(role);
+  // Staff ELIGIBILITY. This used to be `role === 'AGENT'`, a literal match on
+  // the retired "not the principal broker" value, so an ASSOCIATE_BROKER or
+  // SALESPERSON would have lost every staff capability the moment the column
+  // started naming professions honestly.
+  const isStaff = isLicenseeAccessRole(role);
   const isAssociated = isAssociatedAgent(actor, listing);
 
   /**

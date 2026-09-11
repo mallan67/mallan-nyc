@@ -1,0 +1,309 @@
+Yes. I studied this as a **system**, not as a document-deletion exercise. I am **not giving you a cleanup plan, merge recommendation, or implementation path in this response**. This is the forensic picture of what actually exists and where the contradictions are.
+
+## What the repository actually looks like now
+
+The central finding is that Mallan currently has **several different generations of authority and technical truth coexisting on different branches**. The September 6 cleanup branch fixes a major portion of the AI-governance sprawl, but it does not yet produce a self-consistent repository because several operational, provider, compliance, and machine-consumed layers still operate under the older model.
+
+| Layer                  | What I verified                                                                                       | Current state                                          |
+| ---------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| Production/Main        | `main = 2a83952a31c7aaa9367141763c1685269c51c380`; Vercel Production is that exact SHA                | Stable baseline, unchanged                             |
+| Sept. 6 cleanup        | `chore/remove-ai-reference-sprawl-2026-09-06` @ `7be9ae99…`, exactly 1 commit ahead of main           | Authority cleanup exists, not merged                   |
+| Product authority      | Master Plan + rewritten README establish one Mallan product/system authority                          | Structurally coherent                                  |
+| Execution state        | New state file is only 34 lines and mostly governance/baseline rules                                  | Does **not** actually record current work sufficiently |
+| Operational governance | Dashboard + Issue Registry remain and still declare broad authority                                   | Contradictory/stale                                    |
+| Provider authority     | Cleanup/main still contain old `$metadata`/CSV/provider assumptions                                   | Behind newer verified Search work                      |
+| Search/provider work   | `search/browser-integration-2026-09-05` @ `79efbc04…`, 53 commits ahead of main                       | Major newer technical truth, diverged from cleanup     |
+| Institutional memory   | `claude/mallan-cotality-context-l0o1oa` creates a new memory/handoff design immediately after cleanup | Direct governance collision                            |
+| Validation             | Cleanup has READY Vercel Preview, but no PR and no GitHub Actions run                                 | Build proof only, not closure                          |
+
+### 1. The new top-level authority model is fundamentally coherent
+
+The September 6 README is much cleaner than what was there before. It says the authority hierarchy is:
+
+Master Plan → Continuous Execution State → verified Cotality/Trestle contract → legal/compliance authority → Git/tests/runtime evidence.
+
+It also states the architecture exactly as it should:
+
+`COTALITY RAW CONTRACT → VERIFIED MAPPING → MALLAN STORAGE / PROJECTION → MALLAN BUSINESS RULE → PUBLIC / CRM CONSUMER`
+
+and explicitly says `CLAUDE.md`, `AGENTS.md`, session memory, handoffs and generated summaries are not project authority.
+
+The Master Plan itself also contains the permanent independent-verification architecture and exact-head rule. It explicitly rejects “Builder changed code → Builder tests green → declared done,” keeps evidence classes separate, freezes SHA/environment for verification, and requires the full defect → readers/writers → correction → integration → downstream → compliance → Preview → independent verification → Production chain.
+
+So the **Master Plan is not the problem I am seeing**.
+
+## 2. The new “Continuous Execution State” is not actually carrying the execution state
+
+This is more important than I initially thought.
+
+The September 6 cleanup version says that it “tracks current execution state,” but after the authority section it contains only the cleanup base SHA, cleanup branch name, mutation restrictions and the generic closure model. It does not record the actual active Search branch, active agent work, open implementation PRs, exact checkpoints, current blockers, current accepted heads, or current Production/runtime condition.
+
+The previous #595 state file was messy and carried obsolete governance layers, but it did perform the **state-recording function**. It identified active/frozen work, exact SHAs, active PRs, PASS/FAIL/BLOCKED status, next actions, and production holds.
+
+That distinction matters.
+
+The new state file is cleaner architecturally, but it has effectively changed from:
+
+**“What is closed, active, open, held, where did execution stop?”**
+
+into:
+
+**“Here are the rules for how execution should work.”**
+
+Those are different functions.
+
+I also verified that PR #627 is still open and draft today and contains newer exact-head information than either execution-state version.
+
+So the repo currently has a **valid Master Plan but an underpopulated execution ledger**.
+
+## 3. The Project Health Dashboard is not merely historical documentation
+
+This is a significant distinction.
+
+On the cleanup branch, the Dashboard still says:
+
+> “Shared source of truth for Claude · Codex · ChatGPT”
+
+and still tells the reader to see the now-deleted `AGENTS.md`. Its auto-probed data is from **July 31, 2026**, including an old main SHA, old PR count and old operational state.
+
+But it is not simply an old Markdown file.
+
+`scripts/health/probe.ts` still actively opens and rewrites `docs/PROJECT-HEALTH-DASHBOARD.md`. It describes the dashboard as its output and says that dashboard is the **only repository file it writes**. The same script also hardcodes Neon identity while describing those constants as mirrors of `AGENTS.md / CLAUDE.md`.
+
+And `package.json` still exposes:
+
+`npm run health:probe`
+
+as an active command.
+
+Therefore the Dashboard is an **operationally maintained artifact with obsolete governance semantics**, not dead documentation.
+
+That is a different class of problem.
+
+## 4. The Platform Issue Registry also carries an older governance model
+
+The surviving registry calls itself:
+
+> “The single permanent registry for everything wrong, risky, or unverified on the platform”
+
+and makes the Dashboard part of its derived-summary chain. It also says its language rules bind Claude, Codex and ChatGPT and are mirrored in `AGENTS.md`.
+
+There is useful material in that registry: issue identity, evidence classification, blast radius, verification owner, timestamps. So this is not the same situation as an old AI handoff.
+
+But structurally, it still implements the old model:
+
+Issue → summaries → Dashboard → Handoff → AI governance.
+
+The September 6 README implements a different model:
+
+Master Plan → State → external authorities → Git/runtime evidence.
+
+Those two process architectures are presently sitting beside one another.
+
+## 5. There is a much larger provider-authority contradiction than the documentation cleanup
+
+This is the most consequential technical finding.
+
+The cleanup branch still contains `scripts/cotality/pull-enums.mjs`, which says the sanctioned way to generate Cotality enum truth is to parse `EnumType` values from live `$metadata`.
+
+But the newer September 6 Search/provider work found through live verification that this assumption is not reliable for **field-published vocabularies**.
+
+Its `lib/cotality/live-contract.ts` documents why: Cotality EnumTypes are shared, may be named differently from the field, and can over-declare values. It records that 121 Property fields publishing a vocabulary were missed by the old field-name indexing approach. The newer contract uses the **Cotality Lookup endpoint keyed by Resource + Field for published values**, while using `$metadata` for declared type information.
+
+That means the cleanup branch and current main still sit on an **older provider-truth mechanism**, while the Search branch carries a newer provider-contract correction.
+
+This is separate from AI documentation.
+
+## 6. The repository's own Trestle MCP has the same provider-truth ambiguity
+
+I studied the repo MCP rather than trusting its description.
+
+`.mcp.json` describes `trestle-fields` as a live Cotality field/enum lookup based on `$metadata`.
+
+The implementation does correctly map a field's declared type to its EnumType rather than simply using the field name.
+
+But two important things happen after that.
+
+First, when the live fetch fails, it **silently falls back to local `artifacts/metadata.xml`**. The MCP tool description nevertheless says the data is “always current — fetched live.” The returned text also says it came from live `$metadata`, without differentiating that fallback in the user-visible result.
+
+Second, `trestle_get_picklist` takes EnumType members from `$metadata` and presents them as the field's picklist values.
+
+That conflicts with the newer September 6 finding that **field-published Lookup vocabulary and EnumType membership are not always equivalent**.
+
+So there are currently at least three provider-contract mechanisms represented across the repository:
+
+old enum generator → `$metadata EnumTypes`;
+
+repo MCP → field type mapped to `$metadata EnumType`, with local fallback;
+
+new Search provider contract → Lookup(Resource, Field) values + `$metadata` type.
+
+Those are not semantically identical.
+
+## 7. There are direct contradictions inside the cleanup branch's surviving reference documents
+
+This is not theoretical.
+
+`SALE-FORM-MASTER-REFERENCE.md` says its **902 field references are still valid**, calls itself the single document containing everything, and says “you never need another document.” It lists, among other things:
+
+`IDXEntireListingDisplayYN`
+`Permissions`
+`SyndicateYN`
+
+as field mappings.
+
+Yet the surviving Compliance Canonical Index says the IDX Plus set **does not include** `IDXEntireListingDisplayYN`, `ParticipantOnlyYN`, `SyndicateYN`, several VOW fields and other names, and says those should be treated as phantoms.
+
+Those two files contradict each other **inside the exact same cleanup branch**.
+
+The Compliance Index itself also says field authority comes from live Cotality **and refreshed 902-field CSVs**, and treats that static field set as “Canonical.” It points repeatedly to `.claude/skills/rebny-compliance/SKILL.md`.
+
+I checked both current main and the cleanup branch: there is currently **no tracked `.claude` directory** in either tree.
+
+So several “canonical” pointers in that index point to something that does not exist in the branch.
+
+## 8. The surviving Cotality “Complete Reference” still represents the old architecture
+
+On the cleanup branch it calls itself the:
+
+> “Single unified reference”
+
+and imposes a:
+
+> “MANDATORY ENGINEERING RULE”
+
+requiring Cotality-related PRs to cite it.
+
+It was last verified May 26 and still says **RealPlus/RLS is the listing-entry source** and that Maya enters listings into RealPlus.
+
+That conflicts with the current architecture you established and with the September Search work, where Cotality/Trestle is the provider boundary and RealPlus has no architectural role.
+
+The newer Search branch already modifies this document to label RealPlus references historical. The cleanup branch does not contain those newer corrections.
+
+That shows the cleanup and Search/provider work are **temporally out of sync**.
+
+## 9. The PR workflow itself still teaches the old authority model
+
+The cleanup branch deletes `CLAUDE.md`.
+
+But `.github/pull_request_template.md` still opens with:
+
+> “See CLAUDE.md §J…”
+
+and its Cotality checklist says live-field confirmation can be established with Trestle audit/diff/probe/**`$metadata`**.
+
+So even after the cleanup, a developer opening a PR would be given a broken governance pointer and a provider-verification instruction that does not capture the newer Lookup-vs-EnumType distinction.
+
+This is a **workflow-consumed contradiction**, not just archival wording.
+
+## 10. The cleanup branch and the Search branch are genuinely divergent
+
+The Search branch is currently:
+
+`search/browser-integration-2026-09-05`
+head `79efbc04d6440893f89cf144e586e1caf42bddff`
+
+It is **53 commits ahead of current main**.
+
+The cleanup branch is:
+
+`7be9ae99cf2fc3831f942e36aac42b7c694b5536`
+
+one commit ahead of that same main.
+
+GitHub comparison reports them as **diverged**, sharing `2a83952a…` as the merge base.
+
+This matters because Search modifies several files that the cleanup deletes, including `CLAUDE.md`, `MALLAN-NYC-CRM-PROJECT.md`, `MASTER-PROJECT-TREE-v3.3.md`, the old source-of-truth charter, the verification checklist and `memory/AUDITOR-LOG.md`. Search also independently changes README.
+
+So this is not a clean case of “one branch deletes old docs while another changes unrelated application code.”
+
+The two branches have an actual **document/authority convergence collision**.
+
+## 11. A new institutional-memory system is already being designed after the cleanup
+
+This was the strongest governance contradiction I found.
+
+The cleanup Execution State says AI memory, handoff files, `CLAUDE.md`, `AGENTS.md`, scratchpads and previous-session narratives:
+
+> “must not be recreated as parallel Mallan project truth.”
+
+But another current branch, `claude/mallan-cotality-context-l0o1oa`, created `MALLAN-INSTITUTIONAL-MEMORY-DESIGN-2026-09-07.md`.
+
+That design explicitly proposes restoring/extending `memory/`, adding front matter, active/superseded status, `memory/INDEX.md`, Context-ID commit trailers, local transcript archives and a SessionStart retrieval hook. It defines `memory/` as holding “why it changed, what was rejected, what must not be reopened.”
+
+The same branch also created a new:
+
+`docs/operations/site-audit-handoff-2026-09-07.md`
+
+with session state, blocked sessions, branch ownership rules, open decisions and instructions for future work.
+
+Whether institutional reasoning storage is valuable is a separate question. The factual point is that **two opposing continuity doctrines are now being developed simultaneously**:
+
+September 6: do not recreate memory/handoff authority.
+
+September 7: formalize `memory/` and restore handoff-based session continuity.
+
+They cannot both describe the same final operating model without a clear boundary between evidence/archive and authority.
+
+## 12. Vercel gives us a cleaner runtime picture than the old Dashboard
+
+Current Production is unequivocal:
+
+`dpl_2xwQdeEuSV8Uc7Bcui8pKKARbckq`
+`main`
+SHA `2a83952a31c7aaa9367141763c1685269c51c380`
+`target: production`
+READY.
+
+The cleanup is only:
+
+`dpl_A6Z3BRhfC9bK1PB6piKrJzhcNjH2`
+SHA `7be9ae99…`
+READY
+Preview, not Production.
+
+The Vercel build is valid, but it does **not** prove full Mallan CI. The build command ran the CRM build, Prisma generation and `npm run build`. The repository's separate `npm run ci` includes lint, type-check, compliance validation, IDX validation and build. There is no GitHub Actions run for `7be9ae99…`, because there is currently no PR for that cleanup branch.
+
+One detail I checked specifically: Vercel Project Settings still display Node 20, while `package.json` declares Node 24. Vercel's own documentation says `engines.node` overrides Project Settings, and the actual build log confirms **Node 24 was used**. So I do **not** classify that as an active Node-version defect.
+
+The build also reported 38 dependency vulnerabilities—2 low, 19 moderate, 17 high—but that is a pre-existing dependency-health signal, not evidence that the documentation cleanup caused them.
+
+Production itself is not error-free. Fresh Vercel runtime data contains media-proxy aborts, malformed `/buy%5C` and `/rent%5C` requests generating module-not-found errors, and outbound fetch timeouts on neighborhood/building requests. None of those is caused by the docs cleanup; they simply demonstrate why the July Dashboard cannot be treated as current Production health.
+
+## 13. Current Cotality verification has an evidence limitation
+
+I did invoke the live Cotality connector as requested.
+
+The first live picklist request returned **HTTP 429**.
+
+A later bounded field-validation request failed at the connector tunnel with **404 before the actual Cotality field validation completed**.
+
+I therefore do **not** certify any Cotality field or picklist in this review as freshly verified by me today.
+
+What I can distinguish is:
+
+**Git-proven fact:** the September Search branch contains a documented live-verification correction that moved vocabulary authority from `$metadata` EnumTypes to the Cotality Lookup endpoint.
+
+**Not freshly proven in this review:** the current live provider response, because the connector is presently unavailable/rate-limited.
+
+That distinction is important.
+
+## My study conclusion — without proposing the fix
+
+The underlying problem is **not simply “too many old documents.”**
+
+It is a four-dimensional consistency problem:
+
+**authority drift** — several files still claim broad or canonical authority beneath the new Master Plan;
+
+**executable drift** — probes, PR templates, tests and MCP tooling still encode the old authority/provider assumptions;
+
+**provider-contract drift** — current main/cleanup are behind the newer September Cotality contract findings;
+
+**branch-time drift** — the cleanup, Search work and new institutional-memory work all started from the same main but evolved independently and now contradict or overlap one another.
+
+The September 6 cleanup did successfully establish the correct **top-level skeleton**. It did not yet establish a coherent repository beneath that skeleton.
+
+And there is another important distinction now: **some documents should be treated as subordinate technical evidence; some are stale competing authorities; some are live machine dependencies; and some contain provider claims that have since been contradicted. Those categories cannot safely be handled as one bulk “old docs” class.**
+
+That is where I am stopping. I have **not** prescribed what should be deleted, retained, rewritten, merged, closed, rebased or sequenced. The study phase shows those decisions need to be made from these classifications rather than from file age or filename alone.

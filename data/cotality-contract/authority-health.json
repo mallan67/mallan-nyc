@@ -1,0 +1,27 @@
+{
+  "format": "mallan-cotality-authority-health/v1",
+  "state": "HEALTHY",
+  "checked_at": "2026-09-08T06:27:17.852Z",
+  "contract": {
+    "metadata_sha256": "a60bcbbdccc9da852a8da53acc178fc90d7159c42f59f58babb2d09ab7a6bbae",
+    "content_sha256": "b53030c5be60fa8ddec1f31ef145c18180b8e256cb97cd2a78c91c36766e0a89",
+    "acquired_at": "2026-09-08T06:26:36.364Z",
+    "probe_mode": "light",
+    "capabilities_verified_at": "2026-09-08T03:32:52.480Z"
+  },
+  "detection": null,
+  "changes": [
+    {
+      "kind": "observed-value-added",
+      "resource": "Property",
+      "field": "City",
+      "member": "Espíritu Santo"
+    }
+  ],
+  "affected": [],
+  "unbound": [],
+  "blocked_surfaces": [],
+  "transitive_surfaces": [],
+  "repair_order": [],
+  "note": "incremental refresh: {\"touchedPairs\":3,\"newFields\":0,\"newResources\":0}"
+}

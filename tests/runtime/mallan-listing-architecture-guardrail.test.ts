@@ -3,7 +3,7 @@
  *
  * The repository previously carried the REVERSED reconciliation model in two
  * ACTIVE architecture documents: "withdraw SL-*, pin official RLS*, update
- * RealPlus Listing Url", plus a live runtime comment saying "the Trestle version
+ * REBNY listing Url", plus a live runtime comment saying "the Trestle version
  * takes precedence". Under the standing architecture the LOCAL Mallan listing is
  * canonical and the returned Cotality RLS copy is publicly suppressed but
  * retained internally.
@@ -28,8 +28,8 @@ const REVERSED_PATTERNS: Array<{ re: RegExp; why: string }> = [
   { re: /pin\s+official\s+`?RLS/i, why: 'the RLS return-copy must NOT be pinned in place of the local listing' },
   { re: /replace\s+`?SL-\*?`?\s+with\s+`?RLS/i, why: 'the RLS copy must NOT replace the local listing' },
   { re: /Trestle\s+version\s+takes\s+precedence/i, why: 'local Mallan row is canonical, not the Trestle version' },
-  { re: /update\s+RealPlus\s+Listing\s+Url/i, why: 'RealPlus URL handling is OUTSIDE this system' },
-  { re: /submitted\s+to\s+(REBNY\s+)?RLS\s+via\s+Cotality/i, why: 'submission goes through RealPlus/RLS; Cotality is the INBOUND return path' },
+  { re: /update\s+RealPlus\s+Listing\s+Url/i, why: 'RealPlus has no role in this system; the REBNY listing URL is supplied outside it' },
+  { re: /submitted\s+to\s+(REBNY\s+)?RLS\s+via\s+Cotality/i, why: 'submission goes to REBNY RLS outside this system; Cotality is the INBOUND return path' },
 ];
 
 /** Paths whose job is to record history — excluded by design. */

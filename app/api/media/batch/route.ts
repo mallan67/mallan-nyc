@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { getAccessToken } from "@/lib/idx/auth";
 import prisma from "@/lib/prisma";
-import { resolveListingMedia, pickPrimaryPhotoUrl } from "@/lib/media/listing-media-resolver";
+import { resolveListingMedia, pickPrimaryPhotoUrl, MEDIA_SELECT_FIELDS, PROPERTY_MEDIA_FILTER } from "@/lib/media/listing-media-resolver";
 
 const TRESTLE_API =
   process.env.TRESTLE_API_URL ||
@@ -104,10 +104,10 @@ export async function GET(req: NextRequest) {
         });
         // Fetch ALL media for detail view — photos, floorplans, videos, virtual tours, 3D.
         // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
-        const filter = `(${filterParts.join(" or ")}) and MediaStatus ne 'Deleted'`;
+        const filter = `(${filterParts.join(" or ")}) and ${PROPERTY_MEDIA_FILTER} and MediaStatus ne 'Deleted'`;
         const params = new URLSearchParams();
         params.set("$filter", filter);
-        params.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,Order,MediaCategory,MediaClassification,PreferredPhotoYN,ShortDescription,MediaStatus");
+        params.set("$select", MEDIA_SELECT_FIELDS.join(","));
         // Order by Order only — alphabetical sort on MediaCategory put
         // 'FloorPlan' BEFORE 'Photo' (alphabetical), causing detail galleries
         // to open on a floor plan. Photo-first ordering is now applied
@@ -186,10 +186,12 @@ export async function GET(req: NextRequest) {
         return key !== id ? `ResourceRecordKey eq '${escaped}'` : `ResourceRecordID eq '${escaped}'`;
       });
       // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
-      const filter = `(${filterParts.join(" or ")}) and (MediaCategory eq 'Photo' or MediaCategory eq null) and MediaStatus ne 'Deleted'`;
+      const filter = `(${filterParts.join(" or ")}) and ${PROPERTY_MEDIA_FILTER} and (MediaCategory eq 'Photo' or MediaCategory eq null) and MediaStatus ne 'Deleted'`;
       const params = new URLSearchParams();
       params.set("$filter", filter);
-      params.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,Order,PreferredPhotoYN,MediaStatus");
+      // The one Media select — classifyMediaItem reads MediaCategory / MediaClassification / ShortDescription;
+      // the previous 6-field list starved it and classification fell back to URL shape (census 2026-09-08).
+      params.set("$select", MEDIA_SELECT_FIELDS.join(","));
       params.set("$orderby", "Order asc");
       params.set("$top", String(uncached.length * 2));
 

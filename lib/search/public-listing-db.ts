@@ -48,6 +48,9 @@ const AMENITY_FIELD_TO_DTO: Record<string, string> = {
   ParkingFeatures: "parkingFeatures",
   LaundryFeatures: "laundryFeatures",
   PetsAllowed: "petsAllowed",
+  FireplaceFeatures: "fireplaceFeatures",
+  // Text amenities (renovated / quiet / natural light) match the public remarks — no provider member exists.
+  PublicRemarks: "publicRemarks",
 };
 
 function appendAnd(where: Prisma.ListingWhereInput, condition: Prisma.ListingWhereInput): void {
@@ -183,6 +186,10 @@ export function buildPublicListingDbSearch(params: URLSearchParams): PublicListi
       },
       {
         rls_eligible: false,
+        // The Mallan decisions bind on website-only rows too (STEP3 ledger §13.4): owner opt-out is never
+        // publicly disseminated, participants-only never reaches the public.
+        owner_opt_out: false,
+        participant_only: false,
         status: { in: ALLOWED_PUBLIC_STATUSES },
         list_price: { gt: 0 },
         address: { not: Prisma.DbNull },
@@ -399,8 +406,9 @@ export function applyPublicListingPostFilters<T extends PublicPostFilterListing>
     result = result.filter((l) => l.yearBuilt != null && l.yearBuilt >= 1947);
   }
 
-  // furnished — rental-only filter; matches DTO furnished === "Furnished".
-  if (params.get("furnished") === "true") {
+  // furnished — rental-only filter; matches DTO furnished === "Furnished". Never narrows a sale search
+  // (Domain 6, 2026-09-08).
+  if (params.get("furnished") === "true" && params.get("type") === "rent") {
     result = result.filter((l) => (l.furnished || "").toLowerCase() === "furnished");
   }
 

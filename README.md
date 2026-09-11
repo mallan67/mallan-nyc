@@ -1,3 +1,5 @@
+> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/operations/evidence-2026-09-08/provider-system/REMOVAL-2026-09-08.md`.
+
 # Mallan Real Estate Inc. — New York City Brokerage Platform  
 **Compliance-First · Fast · Scalable**
 
@@ -67,7 +69,7 @@ Three distinct layers must stay separate when reasoning about feed behavior, deb
 
 1. **Field behavior is feed-specific, not RESO-spec-derived.** `InternetEntireListingDisplayYN` and `InternetAddressDisplayYN` are universally `null` AND non-OData-filterable in mallan.nyc's REBNY IDX Plus feed because REBNY pre-filters non-displayable rows out at the Cotality data-serving boundary (HTTP 400 "Results from 'RLS' has been suppressed (provider Level)"). This is REBNY policy, NOT a universal Cotality behavior. The mapper at `lib/idx/trestle-mapper.ts:680-681` treats null as displayable for these two fields specifically because of REBNY's pre-filter — see the in-file comment for the full reasoning.
 2. **Other RESO fields behave differently because REBNY treats them differently.** `InternetAutomatedValuationDisplayYN` and `InternetConsumerCommentYN` ARE per-row populated (~97% true / ~3% false) because REBNY treats them as per-listing opt-out flags rather than pre-filter conditions. Those use fail-closed `affirmPermission()` coercion.
-3. **Future non-REBNY feeds need independent verification.** When mallan.nyc subscribes to OneKey, NY State MLS, or other non-REBNY MLSes (per the external-inventory spec Phase 2-A), each carries its own three-layer stack and may populate the SAME RESO field names with different runtime semantics. New adapters must run their own `npm run reso:coverage` probe against the new feed before any writer-side mapping decisions are committed. **Runtime payload behavior must be verified per feed, not assumed from RESO certification alone.**
+3. **Future non-REBNY feeds need independent verification.** When mallan.nyc subscribes to OneKey, NY State MLS, or other non-REBNY MLSes (per the external-inventory spec Phase 2-A), each carries its own three-layer stack and may populate the SAME RESO field names with different runtime semantics. New adapters must be probed against the new feed live (`npm run cotality:query`; `npm run cotality:authority -- refresh` for its contract) before any writer-side mapping decisions are committed. **Runtime payload behavior must be verified per feed, not assumed from RESO certification alone.**
 
 This distinction was clarified after the 2026-04-30 IDX Plus display-gate incident. Full incident capture in [`memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md`](./memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md).
 
@@ -76,8 +78,8 @@ This distinction was clarified after the 2026-04-30 IDX Plus display-gate incide
 ### Allowed Use (REBNY Confirmed 2026-03-27)
 - MLS/IDX data may be accessed **only via authorized server-side connections** using credentials issued through Trestle/Cotality.
 - IDX data may be used for: **(1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting** — confirmed by REBNY (Michaela Parker, mparker@rebny.com, 2026-03-27).
-- IDX feed is limited to the **IDX-released field set and IDX-eligible listing inventory only** — it is NOT full-market search. Agents use RealPlus for full RLS inventory.
-- Client data stays on mallan.nyc — never passes through RealPlus or third parties.
+- IDX feed is limited to the **IDX-released field set and IDX-eligible listing inventory only** — it is NOT full-market search. Full RLS inventory search happens outside this system.
+- Client data stays on mallan.nyc — never passes through REBNY's submission system or third parties.
 - Data may be cached locally for performance and compliance purposes.
 - Media (photos) are accessed via approved MLS media URLs unless otherwise authorized.
 
@@ -147,7 +149,7 @@ Compliance is not optional and not abstract — it is contractual.
 
 ## IDX Plus / Trestle (REBNY RLS) — Rules of the Road
 
-> **Feed:** mallan.nyc reads the live `api.cotality.com/trestle` feed under the **IDX Plus - WebAPI** license (Trestle-11371-20) for **public display, internal CRM client management, and reporting** (REBNY confirmed 2026-03-27). The IDX feed provides IDX-released fields and IDX-eligible inventory only — it is NOT full-market search. RealPlus is the LMP for listing submission and full RLS search — REBNY does not grant LMP licenses to individual brokers. mallan.nyc reads 902 IDX Plus fields across 7 REBNY-specified resources plus additional Trestle-provisioned fields (1,457 total Property definitions in live metadata).
+> **Feed:** mallan.nyc reads the live `api.cotality.com/trestle` feed under the **IDX Plus - WebAPI** license (Trestle-11371-20) for **public display, internal CRM client management, and reporting** (REBNY confirmed 2026-03-27). The IDX feed provides IDX-released fields and IDX-eligible inventory only — it is NOT full-market search. Listing submission and full RLS search happen outside this system (REBNY does not grant LMP licenses to individual brokers). mallan.nyc reads the live Cotality contract's IDX Plus fields across the REBNY-specified resources (`lib/cotality/generated/contract.ts`; 757 entitled Property fields on 2026-09-08).
 
 ### Environment Variables (server-only)
 
@@ -168,7 +170,7 @@ IDX_CLIENT_SECRET=...
 |----------|------|---------|
 | `GET /api/listings` | Public (rate-limited 60/min) | Frontend search — sanitized via `toPublicDTO()`, all 6 distribution gates enforced |
 | `GET /api/listings/suggest` | Public (rate-limited 60/min) | Address autocomplete — distribution gates enforced, no agent PII |
-| `GET /api/idx/search` | Session cookie required | CRM search — agent/broker only, broader field set. IDX-eligible inventory only (not full-market — agents use RealPlus for full RLS) |
+| `GET /api/idx/search` | Session cookie required | CRM search — agent/broker only, broader field set. IDX-eligible inventory only (not full-market — full RLS search happens outside this system) |
 
 ### REBNY Distribution Gates (fail closed)
 
@@ -200,12 +202,12 @@ All displayed listing data **must** include REBNY-required attribution text:
 
 > "Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service. Data last updated: [timestamp]."
 
-Generated by: `lib/idx/mapping.ts` (`generateAttributionText()`)
+Generated by: `lib/idx/attribution.ts` (`generateAttributionText()`)
 
 ### Field model (live Cotality feed)
 
 The live `api.cotality.com/trestle` feed exposes a RESO-shaped OData model. Field facts (verify against the live `$metadata`):
-- **23 RESO-to-RLS field renames** handled in `lib/idx/trestle-mapper.ts`
+- **No rename layer** — Cotality returns fields under their live names (`lib/cotality/live-contract.ts` is the only field authority)
 - **902 IDX Plus fields** across 7 REBNY-specified resources (Property 527, CustomProperty 106, Member 72, Office 66, Media 46, PropertyUnitTypes 46, OpenHouse 39), 41 required, 86 conditional
 - **5 additional Trestle resources** beyond IDX Plus: PropertyRooms (39 fields), Teams (48), TeamMembers (29), PropertyGreenVerification (39), Building (key only)
 - **Critical fields beyond IDX Plus CSV** on Trestle Property: `InternetAddressDisplayYN`, `InternetEntireListingDisplayYN`, `InternetAutomatedValuationDisplayYN`, `InternetConsumerCommentYN`, `ShowingInstructions` — all distribution gate / showing fields
@@ -364,22 +366,46 @@ GET /api/idx/search?type=sale&minPrice=1000000
 
 ## Architecture
 
-### Topology (Current)
+### Topology (Current — corrected 2026-09-10, `928f31c4`)
+
+Three applications, three addresses, one owner each. Mirrored from
+`MALLAN-PLATFORM-MASTER-PLAN.md` (repo root, canonical lineage PR #595 / `agent/publish-mallan-platform-master-plan-2026-08-04` §5.1 (the only product/system
+authority) and `AGENTS.md` §1.0. This README is not an architecture authority.
 
 ```
 Vercel (mallan.nyc)
-  public/crm/                      app/api/
-  ├── login.html          ──→     ├── auth/login
-  ├── CRM (FINAL2.html)   ──→     ├── crm/*
-  ├── index-built.html     ──→     ├── crm/listings
-  ├── SALE-FORM-WITH-TOOLS ──→     ├── crm/listings/[id]
-  └── RENTAL-FORM-WITH-TOOLS ──→   └── portal/*
+
+  BROKERAGE CRM          public/crm/dashboard.html + public/crm/js/dashboard/**
+                         /crm  (compat /crm/dashboard)     ──→  app/api/crm/*
+
+  BACKEND AGENT SEARCH   public/crm/index.html ──build──> public/crm/index-built.html
+  / LISTINGS             /crm/search                       ──→  app/api/idx/search
+                                                                app/api/crm/listings
+                                                                app/api/media/*
+
+  CONSUMER SEARCH        app/search/page.tsx
+                         /search  /buy  /rent  (public, compliance-filtered)
+
+  Listing + deal forms   public/crm/SALE-FORM-REDESIGN.html, RENTAL-FORM-REDESIGN.html,
+                         BUYER-DEAL-FORM.html, TENANT-DEAL-FORM.html
+  Login                  public/crm/login.html             ──→  app/api/auth/login
+  Client portals         app/portal/**                     ──→  app/api/portal/*
 ```
 
-- **CRM Backend:** `https://mallan.nyc/crm/` (same-origin static files)
+- **Brokerage CRM:** `https://mallan.nyc/crm` — `vercel.json` rewrites `/crm` and `/crm/dashboard` to `/crm/dashboard.html`
+- **Backend Agent Search / Listings:** `https://mallan.nyc/crm/search` — `vercel.json` rewrites it to `/crm/index-built.html`
+- **Consumer Search:** `https://mallan.nyc/search`, `/buy`, `/rent` (App Router pages, no rewrite)
 - **API:** `https://mallan.nyc/api/` (Vercel, Next.js 16.1.6 App Router)
 - **Database:** PostgreSQL on Neon (Prisma ORM)
 - **Auth:** httpOnly cookie only (`session_token`, SameSite=Lax, Secure)
+
+Backend Search may consume CRM APIs, but must not require `dashboard.html` or the CRM router to boot.
+The dependency runs **CRM → Backend Search**, never the reverse.
+
+> **Correction note (2026-09-10).** This block previously read ``├── CRM (FINAL2.html)   ──→     ├── crm/*``
+> and listed `SALE-FORM-WITH-TOOLS` / `RENTAL-FORM-WITH-TOOLS`. None of those three files exists in
+> `public/crm/`, and `dashboard.html` — the actual Brokerage CRM — was absent from the diagram
+> altogether. That omission is part of the application-ownership confusion corrected in `928f31c4`.
 
 ### Auth (Cookie Only)
 
@@ -493,7 +519,7 @@ All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
 #### IDX/Trestle (3)
 | Route | Method | Purpose |
 |-------|--------|---------|
-| `/api/idx/search` | GET | CRM search — agent/broker only, broader field set with proxied media URLs (not guaranteed to match full RealPlus/LMP inventory) |
+| `/api/idx/search` | GET | CRM search — agent/broker only, broader field set with proxied media URLs (not guaranteed to match the full RLS inventory) |
 | `/api/idx/sync` | POST | Manual sync trigger (broker-only, rate-limited) |
 | `/api/idx/status` | GET | IDX connection status + sync stats |
 
@@ -657,7 +683,7 @@ Response headers: `Minute-Quota-Limit`, `Hour-Quota-Limit`, `Hour-Quota-ResetTim
 GET /odata/$metadata    → Full OData CSDL (all entities, fields, types, navigation properties)
 ```
 
-Local copy: `artifacts/metadata.xml` (32,351 lines, all 12 data + 5 system entities)
+Committed contract compiled from the live `$metadata` + Field / Lookup catalogues: `data/cotality-contract/**` → `lib/cotality/generated/contract.ts` (no XML snapshot is kept; regenerate with `npm run cotality:authority -- refresh`)
 
 ### Data Flow: Trestle → mallan.nyc
 
@@ -666,12 +692,12 @@ Trestle API (server-side only)
   │
   ├─→ /api/cron/idx-sync (every 4hrs) ─→ Prisma DB (PostgreSQL on Neon)
   │     Pulls Property + $expand=CustomProperty,Media
-  │     Maps via lib/idx/trestle-mapper.ts (23 RESO→RLS renames)
+  │     Maps via lib/idx/trestle-mapper.ts (live Cotality field names, no rename layer)
   │     Checks 6 distribution gates → stores in Listing model
   │
   ├─→ /api/idx/search (CRM, on-demand) ─→ Direct Trestle query
   │     Agent-only, session cookie required
-  │     Broader field set than public search (not guaranteed to match full RealPlus/LMP inventory)
+  │     Broader field set than public search (not guaranteed to match the full RLS inventory)
   │
   ├─→ /api/listings (public, on-demand) ─→ DB-first (20-80ms)
   │     Falls back to Trestle direct (10s timeout) if not in DB
@@ -690,16 +716,23 @@ The REBNY UCBA and the Trestle API use different names for some fields:
 |--------------------|---------------|-------|
 | `IDXEntireListingDisplayYN` | `InternetEntireListingDisplayYN` | No separate IDX field on Trestle — master gate serves both |
 | `SyndicateYN` (boolean) | `SyndicateTo` (multi-select list) | Portal selection, not a simple boolean |
-| `StandardStatus` | `MlsStatus` | Plus 22 other RESO→RLS renames in `trestle-mapper.ts` |
 
 Internal TypeScript code uses UCBA names (mapped by normalizer before hitting Trestle). Compliance docs annotate the Trestle field name where they differ.
 
 ---
 
-## CRM Search Page (`index-built.html`) — Architecture & Audit
+## Backend Agent Search / Listings (`/crm/search`) — Architecture & Audit
 
-> **File:** `public/crm/index-built.html` (~35,700 lines, monolithic)
+> **Source:** `public/crm/index.html` → generated artifact `public/crm/index-built.html`
+> (39,554 lines as of 2026-09-10; a source change under `public/crm/{index.html, html/, css/, js/}`
+> is not live until `node public/crm/build.js` / `npm run crm:build` runs)
+> **Application:** Backend Agent Search / Listings — a **separate application** from the Brokerage CRM
+> (`public/crm/dashboard.html` + `public/crm/js/dashboard/**`, served at `/crm`). See `AGENTS.md` §1.0.
 > **Last audited:** 2026-03-20 — 172/172 smoke test PASS, 0 issues
+>
+> **Heading corrected 2026-09-10.** This section was titled "CRM Search Page (`index-built.html`)" and
+> described `index-built.html` as if it were the source file. It is the generated artifact, and the page
+> it serves is its own application, not a page of the CRM.
 
 ### Components
 
@@ -846,7 +879,7 @@ The full compliance surface — REBNY RLS / UCBA 2026, IDX Plus / Trestle connec
 
 Operational gates that block CI / commits:
 
-- `npm run ucba:audit` — 145-rule checklist; **REGRESSIONS must be 0** (annotated FAILs are tracked in `compliance/rules/ucba-audit-checklist.json`)
+- `npm run ucba:audit` — 46-rule checklist; **REGRESSIONS must be 0** (annotated FAILs are tracked in `compliance/rules/ucba-audit-checklist.json`)
 - `npm run rls:validate` — 10-section RLS validator (fields, renames, gates, masking, coverage)
 - `npm run idx:validate` — 32-section IDX Plus validator
 - `npm run compliance-check` — pre-commit sanity gate
@@ -857,7 +890,7 @@ Operational gates that block CI / commits:
 
 | Type | Source | Visibility | Distribution |
 |---|---|---|---|
-| **RLS-eligible sale / rental** | Submitted via RealPlus → REBNY RLS → IDX Plus feed (read-only on mallan.nyc) | Public listing pages + agent CRM, gated by 6 distribution flags (`InternetEntireListingDisplayYN`, `InternetAddressDisplayYN`, `InternetAutomatedValuationDisplayYN`, `InternetConsumerCommentYN`, `participant_only`, `owner_opt_out`) | StreetEasy (direct upload), Zillow / Trulia (auto from StreetEasy), Realtor.com / Redfin / Homes.com / RentHop (REBNY data license, automatic), openigloo / Samaki / TBI Listings (Trestle opt-in toggles) |
+| **RLS-eligible sale / rental** | Submitted to REBNY RLS outside this system → IDX Plus feed (read-only on mallan.nyc) | Public listing pages + agent CRM, gated by 6 distribution flags (`InternetEntireListingDisplayYN`, `InternetAddressDisplayYN`, `InternetAutomatedValuationDisplayYN`, `InternetConsumerCommentYN`, `participant_only`, `owner_opt_out`) | StreetEasy (direct upload), Zillow / Trulia (auto from StreetEasy), Realtor.com / Redfin / Homes.com / RentHop (REBNY data license, automatic), openigloo / Samaki / TBI Listings (Trestle opt-in toggles) |
 | **Auction listing** | Same RLS path, `auction_yn=true` plus `auction_type` / `auction_end_date` (mandatory) and `auction_terms_url` (recommended http(s):// only — `AU-006` blocks unsafe schemes) | Public listing pages render an `AuctionBanner` above price; standard 24-hour price-change rule does NOT apply (UCBA Art. I auction exception) | Same as RLS-eligible |
 | **Commercial / website-only** | `rls_eligible: false` on the Listing model (commercial sub-types + ownership) | mallan.nyc only — bypasses all 6 distribution gates | Not distributed; Fair Housing + NY DOS + TCPA still apply |
 | **Coming Soon** | Sale/rental with `MlsStatus=ComingSoon` | Public pages render the [Coming Soon badge](app/components/ComingSoonBadge.tsx) — required exact phrasing per UCBA Art. I § 16(C) | Distributed when DOM rule allows |

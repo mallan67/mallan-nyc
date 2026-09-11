@@ -1,5 +1,5 @@
 // lib/idx/fetch.ts
-// OData v4 listing fetch from Trestle/REBNY RLS.
+// OData v4 listing fetch from the Cotality (Trestle) Web API — the current provider.
 // Handles pagination via @odata.nextLink. Selects IDX Plus Property fields.
 
 import { getAccessToken, invalidateToken } from "./auth";
@@ -11,6 +11,7 @@ import { paginateMedia } from "./media-pagination";
 // this module cannot grow a second, drifting copy of it.
 import { keysetFilter } from "./cursor/keyset-cursor";
 import { IDX_PLUS_SELECT_FIELDS } from "./trestle-mapper";
+import { MEDIA_SELECT_FIELDS, PROPERTY_MEDIA_FILTER } from "@/lib/media/listing-media-resolver";
 import {
   recordCotalityHttp,
   recordPropertyRequest,
@@ -18,6 +19,10 @@ import {
   recordRetry,
   parseRetryAfterSeconds,
 } from "./cotality-telemetry";
+
+// The one Media select (lib/media/listing-media-resolver.ts MEDIA_SELECT_FIELDS): every field the media
+// interpreters read, compile-checked against the live Media resource. No local list may narrow it, and it is
+// read at the call sites (never aliased at module level — the resolver sits in an import cycle with the sync).
 
 // Derive Trestle property endpoint from centralized TRESTLE_API_URL.
 // Env validation is deferred to call-time — no top-level throws (Vercel serverless safety).
@@ -31,7 +36,7 @@ export interface TrestleFetchOptions {
   /** OData $filter expression (e.g., "StandardStatus eq 'Active'") */
   filter?: string;
   /** Override $select (defaults to IDX Plus Property fields) */
-  select?: string[];
+  select?: readonly string[];
   /** Max records per page (default 200) */
   top?: number;
   /** Skip N records */
@@ -128,7 +133,7 @@ export async function fetchFromTrestle(
       // Caller has explicitly opted in despite Trestle's known rejection
       // pattern. If a 400 fires here, fall back to `fetchListingMedia()`
       // rather than re-enabling this by default.
-      expandParts.push("Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN,ShortDescription,ModificationTimestamp,ResourceRecordKey,MediaStatus;$filter=MediaStatus ne 'Deleted';$top=8;$orderby=Order)");
+      expandParts.push(`Media($select=${MEDIA_SELECT_FIELDS.join(",")};$filter=MediaStatus ne 'Deleted';$top=8;$orderby=Order)`);
     }
     if (options.expandCustomProperty === true) {
       // Bare expand only — the previous inner `$select` (with
@@ -603,10 +608,11 @@ export async function fetchListingMedia(
   for (const keyFilter of keyFieldsToTry) {
     const params = new URLSearchParams();
     // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
-    params.set("$filter", `${keyFilter} and MediaStatus ne 'Deleted'`);
+    // Owner-scoped (Maya 2026-09-08): listing media is Property media; a key alone does not prove the owner.
+    params.set("$filter", `${keyFilter} and ${PROPERTY_MEDIA_FILTER} and MediaStatus ne 'Deleted'`);
     // MediaKey is selected so callers have a stable logical identity per asset
     // (duplicate detection cannot rely on a signed/ordered MediaURL).
-    params.set("$select", "MediaKey,MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN,MediaStatus");
+    params.set("$select", MEDIA_SELECT_FIELDS.join(","));
     params.set("$orderby", "Order asc");
     // PER-PAGE size only — the rest is followed via @odata.nextLink below.
     params.set("$top", "50");

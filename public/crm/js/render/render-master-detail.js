@@ -1,3 +1,8 @@
+        // Status text, badge classes and the StandardStatus token in all three badges below (the master-list
+        // row, the detail header and the STATUS cell) come from THE ONE browser authority,
+        // public/crm/js/core/status-presentation.js. They used to interpolate the raw `listing.status`, so
+        // after the DTO started shipping exact Cotality tokens a sale's Closed read "Closed" instead of
+        // "Sold", a rental's read "Closed" instead of "Rented", and a status-less row rendered an empty badge.
         function renderMasterDetailView() {
             var listPanel = document.getElementById('masterListPanel');
             listPanel.innerHTML = getFilteredListings().map(listing => {
@@ -5,7 +10,7 @@
                 var selected = searchResultsState.selectedListings.includes(listing.id);
                 var selIdx = searchResultsState.selectedListings.indexOf(listing.id) + 1;
                 return `
-                <div class="p-2.5 border-b hover:bg-gray-50 cursor-pointer flex gap-2.5 ${selected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="showListingInDetailPanel('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
+                <div class="p-2.5 border-b hover:bg-gray-50 cursor-pointer flex gap-2.5 ${selected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}" data-source="${listing._source === 'mallan' ? 'MALLAN-LOCAL' : 'COTALITY-API'}" data-listing-id="${listing.id}" onclick="showListingInDetailPanel('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
                     <div class="relative flex-shrink-0">
                         <div class="w-[140px] h-[100px] rounded-lg cm-photo-wrap">
                             <img src="${getListingPhotoThumb(listing)}" alt="${displayAddress}" class="cm-photo rounded-lg" loading="lazy">
@@ -23,7 +28,7 @@
                         <div class="flex items-start justify-between gap-1">
                             <h4 class="font-bold text-xs truncate">${displayAddress}${listing.addressDisplayYN !== false && listing.unit ? ', ' + escapeHtml(listing.unit) : ''}</h4>
                             ${syndicationBadgeCompact(listing)}
-                            <span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-[10px] font-semibold flex-shrink-0">${listing.status === 'COMING_SOON' ? 'CS' : listing.status}</span>
+                            <span class="px-1.5 py-0.5 ${MallanStatus.classes(listing)} rounded text-[10px] font-semibold flex-shrink-0" data-status-badge${resoData('status', MallanStatus.token(listing))}>${escapeHtml(MallanStatus.label(listing))}</span>
                         </div>
                         <div class="flex items-center justify-between mt-0.5">
                             <div class="flex items-center gap-1 text-[10px] text-gray-500">
@@ -35,15 +40,15 @@
                                 <span class="text-gray-300">|</span>
                                 <span>${escapeHtml(listing.zip)}</span>
                             </div>
-                            <span class="text-xs font-bold">$${listing.price.toLocaleString()}</span>
+                            <span class="text-xs font-bold">${listing.price == null ? '—' : '$' + listing.price.toLocaleString()}</span>
                         </div>
                         <div class="text-[10px] text-gray-500 mt-0.5">CC: $${listing.maintCC} &nbsp; RET: $${listing.reTaxes}</div>
                         <div class="flex items-center gap-2 text-[11px] mt-1">
-                            <span><strong>${listing.rooms}</strong> Rooms</span>
+                            <span><strong>${listing.rooms == null ? '—' : listing.rooms}</strong> Rooms</span>
                             <span class="text-gray-300">|</span>
-                            <span><strong>${listing.beds}</strong> Beds</span>
+                            <span><strong>${listing.beds == null ? '—' : listing.beds}</strong> Beds</span>
                             <span class="text-gray-300">|</span>
-                            <span><strong>${listing.baths}</strong> Baths</span>
+                            <span><strong>${listing.baths == null ? '—' : listing.baths}</strong> Baths</span>
                             <span class="text-gray-300">|</span>
                             <span><strong>${listing.intSqft || '--'}</strong> SqFt</span>
                             <span class="text-gray-300">|</span>
@@ -81,11 +86,11 @@
                         <button class="text-gray-400 text-xs"><i class="fas fa-external-link-alt"></i></button>
                     </div>
                     <div class="flex items-center gap-2">
-                        <span class="px-2 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-xs font-semibold">${listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status}</span>
+                        <span class="px-2 py-0.5 ${MallanStatus.classes(listing)} rounded text-xs font-semibold" data-status-badge${resoData('status', MallanStatus.token(listing))}>${escapeHtml(MallanStatus.label(listing))}</span>
                         ${comingSoonBadgeCompact(listing)}
                         ${participantOnlyBadge(listing)}
                         ${syndicationBadge(listing)}
-                        <span class="text-lg font-bold">$${listing.price.toLocaleString()}</span>
+                        <span class="text-lg font-bold">${listing.price == null ? '—' : '$' + listing.price.toLocaleString()}</span>
                     </div>
                 </div>
 
@@ -93,9 +98,9 @@
                 <div class="flex items-center flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-gray-500 mb-1.5">
                     <span>L-ID: ${escapeHtml(listing.lid || '--')}</span>
                     <span>W-ID: ${escapeHtml(listing.wid || '--')}</span>
-                    <span>CC: $${listing.maintCC}</span>
-                    <span>RET: $${listing.reTaxes}</span>
-                    <span>EST. MONTHLY: $${listing.totalMonthly.toLocaleString()}</span>
+                    <span>CC: ${listing.maintCC == null ? '—' : '$' + listing.maintCC}</span>
+                    <span>RET: ${listing.reTaxes == null ? '—' : '$' + listing.reTaxes}</span>
+                    <span>EST. MONTHLY: ${listing.totalMonthly == null ? '—' : '$' + listing.totalMonthly.toLocaleString()}</span>
                 </div>
 
                 <!-- Tags -->
@@ -136,11 +141,11 @@
 
                 <!-- Room specs -->
                 <div class="flex items-center gap-3 text-sm mb-3">
-                    <span><strong>${listing.rooms}</strong> Rooms</span>
+                    <span><strong>${listing.rooms == null ? '—' : listing.rooms}</strong> Rooms</span>
                     <span class="text-gray-300">|</span>
-                    <span><strong>${listing.beds}</strong> Beds</span>
+                    <span><strong>${listing.beds == null ? '—' : listing.beds}</strong> Beds</span>
                     <span class="text-gray-300">|</span>
-                    <span><strong>${listing.baths}</strong> Baths</span>
+                    <span><strong>${listing.baths == null ? '—' : listing.baths}</strong> Baths</span>
                     <span class="text-gray-300">|</span>
                     <span><strong>${listing.intSqft ? listing.intSqft.toLocaleString() : '--'}</strong> SqFt</span>
                     <span class="text-gray-300">|</span>
@@ -150,7 +155,7 @@
                 <!-- Status / Dates grid -->
                 <div class="bg-gray-50 rounded-lg p-3 mb-3">
                     <div class="grid grid-cols-4 gap-3 text-xs">
-                        <div><span class="text-gray-500 block text-[10px]">STATUS</span><span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded font-semibold text-[11px]">${listing.status}</span></div>
+                        <div><span class="text-gray-500 block text-[10px]">STATUS</span><span class="px-1.5 py-0.5 ${MallanStatus.classes(listing)} rounded font-semibold text-[11px]" data-status-badge${resoData('status', MallanStatus.token(listing))}>${escapeHtml(MallanStatus.label(listing))}</span></div>
                         <div><span class="text-gray-500 block text-[10px]">UPDATED</span><span class="font-semibold">${escapeHtml(listing.updatedDate || '--')}</span> ${listingFreshness(listing)}</div>
                         <div><span class="text-gray-500 block text-[10px]">LISTED</span><span class="font-semibold">${escapeHtml(listing.listedDate)}</span></div>
                         <div><span class="text-gray-500 block text-[10px]">DOM</span><span class="font-semibold">${listing.dom}</span></div>
@@ -164,10 +169,10 @@
                 <div class="bg-gray-50 rounded-lg p-3 mb-3">
                     <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Financial</h4>
                     <div class="grid grid-cols-3 gap-3 text-xs">
-                        <div><span class="text-gray-500">List Price</span><div class="font-bold text-gray-900">$${listing.price.toLocaleString()}</div></div>
+                        <div><span class="text-gray-500">List Price</span><div class="font-bold text-gray-900">${listing.price == null ? '—' : '$' + listing.price.toLocaleString()}</div></div>
                         <div><span class="text-gray-500">Common Charges</span><div class="font-semibold">$${listing.maintCC}/mo</div></div>
                         <div><span class="text-gray-500">RE Taxes</span><div class="font-semibold">$${listing.reTaxes}/mo</div></div>
-                        <div><span class="text-gray-500">Est. Monthly</span><div class="font-semibold">$${listing.totalMonthly.toLocaleString()}/mo</div></div>
+                        <div><span class="text-gray-500">Est. Monthly</span><div class="font-semibold">${listing.totalMonthly == null ? '—' : '$' + listing.totalMonthly.toLocaleString() + '/mo'}</div></div>
                         <div><span class="text-gray-500">Price/SqFt</span><div class="font-semibold">${listing.intSqft ? '$' + Math.round(listing.price / listing.intSqft).toLocaleString() : '--'}</div></div>
                         ${listing.originalPrice ? '<div><span class="text-gray-500">Original Price</span><div class="font-semibold text-red-600">$' + listing.originalPrice.toLocaleString() + '</div></div>' : '<div><span class="text-gray-500">Price/Room</span><div class="font-semibold">' + (listing.rooms ? '$' + Math.round(listing.price / listing.rooms).toLocaleString() : '--') + '</div></div>'}
                     </div>
@@ -178,8 +183,8 @@
                     <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Unit Details</h4>
                     <div class="grid grid-cols-3 gap-3 text-xs">
                         <div><span class="text-gray-500">Rooms</span><div class="font-semibold">${listing.rooms || '--'}</div></div>
-                        <div><span class="text-gray-500">Bedrooms</span><div class="font-semibold">${listing.beds}</div></div>
-                        <div><span class="text-gray-500">Bathrooms</span><div class="font-semibold">${listing.baths}</div></div>
+                        <div><span class="text-gray-500">Bedrooms</span><div class="font-semibold">${listing.beds == null ? '—' : listing.beds}</div></div>
+                        <div><span class="text-gray-500">Bathrooms</span><div class="font-semibold">${listing.baths == null ? '—' : listing.baths}</div></div>
                         <div><span class="text-gray-500">Int. SqFt</span><div class="font-semibold">${listing.intSqft ? listing.intSqft.toLocaleString() : '--'}</div></div>
                         <div><span class="text-gray-500">Floor</span><div class="font-semibold">${escapeHtml(listing.floor || '--')}</div></div>
                         <div><span class="text-gray-500">Exposures</span><div class="font-semibold">${escapeHtml(listing.exposures || '--')}</div></div>

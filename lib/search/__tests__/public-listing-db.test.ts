@@ -8,7 +8,9 @@ describe("buildPublicListingDbSearch", () => {
     const { where, orderBy } = buildPublicListingDbSearch(new URLSearchParams("type=sale"));
 
     expect(where).toMatchObject({
-      status: { in: ["Active", "ActiveUnderContract", "ComingSoon"] },
+      // Pending is the feed's in-contract status and is publicly displayable as "In Contract"
+      // (Maya 2026-09-08; lib/compliance/status.ts ACTIVE_DISPLAY_VALUES).
+      status: { in: ["Active", "ActiveUnderContract", "ComingSoon", "Pending"] },
       listing_type: "sale",
       OR: [
         {
@@ -22,6 +24,12 @@ describe("buildPublicListingDbSearch", () => {
       ],
     });
     expect(orderBy).toEqual({ list_price: "desc" });
+  });
+
+  it("website-only rows still honour the Mallan decisions (owner opt-out, participants-only) — STEP3 §13.4", () => {
+    const { where } = buildPublicListingDbSearch(new URLSearchParams("type=sale"));
+    const websiteOnly = (where.OR as Array<Record<string, unknown>>).find((b) => b.rls_eligible === false)!;
+    expect(websiteOnly).toMatchObject({ owner_opt_out: false, participant_only: false });
   });
 
   it("translates public filter params into DB filters", () => {
@@ -214,13 +222,22 @@ describe("applyPublicListingPostFilters", () => {
     expect(postWar.map((l) => l.id)).toEqual(["b", "c"]);
   });
 
-  it("filters by furnished only when the DTO value matches Furnished", () => {
+  it("filters by furnished only when the DTO value matches Furnished, on a rental search", () => {
     const result = applyPublicListingPostFilters(
       listings,
       featuresById,
-      new URLSearchParams("furnished=true"),
+      new URLSearchParams("type=rent&furnished=true"),
     );
     expect(result.map((l) => l.id)).toEqual(["a"]);
+  });
+
+  it("furnished is a rental-only criterion — a sale search is not narrowed by it (Domain 6, 2026-09-08)", () => {
+    const result = applyPublicListingPostFilters(
+      listings,
+      featuresById,
+      new URLSearchParams("type=sale&furnished=true"),
+    );
+    expect(result.map((l) => l.id)).toEqual(["a", "b", "c"]);
   });
 
   it("ANDs amenity filters across DTO + features JSON, with pet-friendly handling negative values", () => {

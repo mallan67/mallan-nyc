@@ -1,0 +1,1898 @@
+{
+  "source": "LIVE_COTALITY",
+  "scope": "StandardStatus eq 'Active'",
+  "started": "2026-09-08T07:21:02.314Z",
+  "resources": {
+    "Property": {
+      "scope": "StandardStatus eq 'Active'",
+      "key": "ListingKey",
+      "rows": 7600,
+      "pages": 8,
+      "rowsByStatus": {
+        "Active": 7600
+      },
+      "suppressed": 221,
+      "fields": {
+        "AccessCode": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuildingKey": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuildingKeyNumeric": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentAOR": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "BuyerAgentDesignation": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "BuyerAgentDirectPhone": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentEmail": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentFax": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentFirstName": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentFullName": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentHomePhone": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentKey": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentKeyNumeric": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentLastName": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentMiddleName": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentMobilePhone": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentNamePrefix": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentNameSuffix": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentNationalAssociationId": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentOfficePhone": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentOfficePhoneExt": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentPager": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentPreferredPhone": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentPreferredPhoneExt": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentStateLicense": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentTollFreePhone": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentURL": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentVoiceMail": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerAgentVoiceMailExt": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerBrokerageCompensation": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerBrokerageCompensationType": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "BuyerOfficeAOR": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "BuyerOfficeEmail": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerOfficeFax": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerOfficeKey": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerOfficeKeyNumeric": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerOfficeName": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerOfficeNationalAssociationId": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerOfficePhone": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerOfficePhoneExt": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerOfficeURL": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerTeamKeyNumeric": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "BuyerTeamName": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CancellationDate": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentAOR": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "CoBuyerAgentDesignation": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "CoBuyerAgentDirectPhone": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentEmail": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentFax": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentFirstName": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentFullName": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentHomePhone": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentKey": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentKeyNumeric": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentLastName": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentMiddleName": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentMobilePhone": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentNamePrefix": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentNameSuffix": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentNationalAssociationId": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentOfficePhone": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentOfficePhoneExt": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentPager": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentPreferredPhone": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentPreferredPhoneExt": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentStateLicense": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentTollFreePhone": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentURL": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentVoiceMail": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerAgentVoiceMailExt": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerOfficeAOR": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "CoBuyerOfficeEmail": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerOfficeFax": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerOfficeKey": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerOfficeKeyNumeric": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerOfficeName": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerOfficeNationalAssociationId": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerOfficePhone": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerOfficePhoneExt": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoBuyerOfficeURL": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoListAgentHomePhone": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoListAgentMobilePhone": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoListAgentStateLicense": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoListAgentURL": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CoListOfficeNationalAssociationId": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CompensationComments": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "ConcessionInPrice": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "ConcessionInPriceType": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "Concessions": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "ConcessionsAmount": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "ConcessionsBuyerBrokerFee": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "ConcessionsClosingCosts": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "ConcessionsComments": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "ConcessionsFinancingCosts": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "ConcessionsOtherCosts": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "ConcessionsPropertyImprovementCosts": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CopyrightNotice": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "Country": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "CountryRegion": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "CropsIncludedYN": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "CultivatedArea": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CumulativeDaysOnMarket": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DaysOnMarket": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DaysOnMarketReplication": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DaysOnMarketReplicationDate": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DaysOnMarketReplicationIncreasingYN": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "Disclosures": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "DistanceToBusComments": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToBusNumeric": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToBusUnits": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "DistanceToElectricComments": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToElectricNumeric": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToElectricUnits": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "DistanceToFreewayComments": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToFreewayNumeric": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToFreewayUnits": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "DistanceToGasComments": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToGasNumeric": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToGasUnits": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "DistanceToPhoneServiceComments": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToPhoneServiceNumeric": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToPhoneServiceUnits": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "DistanceToPlaceofWorshipComments": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToPlaceofWorshipNumeric": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToPlaceofWorshipUnits": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "DistanceToSchoolBusComments": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToSchoolBusNumeric": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToSchoolBusUnits": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "DistanceToSchoolsComments": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToSchoolsNumeric": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToSchoolsUnits": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "DistanceToSewerComments": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToSewerNumeric": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToSewerUnits": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "DistanceToShoppingComments": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToShoppingNumeric": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToShoppingUnits": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "DistanceToStreetComments": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToStreetNumeric": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToStreetUnits": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "DistanceToWaterComments": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToWaterNumeric": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "DistanceToWaterUnits": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "DualOrVariableRateCommissionYN": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "ExpirationDate": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "FarmCreditServiceInclYN": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "FarmLandAreaSource": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "FarmLandAreaUnits": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "GrazingPermitsBlmYN": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "GrazingPermitsForestServiceYN": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "GrazingPermitsPrivateYN": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "HeadBrokerMemberKey": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "HeadBrokerMemberMlsId": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "HorseAmenities": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "HorseYN": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "InternetAddressDisplayYN": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "InternetEntireListingDisplayYN": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "IrrigationSource": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "IrrigationWaterRightsAcres": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "IrrigationWaterRightsYN": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "Latitude": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "LeaseExpiration": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "LeaseRenewalCompensation": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "ListAgentHomePhone": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "ListAgentMobilePhone": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "ListAgentStateLicense": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "ListTeamKeyNumeric": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "LockBoxLocation": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "LockBoxSerialNumber": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "LockBoxType": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "Longitude": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "MLSAreaMajor": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "MLSAreaMinor": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "MapCoordinate": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "MapCoordinateSource": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "MapURL": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "MlsStatus": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "MobileDimUnits": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "MobileHomeRemainsYN": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "MobileLength": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "MobileWidth": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "Model": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "OccupantName": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "OccupantPhone": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "OccupantType": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "OriginatingSystemBuyerAgentMemberKey": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "OriginatingSystemBuyerOfficeKey": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "OriginatingSystemBuyerTeamKey": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "OriginatingSystemCoBuyerAgentMemberKey": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "OriginatingSystemCoBuyerOfficeKey": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "OwnerName": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "OwnerName2": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "OwnerPhone": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "PastureArea": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "PreviousStandardStatus": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "PrivateOfficeRemarks": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "PrivateRemarks": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "PropertyCondition": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "PublicSurveyRange": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "RVParkingDimensions": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "RangeArea": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "SellerConsiderConcessionYN": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "ShowingAdvanceNotice": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "ShowingAttendedYN": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "ShowingConsiderations": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "ShowingDays": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "ShowingEndTime": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "ShowingInstructions": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "ShowingRequirements": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "ShowingServiceName": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "ShowingStartTime": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "SourceSystemKey": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "SourceSystemName": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "SubAgencyCompensation": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "SubAgencyCompensationType": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "SyndicationRemarks": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "TransactionBrokerCompensation": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "TransactionBrokerCompensationType": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "UniversalPropertySubId": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "Vegetation": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "X_GeocodeSource": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        }
+      }
+    },
+    "Member": {
+      "scope": "all (resource has no StandardStatus)",
+      "key": "MemberKey",
+      "rows": 11191,
+      "pages": 12,
+      "rowsByStatus": {
+        "n/a": 11191
+      },
+      "suppressed": 15,
+      "fields": {
+        "JobTitle": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "LastLoginTimestamp": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "MemberAssociationComments": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "MemberBillingPreference": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "MemberHomePhone": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "MemberLoginId": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "MemberMlsSecurityClass": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "MemberPager": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "MemberStateLicense": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "MemberStateLicenseState": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "MemberStateLicenseType": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "Permission": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "SocialMediaType": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "SourceSystemID": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "SyndicateTo": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        }
+      }
+    },
+    "Office": {
+      "scope": "all (resource has no StandardStatus)",
+      "key": "OfficeKey",
+      "rows": 578,
+      "pages": 1,
+      "rowsByStatus": {
+        "n/a": 578
+      },
+      "suppressed": 12,
+      "fields": {
+        "FranchiseAffiliation": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "FranchiseNationalAssociationId": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "OfficeAssociationComments": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "OfficeBrokerNationalAssociationId": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "OfficeCorporateLicense": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "OfficeManagerKey": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "OfficeManagerKeyNumeric": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "OfficeManagerMlsId": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "Permission": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "SocialMediaType": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "SyndicateAgentOption": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "SyndicateTo": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        }
+      }
+    },
+    "OpenHouse": {
+      "scope": "StandardStatus eq 'Active'",
+      "key": "OpenHouseKey",
+      "rows": 1408,
+      "pages": 2,
+      "rowsByStatus": {
+        "Active": 1408
+      },
+      "suppressed": 5,
+      "fields": {
+        "LivestreamOpenHouseURL": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "OpenHouseRemarks": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "Permission": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "SourceSystemKey": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "SourceSystemListingKey": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        }
+      }
+    },
+    "CustomProperty": {
+      "scope": "StandardStatus eq 'Active'",
+      "key": "ListingKey",
+      "rows": 7637,
+      "pages": 8,
+      "rowsByStatus": {
+        "Active": 7637
+      },
+      "suppressed": 28,
+      "fields": {
+        "AdditionalInfo2": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "AdditionalInfo3": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "ApplicationFee": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "CommunityDevelopmentDistrictYN": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "ConsumerRemarks": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "GulfAccessType": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "GulfAccessYN": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "LakeChainName": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "LakeId": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "LakeName": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "LakeSize": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "LandTenure": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "Membership": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "MembershipFee": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "MembershipRequiredYN": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "MineralRights": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "OffMarketDate": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "OffSeasonRate": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "Permission": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "PrivateShowingInstructions": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "RentSpreeURL": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "RentSpreeYN": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "RiverName": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "SeasonRate": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "SourceSupplementPublicCount": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "SourceSystemKey": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "TaxYearRange": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "UnitLocation": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        }
+      }
+    },
+    "PropertyRooms": {
+      "scope": "StandardStatus eq 'Active'",
+      "key": "RoomKey",
+      "rows": 2,
+      "pages": 1,
+      "rowsByStatus": {
+        "Active": 2
+      },
+      "suppressed": 2,
+      "fields": {
+        "Permission": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "RoomDescription": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        }
+      }
+    },
+    "PropertyUnitTypes": {
+      "scope": "StandardStatus eq 'Active'",
+      "key": "UnitTypeKey",
+      "rows": 0,
+      "pages": 0,
+      "rowsByStatus": {},
+      "suppressed": 3,
+      "fields": {
+        "Permission": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {},
+          "distinct": {}
+        },
+        "UnitTypeDescription": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        },
+        "UnitTypeLeaseExpires": {
+          "nonNull": 0,
+          "nonEmpty": 0,
+          "byStatus": {},
+          "kinds": {}
+        }
+      }
+    }
+  },
+  "finished": "2026-09-08T07:21:20.673Z",
+  "quota": {
+    "minuteLimit": 280,
+    "minuteAvailable": 261,
+    "hourLimit": 8400,
+    "hourAvailable": 6891,
+    "hourResetTime": 1788852995017,
+    "seenAt": 1788852080672
+  }
+}

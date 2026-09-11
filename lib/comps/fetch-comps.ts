@@ -11,31 +11,95 @@
 
 import { fetchFromTrestle } from "@/lib/idx/fetch";
 import { CARD_SELECT_FIELDS } from "@/lib/idx/card-fields";
+import { cityRegionForBorough } from "@/lib/listings/canonical-location";
+// The canonical comp-eligibility authority (CloseDate windowing, ownership segmentation) — this module is its
+// designated consumer (Domain 7, 2026-09-08; the authority's header named the CMA close-price fix as the
+// consumer). The vocabulary chain guard lists this importer explicitly.
+import { compEligibility } from "@/lib/search/canonical/comp-eligibility";
+import { statusGroup } from "@/lib/search/canonical/status";
+import { ownershipClass, commonInterestOf } from "@/lib/search/canonical/ownership";
+import { lifecycleFromProviderRow, transactionTypeFromProvider } from "@/lib/listings/canonical-lifecycle";
+import { marketDom } from "@/lib/compliance/dom-tracker";
+import type { CotalityRow } from "@/lib/cotality/contract";
+// The comp criteria vocabulary (live StandardStatus tokens + this transaction's canonical labels). An agent
+// criterion is resolved here BEFORE it reaches an OData filter and refused otherwise (owner ruling 2026-09-08:
+// no unvalidated string ever becomes a provider clause, and a sale never speaks a rental word).
+import { resolveCompStatusCriteria, compStatusLabel, isCompCriteriaError, type CompTransaction } from "./status-criteria";
 import type { CompCriteria, CompListing, CompResults, BuildingCompCriteria, AreaCompCriteria } from "./types";
 
-// Trestle status values mapped from our display names
-const STATUS_MAP: Record<string, string> = {
-  "Active": "Active",
-  "Under Contract": "ActiveUnderContract",
-  "Closed": "Closed",
-  "Expired": "Expired",
-  "Coming Soon": "ComingSoon",
-  "Pending": "Pending",
-};
+/** The live statuses that are closings — windowed by the CLOSING date; every other status is unwindowed. */
+const CLOSED_STATUSES: ReadonlySet<string> = new Set(["Closed"]);
+const isoDay = (d: Date): string => d.toISOString().slice(0, 10);
 
-function statusFilter(statuses: string[]): string {
-  const mapped = statuses
-    .map((s) => STATUS_MAP[s] || s)
-    .map((s) => `'${s}'`);
-  if (mapped.length === 0) return "";
-  if (mapped.length === 1) return `StandardStatus eq ${mapped[0]}`;
-  return `(${mapped.map((s) => `StandardStatus eq ${s}`).join(" or ")})`;
+/**
+ * Status + window clause for a comps query (Domain 7, 2026-09-08). Closed comps are windowed by
+ * `CloseDate ge <asOf − monthsBack>` — never by ModificationTimestamp, which admitted any old closing that was
+ * merely touched and dropped 24% of the last year's closings (live 2026-09-08: CloseDate ge 2025-09-08 → 14,942
+ * sale closings, only 11,311 of them modified in the last 3 months). On-market statuses are current by
+ * definition and carry no window.
+ */
+export function compsStatusWindowFilter(statuses: string[], monthsBack: number, asOf: Date = new Date(), transaction: CompTransaction = "sale"): string {
+  const since = new Date(asOf);
+  since.setMonth(since.getMonth() - monthsBack);
+  // Every criterion is resolved to a live StandardStatus token through THIS transaction's mapping first; an
+  // unrecognized value throws CompCriteriaError and never becomes an OData clause (fail-closed).
+  const mapped = [...new Set(resolveCompStatusCriteria(statuses, "statuses", transaction))];
+  const clauses = mapped.map((s) =>
+    CLOSED_STATUSES.has(s) ? `(StandardStatus eq '${s}' and CloseDate ge ${isoDay(since)})` : `StandardStatus eq '${s}'`,
+  );
+  if (clauses.length === 0) return "";
+  if (clauses.length === 1) return clauses[0];
+  return `(${clauses.join(" or ")})`;
 }
 
-function dateFilter(monthsBack: number): string {
-  const d = new Date();
-  d.setMonth(d.getMonth() - monthsBack);
-  return `ModificationTimestamp gt ${d.toISOString()}`;
+/** Closed-only comp sets are ordered by the closing date; mixed sets keep the modification order. */
+export function compsOrderBy(statuses: string[], transaction: CompTransaction = "sale"): string {
+  const mapped = resolveCompStatusCriteria(statuses, "statuses", transaction);
+  return mapped.length > 0 && mapped.every((s) => CLOSED_STATUSES.has(s)) ? "CloseDate desc" : "ModificationTimestamp desc";
+}
+
+/**
+ * Apply the canonical comp-eligibility authority to fetched comps: a closed comp must have a CloseDate inside the
+ * window (defense in depth behind the provider clause; a comp without a CloseDate is never dated by anything
+ * else), and when the SUBJECT's ownership class is known (live CommonInterest) a comp of a different known class
+ * is excluded — co-op comps for a co-op, condo comps for a condo. A comp whose own ownership is unknown is kept
+ * (a mismatch cannot be proven). Agent-selected off-market statuses (Expired …) are market observations, not
+ * valuation comps, and pass subject to the same ownership rule.
+ */
+export interface CompEligibilityOptions {
+  asOf?: Date;
+  monthsBack: number;
+  subjectCommonInterest?: string | null;
+  /** The SUBJECT's transaction — a sale is compared with sales, a rental with rentals (never mixed). Default sale. */
+  transactionType?: "sale" | "rental";
+}
+
+/** One comp's eligibility facts: its stored status, its CloseDate (if closed) and its ownership class evidence. */
+export type CompEligibilityFacts = Pick<CompListing, "status" | "close_date" | "common_interest">;
+
+/**
+ * The comp-eligibility authority for ONE comp (this module is the canonical package's designated consumer —
+ * lib/cma/engine.ts and the provider comp fetch both come through here, never through a second reader).
+ */
+export function isEligibleComp(c: CompEligibilityFacts, o: CompEligibilityOptions): boolean {
+  const asOf = o.asOf ?? new Date();
+  const target = ownershipClass(o.subjectCommonInterest);
+  const segment = target !== "unknown";
+  const closedWindowDays = Math.round(o.monthsBack * 30.4375);
+  const group = statusGroup(c.status, o.transactionType ?? "sale");
+  const ownership = ownershipClass(c.common_interest);
+  const mixOwnership = !segment || ownership === "unknown";
+  if (group === "closed_recent" || group === "active_on_market" || group === "pending_contract") {
+    return compEligibility(
+      { group, ownership, closeDate: c.close_date },
+      { targetOwnership: target, asOf, closedWindowDays, mixOwnership },
+    ) !== "excluded";
+  }
+  return mixOwnership || ownership === target;
+}
+
+export function applyCompEligibility(comps: CompListing[], o: CompEligibilityOptions): CompListing[] {
+  return comps.filter((c) => isEligibleComp(c, o));
 }
 
 function bedsFilter(min: number, max: number): string {
@@ -61,34 +125,66 @@ function esc(s: string): string {
   return s.replace(/'/g, "''");
 }
 
-function mapToCompListing(r: Record<string, unknown>): CompListing {
+/**
+ * One provider row → one comp. NULL when the row's StandardStatus is not a live member or its PropertyType is
+ * not a transaction — the caller drops it (fail-closed; a status is never defaulted to Active and a row is
+ * never guessed onto a transaction).
+ *
+ * Close facts (ClosePrice / CloseDate) are read through the Cotality interpretation boundary
+ * (lifecycleFromProviderRow), so they exist ONLY on a row the provider marked Closed: an Active row that still
+ * carries a stale ClosePrice is an ASKING price with no closing, never a comp's close price (owner ruling
+ * 2026-09-08). A closed row without a CloseDate is never dated by anything else.
+ */
+function mapToCompListing(r: Record<string, unknown>): CompListing | null {
+  const lifecycle = lifecycleFromProviderRow(r as CotalityRow<"Property">);
+  if (!lifecycle) return null;
+  const transaction = transactionTypeFromProvider(r.PropertyType);
+  if (!transaction) return null;
   const listPrice = Number(r.ListPrice) || 0;
   const sqft = Number(r.LivingArea) || null;
-  const closePrice = r.ClosePrice ? Number(r.ClosePrice) : null;
+  const closePrice = lifecycle.closePrice;
+  const closeDate = lifecycle.closedDate;
+  const status = lifecycle.storageStatus;
 
   return {
     listing_id: String(r.ListingId || ""),
     address: [r.StreetNumber, r.StreetDirPrefix, r.StreetName, r.StreetSuffix, r.StreetDirSuffix]
       .filter(Boolean).join(" "),
     unit: String(r.UnitNumber || ""),
-    status: String(r.StandardStatus || ""),
+    status,
+    // broker language for THIS comp's transaction — never a stored value, never a shared list
+    status_label: compStatusLabel(status, transaction),
+    transaction,
     property_type: String(r.PropertyType || ""),
     beds: r.BedroomsTotal != null ? Number(r.BedroomsTotal) : null,
     baths: r.BathroomsTotalInteger != null ? Number(r.BathroomsTotalInteger) : null,
     sqft,
     list_price: listPrice,
     close_price: closePrice,
-    close_date: r.CloseDate ? String(r.CloseDate) : null,
-    days_on_market: r.DaysOnMarket != null ? Number(r.DaysOnMarket) : null,
+    close_date: closeDate,
+    // Mallan market DOM from the provider's contract-event dates (ONE rule: lib/compliance/dom-tracker.ts); the
+    // provider's DaysOnMarket is null on every sampled row of this feed. Null when the clock cannot be verified.
+    days_on_market: marketDom(lifecycle, new Date()).days,
     price_per_sqft: sqft && sqft > 0 ? Math.round((closePrice || listPrice) / sqft) : null,
     building_name: String(r.BuildingName || ""),
     listing_agent: String(r.ListAgentFullName || ""),
     listing_office: String(r.ListOfficeName || ""),
     photo_count: Number(r.PhotosCount) || 0,
+    common_interest: commonInterestOf(r),
   };
 }
 
-interface ListingContext {
+/** Provider rows → comps of the SUBJECT's transaction only; unusable and cross-transaction rows are dropped. */
+function mapComps(records: Record<string, unknown>[], transaction: CompTransaction): CompListing[] {
+  const out: CompListing[] = [];
+  for (const r of records) {
+    const c = mapToCompListing(r);
+    if (c && c.transaction === transaction) out.push(c);
+  }
+  return out;
+}
+
+export interface ListingContext {
   listing_id: string;
   building_name: string | null;
   street_number: string | null;
@@ -97,6 +193,8 @@ interface ListingContext {
   borough: string | null;
   postal_code: string | null;
   property_type: string | null;
+  /** The subject row's buckets (features / raw_data) — its ownership class segments the comps (unknown = none). */
+  subject?: { features?: unknown; raw_data?: unknown } | null;
 }
 
 /**
@@ -105,6 +203,7 @@ interface ListingContext {
 async function fetchBuildingComps(
   ctx: ListingContext,
   criteria: BuildingCompCriteria,
+  transaction: CompTransaction,
 ): Promise<CompListing[]> {
   // Identify building: prefer BuildingName, fallback to street address
   const buildingFilters: string[] = [];
@@ -120,8 +219,8 @@ async function fetchBuildingComps(
 
   const filters = [
     ...buildingFilters,
-    statusFilter(criteria.statuses),
-    dateFilter(criteria.months_back),
+    ctx.property_type ? `PropertyType eq '${esc(ctx.property_type)}'` : "",
+    compsStatusWindowFilter(criteria.statuses, criteria.months_back, new Date(), transaction),
     bedsFilter(criteria.beds_min, criteria.beds_max),
     bathsFilter(criteria.baths_min, criteria.baths_max),
     sqftFilter(criteria.sqft_min, criteria.sqft_max, criteria.sqft_enabled),
@@ -135,14 +234,39 @@ async function fetchBuildingComps(
       select: CARD_SELECT_FIELDS,
       top: 50,
       maxTotal: 50,
-      orderby: "ModificationTimestamp desc",
+      orderby: compsOrderBy(criteria.statuses, transaction),
       expandMedia: false,
     });
-    return result.records.map(mapToCompListing);
+    const rows = mapComps(result.records, transaction);
+    const subjectCommonInterest = commonInterestOf(ctx.subject);
+    return applyCompEligibility(rows, { monthsBack: criteria.months_back, transactionType: transaction, subjectCommonInterest });
   } catch (err) {
+    if (isCompCriteriaError(err)) throw err;
     console.warn("[comps] Building comp fetch failed:", (err as Error).message);
     return [];
   }
+}
+
+/**
+ * The area-comps location clause — neighborhoods, else zip, else borough, else null (no comps).
+ *
+ * Canonical location (Maya, 2026-09-08, exhaustive live evidence): a neighborhood is
+ * `SubdivisionName` and a borough is `CityRegion`. The previous clauses were
+ * `CityRegion eq '<neighborhood>'` (0 live rows for 'Upper East Side'; 51,664 on SubdivisionName)
+ * and `CountyOrParish eq '<borough>'` (0 live rows for 'Manhattan' and 'Brooklyn' — the county field
+ * holds county names), so area comps by neighborhood never matched.
+ */
+export function areaCompsLocationFilter(
+  ctx: Pick<ListingContext, "postal_code" | "borough">,
+  criteria: Pick<AreaCompCriteria, "neighborhoods">,
+): string | null {
+  if (criteria.neighborhoods.length > 0) {
+    const clauses = criteria.neighborhoods.map((n) => `SubdivisionName eq '${esc(n)}'`);
+    return clauses.length === 1 ? clauses[0] : `(${clauses.join(" or ")})`;
+  }
+  if (ctx.postal_code) return `PostalCode eq '${esc(ctx.postal_code)}'`;
+  const cityRegion = cityRegionForBorough(ctx.borough);
+  return cityRegion ? `CityRegion eq '${cityRegion}'` : null;
 }
 
 /**
@@ -151,30 +275,20 @@ async function fetchBuildingComps(
 async function fetchAreaComps(
   ctx: ListingContext,
   criteria: AreaCompCriteria,
+  transaction: CompTransaction,
 ): Promise<CompListing[]> {
   const filters: string[] = [];
 
-  // Neighborhood filter
-  if (criteria.neighborhoods.length > 0) {
-    const nhoodClauses = criteria.neighborhoods.map(
-      (n) => `CityRegion eq '${esc(n)}'`
-    );
-    filters.push(nhoodClauses.length === 1 ? nhoodClauses[0] : `(${nhoodClauses.join(" or ")})`);
-  } else if (ctx.postal_code) {
-    filters.push(`PostalCode eq '${esc(ctx.postal_code)}'`);
-  } else if (ctx.borough) {
-    filters.push(`CountyOrParish eq '${esc(ctx.borough)}'`);
-  } else {
-    return [];
-  }
+  const location = areaCompsLocationFilter(ctx, criteria);
+  if (!location) return [];
+  filters.push(location);
 
   // Property type — match same general type
   if (ctx.property_type) {
     filters.push(`PropertyType eq '${esc(ctx.property_type)}'`);
   }
 
-  filters.push(statusFilter(criteria.statuses));
-  filters.push(dateFilter(criteria.months_back));
+  filters.push(compsStatusWindowFilter(criteria.statuses, criteria.months_back, new Date(), transaction));
   filters.push(bedsFilter(criteria.beds_min, criteria.beds_max));
   filters.push(bathsFilter(criteria.baths_min, criteria.baths_max));
 
@@ -193,11 +307,14 @@ async function fetchAreaComps(
       select: CARD_SELECT_FIELDS,
       top: 50,
       maxTotal: 50,
-      orderby: "CloseDate desc,ModificationTimestamp desc",
+      orderby: compsOrderBy(criteria.statuses, transaction),
       expandMedia: false,
     });
-    return result.records.map(mapToCompListing);
+    const rows = mapComps(result.records, transaction);
+    const subjectCommonInterest = commonInterestOf(ctx.subject);
+    return applyCompEligibility(rows, { monthsBack: criteria.months_back, transactionType: transaction, subjectCommonInterest });
   } catch (err) {
+    if (isCompCriteriaError(err)) throw err;
     console.warn("[comps] Area comp fetch failed:", (err as Error).message);
     return [];
   }
@@ -210,16 +327,27 @@ export async function fetchComps(
   ctx: ListingContext,
   criteria: CompCriteria,
 ): Promise<CompResults> {
+  if (!ctx.property_type) throw new Error("CMA requires the subject verified Cotality PropertyType");
+  // The SUBJECT transaction is its live PropertyType (Residential... = sale, *Lease = rental). A PropertyType
+  // that resolves to neither cannot be compared - a comp set is never assembled on a guess (owner ruling: sale
+  // and rental have separate mappings and never mix).
+  const transaction = transactionTypeFromProvider(ctx.property_type);
+  if (!transaction) {
+    throw new Error(`CMA requires a subject transaction: PropertyType '${ctx.property_type}' is neither a sale nor a rental`);
+  }
   const [building, area] = await Promise.all([
-    fetchBuildingComps(ctx, criteria.building),
-    fetchAreaComps(ctx, criteria.area),
+    fetchBuildingComps(ctx, criteria.building, transaction),
+    fetchAreaComps(ctx, criteria.area, transaction),
   ]);
 
+  // Defense in depth: never mix a sale and a rental if a provider response violates the query.
+  const sameType = (rows: CompListing[]) => rows.filter((row) => row.property_type === ctx.property_type && row.transaction === transaction);
   return {
-    building,
-    area,
+    building: sameType(building),
+    area: sameType(area),
     criteria,
     listing_id: ctx.listing_id,
+    transaction,
     fetched_at: new Date().toISOString(),
   };
 }

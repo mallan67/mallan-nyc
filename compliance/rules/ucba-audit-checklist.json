@@ -345,7 +345,7 @@
           "verdict": "PASS",
           "verifyFiles": [
             "lib/compliance/rls-enforcement.ts",
-            "lib/compliance/rebny-field-tables.ts"
+            "lib/compliance/rebny-ucba-rules.ts"
           ],
           "verifyPattern": "ListingAgreement|ExclusiveRightToSell|ExclusiveAgency",
           "verifyDescription": "Check ListingAgreement enum whitelist contains only exclusive types AND enforcement gate rejects others",
@@ -362,7 +362,7 @@
                 "lib/compliance/rls-enforcement.ts"
               ],
               "data": [
-                "lib/compliance/rebny-field-tables.ts"
+                "lib/compliance/rebny-ucba-rules.ts"
               ]
             },
             "surface_patterns": {
@@ -1104,7 +1104,7 @@
           "verdict": "PASS",
           "verifyFiles": [
             "lib/compliance/rls-enforcement.ts",
-            "lib/compliance/rebny-field-tables.ts"
+            "lib/compliance/rebny-ucba-rules.ts"
           ],
           "verifyPattern": "MANDATORY_FIELDS|agentSubmitted|mandatoryCount",
           "verifyDescription": "Check enforcement gate validates all 48 mandatory + 51 conditional fields",
@@ -1121,12 +1121,12 @@
                 "lib/compliance/rls-enforcement.ts"
               ],
               "data": [
-                "lib/compliance/rebny-field-tables.ts"
+                "lib/compliance/rebny-ucba-rules.ts"
               ]
             },
             "surface_patterns": {
-              "gate": "validate|REQUIRED_RLS_FIELDS",
-              "data": "REBNY_FIELD_TABLES|enumValues"
+              "gate": "validate|REQUIRED_COTALITY_FIELDS",
+              "data": "live-contract|liveEnumMembers"
             },
             "expected_aggregate": "PASS"
           }
@@ -1673,7 +1673,7 @@
             "public/crm/SALE-FORM-REDESIGN.html"
           ],
           "verifyPattern": "NumberOfShares|saleUnitShares",
-          "verifyDescription": "Check field exists WITHOUT data-rls-ignore AND is mapped in payload builder to NumberOfShares",
+          "verifyDescription": "Check field exists WITHOUT data-mallan-ignore AND is mapped in payload builder to NumberOfShares",
           "validation_v2": {
             "validation_mode": "pattern",
             "ci_policy": "must_pass",

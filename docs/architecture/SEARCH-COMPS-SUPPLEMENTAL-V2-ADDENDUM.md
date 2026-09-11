@@ -1,3 +1,5 @@
+> **SUPERSEDED HEADER (2026-09-10).** This is a **2026-07-10 design document**, retained as design history. It is **not** current direction and it is **not** governing architecture. The product/system authority is `MALLAN-PLATFORM-MASTER-PLAN.md` (repo root, canonical lineage PR #595 / `agent/publish-mallan-platform-master-plan-2026-08-04`, which now owns private/supplemental inventory, StreetEasy and Schedule A sourcing, canonical Property/Unit/Listing identity, and the Frontend Consumer Search vs. Backend Agent Search boundary. Read this file for the *reasoning* behind those decisions; where it and the Master Plan differ, **the Master Plan governs**. The lane and PR numbering below (A1-A9, B1a/B1b, G1/G2) is **not an active work queue**. Nothing here authorizes implementation; the external-inventory and syndication holds remain in force.
+
 # Search / Comps / Supplemental-Inventory V2 — Design Addendum
 
 > **Status: DESIGN ONLY — NOT AUTHORIZED FOR IMPLEMENTATION.**

@@ -1,3 +1,59 @@
+    /**
+     * The explicit entry point carried by the URL, if any.
+     *
+     * A link named "Rental Advanced Search" is a promise about where you arrive. Before 2026-09-09 this
+     * file restored mode/tab/type from sessionStorage ALONE, so the CRM's six Property Search doors
+     * (built as /crm/search?tab=sale-advanced) all opened the same page in whatever state the operator
+     * last left it in - the parameter was never read.
+     *
+     * Accepts the explicit form (?mode=&tab=&type=) and the compound form (?tab=sale-advanced) that the
+     * CRM launcher and saved Recent Searches already emit, so existing history entries start working
+     * rather than staying inert. Anything unrecognised is IGNORED, never obeyed.
+     */
+    function _searchEntryFromUrl() {
+        var out = { mode: null, tab: null, type: null };
+        var q;
+        try { q = new URLSearchParams(window.location.search); } catch (e) { return out; }
+
+        var MODES = ['basic', 'advanced'];
+        var TABS = ['sale', 'rent', 'building'];
+        var TYPES = ['general', 'comparables'];
+        var pick = function (list, v) { return v && list.indexOf(v) !== -1 ? v : null; };
+
+        out.mode = pick(MODES, q.get('mode'));
+        out.tab = pick(TABS, q.get('tab'));
+        out.type = pick(TYPES, q.get('type'));
+
+        // Compound form: tab=sale-basic | rental-advanced | building-basic | comps-address | ...
+        var compound = q.get('tab');
+        if (compound && compound.indexOf('-') !== -1) {
+            var head = compound.split('-')[0];
+            var tail = compound.split('-')[1];
+            if (head === 'comps') {
+                out.type = out.type || 'comparables';
+            } else {
+                out.tab = out.tab || pick(TABS, head === 'rental' ? 'rent' : head);
+                out.mode = out.mode || pick(MODES, tail);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Consume the entry point so it applies once. Internal navigation afterwards follows what the
+     * operator does, not what the link said. Every OTHER parameter (clientContext, compareContext) is
+     * preserved untouched.
+     */
+    function _consumeSearchEntryParams() {
+        try {
+            var q = new URLSearchParams(window.location.search);
+            if (!q.has('mode') && !q.has('tab') && !q.has('type')) return;
+            ['mode', 'tab', 'type'].forEach(function (k) { q.delete(k); });
+            var rest = q.toString();
+            window.history.replaceState(null, '', window.location.pathname + (rest ? '?' + rest : '') + window.location.hash);
+        } catch (e) { /* a URL we cannot rewrite is not worth failing the page over */ }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         var hash = window.location.hash.replace('#', '');
 
@@ -5,6 +61,14 @@
         var parts = hash.split('/');
         var route = parts[0] || 'main';
         var routeParam = parts[1] || null;
+        // #detail/<id>?type=sale|rental — the universe travels with the id.
+        var _detailUniverse = null;
+        if (routeParam && routeParam.indexOf('?') !== -1) {
+            var _rq = routeParam.split('?');
+            routeParam = decodeURIComponent(_rq[0]);
+            var _tm = /(?:^|&)type=(sale|rental)(?:&|$)/.exec(_rq[1] || '');
+            if (_tm) _detailUniverse = _tm[1];
+        }
 
         // On refresh with #results: keep the route — we'll restore search state
         // after API data loads via MallanAPI.onReady() in the results handler below.
@@ -32,11 +96,13 @@
             if (searchFormContainer) searchFormContainer.style.display = 'block';
             if (searchResultsSection) searchResultsSection.style.display = 'none';
 
-            // Restore saved search mode + tab + type on refresh (mode FIRST so tab sees correct state)
+            // Restore mode + tab + type (mode FIRST so tab sees correct state).
+            // An explicit entry point in the URL WINS over the previous visit - see _searchEntryFromUrl.
+            var _entry = _searchEntryFromUrl();
             try {
-                var savedMode = sessionStorage.getItem('searchMode');
-                var savedTab = sessionStorage.getItem('searchTab');
-                var savedType = sessionStorage.getItem('searchType');
+                var savedMode = _entry.mode || sessionStorage.getItem('searchMode');
+                var savedTab = _entry.tab || sessionStorage.getItem('searchTab');
+                var savedType = _entry.type || sessionStorage.getItem('searchType');
                 if (savedMode && typeof toggleSearchMode === 'function') {
                     toggleSearchMode(savedMode);
                 }
@@ -47,6 +113,7 @@
                     toggleSearchType(savedType);
                 }
             } catch(e) {}
+            _consumeSearchEntryParams();
 
         } else if (route === 'detail' && routeParam) {
             // ── STANDALONE DETAIL PAGE ──
@@ -154,7 +221,14 @@
                         // lid-based URL — fetch this single listing directly
                         MallanAPI.onReady(function() {
                             if (_detailResolved) return;
-                            MallanAPI.idx.search({ listingId: detailId, limit: 1 }).then(function(result) {
+                            // The executor binds a listing to its universe. Ask in the
+                            // universe the link carried; a bare link tries Sale, then Rental,
+                            // each lookup universe-bound — a bare id never searches both at once.
+                            var _lookup = function(type) { return MallanAPI.idx.search({ listingId: detailId, type: type, limit: 1 }); };
+                            var _detailFetch = _detailUniverse
+                                ? _lookup(_detailUniverse)
+                                : _lookup('sale').then(function(r) { return (r && r.listings && r.listings.length > 0) ? r : _lookup('rental'); });
+                            _detailFetch.then(function(result) {
                                 if (_detailResolved) return;
                                 if (result.listings && result.listings.length > 0) {
                                     var fetched = result.listings[0];
@@ -209,8 +283,19 @@
         }, 500);
 
         // ── Handle browser back/forward buttons ──
-        window.addEventListener('hashchange', function() {
-            var newHash = window.location.hash.replace('#', '');
+        //
+        // This file used to register its own hashchange listener here. It no longer does, because the
+        // CRM is converging on ONE routing authority: js/core/crm-routing.js owns the only hashchange
+        // registration and dispatches on the leading slash - "#/ops/tasks" to the brokerage panels,
+        // "#results" / "#detail/<id>" / "#manage" to this handler. Two listeners on one bar is the
+        // trap: each router defaults an unrecognised hash to its own home route, so every brokerage
+        // navigation would ALSO be handled here as "show the search form", and every search
+        // navigation would ALSO be handled there as "go to the ops dashboard".
+        //
+        // The search behaviour below is unchanged - only who calls it has changed. If CrmRouting is
+        // not present (this file loaded standalone), it keeps its own listener so nothing regresses.
+        function _handleSearchHash(rawHash) {
+            var newHash = String(rawHash == null ? '' : rawHash).replace(/^#/, '');
             var newParts = newHash.split('/');
             var newRoute = newParts[0] || 'main';
             var newParam = newParts[1] || null;
@@ -242,7 +327,16 @@
                     }
                 }
             }
-        });
+        }
+
+        // Hand this handler to the one routing authority, or keep our own listener if it is absent.
+        if (typeof CrmRouting !== 'undefined' && CrmRouting && typeof CrmRouting.install === 'function') {
+            CrmRouting.install({ onSearchRoute: _handleSearchHash });
+        } else {
+            window.addEventListener('hashchange', function () {
+                _handleSearchHash(window.location.hash);
+            });
+        }
     });
 
     /**
@@ -341,6 +435,11 @@
                     if (typeof searchResultsState !== 'undefined' && searchResultsState.filteredListings && searchResultsState.filteredListings.length > 0) {
                         if (typeof initializeSearchResults === 'function') initializeSearchResults();
                         if (typeof updateResultsCount === 'function') updateResultsCount();
+                        // Parity with the two sibling restore paths (:346 and :391). Without this a refresh at
+                        // #results that has to WAIT for listing data lands with no sticky-nav highlight and no
+                        // count — the two paths that already have cached data highlight correctly, so the nav
+                        // silently disagreed with itself depending on cache state.
+                        if (typeof updateStickyNavActive === 'function') updateStickyNavActive();
                     } else {
                         // No saved search state — go back to search form
                         // (don't dump all 500 unfiltered listings)

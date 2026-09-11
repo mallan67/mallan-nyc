@@ -1,5 +1,5 @@
 // lib/idx/auth.ts
-// OAuth2 client credentials flow for Trestle/REBNY RLS API.
+// OAuth2 client-credentials flow for the Cotality (Trestle) Web API — the current provider. (REBNY RLS is the MLS whose IDX Plus data the API serves; it is not the API.)
 // Caches token until 5 minutes before expiry.
 
 import { recordTokenRequest, recordTokenRefresh } from "./cotality-telemetry";

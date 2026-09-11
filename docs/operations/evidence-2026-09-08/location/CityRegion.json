@@ -1,0 +1,32 @@
+{
+  "source": "LIVE_COTALITY",
+  "resource": "Property",
+  "field": "CityRegion",
+  "scope": null,
+  "distinct": 5,
+  "values": [
+    "Bronx",
+    "Brooklyn",
+    "Manhattan",
+    "Queens",
+    "StatenIsland"
+  ],
+  "counts": {
+    "Bronx": 8434,
+    "Brooklyn": 151492,
+    "Manhattan": 397924,
+    "Queens": 32963,
+    "StatenIsland": 783
+  },
+  "sum_of_counts": 591596,
+  "non_null_total": 591596,
+  "complete": true,
+  "quota": {
+    "minuteLimit": 280,
+    "minuteAvailable": 197,
+    "hourLimit": 8400,
+    "hourAvailable": 8205,
+    "hourResetTime": 1788849395017,
+    "seenAt": 1788846140556
+  }
+}

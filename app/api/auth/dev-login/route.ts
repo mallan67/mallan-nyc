@@ -32,8 +32,9 @@ export async function GET(req: NextRequest) {
       <body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
       <div style="text-align:center">
         <h2 style="color:green">&#10003; Logged in as ${result.agent?.name}</h2>
-        <p>Click the link below to open the CRM:</p>
-        <a href="/crm/index-built.html" style="font-size:20px;color:blue;text-decoration:underline">Open CRM Search</a>
+        <p>Two separate applications, two addresses &mdash; open either:</p>
+        <p><a href="/crm" style="font-size:20px;color:blue;text-decoration:underline">Open the CRM</a></p>
+        <p><a href="/crm/search" style="font-size:20px;color:blue;text-decoration:underline">Open Agent Search</a></p>
       </div></body></html>`;
     const res = new NextResponse(html, { status: 200, headers: { "Content-Type": "text/html" } });
     res.cookies.set(SESSION_COOKIE, result.token, {

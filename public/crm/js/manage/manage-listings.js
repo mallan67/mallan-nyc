@@ -13,8 +13,59 @@ var ohEditId = null;
 var _manageListingsLoaded = false;
 var _manageListingsLoading = false;
 
-var manageSaleStatuses = ['All','Active','Back On Market','Coming Soon','Offer Out','Contract Signed','Board Approval','Sold','Temp Off Market','Perm Off Market','Expired'];
-var manageRentalStatuses = ['All','Active','Back On Market','Coming Soon','Offer Out','Lease Signed','Board Approval','Leased','Temp Off Market','Perm Off Market','Expired'];
+var currentManageWorkflowFilter = null;
+
+// -- Status vocabulary: the SERVER's projection of THIS transaction's mapping ------------------------------
+// Owner ruling (Maya, 2026-09-08 / 2026-09-09): a sale is resolved through the sale mapping and a rental
+// through the rental mapping - never one shared list. Manage Listings therefore holds NO status vocabulary of
+// its own: the status panels, the quick-status modal and the filter pills are all built from
+// GET /api/crm/status-options?type=sale|rental (lib/crm/status-mapping.ts). The stored value is a live Cotality
+// StandardStatus token; the broker word ("Sold", "Rented", "In Contract") is a LABEL the server computes.
+var manageStatusOptions = { sale: null, rent: null };
+var _manageStatusOptionsLoading = { sale: false, rent: false };
+
+/** The listing transaction a manage MODE ('sales' | 'rentals') belongs to. */
+function manageTransactionForMode(mode) {
+    return (mode || currentManageMode) === 'sales' ? 'sale' : 'rent';
+}
+
+/** This mode's server-projected status mapping, or null until it has loaded. */
+function manageStatusOptionsFor(mode) {
+    return manageStatusOptions[manageTransactionForMode(mode)];
+}
+
+/** One row of a transaction's workflow vocabulary, by its word. Null when the word is not this transaction's. */
+function manageWorkflowChoice(transaction, word) {
+    var options = manageStatusOptions[transaction];
+    if (!options || !options.workflow) return null;
+    for (var i = 0; i < options.workflow.length; i++) {
+        if (options.workflow[i].word === word) return options.workflow[i];
+    }
+    return null;
+}
+
+function _loadManageStatusOptions(transaction, callback) {
+    if (manageStatusOptions[transaction]) { if (callback) callback(); return; }
+    if (_manageStatusOptionsLoading[transaction]) return;
+    if (typeof MallanAPI === 'undefined' || typeof MallanAPI._fetch !== 'function') return;
+    _manageStatusOptionsLoading[transaction] = true;
+    MallanAPI._fetch('/api/crm/status-options?type=' + (transaction === 'sale' ? 'sale' : 'rental')).then(function(data) {
+        manageStatusOptions[transaction] = data;
+        _manageStatusOptionsLoading[transaction] = false;
+        if (callback) callback();
+    }).catch(function(err) {
+        _manageStatusOptionsLoading[transaction] = false;
+        if (typeof console !== 'undefined') console.error('[ManageListings] Status options load failed:', err);
+    });
+}
+
+// The filter pills, in provider-token order per transaction. ComingSoon is a sales-only state; the rental list
+// carries no Coming Soon. Each pill's TEXT is the transaction label the server sends (a sale's Closed reads
+// "Sold", a rental's "Rented"); the pill's identity is the token.
+var manageFilterTokens = {
+    sale: ['Active', 'Pending', 'Closed', 'Hold', 'Withdrawn', 'Expired', 'Canceled', 'ComingSoon'],
+    rent: ['Active', 'Pending', 'Closed', 'Hold', 'Withdrawn', 'Expired', 'Canceled']
+};
 
 // Start empty — populated by loadMyListingsFromAPI()
 var myManagementListings = [];
@@ -25,6 +76,18 @@ function _formatManageDate(isoStr) {
     var d = new Date(isoStr);
     if (isNaN(d.getTime())) return null;
     return String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getDate()).padStart(2, '0') + '/' + String(d.getFullYear()).slice(-2);
+}
+
+/**
+ * Format a Cotality date FACT ('2026-06-15' or a full timestamp) as mm/dd/yy.
+ * A bare calendar day is read verbatim - parsing it as a Date would shift it a day west of UTC.
+ */
+function _formatFactDate(value) {
+    if (value === null || value === undefined || value === '') return null;
+    var str = String(value);
+    var day = /^(\d{4})-(\d{2})-(\d{2})/.exec(str);
+    if (day) return day[2] + '/' + day[3] + '/' + day[1].slice(-2);
+    return _formatManageDate(str);
 }
 
 function _mapApiListingToManage(api) {
@@ -41,14 +104,18 @@ function _mapApiListingToManage(api) {
     if (api.raw_data && api.raw_data.ListingAgreement === 'Co-Exclusive') dealType = 'Co-Exclusive';
     if (api.raw_data && api.raw_data.ListingAgreement === 'Open') dealType = 'Open';
 
-    // Map RESO StandardStatus → CRM display status
-    var statusMap = {
-        'Draft': 'Draft', 'Active': 'Active', 'ActiveUnderContract': 'Offer Out',
-        'Pending': 'Contract Signed', 'ComingSoon': 'Coming Soon', 'Hold': 'Temp Off Market',
-        'Withdrawn': 'Perm Off Market', 'Closed': isSale ? 'Sold' : 'Leased', 'Expired': 'Expired',
-        'Canceled': 'Perm Off Market', 'Delete': 'Perm Off Market'
-    };
-    var displayStatus = statusMap[api.status] || api.status || 'Draft';
+    // The SERVER's status projection (app/api/crm/listings → statusPresentation). This module renders the
+    // label; it never re-derives one, never reads a provider status field, and never invents "Active".
+    var presentation = api.status_presentation || {};
+    // `token` is the list DTO's name for the projection's canonical status; `status` is the same value under
+    // lib/crm/status-mapping's own key. Either is the live Cotality StandardStatus token - and an unresolvable
+    // state stays null so nothing downstream can read it as "Active".
+    var statusToken = (presentation.token !== undefined ? presentation.token : presentation.status) || null;
+    var displayStatus = presentation.label || 'Status unavailable';
+    // The Cotality date / price facts the row's status carries (PurchaseContractDate, _mallanLeaseSignedDate,
+    // CloseDate, ClosePrice, ActivationDate) - the table's date columns are these facts, never a local
+    // timestamp of when the row was last touched.
+    var facts = api.status_facts || {};
 
     // Photos: first photo URL from media array
     var photoUrl = '';
@@ -64,9 +131,20 @@ function _mapApiListingToManage(api) {
     return {
         id: api.listing_id || api.id,
         _dbId: api.id,
+        // The provider's own id, carried through so the UI can tell a Mallan-authored listing from a
+        // row that came out of the licensed Cotality feed. Without it the withdraw guard cannot be
+        // evaluated in the browser at all - which is how the control ended up offered on feed rows.
+        mlsId: api.mls_id || null,
         category: isSale ? 'sales' : 'rentals',
         dealType: dealType,
+        // `status` is the broker-facing LABEL; `statusToken` is the live Cotality StandardStatus token the row
+        // stores. Filters, colors and gates key off the token; only the label is ever printed.
         status: displayStatus,
+        statusToken: statusToken,
+        workflowWord: presentation.workflow || null,
+        workflowLabel: presentation.workflowLabel || null,
+        providerStatus: presentation.providerStatus || null,
+        offMarket: presentation.offMarket === true,
         address: addressStr.trim(),
         unit: unitStr,
         price: parseFloat(api.list_price) || 0,
@@ -75,10 +153,14 @@ function _mapApiListingToManage(api) {
         baths: bathsTotal,
         listed: _formatManageDate(api.created_at),
         update: _formatManageDate(api.updated_at),
-        contractSigned: displayStatus === 'Contract Signed' ? _formatManageDate(api.status_changed_at) : null,
-        sold: displayStatus === 'Sold' ? _formatManageDate(api.status_changed_at) : null,
-        leaseSigned: displayStatus === 'Lease Signed' ? _formatManageDate(api.status_changed_at) : null,
-        rented: displayStatus === 'Leased' ? _formatManageDate(api.status_changed_at) : null,
+        // Sale: Contract Signed = PurchaseContractDate, Sold = CloseDate.
+        // Rental: Lease Signed = the Mallan lease-signed fact (PurchaseContractDate is NEVER collected on a
+        // rental), Rented = CloseDate. Verified live 2026-09-09: closed ResidentialLease rows carry CloseDate
+        // and ClosePrice exactly as closed sales do - only the LABEL differs.
+        contractSigned: isSale ? _formatFactDate(facts.PurchaseContractDate) : null,
+        sold: isSale ? _formatFactDate(facts.CloseDate) : null,
+        leaseSigned: isSale ? null : _formatFactDate(facts._mallanLeaseSignedDate),
+        rented: isSale ? null : _formatFactDate(facts.CloseDate),
         expiration: _formatManageDate(api.listing_contract_date),
         coListed: dealType === 'Co-Exclusive',
         photo: photoUrl,
@@ -88,7 +170,9 @@ function _mapApiListingToManage(api) {
             idxDisplayYN: api.idx_display_yn !== false,
             webDisplayed: api.idx_display_yn !== false && !api.owner_opt_out && !api.participant_only
         },
-        comingSoonStartDate: displayStatus === 'Coming Soon' ? _formatManageDate(api.first_active_date || api.status_changed_at) : null
+        comingSoonStartDate: statusToken === 'ComingSoon'
+            ? (_formatFactDate(facts.ActivationDate) || _formatManageDate(api.first_active_date))
+            : null
     };
 }
 
@@ -144,20 +228,26 @@ function _updatePortfolioStats() {
 var myOpenHouses = [];
 var ohNextId = 1;
 
+// Chip colors keyed by the live Cotality StandardStatus token. There is no broker word here - the word a
+// listing shows is the server's per-transaction label, so a sale's Closed and a rental's Closed share the chip
+// and differ only in what is printed on it.
 var manageStatusColors = {
-    'Active':           { bg: 'bg-blue-100',   text: 'text-blue-700' },
-    'Back On Market':   { bg: 'bg-blue-100',   text: 'text-blue-700' },
-    'Coming Soon':      { bg: 'bg-teal-100',   text: 'text-gray-700' },
-    'Offer Out':        { bg: 'bg-orange-100',  text: 'text-orange-700' },
-    'Contract Signed':  { bg: 'bg-purple-100',  text: 'text-purple-700' },
-    'Lease Signed':     { bg: 'bg-purple-100',  text: 'text-purple-700' },
-    'Board Approval':   { bg: 'bg-purple-100',  text: 'text-purple-700' },
-    'Sold':             { bg: 'bg-green-100',   text: 'text-green-700' },
-    'Leased':           { bg: 'bg-green-100',   text: 'text-green-700' },
-    'Temp Off Market':  { bg: 'bg-gray-100',    text: 'text-gray-600' },
-    'Perm Off Market':  { bg: 'bg-gray-200',    text: 'text-gray-700' },
-    'Expired':          { bg: 'bg-red-100',     text: 'text-red-700' }
+    'Active':              { bg: 'bg-blue-100',   text: 'text-blue-700' },
+    'ComingSoon':          { bg: 'bg-teal-100',   text: 'text-gray-700' },
+    'ActiveUnderContract': { bg: 'bg-orange-100', text: 'text-orange-700' },
+    'Pending':             { bg: 'bg-purple-100', text: 'text-purple-700' },
+    'Closed':              { bg: 'bg-green-100',  text: 'text-green-700' },
+    'Hold':                { bg: 'bg-gray-100',   text: 'text-gray-600' },
+    'Withdrawn':           { bg: 'bg-gray-200',   text: 'text-gray-700' },
+    'Canceled':            { bg: 'bg-gray-200',   text: 'text-gray-700' },
+    'Expired':             { bg: 'bg-red-100',    text: 'text-red-700' },
+    'Incomplete':          { bg: 'bg-gray-100',   text: 'text-gray-600' }
 };
+
+/** The chip colors for a row, resolved from its provider token (unknown state -> neutral, never a guess). */
+function manageStatusChip(token) {
+    return manageStatusColors[token] || { bg: 'bg-gray-100', text: 'text-gray-600' };
+}
 
 var manageDealTypeColors = {
     'Exclusive':    { bg: 'bg-blue-100',   text: 'text-blue-700' },
@@ -262,7 +352,7 @@ function renderNextOH(listingId) {
 // UCBA D2: Coming Soon limited to 14 calendar days max.
 // Green 8-14d, Yellow 3-7d, Red 0-2d, Pulsing overdue
 function comingSoonCountdown(listing) {
-    if (listing.status !== 'Coming Soon' || !listing.comingSoonStartDate) return '';
+    if (listing.statusToken !== 'ComingSoon' || !listing.comingSoonStartDate) return '';
     var parts = listing.comingSoonStartDate.split('/');
     var startDate = new Date(2000 + parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
     var now = new Date();
@@ -275,7 +365,7 @@ function comingSoonCountdown(listing) {
     else if (remaining >= 0) { color = '#dc2626'; bg = '#fef2f2'; textColor = '#991b1b'; pulse = ''; }
     else { color = '#dc2626'; bg = '#fef2f2'; textColor = '#991b1b'; pulse = ' animate-pulse'; }
 
-    var html = '<div class="mt-2 rounded-lg px-3 py-2 text-xs' + pulse + '" style="background:' + bg + ';border:1px solid ' + color + '30" data-compliance="coming-soon-countdown" data-reso-field="ComingSoonTimestamp" data-reso-value="' + listing.comingSoonStartDate + '">';
+    var html = '<div class="mt-2 rounded-lg px-3 py-2 text-xs' + pulse + '" style="background:' + bg + ';border:1px solid ' + color + '30" data-compliance="coming-soon-countdown" data-reso-field="ActivationDate" data-reso-value="' + listing.comingSoonStartDate + '">';
 
     if (remaining > 0) {
         html += '<div class="flex items-center justify-between">';
@@ -301,8 +391,8 @@ function comingSoonCountdown(listing) {
 
     // Action buttons
     html += '<div class="flex items-center gap-2 mt-2">';
-    html += '<button onclick="manageStatusApply(\'Active\')" class="px-2.5 py-1 bg-green-600 text-white rounded text-[10px] font-semibold hover:bg-green-700" data-reso-field="MlsStatus" data-reso-value="Active"><i class="fas fa-check mr-1"></i>Activate Now</button>';
-    html += '<button onclick="manageStatusApply(\'Temp Off Market\')" class="px-2.5 py-1 bg-gray-500 text-white rounded text-[10px] font-semibold hover:bg-gray-600" title="UCBA D11: Withdraw/TOM"><i class="fas fa-pause mr-1"></i>Withdraw/TOM</button>';
+    html += '<button onclick="manageApplyWorkflowStatus(\'' + listing.id + '\',\'Active\')" class="px-2.5 py-1 bg-green-600 text-white rounded text-[10px] font-semibold hover:bg-green-700" data-workflow-word="Active" data-status-token="Active"><i class="fas fa-check mr-1"></i>Activate Now</button>';
+    html += '<button onclick="manageApplyWorkflowStatus(\'' + listing.id + '\',\'TempOffMarket\')" class="px-2.5 py-1 bg-gray-500 text-white rounded text-[10px] font-semibold hover:bg-gray-600" data-workflow-word="TempOffMarket" data-status-token="Hold" title="UCBA D11: Withdraw/TOM"><i class="fas fa-pause mr-1"></i>Withdraw/TOM</button>';
     html += '</div>';
 
     html += '</div>';
@@ -320,39 +410,41 @@ function renderManageCards(listings) {
     empty.style.display = 'none';
     var isSales = currentManageMode === 'sales';
 
-    var statusBorderMap = {
-        'Active': 'border-l-blue-500', 'Back On Market': 'border-l-blue-400', 'Coming Soon': 'border-l-amber-400',
-        'Offer Out': 'border-l-orange-500', 'Contract Signed': 'border-l-purple-500', 'Board Approval': 'border-l-indigo-500',
-        'Lease Signed': 'border-l-purple-500', 'Sold': 'border-l-emerald-500', 'Leased': 'border-l-emerald-500',
-        'Temp Off Market': 'border-l-gray-400', 'Perm Off Market': 'border-l-gray-500', 'Expired': 'border-l-red-500'
+    // Border accents keyed by the provider token (the same token the chip colors use).
+    var statusBorderColors = {
+        'Active': 'border-l-blue-500', 'ComingSoon': 'border-l-amber-400',
+        'ActiveUnderContract': 'border-l-orange-500', 'Pending': 'border-l-purple-500',
+        'Closed': 'border-l-emerald-500', 'Hold': 'border-l-gray-400',
+        'Withdrawn': 'border-l-gray-500', 'Canceled': 'border-l-gray-500',
+        'Expired': 'border-l-red-500', 'Incomplete': 'border-l-gray-300'
     };
 
     var html = '';
 
     listings.forEach(function(l) {
-        var sc = manageStatusColors[l.status] || { bg: 'bg-gray-100', text: 'text-gray-600' };
+        var sc = manageStatusChip(l.statusToken);
         var dc = manageDealTypeColors[l.dealType] || { bg: 'bg-gray-100', text: 'text-gray-700' };
         var nextOH = renderNextOH(l.id);
         var isExpanded = manageExpandedCard.id === l.id;
         var expandedAction = isExpanded ? manageExpandedCard.action : null;
-        var borderColor = statusBorderMap[l.status] || 'border-l-gray-300';
+        var borderColor = statusBorderColors[l.statusToken] || 'border-l-gray-300';
 
         html += '<div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden border-l-4 ' + borderColor + '" id="card-' + l.id + '">';
 
         // Photo banner with RLS/IDX media metadata
         if (l.photo) {
             var media = l.media || {};
-            html += '<div class="manage-photo-wrap" style="height:140px" data-reso-field="Media" data-reso-value="PhotosCount:' + (l.photoCount || 0) + '">';
-            html += '<img src="' + l.photo + '" alt="' + l.address + ' ' + l.unit + '" class="manage-photo" loading="lazy" data-reso-field="MediaURL">';
+            html += '<div class="manage-photo-wrap" style="height:140px" data-reso-field="PhotosCount" data-reso-value="' + (l.photoCount || 0) + '">';
+            html += '<img src="' + l.photo + '" alt="' + l.address + ' ' + l.unit + '" class="manage-photo" loading="lazy" data-mallan-field="photo">';
             // Top-left: status badge
-            html += '<div class="absolute top-2.5 left-2.5"><span class="px-2 py-1 ' + sc.bg + ' ' + sc.text + ' rounded-md text-[10px] font-bold shadow-sm">' + l.status + '</span></div>';
+            html += '<div class="absolute top-2.5 left-2.5"><span class="px-2 py-1 ' + sc.bg + ' ' + sc.text + ' rounded-md text-[10px] font-bold shadow-sm" data-status-token="' + (l.statusToken || '') + '">' + l.status + '</span></div>';
             // Top-right: RLS / IDX / Web distribution badges
             html += '<div class="absolute top-2.5 right-2.5 flex items-center gap-1">';
             if (media.rlsUploaded) {
                 html += '<span class="px-1.5 py-0.5 bg-blue-600/80 text-white text-[9px] font-bold rounded backdrop-blur-sm" title="Uploaded to REBNY RLS via Trestle">RLS</span>';
             }
             if (media.idxDisplayYN) {
-                html += '<span class="px-1.5 py-0.5 bg-green-600/80 text-white text-[9px] font-bold rounded backdrop-blur-sm" title="IDX display enabled" data-reso-field="IDXEntireListingDisplayYN" data-reso-value="true">IDX</span>';
+                html += '<span class="px-1.5 py-0.5 bg-green-600/80 text-white text-[9px] font-bold rounded backdrop-blur-sm" title="IDX display enabled" data-mallan-field="idx_display_yn" data-reso-value="true">IDX</span>';
             }
             if (media.webDisplayed) {
                 html += '<span class="px-1.5 py-0.5 bg-amber-600/80 text-white text-[9px] font-bold rounded backdrop-blur-sm" title="Displayed on mallan.nyc">Web</span>';
@@ -376,7 +468,8 @@ function renderManageCards(listings) {
         html += '</div>';
         html += '<div class="flex flex-col items-end gap-1.5 flex-shrink-0">';
         html += '<div class="flex items-center gap-1.5">';
-        html += '<span class="px-2.5 py-1 ' + sc.bg + ' ' + sc.text + ' rounded-md text-xs font-bold">' + l.status + '</span>';
+        html += '<span class="px-2.5 py-1 ' + sc.bg + ' ' + sc.text + ' rounded-md text-xs font-bold" data-status-token="' + (l.statusToken || '') + '">' + l.status + '</span>';
+        if (l.workflowLabel) html += '<span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] font-semibold" data-workflow-word="' + l.workflowWord + '">' + l.workflowLabel + '</span>';
         html += '<button onclick="manageEditListing(\'' + l.id + '\')" class="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600" title="Edit Listing" aria-label="Edit"><i class="fas fa-ellipsis-v text-sm"></i></button>';
         html += '</div>';
         html += '<span class="px-2 py-0.5 ' + dc.bg + ' ' + dc.text + ' rounded text-[11px] font-medium">' + l.dealType + '</span>';
@@ -447,29 +540,34 @@ function renderManageCards(listings) {
 }
 
 // ---- Card Status Panel ----
+// Built from GET /api/crm/status-options for THIS listing's transaction: the sale panel offers only sale words
+// and the rental panel only rental words. Every button carries its workflow word and the live Cotality token it
+// resolves to; no provider status FIELD is named anywhere, and this module holds no map of its own.
+var MANAGE_TERMINAL_TOKENS = ['Closed', 'Withdrawn', 'Expired', 'Canceled', 'Delete'];
+
 function renderCardStatusPanel(listing) {
-    var isSales = currentManageMode === 'sales';
-    var rlsStatusMap = {
-        'Active': 'Active', 'Back On Market': 'Active', 'Coming Soon': 'ComingSoon',
-        'Offer Out': 'Pending', 'Contract Signed': 'Pending', 'Lease Signed': 'Pending', 'Board Approval': 'Pending',
-        'Sold': 'Closed', 'Leased': 'Closed',
-        'Temp Off Market': 'Hold', 'Perm Off Market': 'Withdrawn', 'Expired': 'Expired'
-    };
-    var activeStatuses = isSales
-        ? ['Active','Back On Market','Coming Soon','Offer Out','Contract Signed','Board Approval']
-        : ['Active','Back On Market','Coming Soon','Offer Out','Lease Signed','Board Approval'];
-    var closedStatuses = isSales
-        ? ['Sold','Temp Off Market','Perm Off Market','Expired']
-        : ['Leased','Temp Off Market','Perm Off Market','Expired'];
+    var transaction = listing.category === 'sales' ? 'sale' : 'rent';
+    var options = manageStatusOptions[transaction];
+    if (!options) return '<p class="text-sm text-gray-400 italic">Loading status options\u2026</p>';
+
+    var pipeline = [];
+    var closed = [];
+    options.workflow.forEach(function(w) {
+        (MANAGE_TERMINAL_TOKENS.indexOf(w.canonical) !== -1 ? closed : pipeline).push(w);
+    });
 
     function renderBtns(arr) {
         var h = '';
-        arr.forEach(function(s) {
-            var ssc = manageStatusColors[s] || { bg: 'bg-gray-100', text: 'text-gray-600' };
-            var isCurrent = listing.status === s;
-            var rls = rlsStatusMap[s] || s;
-            h += '<button onclick="cardStatusApply(\'' + listing.id + '\',\'' + s + '\')" class="px-3 py-2 rounded-lg text-xs font-semibold border flex items-center justify-between gap-1 min-h-[40px] ' + (isCurrent ? 'ring-2 ring-blue-400 ' + ssc.bg + ' ' + ssc.text : 'bg-white text-gray-600 hover:bg-gray-50') + '" title="RLS: ' + rls + '">';
-            h += '<span class="px-1.5 py-0.5 rounded ' + ssc.bg + ' ' + ssc.text + '">' + s + '</span>';
+        arr.forEach(function(w) {
+            var ssc = manageStatusChip(w.canonical);
+            var isCurrent = listing.workflowWord === w.word;
+            var facts = (w.requiredFacts || []).join(', ');
+            h += '<button onclick="manageApplyWorkflowStatus(\'' + listing.id + '\',\'' + w.word + '\')"'
+               + ' data-workflow-word="' + w.word + '" data-status-token="' + w.canonical + '"'
+               + ' title="' + w.canonicalLabel + (facts ? ' \u00B7 requires ' + facts : '') + '"'
+               + ' class="px-3 py-2 rounded-lg text-xs font-semibold border flex items-center justify-between gap-1 min-h-[40px] '
+               + (isCurrent ? 'ring-2 ring-blue-400 ' + ssc.bg + ' ' + ssc.text : 'bg-white text-gray-600 hover:bg-gray-50') + '">';
+            h += '<span class="px-1.5 py-0.5 rounded ' + ssc.bg + ' ' + ssc.text + '">' + w.label + '</span>';
             if (isCurrent) h += '<i class="fas fa-check text-blue-600 text-[10px]"></i>';
             h += '</button>';
         });
@@ -477,9 +575,9 @@ function renderCardStatusPanel(listing) {
     }
 
     var html = '<p class="text-[11px] text-gray-400 uppercase tracking-wide font-semibold mb-2">Active / Pipeline</p>';
-    html += '<div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">' + renderBtns(activeStatuses) + '</div>';
+    html += '<div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">' + renderBtns(pipeline) + '</div>';
     html += '<p class="text-[11px] text-gray-400 uppercase tracking-wide font-semibold mb-2">Closed / Not Active</p>';
-    html += '<div class="grid grid-cols-2 gap-2">' + renderBtns(closedStatuses) + '</div>';
+    html += '<div class="grid grid-cols-2 gap-2">' + renderBtns(closed) + '</div>';
     return html;
 }
 
@@ -543,8 +641,10 @@ function renderCardOHPanel(listing) {
     }
 
     // Schedule new OH form
-    var noOHStatuses = ['Sold', 'Leased', 'Expired', 'Perm Off Market'];
-    if (noOHStatuses.indexOf(listing.status) !== -1) {
+    // A listing that has left the market cannot take a new open house. The gate is the live Cotality token
+    // (Closed / Withdrawn / Expired / Canceled / Delete) - never the broker word printed on the chip, which
+    // differs between a sale and a rental. A row with no resolvable token is refused fail-closed.
+    if (!listing.statusToken || MANAGE_TERMINAL_TOKENS.indexOf(listing.statusToken) !== -1) {
         html += '<p class="text-sm text-gray-400 italic">Cannot schedule open houses for ' + listing.status + ' listings.</p>';
         return html;
     }
@@ -568,7 +668,8 @@ function renderCardOHPanel(listing) {
 // ---- Card IDX Distribution Panel ----
 function renderCardDistributePanel(listing) {
     var media = listing.media || {};
-    var isIDXEligible = ['Active','Back On Market','Coming Soon','Offer Out'].indexOf(listing.status) !== -1;
+    // IDX / web display eligibility is the publicly displayed token set (lib/crm/status-mapping.ts).
+    var isIDXEligible = ['Active','ComingSoon','ActiveUnderContract'].indexOf(listing.statusToken) !== -1;
 
     var html = '';
 
@@ -608,7 +709,7 @@ function renderCardDistributePanel(listing) {
     html += '</label>';
     html += '</div>';
     if (!isIDXEligible) {
-        html += '<p class="text-[10px] text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>IDX display requires Active, Back On Market, Coming Soon, or Offer Out status.</p>';
+        html += '<p class="text-[10px] text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>IDX display requires an Active, Coming Soon, or Active Under Contract listing.</p>';
     }
     html += '</div>';
 
@@ -629,7 +730,7 @@ function renderCardDistributePanel(listing) {
     html += '</label>';
     html += '</div>';
     if (!isIDXEligible) {
-        html += '<p class="text-[10px] text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>Web display requires Active, Back On Market, Coming Soon, or Offer Out status.</p>';
+        html += '<p class="text-[10px] text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>Web display requires an Active, Coming Soon, or Active Under Contract listing.</p>';
     }
     html += '</div>';
 
@@ -706,38 +807,67 @@ function toggleCardAction(listingId, action) {
 }
 
 // ---- Card action handlers ----
-function cardStatusApply(listingId, newStatus) {
+/**
+ * Apply a WORKFLOW word of THIS listing's transaction (owner ruling, Maya 2026-09-08).
+ *
+ * The browser sends the word the agent picked plus exactly the facts that transaction's mapping requires - a
+ * sale's Contract Signed carries PurchaseContractDate, a rental's Lease Signed carries the Mallan
+ * _mallanLeaseSignedDate (PurchaseContractDate is NEVER collected on a rental), a close carries CloseDate +
+ * ClosePrice on BOTH transactions. The SERVER resolves the word to a live Cotality StandardStatus token; this
+ * module never translates one and never mutates the row optimistically. On a refusal the server's own message
+ * is what the agent reads; on success the list is re-read so every label comes back from the server.
+ */
+function manageApplyWorkflowStatus(listingId, word) {
     var listing = manageFindListing(listingId);
-    if (!listing) return;
+    if (!listing) return Promise.resolve();
 
-    // Map display status back to RESO StandardStatus for API
-    var resoMap = {
-        'Active': 'Active', 'Back On Market': 'Active', 'Coming Soon': 'ComingSoon',
-        'Offer Out': 'ActiveUnderContract', 'Contract Signed': 'Pending', 'Lease Signed': 'Pending',
-        'Board Approval': 'Pending', 'Sold': 'Closed', 'Leased': 'Closed',
-        'Temp Off Market': 'Hold', 'Perm Off Market': 'Withdrawn', 'Expired': 'Expired'
-    };
-    var resoStatus = resoMap[newStatus] || newStatus;
-
-    // Update local state immediately
-    listing.status = newStatus;
-    var todayStr = manageTodayStr();
-    if (newStatus === 'Sold') listing.sold = todayStr;
-    if (newStatus === 'Contract Signed') listing.contractSigned = todayStr;
-    if (newStatus === 'Lease Signed') listing.leaseSigned = todayStr;
-    if (newStatus === 'Leased') listing.rented = todayStr;
-    listing.update = todayStr;
-    renderManageSection(currentManageMode);
-    manageShowToast('Status changed to ' + newStatus);
-
-    // Persist to API
-    var dbId = listing._dbId || listing.id;
-    if (typeof MallanAPI !== 'undefined' && MallanAPI.listings) {
-        MallanAPI.listings.updateStatus(dbId, resoStatus).catch(function(err) {
-            if (typeof console !== 'undefined') console.error('[ManageListings] Status update failed:', err);
-            manageShowToast('Failed to save status change to server', 'error');
-        });
+    var transaction = listing.category === 'sales' ? 'sale' : 'rent';
+    var choice = manageWorkflowChoice(transaction, word);
+    if (!choice) {
+        manageShowToast('That status is not part of this ' + (transaction === 'sale' ? 'sale' : 'rental') + ' listing\u2019s workflow.', 'error');
+        return Promise.resolve();
     }
+
+    // Prompt for exactly the facts the mapping names - no more, no fewer, and never the other transaction's.
+    var factLabels = choice && manageStatusOptions[transaction].factLabels ? manageStatusOptions[transaction].factLabels : {};
+    var required = choice.requiredFacts || [];
+    var facts = {};
+    for (var i = 0; i < required.length; i++) {
+        var field = required[i];
+        var answer = prompt((factLabels[field] || field) + ' \u2014 ' + choice.label + ':');
+        if (answer === null || String(answer).trim() === '') return Promise.resolve();  // cancelled: nothing is sent
+        var value = String(answer).trim();
+        if (field === 'ClosePrice') {
+            var numeric = parseFloat(value.replace(/[^0-9.]/g, ''));
+            if (isNaN(numeric) || numeric <= 0) {
+                manageShowToast('Enter a valid ' + (factLabels[field] || field) + '.', 'error');
+                return Promise.resolve();
+            }
+            facts[field] = numeric;
+        } else {
+            facts[field] = value;
+        }
+    }
+
+    var modal = document.getElementById('manageStatusModal');
+    if (modal) modal.style.display = 'none';
+
+    if (typeof MallanAPI === 'undefined' || !MallanAPI.listings) return Promise.resolve();
+    var dbId = listing._dbId || listing.id;
+    return MallanAPI.listings.updateStatus(dbId, choice.word, facts).then(function() {
+        manageShowToast('Status updated to ' + choice.label);
+        // Re-read the list: the row's token, label and dates all come back from the server's projection.
+        _manageListingsLoaded = false;
+        return new Promise(function(resolve) {
+            loadMyListingsFromAPI(function() {
+                renderManageSection(currentManageMode);
+                resolve();
+            });
+        });
+    }).catch(function(err) {
+        if (typeof console !== 'undefined') console.error('[ManageListings] Status update refused:', err);
+        manageShowToast((err && err.message) ? err.message : 'The server refused the status change.', 'error');
+    });
 }
 
 function cardPriceAdjust(listingId, amount) {
@@ -799,11 +929,25 @@ function cardOHSave(listingId) {
     if (brokerEl && brokerEl.checked) types.push('Broker Only');
     var virtualTour = virtualEl ? virtualEl.checked : false;
     if (types.length === 0 && !virtualTour) { showToast('Please select at least one showing type.', 'warning'); return; }
-    myOpenHouses.push({ id: 'OH-' + ohNextId++, listingId: listingId, types: types, virtualTour: virtualTour, date: date.value, start: start.value, end: end.value, repeat: 'none', link: '', notes: '' });
+    // Through the ONE Open House writer (js/manage/open-houses.js). This used to push straight onto
+    // myOpenHouses and toast "scheduled" without ever contacting the server, so the open house was
+    // gone on reload and REBNY had no record of a showing the agent believed was published.
+    if (typeof saveOpenHouse !== 'function') {
+        manageShowToast('Open house NOT saved - the open-house module is unavailable.', 'error');
+        return;
+    }
     var displayTypes = types.map(function(t) { if (t === 'Public') return 'Open House'; if (t === 'By Appointment') return 'Open House By Appointment Only'; if (t === 'Broker Only') return 'Broker Open House'; return t; });
     if (virtualTour) displayTypes.push('Virtual Tour');
-    manageShowToast(displayTypes.join(', ') + ' scheduled for ' + listing.address + ' ' + listing.unit);
-    renderManageSection(currentManageMode);
+    saveOpenHouse({
+        listingId: listingId, date: date.value, start: start.value, end: end.value,
+        types: types, virtualTour: virtualTour, repeat: 'none', link: '',
+    }).then(function () {
+        manageShowToast(displayTypes.join(', ') + ' scheduled for ' + listing.address + ' ' + listing.unit);
+        renderManageSection(currentManageMode);
+    }).catch(function (err) {
+        if (typeof console !== 'undefined') console.error('[OpenHouses] cardOHSave failed:', err);
+        manageShowToast('Open house NOT saved to the server - ' + (err && err.message ? err.message : 'please try again'), 'error');
+    });
 }
 
 function cardDeleteOH(ohId, listingId) {
@@ -836,6 +980,14 @@ function renderManageSection(mode) {
     currentManageMode = mode || 'sales';
     var isSales = currentManageMode === 'sales';
 
+    // This transaction's status mapping, fetched once from the server. The sale panel is built from the sale
+    // mapping and the rental panel from the rental mapping; there is never one shared list.
+    var transaction = manageTransactionForMode(currentManageMode);
+    var options = manageStatusOptions[transaction];
+    if (!options) {
+        _loadManageStatusOptions(transaction, function() { renderManageSection(currentManageMode); });
+    }
+
     document.getElementById('manageTitle').textContent = isSales ? 'Sale Exclusives' : 'Rental Exclusives';
     document.getElementById('manageSubtitle').textContent = 'Manage your exclusive ' + (isSales ? 'sale' : 'rental') + ' listings \u00B7 REBNY RLS';
     document.getElementById('manageCreateBtn').innerHTML = '<i class="fas fa-plus text-xs"></i> <span class="hidden sm:inline">Create ' + (isSales ? 'Sale' : 'Rental') + ' Listing</span><span class="sm:hidden">New</span>';
@@ -848,25 +1000,63 @@ function renderManageSection(mode) {
         baseListings = baseListings.filter(function(l) { return l.coListed; });
     }
 
-    // Status filter pills with counts (shared between views)
-    var statusList = isSales ? manageSaleStatuses : manageRentalStatuses;
-    var pillsHtml = '';
-    statusList.forEach(function(s) {
-        var count = s === 'All' ? baseListings.length : baseListings.filter(function(l) { return l.status === s; }).length;
-        var isActive = currentManageStatusFilter === s;
-        var pillClass = isActive
+    // ---- Status filter pills (shared between views) ----
+    // Keyed by the live Cotality StandardStatus token; LABELLED with this transaction's broker word from the
+    // server mapping (a sale's Closed reads "Sold", a rental's "Rented"). A second row of pills carries the
+    // agent's own workflow words, but ONLY the ones the loaded rows actually carry - the panel never advertises
+    // a pipeline stage nothing is in.
+    var canonicalLabels = {};
+    if (options && options.canonical) {
+        options.canonical.forEach(function(c) { canonicalLabels[c.token] = c.label; });
+    }
+    var pillTokens = (manageFilterTokens[transaction] || []).slice();
+    baseListings.forEach(function(l) {
+        if (l.statusToken && pillTokens.indexOf(l.statusToken) === -1) pillTokens.push(l.statusToken);
+    });
+
+    function pillClassFor(isActive) {
+        return isActive
             ? 'bg-blue-600 text-white border-blue-600'
             : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50';
-        pillsHtml += '<button onclick="manageFilterByStatus(\'' + s.replace(/'/g, "\\'") + '\')" class="px-2.5 py-1 rounded-full border text-xs font-semibold flex-shrink-0 whitespace-nowrap ' + pillClass + ' transition-colors">';
-        pillsHtml += s + ' (' + count + ')';
-        pillsHtml += '</button>';
+    }
+
+    var pillsHtml = '<button onclick="manageFilterByStatus(\'All\')" class="px-2.5 py-1 rounded-full border text-xs font-semibold flex-shrink-0 whitespace-nowrap '
+        + pillClassFor(currentManageStatusFilter === 'All' && !currentManageWorkflowFilter) + ' transition-colors">All (' + baseListings.length + ')</button>';
+
+    pillTokens.forEach(function(token) {
+        var count = baseListings.filter(function(l) { return l.statusToken === token; }).length;
+        var isActive = !currentManageWorkflowFilter && currentManageStatusFilter === token;
+        pillsHtml += '<button onclick="manageFilterByStatus(\'' + token + '\')" data-status-token="' + token + '"'
+            + ' class="px-2.5 py-1 rounded-full border text-xs font-semibold flex-shrink-0 whitespace-nowrap ' + pillClassFor(isActive) + ' transition-colors">'
+            + (canonicalLabels[token] || token) + ' (' + count + ')</button>';
+    });
+
+    var workflowWords = [];
+    baseListings.forEach(function(l) {
+        if (l.workflowWord && workflowWords.indexOf(l.workflowWord) === -1) workflowWords.push(l.workflowWord);
+    });
+    workflowWords.forEach(function(word) {
+        var rows = baseListings.filter(function(l) { return l.workflowWord === word; });
+        if (rows.length === 0) return;
+        var isActive = currentManageWorkflowFilter === word;
+        pillsHtml += '<button onclick="manageFilterByWorkflow(\'' + word + '\')" data-workflow-word="' + word + '"'
+            + ' class="px-2.5 py-1 rounded-full border text-xs font-semibold flex-shrink-0 whitespace-nowrap ' + pillClassFor(isActive) + ' transition-colors">'
+            + rows[0].workflowLabel + ' (' + rows.length + ')</button>';
     });
     document.getElementById('manageStatusPills').innerHTML = pillsHtml;
 
-    // Apply status filter
+    // Apply the filter: a token filter compares tokens, a workflow filter compares the agent's saved word.
     var listings = baseListings;
-    if (currentManageStatusFilter !== 'All') {
-        listings = listings.filter(function(l) { return l.status === currentManageStatusFilter; });
+    // A listing whose status could not be resolved is still INVENTORY. It must never be filtered away:
+    // the default status filter is 'Active', and an unresolved row matches no token, so it silently
+    // disappeared and the agent saw an empty portfolio instead of their own listings. Presentation cannot
+    // erase identity. The row is kept and rendered with an explicit "Status unavailable" warning; we still
+    // refuse to invent a Cotality status for it (fail-closed on MEANING, fail-open on EXISTENCE).
+    var _statusUnresolved = function(l) { return !l.statusToken; };
+    if (currentManageWorkflowFilter) {
+        listings = listings.filter(function(l) { return l.workflowWord === currentManageWorkflowFilter || _statusUnresolved(l); });
+    } else if (currentManageStatusFilter !== 'All') {
+        listings = listings.filter(function(l) { return l.statusToken === currentManageStatusFilter || _statusUnresolved(l); });
     }
 
 
@@ -887,8 +1077,12 @@ function renderManageSection(mode) {
     // ---- Render Table View ----
     var thead = document.getElementById('manageTableHead');
     var priceLabel = isSales ? '<i class="fas fa-arrow-up text-blue-500 mr-1"></i>Price' : '<i class="fas fa-arrow-up text-blue-500 mr-1"></i>Rent';
-    var signedLabel = isSales ? 'Contract Signed' : 'Lease Signed';
-    var closedLabel = isSales ? 'Sold' : 'Rented';
+    // The two date columns are named by the SERVER mapping, not by a word this file holds: the signing column
+    // is the transaction's own workflow label (Contract Signed / Lease Signed) and the closing column is its
+    // canonical label for the token Closed (Sold on a sale, Rented on a rental).
+    var signedWord = manageWorkflowChoice(transaction, isSales ? 'ContractSigned' : 'LeaseSigned');
+    var signedLabel = signedWord ? signedWord.label : 'Signed';
+    var closedLabel = canonicalLabels.Closed || 'Closed';
     thead.innerHTML = '<tr>' +
         '<th class="text-left px-3 py-3 font-semibold">Deal Type</th>' +
         '<th class="text-left px-3 py-3 font-semibold">Status</th>' +
@@ -913,7 +1107,7 @@ function renderManageSection(mode) {
 
     var rows = '';
     listings.forEach(function(l) {
-        var sc = manageStatusColors[l.status] || { bg: 'bg-gray-100', text: 'text-gray-600' };
+        var sc = manageStatusChip(l.statusToken);
         var dc = manageDealTypeColors[l.dealType] || { bg: 'bg-gray-100', text: 'text-gray-700' };
         var signedVal = isSales ? (l.contractSigned || '\u2014') : (l.leaseSigned || '\u2014');
         var closedVal = isSales ? (l.sold || '\u2014') : (l.rented || '\u2014');
@@ -922,7 +1116,8 @@ function renderManageSection(mode) {
 
         rows += '<tr class="border-t hover:bg-blue-50 cursor-pointer" data-id="' + l.id + '" onclick="manageToggleRow(\'' + l.id + '\')">';
         rows += '<td class="px-3 py-3"><span class="px-2 py-0.5 ' + dc.bg + ' ' + dc.text + ' rounded text-xs">' + l.dealType + '</span></td>';
-        rows += '<td class="px-3 py-3"><span class="px-2 py-0.5 ' + sc.bg + ' ' + sc.text + ' rounded text-xs font-semibold">' + l.status + '</span></td>';
+        rows += '<td class="px-3 py-3"><span class="px-2 py-0.5 ' + sc.bg + ' ' + sc.text + ' rounded text-xs font-semibold" data-status-token="' + (l.statusToken || '') + '">' + l.status + '</span>'
+            + (l.workflowLabel ? '<span class="block text-[10px] text-gray-400 mt-0.5" data-workflow-word="' + l.workflowWord + '">' + l.workflowLabel + '</span>' : '') + '</td>';
         rows += '<td class="px-3 py-3 font-medium">' + l.address + '</td>';
         rows += '<td class="px-3 py-3 text-gray-500">' + l.unit + '</td>';
         rows += '<td class="px-3 py-3 font-semibold">' + manageFormatPrice(l.price, currentManageMode) + '</td>';
@@ -946,6 +1141,10 @@ function renderManageSection(mode) {
         rows += '<button onclick="event.stopPropagation();switchToCardAction(\'' + l.id + '\',\'oh\')" class="px-3 py-1.5 bg-white border rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-1.5"><i class="fas fa-door-open text-gray-500"></i> Open House</button>';
         rows += '<button onclick="event.stopPropagation();manageAutoUpdate(\'' + l.id + '\')" class="px-3 py-1.5 bg-white border rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-1.5"><i class="fas fa-sync-alt text-amber-400"></i> Refresh Listing</button>';
         rows += '<button onclick="event.stopPropagation();manageEditListing(\'' + l.id + '\')" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 flex items-center gap-1.5"><i class="fas fa-pen"></i> Edit Listing</button>';
+        // Offered ONLY on a Mallan-authored listing. A Cotality-sourced row is not Mallan's to withdraw.
+        if (manageCanWithdraw(l)) {
+            rows += '<button onclick="event.stopPropagation();manageWithdrawListing(\'' + l.id + '\')" class="px-3 py-1.5 bg-white border border-red-200 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50 flex items-center gap-1.5" title="Withdraw Listing"><i class="fas fa-trash"></i> Withdraw Listing</button>';
+        }
         rows += '</div></td></tr>';
     });
     tbody.innerHTML = rows;
@@ -972,16 +1171,26 @@ function toggleManageMode(mode) {
     manageExpandedRow = null;
     manageExpandedCard = { id: null, action: null };
     currentManageStatusFilter = 'Active';
+    currentManageWorkflowFilter = null;
     renderManageSection(mode);
 }
 
 function filterManageDeals(val) {
     currentManageDealFilter = val;
     currentManageStatusFilter = 'Active';
+    currentManageWorkflowFilter = null;
     renderManageSection(currentManageMode);
 }
+/** Filter by a live Cotality StandardStatus token (or 'All'). */
 function manageFilterByStatus(status) {
     currentManageStatusFilter = status;
+    currentManageWorkflowFilter = null;
+    renderManageSection(currentManageMode);
+}
+/** Filter by the agent's own workflow word within this transaction. */
+function manageFilterByWorkflow(word) {
+    currentManageWorkflowFilter = currentManageWorkflowFilter === word ? null : word;
+    currentManageStatusFilter = 'All';
     renderManageSection(currentManageMode);
 }
 function manageToggleRow(id) {
@@ -992,130 +1201,39 @@ function manageFindListing(id) {
     return myManagementListings.find(function(l) { return l.id === id; });
 }
 
-// Quick Status modal (from table row)
+// Quick Status modal (from table row) - the same transaction mapping the card panel uses.
+// A rental listing is offered only rental words and a sale only sale words; each button carries its workflow
+// word plus the live Cotality token the server will resolve it to. No provider status FIELD is named here, and
+// there is no client-side transition table: the state machine lives in lib/crm/status-mapping.ts and the API
+// route enforces it (an invalid move comes back as the server's own error, which is what the agent reads).
 function manageQuickStatus(id) {
     manageActiveListingId = id;
     var listing = manageFindListing(id);
     if (!listing) return;
     document.getElementById('manageStatusAddress').textContent = listing.address + ' ' + listing.unit;
-    var statuses = currentManageMode === 'sales'
-        ? ['Active','Back On Market','Coming Soon','Offer Out','Contract Signed','Board Approval','Sold','Temp Off Market','Perm Off Market','Expired']
-        : ['Active','Back On Market','Coming Soon','Offer Out','Lease Signed','Board Approval','Leased','Temp Off Market','Perm Off Market','Expired'];
+
+    var transaction = listing.category === 'sales' ? 'sale' : 'rent';
+    var options = manageStatusOptions[transaction];
     var html = '';
-    statuses.forEach(function(s) {
-        var sc = manageStatusColors[s] || { bg: 'bg-gray-100', text: 'text-gray-600' };
-        var isCurrent = listing.status === s;
-        var validation = manageValidateTransition(listing, s);
-        var isBlocked = !validation.valid && !isCurrent;
-        html += '<button onclick="' + (isBlocked ? '' : 'manageStatusApply(\\\'' + s + '\\\')') + '" class="w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between ' + (isCurrent ? 'bg-blue-50 border border-blue-200' : isBlocked ? 'opacity-40 cursor-not-allowed border border-transparent' : 'hover:bg-gray-50 border border-transparent') + '"' + ' data-reso-field="MlsStatus" data-reso-value="' + s + '"' + (isBlocked ? ' title="' + validation.blocks.join('; ').replace(/"/g, '&quot;') + '"' : '') + '>';
-        html += '<span class="px-2 py-0.5 ' + sc.bg + ' ' + sc.text + ' rounded text-xs font-semibold">' + s + '</span>';
-        if (isCurrent) html += '<i class="fas fa-check text-blue-600 text-xs"></i>';
-        if (isBlocked) html += '<i class="fas fa-ban text-gray-400 text-xs ml-1"></i>';
-        html += '</button>';
-    });
-    document.getElementById('manageStatusOptions').innerHTML = html;
-    document.getElementById('manageStatusModal').style.display = 'flex';
-}
-// ── Status Transition Validation (UCBA compliance) ──
-// Valid transitions per REBNY RLS rules
-function manageValidateTransition(listing, newStatus) {
-    var result = { valid: true, warnings: [], blocks: [] };
-    var current = listing.status;
-
-    // Block invalid transitions
-    var blockedTransitions = {
-        'Sold': ['Active','Coming Soon','Back On Market'],
-        'Leased': ['Active','Coming Soon','Back On Market'],
-        'Closed': ['Active','Coming Soon','Back On Market'],
-        'Expired': ['Active','Coming Soon'] // must go through Back On Market
-    };
-    if (blockedTransitions[current] && blockedTransitions[current].indexOf(newStatus) !== -1) {
-        result.valid = false;
-        result.blocks.push('Cannot transition from ' + current + ' to ' + newStatus + '. Use "Back On Market" first.');
-        return result;
-    }
-
-    // Coming Soon restrictions (D1, D2, D10)
-    if (newStatus === 'Coming Soon') {
-        if (listing.category === 'rentals') {
-            result.valid = false;
-            result.blocks.push('UCBA D1: Coming Soon status is available for SALES listings only.');
-            return result;
-        }
-        result.warnings.push('UCBA D10: Exhibit G (Coming Soon Addendum) must be signed by seller before activating.');
-        result.warnings.push('UCBA D2: Coming Soon status is limited to a maximum of 14 calendar days.');
-    }
-
-    // Closed/Sold transitions require ClosePrice + CloseDate
-    if (newStatus === 'Sold' || newStatus === 'Leased' || newStatus === 'Closed') {
-        result.warnings.push('UCBA C12: Close price and close date are required within 24 hours of status change.');
-    }
-
-    // Perm Off Market (Exhibit B, 48hr rule)
-    if (newStatus === 'Perm Off Market') {
-        result.warnings.push('UCBA C3: Exhibit B (Withdrawal Authorization) must be obtained. Listing must be removed from all platforms within 48 hours.');
-    }
-
-    return result;
-}
-
-function manageStatusApply(newStatus) {
-    var listing = manageFindListing(manageActiveListingId);
-    if (!listing) return;
-
-    var validation = manageValidateTransition(listing, newStatus);
-
-    // Block invalid transitions
-    if (!validation.valid) {
-        showToast('Status Change Blocked: ' + validation.blocks.join('; '), 'error');
-        return;
-    }
-
-    // Show warnings and confirm
-    if (validation.warnings.length > 0) {
-        var msg = 'Status Change Warnings:\n\n' + validation.warnings.join('\n\n') + '\n\nProceed with status change to "' + newStatus + '"?';
-        if (!confirm(msg)) return;
-    }
-
-    // Prompt for close price/date on closing transitions
-    if (newStatus === 'Sold' || newStatus === 'Leased' || newStatus === 'Closed') {
-        var closePrice = prompt('Enter close price (required for UCBA compliance):');
-        if (closePrice) listing.closePrice = parseFloat(closePrice.replace(/[^0-9.]/g, ''));
-        var closeDate = prompt('Enter close date (YYYY-MM-DD):');
-        if (closeDate) listing.closeDate = closeDate;
-    }
-
-    // Coming Soon: record start date
-    if (newStatus === 'Coming Soon') {
-        listing.comingSoonStartDate = manageTodayStr();
-    }
-
-    listing.status = newStatus;
-    var todayStr = manageTodayStr();
-    if (newStatus === 'Sold') listing.sold = todayStr;
-    if (newStatus === 'Contract Signed') listing.contractSigned = todayStr;
-    if (newStatus === 'Lease Signed') listing.leaseSigned = todayStr;
-    if (newStatus === 'Leased') listing.rented = todayStr;
-    listing.update = todayStr;
-    document.getElementById('manageStatusModal').style.display = 'none';
-    renderManageSection(currentManageMode);
-    manageShowToast('Status changed to ' + newStatus);
-
-    // Persist to API
-    var resoMap = {
-        'Active': 'Active', 'Back On Market': 'Active', 'Coming Soon': 'ComingSoon',
-        'Offer Out': 'ActiveUnderContract', 'Contract Signed': 'Pending', 'Lease Signed': 'Pending',
-        'Board Approval': 'Pending', 'Sold': 'Closed', 'Leased': 'Closed',
-        'Temp Off Market': 'Hold', 'Perm Off Market': 'Withdrawn', 'Expired': 'Expired'
-    };
-    var resoStatus = resoMap[newStatus] || newStatus;
-    var dbId = listing._dbId || listing.id;
-    if (typeof MallanAPI !== 'undefined' && MallanAPI.listings) {
-        MallanAPI.listings.updateStatus(dbId, resoStatus).catch(function(err) {
-            if (typeof console !== 'undefined') console.error('[ManageListings] Status update failed:', err);
-            manageShowToast('Failed to save status change to server', 'error');
+    if (!options) {
+        html = '<p class="text-sm text-gray-400 italic">Loading status options\u2026</p>';
+        _loadManageStatusOptions(transaction, function() { manageQuickStatus(id); });
+    } else {
+        options.workflow.forEach(function(w) {
+            var sc = manageStatusChip(w.canonical);
+            var isCurrent = listing.workflowWord === w.word;
+            html += '<button onclick="manageApplyWorkflowStatus(\'' + listing.id + '\',\'' + w.word + '\')"'
+                + ' data-workflow-word="' + w.word + '" data-status-token="' + w.canonical + '"'
+                + ' class="w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between '
+                + (isCurrent ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50 border border-transparent') + '">';
+            html += '<span class="px-2 py-0.5 ' + sc.bg + ' ' + sc.text + ' rounded text-xs font-semibold">' + w.label + '</span>';
+            html += '<span class="text-[10px] text-gray-400 ml-2">' + w.canonicalLabel + '</span>';
+            if (isCurrent) html += '<i class="fas fa-check text-blue-600 text-xs ml-1"></i>';
+            html += '</button>';
         });
     }
+    document.getElementById('manageStatusOptions').innerHTML = html;
+    document.getElementById('manageStatusModal').style.display = 'flex';
 }
 
 // Auto Update
@@ -1128,21 +1246,124 @@ function manageAutoUpdate(id) {
 }
 
 // Create / Edit Listing
+// The listing forms open by their GOVERNED ABSOLUTE routes (vercel.json), never relative.
+// A relative form filename resolves against the directory of the address in the bar, and every
+// /crm/* address is a rewrite the browser cannot see: /crm/search serves index-built.html and /crm
+// serves dashboard.html, but the bar still reads /crm/search or /crm. So a relative filename
+// resolved under /crm/ from /crm/search and worked, and resolved at the SITE ROOT from /crm, where
+// every create/edit opened a 404. Absolute routes are immune to which address the operator entered
+// by. Sale and rental keep separate routes, as they must.
+var CRM_SALE_FORM_ROUTE = '/crm/sale-listing';
+var CRM_RENTAL_FORM_ROUTE = '/crm/rental-listing';
+
 function manageCreateListing() {
     if (currentManageMode === 'sales') {
-        window.open('SALE-FORM-REDESIGN.html', '_blank');
+        window.open(CRM_SALE_FORM_ROUTE, '_blank');
     } else {
-        window.open('RENTAL-FORM-REDESIGN.html', '_blank');
+        window.open(CRM_RENTAL_FORM_ROUTE, '_blank');
     }
 }
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// WITHDRAW — Mallan-authored listings only
+//
+// A row that came from the licensed Cotality feed is not Mallan's to withdraw: doing so would assert
+// a status change Mallan has no authority to make. The server enforces this (409, "Only CRM-created
+// listings can be withdrawn from this dashboard") and the UI must not offer the control either.
+//
+// This capability used to live in the duplicate My Listings screen in js/dashboard/panels.js and was
+// lost when that duplicate was deleted (da8e3046) - the canonical manager had no withdraw at all, and
+// its listing model did not carry mls_id, so the guard could not even be evaluated. Restored here, on
+// the one canonical manager, guarded in the browser AND on the server.
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+/** True only for a listing Mallan authored - i.e. one carrying no provider id. */
+function manageCanWithdraw(l) {
+    if (!l) return false;
+    var mls = l.mlsId;
+    return mls === null || mls === undefined || String(mls).trim() === '';
+}
+
+function manageWithdrawListing(id) {
+    var listing = manageFindListing(id);
+    if (!listing) return;
+
+    if (!manageCanWithdraw(listing)) {
+        // Fail closed, and say why rather than silently doing nothing.
+        manageShowToast('This listing comes from the Cotality feed — it cannot be withdrawn from the CRM.', 'error');
+        return;
+    }
+    var label = (listing.address || 'this listing') + (listing.unit ? ' ' + listing.unit : '');
+    if (typeof confirm === 'function' && !confirm('Withdraw ' + label + '? It will be marked Withdrawn.')) return;
+
+    if (typeof MallanAPI === 'undefined' || !MallanAPI.listings || typeof MallanAPI.listings.remove !== 'function') {
+        manageShowToast('Listing NOT withdrawn — the CRM API is unavailable.', 'error');
+        return;
+    }
+
+    MallanAPI.listings.remove(listing._dbId || listing.id).then(function () {
+        manageShowToast(label + ' withdrawn.');
+        _manageListingsLoaded = false;
+        loadMyListingsFromAPI(function () { renderManageSection(currentManageMode); });
+    }).catch(function (err) {
+        // A refusal is a refusal. Never report a withdrawal the server did not make.
+        if (typeof console !== 'undefined') console.error('[Manage] withdraw failed:', err);
+        manageShowToast('Listing NOT withdrawn — ' + ((err && err.message) ? err.message : 'the server refused.'), 'error');
+    });
+}
+
 function manageEditListing(id) {
     var listing = manageFindListing(id);
     if (!listing) return;
     var dbId = listing._dbId || listing.id;
-    if (listing.category === 'sales') window.open('SALE-FORM-REDESIGN.html?id=' + encodeURIComponent(dbId), '_blank');
-    else window.open('RENTAL-FORM-REDESIGN.html?id=' + encodeURIComponent(dbId), '_blank');
+    if (listing.category === 'sales') window.open(CRM_SALE_FORM_ROUTE + '?id=' + encodeURIComponent(dbId), '_blank');
+    else window.open(CRM_RENTAL_FORM_ROUTE + '?id=' + encodeURIComponent(dbId), '_blank');
 }
 function manageExportTable() {
     // CSV export integration point \u2014 wire to /api/crm/listings/export when ready.
     manageShowToast('Export queued.');
 }
+
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════
+// CANONICAL MOUNT — the ONE My Listings implementation, mounted wherever a consumer needs it.
+//
+// The dashboard used to run a SECOND listing manager (Panels.myListings in dashboard/panels.js) while this
+// one, ~1,240 lines, was unreachable from normal navigation. That old screen also merged
+// /api/crm/past-deals into the listing set, which is why My Listings reported 140 closed sales that were
+// historical transactions rather than managed listings.
+//
+// The markup is FETCHED from public/crm/html/manage-listings.html - the same partial the search build
+// inlines - rather than copied into dashboard.html. Copying it would recreate the duplicate this deletion
+// exists to remove.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════
+function mountManageListings(container, mode) {
+  var host = container || (typeof CRM !== 'undefined' && CRM.getContent ? CRM.getContent() : null);
+  if (!host) return Promise.resolve(false);
+  if (typeof CRM !== 'undefined' && CRM.setPanelTitle) CRM.setPanelTitle('My Listings');
+  host.innerHTML = '<div class="p-6 text-sm text-gray-500">Loading listings...</div>';
+
+  return fetch('/crm/html/manage-listings.html', { credentials: 'include' })
+    .then(function (r) { if (!r.ok) throw new Error('manage-listings markup ' + r.status); return r.text(); })
+    .then(function (html) {
+      host.innerHTML = html;
+      // The partial ships hidden because the search build shows one section at a time; as a mounted panel
+      // it IS the content, so reveal it rather than leaving a blank screen.
+      var section = host.querySelector('#section-manage');
+      if (section) section.style.display = '';
+      return new Promise(function (resolve) {
+        if (typeof loadMyListingsFromAPI !== 'function') { resolve(false); return; }
+        loadMyListingsFromAPI(function () {
+          try { renderManageSection(mode || (typeof currentManageMode !== 'undefined' ? currentManageMode : 'sale')); }
+          catch (e) { console.error('[manage-listings] render failed', e); }
+          resolve(true);
+        });
+      });
+    })
+    .catch(function (e) {
+      console.error('[manage-listings] mount failed', e);
+      host.innerHTML = '<div class="p-6 text-sm text-red-600">My Listings could not load. ' +
+        'This is a failure, not an empty portfolio - reload or report it.</div>';
+      return false;
+    });
+}
+if (typeof window !== 'undefined') window.mountManageListings = mountManageListings;

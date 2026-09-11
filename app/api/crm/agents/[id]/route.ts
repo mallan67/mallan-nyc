@@ -8,6 +8,18 @@ import {
   logAuditEvent,
 } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import {
+  rejectNonCanonicalLicenseType,
+  rejectUnverifiedMemberMlsId,
+  rejectIncoherentLicenceRole,
+  canonicalTitleFor,
+} from "@/lib/agents/license-designation";
+import {
+  applyAgentStatusTransition,
+  transitionAgentStatus,
+  isAgentStatus,
+  type AgentStatus,
+} from "@/lib/agents/agent-lifecycle";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -44,10 +56,22 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       email: agent.email,
       phone: agent.phone,
       license_no: agent.license_no,
+      // Cotality Member.MemberMlsId. Distinct from MemberAORMlsId,
+      // MemberNationalAssociationId (NRDS) and MemberStateLicense.
+      trestle_mls_id: agent.trestle_mls_id,
       license_type: agent.license_type,
       license_expiry: agent.license_expiry,
       sale_split: agent.sale_split?.toString() ?? null,
       rental_split: agent.rental_split?.toString() ?? null,
+      // Returned, never accepted as an update field: there is deliberately no
+      // `body.role` branch in PATCH below.
+      //
+      // FOLLOW-UP LIFECYCLE GAP (not built here, by direction): a salesperson
+      // who later qualifies as an Associate Broker needs a GOVERNED
+      // reclassification workflow - both the licence class and the brokerage
+      // role change together, on evidence, with an audit trail. Editing them as
+      // ordinary profile fields is not that. The CRM Edit form renders no
+      // brokerage-role control, so nothing visible is being silently dropped.
       role: agent.role,
       status: agent.status,
       title: agent.title,
@@ -98,7 +122,15 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   }
   if (body.phone !== undefined) update.phone = body.phone as string | null;
   if (body.license_no !== undefined) update.license_no = body.license_no as string | null;
+  const licenseTypeError = rejectNonCanonicalLicenseType(body.license_type);
+  if (licenseTypeError) {
+    return NextResponse.json({ error: licenseTypeError }, { status: 400 });
+  }
   if (body.license_type !== undefined) update.license_type = body.license_type as string | null;
+  const mlsIdError = rejectUnverifiedMemberMlsId(body.trestle_mls_id);
+  if (mlsIdError) {
+    return NextResponse.json({ error: mlsIdError }, { status: 400 });
+  }
   if (body.license_expiry !== undefined) {
     update.license_expiry = body.license_expiry
       ? new Date(body.license_expiry as string)
@@ -110,19 +142,47 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.rental_split !== undefined) {
     update.rental_split = body.rental_split != null ? Number(body.rental_split) : null;
   }
+  // ACCOUNT STATE IS NOT A GENERIC FIELD.
+  //
+  // This used to write Agent.status directly, which made PATCH a second state
+  // writer alongside DELETE - and unlike DELETE it revoked nothing. Because
+  // validateSession() reads only the Session row (and even extends it), an
+  // agent edited to "inactive" here kept a working, accepted CRM session.
+  //
+  // Status is therefore stripped out of the generic field update and applied
+  // through the single lifecycle authority AFTER it, so every transition
+  // revokes sessions and writes its own audit event.
+  let statusTransition: AgentStatus | null = null;
   if (body.status !== undefined) {
-    const validStatuses = ["active", "inactive", "suspended"];
-    if (!validStatuses.includes(body.status as string)) {
+    if (!isAgentStatus(body.status)) {
       return NextResponse.json(
         { error: "status must be: active, inactive, or suspended" },
         { status: 400 }
       );
     }
-    update.status = body.status as string;
+    statusTransition = body.status;
   }
 
-  // --- Public profile fields ---
-  if (body.title !== undefined) update.title = body.title as string | null;
+  // The professional title is DERIVED from the LICENCE CLASS alone. A
+  // client-chosen title let an agent be styled "Licensed Real Estate Broker";
+  // a role-derived one manufactured a licence class out of an authorisation
+  // grant. Neither is permitted.
+  {
+    const nextLicence = (body.license_type as string | undefined) ?? agent.license_type;
+    const coherence = rejectIncoherentLicenceRole(nextLicence, agent.role);
+    if (coherence) {
+      return NextResponse.json({ error: coherence }, { status: 400 });
+    }
+    // ONLY when the licence class is actually being written. Recomputing on
+    // every PATCH would let an unrelated edit (a phone number) rewrite the
+    // designation of a legacy row whose stored class is ambiguous - silently
+    // ESCALATING an Associate Broker to principal broker. The title follows the
+    // licence, so it is recomputed exactly when the licence is set.
+    if (body.license_type !== undefined) {
+      const derived = canonicalTitleFor(body.license_type as string);
+      if (derived) update.title = derived;
+    }
+  }
   if (body.bio !== undefined) update.bio = body.bio as string | null;
   if (body.photo !== undefined) update.photo = body.photo as string | null;
   if (body.public_slug !== undefined) update.public_slug = body.public_slug as string | null;
@@ -134,30 +194,47 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     update.languages = Array.isArray(body.languages) ? body.languages.map(String) : [];
   }
 
-  if (Object.keys(update).length === 0) {
+  // A status-only request is legitimate: status is deliberately NOT part of the
+  // generic field update any more, so it would otherwise look like an empty
+  // body here.
+  if (Object.keys(update).length === 0 && !statusTransition) {
     return NextResponse.json(
       { error: "No valid fields to update" },
       { status: 400 }
     );
   }
 
-  const updated = await prisma.agent.update({
-    where: { id: agent.id },
-    data: update,
+  // ONE OUTER TRANSACTION owns the COMPLETE requested mutation.
+  //
+  // Previously the generic field update committed first and the lifecycle
+  // transition ran in its own transaction afterwards, so a failing revoke left
+  // the profile fields already changed. Nesting a second transaction inside
+  // the first is not the fix either - it is the same split with extra steps.
+  // applyAgentStatusTransition takes the transaction client, so the whole
+  // action commits together or not at all.
+  const { updated, lifecycle } = await prisma.$transaction(async (tx) => {
+    const row = Object.keys(update).length > 0
+      ? await tx.agent.update({ where: { id: agent.id }, data: update })
+      : agent;
+
+    let life = null;
+    if (statusTransition && statusTransition !== agent.status) {
+      life = await applyAgentStatusTransition(tx, agent.id, statusTransition, auth, {
+        previous: agent.status,
+        ip: req.headers.get("x-forwarded-for"),
+        reason: "edit_agent_status_change",
+      });
+    }
+    return { updated: row, lifecycle: life };
   });
 
-  await logAuditEvent(
-    "update",
-    "agent",
-    agent.id.toString(),
-    auth,
-    { fields: Object.keys(update) },
-    req.headers.get("x-forwarded-for") ?? undefined
-  );
-
   return NextResponse.json({
+    lifecycle,
+    // the COMMITTED status. `updated` is the row from the field update and
+    // predates the transition, so reading updated.status here reported the
+    // old value to the caller.
+    status: lifecycle ? lifecycle.status : updated.status,
     id: updated.id.toString(),
-    status: updated.status,
   });
 }
 
@@ -180,18 +257,19 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
   }
 
   // Soft delete: set status to inactive
-  await prisma.agent.update({
-    where: { id: agent.id },
-    data: { status: "inactive" },
-  });
+  // Same authority as the PATCH path, so the two can never drift apart again.
+  const lifecycle = await transitionAgentStatus(
+    prisma,
+    agent.id,
+    "inactive",
+    auth,
+    {
+      previous: agent.status,
+      ip: req.headers.get("x-forwarded-for"),
+      reason: "deactivate_agent",
+    }
+  );
 
-  // Delete all active sessions for this agent
-  await prisma.session.deleteMany({
-    where: {
-      user_type: "agent",
-      user_id: agent.id,
-    },
-  });
 
   await logAuditEvent(
     "delete",
@@ -204,6 +282,8 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
 
   return NextResponse.json({
     id: agent.id.toString(),
-    status: "inactive",
+    status: lifecycle.status,
+    sessions_revoked: lifecycle.sessions_revoked,
+    mfa_sessions_revoked: lifecycle.mfa_sessions_revoked,
   });
 }

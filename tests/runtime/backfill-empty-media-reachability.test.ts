@@ -25,8 +25,8 @@
  *   - no file under app/ imports `backfillEmptyMedia`
  *   - `app/api/cron/media-backfill/` does not exist
  *   - `/api/cron/media-backfill` is absent from vercel.json crons
- *   - the only remaining mention is a STALE entry in
- *     artifacts/api-route-catalog.json (a generated catalog, not a route)
+ *   - the last mention was a STALE entry in a generated route catalog, removed
+ *     2026-09-08 with its generator (the RESO toolkit)
  *
  * These tests pin that. If a caller ever reappears, the stored-PCT dependency
  * becomes live again and the deprecation decision must be revisited BEFORE the

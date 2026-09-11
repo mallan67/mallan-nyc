@@ -2,21 +2,27 @@
             // Core fields — each render includes data-reso-field/data-reso-value attributes
             address:          { label: 'ADDRESS',        reso: 'UnparsedAddress',         render: function(l) { var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address); return '<span class="font-medium text-blue-600 hover:underline cursor-pointer text-xs"' + resoData('address', addr) + ' onclick="event.stopPropagation(); openListingInNewTab(\'' + l.id + '\')">' + addr + '</span>'; } },
             unit:             { label: 'UNIT',           reso: 'UnitNumber',              render: function(l) { return '<span' + resoData('unit', l.unit) + '>' + (l.addressDisplayYN === false ? '--' : escapeHtml(l.unit)) + '</span>'; } },
-            price:            { label: 'PRICE',          reso: 'ListPrice',               render: function(l) { return '<span class="font-bold text-gray-900"' + resoData('price', l.price) + '>$' + l.price.toLocaleString() + '</span>'; } },
-            totalMonthly:     { label: 'TOTAL MONTHLY',  reso: 'AssociationFee+TaxAnnualAmount', render: function(l) { return '<span' + resoData('totalMonthly', l.totalMonthly) + '>$' + l.totalMonthly.toLocaleString() + '</span>'; } },
+            price:            { label: 'PRICE',          reso: 'ListPrice',               render: function(l) { return '<span class="font-bold text-gray-900"' + resoData('price', l.price) + '>' + (l.price == null ? '—' : '$' + l.price.toLocaleString()) + '</span>'; } },
+            totalMonthly:     { label: 'TOTAL MONTHLY',  reso: 'AssociationFee+TaxAnnualAmount', render: function(l) { return '<span' + resoData('totalMonthly', l.totalMonthly) + '>' + (l.totalMonthly == null ? '—' : '$' + l.totalMonthly.toLocaleString()) + '</span>'; } },
             rooms:            { label: 'RMS',            reso: 'RoomsTotal',              render: function(l) { return '<span' + resoData('rooms', l.rooms) + '>' + (l.rooms || '--') + '</span>'; } },
-            beds:             { label: 'BDS',            reso: 'BedroomsTotal',           render: function(l) { return '<span' + resoData('beds', l.beds) + '>' + l.beds + '</span>'; } },
-            baths:            { label: 'TOTAL BTHS',     reso: 'BathroomsTotalInteger',   render: function(l) { return '<span' + resoData('baths', l.baths) + '>' + l.baths + '</span>'; } },
-            reTaxes:          { label: 'RE TAXES',       reso: 'TaxAnnualAmount',         render: function(l) { return '<span' + resoData('reTaxes', l.reTaxes) + '>$' + l.reTaxes.toLocaleString() + '</span>'; } },
-            maintCC:          { label: 'MAINT/CC',       reso: 'AssociationFee',          render: function(l) { return '<span' + resoData('maintCC', l.maintCC) + '>$' + l.maintCC.toLocaleString() + '</span>'; } },
+            beds:             { label: 'BDS',            reso: 'BedroomsTotal',           render: function(l) { return '<span' + resoData('beds', l.beds) + '>' + (l.beds == null ? '—' : l.beds) + '</span>'; } },
+            baths:            { label: 'TOTAL BTHS',     reso: 'BathroomsFull+BathroomsHalf',   render: function(l) { return '<span' + resoData('baths', l.baths) + '>' + (l.baths == null ? '—' : l.baths) + '</span>'; } },
+            reTaxes:          { label: 'RE TAXES',       reso: 'TaxAnnualAmount',         render: function(l) { return '<span' + resoData('reTaxes', l.reTaxes) + '>' + (l.reTaxes == null ? '—' : '$' + l.reTaxes.toLocaleString()) + '</span>'; } },
+            maintCC:          { label: 'MAINT/CC',       reso: 'AssociationFee',          render: function(l) { return '<span' + resoData('maintCC', l.maintCC) + '>' + (l.maintCC == null ? '—' : '$' + l.maintCC.toLocaleString()) + '</span>'; } },
             intSqft:          { label: 'INT SQFT',       reso: 'LivingArea',              render: function(l) { return '<span' + resoData('intSqft', l.intSqft) + '>' + (l.intSqft || '--') + '</span>'; } },
-            status:           { label: 'STATUS',         reso: 'MlsStatus',          render: function(l) { var c = l.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : l.status === 'PENDING' ? 'bg-orange-100 text-orange-700' : l.status === 'COMING_SOON' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'; var label = l.status === 'COMING_SOON' ? 'COMING SOON' : l.status; var badge = '<span class="px-1.5 py-0.5 ' + c + ' rounded text-[10px] font-semibold"' + resoData('status', l.status) + '>' + label + '</span>'; badge += comingSoonBadgeCompact(l) + participantOnlyBadge(l); return badge; } },
+            // STATUS — the live Cotality StandardStatus token, presented by THE ONE browser authority
+            // (public/crm/js/core/status-presentation.js). This column used to hold its own three-case colour
+            // ternary over the retired uppercase presentation words and print the raw token as the label, so
+            // every other live status fell to grey and a sale's Closed read "Closed" instead of "Sold".
+            // `reso` is StandardStatus: the provider suppresses its own MLS-status field and does not allow
+            // filtering on it, so no node in this CRM may name it.
+            status:           { label: 'STATUS',         reso: 'StandardStatus',     render: function(l) { var badge = '<span class="px-1.5 py-0.5 ' + MallanStatus.classes(l) + ' rounded text-[10px] font-semibold" data-status-badge' + resoData('status', MallanStatus.token(l)) + '>' + escapeHtml(MallanStatus.label(l)) + '</span>'; badge += comingSoonBadgeCompact(l) + participantOnlyBadge(l); return badge; } },
             ownership:        { label: 'OWNERSHIP',      reso: 'CommonInterest',          render: function(l) { return '<span' + resoData('ownership', l.ownership) + '>' + ownershipLabel(l.ownership) + '</span>'; } },
             openHouse:        { label: 'OPEN HOUSE',     reso: 'OpenHouseDate',           render: function(l) { return '--'; } },
             // REBNY: "Market time will not accrue when permission is set to Participant Only."
             // Production: freeze DOM clock when participantOnly=true, resume when converted to Standard.
             dom:              { label: 'DOM',            reso: 'DaysOnMarket',            render: function(l) { return '<span' + resoData('dom', l.dom) + '>' + (l.dom || '--') + '</span>'; } },
-            freshness:        { label: 'FRESHNESS',      reso: 'SourceSystemModificationTimestamp',   render: function(l) { return listingFreshness(l); } },
+            freshness:        { label: 'FRESHNESS',      reso: 'ModificationTimestamp',   render: function(l) { return listingFreshness(l); } },
             domEnhanced:      { label: 'DOM',            reso: 'DaysOnMarket',            render: function(l) { return domDisplay(l); } },
             neighborhood:     { label: 'NEIGHBORHOOD',   reso: 'SubdivisionName',         render: function(l) { return '<span' + resoData('neighborhood', l.neighborhood) + '>' + escapeHtml(l.neighborhood || '--') + '</span>'; } },
             listedDate:       { label: 'LISTED',         reso: 'OnMarketDate',            render: function(l) { return '<span' + resoData('listedDate', l.listedDate) + '>' + escapeHtml(l.listedDate || '--') + '</span>'; } },
@@ -27,7 +33,7 @@
             pricePerSqft:     { label: '$/SQFT',         reso: null,                      render: function(l) { return l.intSqft ? '$' + Math.round(l.price / l.intSqft).toLocaleString() : '--'; } },
             // Extended fields (available in Grid Layouts modal)
             activityHistory:    { label: 'ACTIVITY',       reso: null,                      render: function(l) { return '--'; } },
-            pricePerRoom:       { label: '$/ROOM',         reso: null,                      render: function(l) { return l.rooms ? '$' + Math.round(l.price / l.rooms).toLocaleString() : '--'; } },
+            pricePerRoom:       { label: '$/ROOM',         reso: null,                      render: function(l) { return (l.rooms && l.price != null) ? '$' + Math.round(l.price / l.rooms).toLocaleString() : '--'; } },
             pricePerShare:      { label: '$/SHARE',        reso: null,                      render: function(l) { return '--'; } },
             acrisDocuments:     { label: 'ACRIS DOCS',     reso: null,                      render: function(l) { return '--'; } },
             acrisId:            { label: 'ACRIS ID',       reso: null,                      render: function(l) { return '--'; } },
@@ -61,7 +67,7 @@
             shares:             { label: 'SHARES',         reso: null,                      render: function(l) { return '--'; } },
             shown:              { label: 'SHOWN',          reso: null,                      render: function(l) { return '--'; } },
             sponsorUnit:        { label: 'SPONSOR',        reso: 'CustomProperty/CustomFields:SponsorUnitYN', render: function(l) { return l && l.sponsorUnit === true ? '<span class="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-semibold rounded">SPONSOR</span>' : (l && l.sponsorUnit === false ? 'No' : '--'); } },
-            updatedSold:        { label: 'UPDATED',        reso: 'SourceSystemModificationTimestamp',   render: function(l) { return '<span' + resoData('updatedDate', l.updatedDate) + '>' + escapeHtml(l.updatedDate || '--') + '</span>'; } },
+            updatedSold:        { label: 'UPDATED',        reso: 'ModificationTimestamp',   render: function(l) { return '<span' + resoData('updatedDate', l.updatedDate) + '>' + escapeHtml(l.updatedDate || '--') + '</span>'; } },
             verifiedEstimated:  { label: 'VERIFIED/EST',   reso: null,                      render: function(l) { return '--'; } },
             verifiedBuyer:      { label: 'VER. BUYER',     reso: null,                      render: function(l) { return '--'; } },
             verifiedSeller:     { label: 'VER. SELLER',    reso: null,                      render: function(l) { return '--'; } },

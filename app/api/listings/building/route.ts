@@ -4,6 +4,8 @@ import { buildingCacheTag, cachedPublicRead, SEARCH_CACHE_TAG } from '@/lib/cach
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { parseBuildingAddress, buildBuildingAddressFilter } from '@/lib/buildings/building-address-filter';
 import { lookupBBL, fetchAcrisSales, isDuplicate, boroughFromPostalCode } from '@/lib/buildings/acris-building-sales';
+import { cotalityFields } from '@/lib/cotality/contract';
+import { ACTIVE_DISPLAY_VALUES } from '@/lib/compliance/status';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -58,16 +60,15 @@ export async function GET(request: NextRequest) {
     //     Owner Opt-Out / Participant Only are encoded via the `Permission` enum
     //     and read by checkDistributionGates(). InternetEntireListingDisplayYN
     //     is the canonical master display gate.
-    const distributionFields =
-      'Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN';
+    const distributionFields = cotalityFields('Property', ['Permission', 'InternetEntireListingDisplayYN', 'InternetAddressDisplayYN']);
     // StandardStatus (NEVER MlsStatus — provider-suppressed, Trestle 400s). Use
     // the full actively-displayable set (matches lib/compliance/status.ts
     // ACTIVE_DISPLAY_STATUSES / isActiveDisplayStatus, which /api/buildings uses),
     // so ComingSoon / ActiveUnderContract sibling units aren't dropped.
-    const activeFilter = `${addressFilter} and (StandardStatus eq 'Active' or StandardStatus eq 'ActiveUnderContract' or StandardStatus eq 'ComingSoon')`;
+    const activeFilter = `${addressFilter} and (${ACTIVE_DISPLAY_VALUES.map((s) => `StandardStatus eq '${s}'`).join(' or ')})`;
     const activeParams = new URLSearchParams({
       $filter: activeFilter,
-      $select: `ListingId,ListingKey,SourceSystemKey,ListPrice,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,UnitNumber,PropertySubType,PropertyType,StandardStatus,ListOfficeName,${distributionFields}`,
+      $select: [...cotalityFields('Property', ['ListingId', 'ListingKey', 'SourceSystemKey', 'ListPrice', 'BedroomsTotal', 'BathroomsFull', 'BathroomsHalf', 'LivingArea', 'UnitNumber', 'PropertySubType', 'PropertyType', 'StandardStatus', 'ListOfficeName']), ...distributionFields].join(','),
       $orderby: 'ListPrice desc',
       $top: '20',
     });
@@ -77,7 +78,7 @@ export async function GET(request: NextRequest) {
     const closedFilter = `${addressFilter} and StandardStatus eq 'Closed'`;
     const closedParams = new URLSearchParams({
       $filter: closedFilter,
-      $select: `ListingId,ListingKey,SourceSystemKey,ClosePrice,ListPrice,BedroomsTotal,BathroomsFull,LivingArea,UnitNumber,CloseDate,PropertySubType,PropertyType,ListOfficeName,${distributionFields}`,
+      $select: [...cotalityFields('Property', ['ListingId', 'ListingKey', 'SourceSystemKey', 'ClosePrice', 'ListPrice', 'BedroomsTotal', 'BathroomsFull', 'LivingArea', 'UnitNumber', 'CloseDate', 'PropertySubType', 'PropertyType', 'ListOfficeName']), ...distributionFields].join(','),
       $orderby: 'CloseDate desc',
       $top: '20',
     });

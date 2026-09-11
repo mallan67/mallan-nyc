@@ -1566,6 +1566,9 @@ export default async function ListingPage({ params }: Props) {
                 previousListPrice={listing.previousListPrice}
                 closePrice={listing.closePrice}
                 status={listing.status}
+                stage={listing.lifecycle?.stage}
+                purchaseContractDate={listing.lifecycle?.inContractSince ?? undefined}
+                priceChangeTimestamp={listing.lifecycle?.priceChangeTimestamp ?? undefined}
                 onMarketDate={listing.onMarketDate}
                 listingContractDate={listing.listingContractDate}
                 modificationTimestamp={listing.modificationTimestamp}
@@ -1844,8 +1847,10 @@ export default async function ListingPage({ params }: Props) {
                   {listing.status && (
                     <div className="flex justify-between py-2.5 border-b border-black/5">
                       <span className="text-[13px] text-brand-dark/80">Status</span>
-                      <span className={`text-[13px] font-medium ${listing.status === 'Active' ? 'text-blue-600' : listing.status === 'Closed' ? 'text-green-600' : 'text-brand-dark'}`}>
+                      {/* `listing.status` is the broker-language label (In Contract · Sold · Rented …); colour by lifecycle stage. */}
+                      <span className={`text-[13px] font-medium ${listing.lifecycle?.stage === 'active' || listing.lifecycle?.stage === 'coming_soon' ? 'text-blue-600' : listing.lifecycle?.stage === 'in_contract' ? 'text-amber-600' : listing.lifecycle?.stage === 'closed' ? 'text-green-600' : 'text-brand-dark'}`}>
                         {listing.status}
+                        {listing.lifecycle?.backOnMarket ? ' · Back on Market' : ''}
                       </span>
                     </div>
                   )}

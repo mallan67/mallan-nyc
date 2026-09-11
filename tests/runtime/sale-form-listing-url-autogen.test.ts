@@ -89,7 +89,7 @@ describe('edit-load wiring', () => {
   });
 
   it('a saved slug is restored via SALE_FIELD_MAP (so it is preserved, not regenerated)', () => {
-    expect(FORM).toMatch(/rls:\s*'saleListingUrl',\s*form:\s*'saleListingUrl'/);
+    expect(FORM).toMatch(/mallan:\s*'saleListingUrl',\s*form:\s*'saleListingUrl'/);
   });
 
   it('an already-populated field is NOT overwritten by the edit-load generator', () => {

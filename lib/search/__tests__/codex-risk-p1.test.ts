@@ -19,7 +19,13 @@ describe("Codex Risk Cleanup P1 static guards", () => {
     expect(src).not.toMatch(/TransitSearch\.isNearStation/);
     expect(src).not.toMatch(/ManhattanGrid\.isInBounds/);
     expect(src).not.toMatch(/listing\.openHouseDate/);
-    expect(src).toMatch(/_hasServerIgnoredCriteria/);
+    // Search Consolidation Packet 1: the browser-local membership engine (filterListings)
+    // and its server-ignored-criteria helper are gone; these criteria are REFUSED by name
+    // by the contract-driven serializer, never filtered locally.
+    expect(src).not.toMatch(/function filterListings\(/);
+    expect(src).not.toMatch(/function _hasServerIgnoredCriteria\(/);
+    expect(src).toMatch(/\['_transitBounds',\s*'Transit'\]/);
+    expect(src).toMatch(/\['_gridBounds',\s*'Map grid'\]/);
   });
 
   it("agent inquiry uses delegated data attributes, not inline onclick", () => {

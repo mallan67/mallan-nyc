@@ -3,12 +3,18 @@
             container.innerHTML = getFilteredListings().map(listing => {
                 var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
                 var displayUnit = listing.addressDisplayYN === false ? '' : (listing.unit ? ', ' + escapeHtml(listing.unit) : '');
-                var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
-                var stC = listing.status === 'ACTIVE' ? '#16a34a' : listing.status === 'PENDING' ? '#ea580c' : listing.status === 'COMING_SOON' ? '#7c3aed' : '#6b7280';
-                var stB = listing.status === 'ACTIVE' ? '#dcfce7' : listing.status === 'PENDING' ? '#fff7ed' : listing.status === 'COMING_SOON' ? '#f5f3ff' : '#f3f4f6';
+                // Status presentation — token, broker label and colours all come from THE ONE authority
+                // (public/crm/js/core/status-presentation.js). This card used to keep its own three-case
+                // colour ternary over the retired uppercase words and print the raw token as the label, so a
+                // sale's Closed read "Closed" rather than "Sold" and a rental's read "Closed", not "Rented".
+                var stColors = MallanStatus.colors(listing);
+                var stC = stColors.fg;
+                var stB = stColors.bg;
+                var statusToken = MallanStatus.token(listing);
+                var statusLabel = escapeHtml(MallanStatus.label(listing));
                 var selected = searchResultsState.selectedListings.includes(listing.id);
                 return `
-                <div class="listing-card mb-4 bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" style="box-shadow: 0 2px 12px rgba(0,0,0,0.04);">
+                <div class="listing-card mb-4 bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-source="${listing._source === 'mallan' ? 'MALLAN-LOCAL' : 'COTALITY-API'}" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" style="box-shadow: 0 2px 12px rgba(0,0,0,0.04);">
                     ${comingSoonBadge(listing)}
                     <div class="flex" style="min-height: 280px;">
                         <!-- Photo — large, proper aspect ratio -->
@@ -45,9 +51,9 @@
                                         </div>
                                     </div>
                                     <div class="flex flex-col items-end flex-shrink-0">
-                                        <span class="text-xl font-bold text-gray-900"${resoData('price', listing.price)}>$${listing.price.toLocaleString()}</span>
+                                        <span class="text-xl font-bold text-gray-900"${resoData('price', listing.price)}>${listing.price == null ? '—' : '$' + listing.price.toLocaleString()}</span>
                                         <div class="flex items-center gap-2 mt-1">
-                                            <span class="px-2 py-0.5 rounded text-[11px] font-semibold" style="background:${stB};color:${stC}"${resoData('status', listing.status)}>${statusLabel}</span>
+                                            <span class="px-2 py-0.5 rounded text-[11px] font-semibold" style="background:${stB};color:${stC}" data-status-badge${resoData('status', statusToken)}>${statusLabel}</span>
                                             ${participantOnlyBadge(listing)}
                                             ${syndicationBadge(listing)}
                                         </div>
@@ -56,9 +62,9 @@
 
                                 <!-- Specs row -->
                                 <div class="flex items-center gap-4 text-sm text-gray-700 mb-3 mt-3">
-                                    <span><strong>${listing.beds}</strong> Beds</span>
+                                    <span><strong>${listing.beds == null ? '—' : listing.beds}</strong> Beds</span>
                                     <span class="text-gray-300">&middot;</span>
-                                    <span><strong>${listing.baths}</strong> Baths</span>
+                                    <span><strong>${listing.baths == null ? '—' : listing.baths}</strong> Baths</span>
                                     <span class="text-gray-300">&middot;</span>
                                     <span><strong>${listing.intSqft ? listing.intSqft.toLocaleString() : '--'}</strong> SF</span>
                                     ${listing.intSqft ? '<span class="text-gray-300">&middot;</span><span class="text-gray-500">$' + Math.round(listing.price / listing.intSqft).toLocaleString() + '/SF</span>' : ''}

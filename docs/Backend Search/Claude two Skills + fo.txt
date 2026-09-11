@@ -1,0 +1,442 @@
+I would give Claude two Skills + four restricted agents + deterministic hooks + one Search closure controller.
+
+Not five new architectural systems.
+
+1. search-authority Skill
+
+This is the lightweight Skill Claude automatically uses whenever it touches Backend Search, Saved Search, CMA, Search forms, mapping, provider queries or Search results.
+
+Its purpose is not to store Cotality fields.
+
+It teaches Claude:
+
+COTALITY LIVE → FIELD_REGISTRY → EXECUTION → MALLAN FACTS → BUSINESS/COMPLIANCE → CONSUMER
+
+It should dynamically inject:
+
+current branch;
+HEAD;
+dirty files;
+current Search execution checkpoint;
+affected Search criteria;
+canonical registry entries;
+current provider verification status.
+
+Claude Code now supports exactly this pattern: a Skill can execute shell commands before the Skill is loaded and inject their live output into Claude's context. That means Claude does not have to “remember” yesterday's Search state.
+
+For Mallan, the dynamic portion should be something like:
+
+node scripts/search/search-task-packet.mjs <criterion-or-files>
+
+—not several pages of permanent prose.
+
+That script should return a concise machine packet containing:
+
+git_sha
+branch
+dirty_files
+master_execution_checkpoint
+
+canonical_criterion
+workflow: SALE | RENTAL | CMA | BUILDING
+registry_entry
+mapping_owner
+execution_strategy
+
+provider_resource
+provider_field(s)
+live_probe_state
+enum/vocabulary_owner
+live_probe_timestamp
+contract_evidence_hash
+
+readers
+writers
+saved_search_consumers
+cma_consumers
+form_controls
+result_projection
+compliance_rules
+
+allowed_files
+forbidden_files
+required_tests
+required_negative_tests
+cleanup_candidates
+
+That is the education mechanism.
+
+2. search-closure Skill
+
+This should be manually invoked for actual repair work, e.g.:
+
+/search-closure bedrooms
+
+or
+
+/search-closure rental-pets
+
+I would make this one manual rather than automatically triggered, because it can initiate substantial live verification.
+
+Claude Code supports disable-model-invocation: true specifically for workflows whose timing should remain user-controlled.
+
+The Skill should invoke one deterministic program:
+
+npm run search:closure -- <criterion-or-scope>
+
+The program—not Claude—decides whether closure passed.
+
+The four Claude agents
+
+This is where current Claude Code has improved significantly.
+
+Custom subagents can have explicit tool allowlists/denylists and separate permissions. The built-in Explore agent itself is already read-only.
+
+I would create:
+
+Agent	Permission	Job
+cotality-verifier	Read only	Verify raw provider facts through existing trestle-fields MCP
+search-lineage-verifier	Read only	Trace UI → criterion → registry → executor → result → Saved Search/CMA/forms
+search-differential-verifier	Read only	Independently execute raw Cotality universe and compare against Search
+preview-e2e-verifier	Read only	Browser/API/result/count/pagination/UI verification
+
+Only the main Builder Claude edits code.
+
+And I would keep your existing prohibition on agent-created worktrees. Claude Code supports worktree isolation, but Mallan does not need it here. Read-only agents can stay read-only; independent clean-SHA testing can happen outside Claude's working checkout.
+
+The most important piece: Claude hooks
+
+This is stronger than a Skill.
+
+A Skill tells Claude what it should do.
+
+A PreToolUse hook can physically deny what Claude tries to do.
+
+Claude's current documentation confirms that a PreToolUse denial runs before permission evaluation and still blocks the operation even under bypassPermissions / --dangerously-skip-permissions.
+
+That is exactly what Mallan needs.
+
+Mallan Search hook
+
+I would create one deterministic command hook:
+
+/.claude/hooks/mallan-search-guard.mjs
+
+It should block:
+
+Attempt	Result
+Direct Cotality HTTP outside canonical provider layer	DENY
+New Cotality field literal outside approved canonical mapping modules	DENY
+Handwritten provider enum array outside vocabulary authority	DENY
+OData $filter construction outside approved executor/mapping owner	DENY
+CMA importing Cotality/provider client	DENY
+Saved Search creating its own provider interpreter	DENY
+Search UI creating its own provider vocabulary	DENY
+Direct edit of generated registry artifacts	DENY
+git add . / git add -A	DENY
+unauthorized schema/migration	DENY
+unauthorized Neon/R2 mutation	DENY
+unauthorized production deploy	DENY
+new worktree/clone workflow	DENY
+
+This is substantially more reliable than putting “DO NOT” statements into CLAUDE.md.
+
+Interestingly, I do not see a committed .claude/ control directory at the #618 head; the repository has .mcp.json, .githooks, .github, CLAUDE.md, etc., but not the project-level Claude Skills/agent/hook layer.
+
+That is a genuine gap worth filling.
+
+Do not create another mapping manifest
+
+This is another important correction to the pasted proposal.
+
+lib/search/canonical/field-registry.ts now explicitly says:
+
+THE CANONICAL SEARCH MAPPING AUTHORITY
+
+and it already owns criterion identity, provider mapping state, source authority, execution capability, Search parameters, workflow applicability and mapping ownership. It even generates subordinate filter-key output instead of maintaining a second literal list.
+
+Therefore:
+
+Do not create cotality-mallan-mapping-manifest.json alongside it.
+
+That would immediately create authority #2.
+
+Instead, finish FIELD_REGISTRY as the executable manifest.
+
+Where information is missing, extend its structured schema or generate subordinate artifacts from it.
+
+The desired chain should be:
+
+LIVE COTALITY CONTRACT
+        ↓ verifies
+FIELD_REGISTRY
+        ↓ generates
+criteria/vocabulary/execution artifacts
+        ↓
+ONE SEARCH EXECUTOR
+
+Not:
+
+live contract
+↓
+new manifest
+↓
+FIELD_REGISTRY
+↓
+other mappings
+The independent verifier is still genuinely missing
+
+This is where Claude's original recommendation was right.
+
+Mallan already has cotality:search:verify. It scans the actual Search route/filter/registry and probes those provider fields live. That's useful.
+
+There is also verify-live-search-contract.mts.
+
+But that second verifier explicitly imports production Search contract modules such as:
+
+field-registry;
+amenity-vocabulary;
+amenity-match;
+bath-contract;
+property-subtype-contract.
+
+So it is a contract drift verifier, not an independently derived black-box oracle.
+
+You still need:
+
+MALLAN SEARCH(criteria)
+             ↓
+          IDs/count/order
+
+             VS
+
+RAW COTALITY
+built independently from verified task evidence
+             ↓
+          IDs/count/order
+
+Then:
+
+missing IDs
+extra IDs
+different count
+wrong ordering
+page overlap
+page gaps
+
+must fail.
+
+That will catch the class of defect you have repeatedly had where:
+
+the implementation and its tests agree with each other and are both wrong.
+
+The existing Cotality MCP should be reused
+
+This is another major discovery.
+
+Your repository already has:
+
+.mcp.json → trestle-fields
+
+and it explicitly delegates to the one canonical scripts/cotality/query-live.mjs.
+
+It already exposes Claude tools for:
+
+census;
+field lookup;
+picklists;
+live Lookup values;
+bounded resource queries;
+full paging;
+field capability probes;
+relationship probes;
+DataSystem;
+service document.
+
+Do not add another Cotality MCP.
+
+Use this one.
+
+The separate Cotality connector available to me in this chat returned HTTP 429 twice during this audit, so I did not use it to make any new provider-field claims. The repo's committed Cotality architecture is what I verified.
+
+Tools I would add
+
+These are the ones worth adding—not another huge framework.
+
+Tool	Use in Mallan	Priority
+TypeScript Compiler API	Detect forbidden provider literals, direct OData construction, improper imports/calls	P0
+dependency-cruiser	Enforce module boundaries, e.g. CMA → Search allowed; CMA → Cotality forbidden	P0
+fast-check	Generate Search combinations and test mathematical invariants	P0
+StrykerJS	Deliberately corrupt Search logic to prove tests actually detect it	P1
+Playwright	Desktop/mobile Saved Search/Advanced/Search result behavioral proof	P0 — already installed
+Vercel Sandbox	Run independent verifier/browser checks outside Claude's working checkout	P0/P1
+Vercel Agent	Extra PR adversarial review, not system authority	P1
+Semgrep	Optional additional pattern guard	P2
+Vercel Workflow DevKit	Later for durable scheduled drift sweeps/approval workflows	Later
+
+fast-check is particularly valuable because it generates hundreds of input combinations and then shrinks failures to minimal reproducible examples.
+
+For Mallan, properties should include:
+
+stricter filter cannot increase universe
+
+page1 ∩ page2 = ∅
+
+union(all pages) = complete universe
+
+count = size(complete universe)
+
+sort changes order, never membership
+
+save → restore preserves normalized criteria
+
+Basic → Advanced → Basic loses zero criteria
+
+Sale criteria never return Rental universe
+
+Rental criteria never return Sale universe
+
+unsupported criterion never silently broadens Search
+
+Stryker is then useful on only the critical Search modules. It can mutate logical operators, equality, booleans, strings, arithmetic and other expressions to check whether the test suite notices.
+
+Do not mutation-test the whole repository. Stryker allows mutation to be scoped down to individual files or even line ranges.
+
+Dependency-cruiser can turn architectural boundaries into CI errors rather than comments. Its rule system supports forbidden, allowed and required dependencies with error severity that returns non-zero.
+
+Vercel's role
+
+I would not put the primary Search controller into Vercel Workflow yet.
+
+Claude was right about that.
+
+The Search repair controller should be deterministic Node/TypeScript in the repo.
+
+Vercel Workflow DevKit becomes useful later for things such as:
+
+weekly Cotality drift sweep
+→ run probes
+→ compare contract evidence
+→ notify on material drift
+
+or
+
+long-running Search regression campaign
+→ durable steps
+→ retry transient API failures
+→ pause for Maya approval
+→ resume verification
+
+Vercel's Workflow system supports durable steps, retries and human pause/resume. But making Search repair dependent on another runtime right now would add unnecessary infrastructure.
+
+The much more immediately useful Vercel feature is Sandbox: run the independent verifier against the pushed SHA in an isolated microVM rather than letting the Builder validate its own checkout. Vercel's own documentation explicitly supports isolated researcher/coder/reviewer environments. That directly supports your separation-of-duties requirement.
+
+The closure controller I would build
+
+One script:
+
+script/search/search-closure-orchestrator.mts
+
+It should execute this sequence—and no agent gets to skip steps:
+
+Exact repo/root/branch/HEAD/dirty-tree preflight.
+Resolve current Master Plan + execution checkpoint.
+Derive changed Search criteria from Git diff.
+Generate task packet.
+Run targeted live Cotality verification through the existing live client.
+Validate affected FIELD_REGISTRY entries.
+Run AST/dependency authority guards.
+Run direct/negative tests.
+Run fast-check Search invariants.
+Run independent differential Search comparison.
+Run Saved Search persistence/restore proof where affected.
+Run Sale/Rental round-trip where affected.
+Run CMA/Compare downstream proof where affected.
+Run compliance/attribution proof.
+Run Playwright Preview proof.
+Produce search-closure-report.json.
+Refuse DONE when any required evidence is absent.
+
+Production verification remains outside this automatic workflow unless you explicitly authorize the production action.
+
+That fits your anti-loop protocol exactly.
+
+One more improvement: contract evidence hash
+
+The current full Cotality compiler already records acquisition timestamps and provider evidence, but in the compiler I inspected I do not see it computing a cryptographic contract_sha.
+
+Add:
+
+evidence_sha256
+compiler_git_sha
+repo_git_sha
+acquired_at
+provider_base
+mode
+
+Then Search runtime diagnostics can emit:
+
+search_plan_id
+provider_evidence_sha
+registry_sha
+normalized_criteria_hash
+result_universe_count
+
+No credentials. No PII.
+
+Then when someone says:
+
+“This result came from Cotality”
+
+you can prove which contract evidence, registry and query plan were involved.
+
+What I would tell Claude now
+
+The previous menu is missing the correct option. I would give Claude this instruction instead:
+
+Do not choose Capability Contract First, Full Control Plane First, or Contract + Mapping Manifest as currently described.
+
+The live Cotality capability foundation already exists on the current Search lineage. Reuse it. Do not build a second provider contract, provider client, Cotality MCP, or mapping authority.
+
+Proceed with an ENFORCEMENT SLICE around the existing Search foundation.
+
+Treat scripts/cotality/live-client.mjs, scripts/cotality/query-live.mjs, scripts/cotality/compile-live-contract.mjs, and the existing trestle-fields MCP as the single live provider-verification path. First verify their current exact state; improve them only where a concrete missing capability is proven.
+Treat lib/search/canonical/field-registry.ts as the existing canonical Search mapping authority. Do NOT create a parallel Cotality→Mallan mapping manifest. Extend/generate from FIELD_REGISTRY where machine enforcement needs additional structured facts.
+Create project-level Claude controls under .claude/:
+lightweight Search authority Skill;
+manually invoked Search closure Skill with dynamic task-packet injection;
+read-only Cotality verifier agent;
+read-only Search lineage verifier;
+read-only independent differential verifier;
+read-only Preview/E2E verifier;
+deterministic PreToolUse/Stop hooks.
+The main Claude session is the only writer. Verification agents must have Write/Edit denied at the tool level. Do not create worktrees or alternate clones.
+Add a PreToolUse authority guard that mechanically denies:
+direct Cotality HTTP outside the canonical provider layer;
+new provider field literals outside approved Search mapping/provider modules;
+handwritten provider enum/vocabulary arrays outside canonical vocabulary owners;
+OData construction outside approved execution/mapping owners;
+CMA or Saved Search bypassing the canonical Search foundation;
+direct edits of generated artifacts;
+git add . / git add -A;
+unauthorized schema, Neon, R2, environment, Production or destructive operations.
+Build scripts/search/search-task-packet.mjs. For the affected criterion/files it must dynamically output current Git identity, Search execution checkpoint, canonical FIELD_REGISTRY entry, mapping owner, execution strategy, live Cotality field/relationship capability evidence, vocabulary, affected readers/writers/forms/Saved Search/CMA/report/compliance consumers, allowed files, forbidden files, required tests, cleanup targets and current evidence hash.
+Add SHA-256 provenance to the live Cotality evidence bundle. The live API remains provider authority; the hash identifies the exact evidence used for a repair. Record compiler Git SHA, repo SHA and acquisition timestamp.
+Build a genuinely independent black-box differential verifier. It may use raw live Cotality evidence and the explicit task specification, but it must NOT import the production Search query compiler, mapper or FIELD_REGISTRY to calculate the expected result. Compare complete IDs, count, ordering and pagination against the canonical Mallan Search output.
+Add property-based Search tests using fast-check for invariants including:
+stricter-filter monotonicity; no page overlap; complete-universe equality; count equality; sort-membership stability; Saved Search normalization parity; Basic/Advanced zero-loss parity; Sale/Rental separation; unsupported criteria fail-loud behavior.
+Add targeted mutation testing with StrykerJS only for critical mapping/query/status/count/pagination/compliance modules. Prove that changes such as AND→OR, comparison changes, booleans, provider field/string corruption and pagination-boundary changes are killed by tests.
+Add TypeScript AST and dependency-boundary checks. At minimum prove CMA cannot directly import the provider client, Saved Search cannot implement another query engine, forms cannot own provider enum catalogs, and Cotality HTTP/OData construction exists only in approved modules.
+Reuse existing Playwright for real desktop/tablet/mobile behavior. Use a clean pushed SHA / isolated environment for final verification rather than allowing the coding checkout to certify itself.
+Create one deterministic search:closure orchestrator. It derives the impact graph from the actual diff and runs only required affected tests as a group:
+preflight → live provider verification → registry verification → architecture guard → direct/negative tests → property invariants → differential verification → persistence/round-trip → Saved Search → CMA/downstream → compliance → Preview E2E → machine-readable closure report.
+Do not put the primary Search repair controller into Vercel Workflow DevKit. Keep it repo-local and deterministic. Vercel Workflow may later be used for scheduled/durable contract-drift monitoring. Vercel Sandbox may be used now for independent clean-SHA verification.
+Do not change schema, Production, Neon, R2, environment or deployment state as part of this enforcement foundation.
+
+Before writing anything, return the exact existing components you will reuse, the actual gaps you proved still exist, the files you propose adding/changing, and confirmation that no second provider/mapping/Search authority will be created.
+
+The objective is not another control plane. The objective is to make the existing canonical Search architecture mechanically impossible to bypass and independently provable end to end.
+
+That is the direction I would use. It is smaller than Claude's proposed “full control plane,” but considerably stronger because it builds on work you have already paid for instead of restarting it.
+
+Most importantly: after this layer exists, Claude should stop “rediscovering Search” in every session. The task packet tells it what is true, the hooks prevent unauthorized architecture, the independent verifier tries to prove it wrong, and GitHub can eventually make that closure check mandatory before main.

@@ -1,13 +1,16 @@
+> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/operations/evidence-2026-09-08/provider-system/REMOVAL-2026-09-08.md`.
+
 # IDX & VOW Display Rules
 
-> **Feed:** REBNY RLS via Trestle (Cotality) | **LMP:** RealPlus (listing input to RLS) | **IDX Display:** Trestle IDX Plus WebAPI — public display + internal CRM + reporting (REBNY confirmed 2026-03-27). IDX-eligible inventory only, not full-market search.
+> **Feed:** Cotality (Trestle) IDX Plus Web API | **REBNY RLS submission:** outside this system | **IDX Display:** Trestle IDX Plus WebAPI — public display + internal CRM + reporting (REBNY confirmed 2026-03-27). IDX-eligible inventory only, not full-market search.
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 
 ---
 
-> ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
-> 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+> ### AUTHORITY (Packet 2 closure, 2026-09-06)
+> **COTALITY LIVE CONTRACT** (`lib/cotality/live-contract.ts`, the dated live pulls) → provider facts: field existence, enum members.
+> **REBNY / UCBA** (`lib/compliance/rebny-ucba-rules.ts`) → compliance / business rules. **MALLAN** (`lib/listings/mallan-form-contract.ts`, `lib/listings/mallan-status.ts`) → form / workflow / storage.
+> **RESO = vocabulary only.** Fail closed = NON-DISPLAY. (The former "RLS overrides RESO/IDX" ordering is retired: no CSV, RESO document or hand-typed table is a field authority.)
 
 ---
 
@@ -183,6 +186,8 @@ VOW (Virtual Office Website) provides more data than IDX but requires consumer r
 
 ### Field Availability on IDX Plus Feed
 
+> **AUTHORITY UPDATE (2026-09-10).** The "In IDX Plus CSV?" column below, and every "in the REBNY IDX Plus CSV (902 fields)" citation in this file, are **retained as the 2026-03-26 reasoning record only**. They are **not** a field authority and are no longer verifiable — the REBNY CSVs were removed from the repo on 2026-09-08 (`docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` §0 item 2). To answer "does this field exist / may it be displayed", read the live Cotality contract: `lib/cotality/live-contract.ts` · `lib/cotality/generated/contract.ts` · `data/cotality-contract/**` · `data/cotality-enums.live.json` (refresh with `npm run cotality:authority -- refresh`; prove with `node scripts/cotality/generate-contract-types.mjs --check`). The **conclusions** below — ClosePrice, CloseDate, OriginalListPrice, PreviousListPrice, DaysOnMarket and CumulativeDaysOnMarket are displayable on IDX Plus — still stand; only the evidence path has moved. Anything marked "Needs verification" **fails closed to NON-DISPLAY** until confirmed against the live contract.
+
 > **Corrected 2026-03-26:** ClosePrice, CloseDate, OriginalListPrice, PreviousListPrice are IN the
 > IDX Plus CSV and CAN be displayed publicly. The previous version of this section incorrectly
 > classified them as "VOW-Only." The REBNY IDX/VOW Compliance Checklist has no such restriction.
@@ -192,7 +197,7 @@ VOW (Virtual Office Website) provides more data than IDX but requires consumer r
 > Fields returned by Trestle on your feed are authorized — Trestle filters payloads per feed type.
 > IDX_PLUS_EXCLUDED_FIELDS in `trestle-mapper.ts` was validated live against Trestle on 2026-03-04.
 
-| Field | In IDX Plus CSV? | Returned by Trestle IDX Plus feed? | Notes |
+| Field | In the retired REBNY CSV? *(historical, not authority)* | Returned by Trestle IDX Plus feed? *(verify in the live contract)* | Notes |
 |-------|:---:|:---:|-------|
 | ClosePrice | YES | YES | IDX-safe |
 | CloseDate | YES | YES | IDX-safe |
@@ -204,20 +209,20 @@ VOW (Virtual Office Website) provides more data than IDX but requires consumer r
 | CancelledDate | NO | Trestle-only. |
 | ExpirationDate | NO | Explicitly "Hidden" per UCBA Exhibit A — never display. |
 | PropertyCondition | NO | Agent-only per UCBA — with disclaimer if shown to agents. |
-| Extended agent info (direct phone, email) | YES (in CSV) | But REBNY checklist prohibits seller/occupant contact info. Agent PII display is for attribution only. |
+| Extended agent info (direct phone, email) | YES (live fields) | But REBNY checklist prohibits seller/occupant contact info. Agent PII display is for attribution only. |
 
 ### Fields IN IDX Plus Spec (CAN display publicly)
 
 | Field | Verified Source |
 |-------|----------------|
-| ClosePrice | IDX Plus CSV line 406 |
-| CloseDate | IDX Plus CSV line 405 |
-| OriginalListPrice | IDX Plus CSV line 694 |
-| PreviousListPrice | IDX Plus CSV line 742 |
-| ListingContractDate | IDX Plus CSV line 622 |
-| PurchaseContractDate | IDX Plus CSV line 752 |
-| BuyerFinancing | IDX Plus CSV line 393 |
-| WithdrawnDate | IDX Plus CSV line 847 |
+| ClosePrice | live Cotality contract — declared Property field (`data/cotality-contract/contract.compact.json`) |
+| CloseDate | live Cotality contract — declared Property field |
+| OriginalListPrice | live Cotality contract — declared Property field |
+| PreviousListPrice | live Cotality contract — declared Property field |
+| ListingContractDate | live Cotality contract — declared Property field |
+| PurchaseContractDate | live Cotality contract — declared Property field |
+| BuyerFinancing | live Cotality contract — declared Property field |
+| WithdrawnDate | live Cotality contract — declared Property field |
 
 ---
 

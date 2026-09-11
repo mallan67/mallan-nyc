@@ -51,8 +51,13 @@ function toggleOHOverviewForm() {
 
 function populateOHOverviewListing() {
     var modeListings = myManagementListings.filter(function(l) { return l.category === currentManageMode; });
-    var closedStatuses = ['Sold', 'Leased', 'Expired', 'Perm Off Market'];
-    var eligible = modeListings.filter(function(l) { return closedStatuses.indexOf(l.status) === -1; });
+    // A listing that has left the market cannot take a new open house. The gate is the live Cotality
+    // StandardStatus token the row stores (MANAGE_TERMINAL_TOKENS in manage-listings.js) - never the broker word
+    // printed on the chip, which reads "Sold" on a sale and "Rented" on a rental for the SAME token. A row with
+    // no resolvable token is refused fail-closed.
+    var eligible = modeListings.filter(function(l) {
+        return !!l.statusToken && MANAGE_TERMINAL_TOKENS.indexOf(l.statusToken) === -1;
+    });
     var sel = document.getElementById('ohOverviewListing');
     sel.innerHTML = '<option value="">\u2014 Select listing \u2014</option>';
     eligible.forEach(function(l) {
@@ -213,6 +218,49 @@ function renderOHOverviewRow(oh, isPast) {
     return html;
 }
 
+// ==============================================================================================
+// THE ONE OPEN HOUSE WRITER
+//
+// Several buttons schedule an open house; exactly one function may write it. Before 2026-09-09
+// there were three paths and two of them never reached the server, while still reporting success:
+//   - manage-listings.js cardOHSave() pushed onto the in-memory myOpenHouses array and toasted
+//     "<types> scheduled for <address>". No request. Gone on reload - and REBNY has no record of
+//     a showing the agent believes is published.
+//   - this file carried a local-only branch doing the same when MallanAPI was absent.
+// Same defect as cd4f8aec on the sale form: a write that did not happen was reported as a write.
+//
+// Local state is updated ONLY from what the server returned, and a refusal REJECTS so no caller
+// can claim success. Callers own their wording; this function owns the truth.
+// ==============================================================================================
+function saveOpenHouse(oh) {
+    if (typeof MallanAPI === 'undefined' || !MallanAPI.showings || typeof MallanAPI.showings.create !== 'function') {
+        return Promise.reject(new Error('the CRM API is unavailable'));
+    }
+    var types = oh.types || [];
+    var repeat = oh.repeat || 'none';
+    var link = oh.link || '';
+    // Facts the showings API has no column for travel in notes, as they always have.
+    var notesJson = JSON.stringify({ types: types, virtualTour: !!oh.virtualTour, link: link, repeat: repeat });
+
+    return MallanAPI.showings.create({
+        listing_id: oh.listingId,
+        date: oh.date,
+        time: oh.start + ' - ' + oh.end,
+        type: 'openhouse',
+        notes: notesJson,
+    }).then(function (res) {
+        var row = {
+            id: res.id, _serverId: res.id,
+            listingId: oh.listingId, _listingDbId: oh.listingId,
+            types: types, virtualTour: !!oh.virtualTour,
+            date: oh.date, start: oh.start, end: oh.end,
+            repeat: repeat, link: link, status: 'confirmed', notes: '',
+        };
+        myOpenHouses.push(row);
+        return row;
+    });
+}
+
 function ohOverviewSave() {
     var listingSel = document.getElementById('ohOverviewListing');
     var listingId = listingSel.value;
@@ -268,45 +316,20 @@ function ohOverviewSave() {
         manageShowToast('Open house updated');
         ohOverviewEditId = null;
     } else {
-        // Create new — POST /api/crm/showings
-        if (typeof MallanAPI !== 'undefined' && MallanAPI.showings) {
-            MallanAPI.showings.create({
-                listing_id: listingId,
-                date: date,
-                time: timeStr,
-                type: 'openhouse',
-                notes: notesJson,
-            }).then(function(res) {
-                // Add to local array with server ID
-                myOpenHouses.push({
-                    id: res.id,
-                    _serverId: res.id,
-                    listingId: listingId,
-                    _listingDbId: listingId,
-                    types: types,
-                    virtualTour: virtualTour,
-                    date: date,
-                    start: start,
-                    end: end,
-                    repeat: repeat,
-                    link: link,
-                    status: 'confirmed',
-                    notes: ''
-                });
-                renderOHOverview();
-                renderManageSection(currentManageMode);
-            }).catch(function(err) {
-                if (typeof console !== 'undefined') console.error('[OpenHouses] Create failed:', err);
-                manageShowToast('Failed to save open house to server', 'error');
-            });
-        } else {
-            // Fallback: local only
-            myOpenHouses.push({ id: 'OH-' + ohNextId++, listingId: listingId, types: types, virtualTour: virtualTour, date: date, start: start, end: end, repeat: repeat, link: link, notes: '' });
-        }
-
-        var displayTypes = types.map(function(t) { if (t === 'Public') return 'Open House'; if (t === 'By Appointment') return 'Open House By Appointment Only'; if (t === 'Broker Only') return 'Broker Open House'; return t; });
-        if (virtualTour) displayTypes.push('Virtual Tour');
-        manageShowToast(displayTypes.join(', ') + ' scheduled');
+        // Create new - through the one writer above.
+        saveOpenHouse({
+            listingId: listingId, date: date, start: start, end: end,
+            types: types, virtualTour: virtualTour, repeat: repeat, link: link,
+        }).then(function () {
+            renderOHOverview();
+            renderManageSection(currentManageMode);
+            var labels = types.map(function (t) { if (t === 'Public') return 'Open House'; if (t === 'By Appointment') return 'Open House By Appointment Only'; if (t === 'Broker Only') return 'Broker Open House'; return t; });
+            if (virtualTour) labels.push('Virtual Tour');
+            manageShowToast(labels.join(', ') + ' scheduled');
+        }).catch(function (err) {
+            if (typeof console !== 'undefined') console.error('[OpenHouses] Create failed:', err);
+            manageShowToast('Open house NOT saved to the server - ' + (err && err.message ? err.message : 'please try again'), 'error');
+        });
     }
 
     // Reset form but keep it open for batch adding

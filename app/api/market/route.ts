@@ -4,6 +4,9 @@ import { cachedPublicRead, SEARCH_CACHE_TAG } from '@/lib/cache/public-cache';
 import type { Prisma } from '@prisma/client';
 import { getAccessToken } from '@/lib/idx/auth';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
+import { cotalityFields, type CotalityRow } from '@/lib/cotality/contract';
+import { lifecycleFromProviderRow, lifecycleFromStoredRow } from '@/lib/listings/canonical-lifecycle';
+import { getCurrentDom, marketDom } from '@/lib/compliance/dom-tracker';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -155,6 +158,14 @@ export async function GET(request: Request) {
             status: true,
             created_at: true,
             modification_timestamp: true,
+            // The market clock's inputs (lib/compliance/dom-tracker.ts): provider dates in raw_data + presence, and the
+            // stored-accrual fallback columns for Mallan-authored rows.
+            listing_type: true,
+            raw_data: true,
+            sync_status: true,
+            terminal_since: true,
+            participant_only: true,
+            status_changed_at: true,
           },
           orderBy: { modification_timestamp: 'desc' },
           take: MARKET_STATS_ROW_CAP,
@@ -193,11 +204,19 @@ export async function GET(request: Request) {
         // IDXEntireListingDisplayYN / OwnerOptOut / ParticipantOnlyYN do NOT
         // exist on live Trestle — Owner Opt-Out / Participant Only are encoded
         // via the `Permission` enum and read by checkDistributionGates().
-        const selectFields = 'ListPrice,LivingArea,DaysOnMarket,StandardStatus,ListOfficeName,CityRegion,PostalCode,ModificationTimestamp,OnMarketTimestamp,Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN';
+        // Contract-typed select (lib/cotality/contract): the DOM inputs are the contract-event dates, not the
+        // provider's DaysOnMarket (null on every sampled row of this feed, 2026-09-08).
+        const selectFields = cotalityFields('Property', [
+          'ListPrice', 'LivingArea', 'StandardStatus', 'PropertyType', 'ListOfficeName', 'CityRegion', 'PostalCode', 'ModificationTimestamp',
+          'OnMarketDate', 'OnMarketTimestamp', 'ActivationDate', 'ContractStatusChangeDate', 'PurchaseContractDate', 'PendingTimestamp',
+          'BackOnMarketDate', 'MajorChangeType', 'CloseDate', 'Permission', 'InternetEntireListingDisplayYN', 'InternetAddressDisplayYN',
+        ]).join(',');
 
         // Active listings from Trestle
         const activeParams = new URLSearchParams({
-          $filter: `MlsStatus eq 'Active' and ${propertyClass}${boroughFilter}`,
+          // StandardStatus is the provider status fact; MlsStatus is provider-suppressed and its $filter is
+          // rejected (HTTP 400), which this route previously swallowed as an empty result.
+          $filter: `StandardStatus eq 'Active' and ${propertyClass}${boroughFilter}`,
           $select: selectFields,
           $top: '200',
           $count: 'true',
@@ -217,7 +236,7 @@ export async function GET(request: Request) {
         const periodStartISO = periodStart.toISOString().split('T')[0];
         const closedParams = new URLSearchParams({
           $filter: `(MlsStatus eq 'Closed' or StandardStatus eq 'Closed') and ${propertyClass} and CloseDate ge ${periodStartISO}${boroughFilter}`,
-          $select: `${selectFields},ClosePrice,CloseDate`,
+          $select: `${selectFields},ClosePrice`,
           $top: '200',
         });
 
@@ -250,14 +269,14 @@ export async function GET(request: Request) {
       ...trestleActive.filter(r => r.LivingArea && Number(r.LivingArea) > 0).map(r => ({ price: Number(r.ListPrice || 0), sqft: Number(r.LivingArea) })),
     ];
 
+    // DOM — ONE rule (lib/compliance/dom-tracker.ts): the market clock from the contract-event dates; a stored row
+    // without provider dates falls back to its stored accrual. Never (now - created_at), never the provider's
+    // DaysOnMarket (null on this feed); rows without a verified clock are left out of the median.
     const allActiveDom = [
-      ...activeListings.map(l => {
-        if (l.days_on_market > 0) return l.days_on_market;
-        if (l.first_active_date) return Math.floor((now.getTime() - l.first_active_date.getTime()) / (1000 * 60 * 60 * 24));
-        return Math.floor((now.getTime() - l.created_at.getTime()) / (1000 * 60 * 60 * 24));
-      }),
-      ...trestleActive.map(r => Number(r.DaysOnMarket || 0)),
-    ].filter(d => d >= 0 && d < 3650);
+      ...activeListings.map(l => marketDom(lifecycleFromStoredRow(l), now).days
+        ?? getCurrentDom({ status: l.status || 'Active', participant_only: l.participant_only, status_changed_at: l.status_changed_at, first_active_date: l.first_active_date, days_on_market: l.days_on_market || 0 })),
+      ...trestleActive.map(r => { const lc = lifecycleFromProviderRow(r as unknown as CotalityRow<'Property'>); return lc ? marketDom(lc, now).days : null; }),
+    ].filter((d): d is number => d !== null && d >= 0 && d < 3650);
 
     const totalActiveCount = dbActiveCount + trestleActive.length;
 

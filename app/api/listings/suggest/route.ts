@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { fetchFromTrestle } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
+import { locationFromProviderRow, CANONICAL_LOCATION_SELECT_FIELDS } from '@/lib/listings/canonical-location';
 import { isMallanRlsReturnCopy } from "@/lib/listings/mallan-source-identity";
 import {
   classifySuggestQuery,
   isAddressDisplayablePerSuggest,
 } from '@/lib/search/suggest-classify';
 import prisma from '@/lib/prisma';
+import { professionalTitle } from '@/lib/agents/professional-title';
 
 // Neighborhood data for local matching (loaded once at module level)
 import manhattanData from '@/data/manhattan-neighborhoods.json';
@@ -14,6 +16,7 @@ import brooklynData from '@/data/brooklyn-neighborhoods.json';
 import queensData from '@/data/queens-neighborhoods.json';
 import bronxData from '@/data/bronx-neighborhoods.json';
 import statenIslandData from '@/data/staten-island-neighborhoods.json';
+import { cotalityFields } from '@/lib/cotality/contract';
 
 type NeighborhoodRow = { slug?: string; id?: string; name: string };
 
@@ -76,7 +79,7 @@ function checkRateLimit(ip: string): boolean {
  * against future drift. Next.js App Router ignores non-handler exports
  * from route files at runtime.
  */
-export const SUGGEST_SELECT_FIELDS = [
+export const SUGGEST_SELECT_FIELDS = cotalityFields('Property', [
   // Identifiers
   'ListingId',
   'ListingKey',
@@ -99,13 +102,14 @@ export const SUGGEST_SELECT_FIELDS = [
   'StreetName',
   'StreetSuffix',
   'StreetDirSuffix',
-  'PostalCode',
-  'CountyOrParish',
-  'CityRegion',
+  // The canonical location reads CityRegion / SubdivisionName / CountyOrParish / City / PostalCity /
+  // PostalCode (lib/listings/canonical-location.ts locationFromProviderRow) — the interpreter declares its
+  // own select; City and PostalCity were read but never requested before 2026-09-08.
+  ...CANONICAL_LOCATION_SELECT_FIELDS,
   // Used by the text-search OData filter (BuildingName) — kept in select so
   // future label use does not break.
   'BuildingName',
-];
+]);
 
 export type SuggestionType = 'address' | 'neighborhood' | 'zip' | 'agent' | 'listing';
 
@@ -235,6 +239,10 @@ export async function GET(request: Request) {
           first_name: true,
           last_name: true,
           title: true,
+          // The LICENCE CLASS alone DERIVES the designation. Without it the
+          // route had to guess, and its guess was the salesperson default.
+          // `role` is an authorisation grant and is NOT an identity input.
+          license_type: true,
         },
         take: 2,
       });
@@ -242,10 +250,24 @@ export async function GET(request: Request) {
       for (const a of agents) {
         const name = a.full_name || `${a.first_name} ${a.last_name}`;
         const slug = a.public_slug || `${a.first_name}-${a.last_name}`.toLowerCase().replace(/\s+/g, '-');
+        // Derived through the ONE title authority, never defaulted.
+        //
+        // This read `a.title || 'Licensed Real Estate Salesperson'`, so an
+        // agent whose stored title was empty was published to this PUBLIC
+        // autocomplete as a salesperson — including a NY Associate Broker, who
+        // holds a BROKER licence. That is a false statement about a licensee
+        // under NY DOS 19 NYCRR 175.25, and it is a second title authority: a
+        // designation asserted here that nothing in the Agent record supports.
+        //
+        // professionalTitle() returns '' when neither the licence class nor a
+        // stored title resolves one, and the sub-label then renders as nothing
+        // — every consumer already guards on `suggestion.sublabel &&`. Saying
+        // nothing is correct; inventing a designation is not. The field stays a
+        // required string so the shared Suggestion contract is untouched.
         suggestions.push({
           type: 'agent',
           label: name,
-          sublabel: a.title || 'Licensed Real Estate Salesperson',
+          sublabel: professionalTitle(a),
           value: slug,
         });
       }
@@ -290,13 +312,8 @@ export async function GET(request: Request) {
           const fullAddress = `${streetNumber} ${streetName}`.trim();
           const listingId = String(raw.ListingId || '');
 
-          const county = String(raw.CountyOrParish || '').toLowerCase();
-          let borough = String(raw.CountyOrParish || '');
-          if (county.includes('new york')) borough = 'Manhattan';
-          else if (county.includes('kings')) borough = 'Brooklyn';
-          else if (county.includes('queens')) borough = 'Queens';
-          else if (county.includes('bronx')) borough = 'Bronx';
-          else if (county.includes('richmond')) borough = 'Staten Island';
+          // Canonical location (2026-09-08): the borough is CityRegion; the county is not a borough source.
+          const borough = locationFromProviderRow(raw).borough ?? '';
 
           suggestions.push({
             type: 'listing',
@@ -430,15 +447,11 @@ export async function GET(request: Request) {
             if (seen.has(key)) continue;
             seen.add(key);
 
-            const county = String(raw.CountyOrParish || '').toLowerCase();
-            let borough = String(raw.CountyOrParish || '');
-            if (county.includes('new york')) borough = 'Manhattan';
-            else if (county.includes('kings')) borough = 'Brooklyn';
-            else if (county.includes('queens')) borough = 'Queens';
-            else if (county.includes('bronx')) borough = 'Bronx';
-            else if (county.includes('richmond')) borough = 'Staten Island';
-
-            const neighborhood = String(raw.CityRegion || '');
+            // Canonical location (2026-09-08): borough = CityRegion; neighborhood = SubdivisionName.
+            // The zip label used to show the BOROUGH as the "neighborhood".
+            const location = locationFromProviderRow(raw);
+            const borough = location.borough ?? '';
+            const neighborhood = location.neighborhood ?? '';
 
             if (isZip) {
               suggestions.push({

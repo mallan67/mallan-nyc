@@ -201,6 +201,9 @@
 
             reportState.customDescription = '';
             reportState.originalDescription = '';
+            // An output this workflow cannot honour is disabled BEFORE the modal is shown, so the agent is
+            // never offered a control that would have to refuse them.
+            applyOutputAvailability();
             renderReportSelections();
             renderReportErrors([]);
             populateReportDescription();
@@ -444,7 +447,7 @@
         // ── Field value resolver for custom field columns ──
         function getFieldValue(listing, field) {
             var map = {
-                listingType: listing.listingType, status: listing.status, price: listing.price,
+                listingType: listing.listingType, status: MallanStatus.label(listing), price: listing.price,
                 maintCC: listing.maintCC, reTaxes: listing.reTaxes, totalMonthly: listing.totalMonthly,
                 bedrooms: listing.beds, fullBathrooms: listing.baths, totalBathrooms: listing.baths,
                 totalRooms: listing.rooms, approxInteriorSqft: listing.intSqft, floor: listing.floor,
@@ -579,9 +582,15 @@
             var isAllRental = rentalCount === listings.length && listings.length > 0;
 
             // Agent info (auto-populated from AGENT_PROFILE set by agent-context.js)
+            // `title` is the REGULATED DESIGNATION. It resolves from the
+            // licence class server-side or it resolves to NOTHING; this file
+            // has no licence evidence with which to pick a default, and the
+            // two defaults it used to carry ('Licensed Real Estate Broker'
+            // here and in the else-branch below) advertised the firm's
+            // principal broker for anyone whose class was unknown.
             var agentInfo = typeof AGENT_PROFILE !== 'undefined' ? {
                 name: AGENT_PROFILE.name || '',
-                title: AGENT_PROFILE.licenseTitle || AGENT_PROFILE.title || 'Licensed Real Estate Broker',
+                title: AGENT_PROFILE.licenseTitle || AGENT_PROFILE.title || '',
                 company: AGENT_PROFILE.company || '',
                 email: AGENT_PROFILE.email || '',
                 phone: AGENT_PROFILE.phone || '',
@@ -591,7 +600,7 @@
                 photo: AGENT_PROFILE.photo || ''
             } : {
                 name: '',
-                title: 'Licensed Real Estate Broker',
+                title: '',
                 company: '',
                 email: '',
                 phone: '',
@@ -614,38 +623,33 @@
                 if (!l.intSqft || l.intSqft === 0) return '\u2014';
                 return fmtCurrency(Math.round(l.price / l.intSqft));
             }
+            // A status becomes display text through MallanStatus (js/core/status-presentation.js) and
+            // nowhere else: colours keyed by the live Cotality StandardStatus token, and the label in the
+            // ROW'S OWN transaction language (a sale's Closed reads "Sold", a rental's reads "Rented").
+            // A blank or unknown status is NEVER rendered as Active — defaulting it advertised an
+            // off-market or unknown row as live inventory (Maya, 2026-09-09 — fail closed).
             function statusColor(s) {
-                s = (s || 'Active').toUpperCase();
-                var m = {
-                    'ACTIVE': { bg: '#dcfce7', color: '#15803d' },
-                    'OFFER IN': { bg: '#ffedd5', color: '#c2410c' },
-                    'IN CONTRACT': { bg: '#f3e8ff', color: '#7e22ce' },
-                    'SOLD': { bg: '#dbeafe', color: '#1d4ed8' },
-                    'CLOSED': { bg: '#f3f4f6', color: '#4b5563' },
-                    'WITHDRAWN': { bg: '#f3f4f6', color: '#6b7280' },
-                    'HOLD': { bg: '#f3f4f6', color: '#6b7280' },
-                    'CANCELED': { bg: '#f3f4f6', color: '#6b7280' },
-                    'COMING_SOON': { bg: '#f5f3ff', color: '#7c3aed' }
-                };
-                return m[s] || { bg: '#f3f4f6', color: '#4b5563' };
+                var c = MallanStatus.colors(s);
+                return { bg: c.bg, color: c.fg };
             }
             function statusBadge(s, listing) {
-                s = (s || 'Active').toUpperCase();
-                var sc = statusColor(s);
-                var label = s.replace(/_/g, ' ');
-                // UCBA Art. I Sec. 16: Coming Soon badge must include showing restriction text
-                if (s === 'COMING_SOON' && listing && listing.firstShowingDate) {
-                    label = 'Coming Soon \u2014 No Showings or Open House until ' + listing.firstShowingDate;
-                } else if (s === 'COMING_SOON') {
-                    label = 'Coming Soon \u2014 No Showings or Open House until Scheduled Date';
+                var row = (listing && typeof listing === 'object') ? listing : s;
+                var sc = statusColor(row);
+                var label = MallanStatus.label(row);
+                // UCBA Art. I Sec. 16: a Coming Soon badge must carry the showing restriction text.
+                if (MallanStatus.isComingSoon(row)) {
+                    label = 'Coming Soon — No Showings or Open House until ' +
+                        ((listing && listing.firstShowingDate) || 'Scheduled Date');
                 }
                 return '<span style="display:inline-block;padding:2px 8px;background:' + sc.bg + ';color:' + sc.color + ';font-size:12px;border-radius:4px;font-weight:500">' + label + '</span>';
             }
 
             // ── RLS Compliance: Off-market photo restriction (only primary photo for non-active) ──
-            var OFF_MARKET_STATUSES = { 'CLOSED':1, 'WITHDRAWN':1, 'HOLD':1, 'CANCELED':1, 'EXPIRED':1 };
+            // The off-market set is REBNY's and is held once, in MallanStatus (Closed · Withdrawn · Hold ·
+            // Canceled · Expired · Delete). The hand-kept copy that used to live here was missing Delete, so a
+            // Delete row published its whole photo set.
             function isOffMarket(l) {
-                return OFF_MARKET_STATUSES[(l.status||'').toUpperCase()] === 1;
+                return MallanStatus.isOffMarket(l);
             }
             function getListingPhotos(l) {
                 // Off-market: only primary photo per REBNY RLS rule (Feb 2025)
@@ -1610,6 +1614,16 @@
                 cma += '<h2 style="font-size:16px;font-weight:700;color:#111827;margin:24px 0 16px;border-bottom:2px solid #C4A052;padding-bottom:8px">Comparable Properties (' + comps.length + ')</h2>';
                 var cmaThS = 'padding:10px;font-weight:600;color:#374151;font-size:12px;text-align:left;white-space:nowrap;background:#f3f4f6';
                 var cmaTdS = 'padding:10px;font-size:13px;border-bottom:1px solid #f3f4f6';
+                // A comparable is dated by its OWN closing (CloseDate) and by nothing else. The column used to
+                // render `listedDate` (the day the comp came ON the market) under an "Updated/Sold Date"
+                // heading, so a CMA presented a listing date as a sold date (Maya, 2026-09-09). A comp with no
+                // closing date shows an em dash — no other date may stand in for a closing.
+                var cmaCloseDate = function (l) {
+                    var d = (l && (l.close_date || l.closeDate || l.CloseDate || l.soldDate)) || null;
+                    if (!d) return '\u2014';
+                    var day = String(d).slice(0, 10);
+                    return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : '\u2014';
+                };
                 // Build CMA table headers dynamically
                 var cmaHeaders = '<th style="' + cmaThS + '">#</th><th style="' + cmaThS + '">Address</th><th style="' + cmaThS + '">Price</th>';
                 if (optContent.originalPrice) cmaHeaders += '<th style="' + cmaThS + '">Orig Price</th>';
@@ -1618,7 +1632,7 @@
                 cmaHeaders += '<th style="' + cmaThS + '">Type</th>';
                 if (optContent.dom) cmaHeaders += '<th style="' + cmaThS + '">DOM</th>';
                 cmaHeaders += '<th style="' + cmaThS + '">Status</th>';
-                if (optContent.updatedSoldDate) cmaHeaders += '<th style="' + cmaThS + '">Listed</th>';
+                if (optContent.updatedSoldDate) cmaHeaders += '<th style="' + cmaThS + '">Close Date</th>';
                 if (!isCustomer && optContent.listingContact) cmaHeaders += '<th style="' + cmaThS + '">Company</th>';
                 cma += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">' +
                     '<thead><tr>' + cmaHeaders + '</tr></thead><tbody>';
@@ -1636,7 +1650,7 @@
                     cma += '<td style="' + cmaTdS + '">' + (ownershipLabel(cl.ownership)||'\u2014') + '</td>';
                     if (optContent.dom) cma += '<td style="' + cmaTdS + '">' + (cl.dom||'\u2014') + '</td>';
                     cma += '<td style="' + cmaTdS + '">' + statusBadge(cl.status, cl) + '</td>';
-                    if (optContent.updatedSoldDate) cma += '<td style="' + cmaTdS + ';font-size:12px">' + (cl.listedDate||'\u2014') + '</td>';
+                    if (optContent.updatedSoldDate) cma += '<td style="' + cmaTdS + ';font-size:12px">' + cmaCloseDate(cl) + '</td>';
                     if (!isCustomer && optContent.listingContact) cma += '<td style="' + cmaTdS + ';font-size:12px">' + (cl.company||'\u2014') + '</td>';
                     cma += '</tr>';
                 });
@@ -1691,7 +1705,7 @@
                 oh += '<div style="position:relative;height:300px;overflow:hidden">' +
                     (ohPhoto ? '<img src="' + ohPhoto + '" style="width:100%;height:100%;object-fit:cover" onerror="' + _imgErr + '" />' :
                     '<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:' + ohp.bg + '"><i class="fas fa-camera" style="font-size:64px;color:' + ohp.icon + '"></i><span style="font-size:16px;margin-top:8px;color:' + ohp.accent + ';font-weight:500">' + (ohFirst.neighborhood||'') + '</span></div>') +
-                    '<span style="position:absolute;top:12px;left:12px;padding:6px 16px;color:#fff;font-size:14px;font-weight:700;border-radius:6px;background:' + statusColor(ohFirst.status).color + '">' + (ohFirst.status||'ACTIVE') + '</span>' +
+                    '<span style="position:absolute;top:12px;left:12px;padding:6px 16px;color:#fff;font-size:14px;font-weight:700;border-radius:6px;background:' + statusColor(ohFirst).color + '">' + MallanStatus.label(ohFirst) + '</span>' +
                     '<span style="position:absolute;top:12px;right:12px;padding:6px 16px;background:rgba(0,0,0,0.7);color:#fff;font-size:14px;font-weight:700;border-radius:6px"><i class="fas fa-door-open" style="margin-right:6px"></i>OPEN HOUSE</span></div>';
             }
             // Address & price bar
@@ -1826,11 +1840,23 @@
         // copyReportToClipboard removed — emails are sent directly from the system
 
         // ── Send email directly from CRM system ──
-        // Posts to /api/crm/email when wired; until then writes the send to
-        // localStorage so the sent-emails panel still has data to render.
+        // Delivery is EmailJS (js/core/email-service.js), configured per agent in Email Settings. Every
+        // attempt — delivered or failed — is mirrored into localStorage so the sent-emails panel can render
+        // it, and a failed attempt is stored as failed.
         var _sentEmailsKey = 'sentEmails_' + LOGGED_IN_AGENT.id;
         var sentEmails = JSON.parse(localStorage.getItem(_sentEmailsKey)) || [];
 
+        // A SEND THAT DID NOT HAPPEN IS NEVER REPORTED AS ONE (audit D15, 2026-09-09).
+        //
+        // This used to branch: EmailJS when configured, and otherwise a 1.2s fake delay followed by a green
+        // check reading "Email sent (simulated)" — rendered AFTER generateReport() had already closed the
+        // modal. An agent had no way to tell a delivered report from a nonexistent one, and the stored
+        // sent-emails record and the audit entry both claimed "delivered". Now there are exactly two
+        // outcomes, and only one of them is a send:
+        //   delivered      — EmailJS accepted the message
+        //   failed         — EmailJS rejected it, or delivery is not configured at all
+        // The failure state is red, names the reason, offers Email Settings, stores status:"failed", and
+        // audits `email_send_failed`. Nothing here can produce a green check without a real send.
         function sendEmailDirect(opts) {
             // Sanitize user-supplied strings to prevent XSS in innerHTML contexts
             function escapeHTML(str) { var d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
@@ -1839,7 +1865,8 @@
             var toName = escapeHTML(opts.toName || to);
             var subject = opts.subject || 'Property Report — Mallan Real Estate';
             var count = opts.count || 0;
-            var useRealEmail = (typeof isEmailConfigured === 'function') && isEmailConfigured();
+            var configured = (typeof isEmailConfigured === 'function') && isEmailConfigured();
+            var canSend = configured && typeof sendViaEmailJS === 'function';
 
             // Show sending overlay
             var overlay = document.createElement('div');
@@ -1850,14 +1877,17 @@
                     '<div style="width:48px;height:48px;border:4px solid #e5e7eb;border-top:4px solid #C4A052;border-radius:50%;animation:emailSpin 1s linear infinite;margin:0 auto;"></div>' +
                 '</div>' +
                 '<div id="emailSendingIcon" style="display:none;margin:0 auto 16px;"></div>' +
-                '<p id="emailSendingMsg" style="font-size:15px;font-weight:600;color:#1a1a1a;margin:0 0 8px;">Sending email...</p>' +
+                '<p id="emailSendingMsg" style="font-size:15px;font-weight:600;color:#1a1a1a;margin:0 0 8px;">Contacting the mail service...</p>' +
                 '<p id="emailSendingDetail" style="font-size:13px;color:#6b7280;margin:0;">To: ' + toName + (to ? ' (' + to + ')' : '') + '</p>' +
                 '<style>@keyframes emailSpin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>' +
             '</div>';
             document.body.appendChild(overlay);
 
-            // Store record + log audit + show result
-            function storeAndShowResult(realSend, error) {
+            // Store record + log audit + show result. `outcome` is the ONLY thing that decides the wording,
+            // the stored status and the audit action, and it is only ever 'delivered' after EmailJS resolved.
+            function storeAndShowResult(outcome, error) {
+                var delivered = (outcome === 'delivered');
+                var method = delivered ? 'emailjs' : (outcome === 'not_configured' ? 'not_configured' : 'emailjs_error');
                 var record = {
                     id: 'email_' + Date.now(),
                     to: to, toName: toName,
@@ -1867,17 +1897,17 @@
                     listingIds: opts.listingIds || [],
                     sentAt: new Date().toISOString(),
                     source: opts.source || 'manual',
-                    status: error ? 'failed' : 'delivered',
-                    method: realSend ? 'emailjs' : 'simulated'
+                    status: delivered ? 'delivered' : 'failed',
+                    method: method
                 };
                 sentEmails.push(record);
                 localStorage.setItem(_sentEmailsKey, JSON.stringify(sentEmails));
 
-                logAuditEntry('email_sent', {
+                logAuditEntry(delivered ? 'email_sent' : 'email_send_failed', {
                     to: to, toName: toName, subject: subject,
                     listingIds: opts.listingIds || [],
                     count: count, source: opts.source,
-                    method: realSend ? 'emailjs' : 'simulated',
+                    outcome: outcome, method: method,
                     error: error || null
                 });
 
@@ -1887,51 +1917,54 @@
                 var detail = document.getElementById('emailSendingDetail');
                 if (spinner) spinner.style.display = 'none';
 
-                if (error) {
-                    // Error state
+                if (!delivered) {
+                    var settingsLink = '<br><a href="#" onclick="openEmailSettings();var ov=document.getElementById(\'emailSendingOverlay\');if(ov)ov.remove();return false;" style="color:#C4A052;font-weight:600;font-size:12px;text-decoration:underline;margin-top:8px;display:inline-block;">Open Email Settings</a>';
                     if (icon) { icon.style.display = 'block'; icon.innerHTML = '<div style="width:48px;height:48px;background:#dc2626;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;"><span style="color:#fff;font-size:24px;font-weight:bold;">&times;</span></div>'; }
-                    if (msg) { msg.style.color = '#dc2626'; msg.textContent = 'Email failed to send'; }
-                    if (detail) {
-                        detail.innerHTML = (error || 'Unknown error') +
-                            '<br><a href="#" onclick="openEmailSettings();var ov=document.getElementById(\'emailSendingOverlay\');if(ov)ov.remove();return false;" style="color:#C4A052;font-weight:600;font-size:12px;text-decoration:underline;margin-top:8px;display:inline-block;">Check Email Settings</a>';
+                    if (msg) {
+                        msg.style.color = '#dc2626';
+                        // Deliberately avoids the words "sent" and "delivered": nothing was.
+                        msg.textContent = (outcome === 'not_configured')
+                            ? 'Email not configured — nothing was emailed'
+                            : 'Email could not be emailed to the recipient';
                     }
-                    setTimeout(function() { var ov = document.getElementById('emailSendingOverlay'); if (ov) ov.remove(); }, 6000);
-                } else {
-                    // Success state
-                    if (icon) { icon.style.display = 'block'; icon.innerHTML = '<div style="width:48px;height:48px;background:#059669;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;"><span style="color:#fff;font-size:24px;font-weight:bold;">&#10003;</span></div>'; }
-                    if (msg) { msg.style.color = '#059669'; msg.textContent = realSend ? 'Email delivered!' : 'Email sent (simulated)'; }
                     if (detail) {
-                        var html = count + ' listing' + (count !== 1 ? 's' : '') + ' sent to ' + toName + (to ? ' (' + to + ')' : '');
-                        html += '<br><a href="/crm/dashboard" target="_blank" style="color:#C4A052;font-weight:600;font-size:12px;text-decoration:underline;margin-top:8px;display:inline-block;">View in Dashboard</a>';
-                        if (!realSend) {
-                            html += '<br><a href="#" onclick="openEmailSettings();var ov=document.getElementById(\'emailSendingOverlay\');if(ov)ov.remove();return false;" style="color:#6b7280;font-size:11px;text-decoration:underline;margin-top:4px;display:inline-block;">Configure real email delivery &rarr;</a>';
-                        }
-                        detail.innerHTML = html;
+                        detail.innerHTML = (outcome === 'not_configured')
+                            ? 'No mail service is connected, so nothing reached ' + toName + '. Connect one, then try again.' + settingsLink
+                            : escapeHTML(error || 'Unknown error') + settingsLink;
                     }
-                    setTimeout(function() { var ov = document.getElementById('emailSendingOverlay'); if (ov) ov.remove(); }, realSend ? 4000 : 3500);
+                    setTimeout(function() { var ov = document.getElementById('emailSendingOverlay'); if (ov) ov.remove(); }, 8000);
+                    return;
                 }
+
+                // Success state — reachable only after EmailJS resolved.
+                if (icon) { icon.style.display = 'block'; icon.innerHTML = '<div style="width:48px;height:48px;background:#059669;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;"><span style="color:#fff;font-size:24px;font-weight:bold;">&#10003;</span></div>'; }
+                if (msg) { msg.style.color = '#059669'; msg.textContent = 'Email delivered!'; }
+                if (detail) {
+                    detail.innerHTML = count + ' listing' + (count !== 1 ? 's' : '') + ' emailed to ' + toName + (to ? ' (' + to + ')' : '') +
+                        '<br><a href="/crm/dashboard" target="_blank" style="color:#C4A052;font-weight:600;font-size:12px;text-decoration:underline;margin-top:8px;display:inline-block;">View in Dashboard</a>';
+                }
+                setTimeout(function() { var ov = document.getElementById('emailSendingOverlay'); if (ov) ov.remove(); }, 4000);
             }
 
-            // Route: real email via EmailJS or simulated
-            if (useRealEmail && typeof sendViaEmailJS === 'function') {
-                sendViaEmailJS({
-                    to_email: to,
-                    to_name: toName,
-                    from_name: agent.name + ' — Mallan Real Estate',
-                    subject: subject,
-                    message_html: opts.htmlBody || '<p>Property report from ' + agent.name + '</p>'
-                }).then(function() {
-                    storeAndShowResult(true, null);
-                }).catch(function(err) {
-                    storeAndShowResult(true, err.text || err.message || 'EmailJS error');
-                });
-            } else {
-                // Not configured — simulate with delay
-                setTimeout(function() {
-                    storeAndShowResult(false, null);
-                }, 1200);
+            if (!canSend) {
+                // No mail service is connected. Fail immediately and loudly — never a delay that looks like work.
+                storeAndShowResult('not_configured', null);
+                return { ok: false, reason: 'email_not_configured' };
             }
+            sendViaEmailJS({
+                to_email: to,
+                to_name: toName,
+                from_name: agent.name + ' — Mallan Real Estate',
+                subject: subject,
+                message_html: opts.htmlBody || '<p>Property report from ' + agent.name + '</p>'
+            }).then(function() {
+                storeAndShowResult('delivered', null);
+            }).catch(function(err) {
+                storeAndShowResult('failed', err.text || err.message || 'EmailJS error');
+            });
+            return { ok: true };
         }
+
 
         // ── Wrap format-specific report HTML in an email-safe shell ──
         function wrapReportForEmail(reportBody, title, preparedFor, listings) {
@@ -2028,7 +2061,13 @@
             h += '<td style="vertical-align:top;width:50%;">';
             h += '<span style="font-size:10px;text-transform:uppercase;color:#9ca3af;letter-spacing:1px;">Prepared By</span><br>';
             h += '<span style="font-size:14px;font-weight:600;color:#1a1a1a;">' + agent.name + '</span><br>';
-            h += '<span style="font-size:12px;color:#4b5563;">' + (agent.licenseTitle || agent.title || 'Licensed Real Estate Broker') + '</span><br>';
+            // The designation LINE IS OMITTED ENTIRELY when the licence class
+            // is unknown. Rendering an empty span would be harmless; rendering
+            // a default was a false statement about the licensee.
+            var _preparedByTitle = agent.licenseTitle || agent.title || '';
+            if (_preparedByTitle) {
+                h += '<span style="font-size:12px;color:#4b5563;">' + _preparedByTitle + '</span><br>';
+            }
             h += '<span style="font-size:12px;color:#6b7280;">' + (agent.company || 'Mallan Real Estate Inc.') + ' &middot; Lic. ' + (agent.companyLicense || '') + '</span><br>';
             h += '<span style="font-size:12px;color:#6b7280;">' + (agent.phone || '') + ' &middot; ' + (agent.email || '') + '</span>';
             h += '</td>';
@@ -2111,7 +2150,11 @@
             h += '<p style="margin:0 0 6px 0;font-size:10px;color:#6b7280;font-style:italic;">';
             h += 'Commission rates are not set by law and are fully negotiable. The commission on any particular listing is set by the listing participant and is disclosed to cooperating brokers.</p>';
             h += '<p style="margin:0;font-size:10px;color:#9ca3af;">';
-            h += agent.name + ', ' + (agent.title || 'Licensed Real Estate Broker') + ' &middot; Lic. ' + (agent.license || '') + ' &middot; ' + (agent.company || 'Mallan Real Estate Inc.') + ' &middot; ' + (agent.companyLicense || '') + '<br>';
+            // Name, then the designation ONLY IF THERE IS ONE — the ", " that
+            // joined them goes with it, so an unknown class reads as a plain
+            // name rather than as a licensee who holds something unstated.
+            var _footerTitle = agent.title || '';
+            h += agent.name + (_footerTitle ? ', ' + _footerTitle : '') + ' &middot; Lic. ' + (agent.license || '') + ' &middot; ' + (agent.company || 'Mallan Real Estate Inc.') + ' &middot; ' + (agent.companyLicense || '') + '<br>';
             h += (agent.address || '') + ' &middot; ' + (agent.phone || '') + ' &middot; ' + (agent.website || 'mallan.nyc') + '</p>';
             h += '</td></tr>';
 
@@ -2248,99 +2291,297 @@
             }
         });
 
-        // ── CSV Export (IDX allowlist enforced for customer version) ──
-        function exportReportCSV() {
-            var listings = getReportListings();
-            if (!listings || listings.length === 0) { showToast('No listings available for export.', 'warning'); return; }
+        // ═══ EXPORTS — CSV, a real .xlsx workbook, and the outputs this workflow refuses to fake ═══
+        //
+        // Every export is a client-facing advertising surface, so all three share ONE field pipeline:
+        //   getReportListings()        → IDX / internet display gate + sort + 250 cap
+        //   getExportFields()          → the chosen columns, narrowed for the Customer version
+        //   getFieldValue()            → the value, with status resolved by MallanStatus into the row's own
+        //                                transaction language (a sale's Closed reads "Sold", a rental's "Rented")
+
+        // UCBA bulk-export ceiling. getReportListings() already caps the set at 250; this is the export-side
+        // guard so a caller that bypasses it cannot widen a client export.
+        var MAX_EXPORT_ROWS = 250;
+
+        // Resolve the export column set once, so CSV and the workbook can never disagree.
+        function getExportFields() {
             var fields = getSelectedReportFields();
             if (fields.length === 0) fields = ['status','price','bedrooms','totalBathrooms','approxInteriorSqft','dom'];
-            var isCustomer = (reportState.version === 'customer');
-            if (isCustomer) {
+            if (reportState.version === 'customer') {
                 fields = fields.filter(function(f){ return agentOnlyFields.indexOf(f) === -1; });
                 fields = fields.filter(function(f){ return csvExcelAllowlistCustomer.indexOf(f) > -1; });
             }
+            return fields;
+        }
 
-            var header = fields.map(function(f){ return '"' + (reportFieldLabels[f]||f) + '"'; }).join(',');
-            var rows = listings.map(function(l) {
-                return fields.map(function(f) {
-                    var val = getFieldValue(l, f);
-                    if (val === null || val === undefined) val = '';
-                    val = String(val).replace(/"/g, '""');
-                    return '"' + val + '"';
-                }).join(',');
-            });
-            var csv = header + '\n' + rows.join('\n');
-            var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        // The RLS attribution every exported file carries (the same wording as the emailed report footer).
+        function exportAttributionLines() {
+            var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { company: 'Mallan Real Estate Inc.', companyLicense: '' };
+            return [
+                'Listing information courtesy of the REBNY Listing Service (RLS). All information is deemed reliable but is not guaranteed and should be independently verified.',
+                'Equal Housing Opportunity \u00b7 ' + (agent.company || 'Mallan Real Estate Inc.') + (agent.companyLicense ? ' \u00b7 NY Lic. ' + agent.companyLicense : '')
+            ];
+        }
+
+        function triggerDownload(blob, filename) {
             var url = URL.createObjectURL(blob);
             var a = document.createElement('a');
             a.href = url;
-            a.download = 'mallan-report-' + new Date().toISOString().slice(0,10) + '.csv';
+            a.download = filename;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
+        }
+
+        // ── CSV Export (IDX allowlist enforced for customer version) ──
+        function exportReportCSV() {
+            var listings = getReportListings();
+            if (!listings || listings.length === 0) { showToast('No listings available for export.', 'warning'); return; }
+            if (listings.length > MAX_EXPORT_ROWS) listings = listings.slice(0, MAX_EXPORT_ROWS);
+            // Customer version: getExportFields() strips agentOnlyFields and narrows to the IDX-safe
+            // csvExcelAllowlistCustomer allowlist before a single value is read.
+            var fields = getExportFields();
+
+            var q = function(v) { return '"' + String(v === null || v === undefined ? '' : v).replace(/"/g, '""') + '"'; };
+            var header = fields.map(function(f){ return q(reportFieldLabels[f] || f); }).join(',');
+            var rows = listings.map(function(l) {
+                return fields.map(function(f){ return q(getFieldValue(l, f)); }).join(',');
+            });
+            var csv = header + '\n' + rows.join('\n') + '\n\n' + exportAttributionLines().map(q).join('\n');
+            triggerDownload(new Blob([csv], { type: 'text/csv;charset=utf-8;' }),
+                'mallan-report-' + new Date().toISOString().slice(0,10) + '.csv');
             logAuditEntry('report_csv_export', { count: listings.length, fields: fields.length });
+        }
+
+        // ═══ Minimal OOXML (.xlsx) writer ═══
+        // The Excel output used to be an HTML <table> saved with a .xls extension, so Excel opened it behind
+        // "the file format and extension don't match". This writes the SpreadsheetML parts and stores them in
+        // an uncompressed ZIP: a real workbook that Excel, Numbers, Sheets and exceljs all open cleanly.
+        //
+        // Why not the exceljs this repo depends on: the CRM ships as classic <script> files inlined verbatim
+        // by public/crm/build.js — no bundler, no module loader — so a node_modules package cannot be
+        // required here. tests/runtime/crm-report-outputs.test.ts reads the bytes produced below BACK with
+        // exceljs, so "it is a real workbook" is proven by a real spreadsheet reader, not by a magic number.
+
+        function _xlsxUtf8(str) {
+            var out = [], i, c, c2, cp;
+            str = String(str);
+            for (i = 0; i < str.length; i++) {
+                c = str.charCodeAt(i);
+                if (c < 0x80) { out.push(c); }
+                else if (c < 0x800) { out.push(0xC0 | (c >> 6), 0x80 | (c & 63)); }
+                else if (c >= 0xD800 && c <= 0xDBFF && i + 1 < str.length) {
+                    c2 = str.charCodeAt(i + 1);
+                    cp = 0x10000 + ((c - 0xD800) << 10) + (c2 - 0xDC00);
+                    out.push(0xF0 | (cp >> 18), 0x80 | ((cp >> 12) & 63), 0x80 | ((cp >> 6) & 63), 0x80 | (cp & 63));
+                    i++;
+                } else { out.push(0xE0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63)); }
+            }
+            return out;
+        }
+
+        var _xlsxCrcTable = null;
+        function _xlsxCrc32(bytes) {
+            if (!_xlsxCrcTable) {
+                _xlsxCrcTable = [];
+                for (var n = 0; n < 256; n++) {
+                    var c = n;
+                    for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+                    _xlsxCrcTable[n] = c >>> 0;
+                }
+            }
+            var crc = 0xFFFFFFFF;
+            for (var i = 0; i < bytes.length; i++) crc = (_xlsxCrcTable[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8)) >>> 0;
+            return (crc ^ 0xFFFFFFFF) >>> 0;
+        }
+
+        // Store-only ZIP (method 0). Fixed DOS timestamp, so the same report always produces the same bytes.
+        function _xlsxZip(entries) {
+            var local = [], central = [], offset = 0, i;
+            function p16(a, v) { a.push(v & 0xFF, (v >>> 8) & 0xFF); }
+            function p32(a, v) { a.push(v & 0xFF, (v >>> 8) & 0xFF, (v >>> 16) & 0xFF, (v >>> 24) & 0xFF); }
+            for (i = 0; i < entries.length; i++) {
+                var name = _xlsxUtf8(entries[i].name);
+                var data = _xlsxUtf8(entries[i].text);
+                var crc = _xlsxCrc32(data);
+                p32(local, 0x04034B50); p16(local, 20); p16(local, 0); p16(local, 0);
+                p16(local, 0); p16(local, 0x0021);
+                p32(local, crc); p32(local, data.length); p32(local, data.length);
+                p16(local, name.length); p16(local, 0);
+                local.push.apply(local, name);
+                local.push.apply(local, data);
+
+                p32(central, 0x02014B50); p16(central, 20); p16(central, 20); p16(central, 0); p16(central, 0);
+                p16(central, 0); p16(central, 0x0021);
+                p32(central, crc); p32(central, data.length); p32(central, data.length);
+                p16(central, name.length); p16(central, 0); p16(central, 0);
+                p16(central, 0); p16(central, 0); p32(central, 0);
+                p32(central, offset);
+                central.push.apply(central, name);
+
+                offset = local.length;
+            }
+            var end = [];
+            p32(end, 0x06054B50); p16(end, 0); p16(end, 0);
+            p16(end, entries.length); p16(end, entries.length);
+            p32(end, central.length); p32(end, local.length); p16(end, 0);
+            return new Uint8Array(local.concat(central).concat(end));
+        }
+
+        function _xlsxEsc(s) {
+            return String(s)
+                .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+        function _xlsxCol(n) {
+            var s = '';
+            n = n + 1;
+            while (n > 0) { var r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
+            return s;
+        }
+        function _xlsxRow(rowNum, cells) {
+            var x = '<row r="' + rowNum + '">';
+            for (var i = 0; i < cells.length; i++) {
+                var ref = _xlsxCol(i) + rowNum;
+                var st = cells[i].s ? ' s="' + cells[i].s + '"' : '';
+                var v = cells[i].v;
+                if (typeof v === 'number' && isFinite(v)) x += '<c r="' + ref + '"' + st + '><v>' + v + '</v></c>';
+                else if (v === null || v === undefined || v === '') x += '<c r="' + ref + '"' + st + '/>';
+                else x += '<c r="' + ref + '"' + st + ' t="inlineStr"><is><t xml:space="preserve">' + _xlsxEsc(v) + '</t></is></c>';
+            }
+            return x + '</row>';
+        }
+
+        // rows: an array of rows, each an array of { v: string|number, s?: styleIndex }
+        function buildXlsxBytes(sheetName, rows) {
+            var width = 0, r, i;
+            for (r = 0; r < rows.length; r++) width = Math.max(width, rows[r].length);
+            var sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+                '<dimension ref="A1:' + _xlsxCol(Math.max(width, 1) - 1) + Math.max(rows.length, 1) + '"/>' +
+                '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
+                '<sheetFormatPr defaultRowHeight="15"/><cols>';
+            for (i = 0; i < width; i++) sheet += '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="18" customWidth="1"/>';
+            sheet += '</cols><sheetData>';
+            for (r = 0; r < rows.length; r++) sheet += _xlsxRow(r + 1, rows[r]);
+            sheet += '</sheetData></worksheet>';
+
+            var styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+                '<fonts count="3">' +
+                '<font><sz val="11"/><name val="Calibri"/></font>' +
+                '<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>' +
+                '<font><i/><sz val="9"/><color rgb="FF6B7280"/><name val="Calibri"/></font>' +
+                '</fonts>' +
+                '<fills count="3"><fill><patternFill patternType="none"/></fill>' +
+                '<fill><patternFill patternType="gray125"/></fill>' +
+                '<fill><patternFill patternType="solid"><fgColor rgb="FF2563EB"/><bgColor indexed="64"/></patternFill></fill></fills>' +
+                '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+                '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+                '<cellXfs count="3">' +
+                '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+                '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>' +
+                '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
+                '</cellXfs>' +
+                '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+
+            return _xlsxZip([
+                { name: '[Content_Types].xml', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+                    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+                    '<Default Extension="xml" ContentType="application/xml"/>' +
+                    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+                    '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+                    '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+                    '</Types>' },
+                { name: '_rels/.rels', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+                    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+                    '</Relationships>' },
+                { name: 'xl/workbook.xml', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+                    '<sheets><sheet name="' + _xlsxEsc(sheetName) + '" sheetId="1" r:id="rId1"/></sheets></workbook>' },
+                { name: 'xl/_rels/workbook.xml.rels', text: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+                    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+                    '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+                    '</Relationships>' },
+                { name: 'xl/styles.xml', text: styles },
+                { name: 'xl/worksheets/sheet1.xml', text: sheet }
+            ]);
         }
 
         // ── Excel Export (IDX allowlist enforced for customer version) ──
         function exportReportExcel() {
             var listings = getReportListings();
             if (!listings || listings.length === 0) { showToast('No listings available for export.', 'warning'); return; }
-            var fields = getSelectedReportFields();
-            if (fields.length === 0) fields = ['status','price','bedrooms','totalBathrooms','approxInteriorSqft','dom'];
-            var isCustomer = (reportState.version === 'customer');
-            if (isCustomer) {
-                fields = fields.filter(function(f){ return agentOnlyFields.indexOf(f) === -1; });
-                fields = fields.filter(function(f){ return csvExcelAllowlistCustomer.indexOf(f) > -1; });
-            }
+            if (listings.length > MAX_EXPORT_ROWS) listings = listings.slice(0, MAX_EXPORT_ROWS);
+            // Customer version: getExportFields() strips agentOnlyFields and narrows to the IDX-safe
+            // csvExcelAllowlistCustomer allowlist before a single value is read.
+            var fields = getExportFields();
 
-            var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:spreadsheet">' +
-                '<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">' +
-                '<style>td,th{border:1px solid #ccc;padding:6px 10px;font-family:Calibri,sans-serif;font-size:12px}th{background:#2563eb;color:#fff;font-weight:700}tr:nth-child(even){background:#f3f4f6}</style></head><body>' +
-                '<table><thead><tr>';
-            fields.forEach(function(f){ html += '<th>' + (reportFieldLabels[f]||f) + '</th>'; });
-            html += '</tr></thead><tbody>';
+            var rows = [fields.map(function(f){ return { v: reportFieldLabels[f] || f, s: 1 }; })];
             listings.forEach(function(l) {
-                html += '<tr>';
-                fields.forEach(function(f) {
+                rows.push(fields.map(function(f) {
                     var val = getFieldValue(l, f);
-                    html += '<td>' + (val !== null && val !== undefined ? String(val) : '') + '</td>';
-                });
-                html += '</tr>';
+                    if (typeof val === 'number' && isFinite(val)) return { v: val };
+                    if (val === null || val === undefined) return { v: '' };
+                    return { v: String(val) };
+                }));
             });
-            html += '</tbody></table></body></html>';
-            var blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-            var url = URL.createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = 'mallan-report-' + new Date().toISOString().slice(0,10) + '.xls';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            logAuditEntry('report_excel_export', { count: listings.length, fields: fields.length });
+            rows.push([]);
+            exportAttributionLines().forEach(function(line) { rows.push([{ v: line, s: 2 }]); });
+
+            var bytes = buildXlsxBytes('Report', rows);
+            triggerDownload(
+                new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+                'mallan-report-' + new Date().toISOString().slice(0,10) + '.xlsx');
+            logAuditEntry('report_excel_export', { count: listings.length, fields: fields.length, format: 'xlsx' });
         }
 
-        // ── Step 12: Shareable Link ──
+        // ── Shareable Link — REFUSED, and honest about it ──
+        // This used to copy https://mallan.nyc/reports/view?config=<base64> to the clipboard, close the modal,
+        // and write a `report_shareable_link` success audit. There is no `app/reports/` route in this repo, so
+        // every link an agent handed a client 404'd. An output that cannot happen must fail loudly rather than
+        // report success: this renders the refusal into the modal, audits the refusal, and returns
+        // { ok: false }. Re-enable it by shipping the public viewer page (a Customer-version, IDX-disclaimer-
+        // bearing route) — not by re-adding the link. applyOutputAvailability() also disables the tile, so
+        // the output cannot be chosen in the first place.
+        var SHAREABLE_LINK_UNAVAILABLE = 'Shareable Link is not available: the public report viewer it points to is not deployed, so the link would not open for the customer receiving it. Use Email, Print / Save as PDF, CSV or Excel.';
         function generateShareableLink() {
-            var config = {
+            renderReportErrors([SHAREABLE_LINK_UNAVAILABLE]);
+            logAuditEntry('report_shareable_link_unavailable', {
                 format: reportState.format || 'grid',
                 version: reportState.version || 'customer',
-                listingIds: getReportListings().map(function(l){ return l.id; }),
-                optionalContent: getOptionalContentConfig(),
-                fields: getSelectedReportFields(),
-                title: (document.getElementById('reportTitle') || {}).value || '',
-                preparedFor: (document.getElementById('reportPreparedFor') || {}).value || '',
-                created: new Date().toISOString()
-            };
-            var encoded = btoa(unescape(encodeURIComponent(JSON.stringify(config))));
-            var shareUrl = 'https://mallan.nyc/reports/view?config=' + encoded;
-            navigator.clipboard.writeText(shareUrl).then(function() {
-                showReportToast('Link copied to clipboard');
-            }).catch(function() {
-                prompt('Copy this shareable link:', shareUrl);
+                reason: 'no public report viewer route is deployed'
             });
-            logAuditEntry('report_shareable_link', { format: config.format, listingCount: config.listingIds.length });
+            return { ok: false, reason: SHAREABLE_LINK_UNAVAILABLE };
+        }
+
+        // ── Output availability: a tile this workflow cannot honour is disabled, never left clickable ──
+        var UNAVAILABLE_OUTPUTS = { share: SHAREABLE_LINK_UNAVAILABLE, shareableLink: SHAREABLE_LINK_UNAVAILABLE };
+        function applyOutputAvailability() {
+            document.querySelectorAll('[data-step="output"] .report-tile').forEach(function(tile) {
+                var reason = UNAVAILABLE_OUTPUTS[tile.dataset.value];
+                if (!reason) return;
+                tile.disabled = true;
+                tile.setAttribute('aria-disabled', 'true');
+                tile.setAttribute('title', reason);
+                tile.classList.add('opacity-40', 'cursor-not-allowed');
+                tile.classList.remove('hover:border-blue-300');
+                var label = tile.querySelector('p');
+                if (label && label.textContent.indexOf('Unavailable') === -1) {
+                    label.innerHTML = _escapeReportText(label.textContent) +
+                        '<span class="block text-[10px] font-normal text-gray-400">Unavailable</span>';
+                }
+            });
+            if (UNAVAILABLE_OUTPUTS[reportState.output]) reportState.output = 'email';
+        }
+        function _escapeReportText(str) {
+            var d = document.createElement('div');
+            d.textContent = str == null ? '' : String(str);
+            return d.innerHTML;
         }
 
         // ── Toast notification helper ──
@@ -2408,7 +2649,7 @@
         function getAgentInfo() {
             return typeof AGENT_PROFILE !== 'undefined' ? {
                 name: AGENT_PROFILE.name,
-                title: AGENT_PROFILE.licenseTitle || AGENT_PROFILE.title || 'Licensed Real Estate Broker',
+                title: AGENT_PROFILE.licenseTitle || AGENT_PROFILE.title || '',
                 company: AGENT_PROFILE.company || 'Mallan Real Estate Inc.',
                 email: AGENT_PROFILE.email || '',
                 phone: AGENT_PROFILE.phone || '',
@@ -2417,7 +2658,7 @@
                 address: AGENT_PROFILE.address || ''
             } : {
                 name: '',
-                title: 'Licensed Real Estate Broker',
+                title: '',
                 company: '',
                 email: '',
                 phone: '',
@@ -2450,22 +2691,24 @@
             function psf(listing) { return !listing.intSqft || listing.intSqft === 0 ? '\u2014' : fc(Math.round(listing.price / listing.intSqft)); }
             function da(listing) { return listing.addressDisplayYN === false ? 'Available Upon Request' : listing.address + (listing.unit ? ', ' + listing.unit : ''); }
             function sBadge(s, listing) {
-                s = (s || 'Active').toUpperCase();
-                var m = { 'ACTIVE':['#dcfce7','#15803d'], 'OFFER IN':['#ffedd5','#c2410c'], 'IN CONTRACT':['#f3e8ff','#7e22ce'], 'SOLD':['#dbeafe','#1d4ed8'], 'COMING_SOON':['#f5f3ff','#7c3aed'] };
-                var c = m[s] || ['#f3f4f6','#4b5563'];
-                var label = s.replace(/_/g,' ');
-                if (s === 'COMING_SOON') label = listing && listing.firstShowingDate ? 'Coming Soon \u2014 No Showings until ' + listing.firstShowingDate : 'Coming Soon';
-                return '<span style="display:inline-block;padding:2px 8px;background:' + c[0] + ';color:' + c[1] + ';font-size:12px;border-radius:4px;font-weight:500">' + label + '</span>';
+                var row = (listing && typeof listing === 'object') ? listing : s;
+                var c = MallanStatus.colors(row);
+                var label = MallanStatus.label(row);
+                if (MallanStatus.isComingSoon(row)) {
+                    label = 'Coming Soon \u2014 No Showings or Open House until ' +
+                        ((listing && listing.firstShowingDate) || 'Scheduled Date');
+                }
+                return '<span style="display:inline-block;padding:2px 8px;background:' + c.bg + ';color:' + c.fg + ';font-size:12px;border-radius:4px;font-weight:500">' + label + '</span>';
             }
             function dr(label, val) {
                 return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f3f4f6"><span style="color:#6b7280;font-size:14px">' + label + '</span><span style="font-weight:500;font-size:14px">' + val + '</span></div>';
             }
             var _imgErr = "this.onerror=null;this.src='data:image/svg+xml," + encodeURIComponent('<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"400\" height=\"300\" fill=\"%23f1f5f9\"><rect width=\"400\" height=\"300\"/><text x=\"200\" y=\"150\" text-anchor=\"middle\" fill=\"%2394a3b8\" font-size=\"14\">No Image</text></svg>') + "'";
 
-            // Off-market photo restriction
-            var offMkt = { 'CLOSED':1, 'WITHDRAWN':1, 'HOLD':1, 'CANCELED':1, 'EXPIRED':1 };
+            // Off-market photo restriction (REBNY RLS, Feb 2025: primary photo only). The set lives once,
+            // in MallanStatus - the copy that used to be here was missing Delete.
             var photos = l.images || [];
-            if (offMkt[(l.status||'').toUpperCase()] === 1 && photos.length > 1) photos = [photos[0]];
+            if (MallanStatus.isOffMarket(l) && photos.length > 1) photos = [photos[0]];
             var detailImgs = photos.filter(function(img) { return img.imageOf !== 'FloorPlan' && img.mediaCategory !== 'FloorPlan'; });
             var isRental = l.listingCategory === 'rental';
 
@@ -2865,7 +3108,11 @@
             html += '<div class="report-toolbar" style="position:sticky;top:0;z-index:100;background:#1e293b;color:#fff;padding:10px 20px;display:flex;align-items:center;gap:16px;font-family:Inter,sans-serif;font-size:14px;margin:-0.5in -0.5in 20px -0.5in">';
             html += '<span style="font-weight:600;font-size:15px">' + title + '</span>';
             html += '<span style="flex:1"></span>';
-            html += '<button onclick="window.print()" style="background:#2563eb;color:#fff;border:none;padding:8px 20px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="fas fa-print"></i> Print</button>';
+            // There is no PDF renderer in this workflow, and the browser's own print dialog produces a
+            // genuine PDF of this page (the print CSS above already sets letter portrait). So the control
+            // says exactly what it does rather than implying a PDF export that does not exist.
+            html += '<span style="font-size:12px;color:#cbd5e1">To save a PDF, press Print and choose <strong>Save as PDF</strong> as the destination.</span>';
+            html += '<button onclick="window.print()" style="background:#2563eb;color:#fff;border:none;padding:8px 20px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="fas fa-print"></i> Print / Save as PDF</button>';
             html += '<button onclick="window.close()" style="background:#475569;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:14px;cursor:pointer">Close</button>';
             html += '</div>';
             html += reportBodyHTML;
@@ -2931,7 +3178,8 @@
                 return;
             }
 
-            // Route to output handler
+            // Route to output handler. There is NO `default:` that emails: an output this workflow does not
+            // implement is refused in the modal, with the modal left open and no success audit written.
             switch (output) {
                 case 'csv':
                     exportReportCSV();
@@ -2944,26 +3192,27 @@
                     exportReportExcel();
                     logAuditEntry('report_generate', { format: format, version: version, output: 'excel', count: listings.length });
                     closeReportsModal();
-                    showReportToast('Excel report downloaded (' + listings.length + ' listings)');
+                    showReportToast('Excel workbook downloaded (' + listings.length + ' listings)');
                     break;
 
                 case 'share':
                 case 'shareableLink':
+                    // Refuses, renders its own error and audits the refusal. The modal stays open and no
+                    // report_generate success is written, because no link was created.
                     generateShareableLink();
-                    logAuditEntry('report_generate', { format: format, version: version, output: 'share', count: listings.length });
-                    closeReportsModal();
-                    break;
+                    return;
 
                 case 'print':
                     var printContent = buildFullReportHTML(title);
                     closeReportsModal();
                     printReportViaIframe(printContent, title);
                     logAuditEntry('report_generate', { format: format, version: version, output: 'print', count: listings.length });
-                    showReportToast('Print dialog opening...');
+                    // There is no PDF renderer in this workflow. The printable page IS the report, so say
+                    // plainly how to turn it into a PDF instead of implying a PDF export that does not exist.
+                    showReportToast('Printable report opened — choose "Save as PDF" as the destination to save a PDF file.');
                     break;
 
                 case 'email':
-                default:
                     // Get recipient info
                     var recipientEmail = '';
                     var recipientName = preparedFor || 'Client';
@@ -2983,6 +3232,14 @@
                         return;
                     }
 
+                    // Refuse BEFORE closing the modal when no mail service is connected. Closing first was
+                    // how the old "Email sent (simulated)" overlay got the last word (audit D15).
+                    if (!((typeof isEmailConfigured === 'function') && isEmailConfigured())) {
+                        renderReportErrors(['Email delivery is not configured, so this report cannot be emailed. Connect a mail service in Email Settings, or use Print / Save as PDF, CSV or Excel.']);
+                        logAuditEntry('report_email_blocked', { format: format, version: version, reason: 'email_not_configured', count: listings.length });
+                        return;
+                    }
+
                     // Build format-aware email: use the actual selected format (grid, summary, etc.)
                     var reportBody = buildFullReportHTML(title);
                     var emailHTML = wrapReportForEmail(reportBody, title, recipientName, listings);
@@ -2999,5 +3256,10 @@
                         source: 'report_email'
                     });
                     break;
+
+                default:
+                    renderReportErrors(['"' + String(output || 'unknown') + '" is not an available report output. Choose Email, Print / Save as PDF, CSV or Excel.']);
+                    logAuditEntry('report_output_unavailable', { output: output || null, format: format, version: version });
+                    return;
             }
         }

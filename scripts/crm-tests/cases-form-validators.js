@@ -197,7 +197,8 @@ function run() {
   }
 
   // ── 19: sale validators — basic surface checks ──────────────────────
-  const exposed19 = ['validateREBNYRequired', 'validateDates', 'getResoMlsStatus', 'getResoPropertyFields'];
+  // getResoMlsStatus / getResoPropertyFields were REMOVED (Packet 2 closure): the server owns the form → vocabulary conversion.
+  const exposed19 = ['validateREBNYRequired', 'validateDates'];
   for (const fn of exposed19) {
     assert(
       results,

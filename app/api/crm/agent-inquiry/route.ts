@@ -49,6 +49,7 @@ import { escapeHtml } from '@/lib/sanitize';
 import { checkRouteRateLimit, extractClientIp } from '@/lib/middleware/rate-limiter';
 import { hashIp } from '@/lib/inquiries/create';
 import { professionalTitle } from '@/lib/agents/professional-title';
+import { statusDisplayLabelFor } from '@/lib/compliance/status';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,6 +61,8 @@ interface AgentInquiryBody {
   message: string;
   listing_price?: number | string | null;
   listing_status?: string | null;
+  /** 'sale' | 'rent' | 'rental' — the transaction the status label is resolved in. */
+  listing_type?: string | null;
   listing_unit?: string | null;
   listing_url?: string | null;
   listing_neighborhood?: string | null;
@@ -76,16 +79,15 @@ function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-function statusLabel(raw: string | null | undefined): string {
-  if (!raw) return 'Active';
-  if (raw === 'COMING_SOON') return 'Coming Soon';
-  if (raw === 'PENDING') return 'In Contract';
-  if (raw === 'CLOSED') return 'Closed';
-  if (raw === 'WITHDRAWN') return 'Withdrawn';
-  if (raw === 'ACTIVE') return 'Active';
-  // For non-canonical/unmapped values, lowercase-and-capitalize for safety
-  // (post-A14 mapper guarantees canonical input, but defensive here).
-  return raw.charAt(0) + raw.slice(1).toLowerCase().replace(/_/g, ' ');
+/**
+ * The status line in the inquiry email is a LABEL, resolved per transaction from the live StandardStatus token
+ * (owner ruling, Maya 2026-09-08): a sale's Closed reads "Sold", a rental's Closed reads "Rented", Pending reads
+ * "In Contract". Legacy Mallan spellings and the old UPPERCASE param vocabulary normalize through
+ * `statusDisplayLabelFor`. FAIL-CLOSED: an absent or unrecognized status is "Status unavailable" — an
+ * agent-to-agent email never advertises a fabricated "Active".
+ */
+function statusLabel(raw: string | null | undefined, listingType?: string | null): string {
+  return statusDisplayLabelFor(raw, listingType) || 'Status unavailable';
 }
 
 function buildAgentInquiryHtml(opts: {
@@ -209,12 +211,12 @@ export async function POST(req: NextRequest) {
   const sessionUser: SessionUser = auth;
 
   // Resolve the sender against the CANONICAL Agent record before advertising a
-  // professional designation. The session carries `role` (the CRM
-  // authorisation grant) but not `title` (the NY licence designation), and the
-  // two are not interchangeable: an Associate Broker holds a broker licence yet
-  // role "AGENT", so deriving the title from `role` advertised her as a
-  // "Licensed Real Estate Salesperson" — a false statement about a licensee in
-  // brokerage correspondence (NY DOS 19 NYCRR 175.25).
+  // professional designation. The session carries `role` (the Mallan
+  // authorisation grant) but not the LICENCE CLASS, and the two are not
+  // interchangeable: deriving the title from `role` advertised an Associate
+  // Broker as a "Licensed Real Estate Salesperson" — a false statement about a
+  // licensee in brokerage correspondence (NY DOS 19 NYCRR 175.25). The
+  // designation is derived from `license_type`; `role` is not selected.
   //
   // Keyed on the session's userId only. There is deliberately NO secondary
   // lookup key: an empty-string email fallback would silently match nothing (or
@@ -224,14 +226,13 @@ export async function POST(req: NextRequest) {
     full_name: string | null;
     title: string | null;
     license_type: string | null;
-    role: string | null;
     phone: string | null;
     email: string;
   } | null = null;
   try {
     senderRecord = await prisma.agent.findUnique({
       where: { id: sessionUser.userId },
-      select: { full_name: true, title: true, license_type: true, role: true, phone: true, email: true },
+      select: { full_name: true, title: true, license_type: true, phone: true, email: true },
     });
   } catch (err) {
     // Fail LOUD in the log, then degrade to omitting the title. We must never
@@ -252,7 +253,7 @@ export async function POST(req: NextRequest) {
     listingAddress: body.listing_address,
     listingUnit: body.listing_unit ?? '',
     listingPrice: Number(body.listing_price ?? 0) || 0,
-    listingStatus: statusLabel(body.listing_status),
+    listingStatus: statusLabel(body.listing_status, body.listing_type),
     listingNeighborhood: body.listing_neighborhood ?? '',
     listingBorough: body.listing_borough ?? '',
     listingZip: body.listing_zip ?? '',

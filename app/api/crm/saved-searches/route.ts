@@ -1,5 +1,10 @@
-// GET /api/crm/saved-searches — list agent's saved searches
-// POST /api/crm/saved-searches — create a new saved search
+// GET /api/crm/saved-searches — list the agent's saved searches
+// POST /api/crm/saved-searches — save the parameters of a Search that executed
+//
+// Search Consolidation Packet 2: a saved search stores the canonical executor parameters
+// (lib/search/engine/saved-search.ts). Its count comes from the SAME executor as live
+// Agent Search and alerts, stamped when the search is saved or run — the list never settles
+// universes on load (an honest stored count + explicit refresh, not a hidden second matcher).
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import {
@@ -13,58 +18,11 @@ import { safeJson } from "@/lib/api/safe-json";
 import { scanTextForFairHousing } from "@/lib/compliance/rls-enforcement";
 import { assertLeadIdStringAccess } from "@/lib/crm/access";
 import {
-  canEnableAlertForCriteria,
-  criteriaToProjectionWhere,
-  getUnsupportedProjectionCriteria,
-  isPlainSearchCriteria,
-} from "@/lib/search/criteria-to-prisma";
-
-function stableStringify(value: unknown): string {
-  if (value === null || value === undefined) return "null";
-  if (typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) {
-    return `[${value.map((item) => stableStringify(item)).join(",")}]`;
-  }
-  const entries = Object.entries(value as Record<string, unknown>)
-    .filter(([, item]) => item !== undefined)
-    .sort(([a], [b]) => a.localeCompare(b));
-  return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`).join(",")}}`;
-}
-
-type SavedSearchCountStatus = "projection_live" | "unsupported_criteria" | "invalid_criteria";
-
-/** Validate saved search criteria shape. Returns error message or null. */
-function validateCriteria(criteria: Record<string, unknown>): string | null {
-  if (!criteria.listing_type || !["sale", "rent", "rental"].includes(criteria.listing_type as string)) {
-    return "criteria.listing_type is required and must be 'sale', 'rent', or 'rental'";
-  }
-  if (criteria.min_price !== undefined) {
-    if (typeof criteria.min_price !== "number" || criteria.min_price < 0) {
-      return "criteria.min_price must be a positive number";
-    }
-  }
-  if (criteria.max_price !== undefined) {
-    if (typeof criteria.max_price !== "number" || criteria.max_price < 0) {
-      return "criteria.max_price must be a positive number";
-    }
-  }
-  if (criteria.min_beds !== undefined) {
-    if (!Number.isInteger(criteria.min_beds) || (criteria.min_beds as number) < 0) {
-      return "criteria.min_beds must be a non-negative integer";
-    }
-  }
-  if (criteria.min_baths !== undefined) {
-    if (!Number.isInteger(criteria.min_baths) || (criteria.min_baths as number) < 0) {
-      return "criteria.min_baths must be a non-negative integer";
-    }
-  }
-  if (criteria.neighborhoods !== undefined) {
-    if (!Array.isArray(criteria.neighborhoods) || !criteria.neighborhoods.every((n: unknown) => typeof n === "string")) {
-      return "criteria.neighborhoods must be a string array";
-    }
-  }
-  return null;
-}
+  CRITERIA_VERSION,
+  isSavedSearchCriteria,
+  resolveStoredCriteria,
+} from "@/lib/search/engine/saved-search";
+import { CRITERIA_CONTRACT_ERROR, serializeSavedSearch, stampedCount } from "@/lib/search/saved-search-read";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
@@ -75,47 +33,7 @@ export async function GET(req: NextRequest) {
       where: { agent_id: auth.userId },
       orderBy: { updated_at: "desc" },
     });
-
-    const countCache = new Map<string, Promise<number>>();
-
-    const serialized = await Promise.all(searches.map(async (s) => {
-      const criteria = isPlainSearchCriteria(s.criteria) ? s.criteria : null;
-      const unsupportedCriteria = criteria ? getUnsupportedProjectionCriteria(criteria) : [];
-      const countStatus: SavedSearchCountStatus = !criteria
-        ? "invalid_criteria"
-        : unsupportedCriteria.length > 0
-          ? "unsupported_criteria"
-          : "projection_live";
-
-      let projectionCount: number | null = null;
-      if (countStatus === "projection_live" && criteria) {
-        const cacheKey = stableStringify(criteria);
-        let countPromise = countCache.get(cacheKey);
-        if (!countPromise) {
-          const where = criteriaToProjectionWhere(criteria);
-          countPromise = prisma.listingSearchProjection.count({ where });
-          countCache.set(cacheKey, countPromise);
-        }
-        projectionCount = await countPromise;
-      }
-
-      // Serialize BigInt
-      return {
-        ...s,
-        id: s.id.toString(),
-        agent_id: s.agent_id?.toString() ?? null,
-        lead_id: s.lead_id?.toString() ?? null,
-        alert_frequency: s.alert_frequency ?? null,
-        alert_enabled: s.alert_enabled ?? false,
-        result_count: s.result_count ?? null,
-        projection_count: projectionCount,
-        live_result_count: projectionCount,
-        count_status: countStatus,
-        unsupported_criteria: unsupportedCriteria.length > 0 ? unsupportedCriteria : null,
-        invalid_criteria: criteria ? null : true,
-      };
-    }));
-
+    const serialized = searches.map((s) => serializeSavedSearch(s, resolveStoredCriteria(s.criteria)));
     return NextResponse.json({ savedSearches: serialized, total: serialized.length });
   } catch (err) {
     console.error("List saved searches error:", err);
@@ -131,30 +49,30 @@ export async function POST(req: NextRequest) {
 
   try {
     const [body, _parseErr] = await safeJson(req);
-  if (_parseErr) return _parseErr;
+    if (_parseErr) return _parseErr;
     const { name, criteria, lead_id, alert_frequency, alert_enabled } = body;
 
     if (!name || typeof name !== "string" || name.trim().length === 0) {
       return NextResponse.json({ error: "name is required (non-empty string)" }, { status: 400 });
     }
 
-    // Codex Risk P0 fix: reject null, arrays, and non-objects with a clear
-    // 400 (typeof null === "object" + Array.isArray are JS pitfalls; the
-    // prior `!criteria || typeof !== "object"` guard let arrays through).
-    if (
-      !criteria ||
-      Array.isArray(criteria) ||
-      typeof criteria !== "object"
-    ) {
+    // null / arrays / non-objects are refused with a clear 400 (Codex Risk P0), and so is any
+    // object that is not the versioned executor-parameter contract.
+    if (!criteria || Array.isArray(criteria) || typeof criteria !== "object") {
       return NextResponse.json(
         { error: "criteria must be a plain JSON object (not null, not an array)" },
         { status: 400 },
       );
     }
-
-    const validationError = validateCriteria(criteria);
-    if (validationError) {
-      return NextResponse.json({ error: validationError }, { status: 400 });
+    if (!isSavedSearchCriteria(criteria)) {
+      return NextResponse.json({ error: CRITERIA_CONTRACT_ERROR, code: "criteria_contract", criteria_version: CRITERIA_VERSION }, { status: 400 });
+    }
+    const resolved = resolveStoredCriteria(criteria);
+    if (resolved.state === "invalid") {
+      return NextResponse.json(
+        { error: "These criteria cannot be executed by Search: " + resolved.reasons.join("; "), code: "unsupported_criteria", reasons: resolved.reasons, unsupported: resolved.unsupported, invalid: resolved.invalid },
+        { status: 422 },
+      );
     }
 
     const fhViolations = scanTextForFairHousing(name, "name");
@@ -171,49 +89,44 @@ export async function POST(req: NextRequest) {
     const leadAccess = lead_id ? await assertLeadIdStringAccess(auth, lead_id) : null;
     if (leadAccess?.response) return leadAccess.response;
 
-    // P0-3 alert-gate: refuse to enable an alert when the saved-search
-    // criteria contain keys the projection-backed alert engine does not
-    // support. Without this gate the cron at app/api/cron/search-alerts
-    // would silently send mail derived from a strict subset of the
-    // criteria the agent saw in /crm/search (Engine A vs Engine B
-    // divergence). See lib/search/criteria-to-prisma.ts canEnableAlertForCriteria.
-    const wantAlert = Boolean(alert_frequency) && alert_enabled !== false;
-    if (wantAlert) {
-      const gate = canEnableAlertForCriteria(criteria);
-      if (!gate.ok) {
-        return NextResponse.json(
-          {
-            error: gate.message,
-            code: gate.code,
-            unsupported_criteria: gate.unsupported,
-          },
-          { status: 422 },
-        );
-      }
-    }
+    // The count is the executor's total for exactly these parameters — the same membership
+    // live Search showed and the alert cron will match.
+    const count = await stampedCount(resolved);
 
     const search = await prisma.savedSearch.create({
       data: {
         name: name.trim(),
-        criteria: criteria as Prisma.InputJsonValue,
+        criteria: { criteria_version: CRITERIA_VERSION, params: resolved.params } as Prisma.InputJsonValue,
         agent_id: auth.userId,
         lead_id: leadAccess?.leadId ?? null,
         alert_frequency: alert_frequency ?? null,
         alert_enabled: alert_frequency ? Boolean(alert_enabled !== false) : false,
+        result_count: count.result_count,
+        last_run: count.last_run,
       },
     });
 
     await logAuditEvent("create", "saved_search", search.id.toString(), auth, {
       name: search.name,
+      criteria_version: CRITERIA_VERSION,
+      params: resolved.params,
+      result_count: count.result_count,
+      count_status: count.count_status,
     });
 
     return NextResponse.json({
       id: search.id.toString(),
       name: search.name,
       criteria: search.criteria,
+      criteria_state: "current",
+      executable_params: resolved.params,
       alert_frequency: search.alert_frequency ?? null,
       alert_enabled: search.alert_enabled ?? false,
       lead_id: search.lead_id?.toString() ?? null,
+      result_count: search.result_count ?? null,
+      last_run: search.last_run,
+      count_status: count.count_status,
+      count_detail: count.detail ?? null,
       created_at: search.created_at,
     }, { status: 201 });
   } catch (err) {

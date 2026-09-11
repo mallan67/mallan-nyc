@@ -152,6 +152,9 @@
 <!-- 4. UI layer (depends on Utils) -->
 <script src="/crm/js/dashboard/ui-components.js"></script>
 <!-- 5. App shell + views (depends on everything above) -->
+<!-- The ONE My Listings implementation. The dashboard mounts this same file rather than keeping a
+     second listing manager in panels.js. Its markup is fetched from html/manage-listings.html. -->
+<script src="/crm/js/manage/manage-listings.js"></script>
 <script src="/crm/js/dashboard/panels.js"></script>
 <script src="/crm/js/dashboard/workspace.js"></script>
 <script src="/crm/js/dashboard/portals.js"></script>
@@ -169,18 +172,13 @@
 <script src="/crm/js/dashboard/panels/intake/landlord-intake.js"></script>
 <script src="/crm/js/dashboard/panels/intake/renter-intake.js"></script>
 <!-- 8. Tool calculators (one per client type + investment scenarios) -->
-<script src="/crm/js/dashboard/panels/tools/cash-on-cash.js"></script>
-<script src="/crm/js/dashboard/panels/tools/cap-rate.js"></script>
-<script src="/crm/js/dashboard/panels/tools/roi-calculator.js"></script>
-<script src="/crm/js/dashboard/panels/tools/rental-yield.js"></script>
-<script src="/crm/js/dashboard/panels/tools/exchange-1031.js"></script>
-<script src="/crm/js/dashboard/panels/tools/net-proceeds.js"></script>
-<script src="/crm/js/dashboard/panels/tools/vacancy-cost.js"></script>
-<script src="/crm/js/dashboard/panels/tools/buyer-closing-costs.js"></script>
-<script src="/crm/js/dashboard/panels/tools/seller-closing-costs.js"></script>
-<script src="/crm/js/dashboard/panels/tools/equity-calculator.js"></script>
-<script src="/crm/js/dashboard/panels/tools/carrying-cost.js"></script>
-<script src="/crm/js/dashboard/panels/tools/breakeven-price.js"></script>
+<!-- THE one New York transaction-tax authority, shared by BOTH applications: this CRM and the
+     Backend Agent Search application (public/crm/index.html) load the same two files. The CRM's
+     own tool panels delegate to it instead of carrying their own tables. Owner ruling 2026-09-09:
+     "If an old consumer differs, replace its math with the canonical engine; do not preserve
+     its result for compatibility." -->
+<script src="/crm/js/calc/transaction-costs.js"></script>
+<script src="/crm/js/calc/ownership.js"></script>
 <!-- 9. Home screen -->
 <script src="/crm/js/dashboard/panels/home/home-screen.js"></script>
 <!-- 10. CRM panels (complete Two-CRM system) -->

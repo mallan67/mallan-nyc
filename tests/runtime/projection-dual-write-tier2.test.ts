@@ -4,7 +4,7 @@
  *
  * The Tier-1 guard at lib/search/__tests__/h1-dual-write-tier1.test.ts
  * closed the non-sync writer surfaces (crm/convert, idx/ensure-listing,
- * crm/listings/reset-sync, scripts/import-closed-from-trestle, AND the
+ * crm/listings/reset-sync, AND the
  * orphan-restore branch inside cron/feed-reconcile). It did NOT cover the
  * remaining cron-side writers that flip Listing.idx_display_yn=false
  * without touching ListingSearchProjection. That gap produced the

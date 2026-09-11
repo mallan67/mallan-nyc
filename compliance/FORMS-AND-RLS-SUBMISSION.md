@@ -1,13 +1,16 @@
+> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/operations/evidence-2026-09-08/provider-system/REMOVAL-2026-09-08.md`.
+
 # Forms & RLS Submission
 
-> **LMP:** RealPlus (listing input to RLS) | **IDX Display:** Trestle IDX Plus WebAPI (read-only on mallan.nyc) | **Feed:** REBNY RLS via Trestle (Cotality)
+> **REBNY RLS submission:** outside this system | **IDX Display:** Trestle IDX Plus WebAPI (read-only on mallan.nyc) | **Feed:** Cotality (Trestle) IDX Plus Web API
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 
 ---
 
-> ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
-> 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+> ### AUTHORITY (Packet 2 closure, 2026-09-06)
+> **COTALITY LIVE CONTRACT** (`lib/cotality/live-contract.ts`, the dated live pulls) → provider facts: field existence, enum members.
+> **REBNY / UCBA** (`lib/compliance/rebny-ucba-rules.ts`) → compliance / business rules. **MALLAN** (`lib/listings/mallan-form-contract.ts`, `lib/listings/mallan-status.ts`) → form / workflow / storage.
+> **RESO = vocabulary only.** Fail closed = NON-DISPLAY. (The former "RLS overrides RESO/IDX" ordering is retired: no CSV, RESO document or hand-typed table is a field authority.)
 
 ---
 
@@ -15,8 +18,8 @@
 
 | Form | File | Fields | Purpose |
 |------|------|--------|---------|
-| Sale Listing | `SALE-FORM-REDESIGN.html` | 719 | Sale listing data entry (CRM internal — RLS submission is via RealPlus/LMP) |
-| Rental Listing | `RENTAL-FORM-REDESIGN.html` | 525 | Rental listing data entry (CRM internal — RLS submission is via RealPlus/LMP) |
+| Sale Listing | `SALE-FORM-REDESIGN.html` | 719 | Sale listing data entry (CRM internal — REBNY RLS submission happens outside this system) |
+| Rental Listing | `RENTAL-FORM-REDESIGN.html` | 525 | Rental listing data entry (CRM internal — REBNY RLS submission happens outside this system) |
 | Buyer Deal | `BUYER-DEAL-FORM.html` | ~50 | Buyer transaction tracking |
 | Tenant Deal | `TENANT-DEAL-FORM.html` | ~30 | Tenant transaction tracking |
 
@@ -24,12 +27,12 @@
 
 ## 2. CRM Listing Data Entry Workflow
 
-> **NOTE:** mallan.nyc does NOT submit listings to the RLS. Actual RLS submission is via RealPlus (LMP). The workflow below describes CRM-internal data entry and validation.
+> **NOTE:** mallan.nyc does NOT submit listings to the RLS. REBNY RLS submission happens outside this system. The workflow below describes CRM-internal data entry and validation.
 
 ```
 Agent fills form → Auto-save (30s) → Validate (47+ fields) → Content scan
   → Fair Housing scan → Distribution gate check → Preview → Save to CRM
-  → Agent enters listing in RealPlus (LMP) for actual RLS submission
+  → The listing is submitted to REBNY RLS outside this system
 ```
 
 ### Pre-Submission Checklist (Automated)

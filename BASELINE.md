@@ -1,4 +1,16 @@
-﻿# BASELINE: baseline-clean-main-20251120
+﻿> **HISTORICAL — dated header added 2026-09-10. Do not follow the startup sequence below.**
+>
+> The tag `baseline-clean-main-20251120` still exists and is kept as a record. The branch
+> `baseline/clean-main-20251120` **no longer exists on `origin`** (`git ls-remote --heads origin
+> "*baseline*"` returns nothing), so step 2 cannot run; and `main` is roughly ten months and several
+> hundred PRs ahead of that 2025-11-20 tree, so starting work from it would be starting from a dead tree.
+>
+> **Current start-of-work path:** branch from `main`. Entry points, in order — `CLAUDE.md` → `AGENTS.md`
+> → `docs/PROJECT-HEALTH-DASHBOARD.md` (refresh with `npm run health:probe`) → the latest
+> `docs/operations/site-audit-handoff-YYYY-MM-DD.md` — under the authority order in `AGENTS.md`
+> (Master Plan first).
+
+# BASELINE: baseline-clean-main-20251120
 
 This repository has a canonical baseline used for all future work:
 

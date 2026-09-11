@@ -19,6 +19,17 @@ var SalesCRM = (function () {
   // All stub routes redirect via Router. Active Sellers is standalone.
   function _subnav() { return ''; }
 
+  // The SALE transaction's status vocabulary, from the server mapping (GET /api/crm/status-options?type=sale).
+  // Owner ruling (Maya, 2026-09-08): the filter's VALUE is the live Cotality StandardStatus token the row
+  // stores and its TEXT is the sale's broker word ("Sold" for Closed, "In Contract" for Pending). A rental
+  // word never appears in a sale filter, and this panel holds no status list of its own.
+  var _saleStatusOptions = null;
+
+  function _saleStatusFilterOptions() {
+    if (!_saleStatusOptions || !_saleStatusOptions.canonical) return [];
+    return _saleStatusOptions.canonical.map(function (c) { return { value: c.token, label: c.label }; });
+  }
+
   // ─── KPI ──────────────────────────────────────────────────────────────
   function _kpi(cards) {
     var h = '<div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">';
@@ -56,7 +67,14 @@ var SalesCRM = (function () {
     var c = CRM.getContent();
     c.innerHTML = _subnav('sellers') + '<div class="flex items-center justify-center h-40"><i class="fas fa-spinner fa-spin text-2xl text-gold"></i></div>';
 
-    MallanAPI._fetch('/api/crm/sales/sellers').then(function (data) {
+    Promise.all([
+      MallanAPI._fetch('/api/crm/sales/sellers'),
+      _saleStatusOptions
+        ? Promise.resolve(_saleStatusOptions)
+        : MallanAPI._fetch('/api/crm/status-options?type=sale').catch(function () { return null; }),
+    ]).then(function (res) {
+      var data = res[0];
+      if (res[1]) _saleStatusOptions = res[1];
       _s.sellers.data = (data.sellers || data.clients || []).map(function (r) {
         if (typeof ClientNormalizer !== 'undefined') r = ClientNormalizer.normalize(r);
         r.name = r.name || ((r.first_name || '') + ' ' + (r.last_name || '')).trim();
@@ -94,10 +112,7 @@ var SalesCRM = (function () {
       id: 'sellers', placeholder: 'Search by name, address, email...', onSearch: 'SalesCRM._searchSellers',
       filters: [
         { key: 'stage', label: 'Stage', options: Object.keys(STAGES).map(function (k) { return { value: k, label: STAGES[k].label }; }) },
-        { key: 'status', label: 'Listing Status', options: [
-          { value: 'Active', label: 'Active' }, { value: 'Coming Soon', label: 'Coming Soon' },
-          { value: 'Under Contract', label: 'Under Contract' }, { value: 'Closed', label: 'Closed' },
-        ]},
+        { key: 'status', label: 'Listing Status', options: _saleStatusFilterOptions() },
       ],
       onFilter: 'SalesCRM._filterSellers',
       quickActions: [{ label: 'New Seller', icon: 'fa-plus', onclick: 'SalesCRM._newSeller()' }],
@@ -529,6 +544,19 @@ var SalesCRM = (function () {
 
   // ── COMPS TAB ────────────────────────────────────────────────────────
   var _compsData = null; // cached comp results
+  // The SUBJECT transaction the server resolved from the listing's live PropertyType. Comp criteria are live
+  // Cotality StandardStatus TOKENS; the broker word beside each one is a per-transaction LABEL (a sale's Closed
+  // reads "Sold", a rental's reads "Rented"; a sale's Pending reads "In Contract"). Never a shared list.
+  var _compsTransaction = 'sale';
+  var COMP_STATUS_TOKENS = ['Active', 'ActiveUnderContract', 'Pending', 'Closed', 'Expired', 'Withdrawn'];
+  var COMP_STATUS_LABELS = {
+    sale: { Active: 'Active', ActiveUnderContract: 'Active Under Contract', Pending: 'In Contract', Closed: 'Sold', Expired: 'Expired', Withdrawn: 'Withdrawn' },
+    rental: { Active: 'Active', ActiveUnderContract: 'Active Under Contract', Pending: 'Pending', Closed: 'Rented', Expired: 'Expired', Withdrawn: 'Withdrawn' },
+  };
+  function _compStatusLabel(token) {
+    var m = COMP_STATUS_LABELS[_compsTransaction] || COMP_STATUS_LABELS.sale;
+    return m[token] || token;
+  }
   function _wsComps(el, cl) {
     var listingId = cl.listing_id || (cl.listing && cl.listing.listing_id);
     if (!listingId) {
@@ -549,6 +577,7 @@ var SalesCRM = (function () {
   }
 
   function _renderCompsTab(el, data, listingId) {
+    _compsTransaction = data.transaction === 'rental' ? 'rental' : 'sale';
     var c = data.criteria || {};
     var bc = c.building || {};
     var ac = c.area || {};
@@ -656,14 +685,16 @@ var SalesCRM = (function () {
     return h;
   }
 
-  // Helper: status checkboxes
+  // Helper: status checkboxes — the VALUE is always the live Cotality StandardStatus token that will be
+  // queried; the visible word is this transaction's broker label. The server refuses any other value.
   function _statusCheckboxes(prefix, selected) {
-    var all = ['Active', 'Under Contract', 'Closed', 'Expired'];
+    var sel = selected || [];
     var h = '<div class="flex flex-wrap gap-3 mb-2">';
-    all.forEach(function (s) {
-      var checked = selected.indexOf(s) !== -1 ? ' checked' : '';
+    COMP_STATUS_TOKENS.forEach(function (token) {
+      var checked = sel.indexOf(token) !== -1 ? ' checked' : '';
       h += '<label class="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">' +
-        '<input type="checkbox" class="crit-status-' + prefix + '" value="' + E(s) + '"' + checked + '> ' + E(s) + '</label>';
+        '<input type="checkbox" class="crit-status-' + prefix + '" value="' + E(token) + '"' + checked + '> ' +
+        E(_compStatusLabel(token)) + '</label>';
     });
     h += '</div>';
     return h;
@@ -703,7 +734,8 @@ var SalesCRM = (function () {
       comps.forEach(function (c) {
         var addr = c.address + (c.unit ? ' #' + c.unit : '');
         var sClr = statusColors[c.status] || '#6B7280';
-        var sLabel = c.status === 'ActiveUnderContract' ? 'In Contract' : c.status;
+        // the exact token stays the fact; the broker word is the server-supplied per-transaction label
+        var sLabel = c.status_label || c.status;
         h += '<tr class="border-b border-gray-50 hover:bg-gray-50">';
         h += '<td class="px-3 py-2 font-medium text-gray-900 max-w-[180px] truncate" title="' + E(addr) + '">' + E(addr) + '</td>';
         h += '<td class="px-3 py-2"><span style="color:' + sClr + ';font-weight:700;font-size:10px;">' + E(sLabel) + '</span></td>';
@@ -928,165 +960,41 @@ var SalesCRM = (function () {
     }
   }
 
-  // ── TOOLS TAB — all calculators relevant to client role ───────────────────
+  // ── TOOLS TAB — all calculators relevant to client role ───────────────────  // ── CALCULATORS — through the ONE calculation core ──────────────────────────────────────────
+  //
+  // This used to render twelve hand-built calculator modules (NetProceedsCalc, SellerClosingCalc,
+  // BuyerClosingCalc, EquityCalc, CarryingCostCalc, BreakevenCalc, CapRateCalc, CashOnCashCalc,
+  // ROICalc, RentalYieldCalc, Exchange1031Calc, VacancyCostCalc) into twelve #calc-<id> divs, each
+  // reading its own DOM ids and carrying its own arithmetic. Several of them disagreed with each
+  // other and with the rest of the CRM - a flat transfer-tax rate in break-even, no property type in
+  // buyer closing costs, a mansion-tax band that was 0.25% too high elsewhere in the app.
+  //
+  // Now it mounts CrmCalcUI over js/calc/**: one renderer, one set of engines, the same objects a
+  // CMA or a net-sheet report will render. The client prefill the owner asked to keep - listing
+  // price, mortgage balance, property type, rent, operating expenses - is carried across by
+  // CrmCalcUI.inputsFromClient, and every prefilled value stays an editable assumption rather than
+  // becoming a hidden fact.
   function _wsTools(el, cl) {
-    var stage = cl.stage || 'prospect';
-    var isBuyer = (cl.roles || []).includes('buyer');
-    var isInvestor = cl.is_investor;
-    var h = '<div class="space-y-6">';
-
-    h += '<div class="text-xs text-gray-500 mb-2">Select a calculator. Values auto-populate from the client\'s profile where available.</div>';
-
-    // ── Tab picker for calculators ──
-    var calcs = [
-      { id: 'net-proceeds', label: 'Seller Net Proceeds', icon: 'fa-file-invoice-dollar', color: 'text-amber-600' },
-      { id: 'seller-closing', label: 'Seller Closing Costs', icon: 'fa-receipt', color: 'text-purple-600' },
-      { id: 'equity', label: 'Equity', icon: 'fa-chart-pie', color: 'text-emerald-600' },
-      { id: 'carrying-cost', label: 'Carrying Cost', icon: 'fa-hourglass-half', color: 'text-orange-500' },
-      { id: 'breakeven', label: 'Break-Even Price', icon: 'fa-bullseye', color: 'text-red-500' },
-    ];
-    if (isBuyer || stage === 'exclusive' || stage === 'listed') {
-      calcs.push({ id: 'buyer-closing', label: 'Buyer Closing Costs', icon: 'fa-hand-holding-usd', color: 'text-blue-600' });
+    if (typeof CrmCalcUI === 'undefined' || !CrmCalcUI.mountForClient) {
+      el.innerHTML = '<div class="text-xs text-red-500">Calculation core not loaded.</div>';
+      return;
     }
-    if (isInvestor) {
-      calcs.push({ id: 'cap-rate', label: 'Cap Rate', icon: 'fa-percentage', color: 'text-green-600' });
-      calcs.push({ id: 'cash-on-cash', label: 'Cash-on-Cash', icon: 'fa-coins', color: 'text-green-600' });
-      calcs.push({ id: 'roi', label: 'ROI', icon: 'fa-chart-line', color: 'text-green-600' });
-      calcs.push({ id: 'rental-yield', label: 'Rental Yield', icon: 'fa-building', color: 'text-purple-600' });
-      calcs.push({ id: 'exchange-1031', label: '1031 Exchange', icon: 'fa-exchange-alt', color: 'text-indigo-600' });
-    }
-    calcs.push({ id: 'vacancy-cost', label: 'Vacancy Cost', icon: 'fa-door-open', color: 'text-red-500' });
+    var host = document.createElement('div');
+    el.innerHTML = '';
+    el.appendChild(host);
 
-    h += '<div class="flex flex-wrap gap-2 mb-4">';
-    calcs.forEach(function (c, i) {
-      h += '<button onclick="SalesCRM._showCalc(\'' + c.id + '\')" id="calc-btn-' + c.id + '" ' +
-        'class="flex items-center gap-1.5 px-3 py-2 border rounded-lg text-xs font-semibold transition-colors ' +
-        (i === 0 ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400') + '">' +
-        '<i class="fas ' + c.icon + ' ' + c.color + '"></i> ' + E(c.label) + '</button>';
-    });
-    h += '</div>';
+    var intro = document.createElement('div');
+    intro.className = 'text-xs text-gray-500 mb-2';
+    intro.textContent = 'Values are pre-filled from this client where the CRM holds them. Every figure is an assumption you can change.';
+    el.insertBefore(intro, host);
 
-    h += '<div id="calc-area">';
-    // Default: show net proceeds
-    h += '<div id="calc-net-proceeds" class="bg-white border border-gray-200 rounded-xl p-5">';
-    if (typeof NetProceedsCalc !== 'undefined') {
-      h += NetProceedsCalc.render({
-        sale_price: Number(cl.list_price || cl.marketing_strategy && cl.marketing_strategy.target_price || 0),
-        mortgage_balance: cl.mortgage_balance || '',
-      });
-    }
-    h += '</div>';
-
-    // Seller Closing Costs
-    h += '<div id="calc-seller-closing" class="bg-white border border-gray-200 rounded-xl p-5" style="display:none;">';
-    if (typeof SellerClosingCalc !== 'undefined') {
-      h += SellerClosingCalc.render({
-        sale_price: Number(cl.list_price || 0),
-        commission: '5',
-      });
-    } else {
-      h += '<p class="text-xs text-gray-400">Seller Closing Costs calculator loading...</p>';
-    }
-    h += '</div>';
-
-    // Equity
-    h += '<div id="calc-equity" class="bg-white border border-gray-200 rounded-xl p-5" style="display:none;">';
-    if (typeof EquityCalc !== 'undefined') {
-      h += EquityCalc.render({
-        market_value: cl.market_value ? Number(cl.market_value) : (cl.list_price ? Number(cl.list_price) : ''),
-        mortgage: cl.mortgage_balance || cl.mortgage_amount || '',
-        purchase_price: cl.last_purchase_price || '',
-      });
-    } else {
-      h += '<p class="text-xs text-gray-400">Equity calculator loading...</p>';
-    }
-    h += '</div>';
-
-    // Carrying Cost
-    h += '<div id="calc-carrying-cost" class="bg-white border border-gray-200 rounded-xl p-5" style="display:none;">';
-    if (typeof CarryingCostCalc !== 'undefined') {
-      h += CarryingCostCalc.render({
-        monthly_tax: cl.annual_tax ? Math.round(Number(cl.annual_tax) / 12) : '',
-        maintenance: cl.monthly_maintenance || '',
-      });
-    } else {
-      h += '<p class="text-xs text-gray-400">Carrying Cost calculator loading...</p>';
-    }
-    h += '</div>';
-
-    // Break-Even Price
-    h += '<div id="calc-breakeven" class="bg-white border border-gray-200 rounded-xl p-5" style="display:none;">';
-    if (typeof BreakevenCalc !== 'undefined') {
-      h += BreakevenCalc.render({
-        mortgage: cl.mortgage_balance || cl.mortgage_amount || '',
-      });
-    } else {
-      h += '<p class="text-xs text-gray-400">Break-Even calculator loading...</p>';
-    }
-    h += '</div>';
-
-    if (isBuyer) {
-      h += '<div id="calc-buyer-closing" class="bg-white border border-gray-200 rounded-xl p-5" style="display:none;">';
-      if (typeof BuyerClosingCalc !== 'undefined') {
-        h += BuyerClosingCalc.render({
-          price: Number(cl.list_price || 0),
-          down_pct: cl.down_payment && cl.pre_approved_amount
-            ? Math.round((cl.down_payment / (cl.down_payment + cl.pre_approved_amount)) * 100) : null,
-          rate: cl.mortgage_rate ? Number(cl.mortgage_rate) : null,
-          attorney: cl.attorney_fee_buyer ? Number(cl.attorney_fee_buyer) : null,
-          monthly_maint: cl.total_monthly_expense ? Number(cl.total_monthly_expense) : null,
-        });
-      } else {
-        h += '<p class="text-xs text-gray-400">Buyer Closing Costs calculator loading...</p>';
-      }
-      h += '</div>';
-    }
-
-    if (isInvestor) {
-      h += '<div id="calc-cap-rate" class="bg-white border border-gray-200 rounded-xl p-5" style="display:none;">' +
-        (typeof CapRateCalc !== 'undefined' ? CapRateCalc.render() : '') + '</div>';
-      h += '<div id="calc-cash-on-cash" class="bg-white border border-gray-200 rounded-xl p-5" style="display:none;">' +
-        (typeof CashOnCashCalc !== 'undefined' ? CashOnCashCalc.render() : '') + '</div>';
-      h += '<div id="calc-roi" class="bg-white border border-gray-200 rounded-xl p-5" style="display:none;">' +
-        (typeof ROICalc !== 'undefined' ? ROICalc.render() : '') + '</div>';
-      h += '<div id="calc-rental-yield" class="bg-white border border-gray-200 rounded-xl p-5" style="display:none;">' +
-        (typeof RentalYieldCalc !== 'undefined' ? RentalYieldCalc.render() : '') + '</div>';
-      h += '<div id="calc-exchange-1031" class="bg-white border border-gray-200 rounded-xl p-5" style="display:none;">' +
-        (typeof Exchange1031Calc !== 'undefined' ? Exchange1031Calc.render({
-          exchange_deadline: cl.exchange_1031_deadline,
-          relinquished_address: cl.property_address,
-        }) : '') + '</div>';
-    }
-
-    h += '<div id="calc-vacancy-cost" class="bg-white border border-gray-200 rounded-xl p-5" style="display:none;">' +
-      (typeof VacancyCostCalc !== 'undefined' ? VacancyCostCalc.render() : '') + '</div>';
-
-    h += '</div>'; // calc-area
-    h += '</div>';
-    el.innerHTML = h;
+    CrmCalcUI.mountForClient(host, cl);
   }
 
   function _showCalc(id) {
-    // Hide all
-    document.querySelectorAll('[id^="calc-"]:not([id^="calc-btn"]):not([id="calc-area"])').forEach(function (el) {
-      el.style.display = 'none';
-    });
-    // Show selected
-    var target = document.getElementById('calc-' + id);
-    if (target) target.style.display = 'block';
-    // Update button styles
-    document.querySelectorAll('[id^="calc-btn-"]').forEach(function (btn) {
-      btn.classList.remove('bg-gray-900', 'text-white', 'border-gray-900');
-      btn.classList.add('bg-white', 'text-gray-600', 'border-gray-200');
-    });
-    var activeBtn = document.getElementById('calc-btn-' + id);
-    if (activeBtn) {
-      activeBtn.classList.add('bg-gray-900', 'text-white', 'border-gray-900');
-      activeBtn.classList.remove('bg-white', 'text-gray-600', 'border-gray-200');
-    }
+    // Kept as a thin shim: existing callers still address calculators by id.
+    if (typeof CrmCalcUI !== 'undefined' && CrmCalcUI.showForClient) CrmCalcUI.showForClient(id);
   }
-
-  // ── ACTIVITY TAB ──────────────────────────────────────────────────────
   function _wsActivity(el, cl) {
     var events = _s.ws.activity || [];
     var h = '<div class="space-y-3">';
@@ -1250,15 +1158,21 @@ var SalesCRM = (function () {
   }
 
   function _prefillCalculator(prefill) {
+    // Public-records data is CLIENT CONTEXT, so it goes in the same way the client's own record
+    // does: as inputs to the one calculation core. This used to hunt the DOM for any element whose
+    // id merely CONTAINED "-sale-price" or "-mortgage" and poke values into it, then call
+    // NetProceedsCalc.calculate() directly — which only worked because twelve calculators happened
+    // to share an id convention.
     _s.ws.tab = 'tools';
     _renderSellerWorkspace(CRM.getContent());
-    // Wait for DOM then set values
     setTimeout(function () {
-      var inputs = document.querySelectorAll('[id*="-sale-price"]');
-      inputs.forEach(function (el) { if (prefill.sale_price_estimate) el.value = prefill.sale_price_estimate; });
-      inputs = document.querySelectorAll('[id*="-mortgage"]');
-      inputs.forEach(function (el) { if (prefill.mortgage_balance) el.value = prefill.mortgage_balance; });
-      if (typeof NetProceedsCalc !== 'undefined') NetProceedsCalc.calculate();
+      if (typeof CrmCalcUI === 'undefined' || !CrmCalcUI.mountForClient) return;
+      var host = document.querySelector('[data-client-calculators]');
+      if (!host || !host.parentNode) return;
+      var cl = Object.assign({}, _s.ws.client);
+      if (prefill.sale_price_estimate) cl.list_price = prefill.sale_price_estimate;
+      if (prefill.mortgage_balance) cl.mortgage_balance = prefill.mortgage_balance;
+      CrmCalcUI.mountForClient(host.parentNode, cl, 'net-proceeds');
       CRM.toast('Calculator pre-filled from NYC public records', 'success');
     }, 150);
   }
@@ -1348,13 +1262,32 @@ var SalesCRM = (function () {
     }
   }
 
+  // A CMA is a LOCATED, TYPED comparison: the subject's transaction, its neighborhood or borough, its property
+  // type and its beds/baths all travel with the request. Sending only an address let the engine select comps
+  // from unrelated locations and property types (Maya, 2026-09-09); a subject with no location is refused here
+  // rather than widened to the whole city by the server.
   function _generateCMA() {
     var cl = _s.ws.client;
     if (!cl) return;
-    CRM.toast('Generating CMA for ' + (cl.property_address || cl.name) + '...', 'info');
-    MallanAPI._fetch('/api/crm/cma', { method: 'POST', body: JSON.stringify({ property_address: cl.property_address }) })
-      .then(function (data) { CRM.toast('CMA generated!', 'success'); })
-      .catch(function () { CRM.toast('CMA generation failed — check property address', 'error'); });
+    var prefs = cl.preferences || {};
+    var neighborhood = cl.neighborhood || (prefs.neighborhoods || [])[0] || '';
+    var borough = cl.borough || '';
+    if (!cl.property_address) { CRM.toast('Add the property address before running a CMA', 'error'); return; }
+    if (!neighborhood && !borough) { CRM.toast('Add the neighborhood or borough before running a CMA', 'error'); return; }
+    var subject = {
+      property_address: cl.property_address,
+      neighborhood: neighborhood,
+      borough: borough,
+      listing_type: 'sale',
+      property_type: cl.property_type || prefs.propertyType || '',
+      bedrooms: cl.bedrooms != null ? Number(cl.bedrooms) : (prefs.minBeds != null ? Number(prefs.minBeds) : undefined),
+      bathrooms: cl.bathrooms != null ? Number(cl.bathrooms) : (prefs.minBaths != null ? Number(prefs.minBaths) : undefined),
+      living_area: cl.sqft ? Number(cl.sqft) : undefined,
+    };
+    CRM.toast('Generating CMA for ' + cl.property_address + '...', 'info');
+    MallanAPI._fetch('/api/crm/cma', { method: 'POST', body: JSON.stringify(subject), headers: { 'Content-Type': 'application/json' } })
+      .then(function () { CRM.toast('CMA generated — comparable sales', 'success'); })
+      .catch(function (err) { CRM.toast('CMA failed: ' + ((err && err.message) || 'check the subject address, location and type'), 'error'); });
   }
 
   function _generateMarketReport() {

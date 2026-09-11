@@ -27,6 +27,9 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+// addressIdentityKey resolves the borough through the canonical location interpretation
+// (lib/listings/canonical-location.ts, 2026-09-08); the eval harness injects the real helper.
+import { boroughFromCityRegion } from '../../lib/listings/canonical-location';
 import {
   buildExclusiveAgentAssignment,
   isMallanExclusiveListing,
@@ -86,8 +89,9 @@ function loadHelpers() {
   );
   // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
   return new Function(
+    'boroughFromCityRegion',
     `${block}; return { addressIdentityKey, addressOnlyKey, findRegisteredBuilding, extractSavedProfileValues, mergeMissingExtras };`,
-  )();
+  )(boroughFromCityRegion);
 }
 const H = loadHelpers();
 

@@ -39,13 +39,14 @@ export const QUERY_STATUSES: Readonly<Record<Exclude<StatusGroup, 'unavailable'>
 export function lifecycleToGroup(status: LifecycleStatus): StatusGroup {
   switch (status) {
     case 'active': return 'active_on_market';
-    case 'pending': return 'pending_contract';
+    case 'in_contract': return 'pending_contract';
     case 'closed_sold':
     case 'closed_rented': return 'closed_recent';
     case 'temp_off_market':
     case 'withdrawn':
     case 'canceled':
-    case 'expired': return 'off_market';
+    case 'expired':
+    case 'off_market': return 'off_market';
     case 'unknown':
     default: return 'unavailable';
   }

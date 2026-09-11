@@ -12,56 +12,8 @@
  * @module lib/compliance/__tests__/auction-public-dto
  */
 
-import { toPublicDTO } from '@/lib/idx/public-dto';
+import { cotalityRecordToPublicDTO } from '@/lib/idx/cotality-public-dto';
 import { dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
-import type { IDXListing } from '@/lib/idx/types';
-
-/** Minimal IDXListing skeleton for testing the DTO transform. */
-function buildIdx(overrides: Partial<IDXListing> = {}): IDXListing {
-  return {
-    listingId: 'L-1',
-    mlsId: 'RBNY-1',
-    standardStatus: 'Active',
-    listingType: 'sale',
-    address: {
-      streetNumber: '100',
-      streetName: 'Main',
-      unitNumber: null,
-      city: 'New York',
-      stateOrProvince: 'NY',
-      postalCode: '10001',
-      county: 'New York',
-    },
-    listPrice: 1_000_000,
-    originalListPrice: 1_000_000,
-    closePrice: null,
-    propertyType: 'Residential',
-    propertySubType: null,
-    bedroomsTotal: 1,
-    bathroomsFull: 1,
-    bathroomsHalf: 0,
-    livingArea: null,
-    lotSizeArea: null,
-    yearBuilt: null,
-    listingContractDate: '2026-01-01',
-    modificationTimestamp: '2026-01-02',
-    listAgentMlsId: 'A-1',
-    listAgentFullName: 'Test Agent',
-    listOfficeMlsId: 'O-1',
-    listOfficeName: 'Mallan Real Estate Inc.',
-    media: [],
-    internetAddressDisplayYN: true,
-    internetEntireListingDisplayYN: true,
-    _source: 'idx',
-    _lastFetched: '2026-01-02',
-    _displayCompliance: {
-      requiresAttribution: true,
-      attributionText: 'REBNY RLS',
-      disclaimerRequired: true,
-    },
-    ...overrides,
-  };
-}
 
 /** Minimal DbListing skeleton for the DB → DTO transform. */
 function buildDb(overrides: Partial<DbListing> = {}): DbListing {
@@ -98,49 +50,19 @@ function buildDb(overrides: Partial<DbListing> = {}): DbListing {
   };
 }
 
-describe('toPublicDTO — auction surface (Trestle/IDX path)', () => {
-  it('renders auction=null when auction_yn is undefined (default)', () => {
-    const dto = toPublicDTO(buildIdx());
-    // Cast — `auction` is the new field added in this PR
+describe('canonical chain — auction surface for a live Cotality record', () => {
+  it('a live provider record carries no Mallan auction columns → auction is null', () => {
+    // Auction is a Mallan-authored (CRM) fact stored on the listings row; Cotality Property
+    // records carry no auction_* columns, so the live projection yields null (banner off).
+    const dto = cotalityRecordToPublicDTO({
+      ListingId: 'L-1', ListingKey: 'RBNY-1', StandardStatus: 'Active', PropertyType: 'Residential',
+      StreetNumber: '100', StreetName: 'Main', City: 'New York', StateOrProvince: 'NY', PostalCode: '10001',
+      CountyOrParish: 'New York', ListPrice: 1_000_000, ModificationTimestamp: '2026-01-02T00:00:00Z',
+      ListAgentMlsId: 'A-1', ListAgentFullName: 'Test Agent', ListOfficeMlsId: 'O-1',
+      ListOfficeName: 'Mallan Real Estate Inc.', InternetAddressDisplayYN: true, InternetEntireListingDisplayYN: true,
+      Permission: 'IDX',
+    }, { alreadyGated: true })!;
     expect((dto as { auction: unknown }).auction).toBeNull();
-  });
-
-  it('renders auction=null when auction_yn is explicitly false', () => {
-    const dto = toPublicDTO(
-      buildIdx({ auction_yn: false } as unknown as Partial<IDXListing>)
-    );
-    expect((dto as { auction: unknown }).auction).toBeNull();
-  });
-
-  it('exposes auction object when auction_yn=true', () => {
-    const dto = toPublicDTO(
-      buildIdx({
-        auction_yn: true,
-        auction_type: 'Absolute',
-        auction_start_date: new Date('2026-06-01T17:00:00.000Z') as unknown as string,
-        auction_end_date: new Date('2026-06-15T17:00:00.000Z') as unknown as string,
-        auction_terms_url: 'https://example.com/terms.pdf',
-      } as unknown as Partial<IDXListing>)
-    );
-    const auction = (dto as { auction: { type: string; startDate: string | null; endDate: string; termsUrl: string | null } | null }).auction;
-    expect(auction).not.toBeNull();
-    expect(auction!.type).toBe('Absolute');
-    expect(auction!.startDate).toBe('2026-06-01T17:00:00.000Z');
-    expect(auction!.endDate).toBe('2026-06-15T17:00:00.000Z');
-    expect(auction!.termsUrl).toBe('https://example.com/terms.pdf');
-  });
-
-  it('handles missing termsUrl gracefully (null, not undefined-string)', () => {
-    const dto = toPublicDTO(
-      buildIdx({
-        auction_yn: true,
-        auction_type: 'WithReserve',
-        auction_end_date: new Date('2026-07-15T20:00:00.000Z') as unknown as string,
-      } as unknown as Partial<IDXListing>)
-    );
-    const auction = (dto as { auction: { termsUrl: string | null } | null }).auction;
-    expect(auction).not.toBeNull();
-    expect(auction!.termsUrl).toBeNull();
   });
 });
 
