@@ -10,13 +10,29 @@
 
 # 1. Authority / startup
 
-Read in this order:
+Startup entrypoint:
 
-1. `MALLAN-PLATFORM-MASTER-PLAN.md` (repo root, this branch) — affected sections, or the full
-   Master for cross-system work;
-2. this execution-state file;
-4. fresh Git/PR/runtime/provider state;
-5. `AGENTS.md`, `CLAUDE.md`, `NEON.md` and the Compliance Canonical Index as applicable.
+`AI-START-HERE.md`
+
+It is a startup/navigation file only, and is subordinate to the Master and to this execution state.
+It does not define architecture and it is not rank 1.
+
+Then read and resolve authority in this order:
+
+1. `MALLAN-PLATFORM-MASTER-PLAN.md` (repo root, this branch) — the sole durable
+   product/business/system authority. Affected sections, or the full Master for cross-system work.
+2. `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` — this file. **STATUS ONLY.**
+3. Fresh Git/PR/runtime/provider evidence — current reality for anything mutable.
+4. `AGENTS.md`, `CLAUDE.md`, `NEON.md` and the Compliance Canonical Index, as applicable.
+
+> **Correction, 2026-09-10.** This list previously omitted `AI-START-HERE.md` and was numbered
+> 1, 2, 4, 5 — both artifacts of the same error. I removed the entrypoint after running
+> `git ls-files AI-START-HERE.md` on the #630 implementation branch, where it is not tracked, and
+> concluding it did not exist. It does exist, on this governance branch, and its opening line is
+> “Every Claude, Codex, ChatGPT or other agent working in this repository begins here.” Its own
+> authority order already matches the one above. Checking one branch and generalising is the same
+> mistake that briefly lost this execution-state file; the fix is to check the branch that owns the
+> artifact.
 
 If this file conflicts with the Master on architecture, the Master wins. If this file is stale on a branch/head/runtime fact, fresh evidence wins and this file must be updated.
 
