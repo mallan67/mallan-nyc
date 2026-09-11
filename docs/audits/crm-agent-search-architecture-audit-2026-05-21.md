@@ -1,7 +1,7 @@
 > ⛔ **SUPERSEDED · NON-AUTHORITATIVE — DO NOT USE AS THE PLAN.** Header added 2026-09-10.
 > This file is a byte-identical copy of `docs/archive/superseded-2026-05-30/crm-agent-search-architecture-audit-2026-05-21.md`, which was quarantined on 2026-05-30. **This document prominently proposed building Agent Search inside the CRM shell** — §N.1 ("a new top-level CRM page … inside `public/crm/dashboard.html`") and §R Lane 2 / PR-AS-2 ("Agent-search UI shell in `/broker/dashboard`"). That is wrong and is recorded here rather than silently rewritten.
 > **Proven architecture (commit `928f31c4`, 2026-09-10):** Backend Agent Search is a SEPARATE application at **`/crm/search`** (`public/crm/index.html` → generated `public/crm/index-built.html`) and **must not require `dashboard.html` or the CRM router to boot**. The Brokerage CRM is `public/crm/dashboard.html` + `public/crm/js/dashboard/**` at `/crm` — it is **not** retired. Dependency runs CRM → Backend Search, never the reverse.
-> **The only product/system authority is `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` (§5.1 Frontend/Backend Search split).** Retained for historical current-state reference ONLY: no agent or session may pull requirements, scope, or a PR sequence from this file.
+> **The only product/system authority is `MALLAN-PLATFORM-MASTER-PLAN.md` (repo root, canonical lineage PR #595 / `agent/publish-mallan-platform-master-plan-2026-08-04` (§5.1 Frontend/Backend Search split).** Retained for historical current-state reference ONLY: no agent or session may pull requirements, scope, or a PR sequence from this file.
 
 # CRM + Agent Search Architecture Audit — 2026-05-21
 

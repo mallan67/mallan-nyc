@@ -2,7 +2,7 @@
 >
 > **This file cannot override the Master Plan or the Execution State.**
 >
-> - Product/system authority: `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md`
+> - Product/system authority: `MALLAN-PLATFORM-MASTER-PLAN.md` (repo root, canonical lineage PR #595 / `agent/publish-mallan-platform-master-plan-2026-08-04`
 > - Execution state: `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` (STATUS ONLY)
 > - Agent operating instructions: `AGENTS.md` · `CLAUDE.md`
 >

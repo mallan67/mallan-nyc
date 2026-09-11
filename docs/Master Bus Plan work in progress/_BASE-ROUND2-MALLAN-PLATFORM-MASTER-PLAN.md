@@ -2,7 +2,7 @@
 >
 > ## DO NOT IMPLEMENT FROM THIS FILE
 >
-> **CURRENT AUTHORITY:** `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md`
+> **CURRENT AUTHORITY:** `MALLAN-PLATFORM-MASTER-PLAN.md` (repo root, canonical lineage PR #595 / `agent/publish-mallan-platform-master-plan-2026-08-04`
 >
 > This is the frozen INPUT to Master Plan integration round 2 (5,629 lines), kept as diff evidence. It is not the
 > plan. The heading and the "Single repository authority" line immediately below are the ones this

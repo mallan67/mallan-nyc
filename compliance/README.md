@@ -27,7 +27,7 @@ The former "FIELD AUTHORITY ORDER … RLS overrides RESO/IDX … RESO/IDX fills 
 
 > **Read `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` FIRST.** That index is the per-area canonical map — 18 numbered areas, each with canonical file · backup · validator · when-to-read · fail-closed instruction — and it is what `CLAUDE.md` §D sends you to. This README is the directory of the long-form reference documents in `compliance/`. When the two disagree, **the canonical index wins**.
 >
-> **Application architecture is not decided here.** For what the applications are and where a feature belongs, the authority is `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md`.
+> **Application architecture is not decided here.** For what the applications are and where a feature belongs, the authority is `MALLAN-PLATFORM-MASTER-PLAN.md` (repo root, canonical lineage PR #595 / `agent/publish-mallan-platform-master-plan-2026-08-04`.
 
 ## Directory
 

@@ -369,7 +369,7 @@ GET /api/idx/search?type=sale&minPrice=1000000
 ### Topology (Current — corrected 2026-09-10, `928f31c4`)
 
 Three applications, three addresses, one owner each. Mirrored from
-`docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` §5.1 (the only product/system
+`MALLAN-PLATFORM-MASTER-PLAN.md` (repo root, canonical lineage PR #595 / `agent/publish-mallan-platform-master-plan-2026-08-04` §5.1 (the only product/system
 authority) and `AGENTS.md` §1.0. This README is not an architecture authority.
 
 ```

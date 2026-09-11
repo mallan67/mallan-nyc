@@ -1,6 +1,6 @@
 > ⚠️ **SUPERSEDED — header added 2026-09-10. This is a dated 2026-04-28 close-of-day snapshot, NOT "the first doc to read."**
 >
-> Read in this order instead: 1. `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` (the ONLY product/system authority) · 2. `MALLAN-CONTINUOUS-EXECUTION-STATE.md` (execution state) · 3. `AGENTS.md` / `CLAUDE.md`.
+> Read in this order instead: 1. `MALLAN-PLATFORM-MASTER-PLAN.md` (repo root, canonical lineage PR #595 / `agent/publish-mallan-platform-master-plan-2026-08-04` (the ONLY product/system authority) · 2. `MALLAN-CONTINUOUS-EXECUTION-STATE.md` (execution state) · 3. `AGENTS.md` / `CLAUDE.md`.
 >
 > Specifically superseded below, verified 2026-09-10:
 > - "Both major plans are now complete — 10/10 PRs merged" conflicts with `memory/REFACTOR-2026-04-25.md`'s own status table, where PRs 3–10 and 12 all still read `NOT_STARTED`. The two files disagree; check `git log` and `gh pr list --state open` rather than trusting either.

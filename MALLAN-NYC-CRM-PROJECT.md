@@ -3,7 +3,7 @@
 > **SUPERSEDED — dated header added 2026-09-10. Retained as history. Do not act on this document as current direction, and do not execute its phases.**
 >
 > This file calls itself the "Master Project Document" and "master reference". It is neither. Authority order:
-> 1. `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` — the ONLY product/system authority
+> 1. `MALLAN-PLATFORM-MASTER-PLAN.md` (repo root, canonical lineage PR #595 / `agent/publish-mallan-platform-master-plan-2026-08-04` — the ONLY product/system authority
 > 2. `MALLAN-CONTINUOUS-EXECUTION-STATE.md` — execution state
 > 3. `AGENTS.md` · `CLAUDE.md` — agent operating instructions
 >

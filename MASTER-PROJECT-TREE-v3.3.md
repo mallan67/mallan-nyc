@@ -2,7 +2,7 @@
 
 > **PARTIALLY SUPERSEDED — dated header added 2026-09-10. Do not delete: Section 0 is corroborating evidence for the current architecture. Do not treat the rest as a live work queue.**
 >
-> Authority order: `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` →
+> Authority order: `MALLAN-PLATFORM-MASTER-PLAN.md` (repo root, canonical lineage PR #595 / `agent/publish-mallan-platform-master-plan-2026-08-04` →
 > `MALLAN-CONTINUOUS-EXECUTION-STATE.md` → `AGENTS.md` · `CLAUDE.md`. This file's "READ THIS FIRST BEFORE
 > TOUCHING ANY FILE" banner is from 2026-02-23 and does not outrank them.
 >

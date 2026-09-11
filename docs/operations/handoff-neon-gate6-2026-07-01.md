@@ -13,7 +13,7 @@
 
 Authority order — read in this order, and where they disagree the higher one wins:
 
-1. `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` — the ONLY product /
+1. `MALLAN-PLATFORM-MASTER-PLAN.md` (repo root, canonical lineage PR #595 / `agent/publish-mallan-platform-master-plan-2026-08-04` — the ONLY product /
    system authority.
 2. `MALLAN-CONTINUOUS-EXECUTION-STATE.md` — execution state.
 3. `AGENTS.md` / `CLAUDE.md` — agent operating instructions (identical cross-agent rules).

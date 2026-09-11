@@ -260,3 +260,128 @@ describe('the authority order is stated, and these files place themselves below 
     expect(activeText(read('AGENTS.md'))).not.toMatch(/Single shared source of truth/i);
   });
 });
+
+describe('no document sends a reader to the integration working copy as authority', () => {
+  // ── WHY THIS IS A CLASSIFICATION, NOT A PATTERN ────────────────────────────────────────────────
+  //
+  // The first design for this guard allowed the old path "within 120 characters of a negation".
+  // The owner rejected it, correctly: "That is too easy to fool accidentally. We just learned this
+  // exact lesson when an unrelated #595 elsewhere made an earlier guard pass."
+  //
+  // That had just happened - a lineage assertion matched `#595` anywhere in the file, so stripping
+  // the lineage from the rank-1 row still passed. Proximity is not classification. So every file
+  // below is named, and its obligations follow from the class it is in.
+  //
+  // ── HOW 25 FILES CAME TO POINT AT THE WRONG MASTER ─────────────────────────────────────────────
+  //
+  // I wrote them. On 2026-09-10, while correcting a documentation sprawl, I propagated
+  // `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` as rank 1 into 25 tracked
+  // files. It is the integration/reconciliation WORKING COPY. The canonical Master is
+  // `MALLAN-PLATFORM-MASTER-PLAN.md` at repo root on PR #595. Owner: "even though AGENTS.md and
+  // CLAUDE.md are fixed, 25 other tracked documents can still direct a future agent to the wrong
+  // Master."
+  const INTEGRATION_PATH = 'docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md';
+  const ROOT_MASTER = 'MALLAN-PLATFORM-MASTER-PLAN.md';
+  const LINEAGE = /#595|agent\/publish-mallan-platform-master-plan/;
+
+  /** Current direction. A reader acts on these today. */
+  const ACTIVE_CURRENT_POINTER_FILES = [
+    'MALLAN-NYC-CRM-PROJECT.md',
+    'MASTER-PROJECT-TREE-v3.3.md',
+    'CRM-ENHANCEMENT-SPEC.md',
+    'README.md',
+    'docs/operations/handoff-neon-gate6-2026-07-01.md',
+    'NEON.md',
+    'compliance/README.md',
+    'compliance/AUTH-AND-API-SECURITY.md',
+    'docs/compliance/COMPLIANCE-CANONICAL-INDEX.md',
+    'docs/PLATFORM-ISSUE-REGISTRY.md',
+  ];
+
+  /** Dated records. Their bodies may keep old facts; their BANNERS may not misdirect. */
+  const HISTORICAL_FILES = [
+    'docs/architecture/SEARCH-COMPS-SUPPLEMENTAL-V2-ADDENDUM.md',
+    'docs/audits/crm-agent-search-architecture-audit-2026-05-21.md',
+    'docs/audits/search-backend-1-field-attribution-analysis-2026-07-09.md',
+    'docs/superpowers/specs/2026-04-27-mallan-intelligence-platform-WIP.md',
+    'docs/superpowers/specs/2026-05-04-crm-search-agent-workflow-rebuild.md',
+    'memory/FOLLOWUP-2026-05-01.md',
+    'memory/HANDOFF.md',
+    'memory/NEXT-SESSION-2026-04-28.md',
+    'memory/REFACTOR-2026-04-25.md',
+  ];
+
+  /** Frozen inputs to the Master integration rounds. */
+  const INTEGRATION_ARTIFACTS = [
+    'docs/Master Bus Plan work in progress/_BASE-595-MALLAN-PLATFORM-MASTER-PLAN.md',
+    'docs/Master Bus Plan work in progress/_BASE-ROUND2-MALLAN-PLATFORM-MASTER-PLAN.md',
+    'docs/Master Bus Plan work in progress/_BASE-ROUND3-MALLAN-PLATFORM-MASTER-PLAN.md',
+    'docs/Master Bus Plan work in progress/_CONTRADICTIONS-18.md',
+    'docs/Master Bus Plan work in progress/FINAL-INTEGRATION-REVIEW.md',
+    'docs/Master Bus Plan work in progress/GOVERNANCE-CORRECTIONS.md',
+  ];
+
+  /** The ONLY files allowed to name the integration path - they name it to REJECT it. */
+  const EXPLICIT_NON_AUTHORITY_REFERENCES = [
+    'AGENTS.md',
+    'CLAUDE.md',
+    'tests/runtime/governance-files-match-reality.test.ts',
+    'tests/runtime/no-new-authority-documents.test.ts',
+  ];
+
+  const HISTORICAL_MARK =
+    /HISTORICAL|SUPERSEDED|NOT AUTHORITY|NOT CURRENT AUTHORITY|historical evidence|working copy|not a (product|system|product or system) authority/i;
+  // Markdown emphasis is stripped before matching. memory/REFACTOR-2026-04-25.md declares itself
+  // non-authority as "It is **not** a product or system authority" - correctly - and a literal
+  // match failed on the asterisks. Normalising emphasis recognises the declaration that is
+  // actually there; it does not loosen what counts as one.
+  const opening = (md: string) =>
+    md.split(/\r?\n/).slice(0, 45).join('\n').replace(/[*_]/g, '');
+
+  it('the complete census: exactly four tracked files may name the integration path', () => {
+    // The strongest assertion here. Any NEW stale reader anywhere in the repository fails this,
+    // whether or not anyone thought to add it to a list.
+    const hits = execFileSync('git', ['ls-files', '-z'], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+      .split('\0')
+      .filter(Boolean)
+      .filter((f) => f !== INTEGRATION_PATH)
+      .filter((f) => /\.(md|ts|tsx|js|mjs|cjs|json|yml|yaml|html)$/.test(f))
+      .filter((f) => {
+        try { return read(f).includes(INTEGRATION_PATH); } catch { return false; }
+      })
+      .sort();
+    expect({
+      hits,
+      why: 'Only files that name the integration working copy in order to REJECT it as authority may mention it. Anything else is a reader that will send the next agent to the wrong Master.',
+    }).toEqual({ hits: [...EXPLICIT_NON_AUTHORITY_REFERENCES].sort(), why: expect.any(String) });
+  });
+
+  for (const f of ACTIVE_CURRENT_POINTER_FILES) {
+    it(`ACTIVE: ${f} points at the canonical root Master`, () => {
+      const md = read(f);
+      expect({ f, namesIntegrationPath: md.includes(INTEGRATION_PATH) }).toEqual({ f, namesIntegrationPath: false });
+      expect(md).toContain(ROOT_MASTER);
+      expect({ f, namesLineage: LINEAGE.test(md) }).toEqual({ f, namesLineage: true });
+    });
+  }
+
+  for (const f of HISTORICAL_FILES) {
+    it(`HISTORICAL: ${f} is marked historical and points forward correctly`, () => {
+      const md = read(f);
+      expect({ f, namesIntegrationPath: md.includes(INTEGRATION_PATH) }).toEqual({ f, namesIntegrationPath: false });
+      expect({ f, markedHistorical: HISTORICAL_MARK.test(opening(md)) }).toEqual({ f, markedHistorical: true });
+      expect(md).toContain(ROOT_MASTER);
+      expect({ f, namesLineage: LINEAGE.test(md) }).toEqual({ f, namesLineage: true });
+    });
+  }
+
+  for (const f of INTEGRATION_ARTIFACTS) {
+    it(`INTEGRATION ARTIFACT: ${f} declares itself non-authority and points at the root Master`, () => {
+      const md = read(f);
+      expect({ f, namesIntegrationPath: md.includes(INTEGRATION_PATH) }).toEqual({ f, namesIntegrationPath: false });
+      expect({ f, markedHistorical: HISTORICAL_MARK.test(opening(md)) }).toEqual({ f, markedHistorical: true });
+      expect(opening(md)).toContain(ROOT_MASTER);
+      expect({ f, namesLineage: LINEAGE.test(opening(md)) }).toEqual({ f, namesLineage: true });
+    });
+  }
+});

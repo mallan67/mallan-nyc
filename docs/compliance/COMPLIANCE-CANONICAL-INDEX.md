@@ -230,7 +230,7 @@
 
 ## Cross-references
 
-- `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` — the product/system authority. This index is authoritative for **compliance rules only**; what the applications are and where a feature belongs is decided there, not here.
+- `MALLAN-PLATFORM-MASTER-PLAN.md` (repo root, canonical lineage PR #595 / `agent/publish-mallan-platform-master-plan-2026-08-04` — the product/system authority. This index is authoritative for **compliance rules only**; what the applications are and where a feature belongs is decided there, not here.
 - `CLAUDE.md` — lean command center (this index is its §H pointer for compliance)
 - `.claude/skills/rebny-compliance/SKILL.md` — the auto-loaded skill mirror
 - `NEON.md` — DB-side rules (separate index)
