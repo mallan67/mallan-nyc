@@ -480,6 +480,11 @@ Source and availability state must remain visible.
 
 Agent Search may consume canonical CRM records and APIs; it may not depend on the CRM application shell to run. CRM may launch and use Agent Search. The dependency is `CRM → BACKEND SEARCH / LISTINGS`, never the reverse.
 
+Authentication alone does not authorize a field. Agent Search is authenticated professional
+functionality, and every professional field remains subject to its verified provider/source
+contract, actual entitlement, field/resource permission, privacy rule, applicable REBNY/RLS/UCBA
+rule, Fair Housing rule and Mallan business/display rule.
+
 ## 5.3 One criteria contract
 
 Basic/mobile and Advanced/desktop are presentations of one normalized criteria truth.
@@ -1970,6 +1975,15 @@ For every material workflow, prove as applicable:
 ## 26.1 Search
 
 Search is not done until criterion execution/refusal, identity, source authority, dedupe, count, global sort, pagination, Map, Saved Search, Client history, Compare, Reports, CMA inputs and client-safe output agree on the same result universe.
+
+The Consumer/Agent boundary additionally requires NEGATIVE proof, demonstrated behaviourally:
+
+- a public Consumer Search request cannot obtain a professional/member-only field or private
+  inventory;
+- an unauthenticated caller cannot execute Agent Search;
+- Agent Search direct-loads and executes without the CRM application shell;
+- a change to shared mapping, identity or media cannot erase the Consumer/professional DTO and
+  permission boundary.
 
 ## 26.2 Listing intake
 
