@@ -46,6 +46,18 @@ carrying the decided Search compliance boundary, the decided Agent onboarding/ac
 the representation-truth rule for provider Withdrawn/TOM/Hold, the brokerage/licensee document
 class, document-obligation context, and media capture/verification/currentness. 2,110 → 2,133 lines.
 The 6,388-line integration working copy was NOT merged; it remains reconciliation evidence only.
+
+**Master amended again 2026-09-10** (`e17cebf7`, parent `f3d8279b`): +14 / -0, closing the
+reconciliation. Section 5.2 gains "authentication alone does not authorize a field"; section 26.1
+gains four behavioural negative proofs for the Consumer/Agent boundary. Two candidate requirements
+were ruled OUT by the owner and stay out: a 30-day licence/CE reminder threshold (tunable
+operational configuration) and fixed two-year / three-year retention periods (the Master already
+delegates retention to the current authoritative rule). Master is now 2,147 lines.
+
+**Reconciliation of the integration working copy is CLOSED:** unresolved E = 0, unresolved F = 0.
+Nothing durable in that 6,388-line document remains untransferred. Its final disposition - archive
+with a not-authority banner under a clearly historical filename, or delete - is the owner's and is
+the last open governance item.
 Owner ruling: "Size is not authority."
 
 The Master/governance branch was consolidated on 2026-09-08 and then corrected for the current Cotality lifecycle/media rulings:
@@ -74,7 +86,7 @@ No documentation change in #595 authorizes Production/schema/Neon/R2/env/provide
 
 ## PR #630 — CRM / Search implementation lane
 
-Branch `converge/crm-listing-workflow-2026-09-09`, head `2fda56fb` at this checkpoint.
+Branch `converge/crm-listing-workflow-2026-09-09`, head `e71ccd2d` at this checkpoint.
 State: `OPEN · DRAFT · UNMERGED`. **Implementation only — it is not product authority.**
 
 CI green at that head: `pr-check`, `guardrails`, `build`, `validate`, `geo-validate`,
@@ -85,6 +97,11 @@ serves Backend Agent Search); the deal-form client auth gate; a cross-platform b
 agent-instruction correction in `CLAUDE.md` and `AGENTS.md`; the legacy-provider ratchet; removal of
 the "dashboard is retired" premise from the guards that still enforced it; `idx-validate` output
 truncation; 38 agent-facing documents; and guards for doc proliferation and Search/CRM independence.
+
+Also closed on that lane: the duplicate execution-state mirror that had been recovered onto it was
+deleted, and its absence is now an invariant enforced by
+`tests/runtime/governance-files-match-reality.test.ts`. There is one execution state, and it is
+this file.
 
 **BLOCKED:** authenticated Preview behavioural proof. Preview-scoped `DATABASE_URL` and
 `DATABASE_URL_UNPOOLED` are not set, so every `/crm*` Preview route redirects to login. This is also
