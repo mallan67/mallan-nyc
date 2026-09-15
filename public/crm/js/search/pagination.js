@@ -663,25 +663,6 @@
                             </div>
                         </div>
 
-                        <!-- Building Amenities -->
-                        <div class="mb-4">
-                            <h3 class="lux-section-title"><i class="fas fa-concierge-bell text-gray-400"></i> Building Amenities</h3>
-                            <div class="grid grid-cols-4 gap-3">
-                                <div class="lux-amenity-card"><i class="fas fa-concierge-bell"></i><span>Doorman</span></div>
-                                <div class="lux-amenity-card"><i class="fas fa-arrows-alt-v"></i><span>Elevator</span></div>
-                                <div class="lux-amenity-card"><i class="fas fa-dumbbell"></i><span>Gym / Fitness</span></div>
-                                <div class="lux-amenity-card"><i class="fas fa-swimming-pool"></i><span>Pool</span></div>
-                                <div class="lux-amenity-card"><i class="fas fa-warehouse"></i><span>Roof Deck</span></div>
-                                <div class="lux-amenity-card"><i class="fas fa-tshirt"></i><span>Laundry</span></div>
-                                <div class="lux-amenity-card"><i class="fas fa-bicycle"></i><span>Bike Room</span></div>
-                                <div class="lux-amenity-card"><i class="fas fa-box"></i><span>Storage</span></div>
-                                <div class="lux-amenity-card"><i class="fas fa-user-tie"></i><span>Concierge</span></div>
-                                <div class="lux-amenity-card"><i class="fas fa-user-shield"></i><span>Live-in Super</span></div>
-                                <div class="lux-amenity-card"><i class="fas fa-car"></i><span>Parking</span></div>
-                                <div class="lux-amenity-card"><i class="fas fa-paw"></i><span>Pet Friendly</span></div>
-                            </div>
-                        </div>
-
                         <!-- Building Details -->
                         <div class="lux-card mb-4">
                             <h3 class="lux-section-title"><i class="fas fa-building text-gray-400"></i> Building Details</h3>
@@ -749,19 +730,6 @@
                         <div class="lux-card mb-4">
                             <h3 class="lux-section-title"><i class="fas fa-align-left text-gray-400"></i> Building Description</h3>
                             <p class="text-sm text-gray-500 italic">No building description available.</p>
-                        </div>
-
-                        <!-- Documents Available -->
-                        <div class="lux-card mb-4">
-                            <h3 class="lux-section-title"><i class="fas fa-file-alt text-gray-400"></i> Documents Available</h3>
-                            <div class="grid grid-cols-3 gap-3">
-                                <div class="flex items-center gap-2 p-2.5 border rounded-lg text-sm text-gray-500"><i class="far fa-file-pdf text-red-400"></i> Building Rules</div>
-                                <div class="flex items-center gap-2 p-2.5 border rounded-lg text-sm text-gray-500"><i class="far fa-file-pdf text-red-400"></i> Bylaws</div>
-                                <div class="flex items-center gap-2 p-2.5 border rounded-lg text-sm text-gray-500"><i class="far fa-file-pdf text-red-400"></i> Financial Statement</div>
-                                <div class="flex items-center gap-2 p-2.5 border rounded-lg text-sm text-gray-500"><i class="far fa-file-pdf text-red-400"></i> Offering Plan</div>
-                                <div class="flex items-center gap-2 p-2.5 border rounded-lg text-sm text-gray-500"><i class="far fa-file-pdf text-red-400"></i> Board Package</div>
-                                <div class="flex items-center gap-2 p-2.5 border rounded-lg text-sm text-gray-500"><i class="far fa-file-pdf text-red-400"></i> Schedule A</div>
-                            </div>
                         </div>
 
                         </div><!-- /detailPanelBuilding -->
@@ -851,36 +819,6 @@
                             </div>
                         </div>
 
-                        <!-- Schools -->
-                        <div class="lux-card mb-4">
-                            <h3 class="lux-section-title"><i class="fas fa-graduation-cap text-gray-400"></i> Schools Nearby</h3>
-                            <div class="space-y-3">
-                                <div class="flex items-center justify-between p-3 border rounded-xl">
-                                    <div class="flex items-center gap-3"><div class="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center"><i class="fas fa-school text-blue-500"></i></div><div><div class="text-sm font-semibold">PS/MS District School</div><div class="text-xs text-gray-500">Public &middot; Grades PK-5 &middot; 0.2 mi</div></div></div>
-                                    <div class="text-right"><div class="text-sm font-bold text-blue-600">8/10</div><div class="text-[10px] text-gray-400">GreatSchools</div></div>
-                                </div>
-                                <div class="flex items-center justify-between p-3 border rounded-xl">
-                                    <div class="flex items-center gap-3"><div class="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center"><i class="fas fa-school text-purple-500"></i></div><div><div class="text-sm font-semibold">Middle / Junior High</div><div class="text-xs text-gray-500">Public &middot; Grades 6-8 &middot; 0.4 mi</div></div></div>
-                                    <div class="text-right"><div class="text-sm font-bold text-purple-600">7/10</div><div class="text-[10px] text-gray-400">GreatSchools</div></div>
-                                </div>
-                                <div class="flex items-center justify-between p-3 border rounded-xl">
-                                    <div class="flex items-center gap-3"><div class="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center"><i class="fas fa-university text-emerald-500"></i></div><div><div class="text-sm font-semibold">High School</div><div class="text-xs text-gray-500">Public &middot; Grades 9-12 &middot; 0.6 mi</div></div></div>
-                                    <div class="text-right"><div class="text-sm font-bold text-emerald-600">7/10</div><div class="text-[10px] text-gray-400">GreatSchools</div></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Points of Interest -->
-                        <div class="lux-card mb-4">
-                            <h3 class="lux-section-title"><i class="fas fa-map-pin text-gray-400"></i> Points of Interest</h3>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div class="flex items-center gap-3 p-3 rounded-xl border"><i class="fas fa-tree text-green-500 w-5 text-center"></i><div><div class="text-sm font-medium">Parks & Recreation</div><div class="text-xs text-gray-500">Central Park, Riverside Park</div></div></div>
-                                <div class="flex items-center gap-3 p-3 rounded-xl border"><i class="fas fa-shopping-bag text-pink-500 w-5 text-center"></i><div><div class="text-sm font-medium">Shopping</div><div class="text-xs text-gray-500">Local shops & grocery</div></div></div>
-                                <div class="flex items-center gap-3 p-3 rounded-xl border"><i class="fas fa-utensils text-orange-500 w-5 text-center"></i><div><div class="text-sm font-medium">Dining</div><div class="text-xs text-gray-500">Restaurants & cafes</div></div></div>
-                                <div class="flex items-center gap-3 p-3 rounded-xl border"><i class="fas fa-hospital text-red-500 w-5 text-center"></i><div><div class="text-sm font-medium">Healthcare</div><div class="text-xs text-gray-500">Hospitals & clinics</div></div></div>
-                            </div>
-                        </div>
-
                         </div><!-- /detailPanelNeighborhood -->
 
                         <!-- ═══════════════════════════════════════════ -->
@@ -948,19 +886,6 @@
                                 }
                                 return '<div class="h-36 bg-gray-50 rounded-xl flex items-center justify-center border-2 border-dashed border-gray-200"><div class="text-center text-gray-400"><i class="fas fa-drafting-compass text-3xl mb-2"></i><div class="text-sm">No floor plans uploaded</div></div></div>';
                             })()}
-                        </div>
-
-                        <!-- Documents -->
-                        <div class="lux-card mb-4">
-                            <h3 class="lux-section-title"><i class="fas fa-file-alt text-gray-400"></i> Documents</h3>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div class="flex items-center gap-3 p-3.5 border rounded-xl hover:border-amber-300 transition cursor-pointer"><i class="far fa-file-pdf text-red-400 text-lg"></i><div><div class="text-sm font-medium">Building Rules</div><div class="text-[10px] text-gray-400">Request from listing agent</div></div></div>
-                                <div class="flex items-center gap-3 p-3.5 border rounded-xl hover:border-amber-300 transition cursor-pointer"><i class="far fa-file-pdf text-red-400 text-lg"></i><div><div class="text-sm font-medium">Bylaws & Amendments</div><div class="text-[10px] text-gray-400">Request from listing agent</div></div></div>
-                                <div class="flex items-center gap-3 p-3.5 border rounded-xl hover:border-amber-300 transition cursor-pointer"><i class="far fa-file-pdf text-red-400 text-lg"></i><div><div class="text-sm font-medium">Financial Statement</div><div class="text-[10px] text-gray-400">Request from listing agent</div></div></div>
-                                <div class="flex items-center gap-3 p-3.5 border rounded-xl hover:border-amber-300 transition cursor-pointer"><i class="far fa-file-pdf text-red-400 text-lg"></i><div><div class="text-sm font-medium">Offering Plan</div><div class="text-[10px] text-gray-400">Request from listing agent</div></div></div>
-                                <div class="flex items-center gap-3 p-3.5 border rounded-xl hover:border-amber-300 transition cursor-pointer"><i class="far fa-file-pdf text-red-400 text-lg"></i><div><div class="text-sm font-medium">Board Package Template</div><div class="text-[10px] text-gray-400">Request from listing agent</div></div></div>
-                                <div class="flex items-center gap-3 p-3.5 border rounded-xl hover:border-amber-300 transition cursor-pointer"><i class="far fa-file-pdf text-red-400 text-lg"></i><div><div class="text-sm font-medium">Schedule A</div><div class="text-[10px] text-gray-400">Request from listing agent</div></div></div>
-                            </div>
                         </div>
 
                         </div><!-- /detailPanelMedia -->

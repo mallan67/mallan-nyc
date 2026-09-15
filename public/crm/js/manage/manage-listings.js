@@ -166,7 +166,13 @@ function _mapApiListingToManage(api) {
         photo: photoUrl,
         photoCount: photoCount,
         media: {
-            rlsUploaded: true,
+            // EXTERNAL DISTRIBUTION STATE — fail closed. No API field carries "this listing was uploaded to
+            // REBNY RLS": rls_eligible is an eligibility classification and sync_status is an inbound feed
+            // state, and neither means what an "Uploaded to RLS" badge would claim. Until a real authorized
+            // publisher exists and returns a verified response, this stays null = NOT CONFIRMED. It was a
+            // boolean literal `true`, which made every row — Cotality feed rows included — assert an upload
+            // Mallan never performed.
+            rlsUploaded: null,
             idxDisplayYN: api.idx_display_yn !== false,
             webDisplayed: api.idx_display_yn !== false && !api.owner_opt_out && !api.participant_only
         },
@@ -440,7 +446,9 @@ function renderManageCards(listings) {
             html += '<div class="absolute top-2.5 left-2.5"><span class="px-2 py-1 ' + sc.bg + ' ' + sc.text + ' rounded-md text-[10px] font-bold shadow-sm" data-status-token="' + (l.statusToken || '') + '">' + l.status + '</span></div>';
             // Top-right: RLS / IDX / Web distribution badges
             html += '<div class="absolute top-2.5 right-2.5 flex items-center gap-1">';
-            if (media.rlsUploaded) {
+            // Only a CONFIRMED upload may show the RLS badge. Unknown (null) must render nothing at all —
+            // never a badge that asserts an external distribution nobody verified.
+            if (media.rlsUploaded === true) {
                 html += '<span class="px-1.5 py-0.5 bg-blue-600/80 text-white text-[9px] font-bold rounded backdrop-blur-sm" title="Uploaded to REBNY RLS via Trestle">RLS</span>';
             }
             if (media.idxDisplayYN) {
@@ -673,23 +681,28 @@ function renderCardDistributePanel(listing) {
 
     var html = '';
 
-    // RLS — REBNY RLS via Trestle
+    // RLS — REBNY RLS via Trestle.
+    // Three states, never two: CONFIRMED uploaded / CONFIRMED absent / NOT CONFIRMED. A null flag means no
+    // verified publisher response exists, and it must read as unknown rather than collapsing into either
+    // claim. The Upload / Sync controls are rendered disabled at source because no publisher exists to call:
+    // js/core/api-client.js exposes no upload, sync or push method and syndication exports are HELD.
+    // (js/init/init-disable-dead-controls.js cannot neutralise these — it runs once on DOMContentLoaded while
+    // this panel is built on demand and re-created on every re-render, and dashboard.html never loads it.)
+    var rlsConfirmed = media.rlsUploaded === true;
+    var rlsConfirmedAbsent = media.rlsUploaded === false;
+    var rlsLabel = rlsConfirmed ? 'Uploaded to RLS' : (rlsConfirmedAbsent ? 'Not on RLS' : 'RLS status not confirmed');
     html += '<div class="mb-4">';
     html += '<p class="text-[11px] text-gray-400 uppercase tracking-wide font-semibold mb-2">REBNY RLS (Trestle)</p>';
     html += '<div class="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5">';
     html += '<div class="flex items-center gap-2">';
-    html += '<span class="w-2 h-2 rounded-full ' + (media.rlsUploaded ? 'bg-green-500' : 'bg-gray-400') + '"></span>';
-    html += '<span class="text-sm font-semibold text-gray-800">' + (media.rlsUploaded ? 'Uploaded to RLS' : 'Not on RLS') + '</span>';
+    html += '<span class="w-2 h-2 rounded-full ' + (rlsConfirmed ? 'bg-green-500' : 'bg-gray-400') + '"></span>';
+    html += '<span class="text-sm font-semibold text-gray-800">' + rlsLabel + '</span>';
     html += '</div>';
     html += '<div class="flex items-center gap-2">';
-    if (media.rlsUploaded) {
-        html += '<span class="text-[10px] text-gray-500">Last sync: ' + listing.update + '</span>';
-        html += '<button onclick="cardDistributeSync(\'' + listing.id + '\',\'rls\')" class="px-2.5 py-1 bg-blue-600 text-white rounded text-[10px] font-semibold hover:bg-blue-700"><i class="fas fa-sync-alt mr-1"></i>Sync</button>';
-    } else {
-        html += '<button onclick="cardDistributeToggle(\'' + listing.id + '\',\'rls\',true)" class="px-2.5 py-1 bg-blue-600 text-white rounded text-[10px] font-semibold hover:bg-blue-700"><i class="fas fa-upload mr-1"></i>Upload</button>';
-    }
+    html += '<button disabled aria-disabled="true" class="px-2.5 py-1 bg-gray-200 text-gray-500 rounded text-[10px] font-semibold cursor-not-allowed" title="Not currently supported"><i class="fas fa-upload mr-1"></i>Upload</button>';
     html += '</div>';
     html += '</div>';
+    html += '<p class="text-[10px] text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>No connected publisher. Mallan cannot upload to or sync with REBNY RLS from this panel, and cannot confirm this listing\'s RLS state.</p>';
     html += '</div>';
 
     // IDX — Display on other broker websites
@@ -741,27 +754,39 @@ function renderCardDistributePanel(listing) {
     html += '<i class="fas fa-camera text-gray-500 text-sm"></i>';
     html += '<div>';
     html += '<span class="text-sm font-semibold text-gray-800">' + (listing.photoCount || 0) + ' photos</span>';
-    html += '<p class="text-[10px] text-gray-500">Photos sync to all enabled feeds (RLS, IDX, mallan.nyc)</p>';
+    // The former sub-caption claimed "Photos sync to all enabled feeds (RLS, IDX, mallan.nyc)". No publisher
+    // performs that sync, so the claim is removed rather than restated.
     html += '</div>';
     html += '</div>';
     html += '<button onclick="manageEditListing(\'' + listing.id + '\')" class="px-2.5 py-1 bg-gray-200 text-gray-700 rounded text-[10px] font-semibold hover:bg-gray-300"><i class="fas fa-pen mr-1"></i>Edit Photos</button>';
     html += '</div>';
     html += '</div>';
 
-    // Push Updates button
-    html += '<button onclick="cardDistributePush(\'' + listing.id + '\')" class="w-full px-4 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-semibold hover:bg-gray-800 flex items-center justify-center gap-2 min-h-[44px]"><i class="fas fa-cloud-upload-alt"></i> Push Updates to All Feeds</button>';
+    // Push Updates button — disabled at source. There is no publisher for any feed, so a push cannot happen
+    // and must not be offered as though it could.
+    html += '<button disabled aria-disabled="true" class="w-full px-4 py-2.5 bg-gray-200 text-gray-500 rounded-lg text-sm font-semibold cursor-not-allowed flex items-center justify-center gap-2 min-h-[44px]" title="Not currently supported"><i class="fas fa-cloud-upload-alt"></i> Push Updates to All Feeds</button>';
+    html += '<p class="text-[10px] text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>No connected publisher. Nothing is sent to REBNY RLS, IDX or mallan.nyc from this panel.</p>';
 
     return html;
 }
 
 // ---- IDX Distribution action handlers ----
+// No publisher exists for REBNY RLS: js/core/api-client.js has no upload / sync / push method, and
+// syndication exports are HELD. These handlers therefore REFUSE rather than mutating local state and
+// reporting a success. This mirrors manageWithdrawListing below — "A refusal is a refusal. Never report a
+// withdrawal the server did not make." The controls are also rendered disabled in renderCardDistributePanel;
+// this is the second layer, because all three functions are globals reachable by an inline onclick.
+var RLS_NO_PUBLISHER_MESSAGE = 'NOT sent to REBNY RLS — no connected publisher. Nothing was uploaded and the listing\'s distribution state is unchanged.';
+
 function cardDistributeToggle(listingId, feed, enabled) {
     var listing = manageFindListing(listingId);
     if (!listing || !listing.media) return;
     if (feed === 'rls') {
-        listing.media.rlsUploaded = enabled;
-        manageShowToast(enabled ? 'Listing uploaded to REBNY RLS' : 'Listing removed from RLS');
-    } else if (feed === 'idx') {
+        // Refuse without mutating. Never write a distribution fact no publisher confirmed.
+        manageShowToast(RLS_NO_PUBLISHER_MESSAGE);
+        return;
+    }
+    if (feed === 'idx') {
         listing.media.idxDisplayYN = enabled;
         manageShowToast('IDX display ' + (enabled ? 'enabled' : 'disabled'));
     } else if (feed === 'web') {
@@ -775,21 +800,15 @@ function cardDistributeToggle(listingId, feed, enabled) {
 function cardDistributeSync(listingId, feed) {
     var listing = manageFindListing(listingId);
     if (!listing) return;
-    listing.update = manageTodayStr();
-    manageShowToast('Synced ' + listing.address + ' ' + listing.unit + ' to ' + feed.toUpperCase());
-    renderManageSection(currentManageMode);
+    // No sync happened, so do not stamp an update date for work that was never performed.
+    manageShowToast(RLS_NO_PUBLISHER_MESSAGE);
 }
 
 function cardDistributePush(listingId) {
     var listing = manageFindListing(listingId);
     if (!listing) return;
-    listing.update = manageTodayStr();
-    var feeds = [];
-    if (listing.media && listing.media.rlsUploaded) feeds.push('REBNY RLS');
-    if (listing.media && listing.media.idxDisplayYN) feeds.push('IDX');
-    if (listing.media && listing.media.webDisplayed) feeds.push('mallan.nyc');
-    manageShowToast('Updates pushed to: ' + feeds.join(', '));
-    renderManageSection(currentManageMode);
+    // No publisher exists for any feed. Never report a push to REBNY RLS, IDX or mallan.nyc.
+    manageShowToast('NOT pushed — no connected publisher for REBNY RLS, IDX or mallan.nyc. Nothing was sent.');
 }
 
 // ---- Card action toggle (accordion) ----
