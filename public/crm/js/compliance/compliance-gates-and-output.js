@@ -1358,19 +1358,36 @@ function REBNYComplianceDoctor(options) {
 
     // ─── Test 8: Commingling Prevention (NEW) ──────────────────────────────
     (function test8_Commingling() {
-        var resultCards = document.querySelectorAll('[data-listing-id]');
-        var totalListings = resultCards.length;
+        // ONE population, compared against ITSELF. The listing rows ARE the denominator, and the
+        // numerator is those same rows whose own data-source is an allowed value — so the numerator is a
+        // subset of the denominator by construction.
+        //
+        // This previously ran a SECOND, independent document-wide query for the numerator
+        // (querySelectorAll('[data-source=...]')), which counted ANY element carrying the attribute, not
+        // only listing rows. A single non-listing element with a source label therefore bought exactly one
+        // unlabelled listing a free pass. #detailPanel — a layout shell — was such an element, and a 2x2
+        // factorial probe isolated it as the sole cause of the slack. Deriving both sides from the same
+        // node set closes the defect structurally: no shell element can ever add slack again, whatever
+        // attributes it later acquires.
+        //
         // Verified source model (Search Consolidation Packet 1): every result card carries
         // data-source="COTALITY-API" (provider inventory) or "MALLAN-LOCAL" (Mallan-authored).
-        var sourceLabeledCards = document.querySelectorAll('[data-source="COTALITY-API"], [data-source="MALLAN-LOCAL"]');
+        var ALLOWED_LISTING_SOURCES = ['COTALITY-API', 'MALLAN-LOCAL'];
+        var resultCards = document.querySelectorAll('[data-listing-id]');
+        var totalListings = resultCards.length;
+        var unlabeledListings = 0;
+        for (var li = 0; li < resultCards.length; li++) {
+            var cardSource = resultCards[li].getAttribute('data-source');
+            if (ALLOWED_LISTING_SOURCES.indexOf(cardSource) === -1) unlabeledListings++;
+        }
 
         if (totalListings === 0) {
             addResult(8, 'Commingling Prevention', 'PASS', 'No listings displayed — no commingling risk');
-        } else if (sourceLabeledCards.length >= totalListings) {
+        } else if (unlabeledListings === 0) {
             addResult(8, 'Commingling Prevention', 'PASS', 'All ' + totalListings + ' listings carry a verified data-source label');
         } else {
             addResult(8, 'Commingling Prevention', 'FAIL',
-                (totalListings - sourceLabeledCards.length) + '/' + totalListings + ' listings lack a verified data-source (COTALITY-API | MALLAN-LOCAL) — commingling risk');
+                unlabeledListings + '/' + totalListings + ' listings lack a verified data-source (COTALITY-API | MALLAN-LOCAL) — commingling risk');
         }
     })();
 
@@ -1413,18 +1430,48 @@ function REBNYComplianceDoctor(options) {
     })();
 
     // ─── Test 10: Bulk Export Restriction (NEW) ────────────────────────────
-    (function test10_BulkExport() {
-        var BULK_LIMIT = 25;
-        if (typeof selectAllResults !== 'function') {
-            addResult(10, 'Bulk Export Restriction', 'FAIL', 'selectAllResults() not found — required bulk selection function missing');
+    // OWNERSHIP ADJUDICATED 2026-09-15. This gate was "Bulk Export Restriction" and asserted that
+    // document.querySelectorAll('.listing-checkbox').length <= 25. Both halves were unsound:
+    //
+    //   - the GUARD half required selectAllResults() to exist. That function once carried the real
+    //     enforcement — a 25-listing selection cap with a REBNY notice — but the enforcement was deleted on
+    //     2026-03-22 in 2183dd4d ("fix(crm): wire delivery stubs, compute real averages, fix filter count"),
+    //     which never mentions removing a compliance cap. It survives only as a two-line delegator with zero
+    //     invokers, so `typeof selectAllResults === 'function'` was permanently true and proved nothing.
+    //   - the COUNT half measured a class NO renderer has ever emitted. Its only population was fabricated
+    //     static mockup cards, removed 2026-09-15. The five real renderers emit anonymous checkboxes bound to
+    //     toggleListingSelection(); selection truth lives in searchResultsState.selectedListings.
+    //
+    // THE NUMBER IS NOT RE-ASSERTED, DELIBERATELY. Neither 25 nor 250 (reports.js MAX_EXPORT_ROWS) is
+    // traceable to any authority. data/UCBA-2026-Requirements.md carries no record-count ceiling; its only
+    // export mention is an audit-LOGGING duty, and compliance/THIRD-PARTY-AND-FEED-GOVERNANCE.md lists bulk
+    // export of MLS data as PROHIBITED (rule F1) with no threshold at all. A numeric cap asserts "export up
+    // to N is permitted", which is the wrong SHAPE for the rule it claims to implement. Per CLAUDE.md §E an
+    // unclear or absent requirement is a fail-closed escalation to Maya, never a guess written into code.
+    //
+    // What this gate now asserts is sourced and measurable: nothing that may NEVER be distributed is sitting
+    // in the population an export would draw from. Owner Opt-Out (UCBA Art. I Sec. 4(A)) and Participant
+    // Only (RLS Permissions=Private) are the same two gates this file already enforces for display above.
+    (function test10_BulkExportPopulation() {
+        var state = (typeof searchResultsState !== 'undefined' && searchResultsState) ? searchResultsState : null;
+        if (!state) {
+            addResult(10, 'Bulk Export Population', 'WARN', 'searchResultsState unavailable — export population could not be inspected');
             return;
         }
-        var allCheckboxes = document.querySelectorAll('.listing-checkbox');
-        if (allCheckboxes.length <= BULK_LIMIT) {
-            addResult(10, 'Bulk Export Restriction', 'PASS', allCheckboxes.length + ' listings (within ' + BULK_LIMIT + ' limit)');
+        var pool = state.filteredListings || [];
+        var undistributable = [];
+        for (var pi = 0; pi < pool.length; pi++) {
+            var perm = (pool[pi] && pool[pi].permissions) || {};
+            if (perm.ownerOptOut === true) undistributable.push('owner opt-out');
+            else if (perm.participantOnly === true) undistributable.push('participant only');
+        }
+        if (pool.length === 0) {
+            addResult(10, 'Bulk Export Population', 'PASS', 'No listings in the export population');
+        } else if (undistributable.length === 0) {
+            addResult(10, 'Bulk Export Population', 'PASS', pool.length + ' listings in the export population, none owner-opted-out or participant-only');
         } else {
-            addResult(10, 'Bulk Export Restriction', 'FAIL',
-                allCheckboxes.length + ' listings exceed ' + BULK_LIMIT + ' bulk export limit');
+            addResult(10, 'Bulk Export Population', 'FAIL',
+                undistributable.length + '/' + pool.length + ' listings in the export population must never be distributed (' + undistributable.join(', ') + ')');
         }
     })();
 
@@ -1824,14 +1871,22 @@ function REBNYComplianceExtended(options) {
     (function() {
         // Verified source model (Search Consolidation Packet 1): provider inventory is
         // data-source="COTALITY-API", Mallan-authored inventory is "MALLAN-LOCAL".
-        var provider = document.querySelectorAll('[data-source="COTALITY-API"]');
-        var mallan = document.querySelectorAll('[data-source="MALLAN-LOCAL"]');
-        var allSrc = document.querySelectorAll('[data-source]');
-        var allCards = document.querySelectorAll('[data-listing-id]');
+        // Counted on the LISTING ROWS THEMSELVES, for the same reason as Test 8: a document-wide
+        // [data-source] query also counts non-listing shells, which both inflated the reported provider
+        // count and hid unlabeled listings behind the comparison. Business meaning is unchanged — an
+        // unlabeled listing is still an issue, and provider inventory still requires REBNY attribution.
+        var listingCards = document.querySelectorAll('[data-listing-id]');
+        var provider = 0, mallan = 0, unlabeled = 0;
+        for (var ci = 0; ci < listingCards.length; ci++) {
+            var cardSrc = listingCards[ci].getAttribute('data-source');
+            if (cardSrc === 'COTALITY-API') provider++;
+            else if (cardSrc === 'MALLAN-LOCAL') mallan++;
+            else unlabeled++;
+        }
         var issues = [];
-        if (allCards.length > 0 && allSrc.length < allCards.length) issues.push((allCards.length - allSrc.length) + ' unlabeled');
-        if (provider.length > 0 && document.body.innerHTML.indexOf('Real Estate Board of New York') === -1) issues.push('provider inventory without attribution');
-        addResult('C1', 'Source Separation', issues.length === 0 ? 'PASS' : 'FAIL', issues.length === 0 ? allSrc.length + ' labeled (provider:' + provider.length + ', Mallan:' + mallan.length + ')' : issues.join(', '));
+        if (unlabeled > 0) issues.push(unlabeled + ' unlabeled');
+        if (provider > 0 && document.body.innerHTML.indexOf('Real Estate Board of New York') === -1) issues.push('provider inventory without attribution');
+        addResult('C1', 'Source Separation', issues.length === 0 ? 'PASS' : 'FAIL', issues.length === 0 ? (provider + mallan) + ' labeled (provider:' + provider + ', Mallan:' + mallan + ')' : issues.join(', '));
     })();
 
     // ── C2: Print CSS Test ─────────────────────────────────────────────
@@ -1923,15 +1978,20 @@ function REBNYComplianceExtended(options) {
             '.report-preview, #reportPreviewContainer'
         );
         var vis = '';
+        // Report what was ACTUALLY scanned, not the pre-filter candidate count. The gate correctly skips
+        // hidden containers, but it used to print containers.length — so a page that scanned nothing could
+        // still report "scanned across N containers". The verdict was never wrong; the evidence was.
+        var scannedContainers = 0;
         containers.forEach(function(c) {
             if (c.style.display === 'none' || c.offsetParent === null) return;
+            scannedContainers++;
             // Clone and strip out [data-compliance] and [data-access-level="agent-only"] zones
             var clone = c.cloneNode(true);
             clone.querySelectorAll('[data-compliance], [data-access-level="agent-only"]').forEach(function(el) { el.remove(); });
             vis += ' ' + (clone.innerText || '');
         });
         var leaks = PROHIBITED.filter(function(t) { return vis.indexOf(t) !== -1; });
-        addResult('C6', 'Full Surface Scan', leaks.length === 0 ? 'PASS' : 'FAIL', leaks.length === 0 ? PROHIBITED.length + ' terms scanned across ' + containers.length + ' containers, none found' : 'Found: ' + leaks.join(', '));
+        addResult('C6', 'Full Surface Scan', leaks.length === 0 ? 'PASS' : 'FAIL', leaks.length === 0 ? PROHIBITED.length + ' terms scanned across ' + scannedContainers + ' of ' + containers.length + ' containers (hidden skipped), none found' : 'Found: ' + leaks.join(', '));
     })();
 
     // ── C7: Social Share Scan ──────────────────────────────────────────

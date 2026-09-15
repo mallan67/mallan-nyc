@@ -21,21 +21,24 @@
  *     - two "Documents Available" chip grids (Building tab and Media tab) asserting six documents exist for
  *       every listing. The live provider contract records DocumentsAvailable as populated 0.
  *
- *   public/crm/html/search-form-and-results.html:
- *     - #resultsGridLegacy, two fabricated rental cards including "432 Park Avenue, PH92 — $85,000/mo —
- *       Active — 6 BD / 7 BA / 8,255 SF". Its only concealment was Tailwind's `.hidden`, which is defined in
- *       NONE of the ten local stylesheets and comes solely from a third-party CDN script, while
- *       init-hash-routing.js reveals the page on an unconditional 500 ms timer. If that CDN were slow or
- *       blocked, two invented listings rendered as visible content on a licensed brokerage's agent-facing page.
+ *   public/crm/html/search-form-and-results.html — EIGHT fabricated rental cards in TWO sibling blocks,
+ *   both now removed:
+ *     - #resultsGridLegacy, two cards including "432 Park Avenue, PH92 — $85,000/mo — Active —
+ *       6 BD / 7 BA / 8,255 SF". Removed 2026-09-15 in the Slice 2 Batch 1 commit.
+ *     - #resultsGrid, six cards (One57 75B, 15 CPW 14D, 100 Barclay 22F, 301 E 79th 4B, 220 CPS 45A), one
+ *       of which carried data-listing-id="RLS-78921" labelled data-source="COTALITY-API" — a fabricated
+ *       RLS identifier wearing a false provider-provenance label. Removed 2026-09-15 in the P0-C3 commit.
+ *   Neither block was ever cleared by any code path. Their only concealment was Tailwind's `.hidden`, which
+ *   is defined in NONE of the local stylesheets and comes solely from a third-party CDN script — and a
+ *   Chromium/Playwright proof showed that with that CDN blocked the six cards rendered 4008px of invented
+ *   listings, including BELOW real results on a successful search.
  *
  * SCOPE — deliberately NOT swept, so no later reader mistakes this for a clean sweep:
- *   - #resultsGrid (search-form-and-results.html) still holds six more fabricated cards, one carrying
- *     data-listing-id="RLS-78921" labelled data-source="COTALITY-API", which two browser compliance gates
- *     currently count as a genuine Cotality record. It was NOT in the Batch 1 authorization;
  *   - the Details tab's own unwired surfaces — the "---" Building Amenities list and the twelve all-"---"
  *     Policies tiles — survive by design: they render unknown as unknown, which is the correct behaviour;
  *   - the Neighborhood tab's remaining fabrications (Bike Score, the "Live — MTA" badge, synthesized arrival
- *     times, the Upper East Side coordinate fallback, the commute calculator) are later bounded groups.
+ *     times, the Upper East Side coordinate fallback, the commute calculator) are later bounded groups;
+ *   - public/crm/css/results.css still defines the now-dead .lux-amenity-card rules (shared stylesheet).
  *
  * PROOF SHAPE. The removals are proved by source + shipped-artifact absence; the "no empty broken section"
  * requirement is proved structurally, by asserting the sibling sections that must survive are still present in
@@ -165,10 +168,31 @@ describe('fabricated example listings cannot enter the live professional Search 
     dom.window.close();
   });
 
+  it('the results markup ships EMPTY — every listing element is renderer-created', () => {
+    // The strongest form of the invariant, provable now that both fabricated blocks are gone:
+    // the static partial contains no listing markup of any kind. A results area that begins empty
+    // cannot show a listing the Search renderer did not put there, in ANY runtime state — which is
+    // what makes the Tailwind-CDN failure mode harmless rather than a fabrication exposure.
+    const dom = new jsdom.JSDOM('<!doctype html><html><body>' + PARTIAL + '</body></html>');
+    const doc = dom.window.document;
+    const census = {
+      listingCard: doc.querySelectorAll('.listing-card').length,
+      listingId: doc.querySelectorAll('[data-listing-id]').length,
+      dataSource: doc.querySelectorAll('[data-source]').length,
+      listingCheckbox: doc.querySelectorAll('.listing-checkbox').length,
+    };
+    dom.window.close();
+    expect({ ...census, why: 'static listing markup is indistinguishable from a real result once rendered' })
+      .toEqual({ listingCard: 0, listingId: 0, dataSource: 0, listingCheckbox: 0, why: expect.any(String) });
+  });
+
   it('the stale element baseline no longer asserts the deleted container', () => {
     // public/crm/scripts/manifest.json is a baseline list of element ids checked by
     // scripts/validate-manifest.js. Leaving a deleted id in it makes the baseline assert
     // something that no longer exists.
-    expect(read('public/crm/scripts/manifest.json')).not.toContain('resultsGridLegacy');
+    const mf = read("public/crm/scripts/manifest.json");
+    expect(mf).not.toContain("resultsGridLegacy");
+    expect(mf).not.toContain("resultsGrid");
+    expect(mf).not.toContain("RLS-78921");
   });
 });

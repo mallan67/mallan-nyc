@@ -9231,7 +9231,11 @@ function toggleSection(header) {
                             <div id="masterListPanel" class="w-1/3 border-r overflow-y-auto" style="max-height: 80vh; max-height: 80dvh;">
                                 <!-- Master list populated by JS -->
                             </div>
-                            <div id="detailPanel" class="w-2/3 overflow-y-auto p-4" data-source="COTALITY-API" style="max-height: 80vh; max-height: 80dvh;">
+                            <!-- #detailPanel is a LAYOUT SHELL, not a listing. It must never carry data-source:
+                                 a source label on a non-listing element made the Commingling gate compare two
+                                 different populations and buy one unlabelled listing a free pass. The listing
+                                 rows rendered INTO this panel carry their own data-listing-id + data-source. -->
+                            <div id="detailPanel" class="w-2/3 overflow-y-auto p-4" style="max-height: 80vh; max-height: 80dvh;">
                                 <div class="text-center text-gray-400 py-12">
                                     <i class="fas fa-hand-pointer text-4xl mb-3"></i>
                                     <p>Select a listing to view details</p>
@@ -9279,579 +9283,6 @@ function toggleSection(header) {
                         <div id="resultsMapContainer" style="position:absolute; inset:0; min-height:500px;"></div>
                     </div>
                     </div><!-- end resultsSplitWrapper -->
-
-                    <!-- Results Grid (Legacy static cards — hidden, replaced by JS-rendered views) -->
-                    <div id="resultsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 hidden">
-                        <!-- Sample Listing Card 1 - Rental Trophy -->
-                        <div class="bg-white rounded-xl shadow-sm border overflow-hidden hover:shadow-lg transition-shadow group listing-card" data-listing-type="rental" data-listing-id="RLS-78921" data-building="432 Park" data-source="COTALITY-API">
-                            <div class="relative">
-                                <!-- Trophy Photo Placeholder - Gold/Black Luxury -->
-                                <div class="h-48 bg-gradient-to-br from-amber-950 via-amber-900 to-amber-950 flex items-center justify-center relative overflow-hidden">
-                                    <div class="absolute inset-0">
-                                        <div class="absolute bottom-0 left-0 right-0 h-3/5">
-                                            <div class="absolute bottom-0 left-[3%] w-[7%] h-[50%] bg-white/8 rounded-t-sm"></div>
-                                            <div class="absolute bottom-0 left-[12%] w-[10%] h-[80%] bg-white/6 rounded-t-sm"><div class="mt-[10%] mx-[12%] grid grid-cols-2 gap-px"><div class="w-full aspect-square bg-slate-400/8"></div><div class="w-full aspect-square bg-slate-400/5"></div><div class="w-full aspect-square bg-slate-400/5"></div><div class="w-full aspect-square bg-slate-400/8"></div></div></div>
-                                            <div class="absolute bottom-0 left-[25%] w-[9%] h-[92%] bg-white/5 rounded-t-sm"><div class="mt-[8%] mx-[10%] grid grid-cols-2 gap-px"><div class="w-full aspect-square bg-slate-400/8"></div><div class="w-full aspect-square bg-slate-400/5"></div><div class="w-full aspect-square bg-slate-400/5"></div><div class="w-full aspect-square bg-slate-400/8"></div><div class="w-full aspect-square bg-slate-400/8"></div><div class="w-full aspect-square bg-slate-400/5"></div></div></div>
-                                            <div class="absolute bottom-0 left-[37%] w-[6%] h-[40%] bg-white/8 rounded-t-sm"></div>
-                                            <div class="absolute bottom-0 right-[35%] w-[8%] h-[65%] bg-white/7 rounded-t-sm"></div>
-                                            <div class="absolute bottom-0 right-[20%] w-[11%] h-[85%] bg-white/5 rounded-t-sm"><div class="mt-[8%] mx-[10%] grid grid-cols-2 gap-px"><div class="w-full aspect-square bg-slate-400/8"></div><div class="w-full aspect-square bg-slate-400/5"></div><div class="w-full aspect-square bg-slate-400/5"></div><div class="w-full aspect-square bg-slate-400/8"></div></div></div>
-                                            <div class="absolute bottom-0 right-[7%] w-[9%] h-[55%] bg-white/7 rounded-t-sm"></div>
-                                        </div>
-                                        <div class="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-black/30 to-transparent"></div>
-                                    </div>
-                                    <div class="text-center z-10 relative">
-                                        <i class="fas fa-camera text-4xl text-slate-400/30 mb-2"></i>
-                                        <p class="text-slate-300/80 text-xs font-medium tracking-widest">432 PARK AVENUE</p>
-                                        <p class="text-slate-400/60 text-[10px] tracking-wider mt-1">PENTHOUSE 92</p>
-                                    </div>
-                                    <div class="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded flex items-center gap-1 z-10">
-                                        <i class="fas fa-lock text-slate-400"></i> <span class="text-slate-300">NDA Required</span>
-                                    </div>
-                                    <div class="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded z-10">
-                                        <i class="fas fa-camera mr-1"></i> 48 Photos
-                                    </div>
-                                </div>
-                                <!-- Building Name Badge (Primary Identifier) -->
-                                <div class="absolute top-3 left-3 flex items-center gap-2">
-                                    <span class="px-2.5 py-1.5 bg-white/95 backdrop-blur text-gray-900 text-xs font-bold rounded-lg shadow-lg flex items-center gap-1.5 border border-gray-200">
-                                        <span class="w-5 h-5 bg-gradient-to-br from-amber-400 to-amber-600 text-white text-[10px] font-bold rounded flex items-center justify-center">1</span>
-                                        432 Park · PH92
-                                    </span>
-                                </div>
-                                <!-- Tier & Type Badges -->
-                                <div class="absolute top-12 left-3 flex items-center gap-1">
-                                    <span class="px-2 py-1 bg-tier-trophy text-white text-xs font-bold rounded flex items-center gap-1">
-                                        <i class="fas fa-trophy"></i> TROPHY
-                                    </span>
-                                    <span class="px-2 py-1 bg-orange-500 text-white text-xs font-bold rounded">RENTAL</span>
-                                </div>
-                                <!-- Selection Checkbox -->
-                                <div class="absolute top-3 right-3">
-                                    <input type="checkbox" class="listing-checkbox w-5 h-5 rounded border-2 border-white shadow cursor-pointer" data-id="1">
-                                </div>
-                                <!-- Quick Actions - Client Feedback Style -->
-                                <div class="absolute bottom-12 left-0 right-0 flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-red-50 hover:scale-110 transition-transform" title="Not Interested" aria-label="Close">
-                                        <i class="fas fa-times text-red-400 text-lg"></i>
-                                    </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-yellow-50 hover:scale-110 transition-transform" title="Maybe">
-                                        <i class="fas fa-question text-yellow-500 text-lg"></i>
-                                    </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Interested!" aria-label="Like">
-                                        <i class="fas fa-heart text-green-500 text-lg"></i>
-                                    </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Schedule Showing">
-                                        <i class="fas fa-calendar-check text-blue-500 text-lg"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="p-4">
-                                <!-- Quick ID for reference -->
-                                <div class="flex items-center justify-between mb-2">
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-xl font-bold text-gray-900">$85,000<span class="text-sm font-normal text-gray-500">/mo</span></span>
-                                    </div>
-                                    <div class="flex items-center gap-1">
-                                        <span class="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded font-mono">RLS-78921</span>
-                                        <span class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded font-semibold">Active</span>
-                                    </div>
-                                </div>
-                                <p class="font-semibold text-gray-800 mb-1">432 Park Avenue, PH92</p>
-                                <p class="text-sm text-gray-500 mb-2">Midtown East, Manhattan</p>
-                                <div class="flex items-center gap-4 text-sm text-gray-600">
-                                    <span><i class="fas fa-bed mr-1"></i> 6 BD</span>
-                                    <span><i class="fas fa-bath mr-1"></i> 7 BA</span>
-                                    <span><i class="fas fa-ruler-combined mr-1"></i> 8,255 SF</span>
-                                </div>
-                                <div class="mt-3 pt-3 border-t flex items-center justify-between">
-                                    <span class="text-xs text-gray-500">Full Floor Penthouse | Furnished</span>
-                                    <span class="text-xs text-luxury-gold font-semibold flex items-center gap-1"><i class="fas fa-star"></i> Exclusive</span>
-                                </div>
-                                <!-- Client Quick Feedback Bar -->
-                                <div class="mt-3 pt-3 border-t flex items-center justify-between">
-                                    <div class="flex items-center gap-1">
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors flex items-center gap-1">
-                                            <i class="fas fa-times-circle"></i> Pass
-                                        </button>
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-yellow-50 hover:border-yellow-200 hover:text-yellow-600 transition-colors flex items-center gap-1">
-                                            <i class="fas fa-bookmark"></i> Save
-                                        </button>
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-colors flex items-center gap-1">
-                                            <i class="fas fa-heart"></i> Love
-                                        </button>
-                                    </div>
-                                    <button class="px-2 py-1 text-xs rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-1">
-                                        <i class="fas fa-calendar"></i> Tour
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Sample Listing Card 2 - Rental Ultra-Luxury -->
-                        <div class="bg-white rounded-xl shadow-sm border overflow-hidden hover:shadow-lg transition-shadow group listing-card" data-listing-type="rental" data-ref="B">
-                            <div class="relative">
-                                <!-- Ultra-Luxury Photo Placeholder - Deep Blue -->
-                                <div class="h-48 bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 flex items-center justify-center relative overflow-hidden">
-                                    <div class="absolute inset-0">
-                                        <div class="absolute bottom-0 left-0 right-0 h-3/5">
-                                            <div class="absolute bottom-0 left-[4%] w-[8%] h-[55%] bg-white/8 rounded-t-sm"></div>
-                                            <div class="absolute bottom-0 left-[14%] w-[10%] h-[82%] bg-white/6 rounded-t-sm"><div class="mt-[10%] mx-[12%] grid grid-cols-2 gap-px"><div class="w-full aspect-square bg-purple-300/8"></div><div class="w-full aspect-square bg-purple-300/5"></div><div class="w-full aspect-square bg-purple-300/5"></div><div class="w-full aspect-square bg-purple-300/8"></div></div></div>
-                                            <div class="absolute bottom-0 left-[27%] w-[7%] h-[42%] bg-white/9 rounded-t-sm"></div>
-                                            <div class="absolute bottom-0 left-[36%] w-[11%] h-[90%] bg-white/5 rounded-t-sm"><div class="mt-[8%] mx-[10%] grid grid-cols-3 gap-px"><div class="w-full aspect-square bg-purple-300/8"></div><div class="w-full aspect-square bg-purple-300/5"></div><div class="w-full aspect-square bg-purple-300/8"></div><div class="w-full aspect-square bg-purple-300/5"></div><div class="w-full aspect-square bg-purple-300/8"></div><div class="w-full aspect-square bg-purple-300/5"></div></div></div>
-                                            <div class="absolute bottom-0 right-[28%] w-[9%] h-[68%] bg-white/7 rounded-t-sm"></div>
-                                            <div class="absolute bottom-0 right-[15%] w-[10%] h-[78%] bg-white/6 rounded-t-sm"><div class="mt-[10%] mx-[12%] grid grid-cols-2 gap-px"><div class="w-full aspect-square bg-purple-300/8"></div><div class="w-full aspect-square bg-purple-300/5"></div><div class="w-full aspect-square bg-purple-300/5"></div><div class="w-full aspect-square bg-purple-300/8"></div></div></div>
-                                            <div class="absolute bottom-0 right-[4%] w-[8%] h-[48%] bg-white/8 rounded-t-sm"></div>
-                                        </div>
-                                        <div class="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-black/30 to-transparent"></div>
-                                    </div>
-                                    <div class="text-center z-10 relative">
-                                        <i class="fas fa-camera text-4xl text-purple-300/30 mb-2"></i>
-                                        <p class="text-purple-200/80 text-xs font-medium tracking-widest">ONE57</p>
-                                        <p class="text-purple-400/60 text-[10px] tracking-wider mt-1">UNIT 75B</p>
-                                    </div>
-                                    <div class="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded z-10">
-                                        <i class="fas fa-camera mr-1"></i> 36 Photos
-                                    </div>
-                                    <div class="absolute bottom-2 left-2 bg-gray-900/80 text-gray-200 text-xs px-2 py-1 rounded flex items-center gap-1 z-10">
-                                        <i class="fas fa-ban"></i> Withdrawn
-                                    </div>
-                                </div>
-                                <!-- Building Name Badge (Primary Identifier) -->
-                                <div class="absolute top-3 left-3 flex items-center gap-2">
-                                    <span class="px-2.5 py-1.5 bg-white/95 backdrop-blur text-gray-900 text-xs font-bold rounded-lg shadow-lg flex items-center gap-1.5 border border-gray-200">
-                                        <span class="w-5 h-5 bg-gradient-to-br from-purple-500 to-indigo-600 text-white text-[10px] font-bold rounded flex items-center justify-center">2</span>
-                                        One57 · 75B
-                                    </span>
-                                </div>
-                                <!-- Tier & Type Badges -->
-                                <div class="absolute top-12 left-3 flex items-center gap-1">
-                                    <span class="px-2 py-1 bg-tier-ultraLuxury text-white text-xs font-bold rounded flex items-center gap-1">
-                                        <i class="fas fa-gem"></i> ULTRA-LUXURY
-                                    </span>
-                                    <span class="px-2 py-1 bg-orange-500 text-white text-xs font-bold rounded">RENTAL</span>
-                                </div>
-                                <!-- Selection Checkbox -->
-                                <div class="absolute top-3 right-3">
-                                    <input type="checkbox" class="listing-checkbox w-5 h-5 rounded border-2 border-white shadow cursor-pointer" data-id="2">
-                                </div>
-                                <!-- Quick Actions - Client Feedback Style -->
-                                <div class="absolute bottom-12 left-0 right-0 flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-red-50 hover:scale-110 transition-transform" title="Not Interested" aria-label="Close">
-                                        <i class="fas fa-times text-red-400 text-lg"></i>
-                                    </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-yellow-50 hover:scale-110 transition-transform" title="Maybe">
-                                        <i class="fas fa-question text-yellow-500 text-lg"></i>
-                                    </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Interested!" aria-label="Like">
-                                        <i class="fas fa-heart text-green-500 text-lg"></i>
-                                    </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Schedule Showing">
-                                        <i class="fas fa-calendar-check text-blue-500 text-lg"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="p-4">
-                                <!-- Quick ID for reference -->
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xl font-bold text-gray-900">$32,500<span class="text-sm font-normal text-gray-500">/mo</span></span>
-                                    <div class="flex items-center gap-1">
-                                        <span class="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded font-mono">RLS-82345</span>
-                                        <span class="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded font-semibold">Withdrawn</span>
-                                    </div>
-                                </div>
-                                <p class="font-semibold text-gray-800 mb-1">One57, Unit 75B</p>
-                                <p class="text-sm text-gray-500 mb-2">Midtown West, Manhattan</p>
-                                <div class="flex items-center gap-4 text-sm text-gray-600">
-                                    <span><i class="fas fa-bed mr-1"></i> 4 BD</span>
-                                    <span><i class="fas fa-bath mr-1"></i> 5 BA</span>
-                                    <span><i class="fas fa-ruler-combined mr-1"></i> 4,483 SF</span>
-                                </div>
-                                <div class="mt-3 pt-3 border-t flex items-center justify-between">
-                                    <span class="text-xs text-gray-500">Central Park Views | Furnished</span>
-                                    <span class="text-xs text-blue-600 font-semibold flex items-center gap-1"><i class="fas fa-lock"></i> Exclusive</span>
-                                </div>
-                                <!-- Client Quick Feedback Bar -->
-                                <div class="mt-3 pt-3 border-t flex items-center justify-between">
-                                    <div class="flex items-center gap-1">
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors flex items-center gap-1">
-                                            <i class="fas fa-times-circle"></i> Pass
-                                        </button>
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-yellow-50 hover:border-yellow-200 hover:text-yellow-600 transition-colors flex items-center gap-1">
-                                            <i class="fas fa-bookmark"></i> Save
-                                        </button>
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-colors flex items-center gap-1">
-                                            <i class="fas fa-heart"></i> Love
-                                        </button>
-                                    </div>
-                                    <button class="px-2 py-1 text-xs rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-1">
-                                        <i class="fas fa-calendar"></i> Tour
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Sample Listing Card 3 - Rental Luxury -->
-                        <div class="bg-white rounded-xl shadow-sm border overflow-hidden hover:shadow-lg transition-shadow group listing-card" data-listing-type="rental" data-ref="C">
-                            <div class="relative">
-                                <!-- Luxury Photo Placeholder -->
-                                <div class="h-48 bg-gradient-to-br from-slate-700 via-slate-600 to-slate-800 flex items-center justify-center relative overflow-hidden">
-                                    <div class="absolute inset-0 opacity-20">
-                                        <div class="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black/40 to-transparent"></div>
-                                    </div>
-                                    <div class="text-center z-10">
-                                        <i class="fas fa-building text-4xl text-slate-400 mb-2"></i>
-                                        <p class="text-slate-400 text-xs font-medium tracking-wide">15 CENTRAL PARK WEST</p>
-                                    </div>
-                                    <div class="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
-                                        <i class="fas fa-camera mr-1"></i> 24 Photos
-                                    </div>
-                                </div>
-                                <!-- Building Name Badge (Primary Identifier) -->
-                                <div class="absolute top-3 left-3 flex items-center gap-2">
-                                    <span class="px-2.5 py-1.5 bg-white/95 backdrop-blur text-gray-900 text-xs font-bold rounded-lg shadow-lg flex items-center gap-1.5 border border-gray-200">
-                                        <span class="w-5 h-5 bg-gradient-to-br from-slate-500 to-slate-700 text-white text-[10px] font-bold rounded flex items-center justify-center">3</span>
-                                        15 CPW · 14D
-                                    </span>
-                                </div>
-                                <!-- Tier & Type Badges -->
-                                <div class="absolute top-12 left-3 flex items-center gap-1">
-                                    <span class="px-2 py-1 bg-tier-luxury text-white text-xs font-bold rounded flex items-center gap-1">
-                                        <i class="fas fa-star"></i> LUXURY
-                                    </span>
-                                    <span class="px-2 py-1 bg-orange-500 text-white text-xs font-bold rounded">RENTAL</span>
-                                </div>
-                                <!-- Selection Checkbox -->
-                                <div class="absolute top-3 right-3">
-                                    <input type="checkbox" class="listing-checkbox w-5 h-5 rounded border-2 border-white shadow cursor-pointer" data-id="3">
-                                </div>
-                                <!-- Quick Actions - Client Feedback Style -->
-                                <div class="absolute bottom-12 left-0 right-0 flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-red-50 hover:scale-110 transition-transform" title="Not Interested" aria-label="Close">
-                                        <i class="fas fa-times text-red-400 text-lg"></i>
-                                    </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-yellow-50 hover:scale-110 transition-transform" title="Maybe">
-                                        <i class="fas fa-question text-yellow-500 text-lg"></i>
-                                    </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Interested!" aria-label="Like">
-                                        <i class="fas fa-heart text-green-500 text-lg"></i>
-                                    </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Schedule Showing">
-                                        <i class="fas fa-calendar-check text-blue-500 text-lg"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="p-4">
-                                <!-- Quick ID for reference -->
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xl font-bold text-gray-900">$18,500<span class="text-sm font-normal text-gray-500">/mo</span></span>
-                                    <div class="flex items-center gap-1">
-                                        <span class="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded font-mono">RLS-65432</span>
-                                        <span class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded font-semibold">Active</span>
-                                    </div>
-                                </div>
-                                <p class="font-semibold text-gray-800 mb-1">15 Central Park West, 14D</p>
-                                <p class="text-sm text-gray-500 mb-2">Lincoln Square, Manhattan</p>
-                                <div class="flex items-center gap-4 text-sm text-gray-600">
-                                    <span><i class="fas fa-bed mr-1"></i> 3 BD</span>
-                                    <span><i class="fas fa-bath mr-1"></i> 3.5 BA</span>
-                                    <span><i class="fas fa-ruler-combined mr-1"></i> 2,456 SF</span>
-                                </div>
-                                <div class="mt-3 pt-3 border-t flex items-center justify-between">
-                                    <span class="text-xs text-gray-500">Condo | No Fee | Doorman</span>
-                                    <span class="text-xs text-blue-600 font-semibold">IDX Listed</span>
-                                </div>
-                                <!-- Client Quick Feedback Bar -->
-                                <div class="mt-3 pt-3 border-t flex items-center justify-between">
-                                    <div class="flex items-center gap-1">
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors flex items-center gap-1">
-                                            <i class="fas fa-times-circle"></i> Pass
-                                        </button>
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-yellow-50 hover:border-yellow-200 hover:text-yellow-600 transition-colors flex items-center gap-1">
-                                            <i class="fas fa-bookmark"></i> Save
-                                        </button>
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-colors flex items-center gap-1">
-                                            <i class="fas fa-heart"></i> Love
-                                        </button>
-                                    </div>
-                                    <button class="px-2 py-1 text-xs rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-1">
-                                        <i class="fas fa-calendar"></i> Tour
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Sample Listing Card 4 - Rental Premium -->
-                        <div class="bg-white rounded-xl shadow-sm border overflow-hidden hover:shadow-lg transition-shadow group listing-card" data-listing-type="rental" data-ref="D">
-                            <div class="relative">
-                                <!-- Premium Photo Placeholder -->
-                                <div class="h-48 bg-gradient-to-br from-amber-800 via-amber-700 to-amber-900 flex items-center justify-center relative overflow-hidden">
-                                    <div class="absolute inset-0 opacity-10">
-                                        <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                                            <polygon points="0,100 50,0 100,100" fill="white"/>
-                                        </svg>
-                                    </div>
-                                    <div class="text-center z-10">
-                                        <i class="fas fa-city text-4xl text-slate-400/60 mb-2"></i>
-                                        <p class="text-slate-300/80 text-xs font-medium tracking-wide">100 BARCLAY STREET</p>
-                                    </div>
-                                    <div class="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
-                                        <i class="fas fa-camera mr-1"></i> 18 Photos
-                                    </div>
-                                </div>
-                                <!-- Building Name Badge (Primary Identifier) -->
-                                <div class="absolute top-3 left-3 flex items-center gap-2">
-                                    <span class="px-2.5 py-1.5 bg-white/95 backdrop-blur text-gray-900 text-xs font-bold rounded-lg shadow-lg flex items-center gap-1.5 border border-gray-200">
-                                        <span class="w-5 h-5 bg-gradient-to-br from-amber-500 to-amber-700 text-white text-[10px] font-bold rounded flex items-center justify-center">4</span>
-                                        100 Barclay · 22F
-                                    </span>
-                                </div>
-                                <!-- Tier & Type Badges -->
-                                <div class="absolute top-12 left-3 flex items-center gap-1">
-                                    <span class="px-2 py-1 bg-tier-premium text-white text-xs font-bold rounded">PREMIUM</span>
-                                    <span class="px-2 py-1 bg-orange-500 text-white text-xs font-bold rounded">RENTAL</span>
-                                </div>
-                                <!-- Selection Checkbox -->
-                                <div class="absolute top-3 right-3">
-                                    <input type="checkbox" class="listing-checkbox w-5 h-5 rounded border-2 border-white shadow cursor-pointer" data-id="4">
-                                </div>
-                                <!-- Quick Actions - Client Feedback Style -->
-                                <div class="absolute bottom-12 left-0 right-0 flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-red-50 hover:scale-110 transition-transform" title="Not Interested" aria-label="Close">
-                                        <i class="fas fa-times text-red-400 text-lg"></i>
-                                    </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-yellow-50 hover:scale-110 transition-transform" title="Maybe">
-                                        <i class="fas fa-question text-yellow-500 text-lg"></i>
-                                    </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Interested!" aria-label="Like">
-                                        <i class="fas fa-heart text-green-500 text-lg"></i>
-                                    </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Schedule Showing">
-                                        <i class="fas fa-calendar-check text-blue-500 text-lg"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="p-4">
-                                <!-- Quick ID for reference -->
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xl font-bold text-gray-900">$12,500<span class="text-sm font-normal text-gray-500">/mo</span></span>
-                                    <div class="flex items-center gap-1">
-                                        <span class="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded font-mono">RLS-54321</span>
-                                        <span class="text-xs px-2 py-1 bg-emerald-500 text-white rounded font-semibold">NEW</span>
-                                        <span class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded font-semibold">Active</span>
-                                    </div>
-                                </div>
-                                <p class="font-semibold text-gray-800 mb-1">100 Barclay Street, 22F</p>
-                                <p class="text-sm text-gray-500 mb-2">Tribeca, Manhattan</p>
-                                <div class="flex items-center gap-4 text-sm text-gray-600">
-                                    <span><i class="fas fa-bed mr-1"></i> 2 BD</span>
-                                    <span><i class="fas fa-bath mr-1"></i> 2.5 BA</span>
-                                    <span><i class="fas fa-ruler-combined mr-1"></i> 1,876 SF</span>
-                                </div>
-                                <div class="mt-3 pt-3 border-t flex items-center justify-between">
-                                    <span class="text-xs text-gray-500">Condo | No Fee | W/D in Unit</span>
-                                    <span class="text-xs text-green-600 font-semibold">Listed Today</span>
-                                </div>
-                                <!-- Client Quick Feedback Bar -->
-                                <div class="mt-3 pt-3 border-t flex items-center justify-between">
-                                    <div class="flex items-center gap-1">
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors flex items-center gap-1">
-                                            <i class="fas fa-times-circle"></i> Pass
-                                        </button>
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-yellow-50 hover:border-yellow-200 hover:text-yellow-600 transition-colors flex items-center gap-1">
-                                            <i class="fas fa-bookmark"></i> Save
-                                        </button>
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-colors flex items-center gap-1">
-                                            <i class="fas fa-heart"></i> Love
-                                        </button>
-                                    </div>
-                                    <button class="px-2 py-1 text-xs rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-1">
-                                        <i class="fas fa-calendar"></i> Tour
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Sample Listing Card 5 - Rental Standard -->
-                        <div class="bg-white rounded-xl shadow-sm border overflow-hidden hover:shadow-lg transition-shadow group listing-card" data-listing-type="rental" data-ref="E">
-                            <div class="relative">
-                                <!-- Standard Photo Placeholder -->
-                                <div class="h-48 bg-gradient-to-br from-stone-500 via-stone-400 to-stone-600 flex items-center justify-center relative overflow-hidden">
-                                    <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0wIDBoNDBMNDAgNDBIMHoiLz48cGF0aCBkPSJNMCAwaDIwdjIwSDB6TTIwIDIwaDIwdjIwSDIweiIgZmlsbD0iI2ZmZiIgZmlsbC1vcGFjaXR5PSIuMDUiLz48L2c+PC9zdmc+')] opacity-30"></div>
-                                    <div class="text-center z-10">
-                                        <i class="fas fa-home text-4xl text-stone-300/70 mb-2"></i>
-                                        <p class="text-stone-200/80 text-xs font-medium tracking-wide">301 EAST 79TH STREET</p>
-                                    </div>
-                                    <div class="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
-                                        <i class="fas fa-camera mr-1"></i> 12 Photos
-                                    </div>
-                                </div>
-                                <!-- Building Name Badge (Primary Identifier) -->
-                                <div class="absolute top-3 left-3 flex items-center gap-2">
-                                    <span class="px-2.5 py-1.5 bg-white/95 backdrop-blur text-gray-900 text-xs font-bold rounded-lg shadow-lg flex items-center gap-1.5 border border-gray-200">
-                                        <span class="w-5 h-5 bg-gradient-to-br from-stone-400 to-stone-600 text-white text-[10px] font-bold rounded flex items-center justify-center">5</span>
-                                        301 E 79th · 4B
-                                    </span>
-                                </div>
-                                <!-- Tier & Type Badges -->
-                                <div class="absolute top-12 left-3 flex items-center gap-1">
-                                    <span class="px-2 py-1 bg-tier-standard text-white text-xs font-bold rounded">STANDARD</span>
-                                    <span class="px-2 py-1 bg-orange-500 text-white text-xs font-bold rounded">RENTAL</span>
-                                </div>
-                                <!-- Selection Checkbox -->
-                                <div class="absolute top-3 right-3">
-                                    <input type="checkbox" class="listing-checkbox w-5 h-5 rounded border-2 border-white shadow cursor-pointer" data-id="5">
-                                </div>
-                                <!-- Quick Actions - Client Feedback Style -->
-                                <div class="absolute bottom-12 left-0 right-0 flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-red-50 hover:scale-110 transition-transform" title="Not Interested" aria-label="Close">
-                                        <i class="fas fa-times text-red-400 text-lg"></i>
-                                    </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-yellow-50 hover:scale-110 transition-transform" title="Maybe">
-                                        <i class="fas fa-question text-yellow-500 text-lg"></i>
-                                    </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Interested!" aria-label="Like">
-                                        <i class="fas fa-heart text-green-500 text-lg"></i>
-                                    </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Schedule Showing">
-                                        <i class="fas fa-calendar-check text-blue-500 text-lg"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="p-4">
-                                <!-- Quick ID for reference -->
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xl font-bold text-gray-900">$4,500<span class="text-sm font-normal text-gray-500">/mo</span></span>
-                                    <div class="flex items-center gap-1">
-                                        <span class="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded font-mono">RLS-43210</span>
-                                        <span class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded font-semibold">Active</span>
-                                    </div>
-                                </div>
-                                <p class="font-semibold text-gray-800 mb-1">301 East 79th Street, 4B</p>
-                                <p class="text-sm text-gray-500 mb-2">Upper East Side, Manhattan</p>
-                                <div class="flex items-center gap-4 text-sm text-gray-600">
-                                    <span><i class="fas fa-bed mr-1"></i> 1 BD</span>
-                                    <span><i class="fas fa-bath mr-1"></i> 1 BA</span>
-                                    <span><i class="fas fa-ruler-combined mr-1"></i> 850 SF</span>
-                                </div>
-                                <div class="mt-3 pt-3 border-t flex items-center justify-between">
-                                    <span class="text-xs text-gray-500">Co-op | Doorman</span>
-                                    <span class="text-xs text-gray-600 font-semibold">IDX Listed</span>
-                                </div>
-                                <!-- Client Quick Feedback Bar -->
-                                <div class="mt-3 pt-3 border-t flex items-center justify-between">
-                                    <div class="flex items-center gap-1">
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors flex items-center gap-1">
-                                            <i class="fas fa-times-circle"></i> Pass
-                                        </button>
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-yellow-50 hover:border-yellow-200 hover:text-yellow-600 transition-colors flex items-center gap-1">
-                                            <i class="fas fa-bookmark"></i> Save
-                                        </button>
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-colors flex items-center gap-1">
-                                            <i class="fas fa-heart"></i> Love
-                                        </button>
-                                    </div>
-                                    <button class="px-2 py-1 text-xs rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-1">
-                                        <i class="fas fa-calendar"></i> Tour
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Sample Listing Card 6 - Rental Ultra-Luxury -->
-                        <div class="bg-white rounded-xl shadow-sm border overflow-hidden hover:shadow-lg transition-shadow group listing-card" data-listing-type="rental" data-ref="F">
-                            <div class="relative">
-                                <!-- Ultra-Luxury Photo Placeholder - Emerald/Teal -->
-                                <div class="h-48 bg-gradient-to-br from-teal-800 via-emerald-900 to-cyan-900 flex items-center justify-center relative overflow-hidden">
-                                    <div class="absolute inset-0">
-                                        <div class="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
-                                        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-400 via-emerald-400 to-teal-400"></div>
-                                    </div>
-                                    <div class="text-center z-10">
-                                        <i class="fas fa-building text-4xl text-gray-300/60 mb-2"></i>
-                                        <p class="text-teal-100/90 text-xs font-medium tracking-widest">220 CENTRAL PARK SOUTH</p>
-                                        <p class="text-emerald-300/60 text-[10px] tracking-wider mt-1">RESIDENCE 45A</p>
-                                    </div>
-                                    <div class="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
-                                        <i class="fas fa-camera mr-1"></i> 32 Photos
-                                    </div>
-                                    <div class="absolute bottom-2 left-2 bg-emerald-800/80 text-emerald-200 text-xs px-2 py-1 rounded flex items-center gap-1">
-                                        <i class="fas fa-video"></i> Virtual Tour
-                                    </div>
-                                </div>
-                                <!-- Building Name Badge (Primary Identifier) -->
-                                <div class="absolute top-3 left-3 flex items-center gap-2">
-                                    <span class="px-2.5 py-1.5 bg-white/95 backdrop-blur text-gray-900 text-xs font-bold rounded-lg shadow-lg flex items-center gap-1.5 border border-gray-200">
-                                        <span class="w-5 h-5 bg-gradient-to-br from-teal-500 to-emerald-600 text-white text-[10px] font-bold rounded flex items-center justify-center">6</span>
-                                        220 CPS · 45A
-                                    </span>
-                                </div>
-                                <!-- Tier & Type Badges -->
-                                <div class="absolute top-12 left-3 flex items-center gap-1">
-                                    <span class="px-2 py-1 bg-tier-ultraLuxury text-white text-xs font-bold rounded flex items-center gap-1">
-                                        <i class="fas fa-gem"></i> ULTRA-LUXURY
-                                    </span>
-                                    <span class="px-2 py-1 bg-orange-500 text-white text-xs font-bold rounded">RENTAL</span>
-                                </div>
-                                <!-- Selection Checkbox -->
-                                <div class="absolute top-3 right-3">
-                                    <input type="checkbox" class="listing-checkbox w-5 h-5 rounded border-2 border-white shadow cursor-pointer" data-id="6">
-                                </div>
-                                <!-- Quick Actions - Client Feedback Style -->
-                                <div class="absolute bottom-12 left-0 right-0 flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-red-50 hover:scale-110 transition-transform" title="Not Interested" aria-label="Close">
-                                        <i class="fas fa-times text-red-400 text-lg"></i>
-                                    </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-yellow-50 hover:scale-110 transition-transform" title="Maybe">
-                                        <i class="fas fa-question text-yellow-500 text-lg"></i>
-                                    </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Interested!" aria-label="Like">
-                                        <i class="fas fa-heart text-green-500 text-lg"></i>
-                                    </button>
-                                    <button class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-50 hover:scale-110 transition-transform" title="Schedule Showing">
-                                        <i class="fas fa-calendar-check text-blue-500 text-lg"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="p-4">
-                                <!-- Quick ID for reference -->
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xl font-bold text-gray-900">$55,000<span class="text-sm font-normal text-gray-500">/mo</span></span>
-                                    <div class="flex items-center gap-1">
-                                        <span class="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded font-mono">RLS-91234</span>
-                                        <span class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded font-semibold">Active</span>
-                                    </div>
-                                </div>
-                                <p class="font-semibold text-gray-800 mb-1">220 Central Park South, 45A</p>
-                                <p class="text-sm text-gray-500 mb-2">Midtown, Manhattan</p>
-                                <div class="flex items-center gap-4 text-sm text-gray-600">
-                                    <span><i class="fas fa-bed mr-1"></i> 3 BD</span>
-                                    <span><i class="fas fa-bath mr-1"></i> 3.5 BA</span>
-                                    <span><i class="fas fa-ruler-combined mr-1"></i> 3,200 SF</span>
-                                </div>
-                                <div class="mt-3 pt-3 border-t flex items-center justify-between">
-                                    <span class="text-xs text-gray-500">Furnished | No Fee</span>
-                                    <span class="text-xs text-blue-600 font-semibold">Exclusive</span>
-                                </div>
-                                <!-- Client Quick Feedback Bar -->
-                                <div class="mt-3 pt-3 border-t flex items-center justify-between">
-                                    <div class="flex items-center gap-1">
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors flex items-center gap-1">
-                                            <i class="fas fa-times-circle"></i> Pass
-                                        </button>
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-yellow-50 hover:border-yellow-200 hover:text-yellow-600 transition-colors flex items-center gap-1">
-                                            <i class="fas fa-bookmark"></i> Save
-                                        </button>
-                                        <button class="px-2 py-1 text-xs rounded-full border border-gray-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 transition-colors flex items-center gap-1">
-                                            <i class="fas fa-heart"></i> Love
-                                        </button>
-                                    </div>
-                                    <button class="px-2 py-1 text-xs rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-1">
-                                        <i class="fas fa-calendar"></i> Tour
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
                     <!-- Bottom Pagination (dynamic — mirrors top pagination) -->
                     <div id="bottomPaginationBar" class="mt-6 flex items-center justify-between">
@@ -20880,7 +20311,9 @@ function manageShowToast(msg) {
         // ═══════════════════════════════════════════════════════════════════════════════
 
         // toggleResultsView(grid|list|map) was DELETED 2026-09-09. It targeted #viewGrid / #viewList /
-        // #viewMap and #resultsGrid — none of which exists on this page — so it could only ever no-op, and
+        // #viewMap — none of which exists on this page — and #resultsGrid, which DID exist as a block of
+        // six fabricated static listing cards until it was removed on 2026-09-15; so it could only ever
+        // no-op against the real results, and
         // its three view WORDS are not view modes: setViewMode (render-dispatcher.js) owns the five real
         // ones (grid | gallery | shortSummary | summary | masterDetail). A stale 'list' or 'map' left in
         // localStorage by the old function used to hide every container and render a blank results page.
@@ -37227,19 +36660,36 @@ function REBNYComplianceDoctor(options) {
 
     // ─── Test 8: Commingling Prevention (NEW) ──────────────────────────────
     (function test8_Commingling() {
-        var resultCards = document.querySelectorAll('[data-listing-id]');
-        var totalListings = resultCards.length;
+        // ONE population, compared against ITSELF. The listing rows ARE the denominator, and the
+        // numerator is those same rows whose own data-source is an allowed value — so the numerator is a
+        // subset of the denominator by construction.
+        //
+        // This previously ran a SECOND, independent document-wide query for the numerator
+        // (querySelectorAll('[data-source=...]')), which counted ANY element carrying the attribute, not
+        // only listing rows. A single non-listing element with a source label therefore bought exactly one
+        // unlabelled listing a free pass. #detailPanel — a layout shell — was such an element, and a 2x2
+        // factorial probe isolated it as the sole cause of the slack. Deriving both sides from the same
+        // node set closes the defect structurally: no shell element can ever add slack again, whatever
+        // attributes it later acquires.
+        //
         // Verified source model (Search Consolidation Packet 1): every result card carries
         // data-source="COTALITY-API" (provider inventory) or "MALLAN-LOCAL" (Mallan-authored).
-        var sourceLabeledCards = document.querySelectorAll('[data-source="COTALITY-API"], [data-source="MALLAN-LOCAL"]');
+        var ALLOWED_LISTING_SOURCES = ['COTALITY-API', 'MALLAN-LOCAL'];
+        var resultCards = document.querySelectorAll('[data-listing-id]');
+        var totalListings = resultCards.length;
+        var unlabeledListings = 0;
+        for (var li = 0; li < resultCards.length; li++) {
+            var cardSource = resultCards[li].getAttribute('data-source');
+            if (ALLOWED_LISTING_SOURCES.indexOf(cardSource) === -1) unlabeledListings++;
+        }
 
         if (totalListings === 0) {
             addResult(8, 'Commingling Prevention', 'PASS', 'No listings displayed — no commingling risk');
-        } else if (sourceLabeledCards.length >= totalListings) {
+        } else if (unlabeledListings === 0) {
             addResult(8, 'Commingling Prevention', 'PASS', 'All ' + totalListings + ' listings carry a verified data-source label');
         } else {
             addResult(8, 'Commingling Prevention', 'FAIL',
-                (totalListings - sourceLabeledCards.length) + '/' + totalListings + ' listings lack a verified data-source (COTALITY-API | MALLAN-LOCAL) — commingling risk');
+                unlabeledListings + '/' + totalListings + ' listings lack a verified data-source (COTALITY-API | MALLAN-LOCAL) — commingling risk');
         }
     })();
 
@@ -37282,18 +36732,48 @@ function REBNYComplianceDoctor(options) {
     })();
 
     // ─── Test 10: Bulk Export Restriction (NEW) ────────────────────────────
-    (function test10_BulkExport() {
-        var BULK_LIMIT = 25;
-        if (typeof selectAllResults !== 'function') {
-            addResult(10, 'Bulk Export Restriction', 'FAIL', 'selectAllResults() not found — required bulk selection function missing');
+    // OWNERSHIP ADJUDICATED 2026-09-15. This gate was "Bulk Export Restriction" and asserted that
+    // document.querySelectorAll('.listing-checkbox').length <= 25. Both halves were unsound:
+    //
+    //   - the GUARD half required selectAllResults() to exist. That function once carried the real
+    //     enforcement — a 25-listing selection cap with a REBNY notice — but the enforcement was deleted on
+    //     2026-03-22 in 2183dd4d ("fix(crm): wire delivery stubs, compute real averages, fix filter count"),
+    //     which never mentions removing a compliance cap. It survives only as a two-line delegator with zero
+    //     invokers, so `typeof selectAllResults === 'function'` was permanently true and proved nothing.
+    //   - the COUNT half measured a class NO renderer has ever emitted. Its only population was fabricated
+    //     static mockup cards, removed 2026-09-15. The five real renderers emit anonymous checkboxes bound to
+    //     toggleListingSelection(); selection truth lives in searchResultsState.selectedListings.
+    //
+    // THE NUMBER IS NOT RE-ASSERTED, DELIBERATELY. Neither 25 nor 250 (reports.js MAX_EXPORT_ROWS) is
+    // traceable to any authority. data/UCBA-2026-Requirements.md carries no record-count ceiling; its only
+    // export mention is an audit-LOGGING duty, and compliance/THIRD-PARTY-AND-FEED-GOVERNANCE.md lists bulk
+    // export of MLS data as PROHIBITED (rule F1) with no threshold at all. A numeric cap asserts "export up
+    // to N is permitted", which is the wrong SHAPE for the rule it claims to implement. Per CLAUDE.md §E an
+    // unclear or absent requirement is a fail-closed escalation to Maya, never a guess written into code.
+    //
+    // What this gate now asserts is sourced and measurable: nothing that may NEVER be distributed is sitting
+    // in the population an export would draw from. Owner Opt-Out (UCBA Art. I Sec. 4(A)) and Participant
+    // Only (RLS Permissions=Private) are the same two gates this file already enforces for display above.
+    (function test10_BulkExportPopulation() {
+        var state = (typeof searchResultsState !== 'undefined' && searchResultsState) ? searchResultsState : null;
+        if (!state) {
+            addResult(10, 'Bulk Export Population', 'WARN', 'searchResultsState unavailable — export population could not be inspected');
             return;
         }
-        var allCheckboxes = document.querySelectorAll('.listing-checkbox');
-        if (allCheckboxes.length <= BULK_LIMIT) {
-            addResult(10, 'Bulk Export Restriction', 'PASS', allCheckboxes.length + ' listings (within ' + BULK_LIMIT + ' limit)');
+        var pool = state.filteredListings || [];
+        var undistributable = [];
+        for (var pi = 0; pi < pool.length; pi++) {
+            var perm = (pool[pi] && pool[pi].permissions) || {};
+            if (perm.ownerOptOut === true) undistributable.push('owner opt-out');
+            else if (perm.participantOnly === true) undistributable.push('participant only');
+        }
+        if (pool.length === 0) {
+            addResult(10, 'Bulk Export Population', 'PASS', 'No listings in the export population');
+        } else if (undistributable.length === 0) {
+            addResult(10, 'Bulk Export Population', 'PASS', pool.length + ' listings in the export population, none owner-opted-out or participant-only');
         } else {
-            addResult(10, 'Bulk Export Restriction', 'FAIL',
-                allCheckboxes.length + ' listings exceed ' + BULK_LIMIT + ' bulk export limit');
+            addResult(10, 'Bulk Export Population', 'FAIL',
+                undistributable.length + '/' + pool.length + ' listings in the export population must never be distributed (' + undistributable.join(', ') + ')');
         }
     })();
 
@@ -37693,14 +37173,22 @@ function REBNYComplianceExtended(options) {
     (function() {
         // Verified source model (Search Consolidation Packet 1): provider inventory is
         // data-source="COTALITY-API", Mallan-authored inventory is "MALLAN-LOCAL".
-        var provider = document.querySelectorAll('[data-source="COTALITY-API"]');
-        var mallan = document.querySelectorAll('[data-source="MALLAN-LOCAL"]');
-        var allSrc = document.querySelectorAll('[data-source]');
-        var allCards = document.querySelectorAll('[data-listing-id]');
+        // Counted on the LISTING ROWS THEMSELVES, for the same reason as Test 8: a document-wide
+        // [data-source] query also counts non-listing shells, which both inflated the reported provider
+        // count and hid unlabeled listings behind the comparison. Business meaning is unchanged — an
+        // unlabeled listing is still an issue, and provider inventory still requires REBNY attribution.
+        var listingCards = document.querySelectorAll('[data-listing-id]');
+        var provider = 0, mallan = 0, unlabeled = 0;
+        for (var ci = 0; ci < listingCards.length; ci++) {
+            var cardSrc = listingCards[ci].getAttribute('data-source');
+            if (cardSrc === 'COTALITY-API') provider++;
+            else if (cardSrc === 'MALLAN-LOCAL') mallan++;
+            else unlabeled++;
+        }
         var issues = [];
-        if (allCards.length > 0 && allSrc.length < allCards.length) issues.push((allCards.length - allSrc.length) + ' unlabeled');
-        if (provider.length > 0 && document.body.innerHTML.indexOf('Real Estate Board of New York') === -1) issues.push('provider inventory without attribution');
-        addResult('C1', 'Source Separation', issues.length === 0 ? 'PASS' : 'FAIL', issues.length === 0 ? allSrc.length + ' labeled (provider:' + provider.length + ', Mallan:' + mallan.length + ')' : issues.join(', '));
+        if (unlabeled > 0) issues.push(unlabeled + ' unlabeled');
+        if (provider > 0 && document.body.innerHTML.indexOf('Real Estate Board of New York') === -1) issues.push('provider inventory without attribution');
+        addResult('C1', 'Source Separation', issues.length === 0 ? 'PASS' : 'FAIL', issues.length === 0 ? (provider + mallan) + ' labeled (provider:' + provider + ', Mallan:' + mallan + ')' : issues.join(', '));
     })();
 
     // ── C2: Print CSS Test ─────────────────────────────────────────────
@@ -37792,15 +37280,20 @@ function REBNYComplianceExtended(options) {
             '.report-preview, #reportPreviewContainer'
         );
         var vis = '';
+        // Report what was ACTUALLY scanned, not the pre-filter candidate count. The gate correctly skips
+        // hidden containers, but it used to print containers.length — so a page that scanned nothing could
+        // still report "scanned across N containers". The verdict was never wrong; the evidence was.
+        var scannedContainers = 0;
         containers.forEach(function(c) {
             if (c.style.display === 'none' || c.offsetParent === null) return;
+            scannedContainers++;
             // Clone and strip out [data-compliance] and [data-access-level="agent-only"] zones
             var clone = c.cloneNode(true);
             clone.querySelectorAll('[data-compliance], [data-access-level="agent-only"]').forEach(function(el) { el.remove(); });
             vis += ' ' + (clone.innerText || '');
         });
         var leaks = PROHIBITED.filter(function(t) { return vis.indexOf(t) !== -1; });
-        addResult('C6', 'Full Surface Scan', leaks.length === 0 ? 'PASS' : 'FAIL', leaks.length === 0 ? PROHIBITED.length + ' terms scanned across ' + containers.length + ' containers, none found' : 'Found: ' + leaks.join(', '));
+        addResult('C6', 'Full Surface Scan', leaks.length === 0 ? 'PASS' : 'FAIL', leaks.length === 0 ? PROHIBITED.length + ' terms scanned across ' + scannedContainers + ' of ' + containers.length + ' containers (hidden skipped), none found' : 'Found: ' + leaks.join(', '));
     })();
 
     // ── C7: Social Share Scan ──────────────────────────────────────────

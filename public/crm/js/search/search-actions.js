@@ -3,7 +3,9 @@
         // ═══════════════════════════════════════════════════════════════════════════════
 
         // toggleResultsView(grid|list|map) was DELETED 2026-09-09. It targeted #viewGrid / #viewList /
-        // #viewMap and #resultsGrid — none of which exists on this page — so it could only ever no-op, and
+        // #viewMap — none of which exists on this page — and #resultsGrid, which DID exist as a block of
+        // six fabricated static listing cards until it was removed on 2026-09-15; so it could only ever
+        // no-op against the real results, and
         // its three view WORDS are not view modes: setViewMode (render-dispatcher.js) owns the five real
         // ones (grid | gallery | shortSummary | summary | masterDetail). A stale 'list' or 'map' left in
         // localStorage by the old function used to hide every container and render a blank results page.
