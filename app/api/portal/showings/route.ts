@@ -9,6 +9,7 @@ import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
 import { isListingDisplayable } from "@/lib/search/listing-access-decision";
 import { recordPortalEvent } from "@/lib/portal/events";
+import { isComingSoonStatus } from "@/lib/compliance/status";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req);
@@ -183,7 +184,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Coming Soon block — no showings allowed (UCBA D3)
-  if (listing.status === "ComingSoon") {
+  if (isComingSoonStatus(listing.status)) {
     return NextResponse.json(
       { error: "Showings are not permitted for Coming Soon listings" },
       { status: 422 }

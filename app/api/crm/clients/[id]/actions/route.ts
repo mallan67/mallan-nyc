@@ -18,6 +18,7 @@ import {
   evaluateClientDistributionEligibility,
   CLIENT_DISTRIBUTION_REFUSAL,
 } from "@/lib/compliance/client-distribution";
+import { isComingSoonStatus } from "@/lib/compliance/status";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   }
 
   // UCBA D3/D4: No offers or showings on Coming Soon listings
-  if (listing.status === "ComingSoon" && (action === "offer" || action === "schedule")) {
+  if (isComingSoonStatus(listing.status) && (action === "offer" || action === "schedule")) {
     return NextResponse.json(
       { error: `${action === "offer" ? "Offers" : "Showings"} are not permitted for Coming Soon listings (UCBA D3/D4)` },
       { status: 422 }
