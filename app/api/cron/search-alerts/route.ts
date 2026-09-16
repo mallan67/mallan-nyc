@@ -30,6 +30,7 @@ import type { SettledUniverse } from "@/lib/search/engine/universe";
 import { canonicalizeForLead, commitDelivery, excludeDelivered, loadDeliveryHistory } from "@/lib/search/alert-delivery-history";
 import { SEARCH_SELECT_FIELDS } from "@/lib/search/engine/select";
 import { recordSearchRun, type SearchRunDelta } from "@/lib/search/search-run-recorder";
+import { isLeadExplicitlyInactive } from "@/lib/auth/lead-access";
 
 export const maxDuration = 60;
 
@@ -80,13 +81,14 @@ export async function GET(req: NextRequest) {
         alert_frequency: { not: null },
       },
       include: {
-        lead: { select: { id: true, first_name: true, last_name: true, email: true } },
+        lead: { select: { id: true, first_name: true, last_name: true, email: true, status: true } },
         agent: { select: { id: true, first_name: true, last_name: true, email: true } },
       },
     });
 
     let sent = 0;
     let skipped = 0;
+    let suppressedInactiveLead = 0;
     let errored = 0;
     let skippedUnsupported = 0;
     // One settle per canonical universe per invocation. Keyed by the exact universe identity
@@ -142,6 +144,31 @@ export async function GET(req: NextRequest) {
             skipped++;
             continue;
           }
+        }
+
+        // LIFECYCLE SUPPRESSION — before recipient resolution, before provider work, before any write.
+        // The CANONICAL RELATIONSHIP decides, not whichever address is selected below: an alert_email
+        // override on a Lead-linked search is still a message to that client's audience. An agent-only
+        // saved search (agent && !lead) is untouched — agent automation is not client automation.
+        //
+        // Deliberately NOT a cancellation. last_alert_sent is not advanced, result_count is not rewritten
+        // and nothing is recorded as delivered, so reactivating the client resumes exactly where they were
+        // rather than into a closed window with inventory already marked sent.
+        if (search.lead && isLeadExplicitlyInactive(search.lead.status)) {
+          suppressedInactiveLead++;
+          skipped++;
+          await prisma.auditEvent.create({
+            data: {
+              action: "search_alert_suppressed_inactive_lead",
+              entity_type: "saved_search",
+              entity_id: search.id.toString(),
+              user_type: "system",
+              user_id: null,
+              // Ids only — no recipient address or name.
+              changes: { lead_id: search.lead.id.toString(), reason: "lead_inactive" },
+            },
+          }).catch(() => {});
+          continue;
         }
 
         const email = search.alert_email || search.lead?.email || search.agent?.email;
@@ -386,6 +413,8 @@ export async function GET(req: NextRequest) {
       skipped,
       errored,
       skippedUnsupported,
+      // Visible in ops output so a rising count is noticed, not silently absorbed into `skipped`.
+      suppressedInactiveLead,
       universeSettles,
       universeReuses,
       providerPages,

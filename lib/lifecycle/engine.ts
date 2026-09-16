@@ -21,6 +21,7 @@
  *       - lifecycle_email_skipped_non_lead_target     (target.type !== 'lead')
  */
 
+import { isLeadExplicitlyInactive } from '@/lib/auth/lead-access';
 import prisma from '@/lib/prisma';
 import { sendEmail } from '@/lib/email/sendgrid';
 import { lifecycleTriggerEmail } from '@/lib/email/templates';
@@ -448,7 +449,7 @@ async function executeAction(
 
       const lead = await prisma.lead.findUnique({
         where: { id: BigInt(target.id) },
-        select: { email: true, first_name: true, last_name: true, agent_id: true },
+        select: { email: true, first_name: true, last_name: true, agent_id: true, status: true },
       });
       if (!lead) {
         // Race: target found a moment ago but lead row is gone now.
@@ -463,6 +464,28 @@ async function executeAction(
           },
         }).catch(() => {});
         return { status: 'skipped', result: 'skipped_lead_not_found' };
+      }
+
+      // LIFECYCLE SUPPRESSION — the ONE choke point for client-facing lifecycle mail, rather than a
+      // status predicate copied into every target finder. Placed before the body is built and before any
+      // send, and it returns a non-success status so evaluateTrigger records NO TriggerExecution and the
+      // cooldown does not advance as though a message went out.
+      //
+      // Only the 'email' action is gated. 'notification' and 'agent_alert' are agent-facing and stay live:
+      // a deactivated client may still need follow-up, compliance work or retention review. This controls
+      // communication TO the client, not the brokerage's awareness ABOUT them.
+      if (isLeadExplicitlyInactive(lead.status)) {
+        await prisma.auditEvent.create({
+          data: {
+            action: 'lifecycle_email_suppressed_inactive',
+            entity_type: 'lead',
+            entity_id: target.id,
+            user_type: 'system',
+            user_id: null,
+            changes: { trigger: target.context.trigger as string ?? null, reason: 'lead_inactive' },
+          },
+        }).catch(() => {});
+        return { status: 'suppressed', result: 'suppressed_inactive' };
       }
 
       const leadName = `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'there';
