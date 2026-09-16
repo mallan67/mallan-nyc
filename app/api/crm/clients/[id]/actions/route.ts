@@ -9,6 +9,10 @@ import {
 } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
+import {
+  evaluateClientDistributionEligibility,
+  CLIENT_DISTRIBUTION_REFUSAL,
+} from "@/lib/compliance/client-distribution";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -84,6 +88,20 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   }
   if (!listing) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+  }
+
+  // REBNY client-facing distribution gate — the SAME canonical boundary listing-sends applies.
+  // Recording a reaction on behalf of a client is a client-facing action, so a listing the client may not
+  // receive may not be acted on for them either. The four flags are already on `listing`: both lookups
+  // above are findUnique() with no select, so Prisma returns every scalar column.
+  // This is deliberately a DIFFERENT rule from the ComingSoon check below — see lib/compliance/
+  // client-distribution.ts for why the two must not be conflated.
+  const distribution = evaluateClientDistributionEligibility(listing);
+  if (!distribution.allowed) {
+    return NextResponse.json(
+      { error: CLIENT_DISTRIBUTION_REFUSAL, reasons: distribution.reasons },
+      { status: 400 }
+    );
   }
 
   // UCBA D3/D4: No offers or showings on Coming Soon listings

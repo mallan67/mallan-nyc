@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import {
+  evaluateClientDistributionEligibility,
+  CLIENT_DISTRIBUTION_REFUSAL,
+} from "@/lib/compliance/client-distribution";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { listingSendEmail } from "@/lib/email/templates";
 import { escapeHtml } from "@/lib/sanitize";
@@ -135,15 +139,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  // REBNY compliance: server-side distribution gate check (defense-in-depth)
-  // Listings with any gate flag set to restrict display must not be sent to clients.
-  if (
-    listing.idx_display_yn === false ||
-    listing.internet_entire_listing_display_yn === false ||
-    listing.owner_opt_out === true ||
-    listing.participant_only === true
-  ) {
-    return NextResponse.json({ error: "This listing is not eligible for distribution per REBNY RLS rules." },
+  // REBNY compliance: server-side distribution gate check (defense-in-depth).
+  // The four-flag interpretation now lives in ONE place — lib/compliance/client-distribution.ts — and is
+  // shared with app/api/crm/clients/[id]/actions/route.ts, which performs the other client-facing write.
+  // Behaviour here is unchanged by the extraction: same four conditions, same 400, same message.
+  const distribution = evaluateClientDistributionEligibility(listing);
+  if (!distribution.allowed) {
+    return NextResponse.json(
+      { error: CLIENT_DISTRIBUTION_REFUSAL, reasons: distribution.reasons },
       { status: 400 }
     );
   }
