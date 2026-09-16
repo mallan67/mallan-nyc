@@ -101,6 +101,28 @@ type Harness = {
   close: () => void;
 };
 
+/**
+ * The SHIPPED reportState initialiser, lifted verbatim from js/core/data-loader.js rather than retyped.
+ *
+ * This harness previously seeded `options: {}`. That is not a configuration any agent can produce:
+ * reports.js:40 reverse-syncs every Customize checkbox FROM reportState.options, so an empty object
+ * silently unchecked the whole panel — including `fullListingAddress`, which the shipped default has ON
+ * and the modal markup carries as `checked`. Every assertion about report CONTENT was therefore being
+ * made against a report with its content options switched off.
+ *
+ * Reading the real block keeps the two from drifting: if the shipped defaults change, these tests change
+ * with them instead of quietly testing a fiction.
+ */
+const CANONICAL_REPORT_STATE = (() => {
+  const dl = read('public/crm/js/core/data-loader.js');
+  const start = dl.indexOf('var reportState = {');
+  if (start === -1) throw new Error('canonical reportState initialiser not found in data-loader.js');
+  const MARKER = '\n        };';
+  const end = dl.indexOf(MARKER, start);
+  if (end === -1) throw new Error('canonical reportState initialiser is unterminated');
+  return dl.slice(start, end + MARKER.length);
+})();
+
 function boot(opts: { emailConfigured?: boolean; rows?: Record<string, unknown>[]; version?: string } = {}): Harness {
   const rows = opts.rows ?? [SALE_ROW, RENTAL_ROW];
   // Both shipped partials: the reports modal drives the workflow, the preview modal holds the nine format
@@ -154,9 +176,9 @@ function boot(opts: { emailConfigured?: boolean; rows?: Record<string, unknown>[
       companyLicense: '10991205323', address: '400 East 90th Street, Suite 17C', website: 'mallan.nyc' };
     var listings = window.__rows;
     var searchResultsState = { filteredListings: window.__rows, selectedListings: [] };
-    var reportState = { format: 'grid', version: ${JSON.stringify(opts.version ?? 'agent')}, output: 'email',
-      options: {}, sort: { key: 'price' }, selectedListingIds: [], title: '', preparedFor: '',
-      customDescription: '', originalDescription: '' };
+    ${CANONICAL_REPORT_STATE}
+    reportState.version = ${JSON.stringify(opts.version ?? 'agent')};
+    reportState.output = 'email';
     var customerDB = {};
     var listingFlags = {};
     var currentReportFieldType = 'sale';
@@ -476,6 +498,252 @@ describe('D9 · no control claims a PDF it cannot produce, and no unimplemented 
       expect(csv).not.toContain('"Closed"');
       expect(h.cap.audits.map((a) => a.action)).toContain('report_csv_export');
       expect(isHidden(h)).toBe(true);
+    } finally { h.close(); }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// REG-8 — the live report path is the evidence, because the old evidence was source text
+//
+// WHAT WAS WRONG. The in-browser compliance doctor certified "Print/Email Compliance — All 8 output checks
+// pass" by reading printListingSheet.toString() and emailListingSheet.toString() and looking for the
+// strings checkListingCompliance, logAuditEntry, formatCurrency, updatedDate and REBNY. Both functions
+// early-return into openReportsModal(...), so every one of those tokens sat in unreachable fallback code —
+// and three of them (formatCurrency, updatedDate, REBNY) existed only inside a COMMENT on one line. The
+// checks would have stayed green if the live output had no gate, no audit, no formatted price and no
+// attribution at all, and would have gone red if someone reworded that comment. They measured the wrong
+// branch of the wrong function.
+//
+// WHAT REPLACES IT. These tests run the real workflow — generateReport() -> getReportListings() ->
+// buildFullReportHTML() -> wrapReportForEmail() -> sendEmailDirect(), and the print equivalent — and
+// assert on what the transport and the print sink actually receive. Every assertion has a positive
+// control, because "the output contained the word REBNY" is only evidence if something would have made it
+// absent.
+//
+// WHAT THIS DOES NOT DO. C4C is untouched and still open: getReportListings() screens idxDisplayYN and
+// internetDisplayYN but does NOT screen ownerOptOut / participantOnly, so those can still reach
+// print/CSV/XLSX/preview. The last group below pins that gap open deliberately rather than letting a
+// green REG-8 suite imply it was fixed.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** The compliance content the live email/print body is required to carry. */
+const sentBody = (h: Harness) => String((h.cap.emailjs.sent[0] || {}).message_html || '');
+
+describe('REG-8 · the EMAIL a client receives, asserted on the wire', () => {
+  it('carries the generated report — listings, formatted money, attribution and brokerage identity', async () => {
+    const h = boot({ emailConfigured: true });
+    try {
+      h.win.reportState.output = 'email';
+      h.win.document.getElementById('reportRecipientEmail').value = 'client@example.com';
+      h.win.document.querySelector('button[onclick="generateReport()"]').click();
+      await settle();
+
+      expect(h.cap.emailjs.sent.length).toBe(1);
+      const body = sentBody(h);
+
+      // The listings themselves.
+      expect(body).toContain('432 Park Avenue');
+      expect(body).toContain('15 Hudson Yards');
+      // Money formatted by the workflow, never raw.
+      expect(body).toContain('$12,500,000');
+      expect(body).not.toMatch(/>\s*12500000\s*</);
+      // REBNY/RLS attribution in the live output — not in a comment about the live output.
+      expect(body).toContain('REBNY Listing Service (RLS)');
+      expect(body).toMatch(/Equal Housing Opportunity/i);
+      // NY DOS 19 NYCRR 175.25 brokerage identity.
+      expect(body).toContain('Mallan Real Estate Inc.');
+      expect(body).toContain('400 East 90th Street');
+      expect(body).toMatch(/Commission rates are not set by law/);
+    } finally { h.close(); }
+  });
+
+  it('renders STATUS through the one status authority, in the format that displays it', async () => {
+    // The default 'grid' format shows no status badge at all, so asserting Sold/Rented against it would
+    // have been a wrong expectation rather than a compliance finding. 'list' is the format whose builder
+    // calls statusBadge() -> MallanStatus, and it is transaction-aware: a Closed SALE reads Sold, a
+    // Closed RENTAL reads Rented.
+    const h = boot({ emailConfigured: true });
+    try {
+      h.win.reportState.format = 'list';
+      h.win.reportState.output = 'email';
+      h.win.document.getElementById('reportRecipientEmail').value = 'client@example.com';
+      h.win.document.querySelector('button[onclick="generateReport()"]').click();
+      await settle();
+
+      const body = sentBody(h);
+      expect(body).toMatch(/Sold/);
+      expect(body).toMatch(/Rented/);
+    } finally { h.close(); }
+  });
+
+  it('renders the listed date when the agent enables that content option', async () => {
+    // updatedSoldDate is OFF in the shipped defaults, so this proves the option actually drives the live
+    // output rather than asserting a date the default report never promised.
+    const DATED = { ...SALE_ROW, listedDate: '2026-08-01' };
+    const h = boot({ emailConfigured: true, rows: [DATED] });
+    try {
+      h.win.reportState.format = 'comparison';
+      // Tick the real Customize checkbox rather than writing reportState directly: generateReport() calls
+      // syncUIToReportState() first, which re-reads every checkbox, so a programmatic option is discarded.
+      // That round-trip is itself worth exercising — it is how the agent's choice actually reaches output.
+      const box = h.win.document.querySelector('#optionalContentOptions input[data-option="updatedSoldDate"]');
+      expect(box).not.toBeNull();
+      box.checked = true;
+      h.win.reportState.output = 'email';
+      h.win.document.getElementById('reportRecipientEmail').value = 'client@example.com';
+      h.win.document.querySelector('button[onclick="generateReport()"]').click();
+      await settle();
+
+      const body = sentBody(h);
+      expect(body).toContain('Listed Date');
+      expect(body).toContain('2026-08-01');
+    } finally { h.close(); }
+  });
+
+  it('NON-VACUITY — the emailed body really is buildFullReportHTML output, not a fallback', async () => {
+    // The precise failure the old test could not see: if the live path stopped using the generated report,
+    // a toString() scan would not notice. Replace the generator and watch the wire change.
+    const h = boot({ emailConfigured: true });
+    try {
+      const SENTINEL = 'REG8-GENERATED-BODY-SENTINEL';
+      h.win.buildFullReportHTML = () => '<div>' + SENTINEL + '</div>';
+      h.win.reportState.output = 'email';
+      h.win.document.getElementById('reportRecipientEmail').value = 'client@example.com';
+      h.win.document.querySelector('button[onclick="generateReport()"]').click();
+      await settle();
+
+      const body = sentBody(h);
+      expect(body).toContain(SENTINEL);
+      // The report body was swapped, so the listing content must be gone — proving the previous test's
+      // assertions came from the generator and not from the surrounding email chrome.
+      expect(body).not.toContain('432 Park Avenue');
+      // The wrapper's own compliance furniture still surrounds it, which is where attribution lives.
+      expect(body).toContain('REBNY Listing Service (RLS)');
+    } finally { h.close(); }
+  });
+
+  it('resolves the recipient from the canonical client population', async () => {
+    const h = boot({ emailConfigured: true });
+    try {
+      h.win.customerDB['c1'] = { id: 'c1', name: 'Jane Buyer', email: 'jane@example.com' };
+      const sel = h.win.document.getElementById('reportRecipientClient');
+      sel.innerHTML = '<option value="">—</option><option value="c1">Jane Buyer</option>';
+      sel.value = 'c1';
+      h.win.reportState.output = 'email';
+      h.win.document.querySelector('button[onclick="generateReport()"]').click();
+      await settle();
+
+      expect(h.cap.emailjs.sent.length).toBe(1);
+      expect(h.cap.emailjs.sent[0].to_email).toBe('jane@example.com');
+      expect(String(h.cap.emailjs.sent[0].to_name)).toContain('Jane');
+    } finally { h.close(); }
+  });
+
+  it('delivery is audited only AFTER the configured transport accepted it', async () => {
+    const configured = boot({ emailConfigured: true });
+    try {
+      configured.win.reportState.output = 'email';
+      configured.win.document.getElementById('reportRecipientEmail').value = 'client@example.com';
+      configured.win.document.querySelector('button[onclick="generateReport()"]').click();
+      await settle();
+      expect(configured.cap.audits.filter((a) => a.action === 'email_sent').length).toBe(1);
+    } finally { configured.close(); }
+
+    // The control: same click, no transport. Nothing sent, nothing audited as delivered, modal still open.
+    const unconfigured = boot({ emailConfigured: false });
+    try {
+      unconfigured.win.reportState.output = 'email';
+      unconfigured.win.document.getElementById('reportRecipientEmail').value = 'client@example.com';
+      unconfigured.win.document.querySelector('button[onclick="generateReport()"]').click();
+      await settle();
+
+      expect(unconfigured.cap.emailjs.sent.length).toBe(0);
+      expect(unconfigured.cap.audits.filter((a) => a.action === 'email_sent').length).toBe(0);
+      expect(unconfigured.cap.audits.filter((a) => a.action === 'report_generate').length).toBe(0);
+      expect(isHidden(unconfigured)).toBe(false);
+      expect(errorText(unconfigured)).toMatch(/not configured/i);
+      // And it is recorded as a refusal rather than silently dropped.
+      expect(unconfigured.cap.audits.filter((a) => a.action === 'report_email_blocked').length).toBe(1);
+    } finally { unconfigured.close(); }
+  });
+});
+
+describe('REG-8 · the PRINT output, asserted on what the print sink receives', () => {
+  it('carries the listings, formatted money, attribution, brokerage identity and the disclosures', () => {
+    const h = boot();
+    try {
+      h.win.reportState.output = 'print';
+      h.win.generateReport();
+
+      expect(h.cap.printed.length).toBe(1);
+      const page = h.cap.printed[0];
+      expect(page).toContain('432 Park Avenue');
+      expect(page).toContain('$12,500,000');
+      expect(page).toContain('REBNY Listing Service (RLS)');
+      expect(page).toContain('Mallan Real Estate Inc.');
+      expect(page).toMatch(/Equal Housing Opportunity/i);
+      expect(page).toMatch(/Commission rates are not set by law/);
+      // Still the real printable workflow, not a silent PDF claim.
+      expect(page).toMatch(/Save as PDF/i);
+    } finally { h.close(); }
+  });
+
+  it('NON-VACUITY — the printed page really is buildFullReportHTML output', () => {
+    const h = boot();
+    try {
+      const SENTINEL = 'REG8-PRINT-BODY-SENTINEL';
+      h.win.buildFullReportHTML = () => '<div>' + SENTINEL + '</div>';
+      h.win.reportState.output = 'print';
+      h.win.generateReport();
+
+      expect(h.cap.printed.length).toBe(1);
+      expect(h.cap.printed[0]).toContain(SENTINEL);
+      expect(h.cap.printed[0]).not.toContain('432 Park Avenue');
+    } finally { h.close(); }
+  });
+
+  it('print does not silently become an email', () => {
+    const h = boot({ emailConfigured: true });
+    try {
+      h.win.reportState.output = 'print';
+      h.win.document.getElementById('reportRecipientEmail').value = 'client@example.com';
+      h.win.generateReport();
+
+      expect(h.cap.printed.length).toBe(1);
+      expect(h.cap.emailjs.sent.length).toBe(0);
+      const audits = h.cap.audits.filter((a) => a.action === 'report_generate');
+      expect(audits.length).toBe(1);
+      expect((audits[0].detail as { output?: string }).output).toBe('print');
+    } finally { h.close(); }
+  });
+});
+
+describe('REG-8 · C4C stays open — this packet repaired evidence, not distribution', () => {
+  it('getReportListings still screens ONLY idxDisplayYN / internetDisplayYN — ownerOptOut and participantOnly are not filtered', () => {
+    // Deliberately a characterisation test, not a requirement. It documents the CURRENT behaviour so a
+    // green REG-8 suite cannot be read as "report distribution is correct". The fix is C4C and is not
+    // authorised here; if this assertion ever starts failing because the screen was widened, that is C4C
+    // landing and this test should be replaced by the real one rather than relaxed.
+    const src = read('public/crm/js/output/reports.js');
+    const fn = src.slice(src.indexOf('function getReportListings()'));
+    const body = fn.slice(0, fn.indexOf('\n        }'));
+    expect(body).toMatch(/idxDisplayYN/);
+    expect(body).toMatch(/internetDisplayYN/);
+    expect({ ownerOptOut: /ownerOptOut/.test(body), participantOnly: /participantOnly/.test(body) })
+      .toEqual({ ownerOptOut: false, participantOnly: false });
+  });
+
+  it('an ownerOptOut row still reaches the printed output — C4C, confirmed and left visible', () => {
+    // CONFIRMATION of the registered defect, recorded per the packet's instruction to surface rather than
+    // silently fix. A row the owner opted out of is still rendered into a client-facing print body.
+    const OPTED_OUT = { ...SALE_ROW, id: 'L9', lid: 'RLS-9', address: '9 Opted Out Lane', ownerOptOut: true };
+    const h = boot({ rows: [OPTED_OUT] });
+    try {
+      h.win.reportState.output = 'print';
+      h.win.generateReport();
+      expect(h.cap.printed.length).toBe(1);
+      // If this ever stops containing the address, C4C has been fixed — update this test, do not delete it.
+      expect(h.cap.printed[0]).toContain('9 Opted Out Lane');
     } finally { h.close(); }
   });
 });

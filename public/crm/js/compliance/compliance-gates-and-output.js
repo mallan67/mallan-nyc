@@ -1392,40 +1392,34 @@ function REBNYComplianceDoctor(options) {
     })();
 
     // ─── Test 9: Print/Email Compliance ────────────────────────────────────
-    (function test9_PrintEmail() {
-        var checks = [];
-        if (typeof printListingSheet === 'function') {
-            var src = printListingSheet.toString();
-            if (src.indexOf('checkListingCompliance') !== -1) checks.push('print:gate');
-            if (src.indexOf('logAuditEntry') !== -1) checks.push('print:audit');
-        }
-        if (typeof emailListingSheet === 'function') {
-            var src = emailListingSheet.toString();
-            if (src.indexOf('checkListingCompliance') !== -1) checks.push('email:gate');
-            if (src.indexOf('logAuditEntry') !== -1) checks.push('email:audit');
-        }
-        if (typeof previewListingSheet === 'function') {
-            var src = previewListingSheet.toString();
-            if (src.indexOf('checkListingCompliance') !== -1) checks.push('preview:gate');
-        }
-        if (typeof generateSingleListingSheet === 'function') {
-            var src = generateSingleListingSheet.toString();
-            if (src.indexOf('suppressAddress') !== -1 || src.indexOf('Address Available') !== -1) checks.push('sheet:addressSuppress');
-        }
-        // Check branding/attribution in parent generateListingSheet (which wraps single cards)
-        var sheetSrc = '';
-        if (typeof generateListingSheet === 'function') sheetSrc = generateListingSheet.toString();
-        if (typeof generateSingleListingSheet === 'function') sheetSrc += generateSingleListingSheet.toString();
-        if (sheetSrc.indexOf('MALLAN REAL ESTATE') !== -1 || sheetSrc.indexOf('Mallan Real Estate') !== -1 || sheetSrc.indexOf('10991205323') !== -1) checks.push('sheet:branding');
-        if (sheetSrc.indexOf('REBNY') !== -1 || sheetSrc.indexOf('Equal Housing') !== -1) checks.push('sheet:attribution');
-
-        var expected = ['print:gate', 'print:audit', 'email:gate', 'email:audit', 'preview:gate', 'sheet:addressSuppress', 'sheet:branding', 'sheet:attribution'];
-        var missing = expected.filter(function(e) { return checks.indexOf(e) === -1; });
+    // NARROWED 2026-09-16 (REG-8). This reported "All 8 output checks pass" by calling
+    // printListingSheet.toString() and emailListingSheet.toString() and searching that SOURCE TEXT for
+    // 'checkListingCompliance', 'logAuditEntry', 'formatCurrency', 'updatedDate' and 'REBNY'.
+    //
+    // Both functions early-return into openReportsModal(), so every token it matched lived in unreachable
+    // fallback code, and three of them only inside a single comment line. Function.prototype.toString()
+    // returns comments and dead branches alike, so the eight checks would have stayed GREEN with the live
+    // gate, the live audit call, the live price formatting and the live attribution all deleted — and would
+    // have gone RED if someone reworded a comment. It measured the wrong branch of the wrong function.
+    //
+    // A browser-side doctor cannot see what an emailed or printed report contains without generating and
+    // sending one, so it no longer claims to. What it CAN observe is that both output controls delegate to
+    // the one canonical workflow. The CONTENT of that workflow's output is proven behaviourally in
+    // tests/runtime/crm-report-outputs.test.ts, which boots the real path and asserts on what the mail
+    // transport and the print sink actually receive, each assertion with a positive control.
+    (function test9_PrintEmailDelegation() {
+        var missing = [];
+        if (typeof openReportsModal !== 'function') missing.push('canonical reports workflow (openReportsModal) unavailable');
+        if (typeof emailListingSheet !== 'function') missing.push('emailListingSheet unavailable');
+        if (typeof printListingSheet !== 'function') missing.push('printListingSheet unavailable');
 
         if (missing.length === 0) {
-            addResult(9, 'Print/Email Compliance', 'PASS', 'All 8 output checks pass');
+            addResult(9, 'Print/Email Compliance', 'PASS',
+                'Both output controls delegate to the canonical reports workflow. Output CONTENT compliance is ' +
+                'not observable from the browser and is NOT certified here — it is proven behaviourally in ' +
+                'tests/runtime/crm-report-outputs.test.ts.');
         } else {
-            addResult(9, 'Print/Email Compliance', 'FAIL', missing.length + '/8 checks missing: ' + missing.join(', '));
+            addResult(9, 'Print/Email Compliance', 'FAIL', missing.join('; '));
         }
     })();
 
@@ -1690,18 +1684,12 @@ function REBNYWiringTest(options) {
     (function() {
         var issues = [], checks = [];
 
-        // 1. Email includes status + updated date per listing
-        if (typeof emailListingSheet === 'function') {
-            var eSrc = emailListingSheet.toString();
-            if (eSrc.indexOf('Status:') !== -1 || eSrc.indexOf('status') !== -1) checks.push('email:status');
-            else issues.push('Email missing status per listing');
-            if (eSrc.indexOf('Updated:') !== -1 || eSrc.indexOf('updatedDate') !== -1) checks.push('email:date');
-            else issues.push('Email missing updated date');
-            if (eSrc.indexOf('formatCurrency') !== -1) checks.push('email:formatCurrency');
-            else issues.push('Email uses raw price format');
-            if (eSrc.indexOf('REBNY') !== -1) checks.push('email:attribution');
-            else issues.push('Email missing REBNY attribution');
-        } else { issues.push('emailListingSheet not found'); }
+        // 1. Email content — REMOVED 2026-09-16 (REG-8). These four checks read emailListingSheet.toString()
+        //    and matched 'status', 'updatedDate', 'formatCurrency' and 'REBNY'. Every one of them was
+        //    satisfied by a SINGLE COMMENT LINE inside the function's unreachable legacy fallback, because
+        //    the function early-returns into openReportsModal(). They certified nothing about a real email.
+        //    Emailed-report content is proven behaviourally in tests/runtime/crm-report-outputs.test.ts.
+        if (typeof emailListingSheet !== 'function') issues.push('emailListingSheet not found');
 
         // 2. Print sheet uses formatCurrency + has required elements
         if (typeof generateSingleListingSheet === 'function') {
