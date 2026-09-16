@@ -88,7 +88,14 @@ jest.mock('@/lib/email/sendgrid', () => ({ __esModule: true, sendEmail: sendEmai
 jest.mock('@/lib/email/templates', () => ({ __esModule: true, listingSendEmail: () => '<html>body</html>' }));
 jest.mock('@/lib/sanitize', () => ({ __esModule: true, escapeHtml: (s: string) => s }));
 jest.mock('@/lib/tracking/listing-token', () => ({ __esModule: true, generateTrackingToken: () => 'tok_test' }));
-jest.mock('@/lib/crm/access', () => ({ __esModule: true, assertLeadIdsAccess: jest.fn(async () => ({ response: null })) }));
+// assertLeadAccess is mocked to GRANT here so these tests isolate the DISTRIBUTION gate. Ownership and the
+// licensee boundary are proved separately in tests/runtime/crm-actions-licensee-only.test.ts, against the
+// real predicate — granting here would be a hole only if nothing else covered it.
+jest.mock('@/lib/crm/access', () => ({
+  __esModule: true,
+  assertLeadIdsAccess: jest.fn(async () => ({ response: null })),
+  assertLeadAccess: jest.fn(async () => null),
+}));
 
 // Imported AFTER the mocks.
 import { POST as ACTIONS_POST } from '@/app/api/crm/clients/[id]/actions/route';
