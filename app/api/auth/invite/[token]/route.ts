@@ -7,6 +7,7 @@ import prisma from "@/lib/prisma";
 import { hashPassword, createSession, SESSION_COOKIE } from "@/lib/auth";
 import { hashPortalToken, isPortalTokenExpired } from "@/lib/auth/portal-token";
 import { getSessionCookieConfig } from "@/lib/auth/cookie-config";
+import { isLeadExplicitlyInactive, LEAD_PORTAL_ACCESS_REVOKED } from "@/lib/auth/lead-access";
 
 export async function GET(
   _req: NextRequest,
@@ -26,6 +27,7 @@ export async function GET(
       email: true,
       portal_role: true,
       portal_token_expires_at: true,
+      status: true,
     },
   });
 
@@ -34,6 +36,10 @@ export async function GET(
       { error: "Invalid or expired invite link" },
       { status: 404 }
     );
+  }
+
+  if (isLeadExplicitlyInactive(lead.status)) {
+    return NextResponse.json({ error: LEAD_PORTAL_ACCESS_REVOKED }, { status: 403 });
   }
 
   // Enforce TTL — fail closed if no expiry or expired
@@ -86,6 +92,14 @@ export async function POST(
         { error: "Invalid or expired invite link" },
         { status: 404 }
       );
+    }
+
+    // THE SILENT REACTIVATION. The update below writes `status: "active"`, so accepting an outstanding
+    // invite both restored portal access AND rewrote the lifecycle state — through an authentication
+    // endpoint, with no licensee decision anywhere in the path. Closing login alone would have left this
+    // door open. Refuse before any write; do not reactivate.
+    if (isLeadExplicitlyInactive(lead.status)) {
+      return NextResponse.json({ error: LEAD_PORTAL_ACCESS_REVOKED }, { status: 403 });
     }
 
     // Enforce TTL

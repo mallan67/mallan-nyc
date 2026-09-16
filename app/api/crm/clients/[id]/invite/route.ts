@@ -9,6 +9,7 @@ import {
   logAuditEvent,
 } from "@/lib/auth";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
+import { isLeadExplicitlyInactive, LEAD_PORTAL_ACCESS_REVOKED } from "@/lib/auth/lead-access";
 import { generatePortalToken } from "@/lib/auth/portal-token";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
@@ -31,6 +32,12 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
 
   if (auth.role !== "BROKER" && lead.agent_id !== auth.userId) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  }
+
+  // No invitations to a deactivated client, and deliberately NO "reactivate and invite" shortcut.
+  // Reactivation is a separate, deliberate lifecycle action a licensee takes knowingly.
+  if (isLeadExplicitlyInactive(lead.status)) {
+    return NextResponse.json({ error: LEAD_PORTAL_ACCESS_REVOKED }, { status: 409 });
   }
 
   let body: Record<string, unknown> = {};

@@ -2,6 +2,7 @@
 // Server-side session management backed by PostgreSQL
 import { randomUUID } from "crypto";
 import prisma from "@/lib/prisma";
+import { isLeadExplicitlyInactive } from "@/lib/auth/lead-access";
 
 // Per-role session durations (must match cookie-config.ts maxAge values)
 const SESSION_TTL_MS = {
@@ -104,6 +105,21 @@ export async function validateSession(
     // Expired — clean up and return null
     await prisma.session.delete({ where: { token } }).catch(() => {});
     return null;
+  }
+
+  // LEAD LIFECYCLE RE-CHECK, before any rotation. This function previously read ONLY the Session row and
+  // never re-read the principal, so a client deactivated after login kept a working session that then
+  // SELF-EXTENDED below. Required even though deactivation now deletes sessions: a stale row, a race or a
+  // direct database edit must still fail closed. Agent sessions are deliberately untouched.
+  if (session.user_type === "lead") {
+    const lead = await prisma.lead.findUnique({
+      where: { id: session.user_id },
+      select: { status: true },
+    });
+    if (!lead || isLeadExplicitlyInactive(lead.status)) {
+      await prisma.session.delete({ where: { token } }).catch(() => {});
+      return null;
+    }
   }
 
   // Rotate if within refresh threshold — use role-appropriate duration

@@ -13,6 +13,7 @@ import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
 import { scanTextForFairHousing } from "@/lib/compliance/rls-enforcement";
 import { assignLeadToAgent } from "@/lib/lead-distribution/assign";
+import { isLeadExplicitlyInactive } from "@/lib/auth/lead-access";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -389,6 +390,23 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         data: update,
       })
     : lead;
+
+  // DEACTIVATION SIDE EFFECTS — access only. Deactivation is NOT deletion: the Lead identity and every
+  // related record (preferences, Client x Listing actions, saved searches, showings, feedback, comments,
+  // activity, documents, deals) are deliberately untouched, and pipeline_stage is NOT rewritten just
+  // because the lifecycle changed — they are separate dimensions.
+  //
+  // Only two things are revoked: live sessions, and any outstanding portal invite token. Without the
+  // second, an unconsumed invite would remain a working re-entry path.
+  if (isLeadExplicitlyInactive(update.status) && !isLeadExplicitlyInactive(lead.status)) {
+    await prisma.session.deleteMany({
+      where: { user_id: lead.id, user_type: "lead" },
+    });
+    await prisma.lead.update({
+      where: { id: lead.id },
+      data: { portal_token: null, portal_token_expires_at: null },
+    });
+  }
 
   const assignment = reassignmentAgentId !== undefined
     ? await assignLeadToAgent({
