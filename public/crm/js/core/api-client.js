@@ -385,6 +385,64 @@ var MallanAPI = (function () {
       return _fetch('/api/crm/clients' + query);
     },
 
+    /**
+     * The CANONICAL paginated Client loader — one way for Backend Search to obtain the FULL authorized
+     * client population.
+     *
+     * WHY THIS EXISTS. /api/crm/clients clamps a single page to 200 (app/api/crm/clients/route.ts:17, and
+     * again at lib/db/clients.ts:89) and returns a truthful `total` that every caller was discarding. Four
+     * Search selectors each asked for one 200-row page, so a broker with more than 200 clients silently
+     * received a short list that looked complete. The cap is NOT raised — the pages are followed.
+     *
+     * AUTHORIZATION IS THE SERVER'S. This walks pages; it applies no ownership predicate of its own. The
+     * population is already scoped by lib/db/clients.ts:61-62 — brokerage-wide for a BROKER, agent_id =
+     * userId for every other licensee. A browser re-filter would be a second statement of that policy, not
+     * a boundary, and this must never become one.
+     *
+     * FAILS VISIBLY. A rejected page rejects the whole call. A partial book is never returned as if it
+     * were complete — that is the defect this replaces, in a new costume.
+     */
+    listAll: function (params) {
+      params = params || {};
+      var MAX_PAGE = 200;    // the server's clamp; asking for more just gets clamped
+      var MAX_PAGES = 200;   // runaway guard (40,000 rows) — refuse rather than loop forever
+      var pageSize = Math.min(Math.max(parseInt(params.limit, 10) || MAX_PAGE, 1), MAX_PAGE);
+      var out = [];
+      var seen = {};
+
+      function nextPage(offset, pagesFetched) {
+        if (pagesFetched >= MAX_PAGES) {
+          return Promise.reject(new Error(
+            'clients.listAll: exceeded ' + MAX_PAGES + ' pages — refusing to report a partial population'
+          ));
+        }
+        return clients.list({ limit: pageSize, offset: offset, status: params.status }).then(function (result) {
+          var rows = result && result.clients;
+          if (!Array.isArray(rows)) {
+            throw new Error('clients.listAll: /api/crm/clients did not return a clients array');
+          }
+          for (var i = 0; i < rows.length; i++) {
+            var row = rows[i];
+            // Dedupe on the canonical Client/Lead id. A row without one cannot be identified and is not
+            // silently invented into the population.
+            var id = row && row.id !== undefined && row.id !== null ? String(row.id) : '';
+            if (!id || seen[id]) continue;
+            seen[id] = true;
+            out.push(row);
+          }
+          var total = result && typeof result.total === 'number' ? result.total : null;
+          var exhausted =
+            rows.length === 0 ||
+            rows.length < pageSize ||
+            (total !== null && offset + rows.length >= total);
+          if (exhausted) return out;
+          return nextPage(offset + rows.length, pagesFetched + 1);
+        });
+      }
+
+      return nextPage(0, 0);
+    },
+
     get: function (id) {
       return _fetch('/api/crm/clients/' + encodeURIComponent(id));
     },

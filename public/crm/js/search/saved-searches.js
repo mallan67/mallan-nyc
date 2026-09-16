@@ -100,8 +100,8 @@
             var select = document.getElementById('savedSearchClientId');
             if (!select || typeof MallanAPI === 'undefined') return;
             select.innerHTML = '<option value="">-- No client (agent only) --</option>';
-            MallanAPI.clients.list({ limit: 200 }).then(function(result) {
-                var clients = result.clients || result.leads || [];
+            MallanAPI.clients.listAll().then(function(clients) {
+                // Canonical paginated population — the server scopes it; nothing here re-filters ownership.
                 clients.forEach(function(c) {
                     var name = (c.first_name || '') + ' ' + (c.last_name || '');
                     if (c.secondary_first_name) {

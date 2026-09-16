@@ -285,10 +285,14 @@
         function _loadClients() {
             if (typeof MallanAPI === 'undefined') return;
             MallanAPI.onReady(function() {
-                MallanAPI._fetch('/api/crm/leads?limit=200').then(function(data) {
-                    var leads = data.leads || data || [];
-                    if (!Array.isArray(leads)) return;
-                    leads.forEach(function(cl) {
+                // CANONICAL client source. This used to call /api/crm/leads?limit=200 — the Lead
+                // DISTRIBUTION route, which for a BROKER defaults to `agent_id = null` (unassigned only),
+                // so the principal broker's pickers were fed exactly the people who are NOT her clients.
+                // /api/crm/clients is the canonical population and is already authorization-scoped by the
+                // server; listAll follows its pages so a book larger than 200 is not silently truncated.
+                MallanAPI.clients.listAll().then(function(clients) {
+                    if (!Array.isArray(clients)) return;
+                    clients.forEach(function(cl) {
                         if (typeof ClientNormalizer !== 'undefined') ClientNormalizer.normalize(cl);
                         var id = cl.id || cl._id;
                         if (!id) return;
@@ -298,7 +302,10 @@
                             name: cl.name || cl._displayName || ((cl.first_name || '') + ' ' + (cl.last_name || '')).trim() || 'Unknown',
                             email: cl.email || '',
                             type: cl.type || cl.client_type || 'buyer',
-                            agentId: cl.assigned_agent_id || cl.agentId
+                            // The canonical DTO's own field (lib/db/clients.ts CLIENT_SELECT). Carried for
+                            // display/diagnostics ONLY — it is NOT an authorization input. The server has
+                            // already scoped this population; nothing in the browser may re-decide it.
+                            agentId: cl.agent_id || cl.assigned_agent_id || cl.agentId
                         });
                     });
                     // Populate report recipient dropdown if it exists

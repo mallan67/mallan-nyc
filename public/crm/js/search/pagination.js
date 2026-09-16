@@ -2287,8 +2287,8 @@
 
             // Populate client dropdown
             if (typeof MallanAPI !== 'undefined') {
-                MallanAPI.clients.list({ limit: 200 }).then(function(result) {
-                    var clients = result.clients || result.leads || [];
+                MallanAPI.clients.listAll().then(function(clients) {
+                    // Canonical paginated population — the server scopes it; nothing here re-filters ownership.
                     var select = document.getElementById('showingClientId');
                     if (!select) return;
                     clients.forEach(function(c) {
@@ -2646,8 +2646,8 @@
 
             // Populate client checkboxes
             if (typeof MallanAPI !== 'undefined') {
-                MallanAPI.clients.list({ limit: 200 }).then(function(result) {
-                    var clients = result.clients || result.leads || [];
+                MallanAPI.clients.listAll().then(function(clients) {
+                    // Canonical paginated population — the server scopes it; nothing here re-filters ownership.
                     var container = document.getElementById('portalSendClientList');
                     if (!container || clients.length === 0) {
                         if (container) container.innerHTML = '<p class="text-gray-500 text-xs">No clients found</p>';

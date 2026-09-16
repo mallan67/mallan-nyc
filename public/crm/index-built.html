@@ -13821,6 +13821,64 @@ var MallanAPI = (function () {
       return _fetch('/api/crm/clients' + query);
     },
 
+    /**
+     * The CANONICAL paginated Client loader — one way for Backend Search to obtain the FULL authorized
+     * client population.
+     *
+     * WHY THIS EXISTS. /api/crm/clients clamps a single page to 200 (app/api/crm/clients/route.ts:17, and
+     * again at lib/db/clients.ts:89) and returns a truthful `total` that every caller was discarding. Four
+     * Search selectors each asked for one 200-row page, so a broker with more than 200 clients silently
+     * received a short list that looked complete. The cap is NOT raised — the pages are followed.
+     *
+     * AUTHORIZATION IS THE SERVER'S. This walks pages; it applies no ownership predicate of its own. The
+     * population is already scoped by lib/db/clients.ts:61-62 — brokerage-wide for a BROKER, agent_id =
+     * userId for every other licensee. A browser re-filter would be a second statement of that policy, not
+     * a boundary, and this must never become one.
+     *
+     * FAILS VISIBLY. A rejected page rejects the whole call. A partial book is never returned as if it
+     * were complete — that is the defect this replaces, in a new costume.
+     */
+    listAll: function (params) {
+      params = params || {};
+      var MAX_PAGE = 200;    // the server's clamp; asking for more just gets clamped
+      var MAX_PAGES = 200;   // runaway guard (40,000 rows) — refuse rather than loop forever
+      var pageSize = Math.min(Math.max(parseInt(params.limit, 10) || MAX_PAGE, 1), MAX_PAGE);
+      var out = [];
+      var seen = {};
+
+      function nextPage(offset, pagesFetched) {
+        if (pagesFetched >= MAX_PAGES) {
+          return Promise.reject(new Error(
+            'clients.listAll: exceeded ' + MAX_PAGES + ' pages — refusing to report a partial population'
+          ));
+        }
+        return clients.list({ limit: pageSize, offset: offset, status: params.status }).then(function (result) {
+          var rows = result && result.clients;
+          if (!Array.isArray(rows)) {
+            throw new Error('clients.listAll: /api/crm/clients did not return a clients array');
+          }
+          for (var i = 0; i < rows.length; i++) {
+            var row = rows[i];
+            // Dedupe on the canonical Client/Lead id. A row without one cannot be identified and is not
+            // silently invented into the population.
+            var id = row && row.id !== undefined && row.id !== null ? String(row.id) : '';
+            if (!id || seen[id]) continue;
+            seen[id] = true;
+            out.push(row);
+          }
+          var total = result && typeof result.total === 'number' ? result.total : null;
+          var exhausted =
+            rows.length === 0 ||
+            rows.length < pageSize ||
+            (total !== null && offset + rows.length >= total);
+          if (exhausted) return out;
+          return nextPage(offset + rows.length, pagesFetched + 1);
+        });
+      }
+
+      return nextPage(0, 0);
+    },
+
     get: function (id) {
       return _fetch('/api/crm/clients/' + encodeURIComponent(id));
     },
@@ -20932,10 +20990,14 @@ function manageShowToast(msg) {
         function _loadClients() {
             if (typeof MallanAPI === 'undefined') return;
             MallanAPI.onReady(function() {
-                MallanAPI._fetch('/api/crm/leads?limit=200').then(function(data) {
-                    var leads = data.leads || data || [];
-                    if (!Array.isArray(leads)) return;
-                    leads.forEach(function(cl) {
+                // CANONICAL client source. This used to call /api/crm/leads?limit=200 — the Lead
+                // DISTRIBUTION route, which for a BROKER defaults to `agent_id = null` (unassigned only),
+                // so the principal broker's pickers were fed exactly the people who are NOT her clients.
+                // /api/crm/clients is the canonical population and is already authorization-scoped by the
+                // server; listAll follows its pages so a book larger than 200 is not silently truncated.
+                MallanAPI.clients.listAll().then(function(clients) {
+                    if (!Array.isArray(clients)) return;
+                    clients.forEach(function(cl) {
                         if (typeof ClientNormalizer !== 'undefined') ClientNormalizer.normalize(cl);
                         var id = cl.id || cl._id;
                         if (!id) return;
@@ -20945,7 +21007,10 @@ function manageShowToast(msg) {
                             name: cl.name || cl._displayName || ((cl.first_name || '') + ' ' + (cl.last_name || '')).trim() || 'Unknown',
                             email: cl.email || '',
                             type: cl.type || cl.client_type || 'buyer',
-                            agentId: cl.assigned_agent_id || cl.agentId
+                            // The canonical DTO's own field (lib/db/clients.ts CLIENT_SELECT). Carried for
+                            // display/diagnostics ONLY — it is NOT an authorization input. The server has
+                            // already scoped this population; nothing in the browser may re-decide it.
+                            agentId: cl.agent_id || cl.assigned_agent_id || cl.agentId
                         });
                     });
                     // Populate report recipient dropdown if it exists
@@ -21206,16 +21271,19 @@ var ClientNormalizer = (function () {
 // Uses ClientNormalizer from core/client-normalizer.js.
 var customerDB = {};
 
-// Agent-scoped client filtering — broker sees all, agent sees only their own
+// The server-authorized client population, consumed as-is.
+//
+// This used to re-apply `LOGGED_IN_AGENT.role === 'broker' || c.agentId === LOGGED_IN_AGENT.id` — a SECOND
+// statement of an access policy the server already enforces. /api/crm/clients is scoped in
+// lib/db/clients.ts:61-62: brokerage-wide for a BROKER, `agent_id = userId` for every other licensee. A
+// browser filter over an already-scoped payload is not a boundary; it can only agree or disagree, and this
+// one disagreed — it compared against lowercase 'broker' while the server compares against exactly
+// "BROKER", so an ordinary agent's rows would all have been removed once the source was corrected.
+//
+// Do NOT reintroduce an ownership comparison here. If the population is ever wrong, the predicate to fix
+// is the server's, in one place.
 function getMyClients() {
-    var clients = {};
-    for (var id in customerDB) {
-        var c = customerDB[id];
-        if (LOGGED_IN_AGENT.role === 'broker' || c.agentId === LOGGED_IN_AGENT.id) {
-            clients[id] = c;
-        }
-    }
-    return clients;
+    return customerDB;
 }
 
 // Launch the client workspace in the brokerage CRM.
@@ -23925,8 +23993,8 @@ function parseBudgetValue(td) {
             var select = document.getElementById('savedSearchClientId');
             if (!select || typeof MallanAPI === 'undefined') return;
             select.innerHTML = '<option value="">-- No client (agent only) --</option>';
-            MallanAPI.clients.list({ limit: 200 }).then(function(result) {
-                var clients = result.clients || result.leads || [];
+            MallanAPI.clients.listAll().then(function(clients) {
+                // Canonical paginated population — the server scopes it; nothing here re-filters ownership.
                 clients.forEach(function(c) {
                     var name = (c.first_name || '') + ' ' + (c.last_name || '');
                     if (c.secondary_first_name) {
@@ -32272,8 +32340,8 @@ function emailCurrentCalc() {
 
             // Populate client dropdown
             if (typeof MallanAPI !== 'undefined') {
-                MallanAPI.clients.list({ limit: 200 }).then(function(result) {
-                    var clients = result.clients || result.leads || [];
+                MallanAPI.clients.listAll().then(function(clients) {
+                    // Canonical paginated population — the server scopes it; nothing here re-filters ownership.
                     var select = document.getElementById('showingClientId');
                     if (!select) return;
                     clients.forEach(function(c) {
@@ -32631,8 +32699,8 @@ function emailCurrentCalc() {
 
             // Populate client checkboxes
             if (typeof MallanAPI !== 'undefined') {
-                MallanAPI.clients.list({ limit: 200 }).then(function(result) {
-                    var clients = result.clients || result.leads || [];
+                MallanAPI.clients.listAll().then(function(clients) {
+                    // Canonical paginated population — the server scopes it; nothing here re-filters ownership.
                     var container = document.getElementById('portalSendClientList');
                     if (!container || clients.length === 0) {
                         if (container) container.innerHTML = '<p class="text-gray-500 text-xs">No clients found</p>';

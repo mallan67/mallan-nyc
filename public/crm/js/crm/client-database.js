@@ -7,16 +7,19 @@
 // Uses ClientNormalizer from core/client-normalizer.js.
 var customerDB = {};
 
-// Agent-scoped client filtering — broker sees all, agent sees only their own
+// The server-authorized client population, consumed as-is.
+//
+// This used to re-apply `LOGGED_IN_AGENT.role === 'broker' || c.agentId === LOGGED_IN_AGENT.id` — a SECOND
+// statement of an access policy the server already enforces. /api/crm/clients is scoped in
+// lib/db/clients.ts:61-62: brokerage-wide for a BROKER, `agent_id = userId` for every other licensee. A
+// browser filter over an already-scoped payload is not a boundary; it can only agree or disagree, and this
+// one disagreed — it compared against lowercase 'broker' while the server compares against exactly
+// "BROKER", so an ordinary agent's rows would all have been removed once the source was corrected.
+//
+// Do NOT reintroduce an ownership comparison here. If the population is ever wrong, the predicate to fix
+// is the server's, in one place.
 function getMyClients() {
-    var clients = {};
-    for (var id in customerDB) {
-        var c = customerDB[id];
-        if (LOGGED_IN_AGENT.role === 'broker' || c.agentId === LOGGED_IN_AGENT.id) {
-            clients[id] = c;
-        }
-    }
-    return clients;
+    return customerDB;
 }
 
 // Launch the client workspace in the brokerage CRM.
