@@ -15,6 +15,12 @@
  * route first would have deleted the only implementation of a compliance rule before its canonical owners
  * enforced it.
  *
+ * SINCE SUPERSEDED, and the fourth row above is now history rather than current behaviour. Once this file
+ * went green, Step 3 removed "schedule" and "offer" from that route's vocabulary entirely, so it no longer
+ * enforces — or needs — a ComingSoon rule: it cannot reach one. Group D below was therefore rewritten from
+ * a ComingSoon gate into a NEGATIVE OWNERSHIP proof, and the live-writer count in group E dropped from four
+ * to three. The ComingSoon rule for schedule and offer is now held exclusively by the three live writers.
+ *
  * TWO AXES, NOT ONE — the load-bearing distinction in this file.
  * ComingSoon is DELIBERATELY displayable: lib/compliance/status.ts:141 lists COMING_SOON in
  * ACTIVE_DISPLAY_VALUES and :133 states it outright. So isListingDisplayable() neither does nor should
@@ -270,23 +276,27 @@ describe('C · POST /api/portal/showings keeps its prohibition for every spellin
 // ─────────────────────────────────────────────────────────────────────────────
 // D — The dormant route. Its rule must survive normalization unchanged, and must not widen.
 // ─────────────────────────────────────────────────────────────────────────────
-describe('D · POST /api/crm/clients/[id]/actions keeps schedule/offer blocked and liked allowed', () => {
-  it.each(COMING_SOON_SPELLINGS)('schedule blocks on %s', async (status) => {
-    reset({ status });
-    const res = await ACTIONS_POST(actionsReq({ action: 'schedule', listing_id: 'LIST-001' }), actionsParams);
-    expect(res.status).toBe(422);
+describe('D · the CRM action route cannot reach a ComingSoon decision, because it no longer owns the verbs', () => {
+  // NOT a ComingSoon gate — deliberately. After Step 3 this route refuses "schedule" and "offer" as unknown
+  // vocabulary (400), before listing status is ever consulted. Asserting 422 here again would re-describe
+  // it as a transaction-rule owner, which is exactly the ownership confusion the lane removed.
+  // The transaction rule itself is proven on the live writers in groups A, B and C above.
+  it.each(['schedule', 'offer'] as const)('%s is refused as unknown vocabulary, not as a ComingSoon block', async (action) => {
+    reset({ status: 'ComingSoon' });
+    const res = await ACTIONS_POST(actionsReq({ action, listing_id: 'LIST-001' }), actionsParams);
+    expect({ action, status: res.status }).toEqual({ action, status: 400 });
     expectNoPersistentSideEffect();
   });
 
-  it.each(COMING_SOON_SPELLINGS)('offer blocks on %s', async (status) => {
-    reset({ status });
-    const res = await ACTIONS_POST(actionsReq({ action: 'offer', listing_id: 'LIST-001' }), actionsParams);
-    expect(res.status).toBe(422);
+  it.each(['schedule', 'offer'] as const)('%s is refused on an ACTIVE listing too, proving status is irrelevant here', async (action) => {
+    reset({ status: 'Active' });
+    const res = await ACTIONS_POST(actionsReq({ action, listing_id: 'LIST-001' }), actionsParams);
+    expect({ action, status: res.status }).toEqual({ action, status: 400 });
     expectNoPersistentSideEffect();
   });
 
-  // The rule is about TRANSACTING on a Coming Soon listing, not about touching one. Recording that a client
-  // liked it stays legal; a rule that blocked this would have over-corrected.
+  // Reacting to a Coming Soon listing was always legal and still is: the rule bars transacting, not
+  // touching. A Step 3 that broke this would have over-corrected.
   it.each(COMING_SOON_SPELLINGS)('liked remains ALLOWED on %s', async (status) => {
     reset({ status });
     const res = await ACTIONS_POST(actionsReq({ action: 'liked', listing_id: 'LIST-001' }), actionsParams);
@@ -320,7 +330,7 @@ describe('E · the DISPLAY axis was not altered to achieve the TRANSACTION rule'
   // SECONDARY proof only — the behavioural cases above are what actually establish the rule. This exists to
   // catch a regression that reintroduces a route-local status interpreter, which behaviour alone would not
   // distinguish from a correct fix until someone stored a different spelling.
-  it('all four writer routes decide this rule through isComingSoonStatus(), never raw equality', () => {
+  it('all three LIVE writer routes decide this rule through isComingSoonStatus(), never raw equality', () => {
     // Comments are stripped first: this file's own explanatory prose names the literals it bans, and an
     // unstripped scan would flag the documentation rather than the code. Split on a CR-optional newline —
     // this tree is CRLF, and a trailing CR terminates the line, so a `.*$` comment strip silently fails.
@@ -331,11 +341,13 @@ describe('E · the DISPLAY axis was not altered to achieve the TRANSACTION rule'
         .join('\n')
         .replace(/\/\*[\s\S]*?\*\//g, '');
 
+    // The CRM action route is deliberately absent: Step 3 removed "schedule" and "offer" from it, so it
+    // holds no ComingSoon decision to make. Requiring the helper there would demand a rule the route can no
+    // longer reach — and would quietly reinstate it as a transaction-rule owner.
     const ROUTES = [
       'app/api/crm/showings/route.ts',
       'app/api/portal/showings/route.ts',
       'app/api/portal/offers/route.ts',
-      'app/api/crm/clients/[id]/actions/route.ts',
     ];
 
     const report = ROUTES.map((rel) => {

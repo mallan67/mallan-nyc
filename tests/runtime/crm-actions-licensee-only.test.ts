@@ -31,7 +31,10 @@
  *
  * DELIBERATELY UNCHANGED HERE
  *   - the shared client-distribution gate added in 02ad8e99 — still applied, still proven below;
- *   - the ComingSoon D3/D4 rule — still a SEPARATE business rule with its own 422;
+ *   - the ComingSoon D3/D4 rule — at the time, still a SEPARATE business rule here with its own 422.
+ *     SUPERSEDED: Step 3 removed "schedule" and "offer" from this route's vocabulary, so it no longer
+ *     enforces that rule and cannot reach it. The rule is owned by the live writers (REG-7, 8ea3f79d) and
+ *     proven in coming-soon-transaction-parity.test.ts. What this route still owns is reactions;
  *   - app/api/portal/listings/[id]/react/route.ts — NOT touched in this packet.
  *
  * REGISTERED SEPARATELY, NOT FIXED HERE: validateSession() trusts session.user_type through a TypeScript
@@ -173,15 +176,19 @@ describe('the other two gates are untouched by this change', () => {
     }
   });
 
-  it('ComingSoon D3/D4 remains a SEPARATE rule with its own 422', async () => {
+  // Step 3: these two verbs are no longer this route's to accept. The refusal is 400 (unknown vocabulary),
+  // NOT 422 (a transaction rule) — this route stopped being a schedule/offer writer, it did not become a
+  // stricter one. Their canonical owners are /api/crm/showings and /api/portal/offers.
+  it('schedule and offer are refused as unknown vocabulary, with no write', async () => {
     for (const action of ['offer', 'schedule']) {
-      reset({ listing: { status: 'ComingSoon' } });
+      reset({ listing: { status: 'Active' } });
       const res = await POST(req({ action, listing_id: 'LIST-001' }), params);
-      expect({ action, status: res.status }).toEqual({ action, status: 422 });
+      expect({ action, status: res.status }).toEqual({ action, status: 400 });
+      expect(clientListingActionUpsert).not.toHaveBeenCalled();
     }
   });
 
-  it('ComingSoon still allows liked', async () => {
+  it('ComingSoon still allows liked — reacting was never the prohibited act', async () => {
     reset({ listing: { status: 'ComingSoon' } });
     expect((await POST(req(), params)).status).toBe(201);
   });

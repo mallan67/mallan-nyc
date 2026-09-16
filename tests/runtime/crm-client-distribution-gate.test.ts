@@ -158,23 +158,22 @@ describe('B · POST /api/crm/clients/[id]/actions applies the client distributio
   });
 });
 
-describe('B · ComingSoon D3/D4 stays a SEPARATE business rule, not conflated with the gate', () => {
-  it('ComingSoon still blocks offer and schedule on an otherwise permissive listing', async () => {
-    for (const action of ['offer', 'schedule']) {
-      reset({ status: 'ComingSoon' });
-      const res = await ACTIONS_POST(actionsReq({ action, listing_id: 'LIST-001' }), actionsParams);
-      expect({ action, status: res.status, why: 'UCBA D3/D4 is its own rule with its own status code' })
-        .toEqual({ action, status: 422, why: expect.any(String) });
-    }
-  });
-
-  it('ComingSoon still ALLOWS liked — the D3/D4 rule is scoped to offer/schedule only', async () => {
+describe('B · DISTRIBUTION eligibility stays separate from TRANSACTION rules', () => {
+  // This group no longer exercises schedule/offer: Step 3 removed them from this route's vocabulary, so a
+  // refusal would prove only that the verb is unknown — nothing about the distribution boundary. The
+  // boundary is therefore proven with an action the route actually owns.
+  //
+  // The separation itself still matters and is still asserted below: a listing can be perfectly
+  // DISTRIBUTABLE to a client and still not be TRANSACTABLE (Coming Soon), and the two rules must keep
+  // their own predicates and their own status codes. The transaction half now lives with the live writers
+  // and is proven in coming-soon-transaction-parity.test.ts.
+  it('a ComingSoon listing is still DISTRIBUTABLE — the gate does not borrow the transaction rule', async () => {
     reset({ status: 'ComingSoon' });
     const res = await ACTIONS_POST(actionsReq({ action: 'liked', listing_id: 'LIST-001' }), actionsParams);
     expect(res.status).toBe(201);
   });
 
-  it('a distribution-gated ComingSoon listing is refused by the DISTRIBUTION gate (400), not D3/D4 (422)', async () => {
+  it('a distribution-gated ComingSoon listing is refused by the DISTRIBUTION gate, on distribution grounds', async () => {
     reset({ status: 'ComingSoon', owner_opt_out: true });
     const res = await ACTIONS_POST(actionsReq({ action: 'liked', listing_id: 'LIST-001' }), actionsParams);
     expect(res.status).toBe(400);

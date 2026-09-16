@@ -1,5 +1,22 @@
 // POST /api/crm/clients/[id]/actions
-// Record a client's listing reaction (liked, disliked, discuss, schedule, offer).
+// Record a client's listing REACTION, written by a licensee: liked, disliked, discuss.
+//
+// This route owns reactions only. Two verbs it used to accept have canonical owners elsewhere, and
+// accepting them here fragmented their state across a second table:
+//
+//   schedule -> POST /api/crm/showings   — creates a real Showing row plus a follow-up task and an email
+//   offer    -> POST /api/portal/offers  — the client's own submission; the separate portal-offer to
+//                                          Offer-model lifecycle convergence is registered, not resolved
+//
+// Narrowing this route was blocked until 8ea3f79d (REG-7), because until then it held the ONLY server-side
+// ComingSoon no-transact rule covering both verbs — /api/crm/showings had none and /api/portal/offers had
+// only isListingDisplayable(), which cannot express the rule since Coming Soon is deliberately displayable.
+// That rule now lives with the live writers, so the local branch here was removed rather than deleted from
+// the codebase.
+//
+// This narrows ONE route's vocabulary. It does NOT narrow ClientListingAction.action globally: "schedule",
+// "offer" and "sent" remain legitimate stored values written by the portal, listing-sends and search-alert
+// delivery history.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 // LICENSEE-ONLY route. Portal clients react through /api/portal/listings/[id]/react, which enforces the
@@ -18,11 +35,10 @@ import {
   evaluateClientDistributionEligibility,
   CLIENT_DISTRIBUTION_REFUSAL,
 } from "@/lib/compliance/client-distribution";
-import { isComingSoonStatus } from "@/lib/compliance/status";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-const VALID_ACTIONS = ["liked", "disliked", "discuss", "schedule", "offer"];
+const VALID_ACTIONS = ["liked", "disliked", "discuss"];
 
 export async function POST(req: NextRequest, { params }: RouteParams) {
   const blocked = assertWriteAllowed();
@@ -96,21 +112,15 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   // Recording a reaction on behalf of a client is a client-facing action, so a listing the client may not
   // receive may not be acted on for them either. The four flags are already on `listing`: both lookups
   // above are findUnique() with no select, so Prisma returns every scalar column.
-  // This is deliberately a DIFFERENT rule from the ComingSoon check below — see lib/compliance/
-  // client-distribution.ts for why the two must not be conflated.
+  // This is a DISTRIBUTION rule — may this client receive this listing at all — and is deliberately not a
+  // transaction rule. The ComingSoon no-transact prohibition that used to sit below it now lives with the
+  // canonical showing and offer writers (REG-7); see lib/compliance/client-distribution.ts for why the two
+  // must never be conflated.
   const distribution = evaluateClientDistributionEligibility(listing);
   if (!distribution.allowed) {
     return NextResponse.json(
       { error: CLIENT_DISTRIBUTION_REFUSAL, reasons: distribution.reasons },
       { status: 400 }
-    );
-  }
-
-  // UCBA D3/D4: No offers or showings on Coming Soon listings
-  if (isComingSoonStatus(listing.status) && (action === "offer" || action === "schedule")) {
-    return NextResponse.json(
-      { error: `${action === "offer" ? "Offers" : "Showings"} are not permitted for Coming Soon listings (UCBA D3/D4)` },
-      { status: 422 }
     );
   }
 
