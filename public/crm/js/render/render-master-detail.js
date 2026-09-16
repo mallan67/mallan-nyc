@@ -125,7 +125,6 @@
 
                 <!-- Action icons -->
                 <div class="flex items-center gap-1.5 mb-3 pb-3 border-b border-gray-100">
-                    ${clientFeedbackIcons(listing)}
                     <button class="p-1.5 hover:bg-gray-100 rounded"><i class="fas fa-plus text-gray-500 text-sm"></i></button>
                     <button class="p-1.5 hover:bg-gray-100 rounded"><i class="fas fa-eye text-gray-500 text-sm"></i></button>
                     <button class="p-1.5 hover:bg-gray-100 rounded"><i class="fas fa-file-alt text-gray-500 text-sm"></i></button>

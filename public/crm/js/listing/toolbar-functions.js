@@ -171,9 +171,6 @@
             if (!e.target.closest('#viewModeDropdown') && !e.target.closest('[onclick*="toggleViewModeDropdown"]')) {
                 document.querySelectorAll('#viewModeDropdown').forEach(d => d.classList.add('hidden'));
             }
-            if (!e.target.closest('[id^="workWithCustomerDropdown"]') && !e.target.closest('[onclick*="toggleWorkWithCustomer"]')) {
-                document.querySelectorAll('[id^="workWithCustomerDropdown"]').forEach(function(d) { d.classList.add('hidden'); });
-            }
             if (!e.target.closest('#savedSearchDropdown') && !e.target.closest('[onclick*="toggleSavedSearchDropdown"]')) {
                 document.getElementById('savedSearchDropdown')?.classList.add('hidden');
             }

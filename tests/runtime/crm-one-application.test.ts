@@ -233,11 +233,13 @@ describe('Backend Search launches the CRM without depending on it', () => {
 
   it('no Backend Search runtime module navigates to the CRM by filename', () => {
     // The launcher that regressed: js/crm/client-database.js used to send the operator to
-    // '/crm/dashboard.html#/workspace/client/<id>/overview'. Scan executable lines only, so the
-    // explanation of the rule cannot break the enforcement of it.
+    // '/crm/dashboard.html#/workspace/client/<id>/overview'. That module has since been retired entirely
+    // (Orphan Client Retirement Packet A), so it is no longer in the scanned list — but the RULE outlives
+    // it and still governs every remaining module. Scan executable lines only, so the explanation of the
+    // rule cannot break the enforcement of it.
     const stripComments = (js: string) =>
       js.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-    const modules = ['js/crm/client-database.js', 'js/manage/manage-listings.js', 'js/output/calculators.js'];
+    const modules = ['js/manage/manage-listings.js', 'js/output/calculators.js'];
     const offenders = modules.filter((m) => /dashboard\.html/.test(stripComments(read(`public/crm/${m}`))));
     expect({ offenders }).toEqual({ offenders: [] });
   });

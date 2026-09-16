@@ -949,7 +949,6 @@
 
                         <!-- ═══ Client Feedback ═══ -->
                         <div class="flex items-center gap-1 mb-4 pb-3 border-b border-gray-100">
-                            ${clientFeedbackIcons(listing)}
                         </div>
 
                         <!-- ═══ Financial Tools ═══ -->

@@ -84,7 +84,6 @@
                         ${listing.agentPhone ? '<div class="text-blue-600 mt-1"><i class="fas fa-phone text-[9px] text-green-500 mr-1"></i>' + escapeHtml(listing.agentPhone) + '</div>' : ''}
                         ${listing.agentEmail ? '<div class="text-blue-600 mt-0.5"><i class="fas fa-envelope text-[9px] text-gray-400 mr-1"></i>' + escapeHtml(listing.agentEmail) + '</div>' : ''}
                         <div class="flex items-center gap-1 mt-2">
-                            ${clientFeedbackIcons(listing)}
                         </div>
                     </div>
                     </div>

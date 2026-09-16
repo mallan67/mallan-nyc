@@ -31,7 +31,7 @@
  *   - the nearby fabricated listing defaults in the same transformer (borough || 'Manhattan',
  *     listingType 'Exclusive', …) are registered Search P0s and were left alone.
  */
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 import * as vm from 'vm';
 
@@ -41,7 +41,6 @@ const stripComments = (s: string) => s.split(/\r?\n/).map((l) => l.replace(/\/\/
 
 const API_CLIENT = read('public/crm/js/core/api-client.js');
 const DATA_LOADER = read('public/crm/js/core/data-loader.js');
-const CLIENT_DB = read('public/crm/js/crm/client-database.js');
 const PAGINATION = read('public/crm/js/search/pagination.js');
 const SAVED_SEARCHES = read('public/crm/js/search/saved-searches.js');
 
@@ -179,14 +178,20 @@ describe('F · no Search module decides authorization', () => {
   // the same population. Banning the bare string would have flagged that, which is the "guard that bans a
   // string where the rule is about a decision" mistake. What must never return is a role or identity check
   // used as an INCLUSION condition over the canonical population.
-  it('getMyClients returns the server-authorized population without re-deciding it', () => {
-    const code = stripComments(CLIENT_DB);
-    expect(code).toMatch(/function getMyClients\(\)\s*\{\s*return customerDB;\s*\}/);
-    expect(code).not.toMatch(/c\.agentId\s*===\s*LOGGED_IN_AGENT\.id/);
+  // SUPERSEDED BY DELETION, which is the stronger proof. This used to assert that getMyClients() returned
+  // the server-authorized population verbatim instead of re-filtering it. The whole module that defined it
+  // has since been retired (Orphan Client Retirement Packet A), so Search now has no client-population
+  // accessor of its own to re-decide anything with. Asserting the module's good behaviour would require
+  // resurrecting it.
+  it('no Search module defines a client-population accessor at all', () => {
+    expect(existsSync(resolve(ROOT, 'public/crm/js/crm/client-database.js'))).toBe(false);
+    for (const [name, src] of [['data-loader', DATA_LOADER], ['pagination', PAGINATION], ['saved-searches', SAVED_SEARCHES]] as const) {
+      expect({ name, hit: /function getMyClients\s*\(/.test(stripComments(src)) }).toEqual({ name, hit: false });
+    }
   });
 
   it('no Search module filters the client population by assignment identity', () => {
-    for (const [name, src] of [['data-loader', DATA_LOADER], ['client-database', CLIENT_DB], ['pagination', PAGINATION], ['saved-searches', SAVED_SEARCHES]] as const) {
+    for (const [name, src] of [['data-loader', DATA_LOADER], ['pagination', PAGINATION], ['saved-searches', SAVED_SEARCHES]] as const) {
       const code = stripComments(src);
       // an identity comparison against the session, anywhere
       expect({ name, hit: /agentId\s*===\s*LOGGED_IN_AGENT/.test(code) }).toEqual({ name, hit: false });
@@ -202,7 +207,7 @@ describe('C · Backend Search never loads its client population from the leads r
   });
 
   it('no Search client module calls /api/crm/leads', () => {
-    for (const [name, src] of [['data-loader', DATA_LOADER], ['client-database', CLIENT_DB], ['pagination', PAGINATION], ['saved-searches', SAVED_SEARCHES]] as const) {
+    for (const [name, src] of [['data-loader', DATA_LOADER], ['pagination', PAGINATION], ['saved-searches', SAVED_SEARCHES]] as const) {
       expect({ name, hit: stripComments(src).indexOf('/api/crm/leads') !== -1 }).toEqual({ name, hit: false });
     }
   });
@@ -230,10 +235,15 @@ describe('E · every Search client selector uses the canonical paginated populat
   });
 });
 
-describe('the Search -> CRM bridge and the one normalizer are preserved', () => {
-  it('openClientWorkspace still launches the canonical CRM workspace by route', () => {
-    expect(CLIENT_DB).toContain('openClientWorkspace');
-    expect(CLIENT_DB).toMatch(/\/crm#\/workspace\/client\//);
+describe('the Search -> CRM bridge requirement, and the one normalizer', () => {
+  // openClientWorkspace() was NOT preserved. Its only caller was inside the dead client grid, so there was
+  // no live control to hang it from, and keeping a 270-line dead module alive to host a three-line launcher
+  // is how an orphan subsystem survives a cleanup. What survives is the REQUIREMENT, asserted negatively:
+  // if a bridge returns, it must address the CRM by route and never by build filename.
+  it('no Search module couples to the CRM by build filename', () => {
+    for (const [name, src] of [['data-loader', DATA_LOADER], ['pagination', PAGINATION], ['saved-searches', SAVED_SEARCHES]] as const) {
+      expect({ name, hit: /dashboard\.html/.test(stripComments(src)) }).toEqual({ name, hit: false });
+    }
   });
 
   it('ClientNormalizer remains the single presentation normalizer for Search', () => {

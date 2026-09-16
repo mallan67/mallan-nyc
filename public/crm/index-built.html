@@ -563,7 +563,6 @@ header {
 /* ---- Form Controls (selects, text inputs) ---- */
 #section-main select,
 #section-my select,
-#section-client select,
 #section-last select {
     font-size: 13px;
     padding: 7px 10px;
@@ -725,7 +724,7 @@ header {
 }
 
 /* ---- My Searches / Client Searches / Last Search Sections ---- */
-#section-my, #section-client, #section-last, #section-manage {
+#section-my, #section-last, #section-manage {
     max-width: 1400px;
     margin: 0 auto;
 }
@@ -1775,10 +1774,6 @@ header {
         min-height: 40px;
     }
 
-    /* Customer cards — tighter spacing on mobile */
-    #section-client .grid {
-        gap: 12px;
-    }
 }
 
 /* ========================================= */
@@ -9016,9 +9011,6 @@ function toggleSection(header) {
                                     </span>
                                     <div class="w-px h-5 bg-blue-200"></div>
                                     <div class="flex items-center gap-1">
-                                        <button onclick="openWorkWithSelected()" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors">
-                                            <i class="fas fa-check-circle"></i> Work With
-                                        </button>
                                         <button onclick="printListingSheet()" class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors">
                                             <i class="fas fa-print"></i> Print
                                         </button>
@@ -13908,13 +13900,6 @@ var MallanAPI = (function () {
       return _fetch('/api/crm/clients/' + encodeURIComponent(id) + '/preferences', {
         method: 'PUT',
         body: JSON.stringify(prefs),
-      });
-    },
-
-    recordAction: function (id, data) {
-      return _fetch('/api/crm/clients/' + encodeURIComponent(id) + '/actions', {
-        method: 'POST',
-        body: JSON.stringify(data),
       });
     },
   };
@@ -21015,7 +21000,6 @@ function manageShowToast(msg) {
                     });
                     // Populate report recipient dropdown if it exists
                     if (typeof populateReportRecipientDropdown === 'function') populateReportRecipientDropdown();
-                    if (typeof populateClientList === 'function') populateClientList();
                     console.log('[DataLoader] Loaded ' + searchResultsState.clients.length + ' clients');
                 }).catch(function(err) {
                     console.warn('[DataLoader] Client load failed:', err && err.message);
@@ -21180,7 +21164,7 @@ function manageShowToast(msg) {
 // ═══ js/core/client-normalizer.js ═══
 // ═══════════════════════════════════════════════════════════════════════════════
 // CLIENT NORMALIZER — Single canonical client model transform
-// Used by: dashboard (panels.js, workspace.js) AND search (client-database.js)
+// Used by: dashboard (panels.js, workspace.js) AND search (core/data-loader.js)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 var ClientNormalizer = (function () {
@@ -21258,280 +21242,6 @@ var ClientNormalizer = (function () {
     displayName: displayName,
   };
 })();
-
-</script>
-<script>
-// ═══ js/crm/client-database.js ═══
-// ============================================
-// CUSTOMER MODE
-// ============================================
-// Client data is loaded from the API at runtime.
-// No hardcoded demo/mock clients — real data only.
-// Uses escapeHtml() from nav.js for XSS prevention.
-// Uses ClientNormalizer from core/client-normalizer.js.
-var customerDB = {};
-
-// The server-authorized client population, consumed as-is.
-//
-// This used to re-apply `LOGGED_IN_AGENT.role === 'broker' || c.agentId === LOGGED_IN_AGENT.id` — a SECOND
-// statement of an access policy the server already enforces. /api/crm/clients is scoped in
-// lib/db/clients.ts:61-62: brokerage-wide for a BROKER, `agent_id = userId` for every other licensee. A
-// browser filter over an already-scoped payload is not a boundary; it can only agree or disagree, and this
-// one disagreed — it compared against lowercase 'broker' while the server compares against exactly
-// "BROKER", so an ordinary agent's rows would all have been removed once the source was corrected.
-//
-// Do NOT reintroduce an ownership comparison here. If the population is ever wrong, the predicate to fix
-// is the server's, in one place.
-function getMyClients() {
-    return customerDB;
-}
-
-// Launch the client workspace in the brokerage CRM.
-//
-// This file is loaded by public/crm/index.html — the Backend Agent Search / Listings application.
-// The CRM is a SEPARATE application (Master Plan §5.1), so this is a LAUNCH LINK across a product
-// boundary, not a dependency: Search boots, authenticates and executes with the CRM unavailable.
-//
-// Addressed by ROUTE, never by build artifact. It used to say '/crm/dashboard.html', which couples
-// Search to a filename inside the CRM's build output and breaks the moment that file is renamed.
-// '/crm' is the CRM's governed address (vercel.json), and '#/workspace/client/:id/overview' is a
-// route the CRM's own router registers (js/dashboard/app.js).
-function openClientWorkspace(clientId) {
-    if (!clientId) return;
-    window.location.href = '/crm#/workspace/client/' + encodeURIComponent(clientId) + '/overview';
-}
-
-// Dynamically render client card grid (replaces hardcoded HTML cards)
-function renderClientGrid() {
-    var tbody = document.getElementById('clientTableBody');
-    if (!tbody) return;
-    var clients = getMyClients();
-    var E = typeof escapeHtml === 'function' ? escapeHtml : function (s) { return String(s || ''); };
-    var stageLabels = { new_lead:'New Lead', qualified:'Qualified', requirements_confirmed:'Req. Confirmed', searching:'Searching', touring:'Touring', shortlist:'Shortlist', offer_prep:'Offer Prep', offer_submitted:'Offer', negotiation:'Negotiating', contract_signed:'Contract', closing_scheduled:'Closing', closed:'Closed' };
-    var stageSteps = ['new_lead','qualified','requirements_confirmed','searching','touring','shortlist','offer_prep','offer_submitted','negotiation','contract_signed','closing_scheduled','closed'];
-    var typeColors = { Buyer:'blue', Renter:'green', Seller:'amber', Landlord:'purple', Investor:'indigo' };
-
-    // Apply filters
-    var typeFilter = document.getElementById('clientTypeFilter') ? document.getElementById('clientTypeFilter').value : 'all';
-    var stageFilter = document.getElementById('clientStageFilter') ? document.getElementById('clientStageFilter').value : 'all';
-    var searchText = (document.getElementById('clientDirectorySearch') ? document.getElementById('clientDirectorySearch').value : '').toLowerCase();
-
-    var rows = [];
-    var activeCount = 0, closedCount = 0;
-    for (var id in clients) {
-        var c = clients[id];
-        // Normalize via shared utility
-        if (typeof ClientNormalizer !== 'undefined') ClientNormalizer.normalize(c);
-        var cs = c.clientStatus || 'active';
-        if (cs === 'active') activeCount++;
-        else closedCount++;
-        // Tab filtering
-        if (currentClientTab === 'active' && cs !== 'active') continue;
-        if (currentClientTab === 'closed' && cs !== 'closed') continue;
-        // Dropdown filters
-        if (typeFilter !== 'all' && (c.clientType || c.type || '').toLowerCase() !== typeFilter) continue;
-        if (stageFilter !== 'all' && c.dealStage !== stageFilter) continue;
-        if (searchText && (c.name || '').toLowerCase().indexOf(searchText) === -1
-            && (c.email || '').toLowerCase().indexOf(searchText) === -1
-            && ((c.preferences && c.preferences.neighborhoods) || []).join(',').toLowerCase().indexOf(searchText) === -1) continue;
-        rows.push({ id: id, client: c });
-    }
-
-    var html = '';
-    rows.forEach(function(row) {
-        var c = row.client;
-        var cs = c.clientStatus || 'active';
-        var p = c.preferences || {};
-        var dealStage = c.dealStage || 'new_lead';
-        var stageIdx = stageSteps.indexOf(dealStage);
-        var stageColor = stageIdx >= 9 ? 'green' : stageIdx >= 6 ? 'purple' : stageIdx >= 3 ? 'blue' : 'gray';
-        var tc = typeColors[c.type] || 'gray';
-        var neighborhoods = E((p.neighborhoods || []).join(', ') || '\u2014');
-        var beds = p.minBeds ? (p.maxBeds && p.maxBeds !== p.minBeds ? p.minBeds + '-' + p.maxBeds : p.minBeds + '+') : '\u2014';
-        var baths = p.minBaths ? (p.maxBaths && p.maxBaths !== p.minBaths ? p.minBaths + '-' + p.maxBaths : p.minBaths + '+') : '\u2014';
-        var lastAct = c.lastActivity ? Math.round((new Date() - new Date(c.lastActivity)) / 86400000) : null;
-        var actColor = lastAct === null ? 'gray' : lastAct > 7 ? 'red' : lastAct > 3 ? 'amber' : 'green';
-        var pendingAlerts = (c.matchedListings || []).filter(function(m) { return m.status === 'queued'; }).length;
-        var savedSearchCount = (c.savedSearches || []).length;
-        var portfolioCount = (c.portfolio && c.portfolio.listings) ? c.portfolio.listings.length : 0;
-
-        html += '<tr onclick="openClientWorkspace(\'' + E(row.id) + '\')" class="border-b hover:bg-blue-50/50 cursor-pointer transition-colors">';
-
-        // Name + avatar
-        html += '<td class="px-4 py-3"><div class="flex items-center gap-2.5">';
-        html += '<div class="w-8 h-8 bg-' + E(c.color) + '-100 text-' + E(c.color) + '-700 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0">' + E(c.initials) + '</div>';
-        html += '<div class="min-w-0"><p class="font-semibold text-gray-900 text-sm truncate">' + E(c.name) + '</p>';
-        html += '<p class="text-[11px] text-gray-400 truncate">' + E(c.email) + '</p></div>';
-        html += '</div></td>';
-
-        // Role
-        html += '<td class="px-4 py-3"><span class="text-[10px] px-2 py-0.5 bg-' + E(tc) + '-100 text-' + E(tc) + '-700 rounded-full font-semibold">' + E(c.type) + '</span></td>';
-
-        // Stage
-        if (cs === 'closed') {
-            var closedLabels = { purchased:'Purchased', rented:'Rented', sold:'Sold', leased:'Leased' };
-            html += '<td class="px-4 py-3"><span class="text-[10px] px-2 py-0.5 bg-gray-800 text-white rounded-full font-semibold">' + E(closedLabels[c.closedType] || 'Closed') + '</span></td>';
-        } else {
-            html += '<td class="px-4 py-3"><span class="text-xs font-medium text-' + E(stageColor) + '-700">' + E(stageLabels[dealStage] || dealStage) + '</span></td>';
-        }
-
-        // Budget
-        html += '<td class="px-4 py-3 text-right text-sm font-semibold text-gray-900 whitespace-nowrap">' + E(c.budget || '\u2014') + '</td>';
-
-        // BD / BA
-        html += '<td class="px-4 py-3 text-center text-xs text-gray-700">' + E(beds) + '</td>';
-        html += '<td class="px-4 py-3 text-center text-xs text-gray-700">' + E(baths) + '</td>';
-
-        // Neighborhood
-        html += '<td class="px-4 py-3 text-xs text-gray-600 max-w-[160px] truncate" title="' + neighborhoods + '">' + neighborhoods + '</td>';
-
-        // Activity
-        html += '<td class="px-4 py-3">';
-        html += '<span class="text-[11px] text-' + E(actColor) + '-600">' + (lastAct === null ? '\u2014' : lastAct === 0 ? 'Today' : lastAct + 'd') + '</span>';
-        if (pendingAlerts > 0) html += ' <span class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-bold">' + pendingAlerts + '</span>';
-        html += '</td>';
-
-        // Actions
-        html += '<td class="px-4 py-3 text-center"><div class="flex items-center justify-center gap-1">';
-        if (savedSearchCount > 0) html += '<span class="w-6 h-6 flex items-center justify-center text-gray-400" title="' + savedSearchCount + ' saved searches"><i class="fas fa-search text-[10px]"></i></span>';
-        if (portfolioCount > 0) html += '<span class="w-6 h-6 flex items-center justify-center text-gray-400" title="' + portfolioCount + ' portfolio listings"><i class="fas fa-folder text-[10px]"></i></span>';
-        html += '</div></td>';
-
-        html += '</tr>';
-    });
-
-    tbody.innerHTML = html || '<tr><td colspan="9" class="text-center py-12 text-gray-400"><i class="fas fa-users text-3xl mb-3 block text-gray-300"></i>No clients match filters</td></tr>';
-
-    // Update tab counts
-    var activeCountEl = document.getElementById('clientTabActiveCount');
-    var closedCountEl = document.getElementById('clientTabClosedCount');
-    if (activeCountEl) activeCountEl.textContent = activeCount;
-    if (closedCountEl) closedCountEl.textContent = closedCount;
-}
-
-// Dynamically populate client select dropdown in delivery modal
-function populateClientSelect() {
-    var sel = document.getElementById('clientSelect');
-    if (!sel) return;
-    var clients = getMyClients();
-    var E = typeof escapeHtml === 'function' ? escapeHtml : function (s) { return String(s || ''); };
-    var html = '<option value="">-- Choose a client --</option>';
-
-    if (LOGGED_IN_AGENT.role === 'broker') {
-        // Group by agent
-        var byAgent = {};
-        for (var id in clients) {
-            var c = clients[id];
-            var aname = c.agentName || 'Unassigned';
-            if (!byAgent[aname]) byAgent[aname] = [];
-            byAgent[aname].push({ id: id, client: c });
-        }
-        for (var agent in byAgent) {
-            html += '<optgroup label="' + E(agent) + '\'s Clients">';
-            byAgent[agent].forEach(function(item) {
-                html += '<option value="' + E(item.id) + '">' + E(item.client.name) + ' - ' + E(item.client.type) + ' (' + E(item.client.budget) + ')</option>';
-            });
-            html += '</optgroup>';
-        }
-    } else {
-        // Group by type
-        var buyers = [], renters = [];
-        for (var id in clients) {
-            var c = clients[id];
-            if (c.type === 'Buyer') buyers.push({ id: id, client: c });
-            else renters.push({ id: id, client: c });
-        }
-        if (buyers.length) {
-            html += '<optgroup label="Buyers">';
-            buyers.forEach(function(item) { html += '<option value="' + E(item.id) + '">' + E(item.client.name) + ' (' + E(item.client.budget) + ')</option>'; });
-            html += '</optgroup>';
-        }
-        if (renters.length) {
-            html += '<optgroup label="Renters">';
-            renters.forEach(function(item) { html += '<option value="' + E(item.id) + '">' + E(item.client.name) + ' (' + E(item.client.budget) + ')</option>'; });
-            html += '</optgroup>';
-        }
-    }
-
-    sel.innerHTML = html;
-}
-
-function filterClientList() {
-    var searchVal = (document.getElementById('clientDirectorySearch') ? document.getElementById('clientDirectorySearch').value : '').toLowerCase();
-    var typeEl = document.getElementById('clientTypeFilter');
-    var typeVal = (typeEl && typeEl.value !== 'all') ? typeEl.value.toLowerCase() : '';
-    var stageEl = document.getElementById('clientStageFilter');
-    var stageVal = (stageEl && stageEl.value !== 'all') ? stageEl.value : '';
-    var rows = document.querySelectorAll('#clientCardGrid > tr');
-    rows.forEach(function(row) {
-        var text = row.textContent.toLowerCase();
-        var matchSearch = !searchVal || text.indexOf(searchVal) !== -1;
-        var matchType = !typeVal || (row.dataset.type || '').indexOf(typeVal) !== -1;
-        var matchStage = !stageVal || row.dataset.stage === stageVal;
-        row.style.display = (matchSearch && matchType && matchStage) ? '' : 'none';
-    });
-}
-
-// ── Column sort for client table ──
-var clientSortState = { column: '', direction: 'asc' };
-
-function sortClientColumn(col) {
-    if (clientSortState.column === col) {
-        clientSortState.direction = clientSortState.direction === 'asc' ? 'desc' : 'asc';
-    } else {
-        clientSortState.column = col;
-        clientSortState.direction = 'asc';
-    }
-    var grid = document.getElementById('clientCardGrid');
-    if (!grid) return;
-    var rows = Array.from(grid.querySelectorAll('tr'));
-    var stages = ['new_lead','qualified','requirements_confirmed','searching','touring','shortlist','offer_prep','offer_submitted','negotiation','contract_signed','closing_scheduled','closed'];
-
-    rows.sort(function(a, b) {
-        var dir = clientSortState.direction === 'asc' ? 1 : -1;
-        switch(col) {
-            case 'name':
-                return dir * ((a.dataset.name || '').localeCompare(b.dataset.name || ''));
-            case 'stage':
-                return dir * (stages.indexOf(a.dataset.stage || 'new_lead') - stages.indexOf(b.dataset.stage || 'new_lead'));
-            case 'type':
-                return dir * ((a.dataset.type || '').localeCompare(b.dataset.type || ''));
-            case 'budget': {
-                var aB = parseBudgetValue(a.querySelectorAll('td')[3]);
-                var bB = parseBudgetValue(b.querySelectorAll('td')[3]);
-                return dir * (aB - bB);
-            }
-            case 'beds': {
-                var aBd = parseInt(a.querySelectorAll('td')[5] ? a.querySelectorAll('td')[5].textContent : '0') || 0;
-                var bBd = parseInt(b.querySelectorAll('td')[5] ? b.querySelectorAll('td')[5].textContent : '0') || 0;
-                return dir * (aBd - bBd);
-            }
-            case 'baths': {
-                var aBa = parseInt(a.querySelectorAll('td')[6] ? a.querySelectorAll('td')[6].textContent : '0') || 0;
-                var bBa = parseInt(b.querySelectorAll('td')[6] ? b.querySelectorAll('td')[6].textContent : '0') || 0;
-                return dir * (aBa - bBa);
-            }
-            case 'neighborhood': {
-                var aN = (a.querySelectorAll('td')[7] ? a.querySelectorAll('td')[7].textContent : '').toLowerCase();
-                var bN = (b.querySelectorAll('td')[7] ? b.querySelectorAll('td')[7].textContent : '').toLowerCase();
-                return dir * aN.localeCompare(bN);
-            }
-            default:
-                return dir * ((a.dataset.name || '').localeCompare(b.dataset.name || ''));
-        }
-    });
-    rows.forEach(function(row) { grid.appendChild(row); });
-}
-
-function parseBudgetValue(td) {
-    if (!td) return 0;
-    var text = td.textContent.replace(/[^0-9.KMB+\-]/gi, '');
-    var num = parseFloat(text) || 0;
-    if (text.toUpperCase().indexOf('B') !== -1) num *= 1000000000;
-    else if (text.toUpperCase().indexOf('M') !== -1) num *= 1000000;
-    else if (text.toUpperCase().indexOf('K') !== -1) num *= 1000;
-    return num;
-}
 
 </script>
 <script>
@@ -22058,7 +21768,6 @@ function parseBudgetValue(td) {
             try { renderSearchResults(); } catch(e) { console.error('[Search] renderSearchResults FAILED:', e); }
             try { if (typeof initPhotoObserver === 'function') initPhotoObserver(); } catch(e) { console.warn('[Search] Photo observer init failed:', e); }
             try { updateSelectionActionBar(); } catch(e) { /* ok */ }
-            try { populateClientList(); } catch(e) { /* ok */ }
             try { populateSavedSearchList(); } catch(e) { /* ok */ }
             try { populateFieldSelectionGrid(); } catch(e) { /* ok */ }
             try { populateSavedLayoutsList(); } catch(e) { /* ok */ }
@@ -22574,7 +22283,6 @@ function parseBudgetValue(td) {
                                 }
                             });
                             tbodyHTML += '<td class="px-1.5 py-1.5"><div class="flex items-center gap-0.5">';
-                            tbodyHTML += (typeof clientFeedbackIcons === 'function') ? clientFeedbackIcons(listing) : '';
                             tbodyHTML += '<button class="p-0.5 hover:bg-gray-100 rounded text-gray-400" title="Info" onclick="event.stopPropagation();"><i class="fas fa-info-circle text-[11px]"></i></button>';
                             tbodyHTML += '<button class="p-0.5 hover:bg-gray-100 rounded text-gray-400" title="Add to set" onclick="event.stopPropagation();"><i class="fas fa-folder-plus text-[11px]"></i></button>';
                             tbodyHTML += '</div></td>';
@@ -22744,29 +22452,6 @@ function parseBudgetValue(td) {
                 + ' data-compliance="freshness-indicator"'
                 + ' title="Last updated: ' + listing.updatedDate + ' (' + days + ' days ago)"'
                 + '><i class="fas fa-clock mr-0.5"></i>' + label + '</span>';
-        }
-
-        // ── Client Feedback Icons (Like/Dislike) ──
-        // Visible only when a client is assigned via Assign Customer dropdown.
-        // Icons must be INSIDE the listing card div that carries data-source="REBNY-RLS".
-        // Like/dislike is agent-entered metadata (not RLS data) — no RESO tagging required.
-        function clientFeedbackIcons(listing) {
-            if (!currentWorkspaceClientId) return '';
-            var status = (typeof getClientFeedbackStatus === 'function') ? getClientFeedbackStatus(listing.id) : null;
-            var isLiked = status === 'liked';
-            var isDisliked = status === 'disliked';
-            return '<div class="client-feedback-icons flex items-center gap-1">'
-                + '<button onclick="event.stopPropagation(); markClientFeedback(' + listing.id + ', \'liked\')"'
-                + ' class="w-7 h-7 rounded-full flex items-center justify-center text-xs hover:bg-green-100 transition-colors ' + (isLiked ? 'bg-green-100 text-green-600' : 'text-gray-300') + '"'
-                + ' title="' + (isLiked ? 'Remove like' : 'Client likes this') + '">'
-                + '<i class="fas fa-thumbs-up"></i>'
-                + '</button>'
-                + '<button onclick="event.stopPropagation(); markClientFeedback(' + listing.id + ', \'disliked\')"'
-                + ' class="w-7 h-7 rounded-full flex items-center justify-center text-xs hover:bg-red-100 transition-colors ' + (isDisliked ? 'bg-red-100 text-red-600' : 'text-gray-300') + '"'
-                + ' title="' + (isDisliked ? 'Remove dislike' : 'Client dislikes this') + '">'
-                + '<i class="fas fa-thumbs-down"></i>'
-                + '</button>'
-                + '</div>';
         }
 
         // ── DOM Display with Color Coding (#16) ──
@@ -22961,7 +22646,6 @@ function parseBudgetValue(td) {
                         ${listing.agentPhone ? '<div class="text-blue-600 mt-1"><i class="fas fa-phone text-[9px] text-green-500 mr-1"></i>' + escapeHtml(listing.agentPhone) + '</div>' : ''}
                         ${listing.agentEmail ? '<div class="text-blue-600 mt-0.5"><i class="fas fa-envelope text-[9px] text-gray-400 mr-1"></i>' + escapeHtml(listing.agentEmail) + '</div>' : ''}
                         <div class="flex items-center gap-1 mt-2">
-                            ${clientFeedbackIcons(listing)}
                         </div>
                     </div>
                     </div>
@@ -23072,7 +22756,6 @@ function parseBudgetValue(td) {
                                 </div>
                                 <!-- Action buttons -->
                                 <div class="flex items-center gap-1" onclick="event.stopPropagation()">
-                                    ${clientFeedbackIcons(listing)}
                                     <button class="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors"><i class="fas fa-eye text-xs"></i></button>
                                     <button class="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors"><i class="fas fa-folder text-xs"></i></button>
                                     <button class="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors"><i class="fas fa-flag text-xs"></i></button>
@@ -23222,7 +22905,6 @@ function parseBudgetValue(td) {
 
                 <!-- Action icons -->
                 <div class="flex items-center gap-1.5 mb-3 pb-3 border-b border-gray-100">
-                    ${clientFeedbackIcons(listing)}
                     <button class="p-1.5 hover:bg-gray-100 rounded"><i class="fas fa-plus text-gray-500 text-sm"></i></button>
                     <button class="p-1.5 hover:bg-gray-100 rounded"><i class="fas fa-eye text-gray-500 text-sm"></i></button>
                     <button class="p-1.5 hover:bg-gray-100 rounded"><i class="fas fa-file-alt text-gray-500 text-sm"></i></button>
@@ -23608,24 +23290,6 @@ function parseBudgetValue(td) {
             }
         }
 
-        function openWorkWithSelected() {
-            if (searchResultsState.selectedListings.length === 0) {
-                showToast('Please select at least one listing.', 'warning');
-                return;
-            }
-            // If a client is already selected, save directly to their portfolio
-            if (currentWorkspaceClientId) {
-                saveSelectedToClient();
-            } else {
-                // Open the customer dropdown to pick a client first
-                var dd = document.getElementById('workWithCustomerDropdown2') || document.getElementById('workWithCustomerDropdown');
-                if (dd) {
-                    dd.classList.toggle('hidden');
-                    populateClientList(dd.querySelector('[id^="clientList"]'));
-                }
-            }
-        }
-
         function removeFromResults() {
             // Validate: only keep IDs that exist in the current result set
             var currentIds = (searchResultsState.filteredListings || listings).map(function(l) { return l.id; });
@@ -23676,215 +23340,17 @@ function parseBudgetValue(td) {
         // CLIENT WORKFLOW FUNCTIONS
         // ═══════════════════════════════════════════════════════════════════════════════
 
-        function toggleWorkWithCustomer(event) {
-            // Close all customer dropdowns first
-            var dd1 = document.getElementById('workWithCustomerDropdown');
-            var dd2 = document.getElementById('workWithCustomerDropdown2');
-
-            // Find which dropdown is closest to the click
-            var btn = event ? event.currentTarget || event.target : null;
-            var targetDD = dd1;
-            if (btn) {
-                var parent = btn.closest('.relative');
-                if (parent) {
-                    var localDD = parent.querySelector('[id^="workWithCustomerDropdown"]');
-                    if (localDD) targetDD = localDD;
-                }
-            }
-
-            // Close the other dropdown
-            if (targetDD === dd1 && dd2) dd2.classList.add('hidden');
-            if (targetDD === dd2 && dd1) dd1.classList.add('hidden');
-
-            // Toggle target dropdown
-            var isOpening = targetDD.classList.contains('hidden');
-            targetDD.classList.toggle('hidden');
-
-            // Populate client list when opening
-            if (isOpening) {
-                populateClientList(targetDD.querySelector('[id^="clientList"]'));
-            }
-        }
-
-        function buildClientListHTML(clients) {
-            if (clients.length === 0) {
-                return '<div class="px-4 py-3 text-sm text-gray-400 text-center">No clients found</div>';
-            }
-            return clients.map(function(client) {
-                var typeColor = client.type === 'buyer' ? 'bg-blue-100 text-blue-700' : client.type === 'seller' ? 'bg-green-100 text-green-700' : client.type === 'renter' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600';
-                return '<button onclick="selectClient(\'' + client.id + '\')" class="w-full text-left px-3 py-2.5 hover:bg-blue-50 text-sm flex items-center gap-3 transition-colors">' +
-                    '<div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-500 flex-shrink-0">' + (client.name.charAt(0) || '?') + '</div>' +
-                    '<div class="flex-1 min-w-0"><div class="font-medium text-gray-900 truncate">' + client.name + '</div>' +
-                    '<div class="text-xs text-gray-500 truncate">' + (client.email || '') + '</div></div>' +
-                    '<span class="px-1.5 py-0.5 text-[10px] font-medium rounded ' + typeColor + ' flex-shrink-0">' + (client.type || 'Client') + '</span>' +
-                    '</button>';
-            }).join('');
-        }
-
-        function populateClientList(container) {
-            // Populate both client lists
-            var containers = container ? [container] : [document.getElementById('clientList'), document.getElementById('clientList2')];
-            var html = buildClientListHTML(searchResultsState.clients);
-            containers.forEach(function(c) { if (c) c.innerHTML = html; });
-        }
-
-        function selectClient(clientId) {
-            var client = searchResultsState.clients.find(function(c) { return c.id === clientId; });
-            if (client) {
-                currentWorkspaceClientId = clientId;
-                // Update button labels to show selected client
-                document.querySelectorAll('[onclick*="toggleWorkWithCustomer"]').forEach(function(btn) {
-                    btn.innerHTML = '<i class="fas fa-user-check text-green-600"></i> ' + client.name + ' <i class="fas fa-chevron-down text-xs"></i>';
-                });
-                // Show "Save to Client" button
-                var saveBtn = document.getElementById('saveToClientBtn');
-                if (saveBtn) {
-                    saveBtn.classList.remove('hidden');
-                    saveBtn.classList.add('flex');
-                    document.getElementById('saveToClientName').textContent = client.name.split(' ')[0];
-                }
-                // Re-render to show like/dislike icons on cards
-                if (typeof renderSearchResults === 'function') renderSearchResults();
-            }
-            // Close all dropdowns
-            document.querySelectorAll('[id^="workWithCustomerDropdown"]').forEach(function(d) { d.classList.add('hidden'); });
-        }
-
-        function filterClients(event) {
-            var input = event ? event.target : document.getElementById('clientSearchInput');
-            var search = (input ? input.value : '').toLowerCase();
-            var filtered = searchResultsState.clients.filter(function(c) {
-                return c.name.toLowerCase().includes(search) || (c.email && c.email.toLowerCase().includes(search));
-            });
-            // Update the client list that's in the same dropdown as the input
-            var dropdown = input ? input.closest('[id^="workWithCustomerDropdown"]') : null;
-            var container = dropdown ? dropdown.querySelector('[id^="clientList"]') : document.getElementById('clientList');
-            if (container) container.innerHTML = buildClientListHTML(filtered);
-        }
-
         // ═══════════════════════════════════════════════════════════════════════════════
         // SAVE SELECTED LISTINGS TO CLIENT PORTFOLIO
         // REBNY RLS compliance: I-29 Owner Opt-Out gate, I-28 address suppression,
         // localStorage scoped by LOGGED_IN_AGENT.id + clientId
         // ═══════════════════════════════════════════════════════════════════════════════
 
-        function saveSelectedToClient() {
-            var clientId = currentWorkspaceClientId;
-            if (!clientId) { showToast('Please select a client first.', 'warning'); return; }
-            if (searchResultsState.selectedListings.length === 0) { showToast('No listings selected.', 'warning'); return; }
-
-            var client = customerDB[clientId];
-            if (!client) { showToast('Client not found.', 'error'); return; }
-
-            // Initialize portfolio if needed
-            if (!client.portfolio) client.portfolio = { listings: [] };
-
-            var added = 0;
-            var already = 0;
-            var blocked = 0;
-
-            searchResultsState.selectedListings.forEach(function(listingId) {
-                var listing = listings.find(function(l) { return l.id === listingId; });
-                if (!listing) return;
-
-                // REBNY RLS Distribution Gates: Block non-displayable listings from client portfolio
-                var listingPerm = listing.permissions || {};
-                if (listingPerm.ownerOptOut === true) {
-                    console.warn('[REBNY RLS] Blocked: Listing ' + listingId + ' — Owner Opt-Out (Permissions=OwnerOptOut)');
-                    blocked++;
-                    return;
-                }
-                if (listing.internetDisplayYN === false) {
-                    console.warn('[REBNY RLS] Blocked: Listing ' + listingId + ' — InternetEntireListingDisplayYN=false');
-                    blocked++;
-                    return;
-                }
-
-                var exists = client.portfolio.listings.some(function(pl) { return pl.id === listingId; });
-                if (!exists) {
-                    client.portfolio.listings.push({
-                        id: listingId,
-                        // Store ONLY safe RESO fields — never store prohibited RLS fields
-                        address: listing.addressDisplayYN !== false ? listing.address : 'Address Upon Request',
-                        addedDate: new Date().toISOString(),
-                        status: 'new', // new, liked, disliked, viewed
-                        addedBy: LOGGED_IN_AGENT.id,
-                        notes: ''
-                    });
-                    added++;
-                } else {
-                    already++;
-                }
-            });
-
-            // Save to localStorage (agent-scoped per REBNY brokerage rules)
-            var key = 'clientPortfolio_' + LOGGED_IN_AGENT.id + '_' + clientId;
-            localStorage.setItem(key, JSON.stringify(client.portfolio));
-
-            // Log activity
-            if (typeof logClientActivity === 'function') {
-                logClientActivity(clientId, 'portfolio', 'Added ' + added + ' listing(s) to portfolio');
-            }
-
-            // Feedback
-            var msg = added + ' listing(s) saved to ' + client.name + "'s portfolio";
-            if (already > 0) msg += ' (' + already + ' already existed)';
-            if (blocked > 0) msg += ' (' + blocked + ' blocked — Owner Opt-Out)';
-            if (typeof showToast === 'function') {
-                showToast(msg, added > 0 ? 'success' : 'info');
-            } else {
-                alert(msg);
-            }
-        }
-
         // ═══════════════════════════════════════════════════════════════════════════════
         // CLIENT FEEDBACK: LIKE / DISLIKE ON LISTING CARDS
         // Agent marks on behalf of client. Stored per-agent-per-client in localStorage.
         // Like/dislike is agent-entered metadata (not RLS data) — no RESO tagging required.
         // ═══════════════════════════════════════════════════════════════════════════════
-
-        function markClientFeedback(listingId, feedback) {
-            if (!currentWorkspaceClientId) return;
-            var client = customerDB[currentWorkspaceClientId];
-            if (!client) return;
-            if (!client.portfolio) client.portfolio = { listings: [] };
-
-            var pl = client.portfolio.listings.find(function(p) { return p.id === listingId; });
-            if (pl) {
-                // Toggle: clicking same feedback again resets to 'new'
-                pl.status = (pl.status === feedback) ? 'new' : feedback;
-            } else {
-                // Not in portfolio yet — add it with feedback (auto-save)
-                var listing = listings.find(function(l) { return l.id === listingId; });
-                var feedbackPerm = listing ? (listing.permissions || {}) : {};
-                if (listing && (feedbackPerm.ownerOptOut === true || listing.internetDisplayYN === false)) {
-                    console.warn('[REBNY RLS] Blocked: Listing ' + listingId + ' — Owner Opt-Out or InternetEntireListingDisplayYN=false');
-                    return;
-                }
-                client.portfolio.listings.push({
-                    id: listingId,
-                    address: listing && listing.addressDisplayYN !== false ? listing.address : 'Address Upon Request',
-                    addedDate: new Date().toISOString(),
-                    status: feedback,
-                    addedBy: LOGGED_IN_AGENT.id,
-                    notes: ''
-                });
-            }
-            // Save to localStorage (agent-scoped)
-            var key = 'clientPortfolio_' + LOGGED_IN_AGENT.id + '_' + currentWorkspaceClientId;
-            localStorage.setItem(key, JSON.stringify(client.portfolio));
-            // Re-render to update icon states
-            if (typeof renderSearchResults === 'function') renderSearchResults();
-        }
-
-        // Helper: get client feedback status for a listing
-        function getClientFeedbackStatus(listingId) {
-            if (!currentWorkspaceClientId) return null;
-            var client = customerDB[currentWorkspaceClientId];
-            if (!client || !client.portfolio) return null;
-            var pl = client.portfolio.listings.find(function(p) { return p.id === listingId; });
-            return pl ? pl.status : null;
-        }
 
 </script>
 
@@ -31002,7 +30468,6 @@ function emailCurrentCalc() {
 
                         <!-- ═══ Client Feedback ═══ -->
                         <div class="flex items-center gap-1 mb-4 pb-3 border-b border-gray-100">
-                            ${clientFeedbackIcons(listing)}
                         </div>
 
                         <!-- ═══ Financial Tools ═══ -->
@@ -33606,9 +33071,6 @@ function emailCurrentCalc() {
             }
             if (!e.target.closest('#viewModeDropdown') && !e.target.closest('[onclick*="toggleViewModeDropdown"]')) {
                 document.querySelectorAll('#viewModeDropdown').forEach(d => d.classList.add('hidden'));
-            }
-            if (!e.target.closest('[id^="workWithCustomerDropdown"]') && !e.target.closest('[onclick*="toggleWorkWithCustomer"]')) {
-                document.querySelectorAll('[id^="workWithCustomerDropdown"]').forEach(function(d) { d.classList.add('hidden'); });
             }
             if (!e.target.closest('#savedSearchDropdown') && !e.target.closest('[onclick*="toggleSavedSearchDropdown"]')) {
                 document.getElementById('savedSearchDropdown')?.classList.add('hidden');

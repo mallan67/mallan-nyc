@@ -94,7 +94,6 @@
                                 </div>
                                 <!-- Action buttons -->
                                 <div class="flex items-center gap-1" onclick="event.stopPropagation()">
-                                    ${clientFeedbackIcons(listing)}
                                     <button class="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors"><i class="fas fa-eye text-xs"></i></button>
                                     <button class="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors"><i class="fas fa-folder text-xs"></i></button>
                                     <button class="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 transition-colors"><i class="fas fa-flag text-xs"></i></button>

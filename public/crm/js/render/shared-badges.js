@@ -126,29 +126,6 @@
                 + '><i class="fas fa-clock mr-0.5"></i>' + label + '</span>';
         }
 
-        // ── Client Feedback Icons (Like/Dislike) ──
-        // Visible only when a client is assigned via Assign Customer dropdown.
-        // Icons must be INSIDE the listing card div that carries data-source="REBNY-RLS".
-        // Like/dislike is agent-entered metadata (not RLS data) — no RESO tagging required.
-        function clientFeedbackIcons(listing) {
-            if (!currentWorkspaceClientId) return '';
-            var status = (typeof getClientFeedbackStatus === 'function') ? getClientFeedbackStatus(listing.id) : null;
-            var isLiked = status === 'liked';
-            var isDisliked = status === 'disliked';
-            return '<div class="client-feedback-icons flex items-center gap-1">'
-                + '<button onclick="event.stopPropagation(); markClientFeedback(' + listing.id + ', \'liked\')"'
-                + ' class="w-7 h-7 rounded-full flex items-center justify-center text-xs hover:bg-green-100 transition-colors ' + (isLiked ? 'bg-green-100 text-green-600' : 'text-gray-300') + '"'
-                + ' title="' + (isLiked ? 'Remove like' : 'Client likes this') + '">'
-                + '<i class="fas fa-thumbs-up"></i>'
-                + '</button>'
-                + '<button onclick="event.stopPropagation(); markClientFeedback(' + listing.id + ', \'disliked\')"'
-                + ' class="w-7 h-7 rounded-full flex items-center justify-center text-xs hover:bg-red-100 transition-colors ' + (isDisliked ? 'bg-red-100 text-red-600' : 'text-gray-300') + '"'
-                + ' title="' + (isDisliked ? 'Remove dislike' : 'Client dislikes this') + '">'
-                + '<i class="fas fa-thumbs-down"></i>'
-                + '</button>'
-                + '</div>';
-        }
-
         // ── DOM Display with Color Coding (#16) ──
         // Color: green 0-14d, gray 15-30d, yellow 31-60d, orange 61-90d, red 90+
         // PO/CS → exempt. TOM/Withdrawn → paused. Closed/Sold/Leased → stopped.

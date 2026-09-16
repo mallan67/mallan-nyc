@@ -147,10 +147,6 @@
         min-height: 40px;
     }
 
-    /* Customer cards — tighter spacing on mobile */
-    #section-client .grid {
-        gap: 12px;
-    }
 }
 
 /* ========================================= */

@@ -229,15 +229,22 @@ describe('E · schedule, offer and sent remain valid ClientListingAction values 
 // ─────────────────────────────────────────────────────────────────────────────
 // F — public/crm is under hold: Step 5 has not happened
 // ─────────────────────────────────────────────────────────────────────────────
-describe('F · MallanAPI.clients.recordAction is still present and untouched', () => {
+describe('F · MallanAPI.clients.recordAction has since been retired (Step 5)', () => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { readFileSync } = require('fs') as typeof import('fs');
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { resolve } = require('path') as typeof import('path');
   const ROOT = resolve(__dirname, '../..');
 
-  it('the wrapper survives Step 3 — its deletion is Step 5 and remains held', () => {
+  // When this file was written, Step 5 was held and the wrapper had to survive Step 3 untouched. It has
+  // since been deleted in Orphan Client Retirement Packet A, together with the rest of the Search-side
+  // Client subsystem. The assertion is inverted rather than removed: what mattered then was that Step 3
+  // did not quietly take the wrapper with it, and what matters now is that its removal was wrapper-only.
+  it('the wrapper is gone, while the route it wrapped is untouched', () => {
     const src = readFileSync(resolve(ROOT, 'public/crm/js/core/api-client.js'), 'utf8');
-    expect(src).toContain('recordAction:');
+    expect(src).not.toContain('recordAction');
+    expect(src).toContain('listAll:');
+    const route = readFileSync(resolve(ROOT, 'app/api/crm/clients/[id]/actions/route.ts'), 'utf8');
+    expect(route).toContain('VALID_ACTIONS');
   });
 });

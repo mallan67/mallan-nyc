@@ -11,7 +11,8 @@
  *   CRM agents / licensees act through  /api/crm/clients/[id]/actions
  *
  * So lead-session access to the CRM route was never load-bearing: its only repo-level caller is the
- * MallanAPI.clients.recordAction() wrapper (public/crm/js/core/api-client.js:420), which has ZERO call
+ * MallanAPI.clients.recordAction() wrapper (public/crm/js/core/api-client.js:478 — an earlier draft of
+ * this header cited :420, which was never right), which had ZERO call
  * sites. Preserving portal access "because it theoretically supports it" would have kept a dual-purpose
  * write endpoint alive for no consumer.
  *

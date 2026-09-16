@@ -474,13 +474,6 @@ var MallanAPI = (function () {
         body: JSON.stringify(prefs),
       });
     },
-
-    recordAction: function (id, data) {
-      return _fetch('/api/crm/clients/' + encodeURIComponent(id) + '/actions', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-    },
   };
 
   // ─── Agents (broker-only) ────────────────────────────────────────────────

@@ -310,7 +310,6 @@
                     });
                     // Populate report recipient dropdown if it exists
                     if (typeof populateReportRecipientDropdown === 'function') populateReportRecipientDropdown();
-                    if (typeof populateClientList === 'function') populateClientList();
                     console.log('[DataLoader] Loaded ' + searchResultsState.clients.length + ' clients');
                 }).catch(function(err) {
                     console.warn('[DataLoader] Client load failed:', err && err.message);
