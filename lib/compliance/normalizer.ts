@@ -123,6 +123,24 @@ export function derivePermissionBooleans(mallanPermission: unknown): {
 }
 
 /**
+ * The exact inverse of derivePermissionBooleans: the two stored gate columns → the `_mallanPermission`
+ * decision string. It lives here, beside its inverse, so the vocabulary has ONE home — a reader that
+ * needs to project the stored decision back into the Mallan key imports this rather than re-spelling
+ * the literals, which is how a second interpreter gets born.
+ *
+ * Returns an EXPLICIT null for a public listing. Null is a stated decision ("asked, and public");
+ * undefined would mean "nobody asked", and the two must stay distinguishable downstream.
+ *
+ * Owner opt-out outranks participant-only: it is the stricter decision (UCBA Art. I Sec. 4(A) — never
+ * displayed in any context), so a row somehow carrying both resolves to the stricter one.
+ */
+export function mallanPermissionFromBooleans(ownerOptOut: unknown, participantOnly: unknown): string | null {
+  if (ownerOptOut === true) return 'OwnerOptOut';
+  if (participantOnly === true) return 'Private';
+  return null;
+}
+
+/**
  * Build the structured DB record from a normalized payload using the Mallan persistence map.
  * Returns { address, features, agentInfo, compliance, raw_data, topLevel }.
  */

@@ -55,7 +55,9 @@
                             if (listing.price == null) listing.price = 0;
                             if (listing.beds == null) listing.beds = 0;
                             if (!listing.address) listing.address = 'Address Unavailable';
-                            if (!listing.permissions) listing.permissions = {};
+                            // No permissions placeholder. An empty object made every later `=== true`
+                            // gate read undefined, i.e. permissive. Every reader here is already guarded
+                            // with `listing.permissions && …`, so an absent object stays visible as absent.
 
                             var selected = searchResultsState.selectedListings.includes(listing.id);
                             tbodyHTML += '<tr class="hover:bg-gray-50 transition-colors ' + (selected ? 'bg-blue-50' : '') + '" data-reso-field="SourceSystemKey" data-reso-value="' + (listing.wid || listing.lid || listing.id) + '" data-listing-id="' + listing.id + '" data-source="' + (listing._source === 'mallan' ? 'MALLAN-LOCAL' : 'COTALITY-API') + '" onclick="openListingInNewTab(\'' + listing.id + '\'); if (typeof isResultsMapOpen === \'function\' && isResultsMapOpen()) { if (typeof panToListing === \'function\') panToListing(\'' + listing.id + '\'); }" style="cursor:pointer;">';

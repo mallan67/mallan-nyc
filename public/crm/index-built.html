@@ -17443,7 +17443,10 @@ function manageShowToast(msg) {
                     if (!l.borough) l.borough = '';
                     if (!l.listedDate) l.listedDate = '--';
                     if (!l.company) l.company = '';
-                    if (!l.permissions) l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: true, internetDisplay: true, syndication: true };
+                    // Permissions are NOT manufactured here. The server now projects the real decision
+                    // (hydrate.ts -> _mallanPermission for Mallan rows, the provider Permission token for
+                    // provider rows), so a row arriving without one is a bug to surface, not to paper over.
+                    // This line used to hard-code idxDisplay/internetDisplay true unconditionally.
                     if (typeof resolveNeighborhoodCanonical === 'function') resolveNeighborhoodCanonical(l);
                 });
                 // The global `listings` index only serves detail/photo lookups by id.
@@ -20653,13 +20656,10 @@ function manageShowToast(msg) {
         })();
         var listings = [];
 
-        // ── REBNY Distribution Gate defaults ──
-        // Add default permissions to all listings that don't have explicit permissions set
-        listings.forEach(function(l) {
-            if (!l.permissions) {
-                l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: true };
-            }
-        });
+        // ── REBNY Distribution Gates ──
+        // No defaults are manufactured. The server projects the real per-row decision; an absent
+        // permissions object means the projection failed and must be visible, not backfilled with
+        // permissive values. (This loop was also structurally dead — `listings` is empty at this point.)
 
         // Add borough to all listings that don't have it
         listings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
@@ -21049,9 +21049,8 @@ function manageShowToast(msg) {
                 if (!l.zip) l.zip = '';
                 if (!l.listedDate) l.listedDate = '--';
                 if (!l.company) l.company = '';
-                if (!l.permissions) {
-                    l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: true };
-                }
+                // Permissions are not manufactured — see the note where the gates are described above.
+                // The server projects the real decision; an absent object is a bug, not a default.
             });
             listings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
             console.log('[DataLoader] Loaded ' + listings.length + ' listings from ' + source);
@@ -22485,7 +22484,9 @@ function parseBudgetValue(td) {
                             if (listing.price == null) listing.price = 0;
                             if (listing.beds == null) listing.beds = 0;
                             if (!listing.address) listing.address = 'Address Unavailable';
-                            if (!listing.permissions) listing.permissions = {};
+                            // No permissions placeholder. An empty object made every later `=== true`
+                            // gate read undefined, i.e. permissive. Every reader here is already guarded
+                            // with `listing.permissions && …`, so an absent object stays visible as absent.
 
                             var selected = searchResultsState.selectedListings.includes(listing.id);
                             tbodyHTML += '<tr class="hover:bg-gray-50 transition-colors ' + (selected ? 'bg-blue-50' : '') + '" data-reso-field="SourceSystemKey" data-reso-value="' + (listing.wid || listing.lid || listing.id) + '" data-listing-id="' + listing.id + '" data-source="' + (listing._source === 'mallan' ? 'MALLAN-LOCAL' : 'COTALITY-API') + '" onclick="openListingInNewTab(\'' + listing.id + '\'); if (typeof isResultsMapOpen === \'function\' && isResultsMapOpen()) { if (typeof panToListing === \'function\') panToListing(\'' + listing.id + '\'); }" style="cursor:pointer;">';

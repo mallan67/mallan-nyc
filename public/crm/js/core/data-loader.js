@@ -9,13 +9,10 @@
         })();
         var listings = [];
 
-        // ── REBNY Distribution Gate defaults ──
-        // Add default permissions to all listings that don't have explicit permissions set
-        listings.forEach(function(l) {
-            if (!l.permissions) {
-                l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: true };
-            }
-        });
+        // ── REBNY Distribution Gates ──
+        // No defaults are manufactured. The server projects the real per-row decision; an absent
+        // permissions object means the projection failed and must be visible, not backfilled with
+        // permissive values. (This loop was also structurally dead — `listings` is empty at this point.)
 
         // Add borough to all listings that don't have it
         listings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
@@ -405,9 +402,8 @@
                 if (!l.zip) l.zip = '';
                 if (!l.listedDate) l.listedDate = '--';
                 if (!l.company) l.company = '';
-                if (!l.permissions) {
-                    l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: true };
-                }
+                // Permissions are not manufactured — see the note where the gates are described above.
+                // The server projects the real decision; an absent object is a bug, not a default.
             });
             listings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
             console.log('[DataLoader] Loaded ' + listings.length + ' listings from ' + source);

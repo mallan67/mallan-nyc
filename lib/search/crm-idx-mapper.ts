@@ -91,13 +91,19 @@ export function mapTrestleToCrmListing(
   // are separate: neither is derived from the other.
   const permission = derivePermissionGates(raw);
   const mallanDecision = derivePermissionBooleans(raw._mallanPermission);
+  // Participant-only has TWO authorities and must be the OR of both. The provider's Private token was
+  // previously computed here and then discarded, so a Cotality Private row emitted participantOnly:false —
+  // disagreeing with what lib/idx/trestle-mapper.ts:1114 persists for the very same row.
+  // ownerOptOut deliberately stays Mallan-only: no provider fact can express it, and deriving it from a
+  // provider token would fabricate a signed-Exhibit-B legal decision out of an enum.
+  const participantOnly = mallanDecision.participant_only || permission.participantOnly === true;
   const gates = computeGateColumns({
     status: raw.StandardStatus,
     internetEntireListingDisplayYN: raw.InternetEntireListingDisplayYN,
     internetAddressDisplayYN: raw.InternetAddressDisplayYN,
     internetAutomatedValuationDisplayYN: raw.InternetAutomatedValuationDisplayYN,
     internetConsumerCommentYN: raw.InternetConsumerCommentYN,
-    participantOnly: mallanDecision.participant_only,
+    participantOnly,
     ownerOptOut: mallanDecision.owner_opt_out,
     providerIdxPermitted: permission.idxPermitted,
     rls_eligible: true,
@@ -355,7 +361,7 @@ export function mapTrestleToCrmListing(
     sponsorUnit,
     permissions: {
       ownerOptOut: mallanDecision.owner_opt_out,
-      participantOnly: mallanDecision.participant_only,
+      participantOnly,
       idxDisplay: gates.idx_display_yn,
       internetDisplay: gates.internet_entire_listing_display_yn,
       syndication: true,

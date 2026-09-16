@@ -14,6 +14,8 @@
 import prisma from '@/lib/prisma';
 import { mapTrestleToCrmListing } from '@/lib/search/crm-idx-mapper';
 import { derivePermissionGates } from '@/lib/idx/trestle-mapper';
+import { isOwnerOptOut, isParticipantOnly } from '@/lib/compliance/gates';
+import { mallanPermissionFromBooleans } from '@/lib/compliance/normalizer';
 import { cotalityStandardStatusForMallan } from '@/lib/listings/mallan-status';
 import { escapeOData } from './provider-query';
 import { queryProvider, walkProvider } from './provider-client';
@@ -105,6 +107,26 @@ export function providerRowPassesGate(raw: Record<string, unknown>, audience: Se
   return p.idxPermitted !== false && !p.participantOnly;
 }
 
+/**
+ * The Mallan-authored counterpart. Until now NO gate ran on a Mallan row at any audience — the call site
+ * applied providerRowPassesGate only when `source === 'provider'` — so an owner-opted-out Mallan listing
+ * was distributable everywhere, including the `audience: 'public'` search-alert cron.
+ *
+ * The two decisions have different reach, and that difference is the whole point of the gate:
+ *   owner opt-out    — blocked at EVERY audience. UCBA Art. I Sec. 5(A): no public dissemination at any
+ *                      time. A member is not an exception; the owner withdrew the listing from display.
+ *   participant only — blocked for the PUBLIC audience only. RLS Permissions=Private exists precisely so
+ *                      authorized participants can see it, which mirrors the member/public split above.
+ *
+ * Both read the canonical helpers in lib/compliance/gates.ts, which resolve the typed column AND the
+ * `_mallanPermission` key that mallanRecord() now emits. No third interpreter is introduced.
+ */
+export function mallanRowPassesGate(raw: Record<string, unknown>, audience: SearchAudience = 'public'): boolean {
+  if (isOwnerOptOut(raw as never)) return false;
+  if (audience !== 'member' && isParticipantOnly(raw as never)) return false;
+  return true;
+}
+
 type MallanRow = {
   listing_id: string; status: string; listing_type: string; property_sub_type: string | null;
   list_price: unknown; bedrooms_total: number | null; bathrooms_full: number | null; bathrooms_half: number | null; living_area: unknown;
@@ -112,6 +134,11 @@ type MallanRow = {
   address: unknown; media: unknown; photo_count: number | null; listing_contract_date: Date | null; updated_at: Date;
   list_agent_full_name: string | null; list_office_name: string | null;
   raw_data: unknown; days_on_market: number | null; cumulative_days_on_market: number | null;
+  // Distribution gates (prisma/schema.prisma:467-473). All Boolean NOT NULL, so each is always a real
+  // true/false — never null, never absent. The Mallan decision lives HERE, not in a provider field, and
+  // it was previously never loaded, which is why the projection could not carry it.
+  owner_opt_out: boolean; participant_only: boolean;
+  internet_entire_listing_display_yn: boolean; internet_address_display_yn: boolean;
   listing_media: Array<{ media_key: string | null; media_url_cached: string | null; media_url_original: string | null; media_category: string | null; media_type: string; order: number }>;
 };
 
@@ -162,8 +189,25 @@ export function mallanRecord(r: MallanRow): Record<string, unknown> {
     _mallanDaysOnMarket: r.days_on_market ?? null,
     _mallanCumulativeDaysOnMarket: r.cumulative_days_on_market ?? null,
     ListAgentFullName: r.list_agent_full_name, ListOfficeName: r.list_office_name ?? 'Mallan Real Estate Inc.', ListOfficeMlsId: null,
-    // Mallan-authored: Mallan decides display for its own listing.
-    InternetAddressDisplayYN: true, InternetEntireListingDisplayYN: true, Permission: 'IDX',
+    // Mallan-authored: Mallan decides display for its own listing — and that decision is STORED, so it is
+    // read here rather than assumed. These three used to be hard-coded `true, true, Permission: 'IDX'`,
+    // which overrode the real per-row booleans (the sale/rental forms force both to false for an
+    // opted-out row) and asserted a provider fact about a row no provider ever saw.
+    //
+    // The two internet booleans are PROVIDER-GATED / FAIL-OPEN. They are NOT NULL in storage, so the
+    // stored value is always a real boolean and the mapper's existing `!== false` applies to a fact.
+    // Do NOT wrap either in affirmPermission() — that is commit 55803f87, 7,594 suppressed rows.
+    InternetAddressDisplayYN: r.internet_address_display_yn,
+    InternetEntireListingDisplayYN: r.internet_entire_listing_display_yn,
+    // No Permission key at all: a Mallan row carries no provider token. derivePermissionGates() returns
+    // idxPermitted: null for zero tokens, which has no effect on the gate — the correct semantics.
+    //
+    // The Mallan decision instead rides under the key the mapper already reads
+    // (lib/search/crm-idx-mapper.ts -> derivePermissionBooleans). The projection uses that function's
+    // canonical inverse rather than re-spelling the vocabulary here — one home for the decision strings,
+    // so this file never becomes a second interpreter. An explicit null is emitted for a public listing,
+    // which is what lets a reader distinguish "asked, and public" from "nobody asked".
+    _mallanPermission: mallanPermissionFromBooleans(r.owner_opt_out, r.participant_only),
     PhotosCount: r.photo_count ?? (relational.length || legacy.length || null),
     Media: relational.length ? relational : legacy,
   };
@@ -179,10 +223,16 @@ async function mallanRecords(ids: readonly string[]): Promise<Map<string, Record
       bathrooms_full: true, bathrooms_half: true, living_area: true, borough: true, neighborhood: true, city: true, postal_code: true,
       address: true, media: true, photo_count: true, listing_contract_date: true, updated_at: true, list_agent_full_name: true, list_office_name: true,
       raw_data: true, days_on_market: true, cumulative_days_on_market: true,
+      // The stored distribution decisions. Omitting these is what made the projection impossible.
+      owner_opt_out: true, participant_only: true,
+      internet_entire_listing_display_yn: true, internet_address_display_yn: true,
       listing_media: { where: { status: 'active' }, orderBy: [{ order: 'asc' }, { id: 'asc' }], select: { media_key: true, media_url_cached: true, media_url_original: true, media_category: true, media_type: true, order: true } },
     },
   });
-  for (const r of rows) out.set(r.listing_id, mallanRecord(r as unknown as MallanRow));
+  // No `as unknown as MallanRow`. The double-cast that used to sit here silenced the one compiler error
+  // that would have exposed the narrow select, which is how this defect arrived unnoticed and how it would
+  // silently return. The select and the type must now agree, or type-check fails.
+  for (const r of rows) out.set(r.listing_id, mallanRecord(r));
   return out;
 }
 
@@ -197,7 +247,13 @@ export async function hydratePage(page: readonly UniverseRow[], o: HydrateOption
   page.forEach((row, i) => {
     const raw = row.source === 'provider' ? prov.records.get(row.listingKey as string) : mal.get(row.listingId);
     if (!raw) { missing.push(row.listingKey ?? row.listingId); return; }
-    if (row.source === 'provider' && !providerRowPassesGate(raw, o.audience ?? 'public')) { gateExcluded.push(row.listingKey as string); return; }
+    // BOTH sources are gated before a row becomes distributable output. Previously only provider rows
+    // were, so a Mallan owner-opted-out listing reached every audience. Excluded rows go to gateExcluded,
+    // which executor.ts degrades `countMeaning` from 'exact' to 'lower_bound' — reported, never silently
+    // dropped, because a gate that hides its own suppressions is how this class of defect survives.
+    const audience = o.audience ?? 'public';
+    const passes = row.source === 'provider' ? providerRowPassesGate(raw, audience) : mallanRowPassesGate(raw, audience);
+    if (!passes) { gateExcluded.push(row.listingKey ?? row.listingId); return; }
     const dto = mapTrestleToCrmListing(raw, i);
     dto._source = row.source === 'provider' ? 'idx' : 'mallan';
     dto._identity = { source: row.source, listingId: row.listingId, listingKey: row.listingKey };

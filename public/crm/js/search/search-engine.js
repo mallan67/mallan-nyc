@@ -450,7 +450,10 @@
                     if (!l.borough) l.borough = '';
                     if (!l.listedDate) l.listedDate = '--';
                     if (!l.company) l.company = '';
-                    if (!l.permissions) l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: true, internetDisplay: true, syndication: true };
+                    // Permissions are NOT manufactured here. The server now projects the real decision
+                    // (hydrate.ts -> _mallanPermission for Mallan rows, the provider Permission token for
+                    // provider rows), so a row arriving without one is a bug to surface, not to paper over.
+                    // This line used to hard-code idxDisplay/internetDisplay true unconditionally.
                     if (typeof resolveNeighborhoodCanonical === 'function') resolveNeighborhoodCanonical(l);
                 });
                 // The global `listings` index only serves detail/photo lookups by id.
