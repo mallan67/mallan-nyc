@@ -14,6 +14,7 @@ import { safeBigInt } from "@/lib/utils/safe-bigint";
 import { scanTextForFairHousing } from "@/lib/compliance/rls-enforcement";
 import { assignLeadToAgent } from "@/lib/lead-distribution/assign";
 import { isLeadExplicitlyInactive } from "@/lib/auth/lead-access";
+import { isCanonicalPipelineStage } from "@/lib/crm/client-pipeline-stage";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -228,6 +229,23 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
+  // VALIDATE BEFORE ASSEMBLING. This runs ahead of every `update.X =` line below so a request carrying a
+  // bad stage alongside good fields cannot half-land: no roles written, no audit, no 200.
+  //
+  // It used to be `if (validStages.includes(stage)) update.pipeline_stage = stage;` against a route-local
+  // nine-value array, with no else — so 24 of the 33 stages the shipped application writes were dropped
+  // SILENTLY while the route answered 200 and the browser toasted success. Every rung of the Sales seller
+  // ladder past `listed` and eight of nine Rentals landlord rungs behaved that way.
+  if (body.pipeline_stage !== undefined && !isCanonicalPipelineStage(body.pipeline_stage)) {
+    return NextResponse.json(
+      {
+        error: `Unsupported pipeline_stage: ${String(body.pipeline_stage)}`,
+        code: "UNSUPPORTED_PIPELINE_STAGE",
+      },
+      { status: 400 }
+    );
+  }
+
   const update: Record<string, unknown> = {};
   let reassignmentAgentId: bigint | null | undefined;
 
@@ -248,11 +266,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     update.notes = noteText;
   }
   if (body.source !== undefined) update.source = String(body.source);
-  if (body.pipeline_stage !== undefined) {
-    const validStages = ["new", "contacted", "nurturing", "active", "showing", "offer", "deal", "closed", "past"];
-    const stage = String(body.pipeline_stage);
-    if (validStages.includes(stage)) update.pipeline_stage = stage;
-  }
+  // Already validated above; persist exactly what was sent.
+  if (body.pipeline_stage !== undefined) update.pipeline_stage = String(body.pipeline_stage);
 
   // Financial fields
   if (body.annual_income !== undefined) update.annual_income = body.annual_income ? parseFloat(String(body.annual_income)) : null;

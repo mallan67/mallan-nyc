@@ -2684,8 +2684,13 @@ var Workspace = (function () {
     // Disable stage buttons while saving
     document.querySelectorAll('[onclick*="_moveStage"]').forEach(function (b) { b.disabled = true; });
 
-    MallanAPI.clients.update(_clientId, { stage: newStage }).then(function () {
+    // The route has no `stage` branch — it reads `pipeline_stage`. Sending the wrong key meant these
+    // eight stage-bar buttons saved nothing at all, under any vocabulary, while reporting success.
+    MallanAPI.clients.update(_clientId, { pipeline_stage: newStage }).then(function () {
       Events.log('client_stage_moved', 'client', _clientId, { from: oldStage, to: newStage });
+      // Both aliases are consumed by this panel: the stage bar reads `.stage`, the header badge reads
+      // `.pipeline_stage`. Updated only AFTER the server confirms; the catch below still rolls back.
+      _client.pipeline_stage = newStage;
       _client.stage = newStage;
       CRM.toast('Stage updated to ' + newStage, 'success');
       _renderClientTab();

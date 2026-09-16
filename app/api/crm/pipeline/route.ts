@@ -1,10 +1,16 @@
 // /api/crm/pipeline — Agent pipeline view
 // GET: Returns leads grouped by pipeline_stage with counts
 import { NextRequest, NextResponse } from "next/server";
+import { CANONICAL_PIPELINE_STAGES, UNRECOGNIZED_STAGE_BUCKET, bucketStoredStage } from "@/lib/crm/client-pipeline-stage";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
-const STAGES = ["new", "contacted", "nurturing", "active", "showing", "offer", "deal", "closed", "past"];
+// Every stage the shipped application writes, plus one bucket for anything stored that this source does
+// not currently write. The old local nine silently excluded 24 shipped stages AND relabelled those leads
+// as "new" via `(l.pipeline_stage || "new")` — inventing a workflow position for a real person. With the
+// production stored-value census still unavailable, an unrecognized token is surfaced, never rewritten
+// and never dropped.
+const STAGES = [...CANONICAL_PIPELINE_STAGES, UNRECOGNIZED_STAGE_BUCKET];
 
 export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
@@ -39,7 +45,7 @@ export async function GET(req: NextRequest) {
   });
 
   const pipeline = STAGES.map((stage) => {
-    const stageLeads = leads.filter((l) => (l.pipeline_stage || "new") === stage);
+    const stageLeads = leads.filter((l) => bucketStoredStage(l.pipeline_stage) === stage);
     return {
       stage,
       count: stageLeads.length,
