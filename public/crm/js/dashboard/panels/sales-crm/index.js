@@ -223,7 +223,6 @@ var SalesCRM = (function () {
       h += '<button class="btn btn-sm btn-outline" onclick="SalesCRM._wsAction(\'convert_referral\')"><i class="fas fa-globe mr-1"></i>Referral</button>';
     }
     h += '<button class="btn btn-sm btn-outline" onclick="SalesCRM._editClient(\'' + E(cl.id) + '\')"><i class="fas fa-edit"></i></button>';
-    h += '<button class="btn btn-sm btn-outline text-red-500" onclick="SalesCRM._deleteClient(\'' + E(cl.id) + '\')"><i class="fas fa-trash-alt"></i></button>';
     h += '</div></div></div>';
 
     // ── Workspace Tabs ──
@@ -1576,13 +1575,6 @@ var SalesCRM = (function () {
       .catch(function (err) { CRM.toast('Failed: ' + (err.message || ''), 'error'); });
   }
 
-  function _deleteClient(id) {
-    if (!confirm('Delete this client? This cannot be undone.')) return;
-    MallanAPI._fetch('/api/crm/clients/' + id, { method: 'DELETE' })
-      .then(function () { CRM.toast('Deleted', 'success'); Router.navigate('/sales/sellers'); })
-      .catch(function (err) { CRM.toast('Failed: ' + (err.message || ''), 'error'); });
-  }
-
   // ═══════════════════════════════════════════════════════════════════════
   // ACTIVE BUYERS — real grid with engagement data
   // ═══════════════════════════════════════════════════════════════════════
@@ -1709,7 +1701,7 @@ var SalesCRM = (function () {
     _searchSellers: _searchSellers, _filterSellers: _filterSellers, _sortSellers: _sortSellers, _pageSellers: _pageSellers,
     _searchBuyers: _searchBuyers, _filterBuyers: _filterBuyers, _sortBuyers: _sortBuyers, _pageBuyers: _pageBuyers, _openBuyer: _openBuyer,
     _openSeller: _openSeller, _newSeller: _newSeller, _submitNewSeller: _submitNewSeller,
-    _editClient: _editClient, _submitEdit: _submitEdit, _deleteClient: _deleteClient,
+    _editClient: _editClient, _submitEdit: _submitEdit,
     _wsTab: _wsTab, _wsAction: _wsAction, _editField: _editField,
     _toggleDoc: _toggleDoc, _togglePrep: _togglePrep,
     _addSignatory: _addSignatory, _saveSignatory: _saveSignatory,

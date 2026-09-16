@@ -3683,17 +3683,14 @@ var Panels = (function () {
         '<i class="fas fa-receipt mr-1"></i>Ref. fee: ' + E(refPct) + '%</p>';
     }
 
-    // Assign button or agent name + delete
+    // Assign button or agent name
     if (isConverted) {
-      html += '<div class="mt-2 flex items-center justify-between"><span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded" style="background:#DCFCE7;color:#166534"><i class="fas fa-check mr-1"></i>Converted</span>' +
-        '<button class="text-xs text-gray-300 hover:text-red-500" onclick="event.stopPropagation();Panels._deleteLead(\'' + E(lead.id) + '\')" title="Delete"><i class="fas fa-trash"></i></button></div>';
+      html += '<div class="mt-2 flex items-center justify-between"><span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded" style="background:#DCFCE7;color:#166534"><i class="fas fa-check mr-1"></i>Converted</span></div>';
     } else if (isAssigned) {
-      html += '<div class="mt-2 flex items-center justify-between"><span class="text-xs text-gray-600"><i class="fas fa-user-check mr-1 text-green-500"></i>' + E(lead.agent_name || lead.assignedAgentId || lead.assigned_agent_id) + '</span>' +
-        '<button class="text-xs text-gray-300 hover:text-red-500" onclick="event.stopPropagation();Panels._deleteLead(\'' + E(lead.id) + '\')" title="Delete"><i class="fas fa-trash"></i></button></div>';
+      html += '<div class="mt-2 flex items-center justify-between"><span class="text-xs text-gray-600"><i class="fas fa-user-check mr-1 text-green-500"></i>' + E(lead.agent_name || lead.assignedAgentId || lead.assigned_agent_id) + '</span></div>';
     } else {
       html += '<div class="mt-2 flex items-center gap-2">' +
         '<button class="btn btn-sm btn-gold flex-1" onclick="Panels._assignLeadSuggested(\'' + E(lead.id) + '\')"><i class="fas fa-user-plus mr-1"></i>Assign</button>' +
-        '<button class="btn btn-sm btn-outline text-gray-400 hover:text-red-500" onclick="event.stopPropagation();Panels._deleteLead(\'' + E(lead.id) + '\')" title="Delete"><i class="fas fa-trash"></i></button>' +
       '</div>';
     }
 
@@ -3701,16 +3698,6 @@ var Panels = (function () {
     if (showCheckbox) html += '</div>';
     html += '</div>';
     return html;
-  }
-
-  function _deleteLead(id) {
-    if (!confirm('Delete this lead? This cannot be undone.')) return;
-    MallanAPI.clients.delete(id).then(function () {
-      CRM.toast('Lead deleted', 'success');
-      leadDistribution();
-    }).catch(function (err) {
-      CRM.toast('Failed to delete: ' + (err.message || 'Try again'), 'error');
-    });
   }
 
   function _getStreeteasyFee(price) {
@@ -3836,7 +3823,6 @@ var Panels = (function () {
         } else {
           html += '<button class="btn btn-sm btn-gold flex-shrink-0" onclick="Panels._assignLeadSuggested(\'' + E(l.id) + '\')"><i class="fas fa-user-plus mr-1"></i>Assign</button>';
         }
-        html += '<button class="text-gray-300 hover:text-red-500 p-1 flex-shrink-0" onclick="Panels._deleteLead(\'' + E(l.id) + '\')" title="Delete"><i class="fas fa-trash text-xs"></i></button>';
         html += '</div>';
 
         // Row 2: Detail fields — single row of labeled values
@@ -13486,7 +13472,6 @@ var Panels = (function () {
     _submitLead: _submitLead,
     _assignLead: _assignLead,
     _assignLeadSuggested: _assignLeadSuggested,
-    _deleteLead: _deleteLead,
     _doAssignLead: _doAssignLead,
     _bulkAssignLeads: _bulkAssignLeads,
     _doBulkAssign: _doBulkAssign,

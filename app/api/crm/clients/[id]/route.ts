@@ -442,34 +442,37 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Client not found" }, { status: 404 });
   }
 
-  // Cascade-delete all related records in a transaction
-  await prisma.$transaction([
-    prisma.clientPreference.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.clientListingAction.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.session.deleteMany({ where: { user_id: lead.id, user_type: "lead" } }),
-    prisma.activityLog.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.followUpTask.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.showingFeedback.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.showing.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.notification.deleteMany({ where: { recipient_id: lead.id, recipient_type: "lead" } }),
-    prisma.leadScore.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.convictionScore.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.savedSearch.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.comment.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.intentEvent.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.behavioralEvent.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.familyMember.deleteMany({ where: { OR: [{ lead_id: lead.id }, { member_lead_id: lead.id }] } }),
-    prisma.lead.delete({ where: { id: lead.id } }),
-  ]);
-
-  await logAuditEvent(
-    "delete",
-    "lead",
-    lead.id.toString(),
-    auth,
-    { email: lead.email },
-    req.headers.get("x-forwarded-for") ?? undefined
+  // FAIL CLOSED. This used to run a single prisma.$transaction with FIFTEEN deleteMany calls followed by
+  // prisma.lead.delete — physically destroying the client's ClientListingAction rows (which carry portal
+  // OFFER submissions and listing-send / search-alert delivery history), Showing and ShowingFeedback,
+  // SavedSearch, Comment, FollowUpTask, ActivityLog, sessions and scores.
+  //
+  // That is not a data-loss risk, it is a retention breach. The canonical schedule
+  // (docs/compliance/COMPLIANCE-CANONICAL-INDEX.md §14, NY SHIELD §899-bb) ARCHIVES lead PII after 3 years
+  // inactive rather than deleting it, and holds transaction records 6 years under NY DOS; UCBA Art. II §11
+  // requires a Participant to verify to a seller, on request, that an offer was transmitted — and the
+  // evidence for that lived in the rows this handler destroyed.
+  //
+  // Note what was NOT done: two required Lead relations absent from the old cascade list —
+  // ActiveLease.landlord (prisma/schema.prisma:1071) and BuyerIntentProfile.lead (:1495) — are FK RESTRICT,
+  // so the transaction already rolled back as a 500 for any client holding those rows. Adding the missing
+  // cascades would have made destruction MORE reliable. Hard deletion is disabled instead, and those
+  // constraints are deliberately left in place.
+  //
+  // The DELETE export survives on purpose. Removing it would turn a stale caller into a framework 405;
+  // keeping it makes the boundary explicit and auditable, so an old bookmarklet, a cached build or a direct
+  // HTTP client receives a reasoned refusal and changes nothing.
+  //
+  // The replacement lifecycle — archived_at vs a status value vs anonymisation after retention — is the
+  // canonical-lifecycle decision (Lane 3) and is NOT made here. Until it lands, this boundary is closed.
+  return NextResponse.json(
+    {
+      error:
+        "Permanent client deletion is disabled: canonical CRM history (offers, showings, saved searches, " +
+        "communications and activity) must be retained. Deactivate or archive the client through the " +
+        "governed lifecycle instead.",
+      code: "CLIENT_DELETE_DISABLED",
+    },
+    { status: 409 }
   );
-
-  return NextResponse.json({ success: true, deleted: lead.email });
 }
