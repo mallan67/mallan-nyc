@@ -29301,9 +29301,25 @@ function calcClosing() {
 
     if (_closingRole === 'buyer') {
         document.getElementById('closingResultsTitle').textContent = 'Buyer Closing Costs';
-        // Mansion Tax
+        // Mansion Tax - band and label from the ONE statutory authority.
+        //
+        // This line used to look the rate up in a local MANSION_TAX_RATES table. The 2026-09-09
+        // consolidation deleted that table and converted the AMOUNT call just above to CrmCalc, but not
+        // this LABEL lookup - so the dereference survived against a symbol that no longer existed. It is
+        // reached only when mansion > 0, i.e. at or above $1,000,000, and nothing try/catches calcClosing;
+        // recalcCurrentTab runs detached, so the ReferenceError went to the console and the agent was left
+        // looking at the pre-seeded 'TOTAL CLOSING COSTS $0' on a seven-figure purchase. Proven end to end
+        // on the shipped artifact: $900k calculated normally, $1.25M / $7M condo and co-op all produced $0
+        // with no line items.
+        //
+        // The band is not re-created here. CrmCalc.mansionTaxBand() already returns { min, rate, label }
+        // and the core builds this same label from it (transaction-costs.js:175-176), so the label now
+        // comes from the same place as the amount. No percentage is restated in this file.
         var mansion = getMansionTax(price);
-        if (mansion > 0) items.push(['Mansion Tax (' + (MANSION_TAX_RATES.find(function(r){ return price >= r.min && price <= r.max; }) || {rate:0}).rate * 100 + '%)', mansion]);
+        if (mansion > 0) {
+            var mansionBand = _calcCore().mansionTaxBand(price);
+            items.push(['Mansion Tax (' + mansionBand.label + ')', mansion]);
+        }
         // Title Insurance (not for co-ops)
         if (!isCoop) items.push(['Title Insurance', Math.round(price * 0.004) > 2000 ? Math.round(price * 0.004) : 3500]);
         // Attorney

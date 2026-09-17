@@ -193,3 +193,97 @@ describe('there is no second tax table anywhere in the shipped CRM', () => {
     }).toEqual({ offenders: ['js/calc/transaction-costs.js'], why: expect.any(String) });
   });
 });
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// P0-10 — THE LIVE calcClosing() PATH, NOT JUST THE RATE ADAPTERS
+//
+// This suite already booted js/output/calculators.js to pin the 2026-09-09 convergence, but it only
+// ever called the four thin rate adapters (getMansionTax / getNYCTransferTax / getNYSTransferTax /
+// getMortgageRecordingTax). It stopped ONE LINE SHORT of the defect: calcClosing() still looked the
+// mansion-tax rate up in the MANSION_TAX_RATES table that the same convergence had deleted, purely to
+// build its label. The amount call was converted; the label lookup was not.
+//
+// Reached only at or above $1,000,000, and nothing try/catches calcClosing. recalcCurrentTab() runs
+// detached from the tab switch, so the ReferenceError went to the console and the agent was left
+// reading the pre-seeded "TOTAL CLOSING COSTS $0" on a seven-figure purchase. Reproduced end to end on
+// the shipped artifact before the fix: $900k calculated normally; $1.25M and $7M, condo and co-op,
+// all produced $0 with an empty line-item list.
+//
+// A guard that boots a file to prove a convergence, and then never executes the function that
+// consumes it, measures the wrong branch. These tests drive the real function.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+describe('P0-10 · calcClosing() completes through the canonical authority', () => {
+  /** Drive the real closing-cost calculation against the real modal DOM. */
+  function runClosing(price: number, propertyType: string) {
+    const virtualConsole = new jsdom.VirtualConsole();
+    const pageErrors: string[] = [];
+    virtualConsole.on('jsdomError', (e: Error) => pageErrors.push(String(e && e.message)));
+    const dom = new jsdom.JSDOM('<!doctype html><html><body></body></html>', {
+      url: 'http://localhost/crm', runScripts: 'dangerously', virtualConsole,
+    });
+    const win: any = dom.window;
+    win.eval('var Utils = { esc: function (s) { return String(s == null ? "" : s); }, formatMoney: function (n) { return String(n); } };');
+    win.eval(read('public/crm/js/calc/transaction-costs.js'));
+    win.eval(read('public/crm/js/output/calculators.js'));
+    win.allListings = [{ id: 'L1', price, propertyType, maintCC: 1200, reTaxes: 800 }];
+
+    let threw: string | null = null;
+    win.openCalculatorModal('closing', 'L1');
+    try { win.recalcCurrentTab(); } catch (e) { threw = String(e); }
+
+    const total = String(win.document.getElementById('ccTotal')?.textContent ?? '');
+    const items = String(win.document.getElementById('closingLineItems')?.innerHTML ?? '');
+    const text = String(win.document.getElementById('closingLineItems')?.textContent ?? '');
+    const band = win.CrmCalc.mansionTaxBand(price);
+    try { win.close(); } catch { /* nothing */ }
+    return { threw, total, itemsLength: items.length, text, band, pageErrors };
+  }
+
+  it('the $900,000 control still calculates normally — below the band, the branch is never entered', () => {
+    const r = runClosing(900_000, 'Condominium');
+    expect({ threw: r.threw }).toEqual({ threw: null });
+    expect(r.total).not.toBe('$0');
+    expect(r.itemsLength).toBeGreaterThan(0);
+    expect(r.text).not.toMatch(/Mansion Tax/);
+  });
+
+  it('$1.25M condo completes, and its label comes from the core', () => {
+    const r = runClosing(1_250_000, 'Condominium');
+    expect({ threw: r.threw }).toEqual({ threw: null });
+    expect(r.total).not.toBe('$0');
+    expect(r.itemsLength).toBeGreaterThan(0);
+    // The label is the core's, not a percentage restated in the consumer.
+    expect(r.text).toContain('Mansion Tax (' + r.band.label + ')');
+  });
+
+  it.each([['condo', 'Condominium'], ['co-op', 'Co-op']])('$7M %s completes rather than showing $0', (_l, propertyType) => {
+    const r = runClosing(7_000_000, propertyType);
+    expect({ threw: r.threw }).toEqual({ threw: null });
+    expect(r.total).not.toBe('$0');
+    expect(r.itemsLength).toBeGreaterThan(0);
+  });
+
+  it('the $7M mansion tax is the statutory $157,500, not the retired copy’s $175,000', () => {
+    const r = runClosing(7_000_000, 'Condominium');
+    // 7,000,000 x 2.25%. The deleted local table carried 2.5% and overstated this buyer by $17,500.
+    expect(r.text).toContain('157,500');
+    expect(r.text).not.toContain('175,000');
+  });
+
+  it('no executable dependency on the retired table remains', () => {
+    // Comments may still describe the history; code may not depend on it.
+    const src = read('public/crm/js/output/calculators.js')
+      .split(/\r?\n/).filter((l) => !l.trim().startsWith('//')).join('\n');
+    expect(src).not.toContain('MANSION_TAX_RATES');
+    expect(read('public/crm/index-built.html')).toContain('mansionBand.label');
+  });
+
+  it('CrmCalc remains the single statutory authority for the band', () => {
+    const win = boot();
+    // The consumer must not carry its own band table: its answer has to BE the core's answer.
+    for (const p of [1_000_000, 2_000_000, 5_000_000, 7_000_000, 25_000_000]) {
+      const band = win.CrmCalc.mansionTaxBand(p);
+      expect({ p, amount: win.getMansionTax(p) }).toEqual({ p, amount: p * band.rate });
+    }
+  });
+});
