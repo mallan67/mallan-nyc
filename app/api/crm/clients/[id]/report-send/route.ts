@@ -29,6 +29,7 @@ import { isLeadExplicitlyInactive, LEAD_PORTAL_ACCESS_REVOKED } from "@/lib/auth
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { escapeHtml } from "@/lib/sanitize";
+import { isInCanonicalNurture } from "@/lib/crm/nurture-due";
 import {
   evaluateClientDistributionEligibility,
   CLIENT_DISTRIBUTION_REFUSAL,
@@ -38,6 +39,58 @@ type RouteParams = { params: Promise<{ id: string }> };
 
 /** The one purpose that can discharge the nurture obligation. Everything else is ordinary correspondence. */
 const NURTURE_PURPOSE = "nurture";
+
+// ── THE REPORT VOCABULARY, CENSUSED FROM THE UI THAT EMITS IT.
+//
+//    report_type is reportState.format in public/crm/js/output/reports.js, and the complete value
+//    set is the nine format tiles in public/crm/html/modals/reports.html. Nothing here is invented:
+//    these are the values the product can actually produce. An unrecognised value is normalised to
+//    null rather than stored, because a caller string that reaches durable history unchecked is
+//    how a scheduling authority ends up trusting arbitrary input.
+const KNOWN_REPORT_TYPES = new Set([
+  "grid",
+  "list",
+  "summary",
+  "detail",
+  "factSheet",
+  "cma",
+  "openHouse",
+  "images",
+  "comparison",
+]);
+
+// ── WHICH OF THOSE ARE SUBSTANTIVE ENOUGH TO DISCHARGE A SIX-MONTH OBLIGATION.
+//
+//    Packet 2 makes qualifies_nurture a SCHEDULING AUTHORITY: it resets the client's relationship
+//    clock. Intent alone cannot carry that. Before this check, an authenticated agent could post
+//    arbitrary HTML with purpose 'nurture' and reset a six-month clock, because the server computed
+//    qualification from the requested purpose and never looked at what was actually sent.
+//
+//    Excluded, with reasons rather than taste:
+//      grid, list   - listing-share layouts. Forwarding search results to a client is a useful
+//                     thing to do and is not a relationship report.
+//      images       - a photo gallery.
+//      openHouse    - event logistics. Event-driven work is a separate workflow from the nurture
+//                     relationship cadence, by owner ruling.
+//
+//    'summary' is the judgment call in this set and is included as a market summary document. If
+//    that reads as too permissive, removing it is a one-line change and the negative proofs in
+//    tests/runtime/crm-nurture-qualification.test.ts will still hold.
+const SUBSTANTIVE_NURTURE_REPORT_TYPES = new Set([
+  "summary",
+  "detail",
+  "factSheet",
+  "cma",
+  "comparison",
+]);
+
+/** reportState.version, the other half of the same census. */
+const KNOWN_REPORT_VERSIONS = new Set(["agent", "customer"]);
+
+// The audience a client delivery is served under. reports.js forces 'public' for the duration of
+// any client delivery whatever version the report was built as, so a caller declaring 'member' is
+// either broken or attempting to route member-only content to a client. Fail closed.
+const CLIENT_DELIVERY_AUDIENCE = "public";
 
 export async function POST(req: NextRequest, { params }: RouteParams) {
   const blocked = assertWriteAllowed();
@@ -160,9 +213,29 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   }
 
   const requestedPurpose = typeof body.purpose === "string" ? body.purpose : "other";
-  const reportType = typeof body.report_type === "string" ? body.report_type : null;
-  const reportVersion = typeof body.report_version === "string" ? body.report_version : null;
+
+  // Caller-supplied descriptors are NORMALISED, not trusted. An unrecognised report type or
+  // version becomes null: it is not a value this product can emit, so storing it would put a
+  // string nobody validated into the history a scheduler now reads.
+  const rawReportType = typeof body.report_type === "string" ? body.report_type : null;
+  const reportType = rawReportType && KNOWN_REPORT_TYPES.has(rawReportType) ? rawReportType : null;
+  const rawReportVersion = typeof body.report_version === "string" ? body.report_version : null;
+  const reportVersion =
+    rawReportVersion && KNOWN_REPORT_VERSIONS.has(rawReportVersion) ? rawReportVersion : null;
   const audience = typeof body.audience === "string" ? body.audience : null;
+
+  // A client delivery is served under the public audience. Refusing a 'member' claim here is a
+  // compliance boundary, not tidiness: the member audience carries data this recipient may not see.
+  if (audience !== null && audience !== CLIENT_DELIVERY_AUDIENCE) {
+    return NextResponse.json(
+      {
+        error:
+          "A client report is delivered under the public audience. This send declared a different audience and was refused.",
+        audience,
+      },
+      { status: 400 },
+    );
+  }
 
   // ── The governed send. sendEmail owns suppression and is FAIL-CLOSED in both directions: an
   //    unsubscribed recipient is refused (_suppressed), and a suppression lookup that cannot complete is
@@ -221,7 +294,27 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   //    authenticated responsible agent or broker, an authorised canonical client who is not disabled, a
   //    governed listing population, a communication that was not suppressed, and an accepted send. The
   //    only thing the caller contributed is the REQUEST that this was a nurture touch.
-  const qualifiesNurture = requestedPurpose === NURTURE_PURPOSE;
+  //
+  //    INTENT IS NECESSARY AND NOT SUFFICIENT. Packet 2 turned this flag into a scheduling
+  //    authority — it resets the client's six-month relationship clock — so it now also requires
+  //    that the thing sent was a recognised SUBSTANTIVE report. Before that, an authenticated agent
+  //    could post arbitrary HTML with purpose 'nurture' and discharge the obligation, because
+  //    nothing on the server looked at report_type at all. A listing-share grid, a photo gallery or
+  //    an open-house notice is a legitimate thing to email a client and is not a relationship
+  //    report; sending one should not tell the platform the relationship was serviced.
+  //    AND THE CLIENT MUST CURRENTLY BE IN NURTURE. Intent plus substance still is not enough. A
+  //    report to a client in 'new', 'contacted' or an active transacting stage is an ordinary and
+  //    useful thing to send; it must not silently enrol them in a six-month relationship cadence,
+  //    because the canonical Nurture state is pipeline_stage 'nurturing' and nothing else. Without
+  //    this check an agent could give any client a nurture clock by ticking one box on one send.
+  //
+  //    Note what this does NOT do: it does not refuse the send, and it deletes no history. A client
+  //    who later enters Nurture starts their clock from that entry.
+  const qualifiesNurture =
+    requestedPurpose === NURTURE_PURPOSE &&
+    reportType !== null &&
+    SUBSTANTIVE_NURTURE_REPORT_TYPES.has(reportType) &&
+    isInCanonicalNurture(lead.pipeline_stage);
 
   const activity = await prisma.activityLog.create({
     data: {
@@ -238,6 +331,18 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       metadata: {
         ...baseMetadata,
         qualifies_nurture: qualifiesNurture,
+        // When an agent ASKED for nurture credit and did not get it, say why. Otherwise the only
+        // evidence is a false flag and the agent has no way to learn that the report class mattered.
+        ...(requestedPurpose === NURTURE_PURPOSE && !qualifiesNurture
+          ? {
+              nurture_declined_reason: !isInCanonicalNurture(lead.pipeline_stage)
+                ? "client_not_in_canonical_nurture"
+                : reportType === null
+                  ? "unrecognized_report_type"
+                  : "report_type_not_substantive",
+              requested_report_type: rawReportType,
+            }
+          : {}),
         // ACCEPTED, not delivered. See the header: there is no bounce callback to justify the stronger word.
         delivery_status: "accepted",
         message_id: result.messageId ?? null,
@@ -263,6 +368,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     success: true,
     activity_id: activity.id.toString(),
     qualifies_nurture: qualifiesNurture,
+    report_type: reportType,
     delivery_status: "accepted",
   });
 }

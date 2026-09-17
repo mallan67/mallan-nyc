@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-09-09T10:45:01.732Z",
-  "pass": 1207,
+  "timestamp": "2026-09-17T20:33:57.921Z",
+  "pass": 1205,
   "critical": 0,
   "warning": 6,
   "info": 27,
@@ -90,7 +90,7 @@
       "section": 10,
       "title": "Cron Schedule Completeness",
       "category": "Cron",
-      "pass": 24,
+      "pass": 23,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -99,7 +99,7 @@
       "section": 11,
       "title": "Cron Secret Validation Pattern",
       "category": "Cron",
-      "pass": 24,
+      "pass": 23,
       "critical": 0,
       "warning": 0,
       "info": 0

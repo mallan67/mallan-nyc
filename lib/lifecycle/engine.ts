@@ -23,6 +23,12 @@
 
 import { isLeadExplicitlyInactive } from '@/lib/auth/lead-access';
 import prisma from '@/lib/prisma';
+import {
+  resolveNurtureAnchorsBatch,
+  verdictFromAnchor,
+  CANONICAL_NURTURE_STAGES,
+} from '@/lib/crm/nurture-due';
+import { createNotification } from '@/lib/notifications/engine';
 import { sendEmail } from '@/lib/email/sendgrid';
 import { lifecycleTriggerEmail } from '@/lib/email/templates';
 
@@ -87,8 +93,19 @@ async function evaluateTrigger(trigger: {
   last_executed_at: Date | null;
   execution_count: number;
 }): Promise<{ fired: number; suppressed: number }> {
-  // Check cooldown
-  if (trigger.last_executed_at) {
+  // ── COOLDOWN, AND WHY NURTURE IS EXEMPT FROM THE GLOBAL ONE.
+  //
+  //    `last_executed_at` is a single column on the TRIGGER, not on the target, so this gate is
+  //    per-trigger-global: it returns before any target is examined. For an event trigger that is
+  //    a sensible rate limit. For a per-client relationship cadence it is a defect — with
+  //    cooldown_hours at 2016 (~84 days), ONE client's report suppressed the nurture review of
+  //    EVERY other client for twelve weeks. The per-target gate below (TriggerExecution) is the
+  //    one that was always meant to carry per-client spacing, and it still does.
+  //
+  //    Nurture spacing itself is no longer a cooldown question at all: lib/crm/nurture-due.ts
+  //    derives it from the report ledger, so TriggerExecution here only prevents one firing from
+  //    alerting twice. It does not decide when a relationship report is due.
+  if (trigger.trigger_type !== 'quarterly_nurture' && trigger.last_executed_at) {
     const hoursSince = (Date.now() - trigger.last_executed_at.getTime()) / 3600_000;
     if (hoursSince < trigger.cooldown_hours) {
       return { fired: 0, suppressed: 0 };
@@ -322,33 +339,73 @@ async function findLeaseExpiringTargets(
 async function findQuarterlyNurtureTargets(): Promise<
   { type: string; id: string; context: Record<string, unknown> }[]
 > {
-  // Find clients in nurture/past/new stages who haven't been contacted in 80+ days
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 80);
-
-  const nurtureCandidates = await prisma.lead.findMany({
+  // ── THE NURTURE CLOCK IS THE REPORT LEDGER, NOT THE CONTACT STAMP.
+  //
+  //    This finder used to select clients whose last contact was over 80 days old. That answered a
+  //    different question than the one nurture asks. Any contact at all satisfied it — completing a
+  //    follow-up task writes that stamp (app/api/crm/tasks/[id]/route.ts) — so an agent could push
+  //    a client's nurture review out by 80 days without ever sending them anything. Meanwhile the
+  //    record of reports actually sent, written by the canonical send route since Lane 3 Packet 1,
+  //    had no reader at all.
+  //
+  //    Now: membership comes from the stage cohort, and DUE comes from lib/crm/nurture-due.ts.
+  //
+  //    THE COHORT IS THE CANONICAL NURTURE STATE, AND NOTHING ELSE.
+  //
+  //    This engine historically admitted four pipeline stages. Two revisions of this packet got the
+  //    boundary wrong before landing here, and both are worth recording because they failed in
+  //    opposite directions. The first held the canonical set EMPTY while still querying all four
+  //    tokens and emitting unanchored baselines for every one — using the legacy predicate as the
+  //    membership rule while claiming none had been chosen. The second kept the three legacy tokens
+  //    in this query under the label "compatibility", so a legacy-stage client with a qualifying
+  //    report still produced a due obligation; that was a second business rule wearing a
+  //    compatibility label, and it let a client who had left Nurture — or had never been in it —
+  //    carry a nurture cadence.
+  //
+  //    Current pipeline_stage answers whether the clock APPLIES; history answers when it STARTED.
+  //    Those are different facts and only the first belongs in this predicate. How the legacy rows
+  //    should be migrated is a question for the authorized production census.
+  const cohort = await prisma.lead.findMany({
     where: {
-      pipeline_stage: { in: ['nurturing', 'past', 'new', 'contacted'] },
+      pipeline_stage: { in: [...CANONICAL_NURTURE_STAGES] },
       consent_captured_at: { not: null },
-      OR: [
-        { last_contacted_at: { lte: cutoff } },
-        { last_contacted_at: null },
-      ],
+      nurture_paused: false,
     },
     select: {
       id: true,
       pipeline_stage: true,
       roles: true,
-      last_contacted_at: true,
       agent_id: true,
+      nurture_paused: true,
       preferences: { select: { neighborhoods: true } },
     },
-    take: 50,
   });
 
-  return nurtureCandidates
-    .filter((c) => c.preferences && c.preferences.neighborhoods.length > 0)
-    .map((c) => ({
+  // The neighbourhood requirement is a precondition of the report itself — it has nothing to send
+  // without one — so it filters before the ledger read rather than after.
+  const eligible = cohort.filter((c) => c.preferences && c.preferences.neighborhoods.length > 0);
+
+  // ONE query for the whole cohort's anchors, and the cap lands on the ANSWER. The previous
+  // `take: 50` sat on the candidate query, so fifty arbitrary rows were fetched and then filtered;
+  // a client who was genuinely due could be crowded out by fifty who were not, every firing,
+  // indefinitely. Capping the due list instead means the fifty processed are fifty real ones.
+  const anchors = await resolveNurtureAnchorsBatch(eligible.map((c) => c.id));
+  const now = new Date();
+
+  const due: { type: string; id: string; context: Record<string, unknown> }[] = [];
+  for (const c of eligible) {
+    const anchor = anchors.get(String(c.id)) ?? { kind: 'unanchored' as const };
+    const verdict = verdictFromAnchor(
+      { id: c.id, nurture_paused: c.nurture_paused, pipeline_stage: c.pipeline_stage },
+      anchor,
+      now,
+    );
+    // 'not_applicable', 'scheduled' and 'paused' all produce nothing. 'unanchored' DOES produce an
+    // agent action — the client is in Nurture and Mallan cannot prove when the cycle began, which
+    // is a real thing to resolve and not a reason for silence. The membership check that used to
+    // sit here now lives in verdictFromAnchor, so the single and batch paths cannot disagree.
+    if (verdict.state !== 'due' && verdict.state !== 'unanchored') continue;
+    due.push({
       type: 'lead',
       id: String(c.id),
       context: {
@@ -357,9 +414,14 @@ async function findQuarterlyNurtureTargets(): Promise<
         roles: c.roles,
         agent_id: c.agent_id ? String(c.agent_id) : null,
         neighborhoods: c.preferences!.neighborhoods,
-        last_contacted: c.last_contacted_at?.toISOString() || null,
+        nurture_state: verdict.state,
+        nurture_anchor_kind: anchor.kind,
+        nurture_due_at: verdict.state === 'due' ? verdict.due_at.toISOString() : null,
       },
-    }));
+    });
+    if (due.length >= 50) break;
+  }
+  return due;
 }
 
 // ─── Action Executor ───────────────────────────────────────
@@ -412,24 +474,84 @@ async function executeAction(
       return { status: 'skipped', result: 'skipped_no_notification_target' };
     }
     case 'agent_alert': {
-      // Same as notification but marked urgent
       if (target.type === 'lead') {
         const lead = await prisma.lead.findUnique({
           where: { id: BigInt(target.id) },
           select: { agent_id: true, first_name: true, last_name: true },
         });
         if (lead?.agent_id) {
+          const leadName = `${lead.first_name} ${lead.last_name}`;
+
+          // -- THE NURTURE ALERT HAS TO BE SEEN TO BE AN ALERT.
+          //
+          //    Packet 1 stopped the automatic client email by coercing this trigger to
+          //    'agent_alert'. The row it produced was durable and unreachable: with no channel set
+          //    it took the schema default 'in_app', and the only rendered reader of agent
+          //    notifications filters for channel 'alert' (app/api/crm/alerts/route.ts). The other
+          //    reader, GET /api/crm/notifications, has no caller anywhere in this repository. So
+          //    the obligation went somewhere no agent looks -- an inappropriate email traded for
+          //    invisible work.
+          //
+          //    Three things were needed, not one. The channel, to be returned at all. The status
+          //    'new', to be COUNTED -- the bell badge counts only that value, while the list shows
+          //    anything unresolved, so a row can be visible and still leave the bell reading zero.
+          //    And data, without which the row carries no entityType/entityId and the client
+          //    workspace's own per-client alert lookup can never match it.
+          //
+          //    It goes through the canonical notification engine rather than writing the table
+          //    directly, so the recipient's preferences apply. Eleven of twelve call sites in this
+          //    repository still bypass that engine; the other ten are registered, not swept in.
+          if (target.context.trigger === 'quarterly_nurture') {
+            await createNotification({
+              recipient_type: 'agent',
+              recipient_id: lead.agent_id,
+              channel: 'alert',
+              status: 'new',
+              type: 'nurture_due',
+              title: generateNotificationTitle(target.context),
+              body: generateNotificationBody(target.context, leadName),
+              data: {
+                severity: 'info',
+                entityType: 'client',
+                entityId: target.id,
+                // Deliberately null: this repository has no established deep-link convention for a
+                // client record, and inventing one risks shipping a dead button. entityType and
+                // entityId are what the client workspace actually matches on.
+                actionUrl: null,
+                nurture_state: target.context.nurture_state ?? null,
+                nurture_anchor_kind: target.context.nurture_anchor_kind ?? null,
+              },
+            });
+            return { status: 'success', result: 'success' };
+          }
+
+          // Every other trigger keeps its existing shape verbatim. Converging them is a real
+          // improvement and explicitly outside this packet's scope.
           await prisma.notification.create({
             data: {
               recipient_type: 'agent',
               recipient_id: lead.agent_id,
               type: target.context.trigger as string || 'system',
               title: generateNotificationTitle(target.context),
-              body: generateNotificationBody(target.context, `${lead.first_name} ${lead.last_name}`),
+              body: generateNotificationBody(target.context, leadName),
             },
           });
           return { status: 'success', result: 'success' };
         }
+
+        // An unassigned lead used to fall silently out of this branch. For nurture that is a client
+        // with a live obligation and nobody to tell, which deserves a record rather than a dropped
+        // counter.
+        await prisma.auditEvent.create({
+          data: {
+            action: 'lifecycle_alert_undeliverable_no_agent',
+            entity_type: 'lead',
+            entity_id: target.id,
+            user_type: 'system',
+            user_id: null,
+            changes: { trigger: (target.context.trigger as string) ?? null },
+          },
+        }).catch(() => {});
       }
       return { status: 'skipped', result: 'skipped_no_notification_target' };
     }
@@ -613,7 +735,12 @@ function generateNotificationTitle(context: Record<string, unknown>): string {
     case 'lease_expiring_30d':
       return `Lease expires in ~30 days — urgency email sent`;
     case 'quarterly_nurture':
-      return `Quarterly market update sent`;
+      // Was 'Quarterly market update sent'. After Lane 3 Packet 1 nothing is sent and the
+      // agent is the one who must act, so that title described an event that no longer
+      // happens. An alert that misreports its own cause is worse than a terse one.
+      return context.nurture_state === 'unanchored'
+        ? 'Nurture baseline required'
+        : 'Client report due';
     case 'interest_drift':
       return `Client interest shifted — review engagement`;
     default:
@@ -639,7 +766,9 @@ function generateNotificationBody(context: Record<string, unknown>, leadName?: s
     case 'lease_expiring_30d':
       return `${leadName || 'A tenant'}'s lease expires in ~30 days. Urgency email sent with latest options. Consider calling to schedule showings this week.`;
     case 'quarterly_nurture':
-      return `Sent quarterly market update to ${leadName || 'a client'} with matching listings in their preferred areas. Watch for engagement — if they click, consider moving them to Active.`;
+      return context.nurture_state === 'unanchored'
+        ? (leadName || 'A client') + ' belongs in nurture, but Mallan has no record of when this nurture cycle began.'
+        : (leadName || 'A client') + ' is due a nurture report.';
     case 'interest_drift':
       return `${leadName || 'A client'}'s engagement pattern has shifted from their stated preferences. Review their recent activity and update their search criteria.`;
     default:
@@ -671,8 +800,9 @@ function generateEmailSubject(
       return 'Your lease ends in ~90 days — explore your options';
     case 'lease_expiring_30d':
       return 'Your lease ends in ~30 days — let’s move quickly';
-    case 'quarterly_nurture':
-      return 'Quarterly market update from Mallan Real Estate';
+    // 'quarterly_nurture' has no lead-facing subject: it has no lead-facing email. Retired with
+    // its body in lib/email/templates.ts. Falling through to the default is safe here because
+    // the body builder throws before any subject is used.
     case 'conviction_threshold':
       return 'A note from your Mallan Real Estate agent';
     case 'ghost_detected':

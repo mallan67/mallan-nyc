@@ -211,6 +211,29 @@
                         </div>
                     </div>
                     <p class="text-xs text-gray-400 mt-2"><i class="fas fa-info-circle mr-1"></i>Select a client to auto-fill their name and email, or type any email address.</p>
+
+                    <!--
+                      NURTURE INTENT. reports.js has read `reportPurpose` on both send paths since the
+                      canonical route shipped, but no element with that id existed anywhere in the CRM
+                      source or the built artifact. Because it reads it as
+                      `(document.getElementById('reportPurpose') || {}).value || 'other'`, the missing
+                      control never threw — it silently resolved to 'other' on every send, so
+                      qualifies_nurture could never be true and the nurture clock could never be
+                      advanced from the UI. A defensive fallback turned a hard failure into a permanent
+                      wrong answer.
+
+                      The agent states INTENT here. The server remains the authority on whether that
+                      intent qualifies: it still requires a canonical client, an eligible listing
+                      population, a recipient who is not suppressed, and an accepted send.
+                    -->
+                    <div class="mt-4">
+                        <label class="block text-sm font-semibold text-gray-700 mb-1.5" for="reportPurpose"><i class="fas fa-seedling text-blue-500 mr-1"></i>Purpose of this report</label>
+                        <select id="reportPurpose" class="w-full border rounded-lg px-3 py-2.5 text-sm">
+                            <option value="other">Ordinary correspondence</option>
+                            <option value="nurture">This fulfills nurture follow-up</option>
+                        </select>
+                        <p class="text-xs text-gray-400 mt-2"><i class="fas fa-info-circle mr-1"></i>Marking a report as nurture follow-up records it against this client&rsquo;s relationship cadence and restarts their six-month clock. It requires a client selected above &mdash; a manually typed address cannot be recorded against a client record.</p>
+                    </div>
                 </section>
 
                 <!-- Report Title & Prepared For -->

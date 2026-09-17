@@ -225,11 +225,17 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
-  // Whitelist allowed fields
+  // Whitelist allowed fields.
+  //
+  // THE RETIRED CADENCE FIELDS ARE NO LONGER WRITABLE HERE. This allowlist used to carry
+  // outreach_6mo/90d/60d/30d_date plus sales_drip_on/rental_drip_on and both drip statuses, and it
+  // copied the caller's value straight through with no validation (see the loop below). That made
+  // it a second, unvalidated writer of the legacy nurture cadence — including the drip-status
+  // column whose two disjoint vocabularies were the defect Lane 3 Packet 2 removed. The canonical
+  // nurture clock is lib/crm/nurture-due.ts and it reads the report ledger; these columns are now
+  // read-only history, still returned by the GET above.
   const allowed = [
     "buyer_potential", "no_fee_only", "notes",
-    "outreach_6mo_date", "outreach_90d_date", "outreach_60d_date", "outreach_30d_date",
-    "sales_drip_on", "rental_drip_on", "sales_drip_status", "rental_drip_status",
     "viewed_addresses",
   ];
 

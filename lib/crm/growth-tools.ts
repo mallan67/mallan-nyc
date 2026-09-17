@@ -3,6 +3,8 @@ import type { Prisma } from "@prisma/client";
 
 type JsonObject = Record<string, unknown>;
 
+import type { NurtureDue } from '@/lib/crm/nurture-due';
+
 export type GrowthPriority = "urgent" | "high" | "normal";
 
 export type GrowthLead = {
@@ -178,14 +180,6 @@ function lastTouch(lead: GrowthLead): Date | null {
   return lead.last_response_at || lead.last_contacted_at || lead.last_click_at || lead.last_login_at || lead.last_viewed_listing_at || null;
 }
 
-function cadenceDays(value: string | null | undefined): number | null {
-  const normalized = String(value || "").toLowerCase();
-  if (normalized === "monthly") return 30;
-  if (normalized === "quarterly") return 90;
-  if (normalized === "biannual") return 180;
-  if (normalized === "weekly") return 7;
-  return null;
-}
 
 function incompleteJsonChecklist(value: unknown): boolean {
   const object = objectValue(value);
@@ -319,7 +313,9 @@ function sellerNextAction(lead: GrowthLead, sellerSummary: ReturnType<typeof sum
   if (leases.some((lease) => lease.landlord_lead_id === lead.id && dueWithin(lease.lease_end_date, now, 180))) {
     return "Send owner valuation and rent-vs-sell options";
   }
-  if (!lead.sales_drip_on && !lead.last_unsubscribe_at) return "Add to owner market report cadence";
+  // Was: recommend adding the client to the sales drip cadence when sales_drip_on was false. That
+  // cadence is retired, so the recommendation pointed an agent at a mechanism that no longer
+  // decides anything. The canonical nurture obligation is surfaced from the report ledger instead.
   if (!lead.last_contacted_at || daysBetween(now, lead.last_contacted_at) > 30) return "Schedule seller check-in";
   return "Confirm selling timeline and pricing motivation";
 }
@@ -359,6 +355,8 @@ function buildSellerSignalQueue(input: {
 
 function buildMarketingQueue(input: {
   leads: GrowthLead[];
+  /** Canonical nurture verdicts by lead id, resolved by the caller. See summarizeGrowthTools. */
+  nurture?: Map<string, NurtureDue>;
   campaigns: GrowthCampaign[];
   leases: GrowthLease[];
   now: Date;
@@ -383,57 +381,48 @@ function buildMarketingQueue(input: {
 
   for (const lead of input.leads) {
     if (lead.last_unsubscribe_at) continue;
-    const touch = lastTouch(lead);
-    const salesCadence = cadenceDays(lead.sales_drip_status);
-    const rentalCadence = cadenceDays(lead.rental_drip_status || (lead.renewal_drip_on ? "monthly" : null));
 
-    if ((hasRole(lead, "seller") || hasRole(lead, "buyer") || String(lead.seller_potential || "none") !== "none") && !lead.sales_drip_on) {
+    // -- NURTURE IS DISPLAYED HERE. IT IS NOT DECIDED HERE.
+    //
+    //    This loop used to run a second cadence engine. cadenceDays() parsed a tier off
+    //    Lead.sales_drip_status (monthly=30, quarterly=90, biannual=180, weekly=7) and compared it
+    //    against a five-field lastTouch(), producing an independent answer to "is a client report
+    //    due" that disagreed with the lifecycle engine on the clock FIELD, on the THRESHOLD, and
+    //    on consent -- growth-tools suppressed only on unsubscribe, with no consent gate at all.
+    //
+    //    IT WAS ALSO DARK IN PRODUCTION ON THE SALES SIDE, which is why this is a deletion rather
+    //    than a reconciliation. One column carried two disjoint vocabularies: the agent-facing
+    //    tier route wrote the tokens cadenceDays understood, while the scheduled cron wrote
+    //    '6mo'/'90d'/'60d'/'30d'/'completed'. cadenceDays returned null for every one of those, so
+    //    the moment the cron advanced a client the due branch fell silent -- for exactly the
+    //    clients an automated cadence was supposed to be managing -- and the agent's explicit tier
+    //    choice was overwritten on the way past. The test fixture pinned 'monthly', the one value
+    //    that worked, so it stayed green throughout.
+    //
+    //    The four branches this replaces were: sales_drip_missing, sales report due,
+    //    rental_drip_missing, rental report due. All four are now one canonical projection --
+    //    'unanchored' IS the honest form of "not on a cadence", and it comes from the report
+    //    ledger rather than from a configuration flag.
+    const nurture = input.nurture?.get(lead.id.toString());
+    if (nurture && (nurture.state === "due" || nurture.state === "unanchored")) {
+      const unanchored = nurture.state === "unanchored";
       items.push({
-        id: `marketing:sales-drip:${lead.id.toString()}`,
-        type: "sales_drip_missing",
-        priority: hasRole(lead, "seller") || lead.seller_potential === "high" ? "high" : "normal",
-        segment: "marketing",
-        lead_id: lead.id.toString(),
-        title: leadName(lead),
-        detail: "Not on sales market-report cadence",
-        next_action: "Add monthly or quarterly market report",
-      });
-    } else if (salesCadence && (!touch || daysBetween(input.now, touch) >= salesCadence)) {
-      items.push({
-        id: `marketing:sales-report:${lead.id.toString()}`,
-        type: salesCadence <= 30 ? "monthly_report_due" : "quarterly_report_due",
+        id: `marketing:nurture:${lead.id.toString()}`,
+        type: unanchored ? "nurture_baseline_required" : "nurture_report_due",
         priority: "normal",
         segment: "marketing",
         lead_id: lead.id.toString(),
         title: leadName(lead),
-        detail: `${lead.sales_drip_status} sales report is due`,
-        next_action: "Send market update with relevant listings and comps",
+        detail: unanchored
+          ? "In nurture, but Mallan has no record of when this nurture cycle began"
+          : "Nurture report due",
+        next_action: unanchored
+          ? "Send a client report marked as fulfilling nurture follow-up to establish the baseline"
+          : "Choose the report that is genuinely useful, and mark it as fulfilling nurture follow-up",
+        due_at: nurture.state === "due" ? nurture.due_at.toISOString() : null,
       });
     }
 
-    if ((hasRole(lead, "landlord") || hasRole(lead, "tenant")) && !lead.rental_drip_on && !lead.renewal_drip_on) {
-      items.push({
-        id: `marketing:rental-drip:${lead.id.toString()}`,
-        type: "rental_drip_missing",
-        priority: "normal",
-        segment: "marketing",
-        lead_id: lead.id.toString(),
-        title: leadName(lead),
-        detail: "Not on rental or renewal cadence",
-        next_action: "Add lease/renewal market report cadence",
-      });
-    } else if (rentalCadence && (!touch || daysBetween(input.now, touch) >= rentalCadence)) {
-      items.push({
-        id: `marketing:rental-report:${lead.id.toString()}`,
-        type: rentalCadence <= 30 ? "monthly_report_due" : "quarterly_report_due",
-        priority: "normal",
-        segment: "marketing",
-        lead_id: lead.id.toString(),
-        title: leadName(lead),
-        detail: `${lead.rental_drip_status || "monthly"} rental report is due`,
-        next_action: "Send rental market or renewal report",
-      });
-    }
 
     if (lead.closing_date) {
       const sixMonth = addMonths(lead.closing_date, 6);
@@ -680,6 +669,15 @@ function buildToolGaps(input: { leads: GrowthLead[]; leases: GrowthLease[]; now:
 
 export function summarizeGrowthTools(input: {
   leads: GrowthLead[];
+  /**
+   * The canonical nurture verdict per lead id, from lib/crm/nurture-due.ts.
+   *
+   * Passed in rather than computed here on purpose: this module is a pure projection over rows the
+   * caller already fetched, and giving it a database reach is how it would grow a second clock
+   * again. Optional so every existing caller and test keeps compiling; absent simply means no
+   * nurture rows are emitted.
+   */
+  nurture?: Map<string, NurtureDue>;
   campaigns?: GrowthCampaign[];
   tasks?: GrowthTask[];
   leases?: GrowthLease[];
@@ -705,7 +703,7 @@ export function summarizeGrowthTools(input: {
   };
 
   const sellerSignalQueue = buildSellerSignalQueue({ leads, eventsByLead, leasesByLead, now });
-  const marketingQueue = buildMarketingQueue({ leads, campaigns, leases, now });
+  const marketingQueue = buildMarketingQueue({ leads, campaigns, leases, now, nurture: input.nurture });
   const pipelineQueue = buildPipelineQueue({
     leads,
     tasks,

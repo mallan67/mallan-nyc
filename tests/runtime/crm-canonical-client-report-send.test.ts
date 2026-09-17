@@ -101,11 +101,22 @@ async function post(body: Record<string, unknown>, id = '7', headers?: Record<st
   return { res, json: await readJson<any>(res) };
 }
 
+/**
+ * THE REAL VOCABULARY, CENSUSED FROM THE UI THAT EMITS IT.
+ *
+ * This fixture originally read report_type 'market_update', report_version '1' and audience
+ * 'customer'. None of those values can be produced by the product. report_type is
+ * reportState.format, whose complete set is the nine format tiles in html/modals/reports.html;
+ * report_version is 'agent' or 'customer'; and the audience vocabulary is 'public' or 'member' —
+ * 'customer' belongs to the VERSION vocabulary, not the audience one. The fixture passed anyway
+ * because nothing on the server validated any of the three, which is precisely the gap Lane 3
+ * Packet 2 closes now that qualifies_nurture decides a six-month clock.
+ */
 const REPORT = {
   purpose: 'nurture',
-  report_type: 'market_update',
-  report_version: '1',
-  audience: 'customer',
+  report_type: 'cma',
+  report_version: 'customer',
+  audience: 'public',
   subject: 'Your Q3 Market Update',
   html: '<html><body>Report body</body></html>',
   listing_ids: ['L1'],
@@ -142,7 +153,7 @@ describe('A · a successful agent report becomes durable brokerage history', () 
       purpose: m.purpose, qualifies: m.qualifies_nurture, type: m.report_type,
       channel: m.delivery_channel, status: m.delivery_status, msg: m.message_id,
     }).toEqual({
-      purpose: 'nurture', qualifies: true, type: 'market_update',
+      purpose: 'nurture', qualifies: true, type: 'cma',
       channel: 'email', status: 'accepted', msg: 'MSG-1',
     });
     // There is no bounce/delivery webhook in this repo; nothing may claim the client received it.

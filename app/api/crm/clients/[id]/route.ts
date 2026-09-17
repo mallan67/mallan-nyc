@@ -156,6 +156,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     renewal_status: lead.renewal_status,
     non_renewal_date: lead.non_renewal_date,
     reengage_anchor_date: lead.reengage_anchor_date,
+    // THE ONE NURTURE PAUSE CONTROL. Absent from this DTO until Lane 3 Packet 2, which is why
+    // the tenant workspace's Pause button rendered from `undefined` and its Paused badge could
+    // never appear. See the PATCH branch below for the other half.
+    nurture_paused: lead.nurture_paused,
     // Outreach dates
     outreach_6mo_date: lead.outreach_6mo_date,
     outreach_90d_date: lead.outreach_90d_date,
@@ -381,16 +385,37 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.renewal_status !== undefined) update.renewal_status = body.renewal_status ? String(body.renewal_status) : null;
   if (body.non_renewal_date !== undefined) update.non_renewal_date = body.non_renewal_date ? new Date(String(body.non_renewal_date)) : null;
   if (body.reengage_anchor_date !== undefined) update.reengage_anchor_date = body.reengage_anchor_date ? new Date(String(body.reengage_anchor_date)) : null;
-  if (body.sales_drip_on !== undefined) update.sales_drip_on = Boolean(body.sales_drip_on);
-  if (body.rental_drip_on !== undefined) update.rental_drip_on = Boolean(body.rental_drip_on);
-  if (body.renewal_drip_on !== undefined) update.renewal_drip_on = Boolean(body.renewal_drip_on);
+  // ── THE DRIP FLAGS ARE READ-ONLY HISTORY, LIKE THE LADDER DATES ABOVE.
+  //
+  //    They were the retired cron's cohort selector and the input to a Growth Tools recommendation
+  //    that told agents to "add to owner market report cadence". Both are gone. A repo census after
+  //    that removal found no behavioural reader left anywhere: three DTOs return them for display,
+  //    the tenant workspace shows the stored stage, growth-tools retains only the type declaration,
+  //    and no browser code writes them.
+  //
+  //    Left writable they would be a parallel nurture state machine with its driver removed but its
+  //    controls still live — an agent could flip a flag that decides nothing and reasonably believe
+  //    they had changed a cadence. The one pause that does decide something is nurture_paused,
+  //    accepted below.
+  // NURTURE PAUSE. The browser has PATCHed this field since the tenant workspace shipped, but no
+  // branch existed to receive it: the allowlist matched nothing, `update` stayed empty and the
+  // request was rejected with "No valid fields to update". The control looked live and could not
+  // pause anything. It is the one pause the canonical nurture evaluation honours.
+  if (body.nurture_paused !== undefined) update.nurture_paused = Boolean(body.nurture_paused);
   if (body.buyer_potential !== undefined) update.buyer_potential = body.buyer_potential != null ? parseInt(String(body.buyer_potential)) : null;
 
   // Outreach dates
-  if (body.outreach_6mo_date !== undefined) update.outreach_6mo_date = body.outreach_6mo_date ? new Date(String(body.outreach_6mo_date)) : null;
-  if (body.outreach_90d_date !== undefined) update.outreach_90d_date = body.outreach_90d_date ? new Date(String(body.outreach_90d_date)) : null;
-  if (body.outreach_60d_date !== undefined) update.outreach_60d_date = body.outreach_60d_date ? new Date(String(body.outreach_60d_date)) : null;
-  if (body.outreach_30d_date !== undefined) update.outreach_30d_date = body.outreach_30d_date ? new Date(String(body.outreach_30d_date)) : null;
+  // ── THE OUTREACH LADDER IS READ-ONLY HISTORY NOW.
+  //
+  //    These four columns were the retired tenant-nurture cron's own clock: an anchor advanced
+  //    through 6mo -> 90d -> 60d -> 30d, competing with the report ledger and disagreeing with it.
+  //    Lane 3 Packet 2 retired that scheduler, and leaving the columns WRITABLE would have left the
+  //    parallel cadence state machine alive with only its driver removed — a route or an agent
+  //    could still advance a ladder nothing reads and nothing honours.
+  //
+  //    They remain in the GET DTO above, and in the database, because they are real history of what
+  //    the old cadence did. Nothing writes them. No schema change: storage is not deleted casually.
+  //    If a deliberate cadence concept ever returns it comes back through lib/crm/nurture-due.ts.
 
   if (Object.keys(update).length === 0 && reassignmentAgentId === undefined) {
     return NextResponse.json(
@@ -405,6 +430,39 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         data: update,
       })
     : lead;
+
+  // ── DURABLE STAGE-TRANSITION HISTORY.
+  //
+  //    Until now a stage change left no recoverable record. The audit call at the end of this
+  //    handler logs `fields: Object.keys(update)` — the field NAMES only — so it could say that
+  //    pipeline_stage changed but never what it changed TO. Nothing else recorded the transition:
+  //    activity_type 'status_change' is documented in the ActivityLog schema comment but was
+  //    written only by the sales promote route. The consequence surfaced in Lane 3 Packet 2: there
+  //    was no way to establish when a client entered a nurture relationship, so the six-month
+  //    report obligation had no first anchor and every candidate substitute meant something else.
+  //
+  //    This writes the transition into the ledger that already exists. No new table, no new
+  //    column, and the activity_type is the one the schema already declares.
+  //
+  //    FAILURE DEGRADES TO UNANCHORED, WHICH IS THE SAFE DIRECTION. A lost history row means
+  //    lib/crm/nurture-due.ts reports `unanchored` and asks the agent for a baseline; it can never
+  //    cause a fabricated due date. Blocking an agent's stage edit because a history insert failed
+  //    would be the worse trade, so this is deliberately non-fatal.
+  if (update.pipeline_stage !== undefined && update.pipeline_stage !== lead.pipeline_stage) {
+    await prisma.activityLog.create({
+      data: {
+        lead_id: lead.id,
+        activity_type: "status_change",
+        title: `Pipeline stage: ${String(lead.pipeline_stage)} → ${String(update.pipeline_stage)}`,
+        actor_type: "agent",
+        actor_id: auth.userId,
+        metadata: {
+          old_pipeline_stage: lead.pipeline_stage ?? null,
+          new_pipeline_stage: String(update.pipeline_stage),
+        },
+      },
+    }).catch(() => {});
+  }
 
   // DEACTIVATION SIDE EFFECTS — access only. Deactivation is NOT deletion: the Lead identity and every
   // related record (preferences, Client x Listing actions, saved searches, showings, feedback, comments,

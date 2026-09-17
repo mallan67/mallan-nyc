@@ -568,6 +568,7 @@
   "reportDescriptionEditor",
   "reportPeriod",
   "reportPreparedFor",
+  "reportPurpose",
   "reportRecipientClient",
   "reportRecipientEmail",
   "reportSelection",

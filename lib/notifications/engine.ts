@@ -5,8 +5,11 @@
 import prisma from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
 
-export type NotificationType = 'new_match' | 'price_drop' | 'showing_confirmed' | 'offer_status' | 'listing_update' | 'listing_expiration' | 'system';
-export type NotificationChannel = 'in_app' | 'email' | 'sms';
+export type NotificationType = 'new_match' | 'price_drop' | 'showing_confirmed' | 'offer_status' | 'listing_update' | 'listing_expiration' | 'system' | 'nurture_due';
+// 'alert' is the channel the agent-facing Alerts surface reads (app/api/crm/alerts/route.ts).
+// It was previously reachable only by writing prisma.notification.create directly, which is how
+// eleven of twelve call sites came to bypass the preference check below.
+export type NotificationChannel = 'in_app' | 'email' | 'sms' | 'alert';
 
 export interface CreateNotificationInput {
   recipient_type: 'agent' | 'lead';
@@ -16,6 +19,15 @@ export interface CreateNotificationInput {
   title: string;
   body: string;
   data?: Record<string, unknown>;
+  /**
+   * Delivery status. Defaults preserve the previous behaviour exactly.
+   *
+   * It is settable because the Alerts badge counts only rows with status 'new'
+   * (public/crm/js/dashboard/alerts.js), while the Alerts LIST shows anything not resolved or
+   * auto-dismissed. A caller that needs to be counted, not merely listed, has to say so — without
+   * this, an agent-facing alert lands in the list and the bell still reads zero.
+   */
+  status?: string;
 }
 
 /**
@@ -56,7 +68,7 @@ export async function createNotification(input: CreateNotificationInput) {
       title: input.title,
       body: input.body,
       data: (input.data ?? undefined) as Prisma.InputJsonValue | undefined,
-      status: input.channel === 'in_app' ? 'delivered' : 'pending',
+      status: input.status ?? (input.channel === 'in_app' ? 'delivered' : 'pending'),
       sent_at: input.channel === 'in_app' ? new Date() : null,
     },
   });

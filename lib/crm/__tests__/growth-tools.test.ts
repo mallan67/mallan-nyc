@@ -69,6 +69,61 @@ describe("growth tools summary", () => {
     expect(summary.pipeline_queue.some((item) => item.type === "lease_renewal_window")).toBe(true);
   });
 
+  it("renders the canonical nurture verdict rather than computing one", () => {
+    // The verdict is resolved by the caller (app/api/crm/growth-tools/route.ts) from the report
+    // ledger and handed down. Growth Tools' only job is to show it.
+    const now = new Date("2026-04-29T12:00:00.000Z");
+    const due = {
+      state: "due" as const,
+      due_at: new Date("2026-04-01T00:00:00.000Z"),
+      anchor: { kind: "qualifying_report" as const, at: new Date("2025-10-01T00:00:00.000Z") },
+    };
+    const summary = summarizeGrowthTools({
+      now,
+      leads: [lead({ id: BigInt(5), first_name: "Due", last_name: "Client", roles: ["buyer"] })],
+      nurture: new Map([["5", due]]),
+    });
+    const item = summary.marketing_queue.find((i) => i.type === "nurture_report_due");
+    expect(item).toBeDefined();
+    expect(item!.lead_id).toBe("5");
+    expect(item!.due_at).toBe(due.due_at.toISOString());
+  });
+
+  it("renders UNANCHORED as an agent action, never as a due date", () => {
+    // A client in nurture with no qualifying report has no baseline. The honest output is an
+    // action asking for one, not a manufactured date.
+    const summary = summarizeGrowthTools({
+      now: new Date("2026-04-29T12:00:00.000Z"),
+      leads: [lead({ id: BigInt(6), first_name: "New", last_name: "Client", roles: ["buyer"] })],
+      nurture: new Map([[
+        "6",
+        { state: "unanchored" as const, action: "nurture_baseline_required" as const },
+      ]]),
+    });
+    const item = summary.marketing_queue.find((i) => i.type === "nurture_baseline_required");
+    expect(item).toBeDefined();
+    expect(item!.due_at).toBeNull();
+  });
+
+  it("emits nothing for a paused or scheduled client", () => {
+    const summary = summarizeGrowthTools({
+      now: new Date("2026-04-29T12:00:00.000Z"),
+      leads: [
+        lead({ id: BigInt(7), first_name: "Paused", last_name: "Client", roles: ["buyer"] }),
+        lead({ id: BigInt(8), first_name: "Scheduled", last_name: "Client", roles: ["buyer"] }),
+      ],
+      nurture: new Map([
+        ["7", { state: "paused" as const }],
+        ["8", {
+          state: "scheduled" as const,
+          due_at: new Date("2026-11-01T00:00:00.000Z"),
+          anchor: { kind: "qualifying_report" as const, at: new Date("2026-05-01T00:00:00.000Z") },
+        }],
+      ]),
+    });
+    expect(summary.marketing_queue.filter((i) => i.type.startsWith("nurture_"))).toEqual([]);
+  });
+
   it("surfaces marketing cadence, anniversaries, and buyer agreement gaps", () => {
     const now = new Date("2026-04-29T12:00:00.000Z");
     const summary = summarizeGrowthTools({
@@ -118,8 +173,23 @@ describe("growth tools summary", () => {
     });
 
     expect(summary.marketing_queue.some((item) => item.type === "campaign_due")).toBe(true);
-    expect(summary.marketing_queue.some((item) => item.type === "monthly_report_due")).toBe(true);
     expect(summary.marketing_queue.some((item) => item.type === "anniversary_6mo_due")).toBe(true);
+
+    // ── NURTURE CADENCE IS NO LONGER COMPUTED HERE, AND THIS FIXTURE PROVES IT TWICE.
+    //
+    //    This test used to assert a "monthly_report_due" item, produced by growth-tools' own
+    //    cadenceDays() reading sales_drip_status. Lane 3 Packet 2 deleted that calculation: it was
+    //    a second answer to "is a report due" that disagreed with the lifecycle engine on the
+    //    clock field, the threshold and consent — and it was dark in production anyway, because
+    //    the only automatic writer of that column wrote tokens cadenceDays could not parse.
+    //
+    //    The fixture deliberately still sets sales_drip_status: "monthly" and a stale
+    //    last_contacted_at. Those are exactly the inputs that used to produce the item, so their
+    //    presence alongside the assertion below is a negative proof: the retired cadence is
+    //    genuinely unread rather than merely unexercised. That matters because this test is where
+    //    the old behaviour was pinned — it was green throughout, on the one vocabulary that worked.
+    expect(summary.marketing_queue.some((item) => item.type === "monthly_report_due")).toBe(false);
+    expect(summary.marketing_queue.some((item) => item.type === "quarterly_report_due")).toBe(false);
     expect(summary.pipeline_queue.some((item) => item.type === "buyer_rep_missing")).toBe(true);
     expect(summary.pipeline_queue.some((item) => item.type === "task_due")).toBe(true);
   });

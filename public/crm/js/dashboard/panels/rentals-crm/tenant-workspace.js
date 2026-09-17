@@ -142,14 +142,21 @@ var TenantWorkspace = (function () {
 
   // ── Nurture Status ──────────────────────────────────────────────────
   function _renderNurtureStatus(cl) {
-    var isActive = cl.sales_drip_on || cl.rental_drip_on;
+    // CANONICAL NURTURE MEMBERSHIP DECIDES WHETHER THIS CARD EXISTS.
+    //
+    // This used to read the legacy drip flags, which meant nurture_paused became canonical server
+    // state while the UI still used retired state to decide whether its control was even rendered.
+    // A client in the canonical Nurture stage with no drip flag had no pause button at all. The
+    // flags remain readable history; they no longer gate the control.
+    var inNurture = cl.pipeline_stage === 'nurturing';
+    var isActive = inNurture || cl.sales_drip_on || cl.rental_drip_on;
     if (!isActive && !cl.reengage_anchor_date) return '';
 
     var h = '<div style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:14px 16px;margin-bottom:12px;">';
     h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">';
     h += '<div style="font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.5px;">Nurture Cadence</div>';
 
-    if (isActive) {
+    if (inNurture || isActive) {
       var paused = cl.nurture_paused;
       h += '<button style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:6px;background:' + (paused ? '#FEF2F2' : '#ECFDF5') + ';color:' + (paused ? '#DC2626' : '#059669') + ';border:none;cursor:pointer;" ' +
         'onclick="TenantWorkspace._togglePause(\'' + E(String(cl.id)) + '\',' + !paused + ')">' +

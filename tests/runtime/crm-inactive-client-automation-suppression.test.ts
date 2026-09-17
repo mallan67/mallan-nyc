@@ -345,8 +345,17 @@ describe('F/G/L · scope guards', () => {
   const { resolve } = require('path') as typeof import('path');
   const read = (rel: string) => readFileSync(resolve(__dirname, '../..', rel), 'utf8');
 
-  it('the tenant-nurture cron is untouched — it notifies the AGENT and never emails the client', () => {
-    expect(read('app/api/cron/tenant-nurture/route.ts')).not.toContain('isLeadExplicitlyInactive');
+  it('the tenant-nurture cron is RETIRED — Lane 3 Packet 2 removed the second nurture scheduler', () => {
+    // This pin used to assert the cron was merely out of Safety Packet 2's scope. It is now gone:
+    // it was a second generic nurture scheduler with its own anchor, its own 6mo/90d/60d/30d
+    // ladder, its own drip-status vocabulary and its own engagement suppression, none of which
+    // could see whether a report had actually been sent. Asserting "untouched" against a deleted
+    // file would have thrown ENOENT rather than failing meaningfully, so the pin is flipped to
+    // assert the retirement instead.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { existsSync } = require('fs') as typeof import('fs');
+    expect(existsSync(resolve(__dirname, '../..', 'app/api/cron/tenant-nurture/route.ts'))).toBe(false);
+    expect(read('vercel.json')).not.toContain('/api/cron/tenant-nurture');
   });
 
   it('generic sendEmail carries NO Lead.status lookup — that boundary cannot know the canonical recipient', () => {
@@ -357,7 +366,8 @@ describe('F/G/L · scope guards', () => {
 
   it.each([
     'app/api/crm/listing-sends/route.ts',
-    'app/api/cron/tenant-nurture/route.ts',
+    // 'app/api/cron/tenant-nurture/route.ts' removed: retired in Lane 3 Packet 2. Reading a
+    // deleted path here would ENOENT, which is a crash rather than a finding.
   ])('%s is not swept in merely because it calls sendEmail()', (rel) => {
     expect(read(rel)).not.toContain('isLeadExplicitlyInactive');
   });
