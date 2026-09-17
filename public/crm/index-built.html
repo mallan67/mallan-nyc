@@ -25520,9 +25520,7 @@ function openPrintableWindow(html, options) {
             var _vAudience = currentReportAudience();
             var eligible = selectedListings.filter(function(l) { return reportListingPassesAudience(l, _vAudience); });
             if (selectedListings.length > 0 && eligible.length === 0) {
-                errors.push(_vAudience === 'member'
-                    ? 'No selected listings are eligible for the Agent report.'
-                    : 'No selected listings are eligible for the Customer report.');
+                errors.push(reportAudienceIneligibleMessage());
             }
             // A mixed population is not an error: the ineligible rows are simply excluded downstream.
             return errors;
@@ -28052,6 +28050,24 @@ function openPrintableWindow(html, options) {
             return _forcedDeliveryAudience || reportAudienceForVersion(reportState.version);
         }
 
+        /**
+         * The ONE sentence for "nothing in this selection is eligible", shared by the validator and by the
+         * generate-time reader, so an agent never meets two different explanations of one refusal.
+         *
+         * It names the AUDIENCE and no cause. getReportListings() returns a filtered array and retains no
+         * per-row rejection reason, so naming a cause here would be a guess — which is precisely the defect
+         * this replaces: the old wording named IDX display as the reason for every such refusal, when an
+         * empty population equally means an owner opt-out, a participant-only restriction in a Customer
+         * report, an Internet restriction, or a combination. In a Customer report it could even name a
+         * "restriction" that is nothing of the kind: participant-only inventory is perfectly valid, it simply
+         * may not be distributed to a client.
+         */
+        function reportAudienceIneligibleMessage() {
+            return currentReportAudience() === 'member'
+                ? 'No selected listings are eligible for the Agent report.'
+                : 'No selected listings are eligible for the Customer report.';
+        }
+
         // ── Helper: Get filtered+compliant listings from reportState ──
         function getReportListings() {
             var reportSelRadio = document.querySelector('input[name="reportSelection"]:checked');
@@ -28645,10 +28661,16 @@ function openPrintableWindow(html, options) {
             var preparedFor = (document.getElementById('reportPreparedFor') || {}).value || 'Client';
             var title = (document.getElementById('reportTitle') || {}).value || 'Property Report';
 
-            // Get listings (already compliance-filtered + sorted + capped at 250)
+            // Get listings (already audience-gated + sorted + capped at 250)
+            //
+            // This is reached when validateReportState() PASSED and the population is still empty — which
+            // happens through the selection radio: 'picked' / 'liked' draw from listingFlags, a set the
+            // validator never consults. It used to blame IDX display for every such refusal, which under the
+            // C4C contract is wrong in four different ways, so it now speaks the same audience sentence the
+            // validator does and claims no cause it cannot know.
             var listings = getReportListings();
             if (listings.length === 0) {
-                renderReportErrors(['No compliant listings available. All selected listings may have IDX display opted out.']);
+                renderReportErrors([reportAudienceIneligibleMessage()]);
                 return;
             }
 
