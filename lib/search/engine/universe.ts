@@ -8,8 +8,10 @@ import { mallanStorageStatusesForCotality } from '@/lib/listings/mallan-status';
  *            → total = merged length
  *            → page = slice
  *
- * Nothing is filtered after the page is cut. `countMeaning` is 'exact' only
- * when the provider walk completed; otherwise 'lower_bound', and it says so.
+ * Nothing is filtered after the page is cut. At THIS layer `countMeaning` is 'exact' when the provider walk
+ * completed and 'lower_bound' when it did not — those are the only two a settled universe can know. The
+ * executor widens it to the full four states once hydration reports what was lost downstream: a complete
+ * walk plus loss is 'upper_bound', an incomplete walk plus loss is 'indeterminate'.
  */
 
 import prisma from '@/lib/prisma';

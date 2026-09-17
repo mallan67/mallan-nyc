@@ -207,7 +207,9 @@ export async function hydratePage(page: readonly UniverseRow[], o: HydrateOption
     if (!raw) { missing.push(row.listingKey ?? row.listingId); return; }
     // BOTH sources are gated before a row becomes distributable output. Previously only provider rows
     // were, so a Mallan owner-opted-out listing reached every audience. Excluded rows go to gateExcluded,
-    // which executor.ts degrades `countMeaning` from 'exact' to 'lower_bound' — reported, never silently
+    // which executor.ts resolves into the FOUR-state countMeaning: a complete walk plus downstream loss is
+    // an 'upper_bound' (the total is too high), and an incomplete walk plus loss is 'indeterminate'. It is
+    // never 'lower_bound' — that would state the opposite error. Reported, never silently
     // dropped, because a gate that hides its own suppressions is how this class of defect survives.
     const audience = o.audience ?? 'public';
     const passes = row.source === 'provider' ? _providerGate(raw, audience) : _mallanGate(raw, audience);

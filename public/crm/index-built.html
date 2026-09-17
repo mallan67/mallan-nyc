@@ -18522,11 +18522,43 @@ function manageShowToast(msg) {
             if (searchResultsState.serverPaged && searchResultsState.serverTotal != null) return searchResultsState.serverTotal;
             return (searchResultsState.filteredListings || listings).length;
         }
+        /**
+         * ONE interpretation of the server's countMeaning, for the sentence AND the page total.
+         *
+         * The engine answers with four states (lib/search/engine/universe.ts): `exact`, `lower_bound` (the
+         * provider walk did not complete — there may be MORE), `upper_bound` (rows were counted and then
+         * removed downstream — there are FEWER) and `indeterminate` (both at once). This browser used to
+         * recognise only `lower_bound` and printed everything else as a bare "N Results", so the two states
+         * added precisely because a count can be wrong in the other direction were shown as certainty.
+         *
+         * `indeterminate` deliberately gets neither "at least" nor "at most": when neither direction is
+         * guaranteed, claiming either is a third wrong answer.
+         *
+         * `pageMark` marks the derived "Page X of Y". Y comes from an uncertain total, so it may understate
+         * pages (lower_bound) or invent them (upper_bound). The browser carries no `hasMore`, so the honest
+         * correction is to stop stating Y as a certainty rather than to guess a real last page.
+         */
+        function _countMeaningPresentation(meaning) {
+            switch (meaning) {
+                case 'lower_bound':   return { prefix: 'At least ', suffix: ' Results', pageMark: '+',  exact: false };
+                case 'upper_bound':   return { prefix: 'At most ',  suffix: ' Results', pageMark: '≤', exact: false };
+                case 'indeterminate': return { prefix: '', suffix: ' currently counted', pageMark: '~', exact: false };
+                default:              return { prefix: '', suffix: ' Results', pageMark: '',  exact: true };
+            }
+        }
+        window._countMeaningPresentation = _countMeaningPresentation;
+
+        /** The server's meaning, but only when the server actually produced this count. */
+        function _serverMeaning() {
+            return (searchResultsState.serverPaged && searchResultsState.serverTotal != null)
+                ? searchResultsState.serverCountMeaning
+                : null;
+        }
+
         function _resultsCountLabel() {
             var count = _resultsCount();
-            var lowerBound = searchResultsState.serverPaged && searchResultsState.serverTotal != null
-                && searchResultsState.serverCountMeaning === 'lower_bound';
-            return (lowerBound ? 'At least ' : '') + count.toLocaleString() + ' Results';
+            var p = _countMeaningPresentation(_serverMeaning());
+            return p.prefix + count.toLocaleString() + p.suffix;
         }
         window._resultsCountLabel = _resultsCountLabel;
 
@@ -18535,14 +18567,19 @@ function manageShowToast(msg) {
             var count = _resultsCount();
             var label = _resultsCountLabel();
             var totalPages = Math.max(1, Math.ceil(count / perPage));
+            // "Page X of Y" derived from an inexact total is a false certainty: an upper_bound manufactures
+            // pages that may not exist and a lower_bound hides pages that do. The figure still shows —
+            // it is the best available — but marked so it never reads as exact.
+            var meaningPres = _countMeaningPresentation(_serverMeaning());
+            var totalPagesText = meaningPres.pageMark + totalPages;
             var countEls = document.querySelectorAll('#resultsCount, #resultsCount2');
             countEls.forEach(function(el) { el.textContent = label; });
             var totalPagesEl = document.getElementById('totalPages');
-            if (totalPagesEl) totalPagesEl.textContent = totalPages;
+            if (totalPagesEl) totalPagesEl.textContent = totalPagesText;
             var currentPageEl = document.getElementById('currentPage');
             if (currentPageEl) currentPageEl.textContent = searchResultsState.currentPage;
             var bottomTotalPagesEl = document.getElementById('bottomTotalPages');
-            if (bottomTotalPagesEl) bottomTotalPagesEl.textContent = totalPages;
+            if (bottomTotalPagesEl) bottomTotalPagesEl.textContent = totalPagesText;
             var bottomCurrentPageEl = document.getElementById('bottomCurrentPage');
             if (bottomCurrentPageEl) bottomCurrentPageEl.textContent = searchResultsState.currentPage;
         }
