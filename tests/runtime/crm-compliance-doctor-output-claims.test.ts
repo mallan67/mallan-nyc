@@ -112,10 +112,20 @@ describe('C · the repair changed evidence only — the live delegation is untou
     expect(src).toContain("openReportsModal(ids, 'print')");
   });
 
-  it('the legacy fallback was NOT deleted to make the test tidy', () => {
-    // Deleting it is a behaviour change and was explicitly out of scope for REG-8. It stays unreachable.
+  it('the legacy fallback outlived REG-8 and was retired later, by its own packet', () => {
+    // WHEN REG-8 LANDED this asserted the fallback was still PRESENT. That was the point: REG-8 repaired
+    // EVIDENCE, and deleting live-file code would have been a behaviour change outside its authorization,
+    // so the pin proved the tidy-up had not been smuggled in.
+    //
+    // Retirement 1B removed it under its own authorization, after proving by control flow that the live
+    // Print and Email buttons never reach it. The pin flips to the new truth rather than being deleted,
+    // so the boundary it guarded stays legible: REG-8 touched no behaviour, 1B did — deliberately.
     const src = read(DOCTOR);
-    expect(src).toContain('Legacy fallback');
+    expect(src).not.toContain('Legacy fallback');
+    // What replaced it: two thin wrappers that fail closed rather than falling back.
+    expect(src).toContain("openReportsModal(ids, 'print')");
+    expect(src).toContain("openReportsModal(ids, 'email')");
+    expect(src).not.toContain('function previewListingSheet');
   });
 
   it('C4C has landed: getReportListings defers to the one report-audience helper', () => {

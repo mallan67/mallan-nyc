@@ -304,11 +304,16 @@ describe('2 · Backend Search still boots, and the canonical report/client paths
 // PART 3 — the packet's own boundaries
 // ═════════════════════════════════════════════════════════════════════════════
 describe('3 · Retirement 1B and the other registered residuals were NOT started', () => {
-  it('compliance-gates-and-output.js still carries its dormant fallbacks, untouched', () => {
-    // 1B is a separate packet. If these disappear here, this packet exceeded its authorization.
+  it('the dormant listing-sheet fallbacks were retired by 1B, not by this packet', () => {
+    // WHEN 1A LANDED this asserted the fallbacks were still PRESENT, because removing them was a
+    // separate authorization and their disappearance here would have meant 1A exceeded its scope.
+    // Retirement 1B has since removed them. The pin is flipped to the new truth rather than deleted,
+    // so the boundary it guarded stays legible: 1A deleted whole-file orphans, 1B did branch surgery
+    // inside a live file, and neither did the other's work.
     const src = read('public/crm/js/compliance/compliance-gates-and-output.js');
-    expect(src).toContain('All selected listings have IDX display opted out. Cannot preview.');
-    expect(src).toContain('All selected listings have IDX display opted out. Cannot email.');
+    expect(src).not.toContain('function previewListingSheet');
+    expect(src).toContain("openReportsModal(ids, 'print')");
+    expect(src).toContain("openReportsModal(ids, 'email')");
   });
 
   it('the stale pagination.js comment is still registered, not opportunistically fixed here', () => {

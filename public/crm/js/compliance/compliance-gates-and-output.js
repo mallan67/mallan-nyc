@@ -216,163 +216,54 @@ function getSelectedListingIds() {
     return searchResultsState.selectedListings || [];
 }
 
-// Print listing sheet
+// Print listing sheet — carries the selection to the canonical reports workflow, and does nothing else.
+//
+// A SECOND PRINTING IMPLEMENTATION used to live after the delegation below, reached only when
+// openReportsModal was absent. It was not a safety net. It gated on checkListingCompliance() — the two-gate
+// IDX/Internet model — and blamed an IDX opt-out for every refusal, wording C4C superseded: an empty report
+// population equally means an owner opt-out or a participant-only restriction, and the audience is the
+// report VERSION, not a property of the output type. Had it ever run it would have printed a DIFFERENT
+// document under a retired rule, and written its own audit entry saying it succeeded.
+//
+// reports.js owns format, version, audience gating, the 250 cap and the audit. This wrapper owns the
+// selection and nothing more, so there is no second answer to fall back to.
 function printListingSheet() {
     var ids = getSelectedListingIds();
     if (ids.length === 0) {
         showToast('Please select at least one listing to print.', 'warning');
         return;
     }
-    // Use the reports modal which has format/version/options
-    if (typeof openReportsModal === 'function') {
-        openReportsModal(ids, 'print');
+    if (typeof openReportsModal !== 'function') {
+        showToast('Reports are unavailable. Nothing was printed.', 'error');
         return;
     }
-    // Legacy fallback
-    var compliance = checkListingCompliance(ids);
-
-    // Show blocked listings warning
-    if (compliance.blocked.length > 0) {
-        var blockedCount = compliance.blocked.length;
-        if (compliance.passed.length === 0) {
-            showToast(blockedCount + ' listing(s) blocked (IDX opt-out). No listings available to print.', 'error');
-            return;
-        }
-        showToast(blockedCount + ' listing(s) blocked (IDX opt-out). Printing remaining ' + compliance.passed.length + ' listing(s).', 'warning');
-    }
-
-    var sheetHtml = generateListingSheet(compliance.passed, compliance.warnings);
-
-    // Open print window (CSP-safe Blob URL)
-    var printHtml = '<!DOCTYPE html><html><head><title>Listing Sheet - Mallan Real Estate</title>' +
-        '<style>' +
-        'body { margin: 0; padding: 20px; font-family: system-ui, -apple-system, sans-serif; }' +
-        '.listing-sheet-card { page-break-inside: avoid; }' +
-        '@media print { body { padding: 0; } @page { margin: 1.5cm; } }' +
-        '</style></head><body>' + sheetHtml + '</body></html>';
-    openPrintableWindow(printHtml, { features: 'width=900,height=700', autoPrint: true });
-
-    // Log audit entry
-    logAuditEntry('listing_print', {
-        listingIds: compliance.passed.map(function(l) { return l.id; }),
-        count: compliance.passed.length,
-        blocked: compliance.blocked.length
-    });
-
-    // Close delivery menu if open
-    var menu = document.getElementById('clientDeliveryMenu');
-    if (menu) menu.classList.add('hidden');
+    openReportsModal(ids, 'print');
 }
 
-// Preview listing sheet (opens in modal overlay)
-function previewListingSheet() {
-    var ids = getSelectedListingIds();
-    if (ids.length === 0) {
-        showToast('Please select at least one listing to preview.', 'warning');
-        return;
-    }
+// previewListingSheet() REMOVED 2026-09-16 (Retirement 1B). Zero live callers: its only buttons lived in
+// html/modals/client-delivery.html, which an earlier packet deleted. It rendered through the same retired
+// generateListingSheet() path and refused with the IDX-only wording that the C4C audience contract
+// superseded. Git history is the archive.
 
-    var compliance = checkListingCompliance(ids);
-
-    if (compliance.blocked.length > 0 && compliance.passed.length === 0) {
-        showToast('All selected listings have IDX display opted out. Cannot preview.', 'error');
-        return;
-    }
-
-    var sheetHtml = generateListingSheet(compliance.passed, compliance.warnings);
-
-    // Show in a preview window (CSP-safe Blob URL)
-    var previewHtml = '<!DOCTYPE html><html><head><title>Preview - Listing Sheet</title>' +
-        '<style>' +
-        'body { margin: 0; padding: 20px; font-family: system-ui, -apple-system, sans-serif; background: #f3f4f6; }' +
-        '#listingSheetContent { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }' +
-        '.listing-sheet-card { page-break-inside: avoid; }' +
-        '.preview-toolbar { position: sticky; top: 0; background: #1f2937; color: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; margin: -20px -20px 20px; border-radius: 0; z-index: 10; }' +
-        '.preview-toolbar button { background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; }' +
-        '.preview-toolbar button:hover { background: #2563eb; }' +
-        '.preview-toolbar button.secondary { background: transparent; border: 1px solid rgba(255,255,255,0.3); }' +
-        '.preview-toolbar button.secondary:hover { background: rgba(255,255,255,0.1); }' +
-        '@media print { .preview-toolbar { display: none !important; } body { background: white; padding: 0; } #listingSheetContent { box-shadow: none; padding: 0; } @page { margin: 1.5cm; } }' +
-        '</style></head><body>' +
-        '<div class="preview-toolbar">' +
-        '<span style="font-size:14px;font-weight:600;">' + compliance.passed.length + ' Listing(s) - Preview</span>' +
-        '<div style="display:flex;gap:8px;">' +
-        '<button class="secondary" onclick="window.close()">Close</button>' +
-        '<button onclick="window.print()">Print</button>' +
-        '</div></div>' +
-        sheetHtml + '</body></html>';
-    openPrintableWindow(previewHtml, { features: 'width=900,height=700' });
-
-    // Close delivery modal
-    closeDeliveryModal();
-}
-
-// Email listing sheet — opens reports modal with email preset
+// Email listing sheet — carries the selection to the canonical reports workflow, and does nothing else.
+//
+// A COMPLETE SECOND EMAIL PATH used to live after the delegation below: its own client lookup
+// (customerDB / #clientSelect), its own renderer (buildBrandedEmailHTML), its own listing_email success
+// audit and its own sendEmailDirect call. None of it saw the C4C audience gate, so it could have put
+// owner-opted-out or participant-only inventory into a client's inbox — the exact defect C4C closed in
+// reports.js. A fallback that sends a client something the canonical path would have refused is worse than
+// sending nothing, so this fails closed.
 function emailListingSheet() {
     var ids = getSelectedListingIds();
     if (ids.length === 0) {
         showToast('Please select at least one listing to email.', 'warning');
         return;
     }
-    // Use the reports modal which has a working client selector + email delivery
-    if (typeof openReportsModal === 'function') {
-        openReportsModal(ids, 'email');
+    if (typeof openReportsModal !== 'function') {
+        showToast('Reports are unavailable. Nothing was sent.', 'error');
         return;
     }
-    // Legacy fallback (should not reach here)
-    var compliance = checkListingCompliance(ids);
-
-    if (compliance.blocked.length > 0 && compliance.passed.length === 0) {
-        showToast('All selected listings have IDX display opted out. Cannot email.', 'error');
-        return;
-    }
-
-    // Get selected client info
-    var clientSelect = document.getElementById('clientSelect');
-    var clientEmail = '';
-    var clientName = 'Client';
-    if (clientSelect && clientSelect.value) {
-        var selectedClient = customerDB[clientSelect.value];
-        if (selectedClient) {
-            clientName = selectedClient.name;
-            clientEmail = selectedClient.email;
-        } else {
-            var opt = clientSelect.options[clientSelect.selectedIndex];
-            clientName = opt.textContent.split(' - ')[0].trim();
-        }
-    }
-
-    if (!clientEmail) {
-        showToast('Please select a client with an email address first.', 'warning');
-        return;
-    }
-
-    var listings = compliance.passed;
-    var title = 'Property Report — ' + listings.length + ' Listing' + (listings.length !== 1 ? 's' : '');
-
-    // Build the branded HTML email body — status badges per listing, formatCurrency prices, updatedDate, REBNY attribution
-    var richHTML = buildBrandedEmailHTML(listings, title, clientName);
-
-    // Log audit entry for compliance tracking
-    logAuditEntry('listing_email', {
-        listingIds: listings.map(function(l) { return l.id; }),
-        count: listings.length,
-        recipient: clientEmail,
-        clientName: clientName
-    });
-
-    // Send directly from the system
-    sendEmailDirect({
-        to: clientEmail,
-        toName: clientName,
-        subject: title + ' — Mallan Real Estate',
-        htmlBody: richHTML,
-        listingIds: listings.map(function(l) { return l.id; }),
-        count: listings.length,
-        source: 'listing_sheet'
-    });
-
-    closeDeliveryModal();
+    openReportsModal(ids, 'email');
 }
 
 // Audit log — stores actions for compliance tracking

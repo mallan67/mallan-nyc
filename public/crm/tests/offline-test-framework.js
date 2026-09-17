@@ -631,14 +631,28 @@
                 id: 'TP-29', name: 'Report Compliance Gate',
                 criteria: { searchTab: 'sale' },
                 validate: function(results) {
-                    // Verify report generation checks compliance before rendering
-                    if (typeof checkListingCompliance !== 'function') return { pass: false, detail: 'checkListingCompliance() not found' };
-                    var src = '';
-                    if (typeof printListingSheet === 'function') src += printListingSheet.toString();
-                    if (typeof emailListingSheet === 'function') src += emailListingSheet.toString();
-                    var checksCompliance = src.indexOf('checkListingCompliance') !== -1;
-                    if (!checksCompliance) return { pass: false, detail: 'Print/email functions do not call checkListingCompliance()' };
-                    return { pass: true, detail: 'Print and email functions gate on checkListingCompliance()' };
+                    // CORRECTED 2026-09-16 (Retirement 1B). This used to require that
+                    // printListingSheet.toString() + emailListingSheet.toString() CONTAINS
+                    // "checkListingCompliance" — certifying what a function's source says rather than what
+                    // the button does, which is the REG-8 failure mode. It also asserted an architecture
+                    // that no longer exists: the wrappers now delegate to the canonical reports workflow,
+                    // which owns the audience gate (C4C). Keeping it green would have meant keeping the
+                    // retired fallback alive purely to satisfy a substring.
+                    //
+                    // What is checked here is DELEGATION, which is structural and cheap in-browser. The
+                    // compliance of the output itself is proven behaviourally by the runtime report suites
+                    // (crm-report-audience-population, crm-report-outputs), not by this string.
+                    if (typeof printListingSheet !== 'function') return { pass: false, detail: 'printListingSheet() not found' };
+                    if (typeof emailListingSheet !== 'function') return { pass: false, detail: 'emailListingSheet() not found' };
+                    if (typeof openReportsModal !== 'function') return { pass: false, detail: 'canonical reports workflow (openReportsModal) not found' };
+                    // CHECKED SEPARATELY, deliberately. Concatenating the two sources and searching once
+                    // proves only that AT LEAST ONE wrapper delegates, while the pass message claims both —
+                    // the same false-pass shape this check was rewritten to remove.
+                    var printSrc = printListingSheet.toString();
+                    var emailSrc = emailListingSheet.toString();
+                    if (printSrc.indexOf('openReportsModal') === -1) return { pass: false, detail: 'Print does not delegate to the canonical reports workflow' };
+                    if (emailSrc.indexOf('openReportsModal') === -1) return { pass: false, detail: 'Email does not delegate to the canonical reports workflow' };
+                    return { pass: true, detail: 'Print and email each delegate to the canonical reports workflow' };
                 }
             },
             // ── TP-30: Saved Search Persistence (Phase 3) ──
