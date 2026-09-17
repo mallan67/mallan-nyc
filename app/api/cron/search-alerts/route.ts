@@ -18,6 +18,7 @@
 //   → email
 //   → after a successful send, ONE transaction: client history + delivery evidence + cadence.
 //   → the search_run audit records what ACTUALLY happened (emailed = listings in the sent email).
+import type { SearchAudience } from "@/lib/search/engine/audience-gate";
 import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
@@ -97,12 +98,15 @@ export async function GET(req: NextRequest) {
     let universeSettles = 0;
     let universeReuses = 0;
     let providerPages = 0;
-    const universeFor = (c: Parameters<typeof settledUniverseFor>[0]): Promise<SettledUniverse> => {
-      const key = universeKeyOf(c);
+    // The memo key carries the AUDIENCE. An agent-only alert settles the member universe and a Lead-linked
+    // alert settles the public one; without audience in the key whichever ran first would hand its universe
+    // to the other, and a client could be emailed a count derived from participant-only inventory.
+    const universeFor = (c: Parameters<typeof settledUniverseFor>[0], audience: SearchAudience): Promise<SettledUniverse> => {
+      const key = universeKeyOf(c, audience);
       const hit = universeMemo.get(key);
       if (hit) { universeReuses++; return hit; }
       universeSettles++;
-      const pending = settledUniverseFor(c, false).then((r) => { providerPages += r.universe.providerPages; return r.universe; });
+      const pending = settledUniverseFor(c, audience, false).then((r) => { providerPages += r.universe.providerPages; return r.universe; });
       universeMemo.set(key, pending);
       return pending;
     };
@@ -197,8 +201,13 @@ export async function GET(req: NextRequest) {
           delta,
         });
 
+        // AUDIENCE FIRST — it is part of universe identity, so it must be known BEFORE the universe is
+        // settled rather than applied later at hydration. The canonical Lead relationship decides it; an
+        // alert_email override does not, because an override changes the address, not whose search it is.
+        const audience: SearchAudience = search.agent && !search.lead ? "member" : "public";
+
         // 1. The canonical universe — complete, same membership and order as live Search.
-        const universe = await universeFor(resolved.criteria);
+        const universe = await universeFor(resolved.criteria, audience);
         // 2. The delta over the COMPLETE universe (never the first page).
         const delta = rowsModifiedSince(universe, since);
         // 3. Never "New" twice: ONE history per audience, decided BEFORE the cap, over the whole delta.
@@ -237,7 +246,6 @@ export async function GET(req: NextRequest) {
         // 5. Hydrate. The template has no image, so no media is fetched for these rows.
         // Audience: an agent-only alert is delivered to a REBNY participant; a lead-linked alert or a
         // public subscriber is the public, so participants-only rows never reach them.
-        const audience = search.agent && !search.lead ? "member" : "public";
         const hydrated = await hydrateRows(capped, { select: SEARCH_SELECT_FIELDS, media: false, audience });
         runDelta.hydrationMissing = hydrated.missing.length;
         runDelta.gateExcluded = hydrated.gateExcluded.length;

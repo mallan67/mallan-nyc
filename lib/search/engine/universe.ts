@@ -18,6 +18,7 @@ import { MALLAN_LIST_OFFICE_MLS_IDS } from '@/lib/listings/mallan-source-identit
 import { COMMON_INTEREST_MEMBERS, STRUCTURE_TYPE_MEMBERS, resolveMember, type SearchCriteria, type SortKey } from './criteria';
 import { buildProviderQuery, buildingNameKeys, storedBuildingNameKey, UNIVERSE_SELECT, PROVIDER_PAGE_CAP } from './provider-query';
 import { walkProvider } from './provider-client';
+import { mallanRowPassesGate, type SearchAudience } from './audience-gate';
 
 export interface UniverseRow {
   source: 'provider' | 'mallan';
@@ -31,16 +32,32 @@ export interface UniverseRow {
   modificationTimestamp: string | null;
 }
 
+/**
+ * How to read `total`.
+ *   exact          — the walk completed and nothing was lost afterwards
+ *   lower_bound    — the provider walk did not complete: there may be MORE than `total`
+ *   upper_bound    — rows were counted and then removed downstream: there are FEWER than `total`
+ *   indeterminate  — both at once; neither direction is guaranteed
+ *
+ * `upper_bound` exists because the previous vocabulary could not say it. A row counted and then filtered
+ * makes the total too HIGH, and the code labelled that `lower_bound` — the opposite error. A caller acting
+ * on "at least N" when the truth is "at most N" is worse off than one told nothing.
+ */
+export const COUNT_MEANINGS = ['exact', 'lower_bound', 'upper_bound', 'indeterminate'] as const;
+export type CountMeaning = (typeof COUNT_MEANINGS)[number];
+
 export interface SettledUniverse {
   rows: UniverseRow[];
   total: number;
-  countMeaning: 'exact' | 'lower_bound';
+  countMeaning: CountMeaning;
   providerCount: number | null;
   providerRows: number;
   providerPages: number;
   mallanRows: number;
   /** Mallan-authored rows excluded because a CommonInterest/StructureType criterion was set and the row's stored value resolves to no live member. Fail-closed, reported. */
   mallanExcludedUnresolvedType: number;
+  /** Mallan rows this audience may not see. Excluded BEFORE the count, so never part of `total`. */
+  mallanExcludedByGate: number;
   suppressedOfficeIds: readonly string[];
   filter: string;
   orderby: string;
@@ -64,7 +81,7 @@ const CITY_REGION_STORAGE: Readonly<Record<string, string[]>> = Object.freeze({
   Manhattan: ['Manhattan'], Brooklyn: ['Brooklyn'], Queens: ['Queens'], Bronx: ['Bronx', 'The Bronx'], StatenIsland: ['StatenIsland', 'Staten Island'],
 });
 
-async function mallanRowsFor(c: SearchCriteria): Promise<{ rows: UniverseRow[]; excludedUnresolvedType: number }> {
+async function mallanRowsFor(c: SearchCriteria, audience: SearchAudience): Promise<{ rows: UniverseRow[]; excludedUnresolvedType: number; excludedByGate: number }> {
   const prefix = c.workflow === 'sale' ? 'SL-' : 'RL-';
   // The criterion is a live StandardStatus member; Mallan rows are stored in Mallan's status vocabulary
   // (e.g. a live 'Closed' covers Mallan Closed / Sold / Rented / Leased; 'Canceled' covers 'Cancelled').
@@ -100,7 +117,13 @@ async function mallanRowsFor(c: SearchCriteria): Promise<{ rows: UniverseRow[]; 
     // address bucket (lib/listings/mallan-form-contract.ts) and hydrate spreads that bucket into the
     // provider-shaped record, so it is the SAME value the DTO emits as `buildingName`. No second storage.
     // The provider key inside that bucket is named only by storedBuildingNameKey(), inside the boundary.
-    select: { listing_id: true, list_price: true, listing_contract_date: true, bathrooms_full: true, bathrooms_half: true, property_sub_type: true, address: true, updated_at: true },
+    // The gate columns are loaded because MEMBERSHIP depends on them. They were previously absent, which
+    // is why a suppressed Mallan row could be counted: the query could not have decided otherwise.
+    select: {
+      listing_id: true, list_price: true, listing_contract_date: true, bathrooms_full: true,
+      bathrooms_half: true, property_sub_type: true, address: true, updated_at: true,
+      owner_opt_out: true, participant_only: true, internet_entire_listing_display_yn: true,
+    },
   });
 
   // Matched the way the provider clause matches — the SAME rule object, not a second copy of it:
@@ -110,7 +133,11 @@ async function mallanRowsFor(c: SearchCriteria): Promise<{ rows: UniverseRow[]; 
 
   const out: UniverseRow[] = [];
   let excludedUnresolvedType = 0;
+  let excludedByGate = 0;
   for (const r of rows) {
+    // MEMBERSHIP GATE — before the count, before the sort, before the page. The same predicate hydration
+    // applies, from the same module, so the total can never describe a different set than the page.
+    if (!mallanRowPassesGate(r as unknown as Record<string, unknown>, audience)) { excludedByGate++; continue; }
     const baths = bathValue(r.bathrooms_full, r.bathrooms_half);
     if (c.bathsMin != null && (baths == null || baths < c.bathsMin)) continue;
     if (c.bathsMax != null && (baths == null || baths > c.bathsMax)) continue;
@@ -136,7 +163,7 @@ async function mallanRowsFor(c: SearchCriteria): Promise<{ rows: UniverseRow[]; 
       modificationTimestamp: r.updated_at ? r.updated_at.toISOString() : null,
     });
   }
-  return { rows: out, excludedUnresolvedType };
+  return { rows: out, excludedUnresolvedType, excludedByGate };
 }
 
 /** One comparator for both sources. Nulls sort last. Tie-break on identity, ascending. */
@@ -160,11 +187,16 @@ export function comparatorFor(sort: SortKey): (a: UniverseRow, b: UniverseRow) =
   }
 }
 
-export async function settleUniverse(c: SearchCriteria): Promise<SettledUniverse> {
+/**
+ * Settle the universe FOR AN AUDIENCE. Audience is part of universe identity, not a rendering detail:
+ * participant-only inventory belongs to a member and not to the public, so the two audiences are different
+ * universes with different totals and must never share a cache entry (see universeKeyOf).
+ */
+export async function settleUniverse(c: SearchCriteria, audience: SearchAudience): Promise<SettledUniverse> {
   const q = buildProviderQuery(c);
   const [walk, mallan] = await Promise.all([
     walkProvider<ProviderKeyRow>({ resource: 'Property', select: UNIVERSE_SELECT, filter: q.filter, orderby: q.orderby, top: PROVIDER_PAGE_CAP }),
-    mallanRowsFor(c),
+    mallanRowsFor(c, audience),
   ]);
   const providerRows: UniverseRow[] = walk.rows.map((r) => ({
     source: 'provider',
@@ -180,6 +212,7 @@ export async function settleUniverse(c: SearchCriteria): Promise<SettledUniverse
     countMeaning: walk.complete ? 'exact' : 'lower_bound',
     providerCount: walk.count, providerRows: providerRows.length, providerPages: walk.pages,
     mallanRows: mallan.rows.length, mallanExcludedUnresolvedType: mallan.excludedUnresolvedType,
+    mallanExcludedByGate: mallan.excludedByGate,
     suppressedOfficeIds: MALLAN_LIST_OFFICE_MLS_IDS, filter: q.filter, orderby: q.orderby,
   };
 }

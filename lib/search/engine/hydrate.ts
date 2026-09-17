@@ -21,9 +21,14 @@ import { escapeOData } from './provider-query';
 import { queryProvider, walkProvider } from './provider-client';
 import { MEDIA_SELECT_FIELDS, PROPERTY_MEDIA_FILTER } from '@/lib/media/listing-media-resolver';
 import type { UniverseRow } from './universe';
+import { mallanRowPassesGate as _mallanGate, providerRowPassesGate as _providerGate, type SearchAudience as _Audience } from './audience-gate';
 
 /** Who receives the rows: an authenticated REBNY participant (Mallan agent / broker) or the public. */
-export type SearchAudience = 'public' | 'member';
+// SearchAudience and the two row gates now live in ./audience-gate so that universe.ts can apply the SAME
+// predicate at MEMBERSHIP time (hydrate.ts imports UniverseRow from universe.ts, so the reverse import
+// would be a cycle). Re-exported here because callers and tests already import them from this module.
+export type { SearchAudience } from './audience-gate';
+export { providerRowPassesGate, mallanRowPassesGate } from './audience-gate';
 
 export interface HydrateOptions {
   /** The route's own select list, passed in so the engine never imports the route. */
@@ -31,7 +36,7 @@ export interface HydrateOptions {
   /** Fetch provider media for the page (default true). The alert cron passes false: its email has no image. */
   media?: boolean;
   /** The audience the rows are for — decides the participants-only gate. Undeclared = the public (fail-closed). */
-  audience?: SearchAudience;
+  audience?: _Audience;
 }
 
 export interface HydratedPage {
@@ -78,53 +83,6 @@ async function providerRecords(keys: readonly string[], select: readonly string[
     if (k) records.set(k, { ...r, Media: mediaByKey.get(k) ?? [] });
   }
   return { records, mediaRows: media.rows.length, mediaComplete: media.complete };
-}
-
-/**
- * Provider-row permission gate, per audience — THE canonical interpretation (derivePermissionGates) plus
- * the IDX Plus display-flag convention (null is not false; only an explicit false blocks). Status is a
- * search criterion here, not a gate, so the public closed-24h rule does not apply. A record with no
- * Permission (a Mallan-authored row hydrated into provider shape) carries no provider fact and passes;
- * its Mallan decisions are applied by the Mallan row path.
- *
- *   public  — every token must be the served 'IDX' permission; a participants-only row ('Private':
- *             "private and should have limited distribution", Trestle metadata/enumerations/P-S) is blocked.
- *   member  — an authenticated REBNY participant may see a participants-only row (STEP3 ledger §13.3 —
- *             the previous gate excluded it from the one audience it exists for). Any other non-IDX token
- *             (SyndicateOptOut, OfficeInactive, …) has no definition on the provider docs and stays
- *             fail-closed for every audience until its meaning is proven.
- *
- * Live 2026-09-08 (whole corpus): every row carries 'IDX'; 'Private' 0; on-market rows with an extra token:
- * Pending 'IDX,SyndicateOptOut' 2, all else 0.
- */
-export function providerRowPassesGate(raw: Record<string, unknown>, audience: SearchAudience = 'public'): boolean {
-  if (raw.InternetEntireListingDisplayYN === false) return false;
-  const p = derivePermissionGates(raw);
-  if (audience === 'member') {
-    const onlyIdxOrPrivate = p.permissionTokens.every((t) => t === 'IDX' || t === 'Private');
-    return p.idxPermitted !== false || (p.participantOnly && onlyIdxOrPrivate);
-  }
-  return p.idxPermitted !== false && !p.participantOnly;
-}
-
-/**
- * The Mallan-authored counterpart. Until now NO gate ran on a Mallan row at any audience — the call site
- * applied providerRowPassesGate only when `source === 'provider'` — so an owner-opted-out Mallan listing
- * was distributable everywhere, including the `audience: 'public'` search-alert cron.
- *
- * The two decisions have different reach, and that difference is the whole point of the gate:
- *   owner opt-out    — blocked at EVERY audience. UCBA Art. I Sec. 5(A): no public dissemination at any
- *                      time. A member is not an exception; the owner withdrew the listing from display.
- *   participant only — blocked for the PUBLIC audience only. RLS Permissions=Private exists precisely so
- *                      authorized participants can see it, which mirrors the member/public split above.
- *
- * Both read the canonical helpers in lib/compliance/gates.ts, which resolve the typed column AND the
- * `_mallanPermission` key that mallanRecord() now emits. No third interpreter is introduced.
- */
-export function mallanRowPassesGate(raw: Record<string, unknown>, audience: SearchAudience = 'public'): boolean {
-  if (isOwnerOptOut(raw as never)) return false;
-  if (audience !== 'member' && isParticipantOnly(raw as never)) return false;
-  return true;
 }
 
 type MallanRow = {
@@ -252,7 +210,7 @@ export async function hydratePage(page: readonly UniverseRow[], o: HydrateOption
     // which executor.ts degrades `countMeaning` from 'exact' to 'lower_bound' — reported, never silently
     // dropped, because a gate that hides its own suppressions is how this class of defect survives.
     const audience = o.audience ?? 'public';
-    const passes = row.source === 'provider' ? providerRowPassesGate(raw, audience) : mallanRowPassesGate(raw, audience);
+    const passes = row.source === 'provider' ? _providerGate(raw, audience) : _mallanGate(raw, audience);
     if (!passes) { gateExcluded.push(row.listingKey ?? row.listingId); return; }
     const dto = mapTrestleToCrmListing(raw, i);
     dto._source = row.source === 'provider' ? 'idx' : 'mallan';

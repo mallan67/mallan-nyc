@@ -91,7 +91,10 @@ export async function POST(req: NextRequest) {
 
     // The count is the executor's total for exactly these parameters — the same membership
     // live Search showed and the alert cron will match.
-    const count = await stampedCount(resolved);
+    // The canonical relationship decides the audience: a Lead-linked saved search is client-facing, an
+    // agent-only one is professional. Not alert_email — an override address does not change who the search
+    // belongs to.
+    const count = await stampedCount(resolved, leadAccess?.leadId ? "public" : "member");
 
     const search = await prisma.savedSearch.create({
       data: {

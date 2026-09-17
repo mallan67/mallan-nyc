@@ -122,13 +122,19 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
       updates.alert_enabled = Boolean(body.alert_enabled);
     }
 
+    // The relationship AFTER this request — the stored link unless this request changes it. It decides the
+    // audience the count is stamped for, so unlinking a Lead must re-stamp as member and linking one must
+    // re-stamp as public.
+    let resultingLeadId: bigint | null = existing.lead_id ?? null;
     if (body.lead_id !== undefined) {
       if (body.lead_id) {
         const access = await assertLeadIdStringAccess(auth, body.lead_id as string);
         if (access.response) return access.response;
         updates.lead_id = access.leadId;
+        resultingLeadId = access.leadId;
       } else {
         updates.lead_id = null;
+        resultingLeadId = null;
       }
     }
 
@@ -152,7 +158,9 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
     }
     let countStatus: string | null = null;
     if (criteriaChanged && resolved.state !== "invalid") {
-      const count = await stampedCount(resolved);
+      // Derived from the RESULTING relationship, after any permitted lead_id change in this request —
+      // so re-linking a search to a Lead immediately stamps a public-audience count.
+      const count = await stampedCount(resolved, resultingLeadId ? "public" : "member");
       updates.result_count = count.result_count;
       updates.last_run = count.last_run;
       countStatus = count.count_status;

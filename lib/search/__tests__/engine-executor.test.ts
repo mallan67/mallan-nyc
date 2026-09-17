@@ -39,6 +39,8 @@ test('a row with no modification time cannot prove it is new: excluded and count
 
 test('the universe cache key ignores paging, so every page and every consumer share one universe', () => {
   const base: SearchCriteria = { workflow: 'sale', standardStatus: ['Active'], cityRegion: ['Manhattan'], subdivisionName: [], commonInterest: [], structureType: [], postalCode: [], listingId: [], sort: 'price_desc', limit: 50, offset: 0 };
-  expect(universeKeyOf(base)).toBe(universeKeyOf({ ...base, limit: 10, offset: 200 }));
-  expect(universeKeyOf(base)).not.toBe(universeKeyOf({ ...base, cityRegion: ['Brooklyn'] }));
+  expect(universeKeyOf(base, 'member')).toBe(universeKeyOf({ ...base, limit: 10, offset: 200 }, 'member'));
+  expect(universeKeyOf(base, 'member')).not.toBe(universeKeyOf({ ...base, cityRegion: ['Brooklyn'] }, 'member'));
+  // Audience is part of universe identity: the same criteria settle different memberships (C4B).
+  expect(universeKeyOf(base, 'member')).not.toBe(universeKeyOf(base, 'public'));
 });

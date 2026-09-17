@@ -1,3 +1,4 @@
+import type { CountMeaning } from "@/lib/search/engine/universe";
 import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 
@@ -52,7 +53,7 @@ export interface RecordSearchRunInput {
   offset?: number;
   source: "saved_search_execute" | "search_alert_cron";
   criteria?: Record<string, unknown>;
-  universe?: { total: number; countMeaning: "exact" | "lower_bound" };
+  universe?: { total: number; countMeaning: CountMeaning };
   delta?: SearchRunDelta;
 }
 

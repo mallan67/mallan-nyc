@@ -176,7 +176,13 @@ describe("G/H. identity paths", () => {
 });
 
 describe("cost: identical canonical criteria settle ONCE per invocation", () => {
-  it("three due alerts with the same criteria → one settle, two reuses; a different criteria → its own settle", async () => {
+  // UPDATED BY C4B, and the change is the point rather than a nuisance. Rows 1 and 2 carry IDENTICAL
+  // criteria but different audiences — row 1 is Lead-linked (public), row 2 is agent-only (member) — and
+  // they previously SHARED one settled universe. That is cross-audience contamination: the public alert
+  // was served a universe that may contain participant-only inventory, and the member alert could be
+  // served the public one. Audience is now part of the memo key, so they settle separately. The extra
+  // settle is the fix, not a regression.
+  it("identical criteria settle once PER AUDIENCE; a different criteria gets its own settle", async () => {
     const same = { criteria_version: 2, params: { type: "sale", borough: "Manhattan" } };
     savedSearchFindManyMock.mockResolvedValue([
       alertRow({ id: 1n, criteria: same }), alertRow({ id: 2n, criteria: same, lead_id: null, lead: null, agent: { id: 42n, first_name: "A", last_name: "B", email: "a@example.com" } }),
@@ -185,10 +191,10 @@ describe("cost: identical canonical criteria settle ONCE per invocation", () => 
     ]);
     settledUniverseForMock.mockResolvedValue(universe([urow("ID1", OLD)]));
     const body = await (await cron()).json();
-    expect(settledUniverseForMock).toHaveBeenCalledTimes(2);
-    expect(body.universeSettles).toBe(2);
-    expect(body.universeReuses).toBe(2);
-    expect(body.providerPages).toBe(6);
+    expect(settledUniverseForMock).toHaveBeenCalledTimes(3);
+    expect(body.universeSettles).toBe(3);
+    expect(body.universeReuses).toBe(1);
+    expect(body.providerPages).toBe(9);
     expect(typeof body.elapsedMs).toBe("number");
   });
 });

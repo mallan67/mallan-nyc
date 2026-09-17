@@ -47,7 +47,7 @@ describe('Mallan side: the same boroughs, as storage variants, in one in-list', 
     ['Brooklyn,Queens', ['Brooklyn', 'Queens']],
     ['Manhattan,Brooklyn,Queens,Bronx,Staten Island', ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'The Bronx', 'StatenIsland', 'Staten Island']],
   ])('borough=%s', async (input, expected) => {
-    await settleUniverse(crit('type=rent&borough=' + encodeURIComponent(input)));
+    await settleUniverse(crit('type=rent&borough=' + encodeURIComponent(input)), 'member');
     const where = findMany.mock.calls[0][0].where;
     expect(where.borough).toEqual({ in: expected });
     expect(where.listing_id).toEqual({ startsWith: 'RL-' });

@@ -1283,9 +1283,21 @@ function section28() {
     critical(s, '/api/listings: distribution gates NOT enforced', 'REBNY violation');
   }
 
+  // The canonical gate moved to lib/search/engine/audience-gate.ts (C4B), so that the SAME predicate could
+  // be applied at universe MEMBERSHIP as well as at hydration — previously only hydration gated, and a
+  // suppressed Mallan row was counted before being removed. This check follows the code rather than
+  // assuming a file, and it is STRICTER than before: the gate must exist, hydration must still apply it,
+  // and the universe must apply it too.
+  const engineGate = readFile('lib/search/engine/audience-gate.ts') || '';
   const engineHydrate = readFile('lib/search/engine/hydrate.ts') || '';
-  if (searchRoute && (/checkDistributionGates/.test(searchRoute) || (/search\/engine\/executor/.test(searchRoute) && /derivePermissionGates\(raw\)/.test(engineHydrate)))) {
-    pass(s, '/api/idx/search: distribution gates enforced (canonical derivePermissionGates in the engine hydrate step)');
+  const engineUniverse = readFile('lib/search/engine/universe.ts') || '';
+  const gateDefined = /derivePermissionGates\(raw\)/.test(engineGate) || /derivePermissionGates\(raw\)/.test(engineHydrate);
+  const hydrationApplies = /RowPassesGate|_providerGate|_mallanGate/.test(engineHydrate);
+  // Matched on the REJECTION SHAPE, not the identifier: an import line and a comment both contain the
+  // name, so a bare presence test stayed green when the branch was deleted. Verified by mutation.
+  const membershipApplies = /if \(!mallanRowPassesGate\(/.test(engineUniverse);
+  if (searchRoute && (/checkDistributionGates/.test(searchRoute) || (/search\/engine\/executor/.test(searchRoute) && gateDefined && hydrationApplies && membershipApplies))) {
+    pass(s, '/api/idx/search: distribution gates enforced at universe membership AND hydration (canonical audience-gate)');
   } else if (searchRoute) {
     critical(s, '/api/idx/search: distribution gates NOT enforced', 'REBNY violation');
   }

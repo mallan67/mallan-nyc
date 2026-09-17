@@ -373,7 +373,7 @@ describe('settleUniverse mirrors BuildingName and LivingArea onto Mallan-authore
   beforeEach(() => { findMany.mockReset(); findMany.mockResolvedValue([]); });
 
   it('pushes the size bound into the database query, so an unsized Mallan row cannot slip through', async () => {
-    await settleUniverse(criteria('type=sale&minSqft=900&maxSqft=2500'));
+    await settleUniverse(criteria('type=sale&minSqft=900&maxSqft=2500'), 'member');
     expect(findMany).toHaveBeenCalledTimes(1);
     const where = findMany.mock.calls[0][0].where as Record<string, unknown>;
     // The same narrowing `LivingArea ge 900 and LivingArea le 2500` applies at the provider; a NULL
@@ -383,7 +383,7 @@ describe('settleUniverse mirrors BuildingName and LivingArea onto Mallan-authore
   });
 
   it('emits no size predicate when no size was asked for', async () => {
-    await settleUniverse(criteria('type=sale'));
+    await settleUniverse(criteria('type=sale'), 'member');
     expect(findMany.mock.calls[0][0].where.living_area).toBeUndefined();
   });
 
@@ -395,7 +395,7 @@ describe('settleUniverse mirrors BuildingName and LivingArea onto Mallan-authore
       mallanRow('SL-4', {}, 1200),                                // no building name at all
       mallanRow('SL-5', null, 1200),                              // no address bucket at all
     ]);
-    const u = await settleUniverse(criteria('type=sale&buildingName=The Apthorp'));
+    const u = await settleUniverse(criteria('type=sale&buildingName=The Apthorp'), 'member');
     expect(u.rows.map((r) => r.listingId).sort()).toEqual(['SL-1', 'SL-2']);
     // A row the provider clause `tolower(BuildingName) eq 'the apthorp'` would not have returned is
     // not smuggled in from the Mallan side.
@@ -406,7 +406,7 @@ describe('settleUniverse mirrors BuildingName and LivingArea onto Mallan-authore
 
   it('substring is NOT a match — the provider clause is equality, and so is this one', async () => {
     findMany.mockResolvedValue([mallanRow('SL-6', { BuildingName: 'The Apthorp Annex' }, 1200)]);
-    const u = await settleUniverse(criteria('type=sale&buildingName=The Apthorp'));
+    const u = await settleUniverse(criteria('type=sale&buildingName=The Apthorp'), 'member');
     expect(u.rows).toHaveLength(0);
   });
 
@@ -415,7 +415,7 @@ describe('settleUniverse mirrors BuildingName and LivingArea onto Mallan-authore
       mallanRow('SL-7', { BuildingName: 'One57' }, 1200),
       mallanRow('SL-8', {}, 1200),
     ]);
-    const u = await settleUniverse(criteria('type=sale'));
+    const u = await settleUniverse(criteria('type=sale'), 'member');
     expect(u.rows.map((r) => r.listingId).sort()).toEqual(['SL-7', 'SL-8']);
   });
 });

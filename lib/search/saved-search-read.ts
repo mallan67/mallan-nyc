@@ -6,6 +6,7 @@
 import { hasCredentials } from "@/lib/idx/auth";
 import type { ResolvedSavedSearch } from "@/lib/search/engine/saved-search";
 import { countSearch } from "@/lib/search/engine/executor";
+import type { SearchAudience } from "@/lib/search/engine/audience-gate";
 
 export const CRITERIA_CONTRACT_ERROR =
   "criteria must be the executed Search parameters: { criteria_version: 2, params: { type, status, minPrice, ... } }";
@@ -45,11 +46,19 @@ export function serializeSavedSearch(s: SavedSearchRowLike, resolved: ResolvedSa
 }
 
 /** Stamp a count from the executor. Reported when the provider is unavailable — never faked. */
-export async function stampedCount(resolved: ResolvedSavedSearch): Promise<{ result_count: number | null; last_run: Date | null; count_status: "stored" | "unavailable"; detail?: string }> {
+/**
+ * Stamp a Saved Search count FOR ITS AUDIENCE.
+ *
+ * The audience is decided by the canonical RELATIONSHIP, never by alert_email: a Lead-linked saved search
+ * is client-facing (public) and an agent-only one is professional (member). Counting a Lead-linked search
+ * as a member would publish a total that includes participant-only inventory the client may not see, and
+ * `count_status: "stored"` presents it as fact.
+ */
+export async function stampedCount(resolved: ResolvedSavedSearch, audience: SearchAudience): Promise<{ result_count: number | null; last_run: Date | null; count_status: "stored" | "unavailable"; detail?: string }> {
   if (resolved.state === "invalid") return { result_count: null, last_run: null, count_status: "unavailable", detail: "invalid criteria" };
   if (process.env.IDX_ENABLED !== "true" || !hasCredentials()) return { result_count: null, last_run: null, count_status: "unavailable", detail: "IDX not enabled" };
   try {
-    const c = await countSearch(resolved.criteria);
+    const c = await countSearch(resolved.criteria, audience);
     return { result_count: c.total, last_run: new Date(), count_status: "stored" };
   } catch (err) {
     return { result_count: null, last_run: null, count_status: "unavailable", detail: err instanceof Error ? err.message : String(err) };

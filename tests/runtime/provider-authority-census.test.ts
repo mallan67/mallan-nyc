@@ -180,7 +180,12 @@ describe("ONE status, ONE property-type, ONE permission interpretation", () => {
     expect(mapper).toMatch(/inferListingType\(raw\)/);
     expect(mapper).toMatch(/normalizeStandardStatus\(/);
     expect(mapper).not.toMatch(/isIdxPlusDisplayFlagOn|ownerOptOut:\s*false|participantOnly:\s*false/);
-    expect(codeOnly(read("lib/search/engine/hydrate.ts"))).toMatch(/derivePermissionGates\(raw\)/);
+    // The canonical permission derivation moved to the engine's audience gate (C4B) so the SAME
+    // predicate could run at universe MEMBERSHIP as well as hydration. The rule is unchanged — the
+    // engine must derive gates from the canonical helper and never its own — only its address moved.
+    expect(codeOnly(read("lib/search/engine/audience-gate.ts"))).toMatch(/derivePermissionGates\(raw\)/);
+    // ...and hydration must still APPLY it, so the move cannot quietly drop the hydration gate.
+    expect(codeOnly(read("lib/search/engine/hydrate.ts"))).toMatch(/_providerGate\(raw, audience\)/);
   });
   it("no runtime file re-implements the IDX Plus display-flag convention outside the canonical helpers", () => {
     const hits = offenders(runtimeFiles(), /InternetEntireListingDisplayYN\s*!==\s*false/, { except: ["lib/idx/trestle-mapper.ts", "lib/compliance/gates.ts", "lib/search/engine/hydrate.ts"] });

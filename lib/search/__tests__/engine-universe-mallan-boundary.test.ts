@@ -33,18 +33,18 @@ beforeEach(() => findMany.mockReset().mockResolvedValue([]));
 
 describe('Mallan rows never cross the sale/rental boundary', () => {
   test('rental universe + a sale listingId keeps the RL- prefix AND the id', async () => {
-    await settleUniverse(crit('type=rent&listingId=SL-QA-15207DAA'));
+    await settleUniverse(crit('type=rent&listingId=SL-QA-15207DAA'), 'member');
     const where = findMany.mock.calls[0][0].where;
     expect(where.listing_id).toEqual({ startsWith: 'RL-', in: ['SL-QA-15207DAA'] });
     expect(where.mls_id).toBeNull();
   });
   test('sale universe + a rental listingId keeps the SL- prefix AND the id', async () => {
-    await settleUniverse(crit('type=sale&listingId=RL-QA-15207DAA'));
+    await settleUniverse(crit('type=sale&listingId=RL-QA-15207DAA'), 'member');
     const where = findMany.mock.calls[0][0].where;
     expect(where.listing_id).toEqual({ startsWith: 'SL-', in: ['RL-QA-15207DAA'] });
   });
   test('without a listingId the prefix alone bounds the universe', async () => {
-    await settleUniverse(crit('type=sale'));
+    await settleUniverse(crit('type=sale'), 'member');
     expect(findMany.mock.calls[0][0].where.listing_id).toEqual({ startsWith: 'SL-' });
   });
 });
