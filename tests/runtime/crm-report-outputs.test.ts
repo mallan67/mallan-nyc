@@ -520,10 +520,10 @@ describe('D9 · no control claims a PDF it cannot produce, and no unimplemented 
 // control, because "the output contained the word REBNY" is only evidence if something would have made it
 // absent.
 //
-// WHAT THIS DOES NOT DO. C4C is untouched and still open: getReportListings() screens idxDisplayYN and
-// internetDisplayYN but does NOT screen ownerOptOut / participantOnly, so those can still reach
-// print/CSV/XLSX/preview. The last group below pins that gap open deliberately rather than letting a
-// green REG-8 suite imply it was fixed.
+// C4C HAS SINCE LANDED. The last group below used to pin the gap open — getReportListings() screening only
+// idxDisplayYN / internetDisplayYN, with ownerOptOut and participantOnly reaching print/CSV/XLSX/preview.
+// It now asserts the closed behaviour instead. Per the note those tests carried, they were replaced by the
+// real requirement rather than relaxed or deleted.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 /** The compliance content the live email/print body is required to carry. */
@@ -718,32 +718,52 @@ describe('REG-8 · the PRINT output, asserted on what the print sink receives', 
   });
 });
 
-describe('REG-8 · C4C stays open — this packet repaired evidence, not distribution', () => {
-  it('getReportListings still screens ONLY idxDisplayYN / internetDisplayYN — ownerOptOut and participantOnly are not filtered', () => {
-    // Deliberately a characterisation test, not a requirement. It documents the CURRENT behaviour so a
-    // green REG-8 suite cannot be read as "report distribution is correct". The fix is C4C and is not
-    // authorised here; if this assertion ever starts failing because the screen was widened, that is C4C
-    // landing and this test should be replaced by the real one rather than relaxed.
-    const src = read('public/crm/js/output/reports.js');
-    const fn = src.slice(src.indexOf('function getReportListings()'));
-    const body = fn.slice(0, fn.indexOf('\n        }'));
-    expect(body).toMatch(/idxDisplayYN/);
-    expect(body).toMatch(/internetDisplayYN/);
-    expect({ ownerOptOut: /ownerOptOut/.test(body), participantOnly: /participantOnly/.test(body) })
-      .toEqual({ ownerOptOut: false, participantOnly: false });
+describe('C4C · report distribution is gated, and the old pins are replaced by the requirement', () => {
+  it('getReportListings delegates to the one audience helper instead of screening two flags', () => {
+    // The pin this replaces sliced with '\n        }' against a CRLF file, so indexOf returned -1 and
+    // slice(0, -1) handed back nearly the whole file. It passed because the banned names happened not to
+    // appear AFTER getReportListings — not because the function was clean. Normalise, then slice.
+    const src = read('public/crm/js/output/reports.js').replace(/\r\n/g, '\n');
+    const start = src.indexOf('function getReportListings()');
+    const end = src.indexOf('\n        }', start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const body = src.slice(start, end);
+    expect(body).toContain('reportListingPassesAudience');
+    expect({ ownerOptOut: /ownerOptOut/.test(body), idx: /idxDisplayYN/.test(body) })
+      .toEqual({ ownerOptOut: false, idx: false });
   });
 
-  it('an ownerOptOut row still reaches the printed output — C4C, confirmed and left visible', () => {
-    // CONFIRMATION of the registered defect, recorded per the packet's instruction to surface rather than
-    // silently fix. A row the owner opted out of is still rendered into a client-facing print body.
-    const OPTED_OUT = { ...SALE_ROW, id: 'L9', lid: 'RLS-9', address: '9 Opted Out Lane', ownerOptOut: true };
-    const h = boot({ rows: [OPTED_OUT] });
-    try {
-      h.win.reportState.output = 'print';
-      h.win.generateReport();
-      expect(h.cap.printed.length).toBe(1);
-      // If this ever stops containing the address, C4C has been fixed — update this test, do not delete it.
-      expect(h.cap.printed[0]).toContain('9 Opted Out Lane');
-    } finally { h.close(); }
+  it('an owner-opted-out row does NOT reach the printed output, at either audience', () => {
+    // THE FIXTURE IS THE CORRECTION. This row used to carry `ownerOptOut: true` at the TOP level — a shape
+    // js/core/data-loader.js never emits and getReportListings() never read, so the old test demonstrated
+    // the leak through a path production does not take. The shipped DTO puts it under `permissions`.
+    const OPTED_OUT = { ...SALE_ROW, id: 'L9', lid: 'RLS-9', address: '9 Opted Out Lane',
+      permissions: { ownerOptOut: true, participantOnly: false, idxDisplay: true, internetDisplay: true } };
+    for (const version of ['agent', 'customer']) {
+      const h = boot({ rows: [OPTED_OUT, SALE_ROW], version });
+      try {
+        h.win.reportState.output = 'print';
+        h.win.generateReport();
+        expect(h.cap.printed.length).toBe(1);
+        expect({ version, leaked: h.cap.printed[0].includes('9 Opted Out Lane') })
+          .toEqual({ version, leaked: false });
+        expect(h.cap.printed[0]).toContain('432 Park Avenue');   // positive control
+      } finally { h.close(); }
+    }
+  });
+
+  it('participant-only inventory stays in an AGENT report and leaves a CUSTOMER one', () => {
+    const PRIVATE = { ...SALE_ROW, id: 'L8', lid: 'RLS-8', address: '8 Private Mews',
+      permissions: { ownerOptOut: false, participantOnly: true, idxDisplay: true, internetDisplay: true } };
+    const seen = (version: string) => {
+      const h = boot({ rows: [PRIVATE, SALE_ROW], version });
+      try {
+        h.win.reportState.output = 'print';
+        h.win.generateReport();
+        return h.cap.printed[0].includes('8 Private Mews');
+      } finally { h.close(); }
+    };
+    expect({ agent: seen('agent'), customer: seen('customer') }).toEqual({ agent: true, customer: false });
   });
 });

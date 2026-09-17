@@ -27,9 +27,9 @@
  * sendEmailDirect(), and the print equivalent — and asserts on what the transport and the print sink
  * actually receive, each with a positive control.
  *
- * SCOPE: this repairs EVIDENCE, not behaviour. The early-return delegation is untouched, the legacy
- * fallback is untouched, and C4C (getReportListings not screening ownerOptOut / participantOnly) remains
- * open and is pinned by its own characterisation tests.
+ * SCOPE: this repairs EVIDENCE, not behaviour. The early-return delegation is untouched and the legacy
+ * fallback is untouched. C4C — getReportListings() not screening ownerOptOut / participantOnly — was open
+ * when this file was written and has since landed; the assertion below tracks the closed behaviour.
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
@@ -118,12 +118,14 @@ describe('C · the repair changed evidence only — the live delegation is untou
     expect(src).toContain('Legacy fallback');
   });
 
-  it('C4C is untouched: getReportListings still screens only the two display flags', () => {
-    const reports = read('public/crm/js/output/reports.js');
-    const fn = reports.slice(reports.indexOf('function getReportListings()'));
-    const body = fn.slice(0, fn.indexOf('\n        }'));
-    expect({ ownerOptOut: /ownerOptOut/.test(body), participantOnly: /participantOnly/.test(body) })
-      .toEqual({ ownerOptOut: false, participantOnly: false });
+  it('C4C has landed: getReportListings defers to the one report-audience helper', () => {
+    // Same CRLF-blind slice as the other two pins: '\n        }' never matched, so this was scanning far
+    // more than the function it named. Normalised, and pointed at the requirement rather than the gap.
+    const reports = read('public/crm/js/output/reports.js').replace(/\r\n/g, '\n');
+    const start = reports.indexOf('function getReportListings()');
+    const body = reports.slice(start, reports.indexOf('\n        }', start));
+    expect(body).toContain('reportListingPassesAudience');
+    expect(reports).toContain('function reportListingPassesAudience');
   });
 
   it('the bulk-export population gate is neither weakened nor deleted', () => {

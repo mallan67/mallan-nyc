@@ -38,10 +38,12 @@
  * 4(A)) and Participant Only (RLS Permissions=Private), the same two gates this file already enforces for
  * display.
  *
- * KNOWN GAP, ESCALATED NOT FIXED — outside the P0-C3 authorization, recorded so it cannot be lost:
- * reports.js getReportListings():2641 screens ONLY on idxDisplayYN and internetDisplayYN. It does not check
- * ownerOptOut or participantOnly. Those appear exactly once in reports.js, at :2215, inside the email path.
- * So CSV (:2339), xlsx (:2517), print (:3175) and preview (:482) do not re-filter them.
+ * THE GAP THIS NOTE ESCALATED IS NOW CLOSED (C4C). It read: reports.js getReportListings() screens ONLY on
+ * idxDisplayYN and internetDisplayYN, ownerOptOut/participantOnly appear once at :2215 inside the email
+ * path, and CSV/xlsx/print/preview do not re-filter them. getReportListings() now applies one audience gate
+ * — reportListingPassesAudience(listing, audience), with the audience taken from reportState.version — and
+ * every output consumes that single gated result. The escalation is kept rather than deleted because the
+ * shape it describes is how the defect was found.
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';

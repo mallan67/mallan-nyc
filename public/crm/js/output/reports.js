@@ -149,18 +149,24 @@
                     // listingContact is allowed but agent-specific commission info must be stripped
                 }
             }
-            // Check IDX opt-out listings
+            // Eligibility, judged by the SAME audience rule the population uses. This used to test only
+            // idxDisplayYN / internetDisplayYN and then report every refusal as "display opted out (IDX or
+            // Internet)" — which named the wrong reason whenever the real one was an owner opt-out or a
+            // participant-only restriction, and which called legitimate participant-only inventory
+            // non-compliant in an Agent report.
             var allListings = searchResultsState.filteredListings || listings;
             var selectedIds = reportState.selectedListingIds;
             var selectedListings = selectedIds.length > 0
                 ? allListings.filter(function(l) { return selectedIds.indexOf(l.id) > -1; })
                 : allListings;
-            var optedOut = selectedListings.filter(function(l) { return l.idxDisplayYN === false || l.internetDisplayYN === false; });
-            if (optedOut.length > 0 && optedOut.length === selectedListings.length) {
-                errors.push('All selected listings have display opted out (IDX or Internet) — cannot generate report.');
-            } else if (optedOut.length > 0) {
-                // Warning, not blocker — they'll be filtered out
+            var _vAudience = currentReportAudience();
+            var eligible = selectedListings.filter(function(l) { return reportListingPassesAudience(l, _vAudience); });
+            if (selectedListings.length > 0 && eligible.length === 0) {
+                errors.push(_vAudience === 'member'
+                    ? 'No selected listings are eligible for the Agent report.'
+                    : 'No selected listings are eligible for the Customer report.');
             }
+            // A mixed population is not an error: the ineligible rows are simply excluded downstream.
             return errors;
         }
 
@@ -481,7 +487,14 @@
             // IDX compliance filter, sorting, and 250 cap
             var listings = getReportListings();
             if (listings.length === 0) {
-                document.getElementById('previewGrid').innerHTML = '<div style="padding:40px;text-align:center"><p style="color:#dc2626;font-weight:700;margin-bottom:8px">No Listings Available</p><p style="font-size:13px;color:#4b5563">No compliant listings found for the selected criteria.</p></div>';
+                // EVERY format panel, not just the grid. buildFullReportHTML() returns whichever panel the
+                // selected format names, so clearing only previewGrid left the other eight holding the
+                // PREVIOUS population — which print and email would then have rendered as the report. That
+                // became reachable the moment the audience gate started emptying populations (C4C).
+                ['Grid','List','Summary','Detail','Comparison','Images','Cma','FactSheet','OpenHouse'].forEach(function(panel) {
+                    var el = document.getElementById('preview' + panel);
+                    if (el) el.innerHTML = '<div style="padding:40px;text-align:center"><p style="color:#dc2626;font-weight:700;margin-bottom:8px">No Listings Available</p><p style="font-size:13px;color:#4b5563">No listings in this selection are eligible for this report audience.</p></div>';
+                });
                 return;
             }
 
@@ -2178,6 +2191,19 @@
             return h;
         }
 
+        /**
+         * Say so when client delivery carried fewer listings than the report itself shows. An Agent report
+         * legitimately contains inventory a client may not receive, so the two counts can differ — but the
+         * agent must not discover that by comparing a preview against what the client replies about.
+         */
+        function reportDeliveryNarrowingNotice(deliveredCount) {
+            if (currentReportAudience() !== 'member') return;
+            var own = getReportListings().length;
+            if (own > deliveredCount) {
+                showReportToast('Sent ' + deliveredCount + ' of ' + own + ' listings — the rest are not eligible for client distribution.');
+            }
+        }
+
         // ── Send to Client — sends branded report email directly from the system ──
         function copyReportAndEmail() {
             // Get email context
@@ -2202,36 +2228,37 @@
                 return;
             }
 
-            // Get listings with compliance filtering
-            var listings = typeof getReportListings === 'function' ? getReportListings() : [];
-            if (listings.length === 0) {
-                showReportToast('No listings to include in report.');
+            // Send to Client is ALWAYS client/public distribution, so the whole delivery — the population,
+            // the rendered body and the count — is built under the public audience regardless of the
+            // selected version.
+            //
+            // The rule that used to live here was three hand-written flags (ownerOptOut, internetDisplayYN,
+            // idxDisplayYN) missing participantOnly. Worse, it was inert on the CONTENT: it narrowed the
+            // local `listings` array, but the emailed body comes from buildFullReportHTML() ->
+            // populateReportPreview() -> getReportListings(), which re-derived the ungated population. The
+            // result was an email that announced "2 listings" and rendered 3, owner opt-out included. One
+            // gate applied once, before anything reads the population, is what removes that class of bug.
+            var _delivered = withDeliveryAudience('public', function() {
+                var listings = getReportListings();
+                if (listings.length === 0) return null;
+                var reportBody = buildFullReportHTML(title);
+                var richHTML = wrapReportForEmail(reportBody, title, preparedFor, listings);
+                sendEmailDirect({
+                    to: recipientEmail,
+                    toName: preparedFor,
+                    subject: title + ' — Mallan Real Estate',
+                    htmlBody: richHTML,
+                    listingIds: listings.map(function(l) { return l.id; }),
+                    count: listings.length,
+                    source: 'report_send_to_client'
+                });
+                return listings.length;
+            });
+            if (_delivered === null) {
+                showReportToast('No selected listings are eligible to send to a client.');
                 return;
             }
-
-            // Filter out compliance violations
-            listings = listings.filter(function(l) {
-                var perm = l.permissions || {};
-                if (perm.ownerOptOut) return false;
-                if (l.internetDisplayYN === false) return false;
-                if (l.idxDisplayYN === false) return false;
-                return true;
-            });
-
-            // Build format-aware email using the actual selected report format
-            var reportBody = buildFullReportHTML(title);
-            var richHTML = wrapReportForEmail(reportBody, title, preparedFor, listings);
-
-            // Send directly from the system
-            sendEmailDirect({
-                to: recipientEmail,
-                toName: preparedFor,
-                subject: title + ' — Mallan Real Estate',
-                htmlBody: richHTML,
-                listingIds: listings.map(function(l) { return l.id; }),
-                count: listings.length,
-                source: 'report_send_to_client'
-            });
+            reportDeliveryNarrowingNotice(_delivered);
 
             // Close the preview modal after sending
             closeReportPreview();
@@ -2293,8 +2320,10 @@
 
         // ═══ EXPORTS — CSV, a real .xlsx workbook, and the outputs this workflow refuses to fake ═══
         //
-        // Every export is a client-facing advertising surface, so all three share ONE field pipeline:
-        //   getReportListings()        → IDX / internet display gate + sort + 250 cap
+        // An export's audience is the report VERSION, not the fact that it leaves the browser: an Agent
+        // workbook is a professional working document, a Customer workbook is a distribution artifact. All
+        // three share ONE pipeline:
+        //   getReportListings()        → the audience gate (C4C) + sort + 250 cap
         //   getExportFields()          → the chosen columns, narrowed for the Customer version
         //   getFieldValue()            → the value, with status resolved by MallanStatus into the row's own
         //                                transaction language (a sale's Closed reads "Sold", a rental's "Rented")
@@ -2596,6 +2625,75 @@
             setTimeout(function() { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(function(){ toast.remove(); }, 300); }, 3000);
         }
 
+        // ═══ THE REPORT / OUTPUT AUDIENCE BOUNDARY (C4C) ═══════════════════════════════════════════════
+        //
+        // The report population arrives from agent Search, which is served at audience "member" (C4B). A
+        // member universe LEGITIMATELY contains participant-only inventory — that is who Permissions=Private
+        // exists for. What was missing was the step that removes it again on the way out to a client.
+        //
+        // reportState.version IS the audience, and nothing else is. Not the output type, not CSV-vs-print,
+        // not the preparedFor text, not the recipient address, and not whether a file could be forwarded
+        // afterwards. An Agent workbook is a professional working document; a Customer workbook is a
+        // distribution artifact. Treating "it could be forwarded" as client-facing would force public
+        // permissions onto every internal document that can be printed or screenshotted, and would erase
+        // legitimate participant-only inventory from the brokerage's own workspace.
+        //
+        // The old screen was `idxDisplayYN !== false && internetDisplayYN !== false`, applied to BOTH
+        // versions. That was wrong twice over: it let owner-opted-out and participant-only rows into client
+        // output, AND it stripped idx/internet-restricted rows out of an Agent report, where those two flags
+        // are not professional-visibility restrictions at all.
+        //
+        // WHY NOT js/compliance/compliance-gates-and-output.js. That file loads AFTER this one
+        // (index.html:186 vs :157) and carries 3,080 lines of compliance-doctor and test-suite machinery;
+        // its checkListingCompliance() also takes listing IDs and reads the global `listings` array, so
+        // reusing it here would mean changing its signature and its population — unrelated behaviour. This
+        // is the report module's ONE interpreter, named for what it decides.
+
+        /** reportState.version -> the audience vocabulary shared with the Search engine. */
+        function reportAudienceForVersion(version) {
+            return version === 'agent' ? 'member' : 'public';
+        }
+
+        /**
+         * May this listing appear in a report for this audience?
+         *
+         *   owner opt-out      blocks at EVERY audience. UCBA Art. I §5(A) — the owner withdrew the listing
+         *                      from dissemination; a member is not an exception.
+         *   participant only   blocks for PUBLIC only. RLS Permissions=Private exists so authorized
+         *                      participants can see it.
+         *   idx / internet     block for PUBLIC only. They are client/public display restrictions.
+         *
+         * Only an EXPLICIT restriction blocks. A missing permissions object or an absent display boolean is
+         * not read as denial — failing closed on an unloaded field would silently empty the report.
+         */
+        function reportListingPassesAudience(listing, audience) {
+            if (!listing) return false;
+            var perm = listing.permissions || {};
+            if (perm.ownerOptOut === true) return false;
+            if (audience === 'member') return true;
+            // Everything below is the client/public audience, which an unknown audience also falls into.
+            if (perm.participantOnly === true) return false;
+            if (listing.idxDisplayYN === false || perm.idxDisplay === false) return false;
+            if (listing.internetDisplayYN === false || perm.internetDisplay === false) return false;
+            return true;
+        }
+
+        /**
+         * A client-delivery path forces the public audience for the duration of the delivery, whatever
+         * version the agent had selected. Set through withDeliveryAudience() only — the report's own version
+         * is never rewritten, because relabelling the agent's document to justify sending it is exactly the
+         * silent conversion this boundary exists to prevent.
+         */
+        var _forcedDeliveryAudience = null;
+        function withDeliveryAudience(audience, fn) {
+            var prev = _forcedDeliveryAudience;
+            _forcedDeliveryAudience = audience;
+            try { return fn(); } finally { _forcedDeliveryAudience = prev; }
+        }
+        function currentReportAudience() {
+            return _forcedDeliveryAudience || reportAudienceForVersion(reportState.version);
+        }
+
         // ── Helper: Get filtered+compliant listings from reportState ──
         function getReportListings() {
             var reportSelRadio = document.querySelector('input[name="reportSelection"]:checked');
@@ -2637,8 +2735,10 @@
                 reportListings = allListings;
             }
             if (reportListings.length === 0 && reportSel === 'all') reportListings = allListings;
-            // IDX + Internet compliance filter — remove opted-out listings
-            reportListings = reportListings.filter(function(l) { return l.idxDisplayYN !== false && l.internetDisplayYN !== false; });
+            // THE distribution boundary, applied ONCE. Every output below — preview, Send to Client, email,
+            // CSV, workbook, print — consumes this result instead of re-deriving a population of its own.
+            var _audience = currentReportAudience();
+            reportListings = reportListings.filter(function(l) { return reportListingPassesAudience(l, _audience); });
             // Sort via reportState
             reportListings = getSortedListings(reportListings);
             // Enforce 250 cap
@@ -2678,6 +2778,14 @@
                 if (allListings[i].id === listingId) { l = allListings[i]; break; }
             }
             if (!l) return;
+            // This one builds its own HTML instead of going through getReportListings(), so the boundary has
+            // to be restated here — as a CALL to the one helper, not as a second copy of the rule. It is a
+            // client sheet by its own definition (customer version, no agent info, no building contact), so
+            // the audience is public regardless of the report version open behind it.
+            if (!reportListingPassesAudience(l, 'public')) {
+                if (typeof showToast === 'function') showToast('This listing cannot be shared with a client.', 'warning');
+                return;
+            }
 
             var agentInfo = getAgentInfo();
             var preparedFor = (document.getElementById('reportPreparedFor') || {}).value || 'Client';
@@ -3126,6 +3234,14 @@
         function quickPrintReport(listingId) {
             var listing = listings.find(function(l) { return l.id === listingId; });
             if (!listing) return;
+            // It declares itself a CUSTOMER sheet three lines down, so the public rule decides whether it may
+            // exist at all — and it has to be asked BEFORE the title is built, because the title is the
+            // address. Gating only the population still printed "3 Participant Only Court — Detail Report"
+            // across the top of an otherwise empty page.
+            if (!reportListingPassesAudience(listing, 'public')) {
+                if (typeof showToast === 'function') showToast('This listing cannot be shared with a client.', 'warning');
+                return;
+            }
 
             // Save current state
             var prevIds = reportState.selectedListingIds;
@@ -3240,21 +3356,33 @@
                         return;
                     }
 
-                    // Build format-aware email: use the actual selected format (grid, summary, etc.)
-                    var reportBody = buildFullReportHTML(title);
-                    var emailHTML = wrapReportForEmail(reportBody, title, recipientName, listings);
-
-                    // Send directly from the system
-                    closeReportsModal();
-                    sendEmailDirect({
-                        to: recipientEmail,
-                        toName: recipientName,
-                        subject: title + ' — Mallan Real Estate',
-                        htmlBody: emailHTML,
-                        listingIds: listings.map(function(l) { return l.id; }),
-                        count: listings.length,
-                        source: 'report_email'
+                    // Emailing a report IS client delivery, so the public audience applies even when the
+                    // agent had the Agent version selected. The population is re-derived here rather than
+                    // reusing the `listings` computed above, because that one was gated for the report's OWN
+                    // audience — pressing Send must never be able to widen it.
+                    var _emailed = withDeliveryAudience('public', function() {
+                        var deliverable = getReportListings();
+                        if (deliverable.length === 0) return null;
+                        var reportBody = buildFullReportHTML(title);
+                        var emailHTML = wrapReportForEmail(reportBody, title, recipientName, deliverable);
+                        closeReportsModal();
+                        sendEmailDirect({
+                            to: recipientEmail,
+                            toName: recipientName,
+                            subject: title + ' — Mallan Real Estate',
+                            htmlBody: emailHTML,
+                            listingIds: deliverable.map(function(l) { return l.id; }),
+                            count: deliverable.length,
+                            source: 'report_email'
+                        });
+                        return deliverable.length;
                     });
+                    if (_emailed === null) {
+                        renderReportErrors(['No selected listings are eligible to send to a client.']);
+                        logAuditEntry('report_email_blocked', { format: format, version: version, reason: 'no_client_eligible_listings', count: 0 });
+                        return;
+                    }
+                    reportDeliveryNarrowingNotice(_emailed);
                     break;
 
                 default:
