@@ -196,6 +196,28 @@ function boot(opts: { emailConfigured?: boolean; rows?: Record<string, unknown>[
       window.__cap.emailjs.sent.push(params);
       return Promise.resolve({ status: 200 });
     }
+      // TRANSPORT MOVED SERVER-SIDE (Lane 3 Packet 1). The report used to be handed to EmailJS from the
+      // browser; it now POSTs to /api/crm/clients/:id/report-send so the send is governed and recorded as
+      // durable brokerage history. These assertions are about report CONTENT, which did not change - so the
+      // capture is translated into the same shape rather than the tests being rewritten around transport.
+      // A canonical client is now required, so the harness supplies one.
+      window.fetch = function (url, init) {
+        var u = String(url);
+        if (u.indexOf('/report-send') !== -1) {
+          var b = {};
+          try { b = JSON.parse((init && init.body) || '{}'); } catch (e) { b = {}; }
+          window.__cap.emailjs.sent.push({
+          to_email: (window.customerDB[String(u).split('/clients/')[1] ? String(u).split('/clients/')[1].split('/')[0] : ''] || {}).email || 'client@example.com',
+          to_name: (window.customerDB[String(u).split('/clients/')[1] ? String(u).split('/clients/')[1].split('/')[0] : ''] || {}).name || 'Client',
+            subject: b.subject,
+            message_html: b.html,
+            purpose: b.purpose,
+            listing_ids: b.listing_ids
+          });
+          return Promise.resolve({ ok: true, json: function () { return Promise.resolve({ success: true }); } });
+        }
+        return Promise.reject(new Error('network down (denied by test): ' + u));
+      };
     function checkListingCompliance() { return { ok: true, violations: [] }; }
   `);
 
@@ -210,6 +232,11 @@ function boot(opts: { emailConfigured?: boolean; rows?: Record<string, unknown>[
   win.showReportToast = function (msg: string) { cap.toasts.push(String(msg)); return realToast.call(win, msg); };
 
   win.openReportsModal(rows.map((r) => r.id));
+  // A client report is now bound to a canonical client record, so the harness supplies one. Tests that
+  // care about recipient resolution override this with their own selection afterwards.
+  win.customerDB['c-default'] = { id: 'c-default', name: 'Client', email: 'client@example.com' };
+  const _sel = win.document.getElementById('reportRecipientClient');
+  if (_sel) { _sel.innerHTML = '<option value="c-default">Client</option>'; _sel.value = 'c-default'; }
   return { win, cap, close: () => win.close() };
 }
 
@@ -421,7 +448,7 @@ describe('D15 · Email never simulates a send and calls it delivered', () => {
     } finally { h.close(); }
   });
 
-  it('POSITIVE CONTROL — with EmailJS configured the send still happens, still closes the modal, and is audited as delivered', async () => {
+  it('POSITIVE CONTROL — with EmailJS configured the send still happens, still closes the modal, and is audited as accepted', async () => {
     const h = boot({ emailConfigured: true });
     try {
       h.win.reportState.output = 'email';
@@ -433,10 +460,15 @@ describe('D15 · Email never simulates a send and calls it delivered', () => {
       expect(h.cap.emailjs.sent[0].to_email).toBe('client@example.com');
       expect(isHidden(h)).toBe(true);
       const msg = h.win.document.getElementById('emailSendingMsg');
-      expect(msg && msg.textContent).toMatch(/delivered/i);
+      // FLIPPED (Lane 3 Packet 1). This asserted the banner said "delivered". The send now goes through
+      // M365 SMTP and there is no bounce webhook, so acceptance is the strongest honest word the UI can
+      // use - the test was pinning an overclaim.
+      expect(msg && msg.textContent).toMatch(/accepted/i);
       const sent = h.cap.audits.filter((a) => a.action === 'email_sent');
       expect(sent.length).toBe(1);
-      expect((sent[0].detail as { method?: string }).method).toBe('emailjs');
+      // FLIPPED: the transport is no longer EmailJS. The send goes through the canonical Mallan route
+      // (POST /api/crm/clients/:id/report-send) and then M365 SMTP, so the recorded method names that.
+      expect((sent[0].detail as { method?: string }).method).toBe('mallan_server');
     } finally { h.close(); }
   });
 });

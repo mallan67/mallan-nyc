@@ -232,8 +232,18 @@ describe('C · audiences that are NOT an inactive canonical Lead keep their exis
 // ═══════════════════════════════════════════════════════════════════════════════
 // D/I — LIFECYCLE ENGINE
 // ═══════════════════════════════════════════════════════════════════════════════
+/**
+ * THE VEHICLE CHANGED, THE SUBJECT DID NOT. This used to drive the suppression through
+ * 'quarterly_nurture'. Lane 3 Packet 1 made nurture agent-directed: the engine now coerces that trigger
+ * from 'email' to 'agent_alert' before the action dispatch, so it can no longer reach the email branch at
+ * all - and a test that kept using it would have gone quietly inert while still passing its name.
+ *
+ * 'lease_expiring_180d' is a genuine client-facing email trigger that still mails clients today, which
+ * makes it a stronger vehicle for the same proof: the suppression at the email action is what is under
+ * test, not the nurture trigger. Group E below separately proves nurture no longer emails at all.
+ */
 const emailTrigger = (actionType = 'email') => ({
-  id: 9n, name: 'Quarterly Nurture', trigger_type: 'quarterly_nurture',
+  id: 9n, name: 'Lease Expiring 180d', trigger_type: 'lease_expiring_180d',
   conditions: {}, action_type: actionType, action_config: {}, cooldown_hours: 72, enabled: true,
 });
 
@@ -247,7 +257,7 @@ function seedLifecycle(status: string | null) {
   lifecycleTriggerFindManyMock.mockResolvedValue([emailTrigger()]);
   leadFindManyMock.mockResolvedValue([
     {
-      id: 77n, pipeline_stage: 'nurturing', roles: ['buyer'], last_contacted_at: null, agent_id: 42n,
+      id: 77n, pipeline_stage: 'nurturing', lease_end_date: new Date(Date.now() + 180 * 864e5), roles: ['buyer'], last_contacted_at: null, agent_id: 42n,
       // findQuarterlyNurtureTargets filters in JS on `preferences.neighborhoods.length > 0`; without it
       // the finder returns zero targets and the email action is never reached at all.
       preferences: { neighborhoods: ['Tribeca'] },
@@ -291,7 +301,11 @@ describe('D · the lifecycle email action is suppressed for an inactive Lead', (
   it('a Lead with no email keeps its EXISTING skipped state — not relabelled as a lifecycle suppression', async () => {
     lifecycleTriggerFindManyMock.mockResolvedValue([emailTrigger()]);
     leadFindManyMock.mockResolvedValue([
-      { id: 77n, pipeline_stage: 'nurturing', roles: ['buyer'], last_contacted_at: null, agent_id: 42n, preferences: { neighborhoods: ['Tribeca'] } },
+      // lease_end_date is what findLeaseExpiringTargets filters on in JS; without it the candidate is
+      // dropped before the email action and this test would pass while proving nothing.
+      { id: 77n, pipeline_stage: 'nurturing', roles: ['tenant'], last_contacted_at: null, agent_id: 42n,
+        lease_end_date: new Date(Date.now() + 180 * 864e5), consent_captured_at: new Date(),
+        preferences: { neighborhoods: ['Tribeca'] } },
     ]);
     leadFindUniqueMock.mockResolvedValue({ email: null, first_name: 'Test', last_name: 'Buyer', agent_id: 42n, status: 'active' });
     await lifecycle();
@@ -305,7 +319,11 @@ describe('E · agent-facing lifecycle actions are NOT suppressed for an inactive
   it.each(['notification', 'agent_alert'])('%s still fires — this controls communication TO the client, not awareness ABOUT them', async (actionType) => {
     lifecycleTriggerFindManyMock.mockResolvedValue([emailTrigger(actionType)]);
     leadFindManyMock.mockResolvedValue([
-      { id: 77n, pipeline_stage: 'nurturing', roles: ['buyer'], last_contacted_at: null, agent_id: 42n, preferences: { neighborhoods: ['Tribeca'] } },
+      // lease_end_date is what findLeaseExpiringTargets filters on in JS; without it the candidate is
+      // dropped before the email action and this test would pass while proving nothing.
+      { id: 77n, pipeline_stage: 'nurturing', roles: ['tenant'], last_contacted_at: null, agent_id: 42n,
+        lease_end_date: new Date(Date.now() + 180 * 864e5), consent_captured_at: new Date(),
+        preferences: { neighborhoods: ['Tribeca'] } },
     ]);
     leadFindUniqueMock.mockResolvedValue({
       email: 'client@example.com', first_name: 'Test', last_name: 'Buyer', agent_id: 42n, status: 'inactive',

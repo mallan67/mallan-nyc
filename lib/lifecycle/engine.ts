@@ -368,6 +368,26 @@ async function executeAction(
   actionConfig: Record<string, unknown>,
   target: { type: string; id: string; context: Record<string, unknown> }
 ): Promise<ActionExecutionResult> {
+  // ── NURTURE_IS_AGENT_DIRECTED ────────────────────────────────────────────────────────────────────
+  //
+  // A nurture touch is the agent's judgement about a relationship, not a scheduled broadcast. Until
+  // this guard, the daily cron self-seeded 'Quarterly Nurture Report' (action_type 'email'), selected up
+  // to 50 clients, and sent a HARDCODED subject and body - the agent chose nothing, was told nothing,
+  // and the seeded include_matching_listings/include_market_stats were never even read.
+  //
+  // THE COERCION LIVES HERE AND NOT ONLY IN DEFAULT_TRIGGERS because the seed is applied only when
+  // lifecycleTrigger.count() === 0. Correcting the seed fixes a fresh database and leaves every existing
+  // one sending exactly as before, since its stored row still says 'email'. A guard at the dispatch
+  // cannot be out-voted by stored configuration.
+  //
+  // Target DETECTION is deliberately kept: findQuarterlyNurtureTargets still answers who is due. Only
+  // the ACTION changes, from mailing the client to telling the responsible agent that a report is owed.
+  // The agent then chooses the substantive report and sends it through
+  // POST /api/crm/clients/[id]/report-send, which is what records a qualifying nurture touch.
+  if (target.context.trigger === 'quarterly_nurture' && actionType === 'email') {
+    actionType = 'agent_alert';
+  }
+
   switch (actionType) {
     case 'notification': {
       // Create in-app notification for the assigned agent
@@ -726,7 +746,7 @@ export const DEFAULT_TRIGGERS = [
     name: 'Quarterly Nurture Report',
     trigger_type: 'quarterly_nurture',
     conditions: {},
-    action_type: 'email',
+    action_type: 'agent_alert',  // NURTURE_IS_AGENT_DIRECTED
     action_config: { include_matching_listings: true, include_market_stats: true },
     cooldown_hours: 2016, // ~84 days (quarterly)
   },

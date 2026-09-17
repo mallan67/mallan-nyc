@@ -1867,8 +1867,6 @@
         // Delivery is EmailJS (js/core/email-service.js), configured per agent in Email Settings. Every
         // attempt — delivered or failed — is mirrored into localStorage so the sent-emails panel can render
         // it, and a failed attempt is stored as failed.
-        var _sentEmailsKey = 'sentEmails_' + LOGGED_IN_AGENT.id;
-        var sentEmails = JSON.parse(localStorage.getItem(_sentEmailsKey)) || [];
 
         // A SEND THAT DID NOT HAPPEN IS NEVER REPORTED AS ONE (audit D15, 2026-09-09).
         //
@@ -1889,8 +1887,13 @@
             var toName = escapeHTML(opts.toName || to);
             var subject = opts.subject || 'Property Report — Mallan Real Estate';
             var count = opts.count || 0;
-            var configured = (typeof isEmailConfigured === 'function') && isEmailConfigured();
-            var canSend = configured && typeof sendViaEmailJS === 'function';
+            // TRANSPORT IS NO LONGER THE BROWSER'S QUESTION. This used to require the agent's local
+            // EmailJS configuration, because the browser did the sending. The server now owns the
+            // transport (M365 SMTP via lib/email/sendgrid.ts), so the only precondition left here is
+            // the one this side can actually answer: is there a canonical client to record against.
+            // Asking about EmailJS would refuse a send the server is perfectly able to make.
+            var configured = true;
+            var canSend = true;
 
             // Show sending overlay
             var overlay = document.createElement('div');
@@ -1910,22 +1913,20 @@
             // Store record + log audit + show result. `outcome` is the ONLY thing that decides the wording,
             // the stored status and the audit action, and it is only ever 'delivered' after EmailJS resolved.
             function storeAndShowResult(outcome, error) {
-                var delivered = (outcome === 'delivered');
-                var method = delivered ? 'emailjs' : (outcome === 'not_configured' ? 'not_configured' : 'emailjs_error');
-                var record = {
-                    id: 'email_' + Date.now(),
-                    to: to, toName: toName,
-                    from: agent.email || '',
-                    fromName: agent.name, subject: subject,
-                    listingCount: count,
-                    listingIds: opts.listingIds || [],
-                    sentAt: new Date().toISOString(),
-                    source: opts.source || 'manual',
-                    status: delivered ? 'delivered' : 'failed',
-                    method: method
-                };
-                sentEmails.push(record);
-                localStorage.setItem(_sentEmailsKey, JSON.stringify(sentEmails));
+                // 'accepted' is the outcome the canonical server route reports: M365 SMTP took the
+                // message. It is the SUCCESS outcome here. 'delivered' is still accepted as an input
+                // for older callers, but nothing in this file produces it any more - and nothing
+                // claims the client received the mail, because no bounce callback exists to prove it.
+                var delivered = (outcome === 'accepted' || outcome === 'delivered');
+                var method = delivered ? 'mallan_server' : (outcome === 'not_configured' ? 'not_configured' : 'send_error');
+                // NO SECOND SENT-HISTORY. This used to push a record into localStorage under
+                // sentEmails_<agent> with status 'delivered' - a per-browser copy of brokerage history
+                // that (a) nothing ever read, (b) was lost on a cache clear, and (c) claimed DELIVERY
+                // while the server, which actually sends, can only attest that M365 SMTP ACCEPTED the
+                // message. Two truths about the same send, and the weaker one made the stronger claim.
+                //
+                // The canonical record is ActivityLog 'client_report_sent', written by
+                // POST /api/crm/clients/[id]/report-send against the canonical Lead and Agent.
 
                 logAuditEntry(delivered ? 'email_sent' : 'email_send_failed', {
                     to: to, toName: toName, subject: subject,
@@ -1962,7 +1963,7 @@
 
                 // Success state — reachable only after EmailJS resolved.
                 if (icon) { icon.style.display = 'block'; icon.innerHTML = '<div style="width:48px;height:48px;background:#059669;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;"><span style="color:#fff;font-size:24px;font-weight:bold;">&#10003;</span></div>'; }
-                if (msg) { msg.style.color = '#059669'; msg.textContent = 'Email delivered!'; }
+                if (msg) { msg.style.color = '#059669'; msg.textContent = 'Email accepted for delivery'; }
                 if (detail) {
                     detail.innerHTML = count + ' listing' + (count !== 1 ? 's' : '') + ' emailed to ' + toName + (to ? ' (' + to + ')' : '') +
                         '<br><a href="/crm/dashboard" target="_blank" style="color:#C4A052;font-weight:600;font-size:12px;text-decoration:underline;margin-top:8px;display:inline-block;">View in Dashboard</a>';
@@ -1975,17 +1976,44 @@
                 storeAndShowResult('not_configured', null);
                 return { ok: false, reason: 'email_not_configured' };
             }
-            sendViaEmailJS({
-                to_email: to,
-                to_name: toName,
-                from_name: agent.name + ' — Mallan Real Estate',
-                subject: subject,
-                message_html: opts.htmlBody || '<p>Property report from ' + agent.name + '</p>'
-            }).then(function() {
-                storeAndShowResult('delivered', null);
-            }).catch(function(err) {
-                storeAndShowResult('failed', err.text || err.message || 'EmailJS error');
-            });
+            // CANONICAL SERVER SEND. This used to hand the message to EmailJS from the browser, which
+            // meant the report never touched Mallan infrastructure: it bypassed lib/email/sendgrid.ts and
+            // therefore the canonical suppression check (an agent could email a client who had
+            // unsubscribed), and its only record was logAuditEntry writing localStorage - per-browser,
+            // per-agent, lost on a cache clear. The brokerage could not answer 'what did this agent send
+            // this client, and when?'.
+            //
+            // A client report now REQUIRES a canonical client. Without one there is nothing to bind the
+            // history to, so this refuses rather than falling back to the browser path it replaced.
+            if (!opts.clientId) {
+                storeAndShowResult('failed', 'Select a client before sending — a report is recorded against a client record.');
+                return { ok: false, reason: 'no_canonical_client' };
+            }
+            fetch('/api/crm/clients/' + encodeURIComponent(opts.clientId) + '/report-send', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // One agent click must produce one email and one history record even if this retries.
+                    'Idempotency-Key': (opts.source || 'report') + '-' + (opts.clientId) + '-' + Date.now()
+                },
+                body: JSON.stringify({
+                    purpose: opts.purpose || 'other',
+                    report_type: opts.reportType || null,
+                    report_version: opts.reportVersion || null,
+                    audience: 'customer',
+                    subject: subject,
+                    html: opts.htmlBody || '',
+                    listing_ids: opts.listingIds || []
+                })
+            }).then(function(r) { return r.json().then(function(b) { return { ok: r.ok, body: b }; }); })
+              .then(function(res) {
+                // 'accepted' is the honest word: SMTP took the message. There is no bounce callback in
+                // this system, so the UI does not claim the client received it.
+                if (res.ok) storeAndShowResult('accepted', null);
+                else storeAndShowResult('failed', (res.body && res.body.error) || 'Send refused');
+              })
+              .catch(function(err) { storeAndShowResult('failed', err.message || 'Network error'); });
             return { ok: true };
         }
 
@@ -2261,7 +2289,13 @@
                     htmlBody: richHTML,
                     listingIds: listings.map(function(l) { return l.id; }),
                     count: listings.length,
-                    source: 'report_send_to_client'
+                    source: 'report_send_to_client',
+                    // The canonical client this report is recorded against, and the agent's stated
+                    // intent. The SERVER decides whether that intent qualifies as a nurture touch.
+                    clientId: (document.getElementById('reportRecipientClient') || {}).value || null,
+                    purpose: (document.getElementById('reportPurpose') || {}).value || 'other',
+                    reportType: reportState.format || null,
+                    reportVersion: reportState.version || null
                 });
                 return listings.length;
             });
@@ -3413,7 +3447,11 @@
                             htmlBody: emailHTML,
                             listingIds: deliverable.map(function(l) { return l.id; }),
                             count: deliverable.length,
-                            source: 'report_email'
+                            source: 'report_email',
+                            clientId: (document.getElementById('reportRecipientClient') || {}).value || null,
+                            purpose: (document.getElementById('reportPurpose') || {}).value || 'other',
+                            reportType: reportState.format || null,
+                            reportVersion: reportState.version || null
                         });
                         return deliverable.length;
                     });

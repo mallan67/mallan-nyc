@@ -212,7 +212,18 @@ nul
 *.tmp
 debug-*
 scratch-*
-report-*
+# SCOPED TO THE REPOSITORY ROOT, 2026-09-17. This read `report-*` (unanchored), so it matched ANY path
+# segment beginning with 'report-' at any depth — and silently swallowed
+# app/api/crm/clients/[id]/report-send/route.ts, a live API route. A commit would have shipped a browser
+# caller to an endpoint that was never committed: green locally, 404 for everyone else.
+#
+# It had already brushed two more: public/crm/html/modals/report-preview.html (a LIVE modal include) and
+# public/crm/js/output/report-customize.js. Both survive only because they are already tracked — remove
+# and re-add either and it would disappear without a word.
+#
+# The intent above is preserved: throwaway diagnostic dumps land at the repo root and stay untracked.
+# Anchoring keeps that and stops the pattern reaching application source.
+/report-*
 out.txt
 dump-*
 
