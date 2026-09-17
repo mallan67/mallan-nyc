@@ -20981,22 +20981,48 @@ function manageShowToast(msg) {
             var feat = (typeof apiListing.features === 'object' && apiListing.features) ? apiListing.features : {};
             var agent = (typeof apiListing.agent_info === 'object' && apiListing.agent_info) ? apiListing.agent_info : {};
             var media = Array.isArray(apiListing.media) ? apiListing.media : [];
-            var price = parseFloat(apiListing.list_price) || 0;
+            // ABSENT AND ZERO ARE DIFFERENT FACTS - the same sentence lib/search/crm-idx-mapper.ts:20-21
+            // states and obeys for the PRIMARY path. This fallback hydrator used `|| 0` throughout, so the
+            // two paths that fill the very same `listings` array held opposite null policies: what an agent
+            // saw depended on whether IDX happened to answer. A studio (0 bedrooms) and a listing whose
+            // bedroom count was never recorded became the same value, irrecoverably, because it is written
+            // onto the shared object.
+            //
+            // Mirrors crm-idx-mapper's num(): absent / empty / unparsable -> null; a literal 0 stays 0.
+            var _num = function(v) {
+                if (v === null || v === undefined || v === '') return null;
+                var n = Number(v);
+                return isFinite(n) ? n : null;
+            };
+            var price = _num(apiListing.list_price);
             var isRental = apiListing.listing_type === 'rent';
+            var _fullBaths = _num(apiListing.bathrooms_full);
+            var _halfBaths = _num(apiListing.bathrooms_half);
+            // An annual tax figure divided by 12 is a real monthly number; an ABSENT one is not 0/12.
+            var _annualTax = _num(feat.RealEstateTax);
+            var _reTaxes = _annualTax === null ? null : _annualTax / 12;
+            // A rental's total is its rent. A sale's total is only known when both components are - summing
+            // an unknown tax with an unknown fee produced a confident $0/mo on every fallback-path row.
+            var _fee = _num(feat.AssociationFee);
+            var _totalMonthly = isRental
+                ? price
+                : (_reTaxes === null && _fee === null ? null : (_reTaxes || 0) + (_fee || 0));
 
             return {
                 id: parseInt(apiListing.id) || (index + 1),
                 address: (addr.StreetNumber ? addr.StreetNumber + ' ' : '') + (addr.StreetName || '') + (addr.StreetSuffix ? ' ' + addr.StreetSuffix : ''),
                 unit: addr.UnitNumber || '',
                 price: price,
-                totalMonthly: isRental ? price : (parseFloat(feat.RealEstateTax || 0) / 12 + parseFloat(feat.AssociationFee || 0)),
-                rooms: parseInt(feat.Rooms || 0) || 0,
-                beds: parseInt(apiListing.bedrooms_total) || 0,
-                baths: (parseInt(apiListing.bathrooms_full) || 0) + ((parseInt(apiListing.bathrooms_half) || 0) * 0.5),
-                fullBaths: parseInt(apiListing.bathrooms_full) || 0,
-                halfBaths: parseInt(apiListing.bathrooms_half) || 0,
-                reTaxes: parseFloat(feat.RealEstateTax || 0) / 12,
-                maintCC: parseFloat(feat.AssociationFee || 0),
+                totalMonthly: _totalMonthly,
+                rooms: _num(feat.RoomsTotal !== undefined ? feat.RoomsTotal : feat.Rooms),
+                beds: _num(apiListing.bedrooms_total),
+                // Baths are known only when BOTH components are. A known 2 full plus an unknown half is not
+                // a proven 2.0 - crm-idx-mapper.ts:265-276 makes exactly this distinction.
+                baths: _fullBaths === null || _halfBaths === null ? null : _fullBaths + (_halfBaths * 0.5),
+                fullBaths: _fullBaths,
+                halfBaths: _halfBaths,
+                reTaxes: _reTaxes,
+                maintCC: _num(feat.AssociationFee),
                 intSqft: parseFloat(apiListing.living_area) || null,
                 // Status is a Cotality fact, carried verbatim as the live StandardStatus token with its
                 // per-transaction broker label — the same shape lib/search/crm-idx-mapper.ts ships, so a row
@@ -22333,8 +22359,20 @@ var ClientNormalizer = (function () {
                             // fabricated Active onto it. A blank status is an unknown or off-market row; the
                             // status authority renders it as "Status unavailable" (fail closed), and no
                             // renderer may turn it into live inventory.
-                            if (listing.price == null) listing.price = 0;
-                            if (listing.beds == null) listing.beds = 0;
+                            // NO NUMERIC WRITE HERE. These two lines used to read
+                            //     an is-null test on price that assigned zero
+                            //     and the same for beds
+                            // and they did not merely display a zero - they PERSISTED one. The array copy in
+                            // render-dispatcher.js:81 is a .slice(), so the elements are the same object
+                            // identities held by searchResultsState.filteredListings and by the global
+                            // `listings`. Rendering the grid once rewrote the model that the detail drawer,
+                            // the map, Compare, the CMA, every report and the calculators read afterwards -
+                            // and an unknown price became a real $0 for the rest of the session.
+                            //
+                            // It is the same defect, and the same fix, as the fabricated status the comment
+                            // above describes. A renderer presents the row it is given.
+                            // Presentation of an absent value belongs in the column renderers, which already
+                            // guard it (render-gallery.js:42 `listing.price == null ? '—'`).
                             if (!listing.address) listing.address = 'Address Unavailable';
                             // No permissions placeholder. An empty object made every later `=== true`
                             // gate read undefined, i.e. permissive. Every reader here is already guarded
@@ -24769,9 +24807,11 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
         properties: {
           id: l.id,
           address: l.address + (l.unit ? ', ' + l.unit : ''),
-          price: l.price || l.listPrice || 0,
-          beds: l.beds || l.bedroomsTotal || 0,
-          baths: l.baths || l.bathroomsFull || 0,
+          // A pin for a listing with no published price is still a pin; it is not a $0 listing.
+          // The marker renderer below already handles an absent figure.
+          price: l.price != null ? l.price : (l.listPrice != null ? l.listPrice : null),
+          beds: l.beds != null ? l.beds : (l.bedroomsTotal != null ? l.bedroomsTotal : null),
+          baths: l.baths != null ? l.baths : (l.bathroomsFull != null ? l.bathroomsFull : null),
           // The exact live Cotality StandardStatus token (or '' when the row has none — never a default),
           // plus the row's own transaction-aware broker label. Both from THE ONE browser authority,
           // public/crm/js/core/status-presentation.js, and read here so the marker/popup never has to touch
@@ -24790,7 +24830,9 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
 
   // ── Format price ──
   function fmtPrice(p) {
-    if (!p) return '$0';
+    // `!p` treated an unknown price and a real $0 identically. A genuine zero still prints $0.
+    if (p == null || isNaN(p)) return '—';
+    if (Number(p) === 0) return '$0';
     if (p >= 1000000) return '$' + (p / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
     if (p >= 1000) return '$' + Math.round(p / 1000) + 'K';
     return '$' + p.toLocaleString();
@@ -25988,9 +26030,22 @@ function openPrintableWindow(html, options) {
                 if (l.listingCategory === 'rental') return fmtCurrency(l.price) + '/mo';
                 return fmtCurrency(l.price);
             }
+            /**
+             * A RATIO IS UNAVAILABLE IF EITHER OPERAND IS. This guarded only the DENOMINATOR, so an
+             * unknown price over a known 900 sqft computed null/900 === 0 and printed a confident $0 -
+             * with no || 0 anywhere in the expression, which is why a grep for zero-manufacturing never
+             * found it. The tell that it was an accident rather than a rule: an UNDEFINED price yielded
+             * NaN and an em dash, while a NULL price yielded $0 - the same unknown, answered two ways.
+             *
+             * A real numeric 0 still divides and still prints $0.
+             */
+            function ratioCurrency(numerator, denominator) {
+                if (numerator == null || isNaN(numerator)) return '—';
+                if (denominator == null || isNaN(denominator) || Number(denominator) === 0) return '—';
+                return fmtCurrency(Math.round(Number(numerator) / Number(denominator)));
+            }
             function priceSF(l) {
-                if (!l.intSqft || l.intSqft === 0) return '\u2014';
-                return fmtCurrency(Math.round(l.price / l.intSqft));
+                return ratioCurrency(l.price, l.intSqft);
             }
             // A status becomes display text through MallanStatus (js/core/status-presentation.js) and
             // nowhere else: colours keyed by the live Cotality StandardStatus token, and the label in the
@@ -26963,8 +27018,8 @@ function openPrintableWindow(html, options) {
             cma += '<p style="color:#6b7280;font-size:13px;margin:0 0 12px">' + (subject.neighborhood||'') + ' &nbsp; ' + mediaLink(subject) + '</p>';
             if (optContent.crossStreets && subject.crossStreet) cma += '<p style="font-size:12px;color:#9ca3af;margin:0 0 8px">Cross: ' + subject.crossStreet + '</p>';
             cma += '<div style="display:flex;gap:16px;font-size:13px;color:#4b5563">' +
-                '<span><i class="fas fa-bed" style="margin-right:4px"></i>' + (subject.beds||0) + ' BR</span>' +
-                '<span><i class="fas fa-bath" style="margin-right:4px"></i>' + (subject.baths||0) + ' BA</span>' +
+                '<span><i class="fas fa-bed" style="margin-right:4px"></i>' + (subject.beds === 0 ? 'Studio' : (subject.beds == null ? '—' : subject.beds + ' BR')) + '</span>' +
+                '<span><i class="fas fa-bath" style="margin-right:4px"></i>' + (subject.baths == null ? '—' : subject.baths + ' BA') + '</span>' +
                 '<span><i class="fas fa-ruler-combined" style="margin-right:4px"></i>' + (subject.intSqft?subject.intSqft.toLocaleString():'--') + ' SF</span>';
             if (optContent.priceSqft) cma += '<span>' + priceSF(subject) + '/SF</span>';
             if (optContent.dom) cma += '<span>DOM: ' + (subject.dom||'\u2014') + '</span>';
@@ -27012,8 +27067,8 @@ function openPrintableWindow(html, options) {
                         '<td style="' + cmaTdS + ';font-weight:500">' + addrLink(cl) + '<br>' + mediaLink(cl) + '</td>' +
                         '<td style="' + cmaTdS + ';font-weight:600;color:#15803d">' + fmtPrice(cl) + '</td>';
                     if (optContent.originalPrice) cma += '<td style="' + cmaTdS + '">' + (cl.originalPrice ? fmtCurrency(cl.originalPrice) : '\u2014') + '</td>';
-                    cma += '<td style="' + cmaTdS + '">' + (cl.beds||'\u2014') + '</td>' +
-                        '<td style="' + cmaTdS + '">' + (cl.baths||'\u2014') + '</td>' +
+                    cma += '<td style="' + cmaTdS + '">' + (cl.beds === 0 ? 'Studio' : (cl.beds == null ? '\u2014' : cl.beds)) + '</td>' +
+                        '<td style="' + cmaTdS + '">' + (cl.baths == null ? '\u2014' : cl.baths) + '</td>' +
                         '<td style="' + cmaTdS + '">' + (cl.intSqft?cl.intSqft.toLocaleString():'\u2014') + '</td>';
                     if (optContent.priceSqft) cma += '<td style="' + cmaTdS + '">' + priceSF(cl) + '</td>';
                     cma += '<td style="' + cmaTdS + '">' + (ownershipLabel(cl.ownership)||'\u2014') + '</td>';
@@ -28170,7 +28225,12 @@ function openPrintableWindow(html, options) {
             // Helpers (duplicated from populateReportPreview scope — self-contained for standalone)
             function fc(val) { return val == null || isNaN(val) ? '\u2014' : '$' + Number(val).toLocaleString(); }
             function fp(listing) { return listing.listingCategory === 'rental' ? fc(listing.price) + '/mo' : fc(listing.price); }
-            function psf(listing) { return !listing.intSqft || listing.intSqft === 0 ? '\u2014' : fc(Math.round(listing.price / listing.intSqft)); }
+            // Same denominator-only guard priceSF carried; same correction. See ratioCurrency above.
+            function psf(listing) {
+                if (listing.price == null || isNaN(listing.price)) return '—';
+                if (!listing.intSqft || isNaN(listing.intSqft) || Number(listing.intSqft) === 0) return '—';
+                return fc(Math.round(Number(listing.price) / Number(listing.intSqft)));
+            }
             function da(listing) { return listing.addressDisplayYN === false ? 'Available Upon Request' : listing.address + (listing.unit ? ', ' + listing.unit : ''); }
             function sBadge(s, listing) {
                 var row = (listing && typeof listing === 'object') ? listing : s;
@@ -29044,9 +29104,14 @@ function openCalculatorModal(tab, listingId) {
     if (existing) existing.remove();
 
     var listing = getCalcListing();
-    var price = listing ? (listing.price || 0) : 0;
-    var maintCC = listing ? (listing.maintCC || listing.maintenance || 0) : 0;
-    var taxes = listing ? (listing.taxes || listing.reTaxes || 0) : 0;
+    // INGRESS ONLY. An unavailable listing price used to open the calculator pre-filled with a credible
+    // $0 property price, which an agent then quotes from. An unknown price leaves the field EMPTY so the
+    // agent supplies it; a genuine 0 still populates as 0. No business formula is touched here.
+    var price = listing && listing.price != null ? listing.price : '';
+    var _mcc = listing ? (listing.maintCC != null ? listing.maintCC : listing.maintenance) : null;
+    var maintCC = _mcc != null ? _mcc : '';
+    var _tax = listing ? (listing.taxes != null ? listing.taxes : listing.reTaxes) : null;
+    var taxes = _tax != null ? _tax : '';
     var propType = listing ? (listing.propertyType || listing.subType || '') : '';
     var isCoop = propType.toLowerCase().indexOf('co-op') !== -1 || propType.toLowerCase().indexOf('coop') !== -1;
 
@@ -29759,7 +29824,7 @@ function emailCurrentCalc() {
          *
          * It refuses rather than guessing: no nearby page, no fall back to page 1, no second paging engine.
          * A null meaning (pre-server state, client-side filtering) is non-exact too — fail closed.
-         * First / Previous / Next are unaffected: they navigate by the CURRENT page, never by the total.
+         * First / Previous only ever move by the CURRENT page. Next increments it, but goToServerPage() then applies a ceiling derived from the total - and only when the count is exact (C4B-FINAL-3).
          */
         function _lastPageIsKnown() {
             // Delegates to the ONE browser expression of the rule (search-engine.js). A last page and a hard
@@ -31059,7 +31124,7 @@ function emailCurrentCalc() {
                     listing_id: listing.lid || listing.id,
                     listing_address: listing.address || '',
                     listing_unit: listing.unit || null,
-                    listing_price: Number(listing.price || 0),
+                    listing_price: listing.price == null ? null : Number(listing.price),
                     // The exact live token, or null. Never a fabricated Active.
                     listing_status: (typeof MallanStatus !== 'undefined' && MallanStatus)
                         ? MallanStatus.token(listing)
@@ -32241,8 +32306,8 @@ function emailCurrentCalc() {
                 neighborhood: listing.neighborhood || null,
                 listing_type: listing.listingCategory === 'rental' ? 'rental' : 'sale',
                 property_type: listing.ownership || listing.propertyType || null,
-                bedrooms: listing.beds || null,
-                bathrooms: listing.baths || null,
+                bedrooms: listing.beds == null ? null : listing.beds,
+                bathrooms: listing.baths == null ? null : listing.baths,
                 living_area: listing.intSqft || null,
             }).then(function(result) {
                 if (!result || !result.valuation) {

@@ -102,11 +102,16 @@ export function applyCompEligibility(comps: CompListing[], o: CompEligibilityOpt
   return comps.filter((c) => isEligibleComp(c, o));
 }
 
-function bedsFilter(min: number, max: number): string {
+// Identical shape to sqftFilter below: a disabled or unbounded dimension contributes NO clause, so an
+// unknown bedroom count stops filtering instead of silently becoming `ge 0 and le 0` — a studio filter.
+// Both call sites join through `.filter(Boolean)`, so an empty string is dropped cleanly.
+function bedsFilter(min: number | null, max: number | null, enabled: boolean): string {
+  if (!enabled || min == null || max == null) return "";
   return `BedroomsTotal ge ${min} and BedroomsTotal le ${max}`;
 }
 
-function bathsFilter(min: number, max: number): string {
+function bathsFilter(min: number | null, max: number | null, enabled: boolean): string {
+  if (!enabled || min == null || max == null) return "";
   return `BathroomsTotalInteger ge ${min} and BathroomsTotalInteger le ${max}`;
 }
 
@@ -221,8 +226,8 @@ async function fetchBuildingComps(
     ...buildingFilters,
     ctx.property_type ? `PropertyType eq '${esc(ctx.property_type)}'` : "",
     compsStatusWindowFilter(criteria.statuses, criteria.months_back, new Date(), transaction),
-    bedsFilter(criteria.beds_min, criteria.beds_max),
-    bathsFilter(criteria.baths_min, criteria.baths_max),
+    bedsFilter(criteria.beds_min, criteria.beds_max, criteria.beds_enabled),
+    bathsFilter(criteria.baths_min, criteria.baths_max, criteria.baths_enabled),
     sqftFilter(criteria.sqft_min, criteria.sqft_max, criteria.sqft_enabled),
     // Exclude the subject listing
     `ListingId ne '${esc(ctx.listing_id)}'`,
@@ -289,8 +294,8 @@ async function fetchAreaComps(
   }
 
   filters.push(compsStatusWindowFilter(criteria.statuses, criteria.months_back, new Date(), transaction));
-  filters.push(bedsFilter(criteria.beds_min, criteria.beds_max));
-  filters.push(bathsFilter(criteria.baths_min, criteria.baths_max));
+  filters.push(bedsFilter(criteria.beds_min, criteria.beds_max, criteria.beds_enabled));
+  filters.push(bathsFilter(criteria.baths_min, criteria.baths_max, criteria.baths_enabled));
 
   const sqft = sqftFilter(criteria.sqft_min, criteria.sqft_max, criteria.sqft_enabled);
   if (sqft) filters.push(sqft);

@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
-import { fetchComps, buildDefaultCriteria, validateCompCriteria, compTransactionOf, isCompCriteriaError } from "@/lib/comps";
+import { fetchComps, buildDefaultCriteria, resolveLegacyDimensions, validateDimensionBounds, validateCompCriteria, compTransactionOf, isCompCriteriaError } from "@/lib/comps";
 import type { CompCriteria } from "@/lib/comps";
 import { transactionTypeFromProvider } from "@/lib/listings/canonical-lifecycle";
 import type { Prisma } from "@prisma/client";
@@ -76,8 +76,17 @@ export async function GET(req: NextRequest) {
   const streetName = addr.StreetName || addr.street_name || null;
 
   // Use stored criteria or generate defaults
-  const beds = listing.bedrooms_total ?? 0;
-  const baths = (listing.bathrooms_full ?? 0) + Math.round((listing.bathrooms_half ?? 0) * 0.5);
+  // UNKNOWN IS NOT ZERO. `?? 0` here made a listing whose bedroom count was never recorded into a studio,
+  // and buildDefaultCriteria then emitted `BedroomsTotal ge 0 and BedroomsTotal le 0` — so the CMA was
+  // assembled from studio inventory and priced the subject against it. bedrooms_total / bathrooms_full /
+  // bathrooms_half are all nullable in schema and are selected raw, so null genuinely arrives here.
+  const beds = listing.bedrooms_total ?? null;
+  // Baths are only known when BOTH components are: a known 2 full + an unknown half is not a proven 2.0.
+  // This mirrors crm-idx-mapper.ts, which computes baths only when both components are present.
+  const baths =
+    listing.bathrooms_full == null && listing.bathrooms_half == null
+      ? null
+      : (listing.bathrooms_full ?? 0) + Math.round((listing.bathrooms_half ?? 0) * 0.5);
   const sqft = listing.living_area ? Number(listing.living_area) : null;
   const price = Number(listing.list_price);
 
@@ -87,7 +96,17 @@ export async function GET(req: NextRequest) {
     // before the token correction hold display names ("Under Contract") that are not a live StandardStatus
     // member and would have been passed straight into the provider filter. Refuse, naming the value.
     try {
-      criteria = validateCompCriteria(listing.comp_criteria as unknown as CompCriteria, transaction);
+      // Stored rows predate the beds/baths enabled flags, and a missing flag must not be read as `true`:
+      // criteria written by the old code carry a fabricated 0/0 whenever the subject dimension was unknown,
+      // so honouring them would keep the defect alive inside its own output. resolveLegacyDimensions decides
+      // from the CURRENT subject value; validateDimensionBounds then refuses an enabled dimension with no
+      // usable range rather than substituting one.
+      criteria = validateDimensionBounds(
+        resolveLegacyDimensions(
+          validateCompCriteria(listing.comp_criteria as unknown as CompCriteria, transaction),
+          { beds, baths },
+        ),
+      );
     } catch (err) {
       if (isCompCriteriaError(err)) {
         return NextResponse.json({ error: err.message, code: err.code, value: err.value, scope: err.scope, transaction }, { status: 400 });
@@ -139,6 +158,9 @@ export async function GET(req: NextRequest) {
     ...results,
     transaction,
     listing_specs: { beds, baths, sqft, price },
-    sqft_note: !sqft ? "No sqft on file — comps matched by beds/baths/price only" : null,
+    sqft_note: !sqft ? "No sqft on file — comps matched by beds/baths/price only" : null,    dimension_notes: [
+      criteria.building.beds_enabled ? null : "No bedroom count on file — comps not filtered by bedrooms",
+      criteria.building.baths_enabled ? null : "No bathroom count on file — comps not filtered by bathrooms",
+    ].filter(Boolean),
   });
 }

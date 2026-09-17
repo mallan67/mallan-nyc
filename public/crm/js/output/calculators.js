@@ -96,9 +96,14 @@ function openCalculatorModal(tab, listingId) {
     if (existing) existing.remove();
 
     var listing = getCalcListing();
-    var price = listing ? (listing.price || 0) : 0;
-    var maintCC = listing ? (listing.maintCC || listing.maintenance || 0) : 0;
-    var taxes = listing ? (listing.taxes || listing.reTaxes || 0) : 0;
+    // INGRESS ONLY. An unavailable listing price used to open the calculator pre-filled with a credible
+    // $0 property price, which an agent then quotes from. An unknown price leaves the field EMPTY so the
+    // agent supplies it; a genuine 0 still populates as 0. No business formula is touched here.
+    var price = listing && listing.price != null ? listing.price : '';
+    var _mcc = listing ? (listing.maintCC != null ? listing.maintCC : listing.maintenance) : null;
+    var maintCC = _mcc != null ? _mcc : '';
+    var _tax = listing ? (listing.taxes != null ? listing.taxes : listing.reTaxes) : null;
+    var taxes = _tax != null ? _tax : '';
     var propType = listing ? (listing.propertyType || listing.subType || '') : '';
     var isCoop = propType.toLowerCase().indexOf('co-op') !== -1 || propType.toLowerCase().indexOf('coop') !== -1;
 

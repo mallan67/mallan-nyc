@@ -52,8 +52,20 @@
                             // fabricated Active onto it. A blank status is an unknown or off-market row; the
                             // status authority renders it as "Status unavailable" (fail closed), and no
                             // renderer may turn it into live inventory.
-                            if (listing.price == null) listing.price = 0;
-                            if (listing.beds == null) listing.beds = 0;
+                            // NO NUMERIC WRITE HERE. These two lines used to read
+                            //     an is-null test on price that assigned zero
+                            //     and the same for beds
+                            // and they did not merely display a zero - they PERSISTED one. The array copy in
+                            // render-dispatcher.js:81 is a .slice(), so the elements are the same object
+                            // identities held by searchResultsState.filteredListings and by the global
+                            // `listings`. Rendering the grid once rewrote the model that the detail drawer,
+                            // the map, Compare, the CMA, every report and the calculators read afterwards -
+                            // and an unknown price became a real $0 for the rest of the session.
+                            //
+                            // It is the same defect, and the same fix, as the fabricated status the comment
+                            // above describes. A renderer presents the row it is given.
+                            // Presentation of an absent value belongs in the column renderers, which already
+                            // guard it (render-gallery.js:42 `listing.price == null ? '—'`).
                             if (!listing.address) listing.address = 'Address Unavailable';
                             // No permissions placeholder. An empty object made every later `=== true`
                             // gate read undefined, i.e. permissive. Every reader here is already guarded

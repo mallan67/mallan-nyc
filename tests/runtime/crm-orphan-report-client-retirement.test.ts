@@ -317,8 +317,9 @@ describe('3 · Retirement 1B and the other registered residuals were NOT started
   });
 
   it('the stale pagination.js comment is still registered, not opportunistically fixed here', () => {
-    expect(read('public/crm/js/search/pagination.js'))
-      .toContain('First / Previous / Next are unaffected');
+    // The stale comment this pinned was corrected by Group H, which legitimately had
+    // pagination.js in scope for value semantics - the disposition the registry asked for.
+    expect(read('public/crm/js/search/pagination.js')).toContain('First / Previous only ever move by the CURRENT page');
   });
 
   it('the C4B/C4C boundaries are untouched', () => {

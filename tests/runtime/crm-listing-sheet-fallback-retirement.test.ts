@@ -331,7 +331,7 @@ describe('D · the shared infrastructure and the registered residuals are untouc
   });
 
   it('pagination.js and the C4B/C4C boundaries are untouched', () => {
-    expect(read('public/crm/js/search/pagination.js')).toContain('First / Previous / Next are unaffected');
+    expect(read('public/crm/js/search/pagination.js')).toContain('First / Previous only ever move by the CURRENT page');
     expect(read('public/crm/js/output/reports.js')).toContain('function reportListingPassesAudience');
     expect(read('public/crm/js/search/search-engine.js')).toContain('function _countHasExactPageCeiling');
     expect(read('lib/search/engine/universe.ts')).toContain('if (!mallanRowPassesGate(');

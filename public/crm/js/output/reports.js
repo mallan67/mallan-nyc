@@ -630,9 +630,22 @@
                 if (l.listingCategory === 'rental') return fmtCurrency(l.price) + '/mo';
                 return fmtCurrency(l.price);
             }
+            /**
+             * A RATIO IS UNAVAILABLE IF EITHER OPERAND IS. This guarded only the DENOMINATOR, so an
+             * unknown price over a known 900 sqft computed null/900 === 0 and printed a confident $0 -
+             * with no || 0 anywhere in the expression, which is why a grep for zero-manufacturing never
+             * found it. The tell that it was an accident rather than a rule: an UNDEFINED price yielded
+             * NaN and an em dash, while a NULL price yielded $0 - the same unknown, answered two ways.
+             *
+             * A real numeric 0 still divides and still prints $0.
+             */
+            function ratioCurrency(numerator, denominator) {
+                if (numerator == null || isNaN(numerator)) return '—';
+                if (denominator == null || isNaN(denominator) || Number(denominator) === 0) return '—';
+                return fmtCurrency(Math.round(Number(numerator) / Number(denominator)));
+            }
             function priceSF(l) {
-                if (!l.intSqft || l.intSqft === 0) return '\u2014';
-                return fmtCurrency(Math.round(l.price / l.intSqft));
+                return ratioCurrency(l.price, l.intSqft);
             }
             // A status becomes display text through MallanStatus (js/core/status-presentation.js) and
             // nowhere else: colours keyed by the live Cotality StandardStatus token, and the label in the
@@ -1605,8 +1618,8 @@
             cma += '<p style="color:#6b7280;font-size:13px;margin:0 0 12px">' + (subject.neighborhood||'') + ' &nbsp; ' + mediaLink(subject) + '</p>';
             if (optContent.crossStreets && subject.crossStreet) cma += '<p style="font-size:12px;color:#9ca3af;margin:0 0 8px">Cross: ' + subject.crossStreet + '</p>';
             cma += '<div style="display:flex;gap:16px;font-size:13px;color:#4b5563">' +
-                '<span><i class="fas fa-bed" style="margin-right:4px"></i>' + (subject.beds||0) + ' BR</span>' +
-                '<span><i class="fas fa-bath" style="margin-right:4px"></i>' + (subject.baths||0) + ' BA</span>' +
+                '<span><i class="fas fa-bed" style="margin-right:4px"></i>' + (subject.beds === 0 ? 'Studio' : (subject.beds == null ? '—' : subject.beds + ' BR')) + '</span>' +
+                '<span><i class="fas fa-bath" style="margin-right:4px"></i>' + (subject.baths == null ? '—' : subject.baths + ' BA') + '</span>' +
                 '<span><i class="fas fa-ruler-combined" style="margin-right:4px"></i>' + (subject.intSqft?subject.intSqft.toLocaleString():'--') + ' SF</span>';
             if (optContent.priceSqft) cma += '<span>' + priceSF(subject) + '/SF</span>';
             if (optContent.dom) cma += '<span>DOM: ' + (subject.dom||'\u2014') + '</span>';
@@ -1654,8 +1667,8 @@
                         '<td style="' + cmaTdS + ';font-weight:500">' + addrLink(cl) + '<br>' + mediaLink(cl) + '</td>' +
                         '<td style="' + cmaTdS + ';font-weight:600;color:#15803d">' + fmtPrice(cl) + '</td>';
                     if (optContent.originalPrice) cma += '<td style="' + cmaTdS + '">' + (cl.originalPrice ? fmtCurrency(cl.originalPrice) : '\u2014') + '</td>';
-                    cma += '<td style="' + cmaTdS + '">' + (cl.beds||'\u2014') + '</td>' +
-                        '<td style="' + cmaTdS + '">' + (cl.baths||'\u2014') + '</td>' +
+                    cma += '<td style="' + cmaTdS + '">' + (cl.beds === 0 ? 'Studio' : (cl.beds == null ? '\u2014' : cl.beds)) + '</td>' +
+                        '<td style="' + cmaTdS + '">' + (cl.baths == null ? '\u2014' : cl.baths) + '</td>' +
                         '<td style="' + cmaTdS + '">' + (cl.intSqft?cl.intSqft.toLocaleString():'\u2014') + '</td>';
                     if (optContent.priceSqft) cma += '<td style="' + cmaTdS + '">' + priceSF(cl) + '</td>';
                     cma += '<td style="' + cmaTdS + '">' + (ownershipLabel(cl.ownership)||'\u2014') + '</td>';
@@ -2812,7 +2825,12 @@
             // Helpers (duplicated from populateReportPreview scope — self-contained for standalone)
             function fc(val) { return val == null || isNaN(val) ? '\u2014' : '$' + Number(val).toLocaleString(); }
             function fp(listing) { return listing.listingCategory === 'rental' ? fc(listing.price) + '/mo' : fc(listing.price); }
-            function psf(listing) { return !listing.intSqft || listing.intSqft === 0 ? '\u2014' : fc(Math.round(listing.price / listing.intSqft)); }
+            // Same denominator-only guard priceSF carried; same correction. See ratioCurrency above.
+            function psf(listing) {
+                if (listing.price == null || isNaN(listing.price)) return '—';
+                if (!listing.intSqft || isNaN(listing.intSqft) || Number(listing.intSqft) === 0) return '—';
+                return fc(Math.round(Number(listing.price) / Number(listing.intSqft)));
+            }
             function da(listing) { return listing.addressDisplayYN === false ? 'Available Upon Request' : listing.address + (listing.unit ? ', ' + listing.unit : ''); }
             function sBadge(s, listing) {
                 var row = (listing && typeof listing === 'object') ? listing : s;

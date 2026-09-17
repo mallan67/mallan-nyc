@@ -216,22 +216,48 @@
             var feat = (typeof apiListing.features === 'object' && apiListing.features) ? apiListing.features : {};
             var agent = (typeof apiListing.agent_info === 'object' && apiListing.agent_info) ? apiListing.agent_info : {};
             var media = Array.isArray(apiListing.media) ? apiListing.media : [];
-            var price = parseFloat(apiListing.list_price) || 0;
+            // ABSENT AND ZERO ARE DIFFERENT FACTS - the same sentence lib/search/crm-idx-mapper.ts:20-21
+            // states and obeys for the PRIMARY path. This fallback hydrator used `|| 0` throughout, so the
+            // two paths that fill the very same `listings` array held opposite null policies: what an agent
+            // saw depended on whether IDX happened to answer. A studio (0 bedrooms) and a listing whose
+            // bedroom count was never recorded became the same value, irrecoverably, because it is written
+            // onto the shared object.
+            //
+            // Mirrors crm-idx-mapper's num(): absent / empty / unparsable -> null; a literal 0 stays 0.
+            var _num = function(v) {
+                if (v === null || v === undefined || v === '') return null;
+                var n = Number(v);
+                return isFinite(n) ? n : null;
+            };
+            var price = _num(apiListing.list_price);
             var isRental = apiListing.listing_type === 'rent';
+            var _fullBaths = _num(apiListing.bathrooms_full);
+            var _halfBaths = _num(apiListing.bathrooms_half);
+            // An annual tax figure divided by 12 is a real monthly number; an ABSENT one is not 0/12.
+            var _annualTax = _num(feat.RealEstateTax);
+            var _reTaxes = _annualTax === null ? null : _annualTax / 12;
+            // A rental's total is its rent. A sale's total is only known when both components are - summing
+            // an unknown tax with an unknown fee produced a confident $0/mo on every fallback-path row.
+            var _fee = _num(feat.AssociationFee);
+            var _totalMonthly = isRental
+                ? price
+                : (_reTaxes === null && _fee === null ? null : (_reTaxes || 0) + (_fee || 0));
 
             return {
                 id: parseInt(apiListing.id) || (index + 1),
                 address: (addr.StreetNumber ? addr.StreetNumber + ' ' : '') + (addr.StreetName || '') + (addr.StreetSuffix ? ' ' + addr.StreetSuffix : ''),
                 unit: addr.UnitNumber || '',
                 price: price,
-                totalMonthly: isRental ? price : (parseFloat(feat.RealEstateTax || 0) / 12 + parseFloat(feat.AssociationFee || 0)),
-                rooms: parseInt(feat.Rooms || 0) || 0,
-                beds: parseInt(apiListing.bedrooms_total) || 0,
-                baths: (parseInt(apiListing.bathrooms_full) || 0) + ((parseInt(apiListing.bathrooms_half) || 0) * 0.5),
-                fullBaths: parseInt(apiListing.bathrooms_full) || 0,
-                halfBaths: parseInt(apiListing.bathrooms_half) || 0,
-                reTaxes: parseFloat(feat.RealEstateTax || 0) / 12,
-                maintCC: parseFloat(feat.AssociationFee || 0),
+                totalMonthly: _totalMonthly,
+                rooms: _num(feat.RoomsTotal !== undefined ? feat.RoomsTotal : feat.Rooms),
+                beds: _num(apiListing.bedrooms_total),
+                // Baths are known only when BOTH components are. A known 2 full plus an unknown half is not
+                // a proven 2.0 - crm-idx-mapper.ts:265-276 makes exactly this distinction.
+                baths: _fullBaths === null || _halfBaths === null ? null : _fullBaths + (_halfBaths * 0.5),
+                fullBaths: _fullBaths,
+                halfBaths: _halfBaths,
+                reTaxes: _reTaxes,
+                maintCC: _num(feat.AssociationFee),
                 intSqft: parseFloat(apiListing.living_area) || null,
                 // Status is a Cotality fact, carried verbatim as the live StandardStatus token with its
                 // per-transaction broker label — the same shape lib/search/crm-idx-mapper.ts ships, so a row

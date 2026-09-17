@@ -1,5 +1,5 @@
 export { fetchComps } from "./fetch-comps";
-export { buildDefaultCriteria } from "./defaults";
+export { buildDefaultCriteria, resolveLegacyDimensions, validateDimensionBounds } from "./defaults";
 export {
   resolveCompStatusCriterion,
   resolveCompStatusCriteria,

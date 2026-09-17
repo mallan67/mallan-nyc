@@ -89,9 +89,11 @@
         properties: {
           id: l.id,
           address: l.address + (l.unit ? ', ' + l.unit : ''),
-          price: l.price || l.listPrice || 0,
-          beds: l.beds || l.bedroomsTotal || 0,
-          baths: l.baths || l.bathroomsFull || 0,
+          // A pin for a listing with no published price is still a pin; it is not a $0 listing.
+          // The marker renderer below already handles an absent figure.
+          price: l.price != null ? l.price : (l.listPrice != null ? l.listPrice : null),
+          beds: l.beds != null ? l.beds : (l.bedroomsTotal != null ? l.bedroomsTotal : null),
+          baths: l.baths != null ? l.baths : (l.bathroomsFull != null ? l.bathroomsFull : null),
           // The exact live Cotality StandardStatus token (or '' when the row has none — never a default),
           // plus the row's own transaction-aware broker label. Both from THE ONE browser authority,
           // public/crm/js/core/status-presentation.js, and read here so the marker/popup never has to touch
@@ -110,7 +112,9 @@
 
   // ── Format price ──
   function fmtPrice(p) {
-    if (!p) return '$0';
+    // `!p` treated an unknown price and a real $0 identically. A genuine zero still prints $0.
+    if (p == null || isNaN(p)) return '—';
+    if (Number(p) === 0) return '$0';
     if (p >= 1000000) return '$' + (p / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
     if (p >= 1000) return '$' + Math.round(p / 1000) + 'K';
     return '$' + p.toLocaleString();

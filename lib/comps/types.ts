@@ -7,10 +7,28 @@
  */
 
 export interface CompRange {
-  beds_min: number;
-  beds_max: number;
-  baths_min: number;
-  baths_max: number;
+  /**
+   * A DIMENSION THAT IS NOT KNOWN IS NOT A ZERO.
+   *
+   * beds/baths used to be non-nullable numbers, which left buildDefaultCriteria no way to say "the
+   * subject's bedroom count was never recorded" except to invent 0 — and `BedroomsTotal ge 0 and
+   * BedroomsTotal le 0` is a STUDIO filter, so a listing with an incomplete record was comped against
+   * studios and priced accordingly. ListingSpecs already modelled the unknown (`beds: number | null`);
+   * only this type could not carry it.
+   *
+   * The shape is not new: sqft has expressed exactly this since the criteria were written — nullable
+   * bounds plus an `_enabled` flag, with sqftFilter() emitting nothing when disabled. beds and baths now
+   * follow the same pattern rather than a second idea.
+   *
+   * A disabled dimension drops only ITS OWN clause. Neighbourhood, price, status, date, ownership and the
+   * other dimensions still filter, so an unknown bedroom count costs the CMA one criterion, not the CMA.
+   */
+  beds_min: number | null;
+  beds_max: number | null;
+  beds_enabled: boolean;
+  baths_min: number | null;
+  baths_max: number | null;
+  baths_enabled: boolean;
   sqft_min: number | null;
   sqft_max: number | null;
   sqft_enabled: boolean;

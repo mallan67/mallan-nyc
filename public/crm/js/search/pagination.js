@@ -15,7 +15,7 @@
          *
          * It refuses rather than guessing: no nearby page, no fall back to page 1, no second paging engine.
          * A null meaning (pre-server state, client-side filtering) is non-exact too — fail closed.
-         * First / Previous / Next are unaffected: they navigate by the CURRENT page, never by the total.
+         * First / Previous only ever move by the CURRENT page. Next increments it, but goToServerPage() then applies a ceiling derived from the total - and only when the count is exact (C4B-FINAL-3).
          */
         function _lastPageIsKnown() {
             // Delegates to the ONE browser expression of the rule (search-engine.js). A last page and a hard
@@ -1315,7 +1315,7 @@
                     listing_id: listing.lid || listing.id,
                     listing_address: listing.address || '',
                     listing_unit: listing.unit || null,
-                    listing_price: Number(listing.price || 0),
+                    listing_price: listing.price == null ? null : Number(listing.price),
                     // The exact live token, or null. Never a fabricated Active.
                     listing_status: (typeof MallanStatus !== 'undefined' && MallanStatus)
                         ? MallanStatus.token(listing)
@@ -2497,8 +2497,8 @@
                 neighborhood: listing.neighborhood || null,
                 listing_type: listing.listingCategory === 'rental' ? 'rental' : 'sale',
                 property_type: listing.ownership || listing.propertyType || null,
-                bedrooms: listing.beds || null,
-                bathrooms: listing.baths || null,
+                bedrooms: listing.beds == null ? null : listing.beds,
+                bathrooms: listing.baths == null ? null : listing.baths,
                 living_area: listing.intSqft || null,
             }).then(function(result) {
                 if (!result || !result.valuation) {
