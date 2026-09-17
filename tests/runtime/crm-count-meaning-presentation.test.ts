@@ -177,10 +177,22 @@ describe('C · interpretation lives in one place, and ships', () => {
   it('the four states are not scattered as string comparisons through the UI', () => {
     const src = read('public/crm/js/search/search-engine.js');
     const code = src.split(/\r?\n/).map((l) => l.replace(/\/\/.*$/, '')).join('\n');
-    // Exactly one place decides what a meaning means.
+    // Exactly one place decides what a meaning MEANS (the wording), and exactly one decides whether it
+    // supports a hard page ceiling (C4B-FINAL-3). Both are canonical helpers; what is banned is the same
+    // decision restated at call sites, which is how the four states drift apart.
     expect(code).toContain('function _countMeaningPresentation');
-    const comparisons = (code.match(/serverCountMeaning === '/g) || []).length;
-    expect({ comparisons }).toEqual({ comparisons: 0 });
+    expect(code).toContain('function _countHasExactPageCeiling');
+    const lines = code.split('\n');
+    const offenders: string[] = [];
+    let current = '';
+    for (const line of lines) {
+      const decl = line.match(/function (_?[A-Za-z0-9_]+)\s*\(/);
+      if (decl) current = decl[1];
+      if (line.includes("serverCountMeaning === '") && current !== '_countHasExactPageCeiling') {
+        offenders.push(current + ': ' + line.trim());
+      }
+    }
+    expect({ offenders }).toEqual({ offenders: [] });
   });
 
   it('the built artifact carries the same helper — source alone is not what ships', () => {

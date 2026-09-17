@@ -17514,8 +17514,12 @@ function manageShowToast(msg) {
                     var _attrEl = document.getElementById('searchAttributionText');
                     if (_attrEl) _attrEl.textContent = result.attribution;
                 }
-                var totalPages = Math.max(1, Math.ceil(searchResultsState.serverTotal / perPage));
-                if (page > totalPages) searchResultsState.currentPage = totalPages;
+                // Rewriting the page downward is only justified by a proven total. From an uncertain one it
+                // would silently move the agent off a page the server may well be able to serve.
+                if (_countHasExactPageCeiling()) {
+                    var totalPages = Math.max(1, Math.ceil(searchResultsState.serverTotal / perPage));
+                    if (page > totalPages) searchResultsState.currentPage = totalPages;
+                }
                 try {
                     if (typeof initializeSearchResults === 'function') initializeSearchResults();
                     if (typeof updateResultsCount === 'function') updateResultsCount();
@@ -17528,6 +17532,14 @@ function manageShowToast(msg) {
                 }
                 _saveSearchState();
                 if (rows.length === 0 && page === 1) showToast('No listings match these criteria.', 'warning');
+                // An empty LATER page used to be invisible: the downward clamp moved the agent off it before
+                // anything rendered. With the clamp gated on an exact count, say what happened — and claim
+                // only that, never that it was the last page unless the count proves one.
+                else if (rows.length === 0 && page > 1) {
+                    showToast(_countHasExactPageCeiling()
+                        ? 'No more listings — page ' + page + ' is past the last page of results.'
+                        : 'No listings returned for page ' + page + '.', 'info');
+                }
             }).catch(function(err) {
                 if (requestSeq !== _serverSearchSeq) return;
                 if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
@@ -17551,11 +17563,37 @@ function manageShowToast(msg) {
         window._serverSearch = _serverSearch;
         // Page navigation asks the executor for the page. Returns false when the
         // current result set is not server-paged (legacy local sets keep their slice).
+        /**
+         * May serverTotal be used as a HARD navigation ceiling?
+         *
+         * Only when the count is exact. The engine's four states (lib/search/engine/universe.ts) say what
+         * the total is worth: a `lower_bound` means there may be MORE, so capping navigation at
+         * ceil(total/perPage) makes real later pages unreachable — the toolbar reads "At least 100 Results"
+         * while Next refuses to pass page 2, and the screen contradicts itself. An `upper_bound` ceiling may
+         * sit past the real end, and `indeterminate` justifies no ceiling at all.
+         *
+         * When there is no exact ceiling the SERVER response decides whether a page has rows. The browser
+         * does not get a second membership engine, and it does not invent a last page. A null meaning is
+         * non-exact too — fail closed to the old behaviour until the server has answered.
+         *
+         * This is the one browser expression of the rule; pagination.js's _lastPageIsKnown() delegates here.
+         */
+        function _countHasExactPageCeiling() {
+            return !!searchResultsState && searchResultsState.serverPaged
+                && searchResultsState.serverTotal != null
+                && searchResultsState.serverCountMeaning === 'exact';
+        }
+        window._countHasExactPageCeiling = _countHasExactPageCeiling;
+
         window.goToServerPage = function(n) {
             if (!searchResultsState || !searchResultsState.serverPaged) return false;
             var perPage = Math.min(Math.max(parseInt(searchResultsState.perPage, 10) || 50, 1), 200);
-            var totalPages = Math.max(1, Math.ceil((searchResultsState.serverTotal || 0) / perPage));
-            n = Math.min(Math.max(parseInt(n, 10) || 1, 1), totalPages);
+            // Floor always; ceiling only from a proven total.
+            n = Math.max(parseInt(n, 10) || 1, 1);
+            if (_countHasExactPageCeiling()) {
+                var totalPages = Math.max(1, Math.ceil((searchResultsState.serverTotal || 0) / perPage));
+                n = Math.min(n, totalPages);
+            }
             if (n === searchResultsState.currentPage) return true;
             searchResultsState.currentPage = n;
             if (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) _serverSearch(activeSearchCriteria);
@@ -29574,9 +29612,9 @@ function emailCurrentCalc() {
          * First / Previous / Next are unaffected: they navigate by the CURRENT page, never by the total.
          */
         function _lastPageIsKnown() {
-            return !!searchResultsState && searchResultsState.serverPaged
-                && searchResultsState.serverTotal != null
-                && searchResultsState.serverCountMeaning === 'exact';
+            // Delegates to the ONE browser expression of the rule (search-engine.js). A last page and a hard
+            // page ceiling are the same fact, so they must not be two implementations that can drift apart.
+            return typeof window._countHasExactPageCeiling === 'function' && window._countHasExactPageCeiling();
         }
         function goToLastPage() {
             if (!_lastPageIsKnown()) {

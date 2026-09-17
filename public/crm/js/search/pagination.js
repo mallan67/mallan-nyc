@@ -18,9 +18,9 @@
          * First / Previous / Next are unaffected: they navigate by the CURRENT page, never by the total.
          */
         function _lastPageIsKnown() {
-            return !!searchResultsState && searchResultsState.serverPaged
-                && searchResultsState.serverTotal != null
-                && searchResultsState.serverCountMeaning === 'exact';
+            // Delegates to the ONE browser expression of the rule (search-engine.js). A last page and a hard
+            // page ceiling are the same fact, so they must not be two implementations that can drift apart.
+            return typeof window._countHasExactPageCeiling === 'function' && window._countHasExactPageCeiling();
         }
         function goToLastPage() {
             if (!_lastPageIsKnown()) {
