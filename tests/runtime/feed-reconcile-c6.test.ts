@@ -34,8 +34,9 @@ jest.mock('@/lib/prisma', () => ({
   default: {
     listing: {
       findMany: jest.fn(async (args: { where: Record<string, unknown> }) => {
-        // First call: ourActive (status Active); second: ourAllRls
-        if ((args.where as { status?: string }).status === 'Active') {
+        // First call: ourActive (every on-market stored status); second: ourAllRls
+        const status = (args.where as { status?: unknown }).status;
+        if (status === 'Active' || (status && typeof status === 'object' && 'in' in (status as object))) {
           return [
             // Active locally but present in the live Pending set → still live → MUST be spared.
             { id: 7n, listing_id: 'RLS-GHOST', status: 'Active' },
@@ -226,7 +227,13 @@ describe('P1C6 — eligible-orphan import (RED on main: Active-only diff)', () =
     await call();
     expect(ghostTransitions).toHaveLength(1);
     const t = ghostTransitions[0] as { where: { id: unknown }; data: Record<string, unknown> };
-    expect(t.data.status).toBe('Withdrawn');
+    // A departed listing has no verified provider reason: its provider status is PRESERVED and the presence fact is
+    // recorded (sync_status off_feed → the Mallan Off Market state). Never Delisted / Withdrawn / any manufactured status.
+    expect(t.data.status).toBe('Active');
+    expect(t.data.sync_status).toBe('off_feed');
+    expect(t.data.idx_display_yn).toBe(false);
+    expect(t.data.status_changed_at).toBeUndefined();
+    expect(t.data.terminal_since).toBeInstanceOf(Date);
     expect(t.where.id).toBe(8n); // RLS-DEPARTED — NOT RLS-GHOST (id 7n, spared)
   });
 

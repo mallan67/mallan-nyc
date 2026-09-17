@@ -1,0 +1,412 @@
+Yes. It is still not doing it right.
+
+The new matrix is useful because it exposes the failure, but I would **not let Claude start fixing from this matrix yet**. The matrix itself contains architectural mistakes.
+
+The biggest one is this:
+
+> “Every one of the 757 live Property fields lands in exactly one declared domain or the generator refuses to run.” 
+
+That is the wrong model.
+
+A Cotality field can legitimately serve **multiple Mallan business domains and multiple downstream consumers**. Forcing every field into exactly one bucket hides impact.
+
+For example:
+
+* `StandardStatus` affects lifecycle, DOM, permissions, Search, alerts, Saved Search, CMA and reports.
+* `Permission` affects Search visibility, public display, portals, private sharing, eblast and compliance.
+* `BuildingFeatures` affects amenities, building search, listing display, reports and CMA.
+* `ListAgentMlsId` affects attribution, agent Search, brokerage identity, compliance and reporting.
+* `VirtualTourURL*` affects media, Search facets, result cards, listing workspace and marketing.
+
+The matrix should therefore be:
+
+**one provider field → one primary semantic meaning → many Mallan readers/consumers**
+
+not:
+
+**one field → one domain.**
+
+That alone can recreate the same “fix one place, break/miss another” problem.
+
+There are several other serious problems.
+
+### Building is classified incorrectly
+
+The new matrix says:
+
+> `Building — PROVIDER-UNAVAILABLE — 403 on this subscription` 
+
+But the previous exhaustive live probe established something more nuanced:
+
+> `Property.Building → Building[]` expanded successfully, while querying the Building entity directly returned 403. 
+
+Those are **not the same capability**.
+
+The correct contract needs separate capabilities:
+
+```text
+Building entity-set direct read:      NO / 403
+Property → Building navigation:       YES
+Building → Media direct relationship: must be tested through entitled path
+Building → Property relationship:     must be tested through entitled path
+```
+
+Calling the entire Building domain `PROVIDER-UNAVAILABLE` can cause Claude to throw away a path Cotality actually gives you.
+
+That is precisely the kind of subsection loss you have been complaining about.
+
+### “Permissions COMPLETE” is wrong
+
+The matrix calls:
+
+> `Permissions & display gates — COMPLETE` 
+
+But the actual Search branch itself already documents two unresolved visibility defects:
+
+* authenticated backend Search over-blocks Cotality `Private`;
+* public display can under-block `owner_opt_out`.
+
+That is in the current remote Search branch evidence itself.
+
+So “all populated fields mapped” is **not the same as business behavior being correct**.
+
+This is a major flaw in the matrix's meaning of `COMPLETE`.
+
+There need to be separate statuses for:
+
+```text
+Provider contract
+Mapping
+Persistence
+Projection
+Search criterion
+Business rule
+Public behavior
+Member behavior
+Private-sharing behavior
+Report/CMA behavior
+Runtime proof
+Production proof
+```
+
+A domain should only say **COMPLETE** when all required stages pass.
+
+### Provider availability and Mallan coverage are being collapsed into one verdict
+
+The current matrix uses things like:
+
+* COMPLETE
+* PARTIAL
+* MISSING
+* PROVIDER-UNAVAILABLE
+
+as one final verdict. 
+
+That hides two completely different questions:
+
+**Can Cotality deliver this?**
+
+and
+
+**Does Mallan support it?**
+
+Those must be separate columns.
+
+For example:
+
+```text
+BuyerAgent
+Provider declared:           YES
+Direct Property scalar:      declared
+Current populated:           NO / suppressed
+Navigation availability:     rejected/empty in current feed
+Mallan mapper:               incomplete
+Mallan persistence:          incomplete
+Mallan future readiness:     incomplete
+```
+
+That is not simply `MISSING` or `PROVIDER-UNAVAILABLE`.
+
+You need both truths.
+
+### “All rows null” does not by itself mean provider-unavailable
+
+Claude reports 221 fields are “provider-suppressed” and null on all 591,597 rows. 
+
+Before those are treated as unavailable, the matrix needs to state **why each field is classified suppressed**:
+
+* explicit Cotality Field/resource permission?
+* rejected `$select`?
+* rejected `$filter`?
+* valid query but all-null corpus?
+* omitted from entitlement?
+* resource unavailable?
+* current population simply happens to be null?
+
+Those are different facts.
+
+An exhaustive null census proves:
+
+> **no values are being delivered today**
+
+It does not automatically prove:
+
+> **the subscription can never deliver this field.**
+
+The matrix needs an evidence column for that distinction.
+
+### Current population cannot redefine the Cotality contract
+
+Claude says the current feed carries only:
+
+`Active, Pending, ComingSoon, Closed`. 
+
+But we just verified live Cotality's actual `StandardStatus` vocabulary has **11 statuses**.
+
+Mallan must support the provider contract, even when some statuses currently have zero rows.
+
+Otherwise the next `Hold`, `Withdrawn`, `Expired`, `ActiveUnderContract`, etc. arrives and Search fails because somebody classified it as “unused.”
+
+So every field/value needs two separate concepts:
+
+```text
+SUPPORTED BY COTALITY CONTRACT
+OBSERVED IN CURRENT FEED
+```
+
+Never collapse those.
+
+### The real root cause is visible now: multiple `$select` authorities
+
+This is probably the most important finding in Claude's whole report:
+
+> “The persisting `$select` is the mapper's, not the runtime's.” 
+
+And therefore:
+
+* some fields exist in runtime Search;
+* different fields exist in sync;
+* different fields reach persistence;
+* different fields reach projection;
+* some values show live but disappear after reload.
+
+That is exactly the architecture you do not want.
+
+The fix should **not** be:
+
+> add Branded2 here, then add Branded3 there, then patch another select next week.
+
+The fix is:
+
+**one verified Cotality selection authority consumed by every appropriate Property reader.**
+
+Conceptually:
+
+```text
+COTALITY LIVE CONTRACT
+        ↓
+canonical entitled field selection
+        ↓
+ ┌────────────┬─────────────┬────────────┬────────────┐
+ sync         live Search   backfill     diagnostics
+        ↓
+canonical mapper
+        ↓
+Mallan storage
+        ↓
+Search projection
+```
+
+There can be purpose-specific smaller selections, but they must be generated/validated against the canonical contract, not hand-maintained unrelated arrays.
+
+Otherwise this exact defect will recur.
+
+### `CustomFields` is much worse than the table makes it look
+
+It says:
+
+> `CustomFields (51 NYC keys, 100% of Active)` → **MISSING**, and all 51 are not persisted. 
+
+That is enormous.
+
+If those 51 keys really occur across the Active population, Mallan is discarding an entire NYC-specific provider data layer.
+
+But I would **not blindly create 51 Search filters**.
+
+The correct sequence is:
+
+```text
+CustomProperty.CustomFields raw payload
+        ↓
+lossless storage
+        ↓
+exhaustive key census
+        ↓
+semantic classification of each key
+        ↓
+exact type/value vocabulary
+        ↓
+determine:
+  search criterion?
+  display-only?
+  compliance?
+  internal/provider metadata?
+        ↓
+verified mapping
+```
+
+First priority is **no data loss**.
+
+### Media remains incomplete
+
+The matrix correctly calls it PARTIAL, but the underlying model still needs correction.
+
+You now know there are:
+
+* Media resource — 56 fields
+* all Media categories, even if current counts are zero
+* six Property virtual-tour URLs
+* VideosCount
+* VideosChangeTimestamp
+* PhotosCount / PhotosChangeTimestamp
+* FloorPlansCount / FloorPlansChangeTimestamp
+* DocumentsCount / DocumentsChangeTimestamp
+
+And those are not interchangeable.
+
+A proper media subsystem must retain each provider fact and derive Mallan business flags afterward.
+
+Not:
+
+```text
+no MediaCategory=Video today
+→ therefore listing has no video
+```
+
+That would be wrong.
+
+### Rooms and UnitTypes being “never pulled” is not a minor defect
+
+The matrix reports:
+
+> `Rooms, UnitTypes — MISSING — resource never pulled` 
+
+That means Search is definitely not complete.
+
+`PropertyRooms` has room-level characteristics.
+
+`PropertyUnitTypes` matters for multifamily, investment properties and rental buildings.
+
+They are not optional sub-features if Mallan is supposed to be a brokerage Search platform.
+
+### Member and Office are still badly incomplete
+
+The report says:
+
+> Agent & office attribution: 80 populated fields, 43 not persisted. 
+
+And:
+
+> Member/Office resources themselves are never pulled; Property carriers are only partly bound. 
+
+That explains why agent/office Search has repeatedly felt shallow.
+
+You can't get a proper brokerage result from:
+
+`ListAgentFullName + ListOfficeName`
+
+alone.
+
+Member and Office are their own provider resources.
+
+### The term `RESO farm / manufactured-home` needs to go
+
+The matrix currently contains:
+
+> `RESO farm / manufactured-home` 
+
+That violates your established architecture rule.
+
+The domain should be something like:
+
+**Farm / agricultural / manufactured-home**
+
+with Cotality as provider authority.
+
+RESO should not become an active Mallan architectural label.
+
+Fix that **before this audit gets pushed**.
+
+---
+
+## I would change Claude's next move
+
+Do **not** let him begin:
+
+> “dead suppressed reads → Tours → Amenities → Agent …”
+
+yet.
+
+That is another linear patch queue.
+
+First fix the matrix model itself.
+
+The matrix needs **two axes plus the entire consumption graph**:
+
+```text
+PROVIDER FACT
+────────────────────────────────────
+Resource
+Field
+Type
+LookupName
+Lookup members
+Declared?
+Selectable?
+Filterable?
+Direct-resource accessible?
+Navigation accessible?
+Current population count?
+Explicitly suppressed?
+Evidence for suppression
+Observed values
+
+MALLAN COVERAGE
+────────────────────────────────────
+Raw selection
+Mapper
+Raw persistence
+Structured persistence
+Projection
+Search criterion
+Sorting
+Result DTO
+Result card
+Listing workspace
+Saved Search
+Alerts
+CMA
+Reports
+Marketing
+Portal/private sharing
+Public consumer
+Compliance rule
+Direct test
+Negative test
+Integration test
+Downstream test
+Preview proof
+Production proof
+```
+
+And importantly:
+
+**one provider field may have multiple Mallan consumer rows.**
+
+Then the verdict can actually mean something.
+
+Right now this new audit has exposed the mess very well. It has **not yet converted it into a safe correction plan**.
+
+And one operational fact remains important: none of Claude's 17 local commits are on GitHub. The remote Search branch is still at `b49a30c…`.
+
+I would keep it that way until he corrects this matrix. Do **not push this version yet**.

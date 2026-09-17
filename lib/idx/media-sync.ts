@@ -1,3 +1,15 @@
+import { derivePermissionGates } from "./trestle-mapper";
+import { cotalityFields } from "@/lib/cotality/contract";
+
+// $select lists for the media lane — compile-checked against the live contract
+// (lib/cotality/contract.ts): a name not declared in $metadata for that resource is a type error.
+// `Permissions` (plural) is NOT a Trestle IDX Plus Property field; `Permission` (singular) is.
+const MEDIA_LANE_PROPERTY_SELECT = cotalityFields("Property", [
+  "ListingId", "ListingKey", "ListingKeyNumeric", "PhotosChangeTimestamp", "ModificationTimestamp",
+  "StandardStatus", "Permission", "MlsStatus", "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
+]);
+// The Media select is the one MEDIA_SELECT_FIELDS (lib/media/listing-media-resolver.ts), read at the call site;
+// UpsertListingMediaInput's names are a subset of it.
 // lib/idx/media-sync.ts
 //
 // Media sync service — Checkpoint 1 (cursor helpers only).
@@ -30,7 +42,7 @@
 import prisma from "@/lib/prisma";
 // Canonical media classification — REUSED here so the persisted summary and the
 // public reader cannot disagree. Do not reimplement it in this module.
-import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
+import { classifyMediaItem, MEDIA_SELECT_FIELDS, PROPERTY_MEDIA_FILTER } from "@/lib/media/listing-media-resolver";
 // THE one R2 policy/retry interpreter. The semantic constants are OWNED there so
 // this module can consume the interpreter without a circular import — that cycle
 // is exactly why the URL-refresh decision below ended up doing its own
@@ -73,6 +85,7 @@ import { CRM_MEDIA_KEY_PREFIX, isCrmMediaKey } from "@/lib/media/crm-media";
 import {
   isMallanExclusiveListing,
   MALLAN_EXCLUSIVE_LISTING_ID_PREFIXES,
+  mallanAuthoredListingWhere,
 } from "@/lib/listings/exclusive-agent-assignment";
 import {
   buildSearchDisplayWhere,
@@ -492,6 +505,8 @@ export interface UpsertListingMediaInput {
   MediaKey?: string | null;
   ResourceRecordKey?: string | null;
   ResourceRecordID?: string | null;
+  /** The owning resource (Media.ResourceName). listing_media stores Property rows only; another owner is counted, never written. */
+  ResourceName?: string | null;
   MediaURL?: string | null;
   MediaCategory?: string | null;
   MediaClassification?: string | null;
@@ -543,7 +558,7 @@ export interface UpsertListingMediaOptions {
  * Input ledger (every incoming `mediaRows` row lands in exactly one bucket) —
  * for a fully-successful listing:
  *   `mediaRows.length` = inserted + updatedChanged + skippedUnchanged
- *                        + skippedInvalid + deleteSignalsReceived
+ *                        + skippedInvalid + skippedForeignOwner + deleteSignalsReceived
  *
  * Physical DB-row writes:
  *   physical_writes = inserted + updatedChanged + tombstonedExplicit
@@ -566,6 +581,8 @@ export interface UpsertListingMediaResult {
   skippedUnchanged: number;
   /** Input rows rejected before any DB work (no MediaKey, non-Public Permission, no MediaURL). */
   skippedInvalid: number;
+  /** Input rows whose ResourceName names another owner (Building / Member / Office / Contacts) — never a listing photo (Maya 2026-09-08). */
+  skippedForeignOwner: number;
   /** Incoming rows carrying `MediaStatus='Deleted'` — counted per INPUT row (duplicates included; not yet a write). */
   deleteSignalsReceived: number;
   /** DB rows actually flipped to `deleted` by the explicit-delete `updateMany` (deduped media_keys; unmatched signals flip zero). */
@@ -1039,6 +1056,7 @@ export async function upsertListingMedia(
   const photosChangeTsSnapshot = parseDate(options.photosChangeTsSnapshot ?? null);
 
   let skippedInvalid = 0;
+  let skippedForeignOwner = 0;
   let deleteSignalsReceived = 0;
   const explicitDeleteKeys = new Set<string>();
   const mapped: MappedMediaRow[] = [];
@@ -1047,6 +1065,14 @@ export async function upsertListingMedia(
     const mediaKey = raw.MediaKey ? String(raw.MediaKey) : null;
     if (!mediaKey) {
       skippedInvalid++;
+      continue;
+    }
+
+    // Owner (Maya 2026-09-08): listing_media stores PROPERTY media only. A Building / Member / Office / Contacts row
+    // that arrives under a listing's key is never written as a listing photo — counted, not flattened. A row without
+    // ResourceName (legacy callers, table-shaped rows) is Property by construction.
+    if (raw.ResourceName != null && String(raw.ResourceName) !== "Property") {
+      skippedForeignOwner++;
       continue;
     }
 
@@ -1364,6 +1390,7 @@ export async function upsertListingMedia(
     updatedChanged,
     skippedUnchanged,
     skippedInvalid,
+    skippedForeignOwner,
     deleteSignalsReceived,
     tombstonedExplicit,
     tombstonedVanished,
@@ -2129,14 +2156,11 @@ export function decideMirrorAdmissionScope(
  * prefix list the canonical helper uses, so the two cannot drift silently.
  */
 export function buildMallanOwnedListingWhere(): Prisma.ListingWhereInput {
-  return {
-    OR: [
-      ...MALLAN_EXCLUSIVE_LISTING_ID_PREFIXES.map((p) => ({
-        listing_id: { startsWith: p },
-      })),
-      { rls_eligible: false },
-    ],
-  };
+  // Delegates to THE canonical source-ownership rule (lib/listings/exclusive-agent-assignment.ts). It previously
+  // inlined `{ rls_eligible: false }` as a second arm, which classified any commercial / website-only row as
+  // Mallan-owned even when the feed had sent it — see that module's header for why that was wrong and what it
+  // would have let the listing-expiration cron write onto another brokerage's listing.
+  return mallanAuthoredListingWhere() as Prisma.ListingWhereInput;
 }
 
 /**
@@ -2877,20 +2901,20 @@ export async function mirrorMediaToR2(
 /**
  * Trestle Property row shape — strict subset of fields `runMediaSync()` reads.
  *
- * Compliance gates use the canonical field names from
- * `lib/idx/trestle-mapper.ts:706-721`:
- *   - `Permission` enum (singular, preferred): values `'OwnerOptOut'` /
- *     `'Owner Opt-Out'` ⟹ owner opt-out gate (REBNY Gate 1); value `'Private'`
- *     ⟹ participant-only gate (REBNY Gate 2).
- *   - `Permissions` (plural) is a legacy variant some Trestle feeds still
- *     return — we accept either.
- *   - `MlsStatus = 'OwnerOptOut'` is an alternate owner-opt-out signal.
+ * Compliance gates use the ONE provider-permission interpretation owned by
+ * `derivePermissionGates` in `lib/idx/trestle-mapper.ts`:
+ *   - `Permission` is a live Multi-Enum provider fact. Display is permitted only
+ *     when every token is the served 'IDX' permission; any other token blocks
+ *     (fail-closed, no member meaning asserted); an absent fact has no effect.
+ *     It derives NO Mallan decision: owner opt-out / participant-only are Mallan
+ *     decisions read from the Mallan side, never from this field.
+ *   - `Permissions` (plural) is NOT a provider field (Trestle returns HTTP 400
+ *     for it) and is never consulted; `MlsStatus` is a status, not a permission.
  *   - `InternetEntireListingDisplayYN` is the master internet display gate
  *     (REBNY Gate 3); false ⟹ block.
  *
  * The shapes `OwnerOptOut: boolean` and `ParticipantOnly: boolean` do NOT
- * exist on Trestle (were never real Trestle fields — see
- * `lib/idx/trestle-mapper.ts:710-712`). Do not reintroduce them.
+ * exist on Trestle (were never real Trestle fields). Do not reintroduce them.
  */
 export interface TrestleProperty {
   ListingId?: string | null;
@@ -2912,9 +2936,8 @@ export interface TrestleProperty {
  *
  * Mirrors `checkDistributionGates()` in `lib/idx/trestle-mapper.ts:706-724`
  * for the gates that are cheap to evaluate per-listing without further joins:
- *   - REBNY Gate 1 (Owner Opt-Out): `Permission`/`Permissions` enum
- *     `'OwnerOptOut'` / `'Owner Opt-Out'` OR `MlsStatus === 'OwnerOptOut'`.
- *   - REBNY Gate 2 (Participant Only): `Permission`/`Permissions` enum `'Private'`.
+ *   - the provider permission fact: `Permission` tokens must all be the served 'IDX' permission
+ *     (derivePermissionGates — no member is read as a Mallan owner-opt-out / participant-only decision).
  *   - REBNY Gate 3 (Internet Display): `InternetEntireListingDisplayYN === false`.
  *
  * Per-row Permission filtering on the Media resource and `MediaStatus='Deleted'`
@@ -2924,16 +2947,12 @@ export interface TrestleProperty {
  * defense-in-depth so a future feed-policy change cannot leak.
  */
 export function isPropertyComplianceBlocked(property: TrestleProperty): boolean {
-  const permission =
-    (typeof property.Permission === "string" ? property.Permission : "") ||
-    (typeof property.Permissions === "string" ? property.Permissions : "");
-  const ownerOptOut =
-    permission === "OwnerOptOut" ||
-    permission === "Owner Opt-Out" ||
-    String(property.MlsStatus || "") === "OwnerOptOut";
-  const participantOnly = permission === "Private";
+  // ONE interpretation of the provider fact (derivePermissionGates): a Permission whose tokens are not all the
+  // served 'IDX' permission blocks; an absent Permission has no effect (the feed serves it on every row).
+  // Owner opt-out / participant-only are Mallan decisions and are not derived here.
+  const providerBlocked = derivePermissionGates(property as Record<string, unknown>).idxPermitted === false;
   const internetDisplayBlocked = property.InternetEntireListingDisplayYN === false;
-  return ownerOptOut || participantOnly || internetDisplayBlocked;
+  return providerBlocked || internetDisplayBlocked;
 }
 
 /** Test-injectable Trestle fetchers. */
@@ -3216,7 +3235,7 @@ export const DEFAULT_PHASE2_RESERVE_MS = 12_000;
  * R2 mirror concurrency for Phase 3. Matches the production-tested pattern
  * in `lib/idx/sync.ts:694` (`MAX_CONCURRENT = 5` inside `migrateMediaToR2`).
  * Trestle's published Media URL ceiling is 480/min ≈ 8/sec
- * (per `data/RLS-FIELD-REGISTRY.md:307-310`); concurrency-5 with sequential
+ * (recorded 2026-03-20 from the provider documentation — live Cotality is the authority); concurrency-5 with sequential
  * batches sustains ~5/sec — comfortably within Trestle's bandwidth budget
  * and matches the proven-production `migrateMediaToR2` cron that has drained
  * 128K+ photos without incident.
@@ -3280,10 +3299,7 @@ export function buildPropertyQuery(cursor: PropertyQueryCursor, top: number): UR
   params.set("$filter", `${timeClause} and ${statuses}`);
   // `Permissions` (plural) is NOT a Trestle IDX Plus Property field — see the
   // doc comment above. Do NOT add it back. `Permission` (singular) is canonical.
-  params.set(
-    "$select",
-    "ListingId,ListingKey,ListingKeyNumeric,PhotosChangeTimestamp,ModificationTimestamp,StandardStatus,Permission,MlsStatus,InternetEntireListingDisplayYN,InternetAddressDisplayYN",
-  );
+  params.set("$select", MEDIA_LANE_PROPERTY_SELECT.join(","));
   params.set("$orderby", "PhotosChangeTimestamp asc,ListingKey asc");
   params.set("$top", String(top));
   return params;
@@ -3346,11 +3362,9 @@ async function defaultFetchMedia(resourceRecordKey: string): Promise<UpsertListi
   const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
   const escaped = resourceRecordKey.replace(/'/g, "''");
   const params = new URLSearchParams();
-  params.set("$filter", `ResourceRecordKey eq '${escaped}'`);
-  params.set(
-    "$select",
-    "MediaKey,ResourceRecordKey,ResourceRecordID,MediaURL,MediaCategory,MediaClassification,MediaStatus,Permission,Order,PreferredPhotoYN,ModificationTimestamp,MediaModificationTimestamp",
-  );
+  // Owner-scoped (Maya 2026-09-08): listing_media stores Property media only.
+  params.set("$filter", `ResourceRecordKey eq '${escaped}' and ${PROPERTY_MEDIA_FILTER}`);
+  params.set("$select", MEDIA_SELECT_FIELDS.join(","));
   params.set("$orderby", "Order asc");
   // Per-page size; the rest of a high-photo listing is followed via @odata.nextLink.
   params.set("$top", String(DEFAULT_MEDIA_PAGE_SIZE));
@@ -3403,7 +3417,7 @@ export const defaultFetchDeps: MediaSyncFetchDeps = {
  *     `Promise.allSettled` and concurrency 5 — matching the proven-
  *     production pattern in `lib/idx/sync.ts:694-708` (`migrateMediaToR2`),
  *     and within Trestle's 480/min Media URL ceiling
- *     (per `data/RLS-FIELD-REGISTRY.md:307-310`). Stops when remaining
+ *     (recorded 2026-03-20 from the provider documentation — live Cotality is the authority). Stops when remaining
  *     time < `phase2ReserveMs`. R2 failures count in `r2_failed` (separate
  *     from source `rows_failed`); the row stays in the backlog for retry.
  *
@@ -3423,8 +3437,8 @@ export const defaultFetchDeps: MediaSyncFetchDeps = {
  *   - Time budget exit ⟹ Phase 2/3/4 still run with whatever was ingested.
  *
  * Compliance:
- *   - Skips listings via `isPropertyComplianceBlocked()` — REBNY Gates 1/2/3
- *     (Owner Opt-Out, Participant Only, Internet Display).
+ *   - Skips listings via `isPropertyComplianceBlocked()` — the provider
+ *     Permission fact (Gate 0) and the Internet Display gate (Gate 3).
  *   - Per-row Permission filter and `MediaStatus='Deleted'` tombstoning are
  *     handled inside `upsertListingMedia()`.
  *

@@ -7,6 +7,46 @@ import { safeBigInt } from "@/lib/utils/safe-bigint";
 import type { Prisma } from "@prisma/client";
 import { assertLeadAccess } from "@/lib/crm/access";
 
+// ── ACTIVITY TYPES OWNED BY GOVERNED SERVER WORKFLOWS.
+//
+//    These are not merely "important" event types. They are the two ANCHORS that
+//    lib/crm/nurture-due.ts trusts to decide a client's six-month relationship cadence:
+//
+//      client_report_sent  + metadata.qualifies_nurture + metadata.delivery_status
+//        written only by POST /api/crm/clients/[id]/report-send, after auth, ownership, an
+//        inactive-client refusal, server-side listing eligibility, a suppression-checked send,
+//        an accepted SMTP result, a recognised substantive report type and current canonical
+//        Nurture membership.
+//
+//      status_change + metadata.new_pipeline_stage
+//        written only by the client PATCH on a real stage transition, and by the sales promote
+//        route.
+//
+//    This endpoint writes caller-supplied activity_type and caller-supplied metadata straight into
+//    the same table behind nothing but lead access. So until now every one of those checks could be
+//    walked around by posting the finished record directly — the governed route could validate
+//    purpose, audience, report class and membership while this one manufactured the same
+//    authoritative row for free. That was survivable while the ledger had no reader. Lane 3
+//    Packet 2 gave it one, which makes it a forgery surface rather than untidiness.
+//
+//    The fix protects the EXISTING ledger rather than adding another. A generic caller keeps the
+//    generic vocabulary; the governed types are refused here and written only where they are earned.
+const SERVER_OWNED_ACTIVITY_TYPES = new Set([
+  "client_report_sent",
+  "client_report_send_failed",
+  "status_change",
+]);
+
+// Metadata keys that carry a canonical DECISION rather than a description. Stripped from generic
+// events as defence in depth: refusing the types above is what closes the forgery, but a future
+// edit that adds a type should not silently reopen it.
+const SERVER_OWNED_METADATA_KEYS = new Set([
+  "qualifies_nurture",
+  "delivery_status",
+  "new_pipeline_stage",
+  "old_pipeline_stage",
+]);
+
 export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
@@ -112,6 +152,19 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // A generic event may not claim to be a governed one. Checked before lead access so the refusal
+  // does not depend on which client was named.
+  if (SERVER_OWNED_ACTIVITY_TYPES.has(String(activity_type))) {
+    return NextResponse.json(
+      {
+        error:
+          "This activity type is written only by the governed workflow that owns it and cannot be created through the generic events endpoint.",
+        activity_type: String(activity_type),
+      },
+      { status: 403 },
+    );
+  }
+
   const leadId = safeBigInt(entity_id);
   if (!leadId) {
     return NextResponse.json({ error: "Invalid entity_id" }, { status: 400 });
@@ -127,9 +180,11 @@ export async function POST(req: NextRequest) {
     const PII_PATTERNS = ['ssn', 'social_security', 'bank_account', 'routing_number', 'passport', 'driver_license', 'credit_card'];
     const cleaned: Record<string, unknown> = {};
     for (const [key, val] of Object.entries(safeMetadata)) {
-      if (!PII_PATTERNS.some(p => key.toLowerCase().includes(p))) {
-        cleaned[key] = val;
-      }
+      if (PII_PATTERNS.some(p => key.toLowerCase().includes(p))) continue;
+      // Canonical decision keys are stripped for the same reason the governed types are refused
+      // above: they are conclusions reached by a workflow, not facts a caller gets to assert.
+      if (SERVER_OWNED_METADATA_KEYS.has(key)) continue;
+      cleaned[key] = val;
     }
     safeMetadata = cleaned;
   }

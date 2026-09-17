@@ -39,7 +39,6 @@ The standalone source files (01-18) were **removed 2026-03-24** as duplicates â€
 
 | File | Lines | Description |
 |------|-------|-------------|
-| `validate-standalone.js` | 760 | 30-check Node.js validator: file structure, function presence, parity |
 
 ### Test Framework
 
@@ -67,7 +66,9 @@ Load `sale-form-doctor.js` or `rental-form-doctor.js` in the respective form pag
 
 ### Node.js Validation
 ```bash
-node scripts/validate-standalone.js validate search
+# (the standalone schema validator was retired 2026-09-08; run the live-contract validators instead)
+npm run rls:validate
+npm run validate:form-rls
 ```
 
 ---

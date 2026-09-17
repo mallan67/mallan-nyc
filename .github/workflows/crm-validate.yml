@@ -32,8 +32,6 @@ jobs:
             dashboard.html
             SALE-FORM-REDESIGN.html
             RENTAL-FORM-REDESIGN.html
-            SALE-FORM-WITH-TOOLS.html
-            RENTAL-FORM-WITH-TOOLS.html
             BUYER-DEAL-FORM.html
             TENANT-DEAL-FORM.html
           )
@@ -61,7 +59,11 @@ jobs:
           echo "Checking viewer files for write paths..."
           FAIL=0
 
-          for file in SALE-FORM-WITH-TOOLS.html RENTAL-FORM-WITH-TOOLS.html; do
+          # The read-only viewer forks (SALE/RENTAL-FORM-WITH-TOOLS.html) were DELETED 2026-09-09:
+          # stale forks carrying wrong NY mansion-tax bands, an undisclosed 6% commission
+          # assumption, an unreviewed IDX disclaimer variant, and attribution fields the
+          # canonical form had deliberately removed. There are no viewer surfaces left.
+          for file in ; do
             if [ -f "$file" ]; then
               # Check for form tags with action/method
               if grep -qE '<form[^>]+(action=|method=)' "$file" 2>/dev/null; then
@@ -109,8 +111,6 @@ jobs:
             dashboard.html
             SALE-FORM-REDESIGN.html
             RENTAL-FORM-REDESIGN.html
-            SALE-FORM-WITH-TOOLS.html
-            RENTAL-FORM-WITH-TOOLS.html
             BUYER-DEAL-FORM.html
             TENANT-DEAL-FORM.html
           )
@@ -150,8 +150,6 @@ jobs:
             dashboard.html
             SALE-FORM-REDESIGN.html
             RENTAL-FORM-REDESIGN.html
-            SALE-FORM-WITH-TOOLS.html
-            RENTAL-FORM-WITH-TOOLS.html
             BUYER-DEAL-FORM.html
             TENANT-DEAL-FORM.html
           )

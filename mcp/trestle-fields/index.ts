@@ -19,8 +19,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { XMLParser } from 'fast-xml-parser';
-import * as fs from 'fs';
-import * as path from 'path';
 import { z } from 'zod';
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -33,7 +31,6 @@ const METADATA_URL = `${TRESTLE_BASE}/odata/$metadata`;
 // CDN default from the live response), which is not a metadata-refresh instruction. Env-overridable.
 const CACHE_TTL_MS = Number(process.env.TRESTLE_METADATA_TTL_MS) || 10 * 60 * 1000; // 10 minutes
 const CACHE_TTL_MIN = Math.round(CACHE_TTL_MS / 60000);
-const LOCAL_METADATA_FALLBACK = path.resolve(__dirname, '../../artifacts/metadata.xml');
 
 // Known resources on Trestle (for validation + listing)
 const KNOWN_RESOURCES = [
@@ -327,15 +324,9 @@ async function getMetadata(): Promise<ParsedMetadata> {
     auditLog('metadata_fetch_error', { error: err.message, source: 'live' });
   }
 
-  // Fallback to local metadata.xml if live fetch failed
-  if (!xml && fs.existsSync(LOCAL_METADATA_FALLBACK)) {
-    xml = fs.readFileSync(LOCAL_METADATA_FALLBACK, 'utf-8');
-    auditLog('metadata_fetch', { source: 'local_fallback', path: LOCAL_METADATA_FALLBACK });
-  }
-
   if (!xml) {
     throw new Error(
-      '[trestle-fields] Could not fetch $metadata from Trestle and no local fallback found. ' +
+      '[trestle-fields] Could not fetch $metadata from the live Cotality API. There is no snapshot fallback (live-only authority) — the answer is UNVERIFIED until the live fetch succeeds. ' +
       'Check IDX_CLIENT_ID, IDX_CLIENT_SECRET, and network connectivity.'
     );
   }

@@ -13,7 +13,7 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { REBNY_FIELD_TABLES } from '@/lib/compliance/rebny-field-tables';
+import { REBNY_UCBA_RULES } from '@/lib/compliance/rebny-ucba-rules';
 
 const formHtml = readFileSync(resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'), 'utf8');
 
@@ -47,7 +47,7 @@ describe('Cotality-clean sweep — type/enum corrections', () => {
 });
 
 describe('Cotality-clean sweep — phantom fields removed from mandatory list', () => {
-  const required = REBNY_FIELD_TABLES.requiredFields.agentSubmitted as readonly string[];
+  const required = REBNY_UCBA_RULES.requiredFields.agentSubmitted as readonly string[];
   it.each(['CoBrokeAgreement', 'AttendanceType', 'BuildingLaundryFeatures', 'BuildingPetsAllowed'])(
     'phantom "%s" (absent from live $metadata) is NOT mandatory',
     (field) => {

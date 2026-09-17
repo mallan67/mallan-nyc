@@ -47,7 +47,7 @@ function buildTrestleRow(extras: Record<string, unknown> = {}): Record<string, u
     ListOfficeMlsId: "O-1",
     InternetEntireListingDisplayYN: true,
     InternetAddressDisplayYN: true,
-    Permissions: "Public",
+    Permission: "IDX", // the only member the authorized IDX Plus feed serves; the only token derivePermissionGates permits
     Media: [],
     ...extras,
   };
@@ -90,11 +90,19 @@ describe("S1 — mapper stops writing the redundant compliance copy", () => {
     expect(r.compliance).toEqual({}); // still no compliance copy
   });
 
-  it("owner opt-out / participant gates still computed (independent of compliance JSON)", () => {
-    const optOut = mapTrestleToPrisma(buildTrestleRow({ Permissions: "OwnerOptOut" }));
-    expect(optOut.owner_opt_out).toBe(true);
-    const priv = mapTrestleToPrisma(buildTrestleRow({ Permissions: "Private" }));
+  it("a non-IDX provider Permission token still blocks display (independent of compliance JSON); owner_opt_out is never derived, Private sets participant_only (owner ruling 2026-09-07)", () => {
+    // owner_opt_out is a Mallan decision the provider field never derives; the provider field answers
+    // whether the served 'IDX' permission is present (Packet 2, 2026-09-06). The 'Private' member has a
+    // DEFINED Mallan meaning — participant-only (owner ruling 2026-09-07, commit 4f742c0e; mapper
+    // deriveProviderPermission).
+    const other = mapTrestleToPrisma(buildTrestleRow({ Permission: "Officeidxoptout" }));
+    expect(other.idx_display_yn).toBe(false);
+    expect(other.owner_opt_out).toBe(false);
+    expect(other.participant_only).toBe(false);
+    const priv = mapTrestleToPrisma(buildTrestleRow({ Permission: "Private" }));
+    expect(priv.idx_display_yn).toBe(false);
     expect(priv.participant_only).toBe(true);
+    expect(priv.compliance).toEqual({});
   });
 });
 

@@ -15,18 +15,23 @@ import {
 } from '../../lib/search/visibility-contract';
 
 const ALL_STATUSES: LifecycleStatus[] = [
-  'active', 'pending', 'temp_off_market', 'withdrawn', 'canceled', 'expired', 'closed_sold', 'closed_rented', 'unknown',
+  'active', 'in_contract', 'temp_off_market', 'withdrawn', 'canceled', 'expired', 'off_market', 'closed_sold', 'closed_rented', 'unknown',
 ];
 
 const V = (audience: Audience, status: LifecycleStatus, source: Source, transactionType: 'sale' | 'rental' = 'sale') =>
   resolveVisibility({ audience, status, source, transactionType, usage: 'comp' });
 
 describe('resolveVisibility — public audience', () => {
-  it('allows the active-display family (Active/ComingSoon/AUC) but BLOCKS true Pending', () => {
+  it('allows the active-display family AND In Contract (the IDX Plus feed delivers Pending under Permission IDX)', () => {
     expect(V('public', 'active', 'mls').allowed).toBe(true);
-    // ActiveUnderContract maps to the 'active' bucket (public); signed-contract
-    // 'Pending' is hidden publicly (matches lib/compliance/status.ts).
-    expect(V('public', 'pending', 'mls').allowed).toBe(false);
+    // Maya 2026-09-08: In Contract listings appear publicly with that label. The feed's only in-contract
+    // status is Pending (5,590 live rows); ActiveUnderContract never arrives.
+    expect(V('public', 'in_contract', 'mls').allowed).toBe(true);
+  });
+
+  it('BLOCKS an Off Market listing (off the feed, reason not delivered) publicly; agents still see it', () => {
+    expect(V('public', 'off_market', 'mls').allowed).toBe(false);
+    expect(V('agent', 'off_market', 'mls').allowed).toBe(true);
   });
 
   it('allows ACRIS closed_sold publicly', () => {
@@ -105,9 +110,12 @@ describe('toLifecycleStatus — provider StandardStatus → lifecycle (sold ≠ 
   it('maps the active family and off-market statuses', () => {
     expect(toLifecycleStatus('Active', 'sale')).toBe('active');
     expect(toLifecycleStatus('Coming Soon', 'sale')).toBe('active');
-    // ActiveUnderContract → active (public-displayable); Pending stays hidden.
-    expect(toLifecycleStatus('Active Under Contract', 'sale')).toBe('active');
-    expect(toLifecycleStatus('Pending', 'sale')).toBe('pending');
+    // Pending and ActiveUnderContract are both In Contract (the feed's in-contract status is Pending).
+    expect(toLifecycleStatus('Active Under Contract', 'sale')).toBe('in_contract');
+    expect(toLifecycleStatus('Pending', 'sale')).toBe('in_contract');
+    expect(toLifecycleStatus('Off Market', 'sale')).toBe('off_market');
+    expect(toLifecycleStatus('off_market', 'sale')).toBe('off_market');
+    expect(toLifecycleStatus('Delisted', 'sale')).toBe('unknown');
     expect(toLifecycleStatus('Hold', 'sale')).toBe('temp_off_market');
     expect(toLifecycleStatus('Withdrawn', 'sale')).toBe('withdrawn');
     expect(toLifecycleStatus('Cancelled', 'sale')).toBe('canceled');

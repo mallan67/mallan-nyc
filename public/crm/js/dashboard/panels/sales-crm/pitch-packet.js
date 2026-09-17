@@ -40,7 +40,9 @@ var PitchPacket = (function () {
       '<i class="fas fa-spinner fa-spin text-gold text-xl"></i>' +
       '<span class="text-sm text-gray-500 ml-2">Loading comps...</span></div>';
 
-    MallanAPI._fetch('/api/crm/sales/prospects/' + id + '/comps')
+    // A sale pitch packet compares SALES: the transaction travels with the request so the server filters
+    // PropertyType eq 'Residential' and StandardStatus eq 'Closed' (Maya, 2026-09-08 — sale and rental never mix).
+    MallanAPI._fetch('/api/crm/sales/prospects/' + id + '/comps?transaction=sale')
       .then(function (data) {
         _comps = data.comps || [];
         _overrides = data.overrides || {};
@@ -88,6 +90,21 @@ var PitchPacket = (function () {
   // =====================================================================
   // SECTION A: COMP MANAGER
   // =====================================================================
+  /**
+   * Seller transfer tax for a NYC residential sale: NYC RPTT + NYS transfer tax, both from the
+   * ONE authority in js/calc/transaction-costs.js.
+   *
+   * FAILS CLOSED. If the core is not loaded this throws rather than falling back to a local rate —
+   * a silent fallback is how the fifth copy of these tables got written in the first place.
+   */
+  function _sellerTransferTax(price) {
+    if (typeof CrmCalc === 'undefined' || !CrmCalc) {
+      throw new Error('PitchPacket requires js/calc/transaction-costs.js — refusing to quote a seller net with a local tax rate.');
+    }
+    var p = Number(price) || 0;
+    return Math.round(p * CrmCalc.rpttRate(p)) + Math.round(p * CrmCalc.nysTransferRate(p));
+  }
+
   function _renderCompManager() {
     var pid = E(String(_prospect.id));
     var h = '<div class="bg-white border border-gray-200 rounded-xl p-5">';
@@ -150,6 +167,8 @@ var PitchPacket = (function () {
         h += '<span>' + (r.beds || '-') + 'bd/' + (r.baths || '-') + 'ba</span>';
         h += '<span>' + (r.sqft ? Number(r.sqft).toLocaleString() + ' sqft' : '-') + '</span>';
         h += '<span>' + (r.close_date ? D(r.close_date) : '-') + '</span>';
+        // the broker word for this comp's transaction, supplied by the server ("Sold" on a sale)
+        h += '<span class="text-green-700 font-semibold">' + E(r.status_label || r.status || '') + '</span>';
         if (r.mls_id) h += '<span class="text-gray-400">' + E(r.mls_id) + '</span>';
         h += '</div></div>';
         if (alreadyAdded) {
@@ -235,11 +254,16 @@ var PitchPacket = (function () {
     var commRate = _overrides.commission_rate != null ? Number(_overrides.commission_rate) : 0.06;
     var attFees  = _overrides.attorney_fees != null ? Number(_overrides.attorney_fees) : 3000;
 
-    // Calculate transfer tax (NYC rules)
-    var transferTaxRate = estValue >= 500000 ? 0.01425 : 0.01;
+    // Transfer tax comes from the ONE New York transaction-tax authority.
+    //
+    // This used to be `estValue >= 500000 ? 0.01425 : 0.01` — NYC RPTT only. It silently omitted
+    // the NYS transfer tax (0.40% below $3M, 0.65% at or above), so every seller pitch overstated
+    // net proceeds by 0.4% of the asking price: $8,000 on a $2M listing, $22,750 on a $3.5M one.
+    // It survived because the one-tax-authority guard exempted js/dashboard/** as "the retired
+    // shell". The CRM is not retired; the exemption is gone and so is this copy.
     var commission = Math.round(estValue * commRate);
-    var transferTax = Math.round(estValue * transferTaxRate);
     var mortgagePayoff = Number(_prospect.mortgage_amount) || 0;
+    var transferTax = _sellerTransferTax(estValue);
     var netProceeds = estValue - commission - transferTax - attFees - mortgagePayoff;
     var lastPurchase = Number(_prospect.last_purchase_price) || 0;
     var equityGain = lastPurchase > 0 ? (estValue - lastPurchase) : 0;
@@ -436,7 +460,7 @@ var PitchPacket = (function () {
     var id = _prospect.id;
     CRM.toast('Searching comps...', 'info');
 
-    MallanAPI._fetch('/api/crm/sales/prospects/' + id + '/comps?q=' + encodeURIComponent(q))
+    MallanAPI._fetch('/api/crm/sales/prospects/' + id + '/comps?transaction=sale&q=' + encodeURIComponent(q))
       .then(function (data) {
         _searchResults = data.results || [];
         if (_searchResults.length === 0) {
@@ -456,6 +480,12 @@ var PitchPacket = (function () {
     var comp = _searchResults[idx];
     if (!comp) return;
 
+    // Fail closed: the server only returns dated, priced closings, but a comp is never added on trust.
+    if (comp.status !== 'Closed' || !comp.close_date || !(Number(comp.close_price) > 0)) {
+      CRM.toast('Only closed sales with a closing date and price can be used as comps', 'error');
+      return;
+    }
+
     // Prevent duplicates
     var exists = _comps.some(function (c) { return c.mls_id === comp.mls_id; });
     if (exists) {
@@ -463,6 +493,7 @@ var PitchPacket = (function () {
       return;
     }
 
+    comp.transaction = 'sale';
     comp.added_at = new Date().toISOString();
     _comps.push(comp);
     CRM.toast('Added: ' + (comp.address || comp.mls_id), 'success');
@@ -495,7 +526,7 @@ var PitchPacket = (function () {
     MallanAPI._fetch('/api/crm/sales/prospects/' + id + '/comps', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ comps: _comps, overrides: _overrides })
+      body: JSON.stringify({ transaction: 'sale', comps: _comps, overrides: _overrides })
     })
       .then(function () {
         CRM.toast('Comps saved', 'success');
@@ -554,8 +585,14 @@ var PitchPacket = (function () {
         if (data.property_intel && data.property_intel.recent_sales) {
           var newComps = data.property_intel.recent_sales;
           newComps.forEach(function (nc) {
+            // Only a proven CLOSED sale with its own closing date and price is a comparable. An active asking
+            // price is market context, and a closing is never dated by anything but its CloseDate.
+            var isClosedSale = nc.status === 'Closed' && !!nc.close_date && Number(nc.close_price) > 0;
+            if (!isClosedSale) return;
             var exists = _comps.some(function (c) { return c.mls_id === nc.mls_id; });
             if (!exists) {
+              nc.transaction = 'sale';
+              nc.status_label = 'Sold';
               nc.added_at = new Date().toISOString();
               _comps.push(nc);
             }

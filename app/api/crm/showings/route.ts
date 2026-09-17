@@ -8,6 +8,7 @@ import { safeBigInt } from "@/lib/utils/safe-bigint";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { showingConfirmEmail } from "@/lib/email/templates";
 import { escapeHtml } from "@/lib/sanitize";
+import { isComingSoonStatus } from "@/lib/compliance/status";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
@@ -141,6 +142,18 @@ export async function POST(req: NextRequest) {
   }
   if (!listing) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+  }
+
+  // UCBA Art. I §16 — no showings on a Coming Soon listing before ActivationDate.
+  // This is a TRANSACTION rule, not a display rule: Coming Soon is deliberately displayable
+  // (lib/compliance/status.ts:133,141), so isListingDisplayable() neither does nor should refuse one and
+  // cannot carry this prohibition. Placed after listing resolution and before EVERY mutation — the
+  // Showing row, the follow-up task, the audit event and the client confirmation email.
+  if (isComingSoonStatus(listing.status)) {
+    return NextResponse.json(
+      { error: "Showings are not permitted for Coming Soon listings" },
+      { status: 422 }
+    );
   }
 
   // Optional: resolve lead (client)

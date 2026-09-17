@@ -64,12 +64,13 @@ function terminalRow(id: number, over = {}): any {
 describe("archiveEligibilityWhere — only eligible terminal rows", () => {
   const now = new Date("2026-06-29T00:00:00Z");
 
-  it("flag-ON clock = stable terminal_since; no OR, no status_changed_at", () => {
+  it("flag-ON clock = stable terminal_since; the population is terminal OR off_feed; no status_changed_at", () => {
     const w = archiveEligibilityWhere({ now, clock: "terminal_since" }) as Record<string, any>;
-    expect(w.status).toEqual({ in: ARCHIVE_TERMINAL_STATUSES });
+    // A terminal provider status OR a row recorded off the feed (Maya 2026-09-08: its provider status is preserved).
+    expect(w.OR).toEqual([{ status: { in: ARCHIVE_TERMINAL_STATUSES } }, { sync_status: "off_feed" }]);
+    expect(w.status).toBeUndefined();
     expect(w.sync_status).toEqual({ not: "archived" });
     expect(w.terminal_since.lt).toBeInstanceOf(Date);
-    expect(w.OR).toBeUndefined();
     expect(w.status_changed_at).toBeUndefined();
     // cutoff is now - 180d
     expect((w.terminal_since.lt as Date).getTime()).toBe(now.getTime() - 180 * 24 * 60 * 60 * 1000);
@@ -135,7 +136,7 @@ describe("archiveOneListing — guarded strip re-checks eligibility inside the w
     expect(res.skipped).toBeFalsy();
     const w = calls.updateMany[0].where;
     expect(w.id).toBe(1);
-    expect(w.status).toEqual({ in: ARCHIVE_TERMINAL_STATUSES }); // not by id alone
+    expect(w.OR).toEqual([{ status: { in: ARCHIVE_TERMINAL_STATUSES } }, { sync_status: "off_feed" }]); // not by id alone
     expect(w.sync_status).toEqual({ not: "archived" });
     expect(w.terminal_since.lt).toBeInstanceOf(Date);
     expect(calls.updateMany[0].data).toBe(ARCHIVE_STRIP_DATA);

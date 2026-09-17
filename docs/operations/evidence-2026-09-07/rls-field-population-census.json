@@ -1,0 +1,1387 @@
+{
+ "generated": "2026-09-07T13:26:50.655Z",
+ "activeListings": 0,
+ "rlsScopedFields": 230,
+ "rows": [
+  {
+   "n": "ClosePrice",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CloseDate",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CityRegion",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "City",
+   "pct": 0,
+   "c": 0,
+   "lookup": "City"
+  },
+  {
+   "n": "BuyerOfficeURL",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "BuyerOfficePhone",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "BuyerOfficeName",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "BuyerOfficeMlsId",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "BuyerOfficeKeyNumeric",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "BuyerOfficeKey",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "BuyerOfficeAOR",
+   "pct": 0,
+   "c": 0,
+   "lookup": "AOR"
+  },
+  {
+   "n": "BuyerAgentURL",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "BuyerAgentStateLicense",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "AccessibilityFeatures",
+   "pct": 0,
+   "c": 0,
+   "lookup": "AccessibilityFeatures"
+  },
+  {
+   "n": "BuyerAgentPreferredPhone",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "BuyerAgentMobilePhone",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "ActivationDate",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "X_GeocodeSource",
+   "pct": 0,
+   "c": 0,
+   "lookup": "GeocodeSource"
+  },
+  {
+   "n": "DaysOnMarketReplicationIncreasingYN",
+   "pct": 0,
+   "c": 0,
+   "lookup": "__Nucleus_DOM_ActiveYN"
+  },
+  {
+   "n": "DaysOnMarketReplicationDate",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "DaysOnMarketReplication",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "BasementYN",
+   "pct": 0,
+   "c": 0,
+   "lookup": "BasementYN"
+  },
+  {
+   "n": "BuyerAgentMlsId",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "PropertySubTypeAdditional",
+   "pct": 0,
+   "c": 0,
+   "lookup": "PropertySubTypeAdditional"
+  },
+  {
+   "n": "Nucleus_RecordDeleteFlag",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "OriginatingSystemCoListOfficeKey",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "OriginatingSystemBuyerOfficeKey",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "OriginatingSystemListOfficeKey",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "OriginatingSystemCoListAgentMemberKey",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "OriginatingSystemBuyerAgentMemberKey",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "OriginatingSystemListAgentMemberKey",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "BuyerAgentMiddleName",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "Nucleus_RETSClass",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "SecurityDeposit",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "OriginatingSystemSubName",
+   "pct": 0,
+   "c": 0,
+   "lookup": "OriginatingSystemSubName"
+  },
+  {
+   "n": "ZoningDescription",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "Permission",
+   "pct": 0,
+   "c": 0,
+   "lookup": "ListingPermission"
+  },
+  {
+   "n": "PermissionPrivate",
+   "pct": 0,
+   "c": 0,
+   "lookup": "PermissionPrivate"
+  },
+  {
+   "n": "BuyerAgentLastName",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "YearBuilt",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "WithdrawnDate",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "WindowFeatures",
+   "pct": 0,
+   "c": 0,
+   "lookup": "WindowFeatures"
+  },
+  {
+   "n": "BuyerAgentKeyNumeric",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "VirtualTourURLUnbranded",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "VirtualTourURLBranded",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "ViewYN",
+   "pct": 0,
+   "c": 6817,
+   "lookup": "ViewYN"
+  },
+  {
+   "n": "View",
+   "pct": 0,
+   "c": 4796,
+   "lookup": "View"
+  },
+  {
+   "n": "VideosChangeTimestamp",
+   "pct": 0,
+   "c": 7427,
+   "lookup": ""
+  },
+  {
+   "n": "BuyerAgentKey",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "UnparsedAddress",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "UnitNumber",
+   "pct": 0,
+   "c": 6782,
+   "lookup": ""
+  },
+  {
+   "n": "TaxLot",
+   "pct": 0,
+   "c": 7572,
+   "lookup": ""
+  },
+  {
+   "n": "BuyerAgentFullName",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "TaxBlock",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "TaxAnnualAmount",
+   "pct": 0,
+   "c": 3141,
+   "lookup": ""
+  },
+  {
+   "n": "SubdivisionName",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "BuyerAgentFirstName",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "StructureType",
+   "pct": 0,
+   "c": 6762,
+   "lookup": "StructureType"
+  },
+  {
+   "n": "StreetSuffix",
+   "pct": 0,
+   "c": 7422,
+   "lookup": "StreetSuffix"
+  },
+  {
+   "n": "StreetNumberNumeric",
+   "pct": 0,
+   "c": 7563,
+   "lookup": ""
+  },
+  {
+   "n": "StreetNumber",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "StreetName",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "StreetDirSuffix",
+   "pct": 0,
+   "c": 281,
+   "lookup": "StreetDirection"
+  },
+  {
+   "n": "StreetDirPrefix",
+   "pct": 0,
+   "c": 3187,
+   "lookup": "StreetDirection"
+  },
+  {
+   "n": "StreetAdditionalInfo",
+   "pct": 0,
+   "c": 6073,
+   "lookup": ""
+  },
+  {
+   "n": "StoriesTotal",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "StatusChangeTimestamp",
+   "pct": 0,
+   "c": 7465,
+   "lookup": ""
+  },
+  {
+   "n": "StateOrProvince",
+   "pct": 0,
+   "c": 7573,
+   "lookup": "StateOrProvince"
+  },
+  {
+   "n": "StandardStatus",
+   "pct": 0,
+   "c": 7573,
+   "lookup": "StandardStatus"
+  },
+  {
+   "n": "SpecialListingConditions",
+   "pct": 0,
+   "c": 6794,
+   "lookup": "SpecialListingConditions"
+  },
+  {
+   "n": "SpaFeatures",
+   "pct": 0,
+   "c": 693,
+   "lookup": "SpaFeatures"
+  },
+  {
+   "n": "BuyerAgentEmail",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "SourceSystemName",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "SourceSystemKey",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "SourceSystemID",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "ShowingStartTime",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "ShowingInstructions",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "ShowingEndTime",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "BuyerAgentDirectPhone",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "RoomType",
+   "pct": 0,
+   "c": 57,
+   "lookup": "RoomType"
+  },
+  {
+   "n": "RoomsTotal",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "BuyerAgentAOR",
+   "pct": 0,
+   "c": 0,
+   "lookup": "AOR"
+  },
+  {
+   "n": "PurchaseContractDate",
+   "pct": 0,
+   "c": 180,
+   "lookup": ""
+  },
+  {
+   "n": "PropertyType",
+   "pct": 0,
+   "c": 7573,
+   "lookup": "PropertyType"
+  },
+  {
+   "n": "BuyerBrokerageCompensationType",
+   "pct": 0,
+   "c": 0,
+   "lookup": "CompensationType"
+  },
+  {
+   "n": "PropertySubType",
+   "pct": 0,
+   "c": 7561,
+   "lookup": "PropertySubType"
+  },
+  {
+   "n": "PropertyCondition",
+   "pct": 0,
+   "c": 0,
+   "lookup": "PropertyCondition"
+  },
+  {
+   "n": "PrivateRemarks",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "PriceChangeTimestamp",
+   "pct": 0,
+   "c": 7284,
+   "lookup": ""
+  },
+  {
+   "n": "PreviousListPrice",
+   "pct": 0,
+   "c": 2634,
+   "lookup": ""
+  },
+  {
+   "n": "PostalCodePlus4",
+   "pct": 0,
+   "c": 167,
+   "lookup": ""
+  },
+  {
+   "n": "BuyerBrokerageCompensation",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "PostalCode",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "PostalCity",
+   "pct": 0,
+   "c": 7573,
+   "lookup": "PostalCity"
+  },
+  {
+   "n": "PhotosCount",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "PhotosChangeTimestamp",
+   "pct": 0,
+   "c": 7571,
+   "lookup": ""
+  },
+  {
+   "n": "PetsAllowed",
+   "pct": 0,
+   "c": 7573,
+   "lookup": "PetsAllowed"
+  },
+  {
+   "n": "PendingTimestamp",
+   "pct": 0,
+   "c": 200,
+   "lookup": ""
+  },
+  {
+   "n": "PatioAndPorchFeatures",
+   "pct": 0,
+   "c": 5024,
+   "lookup": "PatioAndPorchFeatures"
+  },
+  {
+   "n": "ParkingFeatures",
+   "pct": 0,
+   "c": 760,
+   "lookup": "ParkingFeatures"
+  },
+  {
+   "n": "OwnerPays",
+   "pct": 0,
+   "c": 16,
+   "lookup": "OwnerPays"
+  },
+  {
+   "n": "OtherEquipment",
+   "pct": 0,
+   "c": 240,
+   "lookup": "OtherEquipment"
+  },
+  {
+   "n": "OriginatingSystemName",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "BuildingName",
+   "pct": 0,
+   "c": 3720,
+   "lookup": ""
+  },
+  {
+   "n": "OriginatingSystemKey",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "OriginatingSystemID",
+   "pct": 0,
+   "c": 194,
+   "lookup": ""
+  },
+  {
+   "n": "OriginalListPrice",
+   "pct": 0,
+   "c": 7174,
+   "lookup": ""
+  },
+  {
+   "n": "OriginalEntryTimestamp",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "OnMarketTimestamp",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "OnMarketDate",
+   "pct": 0,
+   "c": 7572,
+   "lookup": ""
+  },
+  {
+   "n": "BuildingFeatures",
+   "pct": 0,
+   "c": 6232,
+   "lookup": "BuildingFeatures"
+  },
+  {
+   "n": "OffMarketTimestamp",
+   "pct": 0,
+   "c": 19,
+   "lookup": ""
+  },
+  {
+   "n": "OffMarketDate",
+   "pct": 0,
+   "c": 11,
+   "lookup": ""
+  },
+  {
+   "n": "OccupantType",
+   "pct": 0,
+   "c": 0,
+   "lookup": "OccupantType"
+  },
+  {
+   "n": "NumberOfUnitsVacant",
+   "pct": 0,
+   "c": 17,
+   "lookup": ""
+  },
+  {
+   "n": "NumberOfUnitsTotal",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "BuildingAreaUnits",
+   "pct": 0,
+   "c": 1571,
+   "lookup": "AreaUnits"
+  },
+  {
+   "n": "NewConstructionYN",
+   "pct": 0,
+   "c": 7573,
+   "lookup": "NewConstructionYN"
+  },
+  {
+   "n": "BuildingAreaTotal",
+   "pct": 0,
+   "c": 1571,
+   "lookup": ""
+  },
+  {
+   "n": "MlsStatus",
+   "pct": 0,
+   "c": 0,
+   "lookup": "MlsStatus"
+  },
+  {
+   "n": "MajorChangeType",
+   "pct": 0,
+   "c": 5238,
+   "lookup": "ChangeType"
+  },
+  {
+   "n": "MajorChangeTimestamp",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "LotSizeUnits",
+   "pct": 0,
+   "c": 2573,
+   "lookup": "LotSizeUnits"
+  },
+  {
+   "n": "LotSizeDimensions",
+   "pct": 0,
+   "c": 2570,
+   "lookup": ""
+  },
+  {
+   "n": "LotSizeArea",
+   "pct": 0,
+   "c": 2574,
+   "lookup": ""
+  },
+  {
+   "n": "Longitude",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "LivingAreaUnits",
+   "pct": 0,
+   "c": 7573,
+   "lookup": "AreaUnits"
+  },
+  {
+   "n": "LivingArea",
+   "pct": 0,
+   "c": 5918,
+   "lookup": ""
+  },
+  {
+   "n": "ListPrice",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "ListOfficeURL",
+   "pct": 0,
+   "c": 6942,
+   "lookup": ""
+  },
+  {
+   "n": "ListOfficePhone",
+   "pct": 0,
+   "c": 7569,
+   "lookup": ""
+  },
+  {
+   "n": "ListOfficeName",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "ListOfficeMlsId",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "ListOfficeKeyNumeric",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "ListOfficeKey",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "ListOfficeEmail",
+   "pct": 0,
+   "c": 1067,
+   "lookup": ""
+  },
+  {
+   "n": "ListOfficeAOR",
+   "pct": 0,
+   "c": 7573,
+   "lookup": "AOR"
+  },
+  {
+   "n": "ListingKeyNumeric",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "ListingKey",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "ListingId",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "ListingContractDate",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "ListingAgreement",
+   "pct": 0,
+   "c": 7573,
+   "lookup": "ListingAgreement"
+  },
+  {
+   "n": "ListAgentURL",
+   "pct": 0,
+   "c": 755,
+   "lookup": ""
+  },
+  {
+   "n": "ListAgentStateLicense",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "ListAgentPreferredPhone",
+   "pct": 0,
+   "c": 7228,
+   "lookup": ""
+  },
+  {
+   "n": "ListAgentMobilePhone",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "ListAgentMlsId",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "ListAgentMiddleName",
+   "pct": 0,
+   "c": 2977,
+   "lookup": ""
+  },
+  {
+   "n": "ListAgentLastName",
+   "pct": 0,
+   "c": 7254,
+   "lookup": ""
+  },
+  {
+   "n": "ListAgentKeyNumeric",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "ListAgentKey",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "BedroomsTotal",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "ListAgentFullName",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "ListAgentFirstName",
+   "pct": 0,
+   "c": 7253,
+   "lookup": ""
+  },
+  {
+   "n": "ListAgentEmail",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "ListAgentDirectPhone",
+   "pct": 0,
+   "c": 7407,
+   "lookup": ""
+  },
+  {
+   "n": "ListAgentAOR",
+   "pct": 0,
+   "c": 7256,
+   "lookup": "AOR"
+  },
+  {
+   "n": "Levels",
+   "pct": 0,
+   "c": 774,
+   "lookup": "Levels"
+  },
+  {
+   "n": "BathroomsTotalInteger",
+   "pct": 0,
+   "c": 7558,
+   "lookup": ""
+  },
+  {
+   "n": "LaundryFeatures",
+   "pct": 0,
+   "c": 7571,
+   "lookup": "LaundryFeatures"
+  },
+  {
+   "n": "Latitude",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "LandLeaseYN",
+   "pct": 0,
+   "c": 6085,
+   "lookup": "LandLeaseYN"
+  },
+  {
+   "n": "InternetEntireListingDisplayYN",
+   "pct": 0,
+   "c": 0,
+   "lookup": "InternetEntireListingDisplayYN"
+  },
+  {
+   "n": "InternetConsumerCommentYN",
+   "pct": 0,
+   "c": 7573,
+   "lookup": "InternetConsumerCommentYN"
+  },
+  {
+   "n": "InternetAutomatedValuationDisplayYN",
+   "pct": 0,
+   "c": 7573,
+   "lookup": "InternetAutomatedValuationDisplayYN"
+  },
+  {
+   "n": "InternetAddressDisplayYN",
+   "pct": 0,
+   "c": 0,
+   "lookup": "InternetAddressDisplayYN"
+  },
+  {
+   "n": "InteriorFeatures",
+   "pct": 0,
+   "c": 3605,
+   "lookup": "InteriorOrRoomFeatures"
+  },
+  {
+   "n": "Inclusions",
+   "pct": 0,
+   "c": 12,
+   "lookup": ""
+  },
+  {
+   "n": "HeatingYN",
+   "pct": 0,
+   "c": 1866,
+   "lookup": "HeatingYN"
+  },
+  {
+   "n": "Heating",
+   "pct": 0,
+   "c": 868,
+   "lookup": "Heating"
+  },
+  {
+   "n": "BathroomsHalf",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "GarageYN",
+   "pct": 0,
+   "c": 7573,
+   "lookup": "GarageYN"
+  },
+  {
+   "n": "Furnished",
+   "pct": 0,
+   "c": 2767,
+   "lookup": "Furnished"
+  },
+  {
+   "n": "BathroomsFull",
+   "pct": 0,
+   "c": 7573,
+   "lookup": ""
+  },
+  {
+   "n": "Flooring",
+   "pct": 0,
+   "c": 1397,
+   "lookup": "Flooring"
+  },
+  {
+   "n": "FireplaceYN",
+   "pct": 0,
+   "c": 5989,
+   "lookup": "FireplaceYN"
+  },
+  {
+   "n": "FireplacesTotal",
+   "pct": 0,
+   "c": 1836,
+   "lookup": ""
+  },
+  {
+   "n": "FireplaceFeatures",
+   "pct": 0,
+   "c": 786,
+   "lookup": "FireplaceFeatures"
+  },
+  {
+   "n": "Basement",
+   "pct": 0,
+   "c": 4238,
+   "lookup": "Basement"
+  },
+  {
+   "n": "ExteriorFeatures",
+   "pct": 0,
+   "c": 6393,
+   "lookup": "ExteriorFeatures"
+  },
+  {
+   "n": "ExpirationDate",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "Exclusions",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "EntryLevel",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "AvailabilityDate",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "DocumentsCount",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "AttachedGarageYN",
+   "pct": 0,
+   "c": 0,
+   "lookup": "AttachedGarageYN"
+  },
+  {
+   "n": "DocumentsChangeTimestamp",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "AssociationYN",
+   "pct": 0,
+   "c": 0,
+   "lookup": "AssociationYN"
+  },
+  {
+   "n": "Nucleus_ProviderKey",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "DaysOnMarket",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CumulativeDaysOnMarket",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CrossStreet",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CountyOrParish",
+   "pct": 0,
+   "c": 0,
+   "lookup": "CountyOrParish"
+  },
+  {
+   "n": "Country",
+   "pct": 0,
+   "c": 0,
+   "lookup": "Country"
+  },
+  {
+   "n": "CoolingYN",
+   "pct": 0,
+   "c": 0,
+   "lookup": "CoolingYN"
+  },
+  {
+   "n": "Cooling",
+   "pct": 0,
+   "c": 0,
+   "lookup": "Cooling"
+  },
+  {
+   "n": "ContractStatusChangeDate",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "AssociationFeeIncludes",
+   "pct": 0,
+   "c": 0,
+   "lookup": "AssociationFeeIncludes"
+  },
+  {
+   "n": "ConcessionsComments",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "ConcessionsAmount",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "Concessions",
+   "pct": 0,
+   "c": 0,
+   "lookup": "Concessions"
+  },
+  {
+   "n": "CommunityFeatures",
+   "pct": 0,
+   "c": 0,
+   "lookup": "CommunityFeatures"
+  },
+  {
+   "n": "CommonInterest",
+   "pct": 0,
+   "c": 0,
+   "lookup": "CommonInterest"
+  },
+  {
+   "n": "CoListOfficeURL",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "AssociationFeeFrequency",
+   "pct": 0,
+   "c": 0,
+   "lookup": "FeeFrequency"
+  },
+  {
+   "n": "CoListOfficePhone",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CoListOfficeName",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CoListOfficeMlsId",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CoListOfficeKeyNumeric",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CoListOfficeKey",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CoListOfficeEmail",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CoListOfficeAOR",
+   "pct": 0,
+   "c": 0,
+   "lookup": "AOR"
+  },
+  {
+   "n": "CoListAgentURL",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CoListAgentStateLicense",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CoListAgentPreferredPhone",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CoListAgentMobilePhone",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CoListAgentMlsId",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CoListAgentMiddleName",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CoListAgentLastName",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CoListAgentKeyNumeric",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CoListAgentKey",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CoListAgentFullName",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CoListAgentFirstName",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "AssociationFee",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CoListAgentEmail",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CoListAgentDirectPhone",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  },
+  {
+   "n": "CoListAgentAOR",
+   "pct": 0,
+   "c": 0,
+   "lookup": "AOR"
+  },
+  {
+   "n": "ArchitecturalStyle",
+   "pct": 0,
+   "c": 0,
+   "lookup": "ArchitecturalStyle"
+  },
+  {
+   "n": "Appliances",
+   "pct": 0,
+   "c": 0,
+   "lookup": "Appliances"
+  },
+  {
+   "n": "Nucleus_MLS",
+   "pct": 0,
+   "c": 0,
+   "lookup": ""
+  }
+ ]
+}

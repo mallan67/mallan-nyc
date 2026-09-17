@@ -117,7 +117,7 @@ export function portalInviteEmail(
  * Listing alert email — sent when new listings match a client's saved search criteria.
  */
 export function listingAlertEmail(
-  listings: { address: string; price: string; beds: number; baths: number; url: string }[],
+  listings: { address: string; price: string; beds: number | string; baths: number | string; url: string }[],
   clientName: string
 ): string {
   const listingCards = listings.slice(0, 10).map((l) => `
@@ -820,11 +820,24 @@ export function lifecycleTriggerEmail(opts: {
       body = `Reply with what you’d like to do — renew, look at new rentals, or explore buying — and we can move quickly. NYC inventory shifts week to week and we have a short list of properties that match what you’ve looked at before.`;
       break;
     }
-    case 'quarterly_nurture': {
-      opening = `It’s been a few months since we last connected, so I wanted to share a brief update on the New York market.`;
-      body = `Inventory and pricing in your preferred neighborhoods continue to shift, and we have some new listings worth looking at. If you’d like a tailored snapshot — or you’re ready to revisit your search — just reply and we’ll pull together a few options.`;
-      break;
-    }
+    case 'quarterly_nurture':
+      // -- RETIRED, AND DELIBERATELY LOUD RATHER THAN DELETED.
+      //
+      //    Lane 3 Packet 1 made nurture agent-directed: the engine coerces this trigger away from
+      //    the email action, so this copy became unreachable. Unreachable is not the same as safe.
+      //    It was live, plausible, client-facing commercial copy sitting one narrowed guard away
+      //    from mailing up to fifty clients automatically, and it would read as entirely
+      //    legitimate to whoever found it next.
+      //
+      //    Deleting the case would have been WORSE than leaving it: execution would fall through
+      //    to the generic branch and still send a client something. Throwing means a future edit
+      //    that reopens this path fails visibly instead of quietly resuming automated commercial
+      //    mail. Nurture is discharged by an agent choosing a report and sending it through the
+      //    canonical client-report route.
+      throw new Error(
+        'quarterly_nurture has no client-facing email: nurture is agent-directed and is ' +
+        'discharged through the canonical client report send route.',
+      );
     case 'conviction_threshold': {
       opening = `I noticed you’ve been spending time on listings that fit your search profile closely — that’s usually a sign you’re narrowing in.`;
       body = `When you’re ready to take the next step, we can put together a quick offer-readiness checklist (financing, comparable sales, building requirements) so you’re positioned to move fast on the right one.`;

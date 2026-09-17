@@ -24,6 +24,7 @@ import {
   type LiveTruth,
   type ReconcileDecision,
 } from '@/lib/idx/reconcile-decision';
+import { OFF_FEED_SYNC_STATUS } from '@/lib/listings/canonical-lifecycle';
 import { computeGateColumns, TERMINAL_STATUSES } from '@/lib/idx/trestle-mapper';
 import { dualWriteProjectionForListingId } from '@/lib/search/listing-search-projection';
 
@@ -112,28 +113,33 @@ function truthOrNull(id: string, r: LiveStatusResult): LiveTruth | null {
  */
 export async function applyCorrection(
   prisma: any,
-  row: { listing_id: string; status: string },
+  row: { listing_id: string; status: string; sync_status?: string | null },
   d: ReconcileDecision,
   idxDisplay: boolean,
   now: Date,
   execute: boolean,
 ): Promise<{ projectionFailed: boolean }> {
   if (!execute) return { projectionFailed: false };
+  // Absence never manufactures a status (Maya 2026-09-08): an absent on-market row keeps its provider status and
+  // gets the presence fact `sync_status = off_feed` (Off Market); `status_changed_at` only when the status changed;
+  // `terminal_since` when the row leaves the marketed set (terminal target or off_feed).
+  const offFeed = d.targetSyncStatus === OFF_FEED_SYNC_STATUS;
   await prisma.$transaction([
     prisma.listing.update({
       where: { listing_id: row.listing_id },
       data: {
         status: d.targetStatus,
         idx_display_yn: idxDisplay,
-        status_changed_at: now,
+        ...(d.targetStatus !== row.status ? { status_changed_at: now } : {}),
+        ...(d.targetSyncStatus ? { sync_status: d.targetSyncStatus } : {}),
         modification_timestamp: now,
-        terminal_since: d.targetIsTerminal ? now : null,
+        terminal_since: d.targetIsTerminal || offFeed ? now : null,
       },
     }),
     prisma.auditEvent.create({
       data: {
         action: 'reconcile_status_correction', entity_type: 'listing', entity_id: row.listing_id, user_type: 'system',
-        changes: { from_status: row.status, to_status: d.targetStatus, idx_display_yn: idxDisplay, class: d.className, live_verified_at: now.toISOString(), reason: d.reason },
+        changes: { from_status: row.status, to_status: d.targetStatus, from_sync_status: row.sync_status ?? null, to_sync_status: d.targetSyncStatus, idx_display_yn: idxDisplay, class: d.className, live_verified_at: now.toISOString(), reason: d.reason },
       },
     }),
   ]);
@@ -155,7 +161,7 @@ async function main() {
 
   const prisma = new PrismaClient({ datasources: { db: { url: process.env.U } } });
   const rows: any[] = await prisma.$queryRawUnsafe(`
-    SELECT listing_id, status, idx_display_yn,
+    SELECT listing_id, status, sync_status, idx_display_yn,
            internet_entire_listing_display_yn AS ield, internet_address_display_yn AS iadd,
            internet_automated_valuation_display_yn AS iavm, internet_consumer_comment_yn AS icc,
            participant_only, owner_opt_out, rls_eligible
@@ -174,12 +180,12 @@ async function main() {
         : { kind: 'absent' };
   let candidates = rows.filter((r) => {
     const truth = truthOf(r);
-    return truth !== null && reconcileStatusDecision(r.status, truth).action === 'update';
+    return truth !== null && reconcileStatusDecision(r.status, truth, r.sync_status).action === 'update';
   });
   if (ONLY || TARGET) candidates = candidates.filter((r) => {
     const truth = truthOf(r);
     if (truth === null) return false;
-    const d = reconcileStatusDecision(r.status, truth);
+    const d = reconcileStatusDecision(r.status, truth, r.sync_status);
     return (!ONLY || d.className === ONLY) && (!TARGET || d.targetStatus === TARGET);
   });
   if (candidates.length > LIMIT) candidates = candidates.slice(0, LIMIT);
@@ -196,7 +202,7 @@ async function main() {
       // FAIL-CLOSED: a failed re-verify fetch is NOT "gone" — skip the row, never withdraw on it.
       if (fresh.unresolved.has(r.listing_id)) { skippedUnresolved++; continue; }
       const truth = truthFor(fresh.resolved.get(r.listing_id));
-      const d = reconcileStatusDecision(r.status, truth);
+      const d = reconcileStatusDecision(r.status, truth, r.sync_status);
       if (d.action !== 'update') { skippedReverified++; continue; } // changed since pull → skip
       const gate = computeGateColumns({
         status: d.targetStatus,
@@ -206,7 +212,7 @@ async function main() {
       });
       // A terminal target is NEVER displayable, even for a non-canonical live-terminal (Hold/Delete).
       const idxDisplay = resolveIdxDisplay(d, gate.idx_display_yn);
-      const key = `${d.className} → ${d.targetStatus}/idx=${idxDisplay}`;
+      const key = `${d.className} → ${d.targetStatus}${d.targetSyncStatus ? `/sync=${d.targetSyncStatus}` : ''}/idx=${idxDisplay}`;
       tally[key] = (tally[key] || 0) + 1;
       const result = await applyCorrection(prisma, r, d, idxDisplay, now, EXECUTE);
       if (result.projectionFailed) projectionFailures++;

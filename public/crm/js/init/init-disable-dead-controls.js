@@ -3,8 +3,7 @@
         //
         // Per the proof-matrix audit (2026-05-04), the following control
         // categories appear active in the UI but never produce a backend
-        // OData clause OR are stripped by the server-side whitelist in
-        // lib/search/crm-idx-filter.ts. Checking them was a UX trap:
+        // OData clause. Checking them was a UX trap:
         // users saw the box check, results changed in unexpected ways
         // (because the OTHER active filters narrowed) but the dead
         // checkbox itself contributed nothing — or worse, broke the
@@ -16,14 +15,27 @@
         // Tailwind utilities so the disabled state is visible even before
         // hovering.
         //
-        // BACKEND TEST CONTRACT (regression alarm):
-        //   lib/search/__tests__/crm-idx-filter.test.ts
-        //   "BATCH 2 — DEAD-pattern regressions" (commit c7a294c6)
-        // pins what the backend currently doesn't support. This file is
-        // the FRONTEND mirror — every category in BATCH 2 must appear in
-        // DEAD_SELECTORS below. When a category gains real backend
-        // support, REMOVE its selector here AND update the corresponding
-        // dead-pattern test to assert the new (correct) OData output.
+        // WHERE THE BACKEND CONTRACT ACTUALLY LIVES (corrected 2026-09-11).
+        // This file used to name `lib/search/crm-idx-filter.ts` and its
+        // test as the authority for what the backend supports. Neither
+        // exists any more — `git ls-files` returns nothing for either, and
+        // no module imports them. The executor is now:
+        //   lib/search/engine/criteria.ts      EXECUTED_PARAMS + refusals
+        //   lib/search/engine/provider-query.ts  the OData it emits
+        // and the route refuses an unsupported criterion BY NAME with
+        // HTTP 400 UNSUPPORTED_CRITERION rather than dropping it. Read
+        // those two files before adding or removing anything below.
+        //
+        // SUPPORTED — DO NOT ADD THESE TO DEAD_SELECTORS (2026-09-11):
+        //   SqFt      #saleMinSqft #saleMaxSqft #rentalMinSqft #rentalMaxSqft
+        //             #adv-min-sqft #adv-max-sqft   -> minSqft/maxSqft
+        //             -> Property.LivingArea ge|le  (filterable, 417,652 rows)
+        //   Building  #adv-building-name            -> buildingName
+        //             -> tolower(BuildingName) eq   (filterable, 221,140 rows)
+        // Both were refused in the browser until Correction Slice 1 while
+        // the server executed them; none of them was ever disabled here,
+        // and none of them may be. When a category gains real backend
+        // support, REMOVE its selector here AND add the behavioural proof.
         //
         // Re-applies on `mallan:data:ready` because some advanced-search
         // panels render lazily after the initial DOMContentLoaded.
@@ -36,10 +48,11 @@
 
             var DEAD_SELECTORS = [
                 // ── Non-whitelisted checkboxFilter fields ──
-                // The server-side whitelist in lib/search/crm-idx-filter.ts:252
-                // does NOT include these data-field values. The frontend
-                // collects them into criteria.checkboxFilters and the backend
-                // silently drops them.
+                // These data-field values are not executable criteria: the
+                // frontend collects them into criteria.checkboxFilters and the
+                // serializer refuses each one BY NAME (search-engine.js
+                // serializeSearchCriteria), so a search carrying one never runs
+                // silently broader than the agent asked for.
                 'input[data-field="AttendanceType"]',
                 'input[data-field="Furnished"]',
                 'input[data-field="OwnerPays"]',
@@ -97,23 +110,16 @@
                 // data-value + data-not).
                 'input[data-not]',
 
-                // ── P1: Sub-status checkboxes ──
-                // OfferOut, OfferAccepted, ContractOut, AllContractSigned,
-                // ContractSigned, ContractSignedThruUs, OfferThruUs,
-                // OfferAcceptedThruUs, ContractOutThruUs, BackOnMarket,
-                // Future, BoardApproved, Sold, SoldThruUs, ACRISVerified,
-                // Financed, NoFinancing, NominalSales, OtherACRIS,
-                // ApplicationIn, ApplicationAccepted, LeaseOut,
-                // LeaseOutThruUs, AppAcceptedThruUs, AppInThruUs,
-                // AllLeaseSigned, LeaseSigned, LeaseSignedThruUs,
-                // Rented, RentedThruUs.
-                //
-                // search-engine.js:822 pushes the data-sub-status string
-                // verbatim into criteria.statuses; the OData builder then
-                // emits StandardStatus eq 'OFFEROUT' (etc.) — literal
-                // strings that match no Trestle enum value. Confirmed by
-                // the BATCH 2 dead-pattern test at
-                // lib/search/__tests__/crm-idx-filter.test.ts.
+                // ── Sub-status checkboxes: REMOVED at the source ──
+                // The four Search status panels are now rendered from the executor contract
+                // (search-engine.js renderStatusPanels), which offers ONLY exact live Cotality
+                // StandardStatus tokens plus the executable "Back On Market" refinement. The old
+                // Mallan-workflow boxes (Offer Out, Contract Signed, Lease Signed, Sold Thru Us,
+                // ACRIS Verified …) no longer exist in the markup, so there is nothing to disable:
+                // the executor has no workflow criterion, and a control that can never execute was
+                // removed rather than left visible and dead (owner ruling 2026-09-09).
+                // The selector is kept as a RATCHET: if such a control is ever re-introduced it is
+                // disabled on sight instead of silently widening to Pending.
                 'input[data-sub-status]',
             ];
 
@@ -135,16 +141,25 @@
             // the agent reads the reason without hovering.
             //
             // Targets:
-            //   1. Transit panels — Latitude / Longitude do not exist on
-            //      the REBNY IDX Plus feed. Both transit-search.js
-            //      toODataFilter() and the LIRR/Ferry/Bus checkboxes
-            //      drive Lat/Lng-bounded queries that return zero rows.
+            //   1. Transit panels — Cotality supplies no usable listing
+            //      coordinate: Latitude / Longitude are filterable:false
+            //      and the provider answers a $filter on them with HTTP
+            //      400. Both transit-search.js toODataFilter() and the
+            //      LIRR/Ferry/Bus checkboxes build exactly that query.
+            //      NOT a counter-example: the results map places pins from
+            //      a governed LOCAL derivation (public/geo/
+            //      rls-neighborhood-centroids.v1.json, used by
+            //      results-map.js). Being able to DISPLAY an approximate
+            //      point is not being able to FILTER the provider by one,
+            //      so these stay disabled (owner ruling 2026-09-11).
             //   2. Manhattan grid (#adv-grid-* and #bldg-grid-*) — same
             //      root cause: builds Lat/Lng OData clauses against
             //      always-null fields.
-            //   3. Open-House DRP wrappers — openHouseDateFrom/To produce
-            //      no clause (DEAD test at crm-idx-filter.test.ts:278).
-            //      The frontend forwards the param; the backend drops it.
+            //   3. Open-House DRP wrappers — openHouseDateFrom/To are not
+            //      in EXECUTED_PARAMS and provider-query.ts emits no
+            //      OpenHouse clause (re-verified 2026-09-11: zero matches
+            //      for OpenHouse in either engine file). The serializer
+            //      refuses them by name as 'Open House date'.
             //
             // When the underlying engine gains support (PR 5+ projection
             // adds geocoded Lat/Lng; or a Property $expand=OpenHouse

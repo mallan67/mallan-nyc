@@ -147,9 +147,20 @@ describe('R2 lifecycle validator — V4 ownership signal is canonical (never age
   });
 
   it('DB-side ownership branches derive from the canonical prefix export (no hardcoded duplicate list)', () => {
-    expect(mediaSyncCode).toMatch(
-      /MALLAN_EXCLUSIVE_LISTING_ID_PREFIXES\.map\(\(p\) =>/,
-    );
+    // BEHAVIOURAL (owner review 2026-09-09): this used to grep media-sync for the literal
+    // `MALLAN_EXCLUSIVE_LISTING_ID_PREFIXES.map((p) =>`, which proved only that a particular spelling was
+    // present and broke the moment the builder delegated to the canonical rule. Execute the builder instead and
+    // check that the prefix branches it emits ARE the canonical export, one branch per prefix and nothing else.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { buildMallanOwnedListingWhere } = require('@/lib/idx/media-sync');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { MALLAN_EXCLUSIVE_LISTING_ID_PREFIXES } = require('@/lib/listings/exclusive-agent-assignment');
+    const where = buildMallanOwnedListingWhere() as { OR: Array<Record<string, unknown>> };
+    const prefixBranches = where.OR
+      .filter((b) => 'listing_id' in b)
+      .map((b) => (b.listing_id as { startsWith: string }).startsWith);
+    expect(prefixBranches).toEqual([...MALLAN_EXCLUSIVE_LISTING_ID_PREFIXES]);
+    expect(prefixBranches.length).toBeGreaterThan(0);
   });
 
   it('media-sync code never references agent_id / owner_client_id', () => {

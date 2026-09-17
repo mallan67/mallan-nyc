@@ -1,23 +1,49 @@
 // POST /api/crm/clients/[id]/actions
-// Record a client's listing reaction (liked, disliked, discuss, schedule, offer).
+// Record a client's listing REACTION, written by a licensee: liked, disliked, discuss.
+//
+// This route owns reactions only. Two verbs it used to accept have canonical owners elsewhere, and
+// accepting them here fragmented their state across a second table:
+//
+//   schedule -> POST /api/crm/showings   — creates a real Showing row plus a follow-up task and an email
+//   offer    -> POST /api/portal/offers  — the client's own submission; the separate portal-offer to
+//                                          Offer-model lifecycle convergence is registered, not resolved
+//
+// Narrowing this route was blocked until 8ea3f79d (REG-7), because until then it held the ONLY server-side
+// ComingSoon no-transact rule covering both verbs — /api/crm/showings had none and /api/portal/offers had
+// only isListingDisplayable(), which cannot express the rule since Coming Soon is deliberately displayable.
+// That rule now lives with the live writers, so the local branch here was removed rather than deleted from
+// the codebase.
+//
+// This narrows ONE route's vocabulary. It does NOT narrow ClientListingAction.action globally: "schedule",
+// "offer" and "sent" remain legitimate stored values written by the portal, listing-sends and search-alert
+// delivery history.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+// LICENSEE-ONLY route. Portal clients react through /api/portal/listings/[id]/react, which enforces the
+// portal boundary with requirePortalRole and is called directly by app/portal/buyer/page.tsx and
+// app/portal/tenant/page.tsx. This route is the CRM / licensee counterpart and must not be a dual-purpose
+// endpoint: requireAuth admitted lead sessions, where every sibling client route requires a licensee.
 import {
-  requireAuth,
+  requireAgentOrBroker,
   isAuthError,
   logAuditEvent,
 } from "@/lib/auth";
+import { assertLeadAccess } from "@/lib/crm/access";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
+import {
+  evaluateClientDistributionEligibility,
+  CLIENT_DISTRIBUTION_REFUSAL,
+} from "@/lib/compliance/client-distribution";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-const VALID_ACTIONS = ["liked", "disliked", "discuss", "schedule", "offer"];
+const VALID_ACTIONS = ["liked", "disliked", "discuss"];
 
 export async function POST(req: NextRequest, { params }: RouteParams) {
   const blocked = assertWriteAllowed();
   if (blocked) return blocked;
-  const auth = await requireAuth(req);
+  const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
   const { id } = await params;
@@ -51,22 +77,18 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     );
   }
 
-  // Verify lead exists
-  const lead = await prisma.lead.findUnique({ where: { id: leadId } });
-  if (!lead) {
-    return NextResponse.json({ error: "Client not found" }, { status: 404 });
-  }
-
-  // Access: agent can record for their clients, client can record for self
-  if (auth.userType === "agent") {
-    if (auth.role !== "BROKER" && lead.agent_id !== auth.userId) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
-    }
-  } else if (auth.userType === "lead") {
-    if (auth.userId !== leadId) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
-    }
-  }
+  // Client access — the ONE canonical helper (lib/crm/access.ts), not a local restatement.
+  //
+  // This replaced a hand-written `auth.role !== "BROKER" && lead.agent_id !== auth.userId` branch, one of
+  // ten inline copies of that predicate in the repo, which ALSO had no else arm: a userType that was
+  // neither "agent" nor "lead" fell through to the write with no access check at all. That branch was
+  // unreachable in practice — SessionUser.userType is typed "agent" | "lead" and createSession() accepts
+  // only those — but validateSession() CASTS the persisted session.user_type rather than validating it, so
+  // a legacy or unexpected database value could have crossed the boundary. requireAgentOrBroker above now
+  // refuses anything whose userType is not exactly "agent", which closes that by construction; this call
+  // then decides ownership. Existence (404) vs ownership (403) semantics are preserved by the helper.
+  const accessDenied = await assertLeadAccess(auth, leadId);
+  if (accessDenied) return accessDenied;
 
   // Verify listing exists
   // Resolve listing by numeric ID or string listing_id
@@ -86,11 +108,19 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  // UCBA D3/D4: No offers or showings on Coming Soon listings
-  if (listing.status === "ComingSoon" && (action === "offer" || action === "schedule")) {
+  // REBNY client-facing distribution gate — the SAME canonical boundary listing-sends applies.
+  // Recording a reaction on behalf of a client is a client-facing action, so a listing the client may not
+  // receive may not be acted on for them either. The four flags are already on `listing`: both lookups
+  // above are findUnique() with no select, so Prisma returns every scalar column.
+  // This is a DISTRIBUTION rule — may this client receive this listing at all — and is deliberately not a
+  // transaction rule. The ComingSoon no-transact prohibition that used to sit below it now lives with the
+  // canonical showing and offer writers (REG-7); see lib/compliance/client-distribution.ts for why the two
+  // must never be conflated.
+  const distribution = evaluateClientDistributionEligibility(listing);
+  if (!distribution.allowed) {
     return NextResponse.json(
-      { error: `${action === "offer" ? "Offers" : "Showings"} are not permitted for Coming Soon listings (UCBA D3/D4)` },
-      { status: 422 }
+      { error: CLIENT_DISTRIBUTION_REFUSAL, reasons: distribution.reasons },
+      { status: 400 }
     );
   }
 

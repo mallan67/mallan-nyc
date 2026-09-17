@@ -178,3 +178,7 @@ describe('backfillEmptyMedia eligibility — Layer 2', () => {
     ).toBe(false);
   });
 });
+
+// A module of its own: the global-scope `Row` collided with the identically named interface of another
+// script-scoped test file under one tsc program (duplicate identifier). Nothing else changes.
+export {};

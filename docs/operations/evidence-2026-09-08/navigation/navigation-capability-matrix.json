@@ -1,0 +1,4232 @@
+{
+  "source": "LIVE_COTALITY",
+  "generated": "2026-09-08T08:04:17.508Z",
+  "perStatus": 40,
+  "statuses": [
+    "Active",
+    "Pending",
+    "ComingSoon",
+    "Closed"
+  ],
+  "samples": {
+    "Active": [
+      "1091330901",
+      "1091330953",
+      "1091331715",
+      "1091331731",
+      "1091331872",
+      "1091331955",
+      "1091332486",
+      "1091332606",
+      "1091332633",
+      "1091332706",
+      "1091332923",
+      "1091333184",
+      "1091333787",
+      "1091333952",
+      "1091334010",
+      "1091334041",
+      "1091334917",
+      "1091335133",
+      "1091335171",
+      "1091335652",
+      "1190078353",
+      "1190076930",
+      "1190073995",
+      "1190070568",
+      "1190070355",
+      "1190070308",
+      "1190068085",
+      "1190066879",
+      "1190066755",
+      "1190065600",
+      "1190063654",
+      "1190063390",
+      "1190063191",
+      "1190061280",
+      "1190057996",
+      "1190057144",
+      "1190057074",
+      "1190057045",
+      "1190055516",
+      "1190055293"
+    ],
+    "Pending": [
+      "1091329667",
+      "1091330069",
+      "1091330073",
+      "1091330263",
+      "1091330952",
+      "1091330965",
+      "1091330968",
+      "1091331049",
+      "1091331060",
+      "1091331076",
+      "1091331146",
+      "1091331220",
+      "1091331407",
+      "1091331466",
+      "1091331529",
+      "1091331540",
+      "1091331627",
+      "1091331648",
+      "1091331671",
+      "1091331698",
+      "1189742375",
+      "1189723818",
+      "1189702489",
+      "1189698564",
+      "1189601117",
+      "1189598824",
+      "1189577677",
+      "1189554919",
+      "1189442441",
+      "1189426609",
+      "1189388102",
+      "1189367352",
+      "1189353391",
+      "1189350040",
+      "1189264431",
+      "1189255119",
+      "1189236467",
+      "1189234737",
+      "1189228234",
+      "1189219378"
+    ],
+    "ComingSoon": [
+      "1189313976",
+      "1189327835",
+      "1189486936",
+      "1189607096",
+      "1189715270"
+    ],
+    "Closed": [
+      "1091329650",
+      "1091329652",
+      "1091329653",
+      "1091329654",
+      "1091329655",
+      "1091329657",
+      "1091329660",
+      "1091329661",
+      "1091329662",
+      "1091329663",
+      "1091329666",
+      "1091329668",
+      "1091329670",
+      "1091329673",
+      "1091329674",
+      "1091329675",
+      "1091329676",
+      "1091329678",
+      "1091329679",
+      "1091329680",
+      "1189739300",
+      "1189738448",
+      "1189738383",
+      "1189729413",
+      "1189442442",
+      "1189369433",
+      "1189366399",
+      "1189353862",
+      "1189346776",
+      "1189346370",
+      "1189346259",
+      "1189345700",
+      "1189340516",
+      "1189330624",
+      "1189247198",
+      "1189220145",
+      "1188707193",
+      "1188678556",
+      "1188112028",
+      "1188104720",
+      "1091986768",
+      "1091404570",
+      "1092038614",
+      "1091986205",
+      "1092056264",
+      "1091990872",
+      "1092036416",
+      "1091943151",
+      "1092017756",
+      "1091989114",
+      "1092058208",
+      "1092056287",
+      "1092038171",
+      "1092036307",
+      "1092037804",
+      "1092036070",
+      "1092016561",
+      "1091990970",
+      "1092037204",
+      "1091992437"
+    ]
+  },
+  "matrix": {
+    "Building": {
+      "target": "Building",
+      "declared": true,
+      "collection": true,
+      "targetEntitySetAccess": {
+        "state": "rejected",
+        "http": 403,
+        "error": "{\"error\":{\"code\":\"Forbidden[403]. TraceId: 05ff1bee-5737-4569-abf0-142bb1c2d8ff\",\"message\":\"Resource Cotality.DataStandard.RESO.DD.Building not available\"}}"
+      },
+      "byStatus": {
+        "Active": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 0,
+          "empty": 40,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": []
+        },
+        "Pending": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 0,
+          "empty": 40,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": []
+        },
+        "ComingSoon": {
+          "sampled": 5,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 5,
+          "populated": 0,
+          "empty": 5,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 5,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": []
+        },
+        "Closed": {
+          "sampled": 60,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 60,
+          "populated": 0,
+          "empty": 60,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 57,
+              "populated": 0
+            },
+            "IDX,OfficeInactive": {
+              "sampled": 3,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": []
+        }
+      }
+    },
+    "BuyerAgent": {
+      "target": "Member",
+      "declared": true,
+      "collection": true,
+      "targetEntitySetAccess": {
+        "state": "accessible",
+        "http": 200,
+        "error": null
+      },
+      "byStatus": {
+        "Active": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 0,
+          "empty": 40,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": []
+        },
+        "Pending": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 0,
+          "empty": 40,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": []
+        },
+        "ComingSoon": {
+          "sampled": 5,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 5,
+          "populated": 0,
+          "empty": 5,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 5,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": []
+        },
+        "Closed": {
+          "sampled": 60,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 60,
+          "populated": 36,
+          "empty": 24,
+          "records": 36,
+          "maxPerRow": 1,
+          "linkage": {
+            "MemberKey↔BuyerAgentKey": {
+              "scalarNonNull": 0,
+              "scalarNull": 36,
+              "match": 0,
+              "mismatch": 0
+            },
+            "MemberMlsId↔BuyerAgentMlsId": {
+              "scalarNonNull": 36,
+              "scalarNull": 0,
+              "match": 36,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 57,
+              "populated": 35
+            },
+            "IDX,OfficeInactive": {
+              "sampled": 3,
+              "populated": 1
+            }
+          },
+          "rowsWithScalarButEmpty": [
+            {
+              "ListingKey": "1189247198",
+              "Permission": "IDX",
+              "scalars": [
+                "BuyerAgentMlsId=TM61"
+              ]
+            },
+            {
+              "ListingKey": "1091329660",
+              "Permission": "IDX",
+              "scalars": [
+                "BuyerAgentMlsId=112974"
+              ]
+            }
+          ],
+          "examples": [
+            {
+              "ListingKey": "1189739300",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "64104",
+                "OfficeKey": "5663376",
+                "MemberType": null,
+                "MemberKey": "25281901",
+                "OfficeMlsId": "7371",
+                "MemberStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1189738448",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "72536",
+                "OfficeKey": "6148597",
+                "MemberType": null,
+                "MemberKey": "25281986",
+                "OfficeMlsId": "38855",
+                "MemberStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1189738383",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "72536",
+                "OfficeKey": "6148597",
+                "MemberType": null,
+                "MemberKey": "25281986",
+                "OfficeMlsId": "38855",
+                "MemberStatus": "Active"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "BuyerOffice": {
+      "target": "Office",
+      "declared": true,
+      "collection": true,
+      "targetEntitySetAccess": {
+        "state": "accessible",
+        "http": 200,
+        "error": null
+      },
+      "byStatus": {
+        "Active": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 0,
+          "empty": 40,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": []
+        },
+        "Pending": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 0,
+          "empty": 40,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": []
+        },
+        "ComingSoon": {
+          "sampled": 5,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 5,
+          "populated": 0,
+          "empty": 5,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 5,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": []
+        },
+        "Closed": {
+          "sampled": 60,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 60,
+          "populated": 37,
+          "empty": 23,
+          "records": 37,
+          "maxPerRow": 1,
+          "linkage": {
+            "OfficeKey↔BuyerOfficeKey": {
+              "scalarNonNull": 0,
+              "scalarNull": 37,
+              "match": 0,
+              "mismatch": 0
+            },
+            "OfficeMlsId↔BuyerOfficeMlsId": {
+              "scalarNonNull": 37,
+              "scalarNull": 0,
+              "match": 37,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 57,
+              "populated": 37
+            },
+            "IDX,OfficeInactive": {
+              "sampled": 3,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [
+            {
+              "ListingKey": "1091329676",
+              "Permission": "IDX,OfficeInactive",
+              "scalars": [
+                "BuyerOfficeMlsId=7489"
+              ]
+            }
+          ],
+          "examples": [
+            {
+              "ListingKey": "1189739300",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "5663376",
+                "OfficeMlsId": "7371",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            },
+            {
+              "ListingKey": "1189738448",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "6148597",
+                "OfficeMlsId": "38855",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            },
+            {
+              "ListingKey": "1189738383",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "6148597",
+                "OfficeMlsId": "38855",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            }
+          ]
+        }
+      }
+    },
+    "CoBuyerAgent": {
+      "target": "Member",
+      "declared": true,
+      "collection": true,
+      "targetEntitySetAccess": {
+        "state": "accessible",
+        "http": 200,
+        "error": null
+      },
+      "byStatus": {
+        "Active": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 0,
+          "empty": 40,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": []
+        },
+        "Pending": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 0,
+          "empty": 40,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": []
+        },
+        "ComingSoon": {
+          "sampled": 5,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 5,
+          "populated": 0,
+          "empty": 5,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 5,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": []
+        },
+        "Closed": {
+          "sampled": 60,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 60,
+          "populated": 0,
+          "empty": 60,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 57,
+              "populated": 0
+            },
+            "IDX,OfficeInactive": {
+              "sampled": 3,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": []
+        }
+      }
+    },
+    "CoBuyerOffice": {
+      "target": "Office",
+      "declared": true,
+      "collection": true,
+      "targetEntitySetAccess": {
+        "state": "accessible",
+        "http": 200,
+        "error": null
+      },
+      "byStatus": {
+        "Active": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 0,
+          "empty": 40,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": []
+        },
+        "Pending": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 0,
+          "empty": 40,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": []
+        },
+        "ComingSoon": {
+          "sampled": 5,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 5,
+          "populated": 0,
+          "empty": 5,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 5,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": []
+        },
+        "Closed": {
+          "sampled": 60,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 60,
+          "populated": 0,
+          "empty": 60,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 57,
+              "populated": 0
+            },
+            "IDX,OfficeInactive": {
+              "sampled": 3,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": []
+        }
+      }
+    },
+    "CoListAgent": {
+      "target": "Member",
+      "declared": true,
+      "collection": true,
+      "targetEntitySetAccess": {
+        "state": "accessible",
+        "http": 200,
+        "error": null
+      },
+      "byStatus": {
+        "Active": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 24,
+          "empty": 16,
+          "records": 24,
+          "maxPerRow": 1,
+          "linkage": {
+            "MemberKey↔CoListAgentKey": {
+              "scalarNonNull": 24,
+              "scalarNull": 0,
+              "match": 24,
+              "mismatch": 0
+            },
+            "MemberMlsId↔CoListAgentMlsId": {
+              "scalarNonNull": 24,
+              "scalarNull": 0,
+              "match": 24,
+              "mismatch": 0
+            },
+            "MemberKey↔CoListAgent2Key": {
+              "scalarNonNull": 8,
+              "scalarNull": 16,
+              "match": 0,
+              "mismatch": 8
+            },
+            "MemberKey↔CoListAgent3Key": {
+              "scalarNonNull": 2,
+              "scalarNull": 22,
+              "match": 0,
+              "mismatch": 2
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 24
+            }
+          },
+          "rowsWithScalarButEmpty": [
+            {
+              "ListingKey": "1091330901",
+              "Permission": "IDX",
+              "scalars": [
+                "CoListAgentKey=28520285",
+                "CoListAgentMlsId=TM128",
+                "CoListAgent2Key=25292395"
+              ]
+            }
+          ],
+          "examples": [
+            {
+              "ListingKey": "1190070308",
+              "StandardStatus": "Active",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "116568",
+                "OfficeKey": "5658936",
+                "MemberType": null,
+                "MemberKey": "25233127",
+                "OfficeMlsId": "334",
+                "MemberStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1190068085",
+              "StandardStatus": "Active",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "42881",
+                "OfficeKey": "5658932",
+                "MemberType": null,
+                "MemberKey": "25231555",
+                "OfficeMlsId": "7222",
+                "MemberStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1190066879",
+              "StandardStatus": "Active",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "58122",
+                "OfficeKey": "5664231",
+                "MemberType": null,
+                "MemberKey": "25243302",
+                "OfficeMlsId": "7217",
+                "MemberStatus": "Active"
+              }
+            }
+          ]
+        },
+        "Pending": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 27,
+          "empty": 13,
+          "records": 27,
+          "maxPerRow": 1,
+          "linkage": {
+            "MemberKey↔CoListAgentKey": {
+              "scalarNonNull": 27,
+              "scalarNull": 0,
+              "match": 27,
+              "mismatch": 0
+            },
+            "MemberMlsId↔CoListAgentMlsId": {
+              "scalarNonNull": 27,
+              "scalarNull": 0,
+              "match": 27,
+              "mismatch": 0
+            },
+            "MemberKey↔CoListAgent2Key": {
+              "scalarNonNull": 11,
+              "scalarNull": 16,
+              "match": 0,
+              "mismatch": 11
+            },
+            "MemberKey↔CoListAgent3Key": {
+              "scalarNonNull": 2,
+              "scalarNull": 25,
+              "match": 0,
+              "mismatch": 2
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 27
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": [
+            {
+              "ListingKey": "1189742375",
+              "StandardStatus": "Pending",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "105158",
+                "OfficeKey": "5658911",
+                "MemberType": null,
+                "MemberKey": "25242611",
+                "OfficeMlsId": "51",
+                "MemberStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1189723818",
+              "StandardStatus": "Pending",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "68724",
+                "OfficeKey": "6389701",
+                "MemberType": null,
+                "MemberKey": "25291437",
+                "OfficeMlsId": "39448",
+                "MemberStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1189702489",
+              "StandardStatus": "Pending",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "42531",
+                "OfficeKey": "5658932",
+                "MemberType": null,
+                "MemberKey": "25230384",
+                "OfficeMlsId": "7222",
+                "MemberStatus": "Active"
+              }
+            }
+          ]
+        },
+        "ComingSoon": {
+          "sampled": 5,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 5,
+          "populated": 3,
+          "empty": 2,
+          "records": 3,
+          "maxPerRow": 1,
+          "linkage": {
+            "MemberKey↔CoListAgentKey": {
+              "scalarNonNull": 3,
+              "scalarNull": 0,
+              "match": 3,
+              "mismatch": 0
+            },
+            "MemberMlsId↔CoListAgentMlsId": {
+              "scalarNonNull": 3,
+              "scalarNull": 0,
+              "match": 3,
+              "mismatch": 0
+            },
+            "MemberKey↔CoListAgent2Key": {
+              "scalarNonNull": 2,
+              "scalarNull": 1,
+              "match": 0,
+              "mismatch": 2
+            },
+            "MemberKey↔CoListAgent3Key": {
+              "scalarNonNull": 2,
+              "scalarNull": 1,
+              "match": 0,
+              "mismatch": 2
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 5,
+              "populated": 3
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": [
+            {
+              "ListingKey": "1189486936",
+              "StandardStatus": "ComingSoon",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "48112",
+                "OfficeKey": "5658936",
+                "MemberType": null,
+                "MemberKey": "25239629",
+                "OfficeMlsId": "334",
+                "MemberStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1189327835",
+              "StandardStatus": "ComingSoon",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "32007",
+                "OfficeKey": "5658911",
+                "MemberType": null,
+                "MemberKey": "25257977",
+                "OfficeMlsId": "51",
+                "MemberStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1189313976",
+              "StandardStatus": "ComingSoon",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "103109",
+                "OfficeKey": "5658911",
+                "MemberType": null,
+                "MemberKey": "25262098",
+                "OfficeMlsId": "51",
+                "MemberStatus": "Active"
+              }
+            }
+          ]
+        },
+        "Closed": {
+          "sampled": 60,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 60,
+          "populated": 27,
+          "empty": 33,
+          "records": 27,
+          "maxPerRow": 1,
+          "linkage": {
+            "MemberKey↔CoListAgentKey": {
+              "scalarNonNull": 27,
+              "scalarNull": 0,
+              "match": 27,
+              "mismatch": 0
+            },
+            "MemberMlsId↔CoListAgentMlsId": {
+              "scalarNonNull": 27,
+              "scalarNull": 0,
+              "match": 27,
+              "mismatch": 0
+            },
+            "MemberKey↔CoListAgent2Key": {
+              "scalarNonNull": 5,
+              "scalarNull": 22,
+              "match": 0,
+              "mismatch": 5
+            },
+            "MemberKey↔CoListAgent3Key": {
+              "scalarNonNull": 3,
+              "scalarNull": 24,
+              "match": 0,
+              "mismatch": 3
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 57,
+              "populated": 27
+            },
+            "IDX,OfficeInactive": {
+              "sampled": 3,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [
+            {
+              "ListingKey": "1092038614",
+              "Permission": "IDX",
+              "scalars": [
+                "CoListAgentKey=25249649",
+                "CoListAgentMlsId=65383"
+              ]
+            }
+          ],
+          "examples": [
+            {
+              "ListingKey": "1189442442",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "62758",
+                "OfficeKey": "5671823",
+                "MemberType": null,
+                "MemberKey": "25282222",
+                "OfficeMlsId": "7225",
+                "MemberStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1189369433",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "88071",
+                "OfficeKey": "5658911",
+                "MemberType": null,
+                "MemberKey": "25289249",
+                "OfficeMlsId": "51",
+                "MemberStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1189366399",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "30214",
+                "OfficeKey": "5658911",
+                "MemberType": null,
+                "MemberKey": "25248749",
+                "OfficeMlsId": "51",
+                "MemberStatus": "Active"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "CoListOffice": {
+      "target": "Office",
+      "declared": true,
+      "collection": true,
+      "targetEntitySetAccess": {
+        "state": "accessible",
+        "http": 200,
+        "error": null
+      },
+      "byStatus": {
+        "Active": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 25,
+          "empty": 15,
+          "records": 25,
+          "maxPerRow": 1,
+          "linkage": {
+            "OfficeKey↔CoListOfficeKey": {
+              "scalarNonNull": 25,
+              "scalarNull": 0,
+              "match": 25,
+              "mismatch": 0
+            },
+            "OfficeMlsId↔CoListOfficeMlsId": {
+              "scalarNonNull": 25,
+              "scalarNull": 0,
+              "match": 25,
+              "mismatch": 0
+            },
+            "OfficeKey↔CoListOffice2Key": {
+              "scalarNonNull": 9,
+              "scalarNull": 16,
+              "match": 9,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 25
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": [
+            {
+              "ListingKey": "1190070308",
+              "StandardStatus": "Active",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "5658936",
+                "OfficeMlsId": "334",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            },
+            {
+              "ListingKey": "1190068085",
+              "StandardStatus": "Active",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "5658932",
+                "OfficeMlsId": "7222",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            },
+            {
+              "ListingKey": "1190066879",
+              "StandardStatus": "Active",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "5664231",
+                "OfficeMlsId": "7217",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            }
+          ]
+        },
+        "Pending": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 27,
+          "empty": 13,
+          "records": 27,
+          "maxPerRow": 1,
+          "linkage": {
+            "OfficeKey↔CoListOfficeKey": {
+              "scalarNonNull": 27,
+              "scalarNull": 0,
+              "match": 27,
+              "mismatch": 0
+            },
+            "OfficeMlsId↔CoListOfficeMlsId": {
+              "scalarNonNull": 27,
+              "scalarNull": 0,
+              "match": 27,
+              "mismatch": 0
+            },
+            "OfficeKey↔CoListOffice2Key": {
+              "scalarNonNull": 11,
+              "scalarNull": 16,
+              "match": 11,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 27
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": [
+            {
+              "ListingKey": "1189742375",
+              "StandardStatus": "Pending",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "5658911",
+                "OfficeMlsId": "51",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            },
+            {
+              "ListingKey": "1189723818",
+              "StandardStatus": "Pending",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "6389701",
+                "OfficeMlsId": "39448",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            },
+            {
+              "ListingKey": "1189702489",
+              "StandardStatus": "Pending",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "5658932",
+                "OfficeMlsId": "7222",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            }
+          ]
+        },
+        "ComingSoon": {
+          "sampled": 5,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 5,
+          "populated": 3,
+          "empty": 2,
+          "records": 3,
+          "maxPerRow": 1,
+          "linkage": {
+            "OfficeKey↔CoListOfficeKey": {
+              "scalarNonNull": 3,
+              "scalarNull": 0,
+              "match": 3,
+              "mismatch": 0
+            },
+            "OfficeMlsId↔CoListOfficeMlsId": {
+              "scalarNonNull": 3,
+              "scalarNull": 0,
+              "match": 3,
+              "mismatch": 0
+            },
+            "OfficeKey↔CoListOffice2Key": {
+              "scalarNonNull": 2,
+              "scalarNull": 1,
+              "match": 2,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 5,
+              "populated": 3
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": [
+            {
+              "ListingKey": "1189486936",
+              "StandardStatus": "ComingSoon",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "5658936",
+                "OfficeMlsId": "334",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            },
+            {
+              "ListingKey": "1189327835",
+              "StandardStatus": "ComingSoon",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "5658911",
+                "OfficeMlsId": "51",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            },
+            {
+              "ListingKey": "1189313976",
+              "StandardStatus": "ComingSoon",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "5658911",
+                "OfficeMlsId": "51",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            }
+          ]
+        },
+        "Closed": {
+          "sampled": 60,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 60,
+          "populated": 28,
+          "empty": 32,
+          "records": 28,
+          "maxPerRow": 1,
+          "linkage": {
+            "OfficeKey↔CoListOfficeKey": {
+              "scalarNonNull": 28,
+              "scalarNull": 0,
+              "match": 28,
+              "mismatch": 0
+            },
+            "OfficeMlsId↔CoListOfficeMlsId": {
+              "scalarNonNull": 28,
+              "scalarNull": 0,
+              "match": 28,
+              "mismatch": 0
+            },
+            "OfficeKey↔CoListOffice2Key": {
+              "scalarNonNull": 5,
+              "scalarNull": 23,
+              "match": 5,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 57,
+              "populated": 28
+            },
+            "IDX,OfficeInactive": {
+              "sampled": 3,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": [
+            {
+              "ListingKey": "1189442442",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "5671823",
+                "OfficeMlsId": "7225",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            },
+            {
+              "ListingKey": "1189369433",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "5658911",
+                "OfficeMlsId": "51",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            },
+            {
+              "ListingKey": "1189366399",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "5658911",
+                "OfficeMlsId": "51",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            }
+          ]
+        }
+      }
+    },
+    "CustomProperty": {
+      "target": "CustomProperty",
+      "declared": true,
+      "collection": true,
+      "targetEntitySetAccess": {
+        "state": "accessible",
+        "http": 200,
+        "error": null
+      },
+      "byStatus": {
+        "Active": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 40,
+          "empty": 0,
+          "records": 40,
+          "maxPerRow": 1,
+          "linkage": {
+            "ListingKey↔ListingKey": {
+              "scalarNonNull": 40,
+              "scalarNull": 0,
+              "match": 40,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 40
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": [
+            {
+              "ListingKey": "1190078353",
+              "StandardStatus": "Active",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "StandardStatus": "Active",
+                "ListingKey": "1190078353"
+              }
+            },
+            {
+              "ListingKey": "1190076930",
+              "StandardStatus": "Active",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "StandardStatus": "Active",
+                "ListingKey": "1190076930"
+              }
+            },
+            {
+              "ListingKey": "1190073995",
+              "StandardStatus": "Active",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "StandardStatus": "Active",
+                "ListingKey": "1190073995"
+              }
+            }
+          ]
+        },
+        "Pending": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 40,
+          "empty": 0,
+          "records": 40,
+          "maxPerRow": 1,
+          "linkage": {
+            "ListingKey↔ListingKey": {
+              "scalarNonNull": 40,
+              "scalarNull": 0,
+              "match": 40,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 40
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": [
+            {
+              "ListingKey": "1189742375",
+              "StandardStatus": "Pending",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "StandardStatus": "Pending",
+                "ListingKey": "1189742375"
+              }
+            },
+            {
+              "ListingKey": "1189723818",
+              "StandardStatus": "Pending",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "StandardStatus": "Pending",
+                "ListingKey": "1189723818"
+              }
+            },
+            {
+              "ListingKey": "1189702489",
+              "StandardStatus": "Pending",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "StandardStatus": "Pending",
+                "ListingKey": "1189702489"
+              }
+            }
+          ]
+        },
+        "ComingSoon": {
+          "sampled": 5,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 5,
+          "populated": 5,
+          "empty": 0,
+          "records": 5,
+          "maxPerRow": 1,
+          "linkage": {
+            "ListingKey↔ListingKey": {
+              "scalarNonNull": 5,
+              "scalarNull": 0,
+              "match": 5,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 5,
+              "populated": 5
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": [
+            {
+              "ListingKey": "1189715270",
+              "StandardStatus": "ComingSoon",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "StandardStatus": "ComingSoon",
+                "ListingKey": "1189715270"
+              }
+            },
+            {
+              "ListingKey": "1189607096",
+              "StandardStatus": "ComingSoon",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "StandardStatus": "ComingSoon",
+                "ListingKey": "1189607096"
+              }
+            },
+            {
+              "ListingKey": "1189486936",
+              "StandardStatus": "ComingSoon",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "StandardStatus": "ComingSoon",
+                "ListingKey": "1189486936"
+              }
+            }
+          ]
+        },
+        "Closed": {
+          "sampled": 60,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 60,
+          "populated": 60,
+          "empty": 0,
+          "records": 60,
+          "maxPerRow": 1,
+          "linkage": {
+            "ListingKey↔ListingKey": {
+              "scalarNonNull": 60,
+              "scalarNull": 0,
+              "match": 60,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 57,
+              "populated": 57
+            },
+            "IDX,OfficeInactive": {
+              "sampled": 3,
+              "populated": 3
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": [
+            {
+              "ListingKey": "1189739300",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "StandardStatus": "Closed",
+                "ListingKey": "1189739300"
+              }
+            },
+            {
+              "ListingKey": "1189738448",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "StandardStatus": "Closed",
+                "ListingKey": "1189738448"
+              }
+            },
+            {
+              "ListingKey": "1189738383",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "StandardStatus": "Closed",
+                "ListingKey": "1189738383"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "ListAgent": {
+      "target": "Member",
+      "declared": true,
+      "collection": true,
+      "targetEntitySetAccess": {
+        "state": "accessible",
+        "http": 200,
+        "error": null
+      },
+      "byStatus": {
+        "Active": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 39,
+          "empty": 1,
+          "records": 39,
+          "maxPerRow": 1,
+          "linkage": {
+            "MemberKey↔ListAgentKey": {
+              "scalarNonNull": 39,
+              "scalarNull": 0,
+              "match": 39,
+              "mismatch": 0
+            },
+            "MemberMlsId↔ListAgentMlsId": {
+              "scalarNonNull": 39,
+              "scalarNull": 0,
+              "match": 39,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 39
+            }
+          },
+          "rowsWithScalarButEmpty": [
+            {
+              "ListingKey": "1091335133",
+              "Permission": "IDX",
+              "scalars": [
+                "ListAgentKey=29750655",
+                "ListAgentMlsId=TM229"
+              ]
+            }
+          ],
+          "examples": [
+            {
+              "ListingKey": "1190078353",
+              "StandardStatus": "Active",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "95142",
+                "OfficeKey": "5658938",
+                "MemberType": null,
+                "MemberKey": "25289020",
+                "OfficeMlsId": "4972",
+                "MemberStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1190076930",
+              "StandardStatus": "Active",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "71181",
+                "OfficeKey": "5658911",
+                "MemberType": null,
+                "MemberKey": "25212537",
+                "OfficeMlsId": "51",
+                "MemberStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1190073995",
+              "StandardStatus": "Active",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "36251",
+                "OfficeKey": "5658911",
+                "MemberType": null,
+                "MemberKey": "25229304",
+                "OfficeMlsId": "51",
+                "MemberStatus": "Active"
+              }
+            }
+          ]
+        },
+        "Pending": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 40,
+          "empty": 0,
+          "records": 40,
+          "maxPerRow": 1,
+          "linkage": {
+            "MemberKey↔ListAgentKey": {
+              "scalarNonNull": 40,
+              "scalarNull": 0,
+              "match": 40,
+              "mismatch": 0
+            },
+            "MemberMlsId↔ListAgentMlsId": {
+              "scalarNonNull": 40,
+              "scalarNull": 0,
+              "match": 40,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 40
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": [
+            {
+              "ListingKey": "1189742375",
+              "StandardStatus": "Pending",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "49187",
+                "OfficeKey": "5658911",
+                "MemberType": null,
+                "MemberKey": "25214833",
+                "OfficeMlsId": "51",
+                "MemberStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1189723818",
+              "StandardStatus": "Pending",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "86706",
+                "OfficeKey": "6389701",
+                "MemberType": null,
+                "MemberKey": "25254957",
+                "OfficeMlsId": "39448",
+                "MemberStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1189702489",
+              "StandardStatus": "Pending",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "33803",
+                "OfficeKey": "5658932",
+                "MemberType": null,
+                "MemberKey": "25230464",
+                "OfficeMlsId": "7222",
+                "MemberStatus": "Active"
+              }
+            }
+          ]
+        },
+        "ComingSoon": {
+          "sampled": 5,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 5,
+          "populated": 5,
+          "empty": 0,
+          "records": 5,
+          "maxPerRow": 1,
+          "linkage": {
+            "MemberKey↔ListAgentKey": {
+              "scalarNonNull": 5,
+              "scalarNull": 0,
+              "match": 5,
+              "mismatch": 0
+            },
+            "MemberMlsId↔ListAgentMlsId": {
+              "scalarNonNull": 5,
+              "scalarNull": 0,
+              "match": 5,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 5,
+              "populated": 5
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": [
+            {
+              "ListingKey": "1189715270",
+              "StandardStatus": "ComingSoon",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "95432",
+                "OfficeKey": "5671856",
+                "MemberType": null,
+                "MemberKey": "25238396",
+                "OfficeMlsId": "13116",
+                "MemberStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1189607096",
+              "StandardStatus": "ComingSoon",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "44672",
+                "OfficeKey": "5671804",
+                "MemberType": null,
+                "MemberKey": "25276798",
+                "OfficeMlsId": "89",
+                "MemberStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1189486936",
+              "StandardStatus": "ComingSoon",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "56069",
+                "OfficeKey": "5658936",
+                "MemberType": null,
+                "MemberKey": "25222170",
+                "OfficeMlsId": "334",
+                "MemberStatus": "Active"
+              }
+            }
+          ]
+        },
+        "Closed": {
+          "sampled": 60,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 60,
+          "populated": 57,
+          "empty": 3,
+          "records": 57,
+          "maxPerRow": 1,
+          "linkage": {
+            "MemberKey↔ListAgentKey": {
+              "scalarNonNull": 57,
+              "scalarNull": 0,
+              "match": 57,
+              "mismatch": 0
+            },
+            "MemberMlsId↔ListAgentMlsId": {
+              "scalarNonNull": 57,
+              "scalarNull": 0,
+              "match": 57,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 57,
+              "populated": 54
+            },
+            "IDX,OfficeInactive": {
+              "sampled": 3,
+              "populated": 3
+            }
+          },
+          "rowsWithScalarButEmpty": [
+            {
+              "ListingKey": "1189247198",
+              "Permission": "IDX",
+              "scalars": [
+                "ListAgentKey=28520193",
+                "ListAgentMlsId=TM61"
+              ]
+            },
+            {
+              "ListingKey": "1091329660",
+              "Permission": "IDX",
+              "scalars": [
+                "ListAgentKey=25213762",
+                "ListAgentMlsId=112974"
+              ]
+            },
+            {
+              "ListingKey": "1091329654",
+              "Permission": "IDX",
+              "scalars": [
+                "ListAgentKey=25288876",
+                "ListAgentMlsId=87161"
+              ]
+            }
+          ],
+          "examples": [
+            {
+              "ListingKey": "1189739300",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "64104",
+                "OfficeKey": "5663376",
+                "MemberType": null,
+                "MemberKey": "25281901",
+                "OfficeMlsId": "7371",
+                "MemberStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1189738448",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "72536",
+                "OfficeKey": "6148597",
+                "MemberType": null,
+                "MemberKey": "25281986",
+                "OfficeMlsId": "38855",
+                "MemberStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1189738383",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MemberMlsId": "72536",
+                "OfficeKey": "6148597",
+                "MemberType": null,
+                "MemberKey": "25281986",
+                "OfficeMlsId": "38855",
+                "MemberStatus": "Active"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "ListOffice": {
+      "target": "Office",
+      "declared": true,
+      "collection": true,
+      "targetEntitySetAccess": {
+        "state": "accessible",
+        "http": 200,
+        "error": null
+      },
+      "byStatus": {
+        "Active": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 40,
+          "empty": 0,
+          "records": 40,
+          "maxPerRow": 1,
+          "linkage": {
+            "OfficeKey↔ListOfficeKey": {
+              "scalarNonNull": 40,
+              "scalarNull": 0,
+              "match": 40,
+              "mismatch": 0
+            },
+            "OfficeMlsId↔ListOfficeMlsId": {
+              "scalarNonNull": 40,
+              "scalarNull": 0,
+              "match": 40,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 40
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": [
+            {
+              "ListingKey": "1190078353",
+              "StandardStatus": "Active",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "5658938",
+                "OfficeMlsId": "4972",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            },
+            {
+              "ListingKey": "1190076930",
+              "StandardStatus": "Active",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "5658911",
+                "OfficeMlsId": "51",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            },
+            {
+              "ListingKey": "1190073995",
+              "StandardStatus": "Active",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "5658911",
+                "OfficeMlsId": "51",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            }
+          ]
+        },
+        "Pending": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 40,
+          "empty": 0,
+          "records": 40,
+          "maxPerRow": 1,
+          "linkage": {
+            "OfficeKey↔ListOfficeKey": {
+              "scalarNonNull": 40,
+              "scalarNull": 0,
+              "match": 40,
+              "mismatch": 0
+            },
+            "OfficeMlsId↔ListOfficeMlsId": {
+              "scalarNonNull": 40,
+              "scalarNull": 0,
+              "match": 40,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 40
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": [
+            {
+              "ListingKey": "1189742375",
+              "StandardStatus": "Pending",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "5658911",
+                "OfficeMlsId": "51",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            },
+            {
+              "ListingKey": "1189723818",
+              "StandardStatus": "Pending",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "6389701",
+                "OfficeMlsId": "39448",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            },
+            {
+              "ListingKey": "1189702489",
+              "StandardStatus": "Pending",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "5658932",
+                "OfficeMlsId": "7222",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            }
+          ]
+        },
+        "ComingSoon": {
+          "sampled": 5,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 5,
+          "populated": 5,
+          "empty": 0,
+          "records": 5,
+          "maxPerRow": 1,
+          "linkage": {
+            "OfficeKey↔ListOfficeKey": {
+              "scalarNonNull": 5,
+              "scalarNull": 0,
+              "match": 5,
+              "mismatch": 0
+            },
+            "OfficeMlsId↔ListOfficeMlsId": {
+              "scalarNonNull": 5,
+              "scalarNull": 0,
+              "match": 5,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 5,
+              "populated": 5
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": [
+            {
+              "ListingKey": "1189715270",
+              "StandardStatus": "ComingSoon",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "5671856",
+                "OfficeMlsId": "13116",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            },
+            {
+              "ListingKey": "1189607096",
+              "StandardStatus": "ComingSoon",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "5671804",
+                "OfficeMlsId": "89",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            },
+            {
+              "ListingKey": "1189486936",
+              "StandardStatus": "ComingSoon",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "5658936",
+                "OfficeMlsId": "334",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            }
+          ]
+        },
+        "Closed": {
+          "sampled": 60,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 60,
+          "populated": 57,
+          "empty": 3,
+          "records": 57,
+          "maxPerRow": 1,
+          "linkage": {
+            "OfficeKey↔ListOfficeKey": {
+              "scalarNonNull": 57,
+              "scalarNull": 0,
+              "match": 57,
+              "mismatch": 0
+            },
+            "OfficeMlsId↔ListOfficeMlsId": {
+              "scalarNonNull": 57,
+              "scalarNull": 0,
+              "match": 57,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 57,
+              "populated": 57
+            },
+            "IDX,OfficeInactive": {
+              "sampled": 3,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [
+            {
+              "ListingKey": "1091986768",
+              "Permission": "IDX,OfficeInactive",
+              "scalars": [
+                "ListOfficeKey=5671795",
+                "ListOfficeMlsId=632"
+              ]
+            },
+            {
+              "ListingKey": "1091986205",
+              "Permission": "IDX,OfficeInactive",
+              "scalars": [
+                "ListOfficeKey=5671795",
+                "ListOfficeMlsId=632"
+              ]
+            },
+            {
+              "ListingKey": "1091329676",
+              "Permission": "IDX,OfficeInactive",
+              "scalars": [
+                "ListOfficeKey=5671674",
+                "ListOfficeMlsId=7489"
+              ]
+            }
+          ],
+          "examples": [
+            {
+              "ListingKey": "1189739300",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "5663376",
+                "OfficeMlsId": "7371",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            },
+            {
+              "ListingKey": "1189738448",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "6148597",
+                "OfficeMlsId": "38855",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            },
+            {
+              "ListingKey": "1189738383",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OfficeKey": "6148597",
+                "OfficeMlsId": "38855",
+                "OfficeStatus": "Active",
+                "OfficeType": null
+              }
+            }
+          ]
+        }
+      }
+    },
+    "Media": {
+      "target": "Media",
+      "declared": true,
+      "collection": true,
+      "targetEntitySetAccess": {
+        "state": "accessible",
+        "http": 200,
+        "error": null
+      },
+      "byStatus": {
+        "Active": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 40,
+          "empty": 0,
+          "records": 847,
+          "maxPerRow": 79,
+          "linkage": {
+            "ResourceRecordKey↔ListingKey": {
+              "scalarNonNull": 40,
+              "scalarNull": 0,
+              "match": 40,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 40
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": [
+            {
+              "ListingKey": "1190078353",
+              "StandardStatus": "Active",
+              "Permission": "IDX",
+              "count": 12,
+              "first": {
+                "MediaKey": "2005995645028",
+                "ResourceRecordKey": "1190078353",
+                "ResourceName": "Property",
+                "MediaCategory": "Photo",
+                "MediaStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1190076930",
+              "StandardStatus": "Active",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MediaKey": "2005995659747",
+                "ResourceRecordKey": "1190076930",
+                "ResourceName": "Property",
+                "MediaCategory": "Photo",
+                "MediaStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1190073995",
+              "StandardStatus": "Active",
+              "Permission": "IDX",
+              "count": 12,
+              "first": {
+                "MediaKey": "2005995555649",
+                "ResourceRecordKey": "1190073995",
+                "ResourceName": "Property",
+                "MediaCategory": "Photo",
+                "MediaStatus": "Active"
+              }
+            }
+          ]
+        },
+        "Pending": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 39,
+          "empty": 1,
+          "records": 508,
+          "maxPerRow": 30,
+          "linkage": {
+            "ResourceRecordKey↔ListingKey": {
+              "scalarNonNull": 39,
+              "scalarNull": 0,
+              "match": 39,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 39
+            }
+          },
+          "rowsWithScalarButEmpty": [
+            {
+              "ListingKey": "1189234737",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189234737"
+              ]
+            }
+          ],
+          "examples": [
+            {
+              "ListingKey": "1189742375",
+              "StandardStatus": "Pending",
+              "Permission": "IDX",
+              "count": 17,
+              "first": {
+                "MediaKey": "2005982114499",
+                "ResourceRecordKey": "1189742375",
+                "ResourceName": "Property",
+                "MediaCategory": "Photo",
+                "MediaStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1189723818",
+              "StandardStatus": "Pending",
+              "Permission": "IDX",
+              "count": 8,
+              "first": {
+                "MediaKey": "2005981360465",
+                "ResourceRecordKey": "1189723818",
+                "ResourceName": "Property",
+                "MediaCategory": "Photo",
+                "MediaStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1189702489",
+              "StandardStatus": "Pending",
+              "Permission": "IDX",
+              "count": 14,
+              "first": {
+                "MediaKey": "2005849349792",
+                "ResourceRecordKey": "1189702489",
+                "ResourceName": "Property",
+                "MediaCategory": "Photo",
+                "MediaStatus": "Active"
+              }
+            }
+          ]
+        },
+        "ComingSoon": {
+          "sampled": 5,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 5,
+          "populated": 5,
+          "empty": 0,
+          "records": 96,
+          "maxPerRow": 23,
+          "linkage": {
+            "ResourceRecordKey↔ListingKey": {
+              "scalarNonNull": 5,
+              "scalarNull": 0,
+              "match": 5,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 5,
+              "populated": 5
+            }
+          },
+          "rowsWithScalarButEmpty": [],
+          "examples": [
+            {
+              "ListingKey": "1189715270",
+              "StandardStatus": "ComingSoon",
+              "Permission": "IDX",
+              "count": 23,
+              "first": {
+                "MediaKey": "2005981109816",
+                "ResourceRecordKey": "1189715270",
+                "ResourceName": "Property",
+                "MediaCategory": "Photo",
+                "MediaStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1189607096",
+              "StandardStatus": "ComingSoon",
+              "Permission": "IDX",
+              "count": 14,
+              "first": {
+                "MediaKey": "2005977109503",
+                "ResourceRecordKey": "1189607096",
+                "ResourceName": "Property",
+                "MediaCategory": "Photo",
+                "MediaStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1189486936",
+              "StandardStatus": "ComingSoon",
+              "Permission": "IDX",
+              "count": 21,
+              "first": {
+                "MediaKey": "2005972720610",
+                "ResourceRecordKey": "1189486936",
+                "ResourceName": "Property",
+                "MediaCategory": "Photo",
+                "MediaStatus": "Active"
+              }
+            }
+          ]
+        },
+        "Closed": {
+          "sampled": 60,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 60,
+          "populated": 50,
+          "empty": 10,
+          "records": 133,
+          "maxPerRow": 28,
+          "linkage": {
+            "ResourceRecordKey↔ListingKey": {
+              "scalarNonNull": 50,
+              "scalarNull": 0,
+              "match": 50,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 57,
+              "populated": 49
+            },
+            "IDX,OfficeInactive": {
+              "sampled": 3,
+              "populated": 1
+            }
+          },
+          "rowsWithScalarButEmpty": [
+            {
+              "ListingKey": "1189739300",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189739300"
+              ]
+            },
+            {
+              "ListingKey": "1189369433",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189369433"
+              ]
+            },
+            {
+              "ListingKey": "1189346776",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189346776"
+              ]
+            },
+            {
+              "ListingKey": "1189346259",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189346259"
+              ]
+            },
+            {
+              "ListingKey": "1189345700",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189345700"
+              ]
+            },
+            {
+              "ListingKey": "1189330624",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189330624"
+              ]
+            },
+            {
+              "ListingKey": "1188104720",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1188104720"
+              ]
+            },
+            {
+              "ListingKey": "1091986768",
+              "Permission": "IDX,OfficeInactive",
+              "scalars": [
+                "ListingKey=1091986768"
+              ]
+            },
+            {
+              "ListingKey": "1091986205",
+              "Permission": "IDX,OfficeInactive",
+              "scalars": [
+                "ListingKey=1091986205"
+              ]
+            },
+            {
+              "ListingKey": "1091329674",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1091329674"
+              ]
+            }
+          ],
+          "examples": [
+            {
+              "ListingKey": "1189738448",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MediaKey": "2005981954523",
+                "ResourceRecordKey": "1189738448",
+                "ResourceName": "Property",
+                "MediaCategory": "Photo",
+                "MediaStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1189738383",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "MediaKey": "2005981952809",
+                "ResourceRecordKey": "1189738383",
+                "ResourceName": "Property",
+                "MediaCategory": "Photo",
+                "MediaStatus": "Active"
+              }
+            },
+            {
+              "ListingKey": "1189729413",
+              "StandardStatus": "Closed",
+              "Permission": "IDX",
+              "count": 2,
+              "first": {
+                "MediaKey": "2005981543565",
+                "ResourceRecordKey": "1189729413",
+                "ResourceName": "Property",
+                "MediaCategory": "Photo",
+                "MediaStatus": "Active"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "OpenHouse": {
+      "target": "OpenHouse",
+      "declared": true,
+      "collection": true,
+      "targetEntitySetAccess": {
+        "state": "accessible",
+        "http": 200,
+        "error": null
+      },
+      "byStatus": {
+        "Active": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 7,
+          "empty": 33,
+          "records": 13,
+          "maxPerRow": 4,
+          "linkage": {
+            "ListingKey↔ListingKey": {
+              "scalarNonNull": 7,
+              "scalarNull": 0,
+              "match": 7,
+              "mismatch": 0
+            }
+          },
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 7
+            }
+          },
+          "rowsWithScalarButEmpty": [
+            {
+              "ListingKey": "1190078353",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190078353"
+              ]
+            },
+            {
+              "ListingKey": "1190076930",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190076930"
+              ]
+            },
+            {
+              "ListingKey": "1190070568",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190070568"
+              ]
+            },
+            {
+              "ListingKey": "1190070308",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190070308"
+              ]
+            },
+            {
+              "ListingKey": "1190068085",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190068085"
+              ]
+            },
+            {
+              "ListingKey": "1190066879",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190066879"
+              ]
+            },
+            {
+              "ListingKey": "1190065600",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190065600"
+              ]
+            },
+            {
+              "ListingKey": "1190063390",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190063390"
+              ]
+            },
+            {
+              "ListingKey": "1190063191",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190063191"
+              ]
+            },
+            {
+              "ListingKey": "1190061280",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190061280"
+              ]
+            }
+          ],
+          "examples": [
+            {
+              "ListingKey": "1190073995",
+              "StandardStatus": "Active",
+              "Permission": "IDX",
+              "count": 2,
+              "first": {
+                "OpenHouseStatus": "Active",
+                "OpenHouseKey": "158826907",
+                "ListingKey": "1190073995",
+                "OpenHouseType": "Public"
+              }
+            },
+            {
+              "ListingKey": "1190070355",
+              "StandardStatus": "Active",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OpenHouseStatus": "Active",
+                "OpenHouseKey": "158825861",
+                "ListingKey": "1190070355",
+                "OpenHouseType": "Public"
+              }
+            },
+            {
+              "ListingKey": "1190066755",
+              "StandardStatus": "Active",
+              "Permission": "IDX",
+              "count": 1,
+              "first": {
+                "OpenHouseStatus": "Active",
+                "OpenHouseKey": "158824867",
+                "ListingKey": "1190066755",
+                "OpenHouseType": "Public"
+              }
+            }
+          ]
+        },
+        "Pending": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 0,
+          "empty": 40,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [
+            {
+              "ListingKey": "1189742375",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189742375"
+              ]
+            },
+            {
+              "ListingKey": "1189723818",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189723818"
+              ]
+            },
+            {
+              "ListingKey": "1189702489",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189702489"
+              ]
+            },
+            {
+              "ListingKey": "1189698564",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189698564"
+              ]
+            },
+            {
+              "ListingKey": "1189601117",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189601117"
+              ]
+            },
+            {
+              "ListingKey": "1189598824",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189598824"
+              ]
+            },
+            {
+              "ListingKey": "1189577677",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189577677"
+              ]
+            },
+            {
+              "ListingKey": "1189554919",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189554919"
+              ]
+            },
+            {
+              "ListingKey": "1189442441",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189442441"
+              ]
+            },
+            {
+              "ListingKey": "1189426609",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189426609"
+              ]
+            }
+          ],
+          "examples": []
+        },
+        "ComingSoon": {
+          "sampled": 5,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 5,
+          "populated": 0,
+          "empty": 5,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 5,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [
+            {
+              "ListingKey": "1189715270",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189715270"
+              ]
+            },
+            {
+              "ListingKey": "1189607096",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189607096"
+              ]
+            },
+            {
+              "ListingKey": "1189486936",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189486936"
+              ]
+            },
+            {
+              "ListingKey": "1189327835",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189327835"
+              ]
+            },
+            {
+              "ListingKey": "1189313976",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189313976"
+              ]
+            }
+          ],
+          "examples": []
+        },
+        "Closed": {
+          "sampled": 60,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 60,
+          "populated": 0,
+          "empty": 60,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 57,
+              "populated": 0
+            },
+            "IDX,OfficeInactive": {
+              "sampled": 3,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [
+            {
+              "ListingKey": "1189739300",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189739300"
+              ]
+            },
+            {
+              "ListingKey": "1189738448",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189738448"
+              ]
+            },
+            {
+              "ListingKey": "1189738383",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189738383"
+              ]
+            },
+            {
+              "ListingKey": "1189729413",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189729413"
+              ]
+            },
+            {
+              "ListingKey": "1189442442",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189442442"
+              ]
+            },
+            {
+              "ListingKey": "1189369433",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189369433"
+              ]
+            },
+            {
+              "ListingKey": "1189366399",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189366399"
+              ]
+            },
+            {
+              "ListingKey": "1189353862",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189353862"
+              ]
+            },
+            {
+              "ListingKey": "1189346776",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189346776"
+              ]
+            },
+            {
+              "ListingKey": "1189346370",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189346370"
+              ]
+            }
+          ],
+          "examples": []
+        }
+      }
+    },
+    "Rooms": {
+      "target": "PropertyRooms",
+      "declared": true,
+      "collection": true,
+      "targetEntitySetAccess": {
+        "state": "accessible",
+        "http": 200,
+        "error": null
+      },
+      "byStatus": {
+        "Active": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 0,
+          "empty": 40,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [
+            {
+              "ListingKey": "1190078353",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190078353"
+              ]
+            },
+            {
+              "ListingKey": "1190076930",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190076930"
+              ]
+            },
+            {
+              "ListingKey": "1190073995",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190073995"
+              ]
+            },
+            {
+              "ListingKey": "1190070568",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190070568"
+              ]
+            },
+            {
+              "ListingKey": "1190070355",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190070355"
+              ]
+            },
+            {
+              "ListingKey": "1190070308",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190070308"
+              ]
+            },
+            {
+              "ListingKey": "1190068085",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190068085"
+              ]
+            },
+            {
+              "ListingKey": "1190066879",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190066879"
+              ]
+            },
+            {
+              "ListingKey": "1190066755",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190066755"
+              ]
+            },
+            {
+              "ListingKey": "1190065600",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190065600"
+              ]
+            }
+          ],
+          "examples": []
+        },
+        "Pending": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 0,
+          "empty": 40,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [
+            {
+              "ListingKey": "1189742375",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189742375"
+              ]
+            },
+            {
+              "ListingKey": "1189723818",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189723818"
+              ]
+            },
+            {
+              "ListingKey": "1189702489",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189702489"
+              ]
+            },
+            {
+              "ListingKey": "1189698564",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189698564"
+              ]
+            },
+            {
+              "ListingKey": "1189601117",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189601117"
+              ]
+            },
+            {
+              "ListingKey": "1189598824",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189598824"
+              ]
+            },
+            {
+              "ListingKey": "1189577677",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189577677"
+              ]
+            },
+            {
+              "ListingKey": "1189554919",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189554919"
+              ]
+            },
+            {
+              "ListingKey": "1189442441",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189442441"
+              ]
+            },
+            {
+              "ListingKey": "1189426609",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189426609"
+              ]
+            }
+          ],
+          "examples": []
+        },
+        "ComingSoon": {
+          "sampled": 5,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 5,
+          "populated": 0,
+          "empty": 5,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 5,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [
+            {
+              "ListingKey": "1189715270",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189715270"
+              ]
+            },
+            {
+              "ListingKey": "1189607096",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189607096"
+              ]
+            },
+            {
+              "ListingKey": "1189486936",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189486936"
+              ]
+            },
+            {
+              "ListingKey": "1189327835",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189327835"
+              ]
+            },
+            {
+              "ListingKey": "1189313976",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189313976"
+              ]
+            }
+          ],
+          "examples": []
+        },
+        "Closed": {
+          "sampled": 60,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 60,
+          "populated": 0,
+          "empty": 60,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 57,
+              "populated": 0
+            },
+            "IDX,OfficeInactive": {
+              "sampled": 3,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [
+            {
+              "ListingKey": "1189739300",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189739300"
+              ]
+            },
+            {
+              "ListingKey": "1189738448",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189738448"
+              ]
+            },
+            {
+              "ListingKey": "1189738383",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189738383"
+              ]
+            },
+            {
+              "ListingKey": "1189729413",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189729413"
+              ]
+            },
+            {
+              "ListingKey": "1189442442",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189442442"
+              ]
+            },
+            {
+              "ListingKey": "1189369433",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189369433"
+              ]
+            },
+            {
+              "ListingKey": "1189366399",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189366399"
+              ]
+            },
+            {
+              "ListingKey": "1189353862",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189353862"
+              ]
+            },
+            {
+              "ListingKey": "1189346776",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189346776"
+              ]
+            },
+            {
+              "ListingKey": "1189346370",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189346370"
+              ]
+            }
+          ],
+          "examples": []
+        }
+      }
+    },
+    "UnitTypes": {
+      "target": "PropertyUnitTypes",
+      "declared": true,
+      "collection": true,
+      "targetEntitySetAccess": {
+        "state": "accessible",
+        "http": 200,
+        "error": null
+      },
+      "byStatus": {
+        "Active": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 0,
+          "empty": 40,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [
+            {
+              "ListingKey": "1190078353",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190078353"
+              ]
+            },
+            {
+              "ListingKey": "1190076930",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190076930"
+              ]
+            },
+            {
+              "ListingKey": "1190073995",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190073995"
+              ]
+            },
+            {
+              "ListingKey": "1190070568",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190070568"
+              ]
+            },
+            {
+              "ListingKey": "1190070355",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190070355"
+              ]
+            },
+            {
+              "ListingKey": "1190070308",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190070308"
+              ]
+            },
+            {
+              "ListingKey": "1190068085",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190068085"
+              ]
+            },
+            {
+              "ListingKey": "1190066879",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190066879"
+              ]
+            },
+            {
+              "ListingKey": "1190066755",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190066755"
+              ]
+            },
+            {
+              "ListingKey": "1190065600",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1190065600"
+              ]
+            }
+          ],
+          "examples": []
+        },
+        "Pending": {
+          "sampled": 40,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 40,
+          "populated": 0,
+          "empty": 40,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 40,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [
+            {
+              "ListingKey": "1189742375",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189742375"
+              ]
+            },
+            {
+              "ListingKey": "1189723818",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189723818"
+              ]
+            },
+            {
+              "ListingKey": "1189702489",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189702489"
+              ]
+            },
+            {
+              "ListingKey": "1189698564",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189698564"
+              ]
+            },
+            {
+              "ListingKey": "1189601117",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189601117"
+              ]
+            },
+            {
+              "ListingKey": "1189598824",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189598824"
+              ]
+            },
+            {
+              "ListingKey": "1189577677",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189577677"
+              ]
+            },
+            {
+              "ListingKey": "1189554919",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189554919"
+              ]
+            },
+            {
+              "ListingKey": "1189442441",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189442441"
+              ]
+            },
+            {
+              "ListingKey": "1189426609",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189426609"
+              ]
+            }
+          ],
+          "examples": []
+        },
+        "ComingSoon": {
+          "sampled": 5,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 5,
+          "populated": 0,
+          "empty": 5,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 5,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [
+            {
+              "ListingKey": "1189715270",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189715270"
+              ]
+            },
+            {
+              "ListingKey": "1189607096",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189607096"
+              ]
+            },
+            {
+              "ListingKey": "1189486936",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189486936"
+              ]
+            },
+            {
+              "ListingKey": "1189327835",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189327835"
+              ]
+            },
+            {
+              "ListingKey": "1189313976",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189313976"
+              ]
+            }
+          ],
+          "examples": []
+        },
+        "Closed": {
+          "sampled": 60,
+          "http": 200,
+          "message": null,
+          "collectionKeyPresent": 60,
+          "populated": 0,
+          "empty": 60,
+          "records": 0,
+          "maxPerRow": 0,
+          "linkage": {},
+          "byPermission": {
+            "IDX": {
+              "sampled": 57,
+              "populated": 0
+            },
+            "IDX,OfficeInactive": {
+              "sampled": 3,
+              "populated": 0
+            }
+          },
+          "rowsWithScalarButEmpty": [
+            {
+              "ListingKey": "1189739300",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189739300"
+              ]
+            },
+            {
+              "ListingKey": "1189738448",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189738448"
+              ]
+            },
+            {
+              "ListingKey": "1189738383",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189738383"
+              ]
+            },
+            {
+              "ListingKey": "1189729413",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189729413"
+              ]
+            },
+            {
+              "ListingKey": "1189442442",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189442442"
+              ]
+            },
+            {
+              "ListingKey": "1189369433",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189369433"
+              ]
+            },
+            {
+              "ListingKey": "1189366399",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189366399"
+              ]
+            },
+            {
+              "ListingKey": "1189353862",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189353862"
+              ]
+            },
+            {
+              "ListingKey": "1189346776",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189346776"
+              ]
+            },
+            {
+              "ListingKey": "1189346370",
+              "Permission": "IDX",
+              "scalars": [
+                "ListingKey=1189346370"
+              ]
+            }
+          ],
+          "examples": []
+        }
+      }
+    }
+  },
+  "directProbes": [
+    {
+      "target": "Member",
+      "via": "BuyerAgent payload MemberKey",
+      "filter": "MemberKey eq '25281901'",
+      "http": 200,
+      "count": 1,
+      "message": null
+    },
+    {
+      "target": "Member",
+      "via": "BuyerAgent payload MemberMlsId",
+      "filter": "MemberMlsId eq '64104'",
+      "http": 200,
+      "count": 1,
+      "message": null
+    },
+    {
+      "target": "Office",
+      "via": "BuyerOffice payload OfficeKey",
+      "filter": "OfficeKey eq '5663376'",
+      "http": 200,
+      "count": 1,
+      "message": null
+    },
+    {
+      "target": "Office",
+      "via": "BuyerOffice payload OfficeMlsId",
+      "filter": "OfficeMlsId eq '7371'",
+      "http": 200,
+      "count": 1,
+      "message": null
+    },
+    {
+      "target": "CustomProperty",
+      "via": "CustomProperty payload ListingKey",
+      "filter": "ListingKey eq '1190078353'",
+      "http": 200,
+      "count": 1,
+      "message": null
+    },
+    {
+      "target": "Media",
+      "via": "Media payload ResourceRecordKey",
+      "filter": "ResourceRecordKey eq '1190078353'",
+      "http": 200,
+      "count": 12,
+      "message": null
+    },
+    {
+      "target": "OpenHouse",
+      "via": "OpenHouse payload ListingKey",
+      "filter": "ListingKey eq '1190073995'",
+      "http": 200,
+      "count": 2,
+      "message": null
+    }
+  ],
+  "emptyFollowUps": [
+    {
+      "nav": "ListAgent",
+      "status": "Active",
+      "ListingKey": "1091335133",
+      "Permission": "IDX",
+      "scalar": "ListAgentKey=29750655",
+      "direct": "Member?$filter=MemberKey eq '29750655'",
+      "http": 200,
+      "count": 0,
+      "sample": null,
+      "message": null
+    },
+    {
+      "nav": "ListAgent",
+      "status": "Active",
+      "ListingKey": "1091335133",
+      "Permission": "IDX",
+      "scalar": "ListAgentMlsId=TM229",
+      "direct": "Member?$filter=MemberMlsId eq 'TM229'",
+      "http": 200,
+      "count": 0,
+      "sample": null,
+      "message": null
+    },
+    {
+      "nav": "ListAgent",
+      "status": "Closed",
+      "ListingKey": "1189247198",
+      "Permission": "IDX",
+      "scalar": "ListAgentKey=28520193",
+      "direct": "Member?$filter=MemberKey eq '28520193'",
+      "http": 200,
+      "count": 0,
+      "sample": null,
+      "message": null
+    },
+    {
+      "nav": "ListAgent",
+      "status": "Closed",
+      "ListingKey": "1189247198",
+      "Permission": "IDX",
+      "scalar": "ListAgentMlsId=TM61",
+      "direct": "Member?$filter=MemberMlsId eq 'TM61'",
+      "http": 200,
+      "count": 0,
+      "sample": null,
+      "message": null
+    },
+    {
+      "nav": "ListAgent",
+      "status": "Closed",
+      "ListingKey": "1091329660",
+      "Permission": "IDX",
+      "scalar": "ListAgentKey=25213762",
+      "direct": "Member?$filter=MemberKey eq '25213762'",
+      "http": 200,
+      "count": 0,
+      "sample": null,
+      "message": null
+    },
+    {
+      "nav": "ListAgent",
+      "status": "Closed",
+      "ListingKey": "1091329660",
+      "Permission": "IDX",
+      "scalar": "ListAgentMlsId=112974",
+      "direct": "Member?$filter=MemberMlsId eq '112974'",
+      "http": 200,
+      "count": 0,
+      "sample": null,
+      "message": null
+    },
+    {
+      "nav": "ListAgent",
+      "status": "Closed",
+      "ListingKey": "1091329654",
+      "Permission": "IDX",
+      "scalar": "ListAgentKey=25288876",
+      "direct": "Member?$filter=MemberKey eq '25288876'",
+      "http": 200,
+      "count": 0,
+      "sample": null,
+      "message": null
+    },
+    {
+      "nav": "ListAgent",
+      "status": "Closed",
+      "ListingKey": "1091329654",
+      "Permission": "IDX",
+      "scalar": "ListAgentMlsId=87161",
+      "direct": "Member?$filter=MemberMlsId eq '87161'",
+      "http": 200,
+      "count": 0,
+      "sample": null,
+      "message": null
+    },
+    {
+      "nav": "CoListAgent",
+      "status": "Active",
+      "ListingKey": "1091330901",
+      "Permission": "IDX",
+      "scalar": "CoListAgentKey=28520285",
+      "direct": "Member?$filter=MemberKey eq '28520285'",
+      "http": 200,
+      "count": 0,
+      "sample": null,
+      "message": null
+    },
+    {
+      "nav": "CoListAgent",
+      "status": "Active",
+      "ListingKey": "1091330901",
+      "Permission": "IDX",
+      "scalar": "CoListAgentMlsId=TM128",
+      "direct": "Member?$filter=MemberMlsId eq 'TM128'",
+      "http": 200,
+      "count": 0,
+      "sample": null,
+      "message": null
+    },
+    {
+      "nav": "CoListAgent",
+      "status": "Active",
+      "ListingKey": "1091330901",
+      "Permission": "IDX",
+      "scalar": "CoListAgent2Key=25292395",
+      "direct": "Member?$filter=MemberKey eq '25292395'",
+      "http": 200,
+      "count": 1,
+      "sample": {
+        "MemberMlsId": "122095",
+        "OfficeKey": "5667509",
+        "MemberType": null,
+        "MemberKey": "25292395",
+        "OfficeMlsId": "7565",
+        "MemberStatus": "Active"
+      },
+      "message": null
+    },
+    {
+      "nav": "CoListAgent",
+      "status": "Closed",
+      "ListingKey": "1092038614",
+      "Permission": "IDX",
+      "scalar": "CoListAgentKey=25249649",
+      "direct": "Member?$filter=MemberKey eq '25249649'",
+      "http": 200,
+      "count": 0,
+      "sample": null,
+      "message": null
+    },
+    {
+      "nav": "CoListAgent",
+      "status": "Closed",
+      "ListingKey": "1092038614",
+      "Permission": "IDX",
+      "scalar": "CoListAgentMlsId=65383",
+      "direct": "Member?$filter=MemberMlsId eq '65383'",
+      "http": 200,
+      "count": 0,
+      "sample": null,
+      "message": null
+    },
+    {
+      "nav": "ListOffice",
+      "status": "Closed",
+      "ListingKey": "1091986768",
+      "Permission": "IDX,OfficeInactive",
+      "scalar": "ListOfficeKey=5671795",
+      "direct": "Office?$filter=OfficeKey eq '5671795'",
+      "http": 200,
+      "count": 0,
+      "sample": null,
+      "message": null
+    },
+    {
+      "nav": "ListOffice",
+      "status": "Closed",
+      "ListingKey": "1091986768",
+      "Permission": "IDX,OfficeInactive",
+      "scalar": "ListOfficeMlsId=632",
+      "direct": "Office?$filter=OfficeMlsId eq '632'",
+      "http": 200,
+      "count": 0,
+      "sample": null,
+      "message": null
+    },
+    {
+      "nav": "ListOffice",
+      "status": "Closed",
+      "ListingKey": "1091986205",
+      "Permission": "IDX,OfficeInactive",
+      "scalar": "ListOfficeKey=5671795",
+      "direct": "Office?$filter=OfficeKey eq '5671795'",
+      "http": 200,
+      "count": 0,
+      "sample": null,
+      "message": null
+    },
+    {
+      "nav": "ListOffice",
+      "status": "Closed",
+      "ListingKey": "1091986205",
+      "Permission": "IDX,OfficeInactive",
+      "scalar": "ListOfficeMlsId=632",
+      "direct": "Office?$filter=OfficeMlsId eq '632'",
+      "http": 200,
+      "count": 0,
+      "sample": null,
+      "message": null
+    },
+    {
+      "nav": "ListOffice",
+      "status": "Closed",
+      "ListingKey": "1091329676",
+      "Permission": "IDX,OfficeInactive",
+      "scalar": "ListOfficeKey=5671674",
+      "direct": "Office?$filter=OfficeKey eq '5671674'",
+      "http": 200,
+      "count": 0,
+      "sample": null,
+      "message": null
+    },
+    {
+      "nav": "ListOffice",
+      "status": "Closed",
+      "ListingKey": "1091329676",
+      "Permission": "IDX,OfficeInactive",
+      "scalar": "ListOfficeMlsId=7489",
+      "direct": "Office?$filter=OfficeMlsId eq '7489'",
+      "http": 200,
+      "count": 0,
+      "sample": null,
+      "message": null
+    },
+    {
+      "nav": "BuyerAgent",
+      "status": "Closed",
+      "ListingKey": "1189247198",
+      "Permission": "IDX",
+      "scalar": "BuyerAgentMlsId=TM61",
+      "direct": "Member?$filter=MemberMlsId eq 'TM61'",
+      "http": 200,
+      "count": 0,
+      "sample": null,
+      "message": null
+    },
+    {
+      "nav": "BuyerAgent",
+      "status": "Closed",
+      "ListingKey": "1091329660",
+      "Permission": "IDX",
+      "scalar": "BuyerAgentMlsId=112974",
+      "direct": "Member?$filter=MemberMlsId eq '112974'",
+      "http": 200,
+      "count": 0,
+      "sample": null,
+      "message": null
+    },
+    {
+      "nav": "BuyerOffice",
+      "status": "Closed",
+      "ListingKey": "1091329676",
+      "Permission": "IDX,OfficeInactive",
+      "scalar": "BuyerOfficeMlsId=7489",
+      "direct": "Office?$filter=OfficeMlsId eq '7489'",
+      "http": 200,
+      "count": 0,
+      "sample": null,
+      "message": null
+    }
+  ],
+  "nested": [
+    {
+      "label": "Active ListAgent($expand=Media)",
+      "ListingKey": "1091330901",
+      "expand": "ListAgent($select=MemberKey;$expand=Media($select=MediaKey,MediaCategory;$top=3))",
+      "http": 400,
+      "message": "{\"error\":{\"code\":\"BadRequest[400]. TraceId: 2bb13ba4-4b87-4ac6-9de9-c26276c4f98d\",\"message\":\"Navigation property 'Media' not found on resource 'Member'.\"}}",
+      "payload": null
+    },
+    {
+      "label": "Active ListOffice($expand=Media)",
+      "ListingKey": "1091330901",
+      "expand": "ListOffice($select=OfficeKey;$expand=Media($select=MediaKey,MediaCategory;$top=3))",
+      "http": 400,
+      "message": "{\"error\":{\"code\":\"BadRequest[400]. TraceId: acabe3bf-f57e-467c-850c-006ea80cba21\",\"message\":\"Navigation property 'Media' not found on resource 'Office'.\"}}",
+      "payload": null
+    },
+    {
+      "label": "Active Building($expand=Media)",
+      "ListingKey": "1091330901",
+      "expand": "Building($expand=Media($select=MediaKey))",
+      "http": 200,
+      "message": null,
+      "payload": "{\"ListingKey\":\"1091330901\",\"Building\":[]}"
+    },
+    {
+      "label": "Active Building($expand=Property)",
+      "ListingKey": "1091330901",
+      "expand": "Building($expand=Property($select=ListingKey))",
+      "http": 200,
+      "message": null,
+      "payload": "{\"ListingKey\":\"1091330901\",\"Building\":[]}"
+    },
+    {
+      "label": "Closed BuyerAgent($expand=Media)",
+      "ListingKey": "1189739300",
+      "expand": "BuyerAgent($select=MemberKey;$expand=Media($select=MediaKey;$top=3))",
+      "http": 400,
+      "message": "{\"error\":{\"code\":\"BadRequest[400]. TraceId: 240af5c0-e311-4057-8553-c37b102bc49d\",\"message\":\"Navigation property 'Media' not found on resource 'Member'.\"}}",
+      "payload": null
+    },
+    {
+      "label": "Active Media($filter=MediaCategory eq Photo;$top=2)",
+      "ListingKey": "1091330901",
+      "expand": "Media($select=MediaKey,MediaCategory;$filter=MediaCategory eq 'Photo';$top=2)",
+      "http": 200,
+      "message": null,
+      "payload": "{\"ListingKey\":\"1091330901\",\"Media\":[{\"MediaKey\":\"2004485803513\",\"MediaCategory\":\"Photo\"},{\"MediaKey\":\"2004485803509\",\"MediaCategory\":\"Photo\"}]}"
+    },
+    {
+      "label": "Active all 14 navigations key-only in one request",
+      "ListingKey": "1091330901",
+      "expand": "Building($select=BuildingKey),BuyerAgent($select=MemberKey),BuyerOffice($select=OfficeKey),CoBuyerAgent($select=MemberKey),CoBuyerOffice($select=OfficeKey),CoListAgent($select=MemberKey),CoListOffice($select=OfficeKey),CustomProperty($select=ListingKey),ListAgent($select=MemberKey),ListOffice($select=OfficeKey),Media($select=MediaKey),OpenHouse($select=OpenHouseKey),Rooms($select=RoomKey),UnitTypes($select=UnitTypeKey)",
+      "http": 200,
+      "message": null,
+      "payload": "{\"ListOfficeKey\":\"5667509\",\"BuyerAgentKey\":null,\"BuyerOfficeKey\":null,\"CoBuyerAgentKey\":null,\"CoListOfficeKey\":\"5667509\",\"ListAgentKey\":\"25243768\",\"CoListAgentKey\":\"28520285\",\"CoBuyerOfficeKey\":null,\"ListingKey\":\"1091330901\",\"Building\":[],\"BuyerAgent\":[],\"BuyerOffice\":[],\"CoBuyerAgent\":[],\"CoBuyerOffice\":[],\"CoListAgent\":[],\"CoListOffice\":[{\"OfficeKey\":\"5667509\"}],\"CustomProperty\":[{\"ListingKey\":\"1091330901\"}],\"ListAgent\":[{\"MemberKey\":\"25243768\"}],\"ListOffice\":[{\"OfficeKey\":\"5667509\"}],\"Media\":[{\"MediaKey\":\"2004485803516\"},{\"MediaKey\":\"2004485803506\"},{\"MediaKey\":\"2003998589164\"},{\"MediaKey\":"
+    }
+  ],
+  "entitySets": {
+    "Building": {
+      "http": 403,
+      "message": "{\"error\":{\"code\":\"Forbidden[403]. TraceId: 8c4c6cd0-4a0d-45f5-87ad-684cfc18cb71\",\"message\":\"Resource Cotality.DataStandard.RESO.DD.Building not available\"}}",
+      "rows": null
+    },
+    "Member": {
+      "http": 200,
+      "message": null,
+      "rows": 1
+    },
+    "Office": {
+      "http": 200,
+      "message": null,
+      "rows": 1
+    },
+    "CustomProperty": {
+      "http": 200,
+      "message": null,
+      "rows": 1
+    },
+    "Media": {
+      "http": 200,
+      "message": null,
+      "rows": 1
+    },
+    "OpenHouse": {
+      "http": 200,
+      "message": null,
+      "rows": 1
+    },
+    "PropertyRooms": {
+      "http": 200,
+      "message": null,
+      "rows": 1
+    },
+    "PropertyUnitTypes": {
+      "http": 200,
+      "message": null,
+      "rows": 1
+    }
+  },
+  "quota": {
+    "minuteLimit": 280,
+    "minuteAvailable": 181,
+    "hourLimit": 8400,
+    "hourAvailable": 6114,
+    "hourResetTime": 1788856595017,
+    "seenAt": 1788854657507
+  }
+}

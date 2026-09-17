@@ -13,12 +13,16 @@
  * brokerage-only block and NO third-party agent PII is surfaced.
  *
  * Compliance: NY DOS §175.25 — when the agent's name is shown, the license
- * designation (`title`, else `license_type`) is included if stored. Never
- * invented: a missing title is simply omitted (caller still shows the brokerage).
+ * designation is included if stored. Never invented: a missing designation is
+ * simply omitted (caller still shows the brokerage). The fallback resolves the
+ * LICENCE CLASS to its regulated designation rather than printing the raw column
+ * value — §175.25(c)(4) prohibits a bare "broker", and a raw class token such as
+ * "associate_broker" is not a designation at all.
  *
  * @module lib/listings/assigned-agent
  */
 import { resolveListingAgentInfo, type ResolvableListingAgent } from "@/lib/listings/agent-info-resolver";
+import { professionalTitle } from "@/lib/agents/professional-title";
 
 /** The Agent-record subset needed for the contact card (structural shape). */
 export interface AssignedAgentRecord {
@@ -80,8 +84,9 @@ export function buildAssignedAgentDisplay(
   const phone = resolved.agentDirectPhone || str(ar?.phone);
   const company = resolved.officeName || "";
   const photo = str(ar?.photo);
-  // §175.25 license designation — prefer the stored title, else license_type.
-  const title = str(ar?.title) || str(ar?.license_type);
+  // §175.25 license designation — prefer the stored title, else derive it from
+  // the LICENCE CLASS through the one title authority. Never the raw column.
+  const title = str(ar?.title) || professionalTitle({ license_type: ar?.license_type });
   const slug = str(ar?.public_slug);
 
   if (!name && !email && !phone && !company && !photo) return null;

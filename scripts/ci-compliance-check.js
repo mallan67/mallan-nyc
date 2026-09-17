@@ -5,7 +5,7 @@
  * Verifies:
  * 1. No client-side Trestle/IDX API calls
  * 2. No NEXT_PUBLIC_ env vars containing secrets
- * 3. toPublicDTO() used in public API endpoints
+ * 3. the canonical public projection (cotalityRecordsToPublicDTOs / dbListingToPublicDTO) used in public API endpoints
  * 4. checkDistributionGates() used in public API endpoints
  *
  * Exit code 0 = pass, 1 = fail
@@ -109,8 +109,10 @@ if (clientTrestleCalls.length === 0) {
 
 // ── 2. No client components importing from lib/idx/ (except display-adapter which is safe) ──
 const USE_CLIENT = /['"]use client['"]/;
-// Match lib/idx imports EXCEPT display-adapter (pure display utility, no API calls)
-const IDX_IMPORT_UNSAFE = /from\s+['"]@\/lib\/idx\/(?!display-adapter)/;
+// Match lib/idx imports EXCEPT the pure display utilities with no API calls: display-adapter and
+// public-attribution (the one public broker-attribution policy owner — zero imports; a client card that renders
+// the courtesy line must use it rather than a hard-coded brokerage name, Domain 4 2026-09-08).
+const IDX_IMPORT_UNSAFE = /from\s+['"]@\/lib\/idx\/(?!display-adapter|public-attribution)/;
 const allTsx = findFiles(path.join(ROOT, 'app'), '.tsx');
 const clientIdxImports = allTsx.filter(f => {
   const content = fs.readFileSync(f, 'utf8');
@@ -137,7 +139,7 @@ for (const envFile of ['.env', '.env.local', '.env.production']) {
   }
 }
 
-// ── 4. toPublicDTO used in public listing endpoints ──
+// ── 4. the canonical public projection used in public listing endpoints (no second provider→DTO mapper) ──
 const publicEndpoints = [
   path.join(ROOT, 'app', 'api', 'listings', 'route.ts'),
   path.join(ROOT, 'app', 'api', 'listings', '[id]', 'route.ts'),
@@ -145,10 +147,10 @@ const publicEndpoints = [
 for (const ep of publicEndpoints) {
   const rel = path.relative(ROOT, ep);
   if (fs.existsSync(ep)) {
-    if (fileContains(ep, /toPublicDTO/)) {
-      pass(`toPublicDTO used in ${rel}`);
+    if (fileContains(ep, /cotalityRecordsToPublicDTOs|cotalityRecordToPublicDTO|dbListingToPublicDTO/) && !fileContains(ep, /mapRESOToInternal|toPublicDTO\b/)) {
+      pass(`canonical public projection used in ${rel}`);
     } else {
-      fail(`toPublicDTO missing in ${rel}`);
+      fail(`canonical public projection missing (or a retired mapper present) in ${rel}`);
     }
   }
 }
@@ -537,11 +539,23 @@ if (fs.existsSync(mapperPath)) {
   } else {
     fail('Dead Trestle field references in trestle-mapper.ts gate logic: ' + hits.map(h => h.name).join(', '));
   }
-  // Participant Only gate must be present via Permission === 'Private'
-  if (/Permission === ['"]Private['"]|permissions === ['"]Private['"]/.test(content)) {
-    pass('Gate 2 (Participant Only) checks Permission === "Private" per compliance/IDX-VOW-DISPLAY-RULES.md:41');
+  // Provider permission gate (Gate 0). Property.Permission is a live Multi-Enum PROVIDER FACT; no authorized
+  // Cotality / RLS feed contract proves that any member (e.g. 'Private') equals a Mallan decision, and the
+  // live contract has no 'OwnerOptOut' member. The ONE interpretation lives in derivePermissionGates
+  // (idxPermitted: every token is the served 'IDX' permission → true; any other token → false, fail-closed;
+  // absent → null, no effect) and must feed computeGateColumns as providerIdxPermitted. The retired
+  // `Permission === 'Private' → participant_only` / `OwnerOptOut` arms must NOT come back: participant_only
+  // and owner_opt_out are Mallan / REBNY-UCBA decisions read from the Mallan side only (Packet 2, 2026-09-06).
+  const code = content.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
+  const hasTokenGate = /const permissionTokens = enumValueTokens\(['"]Permission['"], raw\.Permission\)/.test(code)
+    && /permissionTokens\.every\(\(t\) => t === ['"]IDX['"]\)/.test(code)
+    && /providerIdxPermitted: providerPermission\.idxPermitted/.test(code)
+    && /input\.providerIdxPermitted !== false/.test(code);
+  const retiredArm = /Permission === ['"]Private['"]|permissions === ['"]Private['"]|['"]OwnerOptOut['"]|['"]Owner Opt-Out['"]/.test(code);
+  if (hasTokenGate && !retiredArm) {
+    pass('Gate 0 (provider Permission) is the tokenized fact from derivePermissionGates (all tokens IDX → permitted; else fail-closed) and no retired Private/OwnerOptOut arm remains');
   } else {
-    fail('Gate 2 (Participant Only) missing — must check Permission === "Private" per REBNY RLS');
+    fail('Gate 0 (provider Permission) must be derivePermissionGates.idxPermitted fed into computeGateColumns, with no Permission === "Private" / OwnerOptOut derivation of a Mallan decision' + (retiredArm ? ' — a retired arm is present' : ''));
   }
 
   // ── 18a. IDX Plus pre-filter semantics on writer-side display gates ──

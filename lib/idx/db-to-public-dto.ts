@@ -19,6 +19,10 @@ import type { PublicListingDTO } from './public-dto';
 import { resolveMoveInFees } from './public-dto';
 import { mapPropertyTypeToDisplay, buildAuctionPublic } from './public-dto';
 import { publicListOfficeName } from './public-attribution';
+import { locationFromStoredRow } from '@/lib/listings/canonical-location';
+import { lifecycleFromStoredRow } from '@/lib/listings/canonical-lifecycle';
+import { comingSoonDom, contractSignedDate, daysToContract, marketDom } from '@/lib/compliance/dom-tracker';
+import { ACTIVE_DISPLAY_VALUES, statusDisplayLabelFor } from '@/lib/compliance/status';
 import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
 import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
 import { composeSlugStreetName, buildListingSlugFromDbRow } from '@/lib/listing-slug';
@@ -33,17 +37,13 @@ import {
 
 import { normalizeStreetCase } from './normalize-street-case';
 import { resolveListingAgentInfo } from '@/lib/listings/agent-info-resolver';
-
-/** Borough → County mapping (reverse of display-adapter) */
-const BOROUGH_TO_COUNTY: Record<string, string> = {
-  manhattan: 'New York',
-  brooklyn: 'Kings',
-  queens: 'Queens',
-  bronx: 'Bronx',
-  'staten island': 'Richmond',
-};
+import { isMallanExclusiveListing, isMallanAuthoredListing } from '@/lib/listings/exclusive-agent-assignment';
 
 interface DbAddress {
+  /** Provider county (CountyOrParish) — its own fact, never a borough source. */
+  CountyOrParish?: string;
+  /** Provider borough carrier (CityRegion); the canonical column `borough` is preferred. */
+  CityRegion?: string;
   street?: string;
   StreetNumber?: string;
   StreetDirPrefix?: string;
@@ -218,6 +218,10 @@ export interface DbListing {
   created_at: string | Date;
   updated_at: string | Date;
   raw_data?: unknown;
+  /** The Mallan presence fact (lib/listings/canonical-lifecycle.ts): 'off_feed' = off the current feed, status preserved. */
+  sync_status?: string | null;
+  /** Archive clock; the off-feed day when sync_status is off_feed. */
+  terminal_since?: string | Date | null;
   // Auction (UCBA Art. I exception path) — schema added in PR #50.
   // All five are nullable on the model; presence is gated by the validator
   // (AU-001..AU-005) at the write path. Surfaced publicly via auction object.
@@ -243,18 +247,13 @@ export interface DbListing {
   _count?: { listing_media?: number } | null;
 }
 
-/** RESO StandardStatus values that are publicly displayable */
-export const DISPLAYABLE_STATUSES = ['Active', 'ComingSoon', 'ActiveUnderContract'];
-
-/** Map RESO StandardStatus to user-friendly display */
-const STATUS_DISPLAY: Record<string, string> = {
-  Active: 'Active',
-  ComingSoon: 'Coming Soon',
-  ActiveUnderContract: 'Active Under Contract',
-  Closed: 'Closed',
-  Sold: 'Sold',
-  Rented: 'Rented',
-};
+/**
+ * Stored statuses that are publicly displayable. Pending is the feed's in-contract status (5,590 live rows,
+ * delivered under Permission IDX) and is shown publicly as "In Contract" (Maya 2026-09-08). A row that is off the
+ * feed is never displayable whatever its preserved status — filterDisplayableDbListings reads the presence fact.
+ * Mirrors ACTIVE_DISPLAY_VALUES in lib/compliance/status.ts.
+ */
+export const DISPLAYABLE_STATUSES: readonly string[] = [...ACTIVE_DISPLAY_VALUES];
 
 // REMOVED 2026-08-07 — `DB_TRESTLE_PROXY_HOSTS` + `proxyDbMediaUrl`.
 //
@@ -272,8 +271,10 @@ const proxyDbMediaUrl = toPublicMediaUrl;
 /**
  * Provenance of a DB-cached listing row.
  *
- * - `mallan-exclusive`: owned by a Mallan client (`owner_client_id` non-null)
- *   or carried by a Mallan agent (`agent_id` non-null). True Mallan exclusive.
+ * - `mallan-exclusive`: CRM-authored (SL-/RL- listing_id — the canonical Mallan identity,
+ *   lib/listings/exclusive-agent-assignment.ts) or owned by a Mallan client (`owner_client_id`).
+ *   `agent_id` alone is NOT ownership: `syncAgentHistory` stamps it on third-party feed rows where a
+ *   Mallan agent represented the BUYER (BuyerAgentMlsId match — 34 such rows in production 2026-09-08).
  * - `website-only`: commercial / off-RLS listing (`rls_eligible === false`).
  *   Bypasses REBNY distribution gates; surfaced only on mallan.nyc.
  * - `third-party-idx`: synced from REBNY RLS via Trestle/IDX Plus with no
@@ -295,13 +296,30 @@ export type DbListingProvenance =
  * consumer can reuse the same predicate.
  */
 export function classifyDbListing(listing: Pick<DbListing,
-  'agent_id' | 'owner_client_id' | 'rls_eligible'>): DbListingProvenance {
-  // Website-only check first: commercial rows opt out of RLS entirely and
-  // are tagged exclusive (Mallan-owned) by definition.
-  if (listing.rls_eligible === false) return 'website-only';
-  if (listing.agent_id != null || listing.owner_client_id != null) {
+  'agent_id' | 'owner_client_id' | 'rls_eligible' | 'listing_id'>
+  // Provenance columns are OPTIONAL: several callers do not select them (see the note below).
+  & { mls_id?: string | null; last_synced_from_trestle?: Date | string | null; list_office_mls_id?: string | null }): DbListingProvenance {
+  // Website-only: a commercial row opts out of RLS entirely and is Mallan-owned by definition — but ONLY when it
+  // is genuinely Mallan-authored. `rls_eligible === false` alone means "not RLS inventory", not "Mallan owns it"
+  // (owner review 2026-09-09), and this branch runs BEFORE the canonical check below, so without the guard a
+  // third-party COMMERCIAL row would be classified `website-only` -> `_source: 'exclusive'` and would carry the
+  // "Mallan Exclusive" badge on the homepage. That is a 19 NYCRR 175.25 / UCBA Art. III §2(A) advertising claim
+  // about another brokerage's listing.
+  //
+  // ON ABSENT COLUMNS: several callers (e.g. app/api/listings) do not select the provenance columns, so they
+  // read `undefined` and the guard passes — identical to the previous behaviour, never stricter. That direction
+  // is deliberate: for media authority the fail-closed answer is "Mallan-owned" (a Mallan listing whose photos an
+  // agent deleted must never resurrect from the legacy JSON). Where the columns ARE selected, the answer is now
+  // correct. Do not "fix" this into a throw or a fail-open default without widening every caller's select first.
+  if (listing.rls_eligible === false && isMallanAuthoredListing(listing)) return 'website-only';
+  // The canonical Mallan identity (a CRM-authored SL-/RL- id) or a Mallan client owner. Never `agent_id`
+  // alone: a synced third-party row carries it when a Mallan agent was the buyer, and reading that as
+  // ownership would publish a false claim of brokerage AND the third-party list agent's contact card
+  // (Domain 4, 2026-09-08 — tests/runtime/attribution-authority.test.ts, c1-classification.test.ts).
+  if (isMallanExclusiveListing({ listing_id: listing.listing_id, rls_eligible: listing.rls_eligible })) {
     return 'mallan-exclusive';
   }
+  if (listing.owner_client_id != null) return 'mallan-exclusive';
   return 'third-party-idx';
 }
 
@@ -313,18 +331,23 @@ export function filterDisplayableDbListings(listings: DbListing[]): DbListing[] 
   return listings.filter((l) => {
     // Gate 1: Must be an active/displayable status
     if (!DISPLAYABLE_STATUSES.includes(l.status)) return false;
-    // Website-only listings (commercial, rls_eligible=false) bypass RLS gates.
-    // `rls_eligible` is a real internal boolean, not a Trestle permission flag,
-    // so the literal `=== false` check is intentional here.
+    // Gate 1b: presence — a row recorded off the current feed keeps its last provider status but is never public
+    // (the Mallan Off Market state, lib/listings/canonical-lifecycle.ts).
+    if (!lifecycleFromStoredRow({ status: l.status, listing_type: l.listing_type, sync_status: l.sync_status, terminal_since: l.terminal_since }).publiclyDisplayable) return false;
+    // The Mallan decisions bind on EVERY row, website-only included: owner opt-out (UCBA Art. I §5(A) —
+    // no public dissemination at any time) and participants-only are not RLS flags, so they can never be
+    // bypassed by provenance (STEP3 ledger §13.4: the early return below used to skip them).
+    if (l.owner_opt_out) return false;
+    if (l.participant_only) return false;
+    // Website-only listings (commercial, rls_eligible=false) are not RLS inventory, so the IDX gates the
+    // feed enforces do not bind. `rls_eligible` is a real internal boolean, not a Trestle permission
+    // flag, so the literal `=== false` check is intentional here.
     if (l.rls_eligible === false) return true;
     // Gate 2: IDX display must be enabled (fail-closed: null/undefined → deny)
     if (!affirmPermission(l.idx_display_yn)) return false;
     // Gate 3: Internet display must be enabled (fail-closed)
     if (!affirmPermission(l.internet_entire_listing_display_yn)) return false;
-    // Gate 4: Owner must not have opted out
-    if (l.owner_opt_out) return false;
-    // Gate 5: Must not be participant-only
-    if (l.participant_only) return false;
+    // Gates 4 + 5 (owner opt-out, participant-only) were applied above, before the provenance split.
     return true;
   });
 }
@@ -332,6 +355,13 @@ export function filterDisplayableDbListings(listings: DbListing[]): DbListing[] 
 /**
  * Convert a single Prisma DB listing to PublicListingDTO.
  */
+/** A fee list for display: arrays joined, blanks dropped. */
+function feeText(v: unknown): string | undefined {
+  if (v === undefined || v === null) return undefined;
+  const s = Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean).join(', ') : String(v).trim();
+  return s ? s : undefined;
+}
+
 export function dbListingToPublicDTO(
   listing: DbListing,
   opts?: {
@@ -368,12 +398,15 @@ export function dbListingToPublicDTO(
   ].filter(Boolean).join(' ') || '';
   const streetName = normalizeStreetCase(streetNameRaw);
   const unitNumber = addr.UnitNumber || null;
-  const city = addr.City || camel('city') || listing.borough || 'New York';
+  // Canonical location (Maya, 2026-09-08, exhaustive live evidence — lib/listings/canonical-location.ts).
+  // The DTO consumes facts: city only from the row (never an invented 'New York'); county = the stored
+  // CountyOrParish, else the canonical borough's county (NYC geography for Mallan rows), else unknown;
+  // neighborhood = the canonical column, then the stored SubdivisionName / legacy form key.
+  const location = locationFromStoredRow({ borough: listing.borough, neighborhood: listing.neighborhood, address: addr });
+  const city = location.city ?? '';
   const postalCode = addr.PostalCode || camel('postalCode');
-  const borough = (addr.Borough || listing.borough || '').toLowerCase();
-  const county = BOROUGH_TO_COUNTY[borough] || borough || 'New York';
-  // Neighborhood: SubdivisionName (Trestle) > Neighborhood (legacy) > DB column
-  const neighborhood = addr.SubdivisionName || addr.Neighborhood || listing.neighborhood || undefined;
+  const county = location.county ?? '';
+  const neighborhood = location.neighborhood ?? undefined;
 
   // CRM-created exclusives always show address — IDX gate is for RLS-distributed only.
   // Use listing_id prefix (always selected, always present) instead of mls_id
@@ -474,12 +507,18 @@ export function dbListingToPublicDTO(
     hadFeedRelationalRows: opts?.hadFeedRelationalRows,
   });
 
+  // ONE lifecycle read: the provider status + the Mallan presence fact (lib/listings/canonical-lifecycle.ts).
+  const lifecycle = lifecycleFromStoredRow({ status: listing.status, listing_type: listing.listing_type, raw_data: listing.raw_data, sync_status: listing.sync_status, terminal_since: listing.terminal_since });
   return {
     id: listing.listing_id,
     mlsId: listing.listing_id,
     slug,
     url: buildCanonicalListingPath({ slug, id: listing.listing_id }),
-    status: STATUS_DISPLAY[listing.status] || listing.status,
+    // Broker-language label from the label authority, sale/rental aware (In Contract · Sold · Rented …); the Mallan
+    // Off Market state when the row is off the feed (its preserved provider status is not the display label).
+    status: (lifecycle.stage === 'off_market' ? lifecycle.label : statusDisplayLabelFor(listing.status, listing.listing_type)) || listing.status,
+    // The two Mallan clocks (lib/compliance/dom-tracker.ts) beside the preserved provider contract events.
+    lifecycle: { providerStage: lifecycle.providerStage, presence: lifecycle.presence, offFeedSince: lifecycle.offFeedSince, contractSignedDate: contractSignedDate(lifecycle), daysToContract: daysToContract(lifecycle), marketDom: marketDom(lifecycle, new Date()), comingSoonDom: comingSoonDom(lifecycle, new Date()), contractEvents: lifecycle.contractEvents, stage: lifecycle.stage, inContractSince: lifecycle.inContractSince, backOnMarket: lifecycle.backOnMarket, backOnMarketDate: lifecycle.backOnMarketDate, closedDate: lifecycle.closedDate, priceChangeTimestamp: lifecycle.priceChangeTimestamp },
     listingType: listing.listing_type as 'sale' | 'rent',
     address: suppressAddress
       ? {
@@ -599,20 +638,24 @@ export function dbListingToPublicDTO(
     furnished: features.Furnished ? String(features.Furnished) : undefined,
     availabilityDate: rawData.AvailabilityDate ? String(rawData.AvailabilityDate) : undefined,
     // Days on Market
+    // Provider facts (REBNY's own DaysOnMarket / CumulativeDaysOnMarket): null on every sampled row of this feed
+    // (2026-09-08); preserved as delivered, never Mallan's clock (that is lifecycle.marketDom / comingSoonDom).
     daysOnMarket: rawData.DaysOnMarket != null ? Number(rawData.DaysOnMarket) : undefined,
     cumulativeDaysOnMarket: rawData.CumulativeDaysOnMarket != null ? Number(rawData.CumulativeDaysOnMarket) : undefined,
-    // Virtual tour + video — host-split (YouTube/Vimeo → video; Matterport/3D → tour),
-    // unbranded preferred over branded (UCBA Art. I §5(C)). See tourUrlsForDto.
+    // Virtual tour + video — the Cotality fields, read by their live names. VirtualTourURLUnbranded2/3 are
+    // now KEPT in raw_data (they were dropped by the keep-list, so these reads were always empty). Host-split
+    // (YouTube/Vimeo → video; Matterport/3D → tour), unbranded preferred over branded (UCBA Art. I §5(C)).
     ...tourUrlsForDto(
       [rawData.VirtualTourURLUnbranded, rawData.VirtualTourURLUnbranded2, rawData.VirtualTourURLUnbranded3],
       rawData.VirtualTourURLBranded,
     ),
     // FARE Act fee transparency
-    moveInCosts: features.MoveInCosts ? String(features.MoveInCosts) : undefined,
+    // live MoveInCosts members when present; otherwise the Mallan free-text fact (MoveInCostsDescription)
+    moveInCosts: feeText(features.MoveInCosts) ?? feeText(features.MoveInCostsDescription),
     // Shared zero-safe resolver (canonical-first legacy fallback) — same on every path.
     ...resolveMoveInFees(features as Record<string, unknown>),
-    ongoingFees: features.OngoingFees ? String(features.OngoingFees) : undefined,
-    tenantPays: features.TenantPays ? String(features.TenantPays) : undefined,
+    ongoingFees: feeText(features.OngoingFees) ?? feeText(features.OngoingFeesDescription),
+    tenantPays: feeText(features.TenantPays) ?? feeText(features.TenantPaysList),
     tenantPaysDescription: features.TenantPaysDescription ? String(features.TenantPaysDescription) : undefined,
     additionalFeeYN: features.AdditionalFeeYN === true || features.AdditionalFeeYN === 'true' ? true : undefined,
     additionalFee: features.AdditionalFee != null ? Number(features.AdditionalFee) : undefined,

@@ -1,6 +1,6 @@
 # 🗄️ NEON.md — READ THIS BEFORE ANY DB, PRISMA, OR MIGRATION WORK
 
-> **This file is the single source of truth for everything Neon / Prisma / DB-migration related on mallan-nyc. If you are about to touch `prisma/schema.prisma`, write a migration, add a column, drop an index, change `DATABASE_URL`, or modify `vercel.json` — stop and read this file first. Then read `docs/DEPLOYMENT.md` which is the authoritative architecture doc.**
+> **This file is the single source of truth for everything Neon / Prisma / DB-migration related on mallan-nyc — and only for that. If you are about to touch `prisma/schema.prisma`, write a migration, add a column, drop an index, change `DATABASE_URL`, or modify `vercel.json` — stop and read this file first. Then read `docs/DEPLOYMENT.md` for the deploy/build pipeline. `docs/DEPLOYMENT.md` is NOT the product/system architecture authority: that is `MALLAN-PLATFORM-MASTER-PLAN.md` (repo root, canonical lineage PR #595 / `agent/publish-mallan-platform-master-plan-2026-08-04`, under the authority order in `AGENTS.md` (Master Plan → `MALLAN-CONTINUOUS-EXECUTION-STATE.md` → `AGENTS.md` · `CLAUDE.md`). This line previously read "Then read `docs/DEPLOYMENT.md` which is the authoritative architecture doc" — that claim is retracted.**
 
 **Last updated:** 2026-07-05 · **Review:** whenever tier changes, a migration ships, or `ops:health` surfaces a new warning.
 
@@ -51,7 +51,7 @@ The `vercel.json` `buildCommand` must not contain `prisma migrate deploy` or `pr
 | Compute time | **300 CU-hours / month** baseline, overage at ~$0.16/CU-hr | fixed **0.25 CU** (autoscale min=max=0.25); well under baseline | live `neonctl` + `scripts/ops-health.js` |
 | Branches per project | **5000** (vs. 10 on Free) | **1 (main only)** on `neon-green-school` — live 2026-07-05 (the Gate-6 rollback branch was auto-pruned; see OPS-022) | live `neonctl branches list` |
 | Instant-restore window (PITR / history retention) | **6 hours on THIS project** — verified directly from Neon configuration (`history_retention_seconds=21600`, project API via neonctl, 2026-07-02; NOT inferred from runtime). Why not 7 days: Neon defaults are Free = 6h, paid plans = 1 day; Launch allows **up to** 7 days as a project-level setting (Console → Settings → Instant restore). This project kept its Free-era 6h setting through the 2026-05-17 Launch upgrade — the earlier "7 days (Launch baseline)" here conflated the Launch MAXIMUM with the configured value. Consequences: point-in-time restore reaches back only ~6h (named branches pin their LSN independently and are the durable restore mechanism — e.g. the Gate-6 rollback branch); the ~6h window governs how fast HISTORY ages out after branch deletion — it does NOT mean billed storage drops: the S1 check (OPS-018, measured 2026-07-02) confirmed freed TOAST space is **reusable-not-returned** (physical size did not fall after branches were deleted + retention elapsed + autovacuum). Do not treat a missing same-day drop as an anomaly and do not escalate to compaction — disposition is no compaction now, no pg_repack until after the Gate-6 drain if at all, VACUUM FULL forbidden. Re-verified live 2026-07-05 (`history_retention_seconds=21600`, unchanged) and now machine-checked every run by `npm run neon:verify` against the §2.1 canonical-facts block. Registry: OPS-016 (RESOLVED 2026-07-05) + OPS-018 | 21,600 s | Neon config API (neonctl) 2026-07-05 + Neon docs + OPS-018 measurement |
-| Compute auto-suspend | 5 min idle (configurable; default unchanged from Free) | `db-keepalive` cron at `*/15` **mitigates, does not prevent** — see §3 Trap #3. The 15-min interval lets routine 5-min suspends happen between pings; the cron's job is preventing multi-hour idles, not 5-min suspends. | `app/api/cron/db-keepalive/route.ts`, `vercel.json` |
+| Compute auto-suspend | 5 min idle (configurable; default unchanged from Free) | **No keepalive exists today.** The `db-keepalive` cron was **deleted 2026-08-07 (`2e641f11`)**; `app/api/cron/db-keepalive/route.ts` is gone and there is no `db-keepalive` entry in `crons[]`. Historical record of what it did: it ran at `*/15` and **mitigated, did not prevent** — see §3 Trap #3; the 15-min interval let routine 5-min suspends happen between pings, and its job was preventing multi-hour idles, not 5-min suspends. | `vercel.json` `crons[]`, read live |
 
 ### 2.1 Canonical facts — machine-checked (OPS-016)
 
@@ -128,6 +128,8 @@ Before writing a new migration, run `npx prisma migrate diff` to see if the sche
 
 Before `93fb0cd9` (2026-03-26): a 24-hour outage was caused by Neon suspending overnight, then morning requests timing out on the cold start. The `db-keepalive` cron was added to prevent this.
 
+> **Correction 2026-09-10 — that cron no longer exists.** `app/api/cron/db-keepalive/route.ts` was deleted 2026-08-07 in `2e641f11` and has no `crons[]` entry in `vercel.json`. The paragraphs below describe the mitigation **as it stood while the cron existed** and are retained as history. Today no cron exists whose purpose is keeping the compute warm; the finest-grained schedule is `/api/cron/one-cycle-preflight` at `*/10 * * * *`. Treat the 2026-03-26 outage mode as **unmitigated by any keepalive**. Do not re-add a cron to "fix" this — cron config is a standing hold requiring explicit Maya approval (`CLAUDE.md` §C); raise it with Maya instead.
+
 This auto-suspend behavior is **not specific to the Free tier**. The Launch plan inherits the same 5-min idle suspend default; it is a per-compute-endpoint setting that can be raised via Neon Console but defaults to 5 min for cost reasons.
 
 **Trade-off explicitly accepted:** we burn a small continuous amount of compute to avoid large intermittent outages. On the Launch plan this costs marginal pennies/month rather than threatening a hard quota, but the discipline remains.
@@ -146,11 +148,11 @@ My own mistake on 2026-04-19. I wrote a migration file, pushed the code that dep
 
 ## 4. Migration discipline
 
-### Per-PR pattern (from `CLAUDE.md` deferred-workstream block)
+### Per-PR pattern (historical: the `CLAUDE.md` deferred-workstream block was removed in the 2026-05-20 rebuild — `CLAUDE.md` contains no "deferred" text today; this pattern now lives here)
 
 1. **Add nullable column** — `Boolean?` / `String?` / `DateTime?`. Never `NOT NULL DEFAULT …` even though PG ≥11 makes it metadata-only.
 2. **Dual-write in `lib/idx/sync.ts`** (JSON + column) — ensures new rows populate the column during the transition.
-3. **Wait ≥ one sync cycle** (idx-sync is `*/12 * * * *`).
+3. **Wait ≥ one sync cycle** (idx-sync runs as an **in-process member** of `/api/cron/one-cycle`, driven by `/api/cron/one-cycle-preflight` at `*/10 * * * *` — read `crons[]` in `vercel.json`, never a remembered cadence. This step previously read "idx-sync is `*/12 * * * *`"; that schedule no longer exists).
 4. **Migrate ONE reader** from JSON → column.
 5. **Verify `npm run ops:health`.**
 6. Repeat for the next reader.
@@ -274,7 +276,7 @@ Launch plan compute is **billed past 300 CU-hr/mo**, not blocked. The playbook b
 1. `npm run ops:health` — confirm compute hours are near/over the Launch baseline (300 CU-hr/mo)
 2. Neon console → Project → Usage — check current usage + reset date
 3. **Options (in order of preference):**
-   - Reduce compute-burn: audit recent changes for new DB query paths, check uptime-monitor frequency, consider slowing down `db-keepalive` or non-critical crons temporarily
+   - Reduce compute-burn: audit recent changes for new DB query paths, check uptime-monitor frequency, consider slowing down non-critical crons temporarily (this line used to name `db-keepalive` — that cron was deleted 2026-08-07, `2e641f11`, and cannot be slowed down)
    - Accept overage for the current month if a one-off (rare event, batch backfill, etc.) — Launch overage is metered, not catastrophic
    - **If sustained:** evaluate Scale plan upgrade (more baseline + lower per-CU-hr overage rate). Charter conversation required.
 4. Once stable, apply any deferred migration manually: `DATABASE_URL=prod npx prisma migrate deploy`
@@ -292,7 +294,7 @@ Launch plan compute is **billed past 300 CU-hr/mo**, not blocked. The playbook b
 ### C — "All routes 500ing with connection timeout"
 
 1. Load `https://mallan.nyc/api/health` — 503 means Next.js runtime itself is down; 200 means runtime is up, DB is likely cold
-2. Confirm `db-keepalive` cron is enabled in `vercel.json` (`*/3 * * * *`)
+2. ~~Confirm `db-keepalive` cron is enabled in `vercel.json` (`*/3 * * * *`)~~ — **impossible since 2026-08-07:** that route was deleted in `2e641f11` and has no `crons[]` entry, so this step cannot be satisfied as written. Instead: read `crons[]` in `vercel.json` live, confirm `/api/cron/one-cycle-preflight` (`*/10 * * * *`) is present, and check that its recent runs succeeded. There is no keepalive cron to enable.
 3. Neon console → restart compute manually
 4. Hit a DB-dependent route (e.g. `/api/listings?q=manhattan`) — first request takes ~2–5s while compute wakes; subsequent requests should be ~50ms
 
@@ -317,7 +319,7 @@ Folded into master refactor plan PR 5 (search projection). Master plan complete 
 
 ### B — Phase 5 HTTP adapter per-route adoption — DROPPED
 
-Per user decision 2026-04-25. The prototype `lib/prisma-http.ts` was removed. Remaining cold-start mitigation is provided by the `db-keepalive` cron (§3 trap #3). See `memory/REFACTOR-2026-04-25.md` line 9 for the dropped-workstream record.
+Per user decision 2026-04-25. The prototype `lib/prisma-http.ts` was removed. Remaining cold-start mitigation **was** provided by the `db-keepalive` cron (§3 trap #3) — which was itself deleted 2026-08-07 (`2e641f11`), so **no cold-start mitigation is in place today**. See `memory/REFACTOR-2026-04-25.md` line 9 for the dropped-workstream record.
 
 ### Open follow-up — legacy JSON columns on `Listing`
 

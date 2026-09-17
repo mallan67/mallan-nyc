@@ -1,0 +1,24 @@
+{
+  "source": "LIVE_COTALITY",
+  "resource": "Media",
+  "field": "MediaStatus",
+  "scope": null,
+  "distinct": 1,
+  "values": [
+    "Active"
+  ],
+  "counts": {
+    "Active": 2000983
+  },
+  "sum_of_counts": 2000983,
+  "non_null_total": 2000983,
+  "complete": true,
+  "quota": {
+    "minuteLimit": 280,
+    "minuteAvailable": 271,
+    "hourLimit": 8400,
+    "hourAvailable": 8394,
+    "hourResetTime": 1788852995017,
+    "seenAt": 1788849817415
+  }
+}

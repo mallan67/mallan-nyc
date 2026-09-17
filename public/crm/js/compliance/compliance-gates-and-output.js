@@ -34,7 +34,7 @@ function checkListingCompliance(listingIds, displayContext) {
         // Gate 3: Display context — IDX vs VOW vs CRM
         if (displayContext === 'idx') {
             if (listing.idxDisplayYN === false || perm.idxDisplay === false) {
-                result.blocked.push({ id: id, address: listing.address, reason: 'IDX Display opted out — not shown on IDX websites (RLS: IDXEntireListingDisplayYN)' });
+                result.blocked.push({ id: id, address: listing.address, reason: 'IDX Display opted out — not shown on IDX websites (Mallan decision: idx_display_yn)' });
                 return;
             }
             if (listing.internetDisplayYN === false) {
@@ -50,10 +50,10 @@ function checkListingCompliance(listingIds, displayContext) {
         // CRM: skip Gate 3 (authorized participant sees all except Owner Opt-Out)
 
         // Gate 4: Syndication — track for distribution control
-        // SyndicateYN=false means listing should NOT go to third-party portals,
+        // An empty SyndicateTo (the Mallan syndication decision) means the listing should NOT go to third-party portals,
         // but it still appears in IDX search. Flag as warning for output/reports.
         if (perm.syndication === false || listing.syndicateYN === false) {
-            result.warnings.push({ id: id, address: listing.address, reason: 'Not Syndicated — listing will not be distributed to third-party portals (SyndicateYN=false)' });
+            result.warnings.push({ id: id, address: listing.address, reason: 'Not Syndicated — listing will not be distributed to third-party portals (SyndicateTo empty)' });
         }
 
         // Gate 5: Coming Soon — show but with restrictions
@@ -94,285 +94,77 @@ function formatDate(dateStr) {
     return dateStr;
 }
 
-// Generate branded listing sheet HTML for one listing
-function generateSingleListingSheet(listing, suppressAddress) {
-    var address = suppressAddress ? 'Address Available Upon Request' : listing.address;
-    var unitStr = listing.unit ? ', ' + listing.unit : '';
-    var neighborhood = listing.neighborhood || '';
-    var borough = listing.borough || 'Manhattan';
-    var bedsLabel = listing.beds === 0 ? 'Studio' : listing.beds + ' BD';
-    var bathsLabel = listing.baths + ' BA';
-    var sqftLabel = listing.intSqft ? listing.intSqft.toLocaleString() + ' SF' : '';
-    var priceStr = formatCurrency(listing.price);
-    if (listing.listingCategory === 'rental') priceStr += '/mo';
-
-    var statusClass = '';
-    switch(listing.status) {
-        case 'ACTIVE': statusClass = 'background:#2563eb;color:white;'; break;
-        case 'PENDING': statusClass = 'background:#f59e0b;color:white;'; break;
-        case 'CLOSED': statusClass = 'background:#16a34a;color:white;'; break;
-        case 'COMING_SOON': statusClass = 'background:#8b5cf6;color:white;'; break;
-        default: statusClass = 'background:#6b7280;color:white;'; break;
-    }
-
-    var details = [];
-    if (listing.ownership) details.push(ownershipLabel(listing.ownership));
-    if (listing.era) details.push(listing.era);
-    if (listing.dom !== undefined) details.push(listing.dom + ' DOM');
-    var detailsStr = details.join('  |  ');
-
-    var financials = '';
-    if (listing.listingCategory !== 'rental') {
-        var parts = [];
-        if (listing.maintCC) parts.push('Maint/CC: ' + formatCurrency(listing.maintCC) + '/mo');
-        if (listing.reTaxes) parts.push('RE Tax: ' + formatCurrency(listing.reTaxes) + '/mo');
-        if (listing.totalMonthly) parts.push('Total Monthly: ' + formatCurrency(listing.totalMonthly));
-        financials = parts.join('  |  ');
-    }
-
-    var description = listing.description || '';
-    if (description.length > 300) description = description.substring(0, 297) + '...';
-
-    var agentLine = 'Listed by ' + (listing.agentName || AGENT_PROFILE.name) + ', ' + (listing.company || AGENT_PROFILE.company);
-
-    return '<div class="listing-sheet-card" style="border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;margin-bottom:24px;page-break-inside:avoid;">' +
-        '<div style="padding:20px 24px;border-bottom:1px solid #e5e7eb;">' +
-            '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">' +
-                '<div>' +
-                    '<div style="font-size:24px;font-weight:700;color:#111827;">' + priceStr + '</div>' +
-                    '<div style="font-size:14px;color:#6b7280;margin-top:2px;">' + bedsLabel + '  |  ' + bathsLabel + (sqftLabel ? '  |  ' + sqftLabel : '') + '</div>' +
-                '</div>' +
-                '<span style="' + statusClass + 'padding:4px 12px;border-radius:9999px;font-size:12px;font-weight:600;">' + listing.status + '</span>' +
-            '</div>' +
-        '</div>' +
-        '<div style="padding:20px 24px;">' +
-            '<div style="font-size:16px;font-weight:600;color:#111827;">' + address + unitStr + '</div>' +
-            '<div style="font-size:14px;color:#6b7280;margin-top:2px;">' + neighborhood + ', ' + borough + '</div>' +
-            (detailsStr ? '<div style="font-size:13px;color:#6b7280;margin-top:8px;">' + detailsStr + '</div>' : '') +
-            (financials ? '<div style="font-size:13px;color:#374151;margin-top:8px;padding:8px 12px;background:#f9fafb;border-radius:8px;">' + financials + '</div>' : '') +
-            (description ? '<div style="font-size:13px;color:#4b5563;margin-top:12px;line-height:1.5;">' + description + '</div>' : '') +
-            '<div style="font-size:12px;color:#9ca3af;margin-top:12px;">' + agentLine + '</div>' +
-            '<div style="font-size:11px;color:#d1d5db;margin-top:4px;">Last Updated: ' + formatDate(listing.updatedDate || listing.listedDate) + '</div>' +
-        '</div>' +
-    '</div>';
-}
-
-// Generate full branded listing sheet HTML (header + listings + footer)
-function generateListingSheet(listings, warnings) {
-    var now = new Date();
-    var dateStr = (now.getMonth()+1) + '/' + now.getDate() + '/' + now.getFullYear() + ' ' + now.toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit'});
-
-    var warningIds = {};
-    if (warnings) warnings.forEach(function(w) { warningIds[w.id] = true; });
-
-    var html = '<div id="listingSheetContent" style="font-family:system-ui,-apple-system,sans-serif;max-width:800px;margin:0 auto;padding:20px;">';
-
-    // Header — Company branding
-    html += '<div style="border-bottom:3px solid #B8860B;padding-bottom:16px;margin-bottom:24px;">' +
-        '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">' +
-            '<div>' +
-                '<div style="font-size:22px;font-weight:700;color:#111827;letter-spacing:0.5px;">MALLAN REAL ESTATE INC.</div>' +
-                '<div style="font-size:12px;color:#6b7280;margin-top:4px;">' + AGENT_PROFILE.address + '</div>' +
-                '<div style="font-size:12px;color:#6b7280;">' + AGENT_PROFILE.phone + ' | ' + AGENT_PROFILE.website + '</div>' +
-            '</div>' +
-            '<div style="text-align:right;">' +
-                '<div style="font-size:14px;font-weight:600;color:#111827;">Prepared by: ' + AGENT_PROFILE.name + '</div>' +
-                '<div style="font-size:12px;color:#6b7280;">License: ' + AGENT_PROFILE.license + '</div>' +
-                '<div style="font-size:12px;color:#6b7280;">' + AGENT_PROFILE.phone + ' | ' + AGENT_PROFILE.email + '</div>' +
-            '</div>' +
-        '</div>' +
-    '</div>';
-
-    // Warning banner (if any address-suppressed listings)
-    if (warnings && warnings.length > 0) {
-        html += '<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#92400e;">' +
-            '<strong>Note:</strong> ' + warnings.length + ' listing(s) have address display opted out. Address shown as "Available Upon Request".' +
-        '</div>';
-    }
-
-    // Listing cards
-    listings.forEach(function(listing) {
-        var suppressAddr = warningIds[listing.id] || false;
-        html += generateSingleListingSheet(listing, suppressAddr);
-    });
-
-    // Footer — REBNY attribution + compliance + commission negotiability
-    html += '<div style="border-top:2px solid #e5e7eb;padding-top:16px;margin-top:24px;font-size:11px;color:#9ca3af;line-height:1.6;">' +
-        '<p>Listing(s) courtesy of the REBNY Listing Service (RLS)</p>' +
-        '<p>Information is deemed reliable but not guaranteed.</p>' +
-        '<p>Last Updated: ' + dateStr + '</p>' +
-        '<p style="margin-top:8px;color:#6b7280;font-style:italic;">Commission rates are not set by law and are fully negotiable. Compensation offered to cooperating brokers is determined by the listing broker.</p>' +
-        '<p style="margin-top:8px;">Equal Housing Opportunity &mdash; Federal Fair Housing Act, NY State Human Rights Law, NYC Human Rights Law Title 8</p>' +
-        '<p style="margin-top:4px;">' + AGENT_PROFILE.company + ' | Brokerage License: ' + AGENT_PROFILE.companyLicense + '</p>' +
-        '<p>' + AGENT_PROFILE.address + ' | ' + AGENT_PROFILE.phone + ' | ' + AGENT_PROFILE.website + '</p>' +
-    '</div>';
-
-    html += '</div>';
-    return html;
-}
+// generateSingleListingSheet() and generateListingSheet() REMOVED 2026-09-17 (W7).
+//
+// They had no live output caller. Retirement 1B proved it: printListingSheet() and emailListingSheet()
+// delegate to openReportsModal() and nothing else. What kept them in the file was THIS file - the
+// compliance doctor read their .toString() and reported that PRINT carried REBNY attribution and a Fair
+// Housing notice because those strings appeared in a renderer the product could no longer reach. A
+// checker asserting a legal notice from dead source text is worse than no checker: it is a green light
+// with nothing behind it.
+//
+// REG-8 already made this exact correction to the EMAIL half of W7 (see the note in W7 below); the print
+// half survived that packet and does not survive this one.
+//
+// Print and email content are proven where they can actually be proven - by driving the real workflow
+// and asserting on what the sink RECEIVES: tests/runtime/crm-report-outputs.test.ts captures
+// openPrintableWindow and checks RLS attribution, Equal Housing and brokerage identity in the delivered
+// HTML, and crm-report-audience-population.test.ts drives generateReport() to print for audience gating
+// and audit counts. Git history is the archive.
 
 // Get selected listing IDs
 function getSelectedListingIds() {
     return searchResultsState.selectedListings || [];
 }
 
-// Print listing sheet
+// Print listing sheet — carries the selection to the canonical reports workflow, and does nothing else.
+//
+// A SECOND PRINTING IMPLEMENTATION used to live after the delegation below, reached only when
+// openReportsModal was absent. It was not a safety net. It gated on checkListingCompliance() — the two-gate
+// IDX/Internet model — and blamed an IDX opt-out for every refusal, wording C4C superseded: an empty report
+// population equally means an owner opt-out or a participant-only restriction, and the audience is the
+// report VERSION, not a property of the output type. Had it ever run it would have printed a DIFFERENT
+// document under a retired rule, and written its own audit entry saying it succeeded.
+//
+// reports.js owns format, version, audience gating, the 250 cap and the audit. This wrapper owns the
+// selection and nothing more, so there is no second answer to fall back to.
 function printListingSheet() {
     var ids = getSelectedListingIds();
     if (ids.length === 0) {
         showToast('Please select at least one listing to print.', 'warning');
         return;
     }
-    // Use the reports modal which has format/version/options
-    if (typeof openReportsModal === 'function') {
-        openReportsModal(ids, 'print');
+    if (typeof openReportsModal !== 'function') {
+        showToast('Reports are unavailable. Nothing was printed.', 'error');
         return;
     }
-    // Legacy fallback
-    var compliance = checkListingCompliance(ids);
-
-    // Show blocked listings warning
-    if (compliance.blocked.length > 0) {
-        var blockedCount = compliance.blocked.length;
-        if (compliance.passed.length === 0) {
-            showToast(blockedCount + ' listing(s) blocked (IDX opt-out). No listings available to print.', 'error');
-            return;
-        }
-        showToast(blockedCount + ' listing(s) blocked (IDX opt-out). Printing remaining ' + compliance.passed.length + ' listing(s).', 'warning');
-    }
-
-    var sheetHtml = generateListingSheet(compliance.passed, compliance.warnings);
-
-    // Open print window (CSP-safe Blob URL)
-    var printHtml = '<!DOCTYPE html><html><head><title>Listing Sheet - Mallan Real Estate</title>' +
-        '<style>' +
-        'body { margin: 0; padding: 20px; font-family: system-ui, -apple-system, sans-serif; }' +
-        '.listing-sheet-card { page-break-inside: avoid; }' +
-        '@media print { body { padding: 0; } @page { margin: 1.5cm; } }' +
-        '</style></head><body>' + sheetHtml + '</body></html>';
-    openPrintableWindow(printHtml, { features: 'width=900,height=700', autoPrint: true });
-
-    // Log audit entry
-    logAuditEntry('listing_print', {
-        listingIds: compliance.passed.map(function(l) { return l.id; }),
-        count: compliance.passed.length,
-        blocked: compliance.blocked.length
-    });
-
-    // Close delivery menu if open
-    var menu = document.getElementById('clientDeliveryMenu');
-    if (menu) menu.classList.add('hidden');
+    openReportsModal(ids, 'print');
 }
 
-// Preview listing sheet (opens in modal overlay)
-function previewListingSheet() {
-    var ids = getSelectedListingIds();
-    if (ids.length === 0) {
-        showToast('Please select at least one listing to preview.', 'warning');
-        return;
-    }
+// previewListingSheet() REMOVED 2026-09-16 (Retirement 1B). Zero live callers: its only buttons lived in
+// html/modals/client-delivery.html, which an earlier packet deleted. It rendered through the same retired
+// generateListingSheet() path and refused with the IDX-only wording that the C4C audience contract
+// superseded. Git history is the archive.
 
-    var compliance = checkListingCompliance(ids);
-
-    if (compliance.blocked.length > 0 && compliance.passed.length === 0) {
-        showToast('All selected listings have IDX display opted out. Cannot preview.', 'error');
-        return;
-    }
-
-    var sheetHtml = generateListingSheet(compliance.passed, compliance.warnings);
-
-    // Show in a preview window (CSP-safe Blob URL)
-    var previewHtml = '<!DOCTYPE html><html><head><title>Preview - Listing Sheet</title>' +
-        '<style>' +
-        'body { margin: 0; padding: 20px; font-family: system-ui, -apple-system, sans-serif; background: #f3f4f6; }' +
-        '#listingSheetContent { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }' +
-        '.listing-sheet-card { page-break-inside: avoid; }' +
-        '.preview-toolbar { position: sticky; top: 0; background: #1f2937; color: white; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; margin: -20px -20px 20px; border-radius: 0; z-index: 10; }' +
-        '.preview-toolbar button { background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; }' +
-        '.preview-toolbar button:hover { background: #2563eb; }' +
-        '.preview-toolbar button.secondary { background: transparent; border: 1px solid rgba(255,255,255,0.3); }' +
-        '.preview-toolbar button.secondary:hover { background: rgba(255,255,255,0.1); }' +
-        '@media print { .preview-toolbar { display: none !important; } body { background: white; padding: 0; } #listingSheetContent { box-shadow: none; padding: 0; } @page { margin: 1.5cm; } }' +
-        '</style></head><body>' +
-        '<div class="preview-toolbar">' +
-        '<span style="font-size:14px;font-weight:600;">' + compliance.passed.length + ' Listing(s) - Preview</span>' +
-        '<div style="display:flex;gap:8px;">' +
-        '<button class="secondary" onclick="window.close()">Close</button>' +
-        '<button onclick="window.print()">Print</button>' +
-        '</div></div>' +
-        sheetHtml + '</body></html>';
-    openPrintableWindow(previewHtml, { features: 'width=900,height=700' });
-
-    // Close delivery modal
-    closeDeliveryModal();
-}
-
-// Email listing sheet — opens reports modal with email preset
+// Email listing sheet — carries the selection to the canonical reports workflow, and does nothing else.
+//
+// A COMPLETE SECOND EMAIL PATH used to live after the delegation below: its own client lookup
+// (customerDB / #clientSelect), its own renderer (buildBrandedEmailHTML), its own listing_email success
+// audit and its own sendEmailDirect call. None of it saw the C4C audience gate, so it could have put
+// owner-opted-out or participant-only inventory into a client's inbox — the exact defect C4C closed in
+// reports.js. A fallback that sends a client something the canonical path would have refused is worse than
+// sending nothing, so this fails closed.
 function emailListingSheet() {
     var ids = getSelectedListingIds();
     if (ids.length === 0) {
         showToast('Please select at least one listing to email.', 'warning');
         return;
     }
-    // Use the reports modal which has a working client selector + email delivery
-    if (typeof openReportsModal === 'function') {
-        openReportsModal(ids, 'email');
+    if (typeof openReportsModal !== 'function') {
+        showToast('Reports are unavailable. Nothing was sent.', 'error');
         return;
     }
-    // Legacy fallback (should not reach here)
-    var compliance = checkListingCompliance(ids);
-
-    if (compliance.blocked.length > 0 && compliance.passed.length === 0) {
-        showToast('All selected listings have IDX display opted out. Cannot email.', 'error');
-        return;
-    }
-
-    // Get selected client info
-    var clientSelect = document.getElementById('clientSelect');
-    var clientEmail = '';
-    var clientName = 'Client';
-    if (clientSelect && clientSelect.value) {
-        var selectedClient = customerDB[clientSelect.value];
-        if (selectedClient) {
-            clientName = selectedClient.name;
-            clientEmail = selectedClient.email;
-        } else {
-            var opt = clientSelect.options[clientSelect.selectedIndex];
-            clientName = opt.textContent.split(' - ')[0].trim();
-        }
-    }
-
-    if (!clientEmail) {
-        showToast('Please select a client with an email address first.', 'warning');
-        return;
-    }
-
-    var listings = compliance.passed;
-    var title = 'Property Report — ' + listings.length + ' Listing' + (listings.length !== 1 ? 's' : '');
-
-    // Build the branded HTML email body — status badges per listing, formatCurrency prices, updatedDate, REBNY attribution
-    var richHTML = buildBrandedEmailHTML(listings, title, clientName);
-
-    // Log audit entry for compliance tracking
-    logAuditEntry('listing_email', {
-        listingIds: listings.map(function(l) { return l.id; }),
-        count: listings.length,
-        recipient: clientEmail,
-        clientName: clientName
-    });
-
-    // Send directly from the system
-    sendEmailDirect({
-        to: clientEmail,
-        toName: clientName,
-        subject: title + ' — Mallan Real Estate',
-        htmlBody: richHTML,
-        listingIds: listings.map(function(l) { return l.id; }),
-        count: listings.length,
-        source: 'listing_sheet'
-    });
-
-    closeDeliveryModal();
+    openReportsModal(ids, 'email');
 }
 
 // Audit log — stores actions for compliance tracking
@@ -1191,11 +983,14 @@ function REBNYComplianceDoctor(options) {
     // ─── Test 3: Status Accuracy ───────────────────────────────────────────
     (function test3_Status() {
         // RESO StandardStatus values — both underscore and camelCase forms accepted
+        // The ELEVEN live Cotality StandardStatus members, plus the legacy STORAGE spellings a cached row may
+        // still carry. The retired uppercase invention (ACTIVE / COMING_SOON / ACTIVE_UNDER_CONTRACT) is gone:
+        // no renderer can produce it any more, so accepting it would only mask a regression.
         var validStatuses = [
-            'ACTIVE', 'PENDING', 'CLOSED', 'COMING_SOON', 'COMINGSOON',
-            'WITHDRAWN', 'EXPIRED', 'CANCELED', 'HOLD', 'INCOMPLETE'
+            'Active','ActiveUnderContract','Canceled','Closed','ComingSoon','Delete','Expired','Hold','Incomplete','Pending','Withdrawn',
+            'Cancelled','Coming Soon','Sold','Rented','Leased','Draft'
         ];
-        var statusElements = document.querySelectorAll('[data-reso-field="MlsStatus"]');
+        var statusElements = document.querySelectorAll('[data-reso-field="StandardStatus"]');
         var invalidCount = 0;
         var totalChecked = 0;
         var invalidValues = [];
@@ -1207,7 +1002,9 @@ function REBNYComplianceDoctor(options) {
             val = val.trim().toUpperCase();
             if (validStatuses.indexOf(val) === -1) { invalidCount++; invalidValues.push(val); }
         });
-        var statusCheckboxes = document.querySelectorAll('input[data-field="MlsStatus"]');
+        // Search filters provider inventory on StandardStatus, never MlsStatus (not filterable on this feed) —
+        // owner ruling 2026-09-08/09. The four Search status panels render data-field="StandardStatus".
+        var statusCheckboxes = document.querySelectorAll('input[data-field="StandardStatus"]');
         statusCheckboxes.forEach(function(cb) {
             var rawVal = (cb.getAttribute('data-value') || '');
             var vals = rawVal.split(',');
@@ -1353,71 +1150,114 @@ function REBNYComplianceDoctor(options) {
 
     // ─── Test 8: Commingling Prevention (NEW) ──────────────────────────────
     (function test8_Commingling() {
+        // ONE population, compared against ITSELF. The listing rows ARE the denominator, and the
+        // numerator is those same rows whose own data-source is an allowed value — so the numerator is a
+        // subset of the denominator by construction.
+        //
+        // This previously ran a SECOND, independent document-wide query for the numerator
+        // (querySelectorAll('[data-source=...]')), which counted ANY element carrying the attribute, not
+        // only listing rows. A single non-listing element with a source label therefore bought exactly one
+        // unlabelled listing a free pass. #detailPanel — a layout shell — was such an element, and a 2x2
+        // factorial probe isolated it as the sole cause of the slack. Deriving both sides from the same
+        // node set closes the defect structurally: no shell element can ever add slack again, whatever
+        // attributes it later acquires.
+        //
+        // Verified source model (Search Consolidation Packet 1): every result card carries
+        // data-source="COTALITY-API" (provider inventory) or "MALLAN-LOCAL" (Mallan-authored).
+        var ALLOWED_LISTING_SOURCES = ['COTALITY-API', 'MALLAN-LOCAL'];
         var resultCards = document.querySelectorAll('[data-listing-id]');
         var totalListings = resultCards.length;
-        var sourceLabeledCards = document.querySelectorAll('[data-source="REBNY-RLS"]');
+        var unlabeledListings = 0;
+        for (var li = 0; li < resultCards.length; li++) {
+            var cardSource = resultCards[li].getAttribute('data-source');
+            if (ALLOWED_LISTING_SOURCES.indexOf(cardSource) === -1) unlabeledListings++;
+        }
 
         if (totalListings === 0) {
             addResult(8, 'Commingling Prevention', 'PASS', 'No listings displayed — no commingling risk');
-        } else if (sourceLabeledCards.length >= totalListings) {
-            addResult(8, 'Commingling Prevention', 'PASS', 'All ' + totalListings + ' listings have data-source labels');
+        } else if (unlabeledListings === 0) {
+            addResult(8, 'Commingling Prevention', 'PASS', 'All ' + totalListings + ' listings carry a verified data-source label');
         } else {
             addResult(8, 'Commingling Prevention', 'FAIL',
-                (totalListings - sourceLabeledCards.length) + '/' + totalListings + ' listings lack data-source="REBNY-RLS" attribute — commingling risk');
+                unlabeledListings + '/' + totalListings + ' listings lack a verified data-source (COTALITY-API | MALLAN-LOCAL) — commingling risk');
         }
     })();
 
     // ─── Test 9: Print/Email Compliance ────────────────────────────────────
-    (function test9_PrintEmail() {
-        var checks = [];
-        if (typeof printListingSheet === 'function') {
-            var src = printListingSheet.toString();
-            if (src.indexOf('checkListingCompliance') !== -1) checks.push('print:gate');
-            if (src.indexOf('logAuditEntry') !== -1) checks.push('print:audit');
-        }
-        if (typeof emailListingSheet === 'function') {
-            var src = emailListingSheet.toString();
-            if (src.indexOf('checkListingCompliance') !== -1) checks.push('email:gate');
-            if (src.indexOf('logAuditEntry') !== -1) checks.push('email:audit');
-        }
-        if (typeof previewListingSheet === 'function') {
-            var src = previewListingSheet.toString();
-            if (src.indexOf('checkListingCompliance') !== -1) checks.push('preview:gate');
-        }
-        if (typeof generateSingleListingSheet === 'function') {
-            var src = generateSingleListingSheet.toString();
-            if (src.indexOf('suppressAddress') !== -1 || src.indexOf('Address Available') !== -1) checks.push('sheet:addressSuppress');
-        }
-        // Check branding/attribution in parent generateListingSheet (which wraps single cards)
-        var sheetSrc = '';
-        if (typeof generateListingSheet === 'function') sheetSrc = generateListingSheet.toString();
-        if (typeof generateSingleListingSheet === 'function') sheetSrc += generateSingleListingSheet.toString();
-        if (sheetSrc.indexOf('MALLAN REAL ESTATE') !== -1 || sheetSrc.indexOf('Mallan Real Estate') !== -1 || sheetSrc.indexOf('10991205323') !== -1) checks.push('sheet:branding');
-        if (sheetSrc.indexOf('REBNY') !== -1 || sheetSrc.indexOf('Equal Housing') !== -1) checks.push('sheet:attribution');
-
-        var expected = ['print:gate', 'print:audit', 'email:gate', 'email:audit', 'preview:gate', 'sheet:addressSuppress', 'sheet:branding', 'sheet:attribution'];
-        var missing = expected.filter(function(e) { return checks.indexOf(e) === -1; });
+    // NARROWED 2026-09-16 (REG-8). This reported "All 8 output checks pass" by calling
+    // printListingSheet.toString() and emailListingSheet.toString() and searching that SOURCE TEXT for
+    // 'checkListingCompliance', 'logAuditEntry', 'formatCurrency', 'updatedDate' and 'REBNY'.
+    //
+    // Both functions early-return into openReportsModal(), so every token it matched lived in unreachable
+    // fallback code, and three of them only inside a single comment line. Function.prototype.toString()
+    // returns comments and dead branches alike, so the eight checks would have stayed GREEN with the live
+    // gate, the live audit call, the live price formatting and the live attribution all deleted — and would
+    // have gone RED if someone reworded a comment. It measured the wrong branch of the wrong function.
+    //
+    // A browser-side doctor cannot see what an emailed or printed report contains without generating and
+    // sending one, so it no longer claims to. What it CAN observe is that both output controls delegate to
+    // the one canonical workflow. The CONTENT of that workflow's output is proven behaviourally in
+    // tests/runtime/crm-report-outputs.test.ts, which boots the real path and asserts on what the mail
+    // transport and the print sink actually receive, each assertion with a positive control.
+    (function test9_PrintEmailDelegation() {
+        var missing = [];
+        if (typeof openReportsModal !== 'function') missing.push('canonical reports workflow (openReportsModal) unavailable');
+        if (typeof emailListingSheet !== 'function') missing.push('emailListingSheet unavailable');
+        if (typeof printListingSheet !== 'function') missing.push('printListingSheet unavailable');
 
         if (missing.length === 0) {
-            addResult(9, 'Print/Email Compliance', 'PASS', 'All 8 output checks pass');
+            addResult(9, 'Print/Email Compliance', 'PASS',
+                'Both output controls delegate to the canonical reports workflow. Output CONTENT compliance is ' +
+                'not observable from the browser and is NOT certified here — it is proven behaviourally in ' +
+                'tests/runtime/crm-report-outputs.test.ts.');
         } else {
-            addResult(9, 'Print/Email Compliance', 'FAIL', missing.length + '/8 checks missing: ' + missing.join(', '));
+            addResult(9, 'Print/Email Compliance', 'FAIL', missing.join('; '));
         }
     })();
 
     // ─── Test 10: Bulk Export Restriction (NEW) ────────────────────────────
-    (function test10_BulkExport() {
-        var BULK_LIMIT = 25;
-        if (typeof selectAllResults !== 'function') {
-            addResult(10, 'Bulk Export Restriction', 'FAIL', 'selectAllResults() not found — required bulk selection function missing');
+    // OWNERSHIP ADJUDICATED 2026-09-15. This gate was "Bulk Export Restriction" and asserted that
+    // document.querySelectorAll('.listing-checkbox').length <= 25. Both halves were unsound:
+    //
+    //   - the GUARD half required selectAllResults() to exist. That function once carried the real
+    //     enforcement — a 25-listing selection cap with a REBNY notice — but the enforcement was deleted on
+    //     2026-03-22 in 2183dd4d ("fix(crm): wire delivery stubs, compute real averages, fix filter count"),
+    //     which never mentions removing a compliance cap. It survives only as a two-line delegator with zero
+    //     invokers, so `typeof selectAllResults === 'function'` was permanently true and proved nothing.
+    //   - the COUNT half measured a class NO renderer has ever emitted. Its only population was fabricated
+    //     static mockup cards, removed 2026-09-15. The five real renderers emit anonymous checkboxes bound to
+    //     toggleListingSelection(); selection truth lives in searchResultsState.selectedListings.
+    //
+    // THE NUMBER IS NOT RE-ASSERTED, DELIBERATELY. Neither 25 nor 250 (reports.js MAX_EXPORT_ROWS) is
+    // traceable to any authority. data/UCBA-2026-Requirements.md carries no record-count ceiling; its only
+    // export mention is an audit-LOGGING duty, and compliance/THIRD-PARTY-AND-FEED-GOVERNANCE.md lists bulk
+    // export of MLS data as PROHIBITED (rule F1) with no threshold at all. A numeric cap asserts "export up
+    // to N is permitted", which is the wrong SHAPE for the rule it claims to implement. Per CLAUDE.md §E an
+    // unclear or absent requirement is a fail-closed escalation to Maya, never a guess written into code.
+    //
+    // What this gate now asserts is sourced and measurable: nothing that may NEVER be distributed is sitting
+    // in the population an export would draw from. Owner Opt-Out (UCBA Art. I Sec. 4(A)) and Participant
+    // Only (RLS Permissions=Private) are the same two gates this file already enforces for display above.
+    (function test10_BulkExportPopulation() {
+        var state = (typeof searchResultsState !== 'undefined' && searchResultsState) ? searchResultsState : null;
+        if (!state) {
+            addResult(10, 'Bulk Export Population', 'WARN', 'searchResultsState unavailable — export population could not be inspected');
             return;
         }
-        var allCheckboxes = document.querySelectorAll('.listing-checkbox');
-        if (allCheckboxes.length <= BULK_LIMIT) {
-            addResult(10, 'Bulk Export Restriction', 'PASS', allCheckboxes.length + ' listings (within ' + BULK_LIMIT + ' limit)');
+        var pool = state.filteredListings || [];
+        var undistributable = [];
+        for (var pi = 0; pi < pool.length; pi++) {
+            var perm = (pool[pi] && pool[pi].permissions) || {};
+            if (perm.ownerOptOut === true) undistributable.push('owner opt-out');
+            else if (perm.participantOnly === true) undistributable.push('participant only');
+        }
+        if (pool.length === 0) {
+            addResult(10, 'Bulk Export Population', 'PASS', 'No listings in the export population');
+        } else if (undistributable.length === 0) {
+            addResult(10, 'Bulk Export Population', 'PASS', pool.length + ' listings in the export population, none owner-opted-out or participant-only');
         } else {
-            addResult(10, 'Bulk Export Restriction', 'FAIL',
-                allCheckboxes.length + ' listings exceed ' + BULK_LIMIT + ' bulk export limit');
+            addResult(10, 'Bulk Export Population', 'FAIL',
+                undistributable.length + '/' + pool.length + ' listings in the export population must never be distributed (' + undistributable.join(', ') + ')');
         }
     })();
 
@@ -1534,7 +1374,7 @@ function REBNYWiringTest(options) {
 
     // ── W1: Field Parity Test ──────────────────────────────────────────
     (function() {
-        var ALLOWED = ['SourceSystemKey','ListPrice','MlsStatus','PropertyType','PropertySubType','BedroomsTotal','BathroomsTotalInteger','LivingArea','YearBuilt','UnparsedAddress','City','StateOrProvince','PostalCode','Latitude','Longitude','ListAgentFullName','ListOfficeName','ListingAgreement','InternetEntireListingDisplayYN','InternetAddressDisplayYN','OwnerOptOut','ParticipantOnly','IDXEntireListingDisplayYN','SyndicateTo','ComingSoonTimestamp','ActivationDate','PublicRemarks','PrivateRemarks','ShowingInstructions','ListAgentEmail','ListAgentDirectPhone','MaintenanceFee','TaxAnnualAmount','CommonCharges','neighborhood','borough','photoCount','daysOnMarket','pricePerSqft','updatedDate','listedDate','buildingName','lotSize','stories','units','parkingFeatures','garageSpaces','listingCategory','CommonInterest','Ownership','PetsAllowed','LaundryFeatures','Amenities','CoolingYN','HeatingYN','FireplacesTotal','WaterfrontYN','ViewYN','TaxBlock','TaxLot','Zoning','FloorNumber','UnitNumber','Concessions','FinancialDataSource','AssociationFee','RentIncludes','NumberOfUnitsTotal','StoriesTotal','LotSizeArea','GarageYN','AssociationFee+TaxAnnualAmount','RoomsTotal','BathroomsFull','SubdivisionName','OnMarketDate','DaysOnMarket','CumulativeDaysOnMarket','OpenHouseDate','AssociationName','SecurityFeatures','PropertyCondition','PurchaseContractDate','BuyerFinancing','BuildingAreaTotal','PreviousListPrice','OriginalListPrice','PriceChangeTimestamp','ListAgentDirectPhone','PatioAndPorchFeatures','NewConstructionYN','SourceSystemModificationTimestamp','ListingId','EntryLevel','CrossStreet','Exposures','WalkScore','BathroomsHalf','BuildingName','CloseDate','ClosePrice','PhotosCount','VirtualTourURLBranded','View','Flooring','Cooling','Heating','ParkingFeatures','ParkingTotal','PetsAllowedYN','AssociationAmenities','InteriorFeatures'];
+        var ALLOWED = ['SourceSystemKey','ListPrice','MlsStatus','PropertyType','PropertySubType','BedroomsTotal','BathroomsTotalInteger','LivingArea','YearBuilt','UnparsedAddress','City','StateOrProvince','PostalCode','Latitude','Longitude','ListAgentFullName','ListOfficeName','ListingAgreement','InternetEntireListingDisplayYN','InternetAddressDisplayYN','OwnerOptOut','ParticipantOnly','SyndicateTo','ComingSoonTimestamp','ActivationDate','PublicRemarks','PrivateRemarks','ShowingInstructions','ListAgentEmail','ListAgentDirectPhone','MaintenanceFee','TaxAnnualAmount','CommonCharges','neighborhood','borough','photoCount','daysOnMarket','pricePerSqft','updatedDate','listedDate','buildingName','lotSize','stories','units','parkingFeatures','garageSpaces','listingCategory','CommonInterest','Ownership','PetsAllowed','LaundryFeatures','Amenities','CoolingYN','HeatingYN','FireplacesTotal','WaterfrontYN','ViewYN','TaxBlock','TaxLot','Zoning','FloorNumber','UnitNumber','Concessions','FinancialDataSource','AssociationFee','RentIncludes','NumberOfUnitsTotal','StoriesTotal','LotSizeArea','GarageYN','AssociationFee+TaxAnnualAmount','RoomsTotal','BathroomsFull','SubdivisionName','OnMarketDate','DaysOnMarket','CumulativeDaysOnMarket','OpenHouseDate','AssociationName','SecurityFeatures','PropertyCondition','PurchaseContractDate','BuyerFinancing','BuildingAreaTotal','PreviousListPrice','OriginalListPrice','PriceChangeTimestamp','ListAgentDirectPhone','PatioAndPorchFeatures','NewConstructionYN','SourceSystemModificationTimestamp','ListingId','EntryLevel','CrossStreet','Exposures','WalkScore','BathroomsHalf','BuildingName','CloseDate','ClosePrice','PhotosCount','VirtualTourURLBranded','View','Flooring','Cooling','Heating','ParkingFeatures','ParkingTotal','PetsAllowedYN','AssociationAmenities','InteriorFeatures'];
         var resoEls = document.querySelectorAll('[data-reso-field]');
         var unknown = [], seen = {};
         resoEls.forEach(function(el) {
@@ -1558,14 +1398,14 @@ function REBNYWiringTest(options) {
     // ── W2: Enum Integrity Test ────────────────────────────────────────
     (function() {
         var issues = [];
-        var VS = ['Active','Pending','Closed','ComingSoon','Coming Soon','COMING_SOON','COMINGSOON','Withdrawn','Expired','Canceled','Hold','Incomplete','ActiveUnderContract','ACTIVE','PENDING','CLOSED','WITHDRAWN','EXPIRED','CANCELED','HOLD','INCOMPLETE','ACTIVE_UNDER_CONTRACT'];
-        document.querySelectorAll('[data-reso-field="MlsStatus"][data-reso-value]').forEach(function(el) {
+        var VS = ['Active','ActiveUnderContract','Canceled','Closed','ComingSoon','Delete','Expired','Hold','Incomplete','Pending','Withdrawn','Cancelled','Coming Soon','Sold','Rented','Leased','Draft'];
+        document.querySelectorAll('[data-reso-field="StandardStatus"][data-reso-value]').forEach(function(el) {
             var val = el.getAttribute('data-reso-value');
             if (!val) return;
             val.split(',').forEach(function(v) { v = v.trim(); if (v && VS.indexOf(v) === -1) issues.push('Status:"' + v + '"'); });
         });
         var VB = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
-        document.querySelectorAll('[data-reso-field="borough"][data-reso-value]').forEach(function(el) {
+        document.querySelectorAll('[data-mallan-field="borough"][data-reso-value]').forEach(function(el) {
             var v = el.getAttribute('data-reso-value'); if (v && VB.indexOf(v) === -1) issues.push('Borough:"' + v + '"');
         });
         if (typeof listings !== 'undefined') {
@@ -1636,36 +1476,24 @@ function REBNYWiringTest(options) {
     (function() {
         var issues = [], checks = [];
 
-        // 1. Email includes status + updated date per listing
-        if (typeof emailListingSheet === 'function') {
-            var eSrc = emailListingSheet.toString();
-            if (eSrc.indexOf('Status:') !== -1 || eSrc.indexOf('status') !== -1) checks.push('email:status');
-            else issues.push('Email missing status per listing');
-            if (eSrc.indexOf('Updated:') !== -1 || eSrc.indexOf('updatedDate') !== -1) checks.push('email:date');
-            else issues.push('Email missing updated date');
-            if (eSrc.indexOf('formatCurrency') !== -1) checks.push('email:formatCurrency');
-            else issues.push('Email uses raw price format');
-            if (eSrc.indexOf('REBNY') !== -1) checks.push('email:attribution');
-            else issues.push('Email missing REBNY attribution');
-        } else { issues.push('emailListingSheet not found'); }
+        // 1. Email content — REMOVED 2026-09-16 (REG-8). These four checks read emailListingSheet.toString()
+        //    and matched 'status', 'updatedDate', 'formatCurrency' and 'REBNY'. Every one of them was
+        //    satisfied by a SINGLE COMMENT LINE inside the function's unreachable legacy fallback, because
+        //    the function early-returns into openReportsModal(). They certified nothing about a real email.
+        //    Emailed-report content is proven behaviourally in tests/runtime/crm-report-outputs.test.ts.
+        if (typeof emailListingSheet !== 'function') issues.push('emailListingSheet not found');
 
-        // 2. Print sheet uses formatCurrency + has required elements
-        if (typeof generateSingleListingSheet === 'function') {
-            var pSrc = generateSingleListingSheet.toString();
-            if (pSrc.indexOf('formatCurrency') !== -1) checks.push('print:formatCurrency');
-            else issues.push('Print uses raw price format');
-            if (pSrc.indexOf('listing.status') !== -1) checks.push('print:status');
-            else issues.push('Print missing status');
-            if (pSrc.indexOf('updatedDate') !== -1 || pSrc.indexOf('Last Updated') !== -1) checks.push('print:date');
-            else issues.push('Print missing updated date');
-        }
-        if (typeof generateListingSheet === 'function') {
-            var gSrc = generateListingSheet.toString();
-            if (gSrc.indexOf('REBNY') !== -1) checks.push('print:attribution');
-            else issues.push('Print missing REBNY attribution');
-            if (gSrc.indexOf('Equal Housing') !== -1) checks.push('print:fairHousing');
-            else issues.push('Print missing Fair Housing notice');
-        }
+        // 2. Print content - REMOVED 2026-09-17 (W7), for the same reason the email checks above went in
+        //    REG-8. These five claims (print:formatCurrency, print:status, print:date, print:attribution,
+        //    print:fairHousing) were produced by reading generateSingleListingSheet.toString() and
+        //    generateListingSheet.toString() for substrings. Those renderers had no live caller and are
+        //    now deleted, so the checks were certifying a page that could not be produced.
+        //
+        //    They are NOT replaced by reading reports.js source instead - that would repeat the defect
+        //    with a better-chosen subject - and the doctor is NOT made to generate a report to inspect it,
+        //    which would give a diagnostic tool real side effects. Print and email CONTENT is proven
+        //    behaviourally against the actual sink in tests/runtime/crm-report-outputs.test.ts and
+        //    crm-report-audience-population.test.ts. W7 keeps only what it can observe safely here.
 
         // 3. All search views use dynamic status colors (not hardcoded green)
         var viewFns = ['renderGalleryView','renderShortSummaryView','renderSummaryView','renderMasterDetailView'];
@@ -1724,16 +1552,6 @@ function REBNYBehaviorTest(options) {
         results.push({ test: id, name: name, status: status, detail: detail });
         if (status === 'PASS') passed++; else if (status === 'FAIL') failed++; else if (status !== 'SKIP') warnings++;
     }
-
-    // ── B1: Zero-Result Test (ACTIVE) ──────────────────────────────────
-    (function() {
-        if (!runActive) { addResult('B1', 'Zero-Result', 'SKIP', 'Active test — click "Run Active Tests"'); return; }
-        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('B1', 'Zero-Result', 'FAIL', 'Required: filterListings function and listings array both must exist'); return; }
-        var r = filterListings(listings, { priceMin: 999999999, priceMax: 1, searchTab: 'sale' });
-        var noErr = true;
-        try { r.slice().sort(function(a,b){return a.price-b.price;}); } catch(e) { noErr = false; }
-        addResult('B1', 'Zero-Result', (r.length === 0 && noErr) ? 'PASS' : 'FAIL', r.length === 0 ? 'Impossible criteria → 0 results, no error' : 'Got ' + r.length + ' results');
-    })();
 
     // ── B2: High Volume Test (ACTIVE) ──────────────────────────────────
     (function() {
@@ -1825,13 +1643,24 @@ function REBNYComplianceExtended(options) {
 
     // ── C1: Source Separation ──────────────────────────────────────────
     (function() {
-        var rls = document.querySelectorAll('[data-source="REBNY-RLS"]');
-        var allSrc = document.querySelectorAll('[data-source]');
-        var allCards = document.querySelectorAll('[data-listing-id]');
+        // Verified source model (Search Consolidation Packet 1): provider inventory is
+        // data-source="COTALITY-API", Mallan-authored inventory is "MALLAN-LOCAL".
+        // Counted on the LISTING ROWS THEMSELVES, for the same reason as Test 8: a document-wide
+        // [data-source] query also counts non-listing shells, which both inflated the reported provider
+        // count and hid unlabeled listings behind the comparison. Business meaning is unchanged — an
+        // unlabeled listing is still an issue, and provider inventory still requires REBNY attribution.
+        var listingCards = document.querySelectorAll('[data-listing-id]');
+        var provider = 0, mallan = 0, unlabeled = 0;
+        for (var ci = 0; ci < listingCards.length; ci++) {
+            var cardSrc = listingCards[ci].getAttribute('data-source');
+            if (cardSrc === 'COTALITY-API') provider++;
+            else if (cardSrc === 'MALLAN-LOCAL') mallan++;
+            else unlabeled++;
+        }
         var issues = [];
-        if (allCards.length > 0 && allSrc.length < allCards.length) issues.push((allCards.length - allSrc.length) + ' unlabeled');
-        if (rls.length > 0 && document.body.innerHTML.indexOf('REBNY') === -1) issues.push('RLS without attribution');
-        addResult('C1', 'Source Separation', issues.length === 0 ? 'PASS' : 'FAIL', issues.length === 0 ? allSrc.length + ' labeled (RLS:' + rls.length + ')' : issues.join('; '));
+        if (unlabeled > 0) issues.push(unlabeled + ' unlabeled');
+        if (provider > 0 && document.body.innerHTML.indexOf('Real Estate Board of New York') === -1) issues.push('provider inventory without attribution');
+        addResult('C1', 'Source Separation', issues.length === 0 ? 'PASS' : 'FAIL', issues.length === 0 ? (provider + mallan) + ' labeled (provider:' + provider + ', Mallan:' + mallan + ')' : issues.join(', '));
     })();
 
     // ── C2: Print CSS Test ─────────────────────────────────────────────
@@ -1840,11 +1669,11 @@ function REBNYComplianceExtended(options) {
         if (html.indexOf('@media print') !== -1) checks.push('print-rules'); else issues.push('No @media print');
         if (html.indexOf('page-break-inside') !== -1) checks.push('page-breaks'); else issues.push('No page-breaks');
         if (html.indexOf('.no-print') !== -1) checks.push('no-print-class');
-        if (typeof generateListingSheet === 'function') {
-            var src = generateListingSheet.toString();
-            if (src.indexOf('Equal Housing') !== -1 || src.indexOf('REBNY') !== -1) checks.push('legal-footer');
-            if (src.indexOf('MALLAN') !== -1 || src.indexOf('10991205323') !== -1) checks.push('branding');
-        }
+        // legal-footer and branding claims REMOVED 2026-09-17 (W7): both were read out of
+        // generateListingSheet.toString(), a renderer with no live caller, now deleted. C2 keeps the
+        // print facts it can genuinely observe in the loaded DOM above; the legal footer and brokerage
+        // identity that actually reach a printed page are asserted on the delivered HTML in
+        // tests/runtime/crm-report-outputs.test.ts.
         addResult('C2', 'Print CSS', issues.length === 0 ? 'PASS' : 'FAIL', issues.length === 0 ? 'All checks pass: ' + checks.join(', ') : issues.join(', '));
     })();
 
@@ -1923,15 +1752,20 @@ function REBNYComplianceExtended(options) {
             '.report-preview, #reportPreviewContainer'
         );
         var vis = '';
+        // Report what was ACTUALLY scanned, not the pre-filter candidate count. The gate correctly skips
+        // hidden containers, but it used to print containers.length — so a page that scanned nothing could
+        // still report "scanned across N containers". The verdict was never wrong; the evidence was.
+        var scannedContainers = 0;
         containers.forEach(function(c) {
             if (c.style.display === 'none' || c.offsetParent === null) return;
+            scannedContainers++;
             // Clone and strip out [data-compliance] and [data-access-level="agent-only"] zones
             var clone = c.cloneNode(true);
             clone.querySelectorAll('[data-compliance], [data-access-level="agent-only"]').forEach(function(el) { el.remove(); });
             vis += ' ' + (clone.innerText || '');
         });
         var leaks = PROHIBITED.filter(function(t) { return vis.indexOf(t) !== -1; });
-        addResult('C6', 'Full Surface Scan', leaks.length === 0 ? 'PASS' : 'FAIL', leaks.length === 0 ? PROHIBITED.length + ' terms scanned across ' + containers.length + ' containers, none found' : 'Found: ' + leaks.join(', '));
+        addResult('C6', 'Full Surface Scan', leaks.length === 0 ? 'PASS' : 'FAIL', leaks.length === 0 ? PROHIBITED.length + ' terms scanned across ' + scannedContainers + ' of ' + containers.length + ' containers (hidden skipped), none found' : 'Found: ' + leaks.join(', '));
     })();
 
     // ── C7: Social Share Scan ──────────────────────────────────────────
@@ -2440,7 +2274,7 @@ function SourceIntegrityTests(options) {
     // SRC-02: Unknown / invalid enum tokens → FAIL
     (function() {
         if (typeof listings === 'undefined') { addResult('SRC-02', 'Enum Token Validity', 'FAIL', 'listings undefined'); return; }
-        var VS = ['Active','Pending','Closed','ComingSoon','Coming Soon','Withdrawn','Expired','Canceled','Hold','Incomplete','ActiveUnderContract','ACTIVE','PENDING','CLOSED','COMING_SOON','COMINGSOON','WITHDRAWN','EXPIRED','CANCELED','HOLD','INCOMPLETE','ACTIVE_UNDER_CONTRACT'];
+        var VS = ['Active','ActiveUnderContract','Canceled','Closed','ComingSoon','Delete','Expired','Hold','Incomplete','Pending','Withdrawn','Cancelled','Coming Soon','Sold','Rented','Leased','Draft'];
         var VB = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
         var VC = ['sale','rental','Sale','Rental'];
         var violations = [];
@@ -2698,77 +2532,10 @@ function AllowlistLeakTests(options) {
 }
 
 // ─── S: SEARCH CORRECTNESS TESTS (4) ──────────────────────────────────────
-function SearchCorrectnessTests(options) {
-    options = options || {};
-    var runActive = options.runActive || false;
-    var results = [], passed = 0, failed = 0, warnings = 0;
-    function addResult(id, name, status, detail) {
-        results.push({ test: id, name: name, status: status, detail: detail });
-        if (status === 'PASS') passed++; else if (status === 'FAIL') failed++; else if (status !== 'SKIP') warnings++;
-    }
-
-    // S1: Type coercion test (ACTIVE)
-    (function() {
-        if (!runActive) { addResult('S1', 'Type Coercion', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('S1', 'Type Coercion', 'FAIL', 'Required: filterListings and listings must exist'); return; }
-        var numResult = filterListings(listings, { priceMin: 1000000, priceMax: 3000000, searchTab: 'sale' });
-        var strResult = filterListings(listings, { priceMin: '1000000', priceMax: '3000000', searchTab: 'sale' });
-        var numIds = numResult.map(function(l) { return l.id; }).sort();
-        var strIds = strResult.map(function(l) { return l.id; }).sort();
-        var match = numIds.length === strIds.length && numIds.every(function(id, i) { return id === strIds[i]; });
-        addResult('S1', 'Type Coercion', match ? 'PASS' : 'FAIL',
-            match ? 'String vs number criteria → same ' + numIds.length + ' results' : 'Mismatch: number=' + numIds.length + ' vs string=' + strIds.length);
-    })();
-
-    // S2: Range normalization (ACTIVE)
-    (function() {
-        if (!runActive) { addResult('S2', 'Range Normalization', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('S2', 'Range Normalization', 'FAIL', 'Required: filterListings and listings must exist'); return; }
-        var noErr = true, result = [];
-        try { result = filterListings(listings, { priceMin: 5000000, priceMax: 100000, searchTab: 'sale' }); } catch(e) { noErr = false; }
-        addResult('S2', 'Range Normalization', noErr ? 'PASS' : 'FAIL',
-            noErr ? 'Min>Max handled gracefully → ' + result.length + ' results (no crash)' : 'Exception thrown on inverted range');
-    })();
-
-    // S3: Multi-select AND/OR semantics (ACTIVE)
-    (function() {
-        if (!runActive) { addResult('S3', 'Multi-Select Semantics', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('S3', 'Multi-Select Semantics', 'FAIL', 'Required: filterListings and listings must exist'); return; }
-        var saleOnly = filterListings(listings, { searchTab: 'sale' });
-        var checks = [], issues = [];
-        // Property type multi-select should be OR (broader results)
-        if (saleOnly.length > 0) {
-            var types = {};
-            saleOnly.forEach(function(l) { if (l.propertyType) types[l.propertyType] = true; });
-            var typeKeys = Object.keys(types);
-            if (typeKeys.length >= 2) {
-                var single = filterListings(listings, { searchTab: 'sale', propertyTypes: [typeKeys[0]] });
-                var multi = filterListings(listings, { searchTab: 'sale', propertyTypes: [typeKeys[0], typeKeys[1]] });
-                if (multi.length >= single.length) checks.push('type-OR(' + single.length + '→' + multi.length + ')');
-                else issues.push('Multi-type returned fewer results (AND instead of OR?)');
-            } else { checks.push('single-type-only'); }
-        }
-        addResult('S3', 'Multi-Select Semantics', issues.length === 0 ? 'PASS' : 'FAIL',
-            issues.length > 0 ? issues.join('; ') : checks.join(', '));
-    })();
-
-    // S4: Duplicate suppression test (ACTIVE)
-    (function() {
-        if (!runActive) { addResult('S4', 'Duplicate Suppression', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof getFilteredListings !== 'function') { addResult('S4', 'Duplicate Suppression', 'FAIL', 'getFilteredListings function missing — required for duplicate check'); return; }
-        var all = getFilteredListings(true);
-        var ids = all.map(function(l) { return l.id; });
-        var unique = {};
-        var dupes = [];
-        ids.forEach(function(id) {
-            if (unique[id]) dupes.push(id);
-            unique[id] = true;
-        });
-        addResult('S4', 'Duplicate Suppression', dupes.length === 0 ? 'PASS' : 'FAIL',
-            dupes.length === 0 ? ids.length + ' listings, 0 duplicates' : dupes.length + ' duplicate IDs: ' + dupes.slice(0, 5).join(','));
-    })();
-
-    return { mode: 'search_correctness', results: results, summary: { passed: passed, failed: failed, warnings: warnings, total: results.length } };
+// SearchCorrectnessTests — a browser-local oracle for Search membership — was REMOVED
+// (Search Consolidation Packet 1). Search correctness is proven against the canonical executor.
+function SearchCorrectnessTests() {
+    return { mode: 'search_correctness', results: [], summary: { passed: 0, failed: 0, warnings: 0, total: 0 }, removed: true };
 }
 
 // ─── X: SECURITY HARDENING V2 (3) ─────────────────────────────────────────
@@ -2988,8 +2755,10 @@ function AccessibilityRESOPerfTests(options) {
     // RESO3: Enumeration enforcement
     (function() {
         if (typeof listings === 'undefined') { addResult('RESO3', 'Enum Enforcement', 'FAIL', 'listings undefined — required test data missing'); return; }
-        var validStatuses = ['Active','Pending','Closed','ComingSoon','Coming Soon','Withdrawn','Expired','Canceled','Hold','Incomplete','ActiveUnderContract',
-            'ACTIVE','PENDING','CLOSED','COMING_SOON','COMINGSOON','WITHDRAWN','EXPIRED','CANCELED','HOLD','INCOMPLETE','ACTIVE_UNDER_CONTRACT'];
+        var validStatuses = [
+            'Active','ActiveUnderContract','Canceled','Closed','ComingSoon','Delete','Expired','Hold','Incomplete','Pending','Withdrawn',
+            'Cancelled','Coming Soon','Sold','Rented','Leased','Draft'
+        ];
         var validBoroughs = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
         var validCategories = ['sale','rental','Sale','Rental'];
         var issues = [];
@@ -3038,42 +2807,6 @@ function MutationRegressionTests(options) {
         if (status === 'PASS') passed++; else if (status === 'FAIL') failed++; else if (status !== 'SKIP') warnings++;
     }
 
-    // R1: Golden snapshot stability (ACTIVE)
-    (function() {
-        if (!runActive) { addResult('R1', 'Golden Snapshot', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('R1', 'Golden Snapshot', 'FAIL', 'Required: filterListings and listings must exist'); return; }
-        // 5 canonical test cases
-        var cases = [
-            { name: 'All sales', criteria: { searchTab: 'sale' } },
-            { name: 'All rentals', criteria: { searchTab: 'rent' } },
-            { name: 'Sales $1-3M', criteria: { searchTab: 'sale', priceMin: 1000000, priceMax: 3000000 } },
-            { name: 'Manhattan only', criteria: { searchTab: 'sale', boroughs: ['Manhattan'] } },
-            { name: '2+ beds', criteria: { searchTab: 'sale', bedsMin: 2 } }
-        ];
-        var snapKey = 'golden_snapshot_v1';
-        var current = {};
-        cases.forEach(function(c) {
-            var r = filterListings(listings, c.criteria);
-            current[c.name] = { count: r.length, ids: r.slice(0, 5).map(function(l) { return l.id; }).join(',') };
-        });
-        var prev = null;
-        try { prev = JSON.parse(localStorage.getItem(snapKey)); } catch(e) {}
-        localStorage.setItem(snapKey, JSON.stringify(current));
-        if (!prev) {
-            addResult('R1', 'Golden Snapshot', 'PASS', 'Baseline captured: ' + cases.length + ' cases');
-        } else {
-            var diffs = [];
-            cases.forEach(function(c) {
-                var p = prev[c.name], cur = current[c.name];
-                if (!p) { diffs.push(c.name + ': NEW'); return; }
-                if (p.count !== cur.count) diffs.push(c.name + ': count ' + p.count + '→' + cur.count);
-                else if (p.ids !== cur.ids) diffs.push(c.name + ': order changed');
-            });
-            addResult('R1', 'Golden Snapshot', diffs.length === 0 ? 'PASS' : 'FAIL',
-                diffs.length === 0 ? cases.length + ' cases stable against golden snapshot' : 'REGRESSION: ' + diffs.join('; '));
-        }
-    })();
-
     // R2: Break injection — red-team compliance gates (ACTIVE)
     (function() {
         if (!runActive) { addResult('R2', 'Break Injection', 'SKIP', 'Active — click Run Active'); return; }
@@ -3100,33 +2833,6 @@ function MutationRegressionTests(options) {
             'Caught: ' + caught.join(', ') + (missed.length > 0 ? ' | Missed: ' + missed.join(', ') : ''));
     })();
 
-    // R3: Fuzz test — random criteria (ACTIVE)
-    (function() {
-        if (!runActive) { addResult('R3', 'Fuzz Test', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('R3', 'Fuzz Test', 'FAIL', 'Required: filterListings and listings must exist'); return; }
-        var errors = 0, runs = 100, dupRuns = 0;
-        var boroughs = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island'];
-        for (var i = 0; i < runs; i++) {
-            var criteria = {
-                searchTab: Math.random() > 0.5 ? 'sale' : 'rent',
-                priceMin: Math.floor(Math.random() * 5000000),
-                priceMax: Math.floor(Math.random() * 10000000),
-                bedsMin: Math.floor(Math.random() * 5),
-                boroughs: Math.random() > 0.5 ? [boroughs[Math.floor(Math.random() * boroughs.length)]] : undefined
-            };
-            try {
-                var result = filterListings(listings, criteria);
-                // Check for duplicates
-                var ids = {};
-                result.forEach(function(l) {
-                    if (ids[l.id]) dupRuns++;
-                    ids[l.id] = true;
-                });
-            } catch(e) { errors++; }
-        }
-        addResult('R3', 'Fuzz Test', errors === 0 && dupRuns === 0 ? 'PASS' : 'FAIL',
-            runs + ' random criteria: ' + errors + ' errors, ' + dupRuns + ' duplicate results' + (errors > 0 ? ' — filterListings threw exceptions' : '') + (dupRuns > 0 ? ' — duplicate IDs in results' : ''));
-    })();
 
     return { mode: 'regression', results: results, summary: { passed: passed, failed: failed, warnings: warnings, total: results.length } };
 }

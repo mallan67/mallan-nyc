@@ -1,9 +1,11 @@
+> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/operations/evidence-2026-09-08/provider-system/REMOVAL-2026-09-08.md`.
+
 # UCBA 2026 — RLS Rules & Regulations Requirements
 
 > **Source:** `UCBA_Master_Copy_rev._2026__redline_.pdf` (January 2026)
 > **Extracted:** 2026-02-08
 > **Applies to:** Mallan Real Estate Inc. (Brokerage #10991205323)
-> **LMP:** RealPlus (listing input to RLS) | **IDX Display:** Trestle IDX Plus WebAPI (read-only on mallan.nyc)
+> **REBNY RLS submission:** outside this system | **IDX Display:** Trestle IDX Plus WebAPI (read-only on mallan.nyc)
 
 ---
 
@@ -344,6 +346,8 @@ Without Exclusive Broker's written consent, a Participant may not:
 | Withdrawn | Removed by broker | Paused (resets after 30 days) |
 | Cancelled | Listing cancelled | Paused (resets after 30 days) |
 | Closed | Sold or rented | Stops (resets to 0) |
+
+> Mallan's clocks (owner ruling 2026-09-08 evening, `lib/compliance/dom-tracker.ts`): the market DOM runs from the on-market day through Pending and ends at the CloseDate of a Sold / Rented listing or at the OffMarketDate of a removal — never at PurchaseContractDate; Coming Soon runs a separate clock. This table is compliance context only; the fields and the mapping come from the live Cotality contract. The "DOM Accrues?" column above is REBNY's rule for its own DaysOnMarket, which the IDX Plus feed does not deliver (null on every sampled row, 2026-09-08).
 
 ---
 

@@ -38,7 +38,12 @@ var Permissions = (function () {
     create_client:       { broker: true, agent: true, broker_as_agent: true },
     edit_assigned_client: { broker: true, agent: true, broker_as_agent: true },
     reassign_client:     { broker: true, agent: false, broker_as_agent: false },
-    delete_client:       { broker: true, agent: false, broker_as_agent: false },
+    // delete_client REMOVED 2026-09-16. It gated exactly one control — the Workspace "Delete Client"
+    // button — and that control performed a hard delete of canonical Client history. With the action
+    // prohibited there is nothing left for the permission to permit, and leaving it would invite the
+    // button back. It is NOT repurposed to mean archive/deactivate: that is the Lane 3 lifecycle
+    // decision, and a permission renamed ahead of the capability it guards is how the next one gets
+    // wired to the wrong thing.
 
     // C3. Listings
     view_all_listings:   { broker: true, agent: false, broker_as_agent: false },

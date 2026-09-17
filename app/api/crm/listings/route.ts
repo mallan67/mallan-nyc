@@ -10,11 +10,15 @@ import { assertRlsCompliantPayload, scanRecordForFairHousing } from "@/lib/compl
 import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { normalizePayload, derivePermissionBooleans, buildPersistenceRecord } from "@/lib/compliance/normalizer";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
+import { storageStatusesFor } from "@/lib/listings/mallan-status";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { AGENT_TYPED_SELECT } from "@/lib/listings/agent-info-resolver";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
+import { lifecycleFromStoredRow } from "@/lib/listings/canonical-lifecycle";
+import { statusPresentation, STATUS_FACT_FIELDS } from "@/lib/crm/status-mapping";
 import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { buildPublishContract } from "@/lib/crm/listing-publish-contract";
+import { applyServerFormMapping } from "@/lib/crm/listing-form-mapping";
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
 import { composeDbPublicMedia } from "@/lib/media/db-media-composition";
 import type { Prisma } from "@prisma/client";
@@ -39,14 +43,51 @@ export async function GET(req: NextRequest) {
   // CRM My Listings shows: (1) CRM-created listings (no mls_id — SL-/RL- prefix),
   // and (2) closed/terminal Trestle-synced deals. Active/Pending Trestle listings
   // are managed via REBNY RLS directly, not through the CRM.
-  const TRESTLE_CLOSED = ["Closed", "Sold", "Leased", "Rented"];
-  const CRM_HIDDEN = ["Withdrawn", "Cancelled"];
+  // Provider tokens plus the legacy spellings written before the 2026-09-08 token correction (lib/listings/mallan-status.ts).
+  const CRM_HIDDEN = storageStatusesFor(["Withdrawn", "Canceled"]);
   const crmCreated = { mls_id: null, listing_id: { startsWith: "SL-" }, status: { notIn: CRM_HIDDEN } };
   const crmCreatedRental = { mls_id: null, listing_id: { startsWith: "RL-" }, status: { notIn: CRM_HIDDEN } };
-  const trestleClosed = { mls_id: { not: null }, status: { in: TRESTLE_CLOSED } };
+  // THE SIGNED-IN AGENT'S OWN closed REBNY listings, from the Cotality-synced rows.
+  //
+  // The ownership predicate is the LIST-SIDE AGENT identity: listings.list_agent_mls_id joined to the
+  // agent's REBNY member id (agents.trestle_mls_id). "My Listings" means MINE, not the brokerage's -
+  // Mallan has other agents and their listings must not appear under Maya's.
+  //
+  // Two earlier versions of this arm were wrong:
+  //   * no ownership predicate at all - it matched EVERY closed row in the licensed feed (2,395 rows
+  //     qualified, verified read-only 2026-09-09, of which 32 are Maya's);
+  //   * scoped by list OFFICE (7041) - correct for the brokerage, wrong for one agent. Today both give
+  //     the same 32 only because Maya is the sole Mallan agent with closings in the feed; it would break
+  //     the moment another Mallan agent closes one. Brokerage-wide inventory is Company Listings' job.
+  //
+  // `agent_id` is deliberately NOT the signal: syncAgentHistory stamps it from BOTH list-side and
+  // BUYER-side matches, so an agent who represented the buyer would pull another brokerage's listing into
+  // their own inventory. Identity is source-field only (lib/listings/mallan-source-identity.ts).
+  //
+  // FAIL CLOSED: an agent with no REBNY member id can have no Cotality-sourced listings, so the arm is
+  // omitted entirely rather than widened to the office.
+  const viewer = await prisma.agent.findUnique({
+    where: { id: auth.userId },
+    select: { trestle_mls_id: true },
+  });
+  const viewerMlsId = viewer?.trestle_mls_id?.trim() || null;
+  // EVERY status, not just closed. An agent's own listings belong in My Listings whatever the live
+  // Cotality StandardStatus says - Active, Pending (contract signed), ComingSoon, off-market, closed.
+  // This arm was restricted to closed rows on the assumption that "Active/Pending Trestle listings are
+  // managed via REBNY RLS directly, not through the CRM". That assumption is wrong (Maya 2026-09-09):
+  // it hid Maya's 2 Active listings while showing her 33 closings.
+  const trestleOwn = viewerMlsId
+    ? {
+        mls_id: { not: null },
+        OR: [
+          { list_agent_mls_id: viewerMlsId },
+          { co_list_agent_mls_id: viewerMlsId },
+        ],
+      }
+    : null;
 
   const where: Record<string, unknown> = {
-    OR: [crmCreated, crmCreatedRental, trestleClosed],
+    OR: trestleOwn ? [crmCreated, crmCreatedRental, trestleOwn] : [crmCreated, crmCreatedRental],
   };
 
   // Ownership: agent sees only their own, broker sees all
@@ -81,6 +122,11 @@ export async function GET(req: NextRequest) {
         neighborhood: true,
         address: true,
         features: true,
+        // Status-projection input ONLY (owner ruling 2026-09-08): the agent's saved workflow word
+        // (`_crmWorkflowStatus`) and the Cotality date / price facts the status carries. It is destructured out
+        // of the response below, so the wire contract gains `status_presentation` + `status_facts` and NOT the
+        // raw provider blob.
+        raw_data: true,
         // Legacy `Listing.media` JSON — the composer's fallback input only.
         // Never serialized raw (see the media composition below).
         media: true,
@@ -130,6 +176,7 @@ export async function GET(req: NextRequest) {
         cumulative_days_on_market: true,
         expiration_date: true,
         sync_status: true,
+        terminal_since: true,
         modification_timestamp: true,
         created_at: true,
         updated_at: true,
@@ -158,7 +205,7 @@ export async function GET(req: NextRequest) {
   // `listing_media` and `_count` are query inputs, not response fields — they
   // are destructured out so the response contract stays exactly as it was.
   const serialized = listings.map((l) => {
-    const { listing_media, _count, ...rest } = l;
+    const { listing_media, _count, raw_data: _rawData, ...rest } = l;
     const { media } = composeDbPublicMedia({
       listingId: l.listing_id,
       rlsEligible: l.rls_eligible,
@@ -168,13 +215,43 @@ export async function GET(req: NextRequest) {
       hadRelationalRows:
         typeof _count?.listing_media === "number" ? _count.listing_media > 0 : undefined,
     });
+    // The broker-facing lifecycle state (lib/listings/canonical-lifecycle.ts): `status` stays the last verified
+    // provider status; a row recorded off the current feed reads "Off Market" here (Maya 2026-09-08).
+    const lifecycle = lifecycleFromStoredRow({ status: l.status, listing_type: l.listing_type, sync_status: l.sync_status, terminal_since: l.terminal_since });
+    // The ONE status projection every CRM reader renders (owner ruling, Maya 2026-09-08): the live Cotality
+    // StandardStatus token the row stores (legacy Mallan spellings resolved), its label IN THIS TRANSACTION
+    // (a sale's Closed reads "Sold", a rental's Closed reads "Rented", a sale's Pending reads "In Contract"),
+    // and the agent's workflow word when it agrees. Manage Listings and the dashboards RENDER `label`; they
+    // never re-derive it and never read a provider status field.
+    const presentation = statusPresentation({ status: l.status, listing_type: l.listing_type, raw_data: l.raw_data, sync_status: l.sync_status, terminal_since: l.terminal_since });
+    // The Cotality date / price facts the row's status carries, projected out of raw_data so a reader shows
+    // the fact itself (PurchaseContractDate / _mallanLeaseSignedDate / CloseDate) and never a local timestamp.
+    const rawData = l.raw_data && typeof l.raw_data === "object" && !Array.isArray(l.raw_data)
+      ? (l.raw_data as Record<string, unknown>)
+      : {};
+    const statusFacts: Record<string, unknown> = {};
+    for (const field of STATUS_FACT_FIELDS) {
+      const v = rawData[field];
+      if (v !== undefined && v !== null && v !== "") statusFacts[field] = v;
+    }
     return {
       ...rest,
+      status_presentation: {
+        token: presentation.status,
+        label: presentation.label,
+        transaction: presentation.transaction,
+        workflow: presentation.workflow,
+        workflowLabel: presentation.workflowLabel,
+        providerStatus: presentation.providerStatus,
+        offMarket: presentation.offMarket,
+      },
+      status_facts: statusFacts,
       id: l.id.toString(),
       agent_id: l.agent_id?.toString() ?? null,
       assigned_agent_id: l.agent_id?.toString() ?? null,
       list_price: l.list_price.toString(),
       living_area: l.living_area?.toString() ?? null,
+      lifecycle: { stage: lifecycle.stage, label: lifecycle.label, providerStage: lifecycle.providerStage, presence: lifecycle.presence, offFeedSince: lifecycle.offFeedSince },
       media,
     };
   });
@@ -187,8 +264,9 @@ export async function GET(req: NextRequest) {
   });
 }
 
-// Valid listing statuses and their allowed transitions
-const STATUS_INITIAL = "Draft";
+// A Mallan-authored listing is born in the provider's draft state — the live StandardStatus token 'Incomplete'
+// (owner ruling 2026-09-08: the stored status is always a live member; 'Draft' / 'Future' are workflow words).
+const STATUS_INITIAL = "Incomplete";
 
 /**
  * Generate a unique listing_id: SL-XXXX for sales, RL-XXXX for rentals.
@@ -257,12 +335,26 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // SERVER-OWNED conversion (Packet 2 closure): MlsStatus / PropertyType / PropertySubType /
+  // CommonInterest are derived here from the Mallan form keys (saleStatus, salePropertyType,
+  // saleOfficeRetailOwnership, …); client-supplied provider values are validated against the live
+  // Cotality enums when no form key is present. Unknown values are refused, never defaulted.
+  const formMapping = applyServerFormMapping(body, listingType as "sale" | "rent");
+  if (formMapping.errors.length > 0) {
+    return NextResponse.json(
+      { error: "Listing form values could not be converted to the stored vocabulary", code: "form_mapping", details: formMapping.errors },
+      { status: 422 }
+    );
+  }
+  body = formMapping.body;
+
   // Classify RLS eligibility using UCBA mixed-use model (Art. I, Sec. 5(F))
   // Mixed-use in ≤5 unit buildings → RLS-eligible; >5 units or pure commercial → website-only
   // InHouse listings are website-only by definition — not on RLS.
   const inHouseValues = ["InHouse", "InHouseInternal", "InHouseWebOnly"];
   const isInHouse =
     inHouseValues.includes(String(body.saleListingType || "")) ||
+    inHouseValues.includes(String(body.rentalListingType || "")) ||
     inHouseValues.includes(String(body.listingAgreement || ""));
   const eligibility = classifyRlsEligibility(body, {
     explicitOptOut: body.rls_eligible === false || isInHouse,
@@ -296,7 +388,7 @@ export async function POST(req: NextRequest) {
     const enforcement = assertRlsCompliantPayload(body, {
       listingType: listingType as "sale" | "rent",
       isNewDevelopment: body.NewDevelopmentYN === true,
-      currentStatus: (body.MlsStatus as string) || undefined,
+      currentStatus: (body._mallanStatus as string) || undefined,
       rlsEligible,
       mixedUseSmallBuilding: eligibility.mixedUseSmallBuilding,
     });
@@ -312,7 +404,7 @@ export async function POST(req: NextRequest) {
     }
 
     // D9: Coming Soon is one-time per address — cannot re-use for same property
-    if (body.MlsStatus === "ComingSoon" && body.StreetName) {
+    if (body._mallanStatus === "ComingSoon" && body.StreetName) {
       const priorComingSoon = await prisma.listing.findFirst({
         where: {
           postal_code: (body.PostalCode as string) || undefined,
@@ -344,7 +436,7 @@ export async function POST(req: NextRequest) {
   // 1. Strip removed fields (NAR Settlement)
   // 2. Rename aliases → canonical RLS field names
   // 3. Normalize enum values
-  // 4. Apply defaults (IDXEntireListingDisplayYN, SyndicateYN)
+  // 4. Apply defaults (InternetEntireListingDisplayYN)
   const { normalized, stripped } = normalizePayload(body);
 
   // Fair Housing applies to ALL advertising, regardless of RLS eligibility (Federal FHA, NY State
@@ -381,9 +473,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Derive permission booleans from Permissions string
-  // (forms send "OwnerOptOut"/"Private"/"RLS-Owner-OptOut"/etc. — normalizer resolves)
-  const permBools = derivePermissionBooleans(normalized.Permission ?? normalized.Permissions);
+  // Derive the gate columns from the Mallan permission decision (`_mallanPermission`, set by the
+  // server-owned form mapping; never the provider Permission enum).
+  const permBools = derivePermissionBooleans(normalized._mallanPermission);
 
   // Route normalized fields to structured DB buckets via persistenceMap
   const persistence = buildPersistenceRecord(normalized);
@@ -627,11 +719,11 @@ export async function POST(req: NextRequest) {
         internet_entire_listing_display_yn?: boolean | null;
         internet_address_display_yn?: boolean | null;
       })
-    : { publicUrl: null, realPlusUrl: null };
+    : { publicUrl: null, rebnyListingUrl: null };
 
   // S-BE-006 — return the full URL + eligibility contract so the form and
   // dashboard can explain Featured / Exclusive availability after publish
-  // (not just publicUrl/realPlusUrl). A freshly created listing is a Mallan
+  // (not just publicUrl/rebnyListingUrl). A freshly created listing is a Mallan
   // exclusive (CRM-created) but is created as Draft, so it is not yet
   // Featured-eligible until it is published Active.
   const publishContract = buildPublishContract({
@@ -646,7 +738,7 @@ export async function POST(req: NextRequest) {
       listing_id: result.listingId,
       status: STATUS_INITIAL,
       publicUrl: urls.publicUrl,
-      realPlusUrl: urls.realPlusUrl,
+      rebnyListingUrl: urls.rebnyListingUrl,
       featuredEligible: publishContract.featuredEligible,
       exclusiveEligible: publishContract.exclusiveEligible,
       eligibilityReason: publishContract.eligibilityReason,

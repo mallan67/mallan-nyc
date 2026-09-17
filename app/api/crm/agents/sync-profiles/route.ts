@@ -1,6 +1,31 @@
 // POST /api/crm/agents/sync-profiles
-// One-time sync: imports agent profile data from data/agents.json into the DB.
-// Broker-only. Safe to run multiple times.
+// Broker-only admin import of NON-REGULATED public profile fields from
+// data/agents.json into the DB. Safe to run multiple times.
+//
+// Fields it may write: bio, photo, specialties, languages, phone, public_slug,
+// featured. Nothing else.
+//
+// -- WHAT THIS ROUTE MAY NOT WRITE ----------------------------------------
+// `Agent.title` is the REGULATED professional designation (NY DOS 19 NYCRR
+// 175.25). It is DERIVED from the verified `Agent.license_type` by
+// lib/agents/professional-title.ts, and static profile data may not
+// independently manufacture it.
+//
+// This route used to set it whenever the stored title was empty, which made a
+// tracked JSON file a SECOND professional-identity writer: a row with
+// `license_type = null`, or a legacy ambiguous row, could be handed
+// "Licensed Associate Real Estate Broker" purely because the static file said
+// so - with no licence class anywhere in the write set.
+//
+// The SEED path is not the same thing and is unaffected: it normalises the
+// designation into a canonical licence class, validates the independently
+// recorded brokerage role, and writes license_type + role + the canonical
+// title TOGETHER.
+//
+// `license_type` and `role` are deliberately NOT synced here either. Adding
+// them would create a THIRD identity writer rather than closing the second.
+// The licence class and the brokerage role are set through the governed Agent
+// create/edit path, and the title follows the licence class from there.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBroker, isAuthError, logAuditEvent } from "@/lib/auth";
@@ -31,9 +56,6 @@ export async function POST(req: NextRequest) {
     }
     if (a.photo && !existing.photo) {
       update.photo = a.photo;
-    }
-    if (a.title && !existing.title) {
-      update.title = a.title;
     }
     if (
       a.specialties &&

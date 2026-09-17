@@ -10,15 +10,16 @@ describe("buildPublicListingTrestleFilter", () => {
       expect(filter).toBe(DEFAULT_STATUS);
     });
 
-    it("maps type=sale to PropertyType ne 'ResidentialLease'", () => {
+    it("maps type=sale to the positive sale universe PropertyType eq 'Residential' (one membership rule with the engine and the registry)", () => {
       const filter = buildPublicListingTrestleFilter(new URLSearchParams("type=sale"));
       expect(filter).toContain(DEFAULT_STATUS);
-      expect(filter).toContain("PropertyType ne 'ResidentialLease'");
+      expect(filter).toContain("PropertyType eq 'Residential'");
+      expect(filter).not.toContain("ne 'ResidentialLease'");
     });
 
     it("treats type=buy the same as type=sale", () => {
       const filter = buildPublicListingTrestleFilter(new URLSearchParams("type=buy"));
-      expect(filter).toContain("PropertyType ne 'ResidentialLease'");
+      expect(filter).toContain("PropertyType eq 'Residential'");
     });
 
     it("maps type=rent to PropertyType eq 'ResidentialLease'", () => {
@@ -72,12 +73,12 @@ describe("buildPublicListingTrestleFilter", () => {
     });
 
     it("escapes single quotes inside borough names", () => {
-      // Manhattan/Brooklyn/etc. map to county names — but if a custom borough
-      // value contains a quote it must round-trip safely through the escaper.
+      // An unrecognised borough is sent as asked (it matches nothing live) — and if it contains a
+      // quote it must round-trip safely through the escaper.
       const filter = buildPublicListingTrestleFilter(
         new URLSearchParams("borough=O'Hare County"),
       );
-      expect(filter).toContain("CountyOrParish eq 'O''Hare County'");
+      expect(filter).toContain("CityRegion eq 'O''Hare County'");
     });
 
     it("escapes single quotes and strips % / _ wildcards in keywords", () => {
@@ -131,14 +132,18 @@ describe("buildPublicListingTrestleFilter", () => {
 
   // ── 4. borough/neighborhood/zip filters ─────────────────────────────
   describe("borough / neighborhood / zip filters", () => {
-    it("maps borough=Manhattan to CountyOrParish='New York'", () => {
+    // Canonical location (Maya, 2026-09-08, exhaustive live evidence): the borough IS CityRegion —
+    // exactly the five boroughs on every live row. CountyOrParish is the county (a separate fact
+    // that disagrees with CityRegion on 35 rows) and is never a borough filter.
+    it("maps borough=Manhattan to CityRegion='Manhattan' (never CountyOrParish)", () => {
       const filter = buildPublicListingTrestleFilter(new URLSearchParams("borough=Manhattan"));
-      expect(filter).toContain("CountyOrParish eq 'New York'");
+      expect(filter).toContain("CityRegion eq 'Manhattan'");
+      expect(filter).not.toContain("CountyOrParish");
     });
 
-    it("maps borough=Brooklyn to CountyOrParish='Kings'", () => {
-      const filter = buildPublicListingTrestleFilter(new URLSearchParams("borough=Brooklyn"));
-      expect(filter).toContain("CountyOrParish eq 'Kings'");
+    it("maps borough=Staten Island to the live literal CityRegion='StatenIsland'", () => {
+      const filter = buildPublicListingTrestleFilter(new URLSearchParams("borough=Staten Island"));
+      expect(filter).toContain("CityRegion eq 'StatenIsland'");
     });
 
     it("emits a single zip clause when one valid zipCode is supplied", () => {
@@ -231,9 +236,14 @@ describe("buildPublicListingTrestleFilter", () => {
 
   // ── 7. furnished ─────────────────────────────────────────────────────
   describe("furnished", () => {
-    it("furnished=true pushes Furnished eq 'Furnished'", () => {
-      const filter = buildPublicListingTrestleFilter(new URLSearchParams("furnished=true"));
+    it("furnished=true pushes Furnished eq 'Furnished' on a RENTAL search", () => {
+      const filter = buildPublicListingTrestleFilter(new URLSearchParams("type=rent&furnished=true"));
       expect(filter).toContain("Furnished eq 'Furnished'");
+    });
+
+    it("furnished is a rental-only criterion — never narrows a sale search (Domain 6, 2026-09-08)", () => {
+      const filter = buildPublicListingTrestleFilter(new URLSearchParams("type=sale&furnished=true"));
+      expect(filter).not.toContain("Furnished");
     });
 
     it("furnished=false (or missing) pushes nothing", () => {

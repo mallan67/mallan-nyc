@@ -2,8 +2,8 @@
 //
 // S-BE-006 — the success contract the CRM form/dashboard needs after a
 // create/update/publish so it can explain Featured / Exclusive availability
-// and surface the public + RealPlus URLs. Returned alongside listing_id,
-// status, publicUrl, realPlusUrl from the CRM listing write paths.
+// and surface the public + REBNY listing URLs. Returned alongside listing_id,
+// status, publicUrl, rebnyListingUrl from the CRM listing write paths.
 //
 // Semantics are grounded in the existing model:
 //   - Exclusive: a CRM-created listing is a Mallan Exclusive (the

@@ -13,6 +13,8 @@ import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
 import { scanTextForFairHousing } from "@/lib/compliance/rls-enforcement";
 import { assignLeadToAgent } from "@/lib/lead-distribution/assign";
+import { isLeadExplicitlyInactive } from "@/lib/auth/lead-access";
+import { isCanonicalPipelineStage } from "@/lib/crm/client-pipeline-stage";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -154,6 +156,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     renewal_status: lead.renewal_status,
     non_renewal_date: lead.non_renewal_date,
     reengage_anchor_date: lead.reengage_anchor_date,
+    // THE ONE NURTURE PAUSE CONTROL. Absent from this DTO until Lane 3 Packet 2, which is why
+    // the tenant workspace's Pause button rendered from `undefined` and its Paused badge could
+    // never appear. See the PATCH branch below for the other half.
+    nurture_paused: lead.nurture_paused,
     // Outreach dates
     outreach_6mo_date: lead.outreach_6mo_date,
     outreach_90d_date: lead.outreach_90d_date,
@@ -227,6 +233,23 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
+  // VALIDATE BEFORE ASSEMBLING. This runs ahead of every `update.X =` line below so a request carrying a
+  // bad stage alongside good fields cannot half-land: no roles written, no audit, no 200.
+  //
+  // It used to be `if (validStages.includes(stage)) update.pipeline_stage = stage;` against a route-local
+  // nine-value array, with no else — so 24 of the 33 stages the shipped application writes were dropped
+  // SILENTLY while the route answered 200 and the browser toasted success. Every rung of the Sales seller
+  // ladder past `listed` and eight of nine Rentals landlord rungs behaved that way.
+  if (body.pipeline_stage !== undefined && !isCanonicalPipelineStage(body.pipeline_stage)) {
+    return NextResponse.json(
+      {
+        error: `Unsupported pipeline_stage: ${String(body.pipeline_stage)}`,
+        code: "UNSUPPORTED_PIPELINE_STAGE",
+      },
+      { status: 400 }
+    );
+  }
+
   const update: Record<string, unknown> = {};
   let reassignmentAgentId: bigint | null | undefined;
 
@@ -247,11 +270,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     update.notes = noteText;
   }
   if (body.source !== undefined) update.source = String(body.source);
-  if (body.pipeline_stage !== undefined) {
-    const validStages = ["new", "contacted", "nurturing", "active", "showing", "offer", "deal", "closed", "past"];
-    const stage = String(body.pipeline_stage);
-    if (validStages.includes(stage)) update.pipeline_stage = stage;
-  }
+  // Already validated above; persist exactly what was sent.
+  if (body.pipeline_stage !== undefined) update.pipeline_stage = String(body.pipeline_stage);
 
   // Financial fields
   if (body.annual_income !== undefined) update.annual_income = body.annual_income ? parseFloat(String(body.annual_income)) : null;
@@ -365,16 +385,37 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.renewal_status !== undefined) update.renewal_status = body.renewal_status ? String(body.renewal_status) : null;
   if (body.non_renewal_date !== undefined) update.non_renewal_date = body.non_renewal_date ? new Date(String(body.non_renewal_date)) : null;
   if (body.reengage_anchor_date !== undefined) update.reengage_anchor_date = body.reengage_anchor_date ? new Date(String(body.reengage_anchor_date)) : null;
-  if (body.sales_drip_on !== undefined) update.sales_drip_on = Boolean(body.sales_drip_on);
-  if (body.rental_drip_on !== undefined) update.rental_drip_on = Boolean(body.rental_drip_on);
-  if (body.renewal_drip_on !== undefined) update.renewal_drip_on = Boolean(body.renewal_drip_on);
+  // ── THE DRIP FLAGS ARE READ-ONLY HISTORY, LIKE THE LADDER DATES ABOVE.
+  //
+  //    They were the retired cron's cohort selector and the input to a Growth Tools recommendation
+  //    that told agents to "add to owner market report cadence". Both are gone. A repo census after
+  //    that removal found no behavioural reader left anywhere: three DTOs return them for display,
+  //    the tenant workspace shows the stored stage, growth-tools retains only the type declaration,
+  //    and no browser code writes them.
+  //
+  //    Left writable they would be a parallel nurture state machine with its driver removed but its
+  //    controls still live — an agent could flip a flag that decides nothing and reasonably believe
+  //    they had changed a cadence. The one pause that does decide something is nurture_paused,
+  //    accepted below.
+  // NURTURE PAUSE. The browser has PATCHed this field since the tenant workspace shipped, but no
+  // branch existed to receive it: the allowlist matched nothing, `update` stayed empty and the
+  // request was rejected with "No valid fields to update". The control looked live and could not
+  // pause anything. It is the one pause the canonical nurture evaluation honours.
+  if (body.nurture_paused !== undefined) update.nurture_paused = Boolean(body.nurture_paused);
   if (body.buyer_potential !== undefined) update.buyer_potential = body.buyer_potential != null ? parseInt(String(body.buyer_potential)) : null;
 
   // Outreach dates
-  if (body.outreach_6mo_date !== undefined) update.outreach_6mo_date = body.outreach_6mo_date ? new Date(String(body.outreach_6mo_date)) : null;
-  if (body.outreach_90d_date !== undefined) update.outreach_90d_date = body.outreach_90d_date ? new Date(String(body.outreach_90d_date)) : null;
-  if (body.outreach_60d_date !== undefined) update.outreach_60d_date = body.outreach_60d_date ? new Date(String(body.outreach_60d_date)) : null;
-  if (body.outreach_30d_date !== undefined) update.outreach_30d_date = body.outreach_30d_date ? new Date(String(body.outreach_30d_date)) : null;
+  // ── THE OUTREACH LADDER IS READ-ONLY HISTORY NOW.
+  //
+  //    These four columns were the retired tenant-nurture cron's own clock: an anchor advanced
+  //    through 6mo -> 90d -> 60d -> 30d, competing with the report ledger and disagreeing with it.
+  //    Lane 3 Packet 2 retired that scheduler, and leaving the columns WRITABLE would have left the
+  //    parallel cadence state machine alive with only its driver removed — a route or an agent
+  //    could still advance a ladder nothing reads and nothing honours.
+  //
+  //    They remain in the GET DTO above, and in the database, because they are real history of what
+  //    the old cadence did. Nothing writes them. No schema change: storage is not deleted casually.
+  //    If a deliberate cadence concept ever returns it comes back through lib/crm/nurture-due.ts.
 
   if (Object.keys(update).length === 0 && reassignmentAgentId === undefined) {
     return NextResponse.json(
@@ -389,6 +430,56 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         data: update,
       })
     : lead;
+
+  // ── DURABLE STAGE-TRANSITION HISTORY.
+  //
+  //    Until now a stage change left no recoverable record. The audit call at the end of this
+  //    handler logs `fields: Object.keys(update)` — the field NAMES only — so it could say that
+  //    pipeline_stage changed but never what it changed TO. Nothing else recorded the transition:
+  //    activity_type 'status_change' is documented in the ActivityLog schema comment but was
+  //    written only by the sales promote route. The consequence surfaced in Lane 3 Packet 2: there
+  //    was no way to establish when a client entered a nurture relationship, so the six-month
+  //    report obligation had no first anchor and every candidate substitute meant something else.
+  //
+  //    This writes the transition into the ledger that already exists. No new table, no new
+  //    column, and the activity_type is the one the schema already declares.
+  //
+  //    FAILURE DEGRADES TO UNANCHORED, WHICH IS THE SAFE DIRECTION. A lost history row means
+  //    lib/crm/nurture-due.ts reports `unanchored` and asks the agent for a baseline; it can never
+  //    cause a fabricated due date. Blocking an agent's stage edit because a history insert failed
+  //    would be the worse trade, so this is deliberately non-fatal.
+  if (update.pipeline_stage !== undefined && update.pipeline_stage !== lead.pipeline_stage) {
+    await prisma.activityLog.create({
+      data: {
+        lead_id: lead.id,
+        activity_type: "status_change",
+        title: `Pipeline stage: ${String(lead.pipeline_stage)} → ${String(update.pipeline_stage)}`,
+        actor_type: "agent",
+        actor_id: auth.userId,
+        metadata: {
+          old_pipeline_stage: lead.pipeline_stage ?? null,
+          new_pipeline_stage: String(update.pipeline_stage),
+        },
+      },
+    }).catch(() => {});
+  }
+
+  // DEACTIVATION SIDE EFFECTS — access only. Deactivation is NOT deletion: the Lead identity and every
+  // related record (preferences, Client x Listing actions, saved searches, showings, feedback, comments,
+  // activity, documents, deals) are deliberately untouched, and pipeline_stage is NOT rewritten just
+  // because the lifecycle changed — they are separate dimensions.
+  //
+  // Only two things are revoked: live sessions, and any outstanding portal invite token. Without the
+  // second, an unconsumed invite would remain a working re-entry path.
+  if (isLeadExplicitlyInactive(update.status) && !isLeadExplicitlyInactive(lead.status)) {
+    await prisma.session.deleteMany({
+      where: { user_id: lead.id, user_type: "lead" },
+    });
+    await prisma.lead.update({
+      where: { id: lead.id },
+      data: { portal_token: null, portal_token_expires_at: null },
+    });
+  }
 
   const assignment = reassignmentAgentId !== undefined
     ? await assignLeadToAgent({
@@ -442,34 +533,37 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Client not found" }, { status: 404 });
   }
 
-  // Cascade-delete all related records in a transaction
-  await prisma.$transaction([
-    prisma.clientPreference.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.clientListingAction.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.session.deleteMany({ where: { user_id: lead.id, user_type: "lead" } }),
-    prisma.activityLog.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.followUpTask.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.showingFeedback.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.showing.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.notification.deleteMany({ where: { recipient_id: lead.id, recipient_type: "lead" } }),
-    prisma.leadScore.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.convictionScore.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.savedSearch.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.comment.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.intentEvent.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.behavioralEvent.deleteMany({ where: { lead_id: lead.id } }),
-    prisma.familyMember.deleteMany({ where: { OR: [{ lead_id: lead.id }, { member_lead_id: lead.id }] } }),
-    prisma.lead.delete({ where: { id: lead.id } }),
-  ]);
-
-  await logAuditEvent(
-    "delete",
-    "lead",
-    lead.id.toString(),
-    auth,
-    { email: lead.email },
-    req.headers.get("x-forwarded-for") ?? undefined
+  // FAIL CLOSED. This used to run a single prisma.$transaction with FIFTEEN deleteMany calls followed by
+  // prisma.lead.delete — physically destroying the client's ClientListingAction rows (which carry portal
+  // OFFER submissions and listing-send / search-alert delivery history), Showing and ShowingFeedback,
+  // SavedSearch, Comment, FollowUpTask, ActivityLog, sessions and scores.
+  //
+  // That is not a data-loss risk, it is a retention breach. The canonical schedule
+  // (docs/compliance/COMPLIANCE-CANONICAL-INDEX.md §14, NY SHIELD §899-bb) ARCHIVES lead PII after 3 years
+  // inactive rather than deleting it, and holds transaction records 6 years under NY DOS; UCBA Art. II §11
+  // requires a Participant to verify to a seller, on request, that an offer was transmitted — and the
+  // evidence for that lived in the rows this handler destroyed.
+  //
+  // Note what was NOT done: two required Lead relations absent from the old cascade list —
+  // ActiveLease.landlord (prisma/schema.prisma:1071) and BuyerIntentProfile.lead (:1495) — are FK RESTRICT,
+  // so the transaction already rolled back as a 500 for any client holding those rows. Adding the missing
+  // cascades would have made destruction MORE reliable. Hard deletion is disabled instead, and those
+  // constraints are deliberately left in place.
+  //
+  // The DELETE export survives on purpose. Removing it would turn a stale caller into a framework 405;
+  // keeping it makes the boundary explicit and auditable, so an old bookmarklet, a cached build or a direct
+  // HTTP client receives a reasoned refusal and changes nothing.
+  //
+  // The replacement lifecycle — archived_at vs a status value vs anonymisation after retention — is the
+  // canonical-lifecycle decision (Lane 3) and is NOT made here. Until it lands, this boundary is closed.
+  return NextResponse.json(
+    {
+      error:
+        "Permanent client deletion is disabled: canonical CRM history (offers, showings, saved searches, " +
+        "communications and activity) must be retained. Deactivate or archive the client through the " +
+        "governed lifecycle instead.",
+      code: "CLIENT_DELETE_DISABLED",
+    },
+    { status: 409 }
   );
-
-  return NextResponse.json({ success: true, deleted: lead.email });
 }

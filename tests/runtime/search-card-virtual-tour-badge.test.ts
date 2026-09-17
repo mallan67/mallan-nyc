@@ -143,7 +143,8 @@ describe('/api/buildings — Trestle Media expand fetches enough rows to skip a 
   });
 
   it('fetches multiple media rows so classifyMediaItem can find the first real photo', () => {
-    const m = src.match(/Media\([^)]*\$top=(\d+)[^)]*\)/);
+    // The expand sends the one Media select (MEDIA_SELECT_FIELDS.join(',')) before $top — allow the join call.
+    const m = src.match(/Media\(\$select=\$\{MEDIA_SELECT_FIELDS\.join\(','\)\};\$top=(\d+)[^)]*\)/);
     expect(m).not.toBeNull();
     expect(Number(m![1])).toBeGreaterThanOrEqual(5);
   });

@@ -30,7 +30,7 @@
  * here protects all four routes against the same regression class.
  */
 
-import { TERMINAL_STATUSES } from '../../idx/trestle-mapper';
+import { TERMINAL_STATUSES, normalizeStandardStatus } from '../../idx/trestle-mapper';
 
 /**
  * Re-implements the exact one-liner each H1 patch uses, against an
@@ -39,11 +39,12 @@ import { TERMINAL_STATUSES } from '../../idx/trestle-mapper';
  * future drift in any of the four call sites.
  */
 function guardAllowsDisplay(status: string | null | undefined): boolean {
-  return !TERMINAL_STATUSES.has(String(status || 'Active'));
+  // every writer normalizes first (normalizeStandardStatus): a legacy spelling folds to its live member
+  return !TERMINAL_STATUSES.has(normalizeStandardStatus(String(status || 'Active')));
 }
 
 describe('H1 — secondary-writer terminal-status guard', () => {
-  describe('terminal statuses (all 7) force idx_display_yn=false', () => {
+  describe('terminal statuses (the live members and their legacy spellings) force idx_display_yn=false', () => {
     it.each([
       'Closed',
       'Sold',
@@ -51,7 +52,9 @@ describe('H1 — secondary-writer terminal-status guard', () => {
       'Rented',
       'Withdrawn',
       'Expired',
+      'Canceled',
       'Cancelled',
+      'Delete',
     ])('%s → false', (status) => {
       expect(guardAllowsDisplay(status)).toBe(false);
     });
@@ -95,13 +98,10 @@ describe('H1 — secondary-writer terminal-status guard', () => {
       expect(guardAllowsDisplay('NotAStatusThatExists')).toBe(true);
     });
 
-    it('case sensitivity — "closed" lowercase is NOT in the canonical set', () => {
-      // The cron predicate matches exact-case RESO strings; mirroring it
-      // here keeps writer and cron in lock-step. Documents the contract,
-      // not a desired behavior — Trestle emits exact-case canonical
-      // values, and any drift would require coordinated change on both
-      // sides of the dual-write boundary.
-      expect(guardAllowsDisplay('closed')).toBe(true);
+    it('case sensitivity — "closed" lowercase is NOT in the canonical set, and the writer normalizes it before the guard', () => {
+      // The cron predicate matches exact-case live tokens; every writer folds case first
+      // (normalizeStandardStatus), so a lowercase "closed" is stored as Closed and blocked.
+      expect(guardAllowsDisplay('closed')).toBe(false);
       expect(TERMINAL_STATUSES.has('closed')).toBe(false);
     });
   });

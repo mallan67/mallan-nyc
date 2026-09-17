@@ -1,0 +1,98 @@
+ README.md                                          | 26 ++++-----
+ app/api/auth/me/route.ts                           |  2 +-
+ app/api/crm/listings/[id]/route.ts                 | 10 ++--
+ app/api/open-houses/route.ts                       |  2 +-
+ app/components/ComingSoonBadge.tsx                 |  2 +-
+ app/components/Header.tsx                          |  2 +-
+ app/components/SimilarListings.tsx                 |  2 +-
+ .../2026-04-30T00-10-34-631Z.json                  |  0
+ .../{reso-drift => cotality-drift}/latest.json     |  0
+ .../2026-04-30-coverage-active.json                |  0
+ .../2026-04-30-coverage-closed.json                |  0
+ compliance/ATTRIBUTIONS-AND-DISCLOSURES.md         |  6 +-
+ compliance/AUDIT-LOGGING-AND-EVIDENCE.md           |  2 +-
+ compliance/BACKEND-VALIDATION-ENGINE.md            |  2 +-
+ compliance/CRM-AND-MESSAGING-COMPLIANCE.md         |  2 +-
+ compliance/FORMS-AND-RLS-SUBMISSION.md             |  2 +-
+ compliance/FRONTEND-COMPLIANCE.md                  |  2 +-
+ compliance/IDX-VOW-DISPLAY-RULES.md                |  4 +-
+ compliance/NYC-NYS-REQUIREMENTS.md                 |  2 +-
+ compliance/PORTALS-AND-RBAC.md                     |  2 +-
+ compliance/README.md                               | 10 ++--
+ compliance/THIRD-PARTY-AND-FEED-GOVERNANCE.md      |  8 +--
+ compliance/UCBA-2026.md                            |  6 +-
+ compliance/UPDATES.md                              | 16 +++---
+ compliance/fields.json                             |  6 +-
+ compliance/lookups.json                            |  2 +-
+ compliance/pii-and-distribution-checklist.md       |  2 +-
+ compliance/rules/active.json                       |  4 +-
+ compliance/rules/reso-rls-renames.json             |  8 +--
+ lib/address/nyc-address-normalizer.ts              | 10 ++--
+ lib/buildings/public-building-data.ts              |  2 +-
+ lib/compliance/__tests__/compliance-gates.test.ts  |  2 +-
+ .../__tests__/h1-normalize-standard-status.test.ts |  4 +-
+ .../h1-secondary-writers-terminal-guard.test.ts    |  2 +-
+ lib/compliance/dto.ts                              |  4 +-
+ lib/compliance/idx-display-gate.ts                 |  2 +-
+ lib/compliance/index.ts                            |  2 +-
+ lib/compliance/prompts.ts                          |  4 +-
+ lib/compliance/rebny-field-tables.ts               |  4 +-
+ lib/compliance/rebny-validator.ts                  | 16 +++---
+ lib/compliance/reso-mapper.ts                      | 14 ++---
+ lib/compliance/rls-eligibility.ts                  |  2 +-
+ lib/compliance/rls-enforcement.ts                  | 10 ++--
+ lib/compliance/rls-rules.json                      |  8 +--
+ lib/compliance/status.ts                           | 12 ++--
+ lib/crm/__tests__/fee-disclosure.test.ts           |  2 +-
+ lib/crm/fee-disclosure.ts                          |  2 +-
+ lib/crm/status-mapping.ts                          |  8 +--
+ lib/hooks/useListings.ts                           |  2 +-
+ .../__tests__/media-key-write-suppression.test.ts  |  2 +-
+ lib/idx/auth.ts                                    |  2 +-
+ lib/idx/card-fields.ts                             |  2 +-
+ lib/idx/db-to-public-dto.ts                        |  4 +-
+ lib/idx/fetch.ts                                   |  2 +-
+ lib/idx/mapping.ts                                 | 20 +++----
+ lib/idx/public-dto.ts                              |  2 +-
+ lib/idx/reconcile-alerts.ts                        |  2 +-
+ lib/idx/sync.ts                                    |  4 +-
+ lib/idx/trestle-mapper.ts                          | 26 ++++-----
+ lib/idx/types.ts                                   |  8 +--
+ lib/idx/watermark.ts                               |  2 +-
+ lib/idx/write-suppression.ts                       |  2 +-
+ lib/listing-slug.ts                                |  2 +-
+ lib/listings/agent-info-typed-columns.ts           |  6 +-
+ lib/listings/similar-listing-ranking.ts            |  2 +-
+ lib/market-report/generator.ts                     |  4 +-
+ lib/open-houses/upcoming-open-houses.ts            |  6 +-
+ lib/search/__tests__/crm-idx-filter.test.ts        |  2 +-
+ lib/search/__tests__/crm-idx-mapper.test.ts        |  2 +-
+ lib/search/crm-idx-filter.ts                       |  2 +-
+ lib/search/crm-idx-mapper.ts                       |  2 +-
+ lib/syndication/eligibility.ts                     |  2 +-
+ package.json                                       | 24 ++++----
+ prisma/schema.prisma                               |  6 +-
+ public/crm/data/validator-results.json             |  4 +-
+ scripts/audit-form-fields.js                       |  6 +-
+ scripts/{reso => cotality}/README.md               | 66 +++++++++++-----------
+ scripts/{reso => cotality}/analyze.js              |  8 +--
+ scripts/{reso => cotality}/count.js                | 10 ++--
+ scripts/{reso => cotality}/coverage.js             |  8 +--
+ scripts/{reso => cotality}/drift.js                | 24 ++++----
+ scripts/{reso => cotality}/gate-breakdown.js       | 12 ++--
+ scripts/{reso => cotality}/lib/trestle-client.js   |  4 +-
+ scripts/{reso => cotality}/lookups.js              | 10 ++--
+ scripts/{reso => cotality}/parity.js               | 10 ++--
+ scripts/{reso => cotality}/query.js                | 10 ++--
+ scripts/{reso => cotality}/route-catalog.js        |  8 +--
+ scripts/{reso => cotality}/schema-audit.js         | 30 +++++-----
+ scripts/{reso => cotality}/snapshot.js             | 14 ++---
+ scripts/{reso => cotality}/trace.js                |  8 +--
+ scripts/fix-stale-form-bindings.ts                 | 12 ++--
+ scripts/generate-master-registry.js                |  8 +--
+ scripts/idx-validate.js                            | 26 ++++-----
+ scripts/patch-master-registry.js                   |  4 +-
+ scripts/trestle-forbidden-fields.ts                |  2 +-
+ scripts/validate-rls-compliance.js                 |  6 +-
+ scripts/validate-standalone.js                     |  2 +-
+ 97 files changed, 337 insertions(+), 337 deletions(-)

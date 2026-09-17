@@ -1,0 +1,378 @@
+{
+  "source": "LIVE_COTALITY",
+  "scope": "StandardStatus eq 'Active'",
+  "request": "Property?$select=ListingKey,StandardStatus&$expand=Building($select=BuildingKey),BuyerAgent($select=MemberKey),BuyerOffice($select=OfficeKey),CoBuyerAgent($select=MemberKey),CoBuyerOffice($select=OfficeKey),CoListAgent($select=MemberKey),CoListOffice($select=OfficeKey),CustomProperty($select=ListingKey),ListAgent($select=MemberKey),ListOffice($select=OfficeKey),Rooms($select=RoomKey),UnitTypes($select=UnitTypeKey)&$orderby=ListingKey asc&$top=1000 (keyset walk)",
+  "rows": 7600,
+  "pages": 38,
+  "rowsByStatus": {
+    "Active": 7600
+  },
+  "navigations": {
+    "Building": {
+      "target": "Building",
+      "expandHttp": 200,
+      "rowsWithPayload": 0,
+      "payloadRows": 0,
+      "byStatus": {},
+      "samples": []
+    },
+    "BuyerAgent": {
+      "target": "Member",
+      "expandHttp": 200,
+      "rowsWithPayload": 0,
+      "payloadRows": 0,
+      "byStatus": {},
+      "samples": []
+    },
+    "BuyerOffice": {
+      "target": "Office",
+      "expandHttp": 200,
+      "rowsWithPayload": 0,
+      "payloadRows": 0,
+      "byStatus": {},
+      "samples": []
+    },
+    "CoBuyerAgent": {
+      "target": "Member",
+      "expandHttp": 200,
+      "rowsWithPayload": 0,
+      "payloadRows": 0,
+      "byStatus": {},
+      "samples": []
+    },
+    "CoBuyerOffice": {
+      "target": "Office",
+      "expandHttp": 200,
+      "rowsWithPayload": 0,
+      "payloadRows": 0,
+      "byStatus": {},
+      "samples": []
+    },
+    "CoListAgent": {
+      "target": "Member",
+      "expandHttp": 200,
+      "rowsWithPayload": 3344,
+      "payloadRows": 3344,
+      "byStatus": {
+        "Active": 3344
+      },
+      "samples": [
+        {
+          "ListingKey": "1091331715",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "MemberKey": "25222885"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091331872",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "MemberKey": "25250599"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091331955",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "MemberKey": "25290708"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091332486",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "MemberKey": "25238367"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091332606",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "MemberKey": "25290708"
+            }
+          ]
+        }
+      ]
+    },
+    "CoListOffice": {
+      "target": "Office",
+      "expandHttp": 200,
+      "rowsWithPayload": 3350,
+      "payloadRows": 3350,
+      "byStatus": {
+        "Active": 3350
+      },
+      "samples": [
+        {
+          "ListingKey": "1091330901",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "OfficeKey": "5667509"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091331715",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "OfficeKey": "5658921"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091331872",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "OfficeKey": "6629390"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091331955",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "OfficeKey": "5658938"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091332486",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "OfficeKey": "5658994"
+            }
+          ]
+        }
+      ]
+    },
+    "CustomProperty": {
+      "target": "CustomProperty",
+      "expandHttp": 200,
+      "rowsWithPayload": 7600,
+      "payloadRows": 7600,
+      "byStatus": {
+        "Active": 7600
+      },
+      "samples": [
+        {
+          "ListingKey": "1091330901",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "ListingKey": "1091330901"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091330953",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "ListingKey": "1091330953"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091331715",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "ListingKey": "1091331715"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091331731",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "ListingKey": "1091331731"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091331872",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "ListingKey": "1091331872"
+            }
+          ]
+        }
+      ]
+    },
+    "ListAgent": {
+      "target": "Member",
+      "expandHttp": 200,
+      "rowsWithPayload": 7281,
+      "payloadRows": 7281,
+      "byStatus": {
+        "Active": 7281
+      },
+      "samples": [
+        {
+          "ListingKey": "1091330901",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "MemberKey": "25243768"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091330953",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "MemberKey": "25240390"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091331715",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "MemberKey": "25221135"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091331731",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "MemberKey": "25277481"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091331872",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "MemberKey": "25258938"
+            }
+          ]
+        }
+      ]
+    },
+    "ListOffice": {
+      "target": "Office",
+      "expandHttp": 200,
+      "rowsWithPayload": 7600,
+      "payloadRows": 7600,
+      "byStatus": {
+        "Active": 7600
+      },
+      "samples": [
+        {
+          "ListingKey": "1091330901",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "OfficeKey": "5667509"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091330953",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "OfficeKey": "5658930"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091331715",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "OfficeKey": "5658921"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091331731",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "OfficeKey": "5671791"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091331872",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "OfficeKey": "6629390"
+            }
+          ]
+        }
+      ]
+    },
+    "Rooms": {
+      "target": "PropertyRooms",
+      "expandHttp": 200,
+      "rowsWithPayload": 2,
+      "payloadRows": 2,
+      "byStatus": {
+        "Active": 2
+      },
+      "samples": [
+        {
+          "ListingKey": "1155772544",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "RoomKey": "1615381162"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1177715111",
+          "StandardStatus": "Active",
+          "payload": [
+            {
+              "RoomKey": "1777635425"
+            }
+          ]
+        }
+      ]
+    },
+    "UnitTypes": {
+      "target": "PropertyUnitTypes",
+      "expandHttp": 200,
+      "rowsWithPayload": 0,
+      "payloadRows": 0,
+      "byStatus": {},
+      "samples": []
+    }
+  },
+  "finished": "2026-09-08T07:49:06.498Z",
+  "quota": {
+    "minuteLimit": 280,
+    "minuteAvailable": 258,
+    "hourLimit": 8400,
+    "hourAvailable": 8342,
+    "hourResetTime": 1788856595017,
+    "seenAt": 1788853746495
+  }
+}

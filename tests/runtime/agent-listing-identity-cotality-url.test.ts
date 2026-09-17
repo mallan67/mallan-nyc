@@ -32,7 +32,7 @@ describe('cross-source dedupe — DB DTO vs Trestle DTO address shapes', () => {
     id: 'SL-0004',
     address: { streetNumber: '333', streetDirPrefix: 'E', streetName: '46th Street', unitNumber: '2G', postalCode: '10017' },
   };
-  // Trestle shape (toPublicDTO via mapRESOToInternal): no streetDirPrefix,
+  // Live-provider shape through the canonical chain: no streetDirPrefix,
   // streetName already = "<dir> <name> <suffix>".
   const RLS_20093870: DedupeCandidate = {
     id: 'RLS20093870',
@@ -162,7 +162,10 @@ describe('URL emitters — canonical only, no hybrid slug + ?key=', () => {
     });
   }
   it('DTO builders set url via buildCanonicalListingPath', () => {
-    expect(read('lib/idx/public-dto.ts')).toMatch(/url:\s*buildCanonicalListingPath\(/);
+    // lib/idx/public-dto.ts no longer builds DTOs (the second builder is gone, Packet 2 closure); live Cotality
+    // records reach the ONE builder (db-to-public-dto.ts) through lib/idx/cotality-public-dto.ts.
+    expect(read('lib/idx/public-dto.ts')).not.toMatch(/url:\s*buildCanonicalListingPath\(/);
+    expect(read('lib/idx/cotality-public-dto.ts')).toMatch(/dbListingToPublicDTO\(/);
     expect(read('lib/idx/db-to-public-dto.ts')).toMatch(/url:\s*buildCanonicalListingPath\(/);
   });
 });

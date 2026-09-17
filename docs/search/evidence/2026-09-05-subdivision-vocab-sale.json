@@ -1,0 +1,1418 @@
+{
+ "Alphabet City": {
+  "n": 1,
+  "b": {
+   "Manhattan": 1
+  }
+ },
+ "Annadale": {
+  "n": 2,
+  "b": {
+   "StatenIsland": 2
+  }
+ },
+ "Arverne": {
+  "n": 1,
+  "b": {
+   "Queens": 1
+  }
+ },
+ "Astoria": {
+  "n": 80,
+  "b": {
+   "Queens": 80
+  }
+ },
+ "Astoria Heights": {
+  "n": 1,
+  "b": {
+   "Queens": 1
+  }
+ },
+ "Bath Beach": {
+  "n": 1,
+  "b": {
+   "Brooklyn": 1
+  }
+ },
+ "Battery Park City": {
+  "n": 83,
+  "b": {
+   "Manhattan": 83
+  }
+ },
+ "Bay Ridge": {
+  "n": 39,
+  "b": {
+   "Brooklyn": 39
+  }
+ },
+ "Bay Terrace": {
+  "n": 2,
+  "b": {
+   "Queens": 2
+  }
+ },
+ "Baychester": {
+  "n": 1,
+  "b": {
+   "Bronx": 1
+  }
+ },
+ "Bayside": {
+  "n": 2,
+  "b": {
+   "Queens": 2
+  }
+ },
+ "Bayswater": {
+  "n": 1,
+  "b": {
+   "Queens": 1
+  }
+ },
+ "Bedford Park": {
+  "n": 2,
+  "b": {
+   "Bronx": 2
+  }
+ },
+ "Bedford-Stuyvesant": {
+  "n": 76,
+  "b": {
+   "Brooklyn": 76
+  }
+ },
+ "Beekman": {
+  "n": 37,
+  "b": {
+   "Manhattan": 37
+  }
+ },
+ "Belle Harbor": {
+  "n": 4,
+  "b": {
+   "Queens": 4
+  }
+ },
+ "Bellerose": {
+  "n": 5,
+  "b": {
+   "Queens": 5
+  }
+ },
+ "Belmont": {
+  "n": 1,
+  "b": {
+   "Bronx": 1
+  }
+ },
+ "Bensonhurst": {
+  "n": 2,
+  "b": {
+   "Brooklyn": 2
+  }
+ },
+ "Boerum Hill": {
+  "n": 24,
+  "b": {
+   "Brooklyn": 24
+  }
+ },
+ "Borough Park": {
+  "n": 1,
+  "b": {
+   "Brooklyn": 1
+  }
+ },
+ "Breezy Point": {
+  "n": 3,
+  "b": {
+   "Queens": 3
+  }
+ },
+ "Briarwood": {
+  "n": 1,
+  "b": {
+   "Queens": 1
+  }
+ },
+ "Brighton Beach": {
+  "n": 17,
+  "b": {
+   "Brooklyn": 17
+  }
+ },
+ "Broad Channel": {
+  "n": 1,
+  "b": {
+   "Queens": 1
+  }
+ },
+ "Bronxdale": {
+  "n": 3,
+  "b": {
+   "Bronx": 3
+  }
+ },
+ "Bronxwood": {
+  "n": 1,
+  "b": {
+   "Bronx": 1
+  }
+ },
+ "Brooklyn Heights": {
+  "n": 49,
+  "b": {
+   "Brooklyn": 49
+  }
+ },
+ "Brownsville": {
+  "n": 10,
+  "b": {
+   "Brooklyn": 10
+  }
+ },
+ "Bushwick": {
+  "n": 95,
+  "b": {
+   "Brooklyn": 95
+  }
+ },
+ "Canarsie": {
+  "n": 25,
+  "b": {
+   "Brooklyn": 25
+  }
+ },
+ "Carnegie Hill": {
+  "n": 69,
+  "b": {
+   "Manhattan": 69
+  }
+ },
+ "Carroll Gardens": {
+  "n": 19,
+  "b": {
+   "Brooklyn": 19
+  }
+ },
+ "Castleton Corners": {
+  "n": 1,
+  "b": {
+   "StatenIsland": 1
+  }
+ },
+ "Central Harlem": {
+  "n": 79,
+  "b": {
+   "Manhattan": 79
+  }
+ },
+ "Central Park South": {
+  "n": 90,
+  "b": {
+   "Manhattan": 90
+  }
+ },
+ "Central Riverdale": {
+  "n": 39,
+  "b": {
+   "Bronx": 39
+  }
+ },
+ "Chelsea": {
+  "n": 189,
+  "b": {
+   "Manhattan": 189
+  }
+ },
+ "Chinatown": {
+  "n": 18,
+  "b": {
+   "Manhattan": 18
+  }
+ },
+ "City Island": {
+  "n": 2,
+  "b": {
+   "Bronx": 2
+  }
+ },
+ "City Line": {
+  "n": 2,
+  "b": {
+   "Brooklyn": 2
+  }
+ },
+ "Clason Point": {
+  "n": 1,
+  "b": {
+   "Bronx": 1
+  }
+ },
+ "Clinton Hill": {
+  "n": 33,
+  "b": {
+   "Brooklyn": 33
+  }
+ },
+ "Cobble Hill": {
+  "n": 9,
+  "b": {
+   "Brooklyn": 9
+  }
+ },
+ "College Point": {
+  "n": 1,
+  "b": {
+   "Queens": 1
+  }
+ },
+ "Columbia Street Waterfront": {
+  "n": 2,
+  "b": {
+   "Brooklyn": 2
+  }
+ },
+ "Concord": {
+  "n": 1,
+  "b": {
+   "StatenIsland": 1
+  }
+ },
+ "Concourse": {
+  "n": 11,
+  "b": {
+   "Bronx": 11
+  }
+ },
+ "Concourse Village": {
+  "n": 18,
+  "b": {
+   "Bronx": 18
+  }
+ },
+ "Coney Island": {
+  "n": 6,
+  "b": {
+   "Brooklyn": 6
+  }
+ },
+ "Country Club": {
+  "n": 1,
+  "b": {
+   "Bronx": 1
+  }
+ },
+ "Crown Heights": {
+  "n": 69,
+  "b": {
+   "Brooklyn": 69
+  }
+ },
+ "Cypress Hills": {
+  "n": 5,
+  "b": {
+   "Brooklyn": 5
+  }
+ },
+ "DUMBO": {
+  "n": 14,
+  "b": {
+   "Brooklyn": 14
+  }
+ },
+ "Ditmars Steinway": {
+  "n": 37,
+  "b": {
+   "Queens": 37
+  }
+ },
+ "Ditmas Park": {
+  "n": 19,
+  "b": {
+   "Brooklyn": 19
+  }
+ },
+ "Douglaston": {
+  "n": 4,
+  "b": {
+   "Queens": 4
+  }
+ },
+ "Downtown Brooklyn": {
+  "n": 75,
+  "b": {
+   "Brooklyn": 75
+  }
+ },
+ "Dumbo": {
+  "n": 28,
+  "b": {
+   "Brooklyn": 28
+  }
+ },
+ "Dyker Heights": {
+  "n": 1,
+  "b": {
+   "Brooklyn": 1
+  }
+ },
+ "East Elmhurst": {
+  "n": 1,
+  "b": {
+   "Queens": 1
+  }
+ },
+ "East Flatbush": {
+  "n": 25,
+  "b": {
+   "Brooklyn": 25
+  }
+ },
+ "East Harlem": {
+  "n": 58,
+  "b": {
+   "Manhattan": 58
+  }
+ },
+ "East Morrisania": {
+  "n": 1,
+  "b": {
+   "Bronx": 1
+  }
+ },
+ "East New York": {
+  "n": 17,
+  "b": {
+   "Brooklyn": 17
+  }
+ },
+ "East Village": {
+  "n": 57,
+  "b": {
+   "Manhattan": 57
+  }
+ },
+ "East Williamsburg": {
+  "n": 13,
+  "b": {
+   "Brooklyn": 13
+  }
+ },
+ "Eastchester": {
+  "n": 1,
+  "b": {
+   "Bronx": 1
+  }
+ },
+ "Edgemere": {
+  "n": 1,
+  "b": {
+   "Queens": 1
+  }
+ },
+ "Elmhurst": {
+  "n": 14,
+  "b": {
+   "Queens": 14
+  }
+ },
+ "Estate Area": {
+  "n": 3,
+  "b": {
+   "Bronx": 3
+  }
+ },
+ "Farragut": {
+  "n": 1,
+  "b": {
+   "Brooklyn": 1
+  }
+ },
+ "Fieldston": {
+  "n": 8,
+  "b": {
+   "Bronx": 8
+  }
+ },
+ "Financial District": {
+  "n": 161,
+  "b": {
+   "Manhattan": 161
+  }
+ },
+ "Flatbush": {
+  "n": 37,
+  "b": {
+   "Brooklyn": 37
+  }
+ },
+ "Flatiron": {
+  "n": 79,
+  "b": {
+   "Manhattan": 79
+  }
+ },
+ "Flatlands": {
+  "n": 7,
+  "b": {
+   "Brooklyn": 7
+  }
+ },
+ "Flushing": {
+  "n": 33,
+  "b": {
+   "Queens": 33
+  }
+ },
+ "Fordham": {
+  "n": 9,
+  "b": {
+   "Bronx": 9
+  }
+ },
+ "Forest Hills": {
+  "n": 59,
+  "b": {
+   "Queens": 59
+  }
+ },
+ "Fort George": {
+  "n": 4,
+  "b": {
+   "Manhattan": 4
+  }
+ },
+ "Fort Greene": {
+  "n": 19,
+  "b": {
+   "Brooklyn": 19
+  }
+ },
+ "Fort Hamilton": {
+  "n": 16,
+  "b": {
+   "Brooklyn": 16
+  }
+ },
+ "Gerritsen Beach": {
+  "n": 2,
+  "b": {
+   "Brooklyn": 2
+  }
+ },
+ "Glen Oaks": {
+  "n": 2,
+  "b": {
+   "Queens": 2
+  }
+ },
+ "Glendale": {
+  "n": 5,
+  "b": {
+   "Queens": 5
+  }
+ },
+ "Gowanus": {
+  "n": 8,
+  "b": {
+   "Brooklyn": 8
+  }
+ },
+ "Gramercy Park": {
+  "n": 103,
+  "b": {
+   "Manhattan": 103
+  }
+ },
+ "Grasmere": {
+  "n": 1,
+  "b": {
+   "StatenIsland": 1
+  }
+ },
+ "Gravesend": {
+  "n": 9,
+  "b": {
+   "Brooklyn": 9
+  }
+ },
+ "Great Kills": {
+  "n": 2,
+  "b": {
+   "StatenIsland": 2
+  }
+ },
+ "Greenpoint": {
+  "n": 42,
+  "b": {
+   "Brooklyn": 42
+  }
+ },
+ "Greenwich Village": {
+  "n": 100,
+  "b": {
+   "Manhattan": 100
+  }
+ },
+ "Greenwood Heights": {
+  "n": 28,
+  "b": {
+   "Brooklyn": 28
+  }
+ },
+ "Hamilton Heights": {
+  "n": 35,
+  "b": {
+   "Manhattan": 35
+  }
+ },
+ "Harlem": {
+  "n": 40,
+  "b": {
+   "Manhattan": 40
+  }
+ },
+ "Hell's Kitchen": {
+  "n": 197,
+  "b": {
+   "Manhattan": 197
+  }
+ },
+ "Highbridge": {
+  "n": 2,
+  "b": {
+   "Bronx": 2
+  }
+ },
+ "Hollis": {
+  "n": 2,
+  "b": {
+   "Queens": 2
+  }
+ },
+ "Homecrest": {
+  "n": 5,
+  "b": {
+   "Brooklyn": 5
+  }
+ },
+ "Howard Beach": {
+  "n": 1,
+  "b": {
+   "Queens": 1
+  }
+ },
+ "Hudson Heights": {
+  "n": 46,
+  "b": {
+   "Manhattan": 46
+  }
+ },
+ "Hudson Square": {
+  "n": 26,
+  "b": {
+   "Manhattan": 26
+  }
+ },
+ "Hudson Yards": {
+  "n": 52,
+  "b": {
+   "Manhattan": 52
+  }
+ },
+ "Huguenot": {
+  "n": 1,
+  "b": {
+   "StatenIsland": 1
+  }
+ },
+ "Hunters Point": {
+  "n": 12,
+  "b": {
+   "Queens": 12
+  }
+ },
+ "Inwood": {
+  "n": 12,
+  "b": {
+   "Manhattan": 12
+  }
+ },
+ "Jackson Heights": {
+  "n": 50,
+  "b": {
+   "Queens": 50
+  }
+ },
+ "Jamaica": {
+  "n": 11,
+  "b": {
+   "Queens": 11
+  }
+ },
+ "Jamaica Estates": {
+  "n": 3,
+  "b": {
+   "Queens": 3
+  }
+ },
+ "Jamaica Hills": {
+  "n": 1,
+  "b": {
+   "Queens": 1
+  }
+ },
+ "Kensington": {
+  "n": 34,
+  "b": {
+   "Brooklyn": 34
+  }
+ },
+ "Kew Gardens": {
+  "n": 3,
+  "b": {
+   "Queens": 3
+  }
+ },
+ "Kew Gardens Hills": {
+  "n": 5,
+  "b": {
+   "Queens": 5
+  }
+ },
+ "Kingsbridge": {
+  "n": 7,
+  "b": {
+   "Bronx": 7
+  }
+ },
+ "Kingsbridge Heights": {
+  "n": 2,
+  "b": {
+   "Bronx": 2
+  }
+ },
+ "Kips Bay": {
+  "n": 98,
+  "b": {
+   "Manhattan": 98
+  }
+ },
+ "Lenox Hill": {
+  "n": 408,
+  "b": {
+   "Manhattan": 408
+  }
+ },
+ "Lincoln Square": {
+  "n": 226,
+  "b": {
+   "Manhattan": 226
+  }
+ },
+ "Lindenwood": {
+  "n": 2,
+  "b": {
+   "Queens": 2
+  }
+ },
+ "Little Italy": {
+  "n": 6,
+  "b": {
+   "Manhattan": 6
+  }
+ },
+ "Little Neck": {
+  "n": 2,
+  "b": {
+   "Queens": 2
+  }
+ },
+ "Locust Point": {
+  "n": 1,
+  "b": {
+   "Bronx": 1
+  }
+ },
+ "Long Island City": {
+  "n": 135,
+  "b": {
+   "Queens": 135
+  }
+ },
+ "Longwood": {
+  "n": 1,
+  "b": {
+   "Bronx": 1
+  }
+ },
+ "Lower East Side": {
+  "n": 100,
+  "b": {
+   "Manhattan": 100
+  }
+ },
+ "Madison": {
+  "n": 8,
+  "b": {
+   "Brooklyn": 8
+  }
+ },
+ "Manhattan Beach": {
+  "n": 4,
+  "b": {
+   "Brooklyn": 4
+  }
+ },
+ "Manhattan Valley": {
+  "n": 14,
+  "b": {
+   "Manhattan": 14
+  }
+ },
+ "Manhattanville": {
+  "n": 2,
+  "b": {
+   "Manhattan": 2
+  }
+ },
+ "Mapleton": {
+  "n": 1,
+  "b": {
+   "Brooklyn": 1
+  }
+ },
+ "Marble Hill": {
+  "n": 1,
+  "b": {
+   "Manhattan": 1
+  }
+ },
+ "Marine Park": {
+  "n": 5,
+  "b": {
+   "Brooklyn": 5
+  }
+ },
+ "Mariners Harbor": {
+  "n": 1,
+  "b": {
+   "StatenIsland": 1
+  }
+ },
+ "Maspeth": {
+  "n": 4,
+  "b": {
+   "Queens": 4
+  }
+ },
+ "Melrose": {
+  "n": 2,
+  "b": {
+   "Bronx": 2
+  }
+ },
+ "Middle Village": {
+  "n": 3,
+  "b": {
+   "Queens": 3
+  }
+ },
+ "Midland Beach": {
+  "n": 1,
+  "b": {
+   "StatenIsland": 1
+  }
+ },
+ "Midtown": {
+  "n": 175,
+  "b": {
+   "Manhattan": 175
+  }
+ },
+ "Midtown East": {
+  "n": 169,
+  "b": {
+   "Manhattan": 169
+  }
+ },
+ "Midtown West": {
+  "n": 32,
+  "b": {
+   "Manhattan": 32
+  }
+ },
+ "Midwood": {
+  "n": 33,
+  "b": {
+   "Brooklyn": 33
+  }
+ },
+ "Mill Basin": {
+  "n": 5,
+  "b": {
+   "Brooklyn": 5
+  }
+ },
+ "Morningside Heights": {
+  "n": 44,
+  "b": {
+   "Manhattan": 44
+  }
+ },
+ "Morris Heights": {
+  "n": 4,
+  "b": {
+   "Bronx": 4
+  }
+ },
+ "Morrisania": {
+  "n": 1,
+  "b": {
+   "Bronx": 1
+  }
+ },
+ "Mott Haven": {
+  "n": 1,
+  "b": {
+   "Bronx": 1
+  }
+ },
+ "Mount Hope": {
+  "n": 1,
+  "b": {
+   "Bronx": 1
+  }
+ },
+ "Murray Hill": {
+  "n": 185,
+  "b": {
+   "Manhattan": 185
+  }
+ },
+ "NOMAD": {
+  "n": 1,
+  "b": {
+   "Manhattan": 1
+  }
+ },
+ "New Lots": {
+  "n": 6,
+  "b": {
+   "Brooklyn": 6
+  }
+ },
+ "New Springville": {
+  "n": 1,
+  "b": {
+   "StatenIsland": 1
+  }
+ },
+ "NoHo": {
+  "n": 15,
+  "b": {
+   "Manhattan": 15
+  }
+ },
+ "NoLIta": {
+  "n": 2,
+  "b": {
+   "Manhattan": 2
+  }
+ },
+ "NoMad": {
+  "n": 54,
+  "b": {
+   "Manhattan": 54
+  }
+ },
+ "Noho": {
+  "n": 2,
+  "b": {
+   "Manhattan": 2
+  }
+ },
+ "Nolita": {
+  "n": 7,
+  "b": {
+   "Manhattan": 7
+  }
+ },
+ "North Corona": {
+  "n": 1,
+  "b": {
+   "Queens": 1
+  }
+ },
+ "North Riverdale": {
+  "n": 29,
+  "b": {
+   "Bronx": 29
+  }
+ },
+ "Norwood": {
+  "n": 6,
+  "b": {
+   "Bronx": 6
+  }
+ },
+ "Oakland Gardens": {
+  "n": 2,
+  "b": {
+   "Queens": 2
+  }
+ },
+ "Ocean Hill": {
+  "n": 8,
+  "b": {
+   "Brooklyn": 8
+  }
+ },
+ "Ocean Parkway": {
+  "n": 1,
+  "b": {
+   "Brooklyn": 1
+  }
+ },
+ "Park Slope": {
+  "n": 41,
+  "b": {
+   "Brooklyn": 41
+  }
+ },
+ "Parkchester": {
+  "n": 2,
+  "b": {
+   "Bronx": 2
+  }
+ },
+ "Pelham Bay": {
+  "n": 1,
+  "b": {
+   "Bronx": 1
+  }
+ },
+ "Pelham Gardens": {
+  "n": 1,
+  "b": {
+   "Bronx": 1
+  }
+ },
+ "Pelham Parkway": {
+  "n": 1,
+  "b": {
+   "Bronx": 1
+  }
+ },
+ "Pleasant Plains": {
+  "n": 1,
+  "b": {
+   "StatenIsland": 1
+  }
+ },
+ "Port Morris": {
+  "n": 1,
+  "b": {
+   "Bronx": 1
+  }
+ },
+ "Port Richmond": {
+  "n": 1,
+  "b": {
+   "StatenIsland": 1
+  }
+ },
+ "Prince's Bay": {
+  "n": 1,
+  "b": {
+   "StatenIsland": 1
+  }
+ },
+ "Prospect Heights": {
+  "n": 13,
+  "b": {
+   "Brooklyn": 13
+  }
+ },
+ "Prospect Lefferts Gardens": {
+  "n": 27,
+  "b": {
+   "Brooklyn": 27
+  }
+ },
+ "Prospect Park South": {
+  "n": 21,
+  "b": {
+   "Brooklyn": 21
+  }
+ },
+ "Queens Village": {
+  "n": 4,
+  "b": {
+   "Queens": 4
+  }
+ },
+ "Red Hook": {
+  "n": 7,
+  "b": {
+   "Brooklyn": 7
+  }
+ },
+ "Rego Park": {
+  "n": 16,
+  "b": {
+   "Queens": 16
+  }
+ },
+ "Richmond Hill": {
+  "n": 4,
+  "b": {
+   "Queens": 4
+  }
+ },
+ "Ridgewood": {
+  "n": 5,
+  "b": {
+   "Queens": 5
+  }
+ },
+ "Riverdale": {
+  "n": 22,
+  "b": {
+   "Bronx": 22
+  }
+ },
+ "Rochdale Village": {
+  "n": 2,
+  "b": {
+   "Queens": 2
+  }
+ },
+ "Rockaway Beach": {
+  "n": 1,
+  "b": {
+   "Queens": 1
+  }
+ },
+ "Rockaway Park": {
+  "n": 10,
+  "b": {
+   "Queens": 10
+  }
+ },
+ "Roosevelt Island": {
+  "n": 27,
+  "b": {
+   "Manhattan": 27
+  }
+ },
+ "Rosebank": {
+  "n": 1,
+  "b": {
+   "StatenIsland": 1
+  }
+ },
+ "Rosedale": {
+  "n": 2,
+  "b": {
+   "Queens": 2
+  }
+ },
+ "SOHO": {
+  "n": 1,
+  "b": {
+   "Manhattan": 1
+  }
+ },
+ "Seaside": {
+  "n": 1,
+  "b": {
+   "Queens": 1
+  }
+ },
+ "Sheepshead Bay": {
+  "n": 20,
+  "b": {
+   "Brooklyn": 20
+  }
+ },
+ "SoHo": {
+  "n": 35,
+  "b": {
+   "Manhattan": 35
+  }
+ },
+ "Soho": {
+  "n": 5,
+  "b": {
+   "Manhattan": 5
+  }
+ },
+ "Soundview": {
+  "n": 1,
+  "b": {
+   "Bronx": 1
+  }
+ },
+ "South Harlem": {
+  "n": 43,
+  "b": {
+   "Manhattan": 43
+  }
+ },
+ "South Jamaica": {
+  "n": 3,
+  "b": {
+   "Queens": 3
+  }
+ },
+ "South Ozone Park": {
+  "n": 2,
+  "b": {
+   "Queens": 2
+  }
+ },
+ "South Street Seaport": {
+  "n": 28,
+  "b": {
+   "Manhattan": 28
+  }
+ },
+ "Springfield Gardens": {
+  "n": 1,
+  "b": {
+   "Queens": 1
+  }
+ },
+ "Spuyten Duyvil": {
+  "n": 71,
+  "b": {
+   "Bronx": 71
+  }
+ },
+ "St. Albans": {
+  "n": 1,
+  "b": {
+   "Queens": 1
+  }
+ },
+ "St. George": {
+  "n": 6,
+  "b": {
+   "StatenIsland": 6
+  }
+ },
+ "Stapleton": {
+  "n": 1,
+  "b": {
+   "StatenIsland": 1
+  }
+ },
+ "Stuyvesant Heights": {
+  "n": 60,
+  "b": {
+   "Brooklyn": 60
+  }
+ },
+ "Sunnyside": {
+  "n": 15,
+  "b": {
+   "Queens": 15
+  }
+ },
+ "Sunnyside Gardens": {
+  "n": 1,
+  "b": {
+   "Queens": 1
+  }
+ },
+ "Sunset Park": {
+  "n": 6,
+  "b": {
+   "Brooklyn": 6
+  }
+ },
+ "Sutton Place": {
+  "n": 176,
+  "b": {
+   "Manhattan": 176
+  }
+ },
+ "Throgs Neck": {
+  "n": 2,
+  "b": {
+   "Bronx": 2
+  }
+ },
+ "Todt Hill": {
+  "n": 3,
+  "b": {
+   "StatenIsland": 3
+  }
+ },
+ "Tompkinsville": {
+  "n": 1,
+  "b": {
+   "StatenIsland": 1
+  }
+ },
+ "Tottenville": {
+  "n": 1,
+  "b": {
+   "StatenIsland": 1
+  }
+ },
+ "TriBeCa": {
+  "n": 5,
+  "b": {
+   "Manhattan": 5
+  }
+ },
+ "Tribeca": {
+  "n": 109,
+  "b": {
+   "Manhattan": 109
+  }
+ },
+ "Tudor City": {
+  "n": 3,
+  "b": {
+   "Manhattan": 3
+  }
+ },
+ "Turtle Bay": {
+  "n": 107,
+  "b": {
+   "Manhattan": 107
+  }
+ },
+ "Two Bridges": {
+  "n": 19,
+  "b": {
+   "Manhattan": 19
+  }
+ },
+ "University Heights": {
+  "n": 1,
+  "b": {
+   "Bronx": 1
+  }
+ },
+ "Upper East Side": {
+  "n": 190,
+  "b": {
+   "Manhattan": 190
+  }
+ },
+ "Upper West Side": {
+  "n": 320,
+  "b": {
+   "Manhattan": 320
+  }
+ },
+ "Van Nest": {
+  "n": 1,
+  "b": {
+   "Bronx": 1
+  }
+ },
+ "Vinegar Hill": {
+  "n": 3,
+  "b": {
+   "Brooklyn": 3
+  }
+ },
+ "Wakefield": {
+  "n": 2,
+  "b": {
+   "Bronx": 2
+  }
+ },
+ "Washington Heights": {
+  "n": 48,
+  "b": {
+   "Manhattan": 48
+  }
+ },
+ "Weeksville": {
+  "n": 16,
+  "b": {
+   "Brooklyn": 16
+  }
+ },
+ "West Harlem": {
+  "n": 21,
+  "b": {
+   "Manhattan": 21
+  }
+ },
+ "West Village": {
+  "n": 68,
+  "b": {
+   "Manhattan": 68
+  }
+ },
+ "Whitestone": {
+  "n": 4,
+  "b": {
+   "Queens": 4
+  }
+ },
+ "Williamsburg": {
+  "n": 125,
+  "b": {
+   "Brooklyn": 125
+  }
+ },
+ "Windsor Terrace": {
+  "n": 18,
+  "b": {
+   "Brooklyn": 18
+  }
+ },
+ "Wingate": {
+  "n": 2,
+  "b": {
+   "Brooklyn": 2
+  }
+ },
+ "Woodhaven": {
+  "n": 1,
+  "b": {
+   "Queens": 1
+  }
+ },
+ "Woodlawn Heights": {
+  "n": 2,
+  "b": {
+   "Bronx": 2
+  }
+ },
+ "Woodside": {
+  "n": 39,
+  "b": {
+   "Queens": 39
+  }
+ },
+ "Woodstock": {
+  "n": 1,
+  "b": {
+   "Bronx": 1
+  }
+ },
+ "Yorkville": {
+  "n": 140,
+  "b": {
+   "Manhattan": 140
+  }
+ },
+ "midtown": {
+  "n": 1,
+  "b": {
+   "Manhattan": 1
+  }
+ }
+}

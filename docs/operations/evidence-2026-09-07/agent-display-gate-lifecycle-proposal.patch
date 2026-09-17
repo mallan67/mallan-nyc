@@ -1,0 +1,32 @@
+diff --git a/lib/idx/trestle-mapper.ts b/lib/idx/trestle-mapper.ts
+index 9bc4276e..ba21ebe3 100644
+--- a/lib/idx/trestle-mapper.ts
++++ b/lib/idx/trestle-mapper.ts
+@@ -859,9 +859,27 @@ export function computeGateColumns(
+   // pre-Packet-2 helper normalized an absent status to "Active" and therefore displayed it.
+   const status_known = normalized_status !== '';
+   const provider_permitted = input.providerIdxPermitted !== false;
++  // Internal lifecycle statuses are declared "never publicly displayable" by
++  // lib/listings/mallan-status.ts (MALLAN_LIFECYCLE_STATUSES) but the gate never
++  // consulted that declaration — it only short-circuited on terminal statuses.
++  // `Hold` and `Incomplete` are RLS-authorized live StandardStatus members
++  // (verified 2026-09-07 against the Cotality Lookup, scoped by the exact
++  // SystemReferences token `RLS`); `Draft` is Mallan-only. None is terminal, so
++  // all three were being marked publicly displayable. Live counts are 0 today —
++  // latent, not active.
++  //
++  // `Pending` is deliberately EXCLUDED from this block: it is in the lifecycle
++  // set, but production holds ~5,800 Pending rows with idx_display_yn = true.
++  // Honouring the declaration for Pending would silently flip all of them, so
++  // that contradiction between MALLAN_LIFECYCLE_STATUSES / MALLAN_ACTIVE_STATUSES
++  // and live behaviour is raised for Maya rather than resolved here.
++  const non_displayable_lifecycle =
++    CRM_LIFECYCLE_STATUSES.has(normalized_status) && normalized_status !== 'Pending';
++
+   const idx_display_yn =
+     status_known &&
+     rls_eligible &&
++    !non_displayable_lifecycle &&
+     !is_terminal &&
+     internet_entire_listing_display_yn &&
+     provider_permitted &&

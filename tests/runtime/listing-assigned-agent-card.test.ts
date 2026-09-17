@@ -82,12 +82,20 @@ describe('buildAssignedAgentDisplay — fallbacks', () => {
     expect(out!.name).toBe('Maya Allan');
   });
 
-  it('missing title → falls back to license_type, then omitted if neither (safe)', () => {
+  it('missing title → derives the designation from the licence class, then omitted if neither (safe)', () => {
     const withLicenseType = buildAssignedAgentDisplay({
       isMallanExclusive: true, agentInfo: { ...OFFICE },
       agentRecord: { full_name: 'Pat Lee', title: null, license_type: 'salesperson', public_slug: 'pat-lee' },
     });
-    expect(withLicenseType!.title).toBe('salesperson');
+    // NOT the raw column value: 175.25(c)(4) prohibits a bare "broker", and a
+    // class token like "associate_broker" is not a designation at all.
+    expect(withLicenseType!.title).toBe('Licensed Real Estate Salesperson');
+
+    const associate = buildAssignedAgentDisplay({
+      isMallanExclusive: true, agentInfo: { ...OFFICE },
+      agentRecord: { full_name: 'Pat Lee', title: null, license_type: 'associate_broker' },
+    });
+    expect(associate!.title).toBe('Licensed Associate Real Estate Broker');
 
     const noneStored = buildAssignedAgentDisplay({
       isMallanExclusive: true, agentInfo: { ...OFFICE },

@@ -3,6 +3,7 @@
 // Ownership enforced: agent can only access their own listings.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { boroughFromCityRegion } from "@/lib/listings/canonical-location";
 import {
   requireAgentOrBroker,
   isAuthError,
@@ -13,7 +14,11 @@ import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
 import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { sanitizeForCRM } from "@/lib/compliance/dto";
-import { derivePermissionBooleans } from "@/lib/compliance/normalizer";
+import { derivePermissionBooleans, normalizePayload, buildPersistenceRecord } from "@/lib/compliance/normalizer";
+import { applyServerFormMapping } from "@/lib/crm/listing-form-mapping";
+import { formStatusForListing } from "@/lib/crm/status-mapping";
+import { lifecycleFromStoredRow } from "@/lib/listings/canonical-lifecycle";
+import { marketDom } from "@/lib/compliance/dom-tracker";
 import { coerceStrictBool } from "@/lib/compliance/gates";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
@@ -77,7 +82,8 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   });
 
   // Phase D step 3 safety net (Codex #429 P2): the reachable WITH-TOOLS viewers
-  // (/crm/sale-view → SALE-FORM-WITH-TOOLS.html, /crm/rental-view → RENTAL-FORM-WITH-TOOLS.html)
+  // (the sale/rental viewer forks were deleted 2026-09-09; the canonical editors are
+  //  /crm/sale-listing -> SALE-FORM-REDESIGN.html and /crm/rental-listing -> RENTAL-FORM-REDESIGN.html)
   // hydrate listing agent/company attribution TYPED-FIRST now that `agent_info` is gone from the
   // Prisma client. These typed columns already flow through the no-select findUnique +
   // sanitizeForCRM spread above; pin them explicitly so a future `select` narrowing on
@@ -86,6 +92,23 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   // the existing CRM-tier PII boundary in sanitizeForCRM is unchanged.
   sanitized.list_agent_full_name = listing.list_agent_full_name ?? null;
   sanitized.list_office_name = listing.list_office_name ?? null;
+  sanitized.form_status = formStatusForListing(listing);
+  // The market clock the FORMS and the WITH-TOOLS viewers show (owner ruling, Maya 2026-09-09):
+  // the SERVER computes it from the listing's own lifecycle — the later of OnMarketDate /
+  // ActivationDate to the CloseDate of a closed row, the removal's own date (Expired →
+  // ExpirationDate, Withdrawn → WithdrawnDate, Canceled → CancellationDate, else OffMarketDate),
+  // the day the row left the feed (a DETECTION day: `estimated`), else the as-of day. Never
+  // PurchaseContractDate. The browser used to count from a per-session timestamp, which showed a
+  // fresh "0" on every page load; it now renders these numbers and labels an estimated end.
+  const _dom = marketDom(lifecycleFromStoredRow(listing), new Date());
+  sanitized.form_dom = {
+    days: _dom.days,
+    endReason: _dom.endReason,
+    estimated: _dom.estimated,
+    start: _dom.start,
+    end: _dom.end,
+    unverified: _dom.unverified,
+  };
 
   return NextResponse.json(sanitized);
 }
@@ -129,6 +152,30 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
+  // SERVER-OWNED conversion (Packet 2 closure): provider-vocabulary fields are derived from the
+  // Mallan form keys, or validated against the live Cotality enums when supplied directly.
+  const formMapping = applyServerFormMapping(body, (listing.listing_type as string) === "rent" ? "rent" : "sale");
+  if (formMapping.errors.length > 0) {
+    return NextResponse.json(
+      { error: "Listing form values could not be converted to the stored vocabulary", code: "form_mapping", details: formMapping.errors },
+      { status: 422 }
+    );
+  }
+  body = formMapping.body;
+
+  // The SAME contract as create-save (app/api/crm/listings/route.ts): strip the NAR-removed fields, rename
+  // the Mallan form aliases to the stored field names, normalize form values, fold the legacy permission
+  // booleans into `_mallanPermission` (Domain 5, 2026-09-08 — edit-save and create-save used to persist
+  // through different rules). PATCH is partial: the create-time InternetEntireListingDisplayYN default is
+  // not applied to an edit that did not send the field.
+  const sentInternetEntireListingDisplay = body.InternetEntireListingDisplayYN !== undefined;
+  const { normalized } = normalizePayload(body);
+  if (!sentInternetEntireListingDisplay) delete normalized.InternetEntireListingDisplayYN;
+  body = normalized;
+  // The bucket routing of every stored fact (address / features / agent_info) — the form contract's
+  // persistenceMap, not a route-local key list.
+  const persistence = buildPersistenceRecord(body);
+
   // Merge existing raw_data with updates for validation
   const existingRaw = (listing.raw_data as Record<string, unknown>) ?? {};
   const merged = { ...existingRaw, ...body };
@@ -138,6 +185,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   const inHouseValues = ["InHouse", "InHouseInternal", "InHouseWebOnly"];
   const isInHouse =
     inHouseValues.includes(String(merged.saleListingType || "")) ||
+    inHouseValues.includes(String(merged.rentalListingType || "")) ||
     inHouseValues.includes(String(merged.listingAgreement || "")) ||
     inHouseValues.includes(String(merged.ListingAgreement || ""));
   const eligibility = classifyRlsEligibility(merged, {
@@ -171,10 +219,11 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // reaches normalizeStandardStatus('') — which would default to "Active". Do
   // NOT use the FARE-specific isDisplayReadyStatus() (Active/ComingSoon-only) —
   // it would fail-OPEN on the publicly displayable ActiveUnderContract.
-  const persistedStatus = listing.status || "Draft";
+  const persistedStatus = listing.status || "Incomplete";
   const normalizedPersistedStatus = normalizeStandardStatus(persistedStatus);
+  // the provider's draft token; the legacy 'Draft' spelling normalizes to it (lib/idx/trestle-mapper.ts)
   const isDraftLike =
-    normalizedPersistedStatus === "Draft" || normalizedPersistedStatus === "Incomplete";
+    normalizedPersistedStatus === "Incomplete" || normalizedPersistedStatus === "Draft";
 
   const isCrmCreated = !listing.mls_id;
   if (effectiveRlsEligible && !isDraftLike && !isCrmCreated) {
@@ -210,7 +259,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // request-override considerations as the persisted-status RLS gate above, but
   // is intentionally left at its established behavior in this PR (separate
   // follow-up). isDisplayReadyStatus() normalizes the value internally.
-  const effectiveStatus = (merged.MlsStatus as string) || listing.status || "Draft";
+  // The Mallan business status: the request's Mallan key, else the persisted column. Never a provider-named key.
+  const effectiveStatus = (merged._mallanStatus as string) || listing.status || "Draft";
   const isRental = ((listing.listing_type as string) ?? "") === "rent";
   if (isRental && isDisplayReadyStatus(effectiveStatus)) {
     const feeCheck = checkFeeDisclosure(merged);
@@ -252,8 +302,10 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // sends Borough→CityRegion + Neighborhood→SubdivisionName). Before this fix
   // PATCH only mirrored when body sent the canonical names, so column-side
   // borough/neighborhood drifted on every edit-save (gap report 2026-05-28 C2).
-  if (body.Borough !== undefined) update.borough = String(body.Borough);
-  else if (body.CityRegion !== undefined) update.borough = String(body.CityRegion);
+  // Canonical borough (lib/listings/canonical-location.ts): "StatenIsland" and "Staten Island" both
+  // store "Staten Island"; an unrecognised value is kept verbatim for correction, never silently dropped.
+  if (body.Borough !== undefined) update.borough = boroughFromCityRegion(body.Borough) ?? String(body.Borough);
+  else if (body.CityRegion !== undefined) update.borough = boroughFromCityRegion(body.CityRegion) ?? String(body.CityRegion);
   if (body.Neighborhood !== undefined) update.neighborhood = String(body.Neighborhood);
   else if (body.SubdivisionName !== undefined) update.neighborhood = String(body.SubdivisionName);
   if (body.City !== undefined) update.city = String(body.City);
@@ -265,12 +317,11 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // coerceStrictBool() so only literal true / "true" / "TRUE" stores as true;
   // anything else (including null, "false", typos, malformed JSON) stores as
   // false. This matches the compliance gate doctrine in lib/compliance/gates.ts.
-  // IDX-display control (Cotality-clean 2026-05-30): the internal flag
-  // `saleIdxDisplayYN` drives the internal `idx_display_yn` column. There is NO
-  // Cotality field for IDX display — `IDXEntireListingDisplayYN` was a phantom and
-  // is accepted here only as a legacy fallback. The §2.05 terminal guard below is
-  // unchanged (rls-eligible AND not-terminal AND coerceStrictBool).
-  const idxDisplayControl = body.saleIdxDisplayYN ?? body.IDXEntireListingDisplayYN;
+  // IDX-display control: the Mallan decision key `_mallanIdxDisplay` (both forms) or the sale form's
+  // `saleIdxDisplayYN` drives the internal `idx_display_yn` column. There is NO Cotality field for IDX
+  // display (the retired IDXEntireListingDisplayYN name is refused by the live resource) — no provider-named
+  // key is consulted. The §2.05 terminal guard below is unchanged (rls-eligible AND not-terminal AND coerceStrictBool).
+  const idxDisplayControl = body._mallanIdxDisplay ?? body.saleIdxDisplayYN ?? body.rentalIdxDisplayYN;
   if (idxDisplayControl !== undefined) {
     // H1 fix (2026-05-13) + amend: close the secondary-writer §2.05 gap with
     // canonical-status normalization. An agent editing a listing whose
@@ -289,15 +340,15 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     //
     // Phase A Codex fix (2026-05-20): also AND-in `effectiveRlsEligible` so a
     // commercial / website-only listing (`rls_eligible=false`) cannot have
-    // its idx_display_yn flipped true by the body's IDXEntireListingDisplayYN
+    // its idx_display_yn flipped true by the body's IDX-display control
     // input. Matches the CRM POST guard at
     // app/api/crm/listings/route.ts:340-343 (`rlsEligible && ...`). Before
     // this fix, if a listing was already `rls_eligible=false` AND the body
     // did not change rls_eligible (so the block at line 140-145 didn't
-    // override), the body's IDXEntireListingDisplayYN: true would have
+    // override), the body's IDX-display control: true would have
     // bypassed the rls_eligible guard.
     const effectiveStatus = normalizeStandardStatus(
-      (merged.MlsStatus as string | undefined) ?? listing.status,
+      (merged._mallanStatus as string | undefined) ?? listing.status,
     );
     update.idx_display_yn =
       effectiveRlsEligible &&
@@ -343,16 +394,14 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         ? body.auction_terms_url
         : null;
   }
-  // ParticipantOnly + OwnerOptOut: derive from Permissions enum (same as POST route),
-  // or accept the canonical RESO field names ParticipantOnlyYN / OwnerOptOutYN as fallback.
-  const permValue = body.Permission ?? body.Permissions; // A2: accept canonical Permission + legacy Permissions
+  // ParticipantOnly + OwnerOptOut: the Mallan decision key only (the server-owned form mapping redirects every
+  // legacy Permission / Permissions input to it; the normalizer folds the legacy participant-only booleans on
+  // create). No provider-named or retired boolean key is consulted here.
+  const permValue = body._mallanPermission;
   if (permValue !== undefined) {
     const permBools = derivePermissionBooleans(permValue);
     update.participant_only = permBools.participant_only;
     update.owner_opt_out = permBools.owner_opt_out;
-  } else {
-    if (body.ParticipantOnlyYN !== undefined) update.participant_only = body.ParticipantOnlyYN === true;
-    if (body.OwnerOptOutYN !== undefined) update.owner_opt_out = body.OwnerOptOutYN === true;
   }
 
   // Update JSON columns by merging
@@ -370,20 +419,10 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // fields landed only in raw_data on PATCH — the structured address bucket
   // stayed stale and the building-validator re-fired on every edit-save
   // (gap report 2026-05-28 §1.3, root cause C2).
-  const addressKeys = [
-    "StreetNumber", "StreetDirPrefix", "StreetName", "StreetSuffix",
-    "StreetDirSuffix", "UnitNumber",
-    "City", "StateOrProvince", "PostalCode", "Borough",
-    "Neighborhood", "BuildingName", "UnparsedAddress",
-    // Alias keys the CRM sale form emits via collectSaleFormData (these are
-    // the same fields under different RESO/REBNY names — see
-    // lib/compliance/normalizer.ts aliasToCanonical).
-    "CityRegion", "SubdivisionName", "CountyOrParish", "PostalCity",
-  ];
-  const updatedAddress = { ...existingAddress };
-  for (const k of addressKeys) {
-    if (body[k] !== undefined) updatedAddress[k] = body[k];
-  }
+  // Address bucket = the contract's persistenceMap address keys present in this (normalized) body.
+  // Aliases (Borough → CityRegion, Neighborhood → SubdivisionName, UnParsedAddress → UnparsedAddress …)
+  // were renamed by normalizePayload above, so only canonical keys can land here.
+  const updatedAddress = { ...existingAddress, ...persistence.address };
   // UnparsedAddress case normalization: the CRM sale form's
   // collectSaleFormData emits `UnParsedAddress` (capital P, the spelling on
   // Trestle's $metadata for OData $orderby), while existing Trestle-mapped
@@ -393,24 +432,13 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // get the fresh value on every edit. Without this, the structured bucket
   // kept the stale UnparsedAddress while raw_data.UnParsedAddress drifted
   // separately (gap report 2026-05-28 §1.3, root cause C2 + PR-F).
-  if (body.UnParsedAddress !== undefined && body.UnparsedAddress === undefined) {
-    updatedAddress.UnparsedAddress = body.UnParsedAddress;
-  }
   update.address = updatedAddress as Prisma.InputJsonValue;
 
-  const featureKeys = [
-    "YearBuilt", "StoriesTotal", "Rooms", "LivingAreaUnits",
-    "Flooring", "Heating", "Cooling", "ParkingFeatures",
-    "LaundryFeatures", "Appliances", "InteriorFeatures",
-    "ExteriorFeatures", "PublicRemarks", "PrivateRemarks",
-    "ShowingInstructions", "CommonInterest", "AssociationFee",
-    "RealEstateTax", "TaxAnnualAmount", "NewDevelopmentYN",
-    "BathroomsTotal",
-  ];
-  const updatedFeatures = { ...existingFeatures };
-  for (const k of featureKeys) {
-    if (body[k] !== undefined) updatedFeatures[k] = body[k];
-  }
+  // Features bucket = the contract's persistenceMap features keys present in this body — the same
+  // routing create-save uses. (The previous route-local list missed 45 contract keys — Furnished,
+  // LeaseType, MinLeaseMonths, FlipTax*, TaxAbatement*, FireplaceYN … — which then survived an edit-save
+  // only in raw_data.)
+  const updatedFeatures = { ...existingFeatures, ...persistence.features };
   update.features = updatedFeatures as Prisma.InputJsonValue;
 
   const agentKeys = [
@@ -518,7 +546,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // Phase A W3 — dual-write the listing_search_projection so any reader
   // (including the PR 5B-future projection reader) sees the updated row
   // immediately. CRM PATCH can change `list_price`, address fields,
-  // `idx_display_yn` (via IDXEntireListingDisplayYN guard above),
+  // `idx_display_yn` (via the IDX-display control guard above),
   // `rls_eligible`, status, and other projection-mirrored columns; without
   // this dual-write the projection would lag until the next idx-sync run
   // (Trestle path only) or the data-retention cron (terminal rows only).
@@ -570,7 +598,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     listing_id: updated.listing_id,
     status: updated.status,
     publicUrl: urls.publicUrl,
-    realPlusUrl: urls.realPlusUrl,
+    rebnyListingUrl: urls.rebnyListingUrl,
     validation: {
       valid: validation.valid,
       errors: validation.errors,

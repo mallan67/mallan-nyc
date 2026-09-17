@@ -1,29 +1,21 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { mapRESOToInternal } from '../mapping';
+import { cotalityRecordToStorageShape } from '../cotality-public-dto';
+import { COTALITY_PROPERTY_FIELDS, IDX_PLUS_SELECT_FIELDS } from '../trestle-mapper';
 
 /**
- * PR-live-2 (2026-06-04) — the entire-listing display gate must be driven
- * SOLELY by the live field `InternetEntireListingDisplayYN`.
+ * The entire-listing display gate is driven SOLELY by the live field
+ * `InternetEntireListingDisplayYN`.
  *
- * `IDXEntireListingDisplayYN` does NOT exist on the live Cotality/Trestle feed
- * (verified via trestle:audit-server against live $metadata; 0 occurrences in
- * artifacts/metadata.xml). The reader previously fell back to it
- * (`normalized.IDXEntireListingDisplayYN ?? normalized.InternetEntireListingDisplayYN`),
- * which is a phantom read. This locks the behavior:
- *   - the public DTO key `idxEntireListingDisplayYN` (legacy consumer contract)
- *     is preserved, and
- *   - it derives ONLY from InternetEntireListingDisplayYN — a stray
- *     IDXEntireListingDisplayYN value is ignored.
- *
- * Failing-to-green: under the old fallback, a record carrying
- * IDXEntireListingDisplayYN:false (and no Internet* field) produced
- * idxEntireListingDisplayYN === false. With the phantom read removed it is
- * true (null upstream = displayable, per the IDX Plus pre-filter convention).
+ * `IDXEntireListingDisplayYN` does NOT exist on the live Cotality feed (0 occurrences in the
+ * dated live field pull). The retired duplicate reader once fell back to it — a phantom read.
+ * On THE canonical chain (mapTrestleToPrisma → the shared public projection) a stray
+ * IDXEntireListingDisplayYN value is simply an unknown key: it is ignored, and the gate columns
+ * derive only from the live flag (null upstream = displayable, per the IDX Plus pre-filter).
  */
 const BASE_RAW: Record<string, unknown> = {
   ListingId: 'RLS20059088',
-  ListingKey: 'RLS20059088',
+  ListingKey: '1146011469',
   StandardStatus: 'Active',
   StreetNumber: '217',
   StreetName: 'W 57th Street',
@@ -39,50 +31,33 @@ const BASE_RAW: Record<string, unknown> = {
   ListAgentFullName: 'Carl Gambino',
   ListOfficeMlsId: '7222',
   ListOfficeName: 'Compass',
+  Permission: 'IDX',
 };
 
-describe('mapRESOToInternal — entire-listing display is driven only by InternetEntireListingDisplayYN', () => {
-  it('phantom IDXEntireListingDisplayYN:false is ignored (only Internet* drives the gate)', () => {
-    const dto = mapRESOToInternal({
-      ...BASE_RAW,
-      IDXEntireListingDisplayYN: false, // phantom — must NOT affect output
-      // InternetEntireListingDisplayYN intentionally absent (null upstream)
-    });
-    expect(dto).not.toBeNull();
-    // null upstream Internet* = displayable, regardless of the phantom value
-    expect(dto!.idxEntireListingDisplayYN).toBe(true);
-    expect(dto!.internetEntireListingDisplayYN).toBe(true);
+describe('entire-listing display is driven only by InternetEntireListingDisplayYN', () => {
+  it('phantom IDXEntireListingDisplayYN:false is ignored (only the live field drives the gate)', () => {
+    const row = cotalityRecordToStorageShape({ ...BASE_RAW, IDXEntireListingDisplayYN: false });
+    expect(row.internet_entire_listing_display_yn).toBe(true);
+    expect(row.idx_display_yn).toBe(true);
   });
 
-  it('explicit InternetEntireListingDisplayYN:false suppresses BOTH the public key and the internal field', () => {
-    const dto = mapRESOToInternal({
-      ...BASE_RAW,
-      InternetEntireListingDisplayYN: false,
-    });
-    expect(dto).not.toBeNull();
-    expect(dto!.idxEntireListingDisplayYN).toBe(false);
-    expect(dto!.internetEntireListingDisplayYN).toBe(false);
+  it('explicit InternetEntireListingDisplayYN:false suppresses the row', () => {
+    const row = cotalityRecordToStorageShape({ ...BASE_RAW, InternetEntireListingDisplayYN: false });
+    expect(row.internet_entire_listing_display_yn).toBe(false);
+    expect(row.idx_display_yn).toBe(false);
   });
 
   it('null/absent InternetEntireListingDisplayYN = displayable (IDX Plus pre-filter convention)', () => {
-    const dto = mapRESOToInternal({
-      ...BASE_RAW,
-      InternetEntireListingDisplayYN: null,
-    });
-    expect(dto).not.toBeNull();
-    expect(dto!.idxEntireListingDisplayYN).toBe(true);
-    expect(dto!.internetEntireListingDisplayYN).toBe(true);
+    const row = cotalityRecordToStorageShape({ ...BASE_RAW, InternetEntireListingDisplayYN: null });
+    expect(row.internet_entire_listing_display_yn).toBe(true);
   });
 
-  it('live-parity: InternetEntireListingDisplayYN exists on live, IDXEntireListingDisplayYN does not', () => {
-    const xml = readFileSync(
-      resolve(__dirname, '../../../artifacts/metadata.xml'),
-      'utf-8'
-    );
-    const liveNames = new Set(
-      [...xml.matchAll(/Name="([A-Za-z0-9_]+)"/g)].map((m) => m[1])
-    );
-    expect(liveNames.has('InternetEntireListingDisplayYN')).toBe(true);
-    expect(liveNames.has('IDXEntireListingDisplayYN')).toBe(false);
+  it('live-parity: the live field exists, the phantom does not, and every selected field is live', () => {
+    const pull = JSON.parse(readFileSync(resolve(__dirname, '../../../data/cotality-property-fields.live.json'), 'utf-8')) as { fields: string[] };
+    const live = new Set(pull.fields);
+    expect(live.has('InternetEntireListingDisplayYN')).toBe(true);
+    expect(live.has('IDXEntireListingDisplayYN')).toBe(false);
+    expect(COTALITY_PROPERTY_FIELDS.filter((f) => !live.has(f))).toEqual([]);
+    expect(IDX_PLUS_SELECT_FIELDS.filter((f) => !live.has(f))).toEqual([]);
   });
 });

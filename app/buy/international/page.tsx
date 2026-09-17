@@ -103,9 +103,22 @@ const brokerageSchema = {
     { '@type': 'AdministrativeArea', name: 'Queens, New York' },
   ],
   knowsLanguage: ['English', 'Hebrew'],
+  // BROKERAGE credentials only.
+  //
+  // This array also carried an INDIVIDUAL licensee's regulated record —
+  // 'NY Department of State Real Estate Salesperson/Broker license #10311201806
+  // (Maya Allan)' — hard-coded into structured data as a credential of the
+  // brokerage entity. Same root-authority defect as the founder Person block
+  // removed from app/layout.tsx: an individual professional record published
+  // from Git, independent of the governed Agent profile, and uncorrectable by
+  // any change to the Agent record.
+  //
+  // The individual licence is still disclosed where NY DOS 19 NYCRR 175.25
+  // requires it — as visible advertising copy in COMPLIANCE_FOOTER below. That
+  // is a required disclosure, not a second structured-data identity, and it
+  // stays.
   hasCredential: [
     'NY Department of State Real Estate Broker license #10991205323 (Mallan Real Estate Inc.)',
-    'NY Department of State Real Estate Salesperson/Broker license #10311201806 (Maya Allan)',
     'REBNY (Real Estate Board of New York) — RLS Participant',
   ],
 };

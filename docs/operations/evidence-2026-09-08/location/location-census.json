@@ -1,0 +1,2310 @@
+{
+  "source": "LIVE_COTALITY",
+  "started": "2026-09-08T05:39:23.396Z",
+  "finished": "2026-09-08T05:43:41.327Z",
+  "scope": null,
+  "rows": 591596,
+  "pages": 592,
+  "fields": {
+    "StandardStatus": {
+      "nonNull": 591596,
+      "distinct": 4,
+      "top": [
+        {
+          "value": "Closed",
+          "count": 578402
+        },
+        {
+          "value": "Active",
+          "count": 7600
+        },
+        {
+          "value": "Pending",
+          "count": 5589
+        },
+        {
+          "value": "ComingSoon",
+          "count": 5
+        }
+      ],
+      "all": {
+        "Closed": 578402,
+        "Active": 7600,
+        "Pending": 5589,
+        "ComingSoon": 5
+      }
+    },
+    "PropertyType": {
+      "nonNull": 591596,
+      "distinct": 2,
+      "top": [
+        {
+          "value": "ResidentialLease",
+          "count": 376079
+        },
+        {
+          "value": "Residential",
+          "count": 215517
+        }
+      ],
+      "all": {
+        "ResidentialLease": 376079,
+        "Residential": 215517
+      }
+    },
+    "CityRegion": {
+      "nonNull": 591596,
+      "distinct": 5,
+      "top": [
+        {
+          "value": "Manhattan",
+          "count": 397924
+        },
+        {
+          "value": "Brooklyn",
+          "count": 151492
+        },
+        {
+          "value": "Queens",
+          "count": 32963
+        },
+        {
+          "value": "Bronx",
+          "count": 8434
+        },
+        {
+          "value": "StatenIsland",
+          "count": 783
+        }
+      ],
+      "all": {
+        "Manhattan": 397924,
+        "Brooklyn": 151492,
+        "Queens": 32963,
+        "Bronx": 8434,
+        "StatenIsland": 783
+      }
+    },
+    "SubdivisionName": {
+      "nonNull": 591596,
+      "distinct": 723,
+      "top": [
+        {
+          "value": "Upper East Side",
+          "count": 51664
+        },
+        {
+          "value": "Upper West Side",
+          "count": 47919
+        },
+        {
+          "value": "Greenwich Village",
+          "count": 19698
+        },
+        {
+          "value": "Park Slope",
+          "count": 18301
+        },
+        {
+          "value": "Chelsea",
+          "count": 18027
+        },
+        {
+          "value": "Williamsburg",
+          "count": 17217
+        },
+        {
+          "value": "Murray Hill",
+          "count": 13433
+        },
+        {
+          "value": "Midtown West",
+          "count": 13244
+        },
+        {
+          "value": "Financial District",
+          "count": 12603
+        },
+        {
+          "value": "Midtown East",
+          "count": 11940
+        },
+        {
+          "value": "Harlem",
+          "count": 9980
+        },
+        {
+          "value": "West Village",
+          "count": 9558
+        },
+        {
+          "value": "Gramercy Park",
+          "count": 9542
+        },
+        {
+          "value": "East Village",
+          "count": 9167
+        },
+        {
+          "value": "Lincoln Square",
+          "count": 8950
+        },
+        {
+          "value": "Brooklyn Heights",
+          "count": 8782
+        },
+        {
+          "value": "Lower East Side",
+          "count": 8440
+        },
+        {
+          "value": "Clinton",
+          "count": 8123
+        },
+        {
+          "value": "Washington Heights",
+          "count": 7585
+        },
+        {
+          "value": "Flatiron",
+          "count": 7499
+        },
+        {
+          "value": "Astoria",
+          "count": 7442
+        },
+        {
+          "value": "Long Island City",
+          "count": 7403
+        },
+        {
+          "value": "Tribeca",
+          "count": 7366
+        },
+        {
+          "value": "Downtown Brooklyn",
+          "count": 6994
+        },
+        {
+          "value": "Clinton Hill",
+          "count": 6886
+        },
+        {
+          "value": "Crown Heights",
+          "count": 6756
+        },
+        {
+          "value": "Lenox Hill",
+          "count": 6485
+        },
+        {
+          "value": "Turtle Bay",
+          "count": 6385
+        },
+        {
+          "value": "Bedford-Stuyvesant",
+          "count": 6376
+        },
+        {
+          "value": "Greenpoint",
+          "count": 6236
+        },
+        {
+          "value": "Bushwick",
+          "count": 5817
+        },
+        {
+          "value": "Fort Greene",
+          "count": 5495
+        },
+        {
+          "value": "West Harlem",
+          "count": 5145
+        },
+        {
+          "value": "Kips Bay",
+          "count": 5110
+        },
+        {
+          "value": "Prospect Heights",
+          "count": 4919
+        },
+        {
+          "value": "East Harlem",
+          "count": 4826
+        },
+        {
+          "value": "Sutton Place",
+          "count": 4754
+        },
+        {
+          "value": "Yorkville",
+          "count": 4697
+        },
+        {
+          "value": "Boerum Hill",
+          "count": 4367
+        },
+        {
+          "value": "Battery Park City",
+          "count": 4273
+        }
+      ],
+      "all": {
+        "Upper East Side": 51664,
+        "Upper West Side": 47919,
+        "Greenwich Village": 19698,
+        "Park Slope": 18301,
+        "Chelsea": 18027,
+        "Williamsburg": 17217,
+        "Murray Hill": 13433,
+        "Midtown West": 13244,
+        "Financial District": 12603,
+        "Midtown East": 11940,
+        "Harlem": 9980,
+        "West Village": 9558,
+        "Gramercy Park": 9542,
+        "East Village": 9167,
+        "Lincoln Square": 8950,
+        "Brooklyn Heights": 8782,
+        "Lower East Side": 8440,
+        "Clinton": 8123,
+        "Washington Heights": 7585,
+        "Flatiron": 7499,
+        "Astoria": 7442,
+        "Long Island City": 7403,
+        "Tribeca": 7366,
+        "Downtown Brooklyn": 6994,
+        "Clinton Hill": 6886,
+        "Crown Heights": 6756,
+        "Lenox Hill": 6485,
+        "Turtle Bay": 6385,
+        "Bedford-Stuyvesant": 6376,
+        "Greenpoint": 6236,
+        "Bushwick": 5817,
+        "Fort Greene": 5495,
+        "West Harlem": 5145,
+        "Kips Bay": 5110,
+        "Prospect Heights": 4919,
+        "East Harlem": 4826,
+        "Sutton Place": 4754,
+        "Yorkville": 4697,
+        "Boerum Hill": 4367,
+        "Battery Park City": 4273,
+        "Carroll Gardens": 4202,
+        "Carnegie Hill": 3952,
+        "Soho": 3747,
+        "Hamilton Heights": 3531,
+        "null": 3508,
+        "Cobble Hill": 3159,
+        "Midtown": 3076,
+        "Morningside Heights": 2993,
+        "Chelsea/Hudson Yards": 2985,
+        "Hell's Kitchen": 2975,
+        "Bedford - Stuyvesant": 2917,
+        "NoMad": 2898,
+        "Flatbush": 2485,
+        "Riverdale": 2447,
+        "Kensington": 2441,
+        "Central Harlem": 2397,
+        "Bay Ridge": 2369,
+        "Hudson Heights": 2355,
+        "Windsor Terrace": 2331,
+        "Jackson Heights": 2279,
+        "Forest Hills": 2259,
+        "Central Park South": 2253,
+        "CHELSEA": 2050,
+        "Murray Hill Kips Bay": 1998,
+        "East Williamsburg": 1933,
+        "Inwood": 1921,
+        "MIDTOWN": 1908,
+        "Dumbo": 1878,
+        "Stuyvesant Heights": 1837,
+        "South Street Seaport": 1798,
+        "SoHo": 1703,
+        "Gowanus": 1665,
+        "Midwood": 1637,
+        "Manhattan Valley": 1632,
+        "Chinatown": 1481,
+        "Ridgewood": 1475,
+        "TRIBECA": 1403,
+        "Ditmas Park": 1383,
+        "Sunset Park": 1352,
+        "GRENVILL": 1327,
+        "Rego Park": 1326,
+        "Greenwood Heights": 1234,
+        "TriBeCa": 1218,
+        "UPEAST": 1216,
+        "Prospect Lefferts Gardens": 1190,
+        "Brooklyn": 1172,
+        "Hudson Yards": 1163,
+        "Sunnyside": 1135,
+        "Woodside": 1103,
+        "SoHo-Nolita": 1095,
+        "Court Square": 1045,
+        "Bedford Stuyvesant": 1022,
+        "Nolita": 966,
+        "Little Italy": 961,
+        "Middle East Side": 954,
+        "Tudor City": 943,
+        "Beekman": 934,
+        "Manhattan": 873,
+        "E. Greenwich Village": 871,
+        "SOHO": 850,
+        "East Flatbush": 827,
+        "UPWEST": 825,
+        "Prospect Park South": 812,
+        "South Harlem": 750,
+        "Spuyten Duyvil": 735,
+        "Red Hook": 712,
+        "Sheepshead Bay": 712,
+        "Fort Hamilton": 709,
+        "Hudson Square": 686,
+        "Hunters Point": 684,
+        "Roosevelt Island": 673,
+        "Flushing": 672,
+        "Gramercy": 666,
+        "Union Square": 654,
+        "Central Village": 606,
+        "Middle West Side": 606,
+        "Elmhurst": 596,
+        "Mott Haven": 572,
+        "East New York": 565,
+        "NOMAD": 554,
+        "DUMBO / Vinegar Hill": 505,
+        "Queens": 501,
+        "W. Greenwich Village": 495,
+        "Mt. Morris Park": 489,
+        "UPPER WEST SIDE": 482,
+        "North Riverdale": 477,
+        "Lefferts Gardens": 474,
+        "Noho": 458,
+        "Alphabet City": 428,
+        "Kingsbridge": 423,
+        "Ocean Hill": 413,
+        "Midtown Central": 412,
+        "Bensonhurst": 409,
+        "MURRAY": 383,
+        "Canarsie": 380,
+        "UPPER EAST SIDE": 371,
+        "Brighton Beach": 369,
+        "Dumbo - Vinegar Hill": 350,
+        "Downtown": 346,
+        "Kew Gardens": 343,
+        "DUMBO": 335,
+        "Jamaica": 335,
+        "Concourse": 331,
+        "CLINTON": 324,
+        "NoHo": 321,
+        "Gravesend": 320,
+        "Queens (Other)": 312,
+        "PROSHEI": 310,
+        "Flatlands": 287,
+        "Flatiron District": 286,
+        "Vinegar Hill": 274,
+        "Dyker Heights": 270,
+        "GRAMERCY": 264,
+        "LOEAST": 263,
+        "Ditmars Steinway": 259,
+        "Columbia Street Wate": 255,
+        "Central Riverdale": 246,
+        "RIVERDALE": 245,
+        "FINLDIST": 243,
+        "Borough Park": 239,
+        "PARKSLOP": 237,
+        "Fieldston": 235,
+        "Pacific Park": 231,
+        "WESTVILL": 231,
+        "Lincoln Center": 230,
+        "Central Park West": 227,
+        "WILLIAMS": 220,
+        "Weeksville": 218,
+        "Bronx": 218,
+        "Fordham": 217,
+        "Rockaway Park": 212,
+        "Briarwood": 212,
+        "Greenwich Village/We": 212,
+        "Jamaica Estates": 203,
+        "FASHCNTR": 199,
+        "Brownsville": 196,
+        "Seaport District": 189,
+        "Hells Kitchen": 188,
+        "Marine Park": 184,
+        "Greenwood": 184,
+        "Homecrest": 182,
+        "Fort George": 180,
+        "Concourse Village": 174,
+        "Maspeth": 171,
+        "Bath Beach": 170,
+        "TURTLBAY": 167,
+        "Upper Manhattan": 164,
+        "LINCOLN": 160,
+        "EASTVILL": 157,
+        "GOWANUS": 155,
+        "Lower Manhattan": 153,
+        "Theater District": 150,
+        "Sutton": 149,
+        "Other Queens": 148,
+        "SUTTON": 147,
+        "Two Bridges": 146,
+        "Other Bronx": 144,
+        "Prospect Leffert Gdn": 142,
+        "Park Slope/Prospect": 141,
+        "Norwood": 137,
+        "Other Brooklyn": 136,
+        "Clinton / Hell's Kit": 129,
+        "HARLEM": 124,
+        "Civic Center": 122,
+        "New Lots": 122,
+        "Middle Village": 121,
+        "Glendale": 121,
+        "Bayside": 120,
+        "St. George": 120,
+        "Kew Gardens Hills": 118,
+        "East Elmhurst": 116,
+        "BUSK": 111,
+        "Sutton Area": 111,
+        "Coney Island": 108,
+        "BATTERY": 107,
+        "LNGCTY": 107,
+        "FLATIRON": 106,
+        "NOHO": 102,
+        "Williamsburg S Side": 101,
+        "Cypress Hills": 98,
+        "Woodhaven": 96,
+        "Parkchester": 96,
+        "Corona": 95,
+        "BKLYNHTS": 95,
+        "Bedford Park": 92,
+        "BED-STUY": 92,
+        "Manhattan Beach": 90,
+        "Throgs Neck": 90,
+        "ITALCHIN": 90,
+        "Belle Harbor": 87,
+        "PROSLEFR": 87,
+        "Columbia Street WD": 85,
+        "GREENPT": 85,
+        "Wingate": 84,
+        "Greenwich Village/West Village": 84,
+        "CARLGDNS": 84,
+        "Ocean Parkway": 82,
+        "Melrose": 82,
+        "Battery Park": 81,
+        "Meatpacking": 79,
+        "Highbridge": 78,
+        "Lower East Side/Chin": 78,
+        "Murray Hill / Kip's": 78,
+        "Rockaway Beach": 77,
+        "Pelham Parkway": 76,
+        "Columbia Waterfront": 76,
+        "Belmont": 75,
+        "Williamsburg N Side": 75,
+        "Staten Island": 74,
+        "Richmond Hill": 74,
+        "Steinway-Ditmars": 74,
+        "Jamaica Hills": 73,
+        "NoLita": 71,
+        "Green Point": 71,
+        "Marble Hill": 70,
+        "Whitestone": 69,
+        "Farragut": 69,
+        "HAMHGTS": 69,
+        "Garment District": 69,
+        "BOERUMHL": 65,
+        "Midtown South": 64,
+        "Mill Basin": 64,
+        "CENTPKSTH": 64,
+        "Fulton Ferry": 63,
+        "Bed Stuy": 63,
+        "Morrisania": 62,
+        "Old Mill Basin": 62,
+        "Gerritsen Beach": 61,
+        "Bergen Beach": 61,
+        "CLINTHL": 61,
+        "Bay Terrace": 59,
+        "Queens Village": 59,
+        "NoLIta": 59,
+        "COBBLEHL": 58,
+        "CARNEGIE": 58,
+        "KIPSBAY": 56,
+        "Rockaway": 55,
+        "Kingsbridge Heights": 55,
+        "Wakefield": 54,
+        "Glen Oaks": 53,
+        "Madison": 52,
+        "Washington & Hudson": 52,
+        "WS": 52,
+        "FORTGRNE": 52,
+        "Upper Carnegie": 50,
+        "Bellerose": 49,
+        "Columbia Street Waterfront": 49,
+        "BAYRIDGE": 49,
+        "City Island": 48,
+        "Williamsbridge": 48,
+        "Manhattanville": 47,
+        "EHARLEM": 47,
+        "West 30's": 45,
+        "Ozone Park": 45,
+        "Longwood": 44,
+        "Prospect-Lefferts G": 44,
+        "DITMASPK": 44,
+        "Inwood / Washington": 43,
+        "South Williamsburg": 43,
+        "OTHER": 42,
+        "Georgetown": 41,
+        "Morris Park": 39,
+        "MIDWOOD": 39,
+        "Meatpacking District": 39,
+        "Columbia St Waterfr": 38,
+        "St. Albans": 38,
+        "PROSPARK": 38,
+        "Douglaston": 37,
+        "Sea Gate": 37,
+        "RI": 37,
+        "Kensingtn/Ocean Pkwy": 37,
+        "University Heights": 36,
+        "Soundview": 36,
+        "Remsen Village": 36,
+        "Beekman Place": 36,
+        "Howard Beach": 35,
+        "Fresh Meadows": 35,
+        "GRANDCONCOURSE": 34,
+        "Oakland Gardens": 34,
+        "CROWNHEI": 34,
+        "Far Rockaway": 33,
+        "Great Kills": 33,
+        "Midtown Center": 33,
+        "South Slope": 33,
+        "Little Neck": 32,
+        "Harlem / Morningside": 32,
+        "Mapleton": 32,
+        "Columbia St Waterfr.": 32,
+        "DNU-Brooklyn": 31,
+        "New Springville": 31,
+        "FORHILLS": 31,
+        "Midtown West / Hell'": 30,
+        "The Bronx (Other)": 30,
+        "Upper M": 30,
+        "DTWNBKYN": 30,
+        "Rossville": 29,
+        "South Ozone Park": 29,
+        "SS": 29,
+        "Port Morris": 29,
+        "Pelham Bay": 28,
+        "Laurelton": 27,
+        "DOWNTOWN [ALL]": 27,
+        "BROOKLYN [ALL]": 27,
+        "Auburndale": 27,
+        "FLATBUSH": 27,
+        "UPPER MANHATTAN [ALL": 26,
+        "East Tremont": 26,
+        "Country Club": 26,
+        "Baychester": 26,
+        "College Point": 26,
+        "Mount Hope": 26,
+        "BEEKMAN": 26,
+        "Breezy Point": 25,
+        "Westerleigh": 25,
+        "New Dorp": 24,
+        "Pelham Gardens": 23,
+        "South Jamaica": 23,
+        "Inwood/Marble Hill": 23,
+        "Dongan Hills": 23,
+        "New York City": 23,
+        "Sunnyside Gardens": 22,
+        "Hollis": 22,
+        "Annadale": 22,
+        "JACOBJAV": 22,
+        "West Harlem & Manhat": 22,
+        "City Line": 21,
+        "Union Square Park": 21,
+        "Estate Area": 21,
+        "Chelsea / Flatiron": 21,
+        "Van Nest": 21,
+        "Eltingville": 21,
+        "Todt Hill": 21,
+        "West Farms": 20,
+        "KENSINGT": 20,
+        "Tottenville": 19,
+        "Bulls Head": 19,
+        "Woodlawn": 19,
+        "Huguenot": 18,
+        "Columbia St. Waterfront": 18,
+        "Hunts Point": 18,
+        "Clason Point": 18,
+        "Prospect Lefferts Ga": 18,
+        "ASTORIA": 18,
+        "MORNHGTS": 18,
+        "REDHOOK": 18,
+        "Cambria Heights": 18,
+        "West 30s - Clinton": 18,
+        "Columbia Street Wat": 18,
+        "West Brighton": 17,
+        "RGWD": 17,
+        "Stapleton": 17,
+        "Port Richmond": 17,
+        "NYU": 17,
+        "WASHHGTS": 17,
+        "Columbia St Waterfro": 17,
+        "Bronxdale": 17,
+        "Arverne": 16,
+        "Morris Heights": 16,
+        "COLUMBIASTWATERFRONT": 16,
+        "Arden Heights": 16,
+        "SUNSETPK": 16,
+        "Rosedale": 16,
+        "Floral Park": 15,
+        "Nomad": 15,
+        "Eastchester": 15,
+        "Ditmas park": 15,
+        "Lefferts": 15,
+        "Springfield Gardens": 15,
+        "Paerdegat Basin": 15,
+        "WINDTERR": 15,
+        "GREENWD": 15,
+        "JMCA": 15,
+        "Upper Fifth": 15,
+        "Prospect Park": 14,
+        "Hoboken": 14,
+        "Lindenwood": 14,
+        "Stuyvesant Town": 14,
+        "Bronxwood": 14,
+        "FLUSHING": 14,
+        "Boerum": 14,
+        "Tompkinsville": 14,
+        "Woodrow": 13,
+        "Clearview": 13,
+        "Kensington and Parkv": 13,
+        "Mariners Harbor": 13,
+        "North Corona": 13,
+        "South Beach": 13,
+        "Huntington": 13,
+        "Queensboro Hill": 12,
+        "Grymes Hill": 12,
+        "Woodlawn Heights": 12,
+        "New Brighton": 12,
+        "Neponsit": 12,
+        "Beechurst": 12,
+        "Columbia St Waterfront District": 12,
+        "Williamsburg,South": 11,
+        "Edenwald": 11,
+        "Prince's Bay": 11,
+        "Throggs Neck": 11,
+        "Shore Acres": 11,
+        "Kensington / Ocean Pkwy": 11,
+        "Columbia": 10,
+        "Allerton": 10,
+        "Sugar Hill": 10,
+        "Chelsea/Flatiron": 10,
+        "Astoria Heights": 10,
+        "EASTWILLIAMSBURG": 10,
+        "Belmont | Little Ita": 10,
+        "RB": 9,
+        "Rosebank": 9,
+        "Hammels": 9,
+        "Heartland Village": 9,
+        "Graniteville": 9,
+        "Redhook": 9,
+        "SHEEPBAY": 9,
+        "Manhattan Terrace": 9,
+        "South Village": 9,
+        "High Bridge": 9,
+        "EFLATBUS": 9,
+        "Woodstock": 9,
+        "Park Slope/Prospect Park": 9,
+        "Lower East Side/Chinatown": 9,
+        "Grant City": 8,
+        "X_B_OTHER": 8,
+        "Hudson": 8,
+        "RED HOOK": 8,
+        "Randall Manor": 8,
+        "Oakwood": 8,
+        "Chinatown / Little I": 8,
+        "Unionport": 8,
+        "Richmond Town": 8,
+        "Broad Channel": 8,
+        "Williamsburg,North": 7,
+        "Fiske Terrace": 7,
+        "Southold": 7,
+        "Castle Hill": 7,
+        "Tremont": 7,
+        "Highland Park": 7,
+        "Seaside": 7,
+        "CONEYISL": 7,
+        "Grasmere": 7,
+        "Clifton": 7,
+        "INWOOD": 7,
+        "Concord": 7,
+        "Midland Beach": 6,
+        "NEW YORK": 6,
+        "Long Island": 6,
+        "Westchester Square": 6,
+        "Manhattan Avenue": 6,
+        "Prospect Lefferts": 6,
+        "JKHTS": 6,
+        "Clinton Hill/Ft Gree": 6,
+        "Forest Park": 6,
+        "Emerson Hill": 6,
+        "Arrochar": 6,
+        "Edgemere": 6,
+        "Ocean Hill Brownsville": 6,
+        "Lenox Hill-Roosevelt Island": 5,
+        "Hillcrest": 5,
+        "Parkland": 5,
+        "GDL": 5,
+        "FHAMIL": 5,
+        "Lefferts Garden": 5,
+        "Other": 5,
+        "Bowne Park": 5,
+        "Fordham Manor": 5,
+        "BRIGHTON": 5,
+        "Park Slope South": 5,
+        "Claremont": 5,
+        "Saint Albans": 5,
+        "Richmondtown": 5,
+        "STUYHEI": 5,
+        "BENHURST": 5,
+        "Jamaica Estate": 5,
+        "Fashion District": 5,
+        "Washington & Hudson Heights": 5,
+        "North Side-south Side": 5,
+        "Brickwood Towers": 5,
+        "Prospect Lefferts G": 5,
+        "The Rockaways": 5,
+        "Rochdale Village": 4,
+        "RP": 4,
+        "Manor Heights": 4,
+        "Olinville": 4,
+        "MPARK": 4,
+        "Crotona Park East": 4,
+        "CLINTON DUT": 4,
+        "SoHo/Nolita": 4,
+        "MV": 4,
+        "NORTHEAST BRONX": 4,
+        "BEDFORDPARK": 4,
+        "SUNNYSIDE": 4,
+        "MSPH": 4,
+        "Murray Hill / Kips B": 4,
+        "RWP": 4,
+        "Broadway Junction": 4,
+        "Bellaire": 4,
+        "Pomonok": 4,
+        "OCEANHIL": 4,
+        "Holliswood": 4,
+        "Mount Eden": 4,
+        "Northeast Flatbush": 4,
+        "South Richmond Hill": 4,
+        "Easthampton": 4,
+        "North New York": 4,
+        "Schuylerville": 4,
+        "Bayswater": 4,
+        "Westchester Village": 4,
+        "Marine Park/Mill Basin": 4,
+        "Lenox Hill-roosevelt Island": 3,
+        "Caton Park": 3,
+        "Livingston": 3,
+        "Utopia": 3,
+        "Brookville": 3,
+        "Yonkers": 3,
+        "Silver Lake": 3,
+        "COLUMBUSCIR": 3,
+        "Navy Yard": 3,
+        "Times Square Theatre": 3,
+        "Chinatown Little Ita": 3,
+        "PARKCHESTER": 3,
+        "West Village / Green": 3,
+        "NORTH RIVERDALE": 3,
+        "GRAVESND": 3,
+        "Pleasant Plains": 3,
+        "Old Howard Beach": 3,
+        "SPUYTENDUYVIL": 3,
+        "MOTTHAVEN": 3,
+        "Castleton Corners": 3,
+        "New Dorp Beach": 3,
+        "Hollis Hills": 3,
+        "Midwood Park": 3,
+        "East Flushing": 3,
+        "Beverley Square West": 3,
+        "East Morrisania": 3,
+        "Peter Cooper Village": 2,
+        "Ancram": 2,
+        "Montclair": 2,
+        "Catskill": 2,
+        "Columbia Presb": 2,
+        "WH": 2,
+        "WILLIAMSBRIDGE": 2,
+        "BRONXOTHER": 2,
+        "MADISON": 2,
+        "Cliffside Park": 2,
+        "OP": 2,
+        "Out of Town": 2,
+        "The Bronx": 2,
+        "NORTHWEST BRONX": 2,
+        "Forest Hills Garden": 2,
+        "Saint George": 2,
+        "ENY": 2,
+        "BOROPARK": 2,
+        "WESTFARMS": 2,
+        "Jersey City Downtown": 2,
+        "Park Hill": 2,
+        "Seagate": 2,
+        "Marine Pk/Mill Basin": 2,
+        "Starrett City": 2,
+        "Richmond Hills": 2,
+        "Forest Hills Gardens": 2,
+        "NEW UTRECHT": 2,
+        "Jamaica Center": 2,
+        "Elm Park": 2,
+        "KINGSBRIDGE": 2,
+        "Willowbrook": 2,
+        "Malba": 2,
+        "FLATLAND": 2,
+        "Fordham Heights": 2,
+        "Claremont Village": 2,
+        "SOUTHSTSEAPORT": 2,
+        "BLHARBOR": 2,
+        "Greenridge": 2,
+        "Ditmars-Steinway": 2,
+        "Ditmas Park West": 2,
+        "Richmond Valley": 2,
+        "Belmont | Little Italy": 2,
+        "Prospect Lefferts Gardens-Wingate": 2,
+        "Park Slope-gowanus": 2,
+        "Turtle Bay-East Midtown": 2,
+        "West Midwood": 2,
+        "Jackson heights": 2,
+        "MANHATTAN": 2,
+        "Birchwood Towers": 2,
+        "Palisades Park": 1,
+        "Kinderhook": 1,
+        "Lodi": 1,
+        "Old Chatham": 1,
+        "Upper Saddle River": 1,
+        "Essex Falls": 1,
+        "Hillsdale": 1,
+        "Copake": 1,
+        "LONGWOOD": 1,
+        "ELTINGVILLE": 1,
+        "Travis": 1,
+        "Guttenberg": 1,
+        "Lenox Hill-Roosevelt": 1,
+        "Ramsen Village": 1,
+        "Jersey City": 1,
+        "QUEENS": 1,
+        "Murray Hill (QNS)": 1,
+        "OLINVILLE": 1,
+        "Upstate New York": 1,
+        "STATEN ISLAND": 1,
+        "SOUTHEAST BRONX": 1,
+        "Grenwich Village": 1,
+        "BAYCHESTER": 1,
+        "MIDTOWN [ALL]": 1,
+        "DYKERSHT": 1,
+        "WST": 1,
+        "Prospect Hights": 1,
+        "THROGSNECK": 1,
+        "CLASONPOINT": 1,
+        "MELROSE": 1,
+        "Hudson Yards / MSG": 1,
+        "Windor Terrace": 1,
+        "Blissville": 1,
+        "CYPRESS": 1,
+        "Noho/Central Village": 1,
+        "HDBH": 1,
+        "WAKEFIELD": 1,
+        "West New Brighton": 1,
+        "Italy": 1,
+        "FORDHAM": 1,
+        "Staten Island (Othe": 1,
+        "Fresh Kills": 1,
+        "Laconia": 1,
+        "Rockaway All": 1,
+        "TREMONT": 1,
+        "CNA": 1,
+        "HOMECRE": 1,
+        "St Albans": 1,
+        "Stapleton Heights": 1,
+        "Bedford/Stuyvesant": 1,
+        "Hudson Yard": 1,
+        "CITYLINE": 1,
+        "HIGHBRIDGE": 1,
+        "Beechhurst": 1,
+        "BERGENBEACH": 1,
+        "MANBEACH": 1,
+        "CANARSIE": 1,
+        "MAPLETON": 1,
+        "ROSEBANK": 1,
+        "RICHMONDTOWN": 1,
+        "Charleston": 1,
+        "Upper Carnegie Hill": 1,
+        "ZEREGA": 1,
+        "West Side": 1,
+        "Bronx (Other)": 1,
+        "Ocean Hill Brownsvil": 1,
+        "Royal Oak": 1,
+        "Stuyvesant": 1,
+        "Arlington": 1,
+        "Bowery": 1,
+        "Murray Hill-kips Bay": 1,
+        "Flushing Heights": 1,
+        "Erasmus": 1,
+        "Hunters Point-sunnyside-west Maspeth": 1,
+        "Spring Creek": 1,
+        "Van Pelt Manor": 1,
+        "Bryant Park": 1,
+        "South Marlboro": 1,
+        "Somerville": 1,
+        "Columbia Street Waterfront District": 1,
+        "Dash Estate": 1,
+        "UPPER MANHATTAN [ALL]": 1,
+        "Oakwood Heights": 1,
+        "Ditmars Park": 1,
+        "BROOKLYN": 1,
+        "Kings Club District": 1,
+        "East Midwood": 1,
+        "Ward Hill": 1,
+        "Rose Hill": 1,
+        "DUMBO-Vinegar Hill-Downtown Brooklyn-Boerum Hill": 1,
+        "Hunters Point-Sunnyside-West Maspeth": 1,
+        "Koreatown": 1,
+        "East Flatbush-Farragut": 1,
+        "South Midwood": 1,
+        "Rockwood Park": 1,
+        "Oakwood Beach": 1,
+        "Locust Point": 1,
+        "Meiers Corners": 1,
+        "midtown": 1
+      }
+    },
+    "City": {
+      "nonNull": 591596,
+      "distinct": 1,
+      "top": [
+        {
+          "value": "New York City",
+          "count": 591596
+        }
+      ],
+      "all": {
+        "New York City": 591596
+      }
+    },
+    "PostalCity": {
+      "nonNull": 591053,
+      "distinct": 56,
+      "top": [
+        {
+          "value": "New York",
+          "count": 399427
+        },
+        {
+          "value": "Brooklyn",
+          "count": 147444
+        },
+        {
+          "value": "Bronx",
+          "count": 8235
+        },
+        {
+          "value": "Long Island City",
+          "count": 7015
+        },
+        {
+          "value": "Astoria",
+          "count": 6490
+        },
+        {
+          "value": "Queens",
+          "count": 6009
+        },
+        {
+          "value": "Manhattan",
+          "count": 2379
+        },
+        {
+          "value": "Jackson Heights",
+          "count": 1663
+        },
+        {
+          "value": "Kings",
+          "count": 1587
+        },
+        {
+          "value": "Forest Hills",
+          "count": 1508
+        },
+        {
+          "value": "Woodside",
+          "count": 1255
+        },
+        {
+          "value": "Ridgewood",
+          "count": 1148
+        },
+        {
+          "value": "Rego Park",
+          "count": 1008
+        },
+        {
+          "value": "Flushing",
+          "count": 728
+        },
+        {
+          "value": "Sunnyside",
+          "count": 712
+        },
+        {
+          "value": "Jamaica",
+          "count": 651
+        },
+        {
+          "value": "Staten Island",
+          "count": 513
+        },
+        {
+          "value": "Elmhurst",
+          "count": 476
+        },
+        {
+          "value": "Glendale",
+          "count": 378
+        },
+        {
+          "value": "East Elmhurst",
+          "count": 324
+        },
+        {
+          "value": "Rockaway Park",
+          "count": 292
+        },
+        {
+          "value": "Kew Gardens",
+          "count": 221
+        },
+        {
+          "value": "StatenIsland",
+          "count": 215
+        },
+        {
+          "value": "Maspeth",
+          "count": 145
+        },
+        {
+          "value": "Little Neck",
+          "count": 127
+        },
+        {
+          "value": "Middle Village",
+          "count": 116
+        },
+        {
+          "value": "Bayside",
+          "count": 106
+        },
+        {
+          "value": "Richmond Hill",
+          "count": 89
+        },
+        {
+          "value": "Whitestone",
+          "count": 67
+        },
+        {
+          "value": "Woodhaven",
+          "count": 66
+        },
+        {
+          "value": "Corona",
+          "count": 66
+        },
+        {
+          "value": "Broad Channel",
+          "count": 64
+        },
+        {
+          "value": "Queens Village",
+          "count": 62
+        },
+        {
+          "value": "Fresh Meadows",
+          "count": 62
+        },
+        {
+          "value": "Howard Beach",
+          "count": 54
+        },
+        {
+          "value": "Ozone Park",
+          "count": 48
+        },
+        {
+          "value": "Springfield Gardens",
+          "count": 36
+        },
+        {
+          "value": "Oakland Gardens",
+          "count": 33
+        },
+        {
+          "value": "South Ozone Park",
+          "count": 33
+        },
+        {
+          "value": "Hollis",
+          "count": 28
+        },
+        {
+          "value": "Saint Albans",
+          "count": 26
+        },
+        {
+          "value": "College Point",
+          "count": 26
+        },
+        {
+          "value": "Far Rockaway",
+          "count": 23
+        },
+        {
+          "value": "Cambria Heights",
+          "count": 18
+        },
+        {
+          "value": "Arverne",
+          "count": 17
+        },
+        {
+          "value": "Bellerose",
+          "count": 17
+        },
+        {
+          "value": "Glen Oaks",
+          "count": 9
+        },
+        {
+          "value": "Rosedale",
+          "count": 9
+        },
+        {
+          "value": "Breezy Point",
+          "count": 6
+        },
+        {
+          "value": "Floral Park",
+          "count": 5
+        },
+        {
+          "value": "Rockaway Beach",
+          "count": 5
+        },
+        {
+          "value": "New Hyde Park",
+          "count": 5
+        },
+        {
+          "value": "Laurelton",
+          "count": 3
+        },
+        {
+          "value": "Briarwood",
+          "count": 2
+        },
+        {
+          "value": "Valley Stream",
+          "count": 1
+        },
+        {
+          "value": "St Albans",
+          "count": 1
+        }
+      ],
+      "all": {
+        "New York": 399427,
+        "Brooklyn": 147444,
+        "Bronx": 8235,
+        "Long Island City": 7015,
+        "Astoria": 6490,
+        "Queens": 6009,
+        "Manhattan": 2379,
+        "Jackson Heights": 1663,
+        "Kings": 1587,
+        "Forest Hills": 1508,
+        "Woodside": 1255,
+        "Ridgewood": 1148,
+        "Rego Park": 1008,
+        "Flushing": 728,
+        "Sunnyside": 712,
+        "Jamaica": 651,
+        "Staten Island": 513,
+        "Elmhurst": 476,
+        "Glendale": 378,
+        "East Elmhurst": 324,
+        "Rockaway Park": 292,
+        "Kew Gardens": 221,
+        "StatenIsland": 215,
+        "Maspeth": 145,
+        "Little Neck": 127,
+        "Middle Village": 116,
+        "Bayside": 106,
+        "Richmond Hill": 89,
+        "Whitestone": 67,
+        "Woodhaven": 66,
+        "Corona": 66,
+        "Broad Channel": 64,
+        "Queens Village": 62,
+        "Fresh Meadows": 62,
+        "Howard Beach": 54,
+        "Ozone Park": 48,
+        "Springfield Gardens": 36,
+        "Oakland Gardens": 33,
+        "South Ozone Park": 33,
+        "Hollis": 28,
+        "Saint Albans": 26,
+        "College Point": 26,
+        "Far Rockaway": 23,
+        "Cambria Heights": 18,
+        "Arverne": 17,
+        "Bellerose": 17,
+        "Glen Oaks": 9,
+        "Rosedale": 9,
+        "Breezy Point": 6,
+        "Floral Park": 5,
+        "Rockaway Beach": 5,
+        "New Hyde Park": 5,
+        "Laurelton": 3,
+        "Briarwood": 2,
+        "Valley Stream": 1,
+        "St Albans": 1
+      }
+    },
+    "CountyOrParish": {
+      "nonNull": 591596,
+      "distinct": 5,
+      "top": [
+        {
+          "value": "New York",
+          "count": 397913
+        },
+        {
+          "value": "Kings",
+          "count": 151504
+        },
+        {
+          "value": "Queens",
+          "count": 32960
+        },
+        {
+          "value": "Bronx",
+          "count": 8436
+        },
+        {
+          "value": "Richmond",
+          "count": 783
+        }
+      ],
+      "all": {
+        "New York": 397913,
+        "Kings": 151504,
+        "Queens": 32960,
+        "Bronx": 8436,
+        "Richmond": 783
+      }
+    },
+    "StateOrProvince": {
+      "nonNull": 591593,
+      "distinct": 2,
+      "top": [
+        {
+          "value": "NY",
+          "count": 591586
+        },
+        {
+          "value": "VA",
+          "count": 7
+        }
+      ],
+      "all": {
+        "NY": 591586,
+        "VA": 7
+      }
+    },
+    "CountrySubdivision": {
+      "nonNull": 591571,
+      "distinct": 8,
+      "top": [
+        {
+          "value": "36061",
+          "count": 398142
+        },
+        {
+          "value": "36047",
+          "count": 151445
+        },
+        {
+          "value": "36081",
+          "count": 32764
+        },
+        {
+          "value": "36005",
+          "count": 8436
+        },
+        {
+          "value": "36085",
+          "count": 778
+        },
+        {
+          "value": "36001",
+          "count": 4
+        },
+        {
+          "value": "36093",
+          "count": 1
+        },
+        {
+          "value": "36059",
+          "count": 1
+        }
+      ],
+      "all": {
+        "36001": 4,
+        "36005": 8436,
+        "36047": 151445,
+        "36059": 1,
+        "36061": 398142,
+        "36081": 32764,
+        "36085": 778,
+        "36093": 1
+      }
+    },
+    "MLSAreaMajor": {
+      "nonNull": 0,
+      "distinct": 0,
+      "top": [],
+      "all": {}
+    },
+    "MLSAreaMinor": {
+      "nonNull": 0,
+      "distinct": 0,
+      "top": [],
+      "all": {}
+    },
+    "PostalCode": {
+      "nonNull": 591596,
+      "distinct": 298,
+      "top": [
+        {
+          "value": "10011",
+          "count": 24677
+        },
+        {
+          "value": "10016",
+          "count": 24536
+        },
+        {
+          "value": "11201",
+          "count": 23752
+        },
+        {
+          "value": "10023",
+          "count": 23348
+        },
+        {
+          "value": "10019",
+          "count": 21271
+        },
+        {
+          "value": "10003",
+          "count": 18501
+        },
+        {
+          "value": "10024",
+          "count": 17968
+        },
+        {
+          "value": "11215",
+          "count": 17840
+        },
+        {
+          "value": "10022",
+          "count": 17630
+        },
+        {
+          "value": "10021",
+          "count": 17236
+        },
+        {
+          "value": "10025",
+          "count": 17021
+        },
+        {
+          "value": "10128",
+          "count": 16515
+        },
+        {
+          "value": "10014",
+          "count": 15073
+        },
+        {
+          "value": "10028",
+          "count": 14126
+        },
+        {
+          "value": "10010",
+          "count": 12670
+        },
+        {
+          "value": "11238",
+          "count": 11943
+        },
+        {
+          "value": "11211",
+          "count": 11309
+        },
+        {
+          "value": "10065",
+          "count": 10870
+        },
+        {
+          "value": "10013",
+          "count": 10815
+        },
+        {
+          "value": "10002",
+          "count": 10212
+        },
+        {
+          "value": "10017",
+          "count": 10159
+        },
+        {
+          "value": "11217",
+          "count": 10151
+        },
+        {
+          "value": "10012",
+          "count": 9544
+        },
+        {
+          "value": "11101",
+          "count": 8528
+        },
+        {
+          "value": "10036",
+          "count": 8412
+        },
+        {
+          "value": "10009",
+          "count": 7954
+        },
+        {
+          "value": "10001",
+          "count": 7879
+        },
+        {
+          "value": "10075",
+          "count": 7624
+        },
+        {
+          "value": "10027",
+          "count": 7434
+        },
+        {
+          "value": "11231",
+          "count": 7064
+        },
+        {
+          "value": "11249",
+          "count": 6919
+        },
+        {
+          "value": "11222",
+          "count": 6744
+        },
+        {
+          "value": "11216",
+          "count": 6412
+        },
+        {
+          "value": "11221",
+          "count": 6029
+        },
+        {
+          "value": "11205",
+          "count": 5497
+        },
+        {
+          "value": "10026",
+          "count": 5183
+        },
+        {
+          "value": "10031",
+          "count": 5155
+        },
+        {
+          "value": "10038",
+          "count": 5086
+        },
+        {
+          "value": "10005",
+          "count": 5000
+        },
+        {
+          "value": "11218",
+          "count": 4657
+        }
+      ],
+      "all": {
+        "10000": 1,
+        "10001": 7879,
+        "10002": 10212,
+        "10003": 18501,
+        "10004": 2241,
+        "10005": 5000,
+        "10006": 3100,
+        "10007": 3766,
+        "10009": 7954,
+        "10010": 12670,
+        "10011": 24677,
+        "10012": 9544,
+        "10013": 10815,
+        "10014": 15073,
+        "10016": 24536,
+        "10017": 10159,
+        "10018": 2418,
+        "10019": 21271,
+        "10020": 4,
+        "10021": 17236,
+        "10022": 17630,
+        "10023": 23348,
+        "10024": 17968,
+        "10025": 17021,
+        "10026": 5183,
+        "10027": 7434,
+        "10028": 14126,
+        "10029": 4006,
+        "10030": 3053,
+        "10031": 5155,
+        "10032": 3871,
+        "10033": 3727,
+        "10034": 1943,
+        "10035": 3131,
+        "10036": 8412,
+        "10037": 1899,
+        "10038": 5086,
+        "10039": 1500,
+        "10040": 2822,
+        "10044": 817,
+        "10063": 1,
+        "10065": 10870,
+        "10069": 3314,
+        "10075": 7624,
+        "10080": 4,
+        "10103": 77,
+        "10107": 4,
+        "10111": 1,
+        "10116": 1,
+        "10118": 3,
+        "10128": 16515,
+        "10129": 9,
+        "10162": 3,
+        "10173": 107,
+        "10221": 1,
+        "10265": 1,
+        "10270": 2,
+        "10278": 11,
+        "10279": 1,
+        "10280": 2643,
+        "10281": 43,
+        "10282": 1218,
+        "10301": 179,
+        "10302": 20,
+        "10303": 24,
+        "10304": 66,
+        "10305": 64,
+        "10306": 81,
+        "10307": 19,
+        "10308": 47,
+        "10309": 54,
+        "10310": 33,
+        "10312": 84,
+        "10314": 111,
+        "10340": 1,
+        "10451": 615,
+        "10452": 214,
+        "10453": 65,
+        "10454": 397,
+        "10455": 150,
+        "10456": 122,
+        "10457": 64,
+        "10458": 357,
+        "10459": 67,
+        "10460": 66,
+        "10461": 74,
+        "10462": 223,
+        "10463": 3272,
+        "10464": 50,
+        "10465": 142,
+        "10466": 82,
+        "10467": 192,
+        "10468": 225,
+        "10469": 108,
+        "10470": 49,
+        "10471": 1800,
+        "10472": 45,
+        "10473": 54,
+        "10474": 9,
+        "10475": 8,
+        "11001": 10,
+        "11004": 18,
+        "11005": 28,
+        "11025": 1,
+        "11032": 37,
+        "11037": 1,
+        "11040": 10,
+        "11101": 8528,
+        "11102": 3059,
+        "11103": 1221,
+        "11104": 879,
+        "11105": 1260,
+        "11106": 2398,
+        "11109": 699,
+        "11139": 1,
+        "11200": 1,
+        "11201": 23752,
+        "11203": 1057,
+        "11204": 267,
+        "11205": 5497,
+        "11206": 2867,
+        "11207": 1590,
+        "11208": 351,
+        "11209": 2841,
+        "11210": 910,
+        "11211": 11309,
+        "11212": 320,
+        "11213": 1986,
+        "11214": 372,
+        "11215": 17840,
+        "11216": 6412,
+        "11217": 10151,
+        "11218": 4657,
+        "11219": 200,
+        "11220": 1108,
+        "11221": 6029,
+        "11222": 6744,
+        "11223": 332,
+        "11224": 163,
+        "11225": 2719,
+        "11226": 3853,
+        "11228": 347,
+        "11229": 821,
+        "11230": 1868,
+        "11231": 7064,
+        "11232": 1264,
+        "11233": 3701,
+        "11234": 681,
+        "11235": 912,
+        "11236": 443,
+        "11237": 2009,
+        "11238": 11943,
+        "11239": 29,
+        "11242": 2,
+        "11243": 108,
+        "11249": 6919,
+        "11354": 360,
+        "11355": 298,
+        "11356": 52,
+        "11357": 105,
+        "11358": 96,
+        "11360": 88,
+        "11361": 66,
+        "11362": 51,
+        "11363": 133,
+        "11364": 64,
+        "11365": 52,
+        "11366": 23,
+        "11367": 137,
+        "11368": 86,
+        "11369": 125,
+        "11370": 260,
+        "11372": 2165,
+        "11373": 607,
+        "11374": 1511,
+        "11375": 2149,
+        "11377": 1662,
+        "11378": 187,
+        "11379": 152,
+        "11385": 1833,
+        "11411": 22,
+        "11412": 41,
+        "11413": 57,
+        "11414": 77,
+        "11415": 273,
+        "11416": 30,
+        "11417": 33,
+        "11418": 119,
+        "11419": 22,
+        "11420": 44,
+        "11421": 82,
+        "11422": 18,
+        "11423": 36,
+        "11426": 49,
+        "11427": 34,
+        "11428": 27,
+        "11429": 38,
+        "11432": 438,
+        "11433": 55,
+        "11434": 76,
+        "11435": 341,
+        "11436": 17,
+        "11581": 1,
+        "11613": 1,
+        "11691": 31,
+        "11692": 28,
+        "11693": 116,
+        "11694": 412,
+        "11697": 27,
+        "11936": 1,
+        "12201": 4,
+        "12345": 1,
+        "112211": 1,
+        "00000": 215,
+        "01002": 6,
+        "10022-7180": 5,
+        "11249-1498": 3,
+        "11232-1341": 3,
+        "10017-1559": 3,
+        "10036-0046": 2,
+        "10016-4763": 2,
+        "10016-0182": 2,
+        "11230-3750": 2,
+        "01213": 1,
+        "01137": 1,
+        "00122": 1,
+        "10024-5834": 1,
+        "10007-0071": 1,
+        "10019-0003": 1,
+        "10004-2517": 1,
+        "11221-2205": 1,
+        "11201-7347": 1,
+        "10019-3822": 1,
+        "10022-5003": 1,
+        "10069-0229": 1,
+        "10065-0260": 1,
+        "10065-0001": 1,
+        "10012-4018": 1,
+        "10019-2129": 1,
+        "11211-3725": 1,
+        "10027-5173": 1,
+        "10001-1314": 1,
+        "10028-7035": 1,
+        "10002-5400": 1,
+        "11201-5832": 1,
+        "10069-0201": 1,
+        "10003-9500": 1,
+        "10002-1417": 1,
+        "10002-2267": 1,
+        "11203-3913": 1,
+        "10005-1923": 1,
+        "11217-1961": 1,
+        "10022-6844": 1,
+        "11238-4501": 1,
+        "10011-8917": 1,
+        "10027-3215": 1,
+        "10013-2123": 1,
+        "10002-2010": 1,
+        "10069-0401": 1,
+        "11249-1752": 1,
+        "10028-6268": 1,
+        "11249-6029": 1,
+        "10025-4440": 1,
+        "10075-0004": 1,
+        "10028-7007": 1,
+        "10025-2671": 1,
+        "10011-1909": 1,
+        "10016-0298": 1,
+        "10075-2230": 1,
+        "10017-2104": 1,
+        "11217-1188": 1,
+        "10282-0007": 1,
+        "11217-5176": 1,
+        "11230-3128": 1,
+        "10023-3402": 1,
+        "10128-5417": 1,
+        "10014-0712": 1,
+        "10013-3412": 1,
+        "10065-0298": 1,
+        "10036-2446": 1,
+        "10003-6201": 1,
+        "10013-2969": 1,
+        "10017-3002": 1,
+        "10023-6257": 1,
+        "10017-2926": 1,
+        "10010-4800": 1,
+        "10128-0709": 1,
+        "10013-0717": 1,
+        "10004-1200": 1,
+        "11362-1028": 1,
+        "10010-3916": 1,
+        "10075-0323": 1,
+        "10065-8327": 1,
+        "10038-2617": 1,
+        "11217-1820": 1,
+        "10014-4224": 1,
+        "10014-1015": 1,
+        "10003-3005": 1
+      }
+    }
+  },
+  "pairs": {
+    "SubdivisionName_by_CityRegion": {
+      "keys": 723,
+      "keys_under_more_than_one": 129,
+      "examples": [
+        {
+          "value": "Kensington",
+          "under": {
+            "Brooklyn": 2438,
+            "Manhattan": 3
+          }
+        },
+        {
+          "value": "Lincoln Square",
+          "under": {
+            "Manhattan": 8948,
+            "Bronx": 1,
+            "Brooklyn": 1
+          }
+        },
+        {
+          "value": "Battery Park City",
+          "under": {
+            "Manhattan": 4267,
+            "Brooklyn": 3,
+            "Bronx": 2,
+            "Queens": 1
+          }
+        },
+        {
+          "value": "Upper West Side",
+          "under": {
+            "Manhattan": 47846,
+            "Brooklyn": 52,
+            "Queens": 16,
+            "Bronx": 5
+          }
+        },
+        {
+          "value": "Williamsburg",
+          "under": {
+            "Brooklyn": 17194,
+            "Manhattan": 23
+          }
+        },
+        {
+          "value": "Astoria",
+          "under": {
+            "Queens": 7440,
+            "Brooklyn": 1,
+            "Manhattan": 1
+          }
+        },
+        {
+          "value": "Turtle Bay",
+          "under": {
+            "Manhattan": 6384,
+            "Bronx": 1
+          }
+        },
+        {
+          "value": "Bedford-Stuyvesant",
+          "under": {
+            "Brooklyn": 6342,
+            "Manhattan": 33,
+            "Bronx": 1
+          }
+        },
+        {
+          "value": "Upper East Side",
+          "under": {
+            "Manhattan": 51503,
+            "Brooklyn": 134,
+            "Queens": 24,
+            "Bronx": 3
+          }
+        },
+        {
+          "value": "Long Island City",
+          "under": {
+            "Queens": 7402,
+            "Brooklyn": 1
+          }
+        },
+        {
+          "value": "Gramercy Park",
+          "under": {
+            "Manhattan": 9507,
+            "Brooklyn": 25,
+            "Bronx": 9,
+            "Queens": 1
+          }
+        },
+        {
+          "value": "West Village",
+          "under": {
+            "Manhattan": 9527,
+            "Brooklyn": 31
+          }
+        },
+        {
+          "value": "Park Slope",
+          "under": {
+            "Brooklyn": 18213,
+            "Manhattan": 72,
+            "Queens": 13,
+            "Bronx": 3
+          }
+        },
+        {
+          "value": "East Elmhurst",
+          "under": {
+            "Queens": 115,
+            "Brooklyn": 1
+          }
+        },
+        {
+          "value": "Midtown East",
+          "under": {
+            "Manhattan": 11935,
+            "Brooklyn": 3,
+            "Queens": 2
+          }
+        },
+        {
+          "value": "East Harlem",
+          "under": {
+            "Manhattan": 4825,
+            "Bronx": 1
+          }
+        },
+        {
+          "value": "Greenwich Village",
+          "under": {
+            "Manhattan": 19686,
+            "Brooklyn": 11,
+            "Queens": 1
+          }
+        },
+        {
+          "value": "Gowanus",
+          "under": {
+            "Brooklyn": 1664,
+            "Manhattan": 1
+          }
+        },
+        {
+          "value": "Prospect Heights",
+          "under": {
+            "Brooklyn": 4897,
+            "Manhattan": 22
+          }
+        },
+        {
+          "value": "Chelsea",
+          "under": {
+            "Manhattan": 17959,
+            "Brooklyn": 57,
+            "Queens": 8,
+            "Bronx": 2,
+            "StatenIsland": 1
+          }
+        },
+        {
+          "value": "Windsor Terrace",
+          "under": {
+            "Brooklyn": 2326,
+            "Manhattan": 5
+          }
+        },
+        {
+          "value": "Crown Heights",
+          "under": {
+            "Brooklyn": 6749,
+            "Manhattan": 7
+          }
+        },
+        {
+          "value": "Morningside Heights",
+          "under": {
+            "Manhattan": 2991,
+            "Bronx": 2
+          }
+        },
+        {
+          "value": "Lower East Side",
+          "under": {
+            "Manhattan": 8436,
+            "Brooklyn": 4
+          }
+        },
+        {
+          "value": "Greenpoint",
+          "under": {
+            "Brooklyn": 6233,
+            "Manhattan": 2,
+            "Queens": 1
+          }
+        },
+        {
+          "value": "Cobble Hill",
+          "under": {
+            "Brooklyn": 3148,
+            "Manhattan": 10,
+            "Queens": 1
+          }
+        },
+        {
+          "value": "Sunnyside",
+          "under": {
+            "Queens": 1131,
+            "StatenIsland": 4
+          }
+        },
+        {
+          "value": "Lenox Hill",
+          "under": {
+            "Manhattan": 6484,
+            "Brooklyn": 1
+          }
+        },
+        {
+          "value": "Bushwick",
+          "under": {
+            "Brooklyn": 5800,
+            "Queens": 12,
+            "Manhattan": 5
+          }
+        },
+        {
+          "value": "Brooklyn Heights",
+          "under": {
+            "Brooklyn": 8742,
+            "Manhattan": 39,
+            "Queens": 1
+          }
+        },
+        {
+          "value": "East Flatbush",
+          "under": {
+            "Brooklyn": 822,
+            "Manhattan": 2,
+            "StatenIsland": 2,
+            "Queens": 1
+          }
+        },
+        {
+          "value": "Yorkville",
+          "under": {
+            "Manhattan": 4695,
+            "Queens": 1,
+            "Brooklyn": 1
+          }
+        },
+        {
+          "value": "Financial District",
+          "under": {
+            "Manhattan": 12594,
+            "Brooklyn": 9
+          }
+        },
+        {
+          "value": "Midwood",
+          "under": {
+            "Brooklyn": 1505,
+            "Manhattan": 132
+          }
+        },
+        {
+          "value": "Tribeca",
+          "under": {
+            "Manhattan": 7350,
+            "Brooklyn": 15,
+            "Queens": 1
+          }
+        },
+        {
+          "value": "Clinton Hill",
+          "under": {
+            "Brooklyn": 6836,
+            "Manhattan": 50
+          }
+        },
+        {
+          "value": "Clinton",
+          "under": {
+            "Manhattan": 8119,
+            "Brooklyn": 4
+          }
+        },
+        {
+          "value": "Boerum Hill",
+          "under": {
+            "Brooklyn": 4357,
+            "Manhattan": 10
+          }
+        },
+        {
+          "value": "Washington Heights",
+          "under": {
+            "Manhattan": 7578,
+            "Bronx": 4,
+            "Brooklyn": 3
+          }
+        },
+        {
+          "value": "Flatiron",
+          "under": {
+            "Manhattan": 7480,
+            "Brooklyn": 17,
+            "Queens": 2
+          }
+        }
+      ]
+    },
+    "CityRegion_by_CountyOrParish": {
+      "keys": 5,
+      "keys_under_more_than_one": 3,
+      "examples": [
+        {
+          "value": "Kings",
+          "under": {
+            "Brooklyn": 151483,
+            "Manhattan": 21
+          }
+        },
+        {
+          "value": "New York",
+          "under": {
+            "Manhattan": 397901,
+            "Brooklyn": 9,
+            "Queens": 3
+          }
+        },
+        {
+          "value": "Bronx",
+          "under": {
+            "Bronx": 8434,
+            "Manhattan": 2
+          }
+        }
+      ]
+    },
+    "CityRegion_by_City": {
+      "keys": 1,
+      "keys_under_more_than_one": 1,
+      "examples": [
+        {
+          "value": "New York City",
+          "under": {
+            "Manhattan": 397924,
+            "Brooklyn": 151492,
+            "Queens": 32963,
+            "Bronx": 8434,
+            "StatenIsland": 783
+          }
+        }
+      ]
+    },
+    "PostalCity_by_CityRegion": {
+      "keys": 56,
+      "keys_under_more_than_one": 10,
+      "examples": [
+        {
+          "value": "New York",
+          "under": {
+            "Manhattan": 395061,
+            "Brooklyn": 2449,
+            "Queens": 1667,
+            "Bronx": 215,
+            "StatenIsland": 35
+          }
+        },
+        {
+          "value": "Brooklyn",
+          "under": {
+            "Brooklyn": 147351,
+            "Manhattan": 79,
+            "Queens": 13,
+            "StatenIsland": 1
+          }
+        },
+        {
+          "value": "East Elmhurst",
+          "under": {
+            "Queens": 321,
+            "Bronx": 2,
+            "Manhattan": 1
+          }
+        },
+        {
+          "value": "Bronx",
+          "under": {
+            "Bronx": 8215,
+            "Manhattan": 16,
+            "Brooklyn": 4
+          }
+        },
+        {
+          "value": "Ridgewood",
+          "under": {
+            "Queens": 1137,
+            "StatenIsland": 6,
+            "Brooklyn": 5
+          }
+        },
+        {
+          "value": "Flushing",
+          "under": {
+            "Queens": 727,
+            "Manhattan": 1
+          }
+        },
+        {
+          "value": "Forest Hills",
+          "under": {
+            "Queens": 1507,
+            "StatenIsland": 1
+          }
+        },
+        {
+          "value": "Glendale",
+          "under": {
+            "Queens": 375,
+            "Brooklyn": 3
+          }
+        },
+        {
+          "value": "Staten Island",
+          "under": {
+            "StatenIsland": 511,
+            "Manhattan": 2
+          }
+        },
+        {
+          "value": "Fresh Meadows",
+          "under": {
+            "Queens": 61,
+            "Brooklyn": 1
+          }
+        }
+      ]
+    }
+  },
+  "quota": {
+    "minuteLimit": 280,
+    "minuteAvailable": 178,
+    "hourLimit": 8400,
+    "hourAvailable": 8159,
+    "hourResetTime": 1788849395017,
+    "seenAt": 1788846221326
+  }
+}

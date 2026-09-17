@@ -10,17 +10,11 @@
 //   - REBNY §2.05 "remove within 24 hours" via terminal-status exclusion
 //   - idx_display_yn=true (set by data-retention cron when a listing should no longer display)
 
-export const TERMINAL_STATUSES = [
-  'Closed',
-  'Sold',
-  'Rented',
-  'Expired',
-  'Cancelled',
-  'Canceled',
-  'Withdrawn',
-  'TemporarilyOffMarket',
-  'OwnerOptOut',
-] as const;
+import { TERMINAL_STATUS_FILTER_VALUES } from '@/lib/listings/mallan-status';
+
+// ONE terminal set: the provider tokens (Closed / Withdrawn / Expired / Canceled / Delete) plus the legacy
+// spellings written before the 2026-09-08 token correction (lib/listings/mallan-status.ts).
+export const TERMINAL_STATUSES: readonly string[] = TERMINAL_STATUS_FILTER_VALUES;
 
 export const PUBLIC_LISTING_GATE = {
   owner_opt_out: false,

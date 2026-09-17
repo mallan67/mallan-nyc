@@ -51,56 +51,8 @@
         };
         
         // ═══════════════════════════════════════════════════════════
-        // CRM → RESO MlsStatus MAPPING
-        // ═══════════════════════════════════════════════════════════
-        
-        var CRM_TO_RESO_STATUS = {
-            'Draft': 'ComingSoon', 'Future': 'ComingSoon', 'ComingSoon': 'ComingSoon',
-            'Active': 'Active', 'BackOnMarket': 'Active',
-            'OfferOut': 'ActiveUnderContract', 'OfferThruUs': 'ActiveUnderContract',
-            'OfferAccepted': 'ActiveUnderContract', 'OAThruUs': 'ActiveUnderContract',
-            'ContractOut': 'Pending', 'COThruUs': 'Pending',
-            'ContractSigned': 'Pending', 'ContractSignedThruUs': 'Pending', 'BoardApproved': 'Pending',
-            'Sold': 'Closed', 'SoldThruUs': 'Closed',
-            'Withdrawn': 'Withdrawn', 'Cancelled': 'Canceled',
-            'PermOffMarket': 'Withdrawn', 'TempOffMarket': 'Hold', 'Expired': 'Expired',
-        };
-        
-        function getResoMlsStatus(crmStatus) {
-            return CRM_TO_RESO_STATUS[crmStatus] || 'Active';
-        }
-        
-        // ═══════════════════════════════════════════════════════════
-        // RESO 3-FIELD PROPERTY TYPE MAPPING
-        // Maps CRM property type radio values to RESO standard
-        // ═══════════════════════════════════════════════════════════
-        
-        function getResoPropertyFields(crmValue, formType) {
-            var officeRetailOwnership = formType
-                ? document.querySelector('input[name="' + formType + 'OfficeRetailOwnership"]:checked')?.value
-                : null;
-        
-            var MAP = {
-                'Condo':                    { PropertyType: 'Residential', CommonInterest: 'Condominium',  PropertySubType: 'Apartment' },
-                'Coop':                     { PropertyType: 'Residential', CommonInterest: 'Cooperative',  PropertySubType: 'Apartment' },
-                'Condop':                   { PropertyType: 'Residential', CommonInterest: 'Condop',       PropertySubType: 'Apartment' },
-                'SingleFamilyTownhouse':    { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'SingleFamilyTownhouse' },
-                'MultiFamilyTownhouse':     { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'MultiFamilyTownhouse' },
-                'SingleFamily':             { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'SingleFamilyResidence' },
-                'MultiFamily':              { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'MultiFamily' },
-                'MixedUse':                 { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'MixedUse' },
-                'Loft':                     { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'Loft' },
-                'Duplex':                   { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'Duplex' },
-                'Triplex':                  { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'Triplex' },
-                'Quadruplex':               { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'Quadruplex' },
-                'Office':                   { PropertyType: 'Residential', CommonInterest: getBuildingTypeMapping(officeRetailOwnership), PropertySubType: 'Office' },
-                'Retail':                   { PropertyType: 'Residential', CommonInterest: getBuildingTypeMapping(officeRetailOwnership), PropertySubType: 'Retail' },
-                'Land':                     { PropertyType: 'Land',        CommonInterest: 'None',         PropertySubType: 'UnimprovedLand' },
-                'DeededParking':            { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'DeededParking' },
-                'Commercial':               { PropertyType: 'Commercial',  CommonInterest: 'None',         PropertySubType: '' },
-            };
-            return MAP[crmValue] || { PropertyType: 'Residential', CommonInterest: 'None', PropertySubType: '' };
-        }
+                // CRM → provider status / property-type mapping copy: REMOVED (Packet 2 closure). The SERVER owns the Mallan form → Cotality vocabulary conversion
+        // (lib/crm/listing-form-mapping.ts); the browser sends Mallan form state only.
         
         // ═══════════════════════════════════════════════════════════
         // STATUS CHANGE HANDLER — Validates transitions + updates UI

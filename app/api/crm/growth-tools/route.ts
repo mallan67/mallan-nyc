@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { isAuthError, requireAgentOrBroker } from "@/lib/auth";
 import { summarizeGrowthTools } from "@/lib/crm/growth-tools";
+import { resolveNurtureAnchorsBatch, verdictFromAnchor } from "@/lib/crm/nurture-due";
 import { SELLER_SIGNAL_EVENT_TYPES } from "@/lib/seller-signals/summary";
 import { RENTAL_SIGNAL_EVENT_TYPES } from "@/lib/rental-signals/summary";
 
@@ -48,6 +49,7 @@ export async function GET(req: NextRequest) {
         status: true,
         agent_id: true,
         pipeline_stage: true,
+        nurture_paused: true,
         seller_potential: true,
         seller_potential_reason: true,
         vacancy_risk: true,
@@ -169,6 +171,26 @@ export async function GET(req: NextRequest) {
       })
     : [];
 
+  // ── THE CANONICAL NURTURE VERDICT, RESOLVED ONCE AND HANDED DOWN.
+  //
+  //    Growth Tools used to decide this itself from a drip-status tier. It now renders what
+  //    lib/crm/nurture-due.ts says, so the dashboard and the lifecycle engine cannot disagree
+  //    about whether a client owes a report. One query serves the whole page.
+  const anchors = await resolveNurtureAnchorsBatch(leads.map((l) => l.id));
+  const evaluatedAt = new Date();
+  const nurture = new Map(
+    leads.map((l) => [
+      l.id.toString(),
+      verdictFromAnchor(
+        // pipeline_stage is required: current membership decides whether the clock applies at all,
+        // so a client who has left Nurture stops appearing as due on the dashboard too.
+        { id: l.id, nurture_paused: l.nurture_paused, pipeline_stage: l.pipeline_stage },
+        anchors.get(l.id.toString()) ?? { kind: "unanchored" as const },
+        evaluatedAt,
+      ),
+    ]),
+  );
+
   return NextResponse.json({
     growth_tools: summarizeGrowthTools({
       leads,
@@ -177,6 +199,7 @@ export async function GET(req: NextRequest) {
       leases,
       portalEvents,
       isBroker,
+      nurture,
     }),
   });
 }

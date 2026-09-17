@@ -163,8 +163,16 @@ var UI = (function () {
     return '<span class="badge badge-' + (role || 'buyer') + '">' + E(role || 'buyer') + '</span>';
   }
 
-  function statusBadge(status) {
-    return '<span class="badge badge-' + (status || 'active') + '">' + E(status || 'active') + '</span>';
+  /**
+   * A status chip. `status` is the MACHINE value and drives the class only - a showing's own state, or (for a
+   * listing) the live Cotality StandardStatus token. `label` is what is PRINTED: a listing caller passes the
+   * SERVER's per-transaction label (a sale's Closed reads "Sold", a rental's "Rented", a sale's Pending reads
+   * "In Contract"). This component derives no label of its own and never invents a status for a listing.
+   */
+  function statusBadge(status, label) {
+    var value = status || '';
+    var text = (label !== undefined && label !== null && label !== '') ? label : (value || 'active');
+    return '<span class="badge badge-' + (value || 'active') + '">' + E(text) + '</span>';
   }
 
   function stageBadge(stage) {

@@ -15,6 +15,7 @@ import {
   newWritePathCounters,
   type WritePathCounters,
 } from "@/lib/idx/write-suppression";
+import { storageStatusesFor } from "@/lib/listings/mallan-status";
 
 type DemandLevel = "low" | "moderate" | "high" | "very_high";
 
@@ -61,7 +62,7 @@ async function computeForListing(
     const similar = await prisma.listing.findMany({
       where: {
         neighborhood,
-        status: { in: ["Closed", "Sold", "Rented"] },
+        status: { in: storageStatusesFor(["Closed"]) },
         days_on_market: { gt: 0 },
         updated_at: { gte: new Date(Date.now() - 90 * 86400_000) },
       },

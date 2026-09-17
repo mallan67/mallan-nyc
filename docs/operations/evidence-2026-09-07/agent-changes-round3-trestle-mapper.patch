@@ -1,0 +1,45 @@
+diff --git a/lib/idx/trestle-mapper.ts b/lib/idx/trestle-mapper.ts
+index 9146db56..337caf8b 100644
+--- a/lib/idx/trestle-mapper.ts
++++ b/lib/idx/trestle-mapper.ts
+@@ -660,6 +660,32 @@ const ACTIVE_STATUSES: ReadonlySet<string> = new Set([
+  * anomaly class (row stored with non-canonical status, invisible to every
+  * exact-case counter).
+  */
++/**
++ * RLS-authorized `StandardStatus` values that are NOT terminal but must never
++ * be publicly displayable.
++ *
++ * Verified 2026-09-07 against the live Cotality Lookup, scoped by the exact
++ * `SystemReferences` token `RLS`: the RLS-authorized StandardStatus set is
++ * Active, ActiveUnderContract, Canceled, Closed, ComingSoon, Delete, Expired,
++ * Hold, Incomplete, Pending, Withdrawn. `Delete`, `Hold` and `Incomplete` are
++ * not terminal, so the terminal-status denylist let them through and the mapper
++ * marked them `idx_display_yn = true`. Live counts are 0 today — latent, not
++ * active — but a deleted, on-hold or incomplete listing must not be displayable.
++ *
++ * Deliberately NOT converted to an allowlist. C2 (PR #112/#113, 2026-05-13)
++ * records the decision that an unrecognised status falls through to the
++ * permission gates rather than silently failing closed; a blanket allowlist
++ * would mass-suppress on any future REBNY status or spelling drift — the same
++ * failure mode as the 2026-04-30 incident. New statuses are added here
++ * explicitly, by name, with live verification.
++ */
++const NON_DISPLAYABLE_STATUSES: ReadonlySet<string> = new Set([
++  'Delete',
++  'Hold',
++  'Incomplete',
++  'Draft',
++]);
++
+ const CRM_LIFECYCLE_STATUSES: ReadonlySet<string> = new Set([
+   'Draft',
+   'Incomplete',
+@@ -960,6 +986,7 @@ export function computeGateColumns(
+   // can never become publicly-displayable IDX rows.
+   const idx_display_yn =
+     rls_eligible &&
++    !NON_DISPLAYABLE_STATUSES.has(normalized_status) &&
+     !is_terminal &&
+     internet_entire_listing_display_yn &&
+     !participant_only &&

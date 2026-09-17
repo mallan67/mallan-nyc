@@ -205,6 +205,3 @@
 /* ═══════════════════════════════════════════════════════
    THIN SCROLLBAR
    ═══════════════════════════════════════════════════════ */
-#section-client ::-webkit-scrollbar { width: 4px; height: 4px; }
-#section-client ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
-#section-client ::-webkit-scrollbar-track { background: transparent; }

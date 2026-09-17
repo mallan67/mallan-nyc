@@ -533,7 +533,7 @@ export async function GET(request: NextRequest) {
     );
     const trestleClosed = allTrestleRecords.filter((r) => {
       const status = String(r.MlsStatus || r.StandardStatus || '');
-      return status === Status.CLOSED || status === Status.SOLD;
+      return status === Status.CLOSED;
     });
 
     // ── 3. Merge active units (Trestle + DB) ──

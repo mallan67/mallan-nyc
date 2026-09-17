@@ -32,6 +32,7 @@ module.exports = {
     // projects list, so fee-disclosure.test.ts and growth-tools.test.ts had
     // been running nowhere. Wired in 2026-08-07.
     '<rootDir>/lib/crm/jest.config.js',
+    '<rootDir>/lib/listings/jest.config.js',   // Packet 2: ensure-local-listing + provider-row boundary guards
     // lib/email + /api/unsubscribe (ts-jest) — email compliance hardening:
     // fail-closed suppression, signed HMAC unsubscribe token, dry-run/test/batch.
     '<rootDir>/lib/email/jest.config.js',

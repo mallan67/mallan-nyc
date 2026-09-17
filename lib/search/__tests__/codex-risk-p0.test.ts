@@ -66,14 +66,15 @@ describe("Codex Risk P0 — static frontend source guards", () => {
       expect(src).not.toMatch(/params\.openHouseDateTo\s*=\s*criteria\.openHouseDateTo/);
     });
 
-    it("buildIdxSearchParams emits a console.warn when stripping openHouseDate criteria", () => {
-      // Defensive trap: agents will know in dev/staging that the
-      // criteria they sent was dropped. Production users see the toast
-      // surface from performSearch() instead, but the warn is the
-      // operational signal for ops/QA.
-      expect(src).toMatch(
-        /Stripped unsupported openHouseDate/i,
-      );
+    it("the serializer REFUSES openHouseDate criteria by name — never strips-and-warns, never widens", () => {
+      // Search Consolidation Packet 1: a criterion the executor does not execute is
+      // refused by name before any request (serializeSearchCriteria → refused[]),
+      // mirroring the route's 400 UNSUPPORTED_CRITERION. The old strip-and-warn
+      // path (a silent widening with a console signal) is gone.
+      expect(src).toMatch(/\['openHouseDateFrom',\s*'Open House date'\]/);
+      expect(src).toMatch(/\['openHouseDateTo',\s*'Open House date'\]/);
+      expect(src).not.toMatch(/Stripped unsupported openHouseDate/i);
+      expect(src).toMatch(/window\.serializeSearchCriteria\s*=\s*function/);
     });
 
     it("buildIdxSearchParams does not forward _transitBounds or _gridBounds (no Lat/Lng on REBNY feed)", () => {

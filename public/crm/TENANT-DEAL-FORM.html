@@ -65,15 +65,15 @@ body { font-family: Manrope, sans-serif; }
 (function() {
     if (typeof MallanAPI !== 'undefined') {
         MallanAPI.init().then(function(d) {
-            if (!d.authenticated) window.location.href = '/crm/login.html;
+            if (!d.authenticated) window.location.href = '/crm/login';
         }).catch(function() {
-            window.location.href = '/crm/login.html;
+            window.location.href = '/crm/login';
         });
     } else {
-        window.location.href = '/crm/login.html;
+        window.location.href = '/crm/login';
     }
     window.addEventListener('mallan:auth:unauthorized', function() {
-        window.location.href = '/crm/login.html;
+        window.location.href = '/crm/login';
     });
 })();
 </script>

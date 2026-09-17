@@ -9,6 +9,7 @@ import { NextResponse } from 'next/server';
 import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
 import { getAccessToken } from '@/lib/idx/auth';
 import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
+import { displayPropertyType } from '@/lib/idx/display-property-type';
 import prisma from '@/lib/prisma';
 import { evaluateDisplayGate } from '@/lib/compliance/gates';
 import { resolveListingAgentInfo, AGENT_TYPED_SELECT } from '@/lib/listings/agent-info-resolver';
@@ -24,7 +25,11 @@ import {
   pickAddressParts,
   openHouseTwinKey,
   resolvePublicOpenHouseType,
+  OPEN_HOUSE_SELECT_FIELDS,
+  OPEN_HOUSE_PROPERTY_SELECT_FIELDS,
+  OPEN_HOUSE_PUBLIC_FILTER,
 } from '@/lib/open-houses/upcoming-open-houses';
+import { cotalityFields } from '@/lib/cotality/contract';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +45,7 @@ async function fetchMallanListingRefs(token: string, base: string): Promise<{ id
   const statusFilter = OPEN_HOUSE_ELIGIBLE_STATUSES.map((s) => `StandardStatus eq '${s}'`).join(' or ');
   const params = new URLSearchParams();
   params.set('$filter', `(${officeFilter}) and (${statusFilter})`);
-  params.set('$select', 'ListingId,ListingKey');
+  params.set('$select', cotalityFields('Property', ['ListingId', 'ListingKey']).join(','));
   params.set('$top', '200');
   const res = await fetch(`${base}/odata/Property?${params}`, {
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -177,13 +182,13 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
     // displayable listing would surface without this. Mirrors app/api/listings/route.ts (lines
     // ~471/~888) which already filters Active. (P1, 2026-06-23)
     // `(${listingScope})` restricts to Mallan's own listings (Mallan-only open-houses page).
-    params.set('$filter', `OpenHouseDate ge ${today} and OpenHouseType eq 'Public' and OpenHouseStatus eq 'Active' and (${listingScope})`);
-    params.set('$select', 'OpenHouseKey,ListingKey,ListingId,OpenHouseDate,OpenHouseStartTime,OpenHouseEndTime,OpenHouseType,AppointmentRequiredYN,OpenHouseRemarks');
+    params.set('$filter', `OpenHouseDate ge ${today} and ${OPEN_HOUSE_PUBLIC_FILTER} and (${listingScope})`);
+    params.set('$select', OPEN_HOUSE_SELECT_FIELDS.join(','));
     params.set('$orderby', 'OpenHouseDate asc');
     params.set('$top', '100');
     // Do NOT select agent direct-contact fields. This is a public endpoint; agent
-    // phone/email must never be serialized to the public response. `ListAgentFullName`
-    // and `ListOfficeName` are displayable per REBNY attribution rules.
+    // phone/email must never be serialized to the public response. `ListOfficeName` is the
+    // attribution this surface renders; `ListAgentFullName` is not requested because nothing here reads it.
     //
     // Permission-gate fields — match the main IDX pipeline's canonical set:
     //   Permission, InternetEntireListingDisplayYN, InternetAddressDisplayYN
@@ -191,7 +196,7 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
     // Removed dead fields previously in this list:
     //   IDXEntireListingDisplayYN (no such field on Trestle schema)
     //   ParticipantOnlyYN (never existed — superseded by Permission='Private')
-    params.set('$expand', 'Property($select=ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,PropertySubType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListOfficeName,PublicRemarks,PhotosCount,Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN,StandardStatus,MlsStatus,CloseDate)');
+    params.set('$expand', `Property($select=${OPEN_HOUSE_PROPERTY_SELECT_FIELDS.join(',')})`);
 
     const res = await fetch(`${base}/odata/OpenHouse?${params}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -300,8 +305,8 @@ async function fetchTrestleOpenHousesFlat(mallanIds: string[]): Promise<OpenHous
     // in fetchTrestleOpenHouses above). OpenHouseStatus eq 'Active' excludes
     // cancelled/inactive open houses (P1, 2026-06-23 — see $expand path).
     // `(${listingScope})` keeps the fallback Mallan-scoped (Mallan-only open-houses page).
-    params.set('$filter', `OpenHouseDate ge ${today} and OpenHouseType eq 'Public' and OpenHouseStatus eq 'Active' and (${listingScope})`);
-    params.set('$select', 'OpenHouseKey,ListingKey,ListingId,OpenHouseDate,OpenHouseStartTime,OpenHouseEndTime,OpenHouseType,AppointmentRequiredYN,OpenHouseRemarks');
+    params.set('$filter', `OpenHouseDate ge ${today} and ${OPEN_HOUSE_PUBLIC_FILTER} and (${listingScope})`);
+    params.set('$select', OPEN_HOUSE_SELECT_FIELDS.join(','));
     params.set('$orderby', 'OpenHouseDate asc');
     params.set('$top', '100');
 
@@ -327,7 +332,7 @@ async function fetchTrestleOpenHousesFlat(mallanIds: string[]): Promise<OpenHous
       // OwnerOptOut boolean, ParticipantOnlyYN — none exist on Trestle schema).
       // Added Permission (source of opt-out + private), InternetAddressDisplayYN
       // (address suppression), StandardStatus/MlsStatus/CloseDate (terminal-status gate).
-      propParams.set('$select', 'ListingKey,ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListOfficeName,PublicRemarks,Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN,StandardStatus,MlsStatus,CloseDate');
+      propParams.set('$select', OPEN_HOUSE_PROPERTY_SELECT_FIELDS.join(','));
       propParams.set('$top', String(listingKeys.length));
 
       const propRes = await fetch(`${base}/odata/Property?${propParams}`, {
@@ -625,11 +630,10 @@ function formatTrestleTime(time: string | null | undefined): string {
   return time;
 }
 
+/** Open-house card label — delegates to THE display property-type implementation; a rental with no
+ *  ownership classification is labelled 'Rental', anything else shows the provider's own value or blank. */
 function mapPropertyType(commonInterest: string | null | undefined, propType: string | null | undefined): string {
-  switch (commonInterest) {
-    case 'Condominium': return 'Condo';
-    case 'StockCooperative': return 'Co-op';
-    case 'Condop': return 'Condop';
-    default: return propType === 'ResidentialLease' ? 'Rental' : 'Residential';
-  }
+  const t = displayPropertyType(commonInterest, null, propType);
+  if (t === 'ResidentialLease') return 'Rental';
+  return t ?? '';
 }

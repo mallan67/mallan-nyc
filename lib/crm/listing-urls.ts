@@ -32,7 +32,7 @@ interface ListingForUrl {
 
 export function buildListingUrls(listing: ListingForUrl): {
   publicUrl: string | null;
-  realPlusUrl: string | null;
+  rebnyListingUrl: string | null;
 } {
   const addr = (listing.address || {}) as Record<string, string>;
   const isActive = listing.status === 'Active' || listing.status === 'ComingSoon' || listing.status === 'ActiveUnderContract';
@@ -61,12 +61,12 @@ export function buildListingUrls(listing: ListingForUrl): {
   // Canonical URL guard: a published CRM listing with displayable address
   // must NEVER expose a generic `listing-XXX` URL publicly. If we got one,
   // return null for both URLs so the form shows "URL pending" instead of
-  // a broken canonical that would dilute SEO and confuse RealPlus.
+  // a broken canonical that would dilute SEO and be wrong as the REBNY listing URL.
   const isGenericSlug = slug.startsWith('listing-');
   if (isGenericSlug && addressDisplayable && isActive) {
     // eslint-disable-next-line no-console
     console.error(`[listing-urls] Refusing to advertise generic slug for ${listing.listing_id} — address incomplete`);
-    return { publicUrl: null, realPlusUrl: null };
+    return { publicUrl: null, rebnyListingUrl: null };
   }
 
   // Build the SEPARATED canonical URL via the shared helper. Single source
@@ -74,7 +74,7 @@ export function buildListingUrls(listing: ListingForUrl): {
   // any other surface that links to a listing.
   const canonicalPath = buildCanonicalListingPath({ slug, id: listing.listing_id });
   const publicUrl = `${SITE_URL}${canonicalPath}`;
-  const realPlusUrl = isActive ? publicUrl : null;
+  const rebnyListingUrl = isActive ? publicUrl : null;
 
-  return { publicUrl, realPlusUrl };
+  return { publicUrl, rebnyListingUrl };
 }

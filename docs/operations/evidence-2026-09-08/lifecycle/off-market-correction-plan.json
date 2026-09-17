@@ -1,0 +1,20 @@
+{
+  "source": "docs/operations/evidence-2026-09-08/lifecycle/stored-withdrawn-vs-live.json",
+  "generatedAt": "2026-09-08T15:54:09.858Z",
+  "executes": false,
+  "rule": "status := raw_data.StandardStatus (last verified), sync_status := off_feed, idx_display_yn := false; never a manufactured status",
+  "groups": {
+    "rent": {
+      "stored": 1082,
+      "toClosed": 40,
+      "toOffMarket": 1042,
+      "otherLive": 0
+    },
+    "sale": {
+      "stored": 5880,
+      "toClosed": 2,
+      "toOffMarket": 5878,
+      "otherLive": 0
+    }
+  }
+}

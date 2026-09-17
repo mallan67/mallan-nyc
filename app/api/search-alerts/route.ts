@@ -3,11 +3,27 @@
 // to receive daily/weekly new listing alerts.
 // Creates a Lead (or finds existing) + SavedSearch with alert_enabled=true.
 // TCPA: requires explicit consent. CAN-SPAM: includes unsubscribe.
+//
+// Search Consolidation Packet 2: the row this endpoint writes is consumed by the SAME alert
+// cron as agent-saved searches, so it must satisfy the same canonical contract. The public
+// payload (type / borough / neighborhood / minPrice / maxPrice / beds / minBaths /
+// propertyType …) is converted by the shared deterministic conversion in
+// lib/search/canonical/saved-search.ts — the independent normalizer this route carried is
+// gone. A criterion the Search executor cannot reproduce exactly is refused by name; no
+// alert is ever created for a broader search than the visitor asked for.
+// Public Search itself is NOT merged into Agent Search: only the stored alert row is shared.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { checkRouteRateLimit, extractClientIp } from "@/lib/middleware/rate-limiter";
 import { createInquiry } from "@/lib/inquiries/create";
+import {
+  CRITERIA_VERSION,
+  describeSavedParams,
+  legacyToParams,
+  refusalReasons,
+  savedCriteriaFromExecuted,
+} from "@/lib/search/engine/saved-search";
 
 export async function POST(request: NextRequest) {
   try {
@@ -60,28 +76,30 @@ export async function POST(request: NextRequest) {
     const alertFrequency = validFrequencies.includes(frequency) ? frequency : "daily";
 
     // Validate criteria has at least listing_type
-    if (!criteria.listing_type && !criteria.type) {
+    if (typeof criteria !== "object" || Array.isArray(criteria) || (!criteria.listing_type && !criteria.type)) {
       return NextResponse.json(
         { error: "Search criteria must include a listing type (sale or rent)" },
         { status: 400 }
       );
     }
 
-    // Normalize criteria
-    const normalizedCriteria: Record<string, unknown> = {};
-    if (criteria.type || criteria.listing_type) {
-      const t = criteria.type || criteria.listing_type;
-      normalizedCriteria.listing_type = t === "buy" ? "sale" : t;
+    // Shared conversion → the executor's own validation. Fail loud by name.
+    const converted = legacyToParams(criteria as Record<string, unknown>);
+    if (!converted.ok) {
+      return NextResponse.json(
+        { error: "This alert cannot be created because the search cannot be reproduced exactly: " + converted.reasons.join("; "), code: "unsupported_criteria", reasons: converted.reasons },
+        { status: 400 }
+      );
     }
-    if (criteria.borough) normalizedCriteria.borough = String(criteria.borough);
-    if (criteria.neighborhood) normalizedCriteria.neighborhoods = [String(criteria.neighborhood)];
-    if (criteria.neighborhoods) normalizedCriteria.neighborhoods = criteria.neighborhoods;
-    if (criteria.minPrice) normalizedCriteria.min_price = Number(criteria.minPrice);
-    if (criteria.maxPrice && Number(criteria.maxPrice) < 99999999) normalizedCriteria.max_price = Number(criteria.maxPrice);
-    if (criteria.beds != null && Number(criteria.beds) >= 0) normalizedCriteria.min_beds = Number(criteria.beds);
-    if (criteria.minBaths) normalizedCriteria.min_baths = Number(criteria.minBaths);
-    if (criteria.minSqft) normalizedCriteria.min_sqft = Number(criteria.minSqft);
-    if (criteria.propertyType) normalizedCriteria.property_type = [criteria.propertyType];
+    const saved = savedCriteriaFromExecuted(converted.params);
+    if (!saved.ok) {
+      const reasons = refusalReasons(saved.refusal);
+      return NextResponse.json(
+        { error: "This alert cannot be created because the search cannot be reproduced exactly: " + reasons.join("; "), code: "unsupported_criteria", reasons },
+        { status: 400 }
+      );
+    }
+    const canonical = saved.criteria;
 
     // Parse name
     const nameParts = (name || "").trim().split(/\s+/);
@@ -109,14 +127,14 @@ export async function POST(request: NextRequest) {
     });
 
     // Build a readable name for the saved search
-    const searchName = buildSearchName(normalizedCriteria);
+    const searchName = describeSavedParams(canonical.params);
 
-    // Create saved search with alerts enabled
+    // Create saved search with alerts enabled — the same stored contract agent searches use
     const savedSearch = await prisma.savedSearch.create({
       data: {
         lead_id: lead.id,
         name: searchName,
-        criteria: normalizedCriteria as Prisma.InputJsonValue,
+        criteria: canonical as unknown as Prisma.InputJsonValue,
         alert_frequency: alertFrequency,
         alert_enabled: true,
         alert_email: sanitizedEmail,
@@ -134,7 +152,10 @@ export async function POST(request: NextRequest) {
         changes: {
           email: sanitizedEmail,
           frequency: alertFrequency,
-          criteria: normalizedCriteria as Prisma.InputJsonValue,
+          criteria: canonical as unknown as Prisma.InputJsonValue,
+          criteria_version: CRITERIA_VERSION,
+          submitted_criteria: criteria as Prisma.InputJsonValue,
+          conversion: converted.mapped,
           consent_opt_in: true,
           consent_source: consentSource || "search_alert_form",
           consent_method: "checkbox",
@@ -155,7 +176,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         saved_search_id: savedSearch.id.toString(),
         alert_frequency: alertFrequency,
-        criteria: normalizedCriteria,
+        criteria: canonical,
       },
     });
 
@@ -171,28 +192,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-function buildSearchName(criteria: Record<string, unknown>): string {
-  const parts: string[] = [];
-
-  const type = criteria.listing_type === "sale" ? "For Sale" : "For Rent";
-  parts.push(type);
-
-  if (criteria.borough) parts.push(String(criteria.borough));
-  if (criteria.neighborhoods && Array.isArray(criteria.neighborhoods) && criteria.neighborhoods.length > 0) {
-    parts.push(criteria.neighborhoods.slice(0, 2).join(", "));
-  }
-
-  if (criteria.min_beds) parts.push(`${criteria.min_beds}+ bed`);
-
-  if (criteria.min_price || criteria.max_price) {
-    const min = criteria.min_price ? `$${Number(criteria.min_price).toLocaleString()}` : "";
-    const max = criteria.max_price ? `$${Number(criteria.max_price).toLocaleString()}` : "";
-    if (min && max) parts.push(`${min}-${max}`);
-    else if (min) parts.push(`${min}+`);
-    else if (max) parts.push(`Up to ${max}`);
-  }
-
-  return parts.join(" · ") || "All Listings";
 }

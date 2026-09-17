@@ -1,0 +1,633 @@
+{
+  "source": "LIVE_COTALITY",
+  "scope": "all",
+  "request": "Property?$select=ListingKey,StandardStatus&$expand=Building($select=BuildingKey),BuyerAgent($select=MemberKey),BuyerOffice($select=OfficeKey),CoBuyerAgent($select=MemberKey),CoBuyerOffice($select=OfficeKey),CoListAgent($select=MemberKey),CoListOffice($select=OfficeKey),CustomProperty($select=ListingKey),ListAgent($select=MemberKey),ListOffice($select=OfficeKey),Rooms($select=RoomKey),UnitTypes($select=UnitTypeKey)&$orderby=ListingKey asc&$top=1000 (keyset walk)",
+  "rows": 591599,
+  "pages": 2958,
+  "rowsByStatus": {
+    "Closed": 578402,
+    "Pending": 5590,
+    "Active": 7602,
+    "ComingSoon": 5
+  },
+  "navigations": {
+    "Building": {
+      "target": "Building",
+      "expandHttp": 200,
+      "rowsWithPayload": 0,
+      "payloadRows": 0,
+      "byStatus": {},
+      "samples": []
+    },
+    "BuyerAgent": {
+      "target": "Member",
+      "expandHttp": 200,
+      "rowsWithPayload": 80460,
+      "payloadRows": 80460,
+      "byStatus": {
+        "Closed": 80450,
+        "Pending": 10
+      },
+      "samples": [
+        {
+          "ListingKey": "1091329650",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "MemberKey": "25251589"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329652",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "MemberKey": "25272293"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329653",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "MemberKey": "25232887"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329654",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "MemberKey": "25225659"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329655",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "MemberKey": "25250354"
+            }
+          ]
+        }
+      ]
+    },
+    "BuyerOffice": {
+      "target": "Office",
+      "expandHttp": 200,
+      "rowsWithPayload": 99256,
+      "payloadRows": 99256,
+      "byStatus": {
+        "Closed": 99246,
+        "Pending": 10
+      },
+      "samples": [
+        {
+          "ListingKey": "1091329650",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "OfficeKey": "5658958"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329652",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "OfficeKey": "5665227"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329653",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "OfficeKey": "5658911"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329654",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "OfficeKey": "5659936"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329655",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "OfficeKey": "5658932"
+            }
+          ]
+        }
+      ]
+    },
+    "CoBuyerAgent": {
+      "target": "Member",
+      "expandHttp": 200,
+      "rowsWithPayload": 2813,
+      "payloadRows": 2813,
+      "byStatus": {
+        "Closed": 2811,
+        "Pending": 2
+      },
+      "samples": [
+        {
+          "ListingKey": "1091329702",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "MemberKey": "25280774"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329751",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "MemberKey": "25231290"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329790",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "MemberKey": "25222455"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329859",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "MemberKey": "25229654"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329937",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "MemberKey": "25210593"
+            }
+          ]
+        }
+      ]
+    },
+    "CoBuyerOffice": {
+      "target": "Office",
+      "expandHttp": 200,
+      "rowsWithPayload": 3158,
+      "payloadRows": 3158,
+      "byStatus": {
+        "Closed": 3156,
+        "Pending": 2
+      },
+      "samples": [
+        {
+          "ListingKey": "1091329702",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "OfficeKey": "5671856"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329751",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "OfficeKey": "5658914"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329790",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "OfficeKey": "5658936"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329859",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "OfficeKey": "5658914"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329937",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "OfficeKey": "5658994"
+            }
+          ]
+        }
+      ]
+    },
+    "CoListAgent": {
+      "target": "Member",
+      "expandHttp": 200,
+      "rowsWithPayload": 160329,
+      "payloadRows": 160329,
+      "byStatus": {
+        "Closed": 154100,
+        "Pending": 2882,
+        "Active": 3344,
+        "ComingSoon": 3
+      },
+      "samples": [
+        {
+          "ListingKey": "1091329652",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "MemberKey": "25229803"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329653",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "MemberKey": "25242177"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329657",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "MemberKey": "25288400"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329661",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "MemberKey": "25228538"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329666",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "MemberKey": "25242974"
+            }
+          ]
+        }
+      ]
+    },
+    "CoListOffice": {
+      "target": "Office",
+      "expandHttp": 200,
+      "rowsWithPayload": 196951,
+      "payloadRows": 196951,
+      "byStatus": {
+        "Closed": 190689,
+        "Pending": 2909,
+        "Active": 3350,
+        "ComingSoon": 3
+      },
+      "samples": [
+        {
+          "ListingKey": "1091329652",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "OfficeKey": "5658911"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329653",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "OfficeKey": "5658932"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329657",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "OfficeKey": "5658932"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329661",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "OfficeKey": "5658911"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329666",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "OfficeKey": "5658932"
+            }
+          ]
+        }
+      ]
+    },
+    "CustomProperty": {
+      "target": "CustomProperty",
+      "expandHttp": 200,
+      "rowsWithPayload": 591599,
+      "payloadRows": 591599,
+      "byStatus": {
+        "Closed": 578402,
+        "Pending": 5590,
+        "Active": 7602,
+        "ComingSoon": 5
+      },
+      "samples": [
+        {
+          "ListingKey": "1091329650",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "ListingKey": "1091329650"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329652",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "ListingKey": "1091329652"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329653",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "ListingKey": "1091329653"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329654",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "ListingKey": "1091329654"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329655",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "ListingKey": "1091329655"
+            }
+          ]
+        }
+      ]
+    },
+    "ListAgent": {
+      "target": "Member",
+      "expandHttp": 200,
+      "rowsWithPayload": 431008,
+      "payloadRows": 431008,
+      "byStatus": {
+        "Closed": 418333,
+        "Pending": 5387,
+        "Active": 7283,
+        "ComingSoon": 5
+      },
+      "samples": [
+        {
+          "ListingKey": "1091329650",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "MemberKey": "25251589"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329652",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "MemberKey": "25257977"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329653",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "MemberKey": "25258490"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329655",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "MemberKey": "25278709"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329657",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "MemberKey": "25240791"
+            }
+          ]
+        }
+      ]
+    },
+    "ListOffice": {
+      "target": "Office",
+      "expandHttp": 200,
+      "rowsWithPayload": 522739,
+      "payloadRows": 522739,
+      "byStatus": {
+        "Closed": 509542,
+        "Pending": 5590,
+        "Active": 7602,
+        "ComingSoon": 5
+      },
+      "samples": [
+        {
+          "ListingKey": "1091329650",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "OfficeKey": "5658958"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329652",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "OfficeKey": "5658911"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329653",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "OfficeKey": "5658932"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329654",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "OfficeKey": "5658914"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091329655",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "OfficeKey": "5658932"
+            }
+          ]
+        }
+      ]
+    },
+    "Rooms": {
+      "target": "PropertyRooms",
+      "expandHttp": 200,
+      "rowsWithPayload": 13,
+      "payloadRows": 19,
+      "byStatus": {
+        "Closed": 10,
+        "Active": 2,
+        "Pending": 1
+      },
+      "samples": [
+        {
+          "ListingKey": "1091329742",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "RoomKey": "1360885937"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1091340149",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "RoomKey": "1481350729"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1092330831",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "RoomKey": "1703071256"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1092342929",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "RoomKey": "1305112479"
+            }
+          ]
+        },
+        {
+          "ListingKey": "1092349163",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "RoomKey": "1304635593"
+            }
+          ]
+        }
+      ]
+    },
+    "UnitTypes": {
+      "target": "PropertyUnitTypes",
+      "expandHttp": 200,
+      "rowsWithPayload": 1,
+      "payloadRows": 1,
+      "byStatus": {
+        "Closed": 1
+      },
+      "samples": [
+        {
+          "ListingKey": "1092337071",
+          "StandardStatus": "Closed",
+          "payload": [
+            {
+              "UnitTypeKey": "22369252"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "finished": "2026-09-08T08:50:22.314Z",
+  "quota": {
+    "minuteLimit": 280,
+    "minuteAvailable": 252,
+    "hourLimit": 8400,
+    "hourAvailable": 7888,
+    "hourResetTime": 1788860195017,
+    "seenAt": 1788857422313
+  }
+}

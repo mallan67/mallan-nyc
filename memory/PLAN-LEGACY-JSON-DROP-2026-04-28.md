@@ -1,6 +1,10 @@
 # Legacy JSON Column Drop Plan — Listing Model
 
-> **Status:** NOT_STARTED · **Created:** 2026-04-28 · **Owner:** Maya Allan
+> **Status:** PARTIALLY EXECUTED — column 1 of 5 done, four remain. **Created:** 2026-04-28 · **Owner:** Maya Allan
+>
+> ⚠️ **Do NOT start at `agent_info` — it is already dropped.** This file previously read `Status: NOT_STARTED` and told the reader to begin with `refactor/12-drop-agent-info-json`. Verified 2026-09-10: Phases A–D for `agent_info` shipped as PRs #426 (`2a37079a`), #427 (`55b53bd9`), #429 (`a5040eb5`) and #441 (`3d53343a`, merged 2026-06-23; the production DROP was applied and verified 2026-06-24 per `memory/HANDOFF.md`) — `ALTER TABLE "listings" DROP COLUMN "agent_info"` is applied to production, `information_schema` count = 0, and `prisma/schema.prisma:480` carries the removal comment. Remaining work: `compliance`, `features`, `address`, `media`. Executed history lives in `memory/HANDOFF.md` and GitHub issue #415.
+>
+> ⚠️ **The storage figures below are a 2026-04-28 snapshot and are wrong today.** Later measurements: ~1,364 MB (2026-06-24, `memory/HANDOFF.md`) and ~555 MB (2026-08-02, `memory/NEON-CPU-STORAGE-2026-08-02.md`). Re-measure before quoting any number from §"Storage impact".
 > **Reference:** This plan exists because the master refactor plan PR 10 description named all six legacy JSON columns on `Listing` as "duplicated data after PR 5 readers are migrated," but what shipped as PR #75/#76 was the `raw_data` slim writer + backfill only. The other five JSON columns are still being written and read alongside the typed columns from PR 5.
 >
 > Pre-flight discipline before any PR in this plan: see `NEON.md` §5. One column per PR. Nullable first. Manual prod migration before code merge. No deviation.
@@ -95,7 +99,7 @@ Every column follows the same 4-phase pattern. **Each phase = one PR.** No short
 
 ## Per-column specifics
 
-### 1. `agent_info` (start here)
+### 1. `agent_info` — ✅ DONE (#441, `3d53343a`, production DROP verified 2026-06-24). Retained as the worked template for columns 2–5.
 
 - **Typed replacements:** `list_agent_full_name`, `list_office_name` (already on `Listing` from PR 5).
 - **Known readers:** `lib/compliance/dto.ts` (portal DTO masking), `lib/idx/db-to-public-dto.ts`, agent listing routes.
@@ -134,7 +138,7 @@ Every column follows the same 4-phase pattern. **Each phase = one PR.** No short
 
 ## Order of execution
 
-1. PR `refactor/12-drop-agent-info-json` (Phases A→D) — 4 PRs total.
+1. ~~PR `refactor/12-drop-agent-info-json`~~ — ✅ COMPLETE as PRs #426 / #427 / #429 / #441. **Start at step 2.**
 2. PR `refactor/13-drop-compliance-json` — 4 PRs.
 3. PR `refactor/14-drop-features-json` — 4 PRs.
 4. PR `refactor/15-drop-address-json` — 4 PRs (likely 5+ if address parsing needs a normalizer).

@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { excludeMallanRlsReturnCopies } from "@/lib/listings/mallan-source-identity";
 import { fetchFromTrestle } from '@/lib/idx/fetch';
-import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
-import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
-import { toPublicDTO, type PublicListingDTO } from '@/lib/idx/public-dto';
+import { generateAttributionText } from '@/lib/idx/attribution';
+import { cotalityRecordsToPublicDTOs } from '@/lib/idx/cotality-public-dto';
+import type { PublicListingDTO } from '@/lib/idx/public-dto';
 import { getAccessToken } from '@/lib/idx/auth';
 import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
 import { resolveFeedAuthorityForPage } from '@/lib/media/feed-media-authority';
@@ -12,7 +12,8 @@ import { AGENT_TYPED_SELECT } from '@/lib/listings/agent-info-resolver';
 import { preferCrmExclusiveOverIdxDuplicate } from '@/lib/listings/dedupe-crm-vs-idx';
 import { mapAgentCardMedia } from '@/lib/idx/agent-card-media';
 import { getOpenHouseIndex, findNextOpenHouse } from '@/lib/open-houses/upcoming-open-houses';
-import type { IDXListing } from '@/lib/idx/types';
+import { MEDIA_SELECT_FIELDS, PROPERTY_MEDIA_FILTER } from '@/lib/media/listing-media-resolver';
+import { storageStatusesFor } from '@/lib/listings/mallan-status';
 
 /**
  * GET /api/agents/[slug]/listings
@@ -20,7 +21,7 @@ import type { IDXListing } from '@/lib/idx/types';
  * Returns an agent's listings grouped by category:
  * - activeSales, activeRentals, closedSales, closedRentals
  *
- * Sources: Trestle IDX (by ListAgentFullName) + local DB exclusives (by agent_id)
+ * Sources: live Cotality (by ListAgentMlsId / name) through the canonical chain + canonical Mallan storage (by agent_id)
  */
 export async function GET(
   request: Request,
@@ -171,25 +172,26 @@ async function fetchTrestleAgentListings(agentName: string, trestleMlsId?: strin
       expandMedia: false,
     });
 
-    // Apply distribution gates + mapping
-    const processRecords = (records: Record<string, unknown>[]): IDXListing[] => {
-      const displayable = records.filter((raw) => checkDistributionGates(raw).displayable);
-      return displayable
-        .map((raw) => mapRESOToInternal(raw))
-        .filter((l): l is IDXListing => l !== null);
+    // Distribution gates + THE canonical chain (mapTrestleToPrisma → dbListingToPublicDTO).
+    // Unrepresentable provider records are counted and logged, never defaulted.
+    const providerKeyById = new Map<string, string>();
+    const processRecords = (records: Record<string, unknown>[]): PublicListingDTO[] => {
+      const projected = cotalityRecordsToPublicDTOs(records);
+      if (projected.unrepresentable.length > 0) {
+        console.warn('[agent-listings] unrepresentable Cotality records skipped:',
+          projected.unrepresentable.map((u) => `${u.listingId}:${u.field}`).join(', '));
+      }
+      for (const [id, key] of projected.listingKeyById) providerKeyById.set(id, key);
+      return projected.dtos;
     };
 
-    const activeMapped = processRecords(activeResult.records);
-    const closedMapped = processRecords(closedResult.records);
+    const active = processRecords(activeResult.records);
+    const closed = processRecords(closedResult.records);
 
-    // Batch fetch photos for all listings
-    const allMapped = [...activeMapped, ...closedMapped];
-    await batchFetchPhotos(allMapped);
+    // Batch fetch photos for all listings (Media is keyed by the PROVIDER record key)
+    await batchFetchPhotos([...active, ...closed], providerKeyById);
 
-    return {
-      active: activeMapped.map(toPublicDTO),
-      closed: closedMapped.map(toPublicDTO),
-    };
+    return { active, closed };
   } catch (err) {
     console.warn('[agent-listings] Trestle fetch failed:', err instanceof Error ? err.message : err);
     return { active: [], closed: [] };
@@ -312,7 +314,7 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
 
     const displayable = filterDisplayableDbListings(serialized);
     const activeStatuses = ['Active', 'ComingSoon', 'ActiveUnderContract'];
-    const closedStatuses = ['Closed', 'Sold', 'Rented'];
+    const closedStatuses = storageStatusesFor(['Closed']);
 
     // Public-surface dedupe (2026-05-28): drop Trestle-synced IDX duplicates
     // of Mallan CRM exclusives (SL-/RL-) on this agent's listings page. The
@@ -354,9 +356,10 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
 /**
  * Batch fetch primary photos from Trestle Media endpoint for listings missing media.
  * Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
- * NOT ResourceRecordID (can duplicate). IDXListing.mlsId = ListingKey = ResourceRecordKey.
+ * NOT ResourceRecordID (can duplicate). The provider key (Property.ListingKey = ResourceRecordKey)
+ * comes from the canonical projection; the DTO's mlsId is the PUBLIC id and is never used here.
  */
-async function batchFetchPhotos(listings: IDXListing[]) {
+async function batchFetchPhotos(listings: PublicListingDTO[], providerKeyById: Map<string, string>) {
   const needsPhotos = listings.filter((l) => l.media.length === 0);
   if (needsPhotos.length === 0) return;
 
@@ -364,19 +367,21 @@ async function batchFetchPhotos(listings: IDXListing[]) {
     const token = await getAccessToken();
     const TRESTLE_API = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || 'https://api.cotality.com/trestle';
     // Use mlsId (= ListingKey = ResourceRecordKey) for unique media lookups
-    const keyToListing = new Map<string, IDXListing>();
+    const keyToListing = new Map<string, PublicListingDTO>();
     const filterParts: string[] = [];
     for (const l of needsPhotos) {
-      const key = l.mlsId || l.listingId;
+      const providerKey = providerKeyById.get(l.id);
+      const key = providerKey || l.id;
       keyToListing.set(key, l);
       const escaped = key.replace(/'/g, "''");
-      filterParts.push(l.mlsId ? `ResourceRecordKey eq '${escaped}'` : `ResourceRecordID eq '${escaped}'`);
+      filterParts.push(providerKey ? `ResourceRecordKey eq '${escaped}'` : `ResourceRecordID eq '${escaped}'`);
     }
     // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
-    const mediaFilter = `(${filterParts.join(' or ')}) and Order le 3 and MediaStatus ne 'Deleted'`;
+    // Listing (Property) media for the agent's cards — never Member media (agent portraits are Mallan-owned files).
+    const mediaFilter = `(${filterParts.join(' or ')}) and ${PROPERTY_MEDIA_FILTER} and Order le 3 and MediaStatus ne 'Deleted'`;
     const mediaParams = new URLSearchParams();
     mediaParams.set('$filter', mediaFilter);
-    mediaParams.set('$select', 'ResourceRecordKey,ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,PreferredPhotoYN,MediaStatus');
+    mediaParams.set('$select', MEDIA_SELECT_FIELDS.join(','));
     mediaParams.set('$orderby', 'Order asc');
     // Codex #389: classification happens CLIENT-side (mapAgentCardMedia keeps
     // only canonical Photos), so the page needs headroom for the non-photo
@@ -409,8 +414,8 @@ async function batchFetchPhotos(listings: IDXListing[]) {
     const byKey = mapAgentCardMedia(records);
 
     for (const listing of needsPhotos) {
-      // Match by mlsId (ResourceRecordKey) first, fall back to listingId (ResourceRecordID)
-      const key = listing.mlsId || listing.listingId;
+      // Match by the provider key (ResourceRecordKey) first, fall back to the public id (ResourceRecordID)
+      const key = providerKeyById.get(listing.id) || listing.id;
       const photos = byKey.get(key);
       if (photos && photos.length > 0) {
         listing.media = photos.sort((a, b) => a.order - b.order) as typeof listing.media;

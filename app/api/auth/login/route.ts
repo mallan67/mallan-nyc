@@ -11,6 +11,7 @@ import {
 } from "@/lib/auth";
 import { MFA_SESSION_TTL_MS, generateOtpCode, sendOtpEmail, sendOtpSms } from "@/lib/auth/mfa";
 import { getSessionCookieConfig } from "@/lib/auth/cookie-config";
+import { isLeadExplicitlyInactive, LEAD_PORTAL_ACCESS_REVOKED } from "@/lib/auth/lead-access";
 import {
   extractBehavioralSessionId,
   linkBehavioralSessionToLead,
@@ -134,6 +135,15 @@ export async function POST(req: NextRequest) {
         where: { email: normalizedEmail },
       });
       if (lead) {
+        // LIFECYCLE VETO. The agent branch seventy-five lines above already refuses an inactive agent
+        // (`if (agent.status !== "active")`); the lead branch checked nothing. One token only —
+        // "inactive" — because the stored status vocabulary is still unknown. See lib/auth/lead-access.ts.
+        if (isLeadExplicitlyInactive(lead.status)) {
+          return NextResponse.json(
+            { error: LEAD_PORTAL_ACCESS_REVOKED },
+            { status: 403 }
+          );
+        }
         if (!lead.password_hash) {
           return NextResponse.json(
             { error: "Your account doesn't have a password yet. Check your email for an invite link, or use Forgot Password to set one." },

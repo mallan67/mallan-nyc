@@ -10,18 +10,17 @@
  *
  * Building: enforce "matches live Cotality $metadata, no phantom marked as a
  * Cotality field" + auto-fill the AssociationFee/Frequency the lookup returns.
- * Verified against artifacts/metadata.xml (refreshed 2026-05-30):
+ * Verified against the live Cotality contract (committed snapshot data/cotality-contract/**; first verified 2026-05-30):
  *   - ElevatorsTotal  → NOT in Cotality (phantom) → internal-only.
  *   - NewDevelopmentYN → NOT in Cotality (phantom) → internal-only.
  *   - NewConstructionYN, AssociationFee, AssociationFeeFrequency → REAL → kept.
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { hasContractField } from './cotality-contract-facts';
 
 const FORM_PATH = resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html');
-const META_PATH = resolve(__dirname, '../../artifacts/metadata.xml');
 const formHtml = readFileSync(FORM_PATH, 'utf8');
-const metadata = readFileSync(META_PATH, 'utf8');
 
 function extractFn(src: string, name: string): string {
   const sig = `function ${name}(`;
@@ -36,7 +35,7 @@ function extractFn(src: string, name: string): string {
   }
   throw new Error(`unbalanced braces for ${name}`);
 }
-const hasCotalityField = (f: string) => new RegExp(`Property Name="${f}"`).test(metadata);
+const hasCotalityField = (f: string) => hasContractField(f); // the committed live Cotality contract
 
 describe('Cotality authority — phantom vs real (no guessing)', () => {
   it('phantom commission/building fields are NOT in live $metadata', () => {
@@ -65,34 +64,43 @@ describe('Commission collision fix', () => {
     expect(formHtml).not.toMatch(/name="saleCommissionType"/);
   });
   it('restore maps both type and payer (payer falls back to legacy saleCommissionType)', () => {
-    expect(formHtml).toMatch(/rls:\s*'saleExclusiveCommissionType',\s*form:\s*'saleExclusiveCommissionType'/);
-    expect(formHtml).toMatch(/rls:\s*'saleExclusiveCommission',\s*form:\s*'saleExclusiveCommission'/);
+    expect(formHtml).toMatch(/mallan:\s*'saleExclusiveCommissionType',\s*form:\s*'saleExclusiveCommissionType'/);
+    expect(formHtml).toMatch(/mallan:\s*'saleExclusiveCommission',\s*form:\s*'saleExclusiveCommission'/);
     expect(formHtml).toMatch(
-      /rls:\s*'saleBuyerAgentPays',\s*name:\s*'saleBuyerAgentPays'[^}]*fallback:\s*'saleCommissionType'/,
+      /mallan:\s*'saleBuyerAgentPays',\s*name:\s*'saleBuyerAgentPays'[^}]*fallback:\s*'saleCommissionType'/,
     );
   });
 });
 
 describe('Building — phantom fields reclassified internal (match Cotality)', () => {
   it('saleBldgNumElevators is no longer tagged as Cotality ElevatorsTotal', () => {
-    expect(formHtml).toMatch(/id="saleBldgNumElevators"[^>]*data-rls-ignore="true"[^>]*data-removed-field="ElevatorsTotal"/);
-    expect(formHtml).not.toMatch(/id="saleBldgNumElevators"[^>]*data-rls-field="ElevatorsTotal"/);
+    expect(formHtml).toMatch(/id="saleBldgNumElevators"[^>]*data-mallan-ignore="true"[^>]*data-removed-field="ElevatorsTotal"/);
+    expect(formHtml).not.toMatch(/id="saleBldgNumElevators"[^>]*data-cotality-field="ElevatorsTotal"/);
   });
   it('saleBldgNewDevelopment is no longer tagged as Cotality (was duplicating NewConstructionYN)', () => {
-    expect(formHtml).toMatch(/id="saleBldgNewDevelopment"[^>]*data-rls-ignore="true"[^>]*data-removed-field="NewDevelopmentYN"/);
-    expect(formHtml).not.toMatch(/id="saleBldgNewDevelopment"[^>]*data-rls-field="NewConstructionYN"/);
+    expect(formHtml).toMatch(/id="saleBldgNewDevelopment"[^>]*data-mallan-ignore="true"[^>]*data-removed-field="NewDevelopmentYN"/);
+    expect(formHtml).not.toMatch(/id="saleBldgNewDevelopment"[^>]*data-cotality-field="NewConstructionYN"/);
   });
-  it('collect no longer emits the phantom canonical keys; NewConstructionYN (real) still emitted', () => {
+  it('collect emits ElevatorsTotal / NewDevelopmentYN under their DECLARED Mallan-internal names (REBNY-required submission facts, never provider fields); NewConstructionYN (live) still emitted', () => {
+    // Packet 2 convergence (2026-09-06): both are REBNY_UCBA_RULES.requiredFields and declared MALLAN_INTERNAL_KEYS;
+    // the form collects them under its own keys and emits the canonical Mallan-internal names. They are still not
+    // live Cotality fields (asserted above) and the provider mapper never selects them.
+    const { MALLAN_INTERNAL_KEYS } = require('@/lib/listings/mallan-form-contract') as { MALLAN_INTERNAL_KEYS: string[] };
+    expect(MALLAN_INTERNAL_KEYS).toEqual(expect.arrayContaining(['ElevatorsTotal', 'NewDevelopmentYN']));
     const collect = extractFn(formHtml, 'collectSaleFormData');
-    expect(collect).not.toMatch(/data\.NewDevelopmentYN\s*=/);
-    expect(collect).not.toMatch(/data\.ElevatorsTotal\s*=/);
-    expect(collect).toMatch(/data\.NewConstructionYN\s*=/);
+    expect(collect).toMatch(/data[.]_mallanNewDevelopmentYN[ ]*=[ ]*data[.]saleBldgNewDevelopment/);
+    // Maya ruling 2026-09-09: the old `parseInt(v || '') || null` collapsed an ENTERED 0 to null and
+    // destroyed a recorded fact (a building with no elevator). Collection is now zero-safe; the
+    // BuildingFeatures projection (Elevators / NoElevators, never FreightElevator) is the server's.
+    expect(collect).toMatch(/data[.]_mallanElevatorsTotal[ ]*=[ ]*saleCountOrNull[(]data[.]saleBldgNumElevators/);
+    expect(collect).not.toMatch(/data[.]_mallanElevatorsTotal[ ]*=[ ]*parseInt[(][^)]*[)][ ]*[|][|][ ]*null/);
+    expect(collect).toMatch(/data[.]NewConstructionYN[ ]*=/);
   });
   it('restore keeps the values internal with legacy fallback', () => {
-    expect(formHtml).toMatch(/rls:\s*'saleBldgNumElevators',\s*form:\s*'saleBldgNumElevators'[^}]*fallbackRls:\s*'ElevatorsTotal'/);
-    expect(formHtml).toMatch(/rls:\s*'saleBldgNewDevelopment',\s*form:\s*'saleBldgNewDevelopment'[^}]*fallbackRls:\s*'NewDevelopmentYN'/);
+    expect(formHtml).toMatch(/mallan:\s*'saleBldgNumElevators',\s*form:\s*'saleBldgNumElevators'[^}]*legacyFallback:\s*'ElevatorsTotal'/);
+    expect(formHtml).toMatch(/mallan:\s*'saleBldgNewDevelopment',\s*form:\s*'saleBldgNewDevelopment'[^}]*legacyFallback:\s*'NewDevelopmentYN'/);
     // saleBldgNewConstruction stays mapped to the REAL NewConstructionYN
-    expect(formHtml).toMatch(/rls:\s*'NewConstructionYN',\s*form:\s*'saleBldgNewConstruction'/);
+    expect(formHtml).toMatch(/cotality:\s*'NewConstructionYN',\s*form:\s*'saleBldgNewConstruction'/);
   });
 });
 

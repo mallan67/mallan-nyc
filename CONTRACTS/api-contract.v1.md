@@ -46,7 +46,7 @@ No tokens, API keys, or credentials should appear in HTML/JS source.
 | POST | `/api/auth/login` | CRM | Agent/broker login |
 | POST | `/api/auth/logout` | CRM | Destroy session |
 | GET  | `/api/auth/me` | CRM, viewers | Get current user from session |
-| POST | `/api/auth/invite` | CRM | Generate client portal invite |
+| POST | `/api/crm/clients/[id]/invite` | CRM | Generate client portal invite (the ONE issuance authority: enforces client ownership, refuses an inactive client, validates portal_role) |
 | GET  | `/api/auth/invite/[token]` | Portal | Validate invite token |
 | POST | `/api/auth/invite/[token]` | Portal | Client accepts invite |
 | POST | `/api/auth/change-password` | CRM | Authenticated password change |

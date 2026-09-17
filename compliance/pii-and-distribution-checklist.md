@@ -3,7 +3,7 @@
 > **Version:** 1.0.0
 > **Date:** 2026-03-01
 > **Applies to:** mallan-nyc repo (production)
-> **Enforcement:** `public/crm/scripts/validate-production.sh` (CRM validation) + `npm run rls:validate` (mallan-nyc)
+> **Enforcement:** `npm run rls:validate` + `npm run compliance-check` + `npm run crm:test` (when `public/crm/**` is touched). *(The former `public/crm/scripts/validate-production.sh` no longer exists anywhere in the repo; its checks live in the npm validators above.)*
 
 ---
 
@@ -56,17 +56,17 @@ All 6 gates are enforced at the API layer. UI may only DISPLAY gate status (read
 
 | Requirement | Status |
 |-------------|--------|
-| Total RLS fields | 902 |
-| Required fields | 41 |
-| Conditional fields | 86 |
-| RESO-to-RLS renames | 23 |
-| Picklist values | 2,066 across 117 lookups |
-| Field mapping source of truth | `data/rebny-rls-property-fields.csv` (mallan-nyc) |
+| Field universe | the live Cotality contract (`lib/cotality/generated/contract.ts`, compiled from the feed) |
+| Required / conditional fields | `REBNY_UCBA_RULES` (lib/compliance/rebny-ucba-rules.ts) |
+| Picklist values | the live Cotality vocabularies (`data/cotality-contract/lookups.live.json`) |
+| Field mapping source of truth | `lib/cotality/generated/contract.ts` (field existence / type) + `lib/listings/mallan-form-contract.ts` (form bindings) |
 | Validator | `npm run rls:validate` — 10 sections, 0 UNKNOWN required |
 
 ---
 
-## 5. Viewer File Safety (WITH-TOOLS = Read-Only)
+## 5. Viewer File Safety (read-only listing views)
+
+> **2026-09-10:** this section was headed "Viewer File Safety (WITH-TOOLS = Read-Only)". The `*-WITH-TOOLS.html` viewer files it was written for no longer exist in the repo. The rules below still bind any read-only listing view rendered for a client — apply them to the current read-only surfaces rather than to the retired filenames.
 
 | Check | Rule |
 |-------|------|
@@ -86,7 +86,7 @@ All 6 gates are enforced at the API layer. UI may only DISPLAY gate status (read
 | Federal Fair Housing Act | No discriminatory language or filtering by race, color, religion, sex, national origin, disability, familial status |
 | NY State Human Rights Law | Adds: age, marital status, sexual orientation, military status |
 | NYC Human Rights Law Title 8 | Adds: lawful occupation, citizenship, partnership status, gender identity |
-| Scanner | Fair Housing word scanner (19 patterns) in submission forms |
+| Scanner | Fair Housing scanning is two-layer, and the pattern count is **not** a fixed number — do not quote one. Server-side write block: `FAIR_HOUSING_HARD_BLOCKS` in `lib/compliance/rls-enforcement.ts` (line 138) = `HARDCODED_FH_PATTERNS` (line 88) **plus** patterns compiled at load time from `data/compliance/prohibited-terms.json`, so it grows when that JSON grows. Client-side scanner in submission forms: `public/crm/js/compliance/fair-housing.js`. Read the source for the current set. *(Corrected 2026-09-10; this row previously read "Fair Housing word scanner (19 patterns)", a count that matched neither layer.)* |
 | Penalty | $250 first offense, $500 + RLS termination second offense |
 
 ---
@@ -110,11 +110,11 @@ All 6 gates are enforced at the API layer. UI may only DISPLAY gate status (read
 ## Verification Commands
 
 ```bash
-# CRM validation:
-bash public/crm/scripts/validate-production.sh
-
-# In mallan-nyc:
-npm run rls:validate
+npm run rls:validate        # 10-section REBNY RLS validator — 0 UNKNOWN required
+npm run compliance-check    # 93+ rules — BLOCKER+STRICT must be 0 failures
+npm run crm:test            # only if public/crm/** was touched (172/172 smoke)
 ```
 
-Both must pass before any commit or deployment.
+All must exit 0 before any commit or deployment.
+
+> **Corrected 2026-09-10.** This block previously ordered `bash public/crm/scripts/validate-production.sh` and said "Both must pass". That script does not exist in the repo, so the gate as written could not be run.

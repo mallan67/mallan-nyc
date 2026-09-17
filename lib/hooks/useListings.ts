@@ -365,7 +365,7 @@ export function useListings(params: UseListingsParams): UseListingsResult {
     // routing) must re-fetch. Without this dep the effect skipped on the
     // transition and the prior fetch's listings stayed visible, which on
     // the OUT direction would leave the page empty and on the IN direction
-    // would show the full RLS feed under the exclusives label. The
+    // would show the full Cotality feed under the exclusives label. The
     // backend filter is correct (verified via curl); this closes the
     // client-side refresh path.
     params.exclusive,

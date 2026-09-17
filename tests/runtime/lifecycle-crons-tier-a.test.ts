@@ -296,7 +296,7 @@ describe("lifecycle engine — action_type='email' sends email to lead", () => {
     lifecycleTriggerFindManyMock.mockResolvedValue([
       {
         id: 3n,
-        trigger_type: 'quarterly_nurture',
+        trigger_type: 'lease_expiring_180d',
         conditions: {},
         action_type: 'email',
         action_config: {},
@@ -311,7 +311,13 @@ describe("lifecycle engine — action_type='email' sends email to lead", () => {
       {
         id: 300n,
         pipeline_stage: 'nurturing',
-        roles: ['buyer'],
+        // findLeaseExpiringTargets filters in JS on lease_end_date and selects on roles +
+        // consent_captured_at. quarterly_nurture can no longer carry this test: Lane 3 Packet 1
+        // makes nurture agent-directed, so the engine coerces it away from 'email' before the
+        // action dispatch and this suite would have gone inert while still passing its name.
+        lease_end_date: new Date(Date.now() + 180 * 864e5),
+        consent_captured_at: new Date(),
+        roles: ['tenant'],
         last_contacted_at: null,
         agent_id: 42n,
         preferences: { neighborhoods: ['Tribeca'] },
@@ -356,7 +362,7 @@ describe("lifecycle engine — action_type='email' sends email to lead", () => {
     lifecycleTriggerFindManyMock.mockResolvedValue([
       {
         id: 4n,
-        trigger_type: 'quarterly_nurture',
+        trigger_type: 'lease_expiring_180d',
         conditions: {},
         action_type: 'email',
         action_config: {},
@@ -371,7 +377,13 @@ describe("lifecycle engine — action_type='email' sends email to lead", () => {
       {
         id: 400n,
         pipeline_stage: 'nurturing',
-        roles: ['buyer'],
+        // findLeaseExpiringTargets filters in JS on lease_end_date and selects on roles +
+        // consent_captured_at. quarterly_nurture can no longer carry this test: Lane 3 Packet 1
+        // makes nurture agent-directed, so the engine coerces it away from 'email' before the
+        // action dispatch and this suite would have gone inert while still passing its name.
+        lease_end_date: new Date(Date.now() + 180 * 864e5),
+        consent_captured_at: new Date(),
+        roles: ['tenant'],
         last_contacted_at: null,
         agent_id: 42n,
         preferences: { neighborhoods: ['Tribeca'] },

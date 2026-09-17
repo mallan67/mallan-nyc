@@ -191,10 +191,21 @@ describe('PATCH /api/crm/saved-searches/[id] — criteria validation', () => {
     expect(savedSearchUpdateMock).not.toHaveBeenCalled();
   });
 
-  it('accepts a valid plain object and updates the row', async () => {
-    const res = await patch({ listing_type: 'sale', min_price: 1000 });
+  it('accepts the canonical executor-parameter object and updates the row', async () => {
+    savedSearchUpdateMock.mockResolvedValueOnce({
+      id: 1n, agent_id: 42n, lead_id: null, name: 'Existing', criteria: { criteria_version: 2, params: { type: 'sale', minPrice: '1000' } },
+      last_run: null, result_count: null, alert_frequency: null, alert_enabled: false, last_alert_sent: null, alert_email: null,
+      created_at: new Date(), updated_at: new Date(),
+    } as never);
+    const res = await patch({ criteria_version: 2, params: { type: 'sale', minPrice: '1000' } });
     expect(res.status).toBe(200);
     expect(savedSearchUpdateMock).toHaveBeenCalledTimes(1);
+  });
+  it('refuses the retired browser dialect as a plain object with 400 criteria_contract (Packet 2)', async () => {
+    const res = await patch({ listing_type: 'sale', min_price: 1000 });
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe('criteria_contract');
+    expect(savedSearchUpdateMock).not.toHaveBeenCalled();
   });
 });
 

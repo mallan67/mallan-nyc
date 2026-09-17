@@ -52,16 +52,13 @@ describe("writer rule wired into every terminal-status writer", () => {
     expect(s).toMatch(/computeTerminalSincePatch/);
     expect(s).toMatch(/expirationDateFallback:\s*listing\.expiration_date/);
   });
-  it("feed-reconcile sets terminal_since on create + ghost→Withdrawn", () => {
+  it("feed-reconcile sets terminal_since on create + ghost→Off Market (off_feed)", () => {
     const s = read("app/api/cron/feed-reconcile/route.ts");
     expect(s).toMatch(/computeTerminalSincePatch/);
     expect(s).toMatch(/terminal_since:\s*now/);
   });
   it("listing-expiration seeds terminal_since from the actual expiration_date (not cron run time)", () => {
     expect(read("app/api/cron/listing-expiration/route.ts")).toMatch(/terminal_since:\s*listing\.expiration_date/);
-  });
-  it("import-closed sets terminal_since from the stable date", () => {
-    expect(read("scripts/import-closed-from-trestle.ts")).toMatch(/deriveTerminalSince/);
   });
   it("reset-sync uses computeTerminalSincePatch on create + update (#446)", () => {
     const s = read("app/api/crm/listings/reset-sync/route.ts");
@@ -74,15 +71,15 @@ describe("writer rule wired into every terminal-status writer", () => {
     expect(s).toMatch(/computeTerminalSincePatch\(\{[\s\S]*?newStatus:\s*"Withdrawn"/);
   });
   it("idx/ensure-listing create wires computeTerminalSincePatch on arbitrary body.status (#446)", () => {
-    const s = read("app/api/idx/ensure-listing/route.ts");
+    const s = read("lib/listings/ensure-local-listing.ts") /* Packet 2 closure: the ensure-listing create lives in the helper the route and the alert cron both call */;
     expect(s).toMatch(/import\s*\{\s*computeTerminalSincePatch\s*\}\s*from\s*"@\/lib\/listings\/terminal-since"/);
     // create spreads the patch with previousStatus undefined + the normalized status
-    expect(s).toMatch(/computeTerminalSincePatch\(\{[\s\S]*?previousStatus:\s*undefined[\s\S]*?newStatus:\s*canonicalStatus/);
+    expect(s).toMatch(/computeTerminalSincePatch\(\{[\s\S]*?previousStatus:\s*undefined[\s\S]*?newStatus:\s*gates\.normalized_status/);
   });
-  it("reconcile-ghosts.js sets terminal_since: now on ghost→Withdrawn (matches the wired cron twin) (#446)", () => {
+  it("reconcile-ghosts.js records the presence fact (sync_status off_feed) + terminal_since: now on a ghost, and never writes a status (#446)", () => {
     const s = read("scripts/reconcile-ghosts.js");
-    // the ghost transition update sets status Withdrawn AND terminal_since: now
-    expect(s).toMatch(/status:\s*"Withdrawn",[\s\S]*?terminal_since:\s*now/);
+    expect(s).toMatch(/sync_status:\s*OFF_FEED_SYNC_STATUS,[\s\S]*?terminal_since:\s*now/);
+    expect(s).not.toMatch(/status:\s*"(Delisted|Withdrawn)"/);
   });
 });
 

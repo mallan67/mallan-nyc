@@ -883,3 +883,20 @@ describe("classifyMediaRowMismatch — pure predicate (total, decision-mirroring
     }
   });
 });
+
+describe("owner (Maya 2026-09-08): listing_media stores Property media only", () => {
+  it("a Building / Member row that arrives under a listing key is counted and never written; a row without ResourceName is Property by construction", async () => {
+    mockFindUnique.mockResolvedValue(null);
+    mockCreate.mockResolvedValue(undefined);
+    const result = await upsertListingMedia("RLS20012345", [
+      makeRow({ MediaKey: "MK-B", ResourceName: "Building", ResourceRecordKey: "1737703" }),
+      makeRow({ MediaKey: "MK-M", ResourceName: "Member", MediaCategory: "AgentPhoto" }),
+      makeRow({ MediaKey: "MK-P", ResourceName: "Property" }),
+      makeRow({ MediaKey: "MK-L" }),
+    ]);
+    expect(result).toMatchObject(res({ inserted: 2 }));
+    expect(result.skippedForeignOwner).toBe(2);
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    expect(mockCreate.mock.calls.map((c) => c[0].data.media_key).sort()).toEqual(["MK-L", "MK-P"]);
+  });
+});

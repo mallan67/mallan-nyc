@@ -29,7 +29,8 @@ import fs from 'fs';
 import path from 'path';
 
 const ROOT = path.resolve(__dirname, '../..');
-const SKIP_DIRS = ['node_modules', '.next', '.git', 'archive'];
+// .cache/ holds local, git-ignored agent scratch (probe jest configs included) — never a repo project.
+const SKIP_DIRS = ['node_modules', '.next', '.git', 'archive', '.cache'];
 
 /** Every jest.config.* in the repo, excluding the root aggregator itself. */
 function findJestConfigs(dir: string, out: string[] = []): string[] {

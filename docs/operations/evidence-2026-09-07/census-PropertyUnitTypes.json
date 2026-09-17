@@ -1,0 +1,478 @@
+{
+  "_provenance": {
+    "resource": "PropertyUnitTypes",
+    "corpusRows": 1,
+    "method": "OData $count over the FULL corpus per field — not sampled",
+    "source": "https://api.cotality.com/trestle/odata/PropertyUnitTypes"
+  },
+  "fields": [
+    {
+      "field": "HumanModifiedYN",
+      "type": "Boolean",
+      "populated": 1,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "InputEntryOrder",
+      "type": "Int32",
+      "populated": 1,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "InternetEntireListingDisplayYN",
+      "type": "Boolean",
+      "populated": 1,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListAgentKey",
+      "type": "String",
+      "populated": 1,
+      "pct": 100,
+      "filterable": true,
+      "orderable": false,
+      "note": ""
+    },
+    {
+      "field": "ListAOR",
+      "type": "AOR",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListingId",
+      "type": "String",
+      "populated": 1,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListingKey",
+      "type": "String",
+      "populated": 1,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListingKeyNumeric",
+      "type": "Int64",
+      "populated": 1,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListingPermission",
+      "type": "ListingPermission",
+      "populated": 1,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListOfficeKey",
+      "type": "String",
+      "populated": 1,
+      "pct": 100,
+      "filterable": true,
+      "orderable": false,
+      "note": ""
+    },
+    {
+      "field": "ListOfficeMlsId",
+      "type": "String",
+      "populated": 1,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ModificationTimestamp",
+      "type": "DateTimeOffset",
+      "populated": 1,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OffMarketDate",
+      "type": "Date",
+      "populated": 1,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OriginatingSystemListingKey",
+      "type": "String",
+      "populated": 1,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OriginatingSystemName",
+      "type": "String",
+      "populated": 1,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OriginatingSystemSubName",
+      "type": "String",
+      "populated": 1,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "Permission",
+      "type": "ListingPermission",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "PropertySubType",
+      "type": "PropertySubType",
+      "populated": 1,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "PropertySubTypeAdditional",
+      "type": "PropertySubTypeAdditional",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "PropertyType",
+      "type": "PropertyType",
+      "populated": 1,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "RecordSignature",
+      "type": "Int32",
+      "populated": 1,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "SourceSystemID",
+      "type": "String",
+      "populated": 1,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "StandardStatus",
+      "type": "StandardStatus",
+      "populated": 1,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "SyndicateTo",
+      "type": "SyndicateTo",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeActualRent",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeActualRentRange",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeArea",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeAreaSource",
+      "type": "AreaSource",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeAreaUnits",
+      "type": "AreaUnits",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeBathsTotal",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeBedsTotal",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeDeposit",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeDescription",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "UnitTypeFireplaceYN",
+      "type": "Boolean",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeFurnished",
+      "type": "Furnished",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeGarageAttachedYN",
+      "type": "Boolean",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeGarageSpaces",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeKey",
+      "type": "String",
+      "populated": 1,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "UnitTypeKeyNumeric",
+      "type": "Int64",
+      "populated": 1,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "UnitTypeLeasedYN",
+      "type": "Boolean",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeLeaseExpires",
+      "type": "DateTimeOffset",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "UnitTypeMonthToMonthYN",
+      "type": "Boolean",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeNumFullBaths",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeNumHalfBaths",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeOccupantType",
+      "type": "UnitTypeOccupantType",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypePetDeposit",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypePetDepositPerPetYN",
+      "type": "Boolean",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeProForma",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeTotalRent",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeType",
+      "type": "UnitTypeType",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeUnitNum",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeUnitsTotal",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    }
+  ]
+}

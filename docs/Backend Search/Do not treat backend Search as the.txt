@@ -1,0 +1,552 @@
+Do not treat backend Search as the only consumer.
+
+The Cotality mapping audit must trace every relevant provider field/resource through **all Mallan sales and rental surfaces**.
+
+## REQUIRED CONSUMER GRAPH
+
+For every Cotality field, navigation resource, CustomProperty field/key, status/event field, vocabulary, media field and relationship, trace whether it is used correctly by:
+
+### 1. SALE SEARCH
+
+* backend agent Sale Search
+* Sale Search filters
+* advanced filters
+* building/amenity filters
+* status/lifecycle filters
+* map/geography
+* transportation/proximity
+* agent/office filters
+* media/tour/video/3D filters
+* financial/investment filters
+* sorting
+* pagination
+* results
+* result cards
+* detail expansion
+* saved searches
+* alerts
+* reports generated from Sale Search
+
+### 2. RENTAL SEARCH
+
+Do NOT assume Rental Search has the same field semantics as Sale Search.
+
+Trace separately:
+
+* backend agent Rental Search
+* rental status/lifecycle
+* asking rent
+* lease terms
+* availability
+* furnished/unfurnished
+* pets
+* deposits
+* move-in costs
+* ongoing fees
+* concessions
+* rent includes
+* tenant pays
+* landlord/association requirements
+* building amenities
+* laundry
+* doorman/security
+* parking
+* outdoor space
+* transportation
+* rooms
+* media
+* video/tours/3D
+* open houses/showings
+* agent/office
+* map
+* sorting
+* pagination
+* results
+* saved searches
+* alerts
+* rental reports
+
+### 3. SALE FORM
+
+Canonical input/edit form:
+`public/crm/SALE-FORM-REDESIGN.html`
+
+Prove:
+Cotality/Mallan field meaning
+→ form control
+→ validation
+→ API payload
+→ Mallan persistence
+→ reload
+→ edit
+→ save
+→ reload
+
+Do not merely verify that a label/control exists.
+
+Every editable Mallan-authored sale field must prove:
+**create → save → reload → edit → save → reload**
+
+Third-party Cotality values remain read-only.
+
+### 4. SALE TOOLS
+
+Include the entire sale-agent tool surface, not merely the form.
+
+Audit:
+
+* property/listing detail tools
+* pricing tools
+* seller tools
+* showing/open-house tools
+* financial calculations
+* estimated proceeds/net sheet
+* commission calculations
+* financing/mortgage calculations
+* investment calculations
+* comp selection
+* report generation
+* marketing actions
+* client sharing
+* documents
+* notes/activity where listing fields are surfaced
+* listing status/actions
+* media management
+* syndication/publication controls
+* compliance/display controls
+
+Also inspect:
+`public/crm/SALE-FORM-WITH-TOOLS.html`
+
+Determine exactly which fields it reads and whether it uses the canonical saved Sale listing rather than maintaining another mapping.
+
+### 5. RENTAL FORM
+
+Canonical input/edit form:
+`public/crm/RENTAL-FORM-REDESIGN.html`
+
+Same persistence proof:
+**create → save → reload → edit → save → reload**
+
+Rental-specific fields must not be forced through sale semantics.
+
+### 6. RENTAL TOOLS
+
+Audit separately:
+
+* landlord tools
+* rental pricing
+* lease terms
+* rent calculations
+* concessions
+* deposits
+* application requirements
+* move-in costs
+* recurring fees
+* furnished status
+* pet rules/deposits
+* lease start/end
+* availability
+* current tenant / occupied state where permitted
+* showing scheduling
+* open house/by appointment
+* listing reports
+* client sharing
+* documents
+* media
+* publication
+* compliance
+
+Also inspect:
+`public/crm/RENTAL-FORM-WITH-TOOLS.html`
+
+It is a viewer/agent-tools surface, not a duplicate canonical entry form.
+
+### 7. CMA
+
+CMA must reuse the corrected canonical Search foundation.
+
+Audit:
+
+* subject listing
+* comp search
+* comp filters
+* closed/sold records
+* pending/in-contract records
+* active competition
+* withdrawn/off-market where appropriate
+* pricing
+* concessions
+* days on market
+* contract dates
+* close dates
+* building features
+* amenities
+* rooms
+* unit types
+* media
+* agent/office attribution
+* financial calculations
+* adjustments
+* report output
+
+There must NOT be a second CMA-specific provider mapping that disagrees with Search.
+
+### 8. STATUS / TRANSACTION LIFECYCLE
+
+Do not reduce the lifecycle to Active / Sold / Contract.
+
+Trace all exact provider facts including at least:
+
+* StandardStatus
+* MlsStatus where delivered
+* MajorChangeType
+* MajorChangeTimestamp
+* ListingContractDate
+* PurchaseContractDate
+* ContractStatusChangeDate
+* PendingTimestamp
+* ContingentDate
+* OffMarketDate
+* OffMarketTimestamp
+* BackOnMarketDate
+* BackOnMarketTimestamp
+* StatusChangeTimestamp
+* CloseDate
+* EstimatedCloseDate
+* CancellationDate
+* WithdrawnDate
+* ExpirationDate
+* StartShowingDate
+* OnMarketDate
+* OnMarketTimestamp
+
+Do a real-row combination census.
+
+Do not invent a Mallan status label until the actual Cotality combination behind it is proven.
+
+For example, determine from real rows what Cotality means when Mallan should display:
+
+* Active
+* Coming Soon
+* In Contract
+* Pending
+* Back on Market
+* Temporarily Off Market / Hold
+* Withdrawn
+* Canceled
+* Expired
+* Closed/Sold
+* Closed/Rented
+
+Sale and Rental interpretation must be tested independently.
+
+### 9. MEDIA / TOUR / VIDEO / 3D
+
+Trace all media consumers across:
+Sale Search
+Rental Search
+Sale Form
+Rental Form
+Sale Tools
+Rental Tools
+CMA
+reports
+workspace
+marketing/publication
+
+Preserve:
+
+* Media resource
+* all provider media categories
+* MediaURL
+* OriginalMediaUrl
+* MediaHTML
+* ordering
+* preferred photo
+* permissions
+* dimensions
+* all SIX Property VirtualTourURL carriers:
+
+  * VirtualTourURLUnbranded
+  * VirtualTourURLUnbranded2
+  * VirtualTourURLUnbranded3
+  * VirtualTourURLBranded
+  * VirtualTourURLBranded2
+  * VirtualTourURLBranded3
+* VideosCount
+* VideosChangeTimestamp
+* PhotosCount
+* PhotosChangeTimestamp
+* FloorPlansCount
+* FloorPlansChangeTimestamp
+* DocumentsCount
+* DocumentsChangeTimestamp
+
+Do not infer `has_video`, `has_virtual_tour`, or `has_3d` without preserving the underlying Cotality evidence and provenance.
+
+### 10. SUBSECTIONS / NAVIGATION GRAPH
+
+All 14 Property navigations must be checked:
+
+* Media
+* OpenHouse
+* BuyerAgent
+* CoBuyerAgent
+* CoListAgent
+* ListAgent
+* BuyerOffice
+* CoBuyerOffice
+* CoListOffice
+* ListOffice
+* CustomProperty
+* Rooms
+* UnitTypes
+* Building
+
+Availability must be measured by ACCESS PATH, not just scalar-field population.
+
+Example already proven:
+Closed listings can return BuyerAgent/BuyerOffice navigation records even when equivalent Property scalar values are suppressed.
+
+Therefore record separately:
+
+* scalar declared
+* scalar selectable
+* scalar populated
+* navigation declared
+* navigation query accepted
+* 200 empty
+* 200 populated
+* direct target-resource access
+* status/context tested
+* key linkage
+
+Do not label a resource unavailable merely because direct entity-set access returns 403 if navigation access works.
+
+### 11. BUILDING / AMENITIES
+
+Do not search only `Building`.
+
+Building amenities are distributed across Property fields such as:
+
+* BuildingFeatures
+* AssociationAmenities
+* CommunityFeatures
+* SecurityFeatures
+* LaundryFeatures
+* ParkingFeatures
+* PoolFeatures
+* SpaFeatures
+* AccessibilityFeatures
+* PetsAllowed
+* ExteriorFeatures
+* InteriorFeatures
+* PatioAndPorchFeatures
+* other verified amenity-bearing fields
+
+The agent frontend must expose coherent brokerage categories while retaining the exact Cotality source field and LookupValue underneath.
+
+### 12. TRANSPORTATION / LOCATION
+
+Audit both Sale and Rental Search and reports for:
+
+* Latitude
+* Longitude
+* WalkScore
+* DistanceToBus
+* DistanceToFreeway
+* DistanceToSchoolBus
+* DistanceToSchools
+* DistanceToShopping
+* DistanceToStreet
+* DistanceToPlaceofWorship
+* infrastructure-distance fields where relevant
+* exact address/geography hierarchy
+* map behavior
+
+Do not call map/transportation complete because coordinates are present.
+
+### 13. CUSTOMPROPERTY / CUSTOMFIELDS
+
+Do not discard the NYC-specific data layer.
+
+Trace:
+`CustomProperty`
+→ 142 structured fields
+→ `CustomFields` JSON
+→ observed key census
+→ type/value semantics
+→ storage
+→ appropriate Search/form/tools/CMA consumers
+
+No field should disappear simply because it is not in base Property.
+
+### 14. MEMBER / OFFICE
+
+Audit full related-resource use for:
+
+* ListAgent
+* CoListAgent
+* BuyerAgent
+* CoBuyerAgent
+* ListOffice
+* CoListOffice
+* BuyerOffice
+* CoBuyerOffice
+
+Sale Search, Rental Search, forms, tools, CMA and reports must not rely only on flattened names when richer Member/Office relationships are available.
+
+## USE THE IDX PLUS EXCEL AS A CROSS-CHECK
+
+Use the supplied IDX Plus workbook to identify the provider-facing field/resource organization and to discover fields that the current code/UI may have omitted.
+
+Do NOT make the spreadsheet a new authority.
+
+Authority remains:
+**live Cotality contract → Field → LookupName → Lookup**
+
+Use the Excel as:
+
+* a field-discovery aid;
+* a resource/subsection organization aid;
+* a cross-check against current frontend labels and controls;
+* a way to identify fields that exist in the provider contract but never surface in Mallan.
+
+For every Excel field, classify:
+
+* exact Cotality match;
+* renamed provider field;
+* unavailable under subscription;
+* current value population;
+* Mallan mapped;
+* Mallan persisted;
+* Sale Search exposed;
+* Rental Search exposed;
+* Sale Form exposed;
+* Rental Form exposed;
+* Sale Tools consumed;
+* Rental Tools consumed;
+* CMA consumed;
+* report/workspace consumed;
+* public/private/compliance relevance.
+
+## REQUIRED COVERAGE MATRIX
+
+One provider field can feed MANY Mallan consumers.
+
+Do NOT force one field into exactly one domain.
+
+Required columns:
+
+### Provider truth
+
+* resource
+* navigation/path
+* exact field/key
+* type
+* LookupName
+* LookupValue members
+* declared
+* selectable
+* filterable
+* sortable if applicable
+* navigation accessible
+* direct-resource accessible
+* current observed population
+* suppression evidence
+* observed values
+
+### Mallan truth
+
+* raw fetch/select
+* mapper
+* raw_data preservation
+* structured persistence
+* reload correctness
+* Search projection
+* Sale Search
+* Rental Search
+* Sale Form
+* Rental Form
+* Sale Tools
+* Rental Tools
+* CMA
+* Saved Search
+* alerts
+* result DTO
+* cards
+* listing workspace
+* reports
+* marketing
+* portals/private sharing
+* public display
+* compliance
+
+### Proof
+
+* direct positive test
+* direct negative test
+* create/save/reload test where editable
+* integration test
+* downstream test
+* compliance test
+* preview/runtime proof
+* production proof only after authorization
+
+## VERDICTS
+
+Do not give one simplistic verdict such as COMPLETE merely because a mapper contains a field.
+
+Report independently:
+
+* PROVIDER CONTRACT
+* PROVIDER ACCESS
+* MAPPING
+* STORAGE
+* RELOAD
+* SALE SEARCH
+* RENTAL SEARCH
+* SALE FORM
+* RENTAL FORM
+* SALE TOOLS
+* RENTAL TOOLS
+* CMA
+* REPORTING
+* PRIVATE/MEMBER VISIBILITY
+* PUBLIC VISIBILITY
+* COMPLIANCE
+* RUNTIME PROOF
+
+Overall COMPLETE is allowed only when all required downstream consumers for that field/domain are proven.
+
+## DO NOT PATCH YET
+
+Finish the coverage/access matrix first.
+
+Do not:
+
+* create another Search engine;
+* create parallel field authorities;
+* add schema;
+* push current local audit commits;
+* fix fields one by one;
+* remove difficult criteria;
+* treat zero current values as unsupported contract;
+* infer unavailability from null Property scalars;
+* conflate Sale and Rental semantics.
+
+The objective is to determine once, comprehensively:
+
+**COTALITY RAW CONTRACT
+→ VERIFIED MAPPING
+→ MALLAN STORAGE
+→ SALE/RENTAL BUSINESS RULES
+→ SEARCH
+→ FORMS
+→ SALES TOOLS
+→ RENTAL TOOLS
+→ CMA
+→ REPORTS/PORTALS/PUBLIC/CRM**
+
+Then corrections can be performed by complete business domain rather than another endless field-by-field patch cycle.

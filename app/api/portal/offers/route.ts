@@ -11,6 +11,7 @@ import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
 import { isListingDisplayable } from "@/lib/search/listing-access-decision";
 import { recordPortalEvent } from "@/lib/portal/events";
+import { isComingSoonStatus } from "@/lib/compliance/status";
 
 function formatMoney(value: unknown): string | null {
   const n = typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
@@ -241,6 +242,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: "Listing not available" },
       { status: 403 }
+    );
+  }
+
+  // UCBA D3/D4 — no offers on a Coming Soon listing. Deliberately SEPARATE from the check above:
+  // isListingDisplayable() is the display/distribution axis, and Coming Soon is displayable by design
+  // (lib/compliance/status.ts:133,141 lists COMING_SOON in ACTIVE_DISPLAY_VALUES), so it can never express
+  // this rule. Placed before the ClientListingAction write, the audit event and the portal event.
+  if (isComingSoonStatus(listing.status)) {
+    return NextResponse.json(
+      { error: "Offers are not permitted for Coming Soon listings" },
+      { status: 422 }
     );
   }
 

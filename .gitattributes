@@ -1,1 +1,9 @@
 ﻿* text=auto
+
+# Generated CRM search bundle: pinned to LF.
+# It is assembled by public/crm/build.js, which normalizes every source it reads to LF, so the
+# artifact is identical on Windows, Linux and Vercel. Without this pin a Windows checkout would
+# convert it back to CRLF and tests/runtime/crm-build-drift.test.ts would fail on the next rebuild.
+# `text eol=lf` must be EXPLICIT: `* text=auto` auto-detection saw a lone CR, classified the file
+# as binary and skipped normalization entirely.
+public/crm/index-built.html text eol=lf

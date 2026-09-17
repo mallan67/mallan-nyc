@@ -76,7 +76,7 @@ describe('crm media type/category classification', () => {
   it('category mirrors Cotality MediaCategory: FloorPlan→FloorPlan, Photo→Photo, Video→Video', () => {
     // Cotality $metadata MediaCategory has a dedicated `FloorPlan` member (value 6) —
     // floor plans MUST mirror it, not collapse to `Document` (that is the separate
-    // MediaClassification member). See artifacts/metadata.xml:11276-11357 and the
+    // MediaClassification member). See CotalityEnum_MediaCategory (live contract) and the
     // Trestle sync, which stores raw `FloorPlan` for synced floor plans.
     expect(crmMediaCategory('FloorPlan')).toBe('FloorPlan');
     expect(crmMediaCategory('Photo')).toBe('Photo');

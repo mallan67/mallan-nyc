@@ -20,14 +20,13 @@ import {
   // filter keys
   toCanonicalFilterKey, assertCanonicalFilterKey,
   // saved search
-  serializeCriteria, isValidSavedSearch, savedSearchVersionState, unalertableCriteria, CRITERIA_VERSION,
   // attribution
   resolveAttribution, courtesyLabel, attributionViolation,
   // capability
   isVerified, requiresLiveProbe, isUnsupported,
   // registry
   FIELD_REGISTRY, REQUIRED_FAMILIES, missingFamilies, representedFamilies, getField,
-  assertCapabilityUsable, alertableFilterKeys,
+  assertCapabilityUsable,
   // live truth
   STANDARD_STATUS_MEMBERS, COMMON_INTEREST_MEMBERS, PROPERTY_TYPE_SALE, PROPERTY_TYPE_RENTAL,
   MLS_STATUS_FILTERABLE, DEAD_OR_INVALID_VALUES,
@@ -35,13 +34,14 @@ import {
   RESERVED_DIMENSIONS, isReservedOnly,
   type CanonicalFilterKey,
 } from '../canonical';
+import { savedCriteriaFromExecuted, isSavedSearchCriteria, savedSearchVersionState, resolveStoredCriteria, CRITERIA_VERSION } from '../engine/saved-search';
 import { resolveVisibility, type Audience, type LifecycleStatus } from '../visibility-contract';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const LIVE = require('../../../data/cotality-enums.live.json') as { enums: Record<string, string[]> };
 
 const ALL_STATUSES: LifecycleStatus[] = [
-  'active', 'pending', 'temp_off_market', 'withdrawn', 'canceled', 'expired', 'closed_sold', 'closed_rented', 'unknown',
+  'active', 'in_contract', 'temp_off_market', 'withdrawn', 'canceled', 'expired', 'off_market', 'closed_sold', 'closed_rented', 'unknown',
 ];
 const ALL_SORT_KEYS: SortKey[] = [
   'price_desc', 'price_asc', 'newest', 'largest', 'beds_desc', 'neighborhood', 'new_development', 'exclusives',
@@ -142,32 +142,33 @@ describe('6. all sort keys have a deterministic tie-break', () => {
   });
 });
 
-describe('7. saved-search criteria carries criteria_version', () => {
-  it('serializeCriteria stamps the current version', () => {
-    const c = serializeCriteria({ filters: { price_min: 1000 }, sort: 'price_desc' });
-    expect(c.criteria_version).toBe(CRITERIA_VERSION);
-    expect(isValidSavedSearch(c)).toBe(true);
+describe('7. saved-search criteria carries criteria_version (Packet 2: executor parameters)', () => {
+  it('savedCriteriaFromExecuted stamps the current version and stores only executor parameters', () => {
+    const r = savedCriteriaFromExecuted({ type: 'sale', minPrice: 1000, sort: 'price_desc', limit: 50 });
+    expect(r.ok && r.criteria.criteria_version).toBe(CRITERIA_VERSION);
+    expect(r.ok && isSavedSearchCriteria(r.criteria)).toBe(true);
+    expect(r.ok && r.criteria.params).toEqual({ type: 'sale', minPrice: '1000', sort: 'price_desc' });
   });
-  it('criteria without a version is invalid', () => {
-    expect(isValidSavedSearch({ filters: {}, sort: 'price_desc' })).toBe(false);
-    expect(savedSearchVersionState({ filters: {}, sort: 'price_desc' })).toBe('invalid');
+  it('criteria without a version is legacy — converted only by the proven map, never read as current', () => {
+    expect(isSavedSearchCriteria({ listing_type: 'sale' })).toBe(false);
+    expect(savedSearchVersionState({ listing_type: 'sale' })).toBe('legacy');
+    expect(resolveStoredCriteria({ listing_type: 'sale' }).state).toBe('migrated');
   });
-  it('a STALE version is migration_required, never read as current', () => {
-    const stale = { criteria_version: CRITERIA_VERSION - 1, filters: {}, sort: 'price_desc' };
-    expect(savedSearchVersionState(stale)).toBe('migration_required');
-    expect(isValidSavedSearch(stale)).toBe(false); // must NOT be reinterpreted as current
+  it('a STALE version (the never-persisted v1 draft) is invalid, never reinterpreted', () => {
+    const stale = { criteria_version: 1, filters: { price_min: 1000 }, sort: 'price_desc' };
+    expect(savedSearchVersionState(stale)).toBe('invalid');
+    expect(resolveStoredCriteria(stale).state).toBe('invalid');
   });
-  it('a bogus/unmapped filter key fails loud (invalid), never accepted', () => {
-    const blob = { criteria_version: CRITERIA_VERSION, filters: { totallyBogus: 1 }, sort: 'price_desc' };
-    expect(savedSearchVersionState(blob)).toBe('invalid');
-    expect(isValidSavedSearch(blob)).toBe(false);
+  it('a bogus/unmapped parameter fails loud BY NAME on resolve, never accepted', () => {
+    const blob = { criteria_version: CRITERIA_VERSION, params: { type: 'sale', totallyBogus: '1' } };
+    const r = resolveStoredCriteria(blob);
+    expect(r.state).toBe('invalid');
+    expect(r.state === 'invalid' && r.unsupported).toEqual(['totallyBogus']);
   });
-  it('alert-incompatible criteria are flagged (not silently saved)', () => {
-    const alertable = new Set(alertableFilterKeys());
-    const c = serializeCriteria({ filters: { amenities: ['doorman'], price_min: 1000 }, sort: 'newest' });
-    const bad = unalertableCriteria(c, alertable);
-    expect(bad).toContain('amenities');     // amenities are NOT alert-capable
-    expect(bad).not.toContain('price_min'); // price_min IS alert-capable (list_price alertable → price_min/price_max)
+  it('alert eligibility is executor eligibility: an unexecutable criterion is refused at save, not silently saved', () => {
+    const r = savedCriteriaFromExecuted({ type: 'sale', amenities: 'doorman', minPrice: 1000 });
+    expect(r.ok).toBe(false);
+    expect(!r.ok && r.refusal.unsupported).toEqual(['amenities']);
   });
 });
 
@@ -195,7 +196,7 @@ describe('9. public visibility does not suppress private intelligence', () => {
     }
   });
   it('agent retains the full closed/off-market lifecycle that public blocks', () => {
-    for (const s of ['closed_sold', 'closed_rented', 'withdrawn', 'expired', 'canceled', 'temp_off_market'] as LifecycleStatus[]) {
+    for (const s of ['closed_sold', 'closed_rented', 'withdrawn', 'expired', 'canceled', 'temp_off_market', 'off_market'] as LifecycleStatus[]) {
       expect(resolveVisibility({ audience: 'agent', status: s, source: 'mls', transactionType: 'sale', usage: 'comp' }).allowed).toBe(true);
     }
   });
@@ -282,9 +283,15 @@ describe('live-authority binding: constants ⊆ data/cotality-enums.live.json', 
     expect(livePT.has(PROPERTY_TYPE_RENTAL)).toBe(true);
     expect(MLS_STATUS_FILTERABLE).toBe(false);
   });
-  it('Permission / ListingPermission have NO OwnerOptOut member (owner-opt-out fails closed)', () => {
+  it('Permission has NO OwnerOptOut member on ANY resource that publishes it (owner-opt-out fails closed)', () => {
+    // Keyed by FIELD, per RESOURCE — never by $metadata EnumType name. 'ListingPermission' is the TYPE
+    // Property.Permission is declared with; it is not a field and publishes no vocabulary of its own.
+    // Live 2026-09-06: Property.Permission = 18 values, Media.Permission = 7 (different casing), and
+    // neither contains OwnerOptOut. The EnumType named 'Permission' declares 20 and is not the authority.
     expect(LIVE.enums.Permission).not.toContain('OwnerOptOut');
-    expect(LIVE.enums.ListingPermission).not.toContain('OwnerOptOut');
+    expect(LIVE.resources.Media.Permission).not.toContain('OwnerOptOut');
+    expect(LIVE.enums.ListingPermission).toBeUndefined();
+    expect(LIVE.types.Property.Permission.enumType).toBe('ListingPermission');
     const guard = DEAD_OR_INVALID_VALUES.find((d) => d.value === 'OwnerOptOut');
     expect(guard?.keepAsFailClosedGuard).toBe(true);
   });

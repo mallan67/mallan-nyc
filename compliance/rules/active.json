@@ -1,48 +1,42 @@
 {
   "_meta": {
-    "description": "Single pointer to all enforced compliance rule files. Every script reads this file first — no guessing, no snapshots.",
-    "version": "1.0.0",
-    "updated": "2026-02-25",
+    "description": "Single pointer to the enforced compliance rule files. Provider facts (field existence, types, vocabularies, permissions) come ONLY from the live Cotality contract; this manifest lists REBNY / UCBA / Mallan rule files and Mallan UI configuration — never a field or picklist catalogue.",
+    "version": "2.0.0",
+    "updated": "2026-09-08",
     "brokerage": "Mallan Real Estate Inc.",
     "license": "#10991205323",
-    "feed": "REBNY RLS via Trestle (Cotality)",
-    "lmp": "RealPlus (listing input to RLS)",
-    "idx_display": "Trestle IDX Plus WebAPI (Trestle-11371-20) — read-only on mallan.nyc",
-    "fieldAuthorityOrder": [
-      "1. UCBA governs everything",
-      "2. REBNY RLS rules + RLS fields",
-      "3. RLS overrides RESO/IDX",
-      "4. RESO/IDX fills gaps",
-      "5. INTERNAL-ONLY otherwise",
-      "6. Fail closed = NON-DISPLAY"
+    "feed": "Cotality (Trestle) IDX Plus Web API — api.cotality.com/trestle (Trestle-11371-20), read-only on mallan.nyc",
+    "submission": "REBNY RLS submission happens outside this system",
+    "authority": [
+      "COTALITY LIVE CONTRACT (lib/cotality/live-contract.ts, lib/cotality/generated/contract.ts, data/cotality-contract/**) -> provider facts: field existence, enum members",
+      "REBNY / UCBA (lib/compliance/rebny-ucba-rules.ts) -> compliance and business rules",
+      "MALLAN (lib/listings/mallan-form-contract.ts, lib/listings/mallan-status.ts) -> form, workflow, storage",
+      "RESO = vocabulary only",
+      "Fail closed = NON-DISPLAY"
     ]
   },
   "enforcedRules": {
-    "rlsRequired": "compliance/rules/rls-required.json",
     "exportPolicy": "compliance/rules/export-policy.json",
-    "resoRlsRenames": "compliance/rules/reso-rls-renames.json",
     "statusRules": "compliance/rules/status-rules.json",
-    "contentRestrictions": "compliance/rules/content-restrictions.json"
+    "contentRestrictions": "compliance/rules/content-restrictions.json",
+    "operationalActions": "compliance/rules/operational-actions.json",
+    "workflowMap": "compliance/rules/workflow-map.json"
   },
-  "fieldData": {
-    "allFields": "compliance/fields.json",
-    "lookups": "compliance/lookups.json",
-    "formBindings": "data/rls-form-bindings.json",
-    "fieldAliases": "data/rls-field-aliases.json",
-    "internalOnly": "data/rls-internal-only.json"
+  "formControlConfig": {
+    "note": "Mallan UI configuration read by the form validators — form-control classification only, never a field authority",
+    "controlAliases": "data/mallan-form-control-aliases.json",
+    "uiOnlyControlIds": "data/mallan-form-ui-only-ids.json"
   },
   "validator": {
     "script": "scripts/validate-rls-compliance.js",
-    "bindings": "scripts/audit-form-fields.js",
-    "injector": "scripts/inject-rls-attributes.js",
-    "tests": "scripts/test-rls-bindings.js",
     "run": "npm run rls:validate",
+    "ciCrossCheck": "npm run validate:form-rls",
     "testRun": "npm run test:rls"
   },
   "ucbaAudit": {
     "checklist": "compliance/rules/ucba-audit-checklist.json",
     "validator": "scripts/ucba-compliance-audit.js",
     "run": "node scripts/ucba-compliance-audit.js",
-    "description": "UCBA 2026 full compliance audit — 145 rules, regression detection, pattern verification"
+    "description": "UCBA 2026 compliance audit — 46 checklist rules, regression detection, pattern verification"
   }
 }

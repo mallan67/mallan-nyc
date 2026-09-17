@@ -1,7 +1,7 @@
 import {
   shouldResetDom,
   computeDomTransition,
-  isDomSuppressedByPermissions,
+  isDomSuppressedByVisibility,
   DOM_RESET_DAYS,
 } from "../dom-tracker";
 
@@ -114,7 +114,7 @@ describe("computeDomTransition", () => {
     expect(result.first_active_date).toEqual(firstActive);
   });
 
-  it("freezes DOM on Sold", () => {
+  it("resets DOM on Sold, retaining exposure in cumulative", () => {
     const result = computeDomTransition(
       {
         status: "Active",
@@ -124,12 +124,14 @@ describe("computeDomTransition", () => {
       },
       "Sold"
     );
-    // Should be 15 + 5 days elapsed = 20
-    expect(result.days_on_market).toBe(20);
+    // UCBA 2026 Art. I Sec. 11: DOM resets to zero on sold/rented (closed).
+    // This assertion previously required a FREEZE at 20, which inverted the
+    // rule. Accrued exposure (15 stored + 5 elapsed = 20) moves to cumulative.
+    expect(result.days_on_market).toBe(0);
     expect(result.cumulative_days_on_market).toBe(20);
   });
 
-  it("freezes DOM on Rented", () => {
+  it("resets DOM on Rented, retaining exposure in cumulative", () => {
     const result = computeDomTransition(
       {
         status: "ActiveUnderContract",
@@ -139,7 +141,8 @@ describe("computeDomTransition", () => {
       },
       "Rented"
     );
-    expect(result.days_on_market).toBe(30);
+    // Same UCBA reset rule as Sold. Was asserting a freeze at 30.
+    expect(result.days_on_market).toBe(0);
     expect(result.cumulative_days_on_market).toBe(30);
   });
 
@@ -186,77 +189,76 @@ describe("computeDomTransition", () => {
     expect(result.cumulative_days_on_market).toBe(60);
   });
 
-  // ── UCBA 2026: Participant Only Network — no DOM accrual ──
+  // ── UCBA 2026: participant-only — no DOM accrual ──
 
-  it("does not accrue DOM when Active + Participant Only Network", () => {
+  it("does not accrue DOM when Active + participant-only", () => {
     const result = computeDomTransition(
       {
         status: "Active",
-        permissions: "Participant Only Network",
+        participant_only: true,
         status_changed_at: daysAgo(20),
         first_active_date: daysAgo(20),
         days_on_market: 0,
       },
-      "Active" // staying Active but with suppressing permissions
+      "Active" // staying Active but participant-only
     );
-    // wasAccruing = false (permissions suppress), so currentDom stays 0
+    // wasAccruing = false (participant-only suppresses), so currentDom stays 0
     // effectivelyActivating = false, so treated as non-accruing
     expect(result.days_on_market).toBe(0);
   });
 
-  it("resumes DOM accrual when permissions change from Participant Only to null", () => {
+  it("resumes DOM accrual when participant-only is cleared", () => {
     const result = computeDomTransition(
       {
         status: "Active",
-        permissions: "Participant Only Network",
+        participant_only: true,
         status_changed_at: daysAgo(30),
         first_active_date: daysAgo(30),
         days_on_market: 0,
       },
       "Active",
-      null // permissions cleared — DOM should start accruing
+      false // participant-only cleared — DOM should start accruing
     );
-    // effectivelyActivating = true (new permissions = null), wasAccruing = false
+    // effectivelyActivating = true (participant_only=false), wasAccruing = false
     // DOM resumes at 0 (no elapsed added since wasAccruing was false)
     expect(result.days_on_market).toBe(0);
     expect(result.first_active_date).not.toBeNull();
   });
 
-  it("does not accrue DOM when transitioning to Active with Participant Only permissions", () => {
+  it("does not accrue DOM when transitioning to Active while participant-only", () => {
     const result = computeDomTransition(
       {
         status: "ComingSoon",
-        permissions: null,
+        participant_only: false,
         status_changed_at: daysAgo(14),
         first_active_date: null,
         days_on_market: 0,
       },
       "Active",
-      "Participant Only Network"
+      true
     );
-    // Activating but permissions suppress → non-accruing
+    // Activating but participant-only → non-accruing
     expect(result.days_on_market).toBe(0);
   });
 });
 
-describe("isDomSuppressedByPermissions", () => {
-  it("returns true for Participant Only Network", () => {
-    expect(isDomSuppressedByPermissions("Participant Only Network")).toBe(true);
+describe("isDomSuppressedByVisibility", () => {
+  // Takes the canonical typed `listings.participant_only`. Provider Permission
+  // vocabulary (including the multi-value `IDX,Private` wire form) is tokenized
+  // once in lib/idx/trestle-mapper.ts and never reaches this layer.
+  it("returns true when participant_only is true", () => {
+    expect(isDomSuppressedByVisibility(true)).toBe(true);
   });
 
-  it("returns true for Private", () => {
-    expect(isDomSuppressedByPermissions("Private")).toBe(true);
+  it("returns false when participant_only is false", () => {
+    expect(isDomSuppressedByVisibility(false)).toBe(false);
   });
 
-  it("returns false for null", () => {
-    expect(isDomSuppressedByPermissions(null)).toBe(false);
+  it("returns false for null (fact absent — do not suppress)", () => {
+    expect(isDomSuppressedByVisibility(null)).toBe(false);
   });
 
-  it("returns false for undefined", () => {
-    expect(isDomSuppressedByPermissions(undefined)).toBe(false);
-  });
-
-  it("returns false for standard permissions", () => {
-    expect(isDomSuppressedByPermissions("ExclusiveRightToSell")).toBe(false);
+  it("returns false for undefined (fact absent — do not suppress)", () => {
+    expect(isDomSuppressedByVisibility(undefined)).toBe(false);
   });
 });

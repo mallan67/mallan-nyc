@@ -58,7 +58,7 @@ jest.mock('@/lib/search/listing-search-projection', () => ({
 }));
 jest.mock('@/lib/crm/listing-urls', () => ({
   __esModule: true,
-  buildListingUrls: () => ({ publicUrl: '/listing/x', realPlusUrl: 'https://realplus/x' }),
+  buildListingUrls: () => ({ publicUrl: '/listing/x', rebnyListingUrl: 'https://www.mallan.nyc/listing/x' }),
 }));
 
 // An RLS-eligible (pure residential) listing that already exists on RLS

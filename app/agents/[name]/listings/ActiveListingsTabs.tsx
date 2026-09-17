@@ -8,6 +8,7 @@ import OpenHouseBanner from '@/app/components/OpenHouseBanner';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import type { NextOpenHouse } from '@/lib/open-houses/upcoming-open-houses';
 import { getPrimaryPhoto } from '@/lib/media/listing-media-resolver';
+import { publicListOfficeName } from '@/lib/idx/public-attribution';
 
 interface ListingDTO {
   id: string;
@@ -142,7 +143,7 @@ function ActiveListingCard({ listing, isRental }: { listing: ListingDTO; isRenta
         <p className="text-sm text-brand-dark/60 mt-2 truncate">
           {listing._source === 'exclusive' || /^(SL|RL)-/i.test(listing.id || '')
             ? listing._displayCompliance?.attributionText || 'Exclusive listing by Mallan Real Estate Inc.'
-            : `RLS · Listing Courtesy of ${listing.listOfficeName || 'Mallan Real Estate Inc.'}`}
+            : `RLS · Listing Courtesy of ${publicListOfficeName(listing.listOfficeName)}`}
         </p>
       </div>
     </Link>

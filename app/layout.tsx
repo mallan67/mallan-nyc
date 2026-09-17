@@ -69,12 +69,38 @@ export const metadata: Metadata = {
       'Full-service NYC real estate brokerage specializing in residential sales and rentals across Manhattan and Brooklyn.',
     images: [`${BASE_URL}/images/og-default.png`],
   },
+  // Rich-result directives only. NO blanket index/follow - deliberately.
+  //
+  // This used to assert `index: true, follow: true` at the top level and again
+  // under googleBot. Root metadata is inherited by EVERY render, including
+  // error renders, so the "Agent Not Found" page emitted two contradictory
+  // directives at once:
+  //
+  //     <meta name="robots" content="noindex"/>          <- Next, for status 404
+  //     <meta name="robots" content="index, follow"/>    <- inherited from here
+  //
+  // Crawlers resolve to the most restrictive, so the effective state was safe,
+  // but a page telling a crawler both things is not release truth. It is also
+  // not fixable from the page: when notFound() is thrown, the page's own
+  // generateMetadata result is discarded and the ROOT metadata is what renders
+  // - measured on Next.js 16.2.4, setting robots on the not-found branch of
+  // generateMetadata changed nothing at all.
+  //
+  // Dropping index/follow costs nothing. Absent a robots meta, a page is
+  // indexable and followable by default, so healthy pages behave exactly as
+  // before; they simply stop restating the default. The 404 now emits Next's
+  // single automatic `noindex` and nothing that argues with it.
+  //
+  // The max-* preview directives are real instructions, not defaults, so they
+  // stay. They sit on the `googlebot` meta, which is a different directive
+  // class and does not contradict a noindex.
+  //
+  // VERIFIED (build + serve, Next 16.2.4): a page that sets its own
+  // `robots: { index: false, follow: false }` - the /agents temporarily-
+  // unavailable branches - still emits `noindex, nofollow` intact. Page-level
+  // robots replaces this object rather than merging with it.
   robots: {
-    index: true,
-    follow: true,
     googleBot: {
-      index: true,
-      follow: true,
       'max-video-preview': -1,
       'max-image-preview': 'large',
       'max-snippet': -1,
@@ -246,87 +272,45 @@ const jsonLd = {
       name: 'National Association of Realtors (NAR)',
     },
   ],
-  // Founder / principal broker — links the person to the business
+  // Founder — a REFERENCE to Maya Allan's canonical Agent profile, and nothing
+  // more.
+  //
+  // This block used to publish a complete professional identity on EVERY page
+  // of the site: `jobTitle: 'Licensed Real Estate Broker'`, her individual NY
+  // DOS broker licence #10311201806 as an EducationalOccupationalCredential, a
+  // degree, direct telephone and email, awards, and a knowsAbout expertise
+  // list. All of it hard-coded, none of it derived from the Agent record.
+  //
+  // That made the root layout a SECOND public professional-identity authority,
+  // competing with lib/agents/public-profile-authority.ts. It is the same
+  // defect class as the duplicate designation rule removed from
+  // /api/auth/me: two places asserting what a licensee is, only one of them
+  // governed. A designation or licence that the Agent record no longer supports
+  // is a false statement about a licensee under NY DOS 19 NYCRR 175.25, and a
+  // static payload cannot be corrected by deactivating an agent.
+  //
+  // It was wrong while the database was HEALTHY, not merely during an outage —
+  // but the outage case is the sharpest: /agents, /agents/[name] and
+  // /agents/[name]/listings all correctly refuse to publish a stale identity
+  // when the authority cannot answer, while this kept publishing one from Git
+  // on every other page of the site.
+  //
+  // THE AUTHORITY BOUNDARY
+  //   brokerage-level canonical facts  -> may live here (name, address, the
+  //                                       BROKERAGE licence #10991205323,
+  //                                       REBNY/NAR membership — all above)
+  //   individual professional identity -> the governed Agent profile only
+  //
+  // What remains is a relationship, not a restatement: who founded the
+  // brokerage, and where her canonical profile lives. No jobTitle, no licence,
+  // no credential, no individual contact details, no awards. The full Person
+  // schema belongs on /agents/maya-allan, rendered from the Agent record when
+  // that record is available — and deliberately absent when it is not.
   founder: {
     '@type': 'Person',
     '@id': `${BASE_URL}/#maya-allan`,
     name: 'Maya Allan',
-    jobTitle: 'Licensed Real Estate Broker',
     url: `${BASE_URL}/agents/maya-allan`,
-    telephone: '+1-646-258-4460',
-    email: 'maya@mallan.nyc',
-    image: `${BASE_URL}/images/og-default.png`,
-    worksFor: { '@id': `${BASE_URL}/#organization` },
-    hasCredential: [
-      {
-        '@type': 'EducationalOccupationalCredential',
-        credentialCategory: 'license',
-        name: 'NY Real Estate Broker License',
-        recognizedBy: {
-          '@type': 'Organization',
-          name: 'New York Department of State',
-        },
-        identifier: '10311201806',
-      },
-      {
-        '@type': 'EducationalOccupationalCredential',
-        credentialCategory: 'degree',
-        name: 'Master of Business Administration (MBA)',
-        educationalLevel: 'Graduate',
-      },
-    ],
-    knowsAbout: [
-      'NYC real estate',
-      'luxury residential sales',
-      'Manhattan condos and co-ops',
-      'Battery Park City real estate',
-      'Carnegie Hill real estate',
-      'Chelsea real estate',
-      'East Village real estate',
-      'Financial District real estate',
-      'Flatiron real estate',
-      'Gramercy Park real estate',
-      'Greenwich Village real estate',
-      "Hell's Kitchen real estate",
-      'Kips Bay real estate',
-      'Lenox Hill real estate',
-      'Lower East Side real estate',
-      'Midtown East real estate',
-      'Midtown West real estate',
-      'Morningside Heights real estate',
-      'Murray Hill real estate',
-      'NoHo real estate',
-      'NoMad real estate',
-      'Nolita real estate',
-      'SoHo real estate',
-      'Stuyvesant Town real estate',
-      'Sutton Place real estate',
-      'Tribeca real estate',
-      'Turtle Bay real estate',
-      'Union Square real estate',
-      'Upper East Side real estate',
-      'Upper West Side real estate',
-      'West Village real estate',
-      'Yorkville real estate',
-      'buyer representation',
-      'seller representation',
-      'first-time homebuyers',
-      'relocation services',
-      'new construction',
-      '1031 tax exchange',
-    ],
-    knowsLanguage: ['English', 'Hebrew'],
-    award: [
-      "President's Circle",
-      'Leading Edge Society',
-      "Honor's Society",
-      'Provost Awards',
-    ],
-    sameAs: [
-      'https://www.linkedin.com/in/mayaallan/',
-      'https://www.zillow.com/profile/Maya%20Allan',
-      'https://streeteasy.com/profile/818487-maya-allan',
-    ],
   },
 };
 

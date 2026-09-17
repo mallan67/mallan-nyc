@@ -5,38 +5,55 @@
 
 // ── NYC Tax Tables ──────────────────────────────────────────
 
-var MANSION_TAX_RATES = [
-    { min: 1000000, max: 1999999, rate: 0.01 },
-    { min: 2000000, max: 2999999, rate: 0.0125 },
-    { min: 3000000, max: 4999999, rate: 0.015 },
-    { min: 5000000, max: 9999999, rate: 0.025 },
-    { min: 10000000, max: 14999999, rate: 0.0325 },
-    { min: 15000000, max: 19999999, rate: 0.035 },
-    { min: 20000000, max: 24999999, rate: 0.0375 },
-    { min: 25000000, max: Infinity, rate: 0.039 }
-];
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+// NEW YORK TRANSACTION TAXES — DELEGATED, NOT DUPLICATED
+//
+// This file used to carry its own MANSION_TAX_RATES table and its own transfer-tax rates. On
+// 2026-09-09 the platform held FOUR copies of these tables, with three different sets of defects.
+// This copy is loaded by public/crm/index.html — the Backend Agent Search / Listings application —
+// so its defect shipped, live, to the screen agents price deals on:
+//
+//     { min: 5000000, max: 9999999, rate: 0.025 }        <-- statutory rate is 0.0225
+//
+// A $7,000,000 purchase was quoted $175,000 instead of $157,500 — $17,500 too much, against the
+// buyer. (The deleted SALE-FORM-WITH-TOOLS fork had the opposite bug, missing three bands
+// entirely.) That is what four copies buys you: the same purchase quoted three different numbers
+// depending on which screen the agent opened.
+//
+// The tables now live ONCE, in js/calc/transaction-costs.js, verified band by band and pinned by
+// tests/runtime/crm-calc-one-tax-authority.test.ts. These functions stay as thin adapters so their
+// callers here are untouched.
+//
+// FAIL CLOSED: if the core is not loaded, throw. A silent fallback would be a fifth copy.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+function _calcCore() {
+    if (typeof CrmCalc === 'undefined' || !CrmCalc) {
+        throw new Error('js/output/calculators.js requires js/calc/transaction-costs.js to load first — ' +
+            'New York transaction-tax rates have one home and this file is not it.');
+    }
+    return CrmCalc;
+}
 
 function getMansionTax(price) {
-    if (price < 1000000) return 0;
-    for (var i = 0; i < MANSION_TAX_RATES.length; i++) {
-        if (price >= MANSION_TAX_RATES[i].min && price <= MANSION_TAX_RATES[i].max) {
-            return price * MANSION_TAX_RATES[i].rate;
-        }
-    }
-    return 0;
+    if (!(price >= 1000000)) return 0;
+    return price * _calcCore().mansionTaxBand(price).rate;
 }
 
 function getNYCTransferTax(price) {
-    return price < 500000 ? price * 0.01 : price * 0.01425;
+    return price * _calcCore().rpttRate(price);
 }
 
 function getNYSTransferTax(price) {
-    return price < 3000000 ? price * 0.004 : price * 0.0065;
+    return price * _calcCore().nysTransferRate(price);
 }
 
 function getMortgageRecordingTax(loanAmt, isCoop) {
+    // The exemption is on the INSTRUMENT: an individual co-op purchase is financed by a share loan
+    // perfected through a UCC filing against the shares, not by recording a mortgage against real
+    // property. Callers here pass the co-op flag they already had; the core owns the rates.
     if (isCoop) return 0;
-    return loanAmt < 500000 ? loanAmt * 0.018 : loanAmt * 0.01925;
+    if (!(loanAmt > 0)) return 0;
+    return loanAmt * _calcCore().mortgageRecordingTaxRate(loanAmt);
 }
 
 function monthlyMortgagePayment(principal, annualRate, years) {
@@ -79,9 +96,14 @@ function openCalculatorModal(tab, listingId) {
     if (existing) existing.remove();
 
     var listing = getCalcListing();
-    var price = listing ? (listing.price || 0) : 0;
-    var maintCC = listing ? (listing.maintCC || listing.maintenance || 0) : 0;
-    var taxes = listing ? (listing.taxes || listing.reTaxes || 0) : 0;
+    // INGRESS ONLY. An unavailable listing price used to open the calculator pre-filled with a credible
+    // $0 property price, which an agent then quotes from. An unknown price leaves the field EMPTY so the
+    // agent supplies it; a genuine 0 still populates as 0. No business formula is touched here.
+    var price = listing && listing.price != null ? listing.price : '';
+    var _mcc = listing ? (listing.maintCC != null ? listing.maintCC : listing.maintenance) : null;
+    var maintCC = _mcc != null ? _mcc : '';
+    var _tax = listing ? (listing.taxes != null ? listing.taxes : listing.reTaxes) : null;
+    var taxes = _tax != null ? _tax : '';
     var propType = listing ? (listing.propertyType || listing.subType || '') : '';
     var isCoop = propType.toLowerCase().indexOf('co-op') !== -1 || propType.toLowerCase().indexOf('coop') !== -1;
 
@@ -271,9 +293,25 @@ function calcClosing() {
 
     if (_closingRole === 'buyer') {
         document.getElementById('closingResultsTitle').textContent = 'Buyer Closing Costs';
-        // Mansion Tax
+        // Mansion Tax - band and label from the ONE statutory authority.
+        //
+        // This line used to look the rate up in a local MANSION_TAX_RATES table. The 2026-09-09
+        // consolidation deleted that table and converted the AMOUNT call just above to CrmCalc, but not
+        // this LABEL lookup - so the dereference survived against a symbol that no longer existed. It is
+        // reached only when mansion > 0, i.e. at or above $1,000,000, and nothing try/catches calcClosing;
+        // recalcCurrentTab runs detached, so the ReferenceError went to the console and the agent was left
+        // looking at the pre-seeded 'TOTAL CLOSING COSTS $0' on a seven-figure purchase. Proven end to end
+        // on the shipped artifact: $900k calculated normally, $1.25M / $7M condo and co-op all produced $0
+        // with no line items.
+        //
+        // The band is not re-created here. CrmCalc.mansionTaxBand() already returns { min, rate, label }
+        // and the core builds this same label from it (transaction-costs.js:175-176), so the label now
+        // comes from the same place as the amount. No percentage is restated in this file.
         var mansion = getMansionTax(price);
-        if (mansion > 0) items.push(['Mansion Tax (' + (MANSION_TAX_RATES.find(function(r){ return price >= r.min && price <= r.max; }) || {rate:0}).rate * 100 + '%)', mansion]);
+        if (mansion > 0) {
+            var mansionBand = _calcCore().mansionTaxBand(price);
+            items.push(['Mansion Tax (' + mansionBand.label + ')', mansion]);
+        }
         // Title Insurance (not for co-ops)
         if (!isCoop) items.push(['Title Insurance', Math.round(price * 0.004) > 2000 ? Math.round(price * 0.004) : 3500]);
         // Attorney

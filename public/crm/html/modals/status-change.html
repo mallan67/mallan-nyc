@@ -6,7 +6,14 @@
             <button onclick="document.getElementById('manageStatusModal').style.display='none'" class="text-gray-400 hover:text-gray-600" aria-label="Close"><i class="fas fa-times"></i></button>
         </div>
         <p id="manageStatusAddress" class="text-sm text-gray-500 mb-4"></p>
+        <!--
+          The choices are populated by manage-listings.js from GET /api/crm/status-options for THIS listing's
+          transaction (owner ruling, Maya 2026-09-08): a sale is offered only sale words and a rental only rental
+          words. Each button carries data-workflow-word plus the live Cotality StandardStatus token it resolves
+          to (data-status-token) - never a provider status FIELD name, and never one shared list.
+        -->
         <div id="manageStatusOptions" class="flex flex-col gap-2"></div>
+        <p class="text-[11px] text-gray-400 mt-3">Choosing a status asks for the date (and closing price) it carries.</p>
     </div>
 </div>
 

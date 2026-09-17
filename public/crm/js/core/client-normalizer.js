@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 // CLIENT NORMALIZER — Single canonical client model transform
-// Used by: dashboard (panels.js, workspace.js) AND search (client-database.js)
+// Used by: dashboard (panels.js, workspace.js) AND search (core/data-loader.js)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 var ClientNormalizer = (function () {

@@ -1,0 +1,1409 @@
+{
+  "generated": "2026-09-08",
+  "method": "read-only census of every agent/office attribution consumer (3 groups) + independent refutation of every cannot-receive claim; workflow wf_d916f2b2-d81 (28 agents, 606 tool calls)",
+  "providerFacts": {
+    "buyerSideScalars": "suppressed except BuyerAgentMlsId 100,112 / BuyerOfficeMlsId 100,463; CoBuyerAgentMlsId 3,168 / CoBuyerOfficeMlsId 3,173",
+    "listSide": "populated (ListAgentFullName / ListOfficeName 591,607)",
+    "coList2and3": "CoListAgent2* ~51k, CoListOffice2* 50,994, CoListAgent3* ~8k populated scalars; CoListAgent navigation returns only the first",
+    "navigations": "BuyerAgent→Member 80,460 / BuyerOffice→Office 99,256 payloads, Closed only; ListAgent 431,008; ListOffice 522,739",
+    "production": "34 third-party (RLS) rows carry a Mallan agent_id: 33 Mallan-list-office return copies + 1 buyer-side stamp, all Closed, idx_display_yn=false"
+  },
+  "groups": [
+    {
+      "summary": "WRITE-SIDE CENSUS — lib/idx/trestle-mapper.ts, lib/idx/sync.ts, lib/idx/fetch.ts, lib/compliance/raw-data-keep-fields.ts.\n\nONE agent_info construction site: trestle-mapper.ts:1133-1138 spreads pick(raw, B8|B9|B10|B11). pick() (483-495) drops both undefined and null, so agent_info only carries keys the provider returned non-null.\n\nNAVIGATIONS — CENSUS CONFIRMED, NOT REFUTED. fetch.ts:116-154 is the only URL builder; expandParts (131) can take exactly two values, `Media(...)` under options.expandMedia===true and the bare `\"CustomProperty\"` under options.expandCustomProperty===true. Repo-wide, $expand appears in lib/ only in fetch.ts, lib/buildings/public-building-data.ts (MEDIA_EXPAND), and the cotality contract type files. There is no `BuyerAgent(`, `BuyerOffice(`, `ListAgent(`, `ListOffice(`, or `CoListAgent(` expand anywhere, and endpoint grep over lib/idx + lib/cotality yields only /odata/Property and /odata/Media — no /odata/Member, no /odata/Office. Member/Office are never pulled at runtime. (lib/idx/idx-sync-member.ts is a cron \"one-cycle member\", not the Trestle Member resource.)\n\nBUYER / CO-BUYER KEYS THE MAPPER WRITES THAT CAN ONLY EVER BE NULL — 26 of 30. B10 (18 keys, lines 170-178): all null-only except BuyerAgentMlsId (100,112) and BuyerOfficeMlsId (100,463) → BuyerAgentKey, BuyerAgentFirstName, BuyerAgentLastName, BuyerAgentFullName, BuyerAgentEmail, BuyerAgentDirectPhone, BuyerAgentURL, BuyerOfficeKey, BuyerOfficeName, BuyerOfficePhone, BuyerOfficeURL, BuyerTeamMlsId, BuyerTeamKey, BuyerTeamName, BuyerAgentOfficePhone, BuyerOfficeEmail. B11 (12 keys, lines 181-188): all null-only except CoBuyerAgentMlsId (3,168) and CoBuyerOfficeMlsId (3,173) → CoBuyerAgentKey, CoBuyerAgentFirstName, CoBuyerAgentLastName, CoBuyerAgentFullName, CoBuyerAgentEmail, CoBuyerAgentDirectPhone, CoBuyerAgentURL, CoBuyerOfficeKey, CoBuyerOfficeName, CoBuyerOfficePhone. Independently corroborated inside the repo: lib/cotality/generated/contract.ts marks every one of those 26 `filterable: false, populated: null` (BuyerTeamKey/BuyerTeamMlsId are measured populated=0). BuyerTeamMlsId is dead twice — it is also in LIVE_FIELDS_NOT_SELECTED (395-398) so it never goes on the wire.\n\nAND THE 4 REACHABLE ONES ARE DISCARDED ANYWAY. Phase C: sync.ts:838 and sync.ts:2418 destructure agent_info out of the CREATE spread, and sync.ts:902 / 2484 write only `typedAgentColumnsFromJson(mapped.agent_info)`. prisma/schema.prisma:480-485 confirms agent_info was removed from the Prisma model entirely. The 8 typed columns (agent-info-typed-columns.ts:45-60) are exclusively list-side + first-co-list-side. So B10 and B11 — 30 requested field names — contribute nothing to any DB column; their only real function is the $filter in fetch.ts:533/559.\n\nCoListAgent2*/CoListAgent3*/CoListOffice2* — SELECTED, NEVER STORED. trestle-mapper.ts:162-165 selects 8 keys (CoListAgent2/3 Key, FirstName, LastName, FullName), genuinely populated (2* ≈ 50,995; 3* ≈ 7,993). Nothing stores them: no typed column, agent_info is dropped, and RAW_DATA_KEEP_SET has no CoListAgent2/3 entry. CoListOffice2Key/MlsId/Name (50,994 each) and CoListAgent2MlsId (51,234) / CoListAgent3MlsId (7,994) are not selected at all. Pure wire cost.\n\nOTHER NULL-ONLY LIST-SIDE KEYS IN THE SELECT: ListAgentOfficePhone (populated=0), ListTeamKey (0), ListTeamName (0), CoListAgentURL (filterable=false, populated=null).\n\nBUG FOUND — 3 DEAD raw_data KEEP-LIST ENTRIES. trestle-mapper.ts:1241 composes `slimRawData(stripPrivateFields(rawInput))`; stripPrivateFields runs first and removes ListAgentMlsId, ListAgentEmail, ListAgentDirectPhone (PRIVATE_FIELDS 459-460), so slimRawData's whitelist can never see them — yet all three sit in RAW_DATA_KEEP_SET (raw-data-keep-fields.ts:172, 175, 176) with a comment claiming the retention cron carries them into listings_archive. They are richly populated upstream (591,197 / 591,607 / 580,228) but unreachable on the Trestle path. The agent keys that DO reach raw_data are exactly 7: ListAgentKey, ListAgentFullName, ListOfficeName, ListOfficeKey, ListOfficeMlsId, CoListAgentFullName, CoListOfficeName.",
+      "consumers": [
+        {
+          "surface": "sync",
+          "file": "lib/idx/trestle-mapper.ts",
+          "lines": "1133-1138",
+          "side": "list",
+          "fieldsRead": [
+            "B8_LIST_AGENT",
+            "B9_COLIST_AGENT",
+            "B10_BUYER_AGENT",
+            "B11_COBUYER_AGENT"
+          ],
+          "storage": "agent_info JSON",
+          "canReceiveValue": true,
+          "evidence": "const agentInfo = { ...pick(raw,B8_LIST_AGENT), ...pick(raw,B9_COLIST_AGENT), ...pick(raw,B10_BUYER_AGENT), ...pick(raw,B11_COBUYER_AGENT) }. pick() (lines 483-495) drops undefined AND null, so agent_info only ever carries keys the provider actually returned non-null.",
+          "notes": "THE ONLY agent_info construction site in the mapper. Everything below is a per-group breakdown of this one object."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/idx/trestle-mapper.ts",
+          "lines": "146-153",
+          "side": "list",
+          "fieldsRead": [
+            "ListAgentMlsId",
+            "ListAgentKey",
+            "ListAgentFirstName",
+            "ListAgentLastName",
+            "ListAgentFullName",
+            "ListAgentEmail",
+            "ListAgentDirectPhone",
+            "ListAgentURL",
+            "ListOfficeMlsId",
+            "ListOfficeKey",
+            "ListOfficeName",
+            "ListOfficePhone",
+            "ListOfficeURL",
+            "ListOfficeEmail",
+            "ListTeamKey",
+            "ListTeamName"
+          ],
+          "storage": "agent_info JSON",
+          "canReceiveValue": true,
+          "evidence": "B8_LIST_AGENT = cotalityFields('Property',[...]) at 146-153. Provider counts from the repo's own measured contract (lib/cotality/generated/contract.ts:4785-4795, 4824-4827): ListAgentFullName 591,607 / ListAgentEmail 591,607 / ListAgentDirectPhone 580,228 / ListAgentMlsId 591,197 / ListAgentKey 587,315 (line 4791) / ListOfficeMlsId 591,649 / ListOfficeKey 591,649 / ListOfficeName 591,607 / ListOfficePhone 591,538 / ListOfficeURL 585,251 / ListOfficeEmail 52,567 / ListAgentURL 61,122.",
+          "notes": "THREE B8 keys are dead-on-arrival: ListAgentOfficePhone populated=0, ListTeamKey populated=0 (contract.ts:4824), ListTeamName populated=0 (4827). ListTeamMlsId is excluded from the wire by LIVE_FIELDS_NOT_SELECTED (trestle-mapper.ts:395-398) so it is never even requested. The suppressed list-side scalars named in the brief (ListAgentMobilePhone, ListAgentStateLicense) are correctly NOT in B8."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/idx/trestle-mapper.ts",
+          "lines": "156-161",
+          "side": "colist",
+          "fieldsRead": [
+            "CoListAgentMlsId",
+            "CoListAgentKey",
+            "CoListAgentFirstName",
+            "CoListAgentLastName",
+            "CoListAgentFullName",
+            "CoListAgentEmail",
+            "CoListAgentDirectPhone",
+            "CoListOfficeMlsId",
+            "CoListOfficeKey",
+            "CoListOfficeName",
+            "CoListOfficePhone"
+          ],
+          "storage": "agent_info JSON",
+          "canReceiveValue": true,
+          "evidence": "B9_COLIST_AGENT 156-161. Measured contract: CoListAgentMlsId 208,023 / CoListAgentKey 207,401 / CoListAgentFullName 208,274 / CoListAgentEmail 208,274 / CoListAgentDirectPhone 206,739 / CoListOfficeMlsId 207,401 / CoListOfficeKey 207,401 / CoListOfficeName 207,401 / CoListOfficePhone 207,248.",
+          "notes": "ONE exception inside B9: CoListAgentURL (line 159) is filterable=false, populated=null in the generated contract — it can only ever be null, so pick() never emits the key."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/idx/trestle-mapper.ts",
+          "lines": "162-165",
+          "side": "colist2/3",
+          "fieldsRead": [
+            "CoListAgent2Key",
+            "CoListAgent2FirstName",
+            "CoListAgent2LastName",
+            "CoListAgent2FullName",
+            "CoListAgent3Key",
+            "CoListAgent3FirstName",
+            "CoListAgent3LastName",
+            "CoListAgent3FullName"
+          ],
+          "storage": "agent_info JSON",
+          "canReceiveValue": true,
+          "evidence": "B9 lines 162-165 are the ONLY place in the repo (outside the stale .cache/fix/trestle-mapper.working.ts copy) that names CoListAgent2*/CoListAgent3*. Contract: CoListAgent2Key 50,994 / CoListAgent2FullName 50,995 / CoListAgent3Key 7,993 / CoListAgent3FullName 7,993 — all genuinely populated.",
+          "notes": "ANSWER TO 'does anything select or store CoListAgent2/3': SELECTED yes, STORED no. These 8 keys land in the in-memory agent_info and are then discarded — sync.ts drops agent_info entirely (Phase C), typedAgentColumnsFromJson reads only 8 list/colist keys, and RAW_DATA_KEEP_SET contains no CoListAgent2/3 entry. CoListOffice2Key/MlsId/Name (50,994 each, contract.ts:4574-4576) and CoListAgent2MlsId (51,234) / CoListAgent3MlsId (7,994) are NOT selected at all. Net effect: 8 fields of wire cost per row, zero persistence."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/idx/trestle-mapper.ts",
+          "lines": "170-178",
+          "side": "buyer",
+          "fieldsRead": [
+            "BuyerAgentMlsId",
+            "BuyerOfficeMlsId"
+          ],
+          "storage": "agent_info JSON",
+          "canReceiveValue": true,
+          "evidence": "B10_BUYER_AGENT lines 171 and 174. contract.ts:4428 BuyerAgentMlsId filterable=true populated=100112 rlsField=true; contract.ts:4451 BuyerOfficeMlsId filterable=true populated=100463 rlsField=true.",
+          "notes": "These are the ONLY two of B10's 18 keys that can ever appear in agent_info. Both are still discarded at the sync write (see the Phase C rows below), so nothing buyer-side reaches the DB from the mapper."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/idx/trestle-mapper.ts",
+          "lines": "170-178",
+          "side": "buyer",
+          "fieldsRead": [
+            "BuyerAgentKey",
+            "BuyerAgentFirstName",
+            "BuyerAgentLastName",
+            "BuyerAgentFullName",
+            "BuyerAgentEmail",
+            "BuyerAgentDirectPhone",
+            "BuyerAgentURL",
+            "BuyerOfficeKey",
+            "BuyerOfficeName",
+            "BuyerOfficePhone",
+            "BuyerOfficeURL",
+            "BuyerTeamMlsId",
+            "BuyerTeamKey",
+            "BuyerTeamName",
+            "BuyerAgentOfficePhone",
+            "BuyerOfficeEmail"
+          ],
+          "storage": "agent_info JSON",
+          "canReceiveValue": false,
+          "evidence": "Every one of these 16 keys is `filterable: false, populated: null` in lib/cotality/generated/contract.ts (BuyerAgent* block ~4400-4450, BuyerOffice* ~4440-4458, BuyerTeam* 4455-4460) — except BuyerTeamKey and BuyerTeamMlsId which are measured populated=0. pick() at trestle-mapper.ts:490 skips null, so agent_info NEVER carries any of them.",
+          "notes": "NULL-ONLY BUYER KEYS THE MAPPER WRITES — 16 of B10's 18. Extra: BuyerTeamMlsId is ALSO in LIVE_FIELDS_NOT_SELECTED (trestle-mapper.ts:397) so it is stripped from IDX_PLUS_SELECT_FIELDS (line 405) and never even requested — it is dead twice over."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/idx/trestle-mapper.ts",
+          "lines": "181-188",
+          "side": "cobuyer",
+          "fieldsRead": [
+            "CoBuyerAgentMlsId",
+            "CoBuyerOfficeMlsId"
+          ],
+          "storage": "agent_info JSON",
+          "canReceiveValue": true,
+          "evidence": "B11_COBUYER_AGENT lines 182 and 185. contract.ts:4484 CoBuyerAgentMlsId filterable=true populated=3168 rlsField=false; contract.ts:4504 CoBuyerOfficeMlsId filterable=true populated=3173 rlsField=false.",
+          "notes": "Only 2 of B11's 12 keys are reachable. Both are non-RLS fields, and both are still dropped at the sync write."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/idx/trestle-mapper.ts",
+          "lines": "181-188",
+          "side": "cobuyer",
+          "fieldsRead": [
+            "CoBuyerAgentKey",
+            "CoBuyerAgentFirstName",
+            "CoBuyerAgentLastName",
+            "CoBuyerAgentFullName",
+            "CoBuyerAgentEmail",
+            "CoBuyerAgentDirectPhone",
+            "CoBuyerAgentURL",
+            "CoBuyerOfficeKey",
+            "CoBuyerOfficeName",
+            "CoBuyerOfficePhone"
+          ],
+          "storage": "agent_info JSON",
+          "canReceiveValue": false,
+          "evidence": "All 10 are `filterable: false, populated: null` in lib/cotality/generated/contract.ts (CoBuyerAgent*/CoBuyerOffice* block ~4470-4520). pick() drops null, so they never enter agent_info.",
+          "notes": "NULL-ONLY CO-BUYER KEYS THE MAPPER WRITES — 10 of B11's 12."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/idx/trestle-mapper.ts",
+          "lines": "1190-1191",
+          "side": "list",
+          "fieldsRead": [
+            "ListAgentFullName",
+            "ListOfficeName",
+            "ListAgentEmail",
+            "ListAgentDirectPhone",
+            "ListOfficeMlsId",
+            "ListAgentMlsId",
+            "CoListOfficeMlsId",
+            "CoListAgentMlsId"
+          ],
+          "storage": "typed columns (list_agent_* …)",
+          "canReceiveValue": true,
+          "evidence": "typedAgentColumnsFromJson(agentInfo) at 1191, spread into the mapping at 1225. The mapping function is lib/listings/agent-info-typed-columns.ts:45-60 and reads EXACTLY 8 PascalCase keys (plus a lowercase {name,email,phone,company} fallback for the CRM ensure-listing shape).",
+          "notes": "THE FUNNEL. All 8 typed columns are list-side or first-co-list-side. There is NO buyer, co-buyer, office-2, or co-list-2/3 typed column — not in TypedAgentColumns (lines 24-33), not in prisma/schema.prisma:516-523, not in the write-suppression material map (lib/idx/write-suppression.ts:472-479, 591-598)."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/idx/sync.ts",
+          "lines": "834-838, 900-902",
+          "side": "buyer",
+          "fieldsRead": [
+            "agent_info"
+          ],
+          "storage": "typed columns (list_agent_* …)",
+          "canReceiveValue": false,
+          "evidence": "Line 838: `const { agent_info: _agentInfoJson, ...typedOnlyMapped } = mapped;` strips agent_info from the CREATE spread. Line 902 in the UPDATE payload: `...typedAgentColumnsFromJson(mapped.agent_info as Record<string, unknown>)` — only the 8 typed columns. Confirmed by prisma/schema.prisma:480-485: \"agent_info REMOVED from the Prisma schema/client in Phase D step 3 (board #415)\".",
+          "notes": "DECISIVE: the mapper's agent_info JSON is NEVER PERSISTED on the main syncListings path. So even the 4 reachable buyer/co-buyer MlsIds (BuyerAgentMlsId, BuyerOfficeMlsId, CoBuyerAgentMlsId, CoBuyerOfficeMlsId) and the 8 CoListAgent2/3 keys are built in memory and thrown away. B10 + B11 (30 select fields) and the CoList2/3 slice (8 fields) contribute nothing to any DB column."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/idx/sync.ts",
+          "lines": "2415-2418, 2482-2484",
+          "side": "buyer",
+          "fieldsRead": [
+            "agent_info"
+          ],
+          "storage": "typed columns (list_agent_* …)",
+          "canReceiveValue": false,
+          "evidence": "syncAgentHistory's upsert repeats the identical Phase C pattern: line 2418 destructures agent_info out of the CREATE spread, line 2484 writes only `...typedAgentColumnsFromJson(mapped.agent_info …)`. The agent link is set by `agent_id: options.agentDbId` at line ~2455 (guardArchivedRehydration payload), unconditionally for every row the filter returned — not by reading any stored buyer field.",
+          "notes": "Same conclusion on the agent-history lane. Buyer-side association is carried entirely by the OData $filter, never by a persisted buyer column."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/idx/fetch.ts",
+          "lines": "524-548, 554-568",
+          "side": "buyer",
+          "fieldsRead": [
+            "BuyerAgentMlsId",
+            "ListAgentMlsId"
+          ],
+          "storage": "provider row",
+          "canReceiveValue": true,
+          "evidence": "buildAgentHistoricalFilter line 533: `(ListAgentMlsId eq '${escapedId}' or BuyerAgentMlsId eq '${escapedId}')`; buildAgentAllFilter line 559 is identical. Both are $filter predicates, not $select. contract.ts:4428 marks BuyerAgentMlsId filterable=true, populated=100,112 — so the predicate is legal AND can match.",
+          "notes": "This is the ONE place buyer-side data does real work: as a match key on the wire. lib/auth/listing-capabilities.ts:11-18 documents the consequence — a match on EITHER side stamps Listing.agent_id, which is an association, not ownership."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/idx/fetch.ts",
+          "lines": "116-154",
+          "side": "office",
+          "fieldsRead": [
+            "$expand=Media",
+            "$expand=CustomProperty"
+          ],
+          "storage": "provider row",
+          "canReceiveValue": false,
+          "evidence": "buildUrl() sets only $filter, $select, $expand, $count, $top, $skip, $orderby. expandParts (line 131) can receive exactly two values: `Media(...)` when options.expandMedia===true (line 132-137) and the bare string `\"CustomProperty\"` when options.expandCustomProperty===true (line 138-145). No other $expand target exists. fetchSingleListing (lines ~345-356) and the address lookup (~344-350) set $select with NO $expand at all.",
+          "notes": "CONFIRMS THE CENSUS. Repo-wide grep for $expand across lib/*.ts returns only: lib/idx/fetch.ts (Media/CustomProperty), lib/buildings/public-building-data.ts:830/851/873/892 (MEDIA_EXPAND), and lib/cotality/contract.ts + generated/contract.ts (type declarations only). ZERO occurrences of BuyerAgent(, BuyerOffice(, ListAgent(, ListOffice(, CoListAgent( as $expand targets anywhere. Endpoint grep over lib/idx + lib/cotality returns only /odata/Property (fetch.ts:31, media-sync.ts:3303) and /odata/Media (fetch.ts:619, media-sync.ts:3359, sync.ts:1285/1923/2705) — there is no /odata/Member or /odata/Office call in the codebase. lib/idx/idx-sync-member.ts is a cron 'one-cycle member', unrelated to the Trestle Member resource."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/idx/trestle-mapper.ts",
+          "lines": "1226-1241",
+          "side": "list",
+          "fieldsRead": [
+            "ListAgentKey",
+            "ListAgentFullName",
+            "ListOfficeName",
+            "ListOfficeKey",
+            "ListOfficeMlsId",
+            "CoListAgentFullName",
+            "CoListOfficeName"
+          ],
+          "storage": "raw_data",
+          "canReceiveValue": true,
+          "evidence": "raw_data: slimRawData(stripPrivateFields(rawInput)) at line 1241. slimRawData (lib/compliance/raw-data-keep-fields.ts) is a strict whitelist — `if (RAW_DATA_KEEP_SET.has(key))`. The agent/office block of the keep set is raw-data-keep-fields.ts:169-181. These 7 keys are in the keep set and are NOT in PRIVATE_FIELDS (trestle-mapper.ts:454-467), so they survive both filters.",
+          "notes": "raw_data is the only other agent storage the mapper writes, and it is list-side only. No Buyer*, CoBuyer*, or CoListAgent2/3 key is in RAW_DATA_KEEP_SET, so none can reach raw_data even before the private-field strip."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/compliance/raw-data-keep-fields.ts",
+          "lines": "172, 175-176",
+          "side": "list",
+          "fieldsRead": [
+            "ListAgentMlsId",
+            "ListAgentEmail",
+            "ListAgentDirectPhone"
+          ],
+          "storage": "raw_data",
+          "canReceiveValue": false,
+          "evidence": "These 3 sit in RAW_DATA_KEEP_SET (raw-data-keep-fields.ts:172, 175, 176) but are ALSO in PRIVATE_FIELDS (lib/idx/trestle-mapper.ts:459-460). Composition order at trestle-mapper.ts:1241 is `slimRawData(stripPrivateFields(rawInput))` — stripPrivateFields runs FIRST and deletes them, so slimRawData's whitelist check can never see them.",
+          "notes": "DEAD KEEP-LIST ENTRIES on the Trestle path. The provider populates all three richly (ListAgentMlsId 591,197 / ListAgentEmail 591,607 / ListAgentDirectPhone 580,228, contract.ts:4785-4795), and the keep-list comment claims the retention cron carries them into listings_archive — but from the mapper they are unreachable. CoListAgentMlsId (keep-list absent, PRIVATE_FIELDS:461) and BuyerAgentMlsId / CoBuyerAgentMlsId (PRIVATE_FIELDS:462-463) are likewise stripped. Only agent PII that arrives via the CRM path (app/api/crm/listings/route.ts, which bypasses this mapper) can populate them."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/idx/trestle-mapper.ts",
+          "lines": "380-407",
+          "side": "office",
+          "fieldsRead": [
+            "IDX_PLUS_SELECT_FIELDS"
+          ],
+          "storage": "provider row",
+          "canReceiveValue": true,
+          "evidence": "COTALITY_PROPERTY_FIELDS (380-390) unions B8 through B11 among the other blocks; IDX_PLUS_SELECT_FIELDS (405-407) removes only ListTeamMlsId and BuyerTeamMlsId (LIVE_FIELDS_NOT_SELECTED, 395-398). fetch.ts:114 uses IDX_PLUS_SELECT_FIELDS as the default $select on every Property request.",
+          "notes": "WIRE-COST SUMMARY. 62 agent/office field names are requested on every Property page. Of those, 26 can never carry a value (16 buyer + 10 co-buyer), 3 more are measured populated=0 (ListAgentOfficePhone, ListTeamKey, ListTeamName), 1 more is filterable=false/populated=null (CoListAgentURL), and 8 more (CoListAgent2/3) are populated but persisted nowhere. Only the 8 typed columns plus 7 raw_data keys ever reach storage."
+        },
+        {
+          "surface": "DTO",
+          "file": "lib/compliance/dto.ts",
+          "lines": "35, 38-58",
+          "side": "buyer",
+          "fieldsRead": [
+            "agent_info",
+            "BuyerAgentEmail",
+            "BuyerAgentDirectPhone"
+          ],
+          "storage": "agent_info JSON",
+          "canReceiveValue": false,
+          "evidence": "dto.ts line 35 lists \"agent_info\" in the never-exposed set and AGENT_PII_FIELDS (lines 38-58) strips BuyerAgentEmail and BuyerAgentDirectPhone from portal payloads.",
+          "notes": "Read-side defence for a shape the write side can no longer produce: agent_info is gone from the Prisma model (schema.prisma:480-485) and both buyer fields are provider-null everywhere. Harmless fail-closed redundancy, not a live path — included so the census is complete on 'does any buyer key survive to a reader'. It does not."
+        }
+      ]
+    },
+    {
+      "summary": "CENSUS RESULT — no consumer anywhere in this repo reads a buyer-side agent/office NAME, and the local store physically cannot hold one.\n\n(1) CLOSED COMP → BUYER AGENT/OFFICE: NO consumer attempts it. `lib/comps/fetch-comps.ts` requests `CARD_SELECT_FIELDS` (`lib/idx/card-fields.ts`), whose entire Agent/Office section is two names — `ListAgentFullName`, `ListOfficeName` (card-fields.ts:44-45); zero `Buyer*`/`CoBuyer*` names are in the $select, so a Closed comp row cannot even carry them. `mapToCompListing` (fetch-comps.ts:65-90) emits `listing_agent`/`listing_office` from the LIST side only, and no UI reads those two keys (grep for `listing_agent|listing_office` across `public/` and `app/` returns only `lib/comps/*`). `lib/cma/engine.ts` selects no agent/office column at all. `lib/market-report/generator.ts` selects `ListOfficeName` only and filters `StandardStatus eq 'Active'` (line 155-157), so it never sees a Closed row. The ONE place a Closed row's brokerage is rendered is the LIST office: `app/agents/[name]/page.tsx:225` (`listingCourtesy: l.listOfficeName`) → `PastDealsSection.tsx:112` (\"Listing Courtesy of …\") — and that line fires even on rows the agent reached as the BUYER-side agent, so a buyer-side deal is labelled with the other brokerage's list office. That is correct-by-construction, not a buyer-side read.\n\n(2) AGENT-LISTINGS BUYER-SIDE HISTORY: MlsId match ONLY — the name is never needed or read. `lib/idx/fetch.ts:533` builds `(ListAgentMlsId eq '<id>' or BuyerAgentMlsId eq '<id>')`; `syncAgentHistory` (`lib/idx/sync.ts:2346`, write at 2415-2490) stamps the LOCAL `agent_id = options.agentDbId` and derives only the 8 LIST-side typed columns (`typedAgentColumnsFromJson`, sync.ts:2484). The route then re-reads rows purely by `agent_id: agentId` (`app/api/agents/[slug]/listings/route.ts:212`) plus `AGENT_TYPED_SELECT` (list-side only, `lib/listings/agent-info-resolver.ts:75-84`). Nuance worth flagging: the route's OWN Trestle branch matches `ListAgentMlsId` only (route.ts:151-154) — buyer-side rows reach the page exclusively through the DB branch, i.e. only if `syncAgentHistory` ran. Feed-wise this is the one buyer-side path that WORKS, because `BuyerAgentMlsId` is one of the two buyer scalars that survives suppression (100,112 rows).\n\n(3) VIEWER BINDINGS: the two census viewers bind ZERO suppressed buyer fields. Enumerating every `data-rls-field=\"…\"` value in `SALE-FORM-WITH-TOOLS.html` (157 bindings) and `RENTAL-FORM-WITH-TOOLS.html` (227 bindings) yields no name containing `Agent` or `Office`. Their buyer/tenant-agent blocks are deliberately inert: every input carries `data-rls-ignore=\"true\"` (SALE:1497-1508, 3603; RENTAL:1480, 3061) and the RLS-participant checkbox carries `data-removed-field=\"BuyerAgentRLSParticipantYN\"` (RENTAL:1494). The sale viewer's buyer block has no JS at all — `initSearchableDropdown({listId:'buyerCompanyList'})` exists only in the out-of-census `SALE-FORM-REDESIGN.html:6178`. The rental viewer's tenant block IS wired (6495-6510) but against a hardcoded local stub `var rebnyAgents = { 'mallan': [] }` (6306) with no loader — never a provider read. The out-of-census sibling `SALE-FORM-REDESIGN.html` is the only file that binds six suppressed buyer scalars (`BuyerAgentFullName/DirectPhone/Email/StateLicense`, `BuyerOfficeName/Phone`, lines 710-715, 9225-9230) — as `src: 'raw'` form inputs, so they hold agent-typed values, never feed values.\n\nSTORAGE FLOOR (why none of this could work even if attempted): `lib/idx/trestle-mapper.ts:460-465` strips `BuyerAgentMlsId/Email/DirectPhone` and the CoBuyer trio from `raw_data`; `slimRawData` (mapper:1240) then keeps only `RAW_DATA_KEEP_FIELDS`, whose Agent/Office section (`lib/compliance/raw-data-keep-fields.ts:169-181`) contains ZERO `Buyer*` names. `agent_info` JSON was removed from the model entirely (`prisma/schema.prisma:480`), leaving eight LIST-side typed columns (schema:516-523) and no buyer-side column anywhere. `listings_archive` likewise stores `list_agent_full_name`/`list_office_name` only (schema:725-726, written at `lib/retention/archive-terminals.ts:160-161`). `PublicListingDTO` exposes exactly one attribution field, `listOfficeName` (`lib/idx/public-dto.ts:182-183`). The CRM compliance gates actively classify `BuyerAgentMlsId` as a LEAK field (`public/crm/js/compliance/compliance-gates-and-output.js:1547`).\n\nRESIDUAL DEAD CODE (no user-visible defect, worth knowing): the viewers' `(apiData.agent_info || {}).ListAgentFullName` fallbacks (SALE:4956-4957, 4991-4992; RENTAL:4368-4369, 4402-4403) and `data-loader.js:255-256`'s `agent.ListOfficeName` branch reference a column dropped from the Prisma model, so they are permanently unreachable. `viewerSetVal('saleListAgentMlsId', d.listAgentMlsId)` (SALE:5157) has no producer for `d.listAgentMlsId` in that file. And `data-loader.js:257-258` hydrates `agentEmail`/`agentPhone` from `list_agent_email`/`list_agent_direct_phone`, which for IDX rows are in both `HIDDEN_FIELDS` and `PRIVATE_FIELDS` (mapper:418-421, 460) and therefore always empty — those two viewer rows (`render-master-detail.js:210-211`, `render-summary.js:87`) can only ever populate on Mallan exclusives stamped by `lib/listings/exclusive-agent-assignment.ts:173-178`.",
+      "consumers": [
+        {
+          "surface": "agent listings",
+          "file": "app/api/agents/[slug]/listings/route.ts",
+          "lines": "151-172",
+          "side": "list",
+          "fieldsRead": [
+            "ListAgentMlsId",
+            "ListAgentFullName"
+          ],
+          "storage": "provider row",
+          "canReceiveValue": true,
+          "evidence": "Line 152-154: `const agentMatch = mlsId ? \\`ListAgentMlsId eq '${...}'\\` : \\`ListAgentFullName eq '${safeName}'\\``. Both filter keys are populated list-side (ListAgentFullName 591,607). Two fetches: Active/ComingSoon/ActiveUnderContract (158) and StandardStatus eq 'Closed' (167).",
+          "notes": "IMPORTANT for Q2: this branch matches the LIST side ONLY. It never adds BuyerAgentMlsId, so buyer-side deals cannot enter the page through Trestle here — only through the DB branch below."
+        },
+        {
+          "surface": "agent listings",
+          "file": "app/api/agents/[slug]/listings/route.ts",
+          "lines": "208-305",
+          "side": "buyer",
+          "fieldsRead": [
+            "agent_id",
+            "list_agent_full_name",
+            "list_office_name",
+            "list_agent_email",
+            "list_agent_direct_phone",
+            "list_office_mls_id",
+            "list_agent_mls_id",
+            "co_list_office_mls_id",
+            "co_list_agent_mls_id"
+          ],
+          "storage": "typed columns (list_agent_* …) + local Listing.agent_id",
+          "canReceiveValue": true,
+          "evidence": "Line 212 `agent_id: agentId` with the comment at 210-214: \"`agent_id` here is a ROSTER/HISTORY association … `syncAgentHistory` populates it from BOTH list-side and BUYER-side matches.\" Line 277 spreads AGENT_TYPED_SELECT — eight list-side columns, zero buyer-side.",
+          "notes": "ANSWER TO Q2: the buyer-side history needs ONLY the MlsId match. The row is selected by the local BigInt FK; no buyer agent name, office, or MlsId is read at any point in this route."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/idx/fetch.ts",
+          "lines": "524-548",
+          "side": "buyer",
+          "fieldsRead": [
+            "BuyerAgentMlsId",
+            "ListAgentMlsId"
+          ],
+          "storage": "provider row",
+          "canReceiveValue": true,
+          "evidence": "Line 533: `const agentFilter = \\`(ListAgentMlsId eq '${escapedId}' or BuyerAgentMlsId eq '${escapedId}')\\``, with the comment at 531-532 \"BuyerAgentMlsId = you represented the buyer/tenant\". Statuses at 536-537 include 'Closed'.",
+          "notes": "This is the ONE buyer-side read in the repo that the feed can actually satisfy: BuyerAgentMlsId is populated on 100,112 rows (one of only two surviving buyer scalars) and the navigations are not needed because it is a scalar equality filter. buildAgentAllFilter (554-559) repeats the same pair."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/idx/sync.ts",
+          "lines": "2346-2490",
+          "side": "buyer",
+          "fieldsRead": [
+            "options.agentDbId",
+            "mapped.agent_info (in-memory, list-side keys only)"
+          ],
+          "storage": "local Listing.agent_id + typed columns",
+          "canReceiveValue": true,
+          "evidence": "Line 2352 builds the filter via buildAgentHistoricalFilter; line 2415 `const { agent_info: _agentInfoJson, ...typedOnlyMapped } = mapped` drops the JSON; line 2484 `...typedAgentColumnsFromJson(mapped.agent_info …)` writes only the 8 LIST-side columns; the create at 2506-2515 sets `agent_id: options.agentDbId`.",
+          "notes": "The buyer-side identity is consumed entirely at the OData filter and discarded — nothing buyer-side is persisted. The agent_id stamp is the whole payload of a buyer-side match."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/idx/trestle-mapper.ts",
+          "lines": "455-475, 1133-1138, 1240",
+          "side": "buyer",
+          "fieldsRead": [
+            "BuyerAgentEmail",
+            "BuyerAgentDirectPhone",
+            "BuyerAgentMlsId",
+            "CoBuyerAgentEmail",
+            "CoBuyerAgentDirectPhone",
+            "CoBuyerAgentMlsId",
+            "BuyerAgentAOR"
+          ],
+          "storage": "raw_data",
+          "canReceiveValue": false,
+          "evidence": "PRIVATE_FIELDS (462-464) lists BuyerAgentEmail/DirectPhone/MlsId and the CoBuyer trio; stripPrivateFields (469-478) removes them before persistence. Line 1133-1138 builds an in-memory agentInfo including B10_BUYER_AGENT/B11_COBUYER_AGENT picks, but line 1240 persists `slimRawData(stripPrivateFields(rawInput))` and sync.ts destructures agent_info away, so neither survives.",
+          "notes": "Also note CLOSE_ONLY_FIELDS (435-439) tags BuyerAgentFullName/BuyerOfficeName as Closed-only for gate purposes — a classification, not a read path."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/compliance/raw-data-keep-fields.ts",
+          "lines": "169-181, 275-286",
+          "side": "buyer",
+          "fieldsRead": [],
+          "storage": "raw_data",
+          "canReceiveValue": false,
+          "evidence": "The \"── Agent / office (REBNY attribution + archive) ──\" keep-set section (169-181) is exclusively ListAgent*/ListOffice*/CoListAgentFullName/CoListOfficeName. `grep -n 'Buyer' lib/compliance/raw-data-keep-fields.ts` returns NOTHING. slimRawData (275-286) keeps only members of RAW_DATA_KEEP_SET.",
+          "notes": "STORAGE FLOOR: even the buyer scalars NOT in PRIVATE_FIELDS (BuyerAgentFullName, BuyerOfficeName, BuyerOfficeMlsId) are dropped here. No buyer-side value can exist in raw_data on any row."
+        },
+        {
+          "surface": "other",
+          "file": "prisma/schema.prisma",
+          "lines": "480-523, 725-726",
+          "side": "buyer",
+          "fieldsRead": [],
+          "storage": "typed columns (list_agent_* …)",
+          "canReceiveValue": false,
+          "evidence": "Line 480: \"agent_info REMOVED from the Prisma schema/client in Phase D step 3 (board #415).\" Lines 516-523 declare exactly eight columns, all list-side: list_agent_full_name, list_office_name, list_agent_email, list_agent_direct_phone, list_office_mls_id, list_agent_mls_id, co_list_office_mls_id, co_list_agent_mls_id. Lines 725-726 (listings_archive) declare only list_agent_full_name / list_office_name.",
+          "notes": "There is NO buyer-side or co-buyer-side column in the schema. Any future buyer-agent display would require a migration, not just a read."
+        },
+        {
+          "surface": "CMA/comps",
+          "file": "lib/comps/fetch-comps.ts",
+          "lines": "65-90, 122-142, 178-212",
+          "side": "list",
+          "fieldsRead": [
+            "ListAgentFullName",
+            "ListOfficeName",
+            "ClosePrice",
+            "CloseDate",
+            "StandardStatus"
+          ],
+          "storage": "provider row",
+          "canReceiveValue": true,
+          "evidence": "mapToCompListing lines 86-87: `listing_agent: String(r.ListAgentFullName || '')`, `listing_office: String(r.ListOfficeName || '')`. Closed comps are in scope — line 21 maps \"Closed\"→'Closed' and line 68/82 read ClosePrice/CloseDate. Both fetches pass `select: CARD_SELECT_FIELDS` (136, 206).",
+          "notes": "ANSWER TO Q1 (comps half): on a Closed comp this consumer reads the LIST agent and LIST office and nothing else. It makes no attempt at BuyerAgent*/BuyerOffice*, and could not — see the card-fields row below."
+        },
+        {
+          "surface": "CMA/comps",
+          "file": "lib/idx/card-fields.ts",
+          "lines": "43-45",
+          "side": "buyer",
+          "fieldsRead": [],
+          "storage": "provider row",
+          "canReceiveValue": false,
+          "evidence": "The entire \"// Agent/Office\" section of CARD_SELECT_FIELDS is two entries: `\"ListAgentFullName\", \"ListOfficeName\"`. No Buyer*/CoBuyer* name appears anywhere in the file, and cotalityFields() compile-checks names against $metadata.",
+          "notes": "Hard proof for Q1: the comps $select cannot return a buyer agent or buyer office on a Closed row, so no downstream comp consumer could render one even by accident."
+        },
+        {
+          "surface": "CMA/comps",
+          "file": "lib/comps/types.ts",
+          "lines": "49-50",
+          "side": "list",
+          "fieldsRead": [
+            "listing_agent",
+            "listing_office"
+          ],
+          "storage": "DTO",
+          "canReceiveValue": true,
+          "evidence": "`listing_agent: string;` / `listing_office: string;` on CompListing — the only agent/office keys on the comp DTO, both list-side.",
+          "notes": "Dead-ish: grepping `listing_agent|listing_office` across public/ and app/ returns only lib/comps/*, so no surface actually renders these two keys."
+        },
+        {
+          "surface": "CMA/comps",
+          "file": "app/api/crm/sales/comps/route.ts",
+          "lines": "79-96",
+          "side": "list",
+          "fieldsRead": [],
+          "storage": "DTO",
+          "canReceiveValue": true,
+          "evidence": "Calls fetchComps with a ListingContext of listing_id/building_name/street/neighborhood/borough/postal_code/property_type (80-90) and returns `{...results, listing_specs, sqft_note}` (92-96). No agent or office field is read, added, or filtered on.",
+          "notes": "Pass-through of the list-side comp DTO."
+        },
+        {
+          "surface": "CMA/comps",
+          "file": "app/api/crm/sales/prospects/[id]/comps/route.ts",
+          "lines": "1-210",
+          "side": "buyer",
+          "fieldsRead": [],
+          "storage": "local roster",
+          "canReceiveValue": false,
+          "evidence": "`grep -n 'Agent|Office'` on this file matches only the auth import/uses at lines 14, 132, 203 (requireAgentOrBroker). No provider agent/office field is read at all.",
+          "notes": "This is the endpoint the CRM pitch-packet comps UI calls; it stores agent-selected comps, never provider agent identity."
+        },
+        {
+          "surface": "CMA/comps",
+          "file": "lib/cma/engine.ts",
+          "lines": "98-114, 185-198",
+          "side": "buyer",
+          "fieldsRead": [],
+          "storage": "typed columns (list_agent_* …)",
+          "canReceiveValue": false,
+          "evidence": "The Prisma select (100-111) is listing_id/address/list_price/bedrooms_total/bathrooms_full/living_area/status/days_on_market/internet_*_display_yn — no agent or office column. The CompResult it returns (185-197) has no agent/office key. Closed comps ARE in scope (line 95: `{ status: 'Closed', contract_closed: { gte: since } }`) and still surface no agent identity.",
+          "notes": "ANSWER TO Q1 (CMA half): the CMA engine shows no agent or office on a Closed comp — neither buyer nor list side."
+        },
+        {
+          "surface": "CMA/comps",
+          "file": "public/crm/js/dashboard/panels/sales-crm/pitch-packet.js",
+          "lines": "37-51, 98-120, 183-215",
+          "side": "buyer",
+          "fieldsRead": [],
+          "storage": "local roster",
+          "canReceiveValue": false,
+          "evidence": "Loads `/api/crm/sales/prospects/<id>/comps` (43) into `_comps` (45) and renders them by mls_id/note/$-per-sqft (183-214). No agent/office key is read anywhere in the file.",
+          "notes": "The CRM comps UI renders zero agent identity, buyer OR list side."
+        },
+        {
+          "surface": "seller report",
+          "file": "app/api/crm/listings/[id]/seller-report/route.ts",
+          "lines": "51-67",
+          "side": "buyer",
+          "fieldsRead": [
+            "agent_id (local)"
+          ],
+          "storage": "local roster",
+          "canReceiveValue": true,
+          "evidence": "Lines 54-58: \"`syncAgentHistory` stamps `agent_id` from BuyerAgentMlsId too, so an agent who was merely the BUYER-side agent on a third-party listing previously received that listing's seller intelligence report.\" The guard is `if (!caps.mayViewSellerReport)` (62) → 403.",
+          "notes": "The only place the buyer-side origin of agent_id is load-bearing as a DENIAL. It reads the local FK, never a provider buyer field."
+        },
+        {
+          "surface": "seller report",
+          "file": "lib/seller-report/load-report.ts",
+          "lines": "1-20",
+          "side": "buyer",
+          "fieldsRead": [],
+          "storage": "local roster",
+          "canReceiveValue": false,
+          "evidence": "`grep -n 'Agent|Office' lib/seller-report/*.ts` matches ONE line — the comment at load-report.ts:7 referencing requireAgentOrBroker. Neither load-report.ts nor build-report.ts reads any agent or office field.",
+          "notes": "The seller report body carries no agent identity of any side."
+        },
+        {
+          "surface": "seller report",
+          "file": "lib/market-report/generator.ts",
+          "lines": "155-177, 240-248",
+          "side": "list",
+          "fieldsRead": [
+            "ListOfficeName"
+          ],
+          "storage": "provider row",
+          "canReceiveValue": true,
+          "evidence": "$select at 167-175 includes exactly one agent/office name: `\"AssociationFee\", \"ListOfficeName\"` (173). Sample mapping at 247: `company: String(l.ListOfficeName || '')`.",
+          "notes": "Not a Closed-row consumer at all: the filter at 155-157 is `StandardStatus eq 'Active'` for both sale and rent, so the buyer-side question never arises here."
+        },
+        {
+          "surface": "agent roster",
+          "file": "app/api/agents/public/route.ts",
+          "lines": "20-46",
+          "side": "office",
+          "fieldsRead": [
+            "public_slug",
+            "full_name",
+            "first_name",
+            "last_name",
+            "title",
+            "license_type",
+            "photo",
+            "bio",
+            "specialties",
+            "languages",
+            "featured"
+          ],
+          "storage": "local roster",
+          "canReceiveValue": true,
+          "evidence": "prisma.agent.findMany select at 22-36 — all local Agent columns; comment at 40-43 confirms phone/email are deliberately never selected. No provider Member/Office field is touched.",
+          "notes": "The roster is entirely local; provider suppression is irrelevant to it."
+        },
+        {
+          "surface": "agent listings",
+          "file": "app/api/agents/[slug]/past-deals/route.ts",
+          "lines": "56-80",
+          "side": "list",
+          "fieldsRead": [
+            "listing_courtesy"
+          ],
+          "storage": "local roster",
+          "canReceiveValue": true,
+          "evidence": "Line 78: `listingCourtesy: d.listing_courtesy` off the local PastDeal table, selected by `agent_id: agent.id` (57). No buyer-side field exists on the model.",
+          "notes": "PastDeal rows are manually/Trestle-seeded local records; the courtesy string is a stored list-side attribution."
+        },
+        {
+          "surface": "agent listings",
+          "file": "app/agents/[name]/page.tsx",
+          "lines": "196-236",
+          "side": "list",
+          "fieldsRead": [
+            "listOfficeName"
+          ],
+          "storage": "DTO",
+          "canReceiveValue": true,
+          "evidence": "Line 225 inside trestleToPastDeal: `listingCourtesy: l.listOfficeName || null`, applied to `closedSales`/`closedRentals` (198-204, 229-236) — i.e. to CLOSED rows. Rendered at PastDealsSection.tsx:112 as \"Listing Courtesy of {deal.listingCourtesy}\".",
+          "notes": "ANSWER TO Q1 (the one real Closed-row agent surface): this shows the LIST office on a Closed deal. Because agent_id also comes from BuyerAgentMlsId matches, a deal the agent won on the BUYER side is displayed courtesy of the OTHER brokerage's list office. Correct under UCBA Art. III §2(C), but worth knowing it is never the buyer office."
+        },
+        {
+          "surface": "public listing page",
+          "file": "lib/idx/public-dto.ts",
+          "lines": "182-183, 269-296",
+          "side": "list",
+          "fieldsRead": [
+            "listOfficeName"
+          ],
+          "storage": "DTO",
+          "canReceiveValue": true,
+          "evidence": "Line 182-183: \"// Agent — office/broker name only (REBNY: public attribution = office, not agent)\" then `listOfficeName: string;`. `_assignedAgent` (274-285) and `_coListedBrokerages` (296, 394-410) are both derived from list-side values.",
+          "notes": "The public DTO contract has no buyer-side slot whatsoever — nothing downstream of it can render a buyer agent."
+        },
+        {
+          "surface": "public listing page",
+          "file": "lib/idx/db-to-public-dto.ts",
+          "lines": "352, 552-559, 664-715",
+          "side": "list",
+          "fieldsRead": [
+            "list_agent_full_name",
+            "list_office_name",
+            "list_agent_email",
+            "list_agent_direct_phone"
+          ],
+          "storage": "typed columns (list_agent_* …)",
+          "canReceiveValue": true,
+          "evidence": "Line 352 and 664: \"Phase B: typed-first agent attribution (JSON fallback)\" via resolveListingAgentInfo; line 559 `listOfficeName: resolvedAgent.officeName || 'REBNY RLS'`; line 675 `attributionText: \\`Listing courtesy of ${officeName}\\``; line 715 the Mallan-exclusive variant.",
+          "notes": "List-side only. The 'REBNY RLS' fallback is what renders when ListOfficeName is absent — there is no buyer-side equivalent path."
+        },
+        {
+          "surface": "DTO",
+          "file": "lib/compliance/dto.ts",
+          "lines": "48-49, 62-63",
+          "side": "buyer",
+          "fieldsRead": [
+            "BuyerAgentEmail",
+            "BuyerAgentDirectPhone"
+          ],
+          "storage": "DTO",
+          "canReceiveValue": false,
+          "evidence": "Both names appear in the forbidden/never-export set alongside BuyerAgencyCompensation/BuyerAgencyCompensationType (62-63).",
+          "notes": "A prohibition list, not a render path — the only buyer-side agent names referenced anywhere in the DTO layer, and they are there to be blocked."
+        },
+        {
+          "surface": "CRM viewer",
+          "file": "public/crm/js/core/data-loader.js",
+          "lines": "255-258",
+          "side": "list",
+          "fieldsRead": [
+            "list_office_name",
+            "list_agent_full_name",
+            "list_agent_email",
+            "list_agent_direct_phone",
+            "agent_info.ListOfficeName",
+            "agent_info.ListAgentFullName",
+            "agent_info.ListAgentEmail",
+            "agent_info.ListAgentDirectPhone"
+          ],
+          "storage": "typed columns (list_agent_* …) + agent_info JSON",
+          "canReceiveValue": true,
+          "evidence": "Lines 255-258 under the comment \"// Phase B: typed promoted columns win, agent_info JSON fallback\": company/agentName/agentEmail/agentPhone. Line 219 defines `var agent = apiListing.agent_info …`.",
+          "notes": "Name/office resolve fine. TWO caveats: (a) the agent_info fallback is DEAD — the column was removed from the Prisma model (schema.prisma:480); (b) agentEmail/agentPhone are always empty on IDX rows because ListAgentEmail/ListAgentDirectPhone sit in both HIDDEN_FIELDS (mapper:418-421) and PRIVATE_FIELDS (mapper:460), so they populate only on Mallan exclusives stamped by exclusive-agent-assignment.ts:173-178. No buyer-side key is read."
+        },
+        {
+          "surface": "CRM viewer",
+          "file": "public/crm/js/core/reso-field-map.js",
+          "lines": "74-79",
+          "side": "list",
+          "fieldsRead": [
+            "ListOfficeName",
+            "ListAgentFullName",
+            "ListAgentEmail",
+            "ListAgentDirectPhone"
+          ],
+          "storage": "DTO",
+          "canReceiveValue": true,
+          "evidence": "The \"── Agent & Office ──\" block maps company→ListOfficeName, agentName→ListAgentFullName, agentEmail→ListAgentEmail, agentPhone→ListAgentDirectPhone. No Buyer*/CoBuyer* entry exists in the map.",
+          "notes": "The CRM's canonical field dictionary has no buyer-side agent concept at all."
+        },
+        {
+          "surface": "CRM viewer",
+          "file": "public/crm/js/render/grid-column-defs.js",
+          "lines": "24-25, 57-58",
+          "side": "list",
+          "fieldsRead": [
+            "ListOfficeName",
+            "ListAgentFullName",
+            "ListAgentEmail",
+            "ListAgentDirectPhone"
+          ],
+          "storage": "DTO",
+          "canReceiveValue": true,
+          "evidence": "Four column defs — company (reso 'ListOfficeName'), primaryAgentName ('ListAgentFullName'), primaryAgentEmail ('ListAgentEmail'), primaryAgentPhone ('ListAgentDirectPhone'). A case-insensitive grep for buyer.?agent across public/crm/js/render/ returns ZERO matches.",
+          "notes": "No buyer-agent column exists in the CRM grid, so a Closed row in the grid shows only list-side identity."
+        },
+        {
+          "surface": "CRM viewer",
+          "file": "public/crm/js/render/render-master-detail.js",
+          "lines": "208-216",
+          "side": "list",
+          "fieldsRead": [
+            "company",
+            "agentName",
+            "agentPhone",
+            "agentEmail"
+          ],
+          "storage": "DTO",
+          "canReceiveValue": true,
+          "evidence": "208-211 render listing.company / agentName / agentPhone / agentEmail; 216 emits `data-rebny-attribution` \"Listing courtesy of …\". Same list-side quartet in render-summary.js:84-105, render-short-summary.js:77-88, render-gallery.js:53.",
+          "notes": "agentPhone/agentEmail are conditional (`listing.agentPhone ? …`), so the suppressed/private list-side contact simply renders nothing rather than an empty label."
+        },
+        {
+          "surface": "CRM viewer",
+          "file": "public/crm/js/output/reports.js",
+          "lines": "454-455, 885, 985, 1106-1108, 1297-1298",
+          "side": "list",
+          "fieldsRead": [
+            "agentName",
+            "agentEmail",
+            "agentPhone",
+            "company"
+          ],
+          "storage": "DTO",
+          "canReceiveValue": true,
+          "evidence": "454-455 map primaryAgentName/Email/Phone and `listingOfficeName: listing.company`; 1297-1298 print \"Company:\" / \"Agent:\" rows; 753 prints the RLS courtesy line. Client-facing variants gate on `!isCustomer` (885, 985).",
+          "notes": "Client/seller-facing report output carries list-side identity only; no buyer agent appears on any Closed row in a report."
+        },
+        {
+          "surface": "CRM form",
+          "file": "public/crm/SALE-FORM-WITH-TOOLS.html",
+          "lines": "1489-1533, 3603",
+          "side": "buyer",
+          "fieldsRead": [],
+          "storage": "local roster",
+          "canReceiveValue": false,
+          "evidence": "The \"Buyer's Agent Contact\" card: every control carries data-rls-ignore=\"true\" — saleBuyerCompanySearch/saleBuyerCompany (1497-1498), saleBuyerAgentSearch/saleBuyerAgent (1507-1508), commSaleBuyerAgent (3603). The display spans saleBuyerAgentId/Phone/Email/License (1519-1531) are static '--'. Enumerating all 157 data-rls-field values in this file yields NO name containing Agent or Office.",
+          "notes": "ANSWER TO Q3 (sale): binds nothing suppressed. Moreover the block is INERT here — `initSearchableDropdown({listId:'buyerCompanyList'})` exists only in SALE-FORM-REDESIGN.html:6178, so nothing ever populates buyerCompanyList/buyerAgentList in this file."
+        },
+        {
+          "surface": "CRM viewer",
+          "file": "public/crm/SALE-FORM-WITH-TOOLS.html",
+          "lines": "4956-4957, 4991-4992, 5157",
+          "side": "list",
+          "fieldsRead": [
+            "list_agent_full_name",
+            "list_office_name",
+            "agent_info.ListAgentFullName",
+            "agent_info.ListOfficeName"
+          ],
+          "storage": "typed columns (list_agent_* …) + agent_info JSON",
+          "canReceiveValue": true,
+          "evidence": "4956-4957 and 4991-4992: `listingAgentName: apiData.list_agent_full_name || (apiData.agent_info || {}).ListAgentFullName || ''` and the ListOfficeName twin. Line 5157: `viewerSetVal('saleListAgentMlsId', d.listAgentMlsId)`.",
+          "notes": "Typed columns deliver. The agent_info half is dead (column dropped, schema.prisma:480), and `d.listAgentMlsId` has no producer in this file — the VIEWER_LISTINGS object built at 4939-4959 has no such key."
+        },
+        {
+          "surface": "CRM form",
+          "file": "public/crm/RENTAL-FORM-WITH-TOOLS.html",
+          "lines": "1467-1496, 5658-5659, 6306-6309, 6344-6364, 6480-6510",
+          "side": "cobuyer",
+          "fieldsRead": [],
+          "storage": "local roster",
+          "canReceiveValue": false,
+          "evidence": "Tenant's-agent block: rentalTenantAgent hidden input is data-rls-ignore=\"true\" (1480); the RLS-participant checkbox is `data-rls-ignore=\"true\" data-removed-field=\"BuyerAgentRLSParticipantYN\"` (1494). Wiring at 6495-6510 feeds from renderAgentList (6344-6346) which reads `rebnyAgents[companyKey]`, declared at 6306 as `var rebnyAgents = { 'mallan': [] };  // Loaded from API` — with NO loader anywhere in the file (only reads at 5406 and 6346). Enumerating all 227 data-rls-field values yields no Agent/Office name.",
+          "notes": "ANSWER TO Q3 (rental): binds nothing suppressed. The dropdown is wired but backed by an empty hardcoded stub, so it always renders 'Select a company first' / 'No agents match'. Collected as `tenantAgent` (5658) into the local form payload only."
+        },
+        {
+          "surface": "CRM form",
+          "file": "public/crm/SALE-FORM-REDESIGN.html",
+          "lines": "705-715, 7496-7502, 9225-9230, 9584",
+          "side": "buyer",
+          "fieldsRead": [
+            "BuyerAgentFullName",
+            "BuyerAgentDirectPhone",
+            "BuyerAgentEmail",
+            "BuyerAgentStateLicense",
+            "BuyerOfficeName",
+            "BuyerOfficePhone",
+            "BuyerAgentRLSParticipantYN"
+          ],
+          "storage": "raw_data",
+          "canReceiveValue": false,
+          "evidence": "Six live data-rls-field bindings at 710-715 (BuyerAgentFullName/DirectPhone/Email/StateLicense, BuyerOfficeName, BuyerOfficePhone) plus BuyerAgentRLSParticipantYN at 705; serialized at 7496-7502; hydration table at 9225-9230 marks each `src: 'raw'`; 9584 handles the participant radio.",
+          "notes": "OUT OF THE CENSUS FILE LIST but the only file in the repo that binds suppressed buyer scalars. Because src is 'raw' (the local form payload), these are agent-TYPED inputs — the feed can never fill them: BuyerAgentFullName/Email/DirectPhone/StateLicense and BuyerOfficeName/Phone are all suppressed (null on every row), and BuyerAgentEmail/DirectPhone are additionally stripped by PRIVATE_FIELDS. Worth flagging if this file is ever promoted over WITH-TOOLS."
+        },
+        {
+          "surface": "CRM viewer",
+          "file": "public/crm/js/compliance/compliance-gates-and-output.js",
+          "lines": "1302, 1547, 1849, 1912, 2155",
+          "side": "buyer",
+          "fieldsRead": [
+            "BuyerAgentMlsId",
+            "ListAgentMlsId",
+            "ListOfficeMlsId",
+            "CoListAgentMlsId",
+            "BuyerAgentCompensation"
+          ],
+          "storage": "DTO",
+          "canReceiveValue": false,
+          "evidence": "Line 1547 `var LEAKS = ['ListAgentMlsId','ListOfficeMlsId','OriginatingSystemName','OriginatingSystemKey','BuyerAgentMlsId','CoListAgentMlsId'…]`; 2155 PROHIBITED_LEAK_FIELDS includes BuyerAgentCompensation/BuyerBrokerageCompensation; 1302 whitelists only ListAgentFullName/ListOfficeName as allowed agent names.",
+          "notes": "The CRM actively asserts BuyerAgentMlsId must NOT appear in output — the inverse of a render path, and consistent with the sync layer stripping it from raw_data."
+        },
+        {
+          "surface": "other",
+          "file": "lib/retention/archive-terminals.ts",
+          "lines": "124-165",
+          "side": "list",
+          "fieldsRead": [
+            "list_agent_full_name",
+            "list_office_name",
+            "raw.ListAgentFullName",
+            "raw.ListOfficeName",
+            "raw.ClosePrice",
+            "raw.CloseDate"
+          ],
+          "storage": "typed columns (list_agent_* …) + raw_data",
+          "canReceiveValue": true,
+          "evidence": "Lines 160-161: `list_agent_full_name: resolvedAgent.fullName || str(raw.ListAgentFullName)`, `list_office_name: resolvedAgent.officeName || str(raw.ListOfficeName)`, alongside close_price/close_date from raw_data (148-149).",
+          "notes": "The archive of TERMINAL (incl. Closed) listings keeps close terms plus list-side attribution and no buyer-side identity — the raw.* fallbacks work because ListAgentFullName/ListOfficeName are in the raw_data keep set (169-181), unlike every Buyer* name."
+        },
+        {
+          "surface": "other",
+          "file": "lib/listings/exclusive-agent-assignment.ts",
+          "lines": "159-199",
+          "side": "list",
+          "fieldsRead": [
+            "ListAgentFullName",
+            "ListOfficeName",
+            "ListAgentEmail",
+            "ListAgentDirectPhone"
+          ],
+          "storage": "typed columns (list_agent_* …) + agent_info JSON",
+          "canReceiveValue": true,
+          "evidence": "mergeBlankOnly at 173-178 fills ListAgentFullName/ListOfficeName/ListAgentEmail/ListAgentDirectPhone from the authenticated Mallan agent; 193-198 derive the six net-new typed columns. Guarded by isMallanExclusiveListing (164).",
+          "notes": "Mallan-authored rows only — this is why the CRM viewer's agentEmail/agentPhone can ever be non-empty. Third-party IDX rows never reach this helper (comment 36-37), and it has no buyer-side branch."
+        },
+        {
+          "surface": "search card",
+          "file": "lib/search/public-listing-db.ts",
+          "lines": "210-230",
+          "side": "buyer",
+          "fieldsRead": [
+            "listing_id",
+            "rls_eligible"
+          ],
+          "storage": "local roster",
+          "canReceiveValue": false,
+          "evidence": "Comment 216-221: \"It is NOT `agent_id != null`: syncAgentHistory stamps agent_id onto THIRD-PARTY Trestle rows where a Mallan agent was the BUYER side (buildAgentHistoricalFilter matches BuyerAgentMlsId, lib/idx/fetch.ts:427), so agent_id would mislabel third-party IDX listings as our exclusives.\" The gate at 223-229 uses SL-/RL- prefix or rls_eligible:false instead.",
+          "notes": "Second place where the buyer-side origin of agent_id is load-bearing as an EXCLUSION. Note the inline cite says fetch.ts:427 but the filter now lives at fetch.ts:533 — stale line reference only, the logic it describes is current."
+        }
+      ]
+    },
+    {
+      "summary": "Public read-side census of every agent/office value, traced storage → output. THE FEED SIDE ACTUALLY PUBLISHED IS LIST-SIDE ONLY. Public attribution is office-name-only by design (lib/idx/public-dto.ts:182); ListAgentFullName is fetched (lib/idx/card-fields.ts:47) but no public card renders it. Storage is typed columns list_agent_full_name / list_office_name / list_agent_email / list_agent_direct_phone (+4 MLS-id columns) via resolveListingAgentInfo, with the now-dropped agent_info JSON as fallback. ListOfficeName is populated on 591,607 rows, so every neutral 'REBNY RLS' fallback is latent rather than live.\n\nBUYER-SIDE — NO surface renders a buyer or co-buyer agent name or office. BuyerAgentFullName / BuyerOfficeName / CoBuyer* are picked into the in-memory agent_info (lib/idx/trestle-mapper.ts:1133-1138) but are dropped by BOTH persistence seams: typedAgentColumnsFromJson extracts only the 8 list-side keys, PRIVATE_FIELDS strips the buyer PII, and RAW_DATA_KEEP_FIELDS keeps no Buyer* key. No BuyerAgent→Member / BuyerOffice→Office expand is ever requested (only Media and CustomProperty expands exist, lib/idx/fetch.ts:131-140). Closed-row attribution on building history and agent Past Deals correctly uses ListOfficeName.\n\nBUT BUYER-SIDE IDENTITY LEAKS INDIRECTLY, AND THIS IS THE TOP FINDING. lib/idx/db-to-public-dto.ts:294 classifies a row 'mallan-exclusive' when `agent_id != null`. syncAgentHistory (lib/idx/sync.ts:2455) stamps agent_id on THIRD-PARTY feed rows fetched by `ListAgentMlsId eq X or BuyerAgentMlsId eq X` (lib/idx/fetch.ts:533/559); BuyerAgentMlsId is populated on 100,112 rows. Five other files already carry the correction that agent_id is NOT ownership; classifyDbListing is the one reader that never got it. On such a row the public DTO emits `attributionText: 'Exclusive listing by Mallan Real Estate Inc.'` with `disclaimerRequired: false` (db-to-public-dto.ts:715-716) — a false claim of brokerage under 19 NYCRR 175.25 and UCBA Art. III §2(C) — plus `_assignedAgent` carrying the OTHER brokerage's agent name, email and direct phone (697-709). app/api/listings/route.ts selects agent_id (382) alongside list_agent_email/list_agent_direct_phone (374) and serializes the result through toPublicListingSummaries (629), which passes `_assignedAgent` through untouched; the detail page inherits it at page.tsx:639 and renders mailto:/tel: links at 2057-2075. lib/search/public-listing-db.ts:331 compounds it: `?sort=exclusives` is implemented as `where.agent_id = { not: null }`, the exact predicate its own comment at 214-222 forbids.\n\nCO-LIST — the co-list agent is shown ZERO times, not once, so the \"only the first of CoListAgent2/3\" failure mode cannot arise: CoListAgentFullName/CoListOfficeName are retained in raw_data (raw-data-keep-fields.ts:180-181) with no reader anywhere; CoListAgent2FullName/CoListAgent3FullName (~51k/~8k rows) reach agent_info via B9 but are in neither the typed columns nor the keep-list; only co_list_agent_mls_id / co_list_office_mls_id persist, as syndication gates. `_coListedBrokerages` is NOT co-list data — it is a same-address collision heuristic over one response page (public-dto.ts:368-416) and is itself mis-triggered by the agent_id mislabel via isMallanRelevantListing.\n\nMALLAN DEFAULT FALLBACKS (175.25 / UCBA III §2(C)) — four sites hard-code a Mallan name where the provider value is missing. app/agents/[name]/listings/ActiveListingsTabs.tsx:145 is the worst: it sits on the explicit THIRD-PARTY else-branch, rendering `RLS · Listing Courtesy of Mallan Real Estate Inc.` — precisely the class of defect lib/idx/public-attribution.ts was built to eliminate, on a surface that was never migrated to publicListOfficeName(). SearchListingCard.tsx:235/375/503 and FeaturedListings.tsx:331 default to 'Mallan Real Estate Inc.' on the exclusive branch (reachable via the mislabel above). lib/search/engine/hydrate.ts:161 and app/api/open-houses/route.ts:590 default to Mallan on Mallan-scoped branches — lower risk, but both fabricate a provider fact.\n\nATTRIBUTION DROPS — ListingSidePanel.tsx:283/302 gates the whole courtesy block on truthiness (no office ⇒ no line at all); CompareProperties.tsx:296 renders an em-dash; PastDealsSection.tsx:108 omits the line; and lib/email/templates.ts:119-157 sends consumer listing-alert emails with no per-listing courtesy line at all — the gap lib/search/canonical/attribution.ts documents in its header and whose `attributionViolation()` guard has no runtime caller.\n\nCLEAN — sitemap (app/sitemap.ts), generateMetadata and the RealEstateListing JSON-LD carry no agent or office value; listing-search-projection projects none; portal DTOs mask to `{ company }` (lib/compliance/dto.ts:294-299); the crm-idx-mapper DTO with agentEmail/agentPhone is reachable only behind requireAgentOrBroker; comps and market-report are CRM-only and list-side.",
+      "consumers": [
+        {
+          "surface": "DTO",
+          "file": "lib/idx/db-to-public-dto.ts",
+          "lines": "351-353, 559",
+          "side": "list",
+          "fieldsRead": [
+            "list_agent_full_name",
+            "list_office_name",
+            "list_agent_email",
+            "list_agent_direct_phone",
+            "agent_info.ListOfficeName",
+            "agent_info.ListAgentFullName"
+          ],
+          "storage": "typed columns (list_agent_*) via resolveListingAgentInfo, agent_info JSON fallback",
+          "canReceiveValue": true,
+          "evidence": "line 353 `const resolvedAgent = resolveListingAgentInfo(listing)`; line 559 `listOfficeName: resolvedAgent.officeName || 'REBNY RLS'`. Typed columns written by lib/idx/trestle-mapper.ts:1191/1224 via typedAgentColumnsFromJson (list-side keys only).",
+          "notes": "THE public projection. ListOfficeName is populated on 591,607 rows so the 'REBNY RLS' neutral fallback is latent, not live. Only 4 of the 8 resolved values are ever public-facing here."
+        },
+        {
+          "surface": "DTO",
+          "file": "lib/idx/db-to-public-dto.ts",
+          "lines": "289-298, 663-720",
+          "side": "list",
+          "fieldsRead": [
+            "agent_id",
+            "owner_client_id",
+            "rls_eligible",
+            "list_agent_full_name",
+            "list_agent_email",
+            "list_agent_direct_phone",
+            "list_office_name"
+          ],
+          "storage": "typed columns + provenance columns",
+          "canReceiveValue": true,
+          "evidence": "classifyDbListing (289-298) returns 'mallan-exclusive' when `listing.agent_id != null`. buildSourceAndCompliance then emits `attributionText: 'Exclusive listing by Mallan Real Estate Inc.'` (715), `disclaimerRequired: false` (716) and `_assignedAgent` built from resolved.fullName / agentEmail / agentDirectPhone / officeName (697-709).",
+          "notes": "FLAG — HIGHEST SEVERITY. `syncAgentHistory` stamps `agent_id` onto THIRD-PARTY feed rows, matching `ListAgentMlsId eq X or BuyerAgentMlsId eq X` (lib/idx/sync.ts:2455 + lib/idx/fetch.ts:533/559). BuyerAgentMlsId is populated on 100,112 rows. Four other files already document that agent_id is NOT ownership (lib/search/public-listing-db.ts:215-222, app/api/agents/[slug]/listings/route.ts:210-214 and :292-298, app/api/cron/listing-expiration/route.ts:203, app/api/crm/listings/[id]/seller-report/route.ts:54-55) — classifyDbListing is the one reader that never got the correction. Result on such a row: false 'Exclusive listing by Mallan Real Estate Inc.' attribution (19 NYCRR 175.25 / UCBA Art. III §2(C)), the REBNY disclaimer suppressed, and the OTHER brokerage's list agent name + email + direct phone published in `_assignedAgent`."
+        },
+        {
+          "surface": "DTO",
+          "file": "lib/idx/public-dto.ts",
+          "lines": "182-183, 257-286, 287-313, 368-416",
+          "side": "list | colist (heuristic only)",
+          "fieldsRead": [
+            "listOfficeName",
+            "_assignedAgent.name/email/phone/company",
+            "_coListedBrokerages"
+          ],
+          "storage": "derived from the DTO above",
+          "canReceiveValue": true,
+          "evidence": "Line 183 `listOfficeName: string`; 274-286 `_assignedAgent?: { name, email, phone, company, photo, title, slug }`; annotateCoListedSiblings (368-416) collects `other.listOfficeName` for OTHER DTOs on the SAME response page that share an address slug (374, 402).",
+          "notes": "FLAG — `_coListedBrokerages` is NOT co-list data. It is a same-address collision heuristic over one response page; it never reads CoListOfficeName / CoListAgentFullName / CoListAgent2* / CoListAgent3*. Gated by isMallanRelevantListing (362-366), which tests `dto._source === 'exclusive'` — so the agent_id mislabel above also mis-fires this badge on third-party rows."
+        },
+        {
+          "surface": "public listing page",
+          "file": "app/listing/[...slug]/page.tsx",
+          "lines": "560, 628-642, 2018-2075, 2141",
+          "side": "list",
+          "fieldsRead": [
+            "list_agent_full_name",
+            "list_office_name",
+            "list_agent_email",
+            "list_agent_direct_phone",
+            "agent_id",
+            "rls_eligible"
+          ],
+          "storage": "typed columns (query uses `include: LISTING_MEDIA_INCLUDE`, so every scalar incl. agent_id is present)",
+          "canReceiveValue": true,
+          "evidence": "628 `dbListingToPublicDTO(dbListing, …)`; 2018 renders `listing._assignedAgent.name`, 2057/2064 `mailto:${listing._assignedAgent?.email …}`, 2071/2075 `tel:${listing._assignedAgent?.phone …}`; 2141 `RLS · Listing Courtesy of {publicListOfficeName(listing.listOfficeName)}`.",
+          "notes": "The page's own guard `isMallanExclusiveListing` (567-570) correctly uses SL-/RL-/rls_eligible===false and never loads the Agent record for a third-party row — but line 639 defers to `baseDto._assignedAgent`, which the shared builder already populated from agent_id. The page inherits the mislabel it locally avoided."
+        },
+        {
+          "surface": "search card",
+          "file": "app/components/SearchListingCard.tsx",
+          "lines": "54-56, 235-236, 375-376, 503-504",
+          "side": "list",
+          "fieldsRead": [
+            "_source",
+            "_displayCompliance.attributionText",
+            "listOfficeName",
+            "_coListedBrokerages",
+            "_coListedCount"
+          ],
+          "storage": "DTO (from typed columns)",
+          "canReceiveValue": true,
+          "evidence": "235-236 `listing._source === 'exclusive' ? (listing._displayCompliance?.attributionText || 'Mallan Real Estate Inc.') : `RLS · Listing Courtesy of ${listing.listOfficeName || 'listing broker'}``, repeated verbatim at 375-376 (ListCard) and 503-504 (MapCard).",
+          "notes": "FLAG — the `|| 'Mallan Real Estate Inc.'` default sits on the exclusive branch, which the agent_id mislabel can put a third-party row onto. Third-party branch's own fallback ('listing broker') is neutral and correct."
+        },
+        {
+          "surface": "search card",
+          "file": "app/components/FeaturedListings.tsx",
+          "lines": "57, 67, 74-75, 326-348",
+          "side": "list",
+          "fieldsRead": [
+            "listOfficeName",
+            "_displayCompliance.attributionText",
+            "_coListedBrokerages",
+            "_coListedCount"
+          ],
+          "storage": "DTO via /api/listings",
+          "canReceiveValue": true,
+          "evidence": "331-332 same ternary with `|| 'Mallan Real Estate Inc.'` on the exclusive branch; 343-348 renders `Additional listing source: {_coListedBrokerages[0]} + N others`.",
+          "notes": "FLAG — same hard-coded Mallan default as SearchListingCard."
+        },
+        {
+          "surface": "agent listings",
+          "file": "app/agents/[name]/listings/ActiveListingsTabs.tsx",
+          "lines": "142-146",
+          "side": "list",
+          "fieldsRead": [
+            "_source",
+            "_displayCompliance.attributionText",
+            "listOfficeName",
+            "id"
+          ],
+          "storage": "DTO from app/api/agents/[slug]/listings/route.ts",
+          "canReceiveValue": true,
+          "evidence": "line 145: `` : `RLS · Listing Courtesy of ${listing.listOfficeName || 'Mallan Real Estate Inc.'}` ``. The prop is typed `listOfficeName?: string | null` (line 29), so null/blank is representable.",
+          "notes": "FLAG — a THIRD-PARTY RLS listing (the explicit else-branch) with no office name renders 'RLS · Listing Courtesy of Mallan Real Estate Inc.' — a false claim of brokerage under 19 NYCRR 175.25 and UCBA Art. III §2(C). This is exactly the defect lib/idx/public-attribution.ts was created to end (its header names the four sites it fixed); this surface was never migrated to publicListOfficeName(). Made worse because this page's roster comes from `agent_id`, which syncAgentHistory populates from BOTH list-side and BUYER-side matches (route.ts:210-214)."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/search/engine/hydrate.ts",
+          "lines": "161, 172-181",
+          "side": "list",
+          "fieldsRead": [
+            "list_agent_full_name",
+            "list_office_name"
+          ],
+          "storage": "typed columns",
+          "canReceiveValue": true,
+          "evidence": "line 161: `ListAgentFullName: r.list_agent_full_name, ListOfficeName: r.list_office_name ?? 'Mallan Real Estate Inc.', ListOfficeMlsId: null`.",
+          "notes": "FLAG (lower risk) — hard-coded Mallan default. Scoped by the query at 173 (`mls_id: null`, i.e. Mallan-authored rows only) and by `row.source === 'mallan'` at 195, so it cannot currently name Mallan for a provider row. Still a fabricated provider fact injected into a provider-shaped record, contrary to the module's own 'Unknown facts stay null' contract (line 121)."
+        },
+        {
+          "surface": "agent roster",
+          "file": "app/api/open-houses/route.ts",
+          "lines": "273-274, 395-396, 590-591",
+          "side": "list | office",
+          "fieldsRead": [
+            "ListOfficeName",
+            "list_office_name (via resolveListingAgentInfo)"
+          ],
+          "storage": "provider row (Cotality) + typed columns",
+          "canReceiveValue": true,
+          "evidence": "273/395 `agentName: (prop.ListOfficeName as string) || 'Listing broker (REBNY RLS)'` (neutral, correct); 590 `agentName: resolveListingAgentInfo(s.listing).officeName || 'Mallan Real Estate Inc.'`.",
+          "notes": "FLAG (lower risk) — line 590's Mallan default is on the Mallan-DB-listing branch. Note the DTO field is misnamed `agentName` but only ever carries an OFFICE name; `agentPhone` is hard-coded '' on all three branches. Comment at 190-191 confirms ListAgentFullName is deliberately not requested."
+        },
+        {
+          "surface": "public listing page",
+          "file": "app/components/OpenHousesList.tsx",
+          "lines": "19-20, 208-214, 229",
+          "side": "office",
+          "fieldsRead": [
+            "agentName",
+            "agentPhone"
+          ],
+          "storage": "API response above",
+          "canReceiveValue": true,
+          "evidence": "line 229 `RLS · Listing Courtesy of {oh.agentName || 'REBNY RLS'}`; 208-214 renders `{oh.agentName}` and a `tel:` link from `oh.agentPhone`.",
+          "notes": "The tel: block is unreachable today because every producer sets `agentPhone: ''`, but the render path exists and would publish a listing-agent phone if that field were ever populated."
+        },
+        {
+          "surface": "search card",
+          "file": "app/components/SearchMap.tsx",
+          "lines": "371",
+          "side": "list",
+          "fieldsRead": [
+            "listOfficeName"
+          ],
+          "storage": "DTO",
+          "canReceiveValue": true,
+          "evidence": "`RLS · Listing Courtesy of {listing.listOfficeName || 'REBNY RLS'}` — neutral fallback, correct.",
+          "notes": ""
+        },
+        {
+          "surface": "search card",
+          "file": "app/components/neighborhoods/LiveListingsWidget.tsx",
+          "lines": "22, 77, 239",
+          "side": "list",
+          "fieldsRead": [
+            "listOfficeName"
+          ],
+          "storage": "DTO via fetch('/api/listings?…')",
+          "canReceiveValue": true,
+          "evidence": "line 239 `RLS · Listing Courtesy of {listing.listOfficeName || 'listing broker'}` — neutral fallback.",
+          "notes": ""
+        },
+        {
+          "surface": "public listing page",
+          "file": "app/components/SimilarListings.tsx",
+          "lines": "23, 110",
+          "side": "list",
+          "fieldsRead": [
+            "office"
+          ],
+          "storage": "DTO field `office` from app/api/listings/similar/route.ts:343 (typed column) and :500 (provider ListOfficeName)",
+          "canReceiveValue": true,
+          "evidence": "110 `RLS · Listing Courtesy of {item.office || 'REBNY RLS'}`; producer at similar/route.ts:343 `office: resolveListingAgentInfo(l).officeName || ''`, at :500 `office: String(r.ListOfficeName || '')`, select list at :361 includes ListOfficeName only.",
+          "notes": ""
+        },
+        {
+          "surface": "public listing page",
+          "file": "app/components/BuildingUnits.tsx",
+          "lines": "17, 57, 320",
+          "side": "list",
+          "fieldsRead": [
+            "office"
+          ],
+          "storage": "provider row via app/api/listings/building/route.ts:131,145 and lib/buildings/public-building-data.ts:980,1044",
+          "canReceiveValue": true,
+          "evidence": "320 joins `RLS · Listing Courtesy of ${u.office || 'REBNY RLS'}` for every active unit; building/route.ts:71/81 $select carries ListOfficeName only (no Buyer*/CoList*). ACRIS-sourced sold rows use the literal `office: 'NYC ACRIS Public Records'` (building/route.ts:176, public-building-data.ts:1072).",
+          "notes": "Closed/sold building history is attributed to the LIST office (line 145), never BuyerOfficeName — correct, and buyer-side is unavailable to these queries anyway (no Closed-only nav expand)."
+        },
+        {
+          "surface": "search card",
+          "file": "app/components/RecentlyViewed.tsx",
+          "lines": "119",
+          "side": "list",
+          "fieldsRead": [
+            "officeName"
+          ],
+          "storage": "browser localStorage, seeded by app/listing/[...slug]/page.tsx:1263 `officeName={listing.listOfficeName}` → app/components/RecentlyViewedTracker.tsx:35",
+          "canReceiveValue": true,
+          "evidence": "RecentlyViewed.tsx:119 `RLS · {(item as unknown as { officeName?: string }).officeName || 'REBNY RLS'}`.",
+          "notes": "Attribution survives client-side caching; neutral fallback is correct."
+        },
+        {
+          "surface": "search card",
+          "file": "app/components/CompareProperties.tsx",
+          "lines": "35, 38, 296",
+          "side": "list",
+          "fieldsRead": [
+            "detail.listOfficeName"
+          ],
+          "storage": "DTO",
+          "canReceiveValue": true,
+          "evidence": "296 `values={listings.map(l => l.detail?.listOfficeName || '—')}` in a comparison table row.",
+          "notes": "Renders an em-dash rather than any brokerage name when absent — no false claim, but the required courtesy line is silently dropped for that column."
+        },
+        {
+          "surface": "search card",
+          "file": "app/components/ListingSidePanel.tsx",
+          "lines": "283-305",
+          "side": "list",
+          "fieldsRead": [
+            "agent.listOfficeName"
+          ],
+          "storage": "legacy nested `Listing` shape from lib/contexts/ListingSidePanelContext.tsx",
+          "canReceiveValue": false,
+          "evidence": "283 and 302 both gate on `listing.agent?.listOfficeName &&`, so the whole attribution block (incl. line 304 `RLS · Listing Courtesy of {…}`) is skipped when the value is absent. The only adapter that produces this shape, lib/idx/display-adapter.ts:261 `listOfficeName: raw.agent?.listOfficeName || ''`, is on the branch documented at 196-216 as an unreachable dead path.",
+          "notes": "FLAG (attribution drop, currently latent) — truthiness-gated attribution means 'no office' renders NO courtesy line at all rather than the neutral 'REBNY RLS'."
+        },
+        {
+          "surface": "agent listings",
+          "file": "app/agents/[name]/page.tsx",
+          "lines": "225",
+          "side": "list",
+          "fieldsRead": [
+            "listOfficeName"
+          ],
+          "storage": "DTO from getAgentListings",
+          "canReceiveValue": true,
+          "evidence": "`listingCourtesy: l.listOfficeName || null` when converting a Trestle CLOSED listing into the PastDeal shape (trestleToPastDeal, 207-227).",
+          "notes": "Correct: closed deals are attributed to the LIST office, never BuyerOfficeName — even though these are exactly the Closed rows where BuyerAgent→Member / BuyerOffice→Office would return a payload."
+        },
+        {
+          "surface": "agent listings",
+          "file": "app/agents/[name]/PastDealsSection.tsx",
+          "lines": "23, 38, 107-112",
+          "side": "list",
+          "fieldsRead": [
+            "listingCourtesy"
+          ],
+          "storage": "PastDeal.listing_courtesy column (app/agents/[name]/past-deals-loader.ts:64) or the mapped listOfficeName above",
+          "canReceiveValue": true,
+          "evidence": "112 `Listing Courtesy of {deal.listingCourtesy}`, gated by `hasCourtesy` at 38/108.",
+          "notes": "Attribution is omitted (not defaulted) when listing_courtesy is null — a drop, not a false claim."
+        },
+        {
+          "surface": "CRM form",
+          "file": "lib/search/crm-idx-mapper.ts",
+          "lines": "297-300",
+          "side": "list",
+          "fieldsRead": [
+            "ListOfficeName",
+            "ListAgentFullName",
+            "ListAgentEmail",
+            "ListAgentDirectPhone"
+          ],
+          "storage": "provider row (live Cotality) via lib/search/engine/hydrate.ts:198",
+          "canReceiveValue": true,
+          "evidence": "`company: String(raw.ListOfficeName || \"\")`, `agentName: …ListAgentFullName…`, `agentEmail: …ListAgentEmail…`, `agentPhone: …ListAgentDirectPhone…`. Fields are selected at lib/search/engine/select.ts:29.",
+          "notes": "NOT a public surface — every consumer is auth-gated: app/api/idx/search/route.ts:32 `requireAgentOrBroker`, app/api/crm/saved-searches/[id]/execute. This mapper emits NO courtesy line of its own and reads no Buyer*/CoList* field."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/idx/card-fields.ts",
+          "lines": "46-47",
+          "side": "list",
+          "fieldsRead": [
+            "ListAgentFullName",
+            "ListOfficeName"
+          ],
+          "storage": "provider $select list",
+          "canReceiveValue": true,
+          "evidence": "CARD_SELECT_FIELDS carries exactly `\"ListAgentFullName\", \"ListOfficeName\"` under the Agent/Office comment — no Buyer*, CoBuyer*, CoList*, ListAgentEmail or ListAgentDirectPhone.",
+          "notes": "ListAgentFullName is fetched but no card renders it — public card attribution is office-only, matching public-dto.ts:182 ('public attribution = office, not agent')."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/idx/trestle-mapper.ts",
+          "lines": "155-187, 452-470, 1133-1138, 1191",
+          "side": "list | colist | colist2/3 | buyer | cobuyer",
+          "fieldsRead": [
+            "B8_LIST_AGENT",
+            "B9_COLIST_AGENT (incl. CoListAgent2FullName/CoListAgent3FullName)",
+            "B10_BUYER_AGENT",
+            "B11_COBUYER_AGENT"
+          ],
+          "storage": "in-memory agent_info → 8 typed columns; raw_data after stripPrivateFields + slimRawData",
+          "canReceiveValue": true,
+          "evidence": "1133-1138 builds `agentInfo` from all four groups; 1191 narrows it through typedAgentColumnsFromJson, which extracts ONLY the 8 list-side keys (lib/listings/agent-info-typed-columns.ts:51-58). PRIVATE_FIELDS (452-470) strips BuyerAgentEmail/DirectPhone/MlsId and CoBuyer* equivalents from raw_data; RAW_DATA_KEEP_FIELDS (lib/compliance/raw-data-keep-fields.ts:172-181) keeps only ListAgent*/ListOffice*/CoListAgentFullName/CoListOfficeName.",
+          "notes": "FLAG (co-list) — CoListAgent2FullName / CoListAgent3FullName (~51k and ~8k populated rows) reach the in-memory agent_info via B9 but are dropped by BOTH persistence seams: not in the 8 typed columns, not in RAW_DATA_KEEP_FIELDS. CoListAgentFullName and CoListOfficeName ARE kept in raw_data but no public reader consumes them (grep across app/ + lib/ returns only this keep-list and the PII strip-list). Net: the co-list agent is rendered ZERO times, not once — the 'shown only once when 2/3 exist' failure mode cannot occur, because no co-list agent is shown at all."
+        },
+        {
+          "surface": "sync",
+          "file": "lib/idx/sync.ts",
+          "lines": "2455, 2484, 2509, 2586",
+          "side": "buyer",
+          "fieldsRead": [
+            "BuyerAgentMlsId (as a FILTER, via lib/idx/fetch.ts:533/559)"
+          ],
+          "storage": "writes Listing.agent_id + the 8 typed list-side columns",
+          "canReceiveValue": true,
+          "evidence": "2455 `agent_id: options.agentDbId` inside guardArchivedRehydration; 2484 `...typedAgentColumnsFromJson(mapped.agent_info …)`; the record set comes from `(ListAgentMlsId eq '…' or BuyerAgentMlsId eq '…')` (lib/idx/fetch.ts:533).",
+          "notes": "This is the WRITE side of the classifyDbListing flag. BuyerAgentMlsId (100,112 populated rows) is the only buyer-side value the pipeline consumes, and it is consumed as a roster filter, never as a displayed name. No BuyerAgent→Member / BuyerOffice→Office navigation expand is ever requested anywhere (lib/idx/fetch.ts:131-140 supports only Media and CustomProperty expands)."
+        },
+        {
+          "surface": "other",
+          "file": "app/api/listings/route.ts",
+          "lines": "373-384, 593, 629, 1351-1359",
+          "side": "list",
+          "fieldsRead": [
+            "list_agent_full_name",
+            "list_office_name",
+            "list_agent_email",
+            "list_agent_direct_phone",
+            "list_office_mls_id",
+            "list_agent_mls_id",
+            "co_list_office_mls_id",
+            "co_list_agent_mls_id",
+            "agent_id",
+            "owner_client_id",
+            "rls_eligible"
+          ],
+          "storage": "typed columns + provenance columns",
+          "canReceiveValue": true,
+          "evidence": "374 selects `list_agent_email: true, list_agent_direct_phone: true` and 382 `agent_id: true` on the PUBLIC, `Cache-Control: public` feed; 629 `listings: toPublicListingSummaries(annotatedListings)`, and lib/idx/public-listing-summary.ts:38-42 documents that `_assignedAgent` passes through untouched.",
+          "notes": "FLAG — this is the serialization boundary that turns the classifyDbListing mislabel into a live public leak: `_assignedAgent.email` / `.phone` for a third-party listing agent land in a publicly cacheable JSON response. Separately, lib/search/public-listing-db.ts:331 implements `?sort=exclusives` as `where.agent_id = { not: null }` — the exact predicate its own comment at 214-222 forbids — so that public sort surfaces buyer-side-stamped third-party rows as 'exclusives'. The neighbouring `?exclusive=mallan` filter (223-231) does it correctly with SL-/RL-/rls_eligible:false."
+        },
+        {
+          "surface": "other",
+          "file": "lib/compliance/dto.ts",
+          "lines": "39-58, 69-85, 276-302",
+          "side": "list | colist | buyer",
+          "fieldsRead": [
+            "ListAgentEmail",
+            "ListAgentDirectPhone",
+            "ListAgentFullName",
+            "CoListAgent*",
+            "BuyerAgentEmail",
+            "BuyerAgentDirectPhone",
+            "list_agent_* typed columns",
+            "list_office_name"
+          ],
+          "storage": "strip-list applied to any listing-shaped object; portal mask reads list_office_name via resolveListingAgentInfo",
+          "canReceiveValue": true,
+          "evidence": "AGENT_PII_FIELDS (39-58) deletes ListAgentFullName, CoListAgentFullName, BuyerAgentEmail, BuyerAgentDirectPhone and the snake_case typed mirrors; sanitizeForPortal (294-299) reduces agent_info to `{ company }` only.",
+          "notes": "Portal tier is correctly fail-closed to office-only. Note the strip-lists do NOT name BuyerAgentFullName, BuyerOfficeName, CoBuyerAgentFullName or CoBuyerOfficeName — harmless today only because no storage path retains them (trestle-mapper PRIVATE_FIELDS + RAW_DATA_KEEP_FIELDS drop them upstream)."
+        },
+        {
+          "surface": "other",
+          "file": "lib/email/templates.ts",
+          "lines": "119-157",
+          "side": "list",
+          "fieldsRead": [],
+          "storage": "none — the hydrated CRM DTO's `company` is never passed in",
+          "canReceiveValue": false,
+          "evidence": "listingAlertEmail's parameter type is `{ address; price; beds; baths; url }[]` (120) — no office field. The only attribution rendered is the blanket feed line at 152-155. Consumer: app/api/cron/search-alerts/route.ts:25/214, whose audience can be `\"public\"` (line 213).",
+          "notes": "FLAG (attribution drop) — consumer-facing listing emails carry no per-listing 'Listing Courtesy of {office}'. lib/search/canonical/attribution.ts documents this exact gap in its header ('closing the analysis §3 gap where client alert emails / reports shipped without courtesy attribution') and is explicitly 'NOT WIRED'; its `attributionViolation()` guard (63-68) has no runtime caller."
+        },
+        {
+          "surface": "sitemap/SEO",
+          "file": "app/sitemap.ts",
+          "lines": "52, 154-163, 214",
+          "side": "list",
+          "fieldsRead": [],
+          "storage": "none",
+          "canReceiveValue": false,
+          "evidence": "Only `agent.public_slug` is read (156-163) to emit /agents/{slug} URLs; listing entries carry no agent or office value.",
+          "notes": "Clean."
+        },
+        {
+          "surface": "sitemap/SEO",
+          "file": "app/listing/[...slug]/page.tsx",
+          "lines": "812-845, 1212-1247, 1276-1284",
+          "side": "list",
+          "fieldsRead": [],
+          "storage": "none",
+          "canReceiveValue": false,
+          "evidence": "generateMetadata (812-845) composes title/description/OG from address, price, beds/baths, propertyType and publicRemarks only. The RealEstateListing JSON-LD (1212-1247) has @type Offer / PostalAddress / GeoCoordinates / QuantitativeValue and no broker, provider, agent or Organization node.",
+          "notes": "Clean — but note the required 175.25 attribution is therefore absent from the structured data and OG surface; it exists only in the rendered HTML at 2141."
+        },
+        {
+          "surface": "other",
+          "file": "lib/search/listing-search-projection.ts",
+          "lines": "755-790, 829",
+          "side": "list",
+          "fieldsRead": [
+            "agent_id"
+          ],
+          "storage": "listing_search_projection row",
+          "canReceiveValue": true,
+          "evidence": "The projection select (755-790) carries `agent_id: true` (769) and NO list_agent_* / list_office_name / co_list_* column; line 829 mirrors `agent_id` onto the projection input.",
+          "notes": "No agent or office name is projected, so nothing can be rendered from it. `agent_id` is carried here as a Mallan-exclusive signal — the module imports the CORRECT helper `isMallanExclusiveListing` (line 24) rather than testing agent_id directly, unlike classifyDbListing."
+        },
+        {
+          "surface": "CMA/comps",
+          "file": "lib/comps/fetch-comps.ts",
+          "lines": "86-87",
+          "side": "list",
+          "fieldsRead": [
+            "ListAgentFullName",
+            "ListOfficeName"
+          ],
+          "storage": "provider row",
+          "canReceiveValue": true,
+          "evidence": "`listing_agent: String(r.ListAgentFullName || \"\")`, `listing_office: String(r.ListOfficeName || \"\")`. Sole consumer is app/api/crm/sales/comps/route.ts:79 via lib/comps/index.ts.",
+          "notes": "CRM-only (broker/agent auth). List-side only; no Buyer*/CoList* read."
+        },
+        {
+          "surface": "seller report",
+          "file": "lib/market-report/generator.ts",
+          "lines": "173, 247",
+          "side": "list",
+          "fieldsRead": [
+            "ListOfficeName"
+          ],
+          "storage": "provider row",
+          "canReceiveValue": true,
+          "evidence": "173 adds \"ListOfficeName\" to the $select; 247 `company: String(l.ListOfficeName || '')`. Consumer: app/api/crm/market-report/route.ts:32.",
+          "notes": "CRM-only. Note the narrative fallbacks at 291/395 name 'your Mallan Real Estate agent' — brand copy, not listing attribution."
+        }
+      ]
+    }
+  ],
+  "verifiedClaims": [
+    {
+      "refuted": true,
+      "reason": "REFUTED on two independent grounds.\n\nGROUND 1 — the read does not exist. In lib/compliance/dto.ts, the cited lines are membership entries in STRIP-lists, not reads. Line 35 (\"agent_info\") is an element of CRM_ONLY_FIELDS (lines 29-36); lines 48-49 (\"BuyerAgentEmail\", \"BuyerAgentDirectPhone\") are elements of AGENT_PII_FIELDS (lines 39-58). Both arrays are consumed ONLY by delete loops: `for (const field of CRM_ONLY_FIELDS) delete result[field]` (lines 146-148) and `for (const field of AGENT_PII_FIELDS) delete result[field]` (lines 151-153). Deleting a key is not reading a value from agent_info JSON. A full enumeration of \"Buyer\" in dto.ts (lines 38, 48, 49, 62, 63, 82, 92, 122, 173-178, 398) shows the only buyer-side VALUE access is `result.buyer` at lines 174-178, which reads a Mallan-authored nested object and blanks buyerAgentCompensation/buyerAgentCompensationType — it never touches BuyerAgentEmail or BuyerAgentDirectPhone. No buyer-side read exists on this surface.\n\nGROUND 2 — agent_info (the first element of the claimed read set) arrives non-null on a non-feed path. The one genuine agent_info read is dto.ts:285 (`const agentInfo = listing.agent_info as ...`) feeding dto.ts:294-296, which resolves via `resolveListingAgentInfo(listing).officeName`. That resolver in lib/listings/agent-info-resolver.ts is LIST-SIDE ONLY: ResolvedAgentInfo (lines 37-46) declares fullName, officeName, agentEmail, agentDirectPhone, officeMlsId, agentMlsId, coListOfficeMlsId, coListAgentMlsId — zero buyer members — and resolveListingAgentInfo (lines 59-73) picks only list_*/co_list_* typed columns with agent_info JSON fallback. dto.ts:295 consumes only `.officeName`. That value is CRM/exclusive-authored, not feed-delivered: lib/listings/exclusive-agent-assignment.ts:165-192 (buildExclusiveAgentAssignment) merges ListAgentFullName / ListOfficeName / ListAgentEmail / ListAgentDirectPhone from the AUTHENTICATED agent's own CRM identity row (officeName defaults to MALLAN_BROKERAGE_NAME), and app/api/crm/listings/route.ts:539-541 persists the derived typed columns (`...typedAgentColumnsFromJson(exclusiveAssignment?.agent_info ?? persistence.agentInfo)`) that dto.ts:294 reads typed-first through `list_office_name`. A Mallan exclusive therefore produces a non-null value on this exact read with no feed involvement — a local/CRM-authored path.\n\nWHAT SURVIVES (narrow, and not a read): lib/idx/trestle-mapper.ts:1133-1138 does spread B10_BUYER_AGENT (declared lines 169-178, including BuyerAgentEmail and BuyerAgentDirectPhone) into the agentInfo object, but the `pick` helper at lines 484-495 skips undefined/null values, so the provider-suppressed buyer scalars never materialize as keys; PRIVATE_FIELDS (lines 454-468) additionally bars both from raw_data. So the feed indeed cannot deliver those two scalars — but the DTO strips them rather than rendering them, so the \"read\" the claim anchors on is absent, and the bundled `agent_info` element is demonstrably populated off-feed."
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED on both halves of the claim. (1) The read is mischaracterized: at lib/idx/sync.ts:2418 (`const { agent_info: _agentInfoJson, ...typedOnlyMapped } = mapped;`) and :2484 (`...typedAgentColumnsFromJson(mapped.agent_info …)`), the code reads `mapped.agent_info` — the in-memory output of `mapTrestleToPrisma(raw)` (sync.ts:2407) — NOT a stored typed column. agent_info is the SOURCE from which the list_agent_* typed columns are derived (lib/listings/agent-info-typed-columns.ts:45-59), so the claimed direction is inverted. (2) The feed CAN and does deliver a non-null value. lib/idx/trestle-mapper.ts:1133-1138 builds agent_info as `{...pick(raw,B8_LIST_AGENT), ...pick(raw,B9_COLIST_AGENT), ...pick(raw,B10_BUYER_AGENT), ...pick(raw,B11_COBUYER_AGENT)}`, and `pick` (trestle-mapper.ts:484-495) copies every non-null raw key through verbatim. B10_BUYER_AGENT (trestle-mapper.ts:170-178) contains BuyerAgentMlsId/BuyerOfficeMlsId; B8-B11 are all in IDX_PLUS_SELECT_FIELDS (trestle-mapper.ts:383-384) with only ListTeamMlsId/BuyerTeamMlsId excluded (trestle-mapper.ts:395-398), and lib/idx/fetch.ts:114,119 sends that list as `$select` on this exact call (sync.ts:2361-2367 passes no select override). Decisive for the buyer side: the filter syncAgentHistory uses is `(ListAgentMlsId eq '…' or BuyerAgentMlsId eq '…')` (lib/idx/fetch.ts:533) restricted to Closed/Expired/Hold/Withdrawn (fetch.ts:536-537) — any row returned by the second disjunct necessarily carries a non-null provider BuyerAgentMlsId, which pick then places into agent_info before the reads at 2418/2484. Provider facts corroborate: BuyerAgentMlsId 100,112 rows / BuyerOfficeMlsId 100,463, and list-side ListAgentFullName/ListOfficeName 591,607 rows (the literal inputs of typedAgentColumnsFromJson). Additional non-feed paths feeding the same seam with authored values: app/api/crm/listings/route.ts:539, lib/listings/ensure-local-listing.ts:172, lib/listings/exclusive-agent-assignment.ts:186. The only accurate kernel is narrower and different: typedAgentColumnsFromJson maps only 8 list-side keys, and Buyer* is absent from RAW_DATA_KEEP_FIELDS, so buyer keys present in agent_info are not projected into a persisted column by this upsert — that is a \"not carried onward\" fact, not \"the feed cannot deliver a non-null value for it.\""
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED on three independent, traced grounds.\n\n(1) THE READ DOES NOT EXIST. lib/idx/fetch.ts:116-154 is buildUrl(), a pure outbound-request WRITER: it constructs URLSearchParams (line 117) and returns `${getPropertyEndpoint()}?${params.toString()}` (line 153). It never reads a provider row, agent_info JSON, raw_data, or a typed column. `$expand=Media` / `$expand=CustomProperty` are request query parameters, not fields read from a payload — there is no field read at this site that could be null or non-null.\n\n(2) SIDE \"office\" IS NOT PRESENT. grep for \"office|Office\" across the entire 770-line lib/idx/fetch.ts returns ZERO hits. No ListOffice, BuyerOffice, ListOfficeName, or *OfficeMlsId is read, written, or expanded anywhere in the file, let alone at 116-154. The read's stated side is fabricated.\n\n(3) THE FEED CAN DELIVER BOTH NAVIGATIONS NON-NULL. Measured contract in lib/cotality/generated/contract.ts: line 3244 `Media?: CotalityMedia[];` marked \"$expand SUPPORTED\"; line 3238 `CustomProperty?: CotalityCustomProperty[];` marked \"$expand SUPPORTED\" (and 3242 ListOffice / 3228 BuyerOffice also SUPPORTED). A navigation expand IS actually sent and returns populated payloads: app/api/cron/feed-reconcile/route.ts:397-398 builds `Media($select=...;$filter=MediaStatus ne 'Deleted';$orderby=Order)` and sends it as `&$expand=`, and that file's header at line 134 records the form \"returned HTTP 200 with media\"; lib/buildings/public-building-data.ts:826,830 sends MEDIA_EXPAND identically. fetch.ts:56-60 concedes this itself (\"returned HTTP 200 with populated Media arrays against live Cotality (deep-review L13 REFUTED)\").\n\n(4) EVEN ON THE SYNC SURFACE, MEDIA ARRIVES NON-NULL BY ANOTHER TRACED PATH: lib/idx/sync.ts:1227-1260 filters records whose r.Media is empty, batches ListingKeys (BATCH_SIZE 15 to stay under the URL length that 400s), fetches Media directly from TRESTLE_API, and lib/idx/sync.ts:896 / :2478 write it via mediaUpdatePatch(mapped.media, useExpandMedia).\n\nACCURATE PART OF THE CLAIMED EVIDENCE (insufficient to sustain the claim): expandParts (line 131) can only receive `Media(...)` (132-137) or bare \"CustomProperty\" (138-145); both sync call sites hard-code `const useExpandMedia = false` (lib/idx/sync.ts:598, :2359) and no non-test caller ever passes expandCustomProperty (only tests/runtime/idx-fetch-expand-media.test.ts). So this function emits no $expand on the sync surface — but that is a fact about an outbound parameter default, not about an office-side provider-row read the feed cannot populate, which is what the claim asserts."
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED on both halves of the claim.\n\n(1) \"reads agent_info from typed columns (list_agent_*)\" is false. At lib/idx/sync.ts:838 (`const { agent_info: _agentInfoJson, ...typedOnlyMapped } = mapped;`) and lib/idx/sync.ts:902 (`...typedAgentColumnsFromJson(mapped.agent_info as Record<string, unknown>)`), the value read is `mapped.agent_info` — the in-memory object returned by the mapper (lib/idx/sync.ts:720 `const mapped = mapTrestleToPrisma(raw);`), not a DB typed column. prisma/schema.prisma:480-485 only proves the JSON is no longer *persisted*; it says nothing about the in-memory read.\n\n(2) \"the feed CANNOT deliver a non-null value for it\" is false — traced end to end:\n- lib/idx/trestle-mapper.ts:170-188 defines B10_BUYER_AGENT (BuyerAgentMlsId, BuyerAgentKey, BuyerAgentFullName, BuyerOfficeMlsId, BuyerOfficeName, ...) and B11_COBUYER_AGENT (CoBuyerAgentMlsId, CoBuyerOfficeMlsId, ...).\n- lib/idx/trestle-mapper.ts:384 unions both into COTALITY_PROPERTY_FIELDS.\n- lib/idx/trestle-mapper.ts:395-407: IDX_PLUS_SELECT_FIELDS = COTALITY_PROPERTY_FIELDS minus LIVE_FIELDS_NOT_SELECTED, which contains ONLY \"ListTeamMlsId\" and \"BuyerTeamMlsId\". So every other buyer/co-buyer field IS in the $select.\n- lib/idx/fetch.ts:114: `options.select?.join(\",\") || IDX_PLUS_SELECT_FIELDS.join(\",\")` — and lib/idx/sync.ts:600-610 calls fetchFromTrestle with no `select` override, so the buyer fields are actually requested on the wire.\n- lib/idx/trestle-mapper.ts:1133-1138: `const agentInfo = { ...pick(raw, B8_LIST_AGENT), ...pick(raw, B9_COLIST_AGENT), ...pick(raw, B10_BUYER_AGENT), ...pick(raw, B11_COBUYER_AGENT) };` built from the UN-stripped `raw` (stripPrivateFields at 469-477 is applied only to raw_data at ~1226), and returned as `agent_info: agentInfo` at line 1220.\n\nPer the provider facts, BuyerAgentMlsId is populated on 100,112 Property rows and BuyerOfficeMlsId on 100,463 (plus CoBuyerAgentMlsId 3,168 / CoBuyerOfficeMlsId 3,173). Those populated provider values flow into the exact expression `mapped.agent_info` that lines 838 and 902 read. The read exists and its input is non-null with populated buyer-side content.\n\nWhat IS true (a different, narrower claim): the buyer keys are DROPPED at this seam, not absent from the feed. lib/listings/agent-info-typed-columns.ts:49-59 maps only 8 list-side keys (ListAgentFullName/ListOfficeName/ListAgentEmail/ListAgentDirectPhone/ListOfficeMlsId/ListAgentMlsId/CoListOfficeMlsId/CoListAgentMlsId) — no Buyer* key — and lib/compliance/raw-data-keep-fields.ts contains no Buyer* field, so no buyer value from this site reaches storage or render. That is a \"discarded downstream\" finding, not \"the feed cannot deliver a non-null value.\""
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED on two independent traced paths.\n\n(1) Populated provider field, same surface/side. The sync $select requests all three (lib/idx/trestle-mapper.ts:146-149, B8_LIST_AGENT), and the live census in lib/cotality/generated/contract.ts shows them populated, not suppressed: ListAgentMlsId 591,197 (:4795), ListAgentEmail 591,607 (:4786), ListAgentDirectPhone 580,228 (:4785), all rlsField:true. The sync mapper stores the delivered values: trestle-mapper.ts:1133-1138 builds agentInfo from pick(raw, B8_LIST_AGENT), persisted at :1220 (agent_info), and dual-written to typed columns at :1191/:1225 via lib/listings/agent-info-typed-columns.ts:53-56 (list_agent_email, list_agent_direct_phone, list_agent_mls_id). So on the \"sync\"/\"list\" surface the feed does deliver non-null values for these three; only the raw_data mirror is stripped.\n\n(2) CRM-authored / Mallan-exclusive value lands in raw_data with these exact keys. lib/listings/mallan-form-contract.ts:235,238,239 marks ListAgentMlsId / ListAgentEmail / ListAgentDirectPhone as { agentInfo: true, raw: true }; lib/compliance/normalizer.ts:174 sets raw_data = { ...normalized } (full payload, unfiltered); app/api/crm/listings/route.ts:543 persists raw_data: persistence.raw_data and app/api/crm/listings/[id]/route.ts:519 persists update.raw_data = merged. Neither CRM path calls stripPrivateFields or slimRawData — explicitly noted at raw-data-keep-fields.ts:39-43 and trestle-mapper.ts:1236-1238. scripts/neon-shed-raw-data.ts:103,127,145 slims only rows WHERE last_synced_from_trestle IS NOT NULL, so CRM rows keep those raw_data keys permanently.\n\nWhat survives of the claim is narrower and non-load-bearing: on the Trestle path only, trestle-mapper.ts:1241 (slimRawData(stripPrivateFields(rawInput))) with PRIVATE_FIELDS at :459-460 means the keep-set entries at raw-data-keep-fields.ts:172,175,176 are inert for synced rows — a redundant whitelist entry, not evidence that the feed cannot deliver a non-null value or that no value can reach raw_data."
+    },
+    {
+      "refuted": false,
+      "reason": "Could not refute. The read exists: lib/idx/trestle-mapper.ts:170-178 defines B10_BUYER_AGENT, consumed at line 1136 (`...pick(raw, B10_BUYER_AGENT)`) into `agentInfo` -> `agent_info` (line 1220). All four alternate delivery paths are closed for the 16 named keys.\n\n(1) Provider scalars: lib/cotality/generated/contract.ts:4416-4460 shows `populated: null` for BuyerAgentKey (4424), BuyerAgentFirstName (4421), BuyerAgentLastName (4426), BuyerAgentFullName (4422), BuyerAgentEmail (4419), BuyerAgentDirectPhone (4418), BuyerAgentURL (4440), BuyerAgentOfficePhone (4433), BuyerOfficeKey (4449), BuyerOfficeName (4452), BuyerOfficePhone (4454), BuyerOfficeURL (4456), BuyerOfficeEmail (4447), BuyerTeamName (4460); BuyerTeamKey (4457) and BuyerTeamMlsId (4459) are `populated: 0`. pick() at trestle-mapper.ts:484-495 skips null/undefined, so none can enter agent_info. BuyerTeamMlsId is additionally never even requested — LIVE_FIELDS_NOT_SELECTED at trestle-mapper.ts:397 removes it from the $select (line 405-407).\n\n(2) Navigation expand: lib/idx/fetch.ts:120-147 builds `$expand` from exactly two opt-in flags (expandMedia line 132, expandCustomProperty line 138). No BuyerAgent/BuyerOffice expand is ever emitted, and no Member/Office resource fetch exists in the repo (only an aspirational comment at lib/idx/media-sync.ts:39). The Closed-row BuyerAgent->Member payload (80,460 rows) is never requested, so it cannot flatten into raw.BuyerAgent*.\n\n(3) Alias/rename synthesis: normalizeRenames (trestle-mapper.ts:503-505, called at 974) is a pure identity spread `{ ...raw }`. The historical alias `BuyerAgentMlsId: \"BuyerAgentKey\"` — which WOULD have copied the populated BuyerAgentMlsId (100,112 rows) into the suppressed BuyerAgentKey — survives only in the stale, unshipped ./.cache/fix/trestle-mapper.working.ts:21. This was the strongest refutation candidate and it does not hold against the live module.\n\n(4) CRM / local roster / Mallan exclusive: mapTrestleToPrisma is called only on provider records — lib/idx/sync.ts:716 and :2407, app/api/crm/listings/reset-sync/route.ts:122 (input from fetchFromTrestle at :101), app/api/cron/feed-reconcile/route.ts:416, and the DTO chain in lib/idx/cotality-public-dto.ts. CRM-authored listings use a different producer, buildPersistenceRecord (lib/compliance/normalizer.ts:129-175), and lib/listings/mallan-form-contract.ts:405-412 tags every buyer key `{ raw: true }` — never `agentInfo`, never `db` — so a Mallan exclusive's buyer-agent data lands in raw_data only and never reaches this read.\n\nCaveat (does not rescue the claim, but the claim mischaracterizes the code): the actual read at 170-178 is 18 fields and DOES include BuyerAgentMlsId (line 171, populated 100,112) and BuyerOfficeMlsId (line 174, populated 100,463), both of which do flow through pick() into agent_info. The claim's enumerated list correctly omits those two, so its assertion holds for the 16 it names — but the read site as a whole is not dead, and CLOSE_ONLY_FIELDS (trestle-mapper.ts:434-439) plus PRIVATE_FIELDS (462) confirm those two MlsId/Key fields are live, handled values."
+    },
+    {
+      "refuted": false,
+      "reason": "Could not refute. (1) The read exists as described: lib/idx/trestle-mapper.ts:181-188 defines B11_COBUYER_AGENT, spread into the $select at line 384 and consumed at line 1137 as `...pick(raw, B11_COBUYER_AGENT)` into agentInfo; pick() (lines 484-495) drops null/undefined, so a null provider value never becomes an agent_info key. (2) Feed path is empty by direct live measurement, not just the contract: docs/operations/evidence-2026-09-08/suppressed/suppressed-census-property-all.json (source LIVE_COTALITY, scope all, Property rows 591597, pages 592) records {\"nonNull\":0,\"nonEmpty\":0} for all ten fields — CoBuyerAgentKey/FirstName/LastName/FullName/Email/DirectPhone/URL and CoBuyerOfficeKey/Name/Phone. Note the claim's own stated evidence is weaker than it looks: lib/cotality/generated/contract.ts lines 18-19 say `populated: null` on a filterable:false field means UNMEASURABLE, not zero — but the census supplies the missing proof independently. (3) Navigation path cannot deliver: docs/operations/evidence-2026-09-08/navigation/navigation-capability-matrix.md lines 21-28 show CoBuyerAgent→Member and CoBuyerOffice→Office return HTTP 200 with 0 payloads in every status including Closed (0/60), and line 128's key-only probe returns \"CoBuyerAgentKey\":null,\"CoBuyerOfficeKey\":null,\"CoBuyerAgent\":[],\"CoBuyerOffice\":[]. It is also never requested: lib/idx/fetch.ts:120-147 makes $expand opt-in and supports only Media and CustomProperty. (4) No CRM/exclusive/local-roster value can reach this read: mapTrestleToPrisma is called only with a Cotality raw (lib/idx/sync.ts:716 and :2407, app/api/crm/listings/reset-sync/route.ts:122, app/api/cron/feed-reconcile/route.ts:416); the CRM authoring route app/api/crm/listings/route.ts does not import the mapper and builds its own bucket via buildPersistenceRecord (lib/compliance/normalizer.ts:134-176) driven by MALLAN_FORM_CONTRACT.persistenceMap, where the only CoBuyer key in lib/listings/mallan-form-contract.ts is CoBuyerAgentRLSParticipantYN (line 42, a Mallan-internal submission flag). (5) The destination is inert regardless: agent_info JSON is stripped before every DB write (lib/idx/sync.ts:838 and :2418, reset-sync/route.ts:131, feed-reconcile/route.ts:421, CRM route 534-541) and only feeds typedAgentColumnsFromJson, whose 8 columns (lib/listings/agent-info-typed-columns.ts:43-52,65-77) have no CoBuyer slot. The only adjacent CoBuyer names elsewhere are REBNY submission-form validation rules (lib/compliance/rebny-ucba-rules.ts:597-615), which never route into this mapper read."
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED on two independent grounds.\n\n(1) The claimed read does not exist. In app/api/crm/sales/prospects/[id]/comps/route.ts there is no buyer-side agent/office read of any kind, and no local-roster read either. The Trestle projection COMP_SELECT (lines 29-42) is exactly 12 fields — ListingId, UnparsedAddress, UnitNumber, ClosePrice, CloseDate, BedroomsTotal, BathroomsFull, LivingArea, BuildingName, PropertySubType, StreetNumber, StreetName — containing no BuyerAgent*/BuyerOffice* scalar. The request URL built at lines 89-94 sends only $filter/$select/$top/$orderby; there is no $expand, so BuyerAgent->Member / BuyerOffice->Office are never requested. The TrestleComp interface (46-59), MappedComp (61-72) and the mapper (109-122) have no agent or office key whatsoever. grep for Agent|Office on the file returns only lines 14, 132, 203 (requireAgentOrBroker) and 181, 219 (assigned_agent_id, the CRM ownership filter) — no provider agent/office field is read. Since the claim is framed as \"reads [] from local roster\" for a buyer-side agent value, and no such read exists on this surface, the claim is refuted by the \"the read does not exist\" clause.\n\n(2) Even granting the only [] literal in the read path — line 194, `comps: pitchData.comps ?? []` — it is not a roster read and it can be non-empty via a traced local CRM-authored path. That value comes from prisma.sellerLead.pitch_data (select at 178-184; column declared prisma/schema.prisma:1210 `pitch_data Json? @map(\"pitch_data\")`). The POST handler in the same file writes agent-curated comps into it: body parsed at 228-233, validated at 236-257, merged at 260-265 and persisted at 267-270 (`pitch_data: JSON.parse(JSON.stringify(updated))`). SavedComp extends MappedComp with `[key: string]: unknown` (line 74-76), so arbitrary agent-authored per-comp fields — plus the separate `overrides` map (80, 195, 264) — survive the write and are returned verbatim by GET at 192-197. So a Mallan-authored CRM value populates this surface with no feed involvement at all.\n\nNote on the provider facts: they are consistent with, but not needed for, the refutation. Buyer-side scalars are indeed suppressed except BuyerAgentMlsId/BuyerOfficeMlsId, and the BuyerAgent/BuyerOffice navigations do return payloads on Closed rows (which is what this route's Closed-status filter at line 170 selects) — but none of that is exercised here because the route neither selects nor expands any of those fields. The defect in the claim is its premise, not its provider reasoning."
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED on two independent grounds.\n\n(1) The reads do not exist as described. None of the five cited lines is a DTO/property read — every one is a hard-coded array of field *name strings* used as an allowlist/blocklist that is then matched against DOM text, never against a feed object:\n- public/crm/js/compliance/compliance-gates-and-output.js:1300-1304 — `requiredResoFields` (includes 'ListAgentFullName','ListOfficeName'); at :1309-1317 it is compared against `gridColumnDefs[key].reso` (column metadata), not listing data. None of the five claimed fields appears here at all.\n- :1547 `var LEAKS = ['ListAgentMlsId','ListOfficeMlsId',...,'BuyerAgentMlsId','CoListAgentMlsId']` — at :1548-1549 it does `document.body.innerText.indexOf(n)`, i.e. a substring search for the literal field *name* in rendered text. It never dereferences a DTO.\n- :1849 `SENSITIVE = [...'ListAgentMlsId','BuyerAgencyCompensation']` — :1854-1856 `text.indexOf(term)` over hidden elements' textContent. Same pattern.\n- :1912 `PROHIBITED = [...'ListAgentMlsId','OriginatingSystemKey'...]` — :1928 `vis.indexOf(t)` over container innerText. Same pattern.\n- :2155 `PROHIBITED_LEAK_FIELDS = [...]` — a bare module-level constant declaration; no read of any object.\nThe only genuine property access anywhere near these lines is at :1872-1873 (`l.BuyerAgentCompensation || l.BuyerBrokerageCompensation` over `window.listings`), which is a negative assertion that the field must be ABSENT (test C4 FAILs if present) — and it is not at any cited line, and reads a locally-shaped CRM listing object, not a provider DTO.\n\n(2) Even granting a read, the \"feed CANNOT deliver a non-null value\" premise is false for 3 of the 5 fields:\n- BuyerAgentMlsId is POPULATED — 100,112 rows (provider facts as given; corroborated at docs/operations/evidence-2026-09-08/search-coverage-matrix.md:911 `POPULATED · 100,112 · RLS` and :2175). It is explicitly one of the two buyer-side scalars that is NOT suppressed.\n- ListAgentMlsId and ListOfficeMlsId are list-side scalars requested live in the provider $select at lib/search/engine/select.ts:29 (`\"ListAgentMlsId\", \"ListAgentFullName\", ..., \"ListOfficeMlsId\", \"ListOfficeName\"`), and ListOfficeMlsId is used as a live query predicate at lib/search/engine/provider-query.ts:87 (`ListOfficeMlsId ne '<mallan office>'`) — which only works because the feed returns real values. Both are also in the Trestle mapper field lists (lib/idx/trestle-mapper.ts:147, 150, 157, 171) and in raw-data keep-fields (lib/compliance/raw-data-keep-fields.ts:172, 179).\nCoListAgentMlsId (mapper line 157) is a populated co-list scalar (~207k CoListAgent* rows per provider facts). Only BuyerAgentCompensation/BuyerBrokerageCompensation are genuinely undeliverable — and those appear at :2155 solely as a suppression blocklist and at :1873 as a must-be-absent assertion, i.e. exactly the correct handling.\n\nNet: the cited code is a leak *detector* built from string literals, not a consumer of feed values, and the fields it names are largely deliverable by the feed. The claim as stated (a DTO read of an undeliverable value) does not hold."
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED because the read does not exist. lib/seller-report/load-report.ts lines 1-20 contain only the module header comment (1-9), imports of @/lib/prisma, @/lib/listing-slug and ./build-report (10-17), and the MAX_ROWS=5000 constant (19-20) — no field read of any kind, buyer-side or otherwise. grep -iE 'agent|office|broker|roster' over lib/seller-report/*.ts returns only prose, never a data access: load-report.ts:7 ('requireAgentOrBroker' in an auth comment), load-report.ts:107 ('office/household IP' in a SQL comment), and build-report.ts:2,187,189,204,320,325 ('broker'/'broker-network' inside truth-level definition strings). The Prisma projections in loadSellerReport (load-report.ts:85-175) select only viewed_at/lead_id/device_type/ip_hash/referrer (listingView), source/created_at/message (inquiry), type/status/date (showing), action/created_at (clientListingAction), and list_price/days_on_market (market proxy); SellerReportListingRow (load-report.ts:61-72) declares only id, listing_id, status, listing_type, property_type, borough, list_price, days_on_market, first_active_date, address. The emitted SellerReport type (build-report.ts:118-158) has no agent or office member. Both consumers confirm this end to end: app/api/crm/listings/[id]/seller-report/route.ts:69 returns the report verbatim (its only BuyerAgentMlsId mention, route.ts:54, is a comment about an authorization fix, not a rendered value), and app/admin/seller-report/[id]/page.tsx renders only report.* fields (its agent/office grep hits are the auth gate at 85/95/107 and the 'broker use only'/license footer strings at 133/267). With no buyer-side agent or office read on this surface, there is no value for the feed to deliver or suppress, so the claimed read is not a real read."
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED — the reads exist but they are CRM-authored round-trips, not feed reads. public/crm/SALE-FORM-REDESIGN.html:704-715 are editable agent-entry inputs under the comment \"REBNY BUYER-NONRLS-001: when the Buyer agent is not an RLS participant, their contact details are required at close\" (six text/tel/email inputs at 710-715 plus the saleBuyerAgentRLSParticipantYN radio at 705). collectSaleFormData() at 7440-7450 harvests every input by DOM id, and 7495-7502 serializes the agent's typed values into the canonical names (data.BuyerAgentFullName = data.saleBuyerAgentFullName || '', etc.) — a write, not a provider read. lib/listings/mallan-form-contract.ts:404-412 classifies the block as \"Buyer agent (close context) -> raw only\" with {raw: true}, so it persists to raw_data and is never a provider/typed column. app/api/crm/listings/[id]/route.ts:145-146 and 518-519 merge existingRaw with the body and write update.raw_data = merged, landing those exact keys in listings.raw_data. The hydration entries at 9225-9230 (src:'raw') are consumed by SALE_FIELD_MAP.forEach at 9816, final else branch 9834-9835 (val = raw[f.rls]) with raw = listing.raw_data (9749); 9584's SALE_RADIO_MAP entry (rawKey 'saleBuyerAgentRLSParticipantYN', fallback 'BuyerAgentRLSParticipantYN') does the same for the radio. lib/compliance/rebny-ucba-rules.ts:356-370 (BUYER-NONRLS-001) requires the agent to supply all six fields when BuyerAgentRLSParticipantYN is false — the gate demands manual entry precisely because the feed suppresses them. So a non-null value arrives via a fully traced local/CRM-authored path on a Mallan exclusive's own data; provider suppression of buyer-side scalars never gates this surface."
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED. The read exists, but both fields are non-nullable LOCAL columns that are always populated by Mallan's own writers — they are not buyer-side provider scalars, so the feed's buyer-side suppression is irrelevant to them.\n\n1) The read exists and is exactly as described. lib/search/public-listing-db.ts:223-230 gates `exclusive=mallan` on `OR: [{ listing_id: { startsWith: \"SL-\" } }, { listing_id: { startsWith: \"RL-\" } }, { rls_eligible: false }]`. The comment block at 210-222 is verbatim as quoted.\n\n2) Both columns are NOT NULL in the schema, so a null is structurally impossible:\n   - prisma/schema.prisma:439 — `listing_id String @unique @map(\"listing_id\") // Trestle ListingId or internal SL-/RL- prefix` (non-optional String, unique).\n   - prisma/schema.prisma:462 — `rls_eligible Boolean @default(true) @map(\"rls_eligible\") // false = website-only (commercial, off-RLS)` (non-optional Boolean with a default).\n\n3) Traced CRM-authored / local-roster write paths (explicitly listed as refutation paths in the task):\n   - app/api/crm/listings/route.ts:195-219 — `generateListingId()` MINTS the `SL-`/`RL-` prefix locally: \"Generate a unique listing_id: SL-XXXX for sales, RL-XXXX for rentals. Uses MAX(listing_id) + 1 inside a transaction\", with `SELECT MAX(CAST(SUBSTRING(listing_id FROM ${regexPattern}) AS BIGINT))` under a `pg_advisory_xact_lock`. This is pure Mallan-exclusive own data — the feed is never consulted.\n   - app/api/crm/listings/route.ts:282-286 — `classifyRlsEligibility(body, { explicitOptOut: body.rls_eligible === false || isInHouse, commercialSubType, commercialOwnership })` computes `rls_eligible` from the CRM-submitted body (in-house/commercial classification), again with no provider input.\n   - lib/listings/ensure-local-listing.ts:147 and :163 — the local-stub writer sets `listing_id: trimmedId` and `rls_eligible: true` (\"SOURCE BOUNDARY: Cotality-source-owned, RLS-backed, exactly as the sync writes it\").\n\n4) The provider explicitly does NOT own `rls_eligible`, which is why it can never be null-from-feed: lib/idx/trestle-mapper.ts:717-720 documents \"undefined / null → defaults to true (preserves Trestle-mapper behavior — Trestle-sourced rows are always REBNY-eligible; Trestle never serializes rls_eligible because it's an internal-only column)\", and :894 `const rls_eligible = input.rls_eligible !== false;` coerces any absent provider value to `true`. Similarly ensure-local-listing.ts:11-12 states \"`rls_eligible = true` (Trestle-sourced rows are REBNY-eligible by definition)... `rls_eligible = false` is Mallan's WEBSITE-ONLY marker\".\n\n5) The claim's \"side: buyer\" label misreads the code. Nothing at 210-230 reads a buyer-side field. The only buyer-side mention is in the PROSE at 217-220, which explains why the gate deliberately AVOIDS `agent_id` (because syncAgentHistory stamps it from `BuyerAgentMlsId` matches). The buyer-side suppression is the reason for the design, not a dependency of it — and `BuyerAgentMlsId` itself is one of the two buyer-side fields the provider facts confirm IS populated (100,112 rows).\n\nConclusion: every `Listing` row carries a non-null `listing_id` and a non-null `rls_eligible`, sourced from CRM authoring (`generateListingId`, `classifyRlsEligibility`) or the local sync writer — never from a suppressed buyer-side provider scalar. The gate at 223-230 functions on real data."
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED. The claim says app/sitemap.ts reads [] from \"none\" at the cited lines and that no non-null value can arrive — but at exactly those lines a non-null agent value is read from the local roster and rendered into the output.\n\nTrace (storage -> output):\n- app/sitemap.ts:156-159 — `prisma.agent.findMany({ where: { status: 'active' }, select: { public_slug: true, updated_at: true } })`. The read set is NOT empty and the source is NOT \"none\"; it is the local `agent` table.\n- app/sitemap.ts:161 — `.filter((a) => a.public_slug)` guarantees only non-null slugs proceed.\n- app/sitemap.ts:163 — `url: `${BASE_URL}/agents/${a.public_slug}`` emits the value verbatim.\n- app/sitemap.ts:214 — `agentPages` is returned in the sitemap array, so the value reaches the rendered sitemap.xml.\n\nSource of the value is a local roster / CRM-authored field (an explicitly enumerated refutation path), not the provider feed — so provider suppression is irrelevant to whether it is non-null:\n- prisma/schema.prisma:52 — `public_slug String? @unique @map(\"public_slug\")`, under \"Public profile fields (shown on mallan.nyc/agents)\".\n- prisma/seed.ts:61, 84, 110, 130, 154, 174, 205, 232 — roster rows seeded with `status: \"active\"` plus literal non-null slugs (\"maya-allan\", \"leda-gorgone\", \"julia-djaafar\", \"claudia-milkowski\"), which satisfy the `status: 'active'` filter at line 157.\n- app/api/crm/agents/sync-profiles/route.ts:74-75 — CRM sync writes `update.public_slug = slug`; scripts/seed-agents.ts:57, 89 write `public_slug: slug`.\n- lib/agents/public-profile-authority.ts:62, 116, 207 — public_slug is the locally-authored public profile identity used across the public agent surfaces.\n\nThe claim's own evidence (\"Only `agent.public_slug` is read (156-163)\") contradicts its headline \"[] from none\". Its supporting observation that listing entries carry no agent/office value is true only of the listing block at app/sitemap.ts:121-147, which is not the range cited (52, 154-163, 214). At the cited range the read exists and delivers a non-null, rendered agent-side value."
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED on two independent grounds.\n\n(1) The claimed read does not exist, and the cited evidence names the wrong fields. lib/compliance/dto.ts:48-49 are two string literals inside the AGENT_PII_FIELDS array (dto.ts:39-58), consumed ONLY by a deletion loop — `for (const field of AGENT_PII_FIELDS) { delete result[field]; }` (dto.ts:151-153). Nothing in dto.ts reads, maps, renders or emits BuyerAgentEmail/BuyerAgentDirectPhone; it is a fail-closed strip list. The claim's supporting evidence is also mis-cited: dto.ts:62-63 are \"BuyerAgencyCompensation\" / \"BuyerAgencyCompensationType\" inside REMOVED_FIELDS (dto.ts:61-66) — different field names, also delete-only.\n\n(2) A non-null value CAN arrive by another path: Mallan's own CRM-authored close-context data. Full storage-to-output trace:\n- Authored: public/crm/SALE-FORM-REDESIGN.html:711-712 are real inputs with data-rls-field=\"BuyerAgentDirectPhone\" and data-rls-field=\"BuyerAgentEmail\"; submitted at :7498-7499 (`data.BuyerAgentEmail = data.saleBuyerAgentEmail || ''`). Rental twin: public/crm/RENTAL-FORM-REDESIGN.html:560-561 and :5669-5670 (\"Tenant Agent\" labels).\n- Mandatory, not optional: compliance/rules/rls-required.json:114 — trigger \"BuyerAgentRLSParticipantYN = false AND any Buyer field filled\" REQUIRES [\"BuyerAgentFullName\", \"BuyerAgentDirectPhone\", \"BuyerAgentEmail\", \"BuyerAgentStateLicense\", \"BuyerOfficeName\", \"BuyerOfficePhone\"].\n- Persisted: lib/listings/mallan-form-contract.ts:404-409 — \"// Buyer agent (close context) -> raw only\" with `BuyerAgentDirectPhone: { raw: true }` and `BuyerAgentEmail: { raw: true }`. The very next block (:414-418) marks BuyerAgencyCompensation as `{ raw: false, removed: true }`, so the contract deliberately distinguishes persist-to-raw from never-persist. Routing: lib/compliance/normalizer.ts buildPersistenceRecord (`const raw_data = { ...normalized }`), written by app/api/crm/listings/route.ts (`raw_data: persistence.raw_data`).\n- Survives this same DTO module: app/api/crm/listings/[id]/route.ts:73 calls sanitizeForCRM({ ...listing, ... }). sanitizeForCRM (dto.ts:499-530) deep-cleans raw_data of only REMOVED_FIELDS and NEVER_EXPOSE_FIELDS (dto.ts:512-522); neither list contains BuyerAgentEmail or BuyerAgentDirectPhone, so both are returned intact inside raw_data.\n- Rendered: public/crm/SALE-FORM-REDESIGN.html:9749 (`var raw = listing.raw_data || {};`) feeds the reload table at :9226-9227 — `{ rls: 'BuyerAgentEmail', form: 'saleBuyerAgentEmail', type: 'text', src: 'raw' }`. Rental equivalent: RENTAL-FORM-REDESIGN.html:6945-6946 (`setVal('rentalBuyerAgentEmail', raw.BuyerAgentEmail || '')`).\n\nThe provider fact (buyer-side scalars SUPPRESSED on the Property feed) is accurate but only excludes the FEED as a source; it does not make the field unpopulatable. Mallan authors the value locally for its own exclusives/closings, stores it in listings.raw_data, and reads it back through dto.ts's own sanitizeForCRM. The dto.ts:48-49 entries are therefore live defence — they are precisely what keeps that CRM-authored value out of the public/VOW/portal tiers via sanitizeForPublic (dto.ts:151-153) — not dead code guarding an impossible value."
+    },
+    {
+      "refuted": true,
+      "reason": "The claim's render-side evidence is accurate, but its load-bearing assertion (\"the feed CANNOT deliver a non-null value for it\") is false for exactly the rows this surface queries.\n\nWHAT IS TRUE (render side): public/crm/js/dashboard/panels/sales-crm/pitch-packet.js loads /api/crm/sales/prospects/<id>/comps (43) into _comps (45) and renders only address/unit (185-186), mls_id (187), close_price (188-189), beds/baths (190), sqft (191), close_date (192) and the CRM-authored note (193-197). No agent/office key is read in the file. I also traced all three writers of _comps and none selects a buyer-side field: app/api/crm/sales/prospects/[id]/comps/route.ts COMP_SELECT (29-42, mapped 109-122); app/api/crm/sales/prospects/[id]/research/route.ts COMP_SELECT (635-638, auto-populates pitch_data.comps at 751-754); app/api/crm/sales/prospects/[id]/pitch-packet/route.ts compFields (128) -> recent_sales (208-216), which pitch-packet.js:554-562 merges into _comps. So nothing buyer-side is rendered here today.\n\nWHY THE CLAIM IS REFUTED (feed side): every comp on this surface is a Closed Property row by construction - comps/route.ts:170 (\"StandardStatus eq 'Closed'\"), research/route.ts:674, pitch-packet/route.ts:194 and :200 - and Closed is precisely the population where the provider is non-null on the buyer side. Repo-verified populated provider field: lib/cotality/generated/contract.ts:1855-1856 annotates BuyerAgentMlsId as \"Edm.String(25) - filterable - populated 100,112 - RLS field\" (BuyerOfficeMlsId likewise), matching the given provider facts (100,112 / 100,463; BuyerAgent->Member returns a payload on 80,460 Closed rows, BuyerOffice->Office on 99,256). These comp queries hit /odata/Property directly with a $select the repo itself controls (comps/route.ts:90-94; research/route.ts:678-684; pitch-packet/route.ts:50), so adding BuyerAgentMlsId/BuyerOfficeMlsId - or $expand=BuyerAgent for a name, since the scalar name fields are suppressed - returns non-null values on these very rows. The repo already exercises buyer-side feed data from the same provider: lib/idx/fetch.ts:533 and :559 filter on \"BuyerAgentMlsId eq '<id>'\" and those rows are synced locally (noted at lib/search/public-listing-db.ts:216-219), proving the field is live and queryable, not suppressed.\n\nAdditionally, the persistence path is shape-open: comps/route.ts SavedComp is \"[key: string]: unknown\" (74-76) and POST stores the client's comp objects wholesale (263), so a buyer-side value could round-trip through pitch_data to the client without any schema change - only the table's fixed column list (170-205) would need a cell to display it.\n\nCONCLUSION: the absence of a buyer-side value on the CMA/comps surface is a repo-side $select omission, not a feed limitation. The \"feed CANNOT deliver a non-null value\" half of the claim is contradicted by a populated provider field (BuyerAgentMlsId/BuyerOfficeMlsId) plus the BuyerAgent/BuyerOffice navigations on the Closed rows this surface exclusively fetches. Refuted."
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED on the load-bearing half of the claim. The template facts are accurate — lib/email/templates.ts:119-120 types the parameter as `{ address; price; beds; baths; url }[]` with no office field, and 152-155 is only the blanket feed line — but the claim's justification that \"the feed CANNOT deliver a non-null value for it\" is false, and the value can be traced all the way to the call site.\n\nTraced path (storage -> output): lib/search/engine/select.ts lists \"ListOfficeName\" explicitly under the `// Agent / office` group of SEARCH_SELECT_FIELDS; app/api/cron/search-alerts/route.ts:214 passes that exact list into `hydrateRows(capped, { select: SEARCH_SELECT_FIELDS, media: false, audience })`; lib/search/engine/hydrate.ts:122 routes both sources through `mapTrestleToCrmListing`; lib/search/crm-idx-mapper.ts:297 sets the top-level DTO field `company: String(raw.ListOfficeName || \"\")`. List-side ListOfficeName is a POPULATED provider scalar (591,607 rows, not suppressed), so `company` is non-null on effectively every provider row. Second independent path: lib/search/engine/hydrate.ts:161 shapes a Mallan-authored (exclusive) row for the same mapper with `ListOfficeName: r.list_office_name ?? 'Mallan Real Estate Inc.'`, so a Mallan exclusive's own data also yields a non-null `company`.\n\nWhere it is actually lost: app/api/cron/search-alerts/route.ts:261 `const formattedListings = toDeliver.map(alertLine)` — `toDeliver` are the hydrated DTOs that already carry `company`, and `alertLine` (route.ts:47-60) projects to only {address, price, beds, baths, url}, discarding it one line before `listingAlertEmail`. So this is a local projection drop of an available, populated value, not an unavailable feed value. Per the refutation rule (\"refuted if the value can arrive by another path you can trace — a populated provider field ... a Mallan exclusive's own data\"), the claim is refuted."
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED on both independent grounds.\n\n(a) The read does not exist. lib/compliance/raw-data-keep-fields.ts:169-181 is exclusively ListAgent*/ListOffice*/CoListAgentFullName/CoListOfficeName, and `grep -n 'Buyer' lib/compliance/raw-data-keep-fields.ts` returns nothing (verified). slimRawData (275-286) is a generic `RAW_DATA_KEEP_SET.has(key)` copy loop — it contains no buyer-side read whatsoever. There is no \"surface sync / side buyer\" raw_data read at this location; the claim describes an absent keep-set entry, not a read.\n\n(b) The feed CAN deliver a non-null buyer value, and it demonstrably reaches this exact function's input. lib/cotality/generated/contract.ts:4428 records BuyerAgentMlsId populated 100112; :4451 BuyerOfficeMlsId populated 100463; :4504 CoBuyerOfficeMlsId populated 3173. lib/idx/trestle-mapper.ts:170-186 puts B10_BUYER_AGENT + B11_COBUYER_AGENT into COTALITY_PROPERTY_FIELDS (line 384) -> IDX_PLUS_SELECT_FIELDS, excluding only ListTeamMlsId/BuyerTeamMlsId (LIVE_FIELDS_NOT_SELECTED, 394-399), and lib/idx/fetch.ts:119 sets `$select` from that list — so the sync request actually asks Cotality for BuyerOfficeMlsId/BuyerAgentMlsId. lib/idx/trestle-mapper.ts:1241 then calls `slimRawData(stripPrivateFields(rawInput))`; stripPrivateFields (468-477) removes only PRIVATE_FIELDS (456-467), which lists BuyerAgentMlsId/CoBuyerAgentMlsId but NOT BuyerOfficeMlsId/CoBuyerOfficeMlsId. Therefore a non-null BuyerOfficeMlsId arrives inside slimRawData's `input` on ~100,463 rows (CoBuyerOfficeMlsId on ~3,173) and is discarded purely by the local keep-set policy — feed availability is not the constraint.\n\n(c) A second traced in-surface path: lib/idx/trestle-mapper.ts:1133-1138 builds `agentInfo` from pick(raw, B10_BUYER_AGENT) + pick(raw, B11_COBUYER_AGENT) and returns it as `agent_info` (line 1223), so buyer values are live in the sync mapper's output object. Persistence is blocked separately and locally at lib/idx/sync.ts:838 and :2418 (`const { agent_info: _agentInfoJson, ...typedOnlyMapped }`), with only the 8 list-side typed columns written at :902/:2484 via typedAgentColumnsFromJson (lib/listings/agent-info-typed-columns.ts:51-58 — all List*/CoList*). Again a Mallan-side drop downstream of a populated provider field.\n\n(d) Corroborating: lib/idx/fetch.ts:532-533 and :559 build OData filters `(ListAgentMlsId eq '…' or BuyerAgentMlsId eq '…')`, i.e. the codebase itself relies on the provider returning non-null BuyerAgentMlsId to match buyer-side deals.\n\nNote on scope: it is true that no buyer scalar ends up persisted in raw_data or in a typed column on the sync surface. But the claim's specific assertion — that the feed CANNOT deliver a non-null value — is false (BuyerAgentMlsId 100,112 / BuyerOfficeMlsId 100,463 / CoBuyerOfficeMlsId 3,173 are populated, selected, and BuyerOfficeMlsId/CoBuyerOfficeMlsId survive stripPrivateFields to reach slimRawData), and the claimed buyer-side read at 169-181/275-286 does not exist."
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED on three independently traced paths.\n\n(1) The premise \"the feed CANNOT deliver a non-null value\" is false for 2 of the 7 named fields. The repo's own generated provider contract records them as populated: lib/cotality/generated/contract.ts:4428 — `BuyerAgentMlsId: { ... filterable: true, populated: 100112, rlsField: true }` — and :4484 — `CoBuyerAgentMlsId: { ... filterable: true, populated: 3168, rlsField: false }`. These match the stated corpus facts (100,112 / 3,168 rows). Only BuyerAgentEmail (:4419), BuyerAgentDirectPhone (:4418), BuyerAgentAOR (:4416), CoBuyerAgentEmail (:4475), CoBuyerAgentDirectPhone (:4474) carry `populated: null`.\n\n(2) The buyer-side MLS ID is a live, load-bearing read ON THE SYNC SURFACE ITSELF, not a dead pick. lib/idx/fetch.ts:533 builds `(ListAgentMlsId eq 'X' or BuyerAgentMlsId eq 'X')` (also :559), and lib/idx/sync.ts:2352 `syncAgentHistory` sends exactly that filter to Cotality (:2361 fetchFromTrestle). Every row it returns matched on a NON-NULL BuyerAgentMlsId, and the result is persisted as `agent_id: options.agentDbId` at lib/idx/sync.ts:2455, :2509 and :2586. lib/auth/listing-capabilities.ts:11-18 documents this exact behavior (\"`syncAgentHistory` stamps `Listing.agent_id` on matches against BOTH `ListAgentMlsId` AND `BuyerAgentMlsId`\"), and that stamped association drives capability gating and the agent deal-history projection. So the feed's non-null BuyerAgentMlsId reaches durable, rendered state via a path stripPrivateFields never touches.\n\n(3) The CRM / Mallan-exclusive path writes the buyer trio into raw_data UN-STRIPPED. lib/listings/mallan-form-contract.ts:405-410 routes `BuyerAgentMlsId`, `BuyerAgentFullName`, `BuyerAgentDirectPhone`, `BuyerAgentEmail`, `BuyerAgentStateLicense` as `{ raw: true }`; lib/compliance/normalizer.ts:174 does `const raw_data = { ...normalized }` (full payload, no private-field filter); app/api/crm/listings/route.ts:543 persists `raw_data: persistence.raw_data`. stripPrivateFields is only applied on the Trestle mapper path (trestle-mapper.ts:1241) — the mapper comment at :1236-1238 explicitly says the slimming/stripping applies ONLY to Trestle-imported listings and that CRM-created listings preserve their full form payload. lib/compliance/rebny-ucba-rules.ts:360-366 REQUIRES `BuyerAgentFullName/DirectPhone/Email/StateLicense` when `BuyerAgentRLSParticipantYN = false` (and :601 the CoBuyer MlsId pair), so a Mallan exclusive at close is validated to carry these values non-null in raw_data.\n\nAdditional defect in the claim as stated: BuyerAgentAOR is NOT read anywhere. It does not appear in B10_BUYER_AGENT (lib/idx/trestle-mapper.ts:170-178) nor in any other select constant; its only occurrence in the file is line 464, inside PRIVATE_FIELDS. So the claimed \"read\" of BuyerAgentAOR does not exist at all.\n\nWhat the claim gets right (but which does not save it): within the mapper's own return value the buyer picks are inert — agentInfo (trestle-mapper.ts:1133-1138) feeds only typedAgentColumnsFromJson, whose 8 columns are all list-side (lib/listings/agent-info-typed-columns.ts:51-58, no buyer key), and sync.ts destructures agent_info away on create (:838, :2418) and derives only typed columns on update (:902, :2484), while raw_data is stripped at :1241. That narrower statement is accurate. But the claim as written asserts the feed cannot deliver a non-null value for these fields, and that is contradicted by the populated provider counts, by the sync-surface OData filter that joins on BuyerAgentMlsId to stamp agent_id, and by the CRM-authored raw_data path."
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED. The claim's first half is factually accurate but its load-bearing conjunct — \"the feed CANNOT deliver a non-null value for it\" — is false, and I traced the full storage→output path.\n\nWhat I confirmed of the claim (read directly):\n- app/listing/[...slug]/page.tsx:830-847 — generateMetadata's returned Metadata composes title/description/openGraph/twitter from fullAddress, priceDisplay, bedroomsTotal, bathroomsFull, propertyType, borough, publicRemarks and ogImage only. No agent/office/broker field.\n- app/listing/[...slug]/page.tsx:1212-1250 — listingSchema is @type RealEstateListing with Offer / PostalAddress / GeoCoordinates / QuantitativeValue. No broker, provider, agent or Organization node.\n- app/listing/[...slug]/page.tsx:1276-1285 — the second JSON-LD block is a BreadcrumbList only (Home / Rentals-Sales / borough / neighborhood).\n\nWhy that does not make the value undeliverable:\n1. The list-side office name is already in scope on the exact object generateMetadata dereferences. Line 794 (`const result = await resolveListingResult(() => fetchListing(id))` inside generateMetadata) and line 894 (same call inside ListingPage) return the identical DTO from the identical `fetchListing` (declared line 721). Line 813 binds `const listing = result.listing`. That same DTO is used at line 2141 to render `RLS · Listing Courtesy of {publicListOfficeName(listing.listOfficeName)}`. So `listing.listOfficeName` is a populated, non-null property sitting in generateMetadata's scope — it is simply not written into the metadata. That is a rendering choice, not a feed limitation.\n2. Traced from storage: lib/listings/agent-info-resolver.ts:64 `officeName: pick(l.list_office_name, json.list_office_name)` — the typed column `list_office_name`, falling back to `agent_info` JSON (`typedAgentColumnsFromJson`, line 59); selected via AGENT_TYPED_SELECT (lines 75-84). That feeds lib/idx/db-to-public-dto.ts:353 `const resolvedAgent = resolveListingAgentInfo(listing)` → line 559 `listOfficeName: resolvedAgent.officeName || 'REBNY RLS'` → lib/idx/public-dto.ts:183 `listOfficeName: string` (non-optional).\n3. Provider fact agrees: list-side scalars are populated — ListAgentFullName / ListOfficeName on 591,607 rows. This is not a suppressed buyer-side field.\n4. A second, independent path exists: the CRM/local-roster value. lib/idx/db-to-public-dto.ts:700 `const assignedCompany = resolved.officeName ?? undefined` feeds `_assignedAgent.company`, which page.tsx:2044 and :2052 render as `publicListOfficeName(listing._assignedAgent.company || listing.listOfficeName)` — a Mallan-exclusive/CRM-authored value that also reaches this page.\n5. On the SEO surface itself, a broker node is in fact emitted on this route: app/layout.tsx:126-135 renders sitewide JSON-LD `'@type': 'RealEstateAgent'`, name 'Mallan Real Estate Inc.', which is present in the listing page's document.\n\nNet: the field is populated by the provider, resolved into the DTO, already non-null in generateMetadata's scope at line 813, and rendered elsewhere on the same page (line 2141). Only the choice not to include it in the metadata/JSON-LD is real; \"the feed CANNOT deliver\" is refuted."
+    },
+    {
+      "refuted": false,
+      "reason": "NOT REFUTED — the read exists and no traceable path can deliver a non-null value; the claim's conclusion holds (its cited mechanism is wrong, but the true reason is stronger).\n\nREAD EXISTS: app/components/ListingSidePanel.tsx:283 and :302 both gate `listing.agent?.listOfficeName &&`, wrapping the brokerage card (:290, :294) and the RLS attribution at :304 (`RLS · Listing Courtesy of {listing.agent.listOfficeName}`).\n\nNO PATH TO A VALUE (traced from storage to output):\n1. `listing` = `activeListing` from `useSidePanel()` at ListingSidePanel.tsx:17, typed `Listing | null` (lib/types/listing.ts:402 `agent: AgentInfo`; AgentInfo.listOfficeName at :319).\n2. ListingSidePanel.tsx:85 `if (!activeListing) return null;` — nothing below renders without a listing.\n3. `activeListing` is set ONLY by `openListing` (lib/contexts/ListingSidePanelContext.tsx:20-24; cleared at :30). Repo-wide grep over .ts/.tsx returns `openListing` at exactly three lines, all inside the context file itself (type decl :10, definition :20, provider value :43). ZERO call sites. The other `openListing` hits are `Workspace.openListing` in public/crm/js/dashboard/app.js:158-167 and workspace.js:4794 — an unrelated vanilla-JS CRM function, not this React context.\n4. `useSidePanel()` is consumed only at ListingSidePanel.tsx:17, and `SidePanelContext` is not exported, so no component can bypass the hook to set state.\n5. app/page.tsx:36-54 mounts SidePanelProvider + ListingSidePanel, but no child (HeroSearch, FeaturedListings, ExclusivesVault, etc.) calls openListing.\n6. The nested `Listing` type has only two importers repo-wide: the context (:5, state holder) and lib/compliance/idx-display-gate.ts:18 (type-only). Nothing in the app constructs a `Listing` value — no adapter, no API route, no local JSON, no Mallan-exclusive record.\n\nCLAIM'S EVIDENCE IS MIS-ATTRIBUTED (but does not rescue the read): lib/idx/display-adapter.ts:261 `listOfficeName: raw.agent?.listOfficeName || ''` is a CONSUMER of the nested shape that produces a flat `DisplayListing.listOfficeName`; it never produces the `Listing` object the panel reads, and is not wired to the side panel. The premise \"the only adapter that produces this shape\" is false — no producer exists at all, which is a stronger unreachability result than the dead-branch argument at display-adapter.ts:196-216.\n\nPROVIDER FACTS ARE NOT THE BINDING CONSTRAINT: ListOfficeName is a populated list-side scalar (591,607 rows) and does render on other surfaces — lib/idx/db-to-public-dto.ts:559 (`listOfficeName: resolvedAgent.officeName || 'REBNY RLS'`) feeds app/components/SearchListingCard.tsx:236/376/504 and app/components/FeaturedListings.tsx:332. The ListingSidePanel read is dead solely because its `Listing`-shaped input has no producer and its opener has no caller — not because the feed suppresses the field."
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED — the claimed read does not exist in this file, and a non-feed path can put a non-null value in the card.\n\n1) No local-roster read exists here. In public/crm/SALE-FORM-WITH-TOOLS.html the elements #buyerCompanyList (line 1500) and #buyerAgentList (line 1510) are static empty <div class=\"dd-list\"> nodes. A whole-file grep for initSearchableDropdown / renderAgentList / rebnyCompan / roster / buyerCompanyList / buyerAgentList / saleBuyerAgent returns ONLY the HTML lines 1497-1531 and 3603 — there is zero JavaScript in the file touching them. The file's only scripts are the inline blocks at line 13 and line 4790 and js/core/api-client.js (line 129); api-client.js (901 lines) contains no roster/dropdown/company-list code (only \"REBNY RLS\" in a comment at 693 and a listing.company mapping at 770). So nothing ever reads a roster, empty or otherwise, and nothing ever writes #saleBuyerAgentId/Phone/Email/License — they stay '--' because no code path exists at all, not because a roster returned [].\n\n2) The viewer/feed hydration never asks for buyer-side data. loadSaleListingData (public/crm/SALE-FORM-WITH-TOOLS.html:5040-5185) reads d built from MallanAPI.listings.get() (4940-4960, 4980-5000: list_agent_full_name / agent_info.ListAgentFullName / list_office_name only) and sets ONLY listing-side agent fields (5126-5130 viewerSetVal('saleListingAgentSearch'/'saleListingAgentId'/'Phone'/'Email'/'License')). There is no buyer-side read to be starved.\n\n3) A non-feed path CAN deliver a value. #saleBuyerCompanySearch (1497) and #commSaleBuyerAgent (3603) are ordinary text inputs — not readonly, not disabled — so the CRM user types the cooperating agent/brokerage directly (a CRM-authored value), and convertSaleFormToViewer (5205-5211) only sets el.readOnly/pointerEvents on text inputs, preserving and rendering whatever value they hold. Corroborating that this card is roster-fed by design elsewhere: the sibling public/crm/SALE-FORM-REDESIGN.html wires the identical IDs via initSearchableDropdown (6174-6212) whose onSelect writes saleBuyerAgentId/Phone/Email/License from local roster data (rebnyCompanyNames / renderAgentList) and calls updateSaleAgentTable('buyer', ...) — i.e., a purely local, non-feed source of exactly these values.\n\n4) The \"feed CANNOT deliver\" half is also overstated in general (BuyerAgentMlsId is populated on 100,112 rows and BuyerAgent→Member returns a payload on 80,460 Closed rows), though this particular file never requests it. Both refutation branches are satisfied: the read does not exist, and a CRM-authored/local-roster value can arrive and render."
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED on two independent grounds.\n\n1) The cited \"read\" does not exist. prisma/schema.prisma:480-523 and 725-726 are Prisma *model declarations* (a comment about the removed `agent_info` field plus eight `String? @map(...)` column declarations, and two on `listings_archive`). No code reads anything there, on any surface; a schema file cannot be a surface-\"other\"/side-\"buyer\" read site. The claim's evidence is a declaration list, not a read path.\n\n2) A non-null buyer-side value demonstrably arrives on a Mallan-authored (CRM/exclusive) path that has nothing to do with the feed's buyer-side suppression, and I traced it storage→output end to end:\n   - Authored: public/crm/SALE-FORM-REDESIGN.html:710 `<input id=\"saleBuyerAgentFullName\" data-rls-field=\"BuyerAgentFullName\">` and :714 (`BuyerOfficeName`); collected at :7497 `data.BuyerAgentFullName = data.saleBuyerAgentFullName || ''` and :7501. Same on the rental form (RENTAL-FORM-REDESIGN.html:559,563,5668,5672).\n   - Persisted: lib/listings/mallan-form-contract.ts:404-412 marks `BuyerAgentMlsId / BuyerAgentFullName / BuyerAgentDirectPhone / BuyerAgentEmail / BuyerAgentStateLicense / BuyerOfficeName / BuyerOfficePhone` as `{ raw: true }`; lib/compliance/normalizer.ts:174 `const raw_data = { ...normalized }`; written at app/api/crm/listings/route.ts:543 `raw_data: persistence.raw_data`, and merged on edit at app/api/crm/listings/[id]/route.ts:518-519 (`update.raw_data = merged`).\n   - Read back and rendered: app/api/crm/listings/[id]/route.ts:647 returns `raw_data` to the client; RENTAL-FORM-REDESIGN.html:6873 `var raw = listing.raw_data || {}` then :6944-6949 `setVal('rentalBuyerAgentFullName', raw.BuyerAgentFullName || '')`, `rentalBuyerOfficeName`, `rentalBuyerOfficePhone`, etc.; the sale form does the same through its restore map, SALE-FORM-REDESIGN.html:9225-9230 `{ rls: 'BuyerAgentFullName', form: 'saleBuyerAgentFullName', type: 'text', src: 'raw' }` … `{ rls: 'BuyerOfficeName', … src: 'raw' }`. These values are typed by the Mallan agent on the exclusive's own record, so provider suppression of BuyerAgentFullName/BuyerOfficeName is irrelevant to them.\n\n3) Even on the feed path the premise \"the feed CANNOT deliver a non-null value\" is false as stated: the repo's own live contract records `BuyerAgentMlsId … populated: 100112` and `CoBuyerAgentMlsId … populated: 3168` (lib/cotality/generated/contract.ts:4428, 4484), and the sync $select actually requests the buyer block (lib/idx/trestle-mapper.ts:170-178 B10_BUYER_AGENT, 181-188 B11_COBUYER_AGENT; it is carried into `agentInfo` at :1136). The value is dropped by *Mallan's own choice*, not by the provider: stripPrivateFields (trestle-mapper.ts:454-467, which lists `BuyerAgentEmail, BuyerAgentDirectPhone, BuyerAgentMlsId, CoBuyer*`) plus slimRawData's keep-list (lib/compliance/raw-data-keep-fields.ts — no `Buyer` entry). The same populated buyer field is consumed today for a non-display purpose: `buildAgentHistoricalFilter` queries `(ListAgentMlsId eq '…' or BuyerAgentMlsId eq '…')` (lib/idx/fetch.ts:533, 559) and syncAgentHistory stamps `agent_id` off it (documented at lib/auth/listing-capabilities.ts:12 and lib/search/public-listing-db.ts:217-219).\n\nGiven both the missing read and the traced CRM-authored buyer-side render, the claim does not stand."
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED on two independent grounds.\n\n(1) The read does not exist at the cited anchor. lib/idx/card-fields.ts lines 43-45 are `// Building`, `\"BuildingName\"`, `// Financial` (followed by AssociationFee/AssociationFeeFrequency/TaxAnnualAmount on 45). The `// Agent/Office` section the claim's own evidence quotes (\"ListAgentFullName\", \"ListOfficeName\") is lines 46-47. No agent/office read — buyer-side or otherwise — occurs at 43-45.\n\n(2) The \"feed CANNOT deliver a non-null value\" half is false, traced to storage. lib/cotality/generated/contract.ts:4428 declares `BuyerAgentMlsId: {... filterable: true, populated: 100112, rlsField: true}` and :4451 `BuyerOfficeMlsId: {... populated: 100463}` — populated provider scalars, not suppressed. contract.ts:3811-3812 declare the navigations `BuyerAgent: { target: \"Member\", expand: \"SUPPORTED\", http: 200 }` and `BuyerOffice: { target: \"Office\", expand: \"SUPPORTED\", http: 200 }`, which return a payload on Closed rows (80,460 / 99,256). The repo already exercises the scalar against the live feed: lib/idx/fetch.ts:533 sends `(ListAgentMlsId eq '<id>' or BuyerAgentMlsId eq '<id>')` as an OData filter, and app/api/crm/listings/reset-sync/route.ts:76 does the same — a filter the provider would 400 on if the field were not served. The comps queries themselves target precisely the rows where buyer identity exists: lib/comps/fetch-comps.ts:21 maps status \"Closed\" -> 'Closed' and :209 orders area comps by `CloseDate desc,ModificationTimestamp desc`. A CRM-authored path for the same facts also exists: lib/listings/mallan-form-contract.ts:405-412 persists BuyerAgentMlsId, BuyerAgentRLSParticipantYN, BuyerAgentFullName, BuyerAgentDirectPhone, BuyerAgentEmail, BuyerAgentStateLicense, BuyerOfficeName, BuyerOfficePhone as `{ raw: true }` for Mallan-authored listings.\n\nWhat the claim gets right (but which does not save it): on today's code the CMA/comps surface renders nothing buyer-side. app/api/crm/sales/comps/route.ts:79 calls fetchComps, which selects CARD_SELECT_FIELDS (lib/comps/fetch-comps.ts:136, 206) with `expandMedia: false` (:140, :210) and no other expand (lib/idx/fetch.ts:131-147 only ever emits Media or CustomProperty expands), then maps via mapToCompListing (:65-90), which sets only `listing_agent: String(r.ListAgentFullName || \"\")` and `listing_office: String(r.ListOfficeName || \"\")`; the CompListing type (lib/comps/types.ts:33-51) has no buyer field. The sibling surface app/api/portal/comparables/route.ts:88-105 serializes no agent fields at all. So the emptiness is a deliberate selection choice in CARD_SELECT_FIELDS — a field the code declines to ask for — not a feed that cannot deliver it. The claim's asserted cause (provider incapacity) is contradicted by the populated, filterable BuyerAgentMlsId/BuyerOfficeMlsId scalars and the SUPPORTED BuyerAgent/BuyerOffice navigations, and its line anchor points at BuildingName/Financial rather than at any read. Refuted."
+    },
+    {
+      "refuted": false,
+      "reason": "Could not refute — the read exists and is provably dead-ended; no traced path (feed, navigation, roster, or CRM-authored) can put a value into this surface.\n\n1) The read exists and always yields []. `public/crm/RENTAL-FORM-WITH-TOOLS.html:6306` declares `var rebnyAgents = { 'mallan': [] };  // Loaded from API`. A targeted grep for any assignment (`rebnyAgents =`, `rebnyAgents[...] =`, `Object.assign(rebnyAgents`, `window.rebnyAgents`) returns ONLY line 6306 — the declaration. Every occurrence in the file is 6306 (decl), 5406/5407 (read, listing-agent auto-select), 6346 (read). So `renderAgentList` at 6346 (`const agents = rebnyAgents[companyKey] || [];`) always iterates an empty array and falls to 6362-6364 rendering `Select a company first`. Repo-wide grep confirms no loader anywhere: the only other hits are `public/crm/RENTAL-FORM-REDESIGN.html:6199` and `public/crm/SALE-FORM-REDESIGN.html:6005`, each its own identical empty literal.\n\n2) The tenant/cooperating-agent hidden input has exactly one writer, and it is unreachable. `initSearchableDropdown` sets `hiddenInput.value = item.dataset.id` only inside the list-click handler for a `.dd-item` (6408-6413); the tenant dropdown is wired at 6494-6510 with `hiddenId: 'rentalTenantAgent'`, and its company `onSelect` (6479-6490) explicitly blanks it (`agentHidden.value = ''`, 6485) before calling `renderAgentList(...)` (6487). Since the list never contains a `.dd-item`, `rentalTenantAgent` (1480) can never become non-empty, so `tenantAgent: val('rentalTenantAgent')` at 5658 always collects ''. Same for the info card: `rentalTenantAgentId/Phone/Email/License` (1487-1490) have only one writer each, at 6503-6506, inside that same unreachable `onSelect`; and `updateRentalAgentTable('tenant', ...)` (6533) is called only from 6508 in that handler.\n\n3) No feed path. The only listing data path is `MallanAPI.listings.get(...)` at 4350 and 4390; its mapping (4351-4372 / 4391-4406) reads only list-side values — `apiData.list_agent_full_name || (apiData.agent_info||{}).ListAgentFullName` (4368/4402) and `list_office_name || ListOfficeName` (4369/4403) — plus address/price/media. `loadRentalListingData` (4446+) writes no `rentalTenant*` field; grep confirms zero writers to any tenant-agent element outside 6503-6506. The postMessage listener (4382-4410) only re-runs the same list-side mapping. No buyer-side scalar and no `BuyerAgent`/`BuyerOffice` navigation expand is read anywhere in the file — the only `BuyerAgent` string in the whole file is `data-removed-field=\"BuyerAgentRLSParticipantYN\"` on the ignored checkbox (1494), plus the unrelated building feature `bldgCoBuyersAllowed` (4016, `data-rls-field=\"BuildingFeatures\"`). So even though the provider does populate `BuyerAgentMlsId` and can expand `BuyerAgent→Member` on Closed rows, nothing in this code path ever requests or renders it.\n\n4) No local-roster path either. `MallanAPI.agents.list()` → `/api/crm/agents` does exist (`public/crm/js/core/api-client.js:390-392`, exported at 889), but this page never calls it: the only MallanAPI uses are `onReady` (4340), `getContext` (4343), `listings.get` (4350, 4390), and `init` (5372-5373). The listing-agent auto-select at 5405-5421 depends on the same empty `rebnyAgents`, so even the list side of this roster is dead.\n\n5) The claimed field-taxonomy evidence holds: the tenant company/agent search + hidden inputs (1472, 1473, 1479, 1480) and the RLS-participant checkbox (1494) all carry `data-rls-ignore=\"true\"`, and enumerating the file's `data-rls-field` values (114 unique) yields zero containing agent/office/member/broker.\n\nMinor caveat, not a refutation: the cited block is buyer-side (`BuyerAgentRLSParticipantYN`), not literally CoBuyer — this file contains no CoBuyer agent surface at all, so the \"cobuyer\" side label is a taxonomy imprecision rather than a wrong code citation. Separately, `commRentalTenantAgent` (3061) is a free-text \"Cooperating agent name\" input in the commercial-rental card — a different element in a different card, also `data-rls-ignore=\"true\"`, not fed by the roster and not the cited surface."
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED on two independent grounds. (1) \"The feed CANNOT deliver a non-null value\" is false: lib/idx/trestle-mapper.ts:170-178 defines B10_BUYER_AGENT (BuyerAgentMlsId, BuyerOfficeMlsId, ...) and :384 folds it into COTALITY_PROPERTY_FIELDS, the live $select; per the stated provider facts BuyerAgentMlsId is populated on 100,112 rows and BuyerOfficeMlsId on 100,463; and lib/idx/fetch.ts:533 and :559 run live production filters `(ListAgentMlsId eq 'X' or BuyerAgentMlsId eq 'X')` that only work because the feed returns non-null BuyerAgentMlsId. (2) The value can arrive at these exact rows by a traced alternate path: lib/idx/sync.ts:2346-2352 (syncAgentHistory) uses that buyer-side filter and upserts each matched row with `agent_id: options.agentDbId` (~line 2455). Listing.agent_id / Listing.agent -> Agent exist at prisma/schema.prisma:441-442 and are selectable in the same Prisma call at lib/cma/engine.ts:100-111, and Closed rows are in scope (engine.ts:95). This is corroborated in-repo by app/api/crm/listings/[id]/seller-report/route.ts:54, which had to add a capability gate precisely because \"syncAgentHistory stamps agent_id from BuyerAgentMlsId too\". A CRM-authored buyer-side value also exists: Offer.buyer_agent_id (prisma/schema.prisma:2510) joined to the listing via Offer.listing_id (:2504-2505). Additionally, the read as described does not exist: prisma/schema.prisma:516-523 has NO buyer-side typed column at all (only list_agent_*/co_list_*), so the claim mislabels a list-side column set as the buyer-side read. Verified parts: engine.ts:100-111 selects 10 non-agent columns and CompResult (23-35, 185-197) has no agent key. Caveat that does not rescue the claim: buyer scalars are slimmed out of raw_data (no Buyer* entries in lib/compliance/raw-data-keep-fields.ts; BuyerAgentMlsId/Email/DirectPhone stripped at trestle-mapper.ts:462-463), so raw_data is not the carrier -- listings.agent_id is. Sibling surface lib/comps/fetch-comps.ts:86-87 shows comps can and does render agent identity (list side)."
+    }
+  ]
+}

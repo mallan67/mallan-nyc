@@ -25,6 +25,8 @@ interface RentalListing {
   address: string | Record<string, string> | null;
   list_price: string | null;
   status: string;
+  /** The SERVER's per-transaction broker label for `status` (a rental's Closed reads "Rented"). */
+  status_label?: string | null;
   property_type: string | null;
   bedrooms_total: number | null;
   bathrooms_full: number | null;
@@ -158,6 +160,8 @@ interface ComparableListing {
   unit: string | null;
   price: number;
   status: string;
+  /** The SERVER's per-transaction broker label for `status` (a sale comp's Closed reads "Sold"). */
+  status_label?: string | null;
   property_type: string | null;
   bedrooms: number | null;
   bathrooms: number | null;
@@ -222,14 +226,35 @@ function formatDateTime(d: string | null): string {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
+/**
+ * Listing status on the landlord portal (owner ruling, Maya 2026-09-08).
+ *
+ * The stored value is a live Cotality StandardStatus token and the printed word is the SERVER's per-transaction
+ * label, which arrives as `status_label` - a rental's Closed reads "Rented", a sale's "Sold". This page picks
+ * only the COLOR, keyed by the token (Canceled with the provider's one L), and prints "Status unavailable"
+ * rather than inventing a status when the server could not resolve one. The transaction is the LISTING's own
+ * `listing_type`, never the landlord's portal role: a landlord may hold a sale listing too.
+ */
+const LISTING_STATUS_COLOR: Record<string, string> = {
+  Active: 'bg-blue-100 text-blue-800',
+  ComingSoon: 'bg-purple-100 text-purple-800',
+  ActiveUnderContract: 'bg-orange-100 text-orange-800',
+  Pending: 'bg-orange-100 text-orange-800',
+  Closed: 'bg-green-100 text-green-800',
+  Hold: 'bg-gray-100 text-gray-600',
+  Withdrawn: 'bg-gray-100 text-gray-600',
+  Canceled: 'bg-gray-100 text-gray-600',
+  Expired: 'bg-gray-100 text-gray-600',
+  Incomplete: 'bg-gray-100 text-gray-600',
+};
+
 function rentalStatusColor(status: string): string {
-  const s = status?.toLowerCase() || '';
-  if (s === 'active') return 'bg-blue-100 text-blue-800';
-  if (s === 'pending' || s === 'under contract') return 'bg-orange-100 text-orange-800';
-  if (s === 'leased' || s === 'closed') return 'bg-green-100 text-green-800';
-  if (s === 'comingsoon') return 'bg-purple-100 text-purple-800';
-  if (s === 'withdrawn' || s === 'expired' || s === 'cancelled') return 'bg-gray-100 text-gray-600';
-  return 'bg-gray-100 text-gray-700';
+  return LISTING_STATUS_COLOR[status] || 'bg-gray-100 text-gray-700';
+}
+
+/** The word to print: the server's label, or an explicit unavailable - never a fabricated status. */
+function listingStatusText(row: { status_label?: string | null }): string {
+  return row.status_label && row.status_label.trim().length > 0 ? row.status_label : 'Status unavailable';
 }
 
 function showingStatusColor(status: string): string {
@@ -383,9 +408,12 @@ export default function LandlordPortalPage() {
       const data = await portalFetch<{ listings?: RentalListing[] }>('/api/portal/listings');
       if (data.listings) {
         // Filter to rental listings
-        const rentals = data.listings.filter((l: RentalListing) =>
-          l.listing_type?.toLowerCase() === 'rental' || l.listing_type?.toLowerCase() === 'lease'
-        );
+        // `listing_type` is stored as 'sale' | 'rent'; 'rental' / 'lease' are the FORM's words and are kept
+        // here only as read-compatible spellings.
+        const rentals = data.listings.filter((l: RentalListing) => {
+          const t = l.listing_type?.toLowerCase();
+          return t === 'rent' || t === 'rental' || t === 'lease';
+        });
         setListings(rentals.length > 0 ? rentals : data.listings);
       }
     } catch (err) {
@@ -821,8 +849,8 @@ export default function LandlordPortalPage() {
                       <h3 className="font-semibold text-gray-900">{formatAddress(selectedListing.address)}</h3>
                       <div className="flex items-center gap-3 mt-1">
                         <span className="text-lg font-bold text-green-700">{formatPrice(selectedListing.list_price)}/mo</span>
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${rentalStatusColor(selectedListing.status)}`}>
-                          {selectedListing.status}
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${rentalStatusColor(selectedListing.status)}`} data-status-token={selectedListing.status}>
+                          {listingStatusText(selectedListing)}
                         </span>
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
@@ -1119,7 +1147,7 @@ export default function LandlordPortalPage() {
                                     <td className="py-1.5 pr-4 font-medium">{formatPrice(c.price)}/mo</td>
                                     <td className="py-1.5 pr-4 text-gray-600">{c.bedrooms ?? '--'}/{c.bathrooms ?? '--'}</td>
                                     <td className="py-1.5 pr-4">
-                                      <span className={`text-xs px-1.5 py-0.5 rounded ${rentalStatusColor(c.status)}`}>{c.status}</span>
+                                      <span className={`text-xs px-1.5 py-0.5 rounded ${rentalStatusColor(c.status)}`} data-status-token={c.status}>{listingStatusText(c)}</span>
                                     </td>
                                     <td className="py-1.5 text-gray-600">{c.days_on_market ?? '--'}</td>
                                   </tr>
@@ -1152,7 +1180,7 @@ export default function LandlordPortalPage() {
                                     <td className="py-1.5 pr-4 font-medium">{formatPrice(c.price)}/mo</td>
                                     <td className="py-1.5 pr-4 text-gray-600">{c.bedrooms ?? '--'}/{c.bathrooms ?? '--'}</td>
                                     <td className="py-1.5 pr-4">
-                                      <span className={`text-xs px-1.5 py-0.5 rounded ${rentalStatusColor(c.status)}`}>{c.status}</span>
+                                      <span className={`text-xs px-1.5 py-0.5 rounded ${rentalStatusColor(c.status)}`} data-status-token={c.status}>{listingStatusText(c)}</span>
                                     </td>
                                     <td className="py-1.5 text-gray-600">{c.days_on_market ?? '--'}</td>
                                   </tr>
@@ -1321,8 +1349,8 @@ export default function LandlordPortalPage() {
                         <h3 className="font-semibold text-gray-900">{formatAddress(listing.address)}</h3>
                         <div className="flex items-center gap-3 mt-1">
                           <span className="text-lg font-bold text-green-700">{formatPrice(listing.list_price)}/mo</span>
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${rentalStatusColor(listing.status)}`}>
-                            {listing.status}
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${rentalStatusColor(listing.status)}`} data-status-token={listing.status}>
+                            {listingStatusText(listing)}
                           </span>
                         </div>
                         <div className="text-xs text-gray-500 mt-1">

@@ -99,7 +99,7 @@ export function crmMediaType(rawType?: string | null, caption?: string | null): 
 /**
  * Cotality `MediaCategory` member for a CRM media type. Mirrors the live
  * `$metadata` enum exactly: `Photo`, `FloorPlan`, and `Video` are all valid
- * `MediaCategory` members (artifacts/metadata.xml:11276-11340), and the Trestle
+ * `MediaCategory` members (live Cotality contract: `CotalityEnum_MediaCategory`), and the Trestle
  * sync stores the same raw value for synced floor plans (`media-sync.ts:407`).
  *
  * Do NOT collapse `FloorPlan` to `Document` — `Document` is a separate

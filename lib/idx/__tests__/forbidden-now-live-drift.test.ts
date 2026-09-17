@@ -10,8 +10,8 @@ import {
  * `detectForbiddenNowLive` is what makes the daily live audit
  * (.github/workflows/trestle-live-audit.yml → trestle:audit-server) fail the
  * moment Cotality turns one of the forbidden phantoms into a real live $metadata
- * field — the case the snapshot parity test cannot see (it reads the cached
- * artifacts/metadata.xml). It is pure, so we drive it with simulated "live"
+ * field — the case the contract parity test cannot see (it reads the committed
+ * live contract, data/cotality-contract/**). It is pure, so we drive it with simulated "live"
  * schema-field sets here.
  *
  * The documented live-but-intentional allowlist (ResourceRecordID) must NEVER

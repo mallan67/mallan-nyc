@@ -1,0 +1,2646 @@
+{
+  "generated": "2026-09-08",
+  "method": "read-only census of every provider $select site (3 groups) + independent refutation of every read-but-not-selected claim; workflow wf_7b8680d9-d22 (32 agents, 395 tool calls)",
+  "groups": [
+    {
+      "sites": [
+        {
+          "file": "app/api/open-houses/route.ts",
+          "line": 44,
+          "resource": "Property (direct — NOT an OpenHouse expand)",
+          "how": "literal string",
+          "selected": [
+            "ListingId",
+            "ListingKey"
+          ],
+          "consumers": [
+            {
+              "fn": "fetchMallanListingRefs",
+              "file": "C:/Users/MayaAllan/Desktop/mallan-nyc/app/api/open-houses/route.ts",
+              "fieldsRead": [
+                "ListingId",
+                "ListingKey"
+              ],
+              "evidence": "route.ts:46 `fetch(`${base}/odata/Property?${params}`)` — the resource is Property, not OpenHouse. Rows read at route.ts:54 `if (r.ListingId) ids.push(String(r.ListingId))` and route.ts:55 `if (r.ListingKey) keys.push(String(r.ListingKey))`."
+            },
+            {
+              "fn": "fetchTrestleOpenHouses (sole caller)",
+              "file": "C:/Users/MayaAllan/Desktop/mallan-nyc/app/api/open-houses/route.ts",
+              "fieldsRead": [
+                "ListingId"
+              ],
+              "evidence": "route.ts:165 `const { ids: mallanIds } = await fetchMallanListingRefs(token, base);` — only `ids` (ListingId) is destructured; the `keys` array (ListingKey) is discarded. Used at route.ts:167 to build the `ListingId eq '…'` scope."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [],
+          "notes": "Resource identification (asked for explicitly): this is a DIRECT /odata/Property pre-query (route.ts:46) that resolves Mallan's own active ListingIds to scope the OpenHouse $filter — it is not an OpenHouse query and not an expand. $filter uses ListOfficeMlsId + StandardStatus (route.ts:36/41) which are filtered-on, not selected/read. ListingKey is read at line 55 but its only consumer discards it (line 165), so the field is effectively dead weight on a public-path query. The analogous pre-query in lib/open-houses/upcoming-open-houses.ts:263 selects ListingId ONLY — the two pre-queries have drifted."
+        },
+        {
+          "file": "app/api/open-houses/route.ts",
+          "line": 182,
+          "resource": "OpenHouse",
+          "how": "literal string",
+          "selected": [
+            "OpenHouseKey",
+            "ListingKey",
+            "ListingId",
+            "OpenHouseDate",
+            "OpenHouseStartTime",
+            "OpenHouseEndTime",
+            "OpenHouseType",
+            "AppointmentRequiredYN",
+            "OpenHouseRemarks"
+          ],
+          "consumers": [
+            {
+              "fn": "fetchTrestleOpenHouses (inline records map + DTO builder)",
+              "file": "C:/Users/MayaAllan/Desktop/mallan-nyc/app/api/open-houses/route.ts",
+              "fieldsRead": [
+                "OpenHouseKey",
+                "ListingKey",
+                "ListingId",
+                "OpenHouseDate",
+                "OpenHouseStartTime",
+                "OpenHouseEndTime",
+                "AppointmentRequiredYN",
+                "OpenHouseRemarks",
+                "Property"
+              ],
+              "evidence": "route.ts:218 `const propRaw = r.Property` (nav, unwrapped from array at :219); :244 `resolveTrestlePrimaryPhoto(r.ListingKey, r.ListingId)`; :247 `id: `trestle-${r.OpenHouseKey || r.ListingKey}``; :248 `r.ListingId as string || r.ListingKey`; :251 `r.OpenHouseDate`; :252 `formatTrestleTime(r.OpenHouseStartTime)`; :253 `r.OpenHouseEndTime`; :262 `appointmentRequired: r.AppointmentRequiredYN`; :263 `remarks: r.OpenHouseRemarks`."
+            },
+            {
+              "fn": "resolvePublicOpenHouseType / isByAppointment (helper, traced)",
+              "file": "C:/Users/MayaAllan/Desktop/mallan-nyc/lib/open-houses/upcoming-open-houses.ts",
+              "fieldsRead": [
+                "AppointmentRequiredYN",
+                "OpenHouseRemarks"
+              ],
+              "evidence": "Called at route.ts:261-264 with `{appointmentRequired: r.AppointmentRequiredYN, remarks: r.OpenHouseRemarks}`; consumed in upcoming-open-houses.ts:88 (`input.appointmentRequired === true`) and :90 (regex over `input.remarks`)."
+            },
+            {
+              "fn": "resolveTrestlePrimaryPhoto (helper, traced)",
+              "file": "C:/Users/MayaAllan/Desktop/mallan-nyc/app/api/open-houses/route.ts",
+              "fieldsRead": [
+                "ListingKey",
+                "ListingId"
+              ],
+              "evidence": "route.ts:69-77 — `listingKey`/`listingId` params are r.ListingKey/r.ListingId (passed at :244); used as the Media ResourceRecordKey / ResourceRecordKeyNumeric at :71/:75-77."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [
+            "OpenHouseType"
+          ],
+          "notes": "`Property` is read at route.ts:218 but is NOT a $select gap — it arrives via the $expand at route.ts:195 (collection-valued nav, unwrapped from the array at :219). OpenHouseType is used only inside the $filter string (route.ts:181 `OpenHouseType eq 'Public'`); the DTO's openHouseType comes from resolvePublicOpenHouseType(AppointmentRequiredYN, OpenHouseRemarks) at :261-264, so the selected column is never read off a row. OpenHouseStatus is likewise filter-only (:181), never selected, never read."
+        },
+        {
+          "file": "app/api/open-houses/route.ts",
+          "line": 195,
+          "resource": "Property (expand inside the OpenHouse query at route.ts:182/197)",
+          "how": "literal string — `$expand=Property($select=…)` (26 fields)",
+          "selected": [
+            "ListPrice",
+            "StreetNumber",
+            "StreetDirPrefix",
+            "StreetName",
+            "StreetSuffix",
+            "StreetDirSuffix",
+            "UnitNumber",
+            "City",
+            "PostalCode",
+            "PropertyType",
+            "PropertySubType",
+            "CommonInterest",
+            "BedroomsTotal",
+            "BathroomsFull",
+            "BathroomsHalf",
+            "LivingArea",
+            "ListAgentFullName",
+            "ListOfficeName",
+            "PublicRemarks",
+            "PhotosCount",
+            "Permission",
+            "InternetEntireListingDisplayYN",
+            "InternetAddressDisplayYN",
+            "StandardStatus",
+            "MlsStatus",
+            "CloseDate"
+          ],
+          "consumers": [
+            {
+              "fn": "fetchTrestleOpenHouses (DTO builder, route.ts:231-281)",
+              "file": "C:/Users/MayaAllan/Desktop/mallan-nyc/app/api/open-houses/route.ts",
+              "fieldsRead": [
+                "StreetNumber",
+                "StreetDirPrefix",
+                "StreetName",
+                "StreetSuffix",
+                "StreetDirSuffix",
+                "UnitNumber",
+                "City",
+                "PostalCode",
+                "ListPrice",
+                "BedroomsTotal",
+                "BathroomsFull",
+                "BathroomsHalf",
+                "LivingArea",
+                "CommonInterest",
+                "PropertyType",
+                "ListOfficeName",
+                "PublicRemarks"
+              ],
+              "evidence": "route.ts:236 `[prop.StreetNumber, prop.StreetDirPrefix, prop.StreetName, prop.StreetSuffix, prop.StreetDirSuffix]`; :238 `prop.UnitNumber`; :241 & :250 `prop.City`; :242 `prop.BathroomsFull` + `prop.BathroomsHalf`; :254 `prop.ListPrice`; :255 `prop.BedroomsTotal`; :257 `prop.LivingArea`; :258 `mapPropertyType(prop.CommonInterest, prop.PropertyType)`; :269 `prop.ListOfficeName`; :271 `prop.PublicRemarks`; :278 `openHouseTwinKey({streetNumber: prop.StreetNumber, streetName: prop.StreetName, unitNumber: prop.UnitNumber, postalCode: prop.PostalCode})`."
+            },
+            {
+              "fn": "evaluateDisplayGate (helper, traced)",
+              "file": "C:/Users/MayaAllan/Desktop/mallan-nyc/lib/compliance/gates.ts",
+              "fieldsRead": [
+                "Permission",
+                "InternetEntireListingDisplayYN",
+                "InternetAddressDisplayYN",
+                "StandardStatus",
+                "MlsStatus",
+                "CloseDate"
+              ],
+              "evidence": "Called at route.ts:226 `evaluateDisplayGate(prop, { idxPlusPreFiltered: true })`. Inside: gates.ts:138 `readFirst(input, ['Permission','permission'])`; gates.ts:189-193 reads InternetEntireListingDisplayYN; gates.ts:208-212 (via isAddressDisplayable, invoked at gates.ts:343) reads InternetAddressDisplayYN; gates.ts:119 `readFirst(o, ['StandardStatus','MlsStatus','standardStatus','status'])`; gates.ts:223/234 reads CloseDate."
+            },
+            {
+              "fn": "mapPropertyType → displayPropertyType (helper, traced)",
+              "file": "C:/Users/MayaAllan/Desktop/mallan-nyc/lib/idx/display-property-type.ts",
+              "fieldsRead": [
+                "CommonInterest",
+                "PropertyType"
+              ],
+              "evidence": "route.ts:631-634 `displayPropertyType(commonInterest, null, propType)` — the middle arg (propertySubType, display-property-type.ts:12) is hard-coded null, so PropertySubType can never reach the label logic at display-property-type.ts:20-22."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [
+            "PropertySubType",
+            "PhotosCount",
+            "ListAgentFullName"
+          ],
+          "notes": "evaluateDisplayGate also probes owner_opt_out / participant_only / _mallanPermission (gates.ts:146-155) on this Trestle row, but those are DB/Mallan-side key names with no Property counterpart — they are always undefined here, so they are NOT counted as readButNotSelected. ListAgentFullName is a listing-agent identity field pulled into a PUBLIC endpoint with zero consumers (agentName uses ListOfficeName only, route.ts:269) — dead and worth dropping. PhotosCount is dead because the hero image comes from a separate Media query (route.ts:244 → :69-83)."
+        },
+        {
+          "file": "app/api/open-houses/route.ts",
+          "line": 305,
+          "resource": "OpenHouse (flat fallback, fetchTrestleOpenHousesFlat — no $expand)",
+          "how": "literal string (character-identical to route.ts:182)",
+          "selected": [
+            "OpenHouseKey",
+            "ListingKey",
+            "ListingId",
+            "OpenHouseDate",
+            "OpenHouseStartTime",
+            "OpenHouseEndTime",
+            "OpenHouseType",
+            "AppointmentRequiredYN",
+            "OpenHouseRemarks"
+          ],
+          "consumers": [
+            {
+              "fn": "fetchTrestleOpenHousesFlat (join-key extraction + DTO builder)",
+              "file": "C:/Users/MayaAllan/Desktop/mallan-nyc/app/api/open-houses/route.ts",
+              "fieldsRead": [
+                "ListingKey",
+                "ListingId",
+                "OpenHouseKey",
+                "OpenHouseDate",
+                "OpenHouseStartTime",
+                "OpenHouseEndTime",
+                "AppointmentRequiredYN",
+                "OpenHouseRemarks"
+              ],
+              "evidence": "route.ts:319 `ohRecords.map(r => r.ListingKey as string)` (batch Property join keys); :349 `propMap.get(r.ListingKey)`; :366 `resolveTrestlePrimaryPhoto(r.ListingKey, r.ListingId)`; :369 `r.OpenHouseKey || r.ListingKey`; :370 `r.ListingId || r.ListingKey`; :373 `r.OpenHouseDate`; :374 `r.OpenHouseStartTime`; :375 `r.OpenHouseEndTime`; :384 `r.AppointmentRequiredYN`; :385 `r.OpenHouseRemarks`."
+            },
+            {
+              "fn": "resolvePublicOpenHouseType / isByAppointment (helper, traced)",
+              "file": "C:/Users/MayaAllan/Desktop/mallan-nyc/lib/open-houses/upcoming-open-houses.ts",
+              "fieldsRead": [
+                "AppointmentRequiredYN",
+                "OpenHouseRemarks"
+              ],
+              "evidence": "route.ts:383-386 passes both; read at upcoming-open-houses.ts:88 and :90."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [
+            "OpenHouseType"
+          ],
+          "notes": "Reached only when the $expand request is non-OK (route.ts:201-205). No Property nav is read here — Property comes from the separate batch query at route.ts:331. Same OpenHouseType dead-select as the expand path (filter-only at route.ts:304)."
+        },
+        {
+          "file": "app/api/open-houses/route.ts",
+          "line": 331,
+          "resource": "Property (direct batch hydration for the flat OpenHouse fallback)",
+          "how": "literal string (25 fields)",
+          "selected": [
+            "ListingKey",
+            "ListPrice",
+            "StreetNumber",
+            "StreetDirPrefix",
+            "StreetName",
+            "StreetSuffix",
+            "StreetDirSuffix",
+            "UnitNumber",
+            "City",
+            "PostalCode",
+            "PropertyType",
+            "CommonInterest",
+            "BedroomsTotal",
+            "BathroomsFull",
+            "BathroomsHalf",
+            "LivingArea",
+            "ListAgentFullName",
+            "ListOfficeName",
+            "PublicRemarks",
+            "Permission",
+            "InternetEntireListingDisplayYN",
+            "InternetAddressDisplayYN",
+            "StandardStatus",
+            "MlsStatus",
+            "CloseDate"
+          ],
+          "consumers": [
+            {
+              "fn": "fetchTrestleOpenHousesFlat (propMap join + DTO builder, route.ts:339-401)",
+              "file": "C:/Users/MayaAllan/Desktop/mallan-nyc/app/api/open-houses/route.ts",
+              "fieldsRead": [
+                "ListingKey",
+                "StreetNumber",
+                "StreetDirPrefix",
+                "StreetName",
+                "StreetSuffix",
+                "StreetDirSuffix",
+                "UnitNumber",
+                "City",
+                "PostalCode",
+                "ListPrice",
+                "BedroomsTotal",
+                "BathroomsFull",
+                "BathroomsHalf",
+                "LivingArea",
+                "CommonInterest",
+                "PropertyType",
+                "ListOfficeName",
+                "PublicRemarks"
+              ],
+              "evidence": "route.ts:340 `propMap.set(p.ListingKey as string, p)` (the join key — this is why the flat list carries ListingKey); :359 street parts; :361 `prop.UnitNumber`; :364 & :372 `prop.City`; :365 `prop.BathroomsFull`/`prop.BathroomsHalf`; :376 `prop.ListPrice`; :377 `prop.BedroomsTotal`; :379 `prop.LivingArea`; :380 `mapPropertyType(prop.CommonInterest, prop.PropertyType)`; :391 `prop.ListOfficeName`; :393 `prop.PublicRemarks`; :399 `openHouseTwinKey({… prop.PostalCode})`."
+            },
+            {
+              "fn": "evaluateDisplayGate (helper, traced)",
+              "file": "C:/Users/MayaAllan/Desktop/mallan-nyc/lib/compliance/gates.ts",
+              "fieldsRead": [
+                "Permission",
+                "InternetEntireListingDisplayYN",
+                "InternetAddressDisplayYN",
+                "StandardStatus",
+                "MlsStatus",
+                "CloseDate"
+              ],
+              "evidence": "Called at route.ts:352 `evaluateDisplayGate(prop, { idxPlusPreFiltered: true })`; same reads as gates.ts:138, :189-193, :208-212 (via :343), :119, :223/:234."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [
+            "ListAgentFullName"
+          ],
+          "notes": "26 vs 25 — the precise diff: this 25-field list ADDS ListingKey (absent from the expand list) and DROPS PropertySubType and PhotosCount, i.e. 25 = 26 − PropertySubType − PhotosCount + ListingKey. ListingKey is genuinely required and IS read here (route.ts:340) — the expand path doesn't need it because Property arrives nested under its own OpenHouse row (route.ts:218-219). Neither dropped field is a loss: PropertySubType is unreadable by design (mapPropertyType passes null, route.ts:632) and PhotosCount has no consumer on either path. Both DTO builders therefore emit identical shapes."
+        },
+        {
+          "file": "lib/open-houses/upcoming-open-houses.ts",
+          "line": 263,
+          "resource": "Property (direct pre-query — NOT an OpenHouse expand)",
+          "how": "literal string",
+          "selected": [
+            "ListingId"
+          ],
+          "consumers": [
+            {
+              "fn": "fetchMallanListingIds",
+              "file": "C:/Users/MayaAllan/Desktop/mallan-nyc/lib/open-houses/upcoming-open-houses.ts",
+              "fieldsRead": [
+                "ListingId"
+              ],
+              "evidence": "upcoming-open-houses.ts:265 `fetch(`${base}/odata/Property?${params}`)`; :270 `(data.value||[]).map(r => String(r.ListingId || ''))`. Result used at :280 to build the OpenHouse `ListingId eq '…'` scope."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [],
+          "notes": "The lean twin of route.ts:44 — same office+status filter (ListOfficeMlsId / StandardStatus, filter-only at :259-262) but selects ListingId only, confirming route.ts:44's ListingKey is surplus."
+        },
+        {
+          "file": "lib/open-houses/upcoming-open-houses.ts",
+          "line": 287,
+          "resource": "OpenHouse",
+          "how": "literal string (character-identical to route.ts:182 / :305)",
+          "selected": [
+            "OpenHouseKey",
+            "ListingKey",
+            "ListingId",
+            "OpenHouseDate",
+            "OpenHouseStartTime",
+            "OpenHouseEndTime",
+            "OpenHouseType",
+            "AppointmentRequiredYN",
+            "OpenHouseRemarks"
+          ],
+          "consumers": [
+            {
+              "fn": "fetchTrestleUpcoming (UpcomingEntry builder, upcoming-open-houses.ts:299-318)",
+              "file": "C:/Users/MayaAllan/Desktop/mallan-nyc/lib/open-houses/upcoming-open-houses.ts",
+              "fieldsRead": [
+                "Property",
+                "ListingId",
+                "ListingKey",
+                "OpenHouseDate",
+                "OpenHouseStartTime",
+                "OpenHouseEndTime",
+                "AppointmentRequiredYN",
+                "OpenHouseRemarks"
+              ],
+              "evidence": "upcoming-open-houses.ts:301 `const propRaw = r.Property` (unwrapped :302); :305 `String(r.ListingId || r.ListingKey || '')`; :309 `String(r.OpenHouseDate||'').split('T')[0]`; :310 `formatEasternTime(r.OpenHouseStartTime)`; :311 `r.OpenHouseEndTime`; :313 `r.AppointmentRequiredYN`; :314 `r.OpenHouseRemarks`."
+            },
+            {
+              "fn": "getOpenHouseIndex / findNextOpenHouse (downstream DTO consumers)",
+              "file": "C:/Users/MayaAllan/Desktop/mallan-nyc/lib/open-houses/upcoming-open-houses.ts",
+              "fieldsRead": [],
+              "evidence": "upcoming-open-houses.ts:416 builds `NextOpenHouse` from the already-mapped UpcomingEntry keys (date/startTime/endTime/type) — no provider field names survive past :318, so nothing further is read off the OpenHouse rows."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [
+            "OpenHouseKey",
+            "OpenHouseType"
+          ],
+          "notes": "This site drops one more field on the floor than the route's copy: OpenHouseKey is never read here (the route reads it for its `trestle-{OpenHouseKey}` DTO id at route.ts:247/:369; this file's UpcomingEntry has no id field, upcoming-open-houses.ts:243-247). `Property` is delivered by the $expand at :291, not a $select gap. OpenHouseType/OpenHouseStatus are filter-only (:283)."
+        },
+        {
+          "file": "lib/open-houses/upcoming-open-houses.ts",
+          "line": 291,
+          "resource": "Property (expand inside the OpenHouse query at upcoming-open-houses.ts:287/293)",
+          "how": "literal string — `$expand=Property($select=…)` (9 fields)",
+          "selected": [
+            "StreetNumber",
+            "StreetName",
+            "UnitNumber",
+            "Permission",
+            "InternetEntireListingDisplayYN",
+            "InternetAddressDisplayYN",
+            "StandardStatus",
+            "MlsStatus",
+            "CloseDate"
+          ],
+          "consumers": [
+            {
+              "fn": "fetchTrestleUpcoming (address-key builder)",
+              "file": "C:/Users/MayaAllan/Desktop/mallan-nyc/lib/open-houses/upcoming-open-houses.ts",
+              "fieldsRead": [
+                "StreetNumber",
+                "StreetName",
+                "UnitNumber"
+              ],
+              "evidence": "upcoming-open-houses.ts:308 `normalizeAddressKey({ streetNumber: prop.StreetNumber, streetName: prop.StreetName, unitNumber: prop.UnitNumber })`; tokenized at :138-146."
+            },
+            {
+              "fn": "evaluateDisplayGate (helper, traced)",
+              "file": "C:/Users/MayaAllan/Desktop/mallan-nyc/lib/compliance/gates.ts",
+              "fieldsRead": [
+                "Permission",
+                "InternetEntireListingDisplayYN",
+                "InternetAddressDisplayYN",
+                "StandardStatus",
+                "MlsStatus",
+                "CloseDate"
+              ],
+              "evidence": "Called at upcoming-open-houses.ts:304 `evaluateDisplayGate(prop, { idxPlusPreFiltered: true }).displayable`; gates.ts:138 (Permission), :189-193 (IELD), :208-212 via :343 (InternetAddressDisplayYN), :119 (StandardStatus/MlsStatus), :223/:234 (CloseDate)."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [],
+          "notes": "All 9 selected fields are accessed. Caveat on InternetAddressDisplayYN: gates.ts:343 accesses it to compute `addressDisplayable`, but the caller consumes only `.displayable` (upcoming-open-houses.ts:304) — so this path emits `addressKey` (:308) even for an address-suppressed listing, unlike app/api/open-houses/route.ts:277-279 which gates addressKey on `gate.addressDisplayable`. The key is a normalized hash-ish token, not a displayed address, but the two surfaces disagree on the rule. Also note this expand omits PostalCode, so it uses normalizeAddressKey (street-only) while the route uses openHouseTwinKey (street+ZIP, upcoming-open-houses.ts:195-212) — the two key spaces are NOT interchangeable."
+        },
+        {
+          "file": "lib/idx/fetch.ts",
+          "line": 622,
+          "resource": "Media (downstream of the OpenHouse route — one query per open-house card)",
+          "how": "imported constant LISTING_MEDIA_SELECT — built by cotalityFields(\"Media\", [...]) at lib/idx/fetch.ts:31-33, joined at :622",
+          "selected": [
+            "MediaKey",
+            "MediaURL",
+            "MediaType",
+            "MediaCategory",
+            "Order",
+            "ShortDescription",
+            "PreferredPhotoYN",
+            "MediaStatus"
+          ],
+          "consumers": [
+            {
+              "fn": "fetchListingMedia (row mapper)",
+              "file": "C:/Users/MayaAllan/Desktop/mallan-nyc/lib/idx/fetch.ts",
+              "fieldsRead": [
+                "MediaCategory",
+                "ShortDescription",
+                "MediaURL",
+                "PreferredPhotoYN",
+                "Order"
+              ],
+              "evidence": "fetch.ts:675 `String(m.MediaCategory||'')`; :676 `String(m.ShortDescription||'')`; :677 `String(m.MediaURL||'')`; :689 `m.PreferredPhotoYN === true || m.PreferredPhotoYN === 'true'`; :693 `Number(m.Order || i)`. Returns the reduced shape `{url, mediaType, order}` (fetch.ts:587)."
+            },
+            {
+              "fn": "resolveTrestlePrimaryPhoto → resolveListingMedia",
+              "file": "C:/Users/MayaAllan/Desktop/mallan-nyc/app/api/open-houses/route.ts",
+              "fieldsRead": [],
+              "evidence": "route.ts:75-79 calls fetchListingMedia then `resolveListingMedia(media).find(m => m.class === 'photo' && m.url)`. resolveListingMedia (lib/media/listing-media-resolver.ts:339/345/350) reads MediaURL||mediaUrl||url, Order||order, PreferredPhotoYN — on THIS path only the lowercase mapped keys exist, so no additional provider field is read."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [
+            "MediaKey",
+            "MediaType",
+            "MediaStatus"
+          ],
+          "notes": "Included because every Trestle open-house card triggers this provider Media query (route.ts:244 and :366 → :69-83 → fetch.ts:584). MediaStatus is filter-only (fetch.ts:619 `MediaStatus ne 'Deleted'`), never read off a row. MediaKey is selected with an explicit comment about stable identity (fetch.ts:29-30) but this mapper drops it before any caller sees it; MediaType (file format) is unused because classification uses MediaCategory/ShortDescription (fetch.ts:675-687). Shared constant — other callers of fetchListingMedia inherit the same dead selects."
+        },
+        {
+          "file": "app/api/listings/route.ts",
+          "line": 514,
+          "resource": "OpenHouse",
+          "how": "literal string",
+          "selected": [
+            "ListingKey"
+          ],
+          "consumers": [
+            {
+              "fn": "GET (DB-first path open-house filter)",
+              "file": "C:/Users/MayaAllan/Desktop/mallan-nyc/app/api/listings/route.ts",
+              "fieldsRead": [
+                "ListingKey"
+              ],
+              "evidence": "listings/route.ts:517 `fetch(`${TRESTLE_API}/odata/OpenHouse?…`)`; :522 `new Set((ohData.value||[]).map(r => String(r.ListingKey)))`; :523 filters publicListings by that key set."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [],
+          "notes": "Outside the parent's enumerated site list but it IS a provider OpenHouse query (census completeness). No $expand, no Property fields. Date window + OpenHouseStatus are filter-only (:505-515); note it does NOT filter OpenHouseType eq 'Public', unlike every query in app/api/open-houses/route.ts and lib/open-houses/upcoming-open-houses.ts — a Broker/Private-only event can make a listing match the `openHouse` search facet."
+        },
+        {
+          "file": "app/api/listings/route.ts",
+          "line": 959,
+          "resource": "OpenHouse",
+          "how": "literal string",
+          "selected": [
+            "ListingKey"
+          ],
+          "consumers": [
+            {
+              "fn": "GET (Trestle-path open-house filter)",
+              "file": "C:/Users/MayaAllan/Desktop/mallan-nyc/app/api/listings/route.ts",
+              "fieldsRead": [
+                "ListingKey"
+              ],
+              "evidence": "listings/route.ts:962 `fetch(`${TRESTLE_API}/odata/OpenHouse?…`)`; :967 `new Set((ohData.value||[]).map(r => String(r.ListingKey)))`; :968 `filtered.filter(l => ohListingKeys.has(l.id))`."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [],
+          "notes": "Duplicate of listings/route.ts:514 on the Trestle-first path; same missing `OpenHouseType eq 'Public'` filter (:948-960)."
+        }
+      ],
+      "union": [
+        "OpenHouse.OpenHouseKey",
+        "OpenHouse.ListingKey",
+        "OpenHouse.ListingId",
+        "OpenHouse.OpenHouseDate",
+        "OpenHouse.OpenHouseStartTime",
+        "OpenHouse.OpenHouseEndTime",
+        "OpenHouse.AppointmentRequiredYN",
+        "OpenHouse.OpenHouseRemarks",
+        "OpenHouse.Property (nav, via $expand)",
+        "Property.ListingId",
+        "Property.ListingKey",
+        "Property.ListPrice",
+        "Property.StreetNumber",
+        "Property.StreetDirPrefix",
+        "Property.StreetName",
+        "Property.StreetSuffix",
+        "Property.StreetDirSuffix",
+        "Property.UnitNumber",
+        "Property.City",
+        "Property.PostalCode",
+        "Property.PropertyType",
+        "Property.CommonInterest",
+        "Property.BedroomsTotal",
+        "Property.BathroomsFull",
+        "Property.BathroomsHalf",
+        "Property.LivingArea",
+        "Property.ListOfficeName",
+        "Property.PublicRemarks",
+        "Property.Permission",
+        "Property.InternetEntireListingDisplayYN",
+        "Property.InternetAddressDisplayYN",
+        "Property.StandardStatus",
+        "Property.MlsStatus",
+        "Property.CloseDate",
+        "Media.MediaURL",
+        "Media.MediaCategory",
+        "Media.ShortDescription",
+        "Media.PreferredPhotoYN",
+        "Media.Order"
+      ]
+    },
+    {
+      "sites": [
+        {
+          "file": "lib/idx/fetch.ts",
+          "line": 144,
+          "resource": "Property (expand Media)",
+          "how": "cotalityFields(\"Media\", [...]) → EXPAND_MEDIA_SELECT (declared lib/idx/fetch.ts:25-28), interpolated into `Media($select=…;$filter=MediaStatus ne 'Deleted';$top=8;$orderby=Order)`",
+          "selected": [
+            "MediaURL",
+            "MediaCategory",
+            "Order",
+            "PreferredPhotoYN",
+            "ShortDescription",
+            "ModificationTimestamp",
+            "ResourceRecordKey",
+            "MediaStatus"
+          ],
+          "consumers": [
+            {
+              "fn": "mapTrestleToPrisma (media array build)",
+              "file": "lib/idx/trestle-mapper.ts",
+              "fieldsRead": [
+                "MediaURL",
+                "PreferredPhotoYN",
+                "Order",
+                "MediaCategory",
+                "MediaClassification",
+                "ShortDescription"
+              ],
+              "evidence": "lib/idx/trestle-mapper.ts:1149 `const rawMediaArr = Array.isArray(raw.Media) ? raw.Media : []`; :1153 `classifyMediaItem(m)`; :1160 `m.PreferredPhotoYN === true || m.PreferredPhotoYN === 'true'`; :1163 `url: String(m.MediaURL || '')`; :1165 `Number(m.Order ?? 0)`. classifyMediaItem (helper traced) reads MediaCategory at lib/media/listing-media-resolver.ts:123, MediaClassification at :124, ShortDescription at :125, MediaURL at :132."
+            },
+            {
+              "fn": "mapTrestleToCrmListing",
+              "file": "lib/search/crm-idx-mapper.ts",
+              "fieldsRead": [
+                "MediaURL",
+                "Order",
+                "PreferredPhotoYN",
+                "MediaCategory",
+                "MediaClassification",
+                "ShortDescription"
+              ],
+              "evidence": "lib/search/crm-idx-mapper.ts:97 `const media = Array.isArray(raw.Media) ? raw.Media : []`; :98 `resolveListingMedia(media)`. resolveListingMedia (helper traced) reads MediaURL at lib/media/listing-media-resolver.ts:339, Order at :345, PreferredPhotoYN at :350, and calls classifyMediaItem at :343 which reads MediaCategory/MediaClassification/ShortDescription at :123-125."
+            },
+            {
+              "fn": "syncListings / syncAgentHistory (empty-media detection)",
+              "file": "lib/idx/sync.ts",
+              "fieldsRead": [],
+              "evidence": "lib/idx/sync.ts:1232 and :2645 `.filter((r) => !Array.isArray(r.Media) || (r.Media as unknown[]).length === 0)` — reads the Media navigation collection's length only, never a Media field."
+            }
+          ],
+          "readButNotSelected": [
+            "MediaClassification"
+          ],
+          "selectedButNeverRead": [
+            "ModificationTimestamp",
+            "ResourceRecordKey",
+            "MediaStatus"
+          ],
+          "notes": "DEAD IN PRODUCTION: `expandMedia === true` is required to emit this $expand (lib/idx/fetch.ts:140) and no non-test caller passes true — lib/idx/sync.ts:598 and :2359 hard-code `const useExpandMedia = false`, app/api/listings/route.ts:799 `const useExpandMedia = false`, app/api/crm/listings/reset-sync/route.ts:102 `const EXPAND_MEDIA = false`, lib/comps/fetch-comps.ts:140/:210, lib/market-report/generator.ts:166, app/api/agents/[slug]/listings/route.ts:161/:170 all pass false. Only tests/runtime/idx-fetch-expand-media.test.ts:78/:84/:155 pass true. MediaStatus is used in the inner $filter only, never as a property read. ResourceRecordKey is redundant here (the rows arrive already nested under their Property). resolveListingMedia also reads `m.ThumbURL` (lib/media/listing-media-resolver.ts:342) — not a Cotality Media field (no hit in lib/cotality/), so it is excluded from readButNotSelected."
+        },
+        {
+          "file": "lib/idx/fetch.ts",
+          "line": 622,
+          "resource": "Media (direct /odata/Media)",
+          "how": "cotalityFields(\"Media\", [...]) → LISTING_MEDIA_SELECT (declared lib/idx/fetch.ts:31-33), `params.set(\"$select\", LISTING_MEDIA_SELECT.join(\",\"))`",
+          "selected": [
+            "MediaKey",
+            "MediaURL",
+            "MediaType",
+            "MediaCategory",
+            "Order",
+            "ShortDescription",
+            "PreferredPhotoYN",
+            "MediaStatus"
+          ],
+          "consumers": [
+            {
+              "fn": "fetchListingMedia (its own inline row mapper)",
+              "file": "lib/idx/fetch.ts",
+              "fieldsRead": [
+                "MediaCategory",
+                "ShortDescription",
+                "MediaURL",
+                "PreferredPhotoYN",
+                "Order"
+              ],
+              "evidence": "lib/idx/fetch.ts:675 `String(m.MediaCategory || \"\")`; :676 `String(m.ShortDescription || \"\")`; :677 `String(m.MediaURL || \"\")`; :689 `m.PreferredPhotoYN === true || m.PreferredPhotoYN === \"true\"`; :693 `Number(m.Order || i)`. The function returns `{url, mediaType, order}` only, so no caller can read further Media fields."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [
+            "MediaKey",
+            "MediaType",
+            "MediaStatus"
+          ],
+          "notes": "MediaKey is selected with an explicit comment (lib/idx/fetch.ts:29-30, repeated at :620-621) saying callers need it for stable identity, but the return shape at :690-694 drops it — no caller can see it. MediaType is selected and the mapper's own comment at :673-674 says MediaType is the file format and NOT the content type, i.e. deliberately unused. MediaStatus appears only in the $filter (`MediaStatus ne 'Deleted'`, :619)."
+        },
+        {
+          "file": "lib/idx/media-sync.ts",
+          "line": 3356,
+          "resource": "Media (direct /odata/Media)",
+          "how": "cotalityFields(\"Media\", [...]) → MEDIA_LANE_MEDIA_SELECT (declared lib/idx/media-sync.ts:11-14), `params.set(\"$select\", MEDIA_LANE_MEDIA_SELECT.join(\",\"))`",
+          "selected": [
+            "MediaKey",
+            "ResourceRecordKey",
+            "ResourceRecordID",
+            "MediaURL",
+            "MediaCategory",
+            "MediaClassification",
+            "MediaStatus",
+            "Permission",
+            "Order",
+            "PreferredPhotoYN",
+            "ModificationTimestamp",
+            "MediaModificationTimestamp"
+          ],
+          "consumers": [
+            {
+              "fn": "upsertListingMedia",
+              "file": "lib/idx/media-sync.ts",
+              "fieldsRead": [
+                "MediaKey",
+                "MediaStatus",
+                "Permission",
+                "MediaURL",
+                "ResourceRecordKey",
+                "ResourceRecordID",
+                "MediaCategory",
+                "MediaClassification",
+                "Order",
+                "PreferredPhotoYN",
+                "MediaModificationTimestamp",
+                "ModificationTimestamp"
+              ],
+              "evidence": "lib/idx/media-sync.ts:1061 `raw.MediaKey`; :1067 `raw.MediaStatus === \"Deleted\"`; :1075 `raw.Permission != null && String(raw.Permission) !== \"Public\"`; :1078 `raw.MediaURL`; :1086 `raw.ResourceRecordKey`; :1087 `raw.ResourceRecordID`; :1089-1090 `classifyTrestleMediaCategory(raw.MediaCategory)` / `raw.MediaCategory`; :1091 `raw.MediaClassification`; :1092 `parseOrder(raw.Order)`; :1093 `parseBool(raw.PreferredPhotoYN)`; :1094 `parseDate(raw.MediaModificationTimestamp ?? null)`; :1095 `parseDate(raw.ModificationTimestamp ?? null)`."
+            },
+            {
+              "fn": "runMediaSync (row plumbing)",
+              "file": "lib/idx/media-sync.ts",
+              "fieldsRead": [],
+              "evidence": "lib/idx/media-sync.ts:3744 `const mediaRows = await fetchDeps.fetchMedia(listingKey)`; :3745 `rowsChecked += mediaRows.length`; :3747 passes the rows straight into `upsertListingMedia` — no field access of its own."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [],
+          "notes": "The only site in the repo where the selected list and the read set match exactly. UpsertListingMediaInput (lib/idx/media-sync.ts:505-527) declares exactly these 12 provider field names."
+        },
+        {
+          "file": "lib/idx/sync.ts",
+          "line": 1272,
+          "resource": "Media (direct /odata/Media)",
+          "how": "literal string — `mediaParams.set(\"$select\", \"ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus,MediaKey\")` inside syncListings (declared lib/idx/sync.ts:511)",
+          "selected": [
+            "ResourceRecordKey",
+            "MediaURL",
+            "MediaCategory",
+            "Order",
+            "PreferredPhotoYN",
+            "MediaStatus",
+            "MediaKey"
+          ],
+          "consumers": [
+            {
+              "fn": "syncListings batch-media block (inline row loop)",
+              "file": "lib/idx/sync.ts",
+              "fieldsRead": [
+                "ResourceRecordKey",
+                "MediaURL",
+                "MediaCategory",
+                "PreferredPhotoYN",
+                "MediaKey",
+                "Order"
+              ],
+              "evidence": "lib/idx/sync.ts:1320 `String(m.ResourceRecordKey || \"\")`; :1321 `if (!lid || !m.MediaURL) continue`; :1328 `classifyTrestleMediaCategory(m.MediaCategory …)`; :1329 `m.PreferredPhotoYN === true || m.PreferredPhotoYN === \"true\"`; :1341 `typeof m.MediaKey === \"string\" ? m.MediaKey.trim() : \"\"`; :1344 `String(m.MediaURL)`; :1346 `Number(m.Order ?? 0)`. Rows are reduced to `{mediaKey?, url, mediaType, order}` and written to `listing.media` JSON at :1377."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [
+            "MediaStatus"
+          ],
+          "notes": "MediaStatus appears only in the $filter (`MediaStatus ne 'Deleted'`, lib/idx/sync.ts:1269). Uses classifyTrestleMediaCategory (lib/media/media-sync-service.ts:142), which reads only the MediaCategory string it is handed — unlike classifyMediaItem it never touches MediaClassification/ShortDescription/URL shape."
+        },
+        {
+          "file": "lib/idx/sync.ts",
+          "line": 1918,
+          "resource": "Media (direct /odata/Media)",
+          "how": "literal string — `mediaParams.set(\"$select\", \"ResourceRecordKey,ResourceRecordID,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus\")` inside backfillEmptyMedia (declared lib/idx/sync.ts:1770)",
+          "selected": [
+            "ResourceRecordKey",
+            "ResourceRecordID",
+            "MediaURL",
+            "MediaCategory",
+            "Order",
+            "PreferredPhotoYN",
+            "MediaStatus"
+          ],
+          "consumers": [
+            {
+              "fn": "backfillEmptyMedia (inline row loop)",
+              "file": "lib/idx/sync.ts",
+              "fieldsRead": [
+                "ResourceRecordKey",
+                "ResourceRecordID",
+                "MediaURL",
+                "MediaCategory",
+                "PreferredPhotoYN",
+                "Order"
+              ],
+              "evidence": "lib/idx/sync.ts:1944 `String(m.ResourceRecordKey || \"\")`; :1945 `String(m.ResourceRecordID || \"\")`; :1947 `if (!listingId || !m.MediaURL) continue`; :1952 `classifyTrestleMediaCategory(m.MediaCategory …)`; :1953 `m.PreferredPhotoYN === true || m.PreferredPhotoYN === \"true\"`; :1955 `String(m.MediaURL)`; :1957 `Number(m.Order ?? 0)`."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [
+            "MediaStatus"
+          ],
+          "notes": "backfillEmptyMedia is documented as legacy/unreachable elsewhere in the repo (lib/idx/write-suppression.ts:364 'the unreachable legacy `backfillEmptyMedia()`'; lib/compliance/raw-data-keep-fields.ts:200). This is the ONLY one of the three sync.ts sites that omits MediaKey, so its output objects `{url, mediaType, order}` (:1954-1958) carry no stable identity and mediaArraysMateriallyEqual (:1968) falls back to the rotating-URL leg. Its exact $select literal is pinned by lib/idx/__tests__/media-key-write-suppression.test.ts:202. MediaStatus is $filter-only (:1914)."
+        },
+        {
+          "file": "lib/idx/sync.ts",
+          "line": 2685,
+          "resource": "Media (direct /odata/Media)",
+          "how": "literal string — `mediaParams.set(\"$select\", \"ResourceRecordKey,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus,MediaKey\")` inside syncAgentHistory (declared lib/idx/sync.ts:2346)",
+          "selected": [
+            "ResourceRecordKey",
+            "MediaURL",
+            "MediaCategory",
+            "Order",
+            "PreferredPhotoYN",
+            "MediaStatus",
+            "MediaKey"
+          ],
+          "consumers": [
+            {
+              "fn": "syncAgentHistory batch-media block (inline row loop)",
+              "file": "lib/idx/sync.ts",
+              "fieldsRead": [
+                "ResourceRecordKey",
+                "MediaURL",
+                "MediaCategory",
+                "PreferredPhotoYN",
+                "MediaKey",
+                "Order"
+              ],
+              "evidence": "lib/idx/sync.ts:2736 `String(m.ResourceRecordKey || \"\")`; :2737 `if (!lid || !m.MediaURL) continue`; :2742 `classifyTrestleMediaCategory(m.MediaCategory …)`; :2743 `m.PreferredPhotoYN === true || m.PreferredPhotoYN === \"true\"`; :2752 `typeof m.MediaKey === \"string\" ? m.MediaKey.trim() : \"\"`; :2755 `String(m.MediaURL)`; :2757 `Number(m.Order ?? 0)`."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [
+            "MediaStatus"
+          ],
+          "notes": "Byte-identical $select and row loop to the syncListings site at :1272 (two copies of the same literal). MediaStatus is $filter-only (lib/idx/sync.ts:2682)."
+        },
+        {
+          "file": "lib/search/engine/hydrate.ts",
+          "line": 58,
+          "resource": "Media (direct, via walkProvider)",
+          "how": "cotalityFields('Media', [...]) → MEDIA_SELECT (declared lib/search/engine/hydrate.ts:44), passed as `select: MEDIA_SELECT` to walkProvider; provider-client serializes it at lib/search/engine/provider-client.ts:42 `url.searchParams.set('$select', o.select.join(','))`",
+          "selected": [
+            "ResourceRecordKey",
+            "ResourceRecordID",
+            "MediaKey",
+            "MediaCategory",
+            "MediaType",
+            "Order",
+            "MediaURL",
+            "MediaStatus",
+            "PreferredPhotoYN"
+          ],
+          "consumers": [
+            {
+              "fn": "providerRecords (grouping)",
+              "file": "lib/search/engine/hydrate.ts",
+              "fieldsRead": [
+                "ResourceRecordKey"
+              ],
+              "evidence": "lib/search/engine/hydrate.ts:65 `const k = m.ResourceRecordKey != null ? String(m.ResourceRecordKey) : ''`; :71 attaches the grouped rows onto the Property record as `Media: mediaByKey.get(k) ?? []`."
+            },
+            {
+              "fn": "mapTrestleToCrmListing",
+              "file": "lib/search/crm-idx-mapper.ts",
+              "fieldsRead": [
+                "MediaURL",
+                "Order",
+                "PreferredPhotoYN",
+                "MediaCategory",
+                "MediaClassification",
+                "ShortDescription"
+              ],
+              "evidence": "lib/search/crm-idx-mapper.ts:97-98 `const media = Array.isArray(raw.Media) ? raw.Media : []; const resolved = resolveListingMedia(media)`. resolveListingMedia (helper traced) reads MediaURL at lib/media/listing-media-resolver.ts:339, Order at :345, PreferredPhotoYN at :350, and classifyMediaItem at :343 reads MediaCategory :123, MediaClassification :124, ShortDescription :125."
+            }
+          ],
+          "readButNotSelected": [
+            "MediaClassification",
+            "ShortDescription"
+          ],
+          "selectedButNeverRead": [
+            "ResourceRecordID",
+            "MediaKey",
+            "MediaType",
+            "MediaStatus"
+          ],
+          "notes": "MediaStatus is used only in the filter (`MediaStatus eq 'Active'`, hydrate.ts:59). MediaType is selected but classifyMediaItem's fallback chain is `m.MediaCategory ?? m.mediaCategory ?? m.category ?? m.mediaType` (lib/media/listing-media-resolver.ts:123) — lowercase `mediaType`, so the provider's PascalCase `MediaType` is never matched. ResourceRecordID/MediaKey survive only on the Mallan-authored path (hydrate.ts:116-117 synthesizes them for DB rows) and are not read from provider rows. crm-idx-mapper also exports classifyMediaCategory (:33-39, reads MediaCategory) but it has no callers in lib/ or app/ — dead code."
+        },
+        {
+          "file": "app/api/media/batch/route.ts",
+          "line": 110,
+          "resource": "Media (direct /odata/Media) — DETAIL mode",
+          "how": "literal string — `params.set(\"$select\", \"ResourceRecordKey,ResourceRecordID,MediaURL,Order,MediaCategory,MediaClassification,PreferredPhotoYN,ShortDescription,MediaStatus\")`",
+          "selected": [
+            "ResourceRecordKey",
+            "ResourceRecordID",
+            "MediaURL",
+            "Order",
+            "MediaCategory",
+            "MediaClassification",
+            "PreferredPhotoYN",
+            "ShortDescription",
+            "MediaStatus"
+          ],
+          "consumers": [
+            {
+              "fn": "GET (detail-mode row grouping)",
+              "file": "app/api/media/batch/route.ts",
+              "fieldsRead": [
+                "ResourceRecordKey",
+                "ResourceRecordID",
+                "MediaURL"
+              ],
+              "evidence": "app/api/media/batch/route.ts:126 `const mkey = String(m.ResourceRecordKey || m.ResourceRecordID || \"\")`; :127 `if (!mkey || !m.MediaURL) continue`."
+            },
+            {
+              "fn": "resolveListingMedia",
+              "file": "lib/media/listing-media-resolver.ts",
+              "fieldsRead": [
+                "MediaURL",
+                "Order",
+                "PreferredPhotoYN",
+                "MediaCategory",
+                "MediaClassification",
+                "ShortDescription"
+              ],
+              "evidence": "called at app/api/media/batch/route.ts:139 `const resolved = resolveListingMedia(rawItems)`; reads MediaURL at lib/media/listing-media-resolver.ts:339, Order at :345, PreferredPhotoYN at :350, and classifyMediaItem (:343) reads MediaCategory :123, MediaClassification :124, ShortDescription :125."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [
+            "MediaStatus"
+          ],
+          "notes": "The only site whose $select is a complete superset of what classifyMediaItem needs (MediaCategory + MediaClassification + ShortDescription + MediaURL all present). MediaStatus is $filter-only (:107)."
+        },
+        {
+          "file": "app/api/media/batch/route.ts",
+          "line": 192,
+          "resource": "Media (direct /odata/Media) — DEFAULT (primary-photo) mode",
+          "how": "literal string — `params.set(\"$select\", \"ResourceRecordKey,ResourceRecordID,MediaURL,Order,PreferredPhotoYN,MediaStatus\")`",
+          "selected": [
+            "ResourceRecordKey",
+            "ResourceRecordID",
+            "MediaURL",
+            "Order",
+            "PreferredPhotoYN",
+            "MediaStatus"
+          ],
+          "consumers": [
+            {
+              "fn": "GET (default-mode row grouping)",
+              "file": "app/api/media/batch/route.ts",
+              "fieldsRead": [
+                "ResourceRecordKey",
+                "ResourceRecordID",
+                "MediaURL"
+              ],
+              "evidence": "app/api/media/batch/route.ts:207 `const mkey = String(m.ResourceRecordKey || m.ResourceRecordID || \"\")`; :208 `if (mkey && m.MediaURL)`."
+            },
+            {
+              "fn": "pickPrimaryPhotoUrl → resolveListingMedia → classifyMediaItem",
+              "file": "lib/media/listing-media-resolver.ts",
+              "fieldsRead": [
+                "MediaURL",
+                "Order",
+                "PreferredPhotoYN",
+                "MediaCategory",
+                "MediaClassification",
+                "ShortDescription"
+              ],
+              "evidence": "called at app/api/media/batch/route.ts:216 `const url = pickPrimaryPhotoUrl(rawByKey.get(key) || [])`; pickPrimaryPhotoUrl is lib/media/listing-media-resolver.ts:447-451 → resolveListingMedia (:332) reads MediaURL :339, Order :345, PreferredPhotoYN :350, and classifyMediaItem (:343) reads MediaCategory :123, MediaClassification :124, ShortDescription :125."
+            }
+          ],
+          "readButNotSelected": [
+            "MediaCategory",
+            "MediaClassification",
+            "ShortDescription"
+          ],
+          "selectedButNeverRead": [
+            "MediaStatus"
+          ],
+          "notes": "MISMATCH: the code path routes every row through classifyMediaItem, which reads MediaCategory / MediaClassification / ShortDescription, but none of the three is in this $select — so those reads always see `undefined` and classification degrades to URL-shape heuristics alone (lib/media/listing-media-resolver.ts:143-151, TRESTLE_DOCUMENT_URL_PATTERN). Partially compensated by the server-side filter `(MediaCategory eq 'Photo' or MediaCategory eq null)` at :189, but a null-category DOCUMENT floor plan is still admitted by the filter and can only be caught by the URL pattern. MediaStatus is $filter-only (:189)."
+        },
+        {
+          "file": "app/api/agents/[slug]/listings/route.ts",
+          "line": 381,
+          "resource": "Media (direct /odata/Media)",
+          "how": "literal string — `mediaParams.set('$select', 'ResourceRecordKey,ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,PreferredPhotoYN,MediaStatus')` inside batchFetchPhotos",
+          "selected": [
+            "ResourceRecordKey",
+            "ResourceRecordID",
+            "MediaURL",
+            "MediaType",
+            "MediaCategory",
+            "Order",
+            "PreferredPhotoYN",
+            "MediaStatus"
+          ],
+          "consumers": [
+            {
+              "fn": "mapAgentCardMedia",
+              "file": "lib/idx/agent-card-media.ts",
+              "fieldsRead": [
+                "ResourceRecordKey",
+                "ResourceRecordID",
+                "MediaURL",
+                "PreferredPhotoYN",
+                "Order"
+              ],
+              "evidence": "called at app/api/agents/[slug]/listings/route.ts:411 `const byKey = mapAgentCardMedia(records)`; lib/idx/agent-card-media.ts:26 `String(m.ResourceRecordKey || m.ResourceRecordID || \"\")`; :27 `if (!mkey || !m.MediaURL) continue`; :32 `m.PreferredPhotoYN === true || m.PreferredPhotoYN === \"true\"`; :35 `String(m.MediaURL)`; :37 `Number(m.Order ?? 0)`."
+            },
+            {
+              "fn": "classifyMediaItem",
+              "file": "lib/media/listing-media-resolver.ts",
+              "fieldsRead": [
+                "MediaCategory",
+                "MediaClassification",
+                "ShortDescription",
+                "MediaURL"
+              ],
+              "evidence": "called at lib/idx/agent-card-media.ts:29 `if (classifyMediaItem(m) !== \"photo\") continue`; reads MediaCategory at lib/media/listing-media-resolver.ts:123, MediaClassification :124, ShortDescription :125, MediaURL :132."
+            }
+          ],
+          "readButNotSelected": [
+            "MediaClassification",
+            "ShortDescription"
+          ],
+          "selectedButNeverRead": [
+            "MediaType",
+            "MediaStatus"
+          ],
+          "notes": "MediaStatus is $filter-only (route line 375). MediaType is selected but never read — classifyMediaItem's chain looks for lowercase `mediaType`, not the provider's `MediaType` (lib/media/listing-media-resolver.ts:123). The route's own comment at :383-390 explains it deliberately does NOT filter MediaCategory server-side (unproven enum filterability) and classifies client-side, which makes the two missing classification inputs (MediaClassification, ShortDescription) load-bearing here."
+        },
+        {
+          "file": "lib/buildings/public-building-data.ts",
+          "line": 826,
+          "resource": "Property (expand Media)",
+          "how": "literal string — `const MEDIA_EXPAND = \"Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN;$top=10;$orderby=Order)\"`, used as `$expand: MEDIA_EXPAND` on four Property queries (lines 830, 851, 873, 892; the Property `$select` on those same queries is the separate BUILDING_SELECT declared at :80)",
+          "selected": [
+            "MediaURL",
+            "MediaCategory",
+            "Order",
+            "PreferredPhotoYN"
+          ],
+          "consumers": [
+            {
+              "fn": "getPhotoUrl",
+              "file": "lib/buildings/public-building-data.ts",
+              "fieldsRead": [
+                "MediaURL"
+              ],
+              "evidence": "lib/buildings/public-building-data.ts:63 `const media = record.Media`; :68 `media.find(m => classifyMediaItem(m) === 'photo')`; :69 `if (!photo?.MediaURL) return null`; :71 `encodeURIComponent(String(photo.MediaURL))`. Called once, at :983 `photoUrl: getPhotoUrl(r)`. The local TrestleRecord type at :58 declares `Media?: Array<{ MediaURL?; MediaCategory?; Order?; PreferredPhotoYN? }>`."
+            },
+            {
+              "fn": "classifyMediaItem",
+              "file": "lib/media/listing-media-resolver.ts",
+              "fieldsRead": [
+                "MediaCategory",
+                "MediaClassification",
+                "ShortDescription",
+                "MediaURL"
+              ],
+              "evidence": "called at lib/buildings/public-building-data.ts:68; reads MediaCategory at lib/media/listing-media-resolver.ts:123, MediaClassification :124, ShortDescription :125, MediaURL :132."
+            }
+          ],
+          "readButNotSelected": [
+            "MediaClassification",
+            "ShortDescription"
+          ],
+          "selectedButNeverRead": [
+            "Order",
+            "PreferredPhotoYN"
+          ],
+          "notes": "Order and PreferredPhotoYN are selected but never read as properties — getPhotoUrl takes the first classified photo in provider order, and ordering is delegated to the inner `$orderby=Order`, so PreferredPhotoYN's hero hint is silently discarded here (unlike every other consumer, which maps preferred → order -1). Only the four active-unit reads use this expand; the closed/sale-history path never calls getPhotoUrl."
+        },
+        {
+          "file": "app/api/cron/feed-reconcile/route.ts",
+          "line": 394,
+          "resource": "Property (expand Media)",
+          "how": "BARE expand, NO inner $select — `const mediaExpand = \\`Media($filter=MediaStatus ne 'Deleted';$orderby=Order)\\`` (all 56 Media fields returned; lib/cotality/generated/contract.ts:1075 'Media · 56 fields')",
+          "selected": [],
+          "consumers": [
+            {
+              "fn": "upsertListingMedia (via orphan recovery)",
+              "file": "lib/idx/media-sync.ts",
+              "fieldsRead": [
+                "MediaKey",
+                "MediaStatus",
+                "Permission",
+                "MediaURL",
+                "ResourceRecordKey",
+                "ResourceRecordID",
+                "MediaCategory",
+                "MediaClassification",
+                "Order",
+                "PreferredPhotoYN",
+                "MediaModificationTimestamp",
+                "ModificationTimestamp"
+              ],
+              "evidence": "app/api/cron/feed-reconcile/route.ts:491-493 `const rawMedia = Array.isArray(raw.Media) ? (raw.Media as UpsertListingMediaInput[]) : []`; :505 `await upsertListingMedia(String(raw.ListingId), rawMedia, {...})`. upsertListingMedia reads the 12 fields at lib/idx/media-sync.ts:1061, 1067, 1075, 1078, 1086, 1087, 1089-1095."
+            },
+            {
+              "fn": "mapTrestleToPrisma (same rows, JSON media column)",
+              "file": "lib/idx/trestle-mapper.ts",
+              "fieldsRead": [
+                "MediaURL",
+                "PreferredPhotoYN",
+                "Order",
+                "MediaCategory",
+                "MediaClassification",
+                "ShortDescription"
+              ],
+              "evidence": "app/api/cron/feed-reconcile/route.ts:413 `const mapped = mapTrestleToPrisma(raw)`; lib/idx/trestle-mapper.ts:1149 `raw.Media`, :1153 classifyMediaItem, :1160 PreferredPhotoYN, :1163 MediaURL, :1165 Order; classifyMediaItem reads MediaCategory/MediaClassification/ShortDescription at lib/media/listing-media-resolver.ts:123-125."
+            },
+            {
+              "fn": "canonicalizeRawDataMedia (raw_data write-suppression)",
+              "file": "lib/idx/write-suppression.ts",
+              "fieldsRead": [
+                "MediaURL"
+              ],
+              "evidence": "lib/idx/write-suppression.ts:393 `const media = raw_.Media`; :399 `for (const key of [\"MediaURL\", \"Thumbnail\"])` — MediaURL is a real Media field; `Thumbnail` is not declared on the Cotality Media resource."
+            }
+          ],
+          "readButNotSelected": [
+            "MediaKey",
+            "MediaStatus",
+            "Permission",
+            "MediaURL",
+            "ResourceRecordKey",
+            "ResourceRecordID",
+            "MediaCategory",
+            "MediaClassification",
+            "Order",
+            "PreferredPhotoYN",
+            "MediaModificationTimestamp",
+            "ModificationTimestamp",
+            "ShortDescription"
+          ],
+          "selectedButNeverRead": [],
+          "notes": "NEW SITE not in the brief — found by grepping `Media(` expands. It is the only Media expand in the repo with no inner $select, so it over-fetches all 56 Media fields per row to read 13. readButNotSelected here lists everything the consumers read (there is no select to omit them from). Note this path pairs the expand payload with `tombstoneVanished: false` (:508) because the inline expand is not pagination-proven complete (comment at :485-490)."
+        },
+        {
+          "file": "scripts/audit/media-coverage-audit.cli.ts",
+          "line": 250,
+          "resource": "Media (direct /odata/Media)",
+          "how": "literal string — `params.set('$select', 'MediaKey,MediaCategory,MediaType,Order,MediaURL,PreferredPhotoYN,MediaStatus')` in buildFirstMediaUrl",
+          "selected": [
+            "MediaKey",
+            "MediaCategory",
+            "MediaType",
+            "Order",
+            "MediaURL",
+            "PreferredPhotoYN",
+            "MediaStatus"
+          ],
+          "consumers": [
+            {
+              "fn": "fetchMediaPage (row → CotalityMediaRow mapping)",
+              "file": "scripts/audit/media-coverage-audit.cli.ts",
+              "fieldsRead": [
+                "MediaKey",
+                "MediaCategory",
+                "MediaType",
+                "Order",
+                "MediaURL",
+                "PreferredPhotoYN",
+                "MediaStatus"
+              ],
+              "evidence": "scripts/audit/media-coverage-audit.cli.ts:261 `(r.MediaKey as string) ?? null`; :262 `r.MediaCategory`; :263 `r.MediaType`; :264 `r.Order`; :265 `r.MediaURL`; :266 `r.PreferredPhotoYN`; :267 `r.MediaStatus`."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [],
+          "notes": "NEW SITE not in the brief (ops audit CLI, single-listing probe filtered by ResourceRecordKey at :248 so that key is not re-selected). This is the only site that actually READS the provider's MediaType. Additional out-of-band diagnostic probe scripts also carry Media $selects and are not part of any runtime path: scripts/__probe-order-ties.ts:110 and :456 ('MediaKey,ResourceRecordKey,ResourceRecordID,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus'); scripts/__probe-order-ties-verify.ts:62 ('MediaKey,MediaURL,MediaCategory,Order,PreferredPhotoYN,MediaStatus,ModificationTimestamp,MediaModificationTimestamp'); scripts/__probe-top-truncation.ts:74 and :100; scripts/__probe-top-truncation-verify.ts:75, :86, :107, :128."
+        }
+      ],
+      "union": [
+        "MediaURL",
+        "MediaCategory",
+        "MediaClassification",
+        "ShortDescription",
+        "Order",
+        "PreferredPhotoYN",
+        "ResourceRecordKey",
+        "ResourceRecordID",
+        "MediaKey",
+        "MediaType",
+        "MediaStatus",
+        "Permission",
+        "ModificationTimestamp",
+        "MediaModificationTimestamp"
+      ]
+    },
+    {
+      "sites": [
+        {
+          "file": "lib/idx/fetch.ts",
+          "line": 79,
+          "resource": "CustomProperty",
+          "how": "literal string inside a JSDoc comment — NOT transmitted",
+          "selected": [
+            "DownPaymentAssistanceAmount",
+            "DownPaymentAssistanceCount",
+            "CustomFields"
+          ],
+          "consumers": [],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [],
+          "notes": "NOT a live select site. Lines 74-99 are the JSDoc for the `expandCustomProperty?: boolean` option (declared at line 99). The string `$expand=CustomProperty($select=DownPaymentAssistanceAmount,DownPaymentAssistanceCount,CustomFields)` is quoted prose describing the payload Trestle rejected with HTTP 400 (PR-S.1e, 2026-05-15). No code path builds it. Line 85-89 further records that DownPaymentAssistanceAmount/Count migrated to the Property entity (2026-06-04) and now arrive via IDX_PLUS_SELECT_FIELDS."
+        },
+        {
+          "file": "lib/idx/fetch.ts",
+          "line": 130,
+          "resource": "CustomProperty",
+          "how": "literal string inside a `//` comment — NOT transmitted",
+          "selected": [
+            "DownPaymentAssistance…",
+            "CustomFields"
+          ],
+          "consumers": [],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [],
+          "notes": "NOT a live select site. Lines 128-138 are the comment block above `const expandParts: string[] = []` (line 139) explaining why $expand defaults to off. The quoted form is even elided ('DownPaymentAssistance…'), which alone proves it is prose, not a payload."
+        },
+        {
+          "file": "lib/idx/fetch.ts",
+          "line": 152,
+          "resource": "CustomProperty",
+          "how": "literal string — `expandParts.push(\"CustomProperty\")` — BARE expand, no inner $select",
+          "selected": [],
+          "consumers": [
+            {
+              "fn": "mapCrmIdxListing (raw.CustomProperty consumer)",
+              "file": "lib/search/crm-idx-mapper.ts",
+              "fieldsRead": [
+                "CustomProperty",
+                "DownPaymentAssistanceAmount",
+                "DownPaymentAssistanceCount",
+                "CustomFields"
+              ],
+              "evidence": "lib/search/crm-idx-mapper.ts:113-115 unwraps `raw.CustomProperty` (array-or-object); :122 and :128 read `customProps?.DownPaymentAssistanceAmount` / `customProps?.DownPaymentAssistanceCount` as a FALLBACK after the Property-level fields; :139 reads `customProps?.CustomFields`, JSON.parses it at :142 and reads the `SponsorUnitYN` JSON key at :143 (a key inside the JSON string, not a provider entity property)."
+            }
+          ],
+          "readButNotSelected": [
+            "DownPaymentAssistanceAmount",
+            "DownPaymentAssistanceCount",
+            "CustomFields"
+          ],
+          "selectedButNeverRead": [],
+          "notes": "THE ONLY CustomProperty expand the app can emit. It is bare (`$expand=CustomProperty`) with NO inner $select — deliberately, per the comment at 147-151 — so whatever Trestle publishes on the entity comes back and readButNotSelected is vacuous by construction (nothing is selected). Gated on strict `options.expandCustomProperty === true` (line 146). NO PRODUCTION CALLER SETS IT: grep for `expandCustomProperty` across the repo returns only lib/idx/fetch.ts:99/146 and tests/runtime/idx-fetch-expand-media.test.ts (lines 107-172). So in production the app sends ZERO CustomProperty expands."
+        },
+        {
+          "file": "scripts/cotality/amenity-census.mjs",
+          "line": 64,
+          "resource": "CustomProperty",
+          "how": "literal string — `'$expand': 'CustomProperty($select=CustomFields)'` on a Property query whose own `'$select'` is `'ListingKey'`",
+          "selected": [
+            "CustomFields"
+          ],
+          "consumers": [
+            {
+              "fn": "top-level census loop",
+              "file": "scripts/cotality/amenity-census.mjs",
+              "fieldsRead": [
+                "CustomProperty",
+                "CustomFields",
+                "ListingKey"
+              ],
+              "evidence": "scripts/cotality/amenity-census.mjs:69 `const cp = Array.isArray(r.CustomProperty) ? r.CustomProperty[0] : r.CustomProperty`; :70 `const raw = cp?.CustomFields`; :73 JSON.parse of that string then :76 enumerates its keys; :83 `String(batch[batch.length - 1].ListingKey)` for the keyset cursor."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [],
+          "notes": "The ONE real `$expand=CustomProperty($select=...)` the repo sends. Offline census script (writes an artifact), not app runtime; skippable via `--no-customfields` (line 61). Property $select is `ListingKey` only — read at :83. Fully consumed: nothing selected goes unread, nothing read goes unselected."
+        },
+        {
+          "file": "scripts/audit-form-trestle-coverage.ts",
+          "line": 98,
+          "resource": "CustomProperty",
+          "how": "literal URL — direct CustomProperty query with NO $select (`?$top=20`)",
+          "selected": [],
+          "consumers": [
+            {
+              "fn": "getCustomPropertyFieldsFromSample",
+              "file": "scripts/audit-form-trestle-coverage.ts",
+              "fieldsRead": [
+                "CustomFields"
+              ],
+              "evidence": "scripts/audit-form-trestle-coverage.ts:101-108 iterates `json.value` and reads `row.CustomFields`, JSON.parsing it when it is a string and enumerating its keys."
+            }
+          ],
+          "readButNotSelected": [
+            "CustomFields"
+          ],
+          "selectedButNeverRead": [],
+          "notes": "The only DIRECT CustomProperty resource query in the repo. No $select at all, so the full entity comes back; only CustomFields is read. Audit script, not app runtime."
+        },
+        {
+          "file": "app/api/open-houses/route.ts",
+          "line": 44,
+          "resource": "Property",
+          "how": "literal string — `params.set('$select', 'ListingId,ListingKey')`",
+          "selected": [
+            "ListingId",
+            "ListingKey"
+          ],
+          "consumers": [
+            {
+              "fn": "fetchMallanListingRefs",
+              "file": "app/api/open-houses/route.ts",
+              "fieldsRead": [
+                "ListingId",
+                "ListingKey"
+              ],
+              "evidence": "app/api/open-houses/route.ts:54 `if (r.ListingId) ids.push(String(r.ListingId))`; :55 `if (r.ListingKey) keys.push(String(r.ListingKey))`."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [],
+          "notes": "Direct Property $select (NOT CustomProperty). Balanced. Caller at :165 destructures only `{ ids }` — `keys` is selected, read into the return object, and then discarded by every caller, so ListingKey is dead one level up."
+        },
+        {
+          "file": "app/api/open-houses/route.ts",
+          "line": 182,
+          "resource": "OpenHouse",
+          "how": "literal string $select on the OpenHouse resource",
+          "selected": [
+            "OpenHouseKey",
+            "ListingKey",
+            "ListingId",
+            "OpenHouseDate",
+            "OpenHouseStartTime",
+            "OpenHouseEndTime",
+            "OpenHouseType",
+            "AppointmentRequiredYN",
+            "OpenHouseRemarks"
+          ],
+          "consumers": [
+            {
+              "fn": "fetchTrestleOpenHouses",
+              "file": "app/api/open-houses/route.ts",
+              "fieldsRead": [
+                "OpenHouseKey",
+                "ListingKey",
+                "ListingId",
+                "OpenHouseDate",
+                "OpenHouseStartTime",
+                "OpenHouseEndTime",
+                "AppointmentRequiredYN",
+                "OpenHouseRemarks"
+              ],
+              "evidence": "app/api/open-houses/route.ts:244 `resolveTrestlePrimaryPhoto(r.ListingKey, r.ListingId)`; :247 `id: `trestle-${r.OpenHouseKey || r.ListingKey}``; :248 `r.ListingId`/`r.ListingKey`; :251 `r.OpenHouseDate`; :252 `r.OpenHouseStartTime`; :253 `r.OpenHouseEndTime`; :262 `r.AppointmentRequiredYN`; :263 `r.OpenHouseRemarks`."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [
+            "OpenHouseType"
+          ],
+          "notes": "OpenHouseType is used ONLY inside the $filter (`OpenHouseType eq 'Public'`, line 181) and never read off a returned row — the public designation is recomputed by `resolvePublicOpenHouseType` from AppointmentRequiredYN + remarks (:261-264), per the comment at :259-260."
+        },
+        {
+          "file": "app/api/open-houses/route.ts",
+          "line": 195,
+          "resource": "Property",
+          "how": "literal string — `params.set('$expand', 'Property($select=…)')` on the OpenHouse resource",
+          "selected": [
+            "ListPrice",
+            "StreetNumber",
+            "StreetDirPrefix",
+            "StreetName",
+            "StreetSuffix",
+            "StreetDirSuffix",
+            "UnitNumber",
+            "City",
+            "PostalCode",
+            "PropertyType",
+            "PropertySubType",
+            "CommonInterest",
+            "BedroomsTotal",
+            "BathroomsFull",
+            "BathroomsHalf",
+            "LivingArea",
+            "ListAgentFullName",
+            "ListOfficeName",
+            "PublicRemarks",
+            "PhotosCount",
+            "Permission",
+            "InternetEntireListingDisplayYN",
+            "InternetAddressDisplayYN",
+            "StandardStatus",
+            "MlsStatus",
+            "CloseDate"
+          ],
+          "consumers": [
+            {
+              "fn": "fetchTrestleOpenHouses (DTO build)",
+              "file": "app/api/open-houses/route.ts",
+              "fieldsRead": [
+                "StreetNumber",
+                "StreetDirPrefix",
+                "StreetName",
+                "StreetSuffix",
+                "StreetDirSuffix",
+                "UnitNumber",
+                "City",
+                "PostalCode",
+                "ListPrice",
+                "BedroomsTotal",
+                "BathroomsFull",
+                "BathroomsHalf",
+                "LivingArea",
+                "CommonInterest",
+                "PropertyType",
+                "ListOfficeName",
+                "PublicRemarks"
+              ],
+              "evidence": "app/api/open-houses/route.ts:219 unwraps the collection-valued nav (`Array.isArray(propRaw) ? propRaw[0] : propRaw`); :236 reads StreetNumber/StreetDirPrefix/StreetName/StreetSuffix/StreetDirSuffix; :238 UnitNumber; :241 and :250 City; :242 BathroomsFull+BathroomsHalf; :254 ListPrice; :255 BedroomsTotal; :257 LivingArea; :258 `mapPropertyType(prop.CommonInterest, prop.PropertyType)`; :269 ListOfficeName; :271 PublicRemarks; :278 StreetNumber/StreetName/UnitNumber/PostalCode into openHouseTwinKey."
+            },
+            {
+              "fn": "evaluateDisplayGate (traced helper)",
+              "file": "lib/compliance/gates.ts",
+              "fieldsRead": [
+                "Permission",
+                "StandardStatus",
+                "MlsStatus",
+                "InternetEntireListingDisplayYN",
+                "InternetAddressDisplayYN",
+                "CloseDate"
+              ],
+              "evidence": "Called at app/api/open-houses/route.ts:226 `evaluateDisplayGate(prop, { idxPlusPreFiltered: true })`. Inside: gates.ts:138 readFirst(['Permission','permission']); :119 readFirst(['StandardStatus','MlsStatus',…]); :189-193 InternetEntireListingDisplayYN; :208-212 InternetAddressDisplayYN; :223 and :234 readFirst(['CloseDate','close_date','closeDate'])."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [
+            "PropertySubType",
+            "ListAgentFullName",
+            "PhotosCount"
+          ],
+          "notes": "CLASSIFICATION: this is a `Property` expand off the OpenHouse entity — NOT a CustomProperty expand. app/api/open-houses/route.ts contains ZERO CustomProperty selects or expands. PropertySubType is unused because `mapPropertyType` (:631-635) forwards only (CommonInterest, null, PropertyType) into displayPropertyType. ListAgentFullName is selected but the DTO uses ListOfficeName for attribution (:269) and hard-codes agentPhone:'' (:270). PhotosCount is unused because the hero photo comes from a separate Media fetch (:244 → resolveTrestlePrimaryPhoto)."
+        },
+        {
+          "file": "app/api/open-houses/route.ts",
+          "line": 305,
+          "resource": "OpenHouse",
+          "how": "literal string $select (no-$expand fallback path)",
+          "selected": [
+            "OpenHouseKey",
+            "ListingKey",
+            "ListingId",
+            "OpenHouseDate",
+            "OpenHouseStartTime",
+            "OpenHouseEndTime",
+            "OpenHouseType",
+            "AppointmentRequiredYN",
+            "OpenHouseRemarks"
+          ],
+          "consumers": [
+            {
+              "fn": "fetchTrestleOpenHousesFlat",
+              "file": "app/api/open-houses/route.ts",
+              "fieldsRead": [
+                "OpenHouseKey",
+                "ListingKey",
+                "ListingId",
+                "OpenHouseDate",
+                "OpenHouseStartTime",
+                "OpenHouseEndTime",
+                "AppointmentRequiredYN",
+                "OpenHouseRemarks"
+              ],
+              "evidence": "app/api/open-houses/route.ts:319 `r.ListingKey` for the batch key set; :349 `propMap.get(r.ListingKey)`; :366 ListingKey/ListingId; :369 OpenHouseKey; :370 ListingId; :373 OpenHouseDate; :374 OpenHouseStartTime; :375 OpenHouseEndTime; :384 AppointmentRequiredYN; :385 OpenHouseRemarks."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [
+            "OpenHouseType"
+          ],
+          "notes": "Byte-identical select to line 182. Same finding: OpenHouseType is filter-only (line 304)."
+        },
+        {
+          "file": "app/api/open-houses/route.ts",
+          "line": 331,
+          "resource": "Property",
+          "how": "literal string — direct Property $select (fallback batch lookup by ListingKey)",
+          "selected": [
+            "ListingKey",
+            "ListPrice",
+            "StreetNumber",
+            "StreetDirPrefix",
+            "StreetName",
+            "StreetSuffix",
+            "StreetDirSuffix",
+            "UnitNumber",
+            "City",
+            "PostalCode",
+            "PropertyType",
+            "CommonInterest",
+            "BedroomsTotal",
+            "BathroomsFull",
+            "BathroomsHalf",
+            "LivingArea",
+            "ListAgentFullName",
+            "ListOfficeName",
+            "PublicRemarks",
+            "Permission",
+            "InternetEntireListingDisplayYN",
+            "InternetAddressDisplayYN",
+            "StandardStatus",
+            "MlsStatus",
+            "CloseDate"
+          ],
+          "consumers": [
+            {
+              "fn": "fetchTrestleOpenHousesFlat (DTO build)",
+              "file": "app/api/open-houses/route.ts",
+              "fieldsRead": [
+                "ListingKey",
+                "StreetNumber",
+                "StreetDirPrefix",
+                "StreetName",
+                "StreetSuffix",
+                "StreetDirSuffix",
+                "UnitNumber",
+                "City",
+                "PostalCode",
+                "ListPrice",
+                "BedroomsTotal",
+                "BathroomsFull",
+                "BathroomsHalf",
+                "LivingArea",
+                "CommonInterest",
+                "PropertyType",
+                "ListOfficeName",
+                "PublicRemarks"
+              ],
+              "evidence": "app/api/open-houses/route.ts:340 `propMap.set(p.ListingKey, p)`; :359 street parts; :361 UnitNumber; :364 and :372 City; :365 BathroomsFull+BathroomsHalf; :376 ListPrice; :377 BedroomsTotal; :379 LivingArea; :380 CommonInterest+PropertyType; :391 ListOfficeName; :393 PublicRemarks; :399 StreetNumber/StreetName/UnitNumber/PostalCode."
+            },
+            {
+              "fn": "evaluateDisplayGate (traced helper)",
+              "file": "lib/compliance/gates.ts",
+              "fieldsRead": [
+                "Permission",
+                "StandardStatus",
+                "MlsStatus",
+                "InternetEntireListingDisplayYN",
+                "InternetAddressDisplayYN",
+                "CloseDate"
+              ],
+              "evidence": "Called at app/api/open-houses/route.ts:352 `evaluateDisplayGate(prop, { idxPlusPreFiltered: true })`; same reads as gates.ts:119/138/189/208/223/234."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [
+            "ListAgentFullName"
+          ],
+          "notes": "Direct Property $select, NOT CustomProperty. Differs from the expand-path list at :195 by adding ListingKey (join key, read at :340) and dropping PropertySubType/PhotosCount — i.e. the fallback already dropped two of the three dead fields; only ListAgentFullName remains unread."
+        },
+        {
+          "file": "app/api/cron/feed-reconcile/route.ts",
+          "line": 111,
+          "resource": "Property",
+          "how": "literal string in a template URL — `&$select=ListingId`",
+          "selected": [
+            "ListingId"
+          ],
+          "consumers": [
+            {
+              "fn": "fetchTrestleActiveIds",
+              "file": "app/api/cron/feed-reconcile/route.ts",
+              "fieldsRead": [
+                "ListingId"
+              ],
+              "evidence": "app/api/cron/feed-reconcile/route.ts:118-120 types the page as `{ value?: Array<{ ListingId?: string }> }` and does `for (const r of rows) if (r.ListingId) ids.add(r.ListingId)`."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [],
+          "notes": "Property $select, not CustomProperty. Balanced."
+        },
+        {
+          "file": "app/api/cron/feed-reconcile/route.ts",
+          "line": 147,
+          "resource": "Property",
+          "how": "literal string in a template URL — `&$select=ListingId`",
+          "selected": [
+            "ListingId"
+          ],
+          "consumers": [
+            {
+              "fn": "fetchTrestleEligibleNonActiveIds",
+              "file": "app/api/cron/feed-reconcile/route.ts",
+              "fieldsRead": [
+                "ListingId"
+              ],
+              "evidence": "app/api/cron/feed-reconcile/route.ts:152-154 `{ value?: Array<{ ListingId?: string }> }` then `if (r.ListingId) ids.add(r.ListingId)`."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [],
+          "notes": "Property $select, not CustomProperty. Byte-separate from :111 on purpose (comment at :132-134)."
+        },
+        {
+          "file": "app/api/cron/feed-reconcile/route.ts",
+          "line": 395,
+          "resource": "Media",
+          "how": "literal string — `$expand=Media($filter=MediaStatus ne 'Deleted';$orderby=Order)` with NO $select on Media and NO $select on Property",
+          "selected": [],
+          "consumers": [
+            {
+              "fn": "orphan create loop",
+              "file": "app/api/cron/feed-reconcile/route.ts",
+              "fieldsRead": [
+                "Media",
+                "ListingId",
+                "StandardStatus",
+                "ExpirationDate",
+                "PhotosChangeTimestamp"
+              ],
+              "evidence": "app/api/cron/feed-reconcile/route.ts:491 `Array.isArray(raw.Media)`; :448/:452/:471/:505/:517/:529 `raw.ListingId`; :454 `raw.StandardStatus`; :427 `raw.ExpirationDate`; :507 `raw.PhotosChangeTimestamp`."
+            },
+            {
+              "fn": "validateRequiredFields (traced helper)",
+              "file": "lib/idx/trestle-mapper.ts",
+              "fieldsRead": [
+                "ListingId",
+                "PropertyType",
+                "ListPrice",
+                "StandardStatus",
+                "StreetName",
+                "City",
+                "StateOrProvince",
+                "PostalCode",
+                "ListAgentMlsId",
+                "ListOfficeName",
+                "ModificationTimestamp"
+              ],
+              "evidence": "Called at app/api/cron/feed-reconcile/route.ts:407. lib/idx/trestle-mapper.ts:1294-1302 filters REQUIRED_COTALITY_FIELDS (declared :1283-1289) against the normalized row."
+            },
+            {
+              "fn": "checkDistributionGates → evaluateDisplayGate (traced helper)",
+              "file": "lib/idx/trestle-mapper.ts",
+              "fieldsRead": [
+                "Permission",
+                "StandardStatus",
+                "MlsStatus",
+                "InternetEntireListingDisplayYN",
+                "InternetAddressDisplayYN",
+                "CloseDate"
+              ],
+              "evidence": "Called at app/api/cron/feed-reconcile/route.ts:412; trestle-mapper.ts:1269-1272 delegates to evaluateDisplayGate; gates.ts:119/138/189/208/223 do the reads."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [],
+          "notes": "No $select at all on either the Property row or the expanded Media collection, so the full entities come back — readButNotSelected/selectedButNeverRead are vacuous. Notable because this is the expand shape the comments elsewhere (lib/idx/fetch.ts:61-69) cite as the one live-probed to return HTTP 200 with populated Media."
+        },
+        {
+          "file": "app/api/cron/feed-reconcile/route.ts",
+          "line": 553,
+          "resource": "Property",
+          "how": "literal string in a URLSearchParams object — `$select: \"ListingId,StandardStatus\"`",
+          "selected": [
+            "ListingId",
+            "StandardStatus"
+          ],
+          "consumers": [
+            {
+              "fn": "ghost live-truth lookup",
+              "file": "app/api/cron/feed-reconcile/route.ts",
+              "fieldsRead": [
+                "ListingId"
+              ],
+              "evidence": "app/api/cron/feed-reconcile/route.ts:559 `for (const r of page.value ?? []) if (r.ListingId) liveRowsById.set(r.ListingId, r)`."
+            },
+            {
+              "fn": "liveTruthFromRow → lifecycleFromProviderRow (traced helper)",
+              "file": "lib/idx/reconcile-decision.ts",
+              "fieldsRead": [
+                "StandardStatus"
+              ],
+              "evidence": "Called at app/api/cron/feed-reconcile/route.ts:567 `liveTruthFromRow(liveRowsById.get(g.listing_id) ?? null)`; lib/idx/reconcile-decision.ts:77 `lifecycleFromProviderRow(row)` then :79 `normalizeStandardStatus(lifecycle.storageStatus)`."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [],
+          "notes": "CLASSIFICATION (explicitly asked): line 552-553 is a PROPERTY $select — `$filter: ListingId in (…)` against `${base}/odata/Property` (fetch at :556). It is NOT a CustomProperty select and has no $expand. app/api/cron/feed-reconcile/route.ts contains ZERO CustomProperty selects or expands. Both selected fields are read; balanced."
+        },
+        {
+          "file": "app/api/listings/suggest/route.ts",
+          "line": 81,
+          "resource": "Property",
+          "how": "imported constant NAME — module-level `export const SUGGEST_SELECT_FIELDS = [...]` (plain string[], NOT cotalityFields-typed), passed as `select:` to fetchFromTrestle at :295 and :411",
+          "selected": [
+            "ListingId",
+            "ListingKey",
+            "StandardStatus",
+            "MlsStatus",
+            "Permission",
+            "InternetEntireListingDisplayYN",
+            "InternetAddressDisplayYN",
+            "ListOfficeMlsId",
+            "CloseDate",
+            "ActivationDate",
+            "StreetNumber",
+            "StreetDirPrefix",
+            "StreetName",
+            "StreetSuffix",
+            "StreetDirSuffix",
+            "PostalCode",
+            "CountyOrParish",
+            "CityRegion",
+            "SubdivisionName",
+            "BuildingName"
+          ],
+          "consumers": [
+            {
+              "fn": "GET — listing-id branch",
+              "file": "app/api/listings/suggest/route.ts",
+              "fieldsRead": [
+                "InternetAddressDisplayYN",
+                "StreetNumber",
+                "StreetDirPrefix",
+                "StreetName",
+                "StreetSuffix",
+                "StreetDirSuffix",
+                "ListingId",
+                "PostalCode"
+              ],
+              "evidence": "app/api/listings/suggest/route.ts:307 `isAddressDisplayablePerSuggest(raw.InternetAddressDisplayYN)`; :309 raw.StreetNumber; :310 StreetDirPrefix/StreetName/StreetSuffix/StreetDirSuffix; :313 raw.ListingId; :321 raw.PostalCode."
+            },
+            {
+              "fn": "GET — address/zip branch",
+              "file": "app/api/listings/suggest/route.ts",
+              "fieldsRead": [
+                "ListingId",
+                "ListOfficeMlsId",
+                "StreetNumber",
+                "StreetDirPrefix",
+                "StreetName",
+                "StreetSuffix",
+                "StreetDirSuffix",
+                "PostalCode",
+                "InternetAddressDisplayYN"
+              ],
+              "evidence": "app/api/listings/suggest/route.ts:425-426 `raw.ListingId` / `raw.ListOfficeMlsId` fed to isMallanRlsReturnCopy; :436-437 street atoms; :444 InternetAddressDisplayYN; :446/:459/:461/:469 raw.PostalCode."
+            },
+            {
+              "fn": "checkDistributionGates → evaluateDisplayGate (traced helper)",
+              "file": "lib/idx/trestle-mapper.ts",
+              "fieldsRead": [
+                "Permission",
+                "StandardStatus",
+                "MlsStatus",
+                "InternetEntireListingDisplayYN",
+                "InternetAddressDisplayYN",
+                "CloseDate"
+              ],
+              "evidence": "Called at suggest/route.ts:301 and :418. trestle-mapper.ts:1261 normalizeRenames (a pure `{...raw}` spread, :494-496) then :1269 evaluateDisplayGate; reads at gates.ts:119 (StandardStatus, MlsStatus), :138 (Permission), :189-193 (InternetEntireListingDisplayYN), :208-212 (InternetAddressDisplayYN), :223/:234 (CloseDate)."
+            },
+            {
+              "fn": "locationFromProviderRow (traced helper)",
+              "file": "lib/listings/canonical-location.ts",
+              "fieldsRead": [
+                "CityRegion",
+                "SubdivisionName",
+                "CountyOrParish",
+                "City",
+                "PostalCity",
+                "PostalCode"
+              ],
+              "evidence": "Called at suggest/route.ts:316 and :452. lib/listings/canonical-location.ts:121 raw.CityRegion; :122 raw.SubdivisionName; :123 raw.CountyOrParish; :124 raw.City; :125 raw.PostalCity; :126 raw.PostalCode."
+            }
+          ],
+          "readButNotSelected": [
+            "City",
+            "PostalCity"
+          ],
+          "selectedButNeverRead": [
+            "ListingKey",
+            "BuildingName",
+            "ActivationDate"
+          ],
+          "notes": "City and PostalCity are genuinely accessed on the returned row by locationFromProviderRow (canonical-location.ts:124-125) but are absent from SUGGEST_SELECT_FIELDS, so they always resolve undefined → location.city/postalCity are null. Harmless TODAY because the route consumes only `.borough` and `.neighborhood` (:316, :453-454); it becomes a live bug the moment a suggestion label reads city/postalCity. CountyOrParish is selected and IS read (canonical-location.ts:123) but its output (`.county`) is never consumed by this route. ListingKey and BuildingName are FILTER-ONLY (:294 and :399) — never accessed on a returned row. ActivationDate is dead outright: the JSDoc at :69 claims it feeds a 'Coming Soon badge', but grep across the file shows ActivationDate appears only at :69 (comment) and :97 (the select) — the Suggestion DTO (:116-121) has no badge field."
+        },
+        {
+          "file": "app/api/buildings/search/route.ts",
+          "line": 765,
+          "resource": "Property",
+          "how": "plain array — route-local `const SELECT = [...].join(',')` (NOT cotalityFields-typed), sent as `$select` at :829",
+          "selected": [
+            "ListingId",
+            "BuildingName",
+            "YearBuilt",
+            "StoriesTotal",
+            "NumberOfUnitsInCommunity",
+            "CommonInterest",
+            "OwnershipType",
+            "PropertyType",
+            "PropertySubType",
+            "StructureType",
+            "StreetNumber",
+            "StreetName",
+            "StreetSuffix",
+            "StreetDirPrefix",
+            "PostalCode",
+            "UnitNumber",
+            "SubdivisionName",
+            "City",
+            "StateOrProvince",
+            "CityRegion",
+            "CountyOrParish",
+            "BuildingFeatures",
+            "PetsAllowed",
+            "CrossStreet",
+            "YearBuiltDetails",
+            "YearBuiltSource",
+            "NewConstructionYN",
+            "TaxBlock",
+            "TaxLot",
+            "TaxAnnualAmount",
+            "AssociationName",
+            "AssociationFee",
+            "AssociationFeeFrequency",
+            "ZoningDescription",
+            "GarageYN",
+            "AttachedGarageYN",
+            "GarageSpaces",
+            "OpenParkingSpaces",
+            "CoveredSpaces",
+            "ParkingFeatures",
+            "LaundryFeatures",
+            "DocumentsAvailable",
+            "PetsAllowedYN",
+            "BuildingKeyNumeric",
+            "BuildingAreaTotal",
+            "BuildingAreaUnits",
+            "BuildingAreaSource",
+            "PropertyCondition",
+            "PropertyAttachedYN",
+            "AssociationYN",
+            "AssociationPhone",
+            "AssociationFee2",
+            "ExteriorFeatures",
+            "CommunityFeatures",
+            "AccessibilityFeatures",
+            "AssociationAmenities"
+          ],
+          "consumers": [
+            {
+              "fn": "GET — Cotality supplement loop",
+              "file": "app/api/buildings/search/route.ts",
+              "fieldsRead": [
+                "BuildingKeyNumeric",
+                "CityRegion",
+                "PostalCode",
+                "BuildingFeatures",
+                "BuildingName",
+                "City",
+                "StateOrProvince",
+                "SubdivisionName",
+                "StreetNumber",
+                "StreetDirPrefix",
+                "StreetName",
+                "StreetSuffix",
+                "CrossStreet",
+                "CommonInterest",
+                "OwnershipType",
+                "StructureType",
+                "YearBuilt",
+                "YearBuiltDetails",
+                "StoriesTotal",
+                "NumberOfUnitsInCommunity",
+                "NewConstructionYN",
+                "TaxBlock",
+                "TaxLot",
+                "TaxAnnualAmount",
+                "AssociationName",
+                "AssociationFee",
+                "AssociationFeeFrequency",
+                "ZoningDescription"
+              ],
+              "evidence": "app/api/buildings/search/route.ts:861 r.BuildingKeyNumeric; :869/:876/:888 r.CityRegion; :869/:891 r.PostalCode; :883 r.BuildingFeatures; :887 BuildingName; :889 City; :890 StateOrProvince; :892-893 SubdivisionName; :896-899 street atoms; :900-901 CrossStreet; :903 CommonInterest||OwnershipType; :904 StructureType; :905 YearBuilt; :906 YearBuiltDetails; :907 StoriesTotal; :908 NumberOfUnitsInCommunity; :909 NewConstructionYN; :917-919 TaxBlock/TaxLot/TaxAnnualAmount; :920-922 AssociationName/AssociationFee/AssociationFeeFrequency; :923 ZoningDescription."
+            },
+            {
+              "fn": "formatAddress / addressIdentityKey / addressOnlyKey (traced helpers)",
+              "file": "app/api/buildings/search/route.ts",
+              "fieldsRead": [
+                "StreetNumber",
+                "StreetDirPrefix",
+                "StreetName",
+                "StreetSuffix",
+                "CityRegion",
+                "PostalCode"
+              ],
+              "evidence": "Called at :845/:853 (formatAddress), :859 (addressIdentityKey), :860 (addressOnlyKey). Bodies: :101-104 read StreetNumber/StreetDirPrefix/StreetName/StreetSuffix; :131-145 read the same four plus rec.CityRegion (:144) and rec.PostalCode (:145)."
+            },
+            {
+              "fn": "buildingExtras → buildingAmenityFlags / amenityTokenSet / buildingPetPolicy / buildingLaundryPolicy (traced helpers)",
+              "file": "app/api/buildings/search/route.ts",
+              "fieldsRead": [
+                "GarageYN",
+                "AttachedGarageYN",
+                "GarageSpaces",
+                "OpenParkingSpaces",
+                "CoveredSpaces",
+                "ParkingFeatures",
+                "LaundryFeatures",
+                "DocumentsAvailable",
+                "PetsAllowed",
+                "PetsAllowedYN",
+                "BuildingFeatures",
+                "ExteriorFeatures",
+                "CommunityFeatures",
+                "AssociationAmenities",
+                "AccessibilityFeatures",
+                "BuildingKeyNumeric",
+                "NumberOfUnitsInCommunity",
+                "AssociationYN",
+                "AssociationPhone",
+                "OwnershipType",
+                "PropertyCondition",
+                "PropertyAttachedYN",
+                "BuildingAreaTotal"
+              ],
+              "evidence": "Called with the Cotality row at :872 and :951. buildingExtras body :424-449 reads r.GarageYN/AttachedGarageYN/GarageSpaces/OpenParkingSpaces/CoveredSpaces/ParkingFeatures/LaundryFeatures/DocumentsAvailable/PetsAllowed/PetsAllowedYN/BuildingKeyNumeric/NumberOfUnitsInCommunity/AssociationYN/AssociationPhone/OwnershipType/PropertyCondition/PropertyAttachedYN/BuildingAreaTotal; :438 → buildingAmenityFlags → amenityTokenSet :390-391 `rec[f]` over AMENITY_FEATURE_FIELDS; :439 → buildingPetPolicy :407 rec.PetsAllowed; :440 → buildingLaundryPolicy :413 rec.LaundryFeatures."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [
+            "ListingId",
+            "PropertyType",
+            "PropertySubType",
+            "UnitNumber",
+            "CountyOrParish",
+            "YearBuiltSource",
+            "BuildingAreaUnits",
+            "BuildingAreaSource",
+            "AssociationFee2"
+          ],
+          "notes": "Nine selected fields are never accessed on a returned row (grep over the whole file shows each appears only inside the SELECT literal). Also: the array contains four literal DUPLICATES — NumberOfUnitsInCommunity and OwnershipType (:767 and :807) and YearBuiltDetails/YearBuiltSource (:789 and :806) — so the emitted $select string repeats them. And `$orderby: 'ListPrice desc'` (:830) sorts on ListPrice, which is NOT in the $select (legal in OData, but the ordering key never reaches the consumer). No CustomProperty involvement anywhere in this route."
+        },
+        {
+          "file": "app/api/buildings/search/route.ts",
+          "line": 355,
+          "resource": "Property",
+          "how": "plain array — `const AMENITY_FEATURE_FIELDS = [...]`; NOT a $select, a READ-KEY list",
+          "selected": [
+            "BuildingFeatures",
+            "ExteriorFeatures",
+            "CommunityFeatures",
+            "AssociationAmenities",
+            "AccessibilityFeatures",
+            "ParkingFeatures"
+          ],
+          "consumers": [
+            {
+              "fn": "amenityTokenSet",
+              "file": "app/api/buildings/search/route.ts",
+              "fieldsRead": [
+                "BuildingFeatures",
+                "ExteriorFeatures",
+                "CommunityFeatures",
+                "AssociationAmenities",
+                "AccessibilityFeatures",
+                "ParkingFeatures"
+              ],
+              "evidence": "app/api/buildings/search/route.ts:390-391 `for (const f of AMENITY_FEATURE_FIELDS) { String(rec[f] || '').split(',')… }` — the six names are used as PROPERTY KEYS on `rec`, comma-split into Multi-enum member tokens, then matched against AMENITY_MEMBERS (:400-401)."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [],
+          "notes": "CLASSIFICATION (explicitly asked): AMENITY_FEATURE_FIELDS is NEITHER a provider $select NOR a features-JSON key list — it is a list of six live Cotality Property Multi-enum FIELD NAMES used as read keys on whatever record is passed in. It is never joined into a URL and never reaches Trestle. It is dual-sourced: `buildingExtras(rec)` is called with the Cotality row (:872, :951) AND with the DB features object (:751), so on the DB path the same six names are looked up inside stored features JSON. All six ARE independently present in the SELECT at :765 (BuildingFeatures :773, ParkingFeatures :799, ExteriorFeatures/CommunityFeatures/AccessibilityFeatures/AssociationAmenities :812) — the Codex #301 fix noted at :809-811 — so the Cotality path has no read-but-not-selected gap here."
+        },
+        {
+          "file": "lib/compliance/dto.ts",
+          "line": 114,
+          "resource": "Property",
+          "how": "plain array — module-private `const VOW_ENRICHED_FIELDS = [...] as const`; NOT a $select, a DTO allow-list",
+          "selected": [
+            "ClosePrice",
+            "CloseDate",
+            "OriginalListPrice",
+            "PreviousListPrice",
+            "ListingContractDate",
+            "PurchaseContractDate",
+            "BuyerFinancing",
+            "WithdrawnDate",
+            "DaysOnMarket",
+            "CumulativeDaysOnMarket",
+            "Concessions",
+            "ConcessionsAmount",
+            "CancelledDate",
+            "ExpirationDate"
+          ],
+          "consumers": [
+            {
+              "fn": "sanitizeForVOW",
+              "file": "lib/compliance/dto.ts",
+              "fieldsRead": [
+                "ClosePrice",
+                "CloseDate",
+                "OriginalListPrice",
+                "PreviousListPrice",
+                "ListingContractDate",
+                "PurchaseContractDate",
+                "BuyerFinancing",
+                "WithdrawnDate",
+                "DaysOnMarket",
+                "CumulativeDaysOnMarket",
+                "Concessions",
+                "ConcessionsAmount",
+                "CancelledDate",
+                "ExpirationDate"
+              ],
+              "evidence": "lib/compliance/dto.ts:229-238 `for (const field of VOW_ENRICHED_FIELDS) { if (listing[field] !== undefined) vowData[field] = listing[field]; … camelCase variant }` — keys read off an ALREADY-FETCHED listing object; :241 runs sanitizeForPublic; :244-246 re-adds them."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [],
+          "notes": "CLASSIFICATION (explicitly asked): VOW_ENRICHED_FIELDS is a DTO ALLOW-LIST, not a provider $select. It is module-private (no `export`, and grep shows its only reference in lib/ and app/ is dto.ts:229), never joined into a URL, never passed to fetchFromTrestle. It re-adds fields to an object AFTER public sanitization stripped them; it cannot cause a field to be fetched. The header comment (:90-113) is about REBNY display authorization, not about what is requested from Cotality."
+        },
+        {
+          "file": "lib/idx/fetch.ts",
+          "line": 25,
+          "resource": "Media",
+          "how": "cotalityFields(\"Media\", [...]) — compile-checked constant EXPAND_MEDIA_SELECT, emitted at :144 inside `Media($select=…;$filter=MediaStatus ne 'Deleted';$top=8;$orderby=Order)`",
+          "selected": [
+            "MediaURL",
+            "MediaCategory",
+            "Order",
+            "PreferredPhotoYN",
+            "ShortDescription",
+            "ModificationTimestamp",
+            "ResourceRecordKey",
+            "MediaStatus"
+          ],
+          "consumers": [],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [
+            "MediaURL",
+            "MediaCategory",
+            "Order",
+            "PreferredPhotoYN",
+            "ShortDescription",
+            "ModificationTimestamp",
+            "ResourceRecordKey",
+            "MediaStatus"
+          ],
+          "notes": "Included for completeness of the fetch.ts census. Emitted only when `options.expandMedia === true` (:140), and grep for `expandMedia: true` across app/ and lib/ returns ZERO production callers (only the prose at app/api/crm/listings/reset-sync/route.ts:97 and lib/idx/fetch.ts:68, plus tests). So this $select is never sent in production and has no consumer — every field is trivially selectedButNeverRead."
+        },
+        {
+          "file": "lib/idx/fetch.ts",
+          "line": 31,
+          "resource": "Media",
+          "how": "cotalityFields(\"Media\", [...]) — constant LISTING_MEDIA_SELECT, sent at :622 `params.set(\"$select\", LISTING_MEDIA_SELECT.join(\",\"))`",
+          "selected": [
+            "MediaKey",
+            "MediaURL",
+            "MediaType",
+            "MediaCategory",
+            "Order",
+            "ShortDescription",
+            "PreferredPhotoYN",
+            "MediaStatus"
+          ],
+          "consumers": [
+            {
+              "fn": "fetchListingMedia (result mapper)",
+              "file": "lib/idx/fetch.ts",
+              "fieldsRead": [
+                "MediaCategory",
+                "ShortDescription",
+                "MediaURL",
+                "PreferredPhotoYN",
+                "Order"
+              ],
+              "evidence": "lib/idx/fetch.ts:675 `String(m.MediaCategory || '')`; :676 `String(m.ShortDescription || '')`; :677 `String(m.MediaURL || '')`; :689 `m.PreferredPhotoYN === true || … === 'true'`; :693 `Number(m.Order || i)`."
+            }
+          ],
+          "readButNotSelected": [],
+          "selectedButNeverRead": [
+            "MediaKey",
+            "MediaType",
+            "MediaStatus"
+          ],
+          "notes": "Live production path (called from app/api/open-houses/route.ts:75 among others). MediaKey is selected with an explicit rationale comment (:29-30, :620-621) — 'stable logical identity per asset' — but the returned shape is `{url, mediaType, order}` (:690-694), so MediaKey never leaves the function. MediaType is selected but the emitted `mediaType` is derived from MediaCategory/ShortDescription/URL heuristics (:680-687), never from m.MediaType — consistent with the RESO note at :673-674. MediaStatus is filter-only (:619)."
+        }
+      ],
+      "union": [
+        "AccessibilityFeatures",
+        "ActivationDate",
+        "AppointmentRequiredYN",
+        "AssociationAmenities",
+        "AssociationFee",
+        "AssociationFeeFrequency",
+        "AssociationName",
+        "AssociationPhone",
+        "AssociationYN",
+        "AttachedGarageYN",
+        "BathroomsFull",
+        "BathroomsHalf",
+        "BedroomsTotal",
+        "BuildingAreaTotal",
+        "BuildingFeatures",
+        "BuildingKeyNumeric",
+        "BuildingName",
+        "BuyerFinancing",
+        "CancelledDate",
+        "City",
+        "CityRegion",
+        "CloseDate",
+        "ClosePrice",
+        "CommonInterest",
+        "CommunityFeatures",
+        "Concessions",
+        "ConcessionsAmount",
+        "CountyOrParish",
+        "CoveredSpaces",
+        "CrossStreet",
+        "CumulativeDaysOnMarket",
+        "CustomFields",
+        "CustomProperty",
+        "DaysOnMarket",
+        "DocumentsAvailable",
+        "DownPaymentAssistanceAmount",
+        "DownPaymentAssistanceCount",
+        "ExpirationDate",
+        "ExteriorFeatures",
+        "GarageSpaces",
+        "GarageYN",
+        "InternetAddressDisplayYN",
+        "InternetEntireListingDisplayYN",
+        "LaundryFeatures",
+        "ListAgentMlsId",
+        "ListOfficeMlsId",
+        "ListOfficeName",
+        "ListPrice",
+        "ListingContractDate",
+        "ListingId",
+        "ListingKey",
+        "LivingArea",
+        "Media",
+        "MediaCategory",
+        "MediaURL",
+        "MlsStatus",
+        "ModificationTimestamp",
+        "NewConstructionYN",
+        "NumberOfUnitsInCommunity",
+        "OpenHouseDate",
+        "OpenHouseEndTime",
+        "OpenHouseKey",
+        "OpenHouseRemarks",
+        "OpenHouseStartTime",
+        "OpenParkingSpaces",
+        "Order",
+        "OriginalListPrice",
+        "OwnershipType",
+        "ParkingFeatures",
+        "Permission",
+        "PetsAllowed",
+        "PetsAllowedYN",
+        "PhotosChangeTimestamp",
+        "PostalCity",
+        "PostalCode",
+        "PreferredPhotoYN",
+        "PreviousListPrice",
+        "PropertyAttachedYN",
+        "PropertyCondition",
+        "PropertyType",
+        "PublicRemarks",
+        "PurchaseContractDate",
+        "ShortDescription",
+        "StandardStatus",
+        "StateOrProvince",
+        "StoriesTotal",
+        "StreetDirPrefix",
+        "StreetDirSuffix",
+        "StreetName",
+        "StreetNumber",
+        "StreetSuffix",
+        "StructureType",
+        "SubdivisionName",
+        "TaxAnnualAmount",
+        "TaxBlock",
+        "TaxLot",
+        "UnitNumber",
+        "WithdrawnDate",
+        "YearBuilt",
+        "YearBuiltDetails",
+        "ZoningDescription"
+      ]
+    }
+  ],
+  "verifiedClaims": [
+    {
+      "refuted": false,
+      "reason": "NOT REFUTED — confirmed. The default-mode provider query at app/api/media/batch/route.ts:192 sets $select to exactly \"ResourceRecordKey,ResourceRecordID,MediaURL,Order,PreferredPhotoYN,MediaStatus\" (no constant indirection; the string is inline). ShortDescription is NOT in it — it appears only in the DETAIL-mode $select at line 110, which is a separate fetch to /odata/Media. The read is on the rows of THIS query, traced end to end: route.ts:206-211 pushes each raw row from data.value into rawByKey unmodified (`rawByKey.get(mkey)!.push(m as Record<string, unknown>)`), route.ts:215 calls pickPrimaryPhotoUrl(rawByKey.get(key) || []), lib/media/listing-media-resolver.ts:447-448 pickPrimaryPhotoUrl delegates to resolveListingMedia(items), resolver line 344 calls classifyMediaItem(raw) on the untouched provider object, and resolver line 125 reads `m.ShortDescription` (`const desc = String(m.ShortDescription ?? m.shortDescription ?? m.caption ?? '').toLowerCase();`), which line 145 uses as a floor-plan signal (`desc.includes('floorplan') || desc.includes('floor plan')`). No DB row, mapped record, or raw_data blob is involved. Impact: the ShortDescription floor-plan signal is permanently inert in default (card thumbnail) mode. Same defect class for two more fields read on these rows but not selected: MediaCategory (resolver.ts:123) and MediaClassification (resolver.ts:124); MediaCategory is used in the $filter at route.ts:189 but not projected, so classifyMediaItem sees cat === '' and hits the default-to-photo branch at resolver.ts:164. Conversely MediaStatus is selected (filter-only use) but never read on the returned rows.",
+      "correctedFieldsRead": [
+        "ResourceRecordKey (route.ts:207)",
+        "ResourceRecordID (route.ts:207)",
+        "MediaURL (route.ts:208; listing-media-resolver.ts:132 and :339)",
+        "MediaCategory (listing-media-resolver.ts:123 via classifyMediaItem) - NOT selected",
+        "MediaClassification (listing-media-resolver.ts:124 via classifyMediaItem) - NOT selected",
+        "ShortDescription (listing-media-resolver.ts:125 via classifyMediaItem) - NOT selected",
+        "Order (listing-media-resolver.ts:345)",
+        "PreferredPhotoYN (listing-media-resolver.ts:350)",
+        "ThumbURL (listing-media-resolver.ts:343) - NOT selected, not a Trestle Media field"
+      ]
+    },
+    {
+      "refuted": false,
+      "reason": "Claim CONFIRMED, not refuted. (1) The $select at app/api/media/batch/route.ts:192 is a literal inline string \"ResourceRecordKey,ResourceRecordID,MediaURL,Order,PreferredPhotoYN,MediaStatus\" — no constant indirection, and MediaClassification is absent. MediaCategory appears only in the $filter at line 189, which does not affect the returned projection. (2) The read is on THIS query's rows, not a DB row or mapped record: line 196 fetches ${TRESTLE_API}/odata/Media, line 201 parses the body, and lines 206-211 push the raw provider object (`m as Record<string, unknown>`) into rawByKey with no mapping. Line 215 passes those raw rows straight to pickPrimaryPhotoUrl. (3) The read exists: lib/media/listing-media-resolver.ts:447-450 pickPrimaryPhotoUrl calls resolveListingMedia (line 448); resolveListingMedia at line 344 calls classifyMediaItem(raw) on each raw row; classifyMediaItem line 124 reads `m.MediaClassification ?? m.mediaClassification ?? ''` into `cls`, and line 144 uses `cls === 'document'` as a live disjunct of the floor-plan branch. With MediaClassification absent from the response, cls is always '' and that disjunct is dead. Two further unselected fields are read on the same rows by the same helper: MediaCategory (line 123 -> `cat`, used at lines 143/158/161/164) and ShortDescription (line 125 -> `desc`, used at line 147). With cat, cls and desc all empty, a DOCUMENT- floor plan is caught only by the TRESTLE_DOCUMENT_URL_PATTERN URL sniff at line 150, and any row missing that URL shape falls through to the `cat === ''` photo default at line 164 and can become the card hero. The detail-mode query at line 110 of the same file DOES select MediaCategory, MediaClassification and ShortDescription while calling the same resolver, confirming the default-mode projection is the outlier.",
+      "correctedFieldsRead": [
+        "MediaClassification — read at lib/media/listing-media-resolver.ts:124 (classifyMediaItem, reached via route.ts:215 pickPrimaryPhotoUrl -> :448 resolveListingMedia -> :344 classifyMediaItem); used at :144. NOT SELECTED.",
+        "MediaCategory — read at lib/media/listing-media-resolver.ts:123 (same call chain); used at :143, :158, :161, :164. NOT SELECTED (appears only in the $filter at route.ts:189).",
+        "ShortDescription — read at lib/media/listing-media-resolver.ts:125 (same call chain); used at :147. NOT SELECTED.",
+        "MediaURL — read at app/api/media/batch/route.ts:207-208 and lib/media/listing-media-resolver.ts:132, :339. Selected.",
+        "ResourceRecordKey — read at app/api/media/batch/route.ts:207. Selected.",
+        "ResourceRecordID — read at app/api/media/batch/route.ts:207. Selected.",
+        "Order — read at lib/media/listing-media-resolver.ts:345. Selected.",
+        "PreferredPhotoYN — read at lib/media/listing-media-resolver.ts:350. Selected.",
+        "ThumbURL — read at lib/media/listing-media-resolver.ts:343. Not selected, but Trestle Media has no such field; harmless empty fallback to url."
+      ]
+    },
+    {
+      "refuted": false,
+      "reason": "Claim CONFIRMED, not refuted. (1) The field is genuinely absent from the select: app/api/media/batch/route.ts:192 sets $select to exactly \"ResourceRecordKey,ResourceRecordID,MediaURL,Order,PreferredPhotoYN,MediaStatus\" — no MediaCategory, and no constant/append adds it (only $filter:191, $select:192, $orderby:193, $top:194 are set on that URLSearchParams). (2) The read is on THIS query's rows, not a different object: the response of the fetch at route.ts:196 is parsed at :201, and each raw row `m` from `data.value` is pushed unmodified into rawByKey at :206-211 (`rawByKey.get(mkey)!.push(m as Record<string, unknown>)`). Those same raw rows are handed to the consumer at :215 `pickPrimaryPhotoUrl(rawByKey.get(key) || [])`. (3) The read exists, traced through the named helpers: lib/media/listing-media-resolver.ts:447-451 pickPrimaryPhotoUrl calls resolveListingMedia(items) at :448; resolveListingMedia at :344 calls classifyMediaItem(raw) on each raw row; classifyMediaItem at :123 accesses `m.MediaCategory` (`const cat = String(m.MediaCategory ?? m.mediaCategory ?? m.category ?? m.mediaType ?? '').toLowerCase();`). Failure scenario: because MediaCategory is never returned, `cat` is always '' and classifyMediaItem falls to the `cat === '' /* default Trestle Media is Photo */` branch at :164, so the provider category signal is dead on this path — the resolver's floor-plan/video/virtual-tour category checks (:143, :158, :161) can never fire and classification relies solely on the MediaURL shape heuristics. Corroborating evidence that this is an omission rather than intent: the sibling detail-mode query in the same file (route.ts:110) DOES select MediaCategory, MediaClassification and ShortDescription. Two additional unselected fields are read from these same rows: MediaClassification (resolver :124) and ShortDescription (resolver :125). Conversely MediaStatus is selected but never read on a row — it only appears inside the $filter string built at route.ts:189.",
+      "correctedFieldsRead": [
+        "ResourceRecordKey",
+        "ResourceRecordID",
+        "MediaURL",
+        "Order",
+        "PreferredPhotoYN",
+        "MediaCategory",
+        "MediaClassification",
+        "ShortDescription",
+        "ThumbURL"
+      ]
+    },
+    {
+      "refuted": false,
+      "reason": "Claim confirmed, not refuted. (1) The $select at app/api/agents/[slug]/listings/route.ts:381 is a string literal 'ResourceRecordKey,ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,PreferredPhotoYN,MediaStatus' — no ShortDescription, and it is not assembled from a constant that could add it. (2) The query is a direct provider call to /odata/Media (route.ts:398), and its rows are taken raw as data.value -> records (route.ts:404-405). (3) Those raw rows are passed unmodified to mapAgentCardMedia(records) at route.ts:411, reachable because batchFetchPhotos is awaited at route.ts:190. (4) lib/idx/agent-card-media.ts:24-29 loops `for (const m of records)` and calls classifyMediaItem(m) — m is the untransformed provider row. (5) lib/media/listing-media-resolver.ts:125 reads `m.ShortDescription` (String(m.ShortDescription ?? m.shortDescription ?? m.caption ?? '')) and it is load-bearing at line 145, where desc.includes('floorplan')/'floor plan' returns 'floorplan', causing agent-card-media.ts:29-31 to drop the item. So the read exists, targets this query's rows (not a DB row, mapped record, or raw_data blob), and the field is absent from the $select — ShortDescription is always undefined here, silently disabling the caption-based floorplan signal. Additionally, MediaClassification is read at listing-media-resolver.ts:124 and used at line 144 (cls === 'document') and is likewise NOT in the line 381 $select. Conversely MediaType is selected but never read (line 123 reads the lowercase alias m.mediaType, not MediaType), and MediaStatus is only used in the $filter at route.ts:378.",
+      "correctedFieldsRead": [
+        "ResourceRecordKey",
+        "ResourceRecordID",
+        "MediaURL",
+        "Order",
+        "PreferredPhotoYN",
+        "MediaCategory",
+        "MediaClassification",
+        "ShortDescription"
+      ]
+    },
+    {
+      "refuted": false,
+      "reason": "Claim confirmed, not refuted. (1) The provider $select is a literal at lib/buildings/public-building-data.ts:826 — MEDIA_EXPAND = \"Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN;$top=10;$orderby=Order)\" — applied as $expand on the OData Property fetches at lines 830, 851, 873, 891; ShortDescription is absent and there is no constant/indirection hiding it. (2) The read is on THIS query's rows, traced with no intermediate mapping: results -> allTrestleRecords (lines 843/861/864/883/902) -> trestleActive = allTrestleRecords.filter(...) (line 935) -> for (const r of trestleActive) { photoUrl: getPhotoUrl(r) } (lines 963, 983) -> getPhotoUrl reads const media = record.Media (line 63) and calls media.find(m => classifyMediaItem(m) === 'photo') (line 68), so m is an expanded Media row of this query. (3) The read exists: lib/media/listing-media-resolver.ts:125 does String(m.ShortDescription ?? m.shortDescription ?? m.caption ?? '').toLowerCase(), used by the floorplan branch at line 145 (desc.includes('floorplan') || desc.includes('floor plan')). Because ShortDescription is unselected, desc is always '' for these rows and that classifier signal is dead — the exact gap the claim describes. The local TrestleRecord.Media type at line 58 (MediaURL/MediaCategory/Order/PreferredPhotoYN only) corroborates that the field never arrives. Same-query second instance of the identical gap: classifyMediaItem also reads m.MediaClassification at listing-media-resolver.ts:124 (cls === 'document' branch, line 144), likewise not in the line 826 $select.",
+      "correctedFieldsRead": [
+        "MediaURL",
+        "MediaCategory",
+        "ShortDescription",
+        "MediaClassification"
+      ]
+    },
+    {
+      "refuted": false,
+      "reason": "Claim CONFIRMED on all three refutation tests. (1) Not selected: app/api/agents/[slug]/listings/route.ts:381 sets $select to an inline string literal 'ResourceRecordKey,ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,PreferredPhotoYN,MediaStatus' — no constant, no concatenation; it is the only $select in the file, and it is an OData $select on the provider fetch to `${TRESTLE_API}/odata/Media?...` at route.ts:398 (not a Prisma/SQL select). MediaClassification is absent. (2) Read is on THIS query's rows, not a DB row/mapped record/raw_data blob: route.ts:404-405 `const data = await resp.json(); const records = data.value || [];` then route.ts:411 `const byKey = mapAgentCardMedia(records);` passes the raw rows with no intermediate mapping. Traced helper chain: mapAgentCardMedia (lib/idx/agent-card-media.ts:24 loop over `records`) calls `classifyMediaItem(m)` at lib/idx/agent-card-media.ts:29 with the unmodified raw row `m`; classifyMediaItem at lib/media/listing-media-resolver.ts:124 reads `String(m.MediaClassification ?? m.mediaClassification ?? '')`. (3) The read exists and is load-bearing: listing-media-resolver.ts:144 `cls === 'document' ||` is a floorplan-classification trigger, so with the field unselected it is always undefined, cls === '', and that branch can never fire for this route — leaving only the TRESTLE_DOCUMENT_URL_PATTERN/.pdf URL heuristics (lines 148-150) to catch documents. Corroboration that this is a real gap: the sibling provider query at app/api/media/batch/route.ts:110 DOES include MediaClassification in its $select, and docs/crm/sales-form-media-cotality-ucba-audit-2026-05-29.md:46 documents MediaClassification=Document as the primary floor-plan signal. Two additional findings on the same query, beyond the claim: (a) ShortDescription is also read from these rows (listing-media-resolver.ts:125, feeding the desc.includes('floorplan') checks at line 145) and is likewise NOT selected; (b) MediaType IS selected at line 381 but is never read — listing-media-resolver.ts:123 reads the camelCase `m.mediaType` (a DTO/legacy-shape fallback), not the provider's PascalCase `MediaType`, and agent-card-media.ts:36 hard-codes `mediaType: \"Photo\"`.",
+      "correctedFieldsRead": [
+        "ResourceRecordKey",
+        "ResourceRecordID",
+        "MediaURL",
+        "PreferredPhotoYN",
+        "Order",
+        "MediaCategory",
+        "MediaClassification",
+        "ShortDescription"
+      ]
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED — the query has no $select clause at all, so nothing is being under-selected. app/api/cron/feed-reconcile/route.ts:394-395 builds `${base}/odata/Property?$filter=...&$expand=Media($filter=MediaStatus ne 'Deleted';$orderby=Order)&$top=...` with only $filter, $expand and $top; the $expand has no inner $select either. Grepping `\\$select` in that file matches only lines 111, 147 and 553, which belong to other queries (ID-sweep pages using `$select=ListingId`, and a separate `$select: \"ListingId,StandardStatus\"` probe). In OData an absent $select returns the full default entity, so the Property rows and their expanded Media children arrive with MediaURL present. The claim's \"selects []\" is an absent projection misread as an empty one. The consumer reads do exist and two of the three are genuinely on these rows — route.ts:491-493 lifts `raw.Media` into `rawMedia` and passes it to upsertListingMedia at route.ts:505, which reads `raw.MediaURL` at lib/idx/media-sync.ts:1078; and route.ts:413 calls mapTrestleToPrisma(raw), which reads `m.MediaURL` over `raw.Media` at lib/idx/trestle-mapper.ts:1158 and 1172 — but they are satisfied by the full-entity response. The third claimed consumer is a different object: canonicalizeRawDataMedia (lib/idx/write-suppression.ts:382-408, MediaURL at :399) operates on a stored raw_data blob, not on this query's provider rows. For contrast, the sibling media queries in lib/idx/sync.ts:1272, 1918, 2685 do set an explicit $select and include MediaURL in it, so the codebase selects the field wherever a projection is actually used. No missing-field defect exists here.",
+      "correctedFieldsRead": [
+        "ListingId (route.ts:448, 452, 471, 505, 517)",
+        "StandardStatus (route.ts:454)",
+        "ExpirationDate (route.ts:427)",
+        "PhotosChangeTimestamp (route.ts:507)",
+        "Media (route.ts:491)",
+        "Media[].MediaKey (media-sync.ts:1061)",
+        "Media[].MediaStatus (media-sync.ts:1067)",
+        "Media[].Permission (media-sync.ts:1073)",
+        "Media[].MediaURL (media-sync.ts:1078; trestle-mapper.ts:1172)",
+        "Media[].ResourceRecordKey (media-sync.ts:1086)",
+        "Media[].ResourceRecordID (media-sync.ts:1087)",
+        "Media[].MediaCategory (media-sync.ts:1089-1090)",
+        "Media[].MediaClassification (media-sync.ts:1091)",
+        "Media[].Order (media-sync.ts:1092; trestle-mapper.ts:1174)",
+        "Media[].PreferredPhotoYN (media-sync.ts:1093; trestle-mapper.ts:1170)",
+        "Media[].MediaModificationTimestamp (media-sync.ts:1094)",
+        "Media[].ModificationTimestamp (media-sync.ts:1095)",
+        "ModificationTimestamp (trestle-mapper.ts:1182)",
+        "ListingContractDate (trestle-mapper.ts:1186)",
+        "plus additional top-level Property fields read inside mapTrestleToPrisma / validateRequiredFields / checkDistributionGates / buildingAndManifestInvalidationTags (lib/cache/public-cache.ts:166)"
+      ]
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED — the premise \"the provider query selects []\" is false. The orphan-fetch request built at app/api/cron/feed-reconcile/route.ts:394-395 contains NO $select clause at all:\n\n  394: const mediaExpand = `Media($filter=MediaStatus ne 'Deleted';$orderby=Order)`;\n  395: const url = `${base}/odata/Property?$filter=${...}&$expand=${encodeURIComponent(mediaExpand)}&$top=${ORPHAN_FETCH_BATCH}`;\n\nOnly $filter, $expand and $top are present, and the Media expand itself carries only $filter and $orderby — no nested $select either. Under OData, an absent $select returns the full entity, so every default Property property (including Permission) and every default Media property (including Media.Permission, MediaURL, MediaKey, etc.) is returned. There is no field restriction to violate. This is a deliberate contrast with the other three Trestle calls in the same file, which DO restrict fields: route.ts:111 and route.ts:147 (`&$select=ListingId&...`) and route.ts:553 (`$select: \"ListingId,StandardStatus\"`). So the \"selects []\" reading is an artifact of there being no $select token, not of an empty projection.\n\nThe reads themselves do exist and are on this query's rows, but they are satisfied:\n- Property-level Permission: route.ts:413 calls mapTrestleToPrisma(raw) on a row of `page.value` (route.ts:403-405), and lib/idx/trestle-mapper.ts:1072 calls derivePermissionGates(raw), which reads raw.Permission at trestle-mapper.ts:846. route.ts:412 also calls checkDistributionGates(raw) (trestle-mapper.ts:1263) → evaluateDisplayGate → lib/compliance/gates.ts:137-138 isProviderPermissionPermitted reads the \"Permission\"/\"permission\" key.\n- Media-level Permission: route.ts:491-493 takes raw.Media from the same rows and route.ts:505 passes it to upsertListingMedia, which reads raw.Permission per media row at lib/idx/media-sync.ts:1073.\n\nBecause the query imposes no projection, both of those reads receive live values; there is no missing-field defect. (I did not enumerate a corrected field list: with no $select the consumers legitimately read the entire entity — mapTrestleToPrisma alone reads dozens of Property keys — so any short list would be misleadingly incomplete.)"
+    },
+    {
+      "refuted": false,
+      "reason": "Claim CONFIRMED. (1) The provider query's media expand at lib/buildings/public-building-data.ts:826 is a local string literal `Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN;$top=10;$orderby=Order)` (reused at 830/851/873/892) — MediaClassification is not selected, directly or via a constant. (2) The read exists and IS on this query's rows: `allTrestleRecords = data.value` (lines 843/861/864/883/902) -> `trestleActive = allTrestleRecords.filter(...)` (line 935) -> `getPhotoUrl(r)` (line 983) -> getPhotoUrl line 63 `const media = record.Media` and line 68 `media.find(m => classifyMediaItem(m) === 'photo')` -> helper classifyMediaItem at lib/media/listing-media-resolver.ts:124 `String(m.MediaClassification ?? m.mediaClassification ?? '')`, consumed at line 144 (`cls === 'document'` => 'floorplan'). The object at line 124 is the raw expanded Media row, passed with no mapping — not a DB row, mapped record, or raw_data blob. The local TS type at public-building-data.ts:58 declares only the four selected fields, and classifyMediaItem accepts `unknown`, so the compiler cannot catch the mismatch. Same defect for ShortDescription (resolver line 125), also unselected. Effect: `cls` is always '' on this path, so the MediaClassification=Document floor-plan signal is inert; detection degrades to MediaCategory plus the URL heuristics (resolver lines 143-150, incl. TRESTLE_DOCUMENT_URL_PATTERN).",
+      "correctedFieldsRead": [
+        "MediaURL",
+        "MediaCategory",
+        "MediaClassification",
+        "ShortDescription"
+      ]
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED — the query imposes no field restriction at all, so nothing is excluded.\n\n1) The query (app/api/cron/feed-reconcile/route.ts:394-395):\n   const mediaExpand = `Media($filter=MediaStatus ne 'Deleted';$orderby=Order)`;\n   const url = `${base}/odata/Property?$filter=...&$expand=${encodeURIComponent(mediaExpand)}&$top=${ORPHAN_FETCH_BATCH}`;\n   There is NO `$select` — neither on Property nor inside the `Media(...)` expand (the expand carries only `$filter` and `$orderby`). No constant is spliced in either; the URL is fully built on line 395 and fetched unchanged on line 397. Under OData an absent `$select` returns the full default projection, so `ResourceRecordKey` (and every other Media field) IS returned. The \"selects []\" premise treats \"no $select\" as \"selects nothing\", which inverts the actual semantics. Contrast with the sibling query in the same file at line 553, which DOES restrict (`$select: \"ListingId,StandardStatus\"`), and with lib/idx/sync.ts:1272 / app/api/media/batch/route.ts:110, which set explicit media `$select` lists that include `ResourceRecordKey` — this route deliberately does neither.\n\n2) The read location is also mis-attributed. `ResourceRecordKey` is a Media field, not a Property field. It is read at lib/idx/media-sync.ts:1086 (`resourceRecordKey: raw.ResourceRecordKey ? String(raw.ResourceRecordKey) : null`) inside `upsertListingMedia` (media-sync.ts:1048), whose `mediaRows` argument is the NESTED `raw.Media` array from this query's rows (route.ts:491-493 builds `rawMedia` from `raw.Media`; route.ts:505 passes it). So the read is on the expanded child entities, not on the Property row itself.\n\n3) The other two claimed consumers do not read the field at all:\n   - `mapTrestleToPrisma` (lib/idx/trestle-mapper.ts) — a repo-wide grep for `ResourceRecordKey` returns zero hits in trestle-mapper.ts.\n   - `canonicalizeRawDataMedia` (lib/idx/write-suppression.ts:382-408) — it iterates `raw_.Media` and touches only the keys `\"MediaURL\"` and `\"Thumbnail\"` (line 399); it never reads `ResourceRecordKey`. It is also invoked on stored `raw_data` blobs via `rawDataMateriallyEqual` (lines 422-424), not on this query's live rows.",
+      "correctedFieldsRead": [
+        "Property.ListingId — route.ts:448, 452, 471, 476, 505, 517, 529",
+        "Property.StandardStatus — route.ts:454",
+        "Property.ExpirationDate — route.ts:427 (expirationDateFallback)",
+        "Property.PhotosChangeTimestamp — route.ts:507 (photosChangeTsSnapshot)",
+        "Property.Media (array) — route.ts:491-493",
+        "nested Media.MediaKey — via upsertListingMedia, lib/idx/media-sync.ts:1061",
+        "nested Media.MediaStatus — media-sync.ts:1067",
+        "nested Media.Permission — media-sync.ts:1073",
+        "nested Media.MediaURL — media-sync.ts:1078",
+        "nested Media.ResourceRecordKey — media-sync.ts:1086 (present in the response; no $select excludes it)",
+        "nested Media.ResourceRecordID — media-sync.ts:1087",
+        "nested Media.MediaCategory — media-sync.ts:1089-1090",
+        "nested Media.MediaClassification — media-sync.ts:1091",
+        "nested Media.Order — media-sync.ts:1092",
+        "nested Media.PreferredPhotoYN — media-sync.ts:1093",
+        "nested Media.MediaModificationTimestamp — media-sync.ts:1094",
+        "nested Media.ModificationTimestamp — media-sync.ts:1095",
+        "additional Property fields read inside helpers not fully traced here: validateRequiredFields(raw) route.ts:407, checkDistributionGates(raw) route.ts:412, mapTrestleToPrisma(raw) route.ts:413, buildingAndManifestInvalidationTags(raw) route.ts:472"
+      ]
+    },
+    {
+      "refuted": false,
+      "reason": "NOT REFUTED. The select at lib/search/engine/hydrate.ts:44 (MEDIA_SELECT, used at line 58) is a literal 9-name list [ResourceRecordKey, ResourceRecordID, MediaKey, MediaCategory, MediaType, Order, MediaURL, MediaStatus, PreferredPhotoYN]; cotalityFields (lib/cotality/contract.ts:75-81) is an identity function ('return fields;') so it adds nothing, and buildUrl (lib/search/engine/provider-client.ts:42) sets $select to exactly that join. ShortDescription is NOT selected. The read exists and is on THIS query's rows: hydrate.ts:64-67 groups media.rows by m.ResourceRecordKey; hydrate.ts:71 attaches those same row objects onto the provider record as 'Media'; hydrate.ts:181 calls mapTrestleToCrmListing(raw, i); crm-idx-mapper.ts:97-98 reads raw.Media and passes it to resolveListingMedia (imported at crm-idx-mapper.ts:1 from lib/media/listing-media-resolver); listing-media-resolver.ts:344 calls classifyMediaItem(raw) on the untouched Media row; listing-media-resolver.ts:125 reads m.ShortDescription ('const desc = String(m.ShortDescription ?? m.shortDescription ?? m.caption ?? \"\").toLowerCase();') and line 145 branches on desc.includes('floorplan') / desc.includes('floor plan'). Consequence: the floor-plan description signal is always empty on this path, so a floor plan tagged only by ShortDescription (MediaCategory null, URL not matching /Media/Property/DOCUMENT-) falls through to the cat === '' default at line 164 and classifies as 'photo', making it eligible to be the isPrimary hero. Two corrections to the claim: (1) the first named consumer is wrong -- the providerRecords grouping at hydrate.ts:65 reads only ResourceRecordKey, never ShortDescription; only mapTrestleToCrmListing (via resolveListingMedia -> classifyMediaItem) reads it. (2) A SECOND unselected field is read on the same rows: MediaClassification at listing-media-resolver.ts:124, used at line 144 (cls === 'document').",
+      "correctedFieldsRead": [
+        "ResourceRecordKey (hydrate.ts:65, grouping key) - SELECTED",
+        "MediaURL (listing-media-resolver.ts:339 rawUrl, and :132 url for URL-shape classification) - SELECTED",
+        "MediaCategory (listing-media-resolver.ts:123) - SELECTED",
+        "Order (listing-media-resolver.ts:345) - SELECTED",
+        "PreferredPhotoYN (listing-media-resolver.ts:350) - SELECTED",
+        "ShortDescription (listing-media-resolver.ts:125, used at :145) - NOT SELECTED",
+        "MediaClassification (listing-media-resolver.ts:124, used at :144) - NOT SELECTED",
+        "ThumbURL (listing-media-resolver.ts:343) - NOT SELECTED (not a Cotality Media field; falls back to url)"
+      ]
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED — the premise \"the provider query selects []\" is false, and one of the three claimed consumers does not read MediaKey at all.\n\n1) The query has NO $select, so nothing is projected away. app/api/cron/feed-reconcile/route.ts:394-395:\n   line 394: `const mediaExpand = \\`Media($filter=MediaStatus ne 'Deleted';$orderby=Order)\\`;`\n   line 395: `const url = \\`${base}/odata/Property?$filter=${encodeURIComponent(filter)}&$expand=${encodeURIComponent(mediaExpand)}&$top=${ORPHAN_FETCH_BATCH}\\`;`\n   There is no `$select` on Property and no nested `$select` inside the Media expand — only `$filter` and `$orderby`. Under OData, an absent $select returns ALL properties of the entity and of the expanded entities, so `MediaKey` (and every other Media field) is present on the returned rows. An empty/absent select list is not a restricted projection, so the \"read a field that wasn't selected\" defect cannot occur here. Contrast with the sibling query in the SAME file at route.ts:553 which DOES restrict (`$select: \"ListingId,StandardStatus\"`), and with lib/idx/sync.ts:1272 / :2685 which explicitly set `$select` on the Media resource — line 395 deliberately does neither.\n\n2) The read does exist on these rows (so the claim is not refuted on that leg): route.ts:491-493 takes `raw.Media` and casts it to `UpsertListingMediaInput[]`; route.ts:505 passes it to `upsertListingMedia(String(raw.ListingId), rawMedia, ...)`; lib/idx/media-sync.ts:1061 reads `const mediaKey = raw.MediaKey ? String(raw.MediaKey) : null;`. That field is delivered by the unrestricted query.\n\n3) Two of the three claimed consumers are wrong:\n   - mapTrestleToPrisma does NOT read MediaKey. lib/idx/trestle-mapper.ts:1158-1177 maps `raw.Media` reading only `classifyMediaItem(m)`, `m.PreferredPhotoYN` (1170), `m.MediaURL` (1172) and `m.Order` (1174). `MediaKey` appears nowhere in trestle-mapper.ts (grep over the file returns no MediaKey hit).\n   - canonicalizeRawDataMedia is not on this code path at all: it is not imported by the route (imports at route.ts:28-60 contain no write-suppression import), and lib/idx/write-suppression.ts:382-404 canonicalizes `MediaURL`/`Thumbnail` on a raw_data blob, not on this query's rows. The `rec.MediaKey` read at write-suppression.ts:302 (`asLegacyMediaItem`) is on the legacy `listings.media` JSON items / stored DB blob — a different object.",
+      "correctedFieldsRead": [
+        "Media rows (from $expand=Media) — MediaKey: lib/idx/media-sync.ts:1061 via route.ts:491-493,505",
+        "Media rows — MediaStatus: lib/idx/media-sync.ts:1067",
+        "Media rows — Permission: lib/idx/media-sync.ts:1073",
+        "Media rows — MediaURL: lib/idx/media-sync.ts:1078 and lib/idx/trestle-mapper.ts:1172",
+        "Media rows — ResourceRecordKey: lib/idx/media-sync.ts:1086",
+        "Media rows — ResourceRecordID: lib/idx/media-sync.ts:1087",
+        "Media rows — MediaCategory: lib/idx/media-sync.ts:1089-1090",
+        "Media rows — MediaClassification: lib/idx/media-sync.ts:1091",
+        "Media rows — Order: lib/idx/media-sync.ts:1092 and lib/idx/trestle-mapper.ts:1174",
+        "Media rows — PreferredPhotoYN: lib/idx/media-sync.ts:1093 and lib/idx/trestle-mapper.ts:1170",
+        "Media rows — MediaModificationTimestamp: lib/idx/media-sync.ts:1094",
+        "Media rows — ModificationTimestamp: lib/idx/media-sync.ts:1095",
+        "Property rows — ListingId: app/api/cron/feed-reconcile/route.ts:448,452,471,476,505",
+        "Property rows — StandardStatus: app/api/cron/feed-reconcile/route.ts:454",
+        "Property rows — ExpirationDate: app/api/cron/feed-reconcile/route.ts:427",
+        "Property rows — Media: app/api/cron/feed-reconcile/route.ts:491",
+        "Property rows — PhotosChangeTimestamp: app/api/cron/feed-reconcile/route.ts:507",
+        "Property rows — ModificationTimestamp: lib/idx/trestle-mapper.ts:1182 via mapTrestleToPrisma(raw) at route.ts:413"
+      ]
+    },
+    {
+      "refuted": false,
+      "reason": "Could not refute. (1) MediaClassification is genuinely absent from the select: lib/search/engine/hydrate.ts:44 defines MEDIA_SELECT via cotalityFields('Media', [...9 names...]) with no MediaClassification; cotalityFields is an identity function (lib/cotality/contract.ts:75-81, `return fields;`) so it introduces nothing, and lib/search/engine/provider-client.ts:42 sets `$select` to exactly that list for the walkProvider call at hydrate.ts:57-61. MediaClassification IS a valid selectable Media field (lib/cotality/generated/contract.ts:1114), so it is omitted, not unavailable. (2) The read is on THIS query's rows, traced: hydrate.ts:71 attaches the walkProvider media rows onto the provider record as `Media` (`records.set(k, { ...r, Media: mediaByKey.get(k) ?? [] })`); hydrate.ts:181 passes that record to mapTrestleToCrmListing; lib/search/crm-idx-mapper.ts:97-98 does `const media = Array.isArray(raw.Media) ? raw.Media : []; const resolved = resolveListingMedia(media);`; lib/media/listing-media-resolver.ts:344 calls `classifyMediaItem(raw)` on each of those items; listing-media-resolver.ts:124 reads `m.MediaClassification` and line 144 branches on `cls === 'document'` to return 'floorplan'. Because the field is never returned, that branch is permanently dead for this path and a Document/floor-plan row can fall through to the photo default (and become the hero) unless a MediaCategory or URL-shape signal catches it. ONE CORRECTION to the claim: the `providerRecords` grouping loop (hydrate.ts:64-68) does NOT read MediaClassification — it reads only `m.ResourceRecordKey` (line 65). The only real consumer is mapTrestleToCrmListing via resolveListingMedia/classifyMediaItem. Separately, ShortDescription (read at listing-media-resolver.ts:125) is also unselected. classifyMediaCategory in crm-idx-mapper.ts:33 is not called from this path (only from tests).",
+      "correctedFieldsRead": [
+        "ResourceRecordKey (hydrate.ts:65, grouping)",
+        "MediaURL (listing-media-resolver.ts:339 and :132)",
+        "Order (listing-media-resolver.ts:345)",
+        "PreferredPhotoYN (listing-media-resolver.ts:350)",
+        "MediaCategory (listing-media-resolver.ts:123, classifyMediaItem)",
+        "MediaClassification (listing-media-resolver.ts:124, classifyMediaItem) - NOT SELECTED",
+        "ShortDescription (listing-media-resolver.ts:125, classifyMediaItem) - NOT SELECTED",
+        "ThumbURL (listing-media-resolver.ts:343) - NOT SELECTED"
+      ]
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED on the premise, and 2 of the 3 claimed consumers are wrong.\n\n1) The query does not restrict its projection. app/api/cron/feed-reconcile/route.ts:394-395 builds `const mediaExpand = \"Media($filter=MediaStatus ne 'Deleted';$orderby=Order)\"` and `const url = `${base}/odata/Property?$filter=...&$expand=${encodeURIComponent(mediaExpand)}&$top=${ORPHAN_FETCH_BATCH}``. There is NO `$select` at top level and NO inner `$select` in the `$expand`. \"Selects []\" is therefore not an empty projection but the absence of a projection: in OData the provider returns the full Property entity and full Media entities, so `MediaStatus` IS present on the returned rows. There is no under-selection defect. Compare lib/idx/fetch.ts:144, which DOES project (`Media($select=${EXPAND_MEDIA_SELECT.join(\",\")};$filter=MediaStatus ne 'Deleted';$top=8;$orderby=Order)`) — that is what a restricted media expand looks like in this repo, and this query is not it. `MediaStatus` is additionally named in this very query string at line 394 as the inner `$filter` predicate.\n\n2) Consumer \"mapTrestleToPrisma@lib/idx/trestle-mapper.ts\" — the read does not exist. `grep -n MediaStatus lib/idx/trestle-mapper.ts` returns zero hits (file present, 67,748 bytes).\n\n3) Consumer \"canonicalizeRawDataMedia@lib/idx/write-suppression.ts\" — the read does not exist, and the object is wrong. `grep -n MediaStatus lib/idx/write-suppression.ts` returns zero hits. The function (lib/idx/write-suppression.ts:382-408) reads only `PhotosChangeTimestamp` (via DEPRECATED_RAW_DATA_PROVENANCE_KEYS, line 380/386-391), `Media` (line 393), and `MediaURL`/`Thumbnail` (line 399-403) — and it is invoked on `raw_data` blobs for material-equality comparison (lines 422-423), i.e. a persisted/mapped column, not the rows of this fetch.\n\n4) Only consumer 1 is real: route.ts:491-493 lifts `raw.Media` off this query's rows and casts it to `UpsertListingMediaInput[]`; route.ts:505 passes it to `upsertListingMedia`, which reads `raw.MediaStatus` at lib/idx/media-sync.ts:1067 (`if (raw.MediaStatus === \"Deleted\")`, field declared at media-sync.ts:517). So the field is genuinely read from these rows — but since the query applies no `$select`, the provider supplies it, and the inner `$filter=MediaStatus ne 'Deleted'` means that branch can never fire for these rows anyway. No runtime undefined, no defect.\n\nNote on correctedFieldsRead: the list below is the DIRECTLY VERIFIED subset only. It is not exhaustive — `validateRequiredFields` (route.ts:407), `checkDistributionGates` (route.ts:412), `mapTrestleToPrisma` (route.ts:413) and `buildingAndManifestInvalidationTags` (route.ts:472) each read many further Property fields off the same `raw` object that I did not trace field-by-field (route.ts:469 notes raw is a full Trestle record incl. StreetNumber/StreetName/PostalCode).",
+      "correctedFieldsRead": [
+        "ListingId (route.ts:448,452,471,476,505)",
+        "StandardStatus (route.ts:454)",
+        "ExpirationDate (route.ts:427)",
+        "PhotosChangeTimestamp (route.ts:507)",
+        "Media (route.ts:491)",
+        "Media/MediaKey (media-sync.ts:1061)",
+        "Media/MediaStatus (media-sync.ts:1067)",
+        "Media/Permission (media-sync.ts:1073)",
+        "Media/MediaURL (media-sync.ts:1078)",
+        "Media/ResourceRecordKey (media-sync.ts:1086)",
+        "Media/ResourceRecordID (media-sync.ts:1087)",
+        "Media/MediaCategory (media-sync.ts:1089-1090)",
+        "Media/MediaClassification (media-sync.ts:1091)",
+        "Media/Order (media-sync.ts:1092)",
+        "Media/PreferredPhotoYN (media-sync.ts:1093)",
+        "Media/MediaModificationTimestamp (media-sync.ts:1094)",
+        "Media/ModificationTimestamp (media-sync.ts:1095)"
+      ]
+    },
+    {
+      "refuted": true,
+      "reason": "Refuted: the premise \"selects []\" misreads an absent $select as an empty projection. At C:/Users/MayaAllan/Desktop/mallan-nyc/scripts/audit-form-trestle-coverage.ts:98 the URL is built inline as `${TRESTLE_BASE}/odata/CustomProperty?$top=20` — there is no $select clause at all, and no constant or helper adds one. In OData, omitting $select returns the full entity projection, so CustomFields IS returned by this query; that is not the same as an explicit $select list that omits it, so there is no missing-field defect. The read itself does exist and is genuinely on this query's rows: line 101 casts the response to `{ value?: Array<Record<string, unknown>> }`, line 102 iterates `for (const row of json.value || [])`, and line 103 does `const cf = row.CustomFields;` (then lines 104-111 parse it as a JSON string or object). The function's own comment (lines 91-93) states CustomFields is a JSON blob absent from OData $metadata, and main() calls it at line 194 specifically to harvest those keys — the unprojected query is intentional and correct.",
+      "correctedFieldsRead": [
+        "CustomFields"
+      ]
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED. The provider query at app/api/cron/feed-reconcile/route.ts:394-395 applies NO $select whatsoever: line 394 builds `Media($filter=MediaStatus ne 'Deleted';$orderby=Order)` (no inner $select) and line 395 builds `${base}/odata/Property?$filter=...&$expand=...&$top=...` (no $select). A repo-wide grep for `$select` in that file hits only lines 111, 147 (ID-only prescan) and 553 (ghost lookup) — never this query. Omitting $select in OData returns the full entity, so all Property fields and all expanded Media fields, including MediaCategory, are delivered. The claim's premise (\"selects []\") describes an empty projection that does not exist; there is no select list for MediaCategory to be missing from. Two further refutation points: (1) MediaCategory is a Media-resource field, not a Property field (the repo's own type test asserts this at lib/cotality/__type-tests__/contract.type-test.ts:30-31), and every read is on `raw.Media[]` sub-entity items, not on the Property rows the claim names; (2) the third claimed consumer, canonicalizeRawDataMedia (lib/idx/write-suppression.ts:382, via asLegacyMediaItem at line 298 reading `rec.MediaCategory`), operates on the stored raw_data JSON / legacy listings.media array — a different object than this query's live rows. The reads themselves do exist and are satisfied: route.ts:491-493 takes `raw.Media`, passes it at route.ts:505 to upsertListingMedia (lib/idx/media-sync.ts:1048), which at lines 1089-1090 reads `raw.MediaCategory` via classifyTrestleMediaCategory; and route.ts:413 `mapTrestleToPrisma(raw)` reaches lib/idx/trestle-mapper.ts:1158-1174, which iterates `raw.Media` and calls classifyMediaItem(m) → lib/media/listing-media-resolver.ts:123 `m.MediaCategory`. Nothing is unselected, so there is no defect.",
+      "correctedFieldsRead": [
+        "ListingId (Property row) — route.ts:448, 452, 471, 505",
+        "StandardStatus (Property row) — route.ts:454",
+        "ExpirationDate (Property row) — route.ts:427",
+        "PhotosChangeTimestamp (Property row) — route.ts:507",
+        "Media (Property row, expanded collection) — route.ts:491",
+        "Media[].MediaCategory — lib/idx/media-sync.ts:1089-1090 (via upsertListingMedia) and lib/media/listing-media-resolver.ts:123 (via classifyMediaItem, called from lib/idx/trestle-mapper.ts:1163)",
+        "Media[].MediaURL — lib/idx/trestle-mapper.ts:1172; lib/media/listing-media-resolver.ts:132",
+        "Media[].Order — lib/idx/trestle-mapper.ts:1174",
+        "Media[].PreferredPhotoYN — lib/idx/trestle-mapper.ts:1170",
+        "Media[].MediaClassification / Media[].ShortDescription — lib/media/listing-media-resolver.ts:124-125 (via classifyMediaItem)",
+        "ModificationTimestamp (Property row) — lib/idx/trestle-mapper.ts:1182 (via mapTrestleToPrisma)",
+        "ListingContractDate (Property row) — lib/idx/trestle-mapper.ts:1186",
+        "PropertyType / PropertySubType (Property row) — lib/idx/trestle-mapper.ts:1198-1199"
+      ]
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED on two independent grounds.\n\n(1) The field IS selected by this query, via a constant. lib/idx/fetch.ts:121-122 sets `const selectFields = options.select?.join(\",\") || IDX_PLUS_SELECT_FIELDS.join(\",\")` and line 127 sets `params.set(\"$select\", selectFields)`. `IDX_PLUS_SELECT_FIELDS` is exported at lib/idx/trestle-mapper.ts:405-407 as `COTALITY_PROPERTY_FIELDS.filter(f => !LIVE_FIELDS_NOT_SELECTED.has(f))`. `\"DownPaymentAssistanceAmount\"` is a member of the B15_FINANCIAL_UNIT group at lib/idx/trestle-mapper.ts:236 (comment on 234-235: \"In the Property $select so they are fetched from Property\"), and `LIVE_FIELDS_NOT_SELECTED` (lib/idx/trestle-mapper.ts:395-398) contains only `ListTeamMlsId` and `BuyerTeamMlsId`. A regression test asserts this: lib/search/__tests__/dpa-property-read.test.ts:25 `expect(IDX_PLUS_SELECT_FIELDS).toContain(\"DownPaymentAssistanceAmount\")`, and tests/runtime/idx-search-select-fields.test.ts:23-24.\n\n(2) The claim mischaracterizes line 152 and the consuming read. Line 152 is `expandParts.push(\"CustomProperty\")` — a bare `$expand` with NO inner `$select`, which returns whatever fields Trestle has on the entity, not an empty projection (see the comment at lib/idx/fetch.ts:146-152 and 91-94). Meanwhile the primary consumer read in mapCrmIdxListing is on the Property row, not the CustomProperty expansion: lib/search/crm-idx-mapper.ts:120-123 reads `raw.DownPaymentAssistanceAmount` first and only falls back to `customProps?.DownPaymentAssistanceAmount`. The comment at lib/search/crm-idx-mapper.ts:116-119 explicitly states the CustomProperty fallback exists \"ONLY when the Property field is blank/null — protects old raw_data that stored these under CustomProperty\", i.e. that fallback targets stored raw_data blobs, not this live query's expansion. lib/idx/fetch.ts:85-89 documents the same migration (2026-06-04) and says DPA fields are no longer a reason to expand CustomProperty.\n\nAlso note `expandCustomProperty` is opt-in (`=== true`, lib/idx/fetch.ts:146), so line 152 does not even execute on the default path this $select serves.",
+      "correctedFieldsRead": [
+        "DownPaymentAssistanceAmount — read as raw.DownPaymentAssistanceAmount on the Property row at lib/search/crm-idx-mapper.ts:121-122, and it IS in the query's $select (lib/idx/trestle-mapper.ts:236 -> IDX_PLUS_SELECT_FIELDS -> lib/idx/fetch.ts:122,127)",
+        "DownPaymentAssistanceCount — read as raw.DownPaymentAssistanceCount at lib/search/crm-idx-mapper.ts:126-127; also in $select at lib/idx/trestle-mapper.ts:236",
+        "CustomProperty — read as raw.CustomProperty at lib/search/crm-idx-mapper.ts:113-115 (only populated when expandCustomProperty === true, lib/idx/fetch.ts:146-152)",
+        "CustomProperty[0].CustomFields — read as customProps?.CustomFields at lib/search/crm-idx-mapper.ts:140; this is the only field genuinely read off the bare-expand CustomProperty rows with no matching inner $select",
+        "CustomProperty[0].DownPaymentAssistanceAmount / DownPaymentAssistanceCount — read at lib/search/crm-idx-mapper.ts:123 and :128, but only as a documented legacy fallback for stored raw_data (comment lines 116-119), never as the primary source"
+      ]
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED — on the \"not selected\" premise, not on the read.\n\n1) The query issues NO $select at all, so nothing is excluded. app/api/cron/feed-reconcile/route.ts:394-395:\n   const mediaExpand = `Media($filter=MediaStatus ne 'Deleted';$orderby=Order)`;\n   const url = `${base}/odata/Property?$filter=${encodeURIComponent(filter)}&$expand=${encodeURIComponent(mediaExpand)}&$top=${ORPHAN_FETCH_BATCH}`;\nThere is no top-level $select and no nested $select inside the $expand — only $filter, $orderby and $top. In OData an absent $select returns the full entity, so every Property field and every expanded Media field (including MediaModificationTimestamp) is returned. The claim's \"selects []\" is the absence of a $select clause, not an exclusion list; the field is in fact delivered. Contrast the sibling ghost-lookup query in the same file at route.ts:553, which DOES pin `$select: \"ListingId,StandardStatus\"` — that one is genuinely narrowed; line 394-395 is not.\n\n2) The read does exist and is on THIS query's rows, so there is no undefined-field bug: raw.Media (route.ts:491, cast to UpsertListingMediaInput[]) → upsertListingMedia(String(raw.ListingId), rawMedia, ...) (route.ts:505) → per-row `mediaModificationTs: parseDate(raw.MediaModificationTimestamp ?? null)` at lib/idx/media-sync.ts:1094 (inside the `for (const raw of mediaRows)` loop starting at lib/idx/media-sync.ts:1060; declared optional on the input type at lib/idx/media-sync.ts:528). Because no $select is applied, that read resolves to real data.\n\n3) Two of the three claimed consumers do not read the field at all. A repo-wide grep for MediaModificationTimestamp returns zero hits in lib/idx/trestle-mapper.ts and zero in lib/idx/write-suppression.ts. canonicalizeRawDataMedia (lib/idx/write-suppression.ts:382-408) only touches raw_.Media, and per media item only the keys \"MediaURL\" and \"Thumbnail\" (line 399) — and it operates on a raw_data blob being compared, not on the rows of this fetch.\n\nNet: the field is returned by the provider (no $select narrowing), and the one real consumer (media-sync.ts:1094) receives it. Nothing is broken here.",
+      "correctedFieldsRead": [
+        "MediaModificationTimestamp — Media rows, read at lib/idx/media-sync.ts:1094 via upsertListingMedia called at app/api/cron/feed-reconcile/route.ts:505 with raw.Media (route.ts:491)",
+        "Media — Property row, app/api/cron/feed-reconcile/route.ts:491 (Array.isArray(raw.Media))",
+        "ListingId — Property row, app/api/cron/feed-reconcile/route.ts:448, 452, 471, 476, 505",
+        "StandardStatus — Property row, app/api/cron/feed-reconcile/route.ts:454",
+        "ExpirationDate — Property row, app/api/cron/feed-reconcile/route.ts:427",
+        "PhotosChangeTimestamp — Property row, app/api/cron/feed-reconcile/route.ts:507",
+        "MediaKey — Media rows, lib/idx/media-sync.ts:1061",
+        "MediaStatus — Media rows, lib/idx/media-sync.ts:1067",
+        "Permission — Media rows, lib/idx/media-sync.ts:1073",
+        "MediaURL — Media rows, lib/idx/media-sync.ts:1078 (also lib/idx/write-suppression.ts:399 on the raw_data copy)",
+        "ResourceRecordKey — Media rows, lib/idx/media-sync.ts:1086",
+        "ResourceRecordID — Media rows, lib/idx/media-sync.ts:1087",
+        "MediaCategory — Media rows, lib/idx/media-sync.ts:1089-1090",
+        "MediaClassification — Media rows, lib/idx/media-sync.ts:1091",
+        "Order — Media rows, lib/idx/media-sync.ts:1092",
+        "PreferredPhotoYN — Media rows, lib/idx/media-sync.ts:1093",
+        "ModificationTimestamp — Media rows, lib/idx/media-sync.ts:1095"
+      ]
+    },
+    {
+      "refuted": true,
+      "reason": "The query at app/api/cron/feed-reconcile/route.ts:394-395 has NO $select — neither on Property nor inside the expand. Line 394 is `const mediaExpand = `Media($filter=MediaStatus ne 'Deleted';$orderby=Order)`` (only $filter and $orderby), and line 395 builds `${base}/odata/Property?$filter=...&$expand=...&$top=...` with no $select segment. In OData an absent $select returns the full default property set, so PreferredPhotoYN is present on the returned Media rows; the finding mistakes an absent projection for an empty one. (Contrast the sibling queries that do project explicitly and would be vulnerable: lib/idx/sync.ts:1918, and the MEDIA_SELECT constant at lib/idx/media-sync.ts:13.) The reads themselves do exist but are harmless: upsertListingMedia reads raw.PreferredPhotoYN at lib/idx/media-sync.ts:1093, fed rawMedia = raw.Media from route.ts:491-509; mapTrestleToPrisma reads m.PreferredPhotoYN at lib/idx/trestle-mapper.ts:1170 off rawMediaArr = raw.Media (trestle-mapper.ts:1158), called at route.ts:413. The third claimed consumer is doubly wrong: canonicalizeRawDataMedia (lib/idx/write-suppression.ts:382-408) reads only MediaURL, Thumbnail and PhotosChangeTimestamp — never PreferredPhotoYN — and it runs on stored raw_data blobs passed to rawDataMateriallyEqual (line 417), not on this query's response rows.",
+      "correctedFieldsRead": [
+        "PreferredPhotoYN — read on this query's expanded Media rows at lib/idx/media-sync.ts:1093 (via upsertListingMedia, route.ts:505) and lib/idx/trestle-mapper.ts:1170 (via mapTrestleToPrisma, route.ts:413); available because the query applies no $select",
+        "MediaKey — lib/idx/media-sync.ts:1061",
+        "MediaStatus — lib/idx/media-sync.ts:1067",
+        "Permission — lib/idx/media-sync.ts:1073",
+        "MediaURL — lib/idx/media-sync.ts:1078; lib/idx/trestle-mapper.ts:1172",
+        "ResourceRecordKey — lib/idx/media-sync.ts:1086",
+        "ResourceRecordID — lib/idx/media-sync.ts:1087",
+        "MediaCategory — lib/idx/media-sync.ts:1089-1090",
+        "MediaClassification — lib/idx/media-sync.ts:1091",
+        "Order — lib/idx/media-sync.ts:1092; lib/idx/trestle-mapper.ts:1174",
+        "MediaModificationTimestamp — lib/idx/media-sync.ts:1094",
+        "ModificationTimestamp — lib/idx/media-sync.ts:1095; lib/idx/trestle-mapper.ts:1182",
+        "Media — app/api/cron/feed-reconcile/route.ts:491; lib/idx/trestle-mapper.ts:1158",
+        "ListingId — app/api/cron/feed-reconcile/route.ts:448, 452, 471, 505, 517",
+        "StandardStatus — app/api/cron/feed-reconcile/route.ts:454",
+        "ExpirationDate — app/api/cron/feed-reconcile/route.ts:427",
+        "PhotosChangeTimestamp — app/api/cron/feed-reconcile/route.ts:507",
+        "ListingContractDate — lib/idx/trestle-mapper.ts:1186"
+      ]
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED on the selection premise (the read itself is real, but there is no missing-field defect).\n\n1) The query does NOT project fields — it has no $select at all, so OData returns every structural property, including Media.MediaClassification. C:/Users/MayaAllan/Desktop/mallan-nyc/app/api/cron/feed-reconcile/route.ts:394-395 builds:\n  const mediaExpand = `Media($filter=MediaStatus ne 'Deleted';$orderby=Order)`;\n  const url = `${base}/odata/Property?$filter=...&$expand=${encodeURIComponent(mediaExpand)}&$top=${ORPHAN_FETCH_BATCH}`;\nThere is no $select on Property and no inner $select inside the Media expand. \"selects []\" is an empty/absent projection list, which in OData means ALL fields, not zero fields — the opposite of the claim's assumption. This is deliberate: the section header at route.ts:371-372 says \"pull the full Trestle record for each ID we don't have and route it through the same mapper\", and route.ts:469 notes \"raw is a full Trestle record\". Contrast with the two sibling queries in the same file that DO project: route.ts:111 and :147 ($select=ListingId) and route.ts:553 ($select: \"ListingId,StandardStatus\"). So MediaClassification is in fact delivered by this query.\n\n2) The reads do exist on THIS query's rows (so the claim is not refuted on the \"read doesn't exist\"/\"wrong object\" grounds — only on the selection ground):\n - upsertListingMedia path: route.ts:491-493 takes `raw.Media` (the expanded rows of this query) as UpsertListingMediaInput[] and passes it at route.ts:505 to upsertListingMedia, which reads `raw.MediaClassification` at C:/Users/MayaAllan/Desktop/mallan-nyc/lib/idx/media-sync.ts:1091 (loop over `mediaRows` starting at line 1060; field declared on the input interface at media-sync.ts:511).\n - mapTrestleToPrisma path: route.ts:413 calls mapTrestleToPrisma(raw); C:/Users/MayaAllan/Desktop/mallan-nyc/lib/idx/trestle-mapper.ts:1158-1163 maps `raw.Media` items through helper classifyMediaItem, which reads `m.MediaClassification` at C:/Users/MayaAllan/Desktop/mallan-nyc/lib/media/listing-media-resolver.ts:124.\n - canonicalizeRawDataMedia: FALSE as a consumer of this field. C:/Users/MayaAllan/Desktop/mallan-nyc/lib/idx/write-suppression.ts:382-407 only names the keys \"MediaURL\" and \"Thumbnail\" (line 399) and spreads everything else generically; it never accesses MediaClassification. It also operates on a stored raw_data blob, not on this query's response rows.\n\nNet: the field is read, but the query imposes no field projection, so the provider returns it. There is no unselected-field bug at route.ts:394.",
+      "correctedFieldsRead": [
+        "Media (expanded collection) — route.ts:491, trestle-mapper.ts:1158",
+        "Media[].MediaKey — media-sync.ts:1061",
+        "Media[].MediaStatus — media-sync.ts:1067",
+        "Media[].Permission — media-sync.ts:1073",
+        "Media[].MediaURL — media-sync.ts:1078, trestle-mapper.ts:1172, listing-media-resolver.ts:132",
+        "Media[].ResourceRecordKey — media-sync.ts:1086",
+        "Media[].ResourceRecordID — media-sync.ts:1087",
+        "Media[].MediaCategory — media-sync.ts:1089-1090, listing-media-resolver.ts:123",
+        "Media[].MediaClassification — media-sync.ts:1091, listing-media-resolver.ts:124 (READ, and delivered: query has no $select)",
+        "Media[].Order — media-sync.ts:1092, trestle-mapper.ts:1174",
+        "Media[].PreferredPhotoYN — media-sync.ts:1093, trestle-mapper.ts:1170",
+        "Media[].MediaModificationTimestamp — media-sync.ts:1094",
+        "Media[].ModificationTimestamp — media-sync.ts:1095",
+        "Media[].ShortDescription — listing-media-resolver.ts:125",
+        "ListingId — route.ts:448, 452, 471, 476, 505",
+        "StandardStatus — route.ts:454",
+        "ExpirationDate — route.ts:427",
+        "PhotosChangeTimestamp — route.ts:507"
+      ]
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED — the query does not restrict fields at all, and \"Order\" is literally named in it.\n\napp/api/cron/feed-reconcile/route.ts:394-395 builds the orphan-fetch URL:\n  394: const mediaExpand = `Media($filter=MediaStatus ne 'Deleted';$orderby=Order)`;\n  395: const url = `${base}/odata/Property?$filter=...&$expand=${encodeURIComponent(mediaExpand)}&$top=${ORPHAN_FETCH_BATCH}`;\nThere is NO `$select` on this request — only `$filter`, `$expand`, `$top` (grep for `$select` in this file hits only lines 111, 147 (`$select=ListingId`, the ID-snapshot pages) and 553 (`$select: \"ListingId,StandardStatus\"`, the ghost lookup) — none of them is this query). Under OData an absent `$select` returns the full default projection for Property and for the expanded Media entries, so `Media.Order` IS returned. On top of that, `Order` is explicitly referenced inside this very expand as `$orderby=Order` (line 394), which is the opposite of an omitted field. The claim's premise \"selects []\" is a mis-modeling of \"no $select present\"; it is not a narrowed projection with Order missing.\n\nThe reads do exist, but they are satisfied:\n- upsertListingMedia: route.ts:491-493 takes `raw.Media` and route.ts:505 passes it to `upsertListingMedia(...)`; lib/idx/media-sync.ts:1092 reads `parseOrder(raw.Order)` on those same expanded Media rows (typed `Order?: number | string | null` at media-sync.ts:525). Field is returned → no bug.\n- mapTrestleToPrisma: route.ts:413 `mapTrestleToPrisma(raw)`; lib/idx/trestle-mapper.ts:1158 `Array.isArray(raw.Media)` then :1174 `order: isPreferred ? -1 : Number(m.Order ?? 0)`. Same rows, field returned → no bug.\n- canonicalizeRawDataMedia / write-suppression: this leg fails the \"same rows\" test twice. lib/idx/write-suppression.ts is not imported by app/api/cron/feed-reconcile/route.ts at all (grep for `write-suppression|canonicalizeRawDataMedia` in that file: no matches), and the `Order` read at write-suppression.ts:299 is inside `asLegacyMediaItem`, which reads the persisted legacy `listings.media` JSON blob items (it prefers lowercase `rec.order` and falls back to `rec.Order`) — a DB/mapped object, not the rows of this provider query.\n\nBottom line: the field is not excluded by any projection, is named in the query's own $orderby, and one of the three claimed consumers does not even run on these rows.",
+      "correctedFieldsRead": [
+        "Property.ListingId (route.ts:448,452,471,505)",
+        "Property.StandardStatus (route.ts:454)",
+        "Property.ExpirationDate (route.ts:427)",
+        "Property.PhotosChangeTimestamp (route.ts:507)",
+        "Property.Media (route.ts:491; trestle-mapper.ts:1158)",
+        "Property.ModificationTimestamp (trestle-mapper.ts:1182)",
+        "Property.ListingContractDate (trestle-mapper.ts:1186)",
+        "Media.MediaURL (media-sync.ts:1078; trestle-mapper.ts:1172)",
+        "Media.Order (media-sync.ts:1092; trestle-mapper.ts:1174) — returned, since no $select",
+        "Media.PreferredPhotoYN (media-sync.ts:1093; trestle-mapper.ts:1170)",
+        "Media.ResourceRecordKey (media-sync.ts:1086)",
+        "Media.ResourceRecordID (media-sync.ts:1087)",
+        "Media.MediaCategory (media-sync.ts:1089-1090)",
+        "Media.MediaClassification (media-sync.ts:1091)",
+        "Media.MediaModificationTimestamp (media-sync.ts:1094)",
+        "Media.ModificationTimestamp (media-sync.ts:1095)"
+      ]
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED. (1) The select list is accurately described — lib/idx/fetch.ts:25-28 defines EXPAND_MEDIA_SELECT = cotalityFields(\"Media\", [\"MediaURL\",\"MediaCategory\",\"Order\",\"PreferredPhotoYN\",\"ShortDescription\",\"ModificationTimestamp\",\"ResourceRecordKey\",\"MediaStatus\"]), and MediaClassification is not in it. But the claimed read is not on this query's rows. (2) The line-144 expand only fires when options.expandMedia === true (fetch.ts:140), and NO production caller passes true: lib/idx/sync.ts:598 and :2359 hard-code `const useExpandMedia = false` (passed at :603 and :2364), app/api/listings/route.ts:799+808, app/api/crm/listings/reset-sync/route.ts:102+106, app/api/agents/[slug]/listings/route.ts:161+170, lib/comps/fetch-comps.ts:140+210, lib/market-report/generator.ts:166. The only `expandMedia: true` in the repo is tests/runtime/idx-fetch-expand-media.test.ts:78,84,155, which asserts URL shape and never reads Media fields. So rows of THIS query never carry a Media array in production. (3) The MediaClassification read does exist, but on Media rows from other sources. Helper trace: lib/idx/trestle-mapper.ts:1158 (`raw.Media`) -> :1163 `classifyMediaItem(m)` -> lib/media/listing-media-resolver.ts:124 `m.MediaClassification ?? m.mediaClassification`; and lib/search/crm-idx-mapper.ts:97-98 (`raw.Media` -> `resolveListingMedia`) -> resolver :344 `classifyMediaItem(raw)` -> :124. Those `raw.Media` arrays are populated elsewhere: lib/search/engine/hydrate.ts:58 and :71 attach `Media` from a SEPARATE /odata/Media walk (its own MEDIA_SELECT at hydrate.ts:44, which also omits MediaClassification) or from legacy DB media (hydrate.ts:148) before mapTrestleToCrmListing (hydrate.ts:181); app/api/cron/feed-reconcile/route.ts:395 builds its own Property `$expand` URL (not fetch.ts) before mapTrestleToPrisma at :413; and in the sync paths mapped.media is always [] (sync.ts:752 comment; mediaUpdatePatch(mapped.media, useExpandMedia) at :896 and :2478). (4) The third claimed consumer does not exist: lib/idx/sync.ts has ZERO occurrences of MediaClassification repo-wide; its empty-media detection at sync.ts:1231-1245 (mirror at :2644) reads only `r.Media` array presence/length and the Property-level fields `ListingKey`, `SourceSystemKey`, `ListingId`. Note also that MediaClassification IS selected on the genuinely separate Media queries that do consume it (lib/idx/media-sync.ts:12 MEDIA_LANE_MEDIA_SELECT, app/api/media/batch/route.ts:110), so no live mismatch is evidenced there either."
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED on two independent grounds.\n\n(1) The query does not project fields away. app/api/cron/feed-reconcile/route.ts:394-395 builds `Media($filter=MediaStatus ne 'Deleted';$orderby=Order)` and `${base}/odata/Property?$filter=...&$expand=...&$top=...`. There is NO `$select` anywhere in it — not on Property, not inside the Media expand. \"selects []\" is a parse artifact of an absent `$select` clause; in OData an omitted `$select` returns the FULL entity, so ResourceRecordID (and every other Media field) is returned. Confirmed the only `$select` occurrences in this file are lines 111, 147 and 553, which belong to different queries, and line 397 is a bare `fetch(url)` with no wrapper that could inject a projection. The rest of the orphan path proves the point: mapTrestleToPrisma(raw) at line 413 reads dozens of top-level Property fields that are equally un-selected.\n\n(2) Two of the three claimed consumers never read the field. lib/idx/trestle-mapper.ts contains zero occurrences of ResourceRecordID (its media handling is line 1158, `const rawMediaArr = Array.isArray(raw.Media) ? raw.Media : []`). lib/idx/write-suppression.ts contains zero occurrences; canonicalizeRawDataMedia (line 382) touches only PhotosChangeTimestamp and Media[].MediaURL / Media[].Thumbnail, and it compares stored raw_data blobs on the UPDATE path — not the rows of this create-path query.\n\nThe one genuine read exists but is satisfied: route.ts:491-493 casts raw.Media to UpsertListingMediaInput[] and route.ts:505 passes it to upsertListingMedia, which reads raw.ResourceRecordID at lib/idx/media-sync.ts:1087. That property is declared optional/nullable at media-sync.ts:508 and the provider returns it because nothing is projected away. No failure scenario exists.",
+      "correctedFieldsRead": [
+        "Media (route.ts:491)",
+        "ListingId (route.ts:448, 452, 471, 476, 505)",
+        "StandardStatus (route.ts:454)",
+        "ExpirationDate (route.ts:427)",
+        "PhotosChangeTimestamp (route.ts:507)",
+        "Media[].MediaKey (media-sync.ts:1061)",
+        "Media[].MediaStatus (media-sync.ts:1067)",
+        "Media[].Permission (media-sync.ts:1073)",
+        "Media[].MediaURL (media-sync.ts:1078)",
+        "Media[].ResourceRecordKey (media-sync.ts:1086)",
+        "Media[].ResourceRecordID (media-sync.ts:1087)",
+        "Media[].MediaCategory (media-sync.ts:1089-1090)",
+        "Media[].MediaClassification (media-sync.ts:1091)",
+        "Media[].Order (media-sync.ts:1092)",
+        "Media[].PreferredPhotoYN (media-sync.ts:1093)",
+        "Media[].MediaModificationTimestamp (media-sync.ts:1094)",
+        "Media[].ModificationTimestamp (media-sync.ts:1095)"
+      ]
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED. Line 394 of app/api/cron/feed-reconcile/route.ts is not a select list at all — it is the $expand constant `const mediaExpand = \\`Media($filter=MediaStatus ne 'Deleted';$orderby=Order)\\``. The query it feeds (line 395) is `${base}/odata/Property?$filter=...&$expand=...&$top=${ORPHAN_FETCH_BATCH}` and contains NO $select parameter. Grep for `$select` in that file matches only line 111 and line 147 (`$select=ListingId`, the ID-snapshot pagers) and line 553 (`$select: \"ListingId,StandardStatus\"`, the ghost lookup) — none of which is this query. With no $select, OData returns the full default entity, so ModificationTimestamp is returned; the \"selects []\" premise is an absent projection misread as an empty one. The read itself is real and is on these rows (route.ts:405 `for (const raw of rows)` → route.ts:413 `mapTrestleToPrisma(raw)` → lib/idx/trestle-mapper.ts:1182 `raw.ModificationTimestamp`; also route.ts:407 `validateRequiredFields(raw)` → trestle-mapper.ts:1308 filtering REQUIRED_COTALITY_FIELDS which lists \"ModificationTimestamp\" at trestle-mapper.ts:1296), but since nothing is projected away there is no missing-field defect. Two of the three claimed consumers are also mis-attributed: lib/idx/media-sync.ts:1095 reads `raw.ModificationTimestamp` on a MEDIA row element (an item of the expanded `raw.Media` array passed as `mediaRows` to upsertListingMedia, route.ts:491-505), not on the Property row; and lib/idx/write-suppression.ts:654 lists \"ModificationTimestamp\" inside a field-name constant applied to a stored raw_data blob (see the file's own framing at lines 20/41/377/635), not to the rows of this fetch.",
+      "correctedFieldsRead": [
+        "ModificationTimestamp — trestle-mapper.ts:1182, via mapTrestleToPrisma(raw) at route.ts:413 (present in response: query has no $select)",
+        "ListingId — route.ts:448, 452, 471, 476, 505, 517, 529",
+        "StandardStatus — route.ts:454",
+        "ExpirationDate — route.ts:427",
+        "PhotosChangeTimestamp — route.ts:507",
+        "Media — route.ts:491 (array of expanded Media rows, forwarded to upsertListingMedia at route.ts:505)"
+      ]
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED on three independent grounds.\n\n1) The field IS selected by this query, via a constant. `lib/idx/fetch.ts:121-122` sets `const selectFields = options.select?.join(\",\") || IDX_PLUS_SELECT_FIELDS.join(\",\")` and `:127` sets `params.set(\"$select\", selectFields)`. Traced the constant: `IDX_PLUS_SELECT_FIELDS` (lib/idx/trestle-mapper.ts:405-407) = `COTALITY_PROPERTY_FIELDS` minus `LIVE_FIELDS_NOT_SELECTED`; `COTALITY_PROPERTY_FIELDS` (trestle-mapper.ts:380-390) spreads `B15_FINANCIAL_UNIT`, and `B15_FINANCIAL_UNIT` (trestle-mapper.ts:229-239) literally contains `\"DownPaymentAssistanceAmount\", \"DownPaymentAssistanceCount\"` at line 236. `LIVE_FIELDS_NOT_SELECTED` (trestle-mapper.ts:395-398) contains only `ListTeamMlsId` and `BuyerTeamMlsId`, so it does not strip it. This is the provider OData `$select`, not a Prisma/SQL select.\n\n2) \"Selects []\" misreads line 152. `lib/idx/fetch.ts:152` is `expandParts.push(\"CustomProperty\")` — a bare `$expand` with NO inner `$select` (comment at :146-151 says this deliberately drops the inner select that Trestle rejected with HTTP 400). A bare OData expand returns the entity's default field set, i.e. \"whatever fields Trestle currently includes\" (fetch.ts:92-94, :150-152) — that is not an empty projection.\n\n3) The claimed consumer does not exist, and the real read is Property-first. `mapCrmIdxListing` appears nowhere in the repo (grep across .ts/.tsx/.js/.mjs returns zero hits); the only exported mapper is `mapTrestleToCrmListing` at lib/search/crm-idx-mapper.ts:41. There, `DownPaymentAssistanceCount` is read from the top-level Property row (`raw.DownPaymentAssistanceCount`, lines 126-127) — the field proven selected in (1). The `raw.CustomProperty` path (lines 113-115 → `customProps?.DownPaymentAssistanceCount`, line 128) is only a `?:` fallback taken when the Property field is null/empty, and the in-code comment at lines 116-119 states it exists to protect \"old raw_data\" — i.e. a DB blob, not this query's live rows. The same migration is documented at fetch.ts:85-89.\n\nAdditionally, no production caller ever reaches line 152: grep for `expandCustomProperty:` across lib/ and app/ finds it only in tests (tests/runtime/idx-fetch-expand-media.test.ts) and in a guard script (scripts/cotality/search-coverage-matrix.mjs:738) that asserts lib/idx/sync.ts does NOT set it. The gate at fetch.ts:146 is strict `=== true`.",
+      "correctedFieldsRead": [
+        "DownPaymentAssistanceAmount (read from the top-level Property row at lib/search/crm-idx-mapper.ts:121-123; selected via IDX_PLUS_SELECT_FIELDS -> B15_FINANCIAL_UNIT, lib/idx/trestle-mapper.ts:236)",
+        "DownPaymentAssistanceCount (read from the top-level Property row at lib/search/crm-idx-mapper.ts:126-128; selected via IDX_PLUS_SELECT_FIELDS -> B15_FINANCIAL_UNIT, lib/idx/trestle-mapper.ts:236)",
+        "CustomFields (the only field read exclusively off the expanded CustomProperty object, lib/search/crm-idx-mapper.ts:140; covered by the bare expand at lib/idx/fetch.ts:152, which applies no inner $select)"
+      ]
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED on three independent grounds.\n\n(1) The field is effectively selected. lib/idx/fetch.ts:146-152 pushes the bare string \"CustomProperty\" as the $expand — an expand with NO inner $select. Per OData semantics and the file's own doc comment at lib/idx/fetch.ts:91-94 (\"the expand is included as bare `CustomProperty` (no inner `$select`) so Trestle returns whatever fields currently exist on that entity\"), omitting $select returns ALL structural properties of the expanded entity, including CustomFields (declared on the CustomProperty entity at artifacts/metadata.xml:1926). \"Selects []\" means \"returns everything by default\", not \"returns nothing\". The inner $select was deliberately removed because listing DownPaymentAssistanceAmount/Count/CustomFields is the exact payload Trestle rejected with HTTP 400 (comment lines 147-151).\n\n(2) The claimed consumer does not exist under that name. There is no `mapCrmIdxListing` anywhere in the repo; the mapper in lib/search/crm-idx-mapper.ts is `mapTrestleToCrmListing` (line 41).\n\n(3) The real read is on a different object, not this query's rows. lib/search/crm-idx-mapper.ts:113-115 derives `customProps` from `raw.CustomProperty` and line 140 reads `customProps?.CustomFields`. The mapper's ONLY production consumer is lib/search/engine/hydrate.ts:181, and neither of its two row sources is fetchFromTrestle: (a) Mallan rows come from a Prisma prisma.listing.findMany (hydrate.ts:155-164) reshaped by the helper `mallanRecord` (hydrate.ts:112-149), which reads the DB `raw_data` blob and emits no CustomProperty key at all; (b) provider rows come from queryProvider/walkProvider in lib/search/engine/provider-client.ts, which builds its own OData URL (provider-client.ts:40-45: $select/$filter/$orderby/$top only), never calls fetchFromTrestle, and never expands CustomProperty. Grep for `crm-idx-mapper` outside docs shows hydrate.ts:15 as the sole non-test importer.\n\nAdditionally, the line-152 branch is dead in production: `expandCustomProperty` appears only at lib/idx/fetch.ts:99,146 and in tests/runtime/idx-fetch-expand-media.test.ts — no production caller (app/api/listings/route.ts:801, app/api/listings/suggest/route.ts:293,409, app/api/agents/[slug]/listings/route.ts:156,165, lib/comps/fetch-comps.ts:134,204, lib/idx/sync.ts:600,2361) passes it, and none of those callers import the CRM mapper.\n\nOmitting correctedFieldsRead: the fields actually read from this query's rows derive from IDX_PLUS_SELECT_FIELDS on the Property entity and are consumed across five separate call sites; I cannot enumerate them with per-line evidence within this scope."
+    },
+    {
+      "refuted": false,
+      "reason": "NOT REFUTED — the core of the claim survives, though two of the four named consumers are wrong.\n\n1) The select is exactly as claimed and does NOT contain PostalCity. `SUGGEST_SELECT_FIELDS` is declared at C:/Users/MayaAllan/Desktop/mallan-nyc/app/api/listings/suggest/route.ts:81-112 and contains exactly the 20 listed names (ListingId, ListingKey, StandardStatus, MlsStatus, Permission, InternetEntireListingDisplayYN, InternetAddressDisplayYN, ListOfficeMlsId, CloseDate, ActivationDate, StreetNumber, StreetDirPrefix, StreetName, StreetSuffix, StreetDirSuffix, PostalCode, CountyOrParish, CityRegion, SubdivisionName, BuildingName). No PostalCity, directly or via a constant.\n\n2) It is the real provider $select, not a Prisma/SQL select. It is passed as `select: SUGGEST_SELECT_FIELDS` to `fetchFromTrestle` at route.ts:295 (listing-id branch) and route.ts:411 (address/zip branch). In C:/Users/MayaAllan/Desktop/mallan-nyc/lib/idx/fetch.ts:121-122 `const selectFields = options.select?.join(\",\") || IDX_PLUS_SELECT_FIELDS.join(\",\")` and line 127 `params.set(\"$select\", selectFields)` — the caller list REPLACES the default 902-field list; there is no merge with any mandatory-field set. So PostalCity is genuinely absent from the OData $select.\n\n3) The read on this query's rows does exist, via a traced helper. Route.ts:316 (`locationFromProviderRow(raw)`, where `raw` iterates `result.records` from the listing-id query at line 300) and route.ts:452 (`locationFromProviderRow(raw)`, where `raw` iterates `displayable`, filtered from `result.records` of the address/zip query at line 416). That helper is C:/Users/MayaAllan/Desktop/mallan-nyc/lib/listings/canonical-location.ts:119-128, and line 125 reads `postalCity: text(raw.PostalCity)` directly off the passed provider row. Same file line 124 reads `raw.City`, which is ALSO not selected — the same defect class, missed by the claim.\n\nWhere the claim is wrong (but not fatally): two of its four named consumers do not read PostalCity at all.\n- \"GET — listing-id branch\" and \"GET — address/zip branch\" read no `raw.PostalCity` anywhere in route.ts; their address/label reads are PostalCode, StreetNumber, StreetDirPrefix/Name/Suffix/DirSuffix, ListingId, ListOfficeMlsId, InternetAddressDisplayYN. The PostalCity access reaches this query's rows only indirectly, inside locationFromProviderRow.\n- \"checkDistributionGates → evaluateDisplayGate\" does not read PostalCity. `checkDistributionGates` is at lib/idx/trestle-mapper.ts:1263-1284; the gate it delegates to, lib/compliance/gates.ts, has zero occurrences of PostalCity (grep over lib/compliance/gates.ts for PostalCity/City/CityRegion/SubdivisionName/CountyOrParish: no matches). Its actual inputs are StandardStatus, MlsStatus (gates.ts:119), Permission (gates.ts:131 comment/gate 0), InternetEntireListingDisplayYN (gates.ts:190), InternetAddressDisplayYN (gates.ts:209), CloseDate (gates.ts:223, 234) — every one of which IS selected.\n\nSeverity caveat worth passing on: the route never consumes the returned `postalCity`. At route.ts:316 it takes only `.borough`; at route.ts:452-454 only `.borough` and `.neighborhood`. So the unselected read silently yields `null` and changes no output today. It is a latent field-coverage gap (any future label using `location.postalCity` or `location.city` on this route would silently render empty), not a live user-visible bug.\n\nBecause the field is not selected, the read genuinely exists, and it is performed on the rows of THIS provider query through a helper I traced by name and line, the claim is not refuted.",
+      "correctedFieldsRead": [
+        "PostalCity — lib/listings/canonical-location.ts:125, via locationFromProviderRow(raw) called at app/api/listings/suggest/route.ts:316 and :452 (NOT in SUGGEST_SELECT_FIELDS)",
+        "City — lib/listings/canonical-location.ts:124, same helper and call sites (NOT in SUGGEST_SELECT_FIELDS; missed by the claim)",
+        "CityRegion — lib/listings/canonical-location.ts:121 (selected)",
+        "SubdivisionName — lib/listings/canonical-location.ts:122 (selected)",
+        "CountyOrParish — lib/listings/canonical-location.ts:123 (selected)",
+        "PostalCode — lib/listings/canonical-location.ts:126 and app/api/listings/suggest/route.ts:321, 446, 459, 461, 464, 469 (selected)",
+        "InternetAddressDisplayYN — app/api/listings/suggest/route.ts:307, 444 and lib/compliance/gates.ts:209 (selected)",
+        "StreetNumber — app/api/listings/suggest/route.ts:309, 436 (selected)",
+        "StreetDirPrefix — app/api/listings/suggest/route.ts:310, 437 (selected)",
+        "StreetName — app/api/listings/suggest/route.ts:310, 437 (selected)",
+        "StreetSuffix — app/api/listings/suggest/route.ts:310, 437 (selected)",
+        "StreetDirSuffix — app/api/listings/suggest/route.ts:310, 437 (selected)",
+        "ListingId — app/api/listings/suggest/route.ts:313, 425 (selected)",
+        "ListOfficeMlsId — app/api/listings/suggest/route.ts:426 (selected)",
+        "StandardStatus — lib/compliance/gates.ts:119 via checkDistributionGates (lib/idx/trestle-mapper.ts:1269-1281) from route.ts:301, 418 (selected)",
+        "MlsStatus — lib/compliance/gates.ts:119, same path (selected)",
+        "Permission — lib/compliance/gates.ts:131 gate 0, same path (selected)",
+        "InternetEntireListingDisplayYN — lib/compliance/gates.ts:190, same path (selected)",
+        "CloseDate — lib/compliance/gates.ts:223, 234, same path (selected)"
+      ]
+    },
+    {
+      "refuted": false,
+      "reason": "Not refuted. City is genuinely absent from SUGGEST_SELECT_FIELDS (app/api/listings/suggest/route.ts:81-112 — the 20 listed fields and nothing else), and lib/idx/fetch.ts:121-127 passes options.select through verbatim as $select with no appended base fields, so nothing re-adds it. The read exists on rows of THIS query via a traced helper: route.ts:316 and route.ts:452 call locationFromProviderRow(raw) where raw is an element of result.records from the fetchFromTrestle calls at route.ts:293-298 and route.ts:409-414, and lib/listings/canonical-location.ts:124 does `city: text(raw.City)` (line 125 likewise reads the equally-unselected raw.PostalCity). One caveat on the claim's evidence: the other named consumer, checkDistributionGates -> evaluateDisplayGate, does NOT read City — lib/idx/trestle-mapper.ts:1263-1284 spreads the row through normalizeRenames (:503-505, plain {...raw}) into lib/compliance/gates.ts:272-347, whose readers touch only Permission, StandardStatus, MlsStatus, InternetEntireListingDisplayYN, InternetAddressDisplayYN and CloseDate (gates.ts:118-119, 137-138, 190, 209, 223, 234); there is no `City` token in gates.ts at all. The route's own inline code also never reads raw.City. Impact note: because City is unselected, raw.City is always undefined and location.city is always null, but this route only consumes .borough and .neighborhood (route.ts:316, 453-454), so the missing field is currently inert here.",
+      "correctedFieldsRead": [
+        "City (lib/listings/canonical-location.ts:124, via locationFromProviderRow called at route.ts:316 and :452) - NOT SELECTED",
+        "PostalCity (lib/listings/canonical-location.ts:125, same helper) - NOT SELECTED",
+        "CityRegion (lib/listings/canonical-location.ts:121, same helper)",
+        "SubdivisionName (lib/listings/canonical-location.ts:122, same helper)",
+        "CountyOrParish (lib/listings/canonical-location.ts:123, same helper)",
+        "PostalCode (lib/listings/canonical-location.ts:126, and directly at route.ts:321, 446, 459, 461, 464, 469)",
+        "ListingId (route.ts:313, 425)",
+        "ListOfficeMlsId (route.ts:426)",
+        "StreetNumber (route.ts:309, 436)",
+        "StreetDirPrefix (route.ts:310, 437)",
+        "StreetName (route.ts:310, 437)",
+        "StreetSuffix (route.ts:310, 437)",
+        "StreetDirSuffix (route.ts:310, 437)",
+        "InternetAddressDisplayYN (route.ts:307, 444 directly; also lib/compliance/gates.ts:209 via checkDistributionGates)",
+        "InternetEntireListingDisplayYN (lib/compliance/gates.ts:190, via checkDistributionGates at route.ts:301, 418)",
+        "Permission (lib/compliance/gates.ts:138, via checkDistributionGates)",
+        "StandardStatus (lib/compliance/gates.ts:119, via checkDistributionGates)",
+        "MlsStatus (lib/compliance/gates.ts:119, via checkDistributionGates)",
+        "CloseDate (lib/compliance/gates.ts:223, 234, via checkDistributionGates)"
+      ]
+    },
+    {
+      "refuted": true,
+      "reason": "REFUTED — the query applies no OData projection at all, so ShortDescription is in fact returned. app/api/cron/feed-reconcile/route.ts:394-395 builds `${base}/odata/Property?$filter=...&$expand=Media($filter=MediaStatus ne 'Deleted';$orderby=Order)&$top=...` with NO $select on Property and NO nested $select inside the Media expand. With no projection, OData returns the full Property entity plus fully-populated expanded Media entities, so Media.ShortDescription is present on these rows. \"selects []\" describes the absence of a projection, not a restricted one; the same file uses a real projection where it wants one (route.ts:553 `$select: \"ListingId,StandardStatus\"`), as do lib/idx/fetch.ts:26,32. Consumer check: (1) upsertListingMedia (lib/idx/media-sync.ts:1048; body 1060-1097) never reads ShortDescription — it reads MediaKey, MediaStatus, Permission, MediaURL, ResourceRecordKey, ResourceRecordID, MediaCategory, MediaClassification, Order, PreferredPhotoYN, MediaModificationTimestamp, ModificationTimestamp. (2) canonicalizeRawDataMedia (lib/idx/write-suppression.ts:382-408) names only PhotosChangeTimestamp, Media, MediaURL, Thumbnail, and runs on raw_data blobs via rawDataMateriallyEqual (line 417-424), not on this query's rows. (3) Only mapTrestleToPrisma (invoked at route.ts:413) genuinely reads it: trestle-mapper.ts:1158-1163 maps raw.Media elements through classifyMediaItem, which reads m.ShortDescription at lib/media/listing-media-resolver.ts:125 — and that read is satisfied because the expand is unprojected. No missing-field defect exists.",
+      "correctedFieldsRead": [
+        "Property.ListingId — route.ts:448, 452, 471, 505",
+        "Property.StandardStatus — route.ts:454",
+        "Property.ExpirationDate — route.ts:427",
+        "Property.Media — route.ts:491 and trestle-mapper.ts:1158",
+        "Property.PhotosChangeTimestamp — route.ts:507",
+        "Property.ModificationTimestamp — trestle-mapper.ts:1182 (via mapTrestleToPrisma at route.ts:413)",
+        "Media.MediaKey — media-sync.ts:1061 (via upsertListingMedia at route.ts:505)",
+        "Media.MediaStatus — media-sync.ts:1067",
+        "Media.Permission — media-sync.ts:1073",
+        "Media.MediaURL — media-sync.ts:1078; trestle-mapper.ts:1172; listing-media-resolver.ts:132",
+        "Media.ResourceRecordKey — media-sync.ts:1086",
+        "Media.ResourceRecordID — media-sync.ts:1087",
+        "Media.MediaCategory — media-sync.ts:1089-1090; listing-media-resolver.ts:123",
+        "Media.MediaClassification — media-sync.ts:1091; listing-media-resolver.ts:124",
+        "Media.Order — media-sync.ts:1092; trestle-mapper.ts:1174",
+        "Media.PreferredPhotoYN — media-sync.ts:1093; trestle-mapper.ts:1170",
+        "Media.MediaModificationTimestamp — media-sync.ts:1094",
+        "Media.ModificationTimestamp — media-sync.ts:1095",
+        "Media.ShortDescription — listing-media-resolver.ts:125 via classifyMediaItem called at trestle-mapper.ts:1163 (read DOES exist, but the expand is unprojected so the field is returned)",
+        "NOTE: partial list — mapTrestleToPrisma (route.ts:413), validateRequiredFields (route.ts:407, REQUIRED_COTALITY_FIELDS at trestle-mapper.ts:1292+: ListingId, PropertyType, ListPrice, StandardStatus, ...), checkDistributionGates (route.ts:412 -> evaluateDisplayGate) and buildingAndManifestInvalidationTags (route.ts:472 -> lib/cache/public-cache.ts:166) read many further Property fields not enumerated here."
+      ]
+    }
+  ]
+}

@@ -129,7 +129,7 @@ var CRM = (function () {
     // A4. Operations
     Router.register('/ops/dashboard',        function () { if (typeof HomeScreen !== 'undefined') { HomeScreen.render(); } else { Panels.opsDashboard(); } });
     Router.register('/ops/search',           function () { Panels.propertySearch(); });
-    Router.register('/ops/listings',         function () { Panels.myListings(); });
+    Router.register('/ops/listings',         function () { mountManageListings(); });
     Router.register('/ops/tasks',            function () { Panels.tasks(); });
     Router.register('/ops/deals',            function () { Panels.dealsCommissions(); });
     Router.register('/ops/revenue',          function () { Panels.personalRevenue(); });

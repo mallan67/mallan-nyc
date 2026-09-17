@@ -1,3 +1,7 @@
+> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/operations/evidence-2026-09-08/provider-system/REMOVAL-2026-09-08.md`.
+
+> **ARCHITECTURE NOTE (2026-09-10) — UI placement in this spec predates the three-application split.** Written 2026-04-30, when "the CRM" meant one agent application. Mallan now has three (Master Plan §5.1, mirrored in `CLAUDE.md` §A.0, commit `928f31c4`): the **Brokerage CRM** (`public/crm/dashboard.html` + `public/crm/js/dashboard/**`, `/crm`); the **Backend Agent Search / Listings** application (`public/crm/index.html` → generated `index-built.html`, `/crm/search`), which owns property search, My Listings, listing detail/workspace and **buildings intelligence**; and **Consumer Search** (`app/search/page.tsx`). The sponsor building lookup, building detail, sponsor-listing list/detail and the `include_sponsor_inventory` search toggle are all **Backend Agent Search / Listings** surfaces, not `js/dashboard/**` panels. Dependency direction is fixed: CRM → Backend Search, never the reverse. Re-decide exact placement against Master Plan §5.1 before implementation; the ETL, ACL, PII-reveal, commission-confirmation and portal designs below are unaffected. This note corrects the spec's architecture framing only — the hard limits at the top of this file stand: spec only, implementation parked until Maya explicitly authorizes it.
+
 # Sponsor Database — Design Spec
 
 > **Status:** DRAFT (parked until after PR 4 closes AND user explicitly authorizes implementation)
@@ -64,8 +68,8 @@ Today, mallan agents discover sponsor inventory ad hoc — they pass a building,
 |---|---|
 | New schema: `sponsor_buildings`, `sponsor_entities`, `management_companies`, `selling_brokerages`, `sponsor_units`, `sponsor_listings`, `sponsor_listing_client_shares`, `sponsor_pii_reveal_log` | DB schema |
 | ETL job: nightly refresh from NY AG REFB offering-plan database + ACRIS deed delta + NYC Open Data condo declarations + DOB CofO + HPD MDR | `lib/sponsor-db/etl/*.ts` + cron |
-| Building lookup CRM page — search by neighborhood / address / sponsor / management company | `app/api/crm/sponsor-db/buildings/route.ts` + CRM UI |
-| Building detail page — sponsor LLC, management company, selling brokerage (if known), unsold-unit count, contact info | `app/api/crm/sponsor-db/buildings/[id]/route.ts` + CRM UI |
+| Building lookup — search by neighborhood / address / sponsor / management company | `app/api/crm/sponsor-db/buildings/route.ts` + Backend Agent Search / Listings UI (`/crm/search`, buildings intelligence) |
+| Building detail page — sponsor LLC, management company, selling brokerage (if known), unsold-unit count, contact info | `app/api/crm/sponsor-db/buildings/[id]/route.ts` + Backend Agent Search / Listings UI (`/crm/search`, buildings intelligence) |
 | Agent enrichment form — manual entry of management company contact, selling brokerage, current asking price, commission terms | `app/api/crm/sponsor-db/buildings/[id]/enrich/route.ts` + UI |
 | Sponsor listing capture — when an agent confirms an active sponsor unit listing, store it (links to RLS Listing if applicable; otherwise stores non-RLS shadow row) | `app/api/crm/sponsor-db/listings/route.ts` + UI |
 | Sponsor classification badge on RLS listing pages — when an RLS Listing matches a sponsor unit, render "SPONSOR UNIT" badge | extends existing `app/listing/[...slug]/page.tsx` reading; **CRM-only badge surface** |
@@ -780,7 +784,7 @@ This is a deliberate friction point — it forces the agent to make the call fir
 | `app/api/portal/sponsor-listings/[id]/route.ts` | GET (client detail) |
 | `app/api/portal/sponsor-listings/[id]/react/route.ts` | POST (client reaction) |
 | `app/api/cron/sponsor-db-etl/route.ts` | Daily orchestration cron |
-| `public/crm/js/dashboard/panels/sponsor-db.js` | CRM UI |
+| Backend Agent Search / Listings sponsor surface — exact file assigned under Master Plan §5.1 at implementation time; **NOT** `public/crm/js/dashboard/panels/**` | Sponsor buildings + listings UI |
 | `app/portal/buyer/sponsor-listings/page.tsx` (+ tenant/seller/landlord variants) | Portal UI |
 
 ### 10.2 Modified files

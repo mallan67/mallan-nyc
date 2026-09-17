@@ -119,19 +119,21 @@ Sessions are stored in PostgreSQL (Prisma `Session` model):
 
 All CRM files check authentication on load and redirect to `login.html` if not authenticated:
 
-| File | Gate Location |
-|------|--------------|
-| `MALLAN-NYC-CRM-FINAL2.html` | `MallanAPI.init()` → if `!authenticated` → redirect |
-| `index-built.html` (search) | `agent-context.js` → `MallanAPI.init()` → redirect |
-| `SALE-FORM-WITH-TOOLS.html` | `initLoggedInAgent()` → redirect |
-| `RENTAL-FORM-WITH-TOOLS.html` | `initLoggedInAgent()` → redirect |
+| File | Application | Gate location |
+|------|-------------|---------------|
+| `public/crm/dashboard.html` (+ `public/crm/js/dashboard/**`, 37 files) | Brokerage CRM — `/crm`, compat `/crm/dashboard` | `js/dashboard/app.js` `init()` → `MallanAPI.init()` → if `!data.authenticated` → `/crm/login.html` |
+| `public/crm/index.html` → generated `public/crm/index-built.html` | Backend agent search / listings — `/crm/search` | `js/core/agent-context.js` → `MallanAPI.init()` → if not authenticated → `/crm/login.html` |
+| `public/crm/SALE-FORM-REDESIGN.html` | Sale listing entry — `/crm/sale-listing` | inline `<head>` auth gate → `MallanAPI.init()` → `/crm/login.html`; `initLoggedInAgent()` then populates agent fields via `MallanAPI.onReady()` |
+| `public/crm/RENTAL-FORM-REDESIGN.html` | Rental listing entry — `/crm/rental-listing` | inline `<head>` auth gate → `MallanAPI.init()` → `/crm/login.html`; `initLoggedInAgent()` then populates agent fields |
+
+> **Corrected 2026-09-10.** This table previously listed `MALLAN-NYC-CRM-FINAL2.html`, `SALE-FORM-WITH-TOOLS.html` and `RENTAL-FORM-WITH-TOOLS.html` — files that no longer exist in the repo — and omitted `dashboard.html` entirely. Routing proof: `vercel.json` rewrites `/crm` and `/crm/dashboard` → `/crm/dashboard.html`, and `/crm/search` → `/crm/index-built.html`. The two are **separate applications**: the backend search app must boot without `dashboard.html` or the CRM router, and the dependency runs CRM → backend search, never the reverse. Authority: `MALLAN-PLATFORM-MASTER-PLAN.md` (repo root, canonical lineage PR #595 / `agent/publish-mallan-platform-master-plan-2026-08-04`.
 
 All files also listen for `mallan:auth:unauthorized` event (dispatched on 401) → redirect to login.
 
 ### Login Page (`login.html`)
 - Calls `MallanAPI.configure({ baseUrl: 'https://mallan.nyc' })` for cross-origin
-- On submit: `MallanAPI.auth.login()` → token stored → redirect to CRM
-- On load: if `MallanAPI.hasToken` → `MallanAPI.init()` → auto-redirect if still valid
+- On submit: `MallanAPI.auth.login()` → server sets the httpOnly `session_token` cookie → `redirectAfterLogin()` (no token is returned in the JSON body or stored client-side; see §1)
+- On load: `MallanAPI.init()` runs unconditionally — the httpOnly cookie is not visible to JS — and auto-redirects if the session is still valid *(this line previously read "if `MallanAPI.hasToken`", which no longer exists)*
 - `?redirect=` parameter preserves original destination
 - `?portal=buyer|tenant|seller|landlord` sets portal type for client login
 - `noindex, nofollow` meta tag

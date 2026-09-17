@@ -52,8 +52,8 @@ describe("A3 regression — known bad targets now hydrate into the REAL save con
   });
 
   it("full baths → rentalFullBathrooms; half baths → rentalHalfBathrooms", () => {
-    expect(body).toMatch(/setVal\('rentalFullBathrooms', listing\.bathrooms_full/);
-    expect(body).toMatch(/setVal\('rentalHalfBathrooms', listing\.bathrooms_half/);
+    expect(body).toMatch(/setVal\('rentalFullBathrooms', raw\.rentalFullBathrooms[\s\S]{0,160}listing\.bathrooms_full/);
+    expect(body).toMatch(/setVal\('rentalHalfBathrooms', raw\.rentalHalfBathrooms[\s\S]{0,160}listing\.bathrooms_half/);
     expect(body).not.toContain("setVal('rentalBathsFull'");
     expect(body).not.toContain("setVal('rentalBathsHalf'");
   });
@@ -66,12 +66,12 @@ describe("A3 regression — known bad targets now hydrate into the REAL save con
   });
 
   it("IDX/internet display flags hydrate into the real compliance controls", () => {
-    expect(body).toContain("setChecked('rentalIDXEntireListingDisplayYN', listing.idx_display_yn");
+    expect(body).toContain("setChecked('rentalIDXEntireListingDisplayYN', raw.rentalIDXEntireListingDisplayYN !== undefined ? raw.rentalIDXEntireListingDisplayYN === true : listing.idx_display_yn");
     expect(body).toContain(
-      "setChecked('rentalInternetEntireListingDisplayYN', listing.internet_entire_listing_display_yn",
+      "setChecked('rentalInternetEntireListingDisplayYN', raw.rentalInternetEntireListingDisplayYN !== undefined ? raw.rentalInternetEntireListingDisplayYN === true : listing.internet_entire_listing_display_yn",
     );
     expect(body).toContain(
-      "setChecked('rentalInternetAddressDisplayYN', listing.internet_address_display_yn",
+      "setChecked('rentalInternetAddressDisplayYN', raw.rentalInternetAddressDisplayYN !== undefined ? raw.rentalInternetAddressDisplayYN === true : listing.internet_address_display_yn",
     );
     expect(body).not.toContain("setChecked('rentalIdxDisplayYN'");
     expect(body).not.toContain("setChecked('rentalInternetDisplayYN'");
@@ -79,7 +79,7 @@ describe("A3 regression — known bad targets now hydrate into the REAL save con
   });
 
   it("expiration date → rentalExclusiveExpires (was the nonexistent rentalExpirationDate)", () => {
-    expect(body).toContain("setVal('rentalExclusiveExpires', listing.listing_contract_date");
+    expect(body).toContain("setVal('rentalExclusiveExpires', String(raw.ExpirationDate)");
     expect(body).not.toContain("setVal('rentalExpirationDate'");
   });
 

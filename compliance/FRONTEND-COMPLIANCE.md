@@ -1,13 +1,14 @@
 # Frontend Compliance — Public Website Rules
 
-> **Website:** mallan.nyc | **Platform:** Next.js 14 / Vercel
+> **Website:** mallan.nyc | **Platform:** Next.js 16 (App Router + Turbopack) / Vercel  *(corrected 2026-09-10; this line read "Next.js 14" — package.json pins ^16.1.6)*
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 
 ---
 
-> ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
-> 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+> ### AUTHORITY (Packet 2 closure, 2026-09-06)
+> **COTALITY LIVE CONTRACT** (`lib/cotality/live-contract.ts`, the dated live pulls) → provider facts: field existence, enum members.
+> **REBNY / UCBA** (`lib/compliance/rebny-ucba-rules.ts`) → compliance / business rules. **MALLAN** (`lib/listings/mallan-form-contract.ts`, `lib/listings/mallan-status.ts`) → form / workflow / storage.
+> **RESO = vocabulary only.** Fail closed = NON-DISPLAY. (The former "RLS overrides RESO/IDX" ordering is retired: no CSV, RESO document or hand-typed table is a field authority.)
 
 ---
 

@@ -1,0 +1,26 @@
+{
+  "source": "LIVE_COTALITY",
+  "resource": "Media",
+  "field": "MediaCategory",
+  "scope": null,
+  "distinct": 2,
+  "values": [
+    "FloorPlan",
+    "Photo"
+  ],
+  "counts": {
+    "FloorPlan": 583809,
+    "Photo": 1417173
+  },
+  "sum_of_counts": 2000982,
+  "non_null_total": 2000982,
+  "complete": true,
+  "quota": {
+    "minuteLimit": 280,
+    "minuteAvailable": 274,
+    "hourLimit": 8400,
+    "hourAvailable": 7318,
+    "hourResetTime": 1788852995017,
+    "seenAt": 1788849806240
+  }
+}

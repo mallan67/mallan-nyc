@@ -23,6 +23,7 @@
     },
     "Pending": {
       "domAccrues": true,
+      "domNote": "On the market until it closes: the Mallan market clock keeps running through Pending and ends at CloseDate (Sold / Rented) or OffMarketDate (a removal) — ONE rule, lib/compliance/dom-tracker.ts (owner ruling 2026-09-08 evening). PurchaseContractDate is the contract fact, never the clock end.",
       "publicDisplay": true,
       "restrictions": [],
       "requiredFields": ["PurchaseContractDate"],
@@ -81,7 +82,11 @@
     { "from": "ComingSoon", "to": "Closed", "reason": "Must go Active first" }
   ],
   "domRules": {
-    "startsAt": "RLS submission timestamp (not listing contract date)",
+    "authority": "lib/compliance/dom-tracker.ts — ONE rule (owner ruling 2026-09-08); this file mirrors it and decides nothing",
+    "marketClock": "from the later of OnMarketDate and ActivationDate (First Showing Date) until the listing closes or is removed: Sold / Rented = CloseDate on the Closed row; a removal (Withdrawn / Canceled / Expired / Hold) = OffMarketDate; a row that left the feed = the day it left (Off Market). Never PurchaseContractDate — a signed contract (Pending) keeps the listing on the market until it closes (owner ruling 2026-09-08 evening)",
+    "comingSoonClock": "separate: from ContractStatusChangeDate (the day the status became Coming Soon) to the as-of day, with the countdown to ActivationDate; never merged into the market clock",
+    "accruingStatuses": ["Active", "ActiveUnderContract", "Pending"],
+    "endsAt": { "closed": "CloseDate", "removal": "OffMarketDate" },
     "resetTrigger": "30 consecutive days in Withdrawn or Cancelled",
     "resetsOnClose": true,
     "noAccrual": ["ComingSoon", "ParticipantOnly", "TemporarilyOffMarket"],

@@ -14,13 +14,19 @@
  */
 
 export const LIVE_AUTHORITY = Object.freeze({
-  /** The generated, verified live mirror of the Cotality $metadata enums. */
+  /** The generated, verified live mirror of the Cotality Lookup vocabularies (per resource + field). */
   path: 'data/cotality-enums.live.json',
   /** Regeneration command — run before freezing any enum-derived constant. */
   regenerate: 'npm run cotality:pull && npm run cotality:verify',
-  source: 'https://api.cotality.com/trestle/odata/$metadata',
-  /** The pull date recorded in the live file at the time this projection was last verified. */
-  verifiedAgainstPull: '2026-07-05',
+  source: 'https://api.cotality.com/trestle/odata/Lookup',
+  /**
+   * The pull date recorded in the live file at the time this projection was last verified.
+   * 2026-09-08: re-verified against that day's pull (which added `rls_listed`; every member set below
+   * is byte-identical to the 2026-09-06 and 2026-09-07 pulls — vocabulary-authority.test.ts asserts
+   * set equality, so this stamp may only move when those assertions pass). The 2026-09-07 re-pull
+   * (60817b3d) moved the file without moving this stamp, which is why the guard was red at HEAD.
+   */
+  verifiedAgainstPull: '2026-09-08',
 });
 
 /**
@@ -66,7 +72,65 @@ export const COMMON_INTEREST_SEGMENTATION = Object.freeze([
  * (see DEAD_OR_INVALID_VALUES; the gate is enforced via the DB column, and must fail closed until
  * a live field/value is confirmed). Members list is the compliance-relevant subset used by the gate.
  */
+/**
+ * Live PropertyType members (pull 2026-09-05). Under StandardStatus eq 'Active' only
+ * Residential and ResidentialLease are populated; the other eleven are 0 (Validator 2026-09-05).
+ */
+export const PROPERTY_TYPE_MEMBERS = Object.freeze([
+  'BusinessOpportunity', 'CommercialLease', 'CommercialSale', 'DisasterReliefRental', 'Farm', 'HighRise', 'Land',
+  'ManufacturedInPark', 'MultiFamily', 'Residential', 'ResidentialIncome', 'ResidentialLease', 'Specialty',
+] as const);
+
+/**
+ * Live StructureType members (pull 2026-09-05). Multi-value field; executed with the bare-string
+ * `StructureType has '<member>'` form (Validator 2026-09-05 §D/§J). Carrier of Mallan's Townhouse type.
+ */
+export const STRUCTURE_TYPE_MEMBERS = Object.freeze([
+  'Apartment', 'Cabin', 'Dock', 'Duplex', 'Flex', 'FreeStandingBuilding', 'HighRise', 'HotelMotel', 'House',
+  'Industrial', 'LowRise', 'ManufacturedHouse', 'MidRise', 'MixedUse', 'MultiFamily', 'None', 'Office', 'Other',
+  'Quadruplex', 'Retail', 'Townhouse', 'Triplex', 'Warehouse',
+] as const);
+
+/**
+ * CityRegion is a plain string field with NO lookup, so it is not in the enums file. These are its
+ * live values on both active universes (Contract/Data Validator re-check 2026-09-05, item 4: the five
+ * sale counts sum exactly to the universe). `StatenIsland` has no space. Re-verify live, never infer.
+ */
+export const CITY_REGION_VALUES = Object.freeze(['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'StatenIsland'] as const);
+
 export const PERMISSION_PRIVATE = 'Private';
+
+/**
+ * Furnished — ALL 5 live members (data/cotality-enums.live.json). Live 2026-09-08 on the 939 Active
+ * rentals: populated on 938; observed members Furnished / Partially / Negotiable / Unfurnished
+ * (FurnishedOrUnfurnished declared, 0 observed). A rental-only criterion; executed as `Furnished eq`.
+ */
+export const FURNISHED_MEMBERS = Object.freeze([
+  'Furnished', 'FurnishedOrUnfurnished', 'Negotiable', 'Partially', 'Unfurnished',
+] as const);
+
+/**
+ * PetsAllowed — ALL 31 live members (Multi enum; executed with `has`). Live 2026-09-08 on Active rentals:
+ * populated on 939 / 939; unit-level positives Yes 620 · CatsOk 98 · DogsOk 81 · SizeLimit 41 · NumberLimit 20 ·
+ * BreedRestrictions 18; building-level BuildingYes 752 · BuildingCatsOk 40 · BuildingDogsOk 34; negatives No 267 ·
+ * BuildingNo 135. The remaining members are declared and 0 observed — still valid criteria (a zero today is not
+ * an unsupported contract).
+ */
+export const PETS_ALLOWED_MEMBERS = Object.freeze([
+  'BirdsOk', 'BreedRestrictions', 'BuildingBreedRestrictions', 'BuildingCatsOk', 'BuildingDogsOk', 'BuildingNo',
+  'BuildingNumberLimit', 'BuildingSizeLimit', 'BuildingYes', 'Call', 'CatsOk', 'ChickensOk', 'Conditional', 'DogsOk',
+  'FishOk', 'Negotiable', 'No', 'NoBreedRestrictions', 'NoDogs', 'NoPetRestrictions', 'NoSizeLimit', 'NumberLimit',
+  'Other', 'OwnerOnly', 'PetDeposit', 'PetFee', 'PetRestrictions', 'ReptileOk', 'SeeRemarks', 'SizeLimit', 'Yes',
+] as const);
+
+/**
+ * Mallan's "pet-friendly" shorthand (`pets=friendly`) — POLICY, not vocabulary: the unit-level members that say
+ * the UNIT accepts a pet (with or without limits). Building-level members describe the building's rule, not the
+ * unit's, and are not implied. All six are live members and all six are populated on Active rentals (above).
+ */
+export const PETS_FRIENDLY_MEMBERS = Object.freeze([
+  'Yes', 'CatsOk', 'DogsOk', 'NumberLimit', 'SizeLimit', 'BreedRestrictions',
+] as const);
 
 /**
  * Values the repo has historically hardcoded that live truth CONTRADICTS. Diagnostics/tests flag them.

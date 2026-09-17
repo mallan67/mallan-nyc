@@ -1,0 +1,469 @@
+The systematic execution plan
+Phase	Purpose	Exit condition
+0 — Freeze the architecture	Stop new Search inventions	One active Search execution lane; legacy branches evidence-only
+1 — Build the complete impact graph	Know exactly what currently exists	Every Search surface and every provider reader/writer classified
+2 — Establish Cotality truth	Remove guessing	Live Resource/Field/Lookup/query contract documented and verified
+3 — Remove false authorities	Eliminate RESO, RealPlus and RLS-provider contamination	Required zero-occurrence checks pass
+4 — Consolidate provider layer	One Cotality authority	One transport, vocabulary, mapping and pagination implementation
+5 — Consolidate Search foundation	One Search engine	Sale/Rental/common criteria/count/universe owned once
+6 — Migrate every Search consumer	Eliminate the “12 searches” problem	Every workflow consumes canonical foundation or has justified specialized contract
+7 — Delete duplicate/dead systems	Prevent regression back into parallel truth	No duplicate engines/mappers/query builders/readers remain
+8 — Brokerage workflow closure	Finish Search as a product	Sale through CMA/Reports/Map/Workbench proven
+9 — Preview and production proof	Prove it outside tests	Preview → prod behavioral proof and execution state closed
+
+This sequence should not be changed because the next failing test happens to look interesting.
+
+Phase 0 — Stop creating more moving targets
+
+Before another substantive Search edit:
+
+Current Search branch remains the execution lane.
+
+Do not create:
+
+another Search-cleanup branch;
+another Search-v2;
+another provider-authority branch;
+another audit branch;
+another replacement Search engine.
+
+Existing historical Search branches and PRs become evidence repositories only.
+
+That includes the huge old #618 generation. It contains useful requirements and defect discoveries, but it should not be wholesale merged back into the newer foundation.
+
+The clean-foundation/current Search generation is what should be finished.
+
+Before every mutation Claude should verify:
+
+repo
+worktree
+current branch
+HEAD
+origin HEAD
+uncommitted files
+divergence from main
+
+That prevents another round of solving yesterday's tree.
+
+Phase 1 — One complete Search authority matrix
+
+This is the one inventory that is necessary.
+
+Not another giant audit.
+
+Every Search/query surface gets one row:
+
+Surface	Criteria owner	Query owner	Cotality client	Mapping	Universe	Count	Pagination	Business rules
+Agent Search	?	?	?	?	?	?	?	?
+Public Search	?	?	?	?	?	?	?	?
+Sale	?	?	?	?	?	?	?	?
+Rental	?	?	?	?	?	?	?	?
+Building	?	?	?	?	?	?	?	?
+Saved Search	?	?	?	?	?	?	?	?
+Alerts	?	?	?	?	?	?	?	?
+Similar	?	?	?	?	?	?	?	?
+Suggestions	?	?	?	?	?	?	?	?
+Agent Listings	?	?	?	?	?	?	?	?
+Open House	?	?	?	?	?	?	?	?
+Map	?	?	?	?	?	?	?	?
+CMA	?	?	?	?	?	?	?	?
+Reports/Compare	?	?	?	?	?	?	?	?
+
+Every implementation then receives exactly one classification:
+
+CANONICAL
+CONSUMER
+SPECIALIZED CONSUMER
+DUPLICATE
+OBSOLETE
+
+Nothing remains “maybe useful.”
+
+This matrix becomes part of MALLAN-CONTINUOUS-EXECUTION-STATE.md.
+
+And it gets updated rather than recreated in another conversation.
+
+Phase 2 — Prove Cotality before changing mappings
+
+This is where a lot of previous looping originated.
+
+The system cannot be cleaned correctly if Claude keeps comparing code against old CSVs, old RESO assumptions, old REBNY terminology or guessed field semantics.
+
+The live authorized Cotality contract must establish:
+
+Entity/resource
+Field name
+Type
+Nullability
+Lookup vocabulary
+Multi-value behavior
+Filter capability
+Sort capability
+Expand/navigation capability
+Keys
+Listing identity
+Modification/change semantics
+Pagination
+Permissions/access
+Population
+Display limitations where actually supplied
+
+At minimum the resource families involved in Search need proof:
+
+Property
+Media
+OpenHouse
+Member
+Office
+Building
+Field
+Lookup
+CustomProperty
+History/transaction resources where available
+
+This produces one Cotality evidence packet.
+
+After this is established, nobody gets to re-decide what StandardStatus, PropertyType, InteriorFeatures, etc. mean based on memory or an old file.
+
+Phase 3 — Remove the vocabulary contamination properly
+
+This should happen based on the impact graph, not with blind global renaming.
+
+RESO
+
+Final state:
+
+RESO tracked current-tree occurrences = 0
+
+Not “RESO diagnostic.”
+
+Not “RESO compatibility.”
+
+Not “RESO vocabulary.”
+
+Not scripts/reference/reso.
+
+Not comments explaining that Cotality happens to use RESO-like field names.
+
+StandardStatus can exist because Cotality returns StandardStatus.
+
+It does not need a RESO label attached to it.
+
+Useful scripts under scripts/reso either become genuine Cotality tools under the single Cotality system or are deleted.
+
+Duplicate RESO mappers get deleted, not renamed.
+
+RealPlus / Real Plus / realplus
+
+Final state:
+
+all RealPlus variants = 0
+
+No historical banners.
+
+No RealPlus URL.
+
+No renamed fake rebnyListingUrl.
+
+No obsolete documentation carrying it forward.
+
+Git already preserves history.
+
+RLS
+
+Final state:
+
+RLS as provider     = 0
+RLS as API          = 0
+RLS as Search       = 0
+RLS as mapping      = 0
+RLS IDX terminology = 0
+
+RLS may remain only where it genuinely means:
+
+REBNY/RLS compliance/business obligation.
+
+For example, an RLS compliance eligibility rule can remain.
+
+A comment saying Cotality is an “RLS API” cannot.
+
+IDX
+
+IDX must also stop being shorthand for the provider.
+
+Where IDX Plus represents an actual contractual entitlement/display policy, keep that concept.
+
+But:
+
+Cotality OAuth
+Cotality OData
+Cotality pagination
+Cotality Field
+Cotality Lookup
+Cotality resources
+Cotality raw mappings
+
+should not be hidden inside something pretending IDX itself is the data source.
+
+Phase 4 — Establish exactly one Cotality layer
+
+Before migrating all the Search consumers, there needs to be one provider authority.
+
+Conceptually:
+
+lib/cotality/
+    auth
+    client
+    query
+    pagination
+    metadata
+    field
+    lookup
+    resources
+    keys
+    raw types
+    mapping
+
+I am deliberately saying conceptually rather than demanding those exact files.
+
+No casual restructuring for appearance.
+
+First trace the existing readers and determine what already satisfies each responsibility.
+
+Then consolidate.
+
+The acceptance criterion matters more than the folder name:
+
+Cotality HTTP clients          = 1 authority
+Cotality query builder         = 1 authority
+Cotality pagination semantics  = 1 authority
+Cotality field registry        = 1 authority
+Cotality vocabulary registry   = 1 authority
+Cotality → Mallan mapper       = 1 authority
+Phase 5 — Lock the Search engine
+
+The current lib/search/engine work should become the single Search foundation.
+
+It should own things such as:
+
+criteria normalization
+provider query translation
+Mallan-listing reconciliation
+settled universe
+deduplication
+sorting
+pagination
+counting
+hydration
+selection
+
+Sale and Rental can have different criteria.
+
+But they cannot have different implementations of:
+
+pagination
+Cotality status interpretation
+borough interpretation
+price filtering
+provider IDs
+deduplication
+result counting
+
+Where a criterion is genuinely different, that difference belongs in the business criteria layer.
+
+Not another engine.
+
+Phase 6 — Move the Search surfaces systematically
+
+Do not jump around based on whichever endpoint currently fails.
+
+Use this dependency order:
+
+Order	Workflow	Required result
+1	Sale Search	Complete canonical Search E2E
+2	Rental Search	Same engine, Rental-specific criteria
+3	Public Search	Becomes restricted/compliant consumer of Search foundation
+4	Building Search	Specialized building criteria but common provider authority
+5	Saved Search	Exact SearchCriteria persistence/execution parity
+6	Alerts	Uses Saved Search; never invents criteria
+7	Map	Same settled universe as list
+8	Similar Listings	Specialized criteria over same Search/provider primitives
+9	Agent Listings	Agent constraint over common provider layer
+10	Suggestions/autocomplete	Lightweight consumer, not another provider implementation
+11	Workbench / Compare / Reports	Consume selected canonical results
+12	CMA	ComparableCriteria over corrected Search foundation
+13	Open House	Specialized resource, shared Cotality authority
+
+This is how the “12 Search systems” get reduced without destroying useful brokerage functions.
+
+Phase 7 — Only then delete duplicate Search code
+
+This is critical.
+
+Do not leave old implementations “for safety.”
+
+That is how the next developer eventually uses them and creates another parallel truth.
+
+Once a consumer is migrated and proven:
+
+old route helper
+old mapper
+old query builder
+old provider client
+old enum table
+old browser-side filter implementation
+old result reconciler
+
+gets removed.
+
+And removal has a negative test proving the obsolete path cannot silently return.
+
+Phase 8 — Fix the exposed 12 Cotality/form defects
+
+The current red provider/form mismatches are useful.
+
+They should not be bypassed just to turn CI green.
+
+Each mismatch gets handled through:
+
+actual Cotality Field
+        ↓
+actual Lookup values
+        ↓
+current Mallan field
+        ↓
+business requirement
+        ↓
+correct UI/storage behavior
+
+For example, if Cotality has hundreds of InteriorFeatures, the answer is not to force it into Yes/No just because an old form did.
+
+And if NYC Rent Stabilization is a Mallan business criterion rather than Cotality's AvailableLeaseType, it remains Mallan-owned rather than fabricating a provider mapping.
+
+That pattern should resolve all twelve.
+
+Phase 9 — No item is “done” because tests went green
+
+Every Search batch closes using your required model:
+
+PROVEN DEFECT
+      ↓
+ROOT CAUSE
+      ↓
+ALL AFFECTED READERS + WRITERS
+      ↓
+CORRECTION
+      ↓
+DIRECT TEST
+      ↓
+NEGATIVE TEST
+      ↓
+INTEGRATION TEST
+      ↓
+DOWNSTREAM TEST
+      ↓
+COMPLIANCE TEST
+      ↓
+PREVIEW PROOF
+      ↓
+PRODUCTION PROOF
+
+For example, fixing price filtering means proving:
+
+Agent Search → Saved Search → Alert → Map → Report/CMA consumers
+
+where applicable.
+
+Not merely:
+
+price-filter.test.ts passed
+
+The anti-loop rule
+
+This is the most important operational change.
+
+Once something has been classified and proven, it goes in the continuous execution state as:
+
+CLOSED
+evidence:
+commit:
+tests:
+preview:
+downstream:
+
+Claude is not allowed to reopen it from an older branch, handoff or chat unless new current-head evidence proves a regression.
+
+Old chats and old PRs can identify a possible defect.
+
+They cannot override current verified code.
+
+That single rule would eliminate a large portion of the repeated work you have been seeing.
+
+What Claude should report to you periodically
+
+Not a narrative about how much code was inspected.
+
+The report should look like this:
+
+Category	Closed	In progress	Blocked	Remaining
+Cotality authority				
+RESO removal				
+RealPlus removal				
+RLS cleanup				
+Search duplicate removal				
+Sale				
+Rental				
+Building				
+Saved Search/Alerts				
+Map/Workbench				
+Reports/Compare				
+CMA				
+Desktop/tablet/mobile				
+
+And for every newly closed item:
+
+commit + direct test + downstream test + Preview evidence.
+
+That is much harder to fake with a green test or a long explanation.
+
+The final definition of Search complete
+
+I would not accept “Search complete” until the repository proves:
+
+Cotality raw-contract authority          = 1
+Cotality vocabulary authority            = 1
+Cotality → Mallan mapping authority      = 1
+Search execution foundation              = 1
+settled-universe/count authority         = 1
+
+RESO references                          = 0
+RealPlus references                      = 0
+RLS used as provider/API/Search          = 0
+
+duplicate Sale engines                   = 0
+duplicate Rental engines                 = 0
+duplicate Saved Search interpreters      = 0
+duplicate provider query builders        = 0
+duplicate provider mappers               = 0
+duplicate provider enum catalogues       = 0
+
+Sale E2E                                 = PASS
+Rental E2E                               = PASS
+Building E2E                             = PASS
+Saved Search + Alerts                    = PASS
+Map                                      = PASS
+Workbench                                = PASS
+Compare / Reports                        = PASS
+CMA                                      = PASS
+public compliant Search                  = PASS
+desktop                                  = PASS
+tablet                                   = PASS
+mobile                                   = PASS
+Preview                                  = PASS
+Production                               = PASS
+
+That is the finish line.
+
+The key change is: no more fixing Search horizontally across whatever file fails next. Work vertically through the architecture, close one authority layer, migrate every consumer to it, delete the old authority, and never reopen the closed layer without new evidence.
+
+If this discipline is followed, this stops being an endless Search project and becomes a finite convergence program.

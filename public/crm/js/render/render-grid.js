@@ -14,13 +14,23 @@
                 theadHTML += '<th class="px-1.5 py-1.5 w-10 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide"></th>';
                 cols.forEach(function(colId) {
                     var def = gridColumnDefs[colId];
+                    // Only the columns the executor can actually order by are sort controls. Every column
+                    // used to carry a sort arrow and an onclick, so 40 headers advertised a sort the
+                    // executor cannot express (it orders by price or by newest, and nothing else).
+                    var sortable = (typeof isSortableColumn === 'function') ? isSortableColumn(colId) : false;
                     var sortIcon = '';
-                    if (searchResultsState.sortField === colId) {
-                        sortIcon = searchResultsState.sortOrder === 'asc' ? ' <i class="fas fa-arrow-up text-blue-500 text-[9px]"></i>' : ' <i class="fas fa-arrow-down text-blue-500 text-[9px]"></i>';
-                    } else {
-                        sortIcon = ' <i class="fas fa-sort text-gray-300 text-[9px]"></i>';
+                    if (sortable) {
+                        if (searchResultsState.sortField === colId) {
+                            sortIcon = searchResultsState.sortOrder === 'asc' ? ' <i class="fas fa-arrow-up text-blue-500 text-[9px]"></i>' : ' <i class="fas fa-arrow-down text-blue-500 text-[9px]"></i>';
+                        } else {
+                            sortIcon = ' <i class="fas fa-sort text-gray-300 text-[9px]"></i>';
+                        }
                     }
-                    theadHTML += '<th class="px-2 py-1.5 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide cursor-pointer hover:bg-gray-100 whitespace-nowrap select-none"' + (def.reso ? ' data-reso-field="' + def.reso + '"' : '') + ' onclick="toggleColumnSort(\'' + colId + '\')">' + def.label + sortIcon + '</th>';
+                    theadHTML += '<th class="px-2 py-1.5 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap select-none'
+                        + (sortable ? ' cursor-pointer hover:bg-gray-100' : '') + '"'
+                        + (def.reso ? ' data-reso-field="' + def.reso + '"' : '')
+                        + (sortable ? ' data-sortable="1" onclick="toggleColumnSort(\'' + colId + '\')"' : '')
+                        + '>' + def.label + sortIcon + '</th>';
                 });
                 theadHTML += '<th class="px-1.5 py-1.5 w-16 text-right"><button onclick="openGridLayoutsModal()" class="p-1 hover:bg-gray-200 rounded text-gray-400" title="Customize columns"><i class="fas fa-sliders-h text-xs"></i></button></th>';
                 theadHTML += '</tr></thead>';
@@ -34,17 +44,35 @@
                 } else {
                     listings.forEach(function(listing) {
                         try {
-                            // Ensure required fields have safe defaults
-                            if (listing.price == null) listing.price = 0;
-                            if (listing.totalMonthly == null) listing.totalMonthly = 0;
-                            if (listing.beds == null) listing.beds = 0;
-                            if (listing.baths == null) listing.baths = 0;
+                            // Presentation defaults ONLY where a renderer needs a string.
+                            //
+                            // `listing.status` is NOT defaulted. This row is the shared object the gallery,
+                            // the detail drawer, print, email and every report also read, and the line that
+                            // used to sit here — `if (!listing.status) listing.status = 'ACTIVE';` — WROTE a
+                            // fabricated Active onto it. A blank status is an unknown or off-market row; the
+                            // status authority renders it as "Status unavailable" (fail closed), and no
+                            // renderer may turn it into live inventory.
+                            // NO NUMERIC WRITE HERE. These two lines used to read
+                            //     an is-null test on price that assigned zero
+                            //     and the same for beds
+                            // and they did not merely display a zero - they PERSISTED one. The array copy in
+                            // render-dispatcher.js:81 is a .slice(), so the elements are the same object
+                            // identities held by searchResultsState.filteredListings and by the global
+                            // `listings`. Rendering the grid once rewrote the model that the detail drawer,
+                            // the map, Compare, the CMA, every report and the calculators read afterwards -
+                            // and an unknown price became a real $0 for the rest of the session.
+                            //
+                            // It is the same defect, and the same fix, as the fabricated status the comment
+                            // above describes. A renderer presents the row it is given.
+                            // Presentation of an absent value belongs in the column renderers, which already
+                            // guard it (render-gallery.js:42 `listing.price == null ? '—'`).
                             if (!listing.address) listing.address = 'Address Unavailable';
-                            if (!listing.status) listing.status = 'ACTIVE';
-                            if (!listing.permissions) listing.permissions = {};
+                            // No permissions placeholder. An empty object made every later `=== true`
+                            // gate read undefined, i.e. permissive. Every reader here is already guarded
+                            // with `listing.permissions && …`, so an absent object stays visible as absent.
 
                             var selected = searchResultsState.selectedListings.includes(listing.id);
-                            tbodyHTML += '<tr class="hover:bg-gray-50 transition-colors ' + (selected ? 'bg-blue-50' : '') + '" data-reso-field="SourceSystemKey" data-reso-value="' + (listing.wid || listing.lid || listing.id) + '" data-listing-id="' + listing.id + '" data-source="REBNY-RLS" onclick="openListingInNewTab(\'' + listing.id + '\'); if (typeof isResultsMapOpen === \'function\' && isResultsMapOpen()) { if (typeof panToListing === \'function\') panToListing(\'' + listing.id + '\'); }" style="cursor:pointer;">';
+                            tbodyHTML += '<tr class="hover:bg-gray-50 transition-colors ' + (selected ? 'bg-blue-50' : '') + '" data-reso-field="SourceSystemKey" data-reso-value="' + (listing.wid || listing.lid || listing.id) + '" data-listing-id="' + listing.id + '" data-source="' + (listing._source === 'mallan' ? 'MALLAN-LOCAL' : 'COTALITY-API') + '" onclick="openListingInNewTab(\'' + listing.id + '\'); if (typeof isResultsMapOpen === \'function\' && isResultsMapOpen()) { if (typeof panToListing === \'function\') panToListing(\'' + listing.id + '\'); }" style="cursor:pointer;">';
                             tbodyHTML += '<td class="px-2 py-1.5 w-8"><input type="checkbox" class="w-3.5 h-3.5" ' + (selected ? 'checked' : '') + ' onclick="event.stopPropagation(); toggleListingSelection(\'' + listing.id + '\')"></td>';
                             tbodyHTML += '<td class="px-1.5 py-1.5 w-10">';
                             if (listing.priceChange === 'down') tbodyHTML += '<span class="inline-flex items-center justify-center w-5 h-5 bg-orange-100 text-orange-600 rounded text-[10px]"><i class="fas fa-arrow-down"></i></span>';
@@ -61,7 +89,6 @@
                                 }
                             });
                             tbodyHTML += '<td class="px-1.5 py-1.5"><div class="flex items-center gap-0.5">';
-                            tbodyHTML += (typeof clientFeedbackIcons === 'function') ? clientFeedbackIcons(listing) : '';
                             tbodyHTML += '<button class="p-0.5 hover:bg-gray-100 rounded text-gray-400" title="Info" onclick="event.stopPropagation();"><i class="fas fa-info-circle text-[11px]"></i></button>';
                             tbodyHTML += '<button class="p-0.5 hover:bg-gray-100 rounded text-gray-400" title="Add to set" onclick="event.stopPropagation();"><i class="fas fa-folder-plus text-[11px]"></i></button>';
                             tbodyHTML += '</div></td>';

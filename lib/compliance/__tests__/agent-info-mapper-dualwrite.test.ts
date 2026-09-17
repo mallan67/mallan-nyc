@@ -21,6 +21,9 @@ function mapRow() {
     ListingId: "RLS-A2-1",
     ListingKey: "RLS-A2-1",
     StandardStatus: "Active",
+    PropertyType: "Residential",
+    ListPrice: 1000000,
+    ModificationTimestamp: "2026-09-01T00:00:00Z",
     ListAgentFullName: "Jane Doe",
     ListOfficeName: "Acme Realty",
     ListAgentEmail: "jane@acme.com",
@@ -69,6 +72,7 @@ describe("Phase A2 — Trestle mapper dual-writes typed agent columns", () => {
   it("missing source values yield null typed columns (nullable, no empty strings)", () => {
     const out = mapTrestleToPrisma({
       ListingId: "RLS-A2-2", ListingKey: "RLS-A2-2", StandardStatus: "Active",
+      PropertyType: "Residential", ListPrice: 1000000, ModificationTimestamp: "2026-09-01T00:00:00Z",
       ListAgentFullName: "Solo Agent", ListOfficeName: "Solo Office",
     } as unknown as Record<string, unknown>) as Record<string, unknown>;
     expect(out.list_agent_full_name).toBe("Solo Agent");

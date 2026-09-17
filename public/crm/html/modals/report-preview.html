@@ -22,7 +22,7 @@
                     <i class="fas fa-paper-plane"></i> Send to Client
                 </button>
                 <button onclick="printReportFromPreview()" class="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 flex items-center gap-2">
-                    <i class="fas fa-print"></i> Print/PDF
+                    <i class="fas fa-print"></i> Print / Save as PDF
                 </button>
                 <button onclick="closeReportPreview()" class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20" aria-label="Close">
                     <i class="fas fa-times"></i>
@@ -239,7 +239,14 @@
                                 </div>
                                 <div>
                                     <p class="font-semibold text-gray-900" id="reportPreviewAgentName">--</p>
-                                    <p class="text-sm text-gray-600" id="reportPreviewAgentTitle">Licensed Real Estate Broker</p>
+                                    <!-- The regulated professional designation. Nothing
+                                         in public/crm/** ever assigns this element, so
+                                         the hardcoded text WAS the final rendered value
+                                         for every agent, always — an unconditional
+                                         principal-broker claim on the report preview.
+                                         Left empty by design: an unresolved licence
+                                         class shows nothing. -->
+                                    <p class="text-sm text-gray-600" id="reportPreviewAgentTitle"></p>
                                     <p class="text-sm text-gray-500" id="reportPreviewAgentContact">--</p>
                                 </div>
                             </div>

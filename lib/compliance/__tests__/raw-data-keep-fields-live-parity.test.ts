@@ -1,5 +1,4 @@
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { contractNames } from '../../../tests/runtime/cotality-contract-facts';
 import {
   RAW_DATA_KEEP_FIELDS,
   RAW_DATA_KEEP_SET,
@@ -12,7 +11,7 @@ import {
  * Cotality/Trestle feed. Keeping a phantom is harmless for storage (the feed
  * never returns it) but it is a stale-truth landmine: future readers assume the
  * field is real, and `trestle:audit-server` flags it. The single source of field
- * truth is the live `$metadata` (captured in artifacts/metadata.xml); static
+ * truth is the live Cotality contract (committed at data/cotality-contract/**); static
  * snapshots/docs are not authoritative.
  *
  * Still phantom (kept out): MoveInCostsAmountTotal, FirstShowingDate — neither is
@@ -27,13 +26,7 @@ import {
  * scripts/audit-server-trestle-coverage.ts — the live-audit source of truth.
  */
 describe('RAW_DATA_KEEP_FIELDS live-parity (no phantom Cotality fields kept)', () => {
-  const xml = readFileSync(
-    resolve(__dirname, '../../../artifacts/metadata.xml'),
-    'utf-8'
-  );
-  const liveNames = new Set(
-    [...xml.matchAll(/Name="([A-Za-z0-9_]+)"/g)].map((m) => m[1])
-  );
+  const liveNames = contractNames(); // every name the committed live contract declares
 
   // Known phantoms / forbidden field names per the live server-coverage audit.
   // NOTE: MoveInCostsComments is NO LONGER here — it went live (Property field)
@@ -51,7 +44,7 @@ describe('RAW_DATA_KEEP_FIELDS live-parity (no phantom Cotality fields kept)', (
     'ResourceRecordID',
   ];
 
-  it('artifacts/metadata.xml parsed and non-empty', () => {
+  it('the committed live contract parsed and non-empty', () => {
     expect(liveNames.size).toBeGreaterThan(500);
   });
 

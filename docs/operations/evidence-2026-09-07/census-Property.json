@@ -1,0 +1,6823 @@
+{
+  "_provenance": {
+    "resource": "Property",
+    "corpusRows": 591566,
+    "method": "OData $count over the FULL corpus per field — not sampled",
+    "source": "https://api.cotality.com/trestle/odata/Property"
+  },
+  "fields": [
+    {
+      "field": "AboveGradeFinishedArea",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "AboveGradeFinishedAreaSource",
+      "type": "AreaSource",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "AboveGradeFinishedAreaUnits",
+      "type": "AreaUnits",
+      "populated": 76,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "AboveGradeUnfinishedArea",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "AboveGradeUnfinishedAreaSource",
+      "type": "AreaSource",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "AboveGradeUnfinishedAreaUnits",
+      "type": "AreaUnits",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "AccessCode",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "AccessibilityFeatures",
+      "type": "AccessibilityFeatures",
+      "populated": 4802,
+      "pct": 0.8,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ActivationDate",
+      "type": "Date",
+      "populated": 46064,
+      "pct": 7.8,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "AdditionalParcelsDescription",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "AdditionalParcelsYN",
+      "type": "Boolean",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "AnchorsCoTenants",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "Appliances",
+      "type": "Appliances",
+      "populated": 202109,
+      "pct": 34.2,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ArchitecturalStyle",
+      "type": "ArchitecturalStyle",
+      "populated": 248756,
+      "pct": 42.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "AssociationAmenities",
+      "type": "AssociationAmenities",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "AssociationFee",
+      "type": "Decimal",
+      "populated": 243741,
+      "pct": 41.2,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "AssociationFee2",
+      "type": "Decimal",
+      "populated": 61,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "AssociationFee2Frequency",
+      "type": "FeeFrequency",
+      "populated": 178,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "AssociationFee3",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "AssociationFee3Frequency",
+      "type": "FeeFrequency",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "AssociationFeeFrequency",
+      "type": "FeeFrequency",
+      "populated": 81845,
+      "pct": 13.8,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "AssociationFeeIncludes",
+      "type": "AssociationFeeIncludes",
+      "populated": 4551,
+      "pct": 0.8,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "AssociationName",
+      "type": "String",
+      "populated": 201,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "AssociationName2",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "AssociationName3",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "AssociationPhone",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "AssociationPhone2",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "AssociationPhone3",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "AssociationYN",
+      "type": "Boolean",
+      "populated": 40141,
+      "pct": 6.8,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "AttachedGarageYN",
+      "type": "Boolean",
+      "populated": 21356,
+      "pct": 3.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "AttributionContact",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "AvailabilityDate",
+      "type": "Date",
+      "populated": 373035,
+      "pct": 63.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "AvailableLeaseType",
+      "type": "ExistingLeaseType",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "BackOnMarketDate",
+      "type": "Date",
+      "populated": 4347,
+      "pct": 0.7,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "BackOnMarketTimestamp",
+      "type": "DateTimeOffset",
+      "populated": 4346,
+      "pct": 0.7,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "Basement",
+      "type": "Basement",
+      "populated": 59643,
+      "pct": 10.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "BasementYN",
+      "type": "Boolean",
+      "populated": 65214,
+      "pct": 11,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "BathroomsFull",
+      "type": "Int32",
+      "populated": 481441,
+      "pct": 81.4,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "BathroomsHalf",
+      "type": "Int32",
+      "populated": 409724,
+      "pct": 69.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "BathroomsOneQuarter",
+      "type": "Int32",
+      "populated": 323,
+      "pct": 0.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "BathroomsPartial",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "BathroomsThreeQuarter",
+      "type": "Int32",
+      "populated": 258,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "BathroomsTotalInteger",
+      "type": "Int32",
+      "populated": 587643,
+      "pct": 99.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "BedroomsPossible",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "BedroomsTotal",
+      "type": "Int32",
+      "populated": 587696,
+      "pct": 99.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "BelowGradeFinishedArea",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "BelowGradeFinishedAreaSource",
+      "type": "AreaSource",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "BelowGradeFinishedAreaUnits",
+      "type": "AreaUnits",
+      "populated": 16,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "BelowGradeUnfinishedArea",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "BelowGradeUnfinishedAreaSource",
+      "type": "AreaSource",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "BelowGradeUnfinishedAreaUnits",
+      "type": "AreaUnits",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "BodyType",
+      "type": "BodyType",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "BuilderModel",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "BuilderName",
+      "type": "String",
+      "populated": 80,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "BuildingAreaSource",
+      "type": "AreaSource",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "BuildingAreaTotal",
+      "type": "Decimal",
+      "populated": 15000,
+      "pct": 2.5,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "BuildingAreaUnits",
+      "type": "AreaUnits",
+      "populated": 12671,
+      "pct": 2.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "BuildingFeatures",
+      "type": "BuildingFeatures",
+      "populated": 65845,
+      "pct": 11.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "BuildingKey",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "BuildingKeyNumeric",
+      "type": "Int64",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "BuildingName",
+      "type": "String",
+      "populated": 221121,
+      "pct": 37.4,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "BusinessName",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "BusinessType",
+      "type": "BusinessType",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "BuyerAgentAOR",
+      "type": "AOR",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentDesignation",
+      "type": "BuyerAgentDesignation",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentDirectPhone",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentEmail",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentFax",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentFirstName",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentFullName",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentHomePhone",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "BuyerAgentKey",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentKeyNumeric",
+      "type": "Int64",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentLastName",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentMiddleName",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentMlsId",
+      "type": "String",
+      "populated": 100102,
+      "pct": 16.9,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "BuyerAgentMobilePhone",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "BuyerAgentNamePrefix",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentNameSuffix",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentNationalAssociationId",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentOfficePhone",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentOfficePhoneExt",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentPager",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentPreferredPhone",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentPreferredPhoneExt",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentStateLicense",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentTollFreePhone",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentURL",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentVoiceMail",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerAgentVoiceMailExt",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerBrokerageCompensation",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerBrokerageCompensationType",
+      "type": "CompensationType",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerFinancing",
+      "type": "BuyerFinancing",
+      "populated": 184,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "BuyerOfficeAOR",
+      "type": "AOR",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerOfficeEmail",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerOfficeFax",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerOfficeKey",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerOfficeKeyNumeric",
+      "type": "Int64",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerOfficeMlsId",
+      "type": "String",
+      "populated": 100453,
+      "pct": 17,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "BuyerOfficeName",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerOfficeNationalAssociationId",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerOfficePhone",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerOfficePhoneExt",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerOfficeURL",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerTeamKey",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "BuyerTeamKeyNumeric",
+      "type": "Int64",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "BuyerTeamMlsId",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "BuyerTeamName",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CableTvExpense",
+      "type": "Decimal",
+      "populated": 8,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CancellationDate",
+      "type": "Date",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "CapRate",
+      "type": "Decimal",
+      "populated": 45,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CarportSpaces",
+      "type": "Decimal",
+      "populated": 5,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CarportYN",
+      "type": "Boolean",
+      "populated": 144,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CarrierRoute",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "City",
+      "type": "String",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CityRegion",
+      "type": "String",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CLIP",
+      "type": "Int64",
+      "populated": 539456,
+      "pct": 91.2,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CloseDate",
+      "type": "Date",
+      "populated": 578407,
+      "pct": 97.8,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ClosePrice",
+      "type": "Decimal",
+      "populated": 508921,
+      "pct": 86,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoBuyerAgentAOR",
+      "type": "AOR",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentDesignation",
+      "type": "CoBuyerAgentDesignation",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentDirectPhone",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentEmail",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentFax",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentFirstName",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentFullName",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentHomePhone",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "CoBuyerAgentKey",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentKeyNumeric",
+      "type": "Int64",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentLastName",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentMiddleName",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentMlsId",
+      "type": "String",
+      "populated": 3168,
+      "pct": 0.5,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoBuyerAgentMobilePhone",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "CoBuyerAgentNamePrefix",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentNameSuffix",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentNationalAssociationId",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentOfficePhone",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentOfficePhoneExt",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentPager",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentPreferredPhone",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentPreferredPhoneExt",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentStateLicense",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentTollFreePhone",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentURL",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentVoiceMail",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerAgentVoiceMailExt",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerOfficeAOR",
+      "type": "AOR",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerOfficeEmail",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerOfficeFax",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerOfficeKey",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerOfficeKeyNumeric",
+      "type": "Int64",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerOfficeMlsId",
+      "type": "String",
+      "populated": 3173,
+      "pct": 0.5,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoBuyerOfficeName",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerOfficeNationalAssociationId",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerOfficePhone",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerOfficePhoneExt",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoBuyerOfficeURL",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoListAgent2AOR",
+      "type": "AOR",
+      "populated": 50817,
+      "pct": 8.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent2DirectPhone",
+      "type": "String",
+      "populated": 50825,
+      "pct": 8.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent2Email",
+      "type": "String",
+      "populated": 50910,
+      "pct": 8.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent2FirstName",
+      "type": "String",
+      "populated": 50925,
+      "pct": 8.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent2FullName",
+      "type": "String",
+      "populated": 50989,
+      "pct": 8.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent2HomePhone",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CoListAgent2Key",
+      "type": "String",
+      "populated": 50988,
+      "pct": 8.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent2LastName",
+      "type": "String",
+      "populated": 50925,
+      "pct": 8.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent2MiddleName",
+      "type": "String",
+      "populated": 19071,
+      "pct": 3.2,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent2MlsId",
+      "type": "String",
+      "populated": 51228,
+      "pct": 8.7,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent2MobilePhone",
+      "type": "String",
+      "populated": 48778,
+      "pct": 8.2,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent2NationalAssociationId",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CoListAgent2Nickname",
+      "type": "String",
+      "populated": 50672,
+      "pct": 8.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent2OfficePhone",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CoListAgent2PreferredPhone",
+      "type": "String",
+      "populated": 50773,
+      "pct": 8.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent2StateLicense",
+      "type": "String",
+      "populated": 50691,
+      "pct": 8.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent2URL",
+      "type": "String",
+      "populated": 3861,
+      "pct": 0.7,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent3AOR",
+      "type": "AOR",
+      "populated": 7867,
+      "pct": 1.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent3DirectPhone",
+      "type": "String",
+      "populated": 7960,
+      "pct": 1.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent3Email",
+      "type": "String",
+      "populated": 7985,
+      "pct": 1.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent3FirstName",
+      "type": "String",
+      "populated": 7955,
+      "pct": 1.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent3FullName",
+      "type": "String",
+      "populated": 7991,
+      "pct": 1.4,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent3HomePhone",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CoListAgent3Key",
+      "type": "String",
+      "populated": 7991,
+      "pct": 1.4,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent3LastName",
+      "type": "String",
+      "populated": 7955,
+      "pct": 1.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent3MiddleName",
+      "type": "String",
+      "populated": 3099,
+      "pct": 0.5,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent3MlsId",
+      "type": "String",
+      "populated": 7992,
+      "pct": 1.4,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent3MobilePhone",
+      "type": "String",
+      "populated": 7491,
+      "pct": 1.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent3NationalAssociationId",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CoListAgent3Nickname",
+      "type": "String",
+      "populated": 7827,
+      "pct": 1.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent3OfficePhone",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CoListAgent3PreferredPhone",
+      "type": "String",
+      "populated": 7935,
+      "pct": 1.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent3StateLicense",
+      "type": "String",
+      "populated": 7878,
+      "pct": 1.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgent3URL",
+      "type": "String",
+      "populated": 716,
+      "pct": 0.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgentAOR",
+      "type": "AOR",
+      "populated": 207348,
+      "pct": 35.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgentDesignation",
+      "type": "CoListAgentDesignation",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CoListAgentDirectPhone",
+      "type": "String",
+      "populated": 206719,
+      "pct": 34.9,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgentEmail",
+      "type": "String",
+      "populated": 208254,
+      "pct": 35.2,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgentFax",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CoListAgentFirstName",
+      "type": "String",
+      "populated": 207335,
+      "pct": 35,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgentFullName",
+      "type": "String",
+      "populated": 208254,
+      "pct": 35.2,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgentHomePhone",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "CoListAgentKey",
+      "type": "String",
+      "populated": 207381,
+      "pct": 35.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgentKeyNumeric",
+      "type": "Int64",
+      "populated": 207381,
+      "pct": 35.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgentLastName",
+      "type": "String",
+      "populated": 207340,
+      "pct": 35,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgentMiddleName",
+      "type": "String",
+      "populated": 84942,
+      "pct": 14.4,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgentMlsId",
+      "type": "String",
+      "populated": 208003,
+      "pct": 35.2,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgentMobilePhone",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "CoListAgentNamePrefix",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CoListAgentNameSuffix",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CoListAgentNationalAssociationId",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CoListAgentNickname",
+      "type": "String",
+      "populated": 206935,
+      "pct": 35,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgentOfficePhone",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CoListAgentOfficePhoneExt",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CoListAgentPager",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CoListAgentPreferredPhone",
+      "type": "String",
+      "populated": 206447,
+      "pct": 34.9,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListAgentPreferredPhoneExt",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CoListAgentStateLicense",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoListAgentTollFreePhone",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CoListAgentURL",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoListAgentVoiceMail",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CoListAgentVoiceMailExt",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CoListOffice2AOR",
+      "type": "AOR",
+      "populated": 50880,
+      "pct": 8.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListOffice2Email",
+      "type": "String",
+      "populated": 6409,
+      "pct": 1.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListOffice2Key",
+      "type": "String",
+      "populated": 50988,
+      "pct": 8.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListOffice2MlsId",
+      "type": "String",
+      "populated": 50988,
+      "pct": 8.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListOffice2Name",
+      "type": "String",
+      "populated": 50988,
+      "pct": 8.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListOffice2Phone",
+      "type": "String",
+      "populated": 50921,
+      "pct": 8.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListOffice2URL",
+      "type": "String",
+      "populated": 48795,
+      "pct": 8.2,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListOfficeAOR",
+      "type": "AOR",
+      "populated": 207169,
+      "pct": 35,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListOfficeEmail",
+      "type": "String",
+      "populated": 21680,
+      "pct": 3.7,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListOfficeFax",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CoListOfficeKey",
+      "type": "String",
+      "populated": 207381,
+      "pct": 35.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListOfficeKeyNumeric",
+      "type": "Int64",
+      "populated": 207381,
+      "pct": 35.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListOfficeMlsId",
+      "type": "String",
+      "populated": 207381,
+      "pct": 35.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListOfficeName",
+      "type": "String",
+      "populated": 207381,
+      "pct": 35.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListOfficeNationalAssociationId",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CoListOfficePhone",
+      "type": "String",
+      "populated": 207228,
+      "pct": 35,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoListOfficePhoneExt",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CoListOfficeURL",
+      "type": "String",
+      "populated": 199731,
+      "pct": 33.8,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CommonInterest",
+      "type": "CommonInterest",
+      "populated": 435232,
+      "pct": 73.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CommonWalls",
+      "type": "CommonWalls",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CommunityFeatures",
+      "type": "CommunityFeatures",
+      "populated": 5997,
+      "pct": 1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CompensationComments",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CompSaleYN",
+      "type": "Boolean",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ConcessionInPrice",
+      "type": "Decimal",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "ConcessionInPriceType",
+      "type": "ConcessionInPriceType",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "Concessions",
+      "type": "Concessions",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "ConcessionsAmount",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "ConcessionsBuyerBrokerFee",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "ConcessionsClosingCosts",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "ConcessionsComments",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "ConcessionsFinancingCosts",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "ConcessionsOtherCosts",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "ConcessionsPropertyImprovementCosts",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "ConstructionMaterials",
+      "type": "ConstructionMaterials",
+      "populated": 45,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ContinentRegion",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "Contingency",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ContingentDate",
+      "type": "Date",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ContractStatusChangeDate",
+      "type": "Date",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "Cooling",
+      "type": "Cooling",
+      "populated": 205132,
+      "pct": 34.7,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoolingYN",
+      "type": "Boolean",
+      "populated": 233845,
+      "pct": 39.5,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CopyrightNotice",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "Country",
+      "type": "Country",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CountryRegion",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CountrySubdivision",
+      "type": "String",
+      "populated": 591542,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CountyOrParish",
+      "type": "String",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CoveredSpaces",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CropsIncludedYN",
+      "type": "Boolean",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CrossStreet",
+      "type": "String",
+      "populated": 396740,
+      "pct": 67.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CultivatedArea",
+      "type": "Decimal",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CumulativeDaysOnMarket",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "CurrentFinancing",
+      "type": "CurrentFinancing",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "CurrentPrice",
+      "type": "Decimal",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "CurrentUse",
+      "type": "CurrentOrPossibleUse",
+      "populated": 787,
+      "pct": 0.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "DaysOnMarket",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DaysOnMarketReplication",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DaysOnMarketReplicationDate",
+      "type": "Date",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DaysOnMarketReplicationIncreasingYN",
+      "type": "Boolean",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DelayedMarketingDate",
+      "type": "Date",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "DelayedMarketingYN",
+      "type": "Boolean",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "DevelopmentStatus",
+      "type": "DevelopmentStatus",
+      "populated": 463,
+      "pct": 0.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "DirectionFaces",
+      "type": "DirectionFaces",
+      "populated": 1382,
+      "pct": 0.2,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "Directions",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "Disclaimer",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "Disclosures",
+      "type": "Disclosures",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToBusComments",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToBusNumeric",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToBusUnits",
+      "type": "LinearUnits",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToElectricComments",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToElectricNumeric",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToElectricUnits",
+      "type": "LinearUnits",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToFreewayComments",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToFreewayNumeric",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToFreewayUnits",
+      "type": "LinearUnits",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToGasComments",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToGasNumeric",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToGasUnits",
+      "type": "LinearUnits",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToPhoneServiceComments",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToPhoneServiceNumeric",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToPhoneServiceUnits",
+      "type": "LinearUnits",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToPlaceofWorshipComments",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToPlaceofWorshipNumeric",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToPlaceofWorshipUnits",
+      "type": "LinearUnits",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToSchoolBusComments",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToSchoolBusNumeric",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToSchoolBusUnits",
+      "type": "LinearUnits",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToSchoolsComments",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToSchoolsNumeric",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToSchoolsUnits",
+      "type": "LinearUnits",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToSewerComments",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToSewerNumeric",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToSewerUnits",
+      "type": "LinearUnits",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToShoppingComments",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToShoppingNumeric",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToShoppingUnits",
+      "type": "LinearUnits",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToStreetComments",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToStreetNumeric",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToStreetUnits",
+      "type": "LinearUnits",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToWaterComments",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToWaterNumeric",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DistanceToWaterUnits",
+      "type": "LinearUnits",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "DocumentsAvailable",
+      "type": "DocumentsAvailable",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "DocumentsChangeTimestamp",
+      "type": "DateTimeOffset",
+      "populated": 366140,
+      "pct": 61.9,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "DocumentsCount",
+      "type": "Int32",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "DOH1",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "DOH2",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "DOH3",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "DoorFeatures",
+      "type": "DoorFeatures",
+      "populated": 32,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "DownPaymentAssistanceAmount",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "DownPaymentAssistanceCount",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "DownPaymentAssistanceYN",
+      "type": "Boolean",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "DualOrVariableRateCommissionYN",
+      "type": "Boolean",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "Electric",
+      "type": "Electric",
+      "populated": 10,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ElectricExpense",
+      "type": "Decimal",
+      "populated": 8,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ElectricOnPropertyYN",
+      "type": "Boolean",
+      "populated": 118,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ElementarySchool",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ElementarySchoolDistrict",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "Elevation",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ElevationUnits",
+      "type": "LinearUnits",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "EntryLevel",
+      "type": "Int32",
+      "populated": 424381,
+      "pct": 71.7,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "EntryLocation",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "EstimatedCloseDate",
+      "type": "Date",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "Exclusions",
+      "type": "String",
+      "populated": 111787,
+      "pct": 18.9,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ExistingLeaseType",
+      "type": "ExistingLeaseType",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ExpirationDate",
+      "type": "Date",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "Exposures",
+      "type": "Exposures",
+      "populated": 338253,
+      "pct": 57.2,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ExteriorFeatures",
+      "type": "ExteriorFeatures",
+      "populated": 238891,
+      "pct": 40.4,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "FarmCreditServiceInclYN",
+      "type": "Boolean",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "FarmLandAreaSource",
+      "type": "AreaSource",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "FarmLandAreaUnits",
+      "type": "AreaUnits",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "Fencing",
+      "type": "Fencing",
+      "populated": 44,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "FhaEligibility",
+      "type": "FhaEligibility",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "FinancialDataSource",
+      "type": "FinancialDataSource",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "FireplaceFeatures",
+      "type": "FireplaceFeatures",
+      "populated": 18573,
+      "pct": 3.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "FireplacesTotal",
+      "type": "Int32",
+      "populated": 29148,
+      "pct": 4.9,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "FireplaceYN",
+      "type": "Boolean",
+      "populated": 96593,
+      "pct": 16.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "Flooring",
+      "type": "Flooring",
+      "populated": 25846,
+      "pct": 4.4,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "FloorPlansChangeTimestamp",
+      "type": "DateTimeOffset",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "FloorPlansCount",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "FoundationArea",
+      "type": "Decimal",
+      "populated": 802,
+      "pct": 0.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "FoundationDetails",
+      "type": "FoundationDetails",
+      "populated": 13,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "FrontageLength",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "FrontageLengthRemarks",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "FrontageLengthUnit",
+      "type": "FrontageLengthUnit",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "FrontageType",
+      "type": "FrontageType",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "FuelExpense",
+      "type": "Decimal",
+      "populated": 8,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "Furnished",
+      "type": "Furnished",
+      "populated": 95064,
+      "pct": 16.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "FurnitureReplacementExpense",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "GarageSpaces",
+      "type": "Decimal",
+      "populated": 66642,
+      "pct": 11.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "GarageYN",
+      "type": "Boolean",
+      "populated": 547179,
+      "pct": 92.5,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "GardenerExpense",
+      "type": "Decimal",
+      "populated": 8,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "GrazingPermitsBlmYN",
+      "type": "Boolean",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "GrazingPermitsForestServiceYN",
+      "type": "Boolean",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "GrazingPermitsPrivateYN",
+      "type": "Boolean",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "GreenBuildingVerificationType",
+      "type": "GreenBuildingVerificationType",
+      "populated": 5,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "GreenEnergyEfficient",
+      "type": "GreenEnergyEfficient",
+      "populated": 416,
+      "pct": 0.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "GreenEnergyGeneration",
+      "type": "GreenEnergyGeneration",
+      "populated": 2,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "GreenIndoorAirQuality",
+      "type": "GreenIndoorAirQuality",
+      "populated": 1,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "GreenLocation",
+      "type": "GreenLocation",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "GreenSustainability",
+      "type": "GreenSustainability",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "GreenVerificationYN",
+      "type": "Boolean",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "GreenWaterConservation",
+      "type": "GreenWaterConservation",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "GrossIncome",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "GrossScheduledIncome",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "HabitableResidenceYN",
+      "type": "Boolean",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "HeadBrokerMemberKey",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "HeadBrokerMemberMlsId",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "Heating",
+      "type": "Heating",
+      "populated": 22914,
+      "pct": 3.9,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "HeatingYN",
+      "type": "Boolean",
+      "populated": 38453,
+      "pct": 6.5,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "HighSchool",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "HighSchoolDistrict",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "HomeWarrantyYN",
+      "type": "Boolean",
+      "populated": 6,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "HorseAmenities",
+      "type": "HorseAmenities",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "HorseYN",
+      "type": "Boolean",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "HoursDaysOfOperation",
+      "type": "HoursDaysOfOperation",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "HoursDaysOfOperationDescription",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "HumanModifiedYN",
+      "type": "Boolean",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "Inclusions",
+      "type": "String",
+      "populated": 111869,
+      "pct": 18.9,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "IncomeIncludes",
+      "type": "IncomeIncludes",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "InsuranceExpense",
+      "type": "Decimal",
+      "populated": 8,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "InteriorFeatures",
+      "type": "InteriorOrRoomFeatures",
+      "populated": 144411,
+      "pct": 24.4,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "InternetAddressDisplayYN",
+      "type": "Boolean",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "InternetAutomatedValuationDisplayYN",
+      "type": "Boolean",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "InternetConsumerCommentYN",
+      "type": "Boolean",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "InternetEntireListingDisplayYN",
+      "type": "Boolean",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "IrrigationSource",
+      "type": "IrrigationSource",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "IrrigationWaterRightsAcres",
+      "type": "Decimal",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "IrrigationWaterRightsYN",
+      "type": "Boolean",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "LaborInformation",
+      "type": "LaborInformation",
+      "populated": 5,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "LandLeaseAmount",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "LandLeaseAmountFrequency",
+      "type": "FeeFrequency",
+      "populated": 1,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "LandLeaseExpirationDate",
+      "type": "Date",
+      "populated": 325,
+      "pct": 0.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "LandLeaseYN",
+      "type": "Boolean",
+      "populated": 70028,
+      "pct": 11.8,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "Latitude",
+      "type": "Decimal",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "LaundryFeatures",
+      "type": "LaundryFeatures",
+      "populated": 393287,
+      "pct": 66.5,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "LeasableArea",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "LeasableAreaUnits",
+      "type": "AreaUnits",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "LeaseAmount",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "LeaseAmountFrequency",
+      "type": "FeeFrequency",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "LeaseAssignableYN",
+      "type": "Boolean",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "LeaseConsideredYN",
+      "type": "Boolean",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "LeaseExpiration",
+      "type": "Date",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "LeaseRenewalCompensation",
+      "type": "LeaseRenewalCompensation",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "LeaseRenewalOptionYN",
+      "type": "Boolean",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "LeaseTerm",
+      "type": "LeaseTerm",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "LeaseTermOptions",
+      "type": "LeaseTerm",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "Levels",
+      "type": "Levels",
+      "populated": 5746,
+      "pct": 1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "License1",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "License2",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "License3",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "LicensesExpense",
+      "type": "Decimal",
+      "populated": 8,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListAgentAOR",
+      "type": "AOR",
+      "populated": 585876,
+      "pct": 99,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListAgentDesignation",
+      "type": "ListAgentDesignation",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListAgentDirectPhone",
+      "type": "String",
+      "populated": 580188,
+      "pct": 98.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListAgentEmail",
+      "type": "String",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListAgentFax",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListAgentFirstName",
+      "type": "String",
+      "populated": 585916,
+      "pct": 99,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListAgentFullName",
+      "type": "String",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListAgentHomePhone",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "ListAgentKey",
+      "type": "String",
+      "populated": 587274,
+      "pct": 99.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListAgentKeyNumeric",
+      "type": "Int64",
+      "populated": 587274,
+      "pct": 99.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListAgentLastName",
+      "type": "String",
+      "populated": 585939,
+      "pct": 99,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListAgentMiddleName",
+      "type": "String",
+      "populated": 250615,
+      "pct": 42.4,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListAgentMlsId",
+      "type": "String",
+      "populated": 591156,
+      "pct": 99.9,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListAgentMobilePhone",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "ListAgentNamePrefix",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListAgentNameSuffix",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListAgentNationalAssociationId",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListAgentNickname",
+      "type": "String",
+      "populated": 585598,
+      "pct": 99,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListAgentOfficePhone",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListAgentOfficePhoneExt",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListAgentPager",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListAgentPreferredPhone",
+      "type": "String",
+      "populated": 578538,
+      "pct": 97.8,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListAgentPreferredPhoneExt",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListAgentStateLicense",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "ListAgentTollFreePhone",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListAgentURL",
+      "type": "String",
+      "populated": 61115,
+      "pct": 10.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListAgentVoiceMail",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListAgentVoiceMailExt",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListAOR",
+      "type": "AOR",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListingAgreement",
+      "type": "ListingAgreement",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListingContractDate",
+      "type": "Date",
+      "populated": 581795,
+      "pct": 98.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListingId",
+      "type": "String",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListingKey",
+      "type": "String",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListingKeyNumeric",
+      "type": "Int64",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListingService",
+      "type": "ListingService",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListingTerms",
+      "type": "ListingTerms",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListingURL",
+      "type": "String",
+      "populated": 582765,
+      "pct": 98.5,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListingURLDescription",
+      "type": "ListingURLDescription",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListOfficeAOR",
+      "type": "AOR",
+      "populated": 591496,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListOfficeEmail",
+      "type": "String",
+      "populated": 52559,
+      "pct": 8.9,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListOfficeFax",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListOfficeKey",
+      "type": "String",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListOfficeKeyNumeric",
+      "type": "Int64",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListOfficeMlsId",
+      "type": "String",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListOfficeName",
+      "type": "String",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListOfficeNationalAssociationId",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListOfficePhone",
+      "type": "String",
+      "populated": 591497,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListOfficePhoneExt",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListOfficeURL",
+      "type": "String",
+      "populated": 585215,
+      "pct": 98.9,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListPrice",
+      "type": "Decimal",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ListPriceLow",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListTeamKey",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListTeamKeyNumeric",
+      "type": "Int64",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "ListTeamMlsId",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ListTeamName",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "LivingArea",
+      "type": "Decimal",
+      "populated": 417612,
+      "pct": 70.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "LivingAreaSource",
+      "type": "AreaSource",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "LivingAreaUnits",
+      "type": "AreaUnits",
+      "populated": 446882,
+      "pct": 75.5,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "LockBoxLocation",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "LockBoxSerialNumber",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "LockBoxType",
+      "type": "LockBoxType",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "Longitude",
+      "type": "Decimal",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "LotDimensionsSource",
+      "type": "LotDimensionsSource",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "LotFeatures",
+      "type": "LotFeatures",
+      "populated": 1714,
+      "pct": 0.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "LotSizeAcres",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "LotSizeArea",
+      "type": "Decimal",
+      "populated": 60023,
+      "pct": 10.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "LotSizeDimensions",
+      "type": "String",
+      "populated": 237265,
+      "pct": 40.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "LotSizeSource",
+      "type": "LotSizeSource",
+      "populated": 341,
+      "pct": 0.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "LotSizeSquareFeet",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "LotSizeUnits",
+      "type": "LotSizeUnits",
+      "populated": 35339,
+      "pct": 6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "MainLevelBathrooms",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "MainLevelBedrooms",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "MaintenanceExpense",
+      "type": "Decimal",
+      "populated": 10,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "MajorChangeTimestamp",
+      "type": "DateTimeOffset",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "MajorChangeType",
+      "type": "ChangeType",
+      "populated": 588461,
+      "pct": 99.5,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "Make",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ManagerExpense",
+      "type": "Decimal",
+      "populated": 8,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "MapCoordinate",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "MapCoordinateSource",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "MapURL",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "MaximumNumberOfPets",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "MaximumPetWeight",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "MiddleOrJuniorSchool",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "MiddleOrJuniorSchoolDistrict",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "MLSAreaMajor",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "MLSAreaMinor",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "MlsStatus",
+      "type": "MlsStatus",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "MobileDimUnits",
+      "type": "LinearUnits",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "MobileHomeRemainsYN",
+      "type": "Boolean",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "MobileLength",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "MobileWidth",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "Model",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "ModificationTimestamp",
+      "type": "DateTimeOffset",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "MoveInCosts",
+      "type": "MoveInCosts",
+      "populated": 373,
+      "pct": 0.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "MoveInCostsAmount",
+      "type": "Decimal",
+      "populated": 107,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "MoveInCostsComments",
+      "type": "String",
+      "populated": 379,
+      "pct": 0.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "NetOperatingIncome",
+      "type": "Decimal",
+      "populated": 218,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "NewConstructionYN",
+      "type": "Boolean",
+      "populated": 576549,
+      "pct": 97.5,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "NewTaxesExpense",
+      "type": "Decimal",
+      "populated": 8,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "NumberOfBuildings",
+      "type": "Int32",
+      "populated": 74,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "NumberOfFullTimeEmployees",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "NumberOfLots",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "NumberOfPads",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "NumberOfPartTimeEmployees",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "NumberOfSeparateElectricMeters",
+      "type": "Int32",
+      "populated": 9,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "NumberOfSeparateGasMeters",
+      "type": "Int32",
+      "populated": 10,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "NumberOfSeparateWaterMeters",
+      "type": "Int32",
+      "populated": 8,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "NumberOfUnitsInCommunity",
+      "type": "Int32",
+      "populated": 8,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "NumberOfUnitsLeased",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "NumberOfUnitsMoMo",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "NumberOfUnitsTotal",
+      "type": "Int32",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "NumberOfUnitsVacant",
+      "type": "Int32",
+      "populated": 7941,
+      "pct": 1.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OccupantName",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "OccupantPhone",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "OccupantType",
+      "type": "OccupantType",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "OffMarketDate",
+      "type": "Date",
+      "populated": 578860,
+      "pct": 97.9,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OffMarketTimestamp",
+      "type": "DateTimeOffset",
+      "populated": 579583,
+      "pct": 98,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OngoingFees",
+      "type": "OngoingFees",
+      "populated": 27,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OnMarketDate",
+      "type": "Date",
+      "populated": 119530,
+      "pct": 20.2,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OnMarketTimestamp",
+      "type": "DateTimeOffset",
+      "populated": 265660,
+      "pct": 44.9,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OpenHouseModificationTimestamp",
+      "type": "DateTimeOffset",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "OpenParkingSpaces",
+      "type": "Decimal",
+      "populated": 16,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OpenParkingYN",
+      "type": "Boolean",
+      "populated": 126,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OperatingExpense",
+      "type": "Decimal",
+      "populated": 8,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OperatingExpenseIncludes",
+      "type": "OperatingExpenseIncludes",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "OriginalEntryTimestamp",
+      "type": "DateTimeOffset",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OriginalListPrice",
+      "type": "Decimal",
+      "populated": 375659,
+      "pct": 63.5,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OriginatingSystemBuyerAgentMemberKey",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "OriginatingSystemBuyerOfficeKey",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "OriginatingSystemBuyerTeamKey",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "OriginatingSystemCoBuyerAgentMemberKey",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "OriginatingSystemCoBuyerOfficeKey",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "OriginatingSystemCoListAgent2MemberKey",
+      "type": "String",
+      "populated": 50992,
+      "pct": 8.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OriginatingSystemCoListAgent3MemberKey",
+      "type": "String",
+      "populated": 7991,
+      "pct": 1.4,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OriginatingSystemCoListAgentMemberKey",
+      "type": "String",
+      "populated": 207452,
+      "pct": 35.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OriginatingSystemCoListOffice2Key",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "OriginatingSystemCoListOfficeKey",
+      "type": "String",
+      "populated": 21207,
+      "pct": 3.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OriginatingSystemID",
+      "type": "String",
+      "populated": 546550,
+      "pct": 92.4,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OriginatingSystemKey",
+      "type": "String",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OriginatingSystemListAgentMemberKey",
+      "type": "String",
+      "populated": 587605,
+      "pct": 99.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OriginatingSystemListOfficeKey",
+      "type": "String",
+      "populated": 589634,
+      "pct": 99.7,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OriginatingSystemListTeamKey",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "OriginatingSystemModificationTimestamp",
+      "type": "DateTimeOffset",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OriginatingSystemName",
+      "type": "String",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OriginatingSystemSubName",
+      "type": "String",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OtherEquipment",
+      "type": "OtherEquipment",
+      "populated": 72583,
+      "pct": 12.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OtherExpense",
+      "type": "Decimal",
+      "populated": 8,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OtherParking",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "OtherStructures",
+      "type": "OtherStructures",
+      "populated": 1632,
+      "pct": 0.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OwnerName",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "OwnerName2",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "OwnerPays",
+      "type": "OwnerPays",
+      "populated": 7915,
+      "pct": 1.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "OwnerPhone",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "Ownership",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "OwnershipType",
+      "type": "OwnershipType",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ParcelNumber",
+      "type": "String",
+      "populated": 380675,
+      "pct": 64.4,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ParcelSubcomponent",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ParkingFeatures",
+      "type": "ParkingFeatures",
+      "populated": 10367,
+      "pct": 1.8,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ParkingTotal",
+      "type": "Decimal",
+      "populated": 237,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ParkManagerName",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ParkManagerPhone",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ParkName",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "PastureArea",
+      "type": "Decimal",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "PatioAndPorchFeatures",
+      "type": "PatioAndPorchFeatures",
+      "populated": 156500,
+      "pct": 26.5,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "PendingTimestamp",
+      "type": "DateTimeOffset",
+      "populated": 143217,
+      "pct": 24.2,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "Permission",
+      "type": "ListingPermission",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "PestControlExpense",
+      "type": "Decimal",
+      "populated": 8,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "PetDeposit",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "PetsAllowed",
+      "type": "PetsAllowed",
+      "populated": 586524,
+      "pct": 99.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "PetsAllowedYN",
+      "type": "Boolean",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "PetsComments",
+      "type": "String",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "PhotosChangeTimestamp",
+      "type": "DateTimeOffset",
+      "populated": 591556,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "PhotosCount",
+      "type": "Int32",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "PoolExpense",
+      "type": "Decimal",
+      "populated": 8,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "PoolFeatures",
+      "type": "PoolFeatures",
+      "populated": 10650,
+      "pct": 1.8,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "PoolPrivateYN",
+      "type": "Boolean",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "Possession",
+      "type": "Possession",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "PossibleUse",
+      "type": "CurrentOrPossibleUse",
+      "populated": 1,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "PostalCity",
+      "type": "String",
+      "populated": 591023,
+      "pct": 99.9,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "PostalCode",
+      "type": "String",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "PostalCodePlus4",
+      "type": "String",
+      "populated": 545701,
+      "pct": 92.2,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "PowerProductionType",
+      "type": "PowerProductionType",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "PowerProductionYN",
+      "type": "Boolean",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "PreviousListPrice",
+      "type": "Decimal",
+      "populated": 219882,
+      "pct": 37.2,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "PreviousStandardStatus",
+      "type": "StandardStatus",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "PriceChangeTimestamp",
+      "type": "DateTimeOffset",
+      "populated": 361644,
+      "pct": 61.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "PrivateOfficeRemarks",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "PrivateRemarks",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "ProfessionalManagementExpense",
+      "type": "Decimal",
+      "populated": 8,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "PropertyAttachedYN",
+      "type": "Boolean",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "PropertyCondition",
+      "type": "PropertyCondition",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "PropertySubType",
+      "type": "PropertySubType",
+      "populated": 591550,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "PropertySubTypeAdditional",
+      "type": "PropertySubTypeAdditional",
+      "populated": 553675,
+      "pct": 93.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "PropertyType",
+      "type": "PropertyType",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "PublicRemarks",
+      "type": "String",
+      "populated": 579392,
+      "pct": 97.9,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "PublicSurveyRange",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "PublicSurveySection",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "PublicSurveyTownship",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "PurchaseContractDate",
+      "type": "Date",
+      "populated": 179608,
+      "pct": 30.4,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "RangeArea",
+      "type": "Decimal",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "RecordSignature",
+      "type": "Int32",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "RentControlYN",
+      "type": "Boolean",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "RentIncludes",
+      "type": "RentIncludes",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "RoadFrontageType",
+      "type": "RoadFrontageType",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "RoadResponsibility",
+      "type": "RoadResponsibility",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "RoadSurfaceType",
+      "type": "RoadSurfaceType",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "Roof",
+      "type": "Roof",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "RoomsTotal",
+      "type": "Int32",
+      "populated": 587696,
+      "pct": 99.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "RoomType",
+      "type": "RoomType",
+      "populated": 8296,
+      "pct": 1.4,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "RVParkingDimensions",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "SaleOrLeaseIndicator",
+      "type": "SaleOrLeaseIndicator",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "SeatingCapacity",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "SecurityDeposit",
+      "type": "Decimal",
+      "populated": 161521,
+      "pct": 27.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "SecurityFeatures",
+      "type": "SecurityFeatures",
+      "populated": 1889,
+      "pct": 0.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "SellerConsiderConcessionYN",
+      "type": "Boolean",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "SeniorCommunityYN",
+      "type": "Boolean",
+      "populated": 8,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "SerialU",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "SerialX",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "SerialXX",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "Sewer",
+      "type": "Sewer",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ShowingAdvanceNotice",
+      "type": "Int32",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "ShowingAttendedYN",
+      "type": "Boolean",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "ShowingConsiderations",
+      "type": "ShowingConsiderations",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "ShowingContactName",
+      "type": "String",
+      "populated": 1132,
+      "pct": 0.2,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ShowingContactPhone",
+      "type": "String",
+      "populated": 1104,
+      "pct": 0.2,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ShowingContactPhoneExt",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ShowingContactType",
+      "type": "ShowingContactType",
+      "populated": 15,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ShowingDays",
+      "type": "ShowingDays",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "ShowingEndTime",
+      "type": "DateTimeOffset",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "ShowingInstructions",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "ShowingRequirements",
+      "type": "ShowingRequirements",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "ShowingServiceName",
+      "type": "ShowingServiceName",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "ShowingStartTime",
+      "type": "DateTimeOffset",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "SignOnPropertyYN",
+      "type": "Boolean",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "Skirt",
+      "type": "Skirt",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "SourceMlsUrl",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "SourceSystemID",
+      "type": "String",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "SourceSystemKey",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "SourceSystemName",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "SpaFeatures",
+      "type": "SpaFeatures",
+      "populated": 5637,
+      "pct": 1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "SpaYN",
+      "type": "Boolean",
+      "populated": 2208,
+      "pct": 0.4,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "SpecialLicenses",
+      "type": "SpecialLicenses",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "SpecialListingConditions",
+      "type": "SpecialListingConditions",
+      "populated": 114358,
+      "pct": 19.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "StandardStatus",
+      "type": "StandardStatus",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "StartShowingDate",
+      "type": "Date",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "StateOrProvince",
+      "type": "StateOrProvince",
+      "populated": 591563,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "StateRegion",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "StatusChangeTimestamp",
+      "type": "DateTimeOffset",
+      "populated": 591378,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "Stories",
+      "type": "Int32",
+      "populated": 1604,
+      "pct": 0.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "StoriesTotal",
+      "type": "Int32",
+      "populated": 533762,
+      "pct": 90.2,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "StreetAdditionalInfo",
+      "type": "String",
+      "populated": 394595,
+      "pct": 66.7,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "StreetDirPrefix",
+      "type": "StreetDirection",
+      "populated": 266934,
+      "pct": 45.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "StreetDirSuffix",
+      "type": "StreetDirection",
+      "populated": 13413,
+      "pct": 2.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "StreetName",
+      "type": "String",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "StreetNumber",
+      "type": "String",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "StreetNumberNumeric",
+      "type": "Int32",
+      "populated": 561655,
+      "pct": 94.9,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "StreetSuffix",
+      "type": "StreetSuffix",
+      "populated": 580263,
+      "pct": 98.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "StreetSuffixModifier",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "StructureType",
+      "type": "StructureType",
+      "populated": 97589,
+      "pct": 16.5,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "SubAgencyCompensation",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "SubAgencyCompensationType",
+      "type": "CompensationType",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "SubdivisionName",
+      "type": "String",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "SuppliesExpense",
+      "type": "Decimal",
+      "populated": 8,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "SyndicateTo",
+      "type": "SyndicateTo",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "SyndicationRemarks",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "TaxAnnualAmount",
+      "type": "Decimal",
+      "populated": 97598,
+      "pct": 16.5,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "TaxAssessedValue",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "TaxBlock",
+      "type": "String",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "TaxBookNumber",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "TaxLegalDescription",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "TaxLot",
+      "type": "String",
+      "populated": 266856,
+      "pct": 45.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "TaxMapNumber",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "TaxOtherAnnualAssessmentAmount",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "TaxParcelLetter",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "TaxStatusCurrent",
+      "type": "TaxStatusCurrent",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "TaxTract",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "TaxYear",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "TenantPays",
+      "type": "TenantPays",
+      "populated": 260,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "TenantPaysDescription",
+      "type": "String",
+      "populated": 275,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "Topography",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "TotalActualRent",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "TotalFloorPlansCount",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "Township",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "TransactionBrokerCompensation",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "TransactionBrokerCompensationType",
+      "type": "CompensationType",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "TrashExpense",
+      "type": "Decimal",
+      "populated": 8,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "UnitNumber",
+      "type": "String",
+      "populated": 582391,
+      "pct": 98.4,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "UnitsFurnished",
+      "type": "UnitsFurnished",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UnitTypeType",
+      "type": "UnitTypeType",
+      "populated": 148,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "UniversalParcelId",
+      "type": "String",
+      "populated": 545122,
+      "pct": 92.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "UniversalPropertyId",
+      "type": "String",
+      "populated": 380669,
+      "pct": 64.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "UniversalPropertySubId",
+      "type": "String",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "UnparsedAddress",
+      "type": "String",
+      "populated": 591566,
+      "pct": 100,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "Utilities",
+      "type": "Utilities",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "UtilitiesExpense",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "VacancyAllowance",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "VacancyAllowanceRate",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "Vegetation",
+      "type": "Vegetation",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "PROVIDER-SUPPRESSED (not filterable/orderable)"
+    },
+    {
+      "field": "VideosChangeTimestamp",
+      "type": "DateTimeOffset",
+      "populated": 329023,
+      "pct": 55.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "VideosCount",
+      "type": "Int32",
+      "populated": 485030,
+      "pct": 82,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "View",
+      "type": "View",
+      "populated": 138906,
+      "pct": 23.5,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "ViewYN",
+      "type": "Boolean",
+      "populated": 163098,
+      "pct": 27.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "VirtualTourURLBranded",
+      "type": "String",
+      "populated": 13881,
+      "pct": 2.3,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "VirtualTourURLBranded2",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "VirtualTourURLBranded3",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "VirtualTourURLUnbranded",
+      "type": "String",
+      "populated": 26371,
+      "pct": 4.5,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "VirtualTourURLUnbranded2",
+      "type": "String",
+      "populated": 2382,
+      "pct": 0.4,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "VirtualTourURLUnbranded3",
+      "type": "String",
+      "populated": 354,
+      "pct": 0.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "WalkScore",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "WaterBodyName",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "WaterfrontFeatures",
+      "type": "WaterfrontFeatures",
+      "populated": 5,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "WaterfrontYN",
+      "type": "Boolean",
+      "populated": 98,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "WaterHeater",
+      "type": "WaterHeater",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "WaterSewerExpense",
+      "type": "Decimal",
+      "populated": 10392,
+      "pct": 1.8,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "WaterSource",
+      "type": "WaterSource",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "WindowFeatures",
+      "type": "WindowFeatures",
+      "populated": 15974,
+      "pct": 2.7,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "WithdrawnDate",
+      "type": "Date",
+      "populated": 22,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "WoodedArea",
+      "type": "Decimal",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "WorkmansCompensationExpense",
+      "type": "Decimal",
+      "populated": 8,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "X_GeocodeSource",
+      "type": "GeocodeSource",
+      "populated": null,
+      "pct": null,
+      "filterable": false,
+      "orderable": false,
+      "note": "NOT FILTERABLE"
+    },
+    {
+      "field": "YearBuilt",
+      "type": "Int32",
+      "populated": 485598,
+      "pct": 82.1,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    },
+    {
+      "field": "YearBuiltDetails",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "YearBuiltEffective",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "YearBuiltSource",
+      "type": "YearBuiltSource",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "YearEstablished",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "YearsCurrentOwner",
+      "type": "Int32",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "Zoning",
+      "type": "String",
+      "populated": 0,
+      "pct": 0,
+      "filterable": true,
+      "orderable": true,
+      "note": "always null in our subscription"
+    },
+    {
+      "field": "ZoningDescription",
+      "type": "String",
+      "populated": 27441,
+      "pct": 4.6,
+      "filterable": true,
+      "orderable": true,
+      "note": ""
+    }
+  ]
+}

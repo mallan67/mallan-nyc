@@ -1,12 +1,11 @@
-import { readFileSync } from "fs";
-import { resolve } from "path";
+import { contractNames } from "../../../tests/runtime/cotality-contract-facts";
 import { B26_MEDIA } from "../trestle-mapper";
 
 /**
  * Live-parity guard for the B26 media field group.
  *
  * Every name in B26_MEDIA must correspond to a real field on a live Cotality/Trestle
- * resource (verified against the captured $metadata in artifacts/metadata.xml).
+ * resource (verified against the committed live Cotality contract, data/cotality-contract/**).
  *
  * This catches PHANTOM media fields — names that look plausible (VideoURL,
  * FloorPlanURL, MatterportURL, InteractiveFloorPlanURL, *SocialMediaURL) but do
@@ -16,21 +15,15 @@ import { B26_MEDIA } from "../trestle-mapper";
  *     by MediaCategory (Photo / Floor Plan / Video / Virtual Tour).
  */
 describe("B26_MEDIA live-parity (no phantom Cotality media fields)", () => {
-  const xml = readFileSync(
-    resolve(__dirname, "../../../artifacts/metadata.xml"),
-    "utf-8"
-  );
-  // Every field/entity/nav name in the live $metadata snapshot.
-  const liveNames = new Set(
-    [...xml.matchAll(/Name="([A-Za-z0-9_]+)"/g)].map((m) => m[1])
-  );
+  // Every resource / field / navigation / vocabulary name the live Cotality contract declares.
+  const liveNames = contractNames();
 
   // Names that are intentionally internal/derived and NOT live $metadata fields.
   // (Empty by design — all legitimate B26 entries resolve to a live name,
   // including the `Media` navigation property and the Media-resource `MediaURL`.)
   const INTERNAL_ALLOWLIST = new Set<string>([]);
 
-  it("artifacts/metadata.xml parsed and non-empty", () => {
+  it("the committed live contract parsed and non-empty", () => {
     expect(liveNames.size).toBeGreaterThan(500);
   });
 

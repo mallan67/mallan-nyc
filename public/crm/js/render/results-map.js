@@ -89,10 +89,17 @@
         properties: {
           id: l.id,
           address: l.address + (l.unit ? ', ' + l.unit : ''),
-          price: l.price || l.listPrice || 0,
-          beds: l.beds || l.bedroomsTotal || 0,
-          baths: l.baths || l.bathroomsFull || 0,
-          status: l.status || '',
+          // A pin for a listing with no published price is still a pin; it is not a $0 listing.
+          // The marker renderer below already handles an absent figure.
+          price: l.price != null ? l.price : (l.listPrice != null ? l.listPrice : null),
+          beds: l.beds != null ? l.beds : (l.bedroomsTotal != null ? l.bedroomsTotal : null),
+          baths: l.baths != null ? l.baths : (l.bathroomsFull != null ? l.bathroomsFull : null),
+          // The exact live Cotality StandardStatus token (or '' when the row has none — never a default),
+          // plus the row's own transaction-aware broker label. Both from THE ONE browser authority,
+          // public/crm/js/core/status-presentation.js, and read here so the marker/popup never has to touch
+          // the listing again. `l` is not mutated.
+          status: MallanStatus.token(l) || '',
+          statusLabel: MallanStatus.label(l),
           photo: (l.images && l.images[0] && l.images[0].url) || '',
           neighborhood: l.neighborhood || '',
           listingCategory: l.listingCategory || '',
@@ -105,19 +112,24 @@
 
   // ── Format price ──
   function fmtPrice(p) {
-    if (!p) return '$0';
+    // `!p` treated an unknown price and a real $0 identically. A genuine zero still prints $0.
+    if (p == null || isNaN(p)) return '—';
+    if (Number(p) === 0) return '$0';
     if (p >= 1000000) return '$' + (p / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
     if (p >= 1000) return '$' + Math.round(p / 1000) + 'K';
     return '$' + p.toLocaleString();
   }
 
   // ── Create price marker element ──
+  // The pin colour is THE authority's (public/crm/js/core/status-presentation.js `pinColor`), so a pin and
+  // the card badge beside it can never disagree. The two hand-written branches this replaced were keyed on
+  // two of the retired uppercase presentation words — dead since the DTO started shipping exact tokens —
+  // and they had Coming Soon's and Active Under Contract's colours the wrong way round against every badge
+  // in the CRM.
   function createMarkerEl(price, status) {
     var el = document.createElement('div');
     el.className = 'results-map-pin';
-    var bg = '#1a1a1a';
-    if (status === 'COMING_SOON') bg = '#d97706';
-    else if (status === 'ACTIVE_UNDER_CONTRACT') bg = '#7c3aed';
+    var bg = MallanStatus.pinColor(status);
     el.style.cssText = 'background:' + bg + ';color:#fff;font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);border:2px solid #fff;';
     el.textContent = fmtPrice(price);
     // Hover: change border color only — no transform, no z-index (both cause MapLibre marker reflow/shuffle)
@@ -279,6 +291,14 @@
       + '<div style="font-weight:700;font-size:14px;margin-bottom:2px;">' + fmtPrice(p.price) + (p.listingCategory === 'rental' ? '/mo' : '') + '</div>'
       + '<div style="font-size:11px;color:#6b7280;margin-bottom:4px;">' + (p.address || 'Address Undisclosed') + '</div>'
       + '<div style="font-size:11px;color:#374151;">' + p.beds + ' bd &middot; ' + p.baths + ' ba' + (p.neighborhood ? ' &middot; ' + p.neighborhood : '') + '</div>'
+      // The status, in THIS row's transaction language (a sale's Closed reads "Sold", a rental's "Rented"),
+      // coloured by the same authority the badges use.
+      + '<div style="margin-top:4px;"><span data-status-badge data-reso-field="StandardStatus" data-reso-value="'
+        + String(p.status || '').replace(/"/g, '&quot;')
+        + '" style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:'
+        + MallanStatus.colors(p.status).bg + ';color:' + MallanStatus.colors(p.status).fg + ';">'
+        + String(p.statusLabel || MallanStatus.UNAVAILABLE).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        + '</span></div>'
       + (p.approx ? '<div style="font-size:9px;color:#d97706;margin-top:3px;"><i class="fas fa-info-circle"></i> Approximate location</div>' : '')
       + '<button onclick="showListingDetail(\'' + String(p.id).replace(/'/g, "\\'") + '\')" style="margin-top:6px;width:100%;padding:5px;background:#111827;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">View Details</button>'
       + '</div></div>';

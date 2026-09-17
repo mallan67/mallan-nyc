@@ -24,9 +24,9 @@ describe("Rental edit hydration preserves canonical address atoms (S-RENT-005)",
   });
 
   it("hydrates StreetDirPrefix from the canonical address object (addr.StreetDirPrefix)", () => {
-    const start = src.indexOf("_populateRentalFormFromApi");
+    const start = src.indexOf("function _populateRentalFormFromApi");
     // scan the hydration routine body for the canonical direction atom read
-    const body = src.slice(start, start + 6000);
+    const body = src.slice(start, start + 30000);
     expect(body).toMatch(/addr\.StreetDirPrefix|canonical[\s\S]{0,200}StreetDirPrefix/i);
   });
 

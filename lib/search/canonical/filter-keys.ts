@@ -38,7 +38,7 @@ const PARAM_ALIASES: Readonly<Record<string, CanonicalFilterKey>> = Object.freez
   baths: 'baths_min', minBaths: 'baths_min', maxBaths: 'baths_max',
   minSqft: 'sqft_min', maxSqft: 'sqft_max',
   propertyType: 'property_type', propertySubTypes: 'property_sub_types', subTypes: 'property_sub_types',
-  propertySubType: 'property_sub_types', // singular — the key crm-idx-filter.ts:217 actually reads
+  propertySubType: 'property_sub_types', // singular — the key the retired browser filter read
   ownershipTypes: 'ownership', ownership: 'ownership',
   statuses: 'statuses',
   yearBuilt: 'year_built', furnished: 'furnished',

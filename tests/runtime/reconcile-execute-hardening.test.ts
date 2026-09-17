@@ -62,14 +62,16 @@ describe('liveStatusOf — a failed re-verify is NEVER inferred as "gone"', () =
 });
 
 describe('applyCorrection — projection failure is counted, not thrown', () => {
+  // An absent on-market row: the provider status is PRESERVED and the presence fact is recorded (Off Market).
   const decision: ReconcileDecision = {
     action: 'update',
-    targetStatus: 'Withdrawn',
-    targetIsTerminal: true,
+    targetStatus: 'Active',
+    targetIsTerminal: false,
+    targetSyncStatus: 'off_feed',
     className: 'stale_to_departed',
     reason: 'test',
   };
-  const row = { listing_id: 'RLS-X', status: 'Active' };
+  const row = { listing_id: 'RLS-X', status: 'Active', sync_status: 'synced' };
   const makePrisma = () => ({
     $transaction: jest.fn(async (ops: unknown[]) => ops),
     listing: { update: jest.fn(() => ({})) },
@@ -89,6 +91,17 @@ describe('applyCorrection — projection failure is counted, not thrown', () => 
     const result = await applyCorrection(prisma, row, decision, false, new Date(), true);
     expect(result.projectionFailed).toBe(false);
     expect(projectionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('absent on-market row: status preserved, sync_status off_feed, terminal_since stamped, no status_changed_at', async () => {
+    const prisma = makePrisma();
+    await applyCorrection(prisma, row, decision, false, new Date('2026-09-08T00:00:00Z'), true);
+    const data = (prisma.listing.update as jest.Mock).mock.calls[0][0].data as Record<string, unknown>;
+    expect(data).toMatchObject({ status: 'Active', sync_status: 'off_feed', idx_display_yn: false });
+    expect(data.status_changed_at).toBeUndefined();
+    expect(data.terminal_since).toBeInstanceOf(Date);
+    const changes = (prisma.auditEvent.create as jest.Mock).mock.calls[0][0].data.changes as Record<string, unknown>;
+    expect(changes).toMatchObject({ from_status: 'Active', to_status: 'Active', from_sync_status: 'synced', to_sync_status: 'off_feed' });
   });
 
   it('dry-run (execute=false) → no writes at all', async () => {

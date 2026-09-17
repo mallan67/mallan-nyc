@@ -9,13 +9,10 @@
         })();
         var listings = [];
 
-        // ── REBNY Distribution Gate defaults ──
-        // Add default permissions to all listings that don't have explicit permissions set
-        listings.forEach(function(l) {
-            if (!l.permissions) {
-                l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: true };
-            }
-        });
+        // ── REBNY Distribution Gates ──
+        // No defaults are manufactured. The server projects the real per-row decision; an absent
+        // permissions object means the projection failed and must be visible, not backfilled with
+        // permissive values. (This loop was also structurally dead — `listings` is empty at this point.)
 
         // Add borough to all listings that don't have it
         listings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
@@ -219,24 +216,60 @@
             var feat = (typeof apiListing.features === 'object' && apiListing.features) ? apiListing.features : {};
             var agent = (typeof apiListing.agent_info === 'object' && apiListing.agent_info) ? apiListing.agent_info : {};
             var media = Array.isArray(apiListing.media) ? apiListing.media : [];
-            var price = parseFloat(apiListing.list_price) || 0;
+            // ABSENT AND ZERO ARE DIFFERENT FACTS - the same sentence lib/search/crm-idx-mapper.ts:20-21
+            // states and obeys for the PRIMARY path. This fallback hydrator used `|| 0` throughout, so the
+            // two paths that fill the very same `listings` array held opposite null policies: what an agent
+            // saw depended on whether IDX happened to answer. A studio (0 bedrooms) and a listing whose
+            // bedroom count was never recorded became the same value, irrecoverably, because it is written
+            // onto the shared object.
+            //
+            // Mirrors crm-idx-mapper's num(): absent / empty / unparsable -> null; a literal 0 stays 0.
+            var _num = function(v) {
+                if (v === null || v === undefined || v === '') return null;
+                var n = Number(v);
+                return isFinite(n) ? n : null;
+            };
+            var price = _num(apiListing.list_price);
             var isRental = apiListing.listing_type === 'rent';
+            var _fullBaths = _num(apiListing.bathrooms_full);
+            var _halfBaths = _num(apiListing.bathrooms_half);
+            // An annual tax figure divided by 12 is a real monthly number; an ABSENT one is not 0/12.
+            var _annualTax = _num(feat.RealEstateTax);
+            var _reTaxes = _annualTax === null ? null : _annualTax / 12;
+            // A rental's total is its rent. A sale's total is only known when both components are - summing
+            // an unknown tax with an unknown fee produced a confident $0/mo on every fallback-path row.
+            var _fee = _num(feat.AssociationFee);
+            var _totalMonthly = isRental
+                ? price
+                : (_reTaxes === null && _fee === null ? null : (_reTaxes || 0) + (_fee || 0));
 
             return {
                 id: parseInt(apiListing.id) || (index + 1),
                 address: (addr.StreetNumber ? addr.StreetNumber + ' ' : '') + (addr.StreetName || '') + (addr.StreetSuffix ? ' ' + addr.StreetSuffix : ''),
                 unit: addr.UnitNumber || '',
                 price: price,
-                totalMonthly: isRental ? price : (parseFloat(feat.RealEstateTax || 0) / 12 + parseFloat(feat.AssociationFee || 0)),
-                rooms: parseInt(feat.Rooms || 0) || 0,
-                beds: parseInt(apiListing.bedrooms_total) || 0,
-                baths: (parseInt(apiListing.bathrooms_full) || 0) + ((parseInt(apiListing.bathrooms_half) || 0) * 0.5),
-                fullBaths: parseInt(apiListing.bathrooms_full) || 0,
-                halfBaths: parseInt(apiListing.bathrooms_half) || 0,
-                reTaxes: parseFloat(feat.RealEstateTax || 0) / 12,
-                maintCC: parseFloat(feat.AssociationFee || 0),
+                totalMonthly: _totalMonthly,
+                rooms: _num(feat.RoomsTotal !== undefined ? feat.RoomsTotal : feat.Rooms),
+                beds: _num(apiListing.bedrooms_total),
+                // Baths are known only when BOTH components are. A known 2 full plus an unknown half is not
+                // a proven 2.0 - crm-idx-mapper.ts:265-276 makes exactly this distinction.
+                baths: _fullBaths === null || _halfBaths === null ? null : _fullBaths + (_halfBaths * 0.5),
+                fullBaths: _fullBaths,
+                halfBaths: _halfBaths,
+                reTaxes: _reTaxes,
+                maintCC: _num(feat.AssociationFee),
                 intSqft: parseFloat(apiListing.living_area) || null,
-                status: (apiListing.status || 'ACTIVE').toUpperCase(),
+                // Status is a Cotality fact, carried verbatim as the live StandardStatus token with its
+                // per-transaction broker label — the same shape lib/search/crm-idx-mapper.ts ships, so a row
+                // from this path and a row from Search render identically.
+                //
+                // This was `(apiListing.status || 'ACTIVE').toUpperCase()`: it uppercased 'Active' into the
+                // retired presentation word AND fabricated a live status for a row that had none, which
+                // advertises an unknown or off-market listing as live inventory. A blank status now reads
+                // "Status unavailable" everywhere.
+                status: MallanStatus.token(apiListing.status),
+                status_label: MallanStatus.label({ status: apiListing.status, listing_type: apiListing.listing_type }),
+                status_transaction: isRental ? 'rent' : 'sale',
                 ownership: feat.CommonInterest || apiListing.property_type || '',
                 propertyType: apiListing.property_type || 'Residential',
                 propertySubType: apiListing.property_sub_type || '',
@@ -278,10 +311,14 @@
         function _loadClients() {
             if (typeof MallanAPI === 'undefined') return;
             MallanAPI.onReady(function() {
-                MallanAPI._fetch('/api/crm/leads?limit=200').then(function(data) {
-                    var leads = data.leads || data || [];
-                    if (!Array.isArray(leads)) return;
-                    leads.forEach(function(cl) {
+                // CANONICAL client source. This used to call /api/crm/leads?limit=200 — the Lead
+                // DISTRIBUTION route, which for a BROKER defaults to `agent_id = null` (unassigned only),
+                // so the principal broker's pickers were fed exactly the people who are NOT her clients.
+                // /api/crm/clients is the canonical population and is already authorization-scoped by the
+                // server; listAll follows its pages so a book larger than 200 is not silently truncated.
+                MallanAPI.clients.listAll().then(function(clients) {
+                    if (!Array.isArray(clients)) return;
+                    clients.forEach(function(cl) {
                         if (typeof ClientNormalizer !== 'undefined') ClientNormalizer.normalize(cl);
                         var id = cl.id || cl._id;
                         if (!id) return;
@@ -291,12 +328,14 @@
                             name: cl.name || cl._displayName || ((cl.first_name || '') + ' ' + (cl.last_name || '')).trim() || 'Unknown',
                             email: cl.email || '',
                             type: cl.type || cl.client_type || 'buyer',
-                            agentId: cl.assigned_agent_id || cl.agentId
+                            // The canonical DTO's own field (lib/db/clients.ts CLIENT_SELECT). Carried for
+                            // display/diagnostics ONLY — it is NOT an authorization input. The server has
+                            // already scoped this population; nothing in the browser may re-decide it.
+                            agentId: cl.agent_id || cl.assigned_agent_id || cl.agentId
                         });
                     });
                     // Populate report recipient dropdown if it exists
                     if (typeof populateReportRecipientDropdown === 'function') populateReportRecipientDropdown();
-                    if (typeof populateClientList === 'function') populateClientList();
                     console.log('[DataLoader] Loaded ' + searchResultsState.clients.length + ' clients');
                 }).catch(function(err) {
                     console.warn('[DataLoader] Client load failed:', err && err.message);
@@ -309,6 +348,14 @@
         if (typeof MallanAPI !== 'undefined') {
             _loadClients(); // Load clients for email/report recipient selectors
             MallanAPI.onReady(function() {
+                // The Search contract (executable parameters + vocabularies) is the browser's ONLY
+                // source; without it Search refuses to run (fail loud, no hard-coded fallback).
+                if (typeof window.loadSearchContract === 'function') {
+                    window.loadSearchContract().catch(function(cErr) {
+                        console.error('[Search] contract load failed:', cErr && cErr.message);
+                        if (typeof showToast === 'function') showToast('Search is unavailable: the Search contract did not load. Reload the page.', 'error');
+                    });
+                }
                 _loadFromIDX().catch(function(idxErr) {
                     // IDX unavailable (503, no credentials, etc.) — fall back to Prisma DB
                     console.warn('[DataLoader] IDX unavailable, falling back to local DB:', idxErr && idxErr.message);
@@ -346,9 +393,6 @@
                     // Show REBNY attribution
                     if (result.attribution) _showAttribution(result.attribution);
                     // Set initial activeSearchCriteria so refine panel works
-                    if (typeof activeSearchCriteria !== 'undefined' && !activeSearchCriteria) {
-                        activeSearchCriteria = { searchTab: _savedTab === 'rent' ? 'rent' : 'sale' };
-                    }
                     return result;
                 }
                 return Promise.reject(new Error('IDX returned 0 listings'));
@@ -380,53 +424,25 @@
             listings.length = 0;
             newData.forEach(function(l) { listings.push(l); });
             // Ensure all fields used by renderers have safe defaults
+            // Presentation defaults ONLY where a renderer needs a string. No numeric provider fact,
+            // status or borough is ever invented (Search Consolidation Packet 1).
             listings.forEach(function(l) {
-                if (l.price == null) l.price = 0;
-                if (l.totalMonthly == null) l.totalMonthly = 0;
-                if (l.maintCC == null) l.maintCC = 0;
-                if (l.reTaxes == null) l.reTaxes = 0;
-                if (l.beds == null) l.beds = 0;
-                if (l.baths == null) l.baths = 0;
-                if (l.rooms == null) l.rooms = 0;
-                if (l.dom == null) l.dom = 0;
                 if (l.photoCount == null) l.photoCount = (l.images && l.images.length) || 0;
-                if (!l.status) l.status = 'ACTIVE';
                 if (!l.address) l.address = 'Address Unavailable';
                 if (!l.unit) l.unit = '';
                 if (!l.neighborhood) l.neighborhood = '';
                 if (!l.zip) l.zip = '';
-                if (!l.borough) l.borough = 'Manhattan';
                 if (!l.listedDate) l.listedDate = '--';
                 if (!l.company) l.company = '';
-                if (!l.permissions) {
-                    l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: true };
-                }
+                // Permissions are not manufactured — see the note where the gates are described above.
+                // The server projects the real decision; an absent object is a bug, not a default.
             });
             listings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
             console.log('[DataLoader] Loaded ' + listings.length + ' listings from ' + source);
             // Dispatch event so other modules (e.g. hash routing) know data is ready
             window.dispatchEvent(new CustomEvent('mallan:data:ready', { detail: { count: listings.length, source: source } }));
-            // If user is viewing results, re-filter with existing criteria and re-render
-            // Do NOT call performSearch() — that re-collects from hidden form and may get wrong values
-            // Do NOT overwrite if a server search is actively running (it will re-render when complete)
-            if (_serverSearchActive) {
-                console.log('[DataLoader] Skipping re-render — server search is active');
-                return;
-            }
-            var resultsSection = document.getElementById('searchResultsSection');
-            var isViewingResults = resultsSection && resultsSection.style.display !== 'none' && !resultsSection.classList.contains('hidden');
-            if (isViewingResults && typeof searchResultsState !== 'undefined') {
-                // Re-filter with current criteria (or show all if no criteria)
-                if (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) {
-                    searchResultsState.filteredListings = typeof filterListings === 'function'
-                        ? filterListings(listings, activeSearchCriteria)
-                        : listings.slice();
-                } else {
-                    searchResultsState.filteredListings = listings.slice();
-                }
-                if (typeof initializeSearchResults === 'function') initializeSearchResults();
-                if (typeof updateResultsCount === 'function') updateResultsCount();
-            }
+            // The loaded rows are an INDEX for detail/photo/address lookups only. They never
+            // become Search membership and are never re-filtered (Search Consolidation Packet 1).
         }
 
         /**

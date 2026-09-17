@@ -29,6 +29,8 @@ interface PortalListing {
   address: string;
   list_price: string | null;
   status: string | null;
+  /** The SERVER's per-transaction broker label for `status` (Closed to "Sold" on a sale, "Rented" on a rental). */
+  status_label: string | null;
   listing_type: string | null;
   bedrooms: number | null;
   bathrooms: number | null;
@@ -172,18 +174,33 @@ function fmtDateTime(iso: string | null | undefined): string {
   });
 }
 
-function statusBadge(status: string | null): { text: string; cls: string } {
-  switch (status?.toLowerCase()) {
-    case 'active': return { text: 'Active', cls: 'bg-blue-100 text-blue-700' };
-    case 'under contract':
-    case 'contract': return { text: 'Under Contract', cls: 'bg-purple-100 text-purple-700' };
-    case 'pending': return { text: 'Pending', cls: 'bg-orange-100 text-orange-700' };
-    case 'closed':
-    case 'sold': return { text: 'Sold', cls: 'bg-green-100 text-green-700' };
-    case 'comingsoon':
-    case 'coming soon': return { text: 'Coming Soon — No Showings Until Listed', cls: 'bg-yellow-100 text-yellow-700' };
-    default: return { text: status || 'Unknown', cls: 'bg-gray-100 text-gray-600' };
-  }
+/**
+ * The status chip a buyer sees (owner ruling, Maya 2026-09-08).
+ *
+ * The TEXT is the server's `status_label` - computed per transaction from the stored live Cotality
+ * StandardStatus token (a sale's Closed reads "Sold", a rental's "Rented", a sale's Pending "In Contract").
+ * This page re-derives nothing and never fabricates "Active": a listing whose state the server could not
+ * resolve already arrives as "Status unavailable". Only the COLOR is chosen here, keyed by the token.
+ */
+const STATUS_TOKEN_CLASS: Record<string, string> = {
+  Active: 'bg-blue-100 text-blue-700',
+  ComingSoon: 'bg-yellow-100 text-yellow-700',
+  ActiveUnderContract: 'bg-purple-100 text-purple-700',
+  Pending: 'bg-purple-100 text-purple-700',
+  Closed: 'bg-green-100 text-green-700',
+  Hold: 'bg-gray-100 text-gray-600',
+  Withdrawn: 'bg-gray-100 text-gray-600',
+  Canceled: 'bg-gray-100 text-gray-600',
+  Expired: 'bg-red-100 text-red-700',
+  Incomplete: 'bg-gray-100 text-gray-600',
+};
+
+function statusBadge(listing: { status: string | null; status_label?: string | null }): { text: string; cls: string } {
+  const token = listing.status ?? '';
+  const text = listing.status_label && listing.status_label.trim().length > 0
+    ? listing.status_label
+    : 'Status unavailable';
+  return { text, cls: STATUS_TOKEN_CLASS[token] ?? 'bg-gray-100 text-gray-600' };
 }
 
 function showingStatusBadge(status: string): { text: string; cls: string } {
@@ -1158,7 +1175,7 @@ export default function BuyerPortalPage() {
             ) : (
               <div className="space-y-4">
                 {listings.map((listing) => {
-                  const badge = statusBadge(listing.status);
+                  const badge = statusBadge(listing);
                   const comments = commentsMap[listing.id] || [];
                   const isCommentsOpen = commentsOpen[listing.id];
 

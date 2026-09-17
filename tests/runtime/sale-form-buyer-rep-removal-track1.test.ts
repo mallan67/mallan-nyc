@@ -38,7 +38,7 @@ describe('(A) Buyer Representative Agreement acknowledgment removed', () => {
     expect(FORM).not.toMatch(/Buyer Representative Agreement:<\/strong>/);
   });
   it('its SALE_FIELD_MAP restore entry is removed', () => {
-    expect(FORM).not.toMatch(/rls:\s*'saleBuyerRepAgreementAck'/);
+    expect(FORM).not.toMatch(/mallan:\s*'saleBuyerRepAgreementAck'/);
   });
   it('a comment records the UCBA Art. II §16 (buyer-agent obligation) basis', () => {
     expect(FORM).toMatch(/UCBA 2026 Art\. II §16[\s\S]*CO-BROKER \(buyer's agent\)/);

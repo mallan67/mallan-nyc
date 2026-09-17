@@ -792,14 +792,29 @@ describe("R2-1 — decideMirrorAdmissionScope", () => {
 // ─── DB-side where builders ──────────────────────────────────────────────
 
 describe("R2-1 — DB-side admission where-shapes", () => {
-  it("buildMallanOwnedListingWhere derives startsWith branches from the canonical prefix export + rls_eligible false", () => {
-    const where = buildMallanOwnedListingWhere() as { OR: unknown[] };
-    expect(where.OR).toEqual([
-      ...MALLAN_EXCLUSIVE_LISTING_ID_PREFIXES.map((p) => ({
-        listing_id: { startsWith: p },
-      })),
-      { rls_eligible: false },
-    ]);
+  it("buildMallanOwnedListingWhere selects Mallan-authored rows and REFUSES a third-party commercial row", () => {
+    // BEHAVIOURAL (owner review 2026-09-09). This used to assert the literal OR shape, including a bare
+    // `{ rls_eligible: false }` arm. That arm was wrong: `rls_eligible === false` means "commercial /
+    // website-only", not "Mallan owns it", so a third-party COMMERCIAL row would have been admitted to the R2
+    // mirror and to the listing-expiration cron's writes. The builder now delegates to the canonical rule
+    // (lib/listings/exclusive-agent-assignment.ts). Prove that by SELECTING rows, not by matching a shape.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { matchesWhere } = require("@/tests/helpers/prisma-where-evaluator");
+    const where = buildMallanOwnedListingWhere() as Record<string, unknown>;
+
+    const mallanAuthored = { listing_id: "SL-0001", rls_eligible: false, last_synced_from_trestle: null, list_office_mls_id: null, mls_id: null };
+    const thirdPartyCommercial = { listing_id: "RLS90001", rls_eligible: false, last_synced_from_trestle: new Date(), list_office_mls_id: "9999", mls_id: "RLS90001" };
+    const thirdPartyNormal = { listing_id: "RLS12345", rls_eligible: true, last_synced_from_trestle: new Date(), list_office_mls_id: "9999", mls_id: "RLS12345" };
+
+    expect(matchesWhere(mallanAuthored, where)).toBe(true);
+    expect(matchesWhere(thirdPartyCommercial, where)).toBe(false);
+    expect(matchesWhere(thirdPartyNormal, where)).toBe(false);
+
+    // and the prefix branches still come from the canonical export, not a hardcoded duplicate
+    const prefixBranches = (where.OR as Array<Record<string, unknown>>)
+      .filter((b) => "listing_id" in b)
+      .map((b) => (b.listing_id as { startsWith: string }).startsWith);
+    expect(prefixBranches).toEqual([...MALLAN_EXCLUSIVE_LISTING_ID_PREFIXES]);
   });
 
   it("buildR2MirrorPolicyMediaWhere: Mallan branch is EXACTLY Photo+FloorPlan; feed branch is Photo-only + display-gated (Blocker-1a/1b in-query restriction)", () => {

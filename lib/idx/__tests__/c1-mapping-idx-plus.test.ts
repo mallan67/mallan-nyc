@@ -1,29 +1,20 @@
 /**
- * C1 fix (2026-05-13) — `mapRESOToInternal` must honor IDX Plus pre-filter
- * semantics on `InternetEntireListingDisplayYN` and `InternetAddressDisplayYN`.
+ * IDX Plus pre-filter parity on THE canonical chain (Packet 2 closure).
  *
- * Before the fix:
- *   - Writer (`lib/idx/trestle-mapper.ts:706-707`) used `!== false` →
- *     null upstream became `true` in DB columns.
- *   - Reader (`lib/idx/mapping.ts:368-372`) used `affirmPermission(...)` →
- *     null upstream became `false` on the IDXListing.
- *
- * The reader/writer disagreement is the root cause of the list/detail
- * address divergence reported on RLS20059088. Aligning the reader with the
- * writer (and with the upstream pre-filter convention REBNY/Cotality
- * documented) closes the divergence. Explicit `false` continues to block
- * — this fix is about treating MISSING flags the right way, not about
- * weakening explicit opt-outs.
- *
- * Per-row opt-out flags (AVM, ConsumerComment) remain fail-closed and are
- * not touched here.
+ * Originally (C1 fix, 2026-05-13) this locked the duplicate reader `mapRESOToInternal`
+ * to the writer's `!== false` convention on `InternetEntireListingDisplayYN` /
+ * `InternetAddressDisplayYN`. The duplicate reader is gone: a live record now flows
+ * mapTrestleToPrisma → dbListingToPublicDTO (lib/idx/cotality-public-dto.ts), so reader and
+ * writer are the SAME code and parity holds by construction. These cases pin the convention on
+ * that one chain: null / absent upstream = displayable (REBNY pre-filters the feed), explicit
+ * false = suppressed, explicit true = displayable.
  */
 
-import { mapRESOToInternal } from '../mapping';
+import { cotalityRecordToStorageShape, cotalityRecordToPublicDTO, cotalityRecordsToPublicDTOs } from '../cotality-public-dto';
 
 const BASE_RAW: Record<string, unknown> = {
   ListingId: 'RLS20059088',
-  ListingKey: 'RLS20059088',
+  ListingKey: '1146011469',
   StandardStatus: 'Active',
   StreetNumber: '217',
   StreetName: 'W 57th Street',
@@ -43,82 +34,63 @@ const BASE_RAW: Record<string, unknown> = {
   ListAgentFullName: 'Carl Gambino',
   ListOfficeMlsId: '7222',
   ListOfficeName: 'Compass',
+  Permission: 'IDX',
 };
 
-describe('mapRESOToInternal — IDX Plus pre-filter parity (C1)', () => {
-  it('treats null InternetAddressDisplayYN as displayable', () => {
-    // The common case on the IDX Plus feed: REBNY/Cotality pre-filters
-    // non-displayable rows out, so survivors arrive with this field null.
-    const raw = {
-      ...BASE_RAW,
-      InternetEntireListingDisplayYN: null,
-      InternetAddressDisplayYN: null,
-    };
-    const result = mapRESOToInternal(raw);
-    expect(result).not.toBeNull();
-    expect(result!.internetAddressDisplayYN).toBe(true);
-    expect(result!.internetEntireListingDisplayYN).toBe(true);
+describe('canonical chain — IDX Plus pre-filter parity (C1)', () => {
+  it('treats null flags as displayable on the storage shape and the public DTO', () => {
+    const raw = { ...BASE_RAW, InternetEntireListingDisplayYN: null, InternetAddressDisplayYN: null };
+    const row = cotalityRecordToStorageShape(raw);
+    expect(row.internet_entire_listing_display_yn).toBe(true);
+    expect(row.internet_address_display_yn).toBe(true);
+    const dto = cotalityRecordToPublicDTO(raw, { alreadyGated: true });
+    expect(dto).not.toBeNull();
+    expect(dto!.address.streetName).not.toBe('Address Undisclosed');
+    expect(dto!.address.unitNumber).toBe('127/128');
   });
 
-  it('treats undefined InternetAddressDisplayYN as displayable', () => {
-    // Same pre-filter semantics — undefined is also "REBNY said nothing".
+  it('treats absent flags as displayable (REBNY said nothing)', () => {
     const raw = { ...BASE_RAW };
-    // No explicit assignment leaves the keys missing.
-    delete (raw as Record<string, unknown>).InternetEntireListingDisplayYN;
-    delete (raw as Record<string, unknown>).InternetAddressDisplayYN;
-    const result = mapRESOToInternal(raw);
-    expect(result).not.toBeNull();
-    expect(result!.internetAddressDisplayYN).toBe(true);
-    expect(result!.internetEntireListingDisplayYN).toBe(true);
+    delete raw.InternetEntireListingDisplayYN;
+    delete raw.InternetAddressDisplayYN;
+    const row = cotalityRecordToStorageShape(raw);
+    expect(row.internet_entire_listing_display_yn).toBe(true);
+    expect(row.internet_address_display_yn).toBe(true);
   });
 
-  it('treats explicit false InternetAddressDisplayYN as suppressed (per-row override)', () => {
-    // The rare per-row override — REBNY pre-filters most opt-outs but some
-    // rows still carry an explicit false. That MUST suppress.
-    const raw = {
-      ...BASE_RAW,
-      InternetEntireListingDisplayYN: true,
-      InternetAddressDisplayYN: false,
-    };
-    const result = mapRESOToInternal(raw);
-    expect(result).not.toBeNull();
-    expect(result!.internetAddressDisplayYN).toBe(false);
-    expect(result!.internetEntireListingDisplayYN).toBe(true);
+  it('explicit false InternetAddressDisplayYN suppresses the address (per-row override)', () => {
+    const raw = { ...BASE_RAW, InternetEntireListingDisplayYN: true, InternetAddressDisplayYN: false };
+    expect(cotalityRecordToStorageShape(raw).internet_address_display_yn).toBe(false);
+    const dto = cotalityRecordToPublicDTO(raw, { alreadyGated: true });
+    expect(dto!.address.streetName).toBe('Address Undisclosed');
+    expect(dto!.address.unitNumber).toBeNull();
+    expect(dto!.address.latitude).toBeUndefined();
   });
 
-  it('treats explicit false InternetEntireListingDisplayYN as suppressed', () => {
-    const raw = {
-      ...BASE_RAW,
-      InternetEntireListingDisplayYN: false,
-      InternetAddressDisplayYN: true,
-    };
-    const result = mapRESOToInternal(raw);
-    expect(result).not.toBeNull();
-    expect(result!.internetEntireListingDisplayYN).toBe(false);
+  it('explicit false InternetEntireListingDisplayYN is refused by the distribution gate', () => {
+    const raw = { ...BASE_RAW, InternetEntireListingDisplayYN: false, InternetAddressDisplayYN: true };
+    expect(cotalityRecordToStorageShape(raw).internet_entire_listing_display_yn).toBe(false);
+    expect(cotalityRecordToPublicDTO(raw)).toBeNull();
   });
 
-  it('treats explicit true on both flags as displayable', () => {
-    const raw = {
-      ...BASE_RAW,
-      InternetEntireListingDisplayYN: true,
-      InternetAddressDisplayYN: true,
-    };
-    const result = mapRESOToInternal(raw);
-    expect(result).not.toBeNull();
-    expect(result!.internetAddressDisplayYN).toBe(true);
-    expect(result!.internetEntireListingDisplayYN).toBe(true);
+  it('explicit true on both flags is displayable', () => {
+    const raw = { ...BASE_RAW, InternetEntireListingDisplayYN: true, InternetAddressDisplayYN: true };
+    const dto = cotalityRecordToPublicDTO(raw);
+    expect(dto).not.toBeNull();
+    expect(dto!.address.streetName).not.toBe('Address Undisclosed');
   });
 
-  it('legacy idxEntireListingDisplayYN mirrors InternetEntireListingDisplayYN under IDX Plus parity', () => {
-    // The IDXEntireListingDisplayYN field does not exist on live Trestle
-    // (verified 2026-04-19). The mapper falls back to InternetEntireListingDisplayYN.
-    // C1 fix: that fallback now uses the same !== false convention.
-    const raw = {
-      ...BASE_RAW,
-      InternetEntireListingDisplayYN: null,
-    };
-    const result = mapRESOToInternal(raw);
-    expect(result).not.toBeNull();
-    expect(result!.idxEntireListingDisplayYN).toBe(true);
+  it('the live-record DTO is labelled idx and carries third-party attribution', () => {
+    const dto = cotalityRecordToPublicDTO({ ...BASE_RAW })!;
+    expect(dto._source).toBe('idx');
+    expect(dto._displayCompliance.disclaimerRequired).toBe(true);
+    expect(dto._displayCompliance.attributionText).toBe('Listing courtesy of Compass');
+    expect(dto.id).toBe('RLS20059088');
+    // ONE public identity: mlsId is the public listing id on the live path exactly as on the DB path.
+    expect(dto.mlsId).toBe('RLS20059088');
+    // The provider record key stays an ingestion-side identity, exposed only for media lookups.
+    const projected = cotalityRecordsToPublicDTOs([{ ...BASE_RAW }]);
+    expect(projected.listingKeyById.get('RLS20059088')).toBe('1146011469');
+    expect(cotalityRecordToStorageShape({ ...BASE_RAW }).mls_id).toBe('1146011469');
   });
 });

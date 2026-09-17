@@ -1,0 +1,360 @@
+You are right. My earlier analysis was not grounded deeply enough in the actual Search architecture, and with this system that is dangerous. Confusing `RL` with `RLS` was not a cosmetic terminology error: it could have led to wrong recommendations about listing identity, Search filters, reconciliation, compliance, and even which records should be editable or suppressed.
+
+I have now restarted the analysis from the current pushed Search branch rather than from Claude’s ledger. The current branch HEAD is **`c9e95a1b5576ee61ffd0e6c0dce9e06e9c733cb2`**. The latest commit is documentation-only and corrects the SL/RL mistake, but it still argues that some RLS abstractions should remain as “compliance.” I do **not** consider that conclusion established.
+
+The first thing that is now completely clear is the identity layer:
+
+```text
+MALLAN-AUTHORED LISTING
+
+SL-####  = SALE LISTING
+RL-####  = RENTAL LISTING
+```
+
+That is not interpretation. The listing creation route explicitly generates `RL` for `listingType === "rent"` and `SL` otherwise.
+
+So the Search architecture has to begin by keeping five different questions separate.
+
+```text
+1. WHO/WHAT CREATED THE LISTING?
+   Mallan-authored SL-/RL-
+   versus
+   Cotality-originated external inventory
+
+2. WHAT KIND OF TRANSACTION IS IT?
+   Sale
+   Rental
+
+3. WHAT DOES COTALITY ACTUALLY SAY?
+   Exact resource
+   Exact fields
+   Exact enum/picklist values
+   Exact permissions
+
+4. WHAT DOES MALLAN DECIDE?
+   Editable or read-only
+   canonical identity
+   duplicate reconciliation
+   display/distribution decisions
+   CRM ownership/history
+
+5. WHAT DOES REBNY/UCBA REQUIRE?
+   Compliance and distribution restrictions
+   — not a provider identity and not a listing identity
+```
+
+Those layers have been partially mixed in the present code.
+
+A concrete example is `lib/listings/mallan-source-identity.ts`. The file correctly knows that `SL-` and `RL-` identify Mallan-authored listings, but it also treats `rls_eligible === false` as another way of deciding that a record is Mallan-local:
+
+```ts
+const LOCAL_PREFIXES = ['SL-', 'RL-'];
+
+if (LOCAL_PREFIXES.some((p) => id.startsWith(p))) return true;
+
+return row.rls_eligible === false;
+```
+
+That is an architectural smell, not merely an unfortunate variable name.
+
+**Listing provenance** and **distribution/compliance eligibility** are different facts. A Boolean describing some form of eligibility should not establish who authored a listing unless there is a separately proven invariant making that relationship valid.
+
+The same file then introduces yet another abstraction called an “RLS return-copy,” while describing an inbound Cotality record representing Mallan's own listing.
+
+The underlying business problem is real:
+
+```text
+Mallan creates SL-/RL-
+        ↓
+listing may subsequently appear in Cotality
+        ↓
+Mallan receives that external Cotality record
+        ↓
+system must recognize that it represents
+the already-existing Mallan listing
+        ↓
+SL-/RL- remains the single canonical Mallan identity
+```
+
+But **“RLS return copy” is not necessary to model that problem.**
+
+It is fundamentally a **source reconciliation problem**:
+
+```text
+Mallan canonical listing
+        ↕
+Cotality representation of same listing
+```
+
+That distinction matters enormously to Search. Otherwise Search can start treating “Mallan,” “Cotality,” “sale,” “rental,” “REBNY,” “display permission,” and “duplicate suppression” as variants of one identity question.
+
+They are not.
+
+There is another important problem in the database model. The listing itself still contains:
+
+```prisma
+rls_eligible Boolean @default(true)
+```
+
+alongside the internet/display fields.
+
+So eliminating `RLS` is **not going to be a safe global rename**.
+
+We first need to discover exactly what that Boolean means today. It may currently be carrying several different meanings. For example:
+
+```text
+Is this a Mallan-local record?
+Is this residential rather than commercial?
+Can it be publicly displayed?
+Does a REBNY/UCBA rule apply?
+Can it participate in some distribution?
+Should it be suppressed as a returned copy?
+```
+
+If two or more of those meanings are packed into `rls_eligible`, then there is a data-model defect underneath the terminology defect.
+
+That is where I now see the potential to derail Search.
+
+The Search system should conceptually operate like this:
+
+```text
+USER/AGENT SEARCH CRITERIA
+          ↓
+MALLAN CANONICAL SEARCH CONTRACT
+          ↓
+VALIDATION AGAINST VERIFIED COTALITY CONTRACT
+          ↓
+CANONICAL QUERY BUILDER
+          ↓
+COTALITY READ CLIENT
+          ↓
+RAW COTALITY RESULTS
+          ↓
+VERIFIED COTALITY → MALLAN MAPPING
+          ↓
+MALLAN SEARCH RESULT MODEL
+          ↓
+MALLAN BUSINESS / COMPLIANCE GATES
+          ↓
+AGENT SEARCH
+          ├── Saved Search
+          ├── CMA / comps
+          ├── Building research
+          ├── Client matching
+          └── CRM activity
+```
+
+The crucial point is that **Sale/Rental must be understood at the Mallan business/search level and through whatever exact Cotality fields legitimately describe those records. It must never be deduced from `RL` versus some imagined `RLS` concept.**
+
+There are also already signs that Search has more than one contract/view of Cotality. The branch contains both:
+
+```text
+lib/cotality/live-contract.ts
+lib/search/canonical/live-truth.ts
+```
+
+The first is intended to read the generated live Cotality artifacts as the provider contract. The second provides Search-specific typed/pinned vocabulary.
+
+That arrangement is not automatically wrong—the Search layer may legitimately need typed conveniences—but it creates a drift risk if Search can independently decide what Cotality values mean.
+
+The proper relationship must be:
+
+```text
+ONE VERIFIED COTALITY CONTRACT
+          ↓
+Search projection/types derived from it
+```
+
+not:
+
+```text
+Cotality contract ← maybe differs → Search's version of Cotality
+```
+
+Likewise, there is a Search-specific provider client and a larger IDX-era fetching layer. That means we cannot casually say “Search uses one Cotality client” until every backend reader has been traced. This matters because a perfectly corrected Search route accomplishes nothing if CMA, prospects, building research, market reports, or scheduled searches still query Cotality through independent field/filter logic.
+
+That is the deeper question I should have been asking from the beginning:
+
+> **Is Search actually one infrastructure layer, or are there still several implementations that merely look like one product?**
+
+And that directly affects your stated requirement that CMA use Search instead of becoming a separate engine.
+
+### `Private` is another good example of why these layers must stay separate
+
+You corrected the meaning:
+
+```text
+Private = REBNY members only
+```
+
+So the semantic chain should be:
+
+```text
+Cotality Property.Permission
+        ↓
+exact verified provider value: Private
+        ↓
+Mallan interpretation:
+participant/member-only
+        ↓
+participant_only = true
+        ↓
+PUBLIC SEARCH: excluded
+AUTHORIZED REBNY MEMBER CONTEXT: potentially accessible
+```
+
+It is **not**:
+
+```text
+Private → owner opted out
+```
+
+and it is not:
+
+```text
+Private → globally inaccessible
+```
+
+That distinction matters to Search because merely blocking it from public Search is only half the requirement. Backend agent Search has to know whether the authorized REBNY-member context is permitted to see it.
+
+That is precisely why the current `participant_only` path needs a full reader/writer trace rather than a single boolean patch.
+
+### What could my earlier RL/RLS misunderstanding actually have damaged?
+
+Had we acted on it, several serious mistakes were possible.
+
+**First, Mallan identity.** We could have altered or removed `RL-`, breaking the canonical rental-ID namespace. That could affect creation, edits, lookup, portals, CRM references, document links, media ownership, saved searches, and historical relationships.
+
+**Second, reconciliation.** We could have treated rental listings as some special external/RLS class instead of Mallan-authored listings, potentially changing duplicate suppression or source authority.
+
+**Third, edit authority.** Mallan-authored `RL-` rentals must be editable. Cotality third-party inventory must be read-only. A wrong identity classifier can literally reverse that boundary.
+
+**Fourth, Search filtering.** A bogus assumption that `RL` signified an RLS state could contaminate sale/rental classification, resulting in missing or wrongly included inventory.
+
+**Fifth, CMA.** If CMA inherits Search results, a corrupted sale/rental or provenance classification corrupts the comparable set and therefore pricing analysis.
+
+**Sixth, Saved Search.** If persisted criteria encode legacy/provider vocabulary rather than canonical Mallan criteria, fixing the live Search UI would not repair existing alerts.
+
+**Seventh, display/compliance.** Identity flags could accidentally become display gates, exactly as `rls_eligible` already appears to participate in more than one concern.
+
+So yes: **this was serious enough that no structural Search correction should proceed on the basis of the previous consultation.**
+
+There is another current warning I do not want buried. The latest ledger correction recognizes that `SL` and `RL` are Sale/Rental, but it still concludes that `rls_eligible` is a legitimate compliance concept to retain.
+
+I don't think we have earned that conclusion.
+
+A genuine REBNY/UCBA rule can absolutely remain in Mallan. But that does **not** mean the resulting field, service, test, or module needs to be called RLS.
+
+For example, these are very different claims:
+
+```text
+"REBNY/UCBA imposes a business/display rule."
+```
+
+versus:
+
+```text
+"Therefore Mallan needs an rls_eligible field."
+```
+
+The first may be true.
+
+The second has to be proven from the actual semantics and existing data model.
+
+### My corrected understanding of Search
+
+At this point I would define the core invariants this way:
+
+```text
+IDENTITY
+SL-* = Mallan-authored sale
+RL-* = Mallan-authored rental
+
+SOURCE AUTHORITY
+Mallan-authored → Mallan editable
+Third-party Cotality → Cotality read-only
+
+RETURNED MALLAN LISTING
+External Cotality representation must reconcile
+to existing SL-/RL- canonical listing.
+It must not become a second canonical listing.
+
+TRANSACTION TYPE
+Sale/rental comes from canonical business facts
+and verified Cotality mapping—not prefixes standing
+in for provider semantics.
+
+COTALITY
+One actual raw contract.
+No invented names.
+No legacy RESO/RLS vocabulary masquerading
+as Cotality.
+
+SEARCH
+One canonical criteria contract.
+One query semantics layer.
+Every backend consumer either uses it or has an
+explicitly justified specialized dependency.
+
+PERMISSION
+Provider fact → verified mapping → Mallan rule.
+`Private` means participant/member-only per your rule,
+not owner opt-out.
+
+COMPLIANCE
+REBNY/UCBA rules are Mallan business/compliance rules.
+They do not constitute another data provider or identity system.
+
+PUBLIC
+Public availability is an output decision.
+It must never determine listing provenance.
+
+CMA
+Consumes Search foundation.
+It must not independently reinterpret Cotality.
+
+SAVED SEARCH
+Stores durable canonical Mallan criteria,
+not a second copy of UI/provider semantics.
+```
+
+There are therefore **four audits that must converge into one impact graph**, rather than another sprawling repository audit:
+
+1. **Search contract:** every input criterion → canonical criterion → exact Cotality field/value → result projection.
+2. **Identity/source authority:** SL/RL, external Cotality, returned Mallan records, editability and duplicate reconciliation.
+3. **Distribution/compliance:** `Permission`, `Private`, participant-only, address/display flags, owner decisions, and current `rls_eligible`.
+4. **Consumer convergence:** authenticated Search, Saved Search, CMA/comps, buildings, prospects/research, CRM and finally public non-regression.
+
+Until those four line up, I would **not authorize Claude to begin a large RLS deletion or Search refactor.**
+
+The objective is no longer “clean up terminology.” It is:
+
+```text
+COTALITY RAW CONTRACT
+        ↓
+ONE VERIFIED CONTRACT
+        ↓
+ONE CANONICAL SEARCH INTERPRETATION
+        ↓
+MALLAN SALE / RENTAL + SOURCE IDENTITY
+        ↓
+MALLAN BUSINESS / REBNY-UCBA RULES
+        ↓
+SEARCH / SAVED SEARCH / CMA / CRM
+```
+
+with:
+
+```text
+SL- preserved
+RL- preserved
+
+RESO active-tree terminology = 0
+RLS active-tree terminology = 0
+RealPlus active-tree terminology = 0
+
+without deleting the actual business/compliance
+behaviors those legacy names may currently carry.
+```
+
+That is the level of understanding I should have established before advising you on this system. I would treat the previous RL/RLS analysis as **superseded**, not something Claude should build on.

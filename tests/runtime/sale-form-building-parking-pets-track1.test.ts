@@ -1,7 +1,7 @@
 /// <reference types="jest" />
 /**
  * Track 1 — building auto-fill for the real-Cotality parking / laundry /
- * documents / pets fields. Authority: live $metadata (artifacts/metadata.xml).
+ * documents / pets fields. Authority: the live Cotality contract (committed snapshot: data/cotality-contract/**).
  *
  * Added (all verified in live metadata): GarageYN, AttachedGarageYN,
  * GarageSpaces, OpenParkingSpaces, CoveredSpaces, ParkingFeatures,
@@ -19,11 +19,11 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { hasContractField } from './cotality-contract-facts';
 
 const FORM = readFileSync(resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'), 'utf8');
 const ROUTE = readFileSync(resolve(__dirname, '../../app/api/buildings/search/route.ts'), 'utf8');
-const META = readFileSync(resolve(__dirname, '../../artifacts/metadata.xml'), 'utf8');
-const hasField = (f: string) => new RegExp(`Property Name="${f}"`).test(META);
+const hasField = (f: string) => hasContractField(f); // the committed live Cotality contract
 
 function extractFn(src: string, name: string): string {
   const sig = `function ${name}(`;
@@ -128,29 +128,29 @@ describe('populateBuildingFromIDX — behavioral (parking / laundry / docs / pet
 
   it('suggests Documents Available + Pets (unit) when the group is empty', () => {
     const docs: Cb[] = [{ value: 'OfferingPlan', checked: false }, { value: 'ScheduleA', checked: false }, { value: 'BuildingRules', checked: false }];
-    const pets: Cb[] = [{ value: 'UnitCatsOK', checked: false }, { value: 'UnitDogsOK', checked: false }, { value: 'UnitNo', checked: false }];
+    const pets: Cb[] = [{ value: 'CatsOk', checked: false }, { value: 'DogsOk', checked: false }, { value: 'No', checked: false }];
     // Real live-metadata casing is CatsOk/DogsOk (lowercase k); the explicit map
-    // must normalize to the form's UnitCatsOK/UnitDogsOK (Codex #297).
+    // the unit-level checkbox values ARE the live members (Packet 2 closure): CatsOk/DogsOk.
     run({ documents_available: 'OfferingPlan,ScheduleA', pets_allowed: 'CatsOk,DogsOk' }, {}, { saleBldgDocsAvailable: docs, salePetsAllowed: pets });
     expect(docs.filter((c) => c.checked).map((c) => c.value).sort()).toEqual(['OfferingPlan', 'ScheduleA']);
-    expect(pets.filter((c) => c.checked).map((c) => c.value).sort()).toEqual(['UnitCatsOK', 'UnitDogsOK']);
+    expect(pets.filter((c) => c.checked).map((c) => c.value).sort()).toEqual(['CatsOk', 'DogsOk']);
   });
 
   it('ignores Cotality pet members the form has no checkbox for (BirdsOk, Building*)', () => {
-    const pets: Cb[] = [{ value: 'UnitCatsOK', checked: false }, { value: 'UnitNo', checked: false }];
+    const pets: Cb[] = [{ value: 'CatsOk', checked: false }, { value: 'No', checked: false }];
     run({ pets_allowed: 'BirdsOk,BuildingCatsOk,FishOk' }, {}, { salePetsAllowed: pets });
     expect(pets.some((c) => c.checked)).toBe(false); // none map to a form value
   });
 
   it('does NOT override an agent-selected pet policy (suggestion-only, override-safe)', () => {
-    const pets: Cb[] = [{ value: 'UnitCatsOK', checked: false }, { value: 'UnitNo', checked: true }];
+    const pets: Cb[] = [{ value: 'CatsOk', checked: false }, { value: 'No', checked: true }];
     run({ pets_allowed: 'CatsOk,DogsOk' }, {}, { salePetsAllowed: pets });
-    expect(pets.find((c) => c.value === 'UnitNo')!.checked).toBe(true);
-    expect(pets.find((c) => c.value === 'UnitCatsOK')!.checked).toBe(false); // not overridden
+    expect(pets.find((c) => c.value === 'No')!.checked).toBe(true);
+    expect(pets.find((c) => c.value === 'CatsOk')!.checked).toBe(false); // not overridden
   });
 
   it('missing PetsAllowedYN (null) suggests nothing — no false "No" (override-safe)', () => {
-    const pets: Cb[] = [{ value: 'UnitYes', checked: false }, { value: 'UnitNo', checked: false }];
+    const pets: Cb[] = [{ value: 'Yes', checked: false }, { value: 'No', checked: false }];
     run({ pets_allowed: '', pets_allowed_yn: null }, {}, { salePetsAllowed: pets });
     expect(pets.some((c) => c.checked)).toBe(false);
   });

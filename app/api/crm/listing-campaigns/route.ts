@@ -42,6 +42,7 @@ import { investorListingEmail, type InvestorListingEmailData } from "@/lib/email
 import { computeInvestmentMetrics, parseMoney } from "@/lib/email/investment-metrics";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { escapeHtml } from "@/lib/sanitize";
+import { professionalTitle } from "@/lib/agents/professional-title";
 import {
   filterSuppressedRecipients,
   type CampaignRecipient,
@@ -267,10 +268,16 @@ export async function POST(req: NextRequest) {
   // body fields — so recipients always see the agent who actually sent it.
   const agent = await prisma.agent.findUnique({
     where: { id: auth.userId },
-    select: { first_name: true, last_name: true, email: true, phone: true, title: true, role: true },
+    select: { first_name: true, last_name: true, email: true, phone: true, title: true, license_type: true },
   });
   const agentName = (agent ? `${agent.first_name || ""} ${agent.last_name || ""}`.trim() : "") || "Mallan Real Estate Inc.";
-  const agentTitle = agent?.title || (agent?.role === "BROKER" ? "Licensed Real Estate Broker" : "Licensed Real Estate Salesperson");
+  // SECOND TITLE AUTHORITY, REMOVED. This derived the outbound designation
+  // from `role`, so every licensee who was not the principal broker went out
+  // to investors as a "Licensed Real Estate Salesperson" - including an
+  // Associate Broker. That is a false statement about a licensee under NY DOS
+  // 19 NYCRR 175.25, and it manufactured a licence class from an authorisation
+  // grant. Derived through the ONE authority from the LICENCE CLASS instead.
+  const agentTitle = professionalTitle(agent);
   const agentEmail = agent?.email || null;
   const agentPhone = agent?.phone || null;
 

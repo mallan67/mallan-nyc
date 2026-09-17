@@ -1,0 +1,999 @@
+{
+  "source": "LIVE_COTALITY",
+  "scope": "StandardStatus eq 'Active'",
+  "started": "2026-09-08T06:46:48.124Z",
+  "fields": {
+    "BuildingFeatures": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.BuildingFeatures",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 6256,
+      "members": 123,
+      "membersUsed": 35,
+      "counts": {
+        "Elevators": 4811,
+        "BikeStorage": 2720,
+        "Concierge": 1417,
+        "CommonPlayroom": 1249,
+        "Storage": 811,
+        "IndoorPool": 646,
+        "Sauna": 638,
+        "FitnessCenter": 630,
+        "ColdStorage": 578,
+        "GameRoom": 508,
+        "GreenBuilding": 474,
+        "KitchenFacilities": 350,
+        "SteamRoom": 346,
+        "SpaHotTub": 333,
+        "HealthClub": 290,
+        "ScreeningRoom": 221,
+        "CommonLounge": 214,
+        "GolfSimulatorRoom": 187,
+        "PackageRoom": 163,
+        "RecreationRoom": 140,
+        "BilliardRoom": 95,
+        "Management": 77,
+        "OnSiteManagement": 67,
+        "BasketballCourt": 44,
+        "YogaStudio": 30,
+        "Restaurant": 25,
+        "ColdPlungePool": 15,
+        "Coworkspace": 15,
+        "DogPark": 15,
+        "TennisCourts": 7,
+        "CommonLibrary": 4,
+        "ShuffleboardCourt": 3,
+        "DogRun": 2,
+        "Racquetball": 2,
+        "DryCleaningService": 1
+      }
+    },
+    "AssociationAmenities": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.AssociationAmenities",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 0,
+      "members": 137,
+      "membersUsed": 0,
+      "counts": {}
+    },
+    "CommunityFeatures": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.CommunityFeatures",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 809,
+      "members": 141,
+      "membersUsed": 2,
+      "counts": {
+        "Sauna": 694,
+        "Clubhouse": 208
+      }
+    },
+    "SecurityFeatures": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.SecurityFeatures",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 140,
+      "members": 84,
+      "membersUsed": 10,
+      "counts": {
+        "SecuritySystem": 83,
+        "SecurityGuard": 68,
+        "SecurityGate": 13,
+        "FireAlarm": 8,
+        "CarbonMonoxideDetectors": 7,
+        "FireSprinklerSystem": 7,
+        "ClosedCircuitCameras": 4,
+        "KeyCardEntry": 3,
+        "Firewalls": 2,
+        "FireEscape": 1
+      }
+    },
+    "LaundryFeatures": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.LaundryFeatures",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 7599,
+      "members": 50,
+      "membersUsed": 33,
+      "counts": {
+        "InUnit": 3831,
+        "BuildingOther": 2612,
+        "WasherHookup": 1861,
+        "CommonArea": 1621,
+        "BuildingNone": 1358,
+        "CommonOnFloor": 1156,
+        "BuildingWasherDryerInstallAllowed": 909,
+        "SeeRemarks": 527,
+        "None": 432,
+        "BuildingInBasement": 323,
+        "BuildingInside": 292,
+        "LaundryRoom": 200,
+        "BuildingMultipleLocations": 108,
+        "InBasement": 72,
+        "BuildingMainLevel": 32,
+        "WasherDryerInstallAllowed": 19,
+        "ElectricDryerHookup": 13,
+        "MainLevel": 8,
+        "Other": 8,
+        "Inside": 5,
+        "GasDryerHookup": 4,
+        "InKitchen": 4,
+        "MultipleLocations": 4,
+        "BuildingInHall": 3,
+        "BuildingLowerLevel": 3,
+        "InBathroom": 3,
+        "LaundryCloset": 3,
+        "InHall": 2,
+        "LaundryTub": 2,
+        "Sink": 2,
+        "BuildingUpperLevel": 1,
+        "LowerLevel": 1,
+        "UpperLevel": 1
+      }
+    },
+    "ExteriorFeatures": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ExteriorFeatures",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 6417,
+      "members": 152,
+      "membersUsed": 39,
+      "counts": {
+        "BuildingRoofDeck": 2487,
+        "PrivateOutdoorSpaceOver60Sqft": 1718,
+        "BuildingCourtyard": 1433,
+        "None": 1247,
+        "PrivateOutdoorSpaceUnder60Sqft": 1173,
+        "Balcony": 792,
+        "BuildingStorage": 669,
+        "BuildingGarden": 605,
+        "Garden": 349,
+        "Storage": 151,
+        "BuildingBalcony": 116,
+        "BuildingOutdoorGrill": 102,
+        "BuildingBarbecue": 101,
+        "Courtyard": 77,
+        "BuildingElectricGrill": 71,
+        "BuildingOutdoorShower": 71,
+        "JulietBalcony": 64,
+        "PrivateYard": 59,
+        "PrivateEntrance": 56,
+        "BuildingBasketballCourt": 50,
+        "BuildingAwnings": 15,
+        "BuildingTennisCourts": 15,
+        "BuildingDogRun": 11,
+        "BuildingPlayground": 11,
+        "BuildingLighting": 10,
+        "BuildingGasGrill": 6,
+        "BasketballCourt": 5,
+        "BuildingNone": 5,
+        "BuildingOther": 3,
+        "BuildingOutdoorKitchen": 3,
+        "BuildingBuiltInBarbecue": 2,
+        "BuildingUncoveredCourtyard": 2,
+        "OutdoorGrill": 2,
+        "Playground": 2,
+        "Awnings": 1,
+        "BuildingPermeablePaving": 1,
+        "GasGrill": 1,
+        "Lighting": 1,
+        "Other": 1
+      }
+    },
+    "InteriorOrRoomFeatures": {
+      "error": "not declared"
+    },
+    "Appliances": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Appliances",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 4253,
+      "members": 129,
+      "membersUsed": 52,
+      "counts": {
+        "Dishwasher": 2669,
+        "WasherDryerAllowed": 1259,
+        "Washer": 1083,
+        "Dryer": 1079,
+        "StainlessSteelAppliances": 495,
+        "Refrigerator": 312,
+        "Microwave": 285,
+        "GasCooktop": 217,
+        "GasOven": 161,
+        "WasherDryerStacked": 135,
+        "Cooktop": 121,
+        "Range": 92,
+        "WineCooler": 86,
+        "Freezer": 83,
+        "RangeHood": 62,
+        "ElectricOven": 28,
+        "EnergyStarQualifiedAppliances": 28,
+        "GasRange": 26,
+        "DoubleOven": 25,
+        "ElectricCooktop": 24,
+        "BuiltInRefrigerator": 18,
+        "ConvectionOven": 13,
+        "BuiltInGasRange": 11,
+        "ExhaustFan": 9,
+        "Oven": 9,
+        "BuiltInGasOven": 8,
+        "BuiltInElectricOven": 7,
+        "WineRefrigerator": 7,
+        "BuiltInFreezer": 6,
+        "EnergyStarQualifiedRefrigerator": 6,
+        "IceMaker": 6,
+        "BarFridge": 5,
+        "Disposal": 5,
+        "EnergyStarQualifiedFreezer": 5,
+        "FreeStandingGasRange": 5,
+        "FreeStandingRefrigerator": 5,
+        "VentedExhaustFan": 4,
+        "BuiltInRange": 3,
+        "EnergyStarQualifiedDishwasher": 3,
+        "EnergyStarQualifiedDryer": 3,
+        "EnergyStarQualifiedWasher": 3,
+        "TrashCompactor": 3,
+        "BuiltInElectricRange": 2,
+        "InstantHotWater": 2,
+        "SelfCleaningOven": 2,
+        "ElectricRange": 1,
+        "ElectricWaterHeater": 1,
+        "FreeStandingFreezer": 1,
+        "FreeStandingGasOven": 1,
+        "FreeStandingRange": 1,
+        "GasWaterHeater": 1,
+        "InductionCooktop": 1
+      }
+    },
+    "PetsAllowed": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.PetsAllowed",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 7601,
+      "members": 31,
+      "membersUsed": 14,
+      "counts": {
+        "BuildingYes": 6396,
+        "No": 3447,
+        "Yes": 2837,
+        "CatsOk": 1103,
+        "DogsOk": 1065,
+        "BuildingNo": 991,
+        "BuildingCatsOk": 267,
+        "BuildingDogsOk": 239,
+        "BreedRestrictions": 85,
+        "SizeLimit": 78,
+        "BuildingBreedRestrictions": 72,
+        "BuildingSizeLimit": 60,
+        "NumberLimit": 50,
+        "BuildingNumberLimit": 34
+      }
+    },
+    "ParkingFeatures": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ParkingFeatures",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 768,
+      "members": 204,
+      "membersUsed": 31,
+      "counts": {
+        "Garage": 551,
+        "Assigned": 169,
+        "Valet": 162,
+        "OnSite": 45,
+        "ElectricVehicleChargingStations": 24,
+        "Private": 24,
+        "OnStreet": 22,
+        "Outside": 16,
+        "Attached": 12,
+        "AutomatedParkingSystem": 10,
+        "BuildingDetached": 7,
+        "ElectricGate": 4,
+        "Driveway": 3,
+        "GarageDoorOpener": 3,
+        "GarageFacesSide": 3,
+        "Common": 2,
+        "DirectAccess": 2,
+        "Guest": 2,
+        "Lighted": 2,
+        "None": 2,
+        "Underground": 2,
+        "AlleyAccess": 1,
+        "Basement": 1,
+        "CircularDriveway": 1,
+        "Concrete": 1,
+        "Deeded": 1,
+        "HeatedGarage": 1,
+        "NoGarage": 1,
+        "OffSite": 1,
+        "Other": 1,
+        "ParkingLot": 1
+      }
+    },
+    "PoolFeatures": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.PoolFeatures",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 3927,
+      "members": 88,
+      "membersUsed": 25,
+      "counts": {
+        "BuildingNone": 3474,
+        "BuildingIndoor": 219,
+        "Indoor": 102,
+        "OutdoorPool": 79,
+        "BuildingHeated": 45,
+        "Heated": 44,
+        "BuildingCabana": 39,
+        "BuildingLap": 34,
+        "SaltWater": 22,
+        "Lap": 18,
+        "InGround": 17,
+        "PoolSpaCombo": 15,
+        "None": 10,
+        "Cabana": 9,
+        "AboveGround": 5,
+        "BuildingTile": 3,
+        "Community": 3,
+        "BuildingGunite": 2,
+        "BuildingFiltered": 1,
+        "BuildingWaterfall": 1,
+        "Fenced": 1,
+        "Filtered": 1,
+        "Infinity": 1,
+        "Liner": 1,
+        "Tile": 1
+      }
+    },
+    "SpaFeatures": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.SpaFeatures",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 694,
+      "members": 24,
+      "membersUsed": 1,
+      "counts": {
+        "Sauna": 694
+      }
+    },
+    "AccessibilityFeatures": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.AccessibilityFeatures",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 81,
+      "members": 76,
+      "membersUsed": 12,
+      "counts": {
+        "WheelchairAccess": 47,
+        "BuildingAdaCompliant": 18,
+        "BuildingAccessibleEntrance": 17,
+        "BuildingAccessibleApproachWithRamp": 16,
+        "Visitable": 7,
+        "AccessibleApproachWithRamp": 3,
+        "AccessibleCommonArea": 2,
+        "AccessibleEntrance": 2,
+        "AccessibleCentralLivingArea": 1,
+        "AdaCompliant": 1,
+        "BuildingWheelchairAccessible": 1,
+        "CommonArea": 1
+      }
+    },
+    "Utilities": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Utilities",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 0,
+      "members": 41,
+      "membersUsed": 0,
+      "counts": {}
+    }
+  },
+  "customFields": {
+    "rows": 7601,
+    "withCustomFields": 7601,
+    "distinctKeys": 51,
+    "keys": {
+      "ElevatorsTotal": {
+        "rows": 7601,
+        "nonEmpty": 7601,
+        "topValues": [
+          "0=2426",
+          "1=2058",
+          "2=1258",
+          "3=597",
+          "4=509",
+          "6=205",
+          "5=183",
+          "8=83"
+        ]
+      },
+      "BuildingTaxLot": {
+        "rows": 7601,
+        "nonEmpty": 7601,
+        "topValues": [
+          "7501=1287",
+          "7502=583",
+          "0001=506",
+          "7503=318",
+          "0016=277",
+          "0025=118",
+          "0005=116",
+          "7504=112"
+        ]
+      },
+      "AttendanceType": {
+        "rows": 7601,
+        "nonEmpty": 7601,
+        "topValues": [
+          "None=2836",
+          "DoormanFullTime=1342",
+          "DoormanFullTime,ConciergeFullTime=876",
+          "DoormanFullTime,ConciergeYes=613",
+          "ConciergeFullTime,DoormanFullTime,LobbyA=261",
+          "DoormanYes,DoormanFullTime=188",
+          "DoormanPartTime=179",
+          "ConciergeYes,DoormanFullTime=168"
+        ]
+      },
+      "ListingKey": {
+        "rows": 7601,
+        "nonEmpty": 7601,
+        "topValues": [
+          "1091330901=1",
+          "1091330953=1",
+          "1091331715=1",
+          "1091331731=1",
+          "1091331872=1",
+          "1091331955=1",
+          "1091332486=1",
+          "1091332606=1"
+        ]
+      },
+      "TaxAbatementYN": {
+        "rows": 7594,
+        "nonEmpty": 7594,
+        "topValues": [
+          "0=7409",
+          "1=185"
+        ]
+      },
+      "SponsorUnitYN": {
+        "rows": 7331,
+        "nonEmpty": 7331,
+        "topValues": [
+          "0=6035",
+          "1=1296"
+        ]
+      },
+      "FlipTax": {
+        "rows": 6751,
+        "nonEmpty": 6751,
+        "topValues": [
+          "0.00=5454",
+          "2.00=497",
+          "1.00=166",
+          "3.00=164",
+          "1.50=71",
+          "5.00=59",
+          "2.50=39",
+          "30.00=33"
+        ]
+      },
+      "PercentOfCommonElements": {
+        "rows": 6536,
+        "nonEmpty": 6536,
+        "topValues": [
+          "0.00=5516",
+          "1.00=247",
+          "2.00=127",
+          "100.00=88",
+          "50.00=77",
+          "33.00=44",
+          "3.00=41",
+          "4.00=33"
+        ]
+      },
+      "MaximumFinancingPercent": {
+        "rows": 6468,
+        "nonEmpty": 6468,
+        "topValues": [
+          "90.00=2417",
+          "80.00=1780",
+          "0.00=1110",
+          "75.00=511",
+          "50.00=183",
+          "100.00=141",
+          "70.00=94",
+          "65.00=52"
+        ]
+      },
+      "MaximumFinancingRemarks": {
+        "rows": 6286,
+        "nonEmpty": 6286,
+        "topValues": [
+          "See Maximum Financing Percent=1716",
+          "0=816",
+          "90=566",
+          "80=425",
+          "%=334",
+          "-=289",
+          "90%=231",
+          "75=177"
+        ]
+      },
+      "CertificateOfOccupancyYN": {
+        "rows": 5646,
+        "nonEmpty": 5646,
+        "topValues": [
+          "1=4206",
+          "0=1440"
+        ]
+      },
+      "TaxMonthlyAmount": {
+        "rows": 5477,
+        "nonEmpty": 5477,
+        "topValues": [
+          "0.00=2119",
+          "12.00=8",
+          "832.00=8",
+          "14.00=7",
+          "1.00=7",
+          "1250.00=7",
+          "300.32=6",
+          "24.00=6"
+        ]
+      },
+      "LandmarkStatusYN": {
+        "rows": 5401,
+        "nonEmpty": 5401,
+        "topValues": [
+          "0=5336",
+          "1=65"
+        ]
+      },
+      "FlipTaxRemarks": {
+        "rows": 4984,
+        "nonEmpty": 4984,
+        "topValues": [
+          "0.0=1705",
+          "ASK EXCL BROKER=914",
+          "Call Listing Agent=365",
+          "NONE=214",
+          "SELLER PAYS=76",
+          "None=48",
+          "2%=47",
+          "paid by seller=45"
+        ]
+      },
+      "ViewRemarks": {
+        "rows": 4601,
+        "nonEmpty": 4601,
+        "topValues": [
+          "C=709",
+          "See remarks=537",
+          " =440",
+          "City=384",
+          "T=215",
+          "G=170",
+          "C,S=122",
+          "C,T=108"
+        ]
+      },
+      "TaxDeductionPercent": {
+        "rows": 4483,
+        "nonEmpty": 4483,
+        "topValues": [
+          "0.00=3271",
+          "50.00=189",
+          "55.00=76",
+          "45.00=58",
+          "40.00=57",
+          "52.00=49",
+          "48.00=45",
+          "60.00=44"
+        ]
+      },
+      "CapitalReservesYN": {
+        "rows": 4168,
+        "nonEmpty": 4168,
+        "topValues": [
+          "0=4092",
+          "1=76"
+        ]
+      },
+      "UnitLine": {
+        "rows": 2922,
+        "nonEmpty": 2922,
+        "topValues": [
+          "A=403",
+          "B=368",
+          "C=301",
+          "D=239",
+          "E=210",
+          "F=170",
+          "G=130",
+          "H=109"
+        ]
+      },
+      "PrivateOutdoorSpaceSize": {
+        "rows": 2892,
+        "nonEmpty": 2892,
+        "topValues": [
+          "GreaterThan60SqFt=1718",
+          "LessThan60SqFt=1174"
+        ]
+      },
+      "KitchenCondition": {
+        "rows": 2365,
+        "nonEmpty": 2365,
+        "topValues": [
+          "Excellent=1920",
+          "Good=340",
+          "Fair=66",
+          "Poor=28",
+          "New=11"
+        ]
+      },
+      "FlipTaxType": {
+        "rows": 2252,
+        "nonEmpty": 2252,
+        "topValues": [
+          "Percent=1694",
+          "SeeRemarks=359",
+          "Dollars=199"
+        ]
+      },
+      "BathroomCondition": {
+        "rows": 1929,
+        "nonEmpty": 1929,
+        "topValues": [
+          "Excellent=1510",
+          "Good=316",
+          "Fair=61",
+          "New=21",
+          "Poor=21"
+        ]
+      },
+      "FurnishedListPrice": {
+        "rows": 1325,
+        "nonEmpty": 1325,
+        "topValues": [
+          "499000.00=19",
+          "1995000.00=17",
+          "699000.00=17",
+          "1495000.00=15",
+          "799000.00=12",
+          "1150000.00=12",
+          "2995000.00=11",
+          "1750000.00=11"
+        ]
+      },
+      "BuildingStaffType": {
+        "rows": 1221,
+        "nonEmpty": 1221,
+        "topValues": [
+          "SuperLiveIn=1053",
+          "ResidentManagerFullTime=123",
+          "SuperOffsite=45"
+        ]
+      },
+      "BuildingSmokeFreeYN": {
+        "rows": 1151,
+        "nonEmpty": 1151,
+        "topValues": [
+          "0=597",
+          "1=554"
+        ]
+      },
+      "MaxLeaseMonths": {
+        "rows": 939,
+        "nonEmpty": 939,
+        "topValues": [
+          "12=517",
+          "24=328",
+          "14=23",
+          "15=13",
+          "27=13",
+          "36=7",
+          "0=7",
+          "60=6"
+        ]
+      },
+      "BuildingRules": {
+        "rows": 795,
+        "nonEmpty": 795,
+        "topValues": [
+          "PiedATerreAllowed,BuildingWasherDryerAll=443",
+          "PiedATerreAllowed=166",
+          "PiedATerreAllowed,CorporateOwnerAllowed,=69",
+          "BuildingWasherDryerAllowed=48",
+          "PiedATerreAllowed,CorporateOwnerAllowed=20",
+          "LiveWorkAllowed=19",
+          "CopurchasersAllowed,CorporateOwnerAllowe=15",
+          "LiveWorkAllowed,PiedATerreAllowed=5"
+        ]
+      },
+      "ClosetsTotal": {
+        "rows": 787,
+        "nonEmpty": 787,
+        "topValues": [
+          "0=752",
+          "3=11",
+          "4=10",
+          "6=7",
+          "7=2",
+          "2=2",
+          "5=1",
+          "10=1"
+        ]
+      },
+      "TaxDeductionAmount": {
+        "rows": 708,
+        "nonEmpty": 708,
+        "topValues": [
+          "0.00=587",
+          "85288.00=2",
+          "14880.00=1",
+          "66750.00=1",
+          "91504.00=1",
+          "61711.00=1",
+          "62775.00=1",
+          "733614.00=1"
+        ]
+      },
+      "MaximumFinancingAmount": {
+        "rows": 708,
+        "nonEmpty": 708,
+        "topValues": [
+          "0.00=707",
+          "511200.00=1"
+        ]
+      },
+      "CommercialUnitsYN": {
+        "rows": 648,
+        "nonEmpty": 648,
+        "topValues": [
+          "0=645",
+          "1=3"
+        ]
+      },
+      "GuarantorsAcceptedYN": {
+        "rows": 648,
+        "nonEmpty": 648,
+        "topValues": [
+          "0=621",
+          "1=27"
+        ]
+      },
+      "TaxDeductionRemarks": {
+        "rows": 585,
+        "nonEmpty": 585,
+        "topValues": [
+          "ASK EXCL BROKER=585"
+        ]
+      },
+      "CeilingHeightFeet": {
+        "rows": 336,
+        "nonEmpty": 336,
+        "topValues": [
+          "10=110",
+          "9=95",
+          "11=39",
+          "0=18",
+          "14=18",
+          "12=18",
+          "8=16",
+          "13=7"
+        ]
+      },
+      "CeilingHeightInches": {
+        "rows": 296,
+        "nonEmpty": 296,
+        "topValues": [
+          "0=120",
+          "108=22",
+          "7=20",
+          "120=18",
+          "6=15",
+          "132=12",
+          "126=7",
+          "174=6"
+        ]
+      },
+      "BuildingParkingTotal": {
+        "rows": 188,
+        "nonEmpty": 188,
+        "topValues": [
+          "0=60",
+          "25=21",
+          "1=20",
+          "60=16",
+          "200=13",
+          "58=10",
+          "49=7",
+          "28=5"
+        ]
+      },
+      "TaxAbatementComments": {
+        "rows": 185,
+        "nonEmpty": 185,
+        "topValues": [
+          "421A=84",
+          "J51=22",
+          "Ends 2039=15",
+          "n/a=11",
+          "Tax Abated Building=6",
+          "421A Tax Abatement=5",
+          "N/A=4",
+          "5 year phase put starting 2028=3"
+        ]
+      },
+      "TaxAbatementExpirationYear": {
+        "rows": 185,
+        "nonEmpty": 185,
+        "topValues": [
+          "2039=34",
+          "2020=19",
+          "2033=17",
+          "2021=15",
+          "2023=12",
+          "2025=10",
+          "2024=8",
+          "2019=8"
+        ]
+      },
+      "FurnishedMinLeaseMonths": {
+        "rows": 131,
+        "nonEmpty": 131,
+        "topValues": [
+          "12=61",
+          "0=48",
+          "6=7",
+          "1=6",
+          "24=2",
+          "3=2",
+          "36=1",
+          "4=1"
+        ]
+      },
+      "FurnishedMaxLeaseMonths": {
+        "rows": 131,
+        "nonEmpty": 131,
+        "topValues": [
+          "12=50",
+          "0=47",
+          "24=23",
+          "1=6",
+          "36=2",
+          "3=1",
+          "120=1",
+          "20=1"
+        ]
+      },
+      "ComingSoonTimestamp": {
+        "rows": 80,
+        "nonEmpty": 80,
+        "topValues": [
+          "2026-07-10T00:00:00.000=4",
+          "2026-07-16T00:00:00.000=4",
+          "2026-08-26T00:00:00.000=3",
+          "2026-08-27T00:00:00.000=3",
+          "2026-06-08T00:00:00.000=2",
+          "2026-06-29T00:00:00.000=2",
+          "2026-07-06T00:00:00.000=2",
+          "2026-07-15T00:00:00.000=2"
+        ]
+      },
+      "NumberOfProfessionalUnitsTotal": {
+        "rows": 60,
+        "nonEmpty": 60,
+        "topValues": [
+          "0=33",
+          "1=11",
+          "435=5",
+          "2=4",
+          "7=3",
+          "3=2",
+          "4=2"
+        ]
+      },
+      "CeilingHeightUnits": {
+        "rows": 59,
+        "nonEmpty": 59,
+        "topValues": [
+          "Feet=59"
+        ]
+      },
+      "CapitalReservesTotal": {
+        "rows": 49,
+        "nonEmpty": 49,
+        "topValues": [
+          "0.00=34",
+          "1.00=6",
+          "2.00=2",
+          "2000000.00=2",
+          "3.00=1",
+          "4500000.00=1",
+          "233132.00=1",
+          "850000.00=1"
+        ]
+      },
+      "ManagingAgencyListingYN": {
+        "rows": 48,
+        "nonEmpty": 48,
+        "topValues": [
+          "0=47",
+          "1=1"
+        ]
+      },
+      "ArchitectName": {
+        "rows": 22,
+        "nonEmpty": 22,
+        "topValues": [
+          "Selldorf Architects=15",
+          "Charles W. Romeyn and Henry R. Wynne=1",
+          "Kenneth M. Murchison=1",
+          "Brent Buck=1",
+          "David Chipperfield=1",
+          "Emery Roth & Sons=1",
+          "John H. Duncan=1",
+          "KPF=1"
+        ]
+      },
+      "SpecialAssessmentExpirationDateTime": {
+        "rows": 13,
+        "nonEmpty": 13,
+        "topValues": [
+          "2026-11-29T19:06:00.000=4",
+          "2017-12-31T19:06:00.000=2",
+          "2015-12-31T19:06:00.000=2",
+          "2016-12-31T19:06:00.000=1",
+          "2018-12-31T19:06:00.000=1",
+          "2014-12-31T19:06:00.000=1",
+          "2019-12-31T19:06:00.000=1",
+          "2024-12-30T19:06:00.000=1"
+        ]
+      },
+      "AreaOverFAR": {
+        "rows": 5,
+        "nonEmpty": 5,
+        "topValues": [
+          "0.00=4",
+          "1150.00=1"
+        ]
+      },
+      "AreaUnderFAR": {
+        "rows": 5,
+        "nonEmpty": 5,
+        "topValues": [
+          "0.00=4",
+          "1000.00=1"
+        ]
+      },
+      "BonusYN": {
+        "rows": 2,
+        "nonEmpty": 2,
+        "topValues": [
+          "0=2"
+        ]
+      },
+      "RoofRightsYN": {
+        "rows": 2,
+        "nonEmpty": 2,
+        "topValues": [
+          "1=2"
+        ]
+      }
+    }
+  },
+  "finished": "2026-09-08T06:57:43.023Z",
+  "quota": {
+    "minuteLimit": 280,
+    "minuteAvailable": 243,
+    "hourLimit": 8400,
+    "hourAvailable": 7842,
+    "hourResetTime": 1788852995017,
+    "seenAt": 1788850663018
+  }
+}

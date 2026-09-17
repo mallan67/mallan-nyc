@@ -31,17 +31,19 @@
  * schema diffs. The underlying string values are whatever RESO uses.
  */
 export const Status = {
+  // The eleven live Cotality StandardStatus members, verbatim (owner ruling 2026-09-08: the stored vocabulary IS
+  // the live vocabulary; Canceled with one L). Mallan's former 'Sold' / 'Rented' / 'Leased' / 'Cancelled' /
+  // 'Draft' are accepted as INPUT (legacy rows) and normalize to Closed / Closed / Closed / Canceled / Incomplete.
   ACTIVE: 'Active',
   ACTIVE_UNDER_CONTRACT: 'ActiveUnderContract',
-  CANCELLED: 'Cancelled',
+  CANCELED: 'Canceled',
   CLOSED: 'Closed',
   COMING_SOON: 'ComingSoon',
+  DELETE: 'Delete',
   EXPIRED: 'Expired',
   HOLD: 'Hold',
-  LEASED: 'Leased',
+  INCOMPLETE: 'Incomplete',
   PENDING: 'Pending',
-  RENTED: 'Rented',
-  SOLD: 'Sold',
   WITHDRAWN: 'Withdrawn',
 } as const;
 
@@ -55,26 +57,29 @@ export type StatusValue = typeof Status[keyof typeof Status];
  * `normalizeStatus()` that isn't here returns `null` (fail-closed).
  */
 const INPUT_TO_CANONICAL: Record<string, StatusValue> = {
-  // Canonical (pass-through)
+  // Canonical (pass-through) — the live members
   'Active': Status.ACTIVE,
   'ActiveUnderContract': Status.ACTIVE_UNDER_CONTRACT,
-  'Cancelled': Status.CANCELLED,
+  'Canceled': Status.CANCELED,
   'Closed': Status.CLOSED,
   'ComingSoon': Status.COMING_SOON,
+  'Delete': Status.DELETE,
   'Expired': Status.EXPIRED,
   'Hold': Status.HOLD,
-  'Leased': Status.LEASED,
+  'Incomplete': Status.INCOMPLETE,
   'Pending': Status.PENDING,
-  'Rented': Status.RENTED,
-  'Sold': Status.SOLD,
   'Withdrawn': Status.WITHDRAWN,
+
+  // Legacy Mallan storage spellings (rows written before the 2026-09-08 token correction)
+  'Cancelled': Status.CANCELED,
+  'Sold': Status.CLOSED,
+  'Rented': Status.CLOSED,
+  'Leased': Status.CLOSED,
+  'Draft': Status.INCOMPLETE,
 
   // Human display format (RESO-style with spaces — Trestle sometimes sends these)
   'Active Under Contract': Status.ACTIVE_UNDER_CONTRACT,
   'Coming Soon': Status.COMING_SOON,
-
-  // Common typo / alternate spelling
-  'Canceled': Status.CANCELLED,
 
   // URL / API-param format (rarely incoming, but defensively accepted)
   'ACTIVE': Status.ACTIVE,
@@ -82,13 +87,16 @@ const INPUT_TO_CANONICAL: Record<string, StatusValue> = {
   'COMING_SOON': Status.COMING_SOON,
   'CLOSED': Status.CLOSED,
   'PENDING': Status.PENDING,
-  'SOLD': Status.SOLD,
+  'SOLD': Status.CLOSED,
   'WITHDRAWN': Status.WITHDRAWN,
-  'CANCELLED': Status.CANCELLED,
+  'CANCELED': Status.CANCELED,
+  'CANCELLED': Status.CANCELED,
   'EXPIRED': Status.EXPIRED,
   'HOLD': Status.HOLD,
-  'LEASED': Status.LEASED,
-  'RENTED': Status.RENTED,
+  'LEASED': Status.CLOSED,
+  'RENTED': Status.CLOSED,
+  'INCOMPLETE': Status.INCOMPLETE,
+  'DRAFT': Status.INCOMPLETE,
 };
 
 /**
@@ -98,50 +106,52 @@ const INPUT_TO_CANONICAL: Record<string, StatusValue> = {
  * Kept separate from the canonical value so the DB stays in RESO format
  * while the UI gets human-friendly text.
  */
+/**
+ * Broker-language labels (Maya, 2026-09-08) on the combinations the whole-corpus census proved
+ * (lib/listings/canonical-lifecycle.ts): the feed's only in-contract status is Pending, so Pending and the
+ * never-delivered ActiveUnderContract both read "In Contract"; Closed is refined to Sold / Rented by
+ * transaction type in `statusDisplayLabelFor`. No provider-status label is the bare "Off Market": that is the Mallan
+ * presence state (lib/listings/canonical-lifecycle.ts), never a status. Departure from the feed is not a status here.
+ */
 const CANONICAL_TO_LABEL: Record<StatusValue, string> = {
   [Status.ACTIVE]: 'Active',
-  [Status.ACTIVE_UNDER_CONTRACT]: 'Under Contract',
-  [Status.CANCELLED]: 'Cancelled',
+  [Status.ACTIVE_UNDER_CONTRACT]: 'In Contract',
+  [Status.CANCELED]: 'Canceled',
   [Status.CLOSED]: 'Closed',
   [Status.COMING_SOON]: 'Coming Soon',
+  [Status.DELETE]: 'Removed',
   [Status.EXPIRED]: 'Expired',
-  [Status.HOLD]: 'On Hold',
-  [Status.LEASED]: 'Leased',
-  [Status.PENDING]: 'Pending',
-  [Status.RENTED]: 'Rented',
-  [Status.SOLD]: 'Sold',
+  [Status.HOLD]: 'Temporarily Off Market',
+  [Status.INCOMPLETE]: 'Draft',
+  [Status.PENDING]: 'In Contract',
   [Status.WITHDRAWN]: 'Withdrawn',
 };
 
 /**
  * Statuses that count as "actively on market" for public search display.
  *
- * Coming Soon is included — it IS displayable (with the REBNY §16(C) badge)
- * even though it's not technically "Active" per RESO. ActiveUnderContract
- * is included because REBNY allows IDX display of listings that have
- * accepted an offer but haven't closed — typically shown with an "Under
- * Contract" badge.
- *
- * Pending is NOT included — listings in signed-contract-pending-closing
- * are usually hidden from public search by convention.
+ * Coming Soon is included — it IS displayable (with the REBNY §16(C) badge). ActiveUnderContract is
+ * included (a live member; 0 rows today). Pending IS included: it is the feed's in-contract status and the
+ * IDX Plus feed delivers it under Permission IDX (5,590 live rows, census 2026-09-08); Maya's decision is that
+ * In Contract listings appear publicly with that label.
  */
 const ACTIVE_DISPLAY_STATUSES = new Set<StatusValue>([
   Status.ACTIVE,
   Status.ACTIVE_UNDER_CONTRACT,
   Status.COMING_SOON,
+  Status.PENDING,
 ]);
 
 /**
  * Statuses that mean "listing is off-market" for REBNY UCBA Art. I §6
- * 24-hour removal enforcement.
+ * 24-hour removal enforcement. (A row off the feed keeps its provider status; its removal rides on the
+ * presence fact, not on this set.)
  */
 const TERMINAL_STATUSES = new Set<StatusValue>([
-  Status.CANCELLED,
+  Status.CANCELED,
   Status.CLOSED,
+  Status.DELETE,
   Status.EXPIRED,
-  Status.LEASED,
-  Status.RENTED,
-  Status.SOLD,
   Status.WITHDRAWN,
 ]);
 
@@ -166,6 +176,20 @@ export function statusDisplayLabel(status: unknown): string {
   return canonical ? CANONICAL_TO_LABEL[canonical] : '';
 }
 
+/**
+ * Display label refined by transaction type: a Closed sale reads "Sold", a Closed rental reads "Rented".
+ * Unknown transaction type keeps the neutral "Closed". Unrecognized status → '' (fail-closed).
+ */
+export function statusDisplayLabelFor(status: unknown, listingType: unknown): string {
+  const canonical = normalizeStatus(status);
+  if (!canonical) return '';
+  if (canonical === Status.CLOSED) {
+    if (listingType === 'sale') return 'Sold';
+    if (listingType === 'rent' || listingType === 'rental') return 'Rented';
+  }
+  return CANONICAL_TO_LABEL[canonical];
+}
+
 /** Is this listing currently shown in public search? */
 export function isActiveDisplayStatus(status: unknown): boolean {
   const canonical = normalizeStatus(status);
@@ -188,14 +212,13 @@ export const ACTIVE_DISPLAY_VALUES: readonly StatusValue[] = Object.freeze([
   Status.ACTIVE,
   Status.ACTIVE_UNDER_CONTRACT,
   Status.COMING_SOON,
+  Status.PENDING,
 ]);
 
 export const TERMINAL_VALUES: readonly StatusValue[] = Object.freeze([
-  Status.CANCELLED,
+  Status.CANCELED,
   Status.CLOSED,
+  Status.DELETE,
   Status.EXPIRED,
-  Status.LEASED,
-  Status.RENTED,
-  Status.SOLD,
   Status.WITHDRAWN,
 ]);

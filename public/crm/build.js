@@ -15,13 +15,30 @@ const path = require('path');
 const ROOT = __dirname;
 const OUTPUT = path.join(ROOT, 'index-built.html');
 
+// Every source is normalized to LF on the way in, so the artifact is a function of CONTENT and
+// nothing else.
+//
+// Without this, the artifact inherited whatever line endings the CHECKOUT produced: CRLF on Windows
+// (core.autocrlf=true), LF on Linux and on Vercel. The same sources therefore built to two different
+// files differing by 34,131 bytes, every one of them a carriage return — which made
+// tests/runtime/crm-build-drift.test.ts pass locally and fail on CI without either result saying
+// anything about whether the build was actually stale.
+//
+// `\r\n?` also collapses a LONE carriage return. One committed source
+// (js/init/init-disable-dead-controls.js) carried 253 `\r\r\n` sequences from a double CRLF
+// conversion; a lone CR makes git classify a file as binary, which is exactly how `* text=auto`
+// came to skip normalizing the artifact for months.
+//
+// This is safe for every input the builder inlines: in JS a raw CR is whitespace outside a string
+// and illegal inside one (a template literal normalizes CRLF and CR to LF per spec anyway), and in
+// HTML and CSS it is whitespace.
 function readFile(relPath) {
     const fullPath = path.join(ROOT, relPath);
     if (!fs.existsSync(fullPath)) {
         console.error('ERROR: File not found: ' + relPath);
         process.exit(1);
     }
-    return fs.readFileSync(fullPath, 'utf8');
+    return fs.readFileSync(fullPath, 'utf8').replace(/\r\n?/g, '\n');
 }
 
 // Strip </script> from JS content to prevent premature script block closure.

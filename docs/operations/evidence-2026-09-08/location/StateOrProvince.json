@@ -1,0 +1,26 @@
+{
+  "source": "LIVE_COTALITY",
+  "resource": "Property",
+  "field": "StateOrProvince",
+  "scope": null,
+  "distinct": 2,
+  "values": [
+    "NY",
+    "VA"
+  ],
+  "counts": {
+    "NY": 591586,
+    "VA": 7
+  },
+  "sum_of_counts": 591593,
+  "non_null_total": 591593,
+  "complete": true,
+  "quota": {
+    "minuteLimit": 280,
+    "minuteAvailable": 168,
+    "hourLimit": 8400,
+    "hourAvailable": 8181,
+    "hourResetTime": 1788849395017,
+    "seenAt": 1788846147918
+  }
+}

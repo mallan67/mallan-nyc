@@ -1,0 +1,2179 @@
+{
+ "source": "LIVE_COTALITY",
+ "method": "ordered keyset walk of Property (all statuses) with the transaction-state fields; CustomProperty walk for CustomFields terminology",
+ "fields": [
+  "StandardStatus",
+  "MlsStatus",
+  "PreviousStandardStatus",
+  "PropertyType",
+  "PropertySubType",
+  "PurchaseContractDate",
+  "ContractStatusChangeDate",
+  "OffMarketDate",
+  "OffMarketTimestamp",
+  "PendingTimestamp",
+  "MajorChangeType",
+  "MajorChangeTimestamp",
+  "StatusChangeTimestamp",
+  "CloseDate",
+  "ListingContractDate",
+  "OnMarketDate",
+  "OnMarketTimestamp",
+  "ActivationDate",
+  "WithdrawnDate",
+  "CancellationDate",
+  "ExpirationDate",
+  "ContingentDate",
+  "BackOnMarketDate",
+  "BackOnMarketTimestamp",
+  "Contingency",
+  "AvailabilityDate",
+  "ModificationTimestamp"
+ ],
+ "comboFields": [
+  "PurchaseContractDate",
+  "ContractStatusChangeDate",
+  "OffMarketDate",
+  "OffMarketTimestamp",
+  "PendingTimestamp",
+  "MajorChangeTimestamp",
+  "StatusChangeTimestamp",
+  "CloseDate",
+  "ContingentDate",
+  "WithdrawnDate",
+  "BackOnMarketDate"
+ ],
+ "terms": "contract|offer|accepted|deposit|signed|pending|closing|escrow|attorney|board|approv|application|rented|in.?contract|sublet|lease.?sign|move.?in|possession|available|vacan|occup",
+ "started": null,
+ "finished": "2026-09-08T08:34:37.226Z",
+ "property": {
+  "rows": 591599,
+  "pages": 592,
+  "bySegment": {
+   "Rental": {
+    "rows": 376079,
+    "byStatus": {
+     "Closed": 374791,
+     "Pending": 349,
+     "Active": 939
+    },
+    "presence": {
+     "Closed": {
+      "PurchaseContractDate": 61654,
+      "ContractStatusChangeDate": 374791,
+      "OffMarketDate": 374791,
+      "OffMarketTimestamp": 373971,
+      "PendingTimestamp": 76159,
+      "MajorChangeTimestamp": 374791,
+      "StatusChangeTimestamp": 374733,
+      "CloseDate": 374791,
+      "ListingContractDate": 370550,
+      "OnMarketDate": 61857,
+      "OnMarketTimestamp": 162063,
+      "AvailabilityDate": 369200,
+      "BackOnMarketDate": 952,
+      "BackOnMarketTimestamp": 952,
+      "ActivationDate": 15488,
+      "WithdrawnDate": 4
+     },
+     "Pending": {
+      "PurchaseContractDate": 341,
+      "ContractStatusChangeDate": 349,
+      "OffMarketTimestamp": 347,
+      "PendingTimestamp": 349,
+      "MajorChangeTimestamp": 349,
+      "StatusChangeTimestamp": 349,
+      "ListingContractDate": 349,
+      "OnMarketDate": 341,
+      "OnMarketTimestamp": 348,
+      "AvailabilityDate": 349,
+      "OffMarketDate": 66,
+      "CloseDate": 2,
+      "ActivationDate": 312,
+      "BackOnMarketDate": 25,
+      "BackOnMarketTimestamp": 25
+     },
+     "Active": {
+      "ContractStatusChangeDate": 939,
+      "MajorChangeTimestamp": 939,
+      "ListingContractDate": 939,
+      "OnMarketTimestamp": 939,
+      "AvailabilityDate": 939,
+      "OnMarketDate": 938,
+      "StatusChangeTimestamp": 936,
+      "ActivationDate": 936,
+      "BackOnMarketDate": 49,
+      "BackOnMarketTimestamp": 49,
+      "PurchaseContractDate": 7,
+      "PendingTimestamp": 17
+     }
+    },
+    "combos": {
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=Closed": 59924,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=Closed": 246,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate+BackOnMarketDate | MCT=Closed": 949,
+     "Pending | PurchaseContractDate+ContractStatusChangeDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp | MCT=Pending": 243,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=null": 34,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=Closed": 231,
+     "Closed | ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=Closed": 12574,
+     "Closed | ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=PriceChange": 218494,
+     "Closed | ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=Closed": 79590,
+     "Closed | ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=PriceChange": 2044,
+     "Closed | ContractStatusChangeDate+OffMarketDate+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=Closed": 245,
+     "Closed | ContractStatusChangeDate+OffMarketDate+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=PriceChange": 12,
+     "Closed | ContractStatusChangeDate+OffMarketDate+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=Closed": 118,
+     "Closed | ContractStatusChangeDate+OffMarketDate+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=PriceChange": 51,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=PriceChange": 4,
+     "Pending | ContractStatusChangeDate+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp | MCT=ActiveUnderContract": 2,
+     "Closed | ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate+WithdrawnDate | MCT=Closed": 2,
+     "Pending | ContractStatusChangeDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp | MCT=Pending": 5,
+     "Pending | ContractStatusChangeDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp | MCT=PriceChange": 1,
+     "Closed | ContractStatusChangeDate+OffMarketDate+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=null": 6,
+     "Active | ContractStatusChangeDate+MajorChangeTimestamp | MCT=PriceChange": 2,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=Closed": 46,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=PriceChange": 104,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=null": 52,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=PriceChange": 1,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+MajorChangeTimestamp+CloseDate | MCT=null": 57,
+     "Closed | ContractStatusChangeDate+OffMarketDate+MajorChangeTimestamp+CloseDate | MCT=null": 1,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=Pending": 1,
+     "Pending | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=Pending": 2,
+     "Pending | PurchaseContractDate+ContractStatusChangeDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp | MCT=PriceChange": 2,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate+BackOnMarketDate | MCT=null": 1,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate+BackOnMarketDate | MCT=Closed": 2,
+     "Active | ContractStatusChangeDate+MajorChangeTimestamp | MCT=null": 1,
+     "Active | ContractStatusChangeDate+MajorChangeTimestamp+StatusChangeTimestamp+BackOnMarketDate | MCT=null": 4,
+     "Pending | PurchaseContractDate+ContractStatusChangeDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+BackOnMarketDate | MCT=null": 2,
+     "Pending | PurchaseContractDate+ContractStatusChangeDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp | MCT=null": 8,
+     "Active | ContractStatusChangeDate+MajorChangeTimestamp+StatusChangeTimestamp+BackOnMarketDate | MCT=BackOnMarket": 31,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate+WithdrawnDate | MCT=Closed": 2,
+     "Active | ContractStatusChangeDate+MajorChangeTimestamp+StatusChangeTimestamp | MCT=null": 151,
+     "Active | PurchaseContractDate+ContractStatusChangeDate+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+BackOnMarketDate | MCT=BackOnMarket": 1,
+     "Active | ContractStatusChangeDate+MajorChangeTimestamp+StatusChangeTimestamp | MCT=NewListing": 729,
+     "Active | PurchaseContractDate+ContractStatusChangeDate+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp | MCT=null": 3,
+     "Pending | PurchaseContractDate+ContractStatusChangeDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+BackOnMarketDate | MCT=Pending": 20,
+     "Pending | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp | MCT=Pending": 61,
+     "Pending | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+BackOnMarketDate | MCT=Pending": 3,
+     "Active | PurchaseContractDate+ContractStatusChangeDate+MajorChangeTimestamp+StatusChangeTimestamp | MCT=NewListing": 3,
+     "Active | ContractStatusChangeDate+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+BackOnMarketDate | MCT=BackOnMarket": 11,
+     "Active | ContractStatusChangeDate+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+BackOnMarketDate | MCT=null": 2,
+     "Active | ContractStatusChangeDate+MajorChangeTimestamp+StatusChangeTimestamp | MCT=BackOnMarket": 1
+    },
+    "majorChangeByStatus": {
+     "Closed": {
+      "Closed": 153929,
+      "null": 151,
+      "PriceChange": 220710,
+      "Pending": 1
+     },
+     "Pending": {
+      "Pending": 334,
+      "ActiveUnderContract": 2,
+      "PriceChange": 3,
+      "null": 10
+     },
+     "Active": {
+      "PriceChange": 2,
+      "null": 161,
+      "BackOnMarket": 44,
+      "NewListing": 732
+     }
+    },
+    "contingencyByStatus": {
+     "Closed": {
+      "null": 374791
+     },
+     "Pending": {
+      "null": 349
+     },
+     "Active": {
+      "null": 939
+     }
+    },
+    "pairs": {
+     "PurchaseContractDate vs ContractStatusChangeDate": {
+      "both": 62002,
+      "equalDay": 39500,
+      "aBeforeB": 21874,
+      "aAfterB": 628,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 39161,
+        "aBeforeB": 21873,
+        "aAfterB": 620
+       },
+       "Pending": {
+        "equalDay": 339,
+        "aBeforeB": 1,
+        "aAfterB": 1
+       },
+       "Active": {
+        "equalDay": 0,
+        "aBeforeB": 0,
+        "aAfterB": 7
+       }
+      }
+     },
+     "PurchaseContractDate vs PendingTimestamp": {
+      "both": 61590,
+      "equalDay": 39150,
+      "aBeforeB": 19737,
+      "aAfterB": 2703,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 38967,
+        "aBeforeB": 19591,
+        "aAfterB": 2687
+       },
+       "Pending": {
+        "equalDay": 179,
+        "aBeforeB": 146,
+        "aAfterB": 16
+       },
+       "Active": {
+        "equalDay": 4,
+        "aBeforeB": 0,
+        "aAfterB": 0
+       }
+      }
+     },
+     "PurchaseContractDate vs OffMarketDate": {
+      "both": 61720,
+      "equalDay": 37369,
+      "aBeforeB": 24260,
+      "aAfterB": 91,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 37327,
+        "aBeforeB": 24237,
+        "aAfterB": 90
+       },
+       "Pending": {
+        "equalDay": 42,
+        "aBeforeB": 23,
+        "aAfterB": 1
+       }
+      }
+     },
+     "PurchaseContractDate vs CloseDate": {
+      "both": 61656,
+      "equalDay": 37327,
+      "aBeforeB": 24239,
+      "aAfterB": 90,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 37327,
+        "aBeforeB": 24237,
+        "aAfterB": 90
+       },
+       "Pending": {
+        "equalDay": 0,
+        "aBeforeB": 2,
+        "aAfterB": 0
+       }
+      }
+     },
+     "ContractStatusChangeDate vs PendingTimestamp": {
+      "both": 76525,
+      "equalDay": 33536,
+      "aBeforeB": 15860,
+      "aAfterB": 27129,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 33351,
+        "aBeforeB": 15697,
+        "aAfterB": 27111
+       },
+       "Pending": {
+        "equalDay": 185,
+        "aBeforeB": 146,
+        "aAfterB": 18
+       },
+       "Active": {
+        "equalDay": 0,
+        "aBeforeB": 17,
+        "aAfterB": 0
+       }
+      }
+     },
+     "ContractStatusChangeDate vs StatusChangeTimestamp": {
+      "both": 376018,
+      "equalDay": 78621,
+      "aBeforeB": 57283,
+      "aAfterB": 240114,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 77830,
+        "aBeforeB": 56839,
+        "aAfterB": 240064
+       },
+       "Pending": {
+        "equalDay": 188,
+        "aBeforeB": 152,
+        "aAfterB": 9
+       },
+       "Active": {
+        "equalDay": 603,
+        "aBeforeB": 292,
+        "aAfterB": 41
+       }
+      }
+     },
+     "OffMarketDate vs OffMarketTimestamp": {
+      "both": 374037,
+      "equalDay": 213526,
+      "aBeforeB": 33239,
+      "aAfterB": 127272,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 213465,
+        "aBeforeB": 33236,
+        "aAfterB": 127270
+       },
+       "Pending": {
+        "equalDay": 61,
+        "aBeforeB": 3,
+        "aAfterB": 2
+       }
+      }
+     },
+     "OffMarketDate vs CloseDate": {
+      "both": 374793,
+      "equalDay": 374793,
+      "aBeforeB": 0,
+      "aAfterB": 0,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 374791,
+        "aBeforeB": 0,
+        "aAfterB": 0
+       },
+       "Pending": {
+        "equalDay": 2,
+        "aBeforeB": 0,
+        "aAfterB": 0
+       }
+      }
+     },
+     "PendingTimestamp vs StatusChangeTimestamp": {
+      "both": 76525,
+      "equalDay": 38715,
+      "aBeforeB": 35431,
+      "aAfterB": 2379,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 38381,
+        "aBeforeB": 35401,
+        "aAfterB": 2377
+       },
+       "Pending": {
+        "equalDay": 333,
+        "aBeforeB": 14,
+        "aAfterB": 2
+       },
+       "Active": {
+        "equalDay": 1,
+        "aBeforeB": 16,
+        "aAfterB": 0
+       }
+      }
+     },
+     "MajorChangeTimestamp vs StatusChangeTimestamp": {
+      "both": 376018,
+      "equalDay": 186354,
+      "aBeforeB": 36633,
+      "aAfterB": 153031,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 185231,
+        "aBeforeB": 36631,
+        "aAfterB": 152871
+       },
+       "Pending": {
+        "equalDay": 337,
+        "aBeforeB": 2,
+        "aAfterB": 10
+       },
+       "Active": {
+        "equalDay": 786,
+        "aBeforeB": 0,
+        "aAfterB": 150
+       }
+      }
+     },
+     "MajorChangeTimestamp vs ModificationTimestamp": {
+      "both": 376079,
+      "equalDay": 2698,
+      "aBeforeB": 373381,
+      "aAfterB": 0,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 2317,
+        "aBeforeB": 372474,
+        "aAfterB": 0
+       },
+       "Pending": {
+        "equalDay": 158,
+        "aBeforeB": 191,
+        "aAfterB": 0
+       },
+       "Active": {
+        "equalDay": 223,
+        "aBeforeB": 716,
+        "aAfterB": 0
+       }
+      }
+     },
+     "OnMarketDate vs ListingContractDate": {
+      "both": 63136,
+      "equalDay": 47537,
+      "aBeforeB": 4318,
+      "aAfterB": 11281,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 46555,
+        "aBeforeB": 4240,
+        "aAfterB": 11062
+       },
+       "Pending": {
+        "equalDay": 288,
+        "aBeforeB": 8,
+        "aAfterB": 45
+       },
+       "Active": {
+        "equalDay": 694,
+        "aBeforeB": 70,
+        "aAfterB": 174
+       }
+      }
+     },
+     "CloseDate vs StatusChangeTimestamp": {
+      "both": 374735,
+      "equalDay": 83300,
+      "aBeforeB": 56033,
+      "aAfterB": 235402,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 83300,
+        "aBeforeB": 56031,
+        "aAfterB": 235402
+       },
+       "Pending": {
+        "equalDay": 0,
+        "aBeforeB": 2,
+        "aAfterB": 0
+       }
+      }
+     }
+    },
+    "propertyType": {
+     "ResidentialLease": 376079
+    },
+    "propertySubTypeByStatus": {
+     "Closed": {
+      "Apartment": 342633,
+      "Duplex": 10766,
+      "MultiFamily": 7122,
+      "SingleFamilyResidence": 8553,
+      "MixedUse": 1348,
+      "Triplex": 1565,
+      "Office": 53,
+      "Loft": 2748,
+      "Retail": 2,
+      "null": 1
+     },
+     "Pending": {
+      "Apartment": 296,
+      "MultiFamily": 5,
+      "Duplex": 9,
+      "SingleFamilyResidence": 22,
+      "MixedUse": 8,
+      "Triplex": 3,
+      "Loft": 6
+     },
+     "Active": {
+      "Apartment": 838,
+      "Duplex": 30,
+      "Triplex": 3,
+      "MultiFamily": 23,
+      "SingleFamilyResidence": 34,
+      "MixedUse": 7,
+      "Loft": 4
+     }
+    },
+    "activeWithContractDates": {
+     "ContractStatusChangeDate": 939,
+     "PurchaseContractDate": 7,
+     "PendingTimestamp": 17
+    },
+    "closedWithoutContractDates": 0,
+    "mlsStatusNonNull": 0,
+    "previousStatusNonNull": 0
+   },
+   "Sale": {
+    "rows": 215520,
+    "byStatus": {
+     "Closed": 203611,
+     "Pending": 5241,
+     "Active": 6663,
+     "ComingSoon": 5
+    },
+    "presence": {
+     "Closed": {
+      "PurchaseContractDate": 112197,
+      "ContractStatusChangeDate": 203611,
+      "OffMarketDate": 203611,
+      "OffMarketTimestamp": 200046,
+      "PendingTimestamp": 61303,
+      "MajorChangeTimestamp": 203611,
+      "StatusChangeTimestamp": 203589,
+      "CloseDate": 203611,
+      "ListingContractDate": 198081,
+      "OnMarketDate": 44525,
+      "OnMarketTimestamp": 90443,
+      "AvailabilityDate": 1848,
+      "ActivationDate": 18007,
+      "BackOnMarketDate": 2079,
+      "BackOnMarketTimestamp": 2078,
+      "WithdrawnDate": 6
+     },
+     "Pending": {
+      "PurchaseContractDate": 5241,
+      "ContractStatusChangeDate": 5241,
+      "OffMarketTimestamp": 5205,
+      "PendingTimestamp": 5211,
+      "MajorChangeTimestamp": 5241,
+      "StatusChangeTimestamp": 5241,
+      "ListingContractDate": 5241,
+      "OnMarketDate": 5234,
+      "OnMarketTimestamp": 5238,
+      "ActivationDate": 4842,
+      "AvailabilityDate": 198,
+      "BackOnMarketDate": 480,
+      "BackOnMarketTimestamp": 480,
+      "OffMarketDate": 391,
+      "CloseDate": 3,
+      "WithdrawnDate": 1
+     },
+     "Active": {
+      "ContractStatusChangeDate": 6663,
+      "MajorChangeTimestamp": 6663,
+      "ListingContractDate": 6663,
+      "OnMarketDate": 6663,
+      "OnMarketTimestamp": 6663,
+      "StatusChangeTimestamp": 6558,
+      "ActivationDate": 6507,
+      "AvailabilityDate": 505,
+      "OffMarketTimestamp": 19,
+      "BackOnMarketDate": 767,
+      "BackOnMarketTimestamp": 767,
+      "PurchaseContractDate": 172,
+      "PendingTimestamp": 182,
+      "OffMarketDate": 11,
+      "CloseDate": 11,
+      "WithdrawnDate": 11
+     },
+     "ComingSoon": {
+      "ContractStatusChangeDate": 5,
+      "MajorChangeTimestamp": 5,
+      "StatusChangeTimestamp": 5,
+      "ListingContractDate": 5,
+      "OnMarketDate": 5,
+      "ActivationDate": 5,
+      "AvailabilityDate": 1
+     }
+    },
+    "combos": {
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=Closed": 47618,
+     "Pending | PurchaseContractDate+ContractStatusChangeDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp | MCT=Pending": 4254,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=PriceChange": 6201,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate+BackOnMarketDate | MCT=Closed": 2024,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=Closed": 1117,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=Closed": 11015,
+     "Pending | PurchaseContractDate+ContractStatusChangeDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp | MCT=null": 101,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate+BackOnMarketDate | MCT=null": 53,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=null": 397,
+     "Active | ContractStatusChangeDate+MajorChangeTimestamp | MCT=null": 58,
+     "Active | ContractStatusChangeDate+MajorChangeTimestamp+StatusChangeTimestamp | MCT=null": 1878,
+     "Active | ContractStatusChangeDate+OffMarketTimestamp+MajorChangeTimestamp+StatusChangeTimestamp | MCT=null": 7,
+     "Pending | PurchaseContractDate+ContractStatusChangeDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+BackOnMarketDate | MCT=Pending": 439,
+     "Pending | PurchaseContractDate+ContractStatusChangeDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+BackOnMarketDate | MCT=null": 13,
+     "Active | ContractStatusChangeDate+MajorChangeTimestamp | MCT=Active": 32,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=Closed": 2326,
+     "Active | ContractStatusChangeDate+MajorChangeTimestamp+StatusChangeTimestamp+BackOnMarketDate | MCT=BackOnMarket": 448,
+     "Active | ContractStatusChangeDate+MajorChangeTimestamp+StatusChangeTimestamp+BackOnMarketDate | MCT=null": 139,
+     "Pending | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+BackOnMarketDate | MCT=Pending": 28,
+     "Pending | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp | MCT=Pending": 360,
+     "Active | ContractStatusChangeDate+MajorChangeTimestamp+StatusChangeTimestamp | MCT=BackOnMarket": 72,
+     "Active | ContractStatusChangeDate+MajorChangeTimestamp | MCT=PriceChange": 10,
+     "Closed | ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=Closed": 1408,
+     "Active | PurchaseContractDate+ContractStatusChangeDate+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+BackOnMarketDate | MCT=BackOnMarket": 52,
+     "Pending | PurchaseContractDate+ContractStatusChangeDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp | MCT=PriceChange": 3,
+     "Active | ContractStatusChangeDate+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+BackOnMarketDate | MCT=BackOnMarket": 61,
+     "Active | PurchaseContractDate+ContractStatusChangeDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp | MCT=BackOnMarket": 1,
+     "Closed | ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=PriceChange": 85383,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=PriceChange": 41310,
+     "Closed | ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=PriceChange": 2398,
+     "Closed | ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=Closed": 2220,
+     "Closed | ContractStatusChangeDate+OffMarketDate+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=Closed": 1,
+     "Pending | PurchaseContractDate+ContractStatusChangeDate+MajorChangeTimestamp+StatusChangeTimestamp | MCT=ActiveUnderContract": 23,
+     "Pending | PurchaseContractDate+ContractStatusChangeDate+OffMarketTimestamp+MajorChangeTimestamp+StatusChangeTimestamp | MCT=ActiveUnderContract": 4,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=PriceChange": 83,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=PriceChange": 7,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+MajorChangeTimestamp+CloseDate | MCT=null": 21,
+     "Closed | ContractStatusChangeDate+OffMarketDate+MajorChangeTimestamp+CloseDate | MCT=null": 1,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=null": 8,
+     "Active | PurchaseContractDate+ContractStatusChangeDate+MajorChangeTimestamp | MCT=null": 1,
+     "Pending | PurchaseContractDate+ContractStatusChangeDate+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp | MCT=ActiveUnderContract": 8,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=null": 11,
+     "Closed | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate+WithdrawnDate | MCT=Closed": 6,
+     "Active | ContractStatusChangeDate+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+BackOnMarketDate | MCT=null": 22,
+     "Active | ContractStatusChangeDate+OffMarketTimestamp+MajorChangeTimestamp+StatusChangeTimestamp | MCT=BackOnMarket": 5,
+     "Active | ContractStatusChangeDate+OffMarketTimestamp+MajorChangeTimestamp | MCT=null": 3,
+     "Pending | PurchaseContractDate+ContractStatusChangeDate+MajorChangeTimestamp+StatusChangeTimestamp | MCT=PriceChange": 2,
+     "Active | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate+WithdrawnDate | MCT=BackOnMarket": 1,
+     "Active | ContractStatusChangeDate+OffMarketTimestamp+MajorChangeTimestamp | MCT=PriceChange": 1,
+     "Active | ContractStatusChangeDate+OffMarketTimestamp+MajorChangeTimestamp+StatusChangeTimestamp | MCT=PriceChange": 1,
+     "Pending | PurchaseContractDate+ContractStatusChangeDate+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp | MCT=null": 3,
+     "Active | PurchaseContractDate+ContractStatusChangeDate+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+BackOnMarketDate | MCT=null": 40,
+     "Active | ContractStatusChangeDate+MajorChangeTimestamp+StatusChangeTimestamp | MCT=NewListing": 3754,
+     "Active | PurchaseContractDate+ContractStatusChangeDate+MajorChangeTimestamp+StatusChangeTimestamp | MCT=null": 18,
+     "Active | PurchaseContractDate+ContractStatusChangeDate+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp | MCT=null": 2,
+     "Active | PurchaseContractDate+ContractStatusChangeDate+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp | MCT=BackOnMarket": 4,
+     "Closed | ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate+BackOnMarketDate | MCT=Closed": 1,
+     "Pending | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=Pending": 2,
+     "Active | PurchaseContractDate+ContractStatusChangeDate+MajorChangeTimestamp+StatusChangeTimestamp+BackOnMarketDate | MCT=BackOnMarket": 5,
+     "Pending | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate+WithdrawnDate | MCT=Pending": 1,
+     "Active | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate+WithdrawnDate | MCT=NewListing": 7,
+     "Active | PurchaseContractDate+ContractStatusChangeDate+OffMarketDate+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate+WithdrawnDate | MCT=null": 3,
+     "Active | PurchaseContractDate+ContractStatusChangeDate+MajorChangeTimestamp+StatusChangeTimestamp | MCT=NewListing": 37,
+     "Closed | ContractStatusChangeDate+OffMarketDate+OffMarketTimestamp+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate | MCT=null": 1,
+     "Closed | ContractStatusChangeDate+OffMarketDate+PendingTimestamp+MajorChangeTimestamp+StatusChangeTimestamp+CloseDate+BackOnMarketDate | MCT=Closed": 1,
+     "Active | PurchaseContractDate+ContractStatusChangeDate+MajorChangeTimestamp+StatusChangeTimestamp | MCT=BackOnMarket": 1,
+     "ComingSoon | ContractStatusChangeDate+MajorChangeTimestamp+StatusChangeTimestamp | MCT=ComingSoon": 5
+    },
+    "majorChangeByStatus": {
+     "Closed": {
+      "Closed": 67737,
+      "PriceChange": 135382,
+      "null": 492
+     },
+     "Pending": {
+      "Pending": 5084,
+      "null": 117,
+      "PriceChange": 5,
+      "ActiveUnderContract": 35
+     },
+     "Active": {
+      "null": 2171,
+      "Active": 32,
+      "BackOnMarket": 650,
+      "PriceChange": 12,
+      "NewListing": 3798
+     },
+     "ComingSoon": {
+      "ComingSoon": 5
+     }
+    },
+    "contingencyByStatus": {
+     "Closed": {
+      "null": 203611
+     },
+     "Pending": {
+      "null": 5241
+     },
+     "Active": {
+      "null": 6663
+     },
+     "ComingSoon": {
+      "null": 5
+     }
+    },
+    "pairs": {
+     "PurchaseContractDate vs ContractStatusChangeDate": {
+      "both": 117610,
+      "equalDay": 9500,
+      "aBeforeB": 106237,
+      "aAfterB": 1873,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 4328,
+        "aBeforeB": 106196,
+        "aAfterB": 1673
+       },
+       "Pending": {
+        "equalDay": 5161,
+        "aBeforeB": 41,
+        "aAfterB": 39
+       },
+       "Active": {
+        "equalDay": 11,
+        "aBeforeB": 0,
+        "aAfterB": 161
+       }
+      }
+     },
+     "PurchaseContractDate vs PendingTimestamp": {
+      "both": 62803,
+      "equalDay": 37757,
+      "aBeforeB": 22307,
+      "aAfterB": 2739,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 34233,
+        "aBeforeB": 20786,
+        "aAfterB": 2474
+       },
+       "Pending": {
+        "equalDay": 3431,
+        "aBeforeB": 1515,
+        "aAfterB": 265
+       },
+       "Active": {
+        "equalDay": 93,
+        "aBeforeB": 6,
+        "aAfterB": 0
+       }
+      }
+     },
+     "PurchaseContractDate vs OffMarketDate": {
+      "both": 112599,
+      "equalDay": 2343,
+      "aBeforeB": 108678,
+      "aAfterB": 1578,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 2121,
+        "aBeforeB": 108500,
+        "aAfterB": 1576
+       },
+       "Pending": {
+        "equalDay": 211,
+        "aBeforeB": 178,
+        "aAfterB": 2
+       },
+       "Active": {
+        "equalDay": 11,
+        "aBeforeB": 0,
+        "aAfterB": 0
+       }
+      }
+     },
+     "PurchaseContractDate vs CloseDate": {
+      "both": 112211,
+      "equalDay": 2132,
+      "aBeforeB": 108502,
+      "aAfterB": 1577,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 2121,
+        "aBeforeB": 108500,
+        "aAfterB": 1576
+       },
+       "Active": {
+        "equalDay": 11,
+        "aBeforeB": 0,
+        "aAfterB": 0
+       },
+       "Pending": {
+        "equalDay": 0,
+        "aBeforeB": 2,
+        "aAfterB": 1
+       }
+      }
+     },
+     "ContractStatusChangeDate vs PendingTimestamp": {
+      "both": 66696,
+      "equalDay": 6240,
+      "aBeforeB": 5877,
+      "aAfterB": 54579,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 2773,
+        "aBeforeB": 4202,
+        "aAfterB": 54328
+       },
+       "Pending": {
+        "equalDay": 3457,
+        "aBeforeB": 1503,
+        "aAfterB": 251
+       },
+       "Active": {
+        "equalDay": 10,
+        "aBeforeB": 172,
+        "aAfterB": 0
+       }
+      }
+     },
+     "ContractStatusChangeDate vs StatusChangeTimestamp": {
+      "both": 215393,
+      "equalDay": 43932,
+      "aBeforeB": 61801,
+      "aAfterB": 109660,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 36469,
+        "aBeforeB": 57614,
+        "aAfterB": 109506
+       },
+       "Pending": {
+        "equalDay": 3473,
+        "aBeforeB": 1631,
+        "aAfterB": 137
+       },
+       "Active": {
+        "equalDay": 3985,
+        "aBeforeB": 2556,
+        "aAfterB": 17
+       },
+       "ComingSoon": {
+        "equalDay": 5,
+        "aBeforeB": 0,
+        "aAfterB": 0
+       }
+      }
+     },
+     "OffMarketDate vs OffMarketTimestamp": {
+      "both": 200438,
+      "equalDay": 87661,
+      "aBeforeB": 33649,
+      "aAfterB": 79128,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 87299,
+        "aBeforeB": 33643,
+        "aAfterB": 79104
+       },
+       "Pending": {
+        "equalDay": 362,
+        "aBeforeB": 6,
+        "aAfterB": 23
+       },
+       "Active": {
+        "equalDay": 0,
+        "aBeforeB": 0,
+        "aAfterB": 1
+       }
+      }
+     },
+     "OffMarketDate vs CloseDate": {
+      "both": 203625,
+      "equalDay": 203625,
+      "aBeforeB": 0,
+      "aAfterB": 0,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 203611,
+        "aBeforeB": 0,
+        "aAfterB": 0
+       },
+       "Active": {
+        "equalDay": 11,
+        "aBeforeB": 0,
+        "aAfterB": 0
+       },
+       "Pending": {
+        "equalDay": 3,
+        "aBeforeB": 0,
+        "aAfterB": 0
+       }
+      }
+     },
+     "PendingTimestamp vs StatusChangeTimestamp": {
+      "both": 66696,
+      "equalDay": 7812,
+      "aBeforeB": 58105,
+      "aAfterB": 779,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 2810,
+        "aBeforeB": 57715,
+        "aAfterB": 778
+       },
+       "Pending": {
+        "equalDay": 4996,
+        "aBeforeB": 214,
+        "aAfterB": 1
+       },
+       "Active": {
+        "equalDay": 6,
+        "aBeforeB": 176,
+        "aAfterB": 0
+       }
+      }
+     },
+     "MajorChangeTimestamp vs StatusChangeTimestamp": {
+      "both": 215393,
+      "equalDay": 111889,
+      "aBeforeB": 30077,
+      "aAfterB": 73427,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 102294,
+        "aBeforeB": 30057,
+        "aAfterB": 71238
+       },
+       "Pending": {
+        "equalDay": 5099,
+        "aBeforeB": 20,
+        "aAfterB": 122
+       },
+       "Active": {
+        "equalDay": 4491,
+        "aBeforeB": 0,
+        "aAfterB": 2067
+       },
+       "ComingSoon": {
+        "equalDay": 5,
+        "aBeforeB": 0,
+        "aAfterB": 0
+       }
+      }
+     },
+     "MajorChangeTimestamp vs ModificationTimestamp": {
+      "both": 215520,
+      "equalDay": 7472,
+      "aBeforeB": 208047,
+      "aAfterB": 1,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 4877,
+        "aBeforeB": 198733,
+        "aAfterB": 1
+       },
+       "Pending": {
+        "equalDay": 1693,
+        "aBeforeB": 3548,
+        "aAfterB": 0
+       },
+       "Active": {
+        "equalDay": 899,
+        "aBeforeB": 5764,
+        "aAfterB": 0
+       },
+       "ComingSoon": {
+        "equalDay": 3,
+        "aBeforeB": 2,
+        "aAfterB": 0
+       }
+      }
+     },
+     "OnMarketDate vs ListingContractDate": {
+      "both": 56427,
+      "equalDay": 36780,
+      "aBeforeB": 3193,
+      "aAfterB": 16454,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 28647,
+        "aBeforeB": 2963,
+        "aAfterB": 12915
+       },
+       "Pending": {
+        "equalDay": 3381,
+        "aBeforeB": 139,
+        "aAfterB": 1714
+       },
+       "Active": {
+        "equalDay": 4748,
+        "aBeforeB": 91,
+        "aAfterB": 1824
+       },
+       "ComingSoon": {
+        "equalDay": 4,
+        "aBeforeB": 0,
+        "aAfterB": 1
+       }
+      }
+     },
+     "CloseDate vs StatusChangeTimestamp": {
+      "both": 203603,
+      "equalDay": 32879,
+      "aBeforeB": 63300,
+      "aAfterB": 107424,
+      "byStatus": {
+       "Closed": {
+        "equalDay": 32875,
+        "aBeforeB": 63298,
+        "aAfterB": 107416
+       },
+       "Active": {
+        "equalDay": 4,
+        "aBeforeB": 0,
+        "aAfterB": 7
+       },
+       "Pending": {
+        "equalDay": 0,
+        "aBeforeB": 2,
+        "aAfterB": 1
+       }
+      }
+     }
+    },
+    "propertyType": {
+     "Residential": 215520
+    },
+    "propertySubTypeByStatus": {
+     "Closed": {
+      "Apartment": 178144,
+      "MultiFamily": 6833,
+      "Triplex": 872,
+      "SingleFamilyResidence": 10110,
+      "Duplex": 6272,
+      "MixedUse": 228,
+      "Loft": 1098,
+      "Office": 50,
+      "Retail": 2,
+      "null": 2
+     },
+     "Pending": {
+      "Apartment": 4500,
+      "SingleFamilyResidence": 241,
+      "Triplex": 37,
+      "Duplex": 168,
+      "MultiFamily": 249,
+      "Loft": 40,
+      "MixedUse": 5,
+      "null": 1
+     },
+     "Active": {
+      "Apartment": 5459,
+      "MultiFamily": 381,
+      "Duplex": 293,
+      "SingleFamilyResidence": 343,
+      "Triplex": 54,
+      "Loft": 63,
+      "MixedUse": 57,
+      "null": 12,
+      "Office": 1
+     },
+     "ComingSoon": {
+      "Apartment": 3,
+      "MultiFamily": 1,
+      "SingleFamilyResidence": 1
+     }
+    },
+    "activeWithContractDates": {
+     "ContractStatusChangeDate": 6663,
+     "PurchaseContractDate": 172,
+     "PendingTimestamp": 182,
+     "OffMarketDate": 11
+    },
+    "closedWithoutContractDates": 0,
+    "mlsStatusNonNull": 0,
+    "previousStatusNonNull": 0
+   }
+  }
+ },
+ "customFields": {
+  "rows": 591641,
+  "pages": 592,
+  "withCustomFields": 591641,
+  "keys": {
+   "ElevatorsTotal": {
+    "rows": 528711,
+    "nonEmpty": 528711,
+    "byCell": {
+     "Rental/Closed": 329670,
+     "Sale/Closed": 185802,
+     "Sale/Pending": 5241,
+     "Sale/Active": 6663,
+     "Rental/Pending": 349,
+     "Unknown/Closed": 4,
+     "Rental/Active": 939,
+     "Unknown/Active": 37,
+     "Unknown/Pending": 1,
+     "Sale/ComingSoon": 5
+    }
+   },
+   "KitchenCondition": {
+    "rows": 163415,
+    "nonEmpty": 163415,
+    "byCell": {
+     "Rental/Closed": 102099,
+     "Sale/Closed": 57007,
+     "Sale/Pending": 1851,
+     "Sale/Active": 2192,
+     "Rental/Pending": 73,
+     "Unknown/Active": 17,
+     "Unknown/Closed": 1,
+     "Rental/Active": 173,
+     "Sale/ComingSoon": 2
+    }
+   },
+   "FurnishedMinLeaseMonths": {
+    "rows": 88993,
+    "nonEmpty": 88993,
+    "byCell": {
+     "Rental/Closed": 88684,
+     "Sale/Closed": 108,
+     "Sale/Pending": 20,
+     "Rental/Pending": 50,
+     "Rental/Active": 85,
+     "Sale/Active": 46
+    }
+   },
+   "ClosetsTotal": {
+    "rows": 157857,
+    "nonEmpty": 157857,
+    "byCell": {
+     "Rental/Closed": 116462,
+     "Sale/Pending": 594,
+     "Sale/Closed": 39969,
+     "Sale/Active": 735,
+     "Rental/Pending": 10,
+     "Unknown/Active": 32,
+     "Unknown/Closed": 2,
+     "Unknown/Pending": 1,
+     "Rental/Active": 52
+    }
+   },
+   "BuildingTaxLot": {
+    "rows": 591641,
+    "nonEmpty": 591641,
+    "byCell": {
+     "Rental/Closed": 374791,
+     "Sale/Closed": 203611,
+     "Sale/Pending": 5241,
+     "Sale/Active": 6663,
+     "Rental/Pending": 349,
+     "Unknown/Closed": 4,
+     "Rental/Active": 939,
+     "Unknown/Active": 37,
+     "Unknown/Pending": 1,
+     "Sale/ComingSoon": 5
+    }
+   },
+   "ManagingAgencyListingYN": {
+    "rows": 89230,
+    "nonEmpty": 89230,
+    "byCell": {
+     "Rental/Closed": 89168,
+     "Rental/Pending": 8,
+     "Unknown/Active": 4,
+     "Unknown/Closed": 2,
+     "Rental/Active": 48
+    }
+   },
+   "BuyerAgentRLSParticipantYN": {
+    "rows": 106467,
+    "nonEmpty": 106467,
+    "byCell": {
+     "Rental/Closed": 61819,
+     "Sale/Closed": 44636,
+     "Sale/Pending": 9,
+     "Rental/Pending": 1,
+     "Unknown/Closed": 2
+    }
+   },
+   "FurnishedListPrice": {
+    "rows": 178863,
+    "nonEmpty": 178863,
+    "byCell": {
+     "Rental/Closed": 149450,
+     "Sale/Closed": 26541,
+     "Sale/Pending": 1508,
+     "Sale/Active": 1244,
+     "Rental/Pending": 37,
+     "Rental/Active": 83
+    }
+   },
+   "CertificateOfOccupancyYN": {
+    "rows": 229778,
+    "nonEmpty": 229778,
+    "byCell": {
+     "Rental/Closed": 146304,
+     "Sale/Closed": 73808,
+     "Sale/Pending": 3698,
+     "Sale/Active": 5090,
+     "Rental/Pending": 277,
+     "Unknown/Closed": 4,
+     "Unknown/Active": 36,
+     "Rental/Active": 555,
+     "Unknown/Pending": 1,
+     "Sale/ComingSoon": 5
+    }
+   },
+   "MaxLeaseMonths": {
+    "rows": 351212,
+    "nonEmpty": 351212,
+    "byCell": {
+     "Rental/Closed": 349917,
+     "Rental/Pending": 348,
+     "Rental/Active": 939,
+     "Unknown/Active": 5,
+     "Unknown/Closed": 2,
+     "Sale/Closed": 1
+    }
+   },
+   "TaxAbatementYN": {
+    "rows": 119293,
+    "nonEmpty": 119293,
+    "byCell": {
+     "Rental/Closed": 61512,
+     "Sale/Closed": 44570,
+     "Sale/Pending": 5234,
+     "Sale/Active": 6663,
+     "Rental/Pending": 338,
+     "Unknown/Active": 36,
+     "Rental/Active": 932,
+     "Unknown/Closed": 2,
+     "Unknown/Pending": 1,
+     "Sale/ComingSoon": 5
+    }
+   },
+   "FurnishedMaxLeaseMonths": {
+    "rows": 88996,
+    "nonEmpty": 88996,
+    "byCell": {
+     "Rental/Closed": 88687,
+     "Sale/Closed": 108,
+     "Sale/Pending": 20,
+     "Rental/Pending": 50,
+     "Rental/Active": 85,
+     "Sale/Active": 46
+    }
+   },
+   "AttendanceType": {
+    "rows": 344943,
+    "nonEmpty": 344943,
+    "byCell": {
+     "Rental/Closed": 189422,
+     "Sale/Closed": 142291,
+     "Sale/Pending": 5237,
+     "Sale/Active": 6663,
+     "Rental/Pending": 346,
+     "Rental/Active": 939,
+     "Unknown/Active": 37,
+     "Unknown/Closed": 2,
+     "Unknown/Pending": 1,
+     "Sale/ComingSoon": 5
+    }
+   },
+   "UnitLine": {
+    "rows": 181538,
+    "nonEmpty": 181538,
+    "byCell": {
+     "Rental/Closed": 107385,
+     "Sale/Closed": 68860,
+     "Sale/Pending": 2242,
+     "Sale/Active": 2741,
+     "Rental/Pending": 111,
+     "Rental/Active": 182,
+     "Unknown/Active": 15,
+     "Unknown/Pending": 1,
+     "Sale/ComingSoon": 1
+    }
+   },
+   "ListingKey": {
+    "rows": 591641,
+    "nonEmpty": 591641,
+    "byCell": {
+     "Rental/Closed": 374791,
+     "Sale/Closed": 203611,
+     "Sale/Pending": 5241,
+     "Sale/Active": 6663,
+     "Rental/Pending": 349,
+     "Unknown/Closed": 4,
+     "Rental/Active": 939,
+     "Unknown/Active": 37,
+     "Unknown/Pending": 1,
+     "Sale/ComingSoon": 5
+    }
+   },
+   "PercentOfCommonElements": {
+    "rows": 221763,
+    "nonEmpty": 221763,
+    "byCell": {
+     "Sale/Closed": 184060,
+     "Rental/Closed": 25981,
+     "Sale/Pending": 4916,
+     "Sale/Active": 6154,
+     "Unknown/Active": 30,
+     "Rental/Pending": 234,
+     "Rental/Active": 383,
+     "Unknown/Pending": 1,
+     "Sale/ComingSoon": 4
+    }
+   },
+   "FlipTaxRemarks": {
+    "rows": 169693,
+    "nonEmpty": 169693,
+    "byCell": {
+     "Sale/Closed": 159331,
+     "Sale/Pending": 3801,
+     "Rental/Closed": 1542,
+     "Sale/Active": 4984,
+     "Unknown/Active": 29,
+     "Rental/Pending": 1,
+     "Rental/Active": 1,
+     "Unknown/Pending": 1,
+     "Sale/ComingSoon": 3
+    }
+   },
+   "FlipTax": {
+    "rows": 148356,
+    "nonEmpty": 148356,
+    "byCell": {
+     "Sale/Closed": 106116,
+     "Rental/Closed": 30238,
+     "Sale/Pending": 4981,
+     "Sale/Active": 6364,
+     "Rental/Pending": 235,
+     "Rental/Active": 388,
+     "Unknown/Active": 29,
+     "Unknown/Pending": 1,
+     "Sale/ComingSoon": 4
+    }
+   },
+   "LandmarkStatusYN": {
+    "rows": 209104,
+    "nonEmpty": 209104,
+    "byCell": {
+     "Sale/Closed": 69849,
+     "Rental/Closed": 129739,
+     "Sale/Pending": 3877,
+     "Sale/Active": 5022,
+     "Unknown/Closed": 2,
+     "Rental/Pending": 229,
+     "Rental/Active": 380,
+     "Unknown/Active": 2,
+     "Sale/ComingSoon": 4
+    }
+   },
+   "CapitalReservesYN": {
+    "rows": 58638,
+    "nonEmpty": 58638,
+    "byCell": {
+     "Sale/Closed": 25702,
+     "Rental/Closed": 25844,
+     "Sale/Pending": 2692,
+     "Sale/Active": 3791,
+     "Rental/Pending": 228,
+     "Rental/Active": 376,
+     "Unknown/Active": 1,
+     "Sale/ComingSoon": 4
+    }
+   },
+   "BuildingSmokeFreeYN": {
+    "rows": 36040,
+    "nonEmpty": 36040,
+    "byCell": {
+     "Sale/Closed": 13002,
+     "Rental/Closed": 21367,
+     "Sale/Pending": 429,
+     "Sale/Active": 772,
+     "Rental/Pending": 91,
+     "Rental/Active": 378,
+     "Sale/ComingSoon": 1
+    }
+   },
+   "MaximumFinancingRemarks": {
+    "rows": 84879,
+    "nonEmpty": 84879,
+    "byCell": {
+     "Sale/Closed": 47890,
+     "Rental/Closed": 25732,
+     "Sale/Pending": 4726,
+     "Sale/Active": 5926,
+     "Rental/Pending": 210,
+     "Rental/Active": 362,
+     "Unknown/Active": 29,
+     "Unknown/Pending": 1,
+     "Sale/ComingSoon": 3
+    }
+   },
+   "BathroomCondition": {
+    "rows": 76458,
+    "nonEmpty": 76458,
+    "byCell": {
+     "Sale/Closed": 33698,
+     "Rental/Closed": 39402,
+     "Sale/Pending": 1351,
+     "Sale/Active": 1776,
+     "Rental/Pending": 75,
+     "Unknown/Active": 2,
+     "Rental/Active": 153,
+     "Sale/ComingSoon": 1
+    }
+   },
+   "SponsorUnitYN": {
+    "rows": 319336,
+    "nonEmpty": 319336,
+    "byCell": {
+     "Sale/Closed": 120813,
+     "Rental/Closed": 185685,
+     "Sale/Pending": 5173,
+     "Sale/Active": 6569,
+     "Rental/Pending": 298,
+     "Rental/Active": 763,
+     "Unknown/Active": 29,
+     "Unknown/Pending": 1,
+     "Sale/ComingSoon": 5
+    }
+   },
+   "TaxDeductionPercent": {
+    "rows": 184832,
+    "nonEmpty": 184832,
+    "byCell": {
+     "Sale/Closed": 151389,
+     "Rental/Closed": 25655,
+     "Sale/Pending": 3062,
+     "Sale/Active": 4121,
+     "Unknown/Active": 30,
+     "Rental/Pending": 209,
+     "Rental/Active": 362,
+     "Unknown/Pending": 1,
+     "Sale/ComingSoon": 3
+    }
+   },
+   "TaxMonthlyAmount": {
+    "rows": 68967,
+    "nonEmpty": 68967,
+    "byCell": {
+     "Sale/Closed": 33605,
+     "Rental/Closed": 25856,
+     "Sale/Pending": 3781,
+     "Sale/Active": 5104,
+     "Rental/Pending": 215,
+     "Rental/Active": 373,
+     "Unknown/Active": 29,
+     "Unknown/Pending": 1,
+     "Sale/ComingSoon": 3
+    }
+   },
+   "MaximumFinancingPercent": {
+    "rows": 220130,
+    "nonEmpty": 220130,
+    "byCell": {
+     "Sale/Closed": 182757,
+     "Rental/Closed": 25729,
+     "Sale/Pending": 4930,
+     "Sale/Active": 6108,
+     "Unknown/Active": 30,
+     "Rental/Pending": 210,
+     "Rental/Active": 362,
+     "Unknown/Pending": 1,
+     "Sale/ComingSoon": 3
+    }
+   },
+   "TaxAbatementComments": {
+    "rows": 2816,
+    "nonEmpty": 2816,
+    "byCell": {
+     "Sale/Closed": 1567,
+     "Rental/Closed": 929,
+     "Sale/Active": 185,
+     "Sale/Pending": 133,
+     "Rental/Pending": 2
+    }
+   },
+   "TaxAbatementExpirationYear": {
+    "rows": 2913,
+    "nonEmpty": 2913,
+    "byCell": {
+     "Sale/Closed": 1556,
+     "Rental/Closed": 1035,
+     "Sale/Active": 185,
+     "Rental/Pending": 4,
+     "Sale/Pending": 133
+    }
+   },
+   "PrivateOutdoorSpaceSize": {
+    "rows": 28576,
+    "nonEmpty": 28576,
+    "byCell": {
+     "Sale/Closed": 14128,
+     "Rental/Closed": 9479,
+     "Sale/Pending": 1946,
+     "Sale/Active": 2612,
+     "Rental/Active": 279,
+     "Rental/Pending": 127,
+     "Sale/ComingSoon": 5
+    }
+   },
+   "ViewRemarks": {
+    "rows": 209961,
+    "nonEmpty": 209961,
+    "byCell": {
+     "Sale/Closed": 89240,
+     "Rental/Closed": 112906,
+     "Sale/Pending": 2999,
+     "Sale/Active": 4137,
+     "Rental/Pending": 211,
+     "Rental/Active": 463,
+     "Unknown/Active": 1,
+     "Sale/ComingSoon": 4
+    }
+   },
+   "CeilingHeightUnits": {
+    "rows": 42037,
+    "nonEmpty": 42037,
+    "byCell": {
+     "Sale/Closed": 19552,
+     "Rental/Closed": 22364,
+     "Sale/Pending": 49,
+     "Sale/Active": 59,
+     "Rental/Pending": 2,
+     "Unknown/Active": 11
+    }
+   },
+   "CeilingHeightFeet": {
+    "rows": 43411,
+    "nonEmpty": 43411,
+    "byCell": {
+     "Sale/Closed": 20150,
+     "Rental/Closed": 22719,
+     "Sale/Pending": 190,
+     "Sale/Active": 323,
+     "Rental/Pending": 5,
+     "Unknown/Active": 11,
+     "Rental/Active": 13
+    }
+   },
+   "FlipTaxType": {
+    "rows": 86088,
+    "nonEmpty": 86088,
+    "byCell": {
+     "Sale/Closed": 80322,
+     "Sale/Pending": 2117,
+     "Rental/Closed": 1366,
+     "Sale/Active": 2253,
+     "Unknown/Active": 28,
+     "Unknown/Pending": 1,
+     "Rental/Pending": 1
+    }
+   },
+   "TaxDeductionAmount": {
+    "rows": 62764,
+    "nonEmpty": 62764,
+    "byCell": {
+     "Sale/Pending": 586,
+     "Sale/Closed": 61441,
+     "Sale/Active": 708,
+     "Unknown/Active": 28,
+     "Unknown/Pending": 1
+    }
+   },
+   "TaxDeductionRemarks": {
+    "rows": 40363,
+    "nonEmpty": 40363,
+    "byCell": {
+     "Sale/Pending": 448,
+     "Sale/Closed": 39306,
+     "Sale/Active": 585,
+     "Unknown/Active": 24
+    }
+   },
+   "MaximumFinancingAmount": {
+    "rows": 85539,
+    "nonEmpty": 85539,
+    "byCell": {
+     "Sale/Pending": 586,
+     "Sale/Closed": 84216,
+     "Sale/Active": 708,
+     "Unknown/Active": 28,
+     "Unknown/Pending": 1
+    }
+   },
+   "BonusYN": {
+    "rows": 229367,
+    "nonEmpty": 229367,
+    "byCell": {
+     "Rental/Closed": 229335,
+     "Rental/Pending": 30,
+     "Rental/Active": 2
+    }
+   },
+   "CommercialUnitsYN": {
+    "rows": 11083,
+    "nonEmpty": 11083,
+    "byCell": {
+     "Sale/Closed": 3597,
+     "Rental/Closed": 6428,
+     "Sale/Pending": 368,
+     "Sale/Active": 517,
+     "Rental/Pending": 41,
+     "Rental/Active": 131,
+     "Sale/ComingSoon": 1
+    }
+   },
+   "CeilingHeightInches": {
+    "rows": 7621,
+    "nonEmpty": 7621,
+    "byCell": {
+     "Sale/Closed": 4256,
+     "Rental/Closed": 2907,
+     "Sale/Pending": 153,
+     "Sale/Active": 283,
+     "Rental/Pending": 4,
+     "Unknown/Active": 5,
+     "Rental/Active": 13
+    }
+   },
+   "GuarantorsAcceptedYN": {
+    "rows": 33775,
+    "nonEmpty": 33775,
+    "byCell": {
+     "Sale/Closed": 3391,
+     "Rental/Closed": 29325,
+     "Sale/Pending": 369,
+     "Sale/Active": 517,
+     "Rental/Pending": 41,
+     "Rental/Active": 131,
+     "Sale/ComingSoon": 1
+    }
+   },
+   "CapitalReservesTotal": {
+    "rows": 662,
+    "nonEmpty": 662,
+    "byCell": {
+     "Rental/Closed": 104,
+     "Sale/Closed": 466,
+     "Sale/Pending": 39,
+     "Rental/Pending": 4,
+     "Sale/Active": 48,
+     "Rental/Active": 1
+    }
+   },
+   "CoBuyerAgentRLSParticipantYN": {
+    "rows": 3285,
+    "nonEmpty": 3285,
+    "byCell": {
+     "Rental/Closed": 1304,
+     "Sale/Closed": 1979,
+     "Sale/Pending": 2
+    }
+   },
+   "BuildingRules": {
+    "rows": 98791,
+    "nonEmpty": 98791,
+    "byCell": {
+     "Sale/Closed": 48698,
+     "Rental/Closed": 48712,
+     "Sale/Active": 751,
+     "Sale/Pending": 543,
+     "Rental/Pending": 14,
+     "Rental/Active": 44,
+     "Unknown/Active": 28,
+     "Unknown/Pending": 1
+    }
+   },
+   "BuildingParkingTotal": {
+    "rows": 1936,
+    "nonEmpty": 1936,
+    "byCell": {
+     "Sale/Closed": 1118,
+     "Rental/Closed": 479,
+     "Sale/Active": 175,
+     "Sale/Pending": 140,
+     "Rental/Pending": 11,
+     "Rental/Active": 13
+    }
+   },
+   "NumberOfProfessionalUnitsTotal": {
+    "rows": 609,
+    "nonEmpty": 609,
+    "byCell": {
+     "Sale/Closed": 362,
+     "Rental/Closed": 152,
+     "Sale/Pending": 31,
+     "Sale/Active": 56,
+     "Rental/Pending": 4,
+     "Rental/Active": 4
+    }
+   },
+   "SpecialAssessmentExpirationDateTime": {
+    "rows": 181,
+    "nonEmpty": 181,
+    "byCell": {
+     "Sale/Closed": 101,
+     "Rental/Closed": 49,
+     "Sale/Pending": 17,
+     "Sale/Active": 13,
+     "Rental/Pending": 1
+    }
+   },
+   "BuildingStaffType": {
+    "rows": 3652,
+    "nonEmpty": 3652,
+    "byCell": {
+     "Sale/Pending": 706,
+     "Sale/Closed": 1251,
+     "Sale/Active": 1095,
+     "Rental/Closed": 417,
+     "Rental/Active": 126,
+     "Rental/Pending": 57
+    }
+   },
+   "AreaUnderFAR": {
+    "rows": 22,
+    "nonEmpty": 22,
+    "byCell": {
+     "Sale/Closed": 11,
+     "Rental/Closed": 3,
+     "Sale/Pending": 2,
+     "Sale/Active": 5,
+     "Rental/Pending": 1
+    }
+   },
+   "ComingSoonTimestamp": {
+    "rows": 574,
+    "nonEmpty": 574,
+    "byCell": {
+     "Sale/Closed": 390,
+     "Sale/Pending": 99,
+     "Sale/Active": 80,
+     "Sale/ComingSoon": 5
+    }
+   },
+   "BonusRemarks": {
+    "rows": 31329,
+    "nonEmpty": 31329,
+    "byCell": {
+     "Rental/Closed": 31329
+    }
+   },
+   "AlternateStreetName": {
+    "rows": 11996,
+    "nonEmpty": 11996,
+    "byCell": {
+     "Rental/Closed": 5767,
+     "Sale/Closed": 6229
+    }
+   },
+   "AlternateStreetSuffix": {
+    "rows": 11148,
+    "nonEmpty": 11148,
+    "byCell": {
+     "Rental/Closed": 5311,
+     "Sale/Closed": 5837
+    }
+   },
+   "AlternateStreetNumber": {
+    "rows": 11835,
+    "nonEmpty": 11835,
+    "byCell": {
+     "Rental/Closed": 5675,
+     "Sale/Closed": 6160
+    }
+   },
+   "AlternateStreetDirPrefix": {
+    "rows": 2850,
+    "nonEmpty": 2850,
+    "byCell": {
+     "Sale/Closed": 1385,
+     "Rental/Closed": 1465
+    }
+   },
+   "AlternateStreetDirSuffix": {
+    "rows": 185,
+    "nonEmpty": 185,
+    "byCell": {
+     "Sale/Closed": 99,
+     "Rental/Closed": 86
+    }
+   },
+   "RoofRightsYN": {
+    "rows": 94715,
+    "nonEmpty": 94715,
+    "byCell": {
+     "Sale/Closed": 32725,
+     "Rental/Closed": 61988,
+     "Sale/Active": 2
+    }
+   },
+   "ArchitectName": {
+    "rows": 106,
+    "nonEmpty": 106,
+    "byCell": {
+     "Sale/Closed": 51,
+     "Rental/Closed": 12,
+     "Sale/Pending": 21,
+     "Sale/Active": 20,
+     "Rental/Active": 2
+    }
+   },
+   "AreaOverFAR": {
+    "rows": 24,
+    "nonEmpty": 24,
+    "byCell": {
+     "Rental/Closed": 6,
+     "Sale/Closed": 11,
+     "Sale/Active": 4,
+     "Sale/Pending": 1,
+     "Rental/Active": 1,
+     "Rental/Pending": 1
+    }
+   },
+   "CoExclusiveListingKey": {
+    "rows": 1,
+    "nonEmpty": 1,
+    "byCell": {
+     "Sale/Closed": 1
+    }
+   },
+   "PrivateOutdoorSpaceRemarks": {
+    "rows": 1,
+    "nonEmpty": 1,
+    "byCell": {
+     "Sale/Closed": 1
+    }
+   }
+  },
+  "termKeys": {
+   "CertificateOfOccupancyYN": {
+    "matchedBy": "key",
+    "nonEmpty": 229778,
+    "byCell": {
+     "Rental/Closed": 146304,
+     "Sale/Closed": 73808,
+     "Sale/Pending": 3698,
+     "Sale/Active": 5090,
+     "Rental/Pending": 277,
+     "Unknown/Closed": 4,
+     "Unknown/Active": 36,
+     "Rental/Active": 555,
+     "Unknown/Pending": 1,
+     "Sale/ComingSoon": 5
+    }
+   },
+   "GuarantorsAcceptedYN": {
+    "matchedBy": "key",
+    "nonEmpty": 33775,
+    "byCell": {
+     "Sale/Closed": 3391,
+     "Rental/Closed": 29325,
+     "Sale/Pending": 369,
+     "Sale/Active": 517,
+     "Rental/Pending": 41,
+     "Rental/Active": 131,
+     "Sale/ComingSoon": 1
+    }
+   },
+   "FlipTaxRemarks": {
+    "matchedBy": "value",
+    "nonEmpty": 1182,
+    "byCell": {
+     "Sale/Closed": 1133,
+     "Sale/Active": 19,
+     "Rental/Closed": 13,
+     "Sale/Pending": 17
+    }
+   },
+   "MaximumFinancingRemarks": {
+    "matchedBy": "value",
+    "nonEmpty": 223,
+    "byCell": {
+     "Sale/Closed": 134,
+     "Rental/Closed": 23,
+     "Sale/Pending": 30,
+     "Sale/Active": 34,
+     "Rental/Active": 1,
+     "Rental/Pending": 1
+    }
+   },
+   "BonusRemarks": {
+    "matchedBy": "value",
+    "nonEmpty": 22,
+    "byCell": {
+     "Rental/Closed": 22
+    }
+   },
+   "BuildingRules": {
+    "matchedBy": "value",
+    "nonEmpty": 3,
+    "byCell": {
+     "Rental/Closed": 3
+    }
+   },
+   "TaxAbatementComments": {
+    "matchedBy": "value",
+    "nonEmpty": 16,
+    "byCell": {
+     "Rental/Closed": 7,
+     "Sale/Closed": 7,
+     "Sale/Pending": 1,
+     "Sale/Active": 1
+    }
+   }
+  },
+  "termValues": {
+   "CertificateOfOccupancyYN": {
+    "Rental/Closed": {
+     "0": 119248,
+     "1": 27056
+    },
+    "Sale/Closed": {
+     "0": 47544,
+     "1": 26264
+    },
+    "Sale/Pending": {
+     "0": 986,
+     "1": 2712
+    },
+    "Sale/Active": {
+     "0": 1266,
+     "1": 3824
+    },
+    "Rental/Pending": {
+     "0": 49,
+     "1": 228
+    },
+    "Unknown/Closed": {
+     "0": 3,
+     "1": 1
+    },
+    "Unknown/Active": {
+     "0": 33,
+     "1": 3
+    },
+    "Rental/Active": {
+     "0": 174,
+     "1": 381
+    },
+    "Unknown/Pending": {
+     "0": 1
+    },
+    "Sale/ComingSoon": {
+     "1": 5
+    }
+   },
+   "GuarantorsAcceptedYN": {
+    "Sale/Closed": {
+     "0": 3226,
+     "1": 165
+    },
+    "Rental/Closed": {
+     "0": 29325
+    },
+    "Sale/Pending": {
+     "0": 360,
+     "1": 9
+    },
+    "Sale/Active": {
+     "0": 490,
+     "1": 27
+    },
+    "Rental/Pending": {
+     "0": 41
+    },
+    "Rental/Active": {
+     "0": 131
+    },
+    "Sale/ComingSoon": {
+     "0": 1
+    }
+   },
+   "FlipTaxRemarks": {
+    "Sale/Closed": {
+     "6 months common charges due with board package submission": 1,
+     "Seller pays the flip tax at closing": 1,
+     "15 % of net profit paid by seller or 1% of contract price whichever is higher": 2,
+     "3% of gross sale see board req.": 11,
+     "$10 per share paid at closing": 1,
+     "1% of contract price of 15% of net profit whichever is higher": 1,
+     "due at closing": 2,
+     "15% of net profit or 1% of contract price whichever is higher": 7,
+     "6 months cc split (buyer seller 3/3) See Board Requirements": 2,
+     "Variable Depending on Ownership Length": 1,
+     "per share if Tenant in occupancy at the conversion)": 1,
+     "Buyer Pays with submission of Board Package": 1,
+     "40% of profit goes to the city, remaining 60% shared w coop See Board Requiremen": 1,
+     "2% on all contracts dated 1/1/12 or later": 5,
+     "SELLER PAYS 2% on all contracts dated 1/1/12 or later": 4,
+     "See Board Requirements": 398,
+     "see board req.": 33,
+     "Allowed with board approval., 1% Paid by Seller": 16,
+     "Case By Case, See Board Requirements": 49,
+     "Allowed; board pkg form;, 1%Orig.PP+2%Profit": 18,
+     "Yes, See Board Requirements": 104,
+     "$2500 Admin Closing Fee": 16,
+     "1/2%  contract price pbs": 13,
+     "Contingent on length of occupancy.": 4,
+     "2% at closing by seller": 19,
+     "$500-application fee & move in": 34,
+     "Seller pays $425 per share at closing.": 8,
+     "2% or 3% depending on residency.": 3,
+     "2% by the buyer as per board package": 5,
+     "Yes, See Board Requiremen": 11,
+     "(other)": 361
+    },
+    "Sale/Active": {
+     "There is a transfer fee (paid by purchasers) of 1% of the contract price to be p": 1,
+     "See board application for flip tax": 1,
+     "Mandatory contribution to working capital fund equivalent to 2 months common cha": 1,
+     "1% of contract price or 15% of net profit whichever is higher": 1,
+     "There is a transfer fee (flip tax) that starts at 5% and steps down to 1% depend": 1,
+     "1.5% of Purchase Price Paid at Closing": 1,
+     "Buyers pay at closing": 1,
+     "At closing, a Reserve Assessment Fee is payable by the Purchaser, in the amount ": 1,
+     "1% payable at closing purchaser": 1,
+     "2% flip tax payable by the purchaser at closing": 1,
+     "2.5% payable of contract price by seller.": 1,
+     "See Board Requirements": 1,
+     "1% of the sale price. The application does not defined if seller or buyer pays i": 1,
+     "Capital Contribution equal to 4 (four) times the monthly maintenance and any cur": 1,
+     "Two (2) months Common Charges payable by Buyer with application submission": 1,
+     "seller closing cost": 1,
+     "flip tax vaires from 10-100% of the profit depending on length of ownership": 1,
+     "$2500 Admin Closing Fee": 1,
+     "Yes, See Board Requiremen": 1
+    },
+    "Rental/Closed": {
+     "Mandatory contribution to working capital fund equivalent to 2 months common cha": 6,
+     "$500-application fee $20": 1,
+     "BUT, 2 month capital contribution paid at closing": 1,
+     "Buyer pays a capital contribution of 1.5% at closing.": 3,
+     "2 months common charges paid at closing": 1,
+     "See board requirements": 1
+    },
+    "Sale/Pending": {
+     "See Board Requirements 2% of gross sales price": 1,
+     "1% of gross sales after 2 years of occupancy or 2% if less than 2 years occupanc": 1,
+     "MOVE-IN FEE": 2,
+     "15 % of net profit paid by seller or 1% of contract price whichever is higher pa": 1,
+     "1% after 2 yrs of occupancy or 2% if less than 2 yrs occupancy": 1,
+     "2 months common charges paid at closing": 1,
+     "Flip tax is a tiered fax starting at 2% of the closing price based on years of o": 2,
+     "3% flip tax payable by purchaser See Board Requirements": 1,
+     "0.5% of the purchase price, paid by the seller at closing": 1,
+     "1% of the sale price. The application does not defined if seller or buyer pays i": 1,
+     "Buyer pays at closing": 1,
+     "$10,000 total; $5000 paid by seller and $5000 paid by buyer at closing": 1,
+     "Formula based on years of occupancy": 1,
+     "15% of net profit or 1% of contract price": 1,
+     "1% of contract price or 15% of net profit whichever is higher": 1
+    }
+   },
+   "MaximumFinancingRemarks": {
+    "Sale/Closed": {
+     "Contracts Noncontingent on Financing": 59,
+     "Post Closing Liquidity Not Required": 25,
+     "Sponsor Unit - No Board Approval. Flexible financing": 1,
+     "UNFCU has approved the building.": 1,
+     "Must be approved by lender": 1,
+     "Limited Financing Available": 1,
+     "Subject terms and conditions of the offering plan": 1,
+     "financing available.": 1,
+     "Subject to board approval": 1,
+     "A deposit equal to ten percent (10%) of the purchase price will be due upon sign": 21,
+     "mortgage is accepted, BUT must have a pre-approval letter. No offers accepted wi": 1,
+     "Gifting, co-purchaser, guarantor, all accepted": 1,
+     "allows subletting and up to 90% financing.": 1,
+     "20% Deposit": 1,
+     "10% at contract": 4,
+     "This is condo. Maximum financing is contingent on bank approval.": 1,
+     "With Coop Board Approval": 1,
+     "10% at contract signing ": 1,
+     "Co-op requires minimum 20% down. Please contact listing agent for lenders that a": 1,
+     "Board Approval": 1,
+     "lender approval": 1,
+     "As per offer": 1,
+     "TBD at time of offer": 1,
+     "considered on a case by case basis by the board": 2,
+     "Guarantors are allowed case by case,  gifting allowed case by case,  pied-a-terr": 1,
+     "board will look at case by case": 1,
+     "Financial available; up to approximately 80%": 1,
+     "Subject to change depending on loan type etc.": 1
+    },
+    "Rental/Closed": {
+     "Limited Financing Available": 1,
+     "Post Closing Liquidity Not Required": 20,
+     "This is condo. Maximum financing is contingent on bank approval.": 1,
+     "Contracts Noncontingent on Financing": 1
+    },
+    "Sale/Pending": {
+     "Contracts Noncontingent on Financing": 9,
+     "15% due at contract signing. ": 3,
+     "15% due at contract signing, remainder due at closing.": 5,
+     "Gifting: Permitted w/ Board Approval\nGuarantors: Permitted w/ Board Approval": 1,
+     "Financing permitted with a minimum 20% down in cash, up to 80% financing allowed": 1,
+     "A deposit equal to ten percent (10%) of the purchase price will be due upon sign": 1,
+     "15% down at contract signing.": 2,
+     "90 financing requires a pre approval from one of the preferred lenders": 7,
+     "Post Closing Liquidity Not Required": 1
+    },
+    "Sale/Active": {
+     "Contracts Noncontingent on Financing": 12,
+     "A deposit equal to ten percent (10%) of the purchase price will be due upon sign": 2,
+     "max financing is 80%, but subject to board approval": 1,
+     "the maximum financing accepted in Trump Tower is 90%.": 1,
+     "The minimum down payment is 20%. Guarantors NOT accepted. ": 1,
+     "15% due at contract signing. ": 1,
+     "Max financing up to 90%, subject to lender discretion and building approval wher": 1,
+     "90 financing requires a pre approval from one of the preferred lenders": 6,
+     "This Condo is FHA approved. You can purchase this condo with as little as 3.5% d": 1,
+     "Financing permitted subject to lender approval and condominium requirements. ": 1,
+     "10% at contract": 1,
+     "90% owner financing available": 2,
+     "10% down financing has been approved by several major lenders in closings in thi": 1,
+     "At J Condominium (100 Jay Street, Brooklyn, NY 11201), maximum financing is typi": 1,
+     "Board requires minimum 20 percent down. Fixed rate financing preferred. 30 perce": 1,
+     "Please e-mail christopher.casey@sothebys.realty for all showings; 24 hours' noti": 1
+    },
+    "Rental/Active": {
+     "Post Closing Liquidity Not Required": 1
+    },
+    "Rental/Pending": {
+     "Post Closing Liquidity Not Required": 1
+    }
+   },
+   "BonusRemarks": {
+    "Rental/Closed": {
+     "Free Month Offered": 1,
+     "$200 Amazon Gift card to brokers renting agent for all deals signed before the e": 2,
+     "owner offers rental agent  $500 bonus for 6 months lease and $1000 for the lease": 1,
+     "All application fees are covered": 1,
+     "no Bonus offered": 1,
+     "Application Fee": 1,
+     "No application fees.": 1,
+     "Half of the application fee paid by owner after ap": 1,
+     "Landlord pays $675 application to the condo": 1,
+     "More deals will offer concession for renter's brok": 1,
+     "$350 app fee $250 move in fee. All non-refundable": 1,
+     "$25 off rent paid by the 3rd of the month for lease signed by 8/31.": 1,
+     "$45 off rent if paid by the 3rd of the month for any lease signed by 8/31.": 1,
+     "Owner to reimburse coop application fees as credit to first month rent.": 1,
+     "NO FEE/LANDLORD TO PAY COOP APPLICATION FEES": 1,
+     "$300 added to security deposit on lease renewal for second year.": 1,
+     "Case by Case - NET payment offer": 1,
+     "Landlord offering to pay 1/2 of broker fee (1 month rent) and offering a credit ": 1,
+     "Parking available": 1,
+     "$1000 Security deposit": 1,
+     "owner rented on there own": 1
+    }
+   },
+   "BuildingRules": {
+    "Rental/Closed": {
+     "GuarantorsAccepted": 3
+    }
+   },
+   "TaxAbatementComments": {
+    "Rental/Closed": {
+     " 20-year 421-A tax exemption. Occupancy is slated for early 2014.": 6,
+     "see offering plan": 1
+    },
+    "Sale/Closed": {
+     "see offering plan": 1,
+     "Consult Attorney": 1,
+     " 20-year 421-A tax exemption. Occupancy is slated for early 2014.": 5
+    },
+    "Sale/Pending": {
+     " 20-year 421-A tax exemption. Occupancy is slated for early 2014.": 1
+    },
+    "Sale/Active": {
+     " 20-year 421-A tax exemption. Occupancy is slated for early 2014.": 1
+    }
+   }
+  }
+ },
+ "quota": {
+  "minuteLimit": 280,
+  "minuteAvailable": 187,
+  "hourLimit": 8400,
+  "hourAvailable": 1713,
+  "hourResetTime": 1788856595017,
+  "seenAt": 1788856477224
+ }
+}

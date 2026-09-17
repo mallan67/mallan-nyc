@@ -1,25 +1,21 @@
-        // ═══════════════════════════════════════════════════════════════════════════
-        // RESO FIELD MAPPING — Maps mock field names to RESO Data Dictionary fields
-        // Used for data-reso-field attributes on rendered HTML elements
-        // Reference: Trestle/CoreLogic Property entity (REBNY RLS)
+        // ═══════════════════════════════════════════════════════════════════════
+        // DISPLAY / SOURCE ANNOTATION ONLY — public/crm/js/core/reso-field-map.js
         //
-        // VERIFIED 2026-02-19 against:
-        //   data/rebny-rls-property-fields.csv (902 REBNY IDX Plus fields across 7 resources)
-        //   data/trestle-dictionary/property-fields.csv (744 Trestle fields)
-        //   data/trestle-excel/02_PROPERTY.csv
-        //
-        // KEY NOTES:
-        //   - RLS "ListingKey" attr → Trestle "SourceSystemKey" (LMP's listing ID)
-        //   - Trestle "ListingKey" = OData primary key (Trestle-generated)
-        //   - Trestle "ListingId" = RLS listing number (Matrix-generated)
-        //   - RLS "StandardStatus" attr → Trestle "MlsStatus" (detailed)
-        //     Trestle also has "StandardStatus" (RESO normalized) — we use MlsStatus (RLS name)
-        //   - RLS uses "SubdivisionName" for neighborhood, Trestle also has "MLSAreaMinor"
-        //   - "WalkScore" exists in Trestle schema but NOT in RLS (Trestle-only)
-        //   - Coming Soon: RLS uses "ActivationDate" (not FirstShowingDate)
-        //     and "ComingSoonTimestamp" (not ComingSoonOnMarketDate/ExpirationDate)
-        //   - BuyerBrokerageCompensation: REMOVED from RLS feed Aug 2025 (NAR settlement)
-        // ═══════════════════════════════════════════════════════════════════════════
+        // RESO_FIELD_MAP maps CRM DTO keys to the live Cotality Property field each value was mapped
+        // FROM, so rendered cards can carry a data-reso-field attribute for compliance checks.
+        //   - every value is checked against the live Cotality contract (data/cotality-property-fields.live.json)
+        //     by tests/runtime/provider-authority-census.test.ts and by scripts/validate-rls-compliance.js §5;
+        //     "computed:" marks a value the mapper derives.
+        //   - it does NOT map provider data in either direction, does NOT define provider semantics,
+        //     and does NOT define compliance requirements. Provider facts = lib/cotality/live-contract.ts;
+        //     REBNY / UCBA rules = lib/compliance/rebny-ucba-rules.ts; Mallan form / storage =
+        //     lib/listings/mallan-form-contract.ts. RESO is vocabulary only.
+        // ═══════════════════════════════════════════════════════════════════════
+        // DISPLAY-ANNOTATION VOCABULARY, NOT PROVIDER AUTHORITY (Packet 2 closure).
+        // Maps CRM DTO keys to the live Cotality Property field they were mapped FROM, so cards can
+        // carry a data-reso attribute for compliance checks. Every value is verified against the dated
+        // live field pull (data/cotality-property-fields.live.json) by tests/runtime/provider-authority-census.test.ts;
+        // "computed:" marks a value the mapper derives. Nothing here maps data in either direction.
         var RESO_FIELD_MAP = {
             // ── Address & Location ──
             address:        'UnparsedAddress',           // RLS: UnparsedAddress → UnParsedAddress (Matrix). Trestle OData: UnparsedAddress
@@ -32,7 +28,7 @@
 
             // ── Pricing ──
             price:          'ListPrice',                 // RLS: ListPrice
-            totalMonthly:   'AssociationFee+TaxAnnualAmount',  // computed (not a real field)
+            totalMonthly:   'computed:AssociationFee+TaxAnnualAmount',  // COMPUTED by the mapper (monthly fee + tax/12), not a provider field
             maintCC:        'AssociationFee',            // RLS: AssociationFee (monthly maint/CC)
             reTaxes:        'TaxAnnualAmount',           // RLS: TaxAnnualAmount (annual, for townhouses/lots)
             originalPrice:  'OriginalListPrice',         // RLS: OriginalListPrice (read-only)
@@ -56,7 +52,7 @@
             view:           'View',                      // RLS: View. Conditional: ViewYN=true
 
             // ── Classification ──
-            status:         'MlsStatus',                 // RLS: MlsStatus (REBNY detailed status). RESO "StandardStatus" renamed to "MlsStatus" by RLS
+            status:         'StandardStatus',            // the live status the feed delivers (MlsStatus is provider-suppressed: null on every row)
             ownership:      'CommonInterest',            // RLS: CommonInterest
             propertyType:   'PropertyType',              // RLS: PropertyType (Residential | ResidentialLease)
             propertySubType:'PropertySubType',           // RLS: PropertySubType
@@ -68,13 +64,13 @@
 
             // ── IDs ──
             lid:            'ListingId',                 // Trestle: ListingId (Matrix-generated RLS number). Read-only
-            wid:            'SourceSystemKey',            // RLS: SourceSystemKey (LMP's listing ID). RESO "ListingKey" renamed to "SourceSystemKey" by RLS
+            wid:            'SourceSystemKey',            // the source system's listing id (a live field distinct from ListingKey)
 
             // ── Dates & DOM ──
             dom:            'DaysOnMarket',              // RLS: DaysOnMarket (system). Reset after 30 days W/C (UCBA 2026)
             cdom:           'CumulativeDaysOnMarket',    // RLS: CumulativeDaysOnMarket (system)
             listedDate:     'OnMarketDate',              // RLS: OnMarketDate. Required if MLSStatus=Active
-            updatedDate:    'SourceSystemModificationTimestamp', // RLS: SourceSystemModificationTimestamp. RESO "ModificationTimestamp" renamed by RLS
+            updatedDate:    'ModificationTimestamp', // live Cotality field (SourceSystemModificationTimestamp is a REBNY submission-form name, not a live field)
 
             // ── Agent & Office ──
             company:        'ListOfficeName',            // RLS: ListOfficeName
@@ -105,14 +101,12 @@
             walkScore:      'WalkScore',                 // Trestle-only (not in RLS CSV)
 
             // ── Display Control Flags ──
-            idxDisplayYN:           'IDXEntireListingDisplayYN',       // RLS: IDXEntireListingDisplayYN (IDX-specific gate, requires office participation)
             internetDisplayYN:      'InternetEntireListingDisplayYN',  // RLS: InternetEntireListingDisplayYN (master gate — cascades to addr/AVM/comment)
             addressDisplayYN:       'InternetAddressDisplayYN',       // RLS: InternetAddressDisplayYN
             syndicateTo:            'SyndicateTo',                    // Trestle: SyndicateTo (multi-enum)
 
             // ── Coming Soon (REBNY-specific) ──
             comingSoonDate:       'ActivationDate',                   // RLS: ActivationDate (date Coming Soon becomes Active). Required if MLSStatus=ComingSoon
-            comingSoonTimestamp:   'ComingSoonTimestamp',              // RLS: ComingSoonTimestamp (system — when listing first entered Coming Soon)
 
             // ── REMOVED from RLS (NAR Settlement Aug 2025) — kept for reference only ──
             // buyerComp:      'BuyerBrokerageCompensation',          // REMOVED from feed Aug 2025
@@ -123,7 +117,7 @@
         // Photos, videos, documents, floor plans are stored as separate Media records
         // linked to the listing via ResourceRecordKey → ListingKey.
         //
-        // Trestle Media fields (from media-fields.csv):
+        // Live Cotality Media fields (MEDIA_SELECT_FIELDS in lib/media/listing-media-resolver.ts):
         //   MediaKey (PK), MediaURL, MediaType (Jpeg/Png/etc),
         //   MediaCategory (Photo/Video/FloorPlan/Document),
         //   MediaClassification (Photo/Document/Video),
@@ -177,14 +171,14 @@
             return url ? url.replace('w=800', 'w=400') : '';
         }
 
+        // Badge classes for a listing status. THE decision lives in ONE place —
+        // public/crm/js/core/status-presentation.js — and this is a thin alias kept for the call sites that
+        // already use the name. It accepts a listing OR a bare status string.
+        //
+        // It used to be a five-case switch over the retired uppercase presentation words, so a real status
+        // the feed delivers — Canceled, Expired, Hold, ActiveUnderContract, Incomplete, Delete — fell to the
+        // grey "unknown" default and rendered identically to a row with no status at all.
         function getStatusBadgeClasses(status) {
-            switch(status) {
-                case 'ACTIVE': return 'bg-green-100 text-green-700';
-                case 'PENDING': return 'bg-orange-100 text-orange-700';
-                case 'CLOSED': return 'bg-gray-200 text-gray-600';
-                case 'COMING_SOON': case 'ComingSoon': return 'bg-purple-100 text-purple-700';
-                case 'WITHDRAWN': case 'Withdrawn': return 'bg-red-100 text-red-600';
-                default: return 'bg-gray-100 text-gray-600';
-            }
+            return MallanStatus.classes(status);
         }
 

@@ -8,9 +8,23 @@ import { createInquiry } from '@/lib/inquiries/create';
 import { withDbRetry } from '@/lib/db/with-retry';
 
 /**
- * POST /api/cma
+ * POST /api/cma - a public VALUATION REQUEST. NOT a CMA.
  *
- * Handles Comparative Market Analysis (CMA) requests from the public /sell page.
+ * CLASSIFICATION (Maya, 2026-09-09 - the three CMA paths reconciled):
+ *   This route is a LEAD INTAKE endpoint for the public /sell page. It captures a seller/landlord asking to be
+ *   valued, upserts the Lead, records consent, writes the audit event and notifies the broker. It selects NO
+ *   comparables, reads NO Cotality status, applies NO adjustment and returns NO estimated value. Nothing it
+ *   returns may be shown or forwarded as a valuation.
+ *
+ *   The COMPUTED CMA is POST /api/crm/cma (agent/broker authenticated): it selects comparables through
+ *   lib/cma/engine.ts, which is transaction- and PropertyType-aware, stores the exact live Cotality
+ *   StandardStatus token on each comp with the broker LABEL for the subject transaction (a sale Closed reads
+ *   "Sold", a rental Closed reads "Rented"), values only from verified closings, and refuses a subject with no
+ *   neighborhood or borough. Provider comparables come from lib/comps/fetch-comps.ts.
+ *
+ *   The response therefore carries `kind: "valuation_request"` and `computed_cma: false` so no caller can
+ *   mistake an acknowledged request for a produced analysis.
+ *
  * Creates/updates a Lead record and logs an audit event.
  * TCPA/CTIA: form includes explicit consent checkbox (required affirmative action).
  */
@@ -221,7 +235,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'CMA request submitted successfully',
+      // An explicit classification: this endpoint RECEIVED a request for a valuation; it did not compute one.
+      // A computed CMA (comparables, tokens, labels, an estimate) comes only from POST /api/crm/cma.
+      kind: 'valuation_request',
+      computed_cma: false,
+      message: 'CMA request submitted successfully. A Mallan agent will prepare the analysis and follow up.',
     });
   } catch (err) {
     // Codex Risk P0 fix: redact server error log.

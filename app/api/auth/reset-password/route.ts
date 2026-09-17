@@ -7,6 +7,7 @@ import { validateResetToken } from "@/lib/auth/reset-token";
 import { logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { getSessionCookieConfig } from "@/lib/auth/cookie-config";
+import { isLeadExplicitlyInactive, LEAD_PORTAL_ACCESS_REVOKED } from "@/lib/auth/lead-access";
 
 export async function POST(req: NextRequest) {
   const blocked = assertWriteAllowed();
@@ -73,8 +74,13 @@ export async function POST(req: NextRequest) {
     } else {
       const lead = await prisma.lead.findUnique({
         where: { id: userId },
-        select: { password_hash: true, first_name: true, last_name: true, email: true, portal_role: true },
+        select: { password_hash: true, first_name: true, last_name: true, email: true, portal_role: true, status: true },
       });
+      // Refuse without weakening token validation, and WITHOUT reactivating: a password reset is not a
+      // lifecycle decision.
+      if (lead && isLeadExplicitlyInactive(lead.status)) {
+        return NextResponse.json({ error: LEAD_PORTAL_ACCESS_REVOKED }, { status: 403 });
+      }
       if (!lead?.password_hash) {
         return NextResponse.json({ error: "Invalid or expired reset link" }, { status: 400 });
       }

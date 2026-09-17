@@ -8,6 +8,7 @@ import { sendEmail } from "@/lib/email/sendgrid";
 import { passwordResetEmail } from "@/lib/email/templates";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { escapeHtml } from "@/lib/sanitize";
+import { isLeadExplicitlyInactive } from "@/lib/auth/lead-access";
 
 export async function POST(req: NextRequest) {
   const blocked = assertWriteAllowed();
@@ -45,10 +46,12 @@ export async function POST(req: NextRequest) {
 
     const lead = await prisma.lead.findUnique({
       where: { email },
-      select: { id: true, first_name: true, password_hash: true },
+      select: { id: true, first_name: true, password_hash: true, status: true },
     });
 
-    if (lead?.password_hash) {
+    // An inactive client gets the SAME generic success as a nonexistent one — anti-enumeration preserved —
+    // but no token is minted and no mail is sent.
+    if (lead?.password_hash && !isLeadExplicitlyInactive(lead.status)) {
       const token = generateResetToken(lead.id, "lead", lead.password_hash);
       const html = passwordResetEmail(token, escapeHtml(lead.first_name));
       await sendEmail(email, "Reset Your Password — Mallan Real Estate", html, undefined, { transactional: true });

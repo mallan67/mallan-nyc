@@ -11,12 +11,13 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { REBNY_FIELD_TABLES } from '@/lib/compliance/rebny-field-tables';
+import { REBNY_UCBA_RULES } from '@/lib/compliance/rebny-ucba-rules';
+import { MALLAN_FORM_CONTRACT } from '@/lib/listings/mallan-form-contract';
 
 const buildingsSearch = readFileSync(resolve(__dirname, '../../app/api/buildings/search/route.ts'), 'utf8');
 
 describe('Group 4 — feature-bucket phantoms: internal, non-mandatory, readers preserved', () => {
-  const req = REBNY_FIELD_TABLES.requiredFields.agentSubmitted as readonly string[];
+  const req = REBNY_UCBA_RULES.requiredFields.agentSubmitted as readonly string[];
 
   it.each(['FlipTax', 'TaxAbatementYN', 'TaxAbatementComments', 'SponsorUnitYN'])(
     'phantom "%s" is NOT in the mandatory list',
@@ -26,7 +27,7 @@ describe('Group 4 — feature-bucket phantoms: internal, non-mandatory, readers 
   );
 
   it('retained in the features bucket (not dropped — consumers read them)', () => {
-    const pm = REBNY_FIELD_TABLES.persistenceMap as Record<string, { features?: boolean }>;
+    const pm = MALLAN_FORM_CONTRACT.persistenceMap as Record<string, { features?: boolean }>;
     for (const f of ['FlipTax', 'TaxAbatementYN', 'TaxAbatementComments', 'SponsorUnitYN']) {
       expect(pm[f]?.features).toBe(true);
     }

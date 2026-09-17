@@ -1,0 +1,1321 @@
+{
+  "source": "LIVE_COTALITY",
+  "scope": "all",
+  "started": "2026-09-08T07:51:23.467Z",
+  "fields": {
+    "InteriorFeatures": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.InteriorOrRoomFeatures",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 144425,
+      "members": 299,
+      "membersUsed": 53,
+      "counts": {
+        "EntranceFoyer": 50033,
+        "EatInKitchen": 25163,
+        "DiningArea": 24988,
+        "SmokeFree": 24986,
+        "HighCeilings": 13760,
+        "SeparateFormalDiningRoom": 11328,
+        "Pantry": 7176,
+        "WalkInClosets": 6484,
+        "Den": 5977,
+        "KitchenWindow": 5471,
+        "Storage": 5170,
+        "RecessedLighting": 3750,
+        "Elevator": 3484,
+        "SoakingTub": 3070,
+        "BuiltInFeatures": 2954,
+        "BreakfastBar": 2466,
+        "KitchenIsland": 2384,
+        "GalleyKitchen": 2206,
+        "DoubleVanity": 1861,
+        "Sauna": 1841,
+        "CrownMolding": 1816,
+        "GraniteCounters": 1654,
+        "Chandelier": 1267,
+        "HisAndHersClosets": 858,
+        "SoundSystem": 470,
+        "HighSpeedInternet": 452,
+        "Bar": 322,
+        "WetBar": 316,
+        "SeeRemarks": 128,
+        "OpenFloorplan": 109,
+        "Bidet": 106,
+        "StoneCounters": 99,
+        "WaterSenseFixtures": 41,
+        "PrimaryDownstairs": 38,
+        "CeilingFans": 37,
+        "NaturalWoodwork": 36,
+        "Bookcases": 29,
+        "BeamedCeilings": 23,
+        "SmartThermostat": 18,
+        "TrackLighting": 14,
+        "SmartHome": 10,
+        "CathedralCeilings": 7,
+        "TrayCeilings": 6,
+        "VaultedCeilings": 5,
+        "WiredForSound": 5,
+        "CedarClosets": 4,
+        "WiredForData": 4,
+        "InLawFloorplan": 3,
+        "Other": 3,
+        "CofferedCeilings": 2,
+        "DryBar": 2,
+        "SolarTubes": 2,
+        "CentralVacuum": 1
+      },
+      "rejectedMembers": {
+        "BathroomonMainLevel": "HTTP 400 — filter on this member rejected (Lookup-published, not an EnumType member)",
+        "BedroomonUpperLevel": "HTTP 400 — filter on this member rejected (Lookup-published, not an EnumType member)",
+        "BuiltInBunkBeds": "HTTP 400 — filter on this member rejected (Lookup-published, not an EnumType member)",
+        "HalfBathonMainLevel": "HTTP 400 — filter on this member rejected (Lookup-published, not an EnumType member)",
+        "ThreeBedroomsUp": "HTTP 400 — filter on this member rejected (Lookup-published, not an EnumType member)",
+        "ThreeQuarterBathonMainLevel": "HTTP 400 — filter on this member rejected (Lookup-published, not an EnumType member)",
+        "TwoBedroomsDown": "HTTP 400 — filter on this member rejected (Lookup-published, not an EnumType member)",
+        "TwoBedroomsUp": "HTTP 400 — filter on this member rejected (Lookup-published, not an EnumType member)"
+      }
+    },
+    "StreetSuffix": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.StreetSuffix",
+      "multi": false,
+      "rlsField": true,
+      "nonNull": 580295,
+      "members": 298,
+      "membersUsed": 28,
+      "counts": {
+        "Street": 402483,
+        "Avenue": 113668,
+        "Place": 22632,
+        "Boulevard": 9994,
+        "Park": 8803,
+        "Drive": 6130,
+        "Road": 4838,
+        "Parkway": 3486,
+        "Terrace": 2043,
+        "Square": 1791,
+        "Plaza": 1632,
+        "Court": 526,
+        "Row": 509,
+        "Point": 499,
+        "Lane": 490,
+        "Circle": 221,
+        "Heights": 169,
+        "Highway": 133,
+        "Crescent": 79,
+        "Turnpike": 63,
+        "Alley": 37,
+        "Loop": 17,
+        "Walk": 14,
+        "Expressway": 10,
+        "Landing": 10,
+        "Way": 8,
+        "Meadows": 6,
+        "Commons": 4
+      },
+      "rejectedMembers": {}
+    },
+    "LotFeatures": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.LotFeatures",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 1714,
+      "members": 207,
+      "membersUsed": 20,
+      "counts": {
+        "Garden": 1293,
+        "FrontYard": 286,
+        "CornerLot": 106,
+        "BackYard": 37,
+        "NearPublicTransit": 25,
+        "Views": 21,
+        "Landscaped": 15,
+        "Private": 6,
+        "Paved": 5,
+        "Waterfront": 5,
+        "CityLot": 4,
+        "FewTrees": 4,
+        "NativePlants": 4,
+        "Level": 3,
+        "Other": 3,
+        "ManyTrees": 2,
+        "RectangularLot": 2,
+        "Agricultural": 1,
+        "CulDeSac": 1,
+        "InteriorLot": 1
+      },
+      "rejectedMembers": {}
+    },
+    "ArchitecturalStyle": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ArchitecturalStyle",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 248763,
+      "members": 135,
+      "membersUsed": 17,
+      "counts": {
+        "Prewar": 226457,
+        "WalkUp": 21791,
+        "Loft": 6608,
+        "ContemporaryModern": 79,
+        "ArtDeco": 57,
+        "Colonial": 24,
+        "Italianate": 12,
+        "Federal": 9,
+        "GothicRevival": 8,
+        "Brutalist": 6,
+        "GreekRevival": 6,
+        "QueenAnne": 5,
+        "BeauxArts": 3,
+        "International": 2,
+        "Neoclassical": 2,
+        "Romanesque": 2,
+        "ArtNouveau": 1
+      },
+      "rejectedMembers": {}
+    },
+    "RoomType": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.RoomType",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 8296,
+      "members": 122,
+      "membersUsed": 7,
+      "counts": {
+        "Den": 5860,
+        "Gym": 1419,
+        "DiningRoom": 69,
+        "Office": 47,
+        "Library": 18,
+        "MediaRoom": 15,
+        "LivingRoom": 12
+      },
+      "rejectedMembers": {
+        "Darkroom": "HTTP 400 — filter on this member rejected (Lookup-published, not an EnumType member)"
+      }
+    },
+    "StateOrProvince": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.StateOrProvince",
+      "multi": false,
+      "rlsField": true,
+      "nonNull": 591594,
+      "members": 100,
+      "membersUsed": 2,
+      "counts": {
+        "NY": 591587,
+        "VA": 7
+      },
+      "rejectedMembers": {}
+    },
+    "Heating": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Heating",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 22920,
+      "members": 96,
+      "membersUsed": 29,
+      "counts": {
+        "None": 7999,
+        "Central": 5091,
+        "NaturalGas": 4293,
+        "Radiant": 1432,
+        "Electric": 1323,
+        "WallFurnace": 1214,
+        "BuildingNaturalGas": 801,
+        "Baseboard": 714,
+        "ForcedAir": 495,
+        "Oil": 284,
+        "BuildingOil": 145,
+        "Other": 123,
+        "Steam": 62,
+        "Zoned": 52,
+        "BuildingZoned": 43,
+        "EnergyStarQualifiedEquipment": 33,
+        "BuildingElectric": 32,
+        "Fireplaces": 29,
+        "HotWater": 27,
+        "BuildingSteam": 16,
+        "CitySteam": 15,
+        "Solar": 9,
+        "Ductless": 7,
+        "Ceiling": 3,
+        "HeatPump": 3,
+        "RadiantCeiling": 2,
+        "RadiantFloor": 2,
+        "SeparateMeters": 1,
+        "VariesByUnit": 1
+      },
+      "rejectedMembers": {}
+    },
+    "ConstructionMaterials": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ConstructionMaterials",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 45,
+      "members": 87,
+      "membersUsed": 9,
+      "counts": {
+        "Brick": 36,
+        "Stone": 4,
+        "Block": 3,
+        "Concrete": 3,
+        "Frame": 3,
+        "FoamInsulation": 1,
+        "Glass": 1,
+        "Other": 1,
+        "SprayFoamInsulation": 1
+      },
+      "rejectedMembers": {}
+    },
+    "View": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.View",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 138927,
+      "members": 85,
+      "membersUsed": 27,
+      "counts": {
+        "City": 112872,
+        "River": 25521,
+        "Other": 12138,
+        "ParkGreenbelt": 8546,
+        "CityLights": 4280,
+        "Panoramic": 3402,
+        "Bridges": 2642,
+        "Water": 991,
+        "Garden": 453,
+        "Neighborhood": 427,
+        "Ocean": 127,
+        "SeeRemarks": 122,
+        "TreesWoods": 90,
+        "Bay": 15,
+        "Beach": 13,
+        "Hills": 5,
+        "Lake": 5,
+        "None": 5,
+        "Pond": 4,
+        "Meadow": 3,
+        "Canal": 2,
+        "Rural": 2,
+        "GolfCourse": 1,
+        "Mountains": 1,
+        "Pool": 1,
+        "Ridge": 1,
+        "Vineyard": 1
+      },
+      "rejectedMembers": {}
+    },
+    "FireplaceFeatures": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.FireplaceFeatures",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 18575,
+      "members": 79,
+      "membersUsed": 29,
+      "counts": {
+        "Decorative": 6128,
+        "Other": 5657,
+        "WoodBurning": 5583,
+        "Gas": 908,
+        "Bedroom": 427,
+        "Electric": 147,
+        "FamilyLivingGreatRoom": 116,
+        "Library": 94,
+        "Stone": 91,
+        "Den": 82,
+        "None": 82,
+        "Ventless": 40,
+        "Kitchen": 33,
+        "Masonry": 30,
+        "Basement": 29,
+        "Bath": 20,
+        "Outside": 18,
+        "DiningRoom": 16,
+        "PrimaryBedroom": 14,
+        "Insert": 11,
+        "GreatRoom": 8,
+        "Circulating": 7,
+        "Propane": 3,
+        "WoodBurningStove": 3,
+        "Heatilator": 2,
+        "DoubleSided": 1,
+        "EpaCertifiedWoodStove": 1,
+        "GlassDoors": 1,
+        "Metal": 1
+      },
+      "rejectedMembers": {}
+    },
+    "WaterfrontFeatures": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.WaterfrontFeatures",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 5,
+      "members": 77,
+      "membersUsed": 1,
+      "counts": {
+        "Waterfront": 5
+      },
+      "rejectedMembers": {}
+    },
+    "PropertySubType": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.PropertySubType",
+      "multi": false,
+      "rlsField": true,
+      "nonNull": 591581,
+      "members": 76,
+      "membersUsed": 9,
+      "counts": {
+        "Apartment": 531871,
+        "SingleFamilyResidence": 19304,
+        "Duplex": 17538,
+        "MultiFamily": 14614,
+        "Loft": 3959,
+        "Triplex": 2534,
+        "MixedUse": 1653,
+        "Office": 104,
+        "Retail": 4
+      },
+      "rejectedMembers": {
+        "Efficiency": "HTTP 400 — filter on this member rejected (Lookup-published, not an EnumType member)"
+      }
+    },
+    "PropertySubTypeAdditional": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.PropertySubTypeAdditional",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 553706,
+      "members": 76,
+      "membersUsed": 6,
+      "counts": {
+        "Apartment": 531875,
+        "Duplex": 13704,
+        "Loft": 3964,
+        "MultiFamily": 2420,
+        "Triplex": 1639,
+        "Office": 104
+      },
+      "rejectedMembers": {
+        "Efficiency": "HTTP 400 — filter on this member rejected (Lookup-published, not an EnumType member)"
+      }
+    },
+    "CurrentUse": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.CurrentOrPossibleUse",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 786,
+      "members": 66,
+      "membersUsed": 10,
+      "counts": {
+        "SingleFamily": 624,
+        "Residential": 597,
+        "MultiFamily": 109,
+        "Investment": 48,
+        "Vacant": 26,
+        "MixedUse": 25,
+        "Office": 9,
+        "MedicalDental": 7,
+        "Other": 5,
+        "Retail": 4
+      },
+      "rejectedMembers": {
+        "HobbyFarm": "HTTP 400 — filter on this member rejected (Lookup-published, not an EnumType member)"
+      }
+    },
+    "PossibleUse": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.CurrentOrPossibleUse",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 1,
+      "members": 66,
+      "membersUsed": 1,
+      "counts": {
+        "Commercial": 1
+      },
+      "rejectedMembers": {
+        "HobbyFarm": "HTTP 400 — filter on this member rejected (Lookup-published, not an EnumType member)"
+      }
+    },
+    "AssociationFeeIncludes": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.AssociationFeeIncludes",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 4552,
+      "members": 63,
+      "membersUsed": 14,
+      "counts": {
+        "Water": 4493,
+        "Gas": 808,
+        "Electricity": 197,
+        "Internet": 48,
+        "CableTv": 31,
+        "CommonAreaMaintenance": 13,
+        "Sewer": 12,
+        "Trash": 11,
+        "MaintenanceStructure": 10,
+        "SnowRemoval": 7,
+        "Security": 6,
+        "PestControl": 5,
+        "Insurance": 3,
+        "Utilities": 2
+      },
+      "rejectedMembers": {}
+    },
+    "Flooring": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Flooring",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 25859,
+      "members": 62,
+      "membersUsed": 22,
+      "counts": {
+        "Hardwood": 25114,
+        "Parquet": 548,
+        "Tile": 371,
+        "Marble": 293,
+        "CeramicTile": 175,
+        "Carpet": 173,
+        "Stone": 123,
+        "Wood": 119,
+        "Concrete": 105,
+        "Laminate": 91,
+        "Vinyl": 59,
+        "Terrazzo": 11,
+        "Bamboo": 4,
+        "Combination": 4,
+        "Other": 2,
+        "SimulatedWood": 2,
+        "Adobe": 1,
+        "Brick": 1,
+        "FscOrSfiCertifiedSourceHardwood": 1,
+        "Linoleum": 1,
+        "Slate": 1,
+        "Sustainable": 1
+      },
+      "rejectedMembers": {}
+    },
+    "TenantPays": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.TenantPays",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 261,
+      "members": 61,
+      "membersUsed": 12,
+      "counts": {
+        "Electricity": 218,
+        "Internet": 123,
+        "Gas": 90,
+        "AllUtilities": 46,
+        "Insurance": 29,
+        "Security": 12,
+        "Telephone": 10,
+        "HotWater": 7,
+        "Other": 6,
+        "AssociationFees": 4,
+        "Water": 2,
+        "None": 1
+      },
+      "rejectedMembers": {}
+    },
+    "OtherStructures": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.OtherStructures",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 1632,
+      "members": 59,
+      "membersUsed": 11,
+      "counts": {
+        "Garages": 1556,
+        "Gazebo": 37,
+        "GuestHouse": 23,
+        "Cabana": 5,
+        "None": 5,
+        "Storage": 4,
+        "Pergola": 3,
+        "PoolHouse": 2,
+        "Sheds": 2,
+        "Other": 1,
+        "Outbuilding": 1
+      },
+      "rejectedMembers": {}
+    },
+    "Fencing": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Fencing",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 44,
+      "members": 56,
+      "membersUsed": 17,
+      "counts": {
+        "BackYard": 26,
+        "FrontYard": 12,
+        "Fenced": 9,
+        "Gate": 7,
+        "None": 3,
+        "Privacy": 3,
+        "Security": 3,
+        "Wood": 3,
+        "Brick": 2,
+        "ChainLink": 2,
+        "Partial": 2,
+        "Stone": 2,
+        "WroughtIron": 2,
+        "CrossFenced": 1,
+        "Full": 1,
+        "Invisible": 1,
+        "Masonry": 1
+      },
+      "rejectedMembers": {}
+    },
+    "WindowFeatures": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.WindowFeatures",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 15976,
+      "members": 55,
+      "membersUsed": 16,
+      "counts": {
+        "NewWindows": 12930,
+        "DoublePaneWindows": 1771,
+        "WindowTreatments": 711,
+        "Skylights": 605,
+        "BayWindows": 512,
+        "Blinds": 17,
+        "Screens": 13,
+        "AluminumFrames": 10,
+        "InsulatedWindows": 10,
+        "Drapes": 4,
+        "DisplayWindows": 2,
+        "EnergyStarQualifiedWindows": 2,
+        "TriplePaneWindows": 2,
+        "LowEmissivityWindows": 1,
+        "WindowCoverings": 1,
+        "WoodFrames": 1
+      },
+      "rejectedMembers": {}
+    },
+    "PatioAndPorchFeatures": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.PatioAndPorchFeatures",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 156512,
+      "members": 53,
+      "membersUsed": 27,
+      "counts": {
+        "None": 52397,
+        "Balcony": 51031,
+        "Terrace": 37430,
+        "BuildingTerrace": 21964,
+        "Rooftop": 14459,
+        "Patio": 10621,
+        "BuildingPatio": 7423,
+        "Deck": 2119,
+        "WrapAround": 516,
+        "Porch": 152,
+        "BuildingDeck": 83,
+        "BuildingCovered": 58,
+        "BuildingGlassEnclosed": 51,
+        "Covered": 10,
+        "BuildingFrontPorch": 9,
+        "FrontPorch": 9,
+        "BuildingEnclosed": 7,
+        "BuildingWrapAround": 7,
+        "Enclosed": 7,
+        "BuildingRearPorch": 5,
+        "RearPorch": 5,
+        "Awnings": 4,
+        "BuildingNone": 4,
+        "BuildingOther": 3,
+        "GlassEnclosed": 3,
+        "Other": 3,
+        "BuildingPorch": 1
+      },
+      "rejectedMembers": {}
+    },
+    "Electric": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Electric",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 10,
+      "members": 46,
+      "membersUsed": 3,
+      "counts": {
+        "Amps100": 5,
+        "Amps200OrMore": 5,
+        "Generator": 1
+      },
+      "rejectedMembers": {}
+    },
+    "Basement": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Basement",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 59651,
+      "members": 43,
+      "membersUsed": 18,
+      "counts": {
+        "Other": 58401,
+        "Full": 1098,
+        "Finished": 58,
+        "Partial": 49,
+        "Concrete": 45,
+        "StorageSpace": 26,
+        "WalkOutAccess": 15,
+        "InteriorEntry": 10,
+        "CrawlSpace": 9,
+        "Apartment": 8,
+        "ExteriorEntry": 8,
+        "None": 8,
+        "WalkUpAccess": 8,
+        "Unfinished": 5,
+        "PartiallyFinished": 4,
+        "SumpPump": 3,
+        "BathStubbed": 1,
+        "Daylight": 1
+      },
+      "rejectedMembers": {}
+    },
+    "BuyerFinancing": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.BuyerFinancing",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 184,
+      "members": 42,
+      "membersUsed": 8,
+      "counts": {
+        "Cash": 106,
+        "Conventional": 68,
+        "Other": 5,
+        "Assumed": 2,
+        "Private": 2,
+        "Contract": 1,
+        "Fha": 1,
+        "Va": 1
+      },
+      "rejectedMembers": {}
+    },
+    "Cooling": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Cooling",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 205148,
+      "members": 41,
+      "membersUsed": 19,
+      "counts": {
+        "CentralAir": 105912,
+        "WindowUnits": 38460,
+        "Other": 28737,
+        "WallUnits": 25386,
+        "None": 5327,
+        "BuildingCooling": 1708,
+        "Ductless": 772,
+        "Zoned": 741,
+        "VariesByUnit": 646,
+        "Electric": 527,
+        "Dual": 296,
+        "WallWindowUnits": 76,
+        "Gas": 39,
+        "EnergyStarQualifiedEquipment": 27,
+        "CeilingFans": 9,
+        "MultiUnits": 6,
+        "Geothermal": 3,
+        "SeparateMeters": 2,
+        "HeatPump": 1
+      },
+      "rejectedMembers": {}
+    },
+    "OwnerPays": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.OwnerPays",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 7915,
+      "members": 39,
+      "membersUsed": 23,
+      "counts": {
+        "AllUtilities": 4816,
+        "None": 2485,
+        "Gas": 497,
+        "HotWater": 396,
+        "Water": 48,
+        "Other": 38,
+        "AssociationFees": 18,
+        "CommonAreaMaintenance": 10,
+        "ExteriorMaintenance": 9,
+        "Management": 9,
+        "Taxes": 9,
+        "Sewer": 8,
+        "TrashCollection": 8,
+        "GroundsCare": 7,
+        "SnowRemoval": 6,
+        "Electricity": 5,
+        "Repairs": 4,
+        "RoofMaintenance": 4,
+        "CableTv": 3,
+        "HvacMaintenance": 3,
+        "JanitorialService": 3,
+        "PestControl": 3,
+        "OtherTax": 2
+      },
+      "rejectedMembers": {}
+    },
+    "OtherEquipment": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.OtherEquipment",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 72587,
+      "members": 35,
+      "membersUsed": 4,
+      "counts": {
+        "Intercom": 72580,
+        "CallListingAgent": 6,
+        "AirPurifier": 1,
+        "None": 1
+      },
+      "rejectedMembers": {}
+    },
+    "SpecialListingConditions": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.SpecialListingConditions",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 114388,
+      "members": 34,
+      "membersUsed": 7,
+      "counts": {
+        "Standard": 87373,
+        "ThirdPartyApproval": 23347,
+        "BoardApprovalRequired": 2313,
+        "BoardApprovalNotRequired": 1341,
+        "RealEstateOwned": 13,
+        "ProbateListing": 3,
+        "Auction": 1
+      },
+      "rejectedMembers": {}
+    },
+    "GreenBuildingVerificationType": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.GreenBuildingVerificationType",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 5,
+      "members": 29,
+      "membersUsed": 1,
+      "counts": {
+        "LeedForHomes": 5
+      },
+      "rejectedMembers": {}
+    },
+    "FoundationDetails": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.FoundationDetails",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 13,
+      "members": 27,
+      "membersUsed": 5,
+      "counts": {
+        "BrickMortar": 4,
+        "ConcretePerimeter": 4,
+        "Block": 2,
+        "Permanent": 2,
+        "Other": 1
+      },
+      "rejectedMembers": {}
+    },
+    "GreenEnergyEfficient": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.GreenEnergyEfficient",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 416,
+      "members": 25,
+      "membersUsed": 8,
+      "counts": {
+        "Appliances": 411,
+        "Construction": 4,
+        "Hvac": 4,
+        "Lighting": 3,
+        "Insulation": 2,
+        "Roof": 2,
+        "Doors": 1,
+        "Thermostat": 1
+      },
+      "rejectedMembers": {}
+    },
+    "StructureType": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.StructureType",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 97614,
+      "members": 23,
+      "membersUsed": 11,
+      "counts": {
+        "HighRise": 57168,
+        "None": 21308,
+        "MultiFamily": 10896,
+        "Townhouse": 5955,
+        "MixedUse": 3690,
+        "House": 1363,
+        "Duplex": 1350,
+        "Triplex": 519,
+        "Quadruplex": 164,
+        "HotelMotel": 50,
+        "ManufacturedHouse": 2
+      },
+      "rejectedMembers": {}
+    },
+    "UnitTypeType": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.UnitTypeType",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 148,
+      "members": 22,
+      "membersUsed": 1,
+      "counts": {
+        "Loft": 148
+      },
+      "rejectedMembers": {}
+    },
+    "DevelopmentStatus": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.DevelopmentStatus",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 462,
+      "members": 19,
+      "membersUsed": 5,
+      "counts": {
+        "Completed": 438,
+        "UnderConstruction": 19,
+        "FinishedLots": 3,
+        "Other": 3,
+        "SeeRemarks": 1
+      },
+      "rejectedMembers": {}
+    },
+    "DoorFeatures": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.DoorFeatures",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 32,
+      "members": 18,
+      "membersUsed": 5,
+      "counts": {
+        "SlidingDoors": 17,
+        "FrenchDoors": 11,
+        "MirroredClosetDoors": 4,
+        "StormDoors": 3,
+        "EnergyStarQualifiedDoors": 2
+      },
+      "rejectedMembers": {}
+    },
+    "Levels": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Levels",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 5753,
+      "members": 18,
+      "membersUsed": 6,
+      "counts": {
+        "Two": 3704,
+        "One": 927,
+        "TriLevel": 637,
+        "ThreeOrMore": 329,
+        "MultiSplit": 167,
+        "OneAndOneHalf": 5
+      },
+      "rejectedMembers": {}
+    },
+    "Permission": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ListingPermission",
+      "multi": true,
+      "rlsField": true,
+      "nonNull": 591597,
+      "members": 18,
+      "membersUsed": 3,
+      "counts": {
+        "IDX": 591597,
+        "OfficeInactive": 68860,
+        "SyndicateOptOut": 9436
+      },
+      "rejectedMembers": {}
+    },
+    "AssociationFee2Frequency": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.FeeFrequency",
+      "multi": false,
+      "rlsField": false,
+      "nonNull": 178,
+      "members": 16,
+      "membersUsed": 5,
+      "counts": {
+        "Monthly": 138,
+        "Annually": 34,
+        "OneTime": 4,
+        "Daily": 1,
+        "Quarterly": 1
+      },
+      "rejectedMembers": {}
+    },
+    "AssociationFeeFrequency": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.FeeFrequency",
+      "multi": false,
+      "rlsField": true,
+      "nonNull": 81875,
+      "members": 16,
+      "membersUsed": 3,
+      "counts": {
+        "Monthly": 81868,
+        "Annually": 6,
+        "OneTime": 1
+      },
+      "rejectedMembers": {}
+    },
+    "LandLeaseAmountFrequency": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.FeeFrequency",
+      "multi": false,
+      "rlsField": false,
+      "nonNull": 1,
+      "members": 16,
+      "membersUsed": 1,
+      "counts": {
+        "OneTime": 1
+      },
+      "rejectedMembers": {}
+    },
+    "LotSizeSource": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.LotSizeSource",
+      "multi": false,
+      "rlsField": false,
+      "nonNull": 341,
+      "members": 15,
+      "membersUsed": 10,
+      "counts": {
+        "PublicRecords": 107,
+        "Other": 106,
+        "Estimated": 59,
+        "Builder": 24,
+        "Owner": 19,
+        "Appraiser": 14,
+        "Measured": 7,
+        "Assessor": 2,
+        "Plans": 2,
+        "Survey": 1
+      },
+      "rejectedMembers": {}
+    },
+    "ShowingContactType": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ShowingContactType",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 15,
+      "members": 15,
+      "membersUsed": 1,
+      "counts": {
+        "Agent": 15
+      },
+      "rejectedMembers": {}
+    },
+    "MajorChangeType": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.ChangeType",
+      "multi": false,
+      "rlsField": true,
+      "nonNull": 588495,
+      "members": 14,
+      "membersUsed": 8,
+      "counts": {
+        "PriceChange": 356114,
+        "Closed": 221666,
+        "Pending": 5419,
+        "NewListing": 4528,
+        "BackOnMarket": 694,
+        "ActiveUnderContract": 37,
+        "Active": 32,
+        "ComingSoon": 5
+      },
+      "rejectedMembers": {}
+    },
+    "CommonInterest": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.CommonInterest",
+      "multi": false,
+      "rlsField": true,
+      "nonNull": 435263,
+      "members": 13,
+      "membersUsed": 5,
+      "counts": {
+        "Condominium": 240338,
+        "StockCooperative": 129165,
+        "RentalBuilding": 31060,
+        "Condop": 19785,
+        "None": 14915
+      },
+      "rejectedMembers": {}
+    },
+    "MoveInCosts": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.MoveInCosts",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 375,
+      "members": 13,
+      "membersUsed": 13,
+      "counts": {
+        "SecurityDeposit": 306,
+        "ApplicationFee": 295,
+        "FirstMonthRent": 274,
+        "CreditCheck": 105,
+        "BackgroundCheck": 46,
+        "Other": 39,
+        "AdditionalApplicationFee": 38,
+        "AdministrationFee": 29,
+        "PetDeposit": 17,
+        "AssociationDeposit": 8,
+        "GuarantorOrCoSigner": 6,
+        "LastMonthRent": 5,
+        "CleaningFee": 3
+      },
+      "rejectedMembers": {}
+    },
+    "PropertyType": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.PropertyType",
+      "multi": false,
+      "rlsField": true,
+      "nonNull": 591597,
+      "members": 13,
+      "membersUsed": 2,
+      "counts": {
+        "ResidentialLease": 376079,
+        "Residential": 215518
+      },
+      "rejectedMembers": {}
+    },
+    "ListingAgreement": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.ListingAgreement",
+      "multi": false,
+      "rlsField": true,
+      "nonNull": 591597,
+      "members": 11,
+      "membersUsed": 5,
+      "counts": {
+        "ExclusiveAgency": 576676,
+        "CoExclusiveAgency": 9263,
+        "ExclusiveRightToLease": 2922,
+        "ExclusiveRightToSell": 2735,
+        "ExclusiveRightWithException": 1
+      },
+      "rejectedMembers": {}
+    },
+    "StandardStatus": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.StandardStatus",
+      "multi": false,
+      "rlsField": true,
+      "nonNull": 591597,
+      "members": 11,
+      "membersUsed": 4,
+      "counts": {
+        "Closed": 578402,
+        "Active": 7600,
+        "Pending": 5590,
+        "ComingSoon": 5
+      },
+      "rejectedMembers": {}
+    },
+    "StreetDirPrefix": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.StreetDirection",
+      "multi": false,
+      "rlsField": true,
+      "nonNull": 266952,
+      "members": 10,
+      "membersUsed": 4,
+      "counts": {
+        "E": 130585,
+        "W": 128224,
+        "N": 4940,
+        "S": 3203
+      },
+      "rejectedMembers": {}
+    },
+    "StreetDirSuffix": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.StreetDirection",
+      "multi": false,
+      "rlsField": true,
+      "nonNull": 13415,
+      "members": 10,
+      "membersUsed": 5,
+      "counts": {
+        "W": 6234,
+        "S": 5362,
+        "N": 879,
+        "E": 656,
+        "SW": 284
+      },
+      "rejectedMembers": {}
+    },
+    "DirectionFaces": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.DirectionFaces",
+      "multi": false,
+      "rlsField": false,
+      "nonNull": 1382,
+      "members": 9,
+      "membersUsed": 5,
+      "counts": {
+        "West": 530,
+        "South": 473,
+        "East": 205,
+        "North": 173,
+        "Northeast": 1
+      },
+      "rejectedMembers": {}
+    },
+    "Exposures": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Exposures",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 338269,
+      "members": 9,
+      "membersUsed": 4,
+      "counts": {
+        "South": 168886,
+        "North": 157340,
+        "East": 117729,
+        "West": 112860
+      },
+      "rejectedMembers": {}
+    },
+    "GreenEnergyGeneration": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.GreenEnergyGeneration",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 2,
+      "members": 8,
+      "membersUsed": 1,
+      "counts": {
+        "Solar": 2
+      },
+      "rejectedMembers": {}
+    },
+    "GreenIndoorAirQuality": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.GreenIndoorAirQuality",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 1,
+      "members": 8,
+      "membersUsed": 1,
+      "counts": {
+        "Ventilation": 1
+      },
+      "rejectedMembers": {}
+    },
+    "Furnished": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Furnished",
+      "multi": false,
+      "rlsField": true,
+      "nonNull": 95087,
+      "members": 5,
+      "membersUsed": 4,
+      "counts": {
+        "Unfurnished": 78170,
+        "Furnished": 16294,
+        "Negotiable": 555,
+        "Partially": 68
+      },
+      "rejectedMembers": {}
+    },
+    "OngoingFees": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.OngoingFees",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 28,
+      "members": 5,
+      "membersUsed": 1,
+      "counts": {
+        "Other": 28
+      },
+      "rejectedMembers": {}
+    },
+    "LotSizeUnits": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.LotSizeUnits",
+      "multi": false,
+      "rlsField": true,
+      "nonNull": 35357,
+      "members": 4,
+      "membersUsed": 3,
+      "counts": {
+        "SquareFeet": 35223,
+        "Acres": 129,
+        "SquareMeters": 5
+      },
+      "rejectedMembers": {}
+    },
+    "AboveGradeFinishedAreaUnits": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.AreaUnits",
+      "multi": false,
+      "rlsField": false,
+      "nonNull": 76,
+      "members": 3,
+      "membersUsed": 1,
+      "counts": {
+        "SquareFeet": 76
+      },
+      "rejectedMembers": {}
+    },
+    "BelowGradeFinishedAreaUnits": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.AreaUnits",
+      "multi": false,
+      "rlsField": false,
+      "nonNull": 16,
+      "members": 3,
+      "membersUsed": 1,
+      "counts": {
+        "SquareFeet": 16
+      },
+      "rejectedMembers": {}
+    },
+    "BuildingAreaUnits": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.AreaUnits",
+      "multi": false,
+      "rlsField": true,
+      "nonNull": 12672,
+      "members": 3,
+      "membersUsed": 2,
+      "counts": {
+        "SquareFeet": 12669,
+        "SquareMeters": 3
+      },
+      "rejectedMembers": {}
+    },
+    "LaborInformation": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.LaborInformation",
+      "multi": true,
+      "rlsField": false,
+      "nonNull": 5,
+      "members": 3,
+      "membersUsed": 3,
+      "counts": {
+        "EmployeeLicenseRequired": 3,
+        "Union": 2,
+        "NonUnion": 1
+      },
+      "rejectedMembers": {}
+    },
+    "LivingAreaUnits": {
+      "type": "Cotality.DataStandard.RESO.DD.Enums.AreaUnits",
+      "multi": false,
+      "rlsField": true,
+      "nonNull": 446913,
+      "members": 3,
+      "membersUsed": 1,
+      "counts": {
+        "SquareFeet": 446913
+      },
+      "rejectedMembers": {}
+    }
+  },
+  "customFields": {
+    "rows": 0,
+    "withCustomFields": 0,
+    "distinctKeys": 0,
+    "keys": {}
+  },
+  "finished": "2026-09-08T08:15:41.957Z",
+  "quota": {
+    "minuteLimit": 280,
+    "minuteAvailable": 75,
+    "hourLimit": 8400,
+    "hourAvailable": 4090,
+    "hourResetTime": 1788856595017,
+    "seenAt": 1788855341956
+  }
+}
