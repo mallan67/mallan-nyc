@@ -2,7 +2,35 @@
         function goToFirstPage() { if (window.goToServerPage) goToServerPage(1); }
         function goToPrevPage() { if (window.goToServerPage) goToServerPage((searchResultsState.currentPage || 1) - 1); }
         function goToNextPage() { if (window.goToServerPage) goToServerPage((searchResultsState.currentPage || 1) + 1); }
-        function goToLastPage() { if (window.goToServerPage) goToServerPage(Math.ceil((searchResultsState.serverTotal || 0) / (searchResultsState.perPage || 50))); }
+        /**
+         * A last page exists only when the count is EXACT.
+         *
+         * The server answers with four states (lib/search/engine/universe.ts). This action used to derive
+         * ceil(serverTotal / perPage) for all of them, so the toolbar could read "At most 100 Results" while
+         * the button beside it navigated as though 100 were certain:
+         *
+         *   lower_bound   the total is a floor  — the computed page is a known MINIMUM, not the last one
+         *   upper_bound   the total is a ceiling — the computed page may be PAST the real last page
+         *   indeterminate neither direction is guaranteed — no last page can be inferred at all
+         *
+         * It refuses rather than guessing: no nearby page, no fall back to page 1, no second paging engine.
+         * A null meaning (pre-server state, client-side filtering) is non-exact too — fail closed.
+         * First / Previous / Next are unaffected: they navigate by the CURRENT page, never by the total.
+         */
+        function _lastPageIsKnown() {
+            return !!searchResultsState && searchResultsState.serverPaged
+                && searchResultsState.serverTotal != null
+                && searchResultsState.serverCountMeaning === 'exact';
+        }
+        function goToLastPage() {
+            if (!_lastPageIsKnown()) {
+                if (typeof showToast === 'function') {
+                    showToast('Last page is unavailable while the result count is approximate.', 'info');
+                }
+                return;
+            }
+            if (window.goToServerPage) goToServerPage(Math.ceil((searchResultsState.serverTotal || 0) / (searchResultsState.perPage || 50)));
+        }
         function changePerPage() {
             searchResultsState.perPage = parseInt(document.getElementById('perPageSelect').value); searchResultsState.currentPage = 1;
             if (window.reissueServerSearch) reissueServerSearch();
