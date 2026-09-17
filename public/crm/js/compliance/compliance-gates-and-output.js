@@ -94,122 +94,23 @@ function formatDate(dateStr) {
     return dateStr;
 }
 
-// Generate branded listing sheet HTML for one listing
-function generateSingleListingSheet(listing, suppressAddress) {
-    var address = suppressAddress ? 'Address Available Upon Request' : listing.address;
-    var unitStr = listing.unit ? ', ' + listing.unit : '';
-    var neighborhood = listing.neighborhood || '';
-    var borough = listing.borough || 'Manhattan';
-    var bedsLabel = listing.beds === 0 ? 'Studio' : listing.beds + ' BD';
-    var bathsLabel = listing.baths + ' BA';
-    var sqftLabel = listing.intSqft ? listing.intSqft.toLocaleString() + ' SF' : '';
-    var priceStr = formatCurrency(listing.price);
-    if (listing.listingCategory === 'rental') priceStr += '/mo';
-
-    var statusClass = '';
-    switch(listing.status) {
-        case 'ACTIVE': statusClass = 'background:#2563eb;color:white;'; break;
-        case 'PENDING': statusClass = 'background:#f59e0b;color:white;'; break;
-        case 'CLOSED': statusClass = 'background:#16a34a;color:white;'; break;
-        case 'COMING_SOON': statusClass = 'background:#8b5cf6;color:white;'; break;
-        default: statusClass = 'background:#6b7280;color:white;'; break;
-    }
-
-    var details = [];
-    if (listing.ownership) details.push(ownershipLabel(listing.ownership));
-    if (listing.era) details.push(listing.era);
-    if (listing.dom !== undefined) details.push(listing.dom + ' DOM');
-    var detailsStr = details.join('  |  ');
-
-    var financials = '';
-    if (listing.listingCategory !== 'rental') {
-        var parts = [];
-        if (listing.maintCC) parts.push('Maint/CC: ' + formatCurrency(listing.maintCC) + '/mo');
-        if (listing.reTaxes) parts.push('RE Tax: ' + formatCurrency(listing.reTaxes) + '/mo');
-        if (listing.totalMonthly) parts.push('Total Monthly: ' + formatCurrency(listing.totalMonthly));
-        financials = parts.join('  |  ');
-    }
-
-    var description = listing.description || '';
-    if (description.length > 300) description = description.substring(0, 297) + '...';
-
-    var agentLine = 'Listed by ' + (listing.agentName || AGENT_PROFILE.name) + ', ' + (listing.company || AGENT_PROFILE.company);
-
-    return '<div class="listing-sheet-card" style="border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;margin-bottom:24px;page-break-inside:avoid;">' +
-        '<div style="padding:20px 24px;border-bottom:1px solid #e5e7eb;">' +
-            '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">' +
-                '<div>' +
-                    '<div style="font-size:24px;font-weight:700;color:#111827;">' + priceStr + '</div>' +
-                    '<div style="font-size:14px;color:#6b7280;margin-top:2px;">' + bedsLabel + '  |  ' + bathsLabel + (sqftLabel ? '  |  ' + sqftLabel : '') + '</div>' +
-                '</div>' +
-                '<span style="' + statusClass + 'padding:4px 12px;border-radius:9999px;font-size:12px;font-weight:600;">' + listing.status + '</span>' +
-            '</div>' +
-        '</div>' +
-        '<div style="padding:20px 24px;">' +
-            '<div style="font-size:16px;font-weight:600;color:#111827;">' + address + unitStr + '</div>' +
-            '<div style="font-size:14px;color:#6b7280;margin-top:2px;">' + neighborhood + ', ' + borough + '</div>' +
-            (detailsStr ? '<div style="font-size:13px;color:#6b7280;margin-top:8px;">' + detailsStr + '</div>' : '') +
-            (financials ? '<div style="font-size:13px;color:#374151;margin-top:8px;padding:8px 12px;background:#f9fafb;border-radius:8px;">' + financials + '</div>' : '') +
-            (description ? '<div style="font-size:13px;color:#4b5563;margin-top:12px;line-height:1.5;">' + description + '</div>' : '') +
-            '<div style="font-size:12px;color:#9ca3af;margin-top:12px;">' + agentLine + '</div>' +
-            '<div style="font-size:11px;color:#d1d5db;margin-top:4px;">Last Updated: ' + formatDate(listing.updatedDate || listing.listedDate) + '</div>' +
-        '</div>' +
-    '</div>';
-}
-
-// Generate full branded listing sheet HTML (header + listings + footer)
-function generateListingSheet(listings, warnings) {
-    var now = new Date();
-    var dateStr = (now.getMonth()+1) + '/' + now.getDate() + '/' + now.getFullYear() + ' ' + now.toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit'});
-
-    var warningIds = {};
-    if (warnings) warnings.forEach(function(w) { warningIds[w.id] = true; });
-
-    var html = '<div id="listingSheetContent" style="font-family:system-ui,-apple-system,sans-serif;max-width:800px;margin:0 auto;padding:20px;">';
-
-    // Header — Company branding
-    html += '<div style="border-bottom:3px solid #B8860B;padding-bottom:16px;margin-bottom:24px;">' +
-        '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">' +
-            '<div>' +
-                '<div style="font-size:22px;font-weight:700;color:#111827;letter-spacing:0.5px;">MALLAN REAL ESTATE INC.</div>' +
-                '<div style="font-size:12px;color:#6b7280;margin-top:4px;">' + AGENT_PROFILE.address + '</div>' +
-                '<div style="font-size:12px;color:#6b7280;">' + AGENT_PROFILE.phone + ' | ' + AGENT_PROFILE.website + '</div>' +
-            '</div>' +
-            '<div style="text-align:right;">' +
-                '<div style="font-size:14px;font-weight:600;color:#111827;">Prepared by: ' + AGENT_PROFILE.name + '</div>' +
-                '<div style="font-size:12px;color:#6b7280;">License: ' + AGENT_PROFILE.license + '</div>' +
-                '<div style="font-size:12px;color:#6b7280;">' + AGENT_PROFILE.phone + ' | ' + AGENT_PROFILE.email + '</div>' +
-            '</div>' +
-        '</div>' +
-    '</div>';
-
-    // Warning banner (if any address-suppressed listings)
-    if (warnings && warnings.length > 0) {
-        html += '<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#92400e;">' +
-            '<strong>Note:</strong> ' + warnings.length + ' listing(s) have address display opted out. Address shown as "Available Upon Request".' +
-        '</div>';
-    }
-
-    // Listing cards
-    listings.forEach(function(listing) {
-        var suppressAddr = warningIds[listing.id] || false;
-        html += generateSingleListingSheet(listing, suppressAddr);
-    });
-
-    // Footer — REBNY attribution + compliance + commission negotiability
-    html += '<div style="border-top:2px solid #e5e7eb;padding-top:16px;margin-top:24px;font-size:11px;color:#9ca3af;line-height:1.6;">' +
-        '<p>Listing(s) courtesy of the REBNY Listing Service (RLS)</p>' +
-        '<p>Information is deemed reliable but not guaranteed.</p>' +
-        '<p>Last Updated: ' + dateStr + '</p>' +
-        '<p style="margin-top:8px;color:#6b7280;font-style:italic;">Commission rates are not set by law and are fully negotiable. Compensation offered to cooperating brokers is determined by the listing broker.</p>' +
-        '<p style="margin-top:8px;">Equal Housing Opportunity &mdash; Federal Fair Housing Act, NY State Human Rights Law, NYC Human Rights Law Title 8</p>' +
-        '<p style="margin-top:4px;">' + AGENT_PROFILE.company + ' | Brokerage License: ' + AGENT_PROFILE.companyLicense + '</p>' +
-        '<p>' + AGENT_PROFILE.address + ' | ' + AGENT_PROFILE.phone + ' | ' + AGENT_PROFILE.website + '</p>' +
-    '</div>';
-
-    html += '</div>';
-    return html;
-}
+// generateSingleListingSheet() and generateListingSheet() REMOVED 2026-09-17 (W7).
+//
+// They had no live output caller. Retirement 1B proved it: printListingSheet() and emailListingSheet()
+// delegate to openReportsModal() and nothing else. What kept them in the file was THIS file - the
+// compliance doctor read their .toString() and reported that PRINT carried REBNY attribution and a Fair
+// Housing notice because those strings appeared in a renderer the product could no longer reach. A
+// checker asserting a legal notice from dead source text is worse than no checker: it is a green light
+// with nothing behind it.
+//
+// REG-8 already made this exact correction to the EMAIL half of W7 (see the note in W7 below); the print
+// half survived that packet and does not survive this one.
+//
+// Print and email content are proven where they can actually be proven - by driving the real workflow
+// and asserting on what the sink RECEIVES: tests/runtime/crm-report-outputs.test.ts captures
+// openPrintableWindow and checks RLS attribution, Equal Housing and brokerage identity in the delivered
+// HTML, and crm-report-audience-population.test.ts drives generateReport() to print for audience gating
+// and audit counts. Git history is the archive.
 
 // Get selected listing IDs
 function getSelectedListingIds() {
@@ -1582,23 +1483,17 @@ function REBNYWiringTest(options) {
         //    Emailed-report content is proven behaviourally in tests/runtime/crm-report-outputs.test.ts.
         if (typeof emailListingSheet !== 'function') issues.push('emailListingSheet not found');
 
-        // 2. Print sheet uses formatCurrency + has required elements
-        if (typeof generateSingleListingSheet === 'function') {
-            var pSrc = generateSingleListingSheet.toString();
-            if (pSrc.indexOf('formatCurrency') !== -1) checks.push('print:formatCurrency');
-            else issues.push('Print uses raw price format');
-            if (pSrc.indexOf('listing.status') !== -1) checks.push('print:status');
-            else issues.push('Print missing status');
-            if (pSrc.indexOf('updatedDate') !== -1 || pSrc.indexOf('Last Updated') !== -1) checks.push('print:date');
-            else issues.push('Print missing updated date');
-        }
-        if (typeof generateListingSheet === 'function') {
-            var gSrc = generateListingSheet.toString();
-            if (gSrc.indexOf('REBNY') !== -1) checks.push('print:attribution');
-            else issues.push('Print missing REBNY attribution');
-            if (gSrc.indexOf('Equal Housing') !== -1) checks.push('print:fairHousing');
-            else issues.push('Print missing Fair Housing notice');
-        }
+        // 2. Print content - REMOVED 2026-09-17 (W7), for the same reason the email checks above went in
+        //    REG-8. These five claims (print:formatCurrency, print:status, print:date, print:attribution,
+        //    print:fairHousing) were produced by reading generateSingleListingSheet.toString() and
+        //    generateListingSheet.toString() for substrings. Those renderers had no live caller and are
+        //    now deleted, so the checks were certifying a page that could not be produced.
+        //
+        //    They are NOT replaced by reading reports.js source instead - that would repeat the defect
+        //    with a better-chosen subject - and the doctor is NOT made to generate a report to inspect it,
+        //    which would give a diagnostic tool real side effects. Print and email CONTENT is proven
+        //    behaviourally against the actual sink in tests/runtime/crm-report-outputs.test.ts and
+        //    crm-report-audience-population.test.ts. W7 keeps only what it can observe safely here.
 
         // 3. All search views use dynamic status colors (not hardcoded green)
         var viewFns = ['renderGalleryView','renderShortSummaryView','renderSummaryView','renderMasterDetailView'];
@@ -1774,11 +1669,11 @@ function REBNYComplianceExtended(options) {
         if (html.indexOf('@media print') !== -1) checks.push('print-rules'); else issues.push('No @media print');
         if (html.indexOf('page-break-inside') !== -1) checks.push('page-breaks'); else issues.push('No page-breaks');
         if (html.indexOf('.no-print') !== -1) checks.push('no-print-class');
-        if (typeof generateListingSheet === 'function') {
-            var src = generateListingSheet.toString();
-            if (src.indexOf('Equal Housing') !== -1 || src.indexOf('REBNY') !== -1) checks.push('legal-footer');
-            if (src.indexOf('MALLAN') !== -1 || src.indexOf('10991205323') !== -1) checks.push('branding');
-        }
+        // legal-footer and branding claims REMOVED 2026-09-17 (W7): both were read out of
+        // generateListingSheet.toString(), a renderer with no live caller, now deleted. C2 keeps the
+        // print facts it can genuinely observe in the loaded DOM above; the legal footer and brokerage
+        // identity that actually reach a printed page are asserted on the delivered HTML in
+        // tests/runtime/crm-report-outputs.test.ts.
         addResult('C2', 'Print CSS', issues.length === 0 ? 'PASS' : 'FAIL', issues.length === 0 ? 'All checks pass: ' + checks.join(', ') : issues.join(', '));
     })();
 

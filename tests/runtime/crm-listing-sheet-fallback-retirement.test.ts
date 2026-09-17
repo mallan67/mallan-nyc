@@ -309,8 +309,12 @@ describe('C · the dormant preview path and the retired messages are absent', ()
 describe('D · the shared infrastructure and the registered residuals are untouched', () => {
   it('the functions the packet protects are all still defined', () => {
     const src = read('public/crm/js/compliance/compliance-gates-and-output.js');
-    for (const fn of ['checkListingCompliance', 'generateSingleListingSheet', 'generateListingSheet',
-      'formatCurrency', 'getSelectedListingIds']) {
+    // W7 RETIRED THE TWO RENDERERS. When 1B landed they were protected here precisely because 1B was
+    // authorized for the FALLBACK BRANCHES, not for the renderers those branches called - their removal
+    // here would have meant 1B exceeded its scope. W7 removed them under its own authorization after
+    // proving they had no live output caller. The pin flips to the new truth; the rest of the list, which
+    // is live shared infrastructure, is unchanged.
+    for (const fn of ['checkListingCompliance', 'formatCurrency', 'getSelectedListingIds']) {
       expect({ fn, present: src.includes('function ' + fn) }).toEqual({ fn, present: true });
     }
   });
@@ -324,10 +328,18 @@ describe('D · the shared infrastructure and the registered residuals are untouc
     } finally { b.close(); }
   });
 
-  it('the doctor still reads the renderers it inspects — W7 is not started here', () => {
-    const src = read('public/crm/js/compliance/compliance-gates-and-output.js');
-    expect(src).toContain('generateSingleListingSheet.toString()');
-    expect(src).toContain('generateListingSheet.toString()');
+  it('the doctor no longer reads the renderers — W7 landed', () => {
+    // WHEN 1B LANDED this asserted the doctor DID read them, to prove 1B had not quietly started W7.
+    // It now asserts the opposite, and it strips comments to do it: the W7 removal note in the doctor
+    // NAMES both .toString() calls to explain what was taken out, so an un-stripped read would be
+    // satisfied by the explanation and pass for the wrong reason. It did exactly that before this fix.
+    const src = read('public/crm/js/compliance/compliance-gates-and-output.js')
+      .split(/\r?\n/).filter((l) => !l.trim().startsWith('//')).join('\n');
+    expect(src).not.toContain('generateSingleListingSheet.toString()');
+    expect(src).not.toContain('generateListingSheet.toString()');
+    // The wrappers the doctor legitimately requires are still there.
+    expect(src).toContain('function printListingSheet');
+    expect(src).toContain('function emailListingSheet');
   });
 
   it('pagination.js and the C4B/C4C boundaries are untouched', () => {
