@@ -424,7 +424,7 @@ All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
 | `/api/auth/logout` | POST | Destroy session, clear cookie |
 | `/api/auth/me` | GET | Current user from session cookie |
 | `/api/auth/agent/register` | POST | Broker creates agent |
-| `/api/auth/invite` | POST | Generate portal invite (sends email) |
+| `/api/crm/clients/[id]/invite` | POST | Generate portal invite — returns the invite URL; delivery is not performed by this route |
 | `/api/auth/invite/[token]` | GET/POST | Client accepts portal invite |
 | `/api/auth/change-password` | POST | Authenticated password change |
 
