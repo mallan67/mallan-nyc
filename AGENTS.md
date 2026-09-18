@@ -11,13 +11,17 @@ website." It has downstream consumers: search, CRM, portal, media, compliance, a
 
 ---
 
-## 0. How each tool gets on the same page
+## 0. Required authority order for every agent
 
-| Tool | Entry path |
-|---|---|
-| **Claude** | `CLAUDE.md` → this file → `docs/PROJECT-HEALTH-DASHBOARD.md` → latest handoff snapshot |
-| **Codex** | this file (`AGENTS.md`) + **review the CURRENT HEAD commit of a PR, never stale bot comments** |
-| **ChatGPT** | GitHub connector/API → current `AGENTS.md` + current branch/PR HEAD + live provider tools. Pasted copies are fallback evidence only. |
+Every agent starts from the same chain:
+
+1. `MALLAN-PLATFORM-MASTER-PLAN.md` — sole durable product/business/system authority.
+2. `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` — current execution state and machine authorization envelope.
+3. Current GitHub branch/PR/base SHA and required checks.
+4. Live provider/runtime evidence required by the active packet.
+5. This file plus specialized guidance such as `CLAUDE.md`, `NEON.md` and the Compliance Canonical Index.
+
+A chat, Desktop checkout, side branch, audit, dashboard or handoff can provide evidence but cannot become the authority chain.
 
 
 ### 0.1 GitHub-only working state + provider authority (Maya directive 2026-09-18)
@@ -84,30 +88,22 @@ notification dispatcher · open-house v2 · admin merge bypass · force-push to 
 
 ## 3. Where truth lives
 
-| Topic | File |
-|---|---|
-| Cross-agent constitution (this) | `AGENTS.md` |
-| Live operational status | `docs/PROJECT-HEALTH-DASHBOARD.md` (auto tier via `npm run health:probe`) |
-| **All tracked issues / incidents / debt / risks** | `docs/PLATFORM-ISSUE-REGISTRY.md` (IDs, Evidence Scores, hypotheses) |
-| Dated session snapshot | `docs/operations/site-audit-handoff-YYYY-MM-DD.md` |
-| Claude-specific command center | `CLAUDE.md` |
-| Neon / Prisma / DB rules | `NEON.md` |
-| Compliance per-area map | `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` |
-| REBNY skill | `.claude/skills/rebny-compliance/SKILL.md` |
-| **Cotality/Trestle provider truth** | Authorized live Cotality/Trestle API + current provider documentation. `data/cotality-enums.live.json` and `artifacts/metadata.xml` are repo mirrors/evidence, never higher authority. |
+| Rank | Topic | Authority |
+|---|---|---|
+| 1 | Product/business/system architecture | `MALLAN-PLATFORM-MASTER-PLAN.md` |
+| 2 | Current execution + authorization envelope | `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` |
+| 3 | Current repository reality | GitHub current base/head/PR/checks |
+| 3 | Cotality/Trestle provider truth | Authorized live Cotality/Trestle API + current provider documentation |
+| 3 | Vercel runtime/integration truth | Connected Vercel project + current official Vercel documentation |
+| 3 | Neon runtime/control-plane truth | Live Neon evidence reconciled to the Vercel-bound resource |
+| 4 | Cross-agent working discipline | `AGENTS.md` |
+| 4 | Claude-specific discipline | `CLAUDE.md` |
+| 4 | Neon/Prisma specialized rules | `NEON.md` |
+| 4 | Compliance implementation map | `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` |
+| Evidence | Issues, dashboards, dated handoffs, historical audits | Supporting evidence only |
 
-### Canonical Documentation (Maya directive 2026-07-01)
-
-These files are the authoritative operational documents for this repository:
-
-1. `AGENTS.md`
-2. `docs/PROJECT-HEALTH-DASHBOARD.md`
-3. `docs/PLATFORM-ISSUE-REGISTRY.md`
-4. `docs/operations/site-audit-handoff-YYYY-MM-DD.md`
-5. `docs/operations/handoff-neon-gate6-YYYY-MM-DD.md`
-
-**Do not create parallel governance documents** (no `STATUS.md`, `NOTES.md`, `TODO.md`, or other
-competing sources of truth). Extend or update these instead.
+Do not create parallel master plans, status authorities, alternate execution-state files, or subsystem-specific canonical truths.
+Newly proven business requirements amend the one Master. Current mutable status updates the one Execution State.
 
 ## 4. Handoff rule (binds every agent, every session)
 
