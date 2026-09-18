@@ -1,143 +1,172 @@
-// GET /api/diag/oidc — DIAGNOSTIC ONLY. Lives on diag/neon-preview-provision-2026-09-17 and is
-// deleted with that branch. Never merge this to main or to the implementation branch.
+// GET /api/diag/oidc — DIAGNOSTIC ONLY, lives and dies with diag/neon-preview-provision-2026-09-17.
+// Never merge to main or to the implementation branch.
 //
-// PURPOSE. Measure the Vercel OIDC contract a Preview RUNTIME actually receives, so the database
-// authority design rests on the real issuer mode and claim shape rather than on a guess.
+// WHY THIS IS THE SECOND VERSION. The first probe checked only process.env.VERCEL_OIDC_TOKEN, found
+// it absent, and I concluded the project had no deployment OIDC. That was an overreach: Vercel's
+// Functions API documents getVercelOidcToken() as retrieving the token "from the request context OR
+// the environment variable", so the environment variable is ONE access path of two and its absence
+// cannot establish the capability's absence. Testing one path and concluding about the capability is
+// precisely the inference this project keeps having to retract.
 //
-// WHAT IT NEVER DOES. It never returns, logs, or derives anything from the token value, and it
-// never touches a database. Only the non-secret claims the owner authorised are reported:
-// present / verified / iss / aud / sub / owner / owner_id / project / project_id / environment /
-// iat / exp. The signature itself is never echoed.
+// WHAT THIS MEASURES, as three independent signals:
+//   1. process.env.VERCEL_OIDC_TOKEN                    - the path already measured
+//   2. await getVercelOidcToken()                        - the SUPPORTED platform path
+//   3. request header NAMES and OIDC-ish env var NAMES   - a dependency-free cross-check, in case
+//      the platform supplies the token by a channel neither of the above exposes
 //
-// WHY NO `jose`. Adding a dependency means a package.json plus lockfile change, and Vercel builds
-// with `npm ci` — a lockfile mismatch fails the build. Node imports JWK keys natively and verifies
-// RS256 directly, so verification here is standards-compliant with zero dependencies. The PRODUCT
-// implementation should still use `jose`; this is a throwaway measurement.
+// Signal 3 exists because signals 1 and 2 are both "ask the API"; if both say absent, an
+// enumeration of what the platform actually delivered distinguishes "not supplied" from
+// "supplied by a channel we did not ask about".
+//
+// It never returns, logs, or derives anything from a token value, and it contacts no database.
+// Only the non-secret claims the owner authorised are reported.
 import { NextResponse } from "next/server";
-import { createPublicKey, verify as cryptoVerify } from "crypto";
+import { getVercelOidcToken } from "@vercel/oidc";
+import { createRemoteJWKSet, jwtVerify, decodeJwt, decodeProtectedHeader } from "jose";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-type Claims = Record<string, unknown>;
+type Json = Record<string, unknown>;
 
-function b64urlToBuf(part: string): Buffer {
-  return Buffer.from(part.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+/** Names only. A value is never read, so this cannot leak a secret. */
+function envNamesMatching(re: RegExp): string[] {
+  return Object.keys(process.env).filter((k) => re.test(k)).sort();
 }
 
-/** Decode header+payload WITHOUT trusting them. Decoding is not verification. */
-function decode(token: string): { header: Claims; payload: Claims } | null {
-  const parts = token.split(".");
-  if (parts.length !== 3) return null;
-  try {
-    return {
-      header: JSON.parse(b64urlToBuf(parts[0]).toString("utf8")) as Claims,
-      payload: JSON.parse(b64urlToBuf(parts[1]).toString("utf8")) as Claims,
-    };
-  } catch {
-    return null;
-  }
-}
+export async function GET(req: Request) {
+  // ── Signal 1: the environment variable.
+  const envToken = process.env.VERCEL_OIDC_TOKEN;
 
-/**
- * Verify the RS256 signature against the issuer's published JWKS.
- *
- * Reports the JWKS URL and the outcome separately, because the authority design has to know
- * whether an unreachable JWKS is distinguishable from an invalid signature. Those must never
- * collapse into one verdict: an invalid token is a refusal, an unreachable verifier is an
- * indeterminate result, and treating the second as the first (or worse, as a pass) is how a
- * verification gate turns into a rubber stamp.
- */
-async function verifySignature(token: string, iss: string, kid: string) {
-  const jwksUrl = new URL("/.well-known/jwks", iss).toString();
-  const started = Date.now();
+  // ── Signal 2: the supported retrieval API. A throw is Case C and is reported as itself,
+  //    never reinterpreted as absence.
+  let helperToken: string | undefined;
+  let helperError: Json | null = null;
   try {
-    const res = await fetch(jwksUrl, { cache: "no-store" });
-    if (!res.ok) {
-      return { jwksUrl, jwks_fetch: `HTTP ${res.status}`, verified: null as boolean | null, ms: Date.now() - started };
-    }
-    const jwks = (await res.json()) as { keys?: Array<Record<string, unknown>> };
-    const jwk = (jwks.keys ?? []).find((k) => k.kid === kid);
-    if (!jwk) {
-      return { jwksUrl, jwks_fetch: "ok", key_for_kid: false, verified: false, ms: Date.now() - started };
-    }
-    const parts = token.split(".");
-    const key = createPublicKey({ key: jwk as never, format: "jwk" });
-    const ok = cryptoVerify(
-      "RSA-SHA256",
-      Buffer.from(`${parts[0]}.${parts[1]}`),
-      key,
-      b64urlToBuf(parts[2]),
-    );
-    return { jwksUrl, jwks_fetch: "ok", key_for_kid: true, verified: ok, ms: Date.now() - started };
+    helperToken = await getVercelOidcToken();
   } catch (err) {
-    // Network/DNS/TLS failure — INDETERMINATE, explicitly not "false".
-    return {
-      jwksUrl,
-      jwks_fetch: `error: ${err instanceof Error ? err.message : String(err)}`,
-      verified: null as boolean | null,
-      ms: Date.now() - started,
+    helperError = {
+      class: err instanceof Error ? err.constructor.name : typeof err,
+      message: err instanceof Error ? err.message : String(err),
     };
   }
-}
 
-export async function GET() {
-  const token = process.env.VERCEL_OIDC_TOKEN;
-  const base = {
+  // ── Signal 3: what the platform actually delivered. NAMES ONLY.
+  const headerNames = [...req.headers.keys()].sort();
+  const signal3: Json = {
+    oidc_ish_env_var_names: envNamesMatching(/OIDC/i),
+    vercel_env_var_names: envNamesMatching(/^VERCEL_/),
+    oidc_ish_header_names: headerNames.filter((h) => /oidc|identity|token/i.test(h)),
+    total_header_count: headerNames.length,
+  };
+
+  const token = helperToken ?? envToken;
+  const base: Json = {
     context: "preview-runtime",
+    probe_version: 2,
     measured_at: new Date().toISOString(),
-    // Reported for comparison only. VERCEL_ENV is a mutable string, not attestation.
+    // Reported for comparison only. VERCEL_ENV is a mutable string, never attestation.
     vercel_env_hint: process.env.VERCEL_ENV ?? null,
     node_env_hint: process.env.NODE_ENV ?? null,
-    token_present: Boolean(token),
+    signal_1_env_token_present: Boolean(envToken),
+    signal_2_helper_token_present: Boolean(helperToken),
+    signal_2_helper_error: helperError,
+    signal_3_platform_surface: signal3,
   };
 
   if (!token) {
     return NextResponse.json(
-      { ...base, conclusion: "NO OIDC TOKEN IN THIS RUNTIME" },
+      {
+        ...base,
+        case: helperError ? "C — helper errored; absence NOT established" : "B — both paths absent",
+        conclusion: helperError
+          ? "getVercelOidcToken() threw; this is not evidence of token absence"
+          : "neither process.env nor the supported helper yielded a token in this runtime",
+      },
       { headers: { "Cache-Control": "no-store" } },
     );
   }
 
-  const decoded = decode(token);
-  if (!decoded) {
+  // ── A token exists. Verify it the documented way: jose against the issuer's JWKS.
+  //    The issuer comes from the token's own unverified payload only in order to LOCATE the JWKS;
+  //    jwtVerify then enforces it. aud and sub are REPORTED rather than asserted, because the
+  //    expected team slug and project name are exactly what this probe exists to discover.
+  let claims: Json | null = null;
+  let header: Json | null = null;
+  let verification: Json;
+  try {
+    claims = decodeJwt(token) as Json;
+    header = decodeProtectedHeader(token) as unknown as Json;
+  } catch (err) {
     return NextResponse.json(
-      { ...base, malformed: true },
+      { ...base, case: "A — token present but undecodable", decode_error: String(err) },
       { headers: { "Cache-Control": "no-store" } },
     );
   }
 
-  const p = decoded.payload;
-  const iss = typeof p.iss === "string" ? p.iss : null;
-  const kid = typeof decoded.header.kid === "string" ? decoded.header.kid : null;
-
-  const sig = iss && kid ? await verifySignature(token, iss, kid) : { verified: null, note: "no iss or kid" };
+  const iss = typeof claims.iss === "string" ? claims.iss : null;
+  if (!iss) {
+    verification = { attempted: false, reason: "no iss claim — cannot locate JWKS" };
+  } else {
+    const jwksUrl = new URL("/.well-known/jwks", iss).toString();
+    try {
+      const JWKS = createRemoteJWKSet(new URL(jwksUrl));
+      const { payload } = await jwtVerify(token, JWKS, { issuer: iss });
+      verification = {
+        attempted: true,
+        jwksUrl,
+        signature_verified: true,
+        issuer_enforced: iss,
+        payload_matches_decoded: payload.sub === claims.sub,
+      };
+    } catch (err) {
+      // Distinguish an INVALID token from an UNREACHABLE verifier. Collapsing the two is how a
+      // verification gate becomes a rubber stamp, so the error class is reported verbatim.
+      verification = {
+        attempted: true,
+        jwksUrl,
+        signature_verified: false,
+        error_class: err instanceof Error ? err.constructor.name : typeof err,
+        error_message: err instanceof Error ? err.message : String(err),
+        note: "an unreachable JWKS and an invalid signature are different outcomes; read error_class",
+      };
+    }
+  }
 
   return NextResponse.json(
     {
       ...base,
-      alg: decoded.header.alg ?? null,
-      kid,
+      case:
+        Boolean(helperToken) && !envToken
+          ? "A — helper yields a token the environment variable does not expose"
+          : "token available",
+      token_source: helperToken ? "getVercelOidcToken()" : "process.env",
+      alg: header?.alg ?? null,
+      kid: header?.kid ?? null,
       claims: {
         iss,
-        aud: p.aud ?? null,
-        sub: p.sub ?? null,
-        owner: p.owner ?? null,
-        owner_id: p.owner_id ?? null,
-        project: p.project ?? null,
-        project_id: p.project_id ?? null,
-        environment: p.environment ?? null,
-        iat: p.iat ?? null,
-        nbf: p.nbf ?? p.nfb ?? null,
-        exp: p.exp ?? null,
+        aud: claims.aud ?? null,
+        sub: claims.sub ?? null,
+        owner: claims.owner ?? null,
+        owner_id: claims.owner_id ?? null,
+        project: claims.project ?? null,
+        project_id: claims.project_id ?? null,
+        environment: claims.environment ?? null,
+        iat: claims.iat ?? null,
+        nbf: claims.nbf ?? null,
+        exp: claims.exp ?? null,
         lifetime_seconds:
-          typeof p.exp === "number" && typeof p.iat === "number" ? p.exp - p.iat : null,
-        expired: typeof p.exp === "number" ? p.exp * 1000 < Date.now() : null,
+          typeof claims.exp === "number" && typeof claims.iat === "number"
+            ? claims.exp - claims.iat
+            : null,
       },
-      // Issuer mode is derivable from iss: a team-scoped issuer carries a path segment,
-      // the Global mode does not. This is the fact the authority rule needs and cannot guess.
-      issuer_mode: iss ? (new URL(iss).pathname.replace(/\/$/, "") === "" ? "global" : "team-scoped") : null,
-      signature: sig,
+      // The fact the authority rule needs and that cannot be guessed from project settings.
+      issuer_mode: iss
+        ? new URL(iss).pathname.replace(/\/$/, "") === ""
+          ? "global"
+          : "team-scoped"
+        : null,
+      verification,
     },
     { headers: { "Cache-Control": "no-store" } },
   );
