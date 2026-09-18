@@ -1,5 +1,15 @@
 # Neon Cost-Control Policy
 
+> **CURRENT-STATE CORRECTION — 2026-09-18.** This file defines cost policy, but older "today/current"
+> usage measurements below are historical snapshots unless explicitly re-verified. Live Neon enumeration
+> now shows `hidden-mountain-87248164` has exactly **one branch ever** (`main`), including deleted
+> branches. Current Preview provisioning has created zero branches in this project, and the scheduled
+> prune route is fail-closed/inert because its bare Production `NEON_API_KEY` and `NEON_PROJECT_ID`
+> effective values are empty. Therefore do **not** use old branch counts, "steady-state preview branch"
+> assumptions, or prune-audit counts as current operational truth. Before any cost/plan decision, re-read
+> live Neon + Vercel and use `NEON.md` / `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md` for the
+> current topology. Policy targets remain policy; dynamic measurements do not.
+
 > Production project for all figures below is **`hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2`** (`DATABASE_URL` points there). The legacy `morning-bread-68708332` / `royal-dawn` project is stale / do-not-use; some historical storage figures here were measured on it.
 
 **Status:** OPEN · REPORT-ONLY · No runtime patched. No env vars changed. No threshold change deployed. No workflow change. Sister doc: `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md`.
@@ -28,7 +38,7 @@ The mallan-nyc Neon usage shape is designed so the project **fits inside the Fre
 - A small, slim-writer–constrained `listings` table (target ~80–200 MB after legacy JSON drop)
 - A bounded set of secondary tables (audit_events, demand_signals, listing_search_projection, etc.) that grow slowly
 - A single production branch (`main`) on the canonical production project (`hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2`)
-- A small, prune-disciplined set of preview branches on the same Vercel-integration project (`hidden-mountain-87248164`)
+- Preview isolation must remain bounded and cost-disciplined **when it is intentionally re-enabled**. As measured 2026-09-18, the current Production project has no Preview branches and has never created one.
 - Compute discipline: no artificial DB keepalive — the `db-keepalive` cron was **removed** and `idx-sync`/`media-sync` widened to `*/30`/hourly in the approved 2026-07 compute-reduction (PR #481) so the endpoint can autosuspend between jobs; no synthetic health-probe DB load, no permanent connection pools beyond what serverless routes use
 
 ### Why this is the policy, not just an aesthetic preference
@@ -60,15 +70,12 @@ When the underlying integration check stops asserting branch-limit failures (via
 
 **The thresholds in `scripts/ops-health.js` (set by PR #150) are keyed to plan capacity.** They prevent false positives at the current usage level. They do NOT enforce the budget target.
 
-### The gap problem (today, 2026-05-18)
+### Current usage is live evidence, not policy prose
 
-| Dimension | Maya's budget target | Actual usage | Status |
-|---|---|---|---|
-| Storage | 500 MB | **961 MB** | ❌ **OVER budget by 92%** (under plan capacity — at 9.4% of Launch) |
-| Compute | ~100 CU-hr/mo | unknown precisely; ops:health doesn't read CU-hr | (cannot evaluate yet) |
-| Branches | 10 | 17 (per most-recent cron audit-event) | ❌ **OVER budget** (under plan capacity — well below 5000) |
-
-**`ops:health` reports HEALTHY today** because the thresholds match plan capacity. **By budget policy, the project is over-budget on every measured dimension.** That mismatch is the problem this doc fixes.
+The 2026-05-18 numbers formerly embedded here are historical measurements. Do not use them to make a
+current plan, deletion, branch, or compute decision. Re-read live Neon/Vercel first. In particular, branch
+count must come from live Neon branch enumeration; a historical prune audit row is not a branch census and
+a skipped audit row is not proof a prune pass ran.
 
 ---
 
@@ -84,10 +91,13 @@ When the underlying integration check stops asserting branch-limit failures (via
 
 **Two-tier monitoring is required:** budget-tier (8 / 10) fires when discipline is slipping; plan-capacity-tier (25 / 4000) fires when something is catastrophically wrong. Both are useful; collapsing to one obscures.
 
-### Today's state vs. these thresholds
+### Current branch state
 
-- Last cron run: examined=17, pruned=10, errors=0 → **examined=17 trips budget-critical (≥10), well below plan-capacity-warning (25).** The cron is pruning correctly; the 17 examined is the post-prune-cycle count (i.e., what's left after the 24h retention window). If the steady-state regularly lands at 7 (= 17 examined − 10 pruned) the budget is OK; if it lands at >10 the policy is being broken structurally.
-- **No alerting today against the budget tier.** Adding it is in the §12 implementation roadmap.
+Measured 2026-09-18: `hidden-mountain-87248164` has one branch, `main`, and no deleted Preview
+branches. The scheduled prune route is currently inert/fail-closed due to empty control-plane env values.
+That is a control-plane defect, not evidence that branch cleanup is working. Re-enable/repair Preview
+creation and cleanup as one lifecycle; do not optimize thresholds around a mechanism that currently creates
+nothing.
 
 ---
 
