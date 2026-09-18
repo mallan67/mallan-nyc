@@ -755,6 +755,9 @@ All 6 REBNY distribution gates checked before any listing renders. Address suppr
 
 ### Local Development
 
+> **Steps 1-4 never write to a database.** Migrating and seeding are deliberately NOT part of
+> first-run setup — read *Database authority* below before running either.
+
 ```bash
 # 1. Clone the repository
 git clone https://github.com/mallan67/mallan-nyc.git
@@ -767,12 +770,35 @@ npm ci
 cp .env.example .env.local
 # Edit .env.local with your database credentials
 
-# 4. Run database migration + seed
-npx prisma migrate deploy
-npx prisma db seed
-
-# 5. Start development server
+# 4. Start development server
 npm run dev
+```
+
+#### Database authority - prove the target before any write
+
+Configuring a connection string does not tell you WHICH database you configured, and in this
+repository that gap has teeth. `vercel env pull` defaults to the Development environment and writes
+`.env.local` - and Development is not guaranteed to resolve to a non-production database. So a
+migration or a seed run during onboarding can reach production without anyone intending it.
+
+- Development must resolve to an **approved non-production** database before any migration or seed.
+- Production credentials must never be used for ordinary local development.
+- If no approved non-production authority is configured, **STOP**. Do not point a local checkout at
+  production "temporarily" - that is the failure, not the workaround.
+
+The seed is not additive. `prisma/seed.ts` upserts the brokerage's real agent rows, and the update
+branch of each upsert rewrites `password_hash` - so seeding production replaces the live broker and
+agent credentials with whatever `SEED_BROKER_PASSWORD` holds locally. `lib/ops/seed-target-guard.ts`
+now refuses any target that is not a positively recognised approved non-production authority.
+
+**No such authority is declared yet**, so the seed currently refuses everywhere. That is intended,
+not a bug to route around. Once a dedicated non-production database has been verified and its
+endpoint declared in `APPROVED_NONPRODUCTION_ENDPOINTS` (`lib/ops/db-target.ts`), the remaining
+steps are:
+
+```bash
+npx prisma migrate deploy
+npm run db:seed
 ```
 
 ### Environment Variables

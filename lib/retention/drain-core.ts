@@ -17,6 +17,12 @@
  */
 import { ARCHIVE_TERMINAL_STATUSES } from "@/lib/retention/archive-terminals";
 import { assertDrainExecuteAllowed, type ArchiveControlEnv } from "@/lib/retention/archive-controls";
+import {
+  CANONICAL_PRODUCTION_ENDPOINT,
+  FORBIDDEN_STALE_ENDPOINT,
+  NEON_HOST_SUFFIX,
+  classifyDbUrl,
+} from "@/lib/ops/db-target";
 
 /** Hard ceiling on a single run's --max-rows. Guards against an operator typo (e.g. 200000). */
 export const MAX_RUN_CEILING = 25000;
@@ -25,37 +31,44 @@ export const MAX_CHUNK_SIZE = 1000;
 /** Default keyset page / chunk size (matches the cron's proven per-run size). */
 export const DEFAULT_CHUNK_SIZE = 500;
 
-const CANONICAL_ENDPOINT = "ep-cold-waterfall-adno3ao2";
-const STALE_ENDPOINT = "ep-royal-dawn-ad6eh8t2";
-const NEON_HOST_SUFFIX = ".neon.tech";
-
 /**
  * Refuse any connection whose PARSED HOSTNAME is not the canonical cold-waterfall Neon endpoint.
  * A substring check on the whole URL is unsafe — the canonical string could appear in a query param
- * (e.g. `?application_name=ep-cold-waterfall-adno3ao2`), the password, or the path. So we parse
- * `new URL(url)` and compare the hostname's first label (the Neon endpoint id) against the canonical
- * direct + pooler variants, and require the `.neon.tech` suffix. Stale royal-dawn, malformed URLs,
- * and any non-canonical hostname all fail closed.
+ * (e.g. `?application_name=ep-cold-waterfall-adno3ao2`), the password, or the path. So the hostname
+ * is parsed and its first label (the Neon endpoint id) compared against the canonical direct +
+ * pooler variants, requiring the `.neon.tech` suffix. Stale royal-dawn, malformed URLs, and any
+ * non-canonical hostname all fail closed.
+ *
+ * DB Safety Packet 1: the parsing logic this function pioneered now lives in lib/ops/db-target.ts
+ * and is shared with lib/ops/canonical-neon-target.ts, which previously carried a weaker substring
+ * version of the same rule. This function is unchanged in BEHAVIOUR and in every error message —
+ * it is a thin adapter that turns a classification into the FATAL/abort wording its CLI callers
+ * already print. The one refinement: a pooled STALE host (`…-pooler`) is now named as royal-dawn
+ * rather than falling through to the generic "not canonical" message. Both refused before and
+ * refuse now; only the operator-facing reason got accurate.
  */
 export function assertCanonicalHost(url: string): void {
-  let host: string;
-  try {
-    host = new URL(url).hostname;
-  } catch {
-    throw new Error("FATAL: DATABASE_URL is malformed / unparseable — refusing to connect. Aborting.");
-  }
-  if (!host) throw new Error("FATAL: DATABASE_URL has no host — refusing to connect. Aborting.");
+  const target = classifyDbUrl(url);
+  if (target.class === "canonical-production") return;
 
-  const endpoint = host.split(".")[0];
-  if (endpoint === STALE_ENDPOINT) {
-    throw new Error(`FATAL: refusing the STALE / do-not-serve royal-dawn host (${STALE_ENDPOINT}). Aborting.`);
-  }
-  const endpointOk = endpoint === CANONICAL_ENDPOINT || endpoint === `${CANONICAL_ENDPOINT}-pooler`;
-  if (!endpointOk || !host.endsWith(NEON_HOST_SUFFIX)) {
-    throw new Error(
-      `FATAL: target host '${host}' is not the canonical cold-waterfall endpoint ` +
-        `(${CANONICAL_ENDPOINT}[-pooler]${NEON_HOST_SUFFIX}). Aborting.`,
-    );
+  switch (target.code) {
+    case "malformed-url":
+      throw new Error(
+        "FATAL: DATABASE_URL is malformed / unparseable — refusing to connect. Aborting.",
+      );
+    case "not-configured":
+    case "no-host":
+      throw new Error("FATAL: DATABASE_URL has no host — refusing to connect. Aborting.");
+    case "forbidden-stale":
+      throw new Error(
+        `FATAL: refusing the STALE / do-not-serve royal-dawn host (${FORBIDDEN_STALE_ENDPOINT}). Aborting.`,
+      );
+    default:
+      throw new Error(
+        `FATAL: target host '${target.host ?? "(undeterminable)"}' is not the canonical ` +
+          `cold-waterfall endpoint ` +
+          `(${CANONICAL_PRODUCTION_ENDPOINT}[-pooler]${NEON_HOST_SUFFIX}). Aborting.`,
+      );
   }
 }
 

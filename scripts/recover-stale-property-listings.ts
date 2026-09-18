@@ -130,6 +130,7 @@ import {
   type DualWriteProjectionPrisma,
 } from "@/lib/search/listing-search-projection";
 import { isCanonicalNeonHost, CANONICAL_NEON_HOST_SUBSTRING } from "@/lib/ops/canonical-neon-target";
+import { enumerateDbUrls } from "@/lib/ops/db-target";
 import {
   RECOVERY_REASON_CODES,
   type RecoveryManifest,
@@ -550,9 +551,10 @@ export function assertListingIdInManifest(
  * validated; a run is refused unless every URL present is canonical.
  */
 export function resolveDatabaseUrls(env: RecoveryEnv): Array<{ name: string; url: string }> {
-  return (["DATABASE_URL", "DATABASE_URL_UNPOOLED"] as const)
-    .map((name) => ({ name, url: env[name] || "" }))
-    .filter((e) => e.url.length > 0);
+  // Delegates to the shared enumeration (DB Safety Packet 1). The variable list belongs with the
+  // classifier that reasons about it, so a future change to which variables Prisma reads cannot
+  // update one copy and leave this one behind.
+  return enumerateDbUrls(env);
 }
 
 /**
