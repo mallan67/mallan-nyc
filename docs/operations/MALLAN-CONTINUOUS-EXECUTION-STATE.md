@@ -392,7 +392,8 @@ After this governance system is merged, the next permitted step is a **control-u
     "writer_paths": [
       "scripts/ci/mallan-execution-control.mjs",
       ".github/workflows/pr-check.yml",
-      ".github/workflows/branch-authority.yml"
+      ".github/workflows/branch-authority.yml",
+      ".github/workflows/authority-root.yml"
     ],
     "reader_paths": [
       "AGENTS.md",
@@ -400,7 +401,8 @@ After this governance system is merged, the next permitted step is a **control-u
     ],
     "publisher_paths": [
       ".github/workflows/pr-check.yml",
-      ".github/workflows/branch-authority.yml"
+      ".github/workflows/branch-authority.yml",
+      ".github/workflows/authority-root.yml"
     ],
     "downstream_surfaces": [
       "GitHub pull-request merge eligibility",
@@ -440,6 +442,7 @@ After bootstrap:
 - agents do not create ad-hoc `fix/*`, `feat/*`, `search/*`, `diag/*`, `agent/*` or `preserve/*` branches for new work;
 - the controlled implementation lane is `work/active`;
 - `.github/workflows/branch-authority.yml` runs on GitHub branch creation and reads the canonical Execution State from `main`;
+- `.github/workflows/authority-root.yml` runs on `pull_request_target`, freezes the execution gate from the PR base, then evaluates the proposed head; the PR cannot alter the code that is deciding its scope;
 - a newly created branch other than `main` or the currently authorized work branch is automatically deleted by GitHub and the workflow fails visibly;
 - existing historical branches are preserved until the dedicated branch-reconciliation packet determines whether they contain unmerged work that must be retained;
 - existing historical branches cannot pass the required implementation gate unless they are the branch explicitly authorized by the base Execution State;
@@ -453,7 +456,9 @@ The existing historical branch estate remains evidence until reconciled.
 
 GitHub's current `Protect main` ruleset is active, requires the `pr-check` status check, blocks non-fast-forward/deletion, has no bypass actors, and requires resolution of review threads.
 
-However, it currently requires **0 approving reviews**.
+However, it currently requires **0 approving reviews**, and `authority-root` is not yet a required status check because that workflow does not exist on current `main`.
+
+**Hard activation sequence after PR #632 merges:** create/open only the authorized `work/active` control-update PR so `authority-root` runs once, then add `authority-root` to the existing `Protect main` required status checks **before any implementation packet may merge**. Until that ruleset change is complete, implementation mode remains blocked by policy.
 
 If an AI agent operates through Maya's own GitHub identity, GitHub cannot distinguish a control update authored by Maya from one authored by the agent. Repository CI can prevent a PR from self-authorizing within the same branch, but it cannot cryptographically prove which human/agent initiated a later control-update PR when both share one identity.
 
@@ -512,13 +517,16 @@ Governance convergence is not complete until PR #632 contains and proves:
 3. subordinate AGENTS/CLAUDE/provider guidance consistent with them;
 4. machine execution-control script;
 5. execution-control step inside the existing required `pr-check`;
-6. bootstrap negative tests proving:
+6. base-controlled `authority-root` workflow plus immutable control-root enforcement;
+7. bootstrap negative tests proving:
    - wrong branch fails;
    - out-of-scope file fails;
    - unapproved new file fails;
    - branch-local self-authorization cannot widen base-state scope;
    - authority-file mutation from implementation mode fails;
-7. no Production/provider mutation;
-8. independent review of exact PR head.
+8. no Production/provider mutation;
+9. independent review of exact PR head.
+
+Post-merge, before implementation: `authority-root` must be added to the `Protect main` required status checks. This is a hard activation gate, not an optional cleanup item.
 
 Only then may the governance PR be considered ready for Maya's merge decision.
