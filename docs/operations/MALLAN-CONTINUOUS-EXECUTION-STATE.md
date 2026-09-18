@@ -381,6 +381,39 @@ After this governance system is merged, the next permitted step is a **control-u
     "downstream_proof_required": true,
     "compliance_proof_required_when_applicable": true,
     "no_parallel_path_proof_required": true
+  },
+  "packet_id": "GOVERNANCE-CONTROL-BOOTSTRAP",
+  "objective": "After bootstrap, authorize only a bounded control update on work/active; implementation requires a separately reviewed impact graph.",
+  "impact_graph": {
+    "root_owner_paths": [
+      "MALLAN-PLATFORM-MASTER-PLAN.md",
+      "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
+    ],
+    "writer_paths": [
+      "scripts/ci/mallan-execution-control.mjs",
+      ".github/workflows/pr-check.yml",
+      ".github/workflows/branch-authority.yml"
+    ],
+    "reader_paths": [
+      "AGENTS.md",
+      "CLAUDE.md"
+    ],
+    "publisher_paths": [
+      ".github/workflows/pr-check.yml",
+      ".github/workflows/branch-authority.yml"
+    ],
+    "downstream_surfaces": [
+      "GitHub pull-request merge eligibility",
+      "GitHub future branch creation",
+      "All later Mallan implementation packets"
+    ],
+    "test_paths": [
+      "tests/runtime/mallan-execution-control.test.ts",
+      "tests/runtime/agent-authority-live-source.test.ts"
+    ],
+    "compliance_surfaces": [
+      "Governance only; no listing/public/client compliance mutation in this packet"
+    ]
   }
 }
 ```
