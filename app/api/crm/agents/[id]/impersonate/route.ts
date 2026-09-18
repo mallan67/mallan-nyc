@@ -3,7 +3,14 @@
 // Audit-logged with broker ID, agent ID, timestamp, and IP.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireBroker, isAuthError, logAuditEvent, createSession, SESSION_COOKIE } from "@/lib/auth";
+import {
+  requireBroker,
+  isAuthError,
+  logAuditEvent,
+  createSession,
+  isPrincipalBrokerRole,
+  SESSION_COOKIE,
+} from "@/lib/auth";
 import { getSessionCookieConfig } from "@/lib/auth/cookie-config";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -26,6 +33,24 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   // Cannot impersonate self
   if (agent.id === auth.userId) {
     return NextResponse.json({ error: "Cannot impersonate yourself" }, { status: 400 });
+  }
+
+  // ── A principal BROKER may not be an impersonation target ──
+  // The centralized session authority refuses to mint a principal-broker
+  // session without MFA assurance, so calling createSession for such a target
+  // would throw and surface as an unhandled 500. Reject it here as a controlled
+  // authorization outcome instead: no session, no cookie, and no
+  // impersonate_start audit event is written.
+  //
+  // This is downstream adaptation to the new central invariant, NOT an
+  // implementation of the separate delegated-access architecture (branch
+  // edab58bb), which is untouched here. Exact-match predicate — ASSOCIATE_BROKER
+  // and SALESPERSON targets are entirely unaffected.
+  if (isPrincipalBrokerRole(agent.role)) {
+    return NextResponse.json(
+      { error: "Cannot impersonate a principal broker" },
+      { status: 403 }
+    );
   }
 
   const ip = req.headers.get("x-forwarded-for") ?? undefined;
