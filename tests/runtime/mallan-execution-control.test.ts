@@ -42,12 +42,23 @@ function baseControl(overrides: Record<string, unknown> = {}) {
   return {
     version: 1,
     mode: "implementation",
+    packet_id: "TEST-PACKET",
+    objective: "Exercise the Mallan execution-control gate.",
     authorized_branch: "work/active",
     base_branch: "main",
     authorized_paths: ["lib/allowed.ts", "lib/feature/"],
     allowed_new_files: ["lib/allowed.ts"],
     impact_domains: ["test"],
     provider_proof_required: [],
+    impact_graph: {
+      root_owner_paths: ["MALLAN-PLATFORM-MASTER-PLAN.md"],
+      writer_paths: ["lib/allowed.ts"],
+      reader_paths: ["lib/feature/reader.ts"],
+      publisher_paths: ["lib/feature/publisher.ts"],
+      downstream_surfaces: ["test downstream"],
+      test_paths: ["tests/runtime/mallan-execution-control.test.ts"],
+      compliance_surfaces: ["none for fixture"]
+    },
     production_mutation_authorized: false,
     schema_migration_authorized: false,
     environment_mutation_authorized: false,
@@ -254,6 +265,30 @@ describe("Mallan execution-control gate", () => {
     expect(denied.status).toBe(1);
     expect(denied.stderr).toContain("Unauthorized branch creation");
     expect(denied.stderr).toContain("work/active");
+  });
+
+  test("rejects implementation when the whole impact graph is incomplete", () => {
+    const cwd = initRepo(
+      baseControl({
+        impact_graph: {
+          root_owner_paths: ["MALLAN-PLATFORM-MASTER-PLAN.md"],
+          writer_paths: ["lib/allowed.ts"],
+          reader_paths: [],
+          publisher_paths: ["lib/feature/publisher.ts"],
+          downstream_surfaces: ["test downstream"],
+          test_paths: ["tests/runtime/mallan-execution-control.test.ts"],
+          compliance_surfaces: ["none for fixture"],
+        },
+      })
+    );
+
+    write(cwd, "lib/allowed.ts", "export const ok = true;\n");
+    git(cwd, "add", "lib/allowed.ts");
+    git(cwd, "commit", "-m", "incomplete impact graph");
+
+    const result = gate(cwd);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("impact_graph.reader_paths");
   });
 
 });
