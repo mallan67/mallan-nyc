@@ -37,6 +37,12 @@ website." It has downstream consumers: search, CRM, portal, media, compliance, a
   Vercel binding before being used as Mallan truth. Do not create an independent Neon resource to bypass it.
 - **Cotality/Trestle facts** come from the authorized live Cotality/Trestle contract and official provider
   documentation. Repo metadata, CSVs, generated enums, and old audits are caches/evidence only.
+- **Verified repo access path for Cotality/Trestle:** `.mcp.json` defines the live `trestle-fields` MCP
+  with `IDX_CLIENT_ID`, `IDX_CLIENT_SECRET`, and `TRESTLE_API_URL`. Runtime OAuth lives in
+  `lib/idx/auth.ts`: `TRESTLE_API_URL` (or legacy `IDX_ENDPOINT`) selects the base, the hard-coded
+  `https://api.cotality.com/trestle` value is fallback only, token grant is `client_credentials`,
+  scope is `api`, and token lifetime comes from the provider's `expires_in` response. Do not invent
+  quotas, TTLs, fields, enums, or permissions that are not proven by the live contract/provider docs.
 - If a provider fact cannot be verified live, mark it **UNVERIFIED and stop**. Do not fill the gap from memory.
 
 ---
