@@ -167,6 +167,41 @@ function checkCreatedBranch() {
   );
 }
 
+function basePathExists(baseRef, filePath) {
+  try {
+    git(["cat-file", "-e", baseRef + ":" + filePath]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function validateImpactPaths(control, baseRef) {
+  const pathKeys = [
+    "root_owner_paths",
+    "writer_paths",
+    "reader_paths",
+    "publisher_paths",
+    "test_paths"
+  ];
+
+  const missing = [];
+  for (const key of pathKeys) {
+    for (const filePath of control.impact_graph[key]) {
+      if (basePathExists(baseRef, filePath)) continue;
+      if (control.allowed_new_files.includes(filePath)) continue;
+      missing.push(key + ": " + filePath);
+    }
+  }
+
+  if (missing.length) {
+    throw new Error(
+      "impact graph names repo paths that do not exist on the PR base and are not authorized new files:\n" +
+      missing.map((item) => "  - " + item).join("\n")
+    );
+  }
+}
+
 function main() {
   const baseBranch = process.env.MALLAN_BASE_BRANCH || process.env.GITHUB_BASE_REF || "main";
   const headBranch =
@@ -257,6 +292,12 @@ function main() {
 
   if (control.mode !== "implementation") {
     fail("Unsupported execution mode: " + control.mode);
+  }
+
+  try {
+    validateImpactPaths(control, baseRef);
+  } catch (error) {
+    fail("Impact graph is not grounded in the PR base: " + error.message);
   }
 
   for (const protectedPath of [STATE_PATH, MASTER_PATH]) {
