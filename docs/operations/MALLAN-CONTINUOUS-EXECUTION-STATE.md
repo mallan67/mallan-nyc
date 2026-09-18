@@ -387,12 +387,31 @@ After bootstrap:
 
 - agents do not create ad-hoc `fix/*`, `feat/*`, `search/*`, `diag/*`, `agent/*` or `preserve/*` branches for new work;
 - the controlled implementation lane is `work/active`;
-- branch creation outside the authorized lane is not evidence of authorization and cannot pass the required merge gate;
+- `.github/workflows/branch-authority.yml` runs on GitHub branch creation and reads the canonical Execution State from `main`;
+- a newly created branch other than `main` or the currently authorized work branch is automatically deleted by GitHub and the workflow fails visibly;
+- existing historical branches are preserved until the dedicated branch-reconciliation packet determines whether they contain unmerged work that must be retained;
+- existing historical branches cannot pass the required implementation gate unless they are the branch explicitly authorized by the base Execution State;
 - new canonical files/models/services are denied unless the base execution contract explicitly names them.
 
 The existing historical branch estate remains evidence until reconciled.
 
 ---
+
+# 8.1 Human / agent identity boundary
+
+GitHub's current `Protect main` ruleset is active, requires the `pr-check` status check, blocks non-fast-forward/deletion, has no bypass actors, and requires resolution of review threads.
+
+However, it currently requires **0 approving reviews**.
+
+If an AI agent operates through Maya's own GitHub identity, GitHub cannot distinguish a control update authored by Maya from one authored by the agent. Repository CI can prevent a PR from self-authorizing within the same branch, but it cannot cryptographically prove which human/agent initiated a later control-update PR when both share one identity.
+
+Therefore:
+
+- do not claim the execution controller provides human/agent identity separation by itself;
+- control-update PRs remain Maya-approval decisions;
+- no agent may enable auto-merge or merge a control-update PR on Maya's behalf;
+- the durable non-bypass solution is a separate agent GitHub identity / GitHub App or an external managed approval boundary that the agent cannot impersonate;
+- until identity separation is installed, this is a known control-plane limitation, not a hidden assumption.
 
 # 9. Mutation boundaries
 
