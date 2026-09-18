@@ -95,14 +95,44 @@ function pathAllowed(filePath, allowed) {
 }
 
 function validateControl(control) {
-  for (const key of ["mode", "authorized_branch", "base_branch"]) {
+  for (const key of ["mode", "authorized_branch", "base_branch", "packet_id", "objective"]) {
     if (typeof control[key] !== "string" || !control[key].trim()) {
       throw new Error("control." + key + " must be a non-empty string");
     }
   }
+
   for (const key of ["authorized_paths", "allowed_new_files", "impact_domains", "provider_proof_required"]) {
     if (!Array.isArray(control[key])) {
       throw new Error("control." + key + " must be an array");
+    }
+  }
+
+  if (!control.impact_graph || typeof control.impact_graph !== "object") {
+    throw new Error("control.impact_graph must be an object");
+  }
+
+  const graphKeys = [
+    "root_owner_paths",
+    "writer_paths",
+    "reader_paths",
+    "publisher_paths",
+    "downstream_surfaces",
+    "test_paths",
+    "compliance_surfaces"
+  ];
+
+  for (const key of graphKeys) {
+    if (!Array.isArray(control.impact_graph[key]) || control.impact_graph[key].length === 0) {
+      throw new Error("control.impact_graph." + key + " must be a non-empty array");
+    }
+  }
+
+  if (control.mode === "implementation") {
+    if (control.authorized_paths.length === 0) {
+      throw new Error("implementation mode requires authorized_paths");
+    }
+    if (control.impact_domains.length === 0) {
+      throw new Error("implementation mode requires impact_domains");
     }
   }
 }
