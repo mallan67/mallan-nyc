@@ -1,5 +1,12 @@
 # Vercel↔Neon "Branch limit exceeded" — canonical status & support packet (2026-06-03)
 
+> **HISTORICAL SNAPSHOT — SUPERSEDED FOR CURRENT STATE.** This file preserves evidence measured in
+> June 2026. Do not use its branch counts, store inventory, `round-recipe` attribution, Preview behavior,
+> or env assumptions as current instructions. Current operational truth must be re-read live and is
+> summarized in `NEON.md` and `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md`. As of 2026-09-18,
+> `hidden-mountain` has exactly one branch ever (`main`), current Preview provisioning has created zero
+> branches there, and `round-recipe-12208101` is UNVERIFIED from the currently accessible orgs.
+
 > ## 🛑 AGENT STOP — Neon/Vercel database facts (read before ANY db / Neon / Vercel / deploy action)
 >
 > - **Canonical production data = `hidden-mountain-87248164` / "neon-green-school" / `ep-cold-waterfall-adno3ao2` / branch `main` (`br-crimson-frog-adr7g9gt`).**
