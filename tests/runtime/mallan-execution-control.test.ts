@@ -89,6 +89,7 @@ function initRepo(control = baseControl()) {
   write(cwd, "lib/feature/reader.ts", "export const reader = true;\n");
   write(cwd, "lib/feature/publisher.ts", "export const publisher = true;\n");
   write(cwd, "tests/runtime/mallan-execution-control.test.ts", "fixture\n");
+  write(cwd, ".github/workflows/pr-check.yml", "name: fixture\n");
   git(
     cwd,
     "add",
@@ -96,7 +97,8 @@ function initRepo(control = baseControl()) {
     STATE,
     "lib/feature/reader.ts",
     "lib/feature/publisher.ts",
-    "tests/runtime/mallan-execution-control.test.ts"
+    "tests/runtime/mallan-execution-control.test.ts",
+    ".github/workflows/pr-check.yml"
   );
   git(cwd, "commit", "-m", "base authority");
   git(cwd, "branch", "origin-main");
@@ -325,6 +327,33 @@ describe("Mallan execution-control gate", () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("Impact graph is not grounded in the PR base");
     expect(result.stderr).toContain("lib/does-not-exist.ts");
+  });
+
+  test("rejects control-root modification even when branch scope tries to allow it", () => {
+    const cwd = initRepo(
+      baseControl({
+        authorized_paths: [".github/workflows/pr-check.yml"],
+        allowed_new_files: [],
+        impact_graph: {
+          root_owner_paths: ["MALLAN-PLATFORM-MASTER-PLAN.md"],
+          writer_paths: [".github/workflows/pr-check.yml"],
+          reader_paths: ["lib/feature/reader.ts"],
+          publisher_paths: [".github/workflows/pr-check.yml"],
+          downstream_surfaces: ["required GitHub check"],
+          test_paths: ["tests/runtime/mallan-execution-control.test.ts"],
+          compliance_surfaces: ["governance only"],
+        },
+      })
+    );
+
+    write(cwd, ".github/workflows/pr-check.yml", "name: weakened gate\n");
+    git(cwd, "add", ".github/workflows/pr-check.yml");
+    git(cwd, "commit", "-m", "attempt to modify control root");
+
+    const result = gate(cwd);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("immutable execution-control root");
+    expect(result.stderr).toContain(".github/workflows/pr-check.yml");
   });
 
 });
