@@ -19,20 +19,44 @@
  *   - scripts/ci/assert-canonical-neon-target.mjs (rotate-db-keys workflow guard;
  *     keeps these constants in sync — see that file's header)
  *
- * Design: STRICT allow-list. Anything that is not exactly the canonical project /
- * does not contain the canonical host substring is refused (fail-closed). The
- * forbidden lists are defense-in-depth + clearer error messages, not the primary
- * gate.
+ * Design: STRICT allow-list. Anything that is not exactly the canonical project, or whose parsed
+ * host is not the canonical endpoint, is refused (fail-closed). The forbidden lists are
+ * defense-in-depth + clearer error messages, not the primary gate.
+ *
+ * HOST CHECKING NO LONGER USES A SUBSTRING (DB Safety Packet 1). `isCanonicalNeonHost` used
+ * `uriOrHost.includes(CANONICAL)`, which any URL could satisfy by carrying the canonical endpoint
+ * id in a query parameter, the password or the path — none of which determine where the connection
+ * actually goes. lib/retention/drain-core.ts had already recorded that hazard and parsed the
+ * hostname instead; this module, which backs the neon-branch-prune route and
+ * recover-stale-property-listings, had not. Both now delegate to the single classifier in
+ * lib/ops/db-target.ts.
+ *
+ * One copy of the rule legitimately remains: scripts/ci/assert-canonical-neon-target.mjs runs
+ * before any dependency install in `rotate-db-keys.yml` and cannot import TypeScript. It is a
+ * pre-bootstrap EXECUTION MIRROR of db-target.ts's semantics, held to behavioural parity by the
+ * CLI ↔ TS parity tests — not a second authority, and not free to disagree.
+ *
+ * The exported constant is still named `…_HOST_SUBSTRING` because callers, the rotate-db-keys CLI
+ * guard and its drift test all reference that name. Its VALUE is unchanged; only the comparison
+ * that consumes it got stricter. It is an endpoint id, not a substring to search for.
  *
  * @module lib/ops/canonical-neon-target
  */
+import {
+  CANONICAL_PRODUCTION_ENDPOINT,
+  FORBIDDEN_STALE_ENDPOINT,
+  classifyDbHost,
+  classifyDbUrl,
+  type DbTargetClassification,
+} from '@/lib/ops/db-target';
 
 export const CANONICAL_NEON_PROJECT_ID = 'hidden-mountain-87248164';
-export const CANONICAL_NEON_HOST_SUBSTRING = 'ep-cold-waterfall-adno3ao2';
+/** The canonical production endpoint id. Re-exported from the core so the two cannot drift. */
+export const CANONICAL_NEON_HOST_SUBSTRING = CANONICAL_PRODUCTION_ENDPOINT;
 
 /** Known stale / do-not-serve projects + hosts — refused explicitly. */
 export const FORBIDDEN_NEON_PROJECT_IDS: readonly string[] = ['morning-bread-68708332'];
-export const FORBIDDEN_NEON_HOST_SUBSTRINGS: readonly string[] = ['ep-royal-dawn-ad6eh8t2'];
+export const FORBIDDEN_NEON_HOST_SUBSTRINGS: readonly string[] = [FORBIDDEN_STALE_ENDPOINT];
 
 /** True only for the exact canonical production project id (trimmed). Fail-closed. */
 export function isCanonicalNeonProject(projectId: string | null | undefined): boolean {
@@ -44,13 +68,28 @@ export function isCanonicalNeonProject(projectId: string | null | undefined): bo
 }
 
 /**
- * True only when the connection URI / host contains the canonical production host
- * substring AND none of the forbidden host substrings. Fail-closed on empty/null.
+ * Classify a value that may be EITHER a full connection URI or a bare hostname.
+ *
+ * The dual shape is this module's long-standing calling convention — the parameter is literally
+ * named `uriOrHost` and live callers pass both. The discrimination lives here, in the legacy
+ * wrapper, rather than in the core: a core function takes one input shape, or it starts guessing.
+ */
+function classifyUriOrHost(value: string): DbTargetClassification {
+  return value.includes('://') ? classifyDbUrl(value) : classifyDbHost(value);
+}
+
+/**
+ * True only when the PARSED host is the canonical production endpoint. Fail-closed on
+ * empty/null/malformed, and on anything the classifier does not positively recognise.
  */
 export function isCanonicalNeonHost(uriOrHost: string | null | undefined): boolean {
   if (typeof uriOrHost !== 'string' || uriOrHost.length === 0) return false;
+  // Retained belt-and-braces: if a forbidden endpoint id appears ANYWHERE in the value — even in a
+  // fragment or query parameter a driver would ignore — refuse. This over-refuses by design, it is
+  // pinned by the "forbidden wins" case in tests/runtime/canonical-neon-target.test.ts, and
+  // over-refusal on the stale morning-bread database is the safe direction.
   if (FORBIDDEN_NEON_HOST_SUBSTRINGS.some((h) => uriOrHost.includes(h))) return false;
-  return uriOrHost.includes(CANONICAL_NEON_HOST_SUBSTRING);
+  return classifyUriOrHost(uriOrHost).class === 'canonical-production';
 }
 
 /** Throw unless `projectId` is the canonical production project. */

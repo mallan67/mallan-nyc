@@ -18,6 +18,7 @@ dotenv.config({ path: path.resolve(".env.local"), override: true });
 
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { assertSeedTargetAllowed } from "@/lib/ops/seed-target-guard";
 
 const prisma = new PrismaClient();
 
@@ -28,6 +29,13 @@ async function hashPassword(plain: string): Promise<string> {
 }
 
 async function main() {
+  // FIRST, before anything is announced and long before anything is written. Every upsert below
+  // rewrites password_hash on an existing row, so a run against production would replace the real
+  // broker and agent credentials. The guard demands a POSITIVELY approved non-production target:
+  // "not production" is not sufficient, and an undeterminable target is refused rather than
+  // assumed. Note that .env.local was loaded with override above, so this sees what Prisma will.
+  assertSeedTargetAllowed(process.env);
+
   console.log("Seeding database...");
 
   // ═══════════════════════════════════════════════════════════

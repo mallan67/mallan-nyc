@@ -131,6 +131,25 @@ export function isPrunable(
   }
   const updatedAt = new Date(branch.updated_at);
   const ageHours = (now.getTime() - updatedAt.getTime()) / (1000 * 60 * 60);
+  // An age that cannot be computed must NOT read as "old enough to delete". Every comparison
+  // against NaN is false, so an unparseable/absent updated_at previously fell straight through
+  // this window check and returned { prunable: true, reason: "idle for NaN h" } — fail-OPEN on a
+  // destructive path. The branch list arrives from the Neon API as unvalidated JSON (the response
+  // is cast, not parsed), so a missing or reformatted timestamp reaches here intact. The same
+  // applies to a misconfigured retentionHours: both sides of the comparison have to be
+  // trustworthy for its answer to mean anything.
+  if (!Number.isFinite(ageHours)) {
+    return {
+      prunable: false,
+      reason: "branch age is undeterminable (updated_at is not a valid timestamp)",
+    };
+  }
+  if (!Number.isFinite(retentionHours)) {
+    return {
+      prunable: false,
+      reason: "retention window is undeterminable (retentionHours is not a finite number)",
+    };
+  }
   if (ageHours < retentionHours) {
     return {
       prunable: false,
