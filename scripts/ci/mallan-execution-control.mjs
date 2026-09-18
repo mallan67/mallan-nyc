@@ -10,6 +10,7 @@
  */
 
 import { execFileSync } from "node:child_process";
+import fs from "node:fs";
 
 const STATE_PATH = "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md";
 const MASTER_PATH = "MALLAN-PLATFORM-MASTER-PLAN.md";
@@ -32,7 +33,8 @@ const BOOTSTRAP_ALLOWED = new Set([
   "scripts/ci/mallan-execution-control.mjs",
   "tests/runtime/agent-authority-live-source.test.ts",
   "tests/runtime/mallan-execution-control.test.ts",
-  ".github/workflows/pr-check.yml"
+  ".github/workflows/pr-check.yml",
+  ".github/workflows/branch-authority.yml"
 ]);
 
 function git(args) {
@@ -103,6 +105,36 @@ function validateControl(control) {
       throw new Error("control." + key + " must be an array");
     }
   }
+}
+
+function checkCreatedBranch() {
+  const createdBranch = process.argv[3] || process.env.CREATED_BRANCH || "";
+  if (!createdBranch) fail("Created branch name was not provided.");
+
+  let state;
+  try {
+    state = fs.readFileSync(STATE_PATH, "utf8");
+  } catch {
+    fail("Canonical Execution State is missing on the checked-out main branch.");
+  }
+
+  let control;
+  try {
+    control = parseControl(state);
+    validateControl(control);
+  } catch (error) {
+    fail("Canonical Execution State is invalid: " + error.message);
+  }
+
+  if (createdBranch === "main" || createdBranch === control.authorized_branch) {
+    pass("Created branch is authorized: " + createdBranch);
+    return;
+  }
+
+  fail(
+    "Unauthorized branch creation: " + createdBranch +
+    ". The only active work branch is " + control.authorized_branch + "."
+  );
 }
 
 function main() {
@@ -245,4 +277,8 @@ function main() {
   );
 }
 
-main();
+if (process.argv[2] === "--branch-created") {
+  checkCreatedBranch();
+} else {
+  main();
+}
