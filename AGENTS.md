@@ -1,9 +1,10 @@
 # AGENTS.md — Cross-Agent Constitution (Claude · Codex · ChatGPT)
 
-> **Single shared source of truth for every AI agent working on `mallan67/mallan-nyc`.**
-> Claude reads this (pointer in `CLAUDE.md`), **Codex reads this natively** during PR review, and it
-> is **paste-ready for ChatGPT**. When any tool's private memory disagrees with this file, **this file
-> wins** — do not act on stale chat memory.
+> **Cross-agent operating constitution for `mallan67/mallan-nyc`.**
+> Read the current GitHub version from the branch/PR being worked on. Claude, Codex, and ChatGPT must
+> not substitute chat memory, pasted snapshots, Desktop copies, or historical handoffs for current Git
+> state. Product/system authority remains the repository's designated master authority; this file governs
+> how agents verify and execute work.
 
 This project is a **live Cotality/Trestle (REBNY IDX Plus) synchronization platform** — not "an IDX
 website." It has downstream consumers: search, CRM, portal, media, compliance, archive, email, contact.
@@ -16,7 +17,27 @@ website." It has downstream consumers: search, CRM, portal, media, compliance, a
 |---|---|
 | **Claude** | `CLAUDE.md` → this file → `docs/PROJECT-HEALTH-DASHBOARD.md` → latest handoff snapshot |
 | **Codex** | this file (`AGENTS.md`) + **review the CURRENT HEAD commit of a PR, never stale bot comments** |
-| **ChatGPT** | paste `AGENTS.md` + `docs/PROJECT-HEALTH-DASHBOARD.md` (it has no repo access) |
+| **ChatGPT** | GitHub connector/API → current `AGENTS.md` + current branch/PR HEAD + live provider tools. Pasted copies are fallback evidence only. |
+
+
+### 0.1 GitHub-only working state + provider authority (Maya directive 2026-09-18)
+
+- **Repository work happens in GitHub.** Read/write the current GitHub branch or PR directly. Do not use
+  `C:\Users\MayaAllan\Desktop\...`, local worktrees, Desktop mirrors, scratch repos, or copied project
+  folders as working state or authority. Do not create new local project/worktree folders.
+- **Git facts** (files, commits, branches, PRs, Actions) come from the current GitHub repository/PR, never
+  from a stale checkout or old bot comment.
+- **Vercel facts** (project, deployment, environment-variable scope, Marketplace binding, runtime behavior)
+  come from the connected Vercel project plus Vercel's official documentation. Do not infer Vercel behavior
+  from an old repo note.
+- **Neon for mallan-nyc is the Vercel-managed resource path:** Vercel project `mallan-nyc` →
+  Marketplace resource `neon-green-school` / `store_K9l79ICRUTMsiRh2` → Neon project
+  `hidden-mountain-87248164`. Administrative/dashboard access starts through Vercel SSO
+  (`vercel integration open neon neon-green-school`). Live Neon reads must be reconciled to this exact
+  Vercel binding before being used as Mallan truth. Do not create an independent Neon resource to bypass it.
+- **Cotality/Trestle facts** come from the authorized live Cotality/Trestle contract and official provider
+  documentation. Repo metadata, CSVs, generated enums, and old audits are caches/evidence only.
+- If a provider fact cannot be verified live, mark it **UNVERIFIED and stop**. Do not fill the gap from memory.
 
 ---
 
@@ -38,18 +59,14 @@ website." It has downstream consumers: search, CRM, portal, media, compliance, a
    the current HEAD already addresses it. Always check the PR's current head SHA first.
 6. **Compliance-first** — anything touching listings, IDX, syndication, CRM lead/contact, intake forms,
    display gates, media, or public text: read `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` first.
-7. **Cotality is the sole authority — always live, never a copy, never a spot-check** (Maya law,
-   2026-07-05). Every listing **status, field name, and picklist value** must be verified against the
-   **live Cotality API** (`api.cotality.com/trestle` `$metadata`), NOT a snapshot (`artifacts/metadata.xml`),
-   NOT a hand-copied set, NOT another agent's list. The single generated source is
-   `data/cotality-enums.live.json` (regenerate with `npm run cotality:pull`; the drift guard
-   `npm run cotality:verify` fails if it or any code set diverges from live). If a status/field value is
-   wrong in one place it is almost certainly wrong in the copies elsewhere — **verify the whole surface,
-   never one file.** Known live truths (2026-07-05): `StandardStatus` = {Active, ActiveUnderContract,
-   Canceled, Closed, ComingSoon, Delete, Expired, Hold, Incomplete, Pending, Withdrawn} (spelling is
-   **`Canceled`**, one L — never "Cancelled"); "Sold"/"Rented" exist in **no** Cotality enum;
-   `Permission` has **no** "OwnerOptOut"; `PropertyType` is camelCase (`ResidentialLease`, never
-   "Residential Lease"). Full audit: `docs/audits/cotality-status-truth-audit-2026-07-05.md`.
+7. **Cotality/Trestle is the sole provider authority — verify the whole contract live.**
+   For any field, enum/string, resource, attribution requirement, permission, mapping, search/filter/OData
+   semantic, pagination rule, media relationship, or API behavior, verify against the authorized live
+   Cotality/Trestle API **and the provider's current documentation**. Do not promote repo snapshots or old
+   agent prose into provider truth. `data/cotality-enums.live.json`, `artifacts/metadata.xml`, registries,
+   and CSVs are useful mirrors/evidence only. `npm run cotality:pull` / `npm run cotality:verify` may
+   refresh/check the enum mirror, but they do not replace live provider semantics. Do not embed dated enum
+   lists in this constitution; re-read the provider when the answer matters.
 
 ## 2. Non-negotiable holds (require explicit Maya approval)
 
@@ -71,7 +88,7 @@ notification dispatcher · open-house v2 · admin merge bypass · force-push to 
 | Neon / Prisma / DB rules | `NEON.md` |
 | Compliance per-area map | `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` |
 | REBNY skill | `.claude/skills/rebny-compliance/SKILL.md` |
-| **Cotality enum truth (status/field/picklist)** | `data/cotality-enums.live.json` (generated live via `npm run cotality:pull`; guarded by `npm run cotality:verify`). The live API is authority; this file is its verified mirror. |
+| **Cotality/Trestle provider truth** | Authorized live Cotality/Trestle API + current provider documentation. `data/cotality-enums.live.json` and `artifacts/metadata.xml` are repo mirrors/evidence, never higher authority. |
 
 ### Canonical Documentation (Maya directive 2026-07-01)
 
@@ -127,13 +144,9 @@ Before ending a session or handing off:
 - **Any Codex finding** must be FIXED, proven PRE-EXISTING and split to its own issue, or
   documented as future-gated / out-of-scope — never silently ignored.
 
-## 7. Current status (pointer, not a copy)
+## 7. Current status — never copy it here
 
-Live status → `docs/PROJECT-HEALTH-DASHBOARD.md`. Narrative → latest handoff snapshot. As of
-2026-07-02: **PR #465 (rehydration guard) and #466 (governance) are MERGED** and deployed
-(`858da234`); the guard is under registry **RW-004** regression watch. **OPS-009 archive controls
-are IMPLEMENTED + deployed (#470) and the kill-switch proof is VERIFIED (OPS-020, 03:00:46Z).**
-**Gate 6 has NOT executed.** Next gate is Maya's `ARCHIVE_ENABLED=true` MAINTENANCE decision, then the
-5K pilot — which also requires a **FRESH rollback branch: the prior one was auto-pruned 2026-07-03
-(OPS-022), so no rollback branch currently exists.** Roadmap: SEO-001 ✅ · OPS-009 ✅ (awaiting flag) ·
-5K pilot (blocked on OPS-022 + flag) · OPS-017.
+Do not freeze a dated project-status narrative into this constitution. For current state, read the current
+GitHub `main` / PR HEAD, `docs/PROJECT-HEALTH-DASHBOARD.md`, `docs/PLATFORM-ISSUE-REGISTRY.md`, the
+latest repo handoff snapshot, and live Vercel/Neon/Cotality evidence appropriate to the claim. Historical
+status text is evidence only, not current truth.
