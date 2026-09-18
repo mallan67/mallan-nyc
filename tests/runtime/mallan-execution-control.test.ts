@@ -86,7 +86,18 @@ function initRepo(control = baseControl()) {
   git(cwd, "config", "user.name", "Mallan Test");
   write(cwd, MASTER, "# MASTER\n");
   write(cwd, STATE, controlMarkdown(control));
-  git(cwd, "add", MASTER, STATE);
+  write(cwd, "lib/feature/reader.ts", "export const reader = true;\n");
+  write(cwd, "lib/feature/publisher.ts", "export const publisher = true;\n");
+  write(cwd, "tests/runtime/mallan-execution-control.test.ts", "fixture\n");
+  git(
+    cwd,
+    "add",
+    MASTER,
+    STATE,
+    "lib/feature/reader.ts",
+    "lib/feature/publisher.ts",
+    "tests/runtime/mallan-execution-control.test.ts"
+  );
   git(cwd, "commit", "-m", "base authority");
   git(cwd, "branch", "origin-main");
   git(cwd, "checkout", "-b", "work/active");
@@ -289,6 +300,31 @@ describe("Mallan execution-control gate", () => {
     const result = gate(cwd);
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("impact_graph.reader_paths");
+  });
+
+  test("rejects an impact graph that names nonexistent repo paths", () => {
+    const cwd = initRepo(
+      baseControl({
+        impact_graph: {
+          root_owner_paths: ["MALLAN-PLATFORM-MASTER-PLAN.md"],
+          writer_paths: ["lib/allowed.ts"],
+          reader_paths: ["lib/does-not-exist.ts"],
+          publisher_paths: ["lib/feature/publisher.ts"],
+          downstream_surfaces: ["test downstream"],
+          test_paths: ["tests/runtime/mallan-execution-control.test.ts"],
+          compliance_surfaces: ["none for fixture"],
+        },
+      })
+    );
+
+    write(cwd, "lib/allowed.ts", "export const ok = true;\n");
+    git(cwd, "add", "lib/allowed.ts");
+    git(cwd, "commit", "-m", "fabricated impact graph");
+
+    const result = gate(cwd);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Impact graph is not grounded in the PR base");
+    expect(result.stderr).toContain("lib/does-not-exist.ts");
   });
 
 });
