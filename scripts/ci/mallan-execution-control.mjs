@@ -138,12 +138,12 @@ function checkCreatedBranch() {
 }
 
 function main() {
-  const baseBranch = process.env.GITHUB_BASE_REF || process.env.MALLAN_BASE_BRANCH || "main";
+  const baseBranch = process.env.MALLAN_BASE_BRANCH || process.env.GITHUB_BASE_REF || "main";
   const headBranch =
-    process.env.GITHUB_HEAD_REF ||
     process.env.MALLAN_HEAD_BRANCH ||
+    process.env.GITHUB_HEAD_REF ||
     git(["branch", "--show-current"]);
-  const prNumber = process.env.GITHUB_PR_NUMBER || process.env.MALLAN_PR_NUMBER || "";
+  const prNumber = process.env.MALLAN_PR_NUMBER || process.env.GITHUB_PR_NUMBER || "";
   const baseRef = process.env.MALLAN_BASE_REF || "origin/" + baseBranch;
 
   const changes = changedFiles(baseRef);
