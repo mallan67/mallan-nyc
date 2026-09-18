@@ -1091,6 +1091,9 @@ PRIVATE SUPPLEMENTAL SEARCH RECORD
 
 StreetEasy media may not be copied/rehosted merely because it is visible on a public listing page. Source photos, floor plans and other copyrighted media require verified use/reproduction rights before Mallan stores, republishes or sends copies.
 
+
+**URL-assisted intake is the preferred professional workflow where permitted.** An Agent may paste/store the source URL and confirm/source the required fields manually. Automated extraction/scraping is rights-gated: if the source terms/licence do not authorize automated extraction, Mallan does not scrape merely because the page is publicly viewable. If future written/licensed/API/feed access permits automation, that adapter may prefill the existing canonical intake; it may not create a separate StreetEasy listing system.
+
 ### 4.5.3 Source listing professional / owner contact
 
 For supplemental inventory, Agent Search may need the source professional or owner/FSBO contact so the Mallan Agent can verify availability and coordinate access.
@@ -2121,7 +2124,7 @@ ADDRESS / BUILDING RESOLUTION
 → DOWNSTREAM CONSUMERS
 ~~~
 
-Every enabled input must prove create → save → reload → edit → save → reload. A field rendered in HTML but discarded by the API is a defect, not a partial implementation.
+**No silent data loss.** Every enabled input must prove create → save → reload → edit → save → reload. A field rendered in HTML but discarded by the API is a defect, not a partial implementation.
 
 Mallan-authored listings are editable. Third-party Cotality listings remain read-only. A Cotality return-copy of a Mallan listing reconciles to the same Mallan listing identity; it does not create a second editable listing.
 
@@ -6488,7 +6491,7 @@ The dependency/impact graph names every writer, reader, publisher and downstream
 
 **The chain is never `ACTIVE PR → BUSINESS ARCHITECTURE`.** An open branch, PR or historical specification is implementation evidence, not product authority; §24 states this for code and §27 states that recovery creates no second architecture, and neither is restated here.
 
-§27.14.5 is the inner engineering loop this chain hands off to at `CORRECTION`. §27 sequences **how** existing proven work converges and is proved; §1–§26 determine **what** is correct and complete. The CURRENT HANDOFF makes the product sequence subordinate to §27's convergence controls, and that remains true for the order of repair — it does not make the open PR queue the source of the requirement. Maya adjudicates any case where following one reading rather than the other would change *what* gets built rather than *when*.
+§27.14.5 is the inner engineering loop this chain hands off to at `CORRECTION`. §27 sequences **how** existing proven work converges and is proved; §1–§26 determine **what** is correct and complete. The Continuous Execution State makes the current work order subordinate to §27's execution controls; it does not make the open PR queue the source of the business requirement. Maya adjudicates any case where following one reading rather than the other would change *what* gets built rather than *when*.
 
 Residual historical recovery/reconciliation is an evidence lane throughout the program. It does not require waiting for perfect archaeology before safe current-state work begins.
 
@@ -6723,132 +6726,383 @@ No `Fixed`, `Production Ready`, `Compliant`, `Search Working`, `CMA Working`, `L
 
 # 27. PRODUCTION RECOVERY AND EXECUTION CONTROL
 
-The recovery/execution program does not create a second architecture. It governs how the Master is implemented and proven. Temporary PRs, SHAs, blockers and scores stay in `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md`.
+This section governs **how** Mallan work is authorized, implemented, verified and closed. It does not create a second product architecture. §§1–§26 define what Mallan is; §27 defines how changes reach that architecture safely.
+
+Temporary PR numbers, branch names, SHAs, provider counts, environment values, scores and current blockers belong in \`docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md\`, not here.
 
 ## 27.1 Closure model
 
-```text
+Every material requirement or defect closes through the same chain:
+
+~~~text
 PROVEN DEFECT / REQUIREMENT
 → ROOT CAUSE / CURRENT GAP
-→ ALL AFFECTED WRITERS + READERS + PUBLISHERS
+→ ROOT OWNER
+→ ALL AFFECTED WRITERS
+→ ALL AFFECTED READERS / PUBLISHERS / PRESENTERS
+→ CACHE / JOB / EVENT / PROJECTION EFFECTS
 → CORRECTION
 → DIRECT TESTS
 → NEGATIVE TESTS
-→ INTEGRATION / ROUND TRIP
-→ DOWNSTREAM
+→ ROUND-TRIP / INTEGRATION
+→ DOWNSTREAM CONSUMERS
 → COMPLIANCE / SECURITY
-→ EXACT PREVIEW PROOF
+→ EXACT PREVIEW / RUNTIME PROOF
 → INDEPENDENT VERIFICATION
 → MAYA BUSINESS ACCEPTANCE WHERE REQUIRED
 → AUTHORIZED PRODUCTION PROOF
+→ PROVE NO PARALLEL PATH REMAINS
 → CLOSED
-```
+~~~
 
-No endless `test fails → patch → next test fails` loop without first establishing the impact graph.
+No endless \`test fails → patch → next test fails\` loop without first establishing the impact graph.
 
-## 27.2 One writer / independent proof
+## 27.2 Production-truth requirements
 
-One active branch/worktree has one writer.
+These are permanent system requirements:
 
-Independent verification is separate from Builder self-certification.
+- **No simulated success.** A control may claim send, submit, share, report generation, save, publish or another success only when the real server action and required durable outcome occurred.
+- **Unknown remains unknown.** Missing provider/Mallan facts may not silently become \`$0\`, \`0\`, a location, \`true\`, Active or a fallback result set.
+- **Unsupported is not fallback.** An unsupported criterion/capability must be refused or marked unavailable rather than silently widening/altering the result.
+- **One canonical Listing identity.** Mallan-authored Listing and provider return-copy reconcile to one Listing Episode.
+- **One canonical Agent identity.** Auth, CRM, profile, listings, reports, directory, attribution and professional designation resolve to one governed Agent lifecycle.
+- **Public truth is system truth.** Soft-404s, stale/nonexistent inventory, wrong professional titles, fabricated defaults and incorrect structured data are Production defects.
+- **Search is infrastructure.** Count, sort, pagination, dedupe, identity, filtering, Saved Search, Compare, Reports, CMA, Map and client matching may not each invent a different universe.
+- **Media/Open House/Map are cross-system consumers.** They resolve through the same canonical Property/Unit/Listing identity and authority rules.
 
-Evidence classes remain distinct:
+## 27.3 Fact authority — no invented replacement for missing provider data
 
-- black-box runtime;
-- data/structural;
-- Builder test/static evidence.
+Every material fact resolves to one of four classes:
 
-They may jointly support a release decision but may not be mislabeled as one another.
+1. provider-served and live-verified;
+2. Mallan-stored canonical fact;
+3. Mallan-derived from a named authoritative source and deterministic derivation contract;
+4. unsupported / not provided.
 
-## 27.3 Exact-head / environment binding
+\`UNRESOLVED\` is not a synonym for \`Mallan-derived\`.
 
-Runtime acceptance is bound to:
+Any Mallan derivation identifies:
 
-- exact Git SHA;
-- exact Preview/deployment;
-- frozen acceptance matrix;
-- relevant environment/QA state.
+- authoritative input source;
+- deterministic derivation rule;
+- ambiguity/confidence behavior;
+- refresh/currentness policy;
+- human-review path where ambiguity is possible;
+- affected readers/consumers;
+- direct and negative tests.
 
-Functional changes after verification require re-verification of affected acceptance.
+When neither provider nor an approved Mallan authority can truthfully supply the fact, render **not provided / unavailable**, not a guess.
 
-## 27.4 Golden Thread + breadth matrix
+## 27.4 Convergence before feature expansion
 
-A Golden Thread proves cross-system integration.
+A new feature/change begins from the existing canonical system and previously proven conclusions.
 
-A fixed breadth matrix proves coverage.
+Before expanding:
 
-Both are required for material systems such as Agent identity, Listing intake, Search, Media, Saved Search, CMA and client workflow.
+1. identify the current canonical owner;
+2. identify the current implementation and any partially merged/historical work;
+3. reconcile duplicate/parallel pathways;
+4. preserve still-valid completed work;
+5. scope only the measured delta;
+6. prove the full impact graph;
+7. then implement.
 
-## 27.5 No-restart rule
+Do not restart a system from zero because the current implementation is difficult to understand. Do not create a parallel system to avoid reconciling the existing one.
 
-When a defect reopens:
+## 27.5 Controlled parallel execution
 
-```text
-PRIOR PROVEN CONCLUSION
+Parallel agents are permitted only under controlled ownership.
+
+For one material packet:
+
+~~~text
+COORDINATOR
+BUILDER
+INDEPENDENT VERIFIER
++ specialized Validators where required
+~~~
+
+### Coordinator
+
+- owns scope, dependency order, exact Git heads, branch ownership and Execution State continuity;
+- enforces this Master and the active execution contract;
+- does not certify its own implementation as complete.
+
+### Builder
+
+- is the sole writer for the authorized implementation branch/packet;
+- works one bounded defect/capability packet at a time;
+- follows reproduce → root cause → affected readers/writers → correction → targeted tests → Preview;
+- cannot weaken acceptance because the implementation behaves differently.
+
+### Independent Verifier
+
+- is read-only with respect to implementation;
+- receives frozen acceptance criteria and the runtime surface to verify;
+- does not rely on the Builder's narrative/test claims;
+- returns \`PASS\`, \`FAIL — exact observed behavior\`, or \`BLOCKED — exact external reason\`.
+
+Independence requires different inputs and no stake in the implementation, not merely a second session.
+
+## 27.6 One branch = one writer
+
+Before mutation:
+
+1. verify authorized repository;
+2. verify remote/base;
+3. verify branch;
+4. verify exact HEAD;
+5. inspect working-tree/PR state;
+6. declare the one writer.
+
+Two active writers may not push to the same implementation branch.
+
+Do not create a parallel mapping/model/identity/search/report system merely to avoid a branch collision.
+
+## 27.7 Golden Threads plus fixed breadth matrices
+
+One Golden Thread proves integration. It does not prove breadth. Every material recovery/change therefore uses both.
+
+A representative Golden Thread for Listing/Search work is:
+
+~~~text
+AUTH / AGENT
+→ CRM / CLIENT
+→ CREATE OR EDIT CANONICAL MALLAN LISTING
+→ SAVE / RELOAD / EDIT / SAVE / RELOAD
+→ SAME LISTING IDENTITY
+→ SEARCH RETURNS IT EXACTLY ONCE
+→ PROVIDER LISTING BESIDE IT REMAINS READ-ONLY
+→ MEDIA / OPEN HOUSE / MAP / CMA / REPORT / PORTAL AS APPLICABLE
+~~~
+
+Each system adds a frozen breadth matrix before implementation begins.
+
+At minimum:
+
+- Agent — identity, license/professional title, status, auth, CRM, public profile;
+- Sale/Rental intake — enabled-field round trip, no silent loss, no duplicate Listing;
+- Search — criterion execution/refusal, impossible criteria, counts, sort, pagination, identity/dedupe, provider read-only;
+- CMA — subject, market universe, comp/source truth, versions, client-safe output;
+- downstream systems — bounded cases for their own readers/publishers.
+
+The matrix cannot be weakened after the Builder encounters a failure.
+
+## 27.8 Release states and closure gates
+
+~~~text
+CODED
+→ BUILDER TESTED
+→ INDEPENDENT PREVIEW PROVEN
+→ INTEGRATED GOLDEN THREAD PROVEN
+→ MAYA ACCEPTED
+→ PRODUCTION PROVEN
+→ CLOSED
+~~~
+
+Required gates:
+
+1. targeted direct/negative/integration tests;
+2. independent black-box Preview/runtime proof;
+3. integrated Golden Thread proof;
+4. Maya business acceptance for critical workflows;
+5. exact deployed-SHA Production proof after explicit deployment authorization;
+6. regression/breadth matrix re-run on the deployed commit.
+
+A score, green unit test or merged PR does not independently prove closure.
+
+## 27.9 On-the-spot behavioral testing
+
+Do not accumulate dozens of commits before behavioral proof.
+
+After a material boundary is corrected, run the relevant Preview/browser/API acceptance immediately.
+
+Examples:
+
+- Listing create/save fixed → create/reload immediately;
+- Listing edit fixed → edit/reload immediately;
+- Search pagination fixed → page 1/page 2 immediately;
+- professional designation fixed → render the actual profile immediately;
+- report data fixed → generate and inspect the actual report immediately.
+
+A failed behavioral test stays in the same bounded packet until corrected. It does not trigger a new master audit or unrelated cleanup.
+
+## 27.10 No-restart rule
+
+A reopened defect begins from:
+
+~~~text
+PREVIOUS PROVEN CONCLUSION
 +
 NEW MEASURED DELTA
 → BOUNDED REOPEN
-```
+~~~
 
-Do not restart generic audits merely because context or session changed.
+Do not repeat completed provider probes, Neon investigations, Search audits or full-system censuses merely because the session changed.
 
-## 27.6 Durable business effects
+If new evidence contradicts an old conclusion, reopen only the contradicted dependency and record why.
 
-For critical actions that change canonical state and trigger downstream work, the design must prove that a partial failure cannot silently lose or duplicate the business effect. Examples include Lead creation/assignment, Listing publication changes, client alerts, signed-document state, accepted deals, commission/payment state and lease-expiration workflow creation.
+## 27.11 Schema/migration authorization remains explicit
 
-Required property:
+Do not pre-authorize schema growth.
 
-```text
+Before any schema change, prove:
+
+- existing canonical model/structured fields/JSON cannot safely represent the required fact/identity;
+- reuse/extension cannot meet the requirement;
+- all affected readers/writers/publishers are identified;
+- backfill/reconciliation strategy is explicit;
+- direct/negative/integration/downstream/compliance proof is defined;
+- Maya explicitly authorizes the migration.
+
+The difficulty of integrating an existing model is not proof a new schema is necessary.
+
+## 27.12 Global finish line
+
+Mallan is not fixed when a PR merges.
+
+The critical operating path is complete only when behavior is proven end to end with no material BROKEN/PARTIAL/important UNPROVEN state across:
+
+- canonical Agent/Party/Property/Listing identity;
+- Sale/Rental intake and edit round trips;
+- public and professional Search;
+- provider return-copy reconciliation;
+- Media/Open House/Map;
+- Saved Search/Compare/Reports/CMA;
+- durable CRM/client activity;
+- Seller/Landlord/Buyer/Tenant/Investor journeys;
+- truthful marketing/delivery/portal/alert behavior;
+- responsive usable UI;
+- compliance/SEO truth;
+- Vercel/Neon/R2/cache/cron/runtime reliability.
+
+Usable checkpoints are delivered continuously while preserving this single-system finish line.
+
+## 27.13 Durable business effects and reliability
+
+For actions that change canonical state and trigger downstream work:
+
+~~~text
 CANONICAL COMMAND
 → AUTHORITATIVE STATE CHANGE
 → DURABLE EFFECT / EVENT RECORD
 → DOWNSTREAM PROCESSING
 → IDEMPOTENT RETRY
 → VERIFIED POSTCONDITION
-```
+~~~
 
-The implementation mechanism may use existing database/workflow capabilities; this Master does not mandate a new event-sourcing platform. The business invariant is that retrying cannot create a second Lead, second payment, second send or contradictory state.
+Retry cannot create a second Lead, second Listing, second payment, second send or contradictory state.
 
-## 27.7 Business reliability measures
+Material workflows define measurable business-boundary outcomes such as:
 
-Reliability is measured at the business boundary, not only by HTTP uptime. Material workflows should define measurable service indicators appropriate to their risk, such as:
-
-- inquiry became a durable Lead exactly once;
-- assigned Lead has an owner and next action;
+- inquiry became one durable Lead;
+- assigned Lead has owner + next action;
 - enabled form fields survive round trip;
 - Search count and displayed universe agree;
-- client send/delivery state is truthful;
-- required lease-expiration review is created on time;
-- commission/payment state reconciles to canonical deal truth;
-- public publication passes contextual/compliance eligibility;
-- failed downstream work is visible and recoverable.
+- client delivery state is truthful;
+- lease-review workflow is created on time;
+- commission/payment reconciles to Deal truth;
+- public publication passes rights/compliance eligibility;
+- failed downstream work is visible/recoverable.
 
-Targets, alert thresholds and current measurements belong in execution/operations evidence, not in this durable Master.
-
----
-
-## 27.8 Mutation boundaries
-
-Production/schema/migration/backfill, destructive data/R2, environment/credential, force-push/rebase of shared work and manual Production deployment remain explicit Maya authorization boundaries. A held mutation freezes only that mutation; safe independent work continues.
-
-## 27.9 Execution-state boundary
-
-`MALLAN-CONTINUOUS-EXECUTION-STATE.md` owns the current active layer, branch/head, PR, blockers, test/runtime/provider evidence, controlled holds and next exact action. This Master owns durable business architecture and proof rules. If the execution state conflicts with this Master on architecture, the Master wins; if the Master contains temporary status, move that status out rather than treating it as durable architecture.
+Targets and current measurements stay in operations evidence, not the Master.
 
 ## 27.14 Permanent independent verification structure
 
-The independent-verification model in §§27.2–27.4 is permanent, not a temporary recovery tactic. It applies across Listing intake, Search, CMA, Media, Open House, Map, Saved Search, Reports, CRM, authorization, compliance, Neon/R2 and every later material capability.
+The verification model is permanent across Listing intake, Search, CMA, Media, Open House, Map, Saved Search, Reports, CRM, auth, compliance, Vercel/Neon and later capabilities.
 
-Builder implementation evidence, data/structural evidence and independent black-box runtime evidence remain separately labeled. A capability may not be self-certified by the Builder, and a verifier/validator may not silently become a second Builder. Exact-head/environment binding and Golden Thread + breadth-matrix proof remain mandatory where applicable.
+No capability is done until independent evidence reaches the actual consumer.
 
+### 27.14.1 Permanent Validators
 
-## 27.10 Base-authority execution contract
+**Contract / Data Validator**
+
+- verifies canonical object ownership, exact stored fields, mappings and identity;
+- keeps raw contract → observed population → verified mapping → Mallan storage separate;
+- labels evidence DATA / STRUCTURAL.
+
+**Runtime / Integration Validator**
+
+- verifies API → UI → persistence → reload → downstream consumers at exact head;
+- exercises create → save → reload → edit → save → reload;
+- exercises negative and downstream cases.
+
+**Security / Compliance Validator**
+
+- verifies authorization, privacy, REBNY/RLS/UCBA/Fair Housing, public publication and fail-closed behavior;
+- does not expand scope through unauthorized Production probing.
+
+A Validator reports; it does not silently become a second Builder.
+
+### 27.14.2 Evidence separation is mandatory
+
+Evidence classes may never be combined to manufacture a PASS:
+
+| Class | Example |
+|---|---|
+| Black-box runtime | rendered/public/API behavior observed by independent verifier |
+| Data / structural | direct database/provider/storage inspection |
+| Builder structural test | unit/static test proving a code invariant |
+
+They may jointly support release judgment. They are not interchangeable.
+
+### 27.14.3 Exact-head freeze
+
+Once independent verification begins, freeze:
+
+1. exact Git SHA;
+2. deployment/Preview identifier;
+3. acceptance matrix;
+4. relevant QA/environment state except explicitly documented test setup.
+
+A functional change creates a new exact SHA and requires affected acceptance to be re-run.
+
+### 27.14.4 Defect handling loop
+
+~~~text
+VERIFIER / VALIDATOR FINDS DEFECT
+→ COORDINATOR CONFIRMS ROOT CAUSE + SCOPE
+→ BUILDER RECEIVES ONLY BOUNDED CORRECTION
+→ NEW EXACT SHA
+→ AFFECTED VALIDATION
+→ INDEPENDENT VERIFICATION
+~~~
+
+A defect never authorizes a broader rewrite than the defect requires.
+
+### 27.14.5 Closure standard
+
+~~~text
+PROVEN DEFECT
+→ ROOT CAUSE
+→ ALL AFFECTED WRITERS / READERS / PUBLISHERS
+→ CORRECTION
+→ DIRECT + NEGATIVE TESTS
+→ INTEGRATION
+→ DOWNSTREAM
+→ COMPLIANCE / SECURITY
+→ EXACT PREVIEW PROOF
+→ INDEPENDENT VERIFICATION
+→ MAYA UAT
+→ AUTHORIZED PRODUCTION PROOF
+~~~
+
+\`BLOCKED\` stays BLOCKED. \`FAIL\` stays FAIL. A case is never weakened/reworded/re-scoped because the implementation behaves differently.
+
+### 27.14.6 Census writers AND publishers
+
+Every regulated/canonical fact must census both:
+
+1. who can WRITE/change it;
+2. who can READ, PUBLISH or PRESENT an independent version of it.
+
+A persistence-only census is incomplete. Regulated designations, license classes, brokerage roles, disclosures, listing facts, source attribution and public structured data require the two-sided census.
+
+## 27.15 Base-authority execution contract
 
 The system must not depend on an Agent reading this Master voluntarily.
 
-For implementation work, authorization is evaluated from the protected/base authority, not from a proposed branch's self-edited instructions.
-
-Durable rule:
+Implementation authorization is evaluated from protected/base authority, not from a proposed branch's self-edited instructions:
 
 ~~~text
 BASE MAIN
@@ -6863,13 +7117,13 @@ BASE MAIN
 → REQUIRED GITHUB GATE
 ~~~
 
-An implementation branch cannot widen its own scope by editing the Execution State in the same PR.
+An implementation branch cannot widen its own scope by editing the Execution State in that same PR.
 
-Control updates and implementation are separate operations. The control contract is changed first, reviewed/accepted, then implementation occurs under that already-established contract.
+Control updates and implementation are separate operations.
 
-## 27.11 Impact graph is required before code
+## 27.16 Impact graph is required before code
 
-A material implementation packet is invalid unless it identifies at minimum:
+A material packet is invalid unless it identifies:
 
 - root owner paths/canonical objects;
 - all writers;
@@ -6880,37 +7134,39 @@ A material implementation packet is invalid unless it identifies at minimum:
 - compliance/security surfaces;
 - required provider/runtime proof.
 
-Repo paths claimed in the graph must actually exist on the base or be explicitly authorized new files. A fabricated impact graph is not proof.
+Repo paths claimed by the graph must exist on the base or be explicitly authorized new files. A fabricated graph is not proof.
 
-## 27.12 New files and parallel pathways are denied by default
+## 27.17 New files and parallel pathways are denied by default
 
-A new file/model/service/registry/engine/authority/pathway is not a neutral implementation detail.
+A new file/model/service/registry/engine/authority/pathway is not neutral.
 
-Before it is permitted, prove:
+Before permitting one, prove:
 
 1. existing canonical ownership cannot satisfy the requirement;
 2. the exact new path is authorized before implementation;
-3. its readers/writers are known;
-4. the old/competing path is retired or reconciled;
-5. the change does not create a second truth.
+3. readers/writers are known;
+4. old/competing path is retired or reconciled;
+5. no second truth is created.
 
 If not proven, modify the existing canonical system.
 
-## 27.13 Branch and authority-root control
+## 27.18 Branch and authority-root control
 
-Agents do not create arbitrary fix/feat/search/diag/preserve branches as a substitute for understanding the system. The current authorized work lane is defined by the Execution State.
+Agents do not create arbitrary implementation branches as a substitute for understanding the system.
 
-The execution-control implementation itself must be evaluated from a base-controlled/protected workflow so a proposed PR cannot weaken the gate that evaluates that same PR.
+The current authorized branch/work lane is defined by the Execution State.
 
-The exact workflow names, current authorized branch and current GitHub ruleset status are mutable control-plane facts and belong in the Execution State.
+The execution-control implementation must itself run from a protected/base-controlled surface so a proposed PR cannot weaken the gate that evaluates that PR.
 
-## 27.15 Local-machine bypass is not authority
+Exact workflow names, current branch and current GitHub ruleset status remain mutable Execution State facts.
 
-A local checkout, Maya's Desktop folder, a local .claude configuration, temp directory or untracked worktree cannot override GitHub authority.
+## 27.19 Local-machine bypass is not authority
 
-If an Agent runtime has local filesystem capabilities that allow it to evade repository controls, that runtime must be restricted at the tool/managed-policy layer. Repository prose alone is not considered a security boundary.
+A local checkout, Maya's Desktop folder, local .claude configuration, temp directory or untracked worktree cannot override GitHub authority.
 
-## 27.16 Provider-access proof is part of execution
+If an Agent runtime can use local filesystem capabilities to evade repository controls, restrict that runtime at the tool/managed-policy layer. Repository prose alone is not a security boundary.
+
+## 27.20 Provider-access proof is part of execution
 
 A packet that depends on Cotality, Vercel or Neon may not claim completion from source code alone.
 
@@ -6919,5 +7175,30 @@ A packet that depends on Cotality, Vercel or Neon may not claim completion from 
 - Neon/database-shaped work requires live bound-project/endpoint/database proof under §0.
 - Provider outage/unavailable access leaves the dependent case UNVERIFIED; it does not authorize a guessed fallback.
 
----
+## 27.21 Mutation boundaries
 
+The following remain explicit Maya authorization boundaries:
+
+- schema/migration/backfill;
+- Production database/Neon mutation;
+- Development/Preview Neon branch creation;
+- Vercel environment/resource mutation;
+- credential rotation;
+- destructive data/R2 operations;
+- manual cron/reconciliation execution;
+- Production deployment/alias mutation;
+- provider publishing/syndication;
+- branch protection/ruleset/admin bypass;
+- force-push/rebase of shared work.
+
+A held mutation freezes only that mutation; it does not authorize a substitute architecture.
+
+## 27.22 Execution-state boundary
+
+\`MALLAN-CONTINUOUS-EXECUTION-STATE.md\` owns current active packet, branch/head, PR, blockers, tests, runtime/provider evidence, holds and next exact action.
+
+This Master owns durable business architecture and proof rules.
+
+If the Execution State conflicts with the Master on architecture, the Master wins. If the Master contains temporary status, move that status out rather than treating it as durable architecture.
+
+---
