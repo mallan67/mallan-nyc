@@ -89,7 +89,26 @@ The Master currently covers:
 - global Definition of Done;
 - production recovery / impact graph / one-writer / independent-proof / exact-head execution control.
 
-**Known limitation:** Maya has stated that the business section is not fully finished. That does not create permission for another Master. Future business additions amend the same canonical Master through an explicit authority-update packet.
+**Known limitation:** Maya has stated that the business section is not fully finished. That owner statement supersedes any older conclusion that reconciliation meant the business plan itself was complete. It does not create permission for another Master. Future business additions amend the same canonical Master through an explicit authority-update packet.
+
+## 1.1 PR #595 ten-file disposition
+
+PR #595 changed ten governance files. They were reviewed as a package; they are **not** all copied blindly because several are stale, redundant or historical.
+
+| #595 file | 2026-09-18 disposition |
+|---|---|
+| `MALLAN-PLATFORM-MASTER-PLAN.md` | **RECOVERED EXACTLY.** Blob `37bf76f239ee178e37c696c35ae1183cdaa6f806`; sole durable architecture authority. |
+| `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` | **RECREATED CURRENT.** #595's September-10 branch/runtime state is evidence only; this file replaces it with current Git/provider/control facts. |
+| `AGENTS.md` | **RECONCILED, NOT COPIED.** Current main discipline + #595 authority ordering + 2026-09-18 GitHub/provider corrections. |
+| `CLAUDE.md` | **RECONCILED, NOT COPIED.** Current operational guidance retained where valid; Master/Execution State now come first; stale current-status prose removed. |
+| `AI-START-HERE.md` | **NOT RECOVERED.** It is a subordinate pointer file, absent from current main and not required by the machine execution gate. Adding another startup layer would recreate pointer sprawl. |
+| `MALLAN-CANONICAL-REQUIREMENT-LEDGER.md` | **NOT RECOVERED IN BOOTSTRAP.** It is explicitly subordinate to the Master. Its useful stable-ID/business material can be reconciled during the later business-completeness amendment instead of becoming a second authority now. |
+| `docs/claude-instructions/CURRENT.md` | **NOT RECOVERED.** Redundant execution pointer; the one Execution State is the current-state owner. |
+| `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` | **CURRENT MAIN RETAINED.** Do not overwrite a newer specialized implementation index with a diverged #595 copy. Compliance remains subordinate to the Master and current authoritative rules/provider contract. |
+| `docs/architecture/archive/MALLAN-PLATFORM-MASTER-PLAN-v5-SUMMARY.md` | **HISTORICAL ONLY.** Not needed in the active authority path. |
+| `docs/operations/MALLAN-JULY6-RECOVERY-EVIDENCE-2026-08-11.md` | **HISTORICAL EVIDENCE ONLY.** Not promoted into current execution authority. |
+
+This disposition is the controlled reconciliation of #595. No other #595 file becomes authority merely because it was in that PR.
 
 ---
 
