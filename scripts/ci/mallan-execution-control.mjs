@@ -34,7 +34,6 @@ const BOOTSTRAP_ALLOWED = new Set([
   "docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md",
   "docs/audits/zero-billing-neon-vercel-2026-06-12.md",
   "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md",
-  "docs/operations/site-audit-handoff-2026-09-18.md",
   "docs/superpowers/plans/2026-06-12-return-neon-to-free-tier-P2-MONEY.md",
   "docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md",
   "scripts/ci/mallan-execution-control.mjs",
