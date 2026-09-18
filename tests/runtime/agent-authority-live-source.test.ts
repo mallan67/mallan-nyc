@@ -81,4 +81,26 @@ describe("agent authority docs stay on live sources", () => {
     expect(neon).toContain("returns HTTP 503");
     expect(neon).toContain("does **not** call `pruneBranches()`");
   });
+  test("GitHub enforcement workflows use canonical base authority", () => {
+    const prCheck = read(".github/workflows/pr-check.yml");
+    expect(prCheck).toContain("Mallan execution control");
+    expect(prCheck).toContain("fetch-depth: 0");
+    expect(prCheck).toContain("scripts/ci/mallan-execution-control.mjs");
+
+    const root = read(".github/workflows/authority-root.yml");
+    expect(root).toContain("pull_request_target:");
+    expect(root).toContain("contents: read");
+    expect(root).toContain("github.event.pull_request.base.sha");
+    expect(root).toContain("cp scripts/ci/mallan-execution-control.mjs /tmp/mallan-execution-control.mjs");
+    expect(root).toContain("github.event.pull_request.head.sha");
+    expect(root).toContain("node /tmp/mallan-execution-control.mjs");
+
+    const branchGuard = read(".github/workflows/branch-authority.yml");
+    expect(branchGuard).toContain("create:");
+    expect(branchGuard).toContain("contents: write");
+    expect(branchGuard).toContain("ref: main");
+    expect(branchGuard).toContain("--branch-created");
+    expect(branchGuard).toContain("gh api -X DELETE");
+  });
+
 });
