@@ -1,10 +1,10 @@
-# CLAUDE.md — Project Command Center · mallan.nyc
+# CLAUDE.md — Claude Command Center · mallan.nyc
 
-> Lean indexed command center (rebuilt 2026-05-20).
+> Claude-specific operating instructions for `mallan67/mallan-nyc`.
 >
-> **Compliance-first.** When a task touches anything in §D, READ `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` FIRST. The index has per-area canonical pointers, validators, and fail-closed instructions for REBNY, RLS, UCBA, IDX Plus, Trestle/Cotality, Fair Housing, NY DOS, FARE Act, TCPA, NY SHIELD, audit retention, CRM lead routing, seller/landlord intake, and Mallan exclusives/syndication.
-
-> **Cross-agent constitution → `AGENTS.md`.** The shared source of truth for **Claude · Codex · ChatGPT** (invariants, non-negotiable holds, where truth lives, and the per-session handoff rule). Read it alongside this file; keep the two in sync — `AGENTS.md` is the concise cross-agent essentials, this file is the Claude-specific depth. **Live operational status → `docs/PROJECT-HEALTH-DASHBOARD.md`** — refresh its auto tier with `npm run health:probe` (read-only) before every handoff. Dated session narrative → `docs/operations/site-audit-handoff-YYYY-MM-DD.md`.
+> **Authority order is fixed:** `MALLAN-PLATFORM-MASTER-PLAN.md` → `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` → fresh GitHub/provider/runtime evidence → specialized guidance. This file is subordinate to the Master and Execution State and may not redefine either.
+>
+> **Compliance-first.** When work touches a compliance-shaped surface, read `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` and the specialized authority it points to before mutation.
 
 > ## 🛑 AGENT STOP — provider + repository authority (read before ANY DB / Cotality / Vercel / deploy action)
 >
@@ -46,17 +46,20 @@
 
 ---
 
-## B. Current project status
+## B. Current execution state
 
-- **Production:** mallan.nyc on Vercel (Next.js 16.1.6 + Turbopack, App Router)
-- **Database:** Neon Postgres via the Vercel Marketplace resource `neon-green-school` / `store_K9l79ICRUTMsiRh2`. Canonical Production = `hidden-mountain-87248164` → `main` (`br-crimson-frog-adr7g9gt`) → `ep-cold-waterfall-adno3ao2`. Legacy `morning-bread-68708332` / `ep-royal-dawn-ad6eh8t2` is stale/do-not-serve. Prisma uses the bare `DATABASE_URL` / `DATABASE_URL_UNPOOLED`; the Marketplace `database_*` family is integration-owned and must not be manually mapped into the bare Prisma names. Environment values and branch state must be verified live before action; do not infer them from this prose. Current operational details: `NEON.md` + `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md`.
-- **Feed:** REBNY IDX Plus via Cotality/Trestle (`https://api.cotality.com/trestle`) — read-only display
-- **Brokerage:** Mallan Real Estate Inc. · NY broker license **#10991205323** · 646-258-4460 · 400 East 90th Street, Suite 17C, NY 10128 · Principal broker: Maya Allan (REBNY agent license #10311201806)
-- **Active state / current PR queue / exclusive-launch readiness:** see the most recent audit at `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` (or run `gh pr list --state open` for the live queue)
-- **Master refactor plan:** `memory/REFACTOR-2026-04-25.md`
-- **Compliance baseline** (verify before any major work): `npm run ops:health` → drift=0 + §2.05=0; `npm run ucba:audit` → 46/46 PASS, 0 REGRESSIONS; `npm run idx:validate` → 0 critical; `npm run compliance-check` → 93/93 BLOCKER+STRICT
+Do not keep mutable project status in this file.
 
----
+Read:
+
+1. `MALLAN-PLATFORM-MASTER-PLAN.md` for durable architecture/business rules.
+2. `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` for the active packet, branch, base SHA, authorization envelope, holds and exact stop point.
+3. Current GitHub/Vercel/Neon/Cotality evidence for any mutable fact needed by that packet.
+
+A historical audit, old PR, old branch, Desktop checkout, local worktree or chat transcript is evidence only and cannot grant scope.
+
+The required GitHub `pr-check` runs `scripts/ci/mallan-execution-control.mjs` and evaluates implementation scope from the **PR base branch's** Execution State. A branch-local edit to the Execution State cannot self-authorize broader implementation.
+
 
 ## C. Current holds (require explicit Maya approval before starting)
 
@@ -139,32 +142,20 @@ CI runs the same chain via `.github/workflows/pr-check.yml`. Don't merge with re
 
 ## H. Canonical file pointers
 
-| Topic | Canonical file |
+| Topic | Authority |
 |---|---|
-| **Compliance per-area canonical map** (read first for any §D surface) | `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` |
-| REBNY skill (auto-loaded at session start) | `.claude/skills/rebny-compliance/SKILL.md` |
+| Mallan product/business/system architecture | `MALLAN-PLATFORM-MASTER-PLAN.md` |
+| Current execution + machine authorization | `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` |
+| Cross-agent discipline | `AGENTS.md` |
+| Compliance implementation map | `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` |
 | Neon / Prisma / DB rules | `NEON.md` |
 | Repo source-of-truth charter | `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` |
-| Trestle field registry (repo reference, not provider authority) | `data/RLS-FIELD-REGISTRY.md` |
-| IDX Plus field CSV (repo reference, not provider authority) | `data/rebny-rls-property-fields.csv` |
-| Picklist values (repo reference, not provider authority) | `data/rebny-rls-property-lookup.csv` |
-| UCBA 2026 rules (extracted from 56-page PDF) | `data/UCBA-2026-Requirements.md` |
-| Syndication research (RLS feeds, vendors, costs, providers) | `data/RLS-Syndication-Research.md` |
-| Trestle live OData $metadata | `artifacts/metadata.xml` |
-| Master refactor plan (10-PR backend rebuild) | `memory/REFACTOR-2026-04-25.md` |
-| Most recent comprehensive audit | `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` |
-| Post-reconciliation tightening audit (Phase A scope rationale) | `docs/idx/post-reconciliation-tightening-audit-2026-05-20.md` |
-| Backend / CRM gap audit | `docs/backend-crm-current-gap-audit-2026-05-18.md` |
-| CRM workflow proof audit | `docs/crm-workflow-proof-audit-2026-05-16.md` |
-| Engineering proof rules | `docs/engineering/pr-verification-checklist.md` · `docs/engineering/vercel-preview-proof-rules.md` |
-| Proof-first guardrails | `docs/operations/proof-first-guardrails.md` |
-| Neon cost / branch policy | `docs/architecture/NEON-COST-CONTROL-POLICY.md` |
-| Neon / Vercel ownership map | `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md` |
-| Mallan exclusives syndication plan (invariants I.1–I.8) | `docs/architecture/MALLAN-EXCLUSIVES-SYNDICATION-PLAN-2026-05-18.md` |
-| MASTER-PROJECT-TREE (file roles, phases, gates) | `MASTER-PROJECT-TREE-v3.3.md` |
-| Master project document | `MALLAN-NYC-CRM-PROJECT.md` |
+| Cotality/Trestle provider truth | Authorized live API + current provider documentation |
+| Vercel truth | Connected Vercel project + current official documentation |
+| Neon truth | Live Neon evidence reconciled to the Vercel-managed resource |
 
----
+Repo snapshots, CSV/XML/JSON mirrors, historical audits, dashboards and handoffs are supporting evidence. They do not outrank the Master, Execution State, or current provider/runtime evidence.
+
 
 ## I. Historical archive pointers
 
