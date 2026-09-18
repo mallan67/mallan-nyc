@@ -25,6 +25,10 @@
 > - **Cotality/Trestle is live authority for fields, strings, permissions, attribution, mapping, search,
 >   resources, media semantics, and API behavior.** Use the authorized live contract + current provider docs.
 >   Repo CSV/XML/JSON mirrors are evidence only.
+> - **Cotality access path is already in the repo.** `.mcp.json` → `trestle-fields` MCP using
+>   `IDX_CLIENT_ID`, `IDX_CLIENT_SECRET`, `TRESTLE_API_URL`; runtime OAuth is `lib/idx/auth.ts`
+>   (`client_credentials`, scope `api`, provider-returned `expires_in`). Verify against those live
+>   paths before repeating any field/enum/permission/API claim.
 > - **Do not run `rotate-db-keys` or mutate env/Neon settings without Maya's explicit authorization.**
 ---
 
