@@ -18,6 +18,13 @@ const CONTROL_START = "<!-- MALLAN_EXECUTION_CONTROL_V1_START -->";
 const CONTROL_END = "<!-- MALLAN_EXECUTION_CONTROL_V1_END -->";
 const BOOTSTRAP_PR = "632";
 
+const IMMUTABLE_CONTROL_PATHS = new Set([
+  "scripts/ci/mallan-execution-control.mjs",
+  ".github/workflows/authority-root.yml",
+  ".github/workflows/branch-authority.yml",
+  ".github/workflows/pr-check.yml"
+]);
+
 const BOOTSTRAP_ALLOWED = new Set([
   "AGENTS.md",
   "CLAUDE.md",
@@ -34,7 +41,8 @@ const BOOTSTRAP_ALLOWED = new Set([
   "tests/runtime/agent-authority-live-source.test.ts",
   "tests/runtime/mallan-execution-control.test.ts",
   ".github/workflows/pr-check.yml",
-  ".github/workflows/branch-authority.yml"
+  ".github/workflows/branch-authority.yml",
+  ".github/workflows/authority-root.yml"
 ]);
 
 function git(args) {
@@ -259,6 +267,17 @@ function main() {
     validateControl(control);
   } catch (error) {
     fail("Base execution contract is invalid: " + error.message);
+  }
+
+  const controlRootChanges = changedPaths.filter((filePath) =>
+    IMMUTABLE_CONTROL_PATHS.has(filePath)
+  );
+  if (controlRootChanges.length) {
+    fail(
+      "PR attempts to modify the immutable execution-control root:\n" +
+      controlRootChanges.map((filePath) => "  - " + filePath).join("\n") +
+      "\nControl-root maintenance requires an explicit out-of-band governance procedure."
+    );
   }
 
   if (baseBranch !== control.base_branch) {
