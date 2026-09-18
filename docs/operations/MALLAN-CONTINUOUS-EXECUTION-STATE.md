@@ -50,67 +50,81 @@ AUTHORITATIVE SOURCE
 
 ---
 
-# 1. Master Plan recovery / convergence
+# 1. Master Plan convergence
 
-PR #595 created the canonical Master Plan and this execution-state concept. It never merged to `main`.
+PR #595 established the original canonical Master Plan and the Continuous Execution State concept. It is the provenance of the authority model, but the current Master is now an **integrated successor**, not a byte-for-byte copy of the #595 blob.
 
-The exact final PR #595 Master blob:
+Current canonical Master on PR #632:
 
-- source branch: `agent/publish-mallan-platform-master-plan-2026-08-04`
-- blob SHA: `37bf76f239ee178e37c696c35ae1183cdaa6f806`
-- 2,147 lines / 27 durable top-level sections
+- path: `MALLAN-PLATFORM-MASTER-PLAN.md`
+- current blob: `02d9ec8a88febb2c6c64a0b3c500b319d8db05f9`
+- current size: 7,205 lines / 372,383 characters
+- still one file / one authority
 
-That exact Master has now been recovered onto PR #632 without replacing it with the later 6,000+ line working copies.
+The current Master deliberately converges the durable content from:
 
-The Master currently covers:
+1. PR #595 Master — blob `37bf76f239ee178e37c696c35ae1183cdaa6f806`;
+2. `masterplan-cotality-section` — detailed Cotality operating contract, blob `8f7cbbeb11c302a7a6ab7169e5f6ccde8d61f26b`;
+3. `fix/cotality-provider-boundary-2026-08-23` — provider-boundary evolution, blob `5aa527ed4cd6c4e807716e3549b1c2d6f5ed86e9`;
+4. `converge/crm-listing-workflow-2026-09-09` working Master — business/workflow backbone, blob `854de1b6da1a161886dc32e0045757845445d2ef`;
+5. later durable 2026-09 requirements verified from the repo/project conversation, including Listing Intake, Open House By Appointment, three CMA presentations over one engine, Agent/Brokerage policy, client-data disposition, source resilience, Git/Vercel→Neon operating paths and base-authority execution control.
 
-- one Mallan operating system;
-- Party / contact / role identity;
-- Property / Building / Unit / Listing identity;
-- Mallan-authored vs Cotality read-only authority;
-- Search;
-- CMA / Property Intelligence;
-- Listing / Opportunity Workspace;
-- calculators / decision support;
-- marketing / e-blast / share;
-- listing reporting;
-- communications / documents / agreements / media;
-- Seller, Landlord, Buyer, Tenant and Investor/1031 journeys;
-- Agent support / My Business;
+Transient CURRENT HANDOFF material, old PR/branch priorities, historical scores and mutable provider/environment counts were **not** promoted as durable architecture. Where older provider measurements were retained because they encode failure modes already paid for, the Master explicitly requires live re-verification before implementation.
+
+The integrated Master now includes, as one organized system:
+
+- Mallan mission/capability-admission rule;
+- Party/Entity identity and client-data lifecycle/disposition;
+- Property/Building/Unit/Listing identity and source observations;
+- Mallan-authored vs third-party edit authority;
+- supplemental/private inventory and Schedule A;
+- full professional Search foundation including Basic/Advanced/Building/Map;
+- one CMA engine and three presentation modes;
+- Sale/Rental Listing Intake and tools;
+- Backend Listing Workspace;
+- calculators;
+- Marketing/e-blast/share;
+- **Seller and Landlord reports sourced from the live canonical Listing/activity graph**;
+- communications/comments/tasks/calendar;
+- agreements/disclosures/documents/Offering Plans/media;
+- Seller/Landlord/Buyer/Tenant/Investor/1031 journeys;
+- Agent onboarding/professional policy/profile;
 - Brokerage View;
-- Leads / relationship lifecycle;
-- commissions / referrals / tax administration;
-- transactions / deal support;
-- provider / source / compliance governance;
-- contextual AI;
-- product/navigation/client/public experience;
-- requirement governance;
-- one continuous development sequence;
-- global Definition of Done;
-- production recovery / impact graph / one-writer / independent-proof / exact-head execution control.
+- leads/relationship protection/money/commissions/referrals;
+- transactions;
+- Cotality provider operating method;
+- source resilience/drift governance;
+- System Intelligence/contextual AI;
+- Agent/Client/Public product experience;
+- actual business-completeness ownership matrix;
+- continuous development + Definition of Done;
+- permanent independent verification;
+- base-authority execution control, impact-graph requirement and no-parallel-path rule;
+- GitHub authority;
+- Vercel authority;
+- Neon-through-Vercel authority;
+- environment/database authority.
 
-**Known limitation:** Maya has stated that the business section is not fully finished. That owner statement supersedes any older conclusion that reconciliation meant the business plan itself was complete. It does not create permission for another Master. Future business additions amend the same canonical Master through an explicit authority-update packet.
+This convergence does **not** mean the business can never evolve. Any newly approved durable business requirement amends this same Master. It never creates a second Master.
 
-## 1.1 PR #595 ten-file disposition
+## 1.1 PR #595 file disposition
 
-PR #595 changed ten governance files. They were reviewed as a package; they are **not** all copied blindly because several are stale, redundant or historical.
+PR #595's supporting files remain reconciled as follows:
 
-| #595 file | 2026-09-18 disposition |
+| #595 file | Current disposition |
 |---|---|
-| `MALLAN-PLATFORM-MASTER-PLAN.md` | **RECOVERED EXACTLY.** Blob `37bf76f239ee178e37c696c35ae1183cdaa6f806`; sole durable architecture authority. |
-| `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` | **RECREATED CURRENT.** #595's September-10 branch/runtime state is evidence only; this file replaces it with current Git/provider/control facts. |
-| `AGENTS.md` | **RECONCILED, NOT COPIED.** Current main discipline + #595 authority ordering + 2026-09-18 GitHub/provider corrections. |
-| `CLAUDE.md` | **RECONCILED, NOT COPIED.** Current operational guidance retained where valid; Master/Execution State now come first; stale current-status prose removed. |
-| `AI-START-HERE.md` | **NOT RECOVERED.** It is a subordinate pointer file, absent from current main and not required by the machine execution gate. Adding another startup layer would recreate pointer sprawl. |
-| `MALLAN-CANONICAL-REQUIREMENT-LEDGER.md` | **NOT RECOVERED IN BOOTSTRAP.** It is explicitly subordinate to the Master. Its useful stable-ID/business material can be reconciled during the later business-completeness amendment instead of becoming a second authority now. |
-| `docs/claude-instructions/CURRENT.md` | **NOT RECOVERED.** Redundant execution pointer; the one Execution State is the current-state owner. |
-| `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` | **CURRENT MAIN RETAINED.** Do not overwrite a newer specialized implementation index with a diverged #595 copy. Compliance remains subordinate to the Master and current authoritative rules/provider contract. |
-| `docs/architecture/archive/MALLAN-PLATFORM-MASTER-PLAN-v5-SUMMARY.md` | **HISTORICAL ONLY.** Not needed in the active authority path. |
-| `docs/operations/MALLAN-JULY6-RECOVERY-EVIDENCE-2026-08-11.md` | **HISTORICAL EVIDENCE ONLY.** Not promoted into current execution authority. |
+| `MALLAN-PLATFORM-MASTER-PLAN.md` | **PROVENANCE + INTEGRATED.** #595 supplied the original authority; later durable Master additions are now merged into the same canonical file. |
+| `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` | **RECREATED CURRENT.** Mutable September-10 execution facts were not copied as current truth. |
+| `AGENTS.md` | **RECONCILED.** Subordinate entry discipline points first to Master + Execution State. |
+| `CLAUDE.md` | **RECONCILED.** Subordinate Claude instructions point first to Master + Execution State/live authorities. |
+| `AI-START-HERE.md` | **NOT PROMOTED.** Avoids another startup/authority layer. |
+| `MALLAN-CANONICAL-REQUIREMENT-LEDGER.md` | **NOT A SECOND AUTHORITY.** Stable-ID concepts are represented by §24 governance/completeness rules; future requirement indexing remains subordinate to the Master. |
+| `docs/claude-instructions/CURRENT.md` | **NOT PROMOTED.** One Execution State owns current status. |
+| `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` | **CURRENT SPECIALIZED INDEX RETAINED.** Subordinate to Master + current governing rules/provider contract. |
+| archived Master summary | **HISTORICAL EVIDENCE ONLY.** |
+| July recovery evidence | **HISTORICAL EVIDENCE ONLY.** |
 
-This disposition is the controlled reconciliation of #595. No other #595 file becomes authority merely because it was in that PR.
-
----
+No historical #595 support file becomes a competing authority merely because it was once in the PR.
 
 # 2. Current Git / branch reality
 
