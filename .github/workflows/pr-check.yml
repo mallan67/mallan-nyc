@@ -42,11 +42,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          # Execution control compares HEAD against the PR base authority.
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: "24"
+
+      - name: Mallan execution control
+        env:
+          GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node scripts/ci/mallan-execution-control.mjs
 
       - name: Cache node modules
         uses: actions/cache@v5

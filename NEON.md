@@ -8,17 +8,30 @@
 
 > **PITR / history retention is 6 hours (21600 s), live-verified 2026-07-05 — NOT 7 days.** Earlier revisions of this file claimed "7 days" sourced from Neon's plan documentation, never from the live setting; that was drift (OPS-016). 7-day PITR *is* available on the Launch plan but is not the current setting — see §2.1 for the verified value and the exact (Maya-gated) command to raise it.
 
-> ## 🛑 AGENT STOP — Neon/Vercel database facts (read before ANY db / Neon / Vercel / deploy action)
+> ## 🛑 AGENT STOP — Neon/Vercel database authority
 >
-> - **Canonical production data = `hidden-mountain-87248164` / "neon-green-school" / `ep-cold-waterfall-adno3ao2` / branch `main` (`br-crimson-frog-adr7g9gt`).**
-> - **`morning-bread-68708332` / "mallandb" / `ep-royal-dawn-ad6eh8t2` (`br-old-tree-admdlb9z`) is STALE / DO-NOT-SERVE.** Never treat it as production.
-> - **`round-recipe-12208101` / "neon-green-door" is NOT connected to mallan-nyc.** Leave it alone.
-> - **The only Vercel store bound to mallan-nyc is `store_K9l79ICRUTMsiRh2` → hidden-mountain** (Vercel store-API verified 2026-06-03). **No Vercel store binds `morning-bread`.**
-> - **DO NOT run `rotate-db-keys`** — schedule disabled; it targets morning-bread/royal-dawn and would re-break production. Re-enable only after retarget to cold-waterfall + a fail-closed host guard.
-> - **DO NOT prune `morning-bread` to "fix" the Vercel "Branch limit exceeded" check.** It is a STALE/FALSE Vercel-side status against hidden-mountain (which is 2/5000). Verify with: live Neon branch count + deployment `state=READY` + `/api/health` 200. Real fix = Vercel support.
-> - **DO NOT create Neon branches from stale / test / wip / probe Git branches.** "Create Database Branch for Production" stays **OFF**; "Require Active Resource Before Deploy" stays **OFF** until Vercel resolves the false check.
-> - Full evidence: `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`.
-
+> - **Repository work is GitHub-only.** Do not use Desktop worktrees/mirrors as current state.
+> - **Canonical Production:** Vercel Marketplace resource `neon-green-school` /
+>   `store_K9l79ICRUTMsiRh2` → Neon project `hidden-mountain-87248164` → branch `main`
+>   (`br-crimson-frog-adr7g9gt`) → endpoint `ep-cold-waterfall-adno3ao2`.
+> - **Stale / DO-NOT-SERVE:** `morning-bread-68708332` / `ep-royal-dawn-ad6eh8t2`. Keep its
+>   refusal identity in safety code; never target it for Mallan runtime.
+> - **Do not state `round-recipe-12208101` ownership/connectivity as fact.** It is not visible in the
+>   currently accessible Neon orgs, so its current state is UNVERIFIED.
+> - **Measured 2026-09-18:** `hidden-mountain` has exactly one branch ever, `main`, even when deleted
+>   branches are included. Current Production preview-branch provisioning has therefore created zero
+>   branches in this project.
+> - **Measured 2026-09-18:** Vercel Production `NEON_API_KEY` and `NEON_PROJECT_ID` exist by name but
+>   have empty effective values. The prune cron therefore returns 503 / `status: skipped` before
+>   `pruneBranches()`; an audit row alone is not proof that pruning occurred.
+> - **Vercel is the entry path for the managed Neon resource.** Use
+>   `vercel integration open neon neon-green-school` for SSO into the bound Neon project. Reconcile
+>   direct Neon reads to this exact Vercel binding before treating them as Mallan truth.
+> - **Do not create a normal child branch from Production for Development.** Any approved Development
+>   branch must use the explicitly approved schema-only/root mechanism so Production rows/auth material
+>   are not cloned.
+> - **Do not mutate env, Neon settings, branch protection, pruning, rotation, or resource bindings without
+>   Maya's explicit authorization.**
 ---
 
 ## 1. The single most important rule
@@ -367,49 +380,96 @@ https://console.neon.tech → Project → Usage shows compute-hours used this mo
 
 ---
 
-## 11. Preview-branch integration architecture
+## 11. Vercel ↔ Neon integration — current measured state
 
-### What's installed
+### Bound resource
 
-The Neon-Vercel marketplace integration is installed on this project (Vercel-managed flavor, resource id `store_K9l79ICRUTMsiRh2`, scope `mallan-nyc`). The Vercel UI surface lists two Neon products:
-- **`neon-green-school`** — Active, connected to `mallan-nyc`, All Environments. Underlying Neon project id `hidden-mountain-87248164`. This is where preview branches accumulate.
-- **`neon-green-door`** — Visible but NOT connected to `mallan-nyc`. Leave alone.
+The Mallan Vercel project has one active Neon Marketplace resource:
 
-By default the integration creates a **fresh Neon branch on every preview deploy** so PR previews can write to a throwaway DB without touching production data.
+- Vercel project: `mallan-nyc`
+- resource: `neon-green-school`
+- Vercel store id: `store_K9l79ICRUTMsiRh2`
+- Neon project: `hidden-mountain-87248164`
+- Production branch: `main` / `br-crimson-frog-adr7g9gt`
+- Production endpoint identity: `ep-cold-waterfall-adno3ao2`
 
-### Why hygiene still matters on the Launch plan
+Administrative/dashboard access to this Vercel-managed resource starts from Vercel SSO:
 
-The Launch plan caps at **5000 branches per Neon project** — comfortable headroom against any realistic accumulation rate (steady-state baseline at time of writing is ~8). The 11th-preview-of-the-day collision that existed under Free tier no longer applies.
+```bash
+vercel integration open neon neon-green-school
+```
 
-However, idle preview branches still represent operational debt + cost on the Launch plan: each unused branch consumes a small amount of storage + occasional metadata churn. Letting them accumulate indefinitely is sloppy. So the cleanup discipline established under Free remains active under Launch, with a re-framed motivation: **hygiene + cost-control**, not cap-avoidance.
+The Vercel CLI manages the Marketplace binding/environment connection. Objects *inside* the Neon project
+(branches, databases, roles) are Neon objects. Do not create a second unmanaged Neon project merely to
+work around the binding.
 
-### Resolution — automated cleanup, retained as hygiene
+### Branch reality — measured 2026-09-18
 
-We keep the integration (preview isolation is genuinely useful) and run a daily prune that deletes preview branches idle for more than the retention window. With a 24-hour retention and roughly 1–3 deploys per active PR per day, the steady-state branch count stays near the ~8 baseline.
+Live Neon enumeration with deleted branches included shows **exactly one branch has ever existed in
+`hidden-mountain-87248164`: `main`**. Therefore the current project's Preview integration has not been
+creating Neon branches and no "created then pruned" explanation fits this project.
 
-| Layer | What it does |
-|---|---|
-| `lib/neon/branches.ts` | Pure helpers: `listBranches`, `deleteBranch`, `isPrunable`, `pruneBranches`. Talks to `console.neon.tech/api/v2`. Never touches branches flagged `primary` or `protected`. |
-| `scripts/neon-prune-branches.ts` (`npm run ops:neon-prune` / `:execute`) | One-shot CLI. Default dry-run; `--execute` deletes; `--hours=N` overrides the 24h retention. Lets an operator verify the cron's nightly decision before it runs. |
-| `app/api/cron/neon-branch-prune/route.ts` | Vercel Cron at `0 4 * * *` UTC. Calls the same `pruneBranches` helper with retention=24h, execute=true. Skips cleanly with a structured 200 if `NEON_API_KEY` / `NEON_PROJECT_ID` aren't set on the Vercel env. |
+Historical Vercel-created Preview branches exist in the stale personal/free project
+`morning-bread-68708332`; they are historical evidence, not current Production architecture.
 
-### Required Vercel env vars
+Do not write prose such as "Preview branches accumulate in hidden-mountain" or "steady-state ~8" unless a
+fresh live enumeration proves it again.
 
-The cron only works with both of these set on the Production env (Vercel Crons fire on production deploys only):
+### Vercel database variable ownership — measured 2026-09-18
 
-- `NEON_API_KEY` — generate at https://console.neon.tech/app/settings/api-keys, scope **Project**, write access.
-- `NEON_PROJECT_ID` — visible at the top of https://console.neon.tech/app/projects/{slug}/settings.
+- Prisma/runtime reads the **bare** `DATABASE_URL` / `DATABASE_URL_UNPOOLED`.
+- Vercel's Neon Marketplace integration owns the prefixed `database_*` family. Do not manually map or
+  copy the prefixed values into the bare Prisma names.
+- Production bare DB URLs resolve to canonical `ep-cold-waterfall-adno3ao2`.
+- Development bare DB URLs also resolve to Production today; this is a known authority defect being
+  corrected under the database-authority program.
+- Generic Preview bare DB URLs are absent/fail-closed. Historical Git-branch Preview overrides exist and
+  must be separately reconciled/removed; do not treat them as provider-managed branches.
+- `database_NEON_PROJECT_ID` identifies `hidden-mountain-87248164`; the bare `NEON_PROJECT_ID`
+  must not be inferred from that integration-owned value.
 
-Set both via `vercel env add NEON_API_KEY production` and `vercel env add NEON_PROJECT_ID production`, or the dashboard. Without them, the cron exits 200 with `skipped: true, reason: "..."` so it's visible in cron logs without failing the run.
+Always re-read Vercel before mutation. Variable **presence in `vercel env ls` is not proof of a usable
+value**; empty encrypted values have existed here.
 
-### Re-enabling considerations
+### Prune path — currently inert, fail-closed
 
-Do not remove this cron without first considering:
-- Disabling the Neon-Vercel preview-branching toggle (Vercel → Project → Integrations → Neon → Configure) — note: doing so routes preview deploys at the production DB, which is **unsafe** without a thorough audit of every preview-callable write path. See `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`.
-- Relying solely on Vercel's own auto-cleanup (180-day deployment retention default) — note: opaque, vendor-dependent, no operational visibility on our side.
+`app/api/cron/neon-branch-prune/route.ts` requires both `NEON_API_KEY` and `NEON_PROJECT_ID`.
+Measured 2026-09-18, both effective Production values are empty. The route therefore:
 
-The Launch plan removed the hard 10-branch-cap failure mode that existed under Free, but the cron remains useful for hygiene + cost-control. Removal should be a deliberate trade-off, not a default.
+1. authenticates the cron request;
+2. writes a `neon_branch_prune_cron` audit event with `status: "skipped"` / `reason: "missing_env"`;
+3. returns HTTP 503;
+4. does **not** call `pruneBranches()`.
 
-### `NEON_PROJECT_ID` note
+Consequences:
 
-`NEON_PROJECT_ID` on Vercel Production still names the legacy `morning-bread-68708332` project — a no-op for the prune cron. Do **not** treat `morning-bread` as production: canonical production is `hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2` (see the AGENT STOP box at the top of this file).
+- an audit event is not proof a deletion pass ran;
+- `ops:health` must not infer successful pruning from the audit action alone;
+- the cron is safe from accidental deletion in this state, but it is not maintaining branches;
+- do not arm it merely to make health green. Its project model/auth/Preview lifecycle belong to the
+  dedicated cron/control-plane hardening packet.
+
+The standalone `scripts/neon-prune-branches.ts` path remains reachable when an operator explicitly
+supplies valid authority; Packet 1's fail-closed `isPrunable()` corrections therefore protect a real path.
+
+### Development branch rule
+
+The approved Development topology is **not another Neon project**. If/when Packet 2A creates Development,
+it must be one durable **schema-only root branch** inside `hidden-mountain-87248164`, reached through the
+existing Vercel-managed resource. A normal `parent-data` child branch is forbidden because it clones
+Production rows, including auth/session material.
+
+Before any Development branch is wired into Vercel:
+
+- verify its Neon record reports the schema-only initialization mode;
+- prove Production rows/PII/auth tokens were not copied;
+- record its endpoint identity in the existing approved-nonproduction authority declaration;
+- then repoint only the Development-scoped bare Prisma URLs.
+
+Do not enable generic Preview branching as part of that operation.
+
+### Production branch protection
+
+Production `main` is currently not protected. Protection is a separate, explicitly authorized
+control-plane change (Packet 2A.1), not something to bundle into Development creation. Verify workflow
+compatibility first, then prove Production endpoint/deployment behavior remains unchanged after any change.
