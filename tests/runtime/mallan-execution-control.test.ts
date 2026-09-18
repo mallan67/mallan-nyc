@@ -243,4 +243,17 @@ describe("Mallan execution-control gate", () => {
     expect(allowed.status).toBe(0);
     expect(allowed.stdout).toContain("Bootstrap PR #632");
   });
+  test("branch authority allows only main and the base-state authorized work branch", () => {
+    const cwd = initRepo();
+
+    const allowed = run("node", [GATE, "--branch-created", "work/active"], cwd);
+    expect(allowed.status).toBe(0);
+    expect(allowed.stdout).toContain("Created branch is authorized");
+
+    const denied = run("node", [GATE, "--branch-created", "fix/another-detour"], cwd);
+    expect(denied.status).toBe(1);
+    expect(denied.stderr).toContain("Unauthorized branch creation");
+    expect(denied.stderr).toContain("work/active");
+  });
+
 });
