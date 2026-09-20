@@ -286,6 +286,38 @@ describe("Mallan execution-control gate", () => {
     expect(result.stderr).toContain("Only " + STATE + " may change");
   });
 
+  // The half that matters AFTER this PR merges. The existing test proves no other PR can
+  // bootstrap; this one proves that PR 632's own number stops granting anything the
+  // moment base carries the authority files. Without it, the bootstrap exception's
+  // self-closing property is a claim in a comment rather than a tested fact, and it is the
+  // single widest exception in this gate.
+  test("PR 632 gets no exception once base carries the authority files", () => {
+    const cwd = initRepo(baseControl());
+    write(cwd, "lib/outside/scope.ts", "export const x = 1;" + String.fromCharCode(10));
+    git(cwd, "add", "lib/outside/scope.ts");
+    git(cwd, "commit", "-m", "a path outside the packet scope");
+    const res = gate(cwd, { MALLAN_PR_NUMBER: "632" });
+    expect(res.status).not.toBe(0);
+    // Refused as an ordinary out-of-scope packet, NOT waved through as a bootstrap.
+    expect(res.stdout).not.toContain("Bootstrap PR #632");
+    expect(res.stderr).not.toContain("Bootstrap PR #632");
+  });
+
+  // And the chain still applies to it, which is the other thing the bootstrap branch
+  // suspends. A database change claiming PR 632 must declare every station like any other.
+  test("PR 632 is chain-gated once base carries the authority files", () => {
+    const control = baseControl({
+      authorized_paths: ["prisma/schema.prisma"],
+      impact_domains: ["schema"],
+      schema_migration_authorized: true,
+    });
+    const cwd = initRepo(control);
+    touchSchema(cwd, "db change claiming the bootstrap PR number");
+    const res = gate(cwd, { MALLAN_PR_NUMBER: "632" });
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("database_impact_chain");
+    expect(res.stdout).not.toContain("Bootstrap PR #632");
+  });
   test("only PR 632 can bootstrap when base lacks the authority files", () => {
     const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "mallan-bootstrap-"));
     git(cwd, "init", "-b", "main");
