@@ -9,7 +9,12 @@
 **Checkpoint:** 2026-09-20  
 **Repository:** `mallan67/mallan-nyc` only  
 **Canonical branch:** `main`  
-**Current main:** `005786e71818ef13f555111de67e3d6248412987`  
+**Main at this checkpoint:** `005786e71818ef13f555111de67e3d6248412987` — the PR #632 merge
+commit, which is the commit this checkpoint describes. **This is not a claim about the current
+tip of `main` and must never be read as one.** Updating this file necessarily advances `main`
+past whatever SHA it records, so a literal current-main field here self-stales the moment it
+merges. §1 already forbids persisting mutable fingerprints for exactly this reason. **Read the
+live tip from GitHub.**  
 **Active governance convergence PR:** none. PR #632 MERGED 2026-09-20T17:53:22Z as `005786e71818ef13f555111de67e3d6248412987`  
 **Checkpoint source head:** `fb100d6a12f572d78aaac0ec152c4cc57ac6ce74` (final #632 head; all checks green, zero unresolved review threads). Current head must always be read live from GitHub  
 **Authorized work surface:** GitHub repository + explicitly authorized provider connections only; Desktop/worktrees/scratch copies are not execution authority  
@@ -129,15 +134,18 @@ PR #595's supporting files remain reconciled as follows:
 
 No historical #595 support file becomes a competing authority merely because it was once in the PR.
 
-# 2. Current Git / branch reality
+# 2. Git / branch reality at this checkpoint
 
 ## Main
 
-`main = 005786e71818ef13f555111de67e3d6248412987`
+**This section records checkpoint data, not the live tip.** Read the current tip from GitHub.
+No SHA written into this file can be the live tip, because merging this file moves `main` past
+whatever it records.
 
-That commit merged PR #632, the integrated Master + execution control convergence. The
-preceding main, `bba9d8d6c92bb3bfe95b9f4b90da69534650c276`, merged PR #631 (Database
-Authority Safety Packet 1) and is now history.
+The commit this checkpoint describes is `005786e71818ef13f555111de67e3d6248412987`, which merged
+PR #632, the integrated Master + execution control convergence. The commit before it,
+`bba9d8d6c92bb3bfe95b9f4b90da69534650c276`, merged PR #631 (Database Authority Safety Packet 1).
+Both are history; neither is a claim about where `main` points now.
 
 ## PR #631 — CLOSED
 
@@ -741,7 +749,7 @@ required check, so implementation mode remains blocked by policy.**
 | fact | value |
 |---|---|
 | PR #632 | MERGED 2026-09-20T17:53:22Z |
-| merge commit / current main | `005786e71818ef13f555111de67e3d6248412987` |
+| #632 merge commit (NOT the live tip) | `005786e71818ef13f555111de67e3d6248412987` |
 | final reviewed head | `fb100d6a12f572d78aaac0ec152c4cc57ac6ce74` |
 | PR #595 | CLOSED 2026-09-20T17:54:35Z, unmerged, superseded |
 | unresolved review threads on #632 | 0 |
