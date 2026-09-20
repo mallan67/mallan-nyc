@@ -50,7 +50,7 @@ Categories: **FEED** = feed-sync · **MEDIA** = media pipeline · **COMP** = com
 | 18 | `/api/cron/experiment-metrics` | `0 2 * * 0` (weekly Sun) | CRM | Reads engagement KPIs for active experiments; writes aggregates. Calls `batchComputeExperimentMetrics` (`lib/experiment/metrics`) + AuditEvent. `maxDuration 60`. | Engagement data |
 | 19 | `/api/cron/agent-metrics` | `0 12 * * 1` (weekly Mon) | CRM | Reads 6-month agent performance data; writes index. Calls `batchReindex` (`lib/agent-performance/indexer`) + AuditEvent. `maxDuration 60`. | Deal/listing history |
 | 20 | `/api/cron/market-snapshots` | `0 6 1 * *` (monthly) | CRM | Reads listing/market stats; writes neighborhood snapshots. Calls `batchComputeSnapshots` (`lib/market-pulse/snapshot`) + AuditEvent. `maxDuration 60`. | Listing facts |
-| 21 | `/api/cron/neon-branch-prune` | `0 4 * * *` | INFRA | Reads Neon API branch list (`NEON_API_KEY`/`NEON_PROJECT_ID`, canonical-project guard); deletes idle preview branches. Calls `pruneBranches` (`lib/neon/branches`) + `neon_branch_prune_cron` AuditEvent on every path. `maxDuration 60`. | None (Neon control plane, not data) |
+| ~~21~~ | ~~`/api/cron/neon-branch-prune`~~ **DELETED 2026-09-20** | — | — | Historical row. Read the Neon API branch list (`NEON_API_KEY`/`NEON_PROJECT_ID`, canonical-project guard); deletes idle preview branches. Calls `pruneBranches` (`lib/neon/branches`) + `neon_branch_prune_cron` AuditEvent on every path. `maxDuration 60`. | None (Neon control plane, not data) |
 
 Key dependency edges:
 
@@ -103,7 +103,7 @@ One orchestrator route `/api/cron/nightly-batch` invokes members sequentially:
 | 15 | **weekly: experiment-metrics** (Sun only) / **agent-metrics** (Mon only) | Day-of-week gate inside the orchestrator (`if (day === 0/1)`). Pure aggregates; slotted after the scorers, before lifecycle, no downstream deps. |
 | 16 | **monthly: market-snapshots** (1st only) | Day-of-month gate. Aggregates listing facts; no downstream deps. |
 | 17 | **lifecycle-triggers** | LAST business member — its own header requires fresh lead-scoring, conviction-scores, and listing-momentum. Fires the outbound notifications/emails once everything upstream is current. |
-| 18 | **neon-branch-prune** | INFRA, no data dependencies; runs last so a Neon control-plane hiccup can never block compliance or CRM members. |
+| ~~18~~ | ~~**neon-branch-prune**~~ **DELETED 2026-09-20** | Historical row. The job no longer exists; nothing schedules it and nothing may recreate it. |
 
 ---
 
@@ -208,7 +208,10 @@ No data changes are involved in W2 — rollback is purely a schedule restore:
 ```json
 "crons": [
   { "path": "/api/cron/data-retention", "schedule": "0 3 * * *" },
-  { "path": "/api/cron/neon-branch-prune", "schedule": "0 4 * * *" },
+  // REMOVED 2026-09-20: /api/cron/neon-branch-prune no longer exists. The route, its
+  // helper module and this schedule were deleted with the rest of the direct-Neon
+  // control plane. Do not re-add this line — it would schedule a route that is gone,
+  // and the capability it had is prohibited, not merely retired.
   { "path": "/api/cron/feed-reconcile", "schedule": "30 3 * * *" },
   { "path": "/api/cron/dom-reset", "schedule": "0 6 * * *" },
   { "path": "/api/cron/idx-sync", "schedule": "*/30 * * * *" },

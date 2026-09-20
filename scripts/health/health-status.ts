@@ -77,3 +77,35 @@ export function cotalityOutcomeCell(
   if (lastRunStatus === "ok") return { status: "🟢", evidence: "last_run_status=ok, rows_with_errors=0" };
   return { status: "⚪", evidence: `unrecognized last_run_status=${lastRunStatus}` };
 }
+
+/**
+ * Which commit `main` is on. The remote-tracking ref is the answer; the LOCAL main branch is
+ * whatever that clone last fetched, and on a working clone it is routinely behind — it was 89
+ * commits behind when this was found, so the dashboard was publishing a developer's stale branch
+ * as the state of main.
+ *
+ * A local-only reading is not refused, because a clone without a remote is a legitimate place to
+ * run the probe. It is LABELLED and marked unverified, so a value of unknown freshness is never
+ * presented as current.
+ */
+export function mainHeadCell(
+  originSha: string | null,
+  localSha: string | null,
+  branch: string,
+): { status: HealthStatus; evidence: string } {
+  if (originSha) {
+    return {
+      status: "🟢",
+      evidence: `main \`${originSha}\` (origin/main); probed from branch \`${branch}\``,
+    };
+  }
+  if (localSha) {
+    return {
+      status: "⚪",
+      evidence:
+        `\`${localSha}\` read from the LOCAL main branch because origin/main was unavailable — ` +
+        `freshness unknown; probed from branch \`${branch}\``,
+    };
+  }
+  return { status: "⚪", evidence: "no main ref available" };
+}

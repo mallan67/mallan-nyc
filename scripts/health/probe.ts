@@ -2,8 +2,8 @@
  * Read-only Project Health probe — refreshes the AUTO-PROBED block of
  * docs/PROJECT-HEALTH-DASHBOARD.md (between the HEALTH:AUTO markers).
  *
- * STRICTLY READ-ONLY against every live system. It shells out to read-only `git`, `gh`, and
- * `neonctl` commands, parses vercel.json, and (only if a canonical DATABASE_URL is present) runs a
+ * STRICTLY READ-ONLY against every live system. It shells out to read-only `git` and `gh`,
+ * parses vercel.json, and (only if a canonical DATABASE_URL is present) runs a
  * few read-only COUNT/MAX queries. It NEVER writes to production, env, cron, or Neon — the ONLY file
  * it writes is the dashboard markdown. Any probe that fails (tool missing / not authed / offline)
  * degrades to ⚪ UNVERIFIED rather than throwing, so a partial refresh is still honest.
@@ -17,7 +17,7 @@ import { execSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import dotenv from "dotenv";
-import { dbGrowthCell, cotalityFreshnessCell, cotalityOutcomeCell } from "./health-status";
+import { dbGrowthCell, cotalityFreshnessCell, cotalityOutcomeCell, mainHeadCell } from "./health-status";
 
 // NO override: a shell-supplied env (the operator's explicit canonical `DATABASE_URL_UNPOOLED=… npm
 // run health:probe`) must WIN over a possibly-stale workstation .env.local (Codex #466).
@@ -29,9 +29,10 @@ const AUTO_START = "<!-- HEALTH:AUTO:START -->";
 const AUTO_END = "<!-- HEALTH:AUTO:END -->";
 
 // Canonical Neon identity (mirror of AGENTS.md / CLAUDE.md — the probe fails closed if these drift).
-const NEON_PROJECT = "hidden-mountain-87248164";
-const NEON_ORG = "org-wild-king-99967357";
-const NEON_DEFAULT_BRANCH = "br-crimson-frog-adr7g9gt";
+// Neon identifiers are NOT hard-coded here any more. They were consumed only by the
+// direct-provider probes deleted on 2026-09-20, and a memorized provider identifier is exactly
+// the defect the Master forbids (section 0.12): it outlives the resource it named.
+// Current identity is read through the Vercel binding and recorded in the Execution State.
 const CANONICAL_ENDPOINT = "ep-cold-waterfall-adno3ao2";
 
 function sh(cmd: string): string {
@@ -51,12 +52,16 @@ const cells: Cell[] = [];
 const add = (area: string, status: Status, evidence: string) => cells.push({ area, status, evidence });
 
 // ── 1. Git / main SHA ───────────────────────────────────────────────────────
+// The decision lives in mainHeadCell so it can be tested without a git repository.
 tryProbe(() => {
-  const mainSha = sh("git rev-parse --short main");
   const branch = sh("git rev-parse --abbrev-ref HEAD");
-  add("Repo / main HEAD", "🟢", `main \`${mainSha}\`; probed from branch \`${branch}\``);
+  let originSha: string | null = null;
+  let localSha: string | null = null;
+  try { originSha = sh("git rev-parse --short origin/main"); } catch { originSha = null; }
+  if (!originSha) { try { localSha = sh("git rev-parse --short main"); } catch { localSha = null; } }
+  const cell = mainHeadCell(originSha, localSha, branch);
+  add("Repo / main HEAD", cell.status, cell.evidence);
 }, () => add("Repo / main HEAD", "⚪", "git unavailable"));
-
 // ── 2. Open PRs + #465 gate state ────────────────────────────────────────────
 tryProbe(() => {
   // --limit 200: gh defaults to 30, which would silently undercount the open-PR backlog (Codex #466).
@@ -90,43 +95,14 @@ tryProbe(() => {
     `${norm.length} checks — ${fails} fail, ${pending} pending; review CURRENT HEAD before merge`);
 }, () => add("PR #465 (rehydration guard)", "⚪", "gh checks unavailable"));
 
-// ── 3. Neon canonical identity + rollback branch ─────────────────────────────
-tryProbe(() => {
-  const raw = sh(`neonctl branches list --project-id ${NEON_PROJECT} --org-id ${NEON_ORG} --output json`);
-  const branches = JSON.parse(raw) as Array<{ id: string; name: string; default: boolean; current_state: string }>;
-  const def = branches.find((b) => b.default);
-  const rollback = branches.find((b) => /pre-gate6/.test(b.name));
-  const canonicalOk = def?.id === NEON_DEFAULT_BRANCH;
-  add("Neon canonical identity", canonicalOk ? "🟢" : "🔴",
-    canonicalOk
-      ? `default \`${def!.name}\`=\`${NEON_DEFAULT_BRANCH}\` (${def!.current_state}); ${branches.length} branch(es)`
-      : `DEFAULT BRANCH MISMATCH — expected ${NEON_DEFAULT_BRANCH}, got ${def?.id ?? "none"}`);
-  add("Gate 6 rollback branch", rollback ? "🟢" : "🟡",
-    rollback ? `\`${rollback.name}\` (${rollback.id}) ${rollback.current_state}` : "no pre-gate6 rollback branch present");
-}, () => {
-  add("Neon canonical identity", "⚪", "neonctl unavailable / not authed");
-  add("Gate 6 rollback branch", "⚪", "neonctl unavailable / not authed");
-});
-
-// ── 3b. Neon facts drift gate (OPS-016) — authoritative check = scripts/neon-verify.ts ──
-// Reuses the single source of truth; exit 0 = docs match live, 1 = DRIFT, 2 = UNVERIFIED.
-tryProbe(() => {
-  let code = 0;
-  try {
-    sh("npx tsx scripts/neon-verify.ts");
-  } catch (e) {
-    // A real drift exits 1; an unreachable/unauthed Neon exits 2. If the runner
-    // itself is missing (npx/tsx ENOENT → status undefined), treat as UNVERIFIED
-    // (2, ⚪), not a false DRIFT (🔴).
-    const st = (e as { status?: number }).status;
-    code = typeof st === "number" ? st : 2;
-  }
-  const s: Status = code === 0 ? "🟢" : code === 2 ? "⚪" : "🔴";
-  add("Neon facts drift (neon:verify)", s,
-    code === 0 ? "NEON.md NEON:FACTS block == live Neon (12/12 facts incl. history_retention 21600s)"
-      : code === 2 ? "UNVERIFIED — neonctl not authed/offline (run `npm run neon:verify` locally)"
-        : "DRIFT — NEON.md disagrees with live Neon; run `npm run neon:verify` for the field diff");
-}, () => add("Neon facts drift (neon:verify)", "⚪", "neon:verify unavailable"));
+// ── 3. Neon identity and drift cells — REMOVED 2026-09-20 ───────────────────
+// These two probes reached Neon through the retired direct CLI. Mallan reaches Neon only through
+// the Vercel-managed Marketplace resource, and read-only access does not make an
+// unauthorized path authorized. Vercel exposes no equivalent API for Neon branch
+// topology, plan or retention, so these checks could not be rewired and were
+// deleted rather than left as an unauthorized verifier. Neon identity is
+// established through the Vercel binding and recorded in the Execution State.
+// See the Master, section 0.12.
 
 // ── 4. Cron cadence from vercel.json (schedule = source of truth) ────────────
 tryProbe(() => {

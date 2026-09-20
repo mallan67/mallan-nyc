@@ -30,6 +30,7 @@
  */
 
 const { execSync } = require('child_process');
+const { evaluateRequiredCheckRequirement } = require('./release-safety/release-truth-verdict.js');
 
 // ─── CLI ─────────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
@@ -115,8 +116,8 @@ if (!repo) {
   process.exit(1);
 }
 
-const checkRunsRaw = gh(`api repos/${repo}/commits/${resolvedSha}/check-runs`);
-const statusesRaw = gh(`api repos/${repo}/commits/${resolvedSha}/statuses`);
+const checkRunsRaw = gh(`api repos/${repo}/commits/${resolvedSha}/check-runs?per_page=100`);
+const statusesRaw = gh(`api repos/${repo}/commits/${resolvedSha}/statuses?per_page=100`);
 
 let checkRuns = [];
 let statuses = [];
@@ -127,8 +128,12 @@ try {
       name: c.name,
       status: c.status,
       conclusion: c.conclusion,
+      startedAt: c.started_at,
       completedAt: c.completed_at,
       url: c.details_url,
+      appId: Number.isInteger(c.app?.id) ? c.app.id : null,
+      createdAt: c.started_at || c.completed_at || null,
+      id: Number.isInteger(c.id) ? c.id : null,
     }));
   }
   if (statusesRaw) {
@@ -203,29 +208,284 @@ if (vercelStatus?.state === 'success') {
   evaluation.evaluation.deploy_proof = { source: 'none', state: 'unknown', note: 'Neither legacy Vercel status nor Preview Comments check found' };
 }
 
-// 2. Required check-runs — pr-check, guardrails, claude-review must pass when present
-const REQUIRED_CHECK_NAMES = ['pr-check', 'guardrails', 'claude-review'];
-for (const name of REQUIRED_CHECK_NAMES) {
-  const cr = checkRuns.find((c) => c.name === name);
-  if (!cr) {
-    // P2 correction (fail-closed): a required check that has not appeared yet
-    // is PENDING evidence — its absence must never contribute to DEPLOY_PASS.
-    evaluation.evaluation.required_checks.push({ name, present: false, state: 'absent' });
-    evaluation.evaluation.pending.push(name);
-    continue;
+// 2. Required check-runs — stable Mallan checks plus every status check required
+// by an ACTIVE branch ruleset that actually applies to refs/heads/main.
+// The ref tokens this translator understands. Anything else beginning with ~ is a token
+// from a vocabulary this code does not implement, and must block rather than be read as a
+// branch name that happens not to be main.
+const RULESET_REF_TOKENS = ['~ALL', '~DEFAULT_BRANCH'];
+
+// Syntax the translator does not implement. A character class, a brace list, an extglob
+// group or a negation would be escaped into a literal and could never match, which is
+// indistinguishable from an honest non-match.
+const UNIMPLEMENTED_PATTERN_SYNTAX = /[[\]{}()|!\\]/;
+
+function refPatternIsReadable(pattern) {
+  if (typeof pattern !== 'string' || !pattern.trim()) return false;
+  if (pattern.startsWith('~')) return RULESET_REF_TOKENS.includes(pattern);
+  return !UNIMPLEMENTED_PATTERN_SYNTAX.test(pattern);
+}
+
+function refPatternMatches(pattern, ref) {
+  if (pattern === '~ALL') return true;
+  if (pattern === '~DEFAULT_BRANCH') return ref === 'refs/heads/main';
+  if (typeof pattern !== 'string') return false;
+  // ** crosses path separators, * does not. Leaving both as .* made an exclude of refs/*
+  // swallow refs/heads/main. The double star is parked on a placeholder first so the
+  // single-star rule cannot eat half of it.
+  const DOUBLE_STAR = '\u0000DS\u0000';
+  const escaped = pattern
+    .replace(/\*\*/g, DOUBLE_STAR)
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*/g, '[^/]*')
+    .replace(/\?/g, '.')
+    .split(DOUBLE_STAR).join('.*');
+  return new RegExp('^' + escaped + '$').test(ref);
+}
+
+function rulesetAppliesToMain(ruleset) {
+  if (!ruleset || ruleset.enforcement !== 'active' || ruleset.target !== 'branch') return false;
+  const refName = ruleset.conditions?.ref_name;
+  const includes = Array.isArray(refName?.include) ? refName.include : [];
+  const excludes = Array.isArray(refName?.exclude) ? refName.exclude : [];
+  const ref = 'refs/heads/main';
+  return includes.some((p) => refPatternMatches(p, ref)) &&
+    !excludes.some((p) => refPatternMatches(p, ref));
+}
+
+// The values GitHub documents for these fields. Anything else is not a different answer,
+// it is an answer this code cannot read, and it must block rather than be skipped.
+const RULESET_ENFORCEMENTS = ['active', 'evaluate', 'disabled'];
+const RULESET_TARGETS = ['branch', 'tag', 'push'];
+// The rule types GitHub documents. A value outside this set means the response does not
+// match the schema this code was written against, so it blocks rather than being
+// skipped; every documented type that is not required_status_checks is still skipped.
+const RULESET_RULE_TYPES = [
+  'creation', 'update', 'deletion', 'required_linear_history', 'merge_queue',
+  'required_deployments', 'required_signatures', 'pull_request',
+  'required_status_checks', 'non_fast_forward', 'commit_message_pattern',
+  'commit_author_email_pattern', 'committer_email_pattern', 'branch_name_pattern',
+  'tag_name_pattern', 'file_path_restriction', 'max_file_path_length',
+  'file_extension_restriction', 'max_file_size', 'workflows', 'code_scanning'
+];
+
+function requiredChecksFromApplicableMainRulesets() {
+  // --paginate --slurp: gh emits one JSON array per page and --slurp wraps them in an
+  // outer array. Without pagination a repository with more rulesets than a single page
+  // loses the remainder silently, so discovery would fail OPEN rather than unknown.
+  const raw = gh('api --paginate --slurp --method GET repos/{owner}/{repo}/rulesets -f includes_parents=true');
+  if (!raw) return { ok: false, checks: [], reason: 'ruleset-list-unavailable' };
+
+  let pages;
+  try {
+    pages = JSON.parse(raw);
+  } catch {
+    return { ok: false, checks: [], reason: 'ruleset-list-malformed' };
   }
+  if (!Array.isArray(pages)) {
+    return { ok: false, checks: [], reason: 'ruleset-list-not-array' };
+  }
+  // --slurp yields an array of pages; each page is itself an array of rulesets.
+  // --slurp wraps one array PER PAGE in an outer array, so every outer element must itself
+  // be an array. The previous fallback accepted a non-array page set because typeof [] and
+  // typeof {} are both 'object', so [{}] and [[valid],{}] passed and returned ok:true with
+  // the required rulesets silently dropped. A mixed or non-array shape is now unknown, not
+  // empty, so malformed discovery stays pending instead of failing open.
+  // gh returns [[]] for a repository with no rulesets, so a bare [] is an anomalous
+  // response rather than an honest empty result. Unknown, not empty.
+  if (pages.length === 0) {
+    return { ok: false, checks: [], reason: 'ruleset-list-empty' };
+  }
+  if (!pages.every((page) => Array.isArray(page))) {
+    return { ok: false, checks: [], reason: 'ruleset-list-not-paged' };
+  }
+  const list = pages.flat();
+  if (list.some((item) => item === null || typeof item !== 'object' || Array.isArray(item))) {
+    return { ok: false, checks: [], reason: 'ruleset-list-not-array' };
+  }
+
+  const specs = new Map();
+  for (const item of list) {
+    // Missing is not the same as not-active. A list entry whose own metadata is absent
+    // or the wrong type cannot be read as a ruleset that does not qualify; it is a
+    // ruleset whose qualification is unknown, and unknown is the blocking answer.
+    if (typeof item.enforcement !== 'string' || typeof item.target !== 'string') {
+      return { ok: false, checks: [], reason: 'ruleset-list-item-metadata-missing:' + String(item.id) };
+    }
+    // A string is not an understood value. "activ" is neither active nor a considered
+    // decision not to be; it means this response does not match the schema this code was
+    // written against. Skipping on an unrecognised value is how schema drift silently
+    // suppresses a ruleset, so an unknown value blocks.
+    if (!RULESET_ENFORCEMENTS.includes(item.enforcement)) {
+      return { ok: false, checks: [], reason: 'ruleset-enforcement-unknown:' + String(item.enforcement) };
+    }
+    if (!RULESET_TARGETS.includes(item.target)) {
+      return { ok: false, checks: [], reason: 'ruleset-target-unknown:' + String(item.target) };
+    }
+    // The id addresses the detail request. An absent or malformed one would build a
+    // nonsense URL whose failure is indistinguishable from a real outage.
+    if (!Number.isInteger(item.id) && !(typeof item.id === 'string' && item.id.trim())) {
+      return { ok: false, checks: [], reason: 'ruleset-list-item-id-missing' };
+    }
+    if (item.enforcement !== 'active' || item.target !== 'branch') continue;
+    // The id reaches a shell. Constrain it to digits before it gets there rather than
+    // relying on the id comparison below to catch what a substituted response did.
+    const rulesetId = String(item.id).trim();
+    if (!/^[0-9]+$/.test(rulesetId)) {
+      return { ok: false, checks: [], reason: 'ruleset-list-item-id-malformed:' + rulesetId };
+    }
+    const detailRaw = gh(`api repos/{owner}/{repo}/rulesets/${rulesetId}`);
+    if (!detailRaw) {
+      return { ok: false, checks: [], reason: 'ruleset-detail-unavailable:' + String(item.id) };
+    }
+    let detail;
+    try {
+      detail = JSON.parse(detailRaw);
+    } catch {
+      return { ok: false, checks: [], reason: 'ruleset-detail-malformed:' + String(item.id) };
+    }
+    // A ruleset that cannot be read is not a ruleset that does not apply. A truncated
+    // or malformed conditions block would otherwise drop every check it requires while
+    // discovery still reported success.
+    if (!detail || typeof detail !== 'object' || Array.isArray(detail)) {
+      return { ok: false, checks: [], reason: 'ruleset-detail-not-object:' + String(item.id) };
+    }
+    // The list already said this ruleset is an active branch ruleset. A detail that
+    // omits or contradicts that is not a detail saying it does not apply to main; it is
+    // a detail that cannot be trusted to say anything.
+    if (detail.enforcement !== item.enforcement || detail.target !== item.target) {
+      return { ok: false, checks: [], reason: 'ruleset-detail-metadata-mismatch:' + String(item.id) };
+    }
+    // The response must be the ruleset that was ASKED FOR. Without this, a detail for a
+    // different ruleset, or one that never says which ruleset it is, stands in for the
+    // listed active one and its required checks vanish with ok:true.
+    if (String(detail.id) !== String(item.id)) {
+      return { ok: false, checks: [], reason: 'ruleset-detail-id-mismatch:' + String(item.id) };
+    }
+    const conditions = detail?.conditions;
+    if (conditions !== undefined && (conditions === null || typeof conditions !== 'object' || Array.isArray(conditions))) {
+      return { ok: false, checks: [], reason: 'ruleset-conditions-malformed:' + String(item.id) };
+    }
+    const refName = conditions?.ref_name;
+    if (refName === undefined || refName === null || typeof refName !== 'object' || Array.isArray(refName)) {
+      return { ok: false, checks: [], reason: 'ruleset-ref-name-missing:' + String(item.id) };
+    }
+    if (!Array.isArray(refName.include)) {
+      return { ok: false, checks: [], reason: 'ruleset-ref-include-malformed:' + String(item.id) };
+    }
+    if (refName.exclude !== undefined && !Array.isArray(refName.exclude)) {
+      return { ok: false, checks: [], reason: 'ruleset-ref-exclude-malformed:' + String(item.id) };
+    }
+    // An ARRAY of patterns is not the same as an array of readable patterns.
+    // refPatternMatches turns a null entry into a non-match, and a non-match is how this
+    // function says "does not apply to main" — so one unreadable pattern silently
+    // excused the whole ruleset.
+    const patterns = [...refName.include, ...(refName.exclude || [])];
+    if (patterns.some((p) => typeof p !== 'string' || !p.trim())) {
+      return { ok: false, checks: [], reason: 'ruleset-ref-pattern-malformed:' + String(item.id) };
+    }
+    // Readable is not the same as well-formed. A pattern the translator cannot implement
+    // compiles to a literal that never matches, and a non-match is how this function says
+    // "not about main" — so an unreadable pattern silently discards the whole ruleset.
+    const unreadable = patterns.filter((p) => !refPatternIsReadable(p));
+    if (unreadable.length) {
+      return {
+        ok: false,
+        checks: [],
+        reason: 'ruleset-ref-pattern-unreadable:' + String(item.id) + ':' + unreadable.join(','),
+      };
+    }
+    // A branch ruleset that includes no refs at all is an anomalous response, for the same
+    // reason a bare [] at the list level is. Unknown, not inapplicable.
+    if (refName.include.length === 0) {
+      return { ok: false, checks: [], reason: 'ruleset-ref-include-empty:' + String(item.id) };
+    }
+    if (!rulesetAppliesToMain(detail)) continue;
+    // A truncated or malformed detail must make discovery UNKNOWN, not silently empty.
+    if (!Array.isArray(detail.rules)) {
+      return { ok: false, checks: [], reason: 'ruleset-detail-malformed-rules:' + String(item.id) };
+    }
+    for (const rule of detail.rules || []) {
+      // Same shape again, one level deeper. A rule with no readable type may well BE the
+      // required-checks rule, so skipping it drops the contexts it declares.
+      if (!rule || typeof rule !== 'object' || Array.isArray(rule)) {
+        return { ok: false, checks: [], reason: 'ruleset-rule-not-object:' + String(item.id) };
+      }
+      if (typeof rule.type !== 'string' || !rule.type.trim()) {
+        return { ok: false, checks: [], reason: 'ruleset-rule-type-missing:' + String(item.id) };
+      }
+      // Same shape as the enforcement and target checks: a type this code does not know
+      // is not a type it can safely ignore. "required_status_check", singular, would
+      // otherwise drop every context the rule declares.
+      if (!RULESET_RULE_TYPES.includes(rule.type)) {
+        return { ok: false, checks: [], reason: 'ruleset-rule-type-unknown:' + rule.type };
+      }
+      if (rule.type !== 'required_status_checks') continue;
+      const declared = rule?.parameters?.required_status_checks;
+      if (!Array.isArray(declared)) {
+        return { ok: false, checks: [], reason: 'ruleset-required-checks-malformed:' + String(item.id) };
+      }
+      // A required-status-checks rule that requires nothing is the same anomaly as an empty
+      // list response. A missing key already blocks; an empty array must not be softer.
+      if (declared.length === 0) {
+        return { ok: false, checks: [], reason: 'ruleset-required-checks-empty:' + String(item.id) };
+      }
+      for (const check of declared) {
+        // A malformed entry must make discovery UNKNOWN. Skipping it silently drops a
+        // required context and still reports success, which is the failure mode this
+        // whole guard exists to prevent.
+        if (!check || typeof check !== 'object' || Array.isArray(check)) {
+          return { ok: false, checks: [], reason: 'ruleset-check-entry-malformed:' + String(item.id) };
+        }
+        if (typeof check.context !== 'string' || !check.context.trim()) {
+          return { ok: false, checks: [], reason: 'ruleset-check-context-missing:' + String(item.id) };
+        }
+        if (check.integration_id !== undefined && check.integration_id !== null && !Number.isInteger(check.integration_id)) {
+          return { ok: false, checks: [], reason: 'ruleset-check-integration-malformed:' + String(item.id) };
+        }
+        const integrationId = Number.isInteger(check.integration_id) ? check.integration_id : null;
+        const key = check.context + '\u0000' + String(integrationId ?? 'any');
+        specs.set(key, { context: check.context, integration_id: integrationId });
+      }
+    }
+  }
+  return { ok: true, checks: [...specs.values()], reason: null };
+}
+
+const rulesetDiscovery = requiredChecksFromApplicableMainRulesets();
+if (!rulesetDiscovery.ok) {
   evaluation.evaluation.required_checks.push({
-    name,
-    present: true,
-    status: cr.status,
-    conclusion: cr.conclusion,
-    state: cr.status === 'completed' ? cr.conclusion : cr.status,
-    url: cr.url,
+    name: 'main-ruleset-required-check-discovery',
+    present: false,
+    state: 'unknown',
+    detail: rulesetDiscovery.reason,
   });
-  if (cr.status !== 'completed') {
-    evaluation.evaluation.pending.push(name);
-  } else if (cr.conclusion === 'failure' || cr.conclusion === 'cancelled' || cr.conclusion === 'timed_out') {
-    evaluation.evaluation.blocking_failures.push({ name, detail: `conclusion=${cr.conclusion}`, url: cr.url });
+  evaluation.evaluation.pending.push('main-ruleset-required-check-discovery');
+}
+
+const requiredSpecs = new Map();
+for (const spec of [
+  { context: 'pr-check', integration_id: null },
+  { context: 'guardrails', integration_id: null },
+  { context: 'claude-review', integration_id: null },
+  ...rulesetDiscovery.checks,
+]) {
+  const key = spec.context + '\u0000' + String(spec.integration_id ?? 'any');
+  requiredSpecs.set(key, spec);
+}
+
+for (const requirement of requiredSpecs.values()) {
+  const result = evaluateRequiredCheckRequirement(requirement, checkRuns, dedupedStatuses);
+  evaluation.evaluation.required_checks.push(result.record);
+
+  if (result.failure) {
+    evaluation.evaluation.blocking_failures.push({
+      name: requirement.context,
+      detail: result.failure.detail,
+      url: result.failure.url,
+    });
+  } else if (result.pending) {
+    evaluation.evaluation.pending.push(requirement.context);
   }
 }
 

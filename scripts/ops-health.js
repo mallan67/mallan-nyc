@@ -34,17 +34,14 @@
 //     3. Repo doc docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md
 //        classifies the "Branch limit exceeded" symptom as stale
 //        Vercel-Neon integration state, NOT actual branch exhaustion.
-//     4. Actual documented branch count is 8 / 5000 (well under cap).
-//     5. The media-backfill + media-sync crons (both formerly `*/15`)
-//        are the real Neon compute risk because media-backfill runs
-//        JSON-heavy scans against the 872 MB `Listing.media` column
-//        (now mitigated by PR #176 which paused media-backfill).
-//     6. There is a known Neon project-ID ambiguity (Vercel env
-//        NEON_PROJECT_ID may point at the production DB project rather
-//        than the integration's preview-branching project — see
-//        NEON.md §11 "Known mismatch"); operator must verify against
-//        the Vercel env + Neon Console read-only before any project-ID
-//        change. Do NOT rotate project IDs without that verification.
+//     4. Historical branch counts are evidence only; current branch topology
+//        must be read through the authorized Vercel-managed Neon resource.
+//     5. Media cron compute is a separate concern and must not be used to infer
+//        provider branch lifecycle.
+//     6. Every direct Neon project-id / API-key path is DELETED from the tree, not
+//        disabled in place. ops:health must not instruct operators to restore those
+//        retired credentials, and must not itself read Neon through any path other
+//        than the authorized Vercel-managed resource.
 //
 // Exit codes:
 //   0 — healthy
@@ -66,7 +63,6 @@ if (!process.env.DATABASE_URL) {
 }
 
 const { PrismaClient } = require('@prisma/client');
-const { deriveBranchPruneIssues } = require('./branch-prune-health');
 const { R2_RETRY_EXHAUSTED_THRESHOLD, classifyR2RetryBacklog } = require('./r2-retry-health');
 const { deriveImageIssues } = require('./media-image-health');
 const { buildArchiveBacklogWhere } = require('./archive-backlog-predicate');
@@ -92,8 +88,6 @@ const THRESHOLDS = {
   storage_upgrade_pct: 0.85,          // discuss Scale plan upgrade at 85% → 8.7 GB
   compute_free_cap_hours: 300,        // Launch: 300 CU-hr/mo (was Free: 191.9)
   compute_warning_hours: 240,         // 80% of 300
-  branch_count_warning: 25,           // anomalous-growth signal (baseline ~8)
-  branch_count_critical: 4000,        // 80% of 5000 plan cap → emergency
   sync_error_warn_24h: 20,
   sync_error_critical_24h: 100,
   sync_watermark_stale_hours: 2,      // no sync in 2h = stale
@@ -320,83 +314,12 @@ async function run() {
     if (!e.message?.includes('does not exist')) throw e;
   }
 
-  // ─── Neon Branch Prune (Vercel-Neon integration health) ──────────
-  // Reads the most recent `neon_branch_prune_cron` audit event written
-  // by app/api/cron/neon-branch-prune/route.ts. Surfaces:
-  //   - critical if no audit event ever (cron has never run)
-  //   - critical if last status is `skipped` (env-var misconfig)
-  //   - critical if last status is `refused` (Phase 0.5 guard: NEON_PROJECT_ID is
-  //     non-canonical, so the fail-closed guard blocks every prune — must not be
-  //     silent, since a refused run is recent and carries no examined count)
-  //   - warning  if last successful run >25h ago (cron stopped firing)
-  //   - warning  if last run had errors_count > 0 (some deletes failed)
-  //   - warning  if examined branch count >= branch_count_warning (25):
-  //     anomalous-growth signal — preview-branch creation has accelerated
-  //     above the steady-state baseline of ~8, even though the Launch
-  //     plan cap of 5000 is nowhere near hit
-  //   - critical if examined branch count >= branch_count_critical (4000):
-  //     approaching the Launch plan cap of 5000 — operator must act
-  //
-  // The prior silent-skip behavior (return 200 + no audit event) was
-  // invisible to every observation surface; this section closes that
-  // gap so a future env-var misconfiguration cannot persist for 2+ weeks.
-  // The branch-count thresholds were updated 2026-05-17 from the
-  // free-tier `>=8` (within-2-of-10-cap) framing to the Launch-plan
-  // hygiene framing — see docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md.
-  try {
-    const lastPrune = await prisma.auditEvent.findFirst({
-      where: { action: 'neon_branch_prune_cron' },
-      orderBy: { created_at: 'desc' },
-      select: { created_at: true, changes: true },
-    });
-    if (!lastPrune) {
-      report.branch_prune = { last_run_at: null, status: 'never_run' };
-      report.issues.push({
-        level: 'critical',
-        category: 'neon-prune',
-        msg: 'neon-branch-prune cron has never written an audit event — cron may not be reaching the route or env vars (NEON_API_KEY/NEON_PROJECT_ID) are missing in Vercel Production',
-      });
-    } else {
-      const ageH = hoursAgo(lastPrune.created_at);
-      const status = lastPrune.changes?.status;
-      report.branch_prune = {
-        last_run_at: lastPrune.created_at,
-        last_run_hours_ago: ageH !== null ? Number(ageH.toFixed(1)) : null,
-        status,
-        examined: lastPrune.changes?.examined,
-        pruned_count: lastPrune.changes?.pruned_count,
-        errors_count: lastPrune.changes?.errors_count,
-        missing: lastPrune.changes?.missing,
-        // Defensive: cap error string at 200 chars in the report payload.
-        // Neon API errors built by lib/neon/branches.ts already truncate
-        // the response body to 200, but a different exception class
-        // could carry a larger message. Truncating here makes ops:health
-        // output bounded regardless of source.
-        error: typeof lastPrune.changes?.error === 'string'
-          ? lastPrune.changes.error.slice(0, 200)
-          : undefined,
-      };
-      // Status->issue policy lives in the pure, unit-tested helper
-      // scripts/branch-prune-health.js (incl. the Phase 0.5 `refused` branch).
-      for (const issue of deriveBranchPruneIssues({
-        status,
-        ageHours: ageH,
-        examined: lastPrune.changes?.examined,
-        errorsCount: lastPrune.changes?.errors_count,
-        error: lastPrune.changes?.error,
-        missing: lastPrune.changes?.missing,
-        projectId: lastPrune.changes?.project_id,
-        thresholds: THRESHOLDS,
-      })) {
-        report.issues.push(issue);
-      }
-    }
-  } catch (e) {
-    // Don't let audit-event read failures break the rest of ops:health.
-    if (!e.message?.includes('does not exist')) {
-      report.branch_prune = { error: e.message };
-    }
-  }
+  // Direct-Neon branch pruning was DELETED in PR #632 — route, CLI, library,
+  // health check and tests are all removed. Branch/resource lifecycle health is
+  // verified only through the authorized Vercel-managed Neon resource path.
+  // Historical neon_branch_prune_cron audit events are evidence only; they must
+  // not drive current health alarms or point an operator at a deleted path.
+
 
   // ─── Media Sync Health (added 2026-05-22) ────────────────────────
   // Read-only checks against `media_sync_state`, `listing_media`, `listings`,
@@ -850,27 +773,6 @@ function renderHuman(r) {
     }
   }
 
-  if (r.branch_prune) {
-    console.log('\n── BRANCH PRUNE ──────────────────────────────────');
-    if (r.branch_prune.status === 'never_run') {
-      console.log('  ❌ No neon-branch-prune audit event ever recorded');
-    } else if (r.branch_prune.error) {
-      console.log(`  (audit-event read failed: ${r.branch_prune.error})`);
-    } else {
-      const ageStr = r.branch_prune.last_run_hours_ago !== null && r.branch_prune.last_run_hours_ago !== undefined
-        ? `${r.branch_prune.last_run_hours_ago}h ago`
-        : '?h ago';
-      console.log(`  Last run: ${r.branch_prune.last_run_at} (${ageStr}) · status=${r.branch_prune.status}`);
-      if (r.branch_prune.status === 'skipped') {
-        const missingList = Array.isArray(r.branch_prune.missing) ? r.branch_prune.missing.join(', ') : 'unknown';
-        console.log(`  ❌ Skipped — missing env: ${missingList}`);
-      } else if (r.branch_prune.status === 'error') {
-        console.log(`  ❌ Threw exception — error: ${r.branch_prune.error ?? 'unknown'}`);
-      } else if (r.branch_prune.examined !== undefined) {
-        console.log(`  Examined: ${r.branch_prune.examined} · pruned: ${r.branch_prune.pruned_count ?? 0} · errors: ${r.branch_prune.errors_count ?? 0}`);
-      }
-    }
-  }
 
   console.log('\n── PHASE 6 TRIGGERS ─────────────────────────────');
   console.log(`  Total listings: ${r.triggers.total_listings} (PostGIS trigger at 50,000)`);

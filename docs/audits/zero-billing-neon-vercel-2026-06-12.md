@@ -1,5 +1,11 @@
 # Zero-Billing / Connection Audit — Neon + Vercel — 2026-06-12
 
+> **HISTORICAL AUDIT — DO NOT USE AS CURRENT INFRA STATE.** The measurements below remain evidence
+> of what was observed in June 2026. They are not authority for today's Vercel resources, Neon org
+> visibility, branch lifecycle, env values, billing, or `round-recipe` ownership. Re-read the live
+> providers before acting. Current topology corrections live in `NEON.md` and
+> `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md`.
+
 > **READ-ONLY. COMMITTED 2026-06-12 per Maya option A (PR #398)** as durable evidence for the
 > P2-MONEY plan. No plan changes, no deletes, no env changes, no migrations, no Neon settings writes
 > were made. All probes are `GET`/`SELECT`-only; the one SQL probe is host-guarded to cold-waterfall

@@ -1,0 +1,51 @@
+name: Mallan authority root
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  authority-root:
+    name: authority-root
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout canonical PR base
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+
+      - name: Freeze exact base-controlled execution gate
+        run: cp scripts/ci/mallan-execution-control.mjs /tmp/mallan-execution-control.mjs
+
+      - name: Read authority-root protection state for main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node /tmp/mallan-execution-control.mjs --authority-root-required-main
+
+      - name: Checkout proposed PR head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Ensure exact event base SHA is available
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: git fetch --no-tags origin "$BASE_SHA"
+
+      - name: Enforce Mallan base-authority execution contract
+        env:
+          GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          GITHUB_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          MALLAN_BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: node /tmp/mallan-execution-control.mjs

@@ -11,7 +11,7 @@
 // module lib/idx/media-sync.ts. The value is duplicated here and BOUND by a
 // jest drift-guard (tests/runtime/r2-retry-health-drift.test.ts) importing
 // both sides and asserting strict equality — change one without the other and
-// the suite fails loudly. (Pattern: scripts/branch-prune-health.js.)
+// the suite fails loudly.
 const R2_RETRY_EXHAUSTED_THRESHOLD = 8;
 
 // Actionable backlog keeps the historical 50/500 alarm levels; parked rows get

@@ -2,14 +2,18 @@
   "mcpServers": {
     "trestle-fields": {
       "type": "stdio",
-      "command": "node",
-      "args": ["mcp/trestle-fields/dist/index.js"],
+      "command": "npx",
+      "args": [
+        "--no-install",
+        "tsx",
+        "mcp/trestle-fields/index.ts"
+      ],
       "env": {
         "IDX_CLIENT_ID": "${IDX_CLIENT_ID}",
         "IDX_CLIENT_SECRET": "${IDX_CLIENT_SECRET}",
         "TRESTLE_API_URL": "${TRESTLE_API_URL}"
       },
-      "description": "Live Cotality field lookup — all fields/enums across the RLS resources, parsed from the multi-namespace $metadata. 10-min TTL (TRESTLE_METADATA_TTL_MS), aligned to the system's Cotality idx-sync cadence unless Cotality specifies otherwise."
+      "description": "Optional local helper for live Cotality field lookup. Live provider only; fail closed when Cotality is unavailable. This helper is not provider authority."
     }
   }
 }

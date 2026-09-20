@@ -1,12 +1,20 @@
 # Vercel↔Neon "Branch limit exceeded" — canonical status & support packet (2026-06-03)
 
+> **HISTORICAL SNAPSHOT — SUPERSEDED FOR CURRENT STATE.** This file preserves evidence measured in
+> June 2026. Do not use its branch counts, store inventory, `round-recipe` attribution, Preview behavior,
+> or env assumptions as current instructions. Current operational truth must be re-read live and is
+> summarized in `NEON.md` and `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md`. A 2026-09-18
+> current/deleted enumeration returned only `main`, but it does not establish lifetime history;
+> historical repository evidence records 8 branches on 2026-05-17 and approximately 40 on 2026-06-01.
+> `round-recipe-12208101` remains historical/unverified for current Mallan execution.
+
 > ## 🛑 AGENT STOP — Neon/Vercel database facts (read before ANY db / Neon / Vercel / deploy action)
 >
 > - **Canonical production data = `hidden-mountain-87248164` / "neon-green-school" / `ep-cold-waterfall-adno3ao2` / branch `main` (`br-crimson-frog-adr7g9gt`).**
 > - **`morning-bread-68708332` / "mallandb" / `ep-royal-dawn-ad6eh8t2` (`br-old-tree-admdlb9z`) is STALE / DO-NOT-SERVE.**
-> - **`round-recipe-12208101` / "neon-green-door" is NOT connected to mallan-nyc.**
+> - **`round-recipe-12208101` / "neon-green-door" is historical / currently UNVERIFIED.** Do not infer present Mallan ownership or disconnection from this June snapshot.
 > - **Only Vercel store bound to mallan-nyc = `store_K9l79ICRUTMsiRh2` → hidden-mountain** (store-API verified 2026-06-03). **No store binds morning-bread.**
-> - **DO NOT run `rotate-db-keys`. DO NOT prune `morning-bread` to "fix" the branch-limit check. DO NOT create Neon branches from stale/test/wip/probe Git branches.**
+> - **`rotate-db-keys` was DELETED 2026-09-20 and must not be recreated. DO NOT prune `morning-bread` to "fix" the branch-limit check. DO NOT create Neon branches from stale/test/wip/probe Git branches.**
 
 **Status:** the red "Neon branching: Branch limit exceeded" is a **stale / FALSE Vercel-side integration check** against `hidden-mountain-87248164`, which is far under limit (**2 / 5000**). It is **non-blocking** (deploys reach READY). Only Vercel can remove the red ❌.
 
@@ -39,7 +47,7 @@
 
 ## 5. ⛔ Hard warnings
 - **DO NOT prune `morning-bread` to fix this.** It is not the check's target; pruning will not clear the red and risks its `main` (PITR/rollback) and the `rotate-db-keys` target.
-- **DO NOT run `rotate-db-keys`.** Schedule disabled (PR #321). It targets morning-bread/royal-dawn and would re-break production by overwriting `DATABASE_URL` away from cold-waterfall. Re-enable only after retarget + a fail-closed host guard (`docs/rotate-db-keys-host-guard-patch-2026-06-02.md`).
+- **`rotate-db-keys` no longer exists.** It was DELETED by the 2026-09-20 convergence correction because direct Neon control is not an authorized Mallan provider path.
 - **Keep "Require Active Resource Before Deploy" = OFF** and **"Create Database Branch for Production" = OFF** until Vercel resolves the false check.
 
 ## 6. Verify-before-you-act checklist (read-only)

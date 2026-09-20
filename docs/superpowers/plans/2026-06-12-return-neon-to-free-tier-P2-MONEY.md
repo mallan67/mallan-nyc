@@ -1,5 +1,10 @@
 # P2-MONEY — Return Neon to Free Tier ($0 target)
 
+> **CURRENT-STATE NOTICE — 2026-09-18.** This is a dated historical plan. Re-verify every infrastructure
+> premise against current GitHub, Vercel, and Neon before using it. Current topology is documented in
+> `NEON.md` and `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md`. Old branch counts and environment
+> assumptions in this plan are not current authority.
+
 > **Status: TRACKED PLAN — no execution authorized.** Maya's standing target is **Neon Free /
 > $0**. The $19/mo Launch subscription is **NOT accepted as a floor** — the 2026-06-12 zero-billing
 > audit proved it is a plan toggle, not a usage requirement, and therefore a defect to retire.

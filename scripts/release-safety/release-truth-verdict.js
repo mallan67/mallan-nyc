@@ -56,6 +56,116 @@ function smokeIdentityMismatches(proof, smoke) {
   return mismatches;
 }
 
+
+/**
+ * Evaluate one GitHub required-check specification against current Check Runs
+ * and legacy Commit Statuses.
+ *
+ * If a ruleset pins integration_id, only a Check Run emitted by that exact
+ * GitHub App id can satisfy the requirement. A same-named legacy status has no
+ * app identity and therefore cannot substitute for an integration-bound check.
+ *
+ * Without an integration binding, current check-run + legacy-status evidence is
+ * evaluated conservatively: any present pending/failing source prevents success.
+ */
+function evaluateRequiredCheckRequirement(requirement, checkRuns, statuses) {
+  const context = requirement?.context;
+  const integrationId = Number.isInteger(requirement?.integration_id)
+    ? requirement.integration_id
+    : null;
+
+  const candidates = (checkRuns || []).filter((c) => c?.name === context);
+  const eligibleRuns = integrationId === null
+    ? candidates
+    : candidates.filter((c) => c?.appId === integrationId);
+
+  // FAIL CLOSED BEFORE ORDERING. GitHub can return a queued rerun carrying neither
+  // started_at nor completed_at. Any comparator gives such a run timestamp 0, so it
+  // sorts behind an older completed success and the requirement reads as satisfied
+  // while the rerun is still pending. The presence of ANY incomplete eligible run is
+  // therefore pending on its own, whatever the ordering decides.
+  const incompleteRuns = eligibleRuns.filter((c) => c?.status !== 'completed');
+
+  const cr = eligibleRuns
+    .slice()
+    .sort((a, b) => {
+      const at = Date.parse(a?.createdAt || a?.startedAt || a?.completedAt || '') || 0;
+      const bt = Date.parse(b?.createdAt || b?.startedAt || b?.completedAt || '') || 0;
+      if (bt !== at) return bt - at;
+      // Equal or absent timestamps: GitHub check-run ids increase monotonically.
+      return (b?.id || 0) - (a?.id || 0);
+    })[0] || null;
+
+  // Legacy Statuses cannot prove a GitHub App integration binding.
+  const statusContext = integrationId === null
+    ? (statuses || []).find((s) => s?.context === context) || null
+    : null;
+
+  if (!cr && !statusContext) {
+    return {
+      record: {
+        name: context,
+        integration_id: integrationId,
+        present: false,
+        state: 'absent',
+      },
+      pending: true,
+      failure: null,
+    };
+  }
+
+  const sources = [];
+  let pending = false;
+  let failure = null;
+
+  if (incompleteRuns.length > 0) {
+    pending = true;
+  }
+
+  if (cr) {
+    const crState = cr.status === 'completed' ? cr.conclusion : cr.status;
+    sources.push({
+      source: 'check-run',
+      state: crState,
+      url: cr.url,
+      app_id: cr.appId ?? null,
+    });
+    if (cr.status !== 'completed') {
+      pending = true;
+    } else if (!['success', 'neutral', 'skipped'].includes(cr.conclusion)) {
+      failure = { detail: `check-run conclusion=${cr.conclusion}`, url: cr.url };
+    }
+  }
+
+  if (statusContext) {
+    sources.push({
+      source: 'commit-status',
+      state: statusContext.state,
+      url: statusContext.target_url,
+    });
+    if (statusContext.state === 'pending') {
+      pending = true;
+    } else if (statusContext.state !== 'success') {
+      failure = {
+        detail: `commit-status state=${statusContext.state}`,
+        url: statusContext.target_url,
+      };
+    }
+  }
+
+  return {
+    record: {
+      name: context,
+      integration_id: integrationId,
+      present: true,
+      state: failure ? 'failure' : pending ? 'pending' : 'success',
+      sources,
+    },
+    pending: !failure && pending,
+    failure,
+  };
+}
+
 /** Aggregate validator layers into a single verdict. Pure function. */
 function aggregate(layers) {
   const reasons = [];
@@ -200,4 +310,4 @@ function decideExitCode(verdict, { strict = false, requireDeployProof = false } 
   }
 }
 
-module.exports = { aggregate, decideExitCode, smokeIdentityMismatches };
+module.exports = { aggregate, decideExitCode, smokeIdentityMismatches, evaluateRequiredCheckRequirement };

@@ -249,9 +249,11 @@ __pycache__/
 /baseline-note-from-session.txt
 /SALE-FORM-FIELDS-COMPLETE.txt
 /SALE-FORM-FIELDS-EXTRACTED.txt
-# NOTE: rotation-history.log is intentionally force-committed by
-# .github/workflows/rotate-db-keys.yml (git add -f) as a rotation audit
-# trail and is allow-listed in scripts/ci/repo-hygiene.mjs — do NOT ignore it.
+# NOTE: rotation-history.log is a CLOSED audit trail. It was force-committed by
+# .github/workflows/rotate-db-keys.yml, which was DELETED on 2026-09-20 with the rest
+# of the direct-Neon control plane, so nothing writes this file any more and nothing may
+# recreate a writer for it. The file is kept as the record of the rotations that did
+# happen and stays allow-listed in scripts/ci/repo-hygiene.mjs — do NOT ignore it.
 
 # Local/operator scratch files
 scripts/__*

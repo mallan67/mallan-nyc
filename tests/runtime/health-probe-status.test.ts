@@ -7,7 +7,7 @@
  * exists to catch. These pure helpers gate on a sane floor + archived sanity, and the freshness
  * helper is extracted too so both are unit-testable without running the probe's shell/DB side effects.
  */
-import { dbGrowthCell, cotalityFreshnessCell, LISTINGS_FLOOR } from '../../scripts/health/health-status';
+import { dbGrowthCell, cotalityFreshnessCell, mainHeadCell, LISTINGS_FLOOR } from '../../scripts/health/health-status';
 
 describe('dbGrowthCell — DB growth/archive health gate (Codex #466)', () => {
   it('healthy count above floor → 🟢 with evidence', () => {
@@ -95,5 +95,35 @@ describe("probe.ts — emits BOTH attempt-freshness and last-run-outcome cells",
   });
   it("labels the freshness cell as ATTEMPT freshness (it proves the cron fired, not that ingestion succeeded)", () => {
     expect(probeSrc).toMatch(/Cotality sync attempt freshness/);
+  });
+});
+
+describe('mainHeadCell — the dashboard must not publish a stale local branch as main', () => {
+  it('prefers the remote-tracking ref and says so', () => {
+    const c = mainHeadCell('bba9d8d6', '2a83952a', 'feature/x');
+    expect(c.status).toBe('🟢');
+    expect(c.evidence).toContain('bba9d8d6');
+    expect(c.evidence).toContain('origin/main');
+    // The stale local value must not appear anywhere in the published cell.
+    expect(c.evidence).not.toContain('2a83952a');
+  });
+
+  it('falls back to the local branch but marks it unverified and says why', () => {
+    const c = mainHeadCell(null, '2a83952a', 'feature/x');
+    // Not green: a value of unknown freshness is never presented as current state.
+    expect(c.status).toBe('⚪');
+    expect(c.evidence).toContain('2a83952a');
+    expect(c.evidence).toMatch(/LOCAL main/);
+    expect(c.evidence).toMatch(/freshness unknown/i);
+  });
+
+  it('reports no main ref rather than inventing one', () => {
+    const c = mainHeadCell(null, null, 'feature/x');
+    expect(c.status).toBe('⚪');
+    expect(c.evidence).toMatch(/no main ref/i);
+  });
+
+  it('names the branch it was probed from, so the reading is attributable', () => {
+    expect(mainHeadCell('abc1234', null, 'fix/thing').evidence).toContain('fix/thing');
   });
 });

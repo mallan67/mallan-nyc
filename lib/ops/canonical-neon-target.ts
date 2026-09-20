@@ -2,7 +2,7 @@
  * Canonical Neon production-target guard (FAIL-CLOSED).
  *
  * Single source of truth for "is this the canonical production Neon project /
- * host?" — used to refuse any credential-rotation or branch-prune action that
+ * host?" — used to refuse any database action that
  * targets the wrong project/host. This is *code*, not a comment: the 2026-06-02
  * cross-project DB incident showed that prose warnings do not stop an automated
  * job from writing a stale project's URI into production env.
@@ -15,9 +15,13 @@
  *   host     = ep-royal-dawn-ad6eh8t2
  *
  * Consumers:
- *   - app/api/cron/neon-branch-prune/route.ts (refuse prune on wrong project)
- *   - scripts/ci/assert-canonical-neon-target.mjs (rotate-db-keys workflow guard;
- *     keeps these constants in sync — see that file's header)
+ *   - scripts/recover-stale-property-listings.ts (refuse recovery against a
+ *     non-canonical target)
+ *   (the pre-bootstrap CLI mirror was DELETED 2026-09-20 with the workflow it ran in)
+ *
+ * The direct-Neon branch-prune route and the credential-rotation workflow were
+ * DELETED in PR #632. Neon control is the Vercel-managed Marketplace resource.
+ * This guard is retained because a non-prune consumer still requires it.
  *
  * Design: STRICT allow-list. Anything that is not exactly the canonical project, or whose parsed
  * host is not the canonical endpoint, is refused (fail-closed). The forbidden lists are
@@ -27,16 +31,15 @@
  * `uriOrHost.includes(CANONICAL)`, which any URL could satisfy by carrying the canonical endpoint
  * id in a query parameter, the password or the path — none of which determine where the connection
  * actually goes. lib/retention/drain-core.ts had already recorded that hazard and parsed the
- * hostname instead; this module, which backs the neon-branch-prune route and
- * recover-stale-property-listings, had not. Both now delegate to the single classifier in
+ * hostname instead; this module, which backs recover-stale-property-listings, had
+ * not. Both now delegate to the single classifier in lib/ops/db-target.ts.
  * lib/ops/db-target.ts.
  *
- * One copy of the rule legitimately remains: scripts/ci/assert-canonical-neon-target.mjs runs
- * before any dependency install in `rotate-db-keys.yml` and cannot import TypeScript. It is a
- * pre-bootstrap EXECUTION MIRROR of db-target.ts's semantics, held to behavioural parity by the
- * CLI ↔ TS parity tests — not a second authority, and not free to disagree.
+ * There is no second copy of the rule any more. The pre-bootstrap CLI mirror was deleted on
+ * 2026-09-20 together with the workflow it existed for, so this module is the single
+ * implementation and nothing can hold a different opinion about the canonical target.
  *
- * The exported constant is still named `…_HOST_SUBSTRING` because callers, the rotate-db-keys CLI
+ * The exported constant is still named `…_HOST_SUBSTRING` because its callers and its
  * guard and its drift test all reference that name. Its VALUE is unchanged; only the comparison
  * that consumes it got stricter. It is an endpoint id, not a substring to search for.
  *

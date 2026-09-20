@@ -19,8 +19,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { XMLParser } from 'fast-xml-parser';
-import * as fs from 'fs';
-import * as path from 'path';
 import { z } from 'zod';
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -33,7 +31,6 @@ const METADATA_URL = `${TRESTLE_BASE}/odata/$metadata`;
 // CDN default from the live response), which is not a metadata-refresh instruction. Env-overridable.
 const CACHE_TTL_MS = Number(process.env.TRESTLE_METADATA_TTL_MS) || 10 * 60 * 1000; // 10 minutes
 const CACHE_TTL_MIN = Math.round(CACHE_TTL_MS / 60000);
-const LOCAL_METADATA_FALLBACK = path.resolve(__dirname, '../../artifacts/metadata.xml');
 
 // Known resources on Trestle (for validation + listing)
 const KNOWN_RESOURCES = [
@@ -291,55 +288,38 @@ function parseMetadataXml(xml: string): ParsedMetadata {
 }
 
 async function getMetadata(): Promise<ParsedMetadata> {
-  // Return cache if still valid
   if (_metadataCache && Date.now() - _metadataCache.fetchedAt < CACHE_TTL_MS) {
     return _metadataCache;
   }
 
-  let xml: string | null = null;
+  const token = await getAccessToken();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
 
-  // Try live Trestle API first
+  let response: Response;
   try {
-    const token = await getAccessToken();
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15_000);
-
-    let response: Response;
-    try {
-      response = await fetch(METADATA_URL, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/xml',
-        },
-        signal: controller.signal,
-      });
-    } finally {
-      clearTimeout(timeout);
-    }
-
-    if (response.ok) {
-      xml = await response.text();
-      auditLog('metadata_fetch', { source: 'live', url: METADATA_URL });
-    } else {
-      auditLog('metadata_fetch_error', { status: response.status, source: 'live' });
-    }
-  } catch (err: any) {
-    auditLog('metadata_fetch_error', { error: err.message, source: 'live' });
+    response = await fetch(METADATA_URL, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/xml',
+      },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
   }
 
-  // Fallback to local metadata.xml if live fetch failed
-  if (!xml && fs.existsSync(LOCAL_METADATA_FALLBACK)) {
-    xml = fs.readFileSync(LOCAL_METADATA_FALLBACK, 'utf-8');
-    auditLog('metadata_fetch', { source: 'local_fallback', path: LOCAL_METADATA_FALLBACK });
-  }
-
-  if (!xml) {
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    auditLog('metadata_fetch_error', { status: response.status, source: 'live' });
     throw new Error(
-      '[trestle-fields] Could not fetch $metadata from Trestle and no local fallback found. ' +
-      'Check IDX_CLIENT_ID, IDX_CLIENT_SECRET, and network connectivity.'
+      `[trestle-fields] Live Cotality $metadata unavailable (HTTP ${response.status}). ` +
+      `No local snapshot fallback is permitted. ${body.slice(0, 200)}`
     );
   }
 
+  const xml = await response.text();
+  auditLog('metadata_fetch', { source: 'live', url: METADATA_URL });
   _metadataCache = parseMetadataXml(xml);
   return _metadataCache;
 }
@@ -682,26 +662,16 @@ function levenshtein(a: string, b: string): number {
 // ── Start server ──────────────────────────────────────────────────────────────
 
 async function main() {
-  // Pre-warm the metadata cache on startup
-  try {
-    await getMetadata();
-    process.stderr.write(JSON.stringify({
-      ts: new Date().toISOString(),
-      service: 'trestle-fields-mcp',
-      action: 'startup',
-      status: 'ready',
-      fields: _metadataCache ? [..._metadataCache.fields.keys()].length : 0,
-      resources: _metadataCache ? _metadataCache.byResource.size : 0,
-    }) + '\n');
-  } catch (err: any) {
-    process.stderr.write(JSON.stringify({
-      ts: new Date().toISOString(),
-      service: 'trestle-fields-mcp',
-      action: 'startup_warning',
-      error: err.message,
-      note: 'Will retry on first tool call',
-    }) + '\n');
-  }
+  await getMetadata();
+  process.stderr.write(JSON.stringify({
+    ts: new Date().toISOString(),
+    service: 'trestle-fields-mcp',
+    action: 'startup',
+    status: 'ready',
+    source: 'live',
+    fields: _metadataCache ? [..._metadataCache.fields.keys()].length : 0,
+    resources: _metadataCache ? _metadataCache.byResource.size : 0,
+  }) + '\n');
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

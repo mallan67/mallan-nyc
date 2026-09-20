@@ -9,7 +9,6 @@
   },
   "crons": [
     { "path": "/api/cron/data-retention-finalize", "schedule": "0 3 * * *" },
-    { "path": "/api/cron/neon-branch-prune", "schedule": "0 4 * * *" },
     { "path": "/api/cron/feed-reconcile", "schedule": "30 3 * * *" },
     { "path": "/api/cron/dom-reset", "schedule": "0 6 * * *" },
     { "path": "/api/cron/one-cycle-preflight", "schedule": "*/10 * * * *" },

@@ -1,0 +1,46 @@
+name: Branch authority
+
+on:
+  create:
+
+permissions:
+  contents: write
+
+jobs:
+  branch-authority:
+    if: github.event.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout canonical main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+
+      - name: Validate created branch against canonical Execution State
+        id: branch_guard
+        continue-on-error: true
+        env:
+          CREATED_BRANCH: ${{ github.event.ref }}
+        run: node scripts/ci/mallan-execution-control.mjs --branch-created "$CREATED_BRANCH"
+
+      - name: Remove unauthorized branch
+        if: steps.branch_guard.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CREATED_BRANCH: ${{ github.event.ref }}
+        run: |
+          set -euo pipefail
+          echo "::error::Unauthorized Mallan branch: $CREATED_BRANCH"
+          echo "Deleting branch because it is not the active branch authorized by main's Execution State."
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$CREATED_BRANCH"
+          exit 1
+
+      - name: Confirm authorized branch
+        if: steps.branch_guard.outcome == 'success'
+        run: echo "Created branch is authorized by main's Execution State."

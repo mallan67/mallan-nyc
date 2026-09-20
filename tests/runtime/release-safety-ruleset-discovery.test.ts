@@ -1,0 +1,721 @@
+import fs from "node:fs";
+import path from "node:path";
+
+/**
+ * Ruleset discovery decides which check-runs Release Truth treats as REQUIRED before it
+ * will call a deploy proven. Every defect this file guards has the same shape: a response
+ * the validator could not actually understand was read as "no more required checks", and
+ * discovery returned ok with a short list. That fails OPEN — the aggregator then proves a
+ * release against fewer checks than the branch actually requires.
+ *
+ * These tests run the SHIPPED function text rather than a retyped copy: the source is read
+ * off disk, the three relevant functions are lifted out, and `gh` is replaced with a stub
+ * that returns exactly the payload under test. If the file stops containing those
+ * functions, the harness throws instead of silently testing nothing.
+ */
+
+const SOURCE = path.join(process.cwd(), "scripts", "validate-release-status.js");
+
+type Discovery = { ok: boolean; checks: Array<{ context: string; integration_id: number | null }>; reason: string | null };
+
+function loadDiscovery(responses: Record<string, string | null>): () => Discovery {
+  const src = fs.readFileSync(SOURCE, "utf8");
+  // Start at the ref-token allowlist: refPatternIsReadable and the pattern constants sit
+  // above refPatternMatches and the discovery function closes over them.
+  const start = src.indexOf("const RULESET_REF_TOKENS");
+  const endMarker = "const rulesetDiscovery = requiredChecksFromApplicableMainRulesets();";
+  const end = src.indexOf(endMarker);
+  if (start < 0 || end < 0 || end <= start) {
+    throw new Error("ruleset discovery functions not found in " + SOURCE);
+  }
+  const block = src.slice(start, end);
+  if (!block.includes("function requiredChecksFromApplicableMainRulesets()")) {
+    throw new Error("discovery function missing from the lifted block");
+  }
+
+  // The stub matches on a distinctive fragment so the test does not depend on the exact
+  // flag order of the gh invocation.
+  const gh = (command: string): string | null => {
+    for (const [fragment, payload] of Object.entries(responses)) {
+      if (command.includes(fragment)) return payload;
+    }
+    throw new Error("unstubbed gh call: " + command);
+  };
+
+  // eslint-disable-next-line no-new-func
+  return new Function("gh", block + "\nreturn requiredChecksFromApplicableMainRulesets;")(gh);
+}
+
+const LIST_ONE_ACTIVE = JSON.stringify([[{ id: 19435006, enforcement: "active", target: "branch" }]]);
+
+function detail(rules: unknown): string {
+  return JSON.stringify({
+    id: 19435006,
+    enforcement: "active",
+    target: "branch",
+    conditions: { ref_name: { include: ["~DEFAULT_BRANCH"], exclude: [] } },
+    rules,
+  });
+}
+
+describe("main-ruleset required-check discovery", () => {
+  test("a well-formed ruleset yields its required contexts", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": detail([
+        { type: "required_status_checks", parameters: { required_status_checks: [{ context: "pr-check", integration_id: 15368 }] } },
+      ]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(true);
+    expect(result.checks).toEqual([{ context: "pr-check", integration_id: 15368 }]);
+  });
+
+  // The regression: an entry the validator cannot read was skipped, so a truncated detail
+  // dropped a required context and discovery still reported success.
+  test("an empty check entry makes discovery unknown rather than silently short", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": detail([
+        { type: "required_status_checks", parameters: { required_status_checks: [{}] } },
+      ]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.checks).toEqual([]);
+    expect(result.reason).toContain("ruleset-check-context-missing");
+  });
+
+  test("a non-object check entry makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": detail([
+        { type: "required_status_checks", parameters: { required_status_checks: ["pr-check"] } },
+      ]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-check-entry-malformed");
+  });
+
+  test("a check entry losing only its context is not read as a blank context", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": detail([
+        { type: "required_status_checks", parameters: { required_status_checks: [{ context: "   ", integration_id: 15368 }] } },
+      ]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-check-context-missing");
+  });
+
+  test("a non-integer integration id makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": detail([
+        { type: "required_status_checks", parameters: { required_status_checks: [{ context: "pr-check", integration_id: "15368" }] } },
+      ]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-check-integration-malformed");
+  });
+
+  test("a non-array required_status_checks makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": detail([
+        { type: "required_status_checks", parameters: { required_status_checks: { context: "pr-check" } } },
+      ]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-required-checks-malformed");
+  });
+
+  test("a truncated detail without a rules array makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": detail(undefined),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-detail-malformed-rules");
+  });
+
+  // --slurp wraps one array per page. typeof [] and typeof {} are both 'object', so an
+  // un-paged shape used to pass and drop every ruleset after the malformed element.
+  test("an un-paged list shape makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": JSON.stringify([{ id: 1, enforcement: "active", target: "branch" }]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe("ruleset-list-not-paged");
+  });
+
+  test("a bare empty array is an anomalous response, not an honest empty result", () => {
+    const discover = loadDiscovery({ "rulesets -f includes_parents=true": JSON.stringify([]) });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe("ruleset-list-empty");
+  });
+
+  test("a repository with genuinely no rulesets reports an empty page set as ok", () => {
+    const discover = loadDiscovery({ "rulesets -f includes_parents=true": JSON.stringify([[]]) });
+    const result = discover();
+    expect(result.ok).toBe(true);
+    expect(result.checks).toEqual([]);
+  });
+
+  test("an unavailable list makes discovery unknown", () => {
+    const discover = loadDiscovery({ "rulesets -f includes_parents=true": null });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe("ruleset-list-unavailable");
+  });
+
+  test("an unavailable detail makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": null,
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-detail-unavailable");
+  });
+
+  // A ruleset whose conditions cannot be read used to fall through rulesetAppliesToMain
+  // as "does not apply to main", silently dropping every check it requires. Unreadable
+  // and inapplicable are different answers, and only one of them is safe to act on.
+  test("a ruleset with no conditions block makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        rules: [
+          { type: "required_status_checks", parameters: { required_status_checks: [{ context: "pr-check" }] } },
+        ],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-ref-name-missing");
+  });
+
+  test("a ruleset whose conditions are not an object makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        conditions: "refs/heads/main",
+        rules: [],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-conditions-malformed");
+  });
+
+  test("a ruleset whose include list is not an array makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: "~DEFAULT_BRANCH", exclude: [] } },
+        rules: [],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-ref-include-malformed");
+  });
+
+  test("a ruleset whose exclude list is not an array makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: ["~DEFAULT_BRANCH"], exclude: "release/*" } },
+        rules: [],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-ref-exclude-malformed");
+  });
+
+  // The ref pattern was the one field that never got an allowlist, and it is the field
+  // every remaining fail-open ran through. refPatternMatches has only two outcomes, and
+  // `false` is this function's own encoding of "does not apply to main" — so a token or a
+  // glob syntax it cannot read became a silent skip of the whole ruleset.
+  test("an unrecognised ref token makes discovery unknown", () => {
+    for (const token of ["~ALL_BRANCHES", "~all", "~default_branch"]) {
+      const discover = loadDiscovery({
+        "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+        "rulesets/19435006": JSON.stringify({
+          id: 19435006,
+          enforcement: "active",
+          target: "branch",
+          conditions: { ref_name: { include: [token], exclude: [] } },
+          rules: [
+            { type: "required_status_checks", parameters: { required_status_checks: [{ context: "authority-root" }] } },
+          ],
+        }),
+      });
+      const result = discover();
+      expect(result.ok).toBe(false);
+      expect(result.reason).toContain("ruleset-ref-pattern-unreadable");
+    }
+  });
+
+  // The translator implements * and ? and nothing else. A character class, a brace list or
+  // an extglob group is escaped into a literal that can never match, which is
+  // indistinguishable from an honest non-match.
+  test("glob syntax the translator cannot implement makes discovery unknown", () => {
+    for (const pattern of ["refs/heads/ma[i]n", "refs/heads/{main,master}", "refs/heads/!(dev)"]) {
+      const discover = loadDiscovery({
+        "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+        "rulesets/19435006": JSON.stringify({
+          id: 19435006,
+          enforcement: "active",
+          target: "branch",
+          conditions: { ref_name: { include: [pattern], exclude: [] } },
+          rules: [
+            { type: "required_status_checks", parameters: { required_status_checks: [{ context: "authority-root" }] } },
+          ],
+        }),
+      });
+      const result = discover();
+      expect(result.ok).toBe(false);
+      expect(result.reason).toContain("ruleset-ref-pattern-unreadable");
+    }
+  });
+
+  // * and ** were both translated to .*, so an exclude of refs/* swallowed refs/heads/main
+  // and discarded the ruleset. Greedy in the EXCLUDE list is the fail-open direction.
+  test("a single star does not cross a path separator in an exclude", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: ["~ALL"], exclude: ["refs/*"] } },
+        rules: [
+          { type: "required_status_checks", parameters: { required_status_checks: [{ context: "pr-check" }] } },
+        ],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(true);
+    expect(result.checks).toEqual([{ context: "pr-check", integration_id: null }]);
+  });
+
+  test("a double star does cross a path separator in an exclude", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: ["~ALL"], exclude: ["refs/**"] } },
+        rules: [
+          { type: "required_status_checks", parameters: { required_status_checks: [{ context: "pr-check" }] } },
+        ],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(true);
+    expect(result.checks).toEqual([]);
+  });
+
+  // The function already refuses a bare [] at the list level, because an empty array is an
+  // anomalous response rather than an honest empty result. A branch ruleset that targets no
+  // refs, or requires no checks, is the same anomaly one and two levels down.
+  test("a ruleset that includes no refs at all makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: [], exclude: [] } },
+        rules: [
+          { type: "required_status_checks", parameters: { required_status_checks: [{ context: "authority-root" }] } },
+        ],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-ref-include-empty");
+  });
+
+  test("a required-checks rule that requires nothing makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": detail([
+        { type: "required_status_checks", parameters: { required_status_checks: [] } },
+      ]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-required-checks-empty");
+  });
+
+  // The id is interpolated into a shell command. It cannot currently cause a fail-open,
+  // because a substituted detail fails the id comparison — but it is a command-injection
+  // surface reached from an API response and is closed on its own terms.
+  test("a ruleset id that is not digits never reaches the shell", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": JSON.stringify([[
+        { id: "42; echo pwned", enforcement: "active", target: "branch" },
+      ]]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-list-item-id-malformed");
+  });
+
+  // THE BOUNDARY THAT MATTERS MOST. The live `Protect main` ruleset includes the literal
+  // `refs/heads/main`. If the readability guard rejected that, release proof would block
+  // permanently on every deployment, which is a worse failure than the one it prevents.
+  test("the live ruleset shape still resolves", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: ["refs/heads/main"], exclude: [] } },
+        rules: [
+          { type: "pull_request", parameters: { required_approving_review_count: 0 } },
+          { type: "required_status_checks", parameters: { required_status_checks: [{ context: "pr-check", integration_id: 15368 }] } },
+          { type: "non_fast_forward", parameters: {} },
+          { type: "deletion", parameters: {} },
+        ],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(true);
+    expect(result.checks).toEqual([{ context: "pr-check", integration_id: 15368 }]);
+  });
+
+  test("an ordinary wildcard include still resolves", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: ["refs/heads/*"], exclude: [] } },
+        rules: [
+          { type: "required_status_checks", parameters: { required_status_checks: [{ context: "pr-check" }] } },
+        ],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(true);
+    expect(result.checks).toEqual([{ context: "pr-check", integration_id: null }]);
+  });
+  // Transmitted but not understood, one level deeper than enforcement and target.
+  // "required_status_check", singular, is not a type this code knows, so skipping it is
+  // a guess that it does not matter.
+  test("an unrecognised rule type makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": detail([
+        { type: "required_status_check", parameters: { required_status_checks: [{ context: "authority-root" }] } },
+      ]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-rule-type-unknown");
+  });
+
+  // Boundary: every documented type that is not required_status_checks is still skipped,
+  // and the required contexts beside it are still collected.
+  test("documented non-status rule types are skipped without blocking", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": detail([
+        { type: "pull_request", parameters: { required_approving_review_count: 1 } },
+        { type: "non_fast_forward", parameters: {} },
+        { type: "required_signatures", parameters: {} },
+        { type: "required_status_checks", parameters: { required_status_checks: [{ context: "pr-check" }] } },
+      ]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(true);
+    expect(result.checks).toEqual([{ context: "pr-check", integration_id: null }]);
+  });
+  // A string is not an understood value. "activ" is neither active nor a considered
+  // decision not to be: it means the response does not match the schema this code was
+  // written against, and skipping on it is how schema drift suppresses a ruleset.
+  test("an unrecognised enforcement value makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": JSON.stringify([[{ id: 1, enforcement: "activ", target: "branch" }]]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-enforcement-unknown");
+  });
+
+  test("an unrecognised target value makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": JSON.stringify([[{ id: 1, enforcement: "active", target: "commit" }]]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-target-unknown");
+  });
+
+  // The boundary: the other values GitHub documents are understood answers, so they are
+  // skipped without blocking. A guard that blocks every repository is not a guard.
+  test("documented non-active enforcements are skipped without blocking", () => {
+    for (const enforcement of ["evaluate", "disabled"]) {
+      const discover = loadDiscovery({
+        "rulesets -f includes_parents=true": JSON.stringify([[{ id: 1, enforcement, target: "branch" }]]),
+      });
+      const result = discover();
+      expect(result.ok).toBe(true);
+      expect(result.checks).toEqual([]);
+    }
+  });
+
+  test("documented non-branch targets are skipped without blocking", () => {
+    for (const target of ["tag", "push"]) {
+      const discover = loadDiscovery({
+        "rulesets -f includes_parents=true": JSON.stringify([[{ id: 1, enforcement: "active", target }]]),
+      });
+      const result = discover();
+      expect(result.ok).toBe(true);
+      expect(result.checks).toEqual([]);
+    }
+  });
+  // Three instances of one fail-open were reported in this function, each in a different
+  // branch. These two are the remaining ones, found by re-reading every skip against the
+  // same question rather than waiting for a fourth report.
+  test("a list entry missing its own metadata makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": JSON.stringify([[{ id: 19435006 }]]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-list-item-metadata-missing");
+  });
+
+  test("a list entry with no usable id makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": JSON.stringify([[{ enforcement: "active", target: "branch" }]]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-list-item-id-missing");
+  });
+
+  // A rule with no readable type may well BE the required-checks rule, so skipping it
+  // drops every context it declares.
+  test("a rule with no readable type makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": detail([
+        { parameters: { required_status_checks: [{ context: "pr-check" }] } },
+      ]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-rule-type-missing");
+  });
+
+  test("a rule that is not an object makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": detail(["required_status_checks"]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-rule-not-object");
+  });
+
+  // The boundary: a rule of a DIFFERENT but readable type is legitimately skipped, and a
+  // list entry that is readably not an active branch ruleset is legitimately skipped.
+  test("a readable rule of another type is skipped without blocking", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": detail([
+        { type: "pull_request", parameters: { required_approving_review_count: 1 } },
+        { type: "required_status_checks", parameters: { required_status_checks: [{ context: "pr-check" }] } },
+      ]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(true);
+    expect(result.checks).toEqual([{ context: "pr-check", integration_id: null }]);
+  });
+
+  test("a readably inactive list entry is skipped without blocking", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": JSON.stringify([[{ id: 1, enforcement: "disabled", target: "branch" }]]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(true);
+    expect(result.checks).toEqual([]);
+  });
+  // The response must be the ruleset that was ASKED FOR.
+  test("a detail carrying a different ruleset id makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 999,
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: ["~DEFAULT_BRANCH"], exclude: [] } },
+        rules: [],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-detail-id-mismatch");
+  });
+
+  test("a detail that never says which ruleset it is makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: ["~DEFAULT_BRANCH"], exclude: [] } },
+        rules: [],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-detail-id-mismatch");
+  });
+
+  // An ARRAY of patterns is not an array of READABLE patterns. refPatternMatches turns an
+  // unreadable entry into a non-match, and a non-match is how this function says "does
+  // not apply to main", so one bad entry excused the whole ruleset.
+  test("an unreadable include pattern makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: [null], exclude: [] } },
+        rules: [
+          { type: "required_status_checks", parameters: { required_status_checks: [{ context: "authority-root" }] } },
+        ],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-ref-pattern-malformed");
+  });
+
+  test("an unreadable exclude pattern makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: ["~DEFAULT_BRANCH"], exclude: [""] } },
+        rules: [],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-ref-pattern-malformed");
+  });
+  // The list said active branch. A detail that omits or contradicts that is not a detail
+  // saying the ruleset does not apply; it is a detail that cannot be trusted to say
+  // anything. Reading it as inapplicable dropped an authority-root requirement.
+  test("a detail omitting its own enforcement and target makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        conditions: { ref_name: { include: ["~DEFAULT_BRANCH"], exclude: [] } },
+        rules: [
+          { type: "required_status_checks", parameters: { required_status_checks: [{ context: "authority-root" }] } },
+        ],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-detail-metadata-mismatch");
+  });
+
+  test("a detail contradicting the list enforcement makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "disabled",
+        target: "branch",
+        conditions: { ref_name: { include: ["~DEFAULT_BRANCH"], exclude: [] } },
+        rules: [],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-detail-metadata-mismatch");
+  });
+
+  test("a detail that is not an object at all makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify("truncated"),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-detail-not-object");
+  });
+
+  test("a ruleset that does not apply to main contributes nothing", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: ["refs/heads/release/*"], exclude: [] } },
+        rules: [
+          { type: "required_status_checks", parameters: { required_status_checks: [{ context: "release-only" }] } },
+        ],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(true);
+    expect(result.checks).toEqual([]);
+  });
+
+  test("main excluded from an otherwise matching ruleset contributes nothing", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: ["~ALL"], exclude: ["~DEFAULT_BRANCH"] } },
+        rules: [
+          { type: "required_status_checks", parameters: { required_status_checks: [{ context: "everything-but-main" }] } },
+        ],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(true);
+    expect(result.checks).toEqual([]);
+  });
+});
