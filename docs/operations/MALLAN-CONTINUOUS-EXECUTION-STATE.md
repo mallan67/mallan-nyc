@@ -474,7 +474,7 @@ The following observations were obtained in earlier work partly through direct N
 
 ### E. Live code hazards that affect convergence safety
 
-40. `.github/workflows/cleanup-neon-preview-branch.yml` labels `hidden-mountain-87248164` as the PREVIEW project and `morning-bread-68708332` as production/do-not-touch, while current Mallan authority treats hidden-mountain as canonical Production and morning-bread as stale/do-not-serve. The workflow runs on same-repo PR close and can issue DELETE for a matching non-primary/non-protected `preview/<head_ref>` branch. **CONFIRMED-GITHUB. This workflow must be quarantined/corrected before branch cleanup can be considered safe.**
+40. **CORRECTED IN #632; exact-head proof pending.** `.github/workflows/cleanup-neon-preview-branch.yml` formerly inverted the production/preview model and could issue direct Neon DELETE on PR close. The current correction replaces it with a manual fail-closed tombstone that loads no provider secret and always refuses.
 41. `lib/email/sendgrid.ts` has no top-level Vercel-environment delivery prohibition; SMTP configuration plus caller behavior governs delivery. Preview email safety must be proven at callers/config, not assumed from file name or environment. **CONFIRMED-GITHUB.**
 42. Twelve cron routes were reported to fail open without `CRON_SECRET`. **REVERIFY as a grouped code audit before any cron/auth hardening packet.**
 43. `lib/prisma.ts` was reported force-loading `.env.local` with `override:true`, creating a local target-authority hazard. **REVERIFY-GITHUB before correction.**
