@@ -12,11 +12,22 @@ website." It has downstream consumers: search, CRM, portal, media, compliance, a
 
 ## 0. How each tool gets on the same page
 
+**Every agent reads `docs/architecture/MALLAN-PLATFORM-PLAN.md` first.** It is the single normative
+platform plan. This file is the cross-agent constitution; it routes and constrains, it does not restate
+the architecture.
+
 | Tool | Entry path |
 |---|---|
-| **Claude** | `CLAUDE.md` → this file → `docs/PROJECT-HEALTH-DASHBOARD.md` → latest handoff snapshot |
+| **Claude** | `CLAUDE.md` → this file → **the canonical plan** → `docs/PROJECT-HEALTH-DASHBOARD.md` → latest handoff |
 | **Codex** | this file (`AGENTS.md`) + **review the CURRENT HEAD commit of a PR, never stale bot comments** |
-| **ChatGPT** | paste `AGENTS.md` + `docs/PROJECT-HEALTH-DASHBOARD.md` (it has no repo access) |
+| **Copilot** | `.github/copilot-instructions.md` → this file → the canonical plan |
+| **ChatGPT / other connected tools** | this file + `docs/PROJECT-HEALTH-DASHBOARD.md` + the canonical plan |
+
+> **Repository access is a per-tool, per-session fact — do not assert it here.** An earlier revision
+> stated flatly that ChatGPT "has no repo access." Connected tools may or may not have repository access
+> depending on how the session is configured, so the honest instruction is: **if a tool can read the
+> repository, it reads these files directly; if it cannot, paste them.** Either way the files win over
+> any tool's private memory.
 
 ---
 
@@ -26,10 +37,19 @@ website." It has downstream consumers: search, CRM, portal, media, compliance, a
    org** `Vercel: maya` / `org-wild-king-99967357`) · default branch **`main` = `br-crimson-frog-adr7g9gt`**
    · endpoint **`ep-cold-waterfall-adno3ao2`**. **Stale / do-not-serve:** `morning-bread-68708332` /
    `ep-royal-dawn-ad6eh8t2` (personal org). Never target the stale one. Full rules: `NEON.md`.
-2. **Live Cotality/Trestle cadence is intentional** — `/api/cron/idx-sync` **every 10 min**,
-   `/api/cron/media-sync` **every 15 min**, `/api/cron/db-keepalive` **every 15 min** (source of truth =
-   `vercel.json`). Some route-file **comments are stale** (say "4 hours" / "4 minutes"). **Fix the
-   comments, never the schedule**, unless Maya explicitly asks.
+2. **Live Cotality/Trestle cadence is intentional** — ingestion runs as a single
+   **`/api/cron/one-cycle`** job on **`*/10 * * * *`** (every 10 minutes). **`vercel.json` is the source
+   of truth**; verify against it, never against prose. Some route-file **comments are stale** (say
+   "4 hours" / "4 minutes"). **Fix the comments, never the schedule**, unless Maya explicitly asks.
+   *(Corrected 2026-07-30, restated after review: this entry previously named `/api/cron/idx-sync`,
+   `/api/cron/media-sync` and `/api/cron/db-keepalive` as separately scheduled jobs. Verified directly
+   against `vercel.json` at `04db1b99`: **`/api/cron/one-cycle` is the only scheduled ingestion cron**;
+   **`/api/cron/idx-sync` and `/api/cron/media-sync` are still PRESENT in `vercel.json` under the
+   `functions` block** as route-specific duration overrides, but are **not independently scheduled under
+   `crons`**; **`/api/cron/db-keepalive` is absent from `vercel.json` entirely**. An earlier revision of
+   this note said none of the three appears in the file at all — that was false for the first two and
+   could lead an agent to overlook live route configuration. Recorded per `C-7`: measured statements are
+   dated evidence and they drift.)*
 3. **Proof-first** — a change is not "done" without a failing test that flips green, a live URL/runtime-log
    proof, or a direct source read (static claims only). Source-grep alone never proves rendering/behavior.
 4. **Fail-closed** — if a REBNY/RLS/IDX/FARE/Fair-Housing rule is unclear or a canonical file is missing,
@@ -63,6 +83,9 @@ notification dispatcher · open-house v2 · admin merge bypass · force-push to 
 
 | Topic | File |
 |---|---|
+| **Platform architecture, business rules, cross-system contracts, implementation sequence** | **`docs/architecture/MALLAN-PLATFORM-PLAN.md` — the single normative plan (`DOC-1`)** |
+| **Retired identifiers, open conflicts, deferred items** | `docs/architecture/MALLAN-PLATFORM-PLAN.md` §0.8, §1.2, §18 — normative |
+| Historical reconciliation evidence (**non-normative**, not in this repo) | archival tag `archive/platform-plan-reconciliation-corpus-53688877` |
 | Cross-agent constitution (this) | `AGENTS.md` |
 | Live operational status | `docs/PROJECT-HEALTH-DASHBOARD.md` (auto tier via `npm run health:probe`) |
 | **All tracked issues / incidents / debt / risks** | `docs/PLATFORM-ISSUE-REGISTRY.md` (IDs, Evidence Scores, hypotheses) |
@@ -77,6 +100,11 @@ notification dispatcher · open-house v2 · admin merge bypass · force-push to 
 
 These files are the authoritative operational documents for this repository:
 
+0. **`docs/architecture/MALLAN-PLATFORM-PLAN.md`** — the single **normative** plan. Added 2026-07-30 by
+   the planning reconciliation. Only this file establishes platform-wide architecture, business rules,
+   implementation sequence or cross-system contracts (`DOC-1`). The documents below are **operational**;
+   where operational status and the plan appear to disagree, the operational documents describe *what is*
+   and the plan describes *what must be* — neither overwrites the other.
 1. `AGENTS.md`
 2. `docs/PROJECT-HEALTH-DASHBOARD.md`
 3. `docs/PLATFORM-ISSUE-REGISTRY.md`
