@@ -826,6 +826,54 @@ describe("Mallan execution-control gate", () => {
     expect(gate(cwd).status).not.toBe(0);
   });
 
+  // The ) that closes an `if (...)` condition legitimately precedes a regex literal, and
+  // ) also commonly precedes division, so a slash there is genuinely ambiguous. The
+  // ambiguity is resolved on the side that COPIES text rather than the side that DELETES
+  // it: reading division as a regex preserves everything, while reading a regex as a
+  // comment erases to end of line and blinded all four readings at once.
+  test("a regex after a closing paren does not blind every reading", () => {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+    });
+    const cwd = initRepo(control);
+    const slash = String.fromCharCode(92);
+    // Same three conditions as the keyword case: ambiguous slash, same line, LINE seam.
+    write(cwd, "lib/feature/reader.ts", [
+      "export const endpoint = (() => { if (globalThis) /a" + slash + "/" + slash + "//.test(" + JSON.stringify("x") + "); return " + JSON.stringify("https://console.") + " // seam",
+      "    + " + JSON.stringify("neon.tech/api/v2/projects") + "; })();",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", "reader hides the host behind an ambiguous slash");
+    expect(gate(cwd).status).not.toBe(0);
+  });
+
+  // The cost of resolving that ambiguity toward regex is that ordinary division after a
+  // closing paren or bracket must still not be mistaken for a capability signature.
+  test("ordinary division after a paren or bracket is not a capability signature", () => {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+      impact_graph: {
+        root_owner_paths: ["MALLAN-PLATFORM-MASTER-PLAN.md"],
+        writer_paths: ["lib/feature/reader.ts"],
+        reader_paths: ["lib/feature/reader.ts"],
+        publisher_paths: ["lib/feature/publisher.ts"],
+        downstream_surfaces: ["test downstream"],
+        test_paths: ["tests/runtime/mallan-execution-control.test.ts"],
+        compliance_surfaces: ["none for fixture"],
+      },
+    });
+    const cwd = initRepo(control);
+    write(cwd, "lib/feature/reader.ts", [
+      "export const mean = (xs: number[]) => (xs[0] + xs[1]) / xs.length; // ratio",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", "reader divides after a paren and a bracket");
+    expect(gate(cwd).stderr).not.toContain("Direct Neon control-plane capability is prohibited");
+  });
   // A keyword may precede a regex literal, and the last character of `return` is an
   // ordinary identifier character, so a one-character test called it division. The
   // regex's own slashes were then read as a comment and ate the rest of the line.

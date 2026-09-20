@@ -281,9 +281,18 @@ const REGEX_PRECEDING_KEYWORDS = new Set([
   "case", "do", "else", "yield", "await"
 ]);
 
+// The ambiguity is decided on the SAFE side, and which side that is follows from what
+// the two branches do. Regex handling COPIES characters through; comment handling
+// DELETES them. Calling division a regex therefore preserves text and can never hide a
+// signature; calling a regex a comment deletes to end of line and has hidden one four
+// separate times. So where a slash could be either, this answers regex.
+//
+// That is why ) and ] are in this set even though both commonly precede division: the
+// ) that closes an `if (...)` condition legitimately precedes a regex, and guessing
+// wrong in the other direction blinded every reading at once.
 function regexMayStart(last, text, index) {
   if (!last) return true;
-  if ("(,=:[!&|?{};+-*%~^<>".includes(last)) return true;
+  if ("(),=:[]!&|?{};+-*%~^<>".includes(last)) return true;
   if (!/[A-Za-z_$]/.test(last)) return false;
   // The last character was part of a word. Read the whole word back and ask whether it
   // is a keyword a value may follow.
