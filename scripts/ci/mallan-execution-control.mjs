@@ -124,7 +124,7 @@ const DATABASE_CONTENT_PATTERNS = [
 // otherwise a fragment that retains a separator matches neither pass. Both sides drop
 // whitespace, quotes, concatenation, brackets, commas, dots, underscores and hyphens.
 function collapseForCapabilityScan(body) {
-  return decodeSourceEscapes(body).replace(/[\s'\"`+\\\[\],\.,_-]/g, "").toLowerCase();
+  return decodeSourceEscapes(body).replace(/[\s'\"`+\\\[\],\.,_${}()-]/g, "").toLowerCase();
 }
 
 // A comment can sit between the fragments of a concatenated signature, and the collapse
@@ -222,6 +222,9 @@ function fileCarriesDatabaseSignal(body) {
   if (!body) return false;
   if (DATABASE_CONTENT_SIGNALS.some((signal) => body.includes(signal))) return true;
   if (DATABASE_CONTENT_PATTERNS.some((pattern) => pattern.test(body))) return true;
+  // Loading the driver as a value IS the dependency. This subsumes every naming
+  // spelling, including ones nobody has written yet.
+  if (loadsDatabaseDriver(body)) return true;
   // Constructors reached through an alias or a namespace. Literal names are not enough:
   // `import { Pool as PgPool } from "pg"` and `const { Pool: PgPool } = require("pg")`
   // are the same consumer under a different binding.
@@ -241,6 +244,18 @@ const DB_NAMED_IMPORT = new RegExp("import\\s+(?!type\\s)\\{([^}]*)\\}\\s*from\\
 const DB_DEFAULT_IMPORT = new RegExp("import\\s+(?!type\\s)([A-Za-z_$][\\w$]*)\\s*(?:,|from)[^;]*['\"]" + DB_SPECIFIER + "['\"]", "g");
 const DB_PLAIN_REQUIRE = new RegExp("(?:const|let|var)\\s+([A-Za-z_$][\\w$]*)\\s*=\\s*require\\s*\\(\\s*['\"]" + DB_SPECIFIER + "['\"]", "g");
 const DB_DESTRUCTURED_REQUIRE = new RegExp("(?:const|let|var)\\s*\\{([^}]*)\\}\\s*=\\s*require\\s*\\(\\s*['\"]" + DB_SPECIFIER + "['\"]", "g");
+
+// Any value-load of the driver, by any syntax: static import, bare side-effect import,
+// require, and dynamic import. `import type` is excluded by the negative lookahead.
+const DB_VALUE_IMPORT = new RegExp("import\\s+(?!type\\s)[^;]*?from\\s*['\"]" + DB_SPECIFIER + "['\"]");
+const DB_BARE_IMPORT = new RegExp("import\\s*['\"]" + DB_SPECIFIER + "['\"]");
+const DB_ANY_REQUIRE = new RegExp("require\\s*\\(\\s*['\"]" + DB_SPECIFIER + "['\"]");
+const DB_DYNAMIC_IMPORT = new RegExp("import\\s*\\(\\s*['\"]" + DB_SPECIFIER + "['\"]");
+
+function loadsDatabaseDriver(body) {
+  return DB_VALUE_IMPORT.test(body) || DB_BARE_IMPORT.test(body) ||
+    DB_ANY_REQUIRE.test(body) || DB_DYNAMIC_IMPORT.test(body);
+}
 
 function addBindingNames(list, into) {
   for (const part of String(list).split(",")) {

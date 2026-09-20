@@ -669,6 +669,70 @@ describe("Mallan execution-control gate", () => {
     expect(res.stderr).toContain("database_impact_chain");
   });
 
+  // Four spellings of the same consumer got past the alias scan in successive rounds, so
+  // the rule stopped being about names: loading the driver as a value IS the dependency.
+  // These two are spellings nobody had written yet when that rule was added.
+  function readerPacket(lines: string[], message: string) {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+    });
+    const cwd = initRepo(control);
+    write(cwd, "lib/feature/reader.ts", lines.concat("").join(String.fromCharCode(10)));
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", message);
+    return gate(cwd);
+  }
+
+  test("a dynamically imported driver triggers the chain", () => {
+    const res = readerPacket(
+      [
+        "const { Pool: P } = await import(" + JSON.stringify("pg") + ");",
+        "export const reader = new P({});",
+      ],
+      "reader loads the driver dynamically"
+    );
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("database_impact_chain");
+  });
+
+  test("a driver reached through a property assignment triggers the chain", () => {
+    const res = readerPacket(
+      [
+        "const mod = require(" + JSON.stringify("pg") + ");",
+        "const P = mod.Pool;",
+        "export const reader = new P({});",
+      ],
+      "reader names the constructor through a property"
+    );
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("database_impact_chain");
+  });
+
+  // The boundary of that broader rule. A type has no runtime connection, and an earlier
+  // census found type-only imports common and inert, so they must stay out or the chain
+  // becomes noise and stops meaning anything.
+  test("a type-only driver import does not trigger the chain", () => {
+    const res = readerPacket(
+      [
+        "import type { Pool } from " + JSON.stringify("pg") + ";",
+        "export type ReaderPool = Pool;",
+      ],
+      "reader names the driver only as a type"
+    );
+    expect(res.status).toBe(0);
+  });
+
+  test("a capability signature assembled by template interpolation is still refused", () => {
+    const interpolated =
+      String.fromCharCode(96) + "https://console." + String.fromCharCode(36) + "{" +
+      JSON.stringify("neon") + "}.tech/api/v2/projects" + String.fromCharCode(96);
+    const res = readerPacket(
+      ["export const endpoint = " + interpolated + ";"],
+      "reader interpolates the control-plane host"
+    );
+    expect(res.status).not.toBe(0);
+  });
   // A comment can sit between the fragments of a concatenated signature. Removing
   // comments is the obvious answer and is unsafe alone, because a line-comment strip cuts
   // "https://console.neon.tech" at its own "//". Both readings are scanned, so a signature
