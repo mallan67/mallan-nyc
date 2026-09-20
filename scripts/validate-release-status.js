@@ -279,6 +279,23 @@ function requiredChecksFromApplicableMainRulesets() {
     } catch {
       return { ok: false, checks: [], reason: 'ruleset-detail-malformed:' + String(item.id) };
     }
+    // A ruleset that cannot be read is not a ruleset that does not apply. A truncated
+    // or malformed conditions block would otherwise drop every check it requires while
+    // discovery still reported success.
+    const conditions = detail?.conditions;
+    if (conditions !== undefined && (conditions === null || typeof conditions !== 'object' || Array.isArray(conditions))) {
+      return { ok: false, checks: [], reason: 'ruleset-conditions-malformed:' + String(item.id) };
+    }
+    const refName = conditions?.ref_name;
+    if (refName === undefined || refName === null || typeof refName !== 'object' || Array.isArray(refName)) {
+      return { ok: false, checks: [], reason: 'ruleset-ref-name-missing:' + String(item.id) };
+    }
+    if (!Array.isArray(refName.include)) {
+      return { ok: false, checks: [], reason: 'ruleset-ref-include-malformed:' + String(item.id) };
+    }
+    if (refName.exclude !== undefined && !Array.isArray(refName.exclude)) {
+      return { ok: false, checks: [], reason: 'ruleset-ref-exclude-malformed:' + String(item.id) };
+    }
     if (!rulesetAppliesToMain(detail)) continue;
     // A truncated or malformed detail must make discovery UNKNOWN, not silently empty.
     if (!Array.isArray(detail.rules)) {

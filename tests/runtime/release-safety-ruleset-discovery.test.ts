@@ -184,6 +184,74 @@ describe("main-ruleset required-check discovery", () => {
     expect(result.reason).toContain("ruleset-detail-unavailable");
   });
 
+  // A ruleset whose conditions cannot be read used to fall through rulesetAppliesToMain
+  // as "does not apply to main", silently dropping every check it requires. Unreadable
+  // and inapplicable are different answers, and only one of them is safe to act on.
+  test("a ruleset with no conditions block makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        rules: [
+          { type: "required_status_checks", parameters: { required_status_checks: [{ context: "pr-check" }] } },
+        ],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-ref-name-missing");
+  });
+
+  test("a ruleset whose conditions are not an object makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        conditions: "refs/heads/main",
+        rules: [],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-conditions-malformed");
+  });
+
+  test("a ruleset whose include list is not an array makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: "~DEFAULT_BRANCH", exclude: [] } },
+        rules: [],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-ref-include-malformed");
+  });
+
+  test("a ruleset whose exclude list is not an array makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: ["~DEFAULT_BRANCH"], exclude: "release/*" } },
+        rules: [],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-ref-exclude-malformed");
+  });
+
   test("a ruleset that does not apply to main contributes nothing", () => {
     const discover = loadDiscovery({
       "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,

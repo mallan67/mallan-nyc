@@ -639,6 +639,17 @@ function checkCreatedBranch() {
   );
 }
 
+// Evidence must be a FILE. `git cat-file -e ref:some/dir` resolves the tree, so path
+// existence alone accepted a directory, and a directory can satisfy any station whose
+// rule is a path shape. Asking for the object TYPE settles it for every station at once.
+function basePathIsFile(baseRef, filePath) {
+  try {
+    return git(["cat-file", "-t", baseRef + ":" + filePath]).trim() === "blob";
+  } catch {
+    return false;
+  }
+}
+
 function basePathExists(baseRef, filePath) {
   try {
     git(["cat-file", "-e", baseRef + ":" + filePath]);
@@ -788,6 +799,12 @@ function assertDatabaseChain(control, changedPaths, readHead, readBase, baseRef)
       const exists = basePathExists(baseRef, value);
       const isNew = (control.allowed_new_files || []).includes(value);
       if (!exists && !isNew) { unresolved.push(station + ": " + value); continue; }
+      // A tree is not evidence. A packet that names a folder has named a place to look,
+      // which is what the station was asking the packet to have already done.
+      if (exists && !basePathIsFile(baseRef, value)) {
+        offClass.push(station + ": " + value + "  (a directory is not evidence; name the file)");
+        continue;
+      }
       // The path is real. It must also be the RIGHT KIND of thing for this station.
       const klass = DATABASE_STATION_EVIDENCE[station];
       const body = exists ? readBase(value) : readHead(value);

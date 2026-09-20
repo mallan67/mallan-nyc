@@ -139,6 +139,11 @@ function initRepo(control = baseControl()) {
   );
   write(cwd, "lib/ops/db-target.ts", "export const target = process.env.DATABASE_URL;" + String.fromCharCode(10));
   write(cwd, "package.json", JSON.stringify({ name: "fixture" }) + String.fromCharCode(10));
+  write(
+    cwd,
+    "prisma/migrations/0001_init/migration.sql",
+    "CREATE TABLE listings (id TEXT PRIMARY KEY);" + String.fromCharCode(10)
+  );
   git(
     cwd,
     "add",
@@ -153,7 +158,8 @@ function initRepo(control = baseControl()) {
     ".github/workflows/geocode.yml",
     ".github/workflows/db-deploy.yml",
     "lib/ops/db-target.ts",
-    "package.json"
+    "package.json",
+    "prisma/migrations/0001_init/migration.sql"
   );
   git(cwd, "commit", "-m", "base authority");
   git(cwd, "branch", "origin-main");
@@ -618,6 +624,29 @@ describe("Mallan execution-control gate", () => {
 
   // Same consumer, different spelling. A destructured require with a rename binds the pg
   // pool to a name the literal-name scan would never see.
+  // The migration station is the one station whose rule is a path shape, because a
+  // migration file carries no keyword worth demanding. That made it the last place a
+  // directory could still stand in for evidence.
+  test("a migrations directory does not satisfy the migrations station", () => {
+    const chain = { ...FULL_DB_CHAIN };
+    (chain as Record<string, string[]>).migrations = ["prisma/migrations/"];
+    const cwd = initRepo(dbControl(chain));
+    touchSchema(cwd, "db change, migrations station points at the folder");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("migrations");
+  });
+
+  // Positive control for the case above: the file inside that folder IS evidence, so the
+  // refusal above is about the tree and not about the station being unsatisfiable.
+  test("a migration file satisfies the migrations station", () => {
+    const chain = { ...FULL_DB_CHAIN };
+    (chain as Record<string, string[]>).migrations = ["prisma/migrations/0001_init/migration.sql"];
+    const cwd = initRepo(dbControl(chain));
+    touchSchema(cwd, "db change, migrations station names the migration file");
+    expect(gate(cwd).status).toBe(0);
+  });
+
   test("a destructured require alias triggers the chain", () => {
     const control = baseControl({
       authorized_paths: ["lib/feature/reader.ts"],
