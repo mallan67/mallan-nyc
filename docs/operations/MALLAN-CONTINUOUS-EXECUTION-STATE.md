@@ -303,6 +303,108 @@ The current sequence is now governance-first. Provider cleanup and product imple
 
 Do not insert unrelated Search/CRM/CMA/forms rewrites into this governance/control-plane convergence packet.
 
+## 5.1 Convergence recovery ledger — branches, Vercel overrides and retirement order
+
+This is not a branch-deletion exercise. Git state, Vercel branch scopes, deployments, database authority and historical PR content must be converged in one order so removal cannot create a fallback to Production or strand unique work.
+
+### Current Git branch estate
+
+Live GitHub enumeration on 2026-09-20:
+
+- total branches: **37**;
+- open pull requests: **24**;
+- non-main branches with **no open PR: 12**;
+- all 12 no-PR branches are still diverged from `main`; none may be deleted merely because it lacks a PR.
+
+| No-open-PR branch | Ahead of main | Behind main | Compared files | Current disposition |
+|---|---:|---:|---:|---|
+| `chore/remove-ai-reference-sprawl-2026-09-06` | 1 | 2 | 30 | reconcile unique commit, then retire |
+| `claude/mallan-cotality-context-l0o1oa` | 4 | 2 | 6 | reconcile evidence, then retire |
+| `design/frontend-backend-integration-2026-07-28` | 17 | 180 | 20 | historical product evidence; reconcile only surviving requirements |
+| `diag/neon-preview-provision-2026-09-17` | 3 | 2 | 3 | diagnostic evidence only; retire after provider facts are captured in canonical state |
+| `feat/broker-delegated-access-2026-09-05` | 28 | 2 | 90 | product work; reconcile before deletion |
+| `feat/listing-external-media-authority-2026-08-12` | 32 | 54 | 55 | product work; reconcile before deletion |
+| `fix/cotality-provider-boundary-2026-08-23` | 96 | 7 | 300 | major provider-boundary evidence; reconcile into canonical authority before retirement |
+| `fix/rental-listing-workflow-p0-2026-08-20` | 12 | 7 | 72 | product work; reconcile before deletion |
+| `masterplan-cotality-section` | 24 | 95 | 6 | authority provenance already being integrated by #632; retire only after exact reconciliation proof |
+| `preserve/agent-permanent-delete-wip-cc34bcd8` | 12 | 2 | 23 | preserved WIP; reconcile against PR #627 before retirement |
+| `search/browser-integration-2026-09-05` | 63 | 2 | 300 | **HIGH RISK:** no PR + Vercel DB branch override; reconcile before provider detach |
+| `search/clean-foundation-2026-09-04` | 4 | 2 | 23 | **HIGH RISK:** no PR + Vercel DB branch override; reconcile before provider detach |
+
+### Vercel branch-scoped DB/control residue
+
+Read-only Vercel inventory found **24 branch-scoped environment entries across 5 branch configurations**:
+
+| Vercel branch scope | Git state | Vercel residue | Safe disposition |
+|---|---|---|---|
+| `search/browser-integration-2026-09-05` | branch exists; no PR; 63 ahead / 2 behind | `DATABASE_URL` + `DATABASE_URL_UNPOOLED` | reconcile branch content; prove deployment reachability; remove branch overrides; redeploy/verify; then retire Git branch |
+| `search/clean-foundation-2026-09-04` | branch exists; no PR; 4 ahead / 2 behind | `DATABASE_URL` + `DATABASE_URL_UNPOOLED` | same sequence |
+| `feat/agent-permanent-delete-2026-09-01` | branch exists; draft PR #627 | `DATABASE_URL` + `DATABASE_URL_UNPOOLED` | keep until PR #627 is reconciled; no provider cleanup first |
+| `fix/neon-p0-event-driven-wake-2026-08-16` | branch exists; draft PR #618 | `DATABASE_URL` + `DATABASE_URL_UNPOOLED` | keep until PR #618/provider work is reconciled; no provider cleanup first |
+| `fix/cotality-neon-media-system-root-cause-2026-08-06` | **Git branch absent** | **16 branch-scoped variables**, including Vercel/Neon admin/control and duplicate `database_*` connection entries | strongest retirement candidate, but first prove no active deployment, workflow or reader still resolves this branch scope; remove the Vercel branch scope as one bounded cleanup, not by renaming individual variables |
+
+### Renaming rules
+
+**Do not rename stale infrastructure identities as a cleanup technique.**
+
+- Do not rename Git branches that have Vercel branch-scoped variables. A rename can leave the old Vercel scope behind and create a second branch identity.
+- Do not "rename" dead Neon endpoint values. Endpoint IDs are identities, not aliases. A reference to a nonexistent endpoint is removed after proof; it is not retargeted by string substitution.
+- Do not rename or hand-edit individual integration-owned `database_*` variables. Their owner is the Vercel Marketplace resource connection.
+- Do not rename a dead branch scope into `work/active`. `work/active` is the future authorized execution lane, not a recycling target for historical state.
+
+### Required retirement sequence for every historical branch
+
+```text
+GIT BRANCH / PR
+→ UNIQUE COMMITS + BUSINESS/PROVIDER REQUIREMENTS
+→ CURRENT MAIN EQUIVALENCE / REQUIRED RECONCILIATION
+→ VERCEL BRANCH-SCOPED ENV OVERRIDES
+→ ACTIVE / HISTORICAL VERCEL DEPLOYMENTS
+→ WORKFLOW / CRON / PROVIDER READERS
+→ DATABASE FALLBACK BEHAVIOR
+→ DETACH / REMOVE PROVIDER OVERRIDE
+→ NEW PREVIEW OR MAIN DEPLOYMENT PROOF
+→ CLOSE/SUPERSEDE PR
+→ DELETE GIT BRANCH
+→ PROVE NO RESIDUAL VERCEL BRANCH SCOPE
+```
+
+Branch deletion is therefore the **last** step, not the first.
+
+### Recovery phases
+
+**Phase A — governance lock.** Finish and merge a corrected #632, then activate `authority-root` as a required `Protect main` check. Until that is real, cleanup remains blocked because the system can recreate the same sprawl.
+
+**Phase B — Git reconciliation.** Classify all 36 non-main branches. Open-PR branches are reconciled through their PR history; the 12 no-PR branches are compared against current main and either integrated into one authorized packet, explicitly rejected as obsolete, or retained only until required evidence is captured. No branch is deleted while unique required work remains unaccounted for.
+
+**Phase C — Vercel branch override retirement.** Work one branch scope at a time. Prove the branch is no longer an execution target, remove only its manual branch-scoped overrides, trigger a fresh deployment where applicable, and prove no fallback reaches Production. The dead-Git `fix/cotality-neon-media-system-root-cause-2026-08-06` scope is the first candidate once this proof exists.
+
+**Phase D — Marketplace resource normalization.** After branch overrides are gone, inspect the single `neon-green-school` resource's Allowed Environments and connection behavior. Narrow or change the resource connection through Vercel as one governed resource operation; do not delete individual `database_*` members.
+
+**Phase E — manual bare-variable reconciliation.** Only after Marketplace ownership is stable, reconcile bare `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `ASSISTANT_DATABASE_URL`, `NEON_PROJECT_ID`, `NEON_API_KEY`, `NEON_PREVIEW_API_KEY`, rotation/admin variables and related GitHub Action variables against live readers/writers. Existing code proves that some of these still drive prune/rotation workflows, so apparent staleness is not enough for deletion.
+
+**Phase F — route/workflow correction.** Any cron/workflow that depends on a retired direct-Neon credential or dead branch model is either rewritten to use the Vercel-managed resource contract or disabled/retired in the same bounded packet. In particular, current readers of `NEON_PROJECT_ID` / `NEON_API_KEY` include the branch-prune cron and operator prune tooling, while `NEON_PREVIEW_API_KEY` is consumed by `.github/workflows/cleanup-neon-preview-branch.yml`. These cannot be deleted independently of their routes.
+
+**Phase G — Git retirement.** After provider residue is removed and unique work is reconciled, close/supersede stale PRs and delete their branches in verified batches. The target operating estate is `main` plus the single authorized `work/active` lane; historical evidence belongs in merged history/PR history, not active execution branches.
+
+**Phase H — final convergence proof.** Re-enumerate GitHub branches, open PRs, Vercel branch-scoped env entries, Vercel Marketplace resources, exact Production deployment identity and runtime DB authority. Closure requires no unexplained branch-scoped DB override, no dead endpoint reference, no duplicate database authority, no workflow that can recreate the retired path, and no stale branch capable of passing the required execution gate.
+
+### Definition of back-on-track
+
+The system is not considered converged until all of the following are simultaneously true:
+
+- one canonical Master and one current Execution State;
+- protected `main` + one authorized `work/active` execution lane;
+- every remaining historical branch has a documented, justified reason to exist or is retired;
+- no Vercel branch-scoped DB override exists without an explicitly authorized active branch use case;
+- one Vercel Neon Marketplace resource is the provider control path;
+- integration-owned variables are controlled by that resource, not hand-maintained copies;
+- every manual bare DB/control variable has one proven owner and reader set;
+- no dead endpoint/project/branch identifier is reachable from runtime or workflow configuration;
+- Preview/Development cannot fall through to Production by absence of an override;
+- no cleanup workflow can recreate, delete or target a provider path outside the current Execution State;
+- exact-head Preview/Production verification and independent review are green.
+
 # 6. Mandatory closure model
 
 Every material implementation packet must prove:
