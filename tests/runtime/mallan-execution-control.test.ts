@@ -356,4 +356,46 @@ describe("Mallan execution-control gate", () => {
     expect(result.stderr).toContain(".github/workflows/pr-check.yml");
   });
 
+  test("control-update rejects a malformed proposed execution contract", () => {
+    const cwd = initRepo(
+      baseControl({
+        mode: "control-update",
+        authorized_paths: [STATE],
+        allowed_new_files: [],
+        impact_domains: ["governance"],
+      })
+    );
+
+    write(cwd, STATE, "# MALLAN CONTINUOUS EXECUTION STATE\n\nmalformed control\n");
+    git(cwd, "add", STATE);
+    git(cwd, "commit", "-m", "malformed control update");
+
+    const result = gate(cwd);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Proposed execution contract is invalid");
+    expect(result.stderr).toContain("execution-control markers");
+  });
+
+  test("rejects rename bypasses even when the destination would otherwise be in scope", () => {
+    const cwd = initRepo(
+      baseControl({
+        authorized_paths: ["lib/feature/"],
+        allowed_new_files: [],
+      })
+    );
+
+    fs.renameSync(
+      path.join(cwd, MASTER),
+      path.join(cwd, "lib/feature/moved-master.md")
+    );
+    git(cwd, "add", "-A");
+    git(cwd, "commit", "-m", "attempt protected-file rename bypass");
+
+    const result = gate(cwd);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Renames/copies are not permitted");
+    expect(result.stderr).toContain(MASTER);
+    expect(result.stderr).toContain("lib/feature/moved-master.md");
+  });
+
 });
