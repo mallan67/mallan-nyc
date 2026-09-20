@@ -155,6 +155,8 @@ function stripSourceComments(body) {
   const text = String(body);
   let out = "";
   let i = 0;
+  // The last non-whitespace character seen outside a string or comment.
+  let last = "";
   while (i < text.length) {
     const ch = text[i];
     const next = text[i + 1];
@@ -162,6 +164,7 @@ function stripSourceComments(body) {
     // backslash escapes so an escaped quote does not end it early.
     if (ch === "'" || ch === '\"' || ch === String.fromCharCode(96)) {
       const quote = ch;
+      last = quote;
       out += ch;
       i += 1;
       while (i < text.length) {
@@ -170,6 +173,20 @@ function stripSourceComments(body) {
         if (text[i] === quote) { i += 1; break; }
         i += 1;
       }
+      continue;
+    }
+    // A slash where a VALUE may begin opens a regex literal, not a comment. Without
+    // this, /\/\// reads as a comment and eats the rest of the line.
+    if (ch === "/" && (next !== "/" && next !== "*") && regexMayStart(last)) {
+      out += ch;
+      i += 1;
+      while (i < text.length && text[i] !== String.fromCharCode(10)) {
+        out += text[i];
+        if (text[i] === String.fromCharCode(92)) { if (i + 1 < text.length) out += text[i + 1]; i += 2; continue; }
+        if (text[i] === "/") { i += 1; break; }
+        i += 1;
+      }
+      last = "/";
       continue;
     }
     if (ch === "/" && next === "/") {
@@ -191,13 +208,35 @@ function stripSourceComments(body) {
       continue;
     }
     out += ch;
+    if (!/\s/.test(ch)) last = ch;
     i += 1;
   }
   return out;
 }
 
+// Where a value may begin, a slash is a regex. After an identifier, a number or a
+// closing bracket it is division. Start of file counts as a place a value may begin.
+function regexMayStart(last) {
+  if (!last) return true;
+  return "(,=:[!&|?{};+-*%~^<>".includes(last);
+}
+
+// Block comments removed without touching line comments. This reading cannot be affected
+// by any line-comment misjudgement, which is where both previous blind spots came from.
+function stripBlockCommentsOnly(body) {
+  return String(body).replace(/\/\*[\s\S]*?\*\//g, " ");
+}
+
+// Three readings of the same file. A signature must be invisible in ALL of them to pass,
+// and they fail in different directions on purpose: the raw reading needs comments kept,
+// the stripped reading needs them gone, and the block-only reading is immune to every
+// line-comment question the other two can get wrong.
 function capabilityScanReadings(body) {
-  return [collapseForCapabilityScan(body), collapseForCapabilityScan(stripSourceComments(body))];
+  return [
+    collapseForCapabilityScan(body),
+    collapseForCapabilityScan(stripSourceComments(body)),
+    collapseForCapabilityScan(stripBlockCommentsOnly(body))
+  ];
 }
 
 function capabilityNeedles() {

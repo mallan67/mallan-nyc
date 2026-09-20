@@ -348,7 +348,9 @@ describe('release-safety P2 — deploy-validator + workflow wiring pins (static)
   test('deploy validator derives additional required checks from main-applicable active rulesets', () => {
     expect(releaseStatus).toContain('requiredChecksFromApplicableMainRulesets');
     expect(releaseStatus).toContain("refs/heads/main");
-    expect(releaseStatus).toContain("rule?.type !== 'required_status_checks'");
+    expect(releaseStatus).toContain("required_status_checks");
+    // Behaviour, not spelling: release-safety-ruleset-discovery.test.ts runs this
+    // function against stubbed responses and asserts what it returns.
     expect(releaseStatus).toContain('...rulesetDiscovery.checks');
     expect(releaseStatus).toContain('check.integration_id');
     expect(releaseStatus).toContain('appId: Number.isInteger(c.app?.id) ? c.app.id : null');
@@ -360,6 +362,18 @@ describe('release-safety P2 — deploy-validator + workflow wiring pins (static)
     expect(releaseStatus).toContain("main-ruleset-required-check-discovery");
     expect(releaseStatus).toContain("evaluation.evaluation.pending.push('main-ruleset-required-check-discovery')");
     expect(releaseStatus).not.toContain("if (!raw) return []");
+    // Every branch that cannot read a response must name its own reason. If a new branch
+    // is added without one, discovery could silently return an empty required set again.
+    for (const reason of [
+      'ruleset-list-not-paged',
+      'ruleset-list-item-metadata-missing',
+      'ruleset-detail-metadata-mismatch',
+      'ruleset-conditions-malformed',
+      'ruleset-rule-type-missing',
+      'ruleset-check-entry-malformed',
+    ]) {
+      expect(releaseStatus).toContain(reason);
+    }
   });
 
   test('validator delegates required-context evaluation to the integration-aware pure matcher', () => {

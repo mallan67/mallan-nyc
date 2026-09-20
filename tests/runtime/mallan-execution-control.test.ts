@@ -741,6 +741,56 @@ describe("Mallan execution-control gate", () => {
     expect(gate(cwd).status).not.toBe(0);
   });
 
+  // Second time one line blinded a reading: a regex literal may contain a slash pair, and
+  // treating it as a comment ate the rest of the line. The scanner now only reads a slash
+  // as a regex where a value may begin, and a third reading removes block comments alone,
+  // so no line-comment judgement of any kind can hide a block-seamed signature.
+  test("a regex literal does not blind the comment-stripped reading", () => {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+    });
+    const cwd = initRepo(control);
+    const slash = String.fromCharCode(92);
+    write(cwd, "lib/feature/reader.ts", [
+      "const re = /" + slash + "/" + slash + "//;",
+      "const endpoint = " + JSON.stringify("https://console.") + " /* seam */ + " + JSON.stringify("neon.tech/api/v2/projects") + ";",
+      "export const reader = { re, endpoint };",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", "reader hides the host behind a regex literal");
+    expect(gate(cwd).status).not.toBe(0);
+  });
+
+  // The boundary: ordinary division and an ordinary regex must not be mistaken for a
+  // capability signature, or the scan starts refusing honest code.
+  test("ordinary division and regex literals are not capability signatures", () => {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+      impact_graph: {
+        root_owner_paths: ["MALLAN-PLATFORM-MASTER-PLAN.md"],
+        writer_paths: ["lib/feature/reader.ts"],
+        reader_paths: ["lib/feature/reader.ts"],
+        publisher_paths: ["lib/feature/publisher.ts"],
+        downstream_surfaces: ["test downstream"],
+        test_paths: ["tests/runtime/mallan-execution-control.test.ts"],
+        compliance_surfaces: ["none for fixture"],
+      },
+    });
+    const cwd = initRepo(control);
+    const slash = String.fromCharCode(92);
+    write(cwd, "lib/feature/reader.ts", [
+      "export const ratio = (a: number, b: number) => a / b;",
+      "export const re = /^a" + slash + "/b$/;",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", "reader does ordinary arithmetic and matching");
+    const res = gate(cwd);
+    expect(res.stderr).not.toContain("Direct Neon control-plane capability is prohibited");
+  });
   // Being ALLOWED to add a file is not the same as having added it.
   test("a station citing a declared-but-absent new file is refused", () => {
     const missing = "prisma/migrations/0002_never_written/migration.sql";
