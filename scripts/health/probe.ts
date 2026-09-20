@@ -2,8 +2,8 @@
  * Read-only Project Health probe — refreshes the AUTO-PROBED block of
  * docs/PROJECT-HEALTH-DASHBOARD.md (between the HEALTH:AUTO markers).
  *
- * STRICTLY READ-ONLY against every live system. It shells out to read-only `git`, `gh`, and
- * `neonctl` commands, parses vercel.json, and (only if a canonical DATABASE_URL is present) runs a
+ * STRICTLY READ-ONLY against every live system. It shells out to read-only `git` and `gh`,
+ * parses vercel.json, and (only if a canonical DATABASE_URL is present) runs a
  * few read-only COUNT/MAX queries. It NEVER writes to production, env, cron, or Neon — the ONLY file
  * it writes is the dashboard markdown. Any probe that fails (tool missing / not authed / offline)
  * degrades to ⚪ UNVERIFIED rather than throwing, so a partial refresh is still honest.
@@ -29,9 +29,10 @@ const AUTO_START = "<!-- HEALTH:AUTO:START -->";
 const AUTO_END = "<!-- HEALTH:AUTO:END -->";
 
 // Canonical Neon identity (mirror of AGENTS.md / CLAUDE.md — the probe fails closed if these drift).
-const NEON_PROJECT = "hidden-mountain-87248164";
-const NEON_ORG = "org-wild-king-99967357";
-const NEON_DEFAULT_BRANCH = "br-crimson-frog-adr7g9gt";
+// Neon identifiers are NOT hard-coded here any more. They were consumed only by the
+// neonctl probes deleted on 2026-09-20, and a memorized provider identifier is exactly
+// the defect the Master forbids (section 0.12): it outlives the resource it named.
+// Current identity is read through the Vercel binding and recorded in the Execution State.
 const CANONICAL_ENDPOINT = "ep-cold-waterfall-adno3ao2";
 
 function sh(cmd: string): string {
@@ -90,43 +91,14 @@ tryProbe(() => {
     `${norm.length} checks — ${fails} fail, ${pending} pending; review CURRENT HEAD before merge`);
 }, () => add("PR #465 (rehydration guard)", "⚪", "gh checks unavailable"));
 
-// ── 3. Neon canonical identity + rollback branch ─────────────────────────────
-tryProbe(() => {
-  const raw = sh(`neonctl branches list --project-id ${NEON_PROJECT} --org-id ${NEON_ORG} --output json`);
-  const branches = JSON.parse(raw) as Array<{ id: string; name: string; default: boolean; current_state: string }>;
-  const def = branches.find((b) => b.default);
-  const rollback = branches.find((b) => /pre-gate6/.test(b.name));
-  const canonicalOk = def?.id === NEON_DEFAULT_BRANCH;
-  add("Neon canonical identity", canonicalOk ? "🟢" : "🔴",
-    canonicalOk
-      ? `default \`${def!.name}\`=\`${NEON_DEFAULT_BRANCH}\` (${def!.current_state}); ${branches.length} branch(es)`
-      : `DEFAULT BRANCH MISMATCH — expected ${NEON_DEFAULT_BRANCH}, got ${def?.id ?? "none"}`);
-  add("Gate 6 rollback branch", rollback ? "🟢" : "🟡",
-    rollback ? `\`${rollback.name}\` (${rollback.id}) ${rollback.current_state}` : "no pre-gate6 rollback branch present");
-}, () => {
-  add("Neon canonical identity", "⚪", "neonctl unavailable / not authed");
-  add("Gate 6 rollback branch", "⚪", "neonctl unavailable / not authed");
-});
-
-// ── 3b. Neon facts drift gate (OPS-016) — authoritative check = scripts/neon-verify.ts ──
-// Reuses the single source of truth; exit 0 = docs match live, 1 = DRIFT, 2 = UNVERIFIED.
-tryProbe(() => {
-  let code = 0;
-  try {
-    sh("npx tsx scripts/neon-verify.ts");
-  } catch (e) {
-    // A real drift exits 1; an unreachable/unauthed Neon exits 2. If the runner
-    // itself is missing (npx/tsx ENOENT → status undefined), treat as UNVERIFIED
-    // (2, ⚪), not a false DRIFT (🔴).
-    const st = (e as { status?: number }).status;
-    code = typeof st === "number" ? st : 2;
-  }
-  const s: Status = code === 0 ? "🟢" : code === 2 ? "⚪" : "🔴";
-  add("Neon facts drift (neon:verify)", s,
-    code === 0 ? "NEON.md NEON:FACTS block == live Neon (12/12 facts incl. history_retention 21600s)"
-      : code === 2 ? "UNVERIFIED — neonctl not authed/offline (run `npm run neon:verify` locally)"
-        : "DRIFT — NEON.md disagrees with live Neon; run `npm run neon:verify` for the field diff");
-}, () => add("Neon facts drift (neon:verify)", "⚪", "neon:verify unavailable"));
+// ── 3. Neon identity and drift cells — REMOVED 2026-09-20 ───────────────────
+// These two probes read Neon through `neonctl`. Mallan reaches Neon only through
+// the Vercel-managed Marketplace resource, and read-only access does not make an
+// unauthorized path authorized. Vercel exposes no equivalent API for Neon branch
+// topology, plan or retention, so these checks could not be rewired and were
+// deleted rather than left as an unauthorized verifier. Neon identity is
+// established through the Vercel binding and recorded in the Execution State.
+// See the Master, section 0.12.
 
 // ── 4. Cron cadence from vercel.json (schedule = source of truth) ────────────
 tryProbe(() => {

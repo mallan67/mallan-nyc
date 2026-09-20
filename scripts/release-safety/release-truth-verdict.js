@@ -79,12 +79,21 @@ function evaluateRequiredCheckRequirement(requirement, checkRuns, statuses) {
     ? candidates
     : candidates.filter((c) => c?.appId === integrationId);
 
+  // FAIL CLOSED BEFORE ORDERING. GitHub can return a queued rerun carrying neither
+  // started_at nor completed_at. Any comparator gives such a run timestamp 0, so it
+  // sorts behind an older completed success and the requirement reads as satisfied
+  // while the rerun is still pending. The presence of ANY incomplete eligible run is
+  // therefore pending on its own, whatever the ordering decides.
+  const incompleteRuns = eligibleRuns.filter((c) => c?.status !== 'completed');
+
   const cr = eligibleRuns
     .slice()
     .sort((a, b) => {
-      const at = Date.parse(a?.startedAt || a?.completedAt || '') || 0;
-      const bt = Date.parse(b?.startedAt || b?.completedAt || '') || 0;
-      return bt - at;
+      const at = Date.parse(a?.createdAt || a?.startedAt || a?.completedAt || '') || 0;
+      const bt = Date.parse(b?.createdAt || b?.startedAt || b?.completedAt || '') || 0;
+      if (bt !== at) return bt - at;
+      // Equal or absent timestamps: GitHub check-run ids increase monotonically.
+      return (b?.id || 0) - (a?.id || 0);
     })[0] || null;
 
   // Legacy Statuses cannot prove a GitHub App integration binding.
@@ -108,6 +117,10 @@ function evaluateRequiredCheckRequirement(requirement, checkRuns, statuses) {
   const sources = [];
   let pending = false;
   let failure = null;
+
+  if (incompleteRuns.length > 0) {
+    pending = true;
+  }
 
   if (cr) {
     const crState = cr.status === 'completed' ? cr.conclusion : cr.status;

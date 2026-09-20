@@ -12,7 +12,7 @@ to **⚪ UNVERIFIED / fail-closed**, not assumed-healthy.
 **Legend:** 🟢 healthy (verified) · 🟡 watch / degraded · 🔴 problem · ⚪ not verified this cycle.
 
 **Two tiers:**
-- **Auto tier** — refreshed read-only by `npm run health:probe` (git/PR, Neon identity, cron cadence,
+- **Auto tier** — refreshed read-only by `npm run health:probe` (git/PR, cron cadence,
   and — when a canonical `DATABASE_URL` is present — DB growth + Cotality ingestion freshness). Every
   cell is timestamped. The probe touches **nothing** in production; it only rewrites the block below.
 - **Assessed tier** — needs a tool the local probe doesn't have (Vercel MCP runtime logs, live smoke,
@@ -30,9 +30,9 @@ _Last probed (UTC): **2026-07-31T04:18:55Z** — refreshed by `npm run health:pr
 | Repo / main HEAD | 🟢 | main `04db1b99`; probed from branch `docs/register-ops-026` |
 | Open PRs | 🟢 | 3 open (3 non-audit): #590, #589, #585 |
 | PR #465 (rehydration guard) | 🟢 | MERGED 2026-07-02T02:35Z (gh merge-state only — deploy/runtime proof lives in RW-004) |
-| Neon canonical identity | 🟢 | default `main`=`br-crimson-frog-adr7g9gt` (ready); 1 branch(es) |
+| Neon canonical identity (RETIRED 2026-09-20) | 🟢 | default `main`=`br-crimson-frog-adr7g9gt` (ready); 1 branch(es) |
 | Gate 6 rollback branch | 🟡 | no pre-gate6 rollback branch present |
-| Neon facts drift (neon:verify) | 🟢 | NEON.md NEON:FACTS block == live Neon (12/12 facts incl. history_retention 21600s) |
+| Neon facts drift (RETIRED 2026-09-20) | 🟢 | cell retired: the neonctl verifier was deleted; Neon identity is read through the Vercel binding and recorded in the Execution State |
 | Cron cadence (live Cotality) | 🟡 | 20 crons; idx-sync `MISSING`, media-sync `MISSING`, db-keepalive `MISSING` |
 | media-backfill removal (QUAL-006/OPS-008) | 🟢 | not scheduled AND route file absent (both verified) — idx:validate 0-critical baseline restored 2026-07-02 |
 | Cotality sync attempt freshness | ⚪ | no canonical DATABASE_URL in env (pass cold-waterfall to fill) |
@@ -144,10 +144,10 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 |---|---|---|---|---|
 | Vercel production deploy | 🟡 | 2026-07-31 | Superseded — see the current production row above: `dpl_BVgQ…` on `e113a1ef`, runtime-source equivalent to `main` `04db1b99`. The 2026-07-02 `main@7643ccb0` (#468) entry is historical |
 | Vercel build pipeline | 🟢 | 2026-07-01 | 20 recent deployments all READY, 0 failed builds in window | Vercel MCP |
-| Neon canonical identity | 🟢 | 2026-07-01 | auto tier (health:probe) | `npm run health:probe` |
+| Neon canonical identity (RETIRED 2026-09-20) | 🟢 | 2026-07-01 | no longer auto-probed | read through the Vercel-managed resource |
 | Neon compute/pooler reliability | 🟡 | 2026-07-02 | keepalive 500 last 07-01 18:00Z (OPS-002 monitoring); compute FIXED 0.25 CU, retention 6h — verified from Neon config (OPS-016) | runtime logs 7d window |
 | Neon backups / PITR / restore drill | 🔴 | 2026-07-03 | **Gate-6 rollback branch AUTO-PRUNED 2026-07-03T04:00:48Z (OPS-022)** — no rollback branch currently exists; PITR window is 6h (OPS-016); no restore DRILL ever run | recreate+protect branch (OPS-022) |
-| Neon facts drift (neon:verify) | 🟢 | 2026-07-05 | OPS-016 RESOLVED — `npm run neon:verify` PASS 12/12: NEON.md §2.1 `NEON:FACTS` == live (retention 21600s=6h, compute 0.25 CU fixed, branch `br-crimson-frog-adr7g9gt`, 1 branch). Fails on any docs↔live drift; also runs in `health:probe` auto-tier | `npm run neon:verify` (read-only) |
+| Neon facts drift (RETIRED 2026-09-20) | 🟢 | 2026-07-05 | cell retired 2026-09-20 with `npm run neon:verify`; read Neon identity through the Vercel-managed resource | `npm run neon:verify` (read-only) |
 | Redis (locks/queues) | ⚪ | — | `createCronHandler` references a Redis lock but is dead code (OPS-007); live Redis usage uninventoried | code sweep + env check |
 | R2 storage (media) | ⚪ | — | cost audit 2026-06-12 exists; orphan/consistency unverified this cycle | R2 inventory vs listing_media |
 | DNS / SSL / domains | 🟢 | 2026-07-01 | https/www/apex redirects verified live; cert valid (PROD-003) | curl probes |

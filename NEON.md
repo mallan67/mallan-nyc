@@ -73,7 +73,12 @@ The `vercel.json` `buildCommand` must not contain `prisma migrate deploy` or `pr
 
 These were the canonical identity and configuration values for the production Neon project when they were last read on 2026-07-05. **They are dated evidence, not a source of truth.** `npm run neon:verify` compares this block against live Neon and fails on drift (exit 1 = drift, exit 2 = could not reach Neon / unverified). That check currently reads Neon through `neonctl`, which is NOT the authorized Mallan path; see the note under the block. Do not hand-edit a value here to silence a drift.
 
-<!-- NEON:FACTS:START -->
+The machine-checked NEON:FACTS block that lived here was REMOVED on 2026-09-20 together with
+`npm run neon:verify`, because both read Neon through `neonctl`, which is not an authorized Mallan
+path. The values it carried are preserved below as a dated historical reading, not as current fact
+and not as anything a validator now compares against:
+
+```text
 project_id=hidden-mountain-87248164
 org_id=org-wild-king-99967357
 plan=launch_v3
@@ -86,15 +91,17 @@ compute_min_cu=0.25
 compute_max_cu=0.25
 history_retention_seconds=21600
 branches_limit=5000
-<!-- NEON:FACTS:END -->
+```
 
-> **Open question, recorded rather than hidden (2026-09-20).** Mallan reaches Neon only through the
-> Vercel-managed Marketplace resource. `scripts/neon-verify.ts` and the Neon section of
-> `scripts/health/probe.ts` still read Neon through `neonctl`, which is not that path. Both are
-> strictly read-only. Vercel exposes no equivalent API for reading Neon branch topology, so these
-> checks cannot simply be rewired; they can only be kept as an acknowledged exception or deleted,
-> which would remove Mallan's ability to machine-detect drift in this block. That is Maya's decision
-> and it is not settled here.
+Current Neon identity and configuration are read through the Vercel-managed resource and recorded,
+with the date they were verified, in the Execution State. Nothing in this file is a current fact.
+
+> **Answered 2026-09-20 (Maya).** The question was whether a read-only `neonctl` verifier could stay.
+> The ruling: read-only does not make an unauthorized path authorized. Vercel exposes no equivalent
+> API for Neon branch topology, plan or retention, so the checks could not be rewired and were
+> DELETED — `scripts/neon-verify.ts`, the `neon:verify` script, and both Neon cells in
+> `scripts/health/probe.ts`. Mallan no longer machine-detects drift in these values; it establishes
+> them through the Vercel binding and records them, dated, in the Execution State.
 
 **Retention was 6 h at the last reading.** Raising it to 7 days is an optional Launch-plan lever, not a fix owed, and it has not been applied.
 
@@ -103,7 +110,7 @@ branches_limit=5000
   through that path with Maya's explicit authorization. A direct Neon Console login, a `neonctl`
   session and a `NEON_API_KEY` call are not authorized Mallan paths, and the former instructions for
   each were removed here on 2026-09-20.
-  If applied, update `history_retention_seconds=604800` in the block above in the same change so `neon:verify` stays green. Trade-off: a longer window increases retained history/WAL storage (billed) — weigh against the ~1.5 GB current synthetic size.
+  If applied, record the new value and its verification date in the Execution State; there is no longer a validator comparing this file to live Neon. Trade-off: a longer window increases retained history/WAL storage (billed) — weigh against the ~1.5 GB current synthetic size.
 
 ### Plan-pressure ordering, not a hard ceiling
 
@@ -150,7 +157,7 @@ Before writing a new migration, run `npx prisma migrate diff` to see if the sche
 
 Before `93fb0cd9` (2026-03-26): a 24-hour outage was caused by Neon suspending overnight, then morning requests timing out on the cold start. The `db-keepalive` cron was added to prevent this.
 
-This auto-suspend behavior is **not specific to the Free tier**. The Launch plan inherits the same 5-min idle suspend default; it is a per-compute-endpoint setting that can be raised via Neon Console but defaults to 5 min for cost reasons.
+This auto-suspend behavior is **not specific to the Free tier**. The Launch plan inherits the same 5-min idle suspend default; it is a per-compute-endpoint setting that defaults to 5 min for cost reasons. Changing it is a provider setting change: it is made inside the resource opened through Vercel SSO and requires Maya's explicit authorization (§0.12, §27.21 of the Master).
 
 **Trade-off explicitly accepted:** we burn a small continuous amount of compute to avoid large intermittent outages. On the Launch plan this costs marginal pennies/month rather than threatening a hard quota, but the discipline remains.
 
@@ -294,7 +301,9 @@ The HTTP-driver experiment (`lib/prisma-http.ts`, "Phase 5") was prototyped 2026
 Launch plan compute is **billed past 300 CU-hr/mo**, not blocked. The playbook below addresses both "approaching the baseline" (cost-discipline) and "way over baseline" (suggests a runaway query path that should be fixed regardless of plan).
 
 1. `npm run ops:health` — confirm compute hours are near/over the Launch baseline (300 CU-hr/mo)
-2. Neon console → Project → Usage — check current usage + reset date
+2. Open the bound resource through Vercel (`vercel integration open neon <resource>`, or the Vercel
+   project's Storage / Integrations panel) and read Usage there. Do not sign in to Neon directly;
+   the Vercel-managed binding is the only authorized path (§0.12 of the Master).
 3. **Options (in order of preference):**
    - Reduce compute-burn: audit recent changes for new DB query paths, check uptime-monitor frequency, consider slowing down `db-keepalive` or non-critical crons temporarily
    - Accept overage for the current month if a one-off (rare event, batch backfill, etc.) — Launch overage is metered, not catastrophic
@@ -315,7 +324,9 @@ Launch plan compute is **billed past 300 CU-hr/mo**, not blocked. The playbook b
 
 1. Load `https://mallan.nyc/api/health` — 503 means Next.js runtime itself is down; 200 means runtime is up, DB is likely cold
 2. Confirm `db-keepalive` cron is enabled in `vercel.json` (`*/3 * * * *`)
-3. Neon console → restart compute manually
+3. If compute must be restarted, do it inside the resource opened through Vercel SSO, not by signing
+   in to Neon directly. Compute state is provider state: reaching it through any other route is
+   prohibited (§0.12 of the Master), and a restart is a provider action, not a routine debugging step.
 4. Hit a DB-dependent route (e.g. `/api/listings?q=manhattan`) — first request takes ~2–5s while compute wakes; subsequent requests should be ~50ms
 
 ### D — "I pushed a code PR and the migration wasn't applied first"

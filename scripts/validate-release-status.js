@@ -132,6 +132,8 @@ try {
       completedAt: c.completed_at,
       url: c.details_url,
       appId: Number.isInteger(c.app?.id) ? c.app.id : null,
+      createdAt: c.started_at || c.completed_at || null,
+      id: Number.isInteger(c.id) ? c.id : null,
     }));
   }
   if (statusesRaw) {
@@ -230,16 +232,24 @@ function rulesetAppliesToMain(ruleset) {
 }
 
 function requiredChecksFromApplicableMainRulesets() {
-  const raw = gh('api repos/{owner}/{repo}/rulesets?includes_parents=true');
+  // --paginate --slurp: gh emits one JSON array per page and --slurp wraps them in an
+  // outer array. Without pagination a repository with more rulesets than a single page
+  // loses the remainder silently, so discovery would fail OPEN rather than unknown.
+  const raw = gh('api --paginate --slurp --method GET repos/{owner}/{repo}/rulesets -f includes_parents=true');
   if (!raw) return { ok: false, checks: [], reason: 'ruleset-list-unavailable' };
 
-  let list;
+  let pages;
   try {
-    list = JSON.parse(raw);
+    pages = JSON.parse(raw);
   } catch {
     return { ok: false, checks: [], reason: 'ruleset-list-malformed' };
   }
-  if (!Array.isArray(list)) {
+  if (!Array.isArray(pages)) {
+    return { ok: false, checks: [], reason: 'ruleset-list-not-array' };
+  }
+  // --slurp yields an array of pages; each page is itself an array of rulesets.
+  const list = pages.every((page) => Array.isArray(page)) ? pages.flat() : pages;
+  if (!Array.isArray(list) || list.some((item) => item === null || typeof item !== 'object')) {
     return { ok: false, checks: [], reason: 'ruleset-list-not-array' };
   }
 

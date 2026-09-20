@@ -88,7 +88,9 @@ const BOOTSTRAP_ALLOWED = new Set([
   "lib/neon/branches.ts", "tests/runtime/neon-branch-prunability.test.ts",
   "package.json", "artifacts/api-route-catalog.json",
   "lib/ops/canonical-neon-target.ts",
-  "scripts/media-image-health.js", "scripts/r2-retry-health.js"
+  "scripts/media-image-health.js", "scripts/r2-retry-health.js",
+  "scripts/neon-verify.ts", "scripts/health/probe.ts",
+  "docs/PROJECT-HEALTH-DASHBOARD.md"
 ]);
 
 const MUTATION_FLAGS = [
