@@ -2,8 +2,8 @@
 /**
  * QUARANTINED_DIRECT_NEON_CONTROL
  *
- * This command formerly listed/deleted Neon branches directly using
- * NEON_API_KEY + NEON_PROJECT_ID. Mallan Neon lifecycle control is Vercel-managed,
+ * This command formerly listed/deleted Neon branches using direct provider
+ * credentials. Mallan Neon lifecycle control is Vercel-managed,
  * so this direct provider path is intentionally non-operational.
  *
  * Keep the entrypoint temporarily so old operator instructions fail loudly instead

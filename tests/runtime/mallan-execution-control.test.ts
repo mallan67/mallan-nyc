@@ -327,7 +327,7 @@ describe("Mallan execution-control gate", () => {
 
     const result = gate(cwd);
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("Impact graph is not grounded in the PR base");
+    expect(result.stderr).toContain("Implementation proof is not grounded in the base authority");
     expect(result.stderr).toContain("lib/does-not-exist.ts");
   });
 
@@ -354,7 +354,7 @@ describe("Mallan execution-control gate", () => {
 
     const result = gate(cwd);
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("immutable execution-control root");
+    expect(result.stderr).toContain("protected execution/proof root");
     expect(result.stderr).toContain(".github/workflows/pr-check.yml");
   });
 
@@ -479,7 +479,21 @@ describe("Mallan execution-control gate", () => {
 
   test("control-root maintenance exits through state-only control update", () => {
     const cwd=initRepo(baseControl({mode:"control-root-maintenance",authorized_paths:[".github/workflows/pr-check.yml"],allowed_new_files:[],impact_domains:["governance"]}));
-    write(cwd,STATE,controlMarkdown(baseControl({mode:"control-update",authorized_paths:[STATE],allowed_new_files:[],impact_domains:["governance"]})));
+    write(cwd,STATE,controlMarkdown(baseControl({
+      mode:"control-update",
+      authorized_paths:[STATE],
+      allowed_new_files:[],
+      impact_domains:["governance"],
+      impact_graph:{
+        root_owner_paths:[MASTER],
+        writer_paths:[STATE],
+        reader_paths:["lib/feature/reader.ts"],
+        publisher_paths:["lib/feature/publisher.ts"],
+        downstream_surfaces:["GitHub merge gate"],
+        test_paths:["tests/runtime/mallan-execution-control.test.ts"],
+        compliance_surfaces:["governance only"]
+      }
+    })));
     git(cwd,"add",STATE); git(cwd,"commit","-m","exit root maintenance");
     expect(gate(cwd).stdout).toContain("state-only control update");
   });
