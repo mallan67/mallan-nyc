@@ -6,11 +6,13 @@
 > This file records current verified execution state and the machine-readable authorization envelope
 > consumed by the required GitHub PR check. It may not redefine the Master.
 
-**Checkpoint:** 2026-09-18  
+**Checkpoint:** 2026-09-20  
 **Repository:** `mallan67/mallan-nyc` only  
 **Canonical branch:** `main`  
 **Current main:** `bba9d8d6c92bb3bfe95b9f4b90da69534650c276`  
 **Active governance convergence PR:** #632  
+**Checkpoint source head:** `9cd51d226e887389e15f843e7db8991eb64781ff` (the parent state verified for this checkpoint; this handoff update creates a newer PR head)  
+**Authorized work surface:** GitHub repository + explicitly authorized provider connections only; Desktop/worktrees/scratch copies are not execution authority  
 **PR #595:** authority provenance / historical governance source; open, draft, unmerged, heavily diverged from current main
 
 ---
@@ -25,7 +27,9 @@
 
 There is no second master plan and no second execution-state file.
 
-Repository work is evaluated from GitHub. Maya's Desktop checkout, local worktrees, temporary copies and old branch files are not authority and may not be used to grant scope.
+Repository work is evaluated and mutated through GitHub. Maya's Desktop checkout, local worktrees, temporary copies, rescue folders and old branch files are not execution authority and may not be used to grant scope, create a parallel work lane, or become the basis for a provider change.
+
+**Contradiction rule:** if fresh evidence contradicts this Execution State or the Master, the affected line of work stops with `CONTRADICTION — CONTROL UPDATE REQUIRED`. An agent may not respond by inventing a substitute architecture, switching provider paths, creating another resource/branch/database, or rewriting authority to make the new path fit.
 
 For provider work, the governing chain remains:
 
@@ -186,18 +190,20 @@ Do not delete branches merely because they look old; first determine whether unm
 
 ## Cotality / Trestle
 
-Provider semantics must be verified from the authorized live Cotality/Trestle API plus current provider documentation.
+Cotality provider semantics, permissions, field names, enums, strings, mappings, attribution, search behavior and API behavior must come from the authorized live Cotality/Trestle contract plus current provider documentation.
 
-Verified repository access path:
+Current repo/provider state:
 
-- `.mcp.json` defines the live `trestle-fields` MCP;
-- credentials/config come from `IDX_CLIENT_ID`, `IDX_CLIENT_SECRET`, `TRESTLE_API_URL`;
-- runtime OAuth implementation is `lib/idx/auth.ts`;
-- grant = `client_credentials`;
-- scope = `api`;
-- token lifetime comes from provider-returned `expires_in`.
+- `.mcp.json` declares the `trestle-fields` adapter;
+- runtime OAuth code exists in `lib/idx/auth.ts`;
+- the configured adapter points to `mcp/trestle-fields/dist/index.js`, but that built file is not tracked in Git;
+- adapter source can fall back to `artifacts/metadata.xml` after a live fetch failure, so a successful local response is not automatically live-provider proof;
+- the current runtime test proves configuration strings, not that a clean Git checkout can start the adapter and reach Cotality live;
+- the connected Cotality provider call was unavailable during the 2026-09-20 verification attempt (transport returned 429/404).
 
-Repo CSV/XML/JSON mirrors are evidence/caches, not independent provider authority.
+Therefore Cotality-dependent facts are **UNVERIFIED** when the live contract is unavailable. Repo CSV/XML/JSON mirrors, generated artifacts, old audits and agent memory are evidence only and may not become provider authority by fallback.
+
+No Cotality mutation or contract rewrite is authorized in this governance checkpoint.
 
 ## Vercel / Neon
 
@@ -207,121 +213,95 @@ Canonical Vercel project:
 - project: `mallan-nyc`
 - project ID: `prj_gcdTm2kBRm7oPdGScHZpnHRPc2gW`
 
-Canonical bound Neon Marketplace resource:
+Canonical bound Neon Marketplace resource visible from Vercel:
 
 - resource: `neon-green-school`
 - Vercel store ID: `store_K9l79ICRUTMsiRh2`
-- Neon project: `hidden-mountain-87248164`
 
-Canonical Production database identity:
-
-- branch: `main`
-- branch ID: `br-crimson-frog-adr7g9gt`
-- endpoint identity: `ep-cold-waterfall-adno3ao2`
-- database: `neondb`
-- owner role: `neondb_owner`
-
-Stale / do-not-serve:
-
-- project: `morning-bread-68708332`
-- endpoint: `ep-royal-dawn-ad6eh8t2`
-
-Correct Vercel-managed administration path:
+Authorized Mallan provider route:
 
 ```text
 Vercel mallan-nyc
 → neon-green-school / store_K9l79ICRUTMsiRh2
-→ Vercel SSO
-→ hidden-mountain-87248164
+→ Vercel-managed Neon access
 ```
 
-Command:
+Direct Neon MCP login, direct `neonctl` OAuth, an unrelated Neon account/console, a separate API credential, or a newly created Neon resource is **not** an authorized substitute path. If the Vercel-managed path cannot expose a required fact, that fact remains unverified until the authorized path can expose it.
 
-`vercel integration open neon neon-green-school`
+### Corrected branch-history statement
 
-### Important corrected live facts
+Do **not** state that `hidden-mountain-87248164` has had "exactly one branch ever." That conclusion was retracted after historical repository evidence contradicted it:
 
-- `hidden-mountain-87248164` has exactly one branch ever when deleted branches are included: `main`.
-- Therefore current Production Preview branches were not created and later pruned in this project.
-- Production bare `NEON_API_KEY` and `NEON_PROJECT_ID` have been measured empty; the scheduled prune route is therefore fail-closed/inert and returns 503 before `pruneBranches()`.
-- An audit row from that route is not proof a prune pass ran.
-- Live Production schema is not equivalent to Prisma alone:
-  - 82 public tables were measured;
-  - `neon_auth` exists with 9 tables;
-  - `repack` exists;
-  - `financial_ledger` and `micro_commitments` exist live;
-  - previously assumed `agent_deals_v`, `agent_deals_summary_v` and `round(double precision, integer)` were not present live.
+- 2026-05-17 record: Neon Console showed 8 branches;
+- 2026-06-01 record: live-provider audit recorded approximately 40 branches and a fresh test deployment reaching branch #40.
 
-### Known CI parity defect — NOT fixed in this governance packet
+A later current/deleted enumeration returning only `main` is a bounded observation of that API response, not lifetime history.
 
-Current `.github/workflows/pr-check.yml` creates a `round(double,int)` shim in ephemeral CI even though live Production was measured without that function.
+### Current Vercel control-plane shape
 
-This is a real CI-vs-Production parity discrepancy. It is recorded here so it cannot be forgotten, but changing database/test behavior is outside the governance-bootstrap scope and requires its own authorized correction packet.
+Read-only Vercel inventory on 2026-09-20 showed one Neon Marketplace resource attached to `mallan-nyc`, but the environment layer is not converged:
 
----
+- 100 environment-variable entries / 78 unique keys;
+- 24 branch-scoped variable entries across 5 branch configurations;
+- four currently existing GitHub branches each carry branch-scoped `DATABASE_URL` + `DATABASE_URL_UNPOOLED` overrides;
+- one Vercel branch configuration remains for deleted Git branch `fix/cotality-neon-media-system-root-cause-2026-08-06` and carries 16 branch-scoped variables, including duplicate database/control-plane families;
+- the integration-owned `database_*` family spans Production / Preview / Development;
+- separate bare DB / Neon control variables coexist with that family.
 
-# 4. Vercel environment state / Packet 2 risk
+This is a **Vercel control-plane convergence defect**, not authorization to create another Neon project, branch database, credential family, or local operating path.
 
-Current measured DB authority:
+# 4. Vercel environment state / convergence risk
 
-- Production bare `DATABASE_URL` / `DATABASE_URL_UNPOOLED` → canonical Production `ep-cold-waterfall-adno3ao2`.
-- Development bare `DATABASE_URL` / `DATABASE_URL_UNPOOLED` → **also Production**. This is the primary Packet 2A defect.
-- Generic Preview bare DB URLs → absent / fail-closed.
-- Marketplace `database_*` family → integration-owned; currently connected across Production, Preview and Development.
-- `database_NEON_PROJECT_ID` identifies `hidden-mountain-87248164`.
-- bare `NEON_PROJECT_ID` and integration-owned `database_NEON_PROJECT_ID` are not interchangeable.
-- `ASSISTANT_DATABASE_URL` remains a cleanup/reconciliation item; final disposition requires reader/writer/owner proof.
+The live environment problem is broader than a single Development URL. Project-level, integration-owned and branch-scoped identities overlap.
 
-Historical branch-scoped Preview database overrides exist and include empty, temporary-QA and dangling endpoint references. They are cleanup candidates only after at-removal-time proof.
+Current safe rules:
 
-No Vercel environment cleanup is authorized merely because a variable looks stale.
+- Marketplace `database_*` variables are integration-owned and must not be hand-edited member-by-member;
+- branch-scoped bare DB overrides are separate from the Marketplace family and can override generic Preview behavior;
+- Vercel branch configuration can survive after the corresponding Git branch is deleted;
+- variable presence is not proof of a usable effective value;
+- `vercel env ls` metadata and an effective deployment environment are not interchangeable;
+- no variable is deleted/re-scoped merely by age, name or apparent duplication.
 
-Required cleanup proof:
+Every cleanup decision requires:
 
 ```text
-VARIABLE
-→ EFFECTIVE VALUE CLASS
+VARIABLE / RESOURCE CONNECTION
+→ VERCEL OWNER (PROJECT / INTEGRATION / BRANCH OVERRIDE)
+→ TARGET ENVIRONMENT(S)
+→ GIT BRANCH / DEPLOYMENT REACHABILITY
+→ EFFECTIVE VALUE CLASS (WITHOUT PRINTING SECRETS)
 → REPO READER
-→ WORKFLOW WRITER
-→ INTEGRATION OWNER
-→ REQUIRED ENVIRONMENTS
+→ WORKFLOW WRITER / MUTATOR
+→ DOWNSTREAM EFFECT
 → KEEP / RE-SCOPE / UPDATE / REMOVE / INTEGRATION-OWNED / BLOCK
+→ NEGATIVE PROOF THAT REMOVAL CANNOT FALL THROUGH TO ANOTHER AUTHORITY
 ```
 
----
+No Vercel environment cleanup, Neon resource mutation, branch creation, resource rebinding, credential rotation or destructive cleanup is authorized by this checkpoint.
 
 # 5. Active continuous program
 
-The current infrastructure sequence remains:
+The current sequence is now governance-first. Provider cleanup and product implementation are stopped until the execution boundary is real.
 
-1. **Authority / execution-control convergence** — active now in PR #632.
-2. **Packet 2A — Development DB authority**
-   - create exactly one durable schema-only Development root/independent branch inside the existing Vercel-managed Neon project;
-   - no normal parent-data clone;
-   - prove zero Production application/auth data copied;
-   - register the Development endpoint as approved nonproduction authority;
-   - repoint only Development bare Prisma URLs;
-   - prove Production unchanged;
-   - keep generic Preview fail-closed.
-3. **Packet 2A.1 — protect canonical Production `main`**
-   - separate controlled mutation;
-   - verify workflow compatibility first.
-4. **Packet 2B — Vercel environment normalization**
-   - variable-by-variable ownership manifest;
-   - no bulk deletion by age/name.
-5. **Packet 3 — runtime/OIDC DB authority gate.**
-6. **Packet 4 — `/api/health/db`.**
-7. **Packet 5 — cron/control-plane hardening.**
-8. **Packet 6 — Preview/build + `/agents` correctness.**
-9. **Packet 7 — CLI/operator/direct-pg authority rollout.**
-10. **Packet 8 — credential/environment cleanup + historical branch/resource cleanup.**
-11. **Final cross-context Production closure.**
+1. **Close PR #632 control defects before merge.**
+   - Do not merge the current controller as the permanent root while declared permissions remain unenforced.
+   - Do not use provider cleanup as a substitute for governance closure.
+2. **Make the execution contract truthful and machine-enforced.**
+   - Every declared mutation permission must produce pass/fail behavior or be removed from the machine-control claim.
+   - The entire `requirements.*` proof block must be validated/enforced or explicitly remain advisory.
+3. **Define the control-root maintenance procedure before locking the root.**
+   - The current controller rejects root changes with an undefined "out-of-band governance procedure"; that is not a complete non-bypass design.
+4. **Fix Release Truth orchestration.**
+   - A green workflow job may not leave the exact-head commit status `pending / UNVERIFIED` because Vercel or required checks settled after the aggregator ran.
+5. **Run independent review on the exact corrected head and resolve only genuinely corrected threads.**
+6. **Merge #632 only after its own stated merge criteria are actually true.**
+7. **Post-merge activation:** once `authority-root` exists on protected `main`, run the authorized control-update PR and add `authority-root` to the live `Protect main` required status checks before any implementation packet can merge.
+8. **Only then run one Vercel control-plane reconciliation packet** over the existing `mallan-nyc → neon-green-school` connection, environment scopes, branch overrides and every DB/control reader/writer.
+9. **Only after that reconciliation may Development/Preview authority be designed.** No schema-only branch, second project, per-branch database or resource split is assumed in advance.
+10. **Cotality-dependent product work remains fail-closed until live provider proof is available through the authorized Cotality contract path.**
 
-Do not insert unrelated Search/CRM/CMA/forms rewrites into this infrastructure sequence.
-
-Product/business work resumes through the same Master after the active infrastructure authority defect is closed.
-
----
+Do not insert unrelated Search/CRM/CMA/forms rewrites into this governance/control-plane convergence packet.
 
 # 6. Mandatory closure model
 
@@ -442,10 +422,65 @@ After this governance system is merged, the next permitted step is a **control-u
 - New files are denied unless named in `allowed_new_files`.
 - Any changed path outside `authorized_paths` fails the required PR check.
 - Any branch other than `authorized_branch` fails after bootstrap.
-- Schema/env/Neon/destructive/manual-cron/provider mutations fail unless explicitly authorized by the base-state contract **and** Maya's explicit authorization exists.
+- Schema/env/Neon/destructive/manual-cron/provider mutations are prohibited unless explicitly authorized by the base-state contract **and** Maya's explicit authorization exists. **Current implementation limitation:** the controller does not yet mechanically enforce all declared mutation/proof fields; §7.1 is a blocking defect and no stronger claim may be made until it is closed.
 - A new canonical system is denied by default.
 - Authority files cannot be rewritten inside an implementation packet merely to make the packet pass.
 - The work contract is changed first, merged, and only then may the implementation packet begin.
+
+---
+
+## 7.1 Exact controller coverage — BLOCKING GAP
+
+The full 415-line `scripts/ci/mallan-execution-control.mjs` was read against the current Execution State contract on 2026-09-20.
+
+### Mechanically enforced today
+
+- contract version;
+- non-empty `mode`, `authorized_branch`, `base_branch`, `packet_id`, `objective`;
+- arrays for `authorized_paths`, `allowed_new_files`, `impact_domains`, `provider_proof_required`;
+- non-empty impact-graph arrays for root owners, writers, readers, publishers, downstream surfaces, tests and compliance surfaces;
+- implementation mode requires non-empty authorized paths and impact domains;
+- branch identity and base branch;
+- control-update may change only this Execution State and must validate the proposed HEAD contract;
+- implementation cannot modify Master or Execution State;
+- changed-path envelope;
+- explicit new-file allowlist;
+- rename/copy rejection;
+- new-system-shaped file rejection when `new_canonical_system_authorized !== true`;
+- repo-path existence for impact-graph root-owner / writer / reader / publisher / test paths.
+
+### Declared but not operationally enforced
+
+`provider_proof_required` is shape-validated but no provider proof is executed or checked.
+
+The following six mutation authorization booleans are not read by the controller at all:
+
+- `production_mutation_authorized`
+- `schema_migration_authorized`
+- `environment_mutation_authorized`
+- `neon_mutation_authorized`
+- `destructive_data_authorized`
+- `manual_cron_authorized`
+
+The entire `requirements` object is not validated or read:
+
+- `impact_graph_required`
+- `all_readers_writers_required`
+- `negative_tests_required`
+- `integration_proof_required`
+- `downstream_proof_required`
+- `compliance_proof_required_when_applicable`
+- `no_parallel_path_proof_required`
+
+Deleting the whole `requirements` object would not currently make the gate fail.
+
+### Control-root maintenance gap
+
+After bootstrap, any change to the controller or the three control workflows is rejected with:
+
+`Control-root maintenance requires an explicit out-of-band governance procedure.`
+
+No canonical procedure is presently defined. That is a blocking design gap: the root must be repairable only through a predeclared base-controlled mechanism, not through an improvised exception.
 
 ---
 
@@ -524,23 +559,46 @@ Do not create another status file because this one becomes inconvenient.
 
 # 11. Current exact stop point
 
-Governance convergence is not complete until PR #632 contains and proves:
+**DO NOT MERGE PR #632 AS-IS.**
 
-1. exact PR #595 Master at canonical root path;
-2. this single current Execution State;
-3. subordinate AGENTS/CLAUDE/provider guidance consistent with them;
-4. machine execution-control script;
-5. execution-control step inside the existing required `pr-check`;
-6. base-controlled `authority-root` workflow plus immutable control-root enforcement;
-7. bootstrap negative tests proving:
-   - wrong branch fails;
-   - out-of-scope file fails;
-   - unapproved new file fails;
-   - branch-local self-authorization cannot widen base-state scope;
-   - authority-file mutation from implementation mode fails;
-8. no Production/provider mutation;
-9. independent review of exact PR head.
+Checkpoint source head before this handoff update: `9cd51d226e887389e15f843e7db8991eb64781ff`.
 
-Post-merge, before implementation: `authority-root` must be added to the `Protect main` required status checks. This is a hard activation gate, not an optional cleanup item.
+Verified live GitHub state at that head:
 
-Only then may the governance PR be considered ready for Maya's merge decision.
+- PR #632: open, mergeable, but merge state blocked;
+- `Protect main` ruleset ID `19435006`: active, no bypass actors, non-fast-forward/deletion protection, review-thread resolution required;
+- required status checks: **`pr-check` only**;
+- `authority-root` is not required and cannot run as a base-controlled `pull_request_target` gate until that workflow exists on `main`;
+- `branch-authority` is a branch-creation enforcement workflow, not a substitute required PR status;
+- PR checks: success;
+- Guardrails: success;
+- Claude Code Review workflow: success;
+- Release Truth workflow job: success, but the exact-head commit status remained **pending / UNVERIFIED** because it evaluated before the Vercel status settled;
+- Vercel exact-head status later became success;
+- three Codex review threads remained formally unresolved;
+- Codex findings for proposed-control validation and rename/copy bypass are corrected on the checkpoint head;
+- the Desktop-path review finding is not considered closed merely because wording was changed to make a literal-string test pass.
+
+### Required closure before merge
+
+1. Correct the semantic GitHub-only authority test rather than wording around the assertion.
+2. Remove false/over-broad lifetime Neon claims from every changed governance/provider document.
+3. Close §7.1 by implementing real enforcement for the six mutation booleans and required proof semantics, or narrow the contract so it claims only what the machine actually enforces.
+4. Define a safe, base-controlled control-root maintenance procedure before the root becomes immutable.
+5. Make the Cotality authority path reproducible/fail-closed; local metadata fallback cannot satisfy live-provider proof.
+6. Fix Release Truth timing/orchestration so exact-head verification reaches a final state after required checks and Vercel settle.
+7. Obtain a new independent review of the exact corrected head; resolve threads only after their defects are actually closed.
+8. Keep all provider/environment/schema/destructive/Production mutations stopped during this governance repair.
+9. Do not merge/deploy until PR #632's own merge criteria are factually satisfied.
+
+### Post-merge activation
+
+After a corrected #632 merges:
+
+1. use the single authorized `work/active` control-update lane;
+2. allow `authority-root` to execute from protected `main`;
+3. with Maya's explicit branch-protection authorization, add `authority-root` to `Protect main` required status checks;
+4. implementation mode remains blocked until that activation is proven.
+
+**No Vercel/Neon cleanup, new database/resource/branch, Cotality rewrite, or product implementation is the next action. The next action is closing the governance boundary itself.**
+
