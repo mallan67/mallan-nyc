@@ -252,6 +252,37 @@ describe("main-ruleset required-check discovery", () => {
     expect(result.reason).toContain("ruleset-ref-exclude-malformed");
   });
 
+  // Transmitted but not understood, one level deeper than enforcement and target.
+  // "required_status_check", singular, is not a type this code knows, so skipping it is
+  // a guess that it does not matter.
+  test("an unrecognised rule type makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": detail([
+        { type: "required_status_check", parameters: { required_status_checks: [{ context: "authority-root" }] } },
+      ]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-rule-type-unknown");
+  });
+
+  // Boundary: every documented type that is not required_status_checks is still skipped,
+  // and the required contexts beside it are still collected.
+  test("documented non-status rule types are skipped without blocking", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": detail([
+        { type: "pull_request", parameters: { required_approving_review_count: 1 } },
+        { type: "non_fast_forward", parameters: {} },
+        { type: "required_signatures", parameters: {} },
+        { type: "required_status_checks", parameters: { required_status_checks: [{ context: "pr-check" }] } },
+      ]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(true);
+    expect(result.checks).toEqual([{ context: "pr-check", integration_id: null }]);
+  });
   // A string is not an understood value. "activ" is neither active nor a considered
   // decision not to be: it means the response does not match the schema this code was
   // written against, and skipping on it is how schema drift suppresses a ruleset.

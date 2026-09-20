@@ -235,6 +235,17 @@ function rulesetAppliesToMain(ruleset) {
 // it is an answer this code cannot read, and it must block rather than be skipped.
 const RULESET_ENFORCEMENTS = ['active', 'evaluate', 'disabled'];
 const RULESET_TARGETS = ['branch', 'tag', 'push'];
+// The rule types GitHub documents. A value outside this set means the response does not
+// match the schema this code was written against, so it blocks rather than being
+// skipped; every documented type that is not required_status_checks is still skipped.
+const RULESET_RULE_TYPES = [
+  'creation', 'update', 'deletion', 'required_linear_history', 'merge_queue',
+  'required_deployments', 'required_signatures', 'pull_request',
+  'required_status_checks', 'non_fast_forward', 'commit_message_pattern',
+  'commit_author_email_pattern', 'committer_email_pattern', 'branch_name_pattern',
+  'tag_name_pattern', 'file_path_restriction', 'max_file_path_length',
+  'file_extension_restriction', 'max_file_size', 'workflows', 'code_scanning'
+];
 
 function requiredChecksFromApplicableMainRulesets() {
   // --paginate --slurp: gh emits one JSON array per page and --slurp wraps them in an
@@ -358,6 +369,12 @@ function requiredChecksFromApplicableMainRulesets() {
       }
       if (typeof rule.type !== 'string' || !rule.type.trim()) {
         return { ok: false, checks: [], reason: 'ruleset-rule-type-missing:' + String(item.id) };
+      }
+      // Same shape as the enforcement and target checks: a type this code does not know
+      // is not a type it can safely ignore. "required_status_check", singular, would
+      // otherwise drop every context the rule declares.
+      if (!RULESET_RULE_TYPES.includes(rule.type)) {
+        return { ok: false, checks: [], reason: 'ruleset-rule-type-unknown:' + rule.type };
       }
       if (rule.type !== 'required_status_checks') continue;
       const declared = rule?.parameters?.required_status_checks;

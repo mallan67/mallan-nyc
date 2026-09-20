@@ -826,6 +826,85 @@ describe("Mallan execution-control gate", () => {
     expect(gate(cwd).status).not.toBe(0);
   });
 
+  // A keyword may precede a regex literal, and the last character of `return` is an
+  // ordinary identifier character, so a one-character test called it division. The
+  // regex's own slashes were then read as a comment and ate the rest of the line.
+  test("a regex literal after a keyword does not blind the stripped reading", () => {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+    });
+    const cwd = initRepo(control);
+    const slash = String.fromCharCode(92);
+    // Keyword, regex and seam on ONE line: that is what makes the mis-read swallow the
+    // endpoint. Split across lines the bypass does not exist.
+    // Three things have to line up for this to exercise the keyword fix at all.
+    //   the regex must follow a KEYWORD, or the slash was already recognised after `=`
+    //   the regex and the seam must share a LINE, or the mis-read eats only its own line
+    //   the seam must be a LINE comment, because the block-only reading removes a block
+    //     seam regardless of how the regex was read, and the test would pass either way
+    write(cwd, "lib/feature/reader.ts", [
+      "export function f() { return /x" + slash + "/" + slash + "//; } export const endpoint = " + JSON.stringify("https://console.") + " // seam",
+      "  + " + JSON.stringify("neon.tech/api/v2/projects") + ";",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", "reader hides the host behind a keyword-led regex");
+    expect(gate(cwd).status).not.toBe(0);
+  });
+
+  // Boundary: division after an identifier is still division, and a regex after a
+  // keyword is still a regex. Neither is a capability signature on its own.
+  test("ordinary division and keyword-led regexes are not capability signatures", () => {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+      impact_graph: {
+        root_owner_paths: ["MALLAN-PLATFORM-MASTER-PLAN.md"],
+        writer_paths: ["lib/feature/reader.ts"],
+        reader_paths: ["lib/feature/reader.ts"],
+        publisher_paths: ["lib/feature/publisher.ts"],
+        downstream_surfaces: ["test downstream"],
+        test_paths: ["tests/runtime/mallan-execution-control.test.ts"],
+        compliance_surfaces: ["none for fixture"],
+      },
+    });
+    const cwd = initRepo(control);
+    const slash = String.fromCharCode(92);
+    write(cwd, "lib/feature/reader.ts", [
+      "export const ratio = (a: number, b: number) => a / b;",
+      "export function pick(x: string) { return /^a" + slash + "/b$/.test(x); }",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", "reader divides and matches normally");
+    expect(gate(cwd).stderr).not.toContain("Direct Neon control-plane capability is prohibited");
+  });
+
+  // A JSON key may be escaped, and "\\u0063ommand" IS the command key by the time
+  // anything runs it. A spelling test can be written around; a parse cannot.
+  test("an escaped key still marks JSON configuration runnable", () => {
+    const rel = ".mcp.json";
+    const cwd = initRepo(baseControl({
+      authorized_paths: [rel],
+      allowed_new_files: [rel, "lib/allowed.ts"],
+    }));
+    // The key must reach the FILE as a single-backslash JSON escape. JSON.stringify
+    // would double the backslash and produce a literal key that parses as something
+    // else entirely, which is the bug this test would then fail to exercise.
+    const escapedKey = String.fromCharCode(34) + String.fromCharCode(92) + "u0063ommand" + String.fromCharCode(34);
+    write(cwd, rel, [
+      "{",
+      "  " + JSON.stringify("servers") + ": {",
+      "    " + JSON.stringify("provider") + ": { " + escapedKey + ": " + JSON.stringify("neonctl") + " }",
+      "  }",
+      "}",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", rel);
+    git(cwd, "commit", "-m", "mcp config spells the command key with an escape");
+    expect(gate(cwd).stderr).toContain("Direct Neon control-plane capability is prohibited");
+  });
   // In JavaScript # opens a private field name, not a comment. Reading it as a shell
   // comment deleted the rest of the line, and a line-comment seam on that same line was
   // then invisible to every reading that strips comments. Fourth distinct blind spot,

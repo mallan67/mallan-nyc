@@ -217,7 +217,7 @@ function stripSourceComments(body, options) {
     if (ch === String.fromCharCode(96)) { out += ch; inTemplate = true; i += 1; continue; }
 
     // A slash where a VALUE may begin opens a regex literal, not a comment.
-    if (ch === "/" && next !== "/" && next !== "*" && regexMayStart(last)) {
+    if (ch === "/" && next !== "/" && next !== "*" && regexMayStart(last, text, i)) {
       out += ch;
       i += 1;
       while (i < text.length && text[i] !== String.fromCharCode(10)) {
@@ -271,9 +271,28 @@ function stripSourceComments(body, options) {
 }
 // Where a value may begin, a slash is a regex. After an identifier, a number or a
 // closing bracket it is division. Start of file counts as a place a value may begin.
-function regexMayStart(last) {
+//
+// A keyword is the case a single character cannot decide: the last character of
+// `return` is an ordinary identifier character, so `return /x/` looked like division
+// and the regex's own slashes were then read as a comment. The preceding TOKEN is what
+// the grammar cares about, so that is what gets tested.
+const REGEX_PRECEDING_KEYWORDS = new Set([
+  "return", "typeof", "instanceof", "in", "of", "new", "delete", "void", "throw",
+  "case", "do", "else", "yield", "await"
+]);
+
+function regexMayStart(last, text, index) {
   if (!last) return true;
-  return "(,=:[!&|?{};+-*%~^<>".includes(last);
+  if ("(,=:[!&|?{};+-*%~^<>".includes(last)) return true;
+  if (!/[A-Za-z_$]/.test(last)) return false;
+  // The last character was part of a word. Read the whole word back and ask whether it
+  // is a keyword a value may follow.
+  if (typeof text !== "string" || typeof index !== "number") return false;
+  let end = index - 1;
+  while (end >= 0 && /\s/.test(text[end])) end -= 1;
+  let start = end;
+  while (start >= 0 && /[\w$]/.test(text[start])) start -= 1;
+  return REGEX_PRECEDING_KEYWORDS.has(text.slice(start + 1, end + 1));
 }
 
 // Block comments removed without touching line comments. This reading cannot be affected
@@ -328,10 +347,33 @@ function hasShebang(body) {
 // program however it is spelled. .mcp.json declares mcpServers.<name>.command;
 // package.json declares scripts. Data files declare neither, which is what keeps this
 // from sweeping in every fixture and catalog in the repository.
-const RUNNABLE_JSON_KEY = /"(?:command|scripts)"\s*:/;
+//
+// The keys are read from the PARSED document, not from the source text. A JSON key may
+// be escaped, and "\\u0063ommand" is the command key by the time anything runs it, so a
+// spelling test can be written around and a parse cannot.
+const RUNNABLE_JSON_KEYS = new Set(["command", "scripts"]);
 
 function declaresRunnableCommand(body) {
-  return typeof body === "string" && RUNNABLE_JSON_KEY.test(body);
+  if (typeof body !== "string") return false;
+  let parsed;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    // Unreadable configuration fails CLOSED. Being wrong here only means the file gets
+    // scanned, which is the cheap direction to be wrong in.
+    return true;
+  }
+  return jsonDeclaresKey(parsed, 0);
+}
+
+function jsonDeclaresKey(node, depth) {
+  if (depth > 12 || node === null || typeof node !== "object") return false;
+  if (Array.isArray(node)) return node.some((child) => jsonDeclaresKey(child, depth + 1));
+  for (const key of Object.keys(node)) {
+    if (RUNNABLE_JSON_KEYS.has(key)) return true;
+    if (jsonDeclaresKey(node[key], depth + 1)) return true;
+  }
+  return false;
 }
 
 const BOOTSTRAP_ALLOWED = new Set([
