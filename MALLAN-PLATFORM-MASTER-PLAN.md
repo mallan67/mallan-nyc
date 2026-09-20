@@ -77,6 +77,9 @@ Do not replace live authority with a local CSV, generated mirror, mapper, old au
 
 ### Cotality live access path
 
+Last-verified token behavior on the historical entitlement was that \`scope=api\` issued the usable API token while advertised \`rets\` / \`offline_access\` scopes were not accepted for this client-credentials path. Treat that as historical provider evidence, not a permanent entitlement guarantee; re-probe current discovery/token behavior before changing auth.
+
+
 The repository already defines the authorized path:
 
 - .mcp.json → trestle-fields MCP;
@@ -91,6 +94,24 @@ The repository already defines the authorized path:
 Secrets never belong in this Master, logs, PR comments or generated evidence.
 
 The live Cotality/Trestle API and current provider documentation are the semantic authority for fields, resources, permissions, strings, mappings, attribution, query behavior, pagination, media relationships and entitlements. Repo JSON/XML/CSV/markdown mirrors are caches/evidence only.
+
+## 0.1.1 Authority layers must be reconciled, never collapsed
+
+Cotality/Trestle provider contract, REBNY/RLS/UCBA rules, New York law/DOS requirements and Mallan business rules are separate authority layers.
+
+Do **not** combine "Cotality contract" and "RLS rules" into one fictional authority. The provider tells Mallan what data, resources, strings, permissions and transport behavior exist. Applicable law/REBNY/RLS/UCBA governs brokerage use/display/conduct. Mallan business rules govern how the verified facts are used inside the brokerage. They must be reconciled, not conflated.
+
+No UI, mapper, form, search field, report, CMA or compliance rule may invent a provider field/status/picklist/permission because another authority uses similar language.
+
+### Startup files remain subordinate
+
+\`AGENTS.md\`, \`CLAUDE.md\`, \`NEON.md\`, compliance indexes and any future startup/agent instructions are subordinate operating guidance. They may point to this Master and the Execution State; they may not redefine product architecture or name an older file as a competing Master.
+
+### Mutable state does not belong in the Master
+
+Current PR numbers, branch names/SHAs, deployment IDs, current test counts, temporary recovery scores, blockers/next actions, session handoffs, current issue lists, temporary holds and live provider/environment measurements belong in the Continuous Execution State or packet evidence.
+
+This Master may retain a provider observation only when it documents a durable semantic trap already paid for, and even then the live source must be rechecked before implementation.
 
 ## 0.2 The five things that must each be handled correctly
 
@@ -868,6 +889,25 @@ Entity types may include LLC, LLP, Corporation, Partnership, Trust, Estate and O
 
 Entity/individual relationships may include trustee/co-trustee, executor, member, manager, partner, officer and authorized signatory where applicable.
 
+## 3.1.1 Identity-resolution and scope invariants
+
+Email and phone may support identity reconciliation, but neither may be the sole identity key when stronger evidence exists. A new inquiry, changed email address or alternate phone number does not create a second Party by itself.
+
+Client-specific judgments, confidential notes, negotiation strategy and private financial facts remain scoped to the applicable Party/Opportunity/Deal. They do not become general Building/Property truth merely because they reference the same address.
+
+Every active Lead, Opportunity, Listing, Deal, Referral or professional obligation must be operationally answerable without reconstructing state from email or memory. It is one of:
+
+- actively worked;
+- deliberately scheduled for future review;
+- explicitly nurtured;
+- blocked with a known reason;
+- completed;
+- closed/lost with history preserved.
+
+An active record may not silently sit in an undefined state.
+
+Permanent deletion is a mistake-rollback exception for an erroneous/never-used identity. It must fail closed when legitimate brokerage, transaction, compliance, payment, executed-document or other retention history exists. Normal lifecycle disposition uses the governed retained-restricted/anonymize/delete rules in §3.0.
+
 ## 3.2 Contact methods / consent / suppression
 
 Individuals and Entities may have multiple emails, phone numbers and mailing addresses.
@@ -1365,7 +1405,31 @@ Third-party/supplemental source observations remain read-only. Mallan-authored l
 
 Backend Search must visibly distinguish source and availability truth rather than making a Schedule A opportunity look identical to a verified current Cotality listing.
 
+## 5.1.1 Backend Search independence and audience boundary
+
+Agent Search may consume canonical CRM records/APIs, but it may not depend on the CRM application shell to run. CRM may launch/use Agent Search. The dependency is:
+
+~~~text
+CRM / CLIENT WORKSPACE
+→ BACKEND SEARCH / LISTINGS
+~~~
+
+never the reverse.
+
+URL namespace does not establish application ownership. A professional Search may remain under a historical route for compatibility while still being an independent authenticated product.
+
+The Consumer and Agent products may share provider/mapping/identity/media infrastructure, but they retain separate permissions, DTOs/payload contracts, caches and tests. A refactor may remove duplicate implementation; it may not collapse the audience/display boundary.
+
+Negative proof is mandatory:
+
+- a public Consumer request cannot obtain professional/member-only fields or private supplemental inventory;
+- an unauthenticated caller cannot execute Agent Search;
+- a change to shared mapping/identity/media cannot erase the Consumer/professional payload and permission boundary.
+
 ## 5.2 Basic mobile / Advanced desktop — preserve this distinction
+
+Mobile may simplify presentation, stacking and control density, but it may not silently remove criteria, states, history, permissions or data from the canonical workflow. The same normalized criteria contract survives desktop/tablet/mobile presentation.
+
 
 ```text
 BASIC = mobile presentation
@@ -1489,6 +1553,19 @@ PRESENTATION ENRICHMENT / MEDIA
 ```
 
 `total`, `hasMore` and pagination must describe the same final eligible/deduplicated universe the Agent actually sees for that Search mode. A pre-filter/pre-dedupe source count may not be represented as the final result total.
+
+## 5.6.1 DOM has two governed clocks
+
+Mallan preserves two separate clocks where the verified provider/business contract supports them:
+
+1. **Coming Soon clock** — derived only from live-verified Coming Soon/activation facts. A provider field such as \`ActivationDate\` may be used only after its exact current semantics are verified for this purpose.
+2. **Market DOM clock** — begins from the verified on-market event/date and ends at the exact verified contract/in-contract stopping event required by the governing business rule.
+
+Coming Soon time is preserved separately and does not silently accrue into normal market DOM.
+
+The implementation must prove the exact Cotality field/event or deterministic Mallan rule that represents the contract-signed/in-contract stop point separately for Sale and Rental before ending the market clock. Absence of a listing or a status guess is not sufficient evidence.
+
+There is one governed Coming Soon DOM rule and one governed market DOM rule. Multiple readers may not maintain conflicting accrual/end-point logic.
 
 ## 5.7 Desktop result experience
 
@@ -3466,6 +3543,8 @@ Every generated/signed agreement or disclosure retains, as applicable:
 - the exact document or link supplied — for an uploaded or authoritative-link form, the stored file or URL and the version that was authoritative at the moment of supply, recorded the way §11.10 records the exact Offering Plan/Schedule A/set/version supplied;
 - audit history.
 
+A new approved form/template/version changes future applicability. It never rewrites the exact form/link/version that was already delivered, acknowledged, signed or executed historically.
+
 ## 11.8 Executed originals, amendments and retention
 
 A signed/executed document is immutable historical evidence and is never silently mutated.
@@ -4217,6 +4296,12 @@ The Agent sees, for each required item, whether it is provided, executed, curren
 
 Required acknowledgments are recorded, not assumed. When Mallan requires an Agent to acknowledge a policy or notice, the acknowledgment, its version and its date are retained as evidence under §11, and missing acknowledgments appear as firm exceptions under §18.
 
+## 17.5.1 Completion does not equal active association
+
+Completing Mallan onboarding documents does not itself activate the licensee. The Broker performs/validates the required authoritative association step, and normal platform/public-profile access opens only from the authoritative active professional state. Verified Cotality Member linkage then attaches to the same canonical Agent identity.
+
+Offboarding/deassociation deactivates access while preserving governed Listing, Deal, payment, referral, document and audit history.
+
 ## 17.6 Deactivation / offboarding
 
 An Agent's departure is a governed transition, not a deletion.
@@ -4240,6 +4325,27 @@ Reassignment moves ownership of the work. It does not alter the canonical Party,
 ---
 
 # 18. BROKERAGE VIEW — SIMPLE FIRM OVERSIGHT
+
+Brokerage View is an exception/oversight surface over the same canonical records, not a second pipeline.
+
+At minimum it must be able to surface, when applicable:
+
+- license/continuing-education/insurance/professional-requirement risk;
+- onboarding/access problem;
+- lead follow-up/assignment problem;
+- active Listing issue;
+- source/data/rights/currentness problem;
+- missing required agreement/disclosure;
+- Deal/document/payment-readiness issue;
+- Offering Plan/building-document gap;
+- commission/referral blocker;
+- brokerage receivable/payment/accounting exception;
+- advertising/compliance exception;
+- provider/mapping drift;
+- public-data inconsistency.
+
+These are views/queues over canonical facts. They do not create competing money, client, compliance or Listing truth.
+
 
 Brokerage View is practical exception-based oversight, not corporate bureaucracy.
 
@@ -4536,6 +4642,12 @@ Defaults are convenience only. Mallan must never represent an internal default a
 The executed agreement is the contractual source record. A closing or commission screen may not silently substitute a newly typed compensation term that conflicts with the executed agreement.
 
 If compensation terms change after execution, preserve the signed original and use an authorized amendment/replacement workflow as applicable.
+
+## 19.4.1 Relationship plan and follow-up truth
+
+The relationship plan records explicit Client/Agent commitments, dates, next actions and review points. Intelligence may suggest a review from evidence, but it may not silently manufacture intent or overwrite an agreed follow-up.
+
+Practical 90/60/30-day or other staged follow-up may be used where appropriate, but later actions respond to the client's actual decision/state rather than blindly firing generic reminders.
 
 ## 19.5 Seller/Landlord owner-paid external-broker compensation
 
@@ -5180,6 +5292,12 @@ LISTING PRESENTATIONS / PITCH MATERIALS
 
 Where the media is provider-sourced, the gate runs both authority stacks under §21.1. The advertising, Fair-Housing and attribution obligations and the verified provider media, use and display contract must each be satisfied, and clearing one does not clear the other.
 
+## 21.9.1 Media changes are cross-system changes
+
+A media correction must trace every affected reader/publisher: Agent/Member profile, Building, Listing Workspace, Search/cards/detail, client share/portal, CMA/reporting, marketing/e-blast, public pages, structured data, caches and storage.
+
+Fixing one screen while another still publishes stale/unauthorized media is incomplete.
+
 ## 21.10 Public listing publication gate
 
 Publishing a listing to the public web is a regulated act, not a rendering step. The links below already exist as separate rules across §4, §5, §11 and §27; publication requires them in order, and no public surface may start midway through the chain.
@@ -5229,6 +5347,12 @@ Search matching, reverse matching, ranking, sort, scoring, recommendation, auto-
 **Unlawful steering is prohibited.** Mallan does not narrow, widen or order the inventory a client sees on the basis of a protected characteristic or a proxy for one, and does not route clients toward or away from buildings, neighborhoods or price bands on that basis.
 
 This is the single business truth for algorithmic selection. Auto-send in §5.12 and §5.17, reverse matching in §5.16, marketing audiences in §9.2 and every Intelligence lane in §22 operate under it and do not define their own version.
+
+## 21.11.1 Protected-characteristic boundary is explicit
+
+Protected characteristics, sensitive characteristics and prohibited proxies may not be used to select, rank, withhold, prioritize, target or personalize housing opportunities. This applies to explicit filters, stored attributes, inferred scores, weights, defaults, audience definitions, recommendations and AI-generated suggestions.
+
+Legitimate property/business criteria remain usable when lawful. Compliance is enforced in the selection/ranking/marketing/publication logic itself; a disclaimer/footer does not cure an unlawful algorithm.
 
 ## 21.12 Public content compliance contract
 
@@ -6636,6 +6760,9 @@ Complete full end-to-end Production proof under the applicable authorization bou
 ---
 
 # 26. GLOBAL DEFINITION OF DONE
+
+A capability is not complete because code exists, CI is green, a PR merged, one source-string assertion passes, or one screen looks correct. Completion means the canonical business workflow and all affected readers/writers/publishers are behaviorally proven through the applicable §27 closure chain.
+
 
 ## Lead / CRM
 
