@@ -435,6 +435,89 @@ describe("Mallan execution-control gate", () => {
     expect(gate(cwd).stderr).toContain("schema_migration_authorized=true");
   });
 
+  const FULL_DB_CHAIN = {
+    vercel_integration: ["UNVERIFIED — read live through the Vercel-managed resource"],
+    env_resolution: ["UNVERIFIED — DATABASE_URL resolution read from Vercel"],
+    db_target: ["lib/feature/reader.ts"],
+    prisma_pg: ["prisma/schema.prisma"],
+    migrations: ["UNVERIFIED — no migration in this packet"],
+    workflows_crons: [".github/workflows/pr-check.yml"],
+    preview: ["UNVERIFIED — preview proof pending"],
+    production: ["UNVERIFIED — production proof pending"],
+    downstream_readers_writers: ["lib/feature/publisher.ts"],
+    tests: ["tests/runtime/mallan-execution-control.test.ts"],
+  };
+
+  function dbControl(chain: unknown) {
+    return baseControl({
+      authorized_paths: ["prisma/schema.prisma"],
+      allowed_new_files: [],
+      impact_domains: ["schema"],
+      schema_migration_authorized: true,
+      impact_graph: {
+        root_owner_paths: [MASTER],
+        writer_paths: ["prisma/schema.prisma"],
+        reader_paths: ["lib/feature/reader.ts"],
+        publisher_paths: ["lib/feature/publisher.ts"],
+        downstream_surfaces: ["schema consumers"],
+        test_paths: ["tests/runtime/mallan-execution-control.test.ts"],
+        compliance_surfaces: ["governance only"],
+        ...(chain === undefined ? {} : { database_impact_chain: chain }),
+      },
+    });
+  }
+
+  function touchSchema(cwd: string, msg: string) {
+    const schema = [
+      "generator client { provider = " + JSON.stringify("prisma-client-js") + " }",
+      "model X { id Int @id }",
+      "",
+    ].join(String.fromCharCode(10));
+    write(cwd, "prisma/schema.prisma", schema);
+    git(cwd, "add", "prisma/schema.prisma");
+    git(cwd, "commit", "-m", msg);
+  }
+
+  test("a database-shaped change without the mandatory chain is refused", () => {
+    const cwd = initRepo(dbControl(undefined));
+    touchSchema(cwd, "db change, no chain");
+    const err = gate(cwd).stderr;
+    expect(err).toContain("database_impact_chain");
+    expect(err).toContain("prisma/schema.prisma");
+  });
+
+  test("the chain is refused when any single station is missing", () => {
+    for (const station of Object.keys(FULL_DB_CHAIN)) {
+      const partial: Record<string, unknown> = { ...FULL_DB_CHAIN };
+      delete partial[station];
+      const cwd = initRepo(dbControl(partial));
+      touchSchema(cwd, "db change, missing " + station);
+      const err = gate(cwd).stderr;
+      expect(err).toContain(station);
+    }
+  }, 120000);
+
+  test("a station satisfied only by a document citation is refused", () => {
+    const cwd = initRepo(dbControl({ ...FULL_DB_CHAIN, env_resolution: ["NEON.md", "CLAUDE.md"] }));
+    touchSchema(cwd, "db change, prose station");
+    const err = gate(cwd).stderr;
+    expect(err).toContain("documentation-only: env_resolution");
+  });
+
+  test("a station naming a repo path that does not exist on the base is refused", () => {
+    const cwd = initRepo(dbControl({ ...FULL_DB_CHAIN, db_target: ["lib/invented/target.ts"] }));
+    touchSchema(cwd, "db change, fabricated station");
+    const err = gate(cwd).stderr;
+    expect(err).toContain("db_target: lib/invented/target.ts");
+  });
+
+  test("a complete, grounded chain lets a database change through", () => {
+    const cwd = initRepo(dbControl(FULL_DB_CHAIN));
+    touchSchema(cwd, "db change with a full chain");
+    const res = gate(cwd);
+    expect(res.status).toBe(0);
+  });
+
   test("final phase enforces required proof tokens", () => {
     const cwd = initRepo(baseControl({ requirements: {
       impact_graph_required:true, all_readers_writers_required:true, negative_tests_required:false,

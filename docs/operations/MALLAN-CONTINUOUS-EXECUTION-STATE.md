@@ -307,17 +307,39 @@ The four `8e4e2e8...` review threads above are the only reason that proof set is
 
 The current sequence is now governance-first. Provider cleanup and product implementation are stopped until the execution boundary is real.
 
-1. **Close PR #632 control defects before merge.**
-   - This correction set makes mutation/proof fields executable, adds a base-controlled root-maintenance mode, and fixes the Release Truth race with a bounded dependency wait.
-   - Direct-Neon branch prune/rotation writers are quarantined in the same PR so the Master cannot declare Vercel-only control while old automation remains armed.
-   - Closure still requires exact-head CI + independent review; do not use provider cleanup as a substitute.
+1. **Close the remaining PR #632 defects before merge.**
+   - DONE — the direct-Neon control plane is DELETED, not quarantined: the PR-close cleanup workflow, the
+     credential-rotation workflow, the prune route, the operator CLI, the shared branch library and their
+     tests are removed, and the controller refuses their return in any mode, including as a fail-only stub.
+   - DONE — the neonctl verifier is deleted. `scripts/neon-verify.ts`, the `neon:verify` script and both
+     Neon cells in `scripts/health/probe.ts` are gone. Maya's ruling: read-only does not make an
+     unauthorized path authorized. Vercel exposes no equivalent read, so the capability is not replaced.
+     **Consequence, stated rather than softened: Mallan no longer machine-detects drift between documented
+     Neon values and live Neon.**
+   - DONE — NEON.md is reconciled with the deletion. No tracked file instructs an agent to reach Neon
+     directly, and NEON.md no longer presents itself as an authority.
+   - DONE — the Master carries the access/login section, the Neon-only-through-Vercel rule, the one
+     database authority rule and the whole-system impact rule.
+   - OPEN — exact-head CI and independent review on the final head. Not claimed until both are green.
 2. **Make the execution contract truthful and machine-enforced.**
-   - Every declared mutation permission must produce pass/fail behavior or be removed from the machine-control claim.
-   - The entire `requirements.*` proof block must be validated/enforced or explicitly remain advisory.
-3. **Define the control-root maintenance procedure before locking the root.**
-   - The current controller rejects root changes with an undefined "out-of-band governance procedure"; that is not a complete non-bypass design.
-4. **Fix Release Truth orchestration.**
-   - A green workflow job may not leave the exact-head commit status `pending / UNVERIFIED` because Vercel or required checks settled after the aggregator ran.
+   - DONE for the mutation and proof fields, and for the mandatory database chain: a database-shaped
+     change must declare every station of the chain in Master §27.16.1, each station must name something
+     other than a document, and every repository path a station names must resolve on the PR base.
+     Enforcement is triggered by the changed paths, not by the packet's own account of its scope.
+   - OPEN — the remaining `requirements.*` entries are validated but not all separately behaviour-tested.
+3. **Control-root maintenance procedure.**
+   - DONE — it is a defined two-PR sequence, not an undefined out-of-band procedure: a state-only control
+     update sets `control-root-maintenance`, `authority-root` must already be a required check on `main`
+     under an active ruleset whose ref conditions include `refs/heads/main`, the maintenance PR is
+     evaluated by the BASE controller, and it exits through a separate state-only update. The essential
+     authority files cannot be deleted during maintenance.
+4. **Release Truth orchestration.**
+   - DONE — the bounded dependency wait fails closed rather than publishing a settled verdict while a
+     dependency is pending, a queued rerun with no timestamps can no longer be read as an older success,
+     and required-check discovery is paginated so it fails unknown instead of open.
+   - NOTE — a green Release Truth on a pull request is PR-gate proof only. Its production identity and
+     smoke steps are skipped on PR events by design, so it is never evidence that Production runs this
+     branch.
 5. **Run independent review on the exact corrected head and resolve only genuinely corrected threads.**
 6. **Merge #632 only after its own stated merge criteria are actually true.**
 7. **Post-merge activation:** once `authority-root` exists on protected `main`, run the authorized control-update PR and add `authority-root` to the live `Protect main` required status checks before any implementation packet can merge.

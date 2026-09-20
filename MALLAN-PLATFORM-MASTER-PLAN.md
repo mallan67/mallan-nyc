@@ -7475,6 +7475,48 @@ When negative tests are required, deleting a declared regression/negative-test p
 
 The graph closes where §27.1 closes: **prove no parallel path remains.** A traversal that found every reader and left one of them reading a second copy of the fact has located the defect and preserved it. Where the traversal finds that second copy, §27.17 governs whether it is permitted to exist at all.
 
+## 27.16.1 The database chain is mandatory and machine-enforced
+
+A change that can move, name, resolve or consume the database target is never local. It reaches
+environment resolution, the schema, the migration history, every schedule, both deployment
+environments and every downstream reader, whether or not the packet looked at them. The generic
+impact graph of §27.16 is therefore not sufficient for database work; the following chain is
+required in addition, and every station must be declared before the change can pass:
+
+~~~text
+VERCEL INTEGRATION
+→ ENV RESOLUTION
+→ DB TARGET
+→ PRISMA + PG
+→ MIGRATIONS
+→ WORKFLOWS / CRONS
+→ PREVIEW
+→ PRODUCTION
+→ DOWNSTREAM READERS / WRITERS
+→ TESTS
+~~~
+
+Four rules make the chain real rather than decorative:
+
+1. **It is triggered by the changed paths, not by the packet's own account of its scope.** A packet
+   cannot escape the chain by declining to mention that it touched the database.
+2. **Every station is required.** A missing station fails the gate by name. There is no partial
+   chain, because the station a packet skips is the one it did not think about.
+3. **A document citation does not satisfy a station.** A document records a claim, not a fact. A
+   station names the thing that does the work, or it says `UNVERIFIED` so the gap stays visible
+   instead of being papered over. Pointing a station at a `.md` file fails closed.
+4. **Every repository path a station names must resolve on the PR base**, or be an explicitly
+   authorized new file. A fabricated station is not proof.
+
+The verifier derives each station from repository code and the live platform. It does not accept
+the builder's summary of its own graph (§27.14).
+
+This is enforced by the base-controlled gate, not by convention. The enforcement and its negative
+proofs live with the execution controller; the exact file and test names are implementation detail
+and belong to the Execution State, not to this Master.
+
+---
+
 ## 27.17 New files and parallel pathways are denied by default
 
 A new file/model/service/registry/engine/authority/pathway is not neutral.
