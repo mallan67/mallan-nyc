@@ -268,7 +268,18 @@ function requiredChecksFromApplicableMainRulesets() {
 
   const specs = new Map();
   for (const item of list) {
-    if (item?.enforcement !== 'active' || item?.target !== 'branch') continue;
+    // Missing is not the same as not-active. A list entry whose own metadata is absent
+    // or the wrong type cannot be read as a ruleset that does not qualify; it is a
+    // ruleset whose qualification is unknown, and unknown is the blocking answer.
+    if (typeof item.enforcement !== 'string' || typeof item.target !== 'string') {
+      return { ok: false, checks: [], reason: 'ruleset-list-item-metadata-missing:' + String(item.id) };
+    }
+    // The id addresses the detail request. An absent or malformed one would build a
+    // nonsense URL whose failure is indistinguishable from a real outage.
+    if (!Number.isInteger(item.id) && !(typeof item.id === 'string' && item.id.trim())) {
+      return { ok: false, checks: [], reason: 'ruleset-list-item-id-missing' };
+    }
+    if (item.enforcement !== 'active' || item.target !== 'branch') continue;
     const detailRaw = gh(`api repos/{owner}/{repo}/rulesets/${item.id}`);
     if (!detailRaw) {
       return { ok: false, checks: [], reason: 'ruleset-detail-unavailable:' + String(item.id) };
@@ -311,7 +322,15 @@ function requiredChecksFromApplicableMainRulesets() {
       return { ok: false, checks: [], reason: 'ruleset-detail-malformed-rules:' + String(item.id) };
     }
     for (const rule of detail.rules || []) {
-      if (rule?.type !== 'required_status_checks') continue;
+      // Same shape again, one level deeper. A rule with no readable type may well BE the
+      // required-checks rule, so skipping it drops the contexts it declares.
+      if (!rule || typeof rule !== 'object' || Array.isArray(rule)) {
+        return { ok: false, checks: [], reason: 'ruleset-rule-not-object:' + String(item.id) };
+      }
+      if (typeof rule.type !== 'string' || !rule.type.trim()) {
+        return { ok: false, checks: [], reason: 'ruleset-rule-type-missing:' + String(item.id) };
+      }
+      if (rule.type !== 'required_status_checks') continue;
       const declared = rule?.parameters?.required_status_checks;
       if (!Array.isArray(declared)) {
         return { ok: false, checks: [], reason: 'ruleset-required-checks-malformed:' + String(item.id) };

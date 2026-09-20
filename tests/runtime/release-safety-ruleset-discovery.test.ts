@@ -252,6 +252,74 @@ describe("main-ruleset required-check discovery", () => {
     expect(result.reason).toContain("ruleset-ref-exclude-malformed");
   });
 
+  // Three instances of one fail-open were reported in this function, each in a different
+  // branch. These two are the remaining ones, found by re-reading every skip against the
+  // same question rather than waiting for a fourth report.
+  test("a list entry missing its own metadata makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": JSON.stringify([[{ id: 19435006 }]]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-list-item-metadata-missing");
+  });
+
+  test("a list entry with no usable id makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": JSON.stringify([[{ enforcement: "active", target: "branch" }]]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-list-item-id-missing");
+  });
+
+  // A rule with no readable type may well BE the required-checks rule, so skipping it
+  // drops every context it declares.
+  test("a rule with no readable type makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": detail([
+        { parameters: { required_status_checks: [{ context: "pr-check" }] } },
+      ]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-rule-type-missing");
+  });
+
+  test("a rule that is not an object makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": detail(["required_status_checks"]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-rule-not-object");
+  });
+
+  // The boundary: a rule of a DIFFERENT but readable type is legitimately skipped, and a
+  // list entry that is readably not an active branch ruleset is legitimately skipped.
+  test("a readable rule of another type is skipped without blocking", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": detail([
+        { type: "pull_request", parameters: { required_approving_review_count: 1 } },
+        { type: "required_status_checks", parameters: { required_status_checks: [{ context: "pr-check" }] } },
+      ]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(true);
+    expect(result.checks).toEqual([{ context: "pr-check", integration_id: null }]);
+  });
+
+  test("a readably inactive list entry is skipped without blocking", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": JSON.stringify([[{ id: 1, enforcement: "disabled", target: "branch" }]]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(true);
+    expect(result.checks).toEqual([]);
+  });
   // The list said active branch. A detail that omits or contradicts that is not a detail
   // saying the ruleset does not apply; it is a detail that cannot be trusted to say
   // anything. Reading it as inapplicable dropped an authority-root requirement.
