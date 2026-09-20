@@ -248,7 +248,7 @@ describe('release-safety P2 — deploy-validator + workflow wiring pins (static)
     expect(releaseStatus).toContain('requiredChecksFromApplicableMainRulesets');
     expect(releaseStatus).toContain("refs/heads/main");
     expect(releaseStatus).toContain("rule?.type !== 'required_status_checks'");
-    expect(releaseStatus).toContain('...requiredChecksFromApplicableMainRulesets()');
+    expect(releaseStatus).toContain('...rulesetDiscovery.checks');
   });
 
   test('required-check discovery failure stays pending instead of becoming an empty required-check set', () => {

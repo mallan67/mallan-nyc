@@ -351,6 +351,28 @@ The separate `017adc` Codex fixture finding is already corrected in `b532a891...
 
 No Production/provider/environment/schema mutation is authorized or performed by this correction.
 
+# 4.4 Exact-head verification checkpoint — 3da2a742 — 2026-09-20
+
+Exact head tested: `3da2a7427ce40e1be98b410dea0ae7c2921e09dd`.
+
+Verified:
+
+- exact event-base freeze / main ruleset probe / execution preflight: **SUCCESS**;
+- Guardrails: **SUCCESS**;
+- Vercel Preview `dpl_33e4p5moXTGHWN6Jgvckuxa5ZsYB`: **READY** on the exact SHA;
+- exact Preview runtime error/warning/fatal query: **no matching logs**;
+- TypeScript and all pre-Jest PR-check setup: **SUCCESS**.
+
+Jest:
+
+- 425 suites passed, 4 skipped, 1 failed;
+- 7,372 tests passed, 30 skipped, 1 failed;
+- sole failure was a stale static source assertion in `tests/runtime/release-safety-release-truth.test.ts` that still expected the pre-hardening source text `...requiredChecksFromApplicableMainRulesets()`;
+- implementation now intentionally uses `...rulesetDiscovery.checks` so ruleset-discovery failure can remain pending/fail-closed;
+- correction changes only that static assertion plus this handoff checkpoint.
+
+No implementation, provider, environment, schema or Production behavior is weakened by this test correction.
+
 # 5. Active continuous program
 
 The current sequence is now governance-first. Provider cleanup and product implementation are stopped until the execution boundary is real.
