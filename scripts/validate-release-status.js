@@ -228,16 +228,31 @@ function rulesetAppliesToMain(ruleset) {
 
 function requiredChecksFromApplicableMainRulesets() {
   const raw = gh('api repos/{owner}/{repo}/rulesets?includes_parents=true');
-  if (!raw) return [];
+  if (!raw) return { ok: false, checks: [], reason: 'ruleset-list-unavailable' };
+
   let list;
-  try { list = JSON.parse(raw); } catch { return []; }
+  try {
+    list = JSON.parse(raw);
+  } catch {
+    return { ok: false, checks: [], reason: 'ruleset-list-malformed' };
+  }
+  if (!Array.isArray(list)) {
+    return { ok: false, checks: [], reason: 'ruleset-list-not-array' };
+  }
+
   const contexts = new Set();
   for (const item of list) {
     if (item?.enforcement !== 'active' || item?.target !== 'branch') continue;
     const detailRaw = gh(`api repos/{owner}/{repo}/rulesets/${item.id}`);
-    if (!detailRaw) continue;
+    if (!detailRaw) {
+      return { ok: false, checks: [], reason: 'ruleset-detail-unavailable:' + String(item.id) };
+    }
     let detail;
-    try { detail = JSON.parse(detailRaw); } catch { continue; }
+    try {
+      detail = JSON.parse(detailRaw);
+    } catch {
+      return { ok: false, checks: [], reason: 'ruleset-detail-malformed:' + String(item.id) };
+    }
     if (!rulesetAppliesToMain(detail)) continue;
     for (const rule of detail.rules || []) {
       if (rule?.type !== 'required_status_checks') continue;
@@ -246,14 +261,25 @@ function requiredChecksFromApplicableMainRulesets() {
       }
     }
   }
-  return [...contexts];
+  return { ok: true, checks: [...contexts], reason: null };
+}
+
+const rulesetDiscovery = requiredChecksFromApplicableMainRulesets();
+if (!rulesetDiscovery.ok) {
+  evaluation.evaluation.required_checks.push({
+    name: 'main-ruleset-required-check-discovery',
+    present: false,
+    state: 'unknown',
+    detail: rulesetDiscovery.reason,
+  });
+  evaluation.evaluation.pending.push('main-ruleset-required-check-discovery');
 }
 
 const REQUIRED_CHECK_NAMES = [...new Set([
   'pr-check',
   'guardrails',
   'claude-review',
-  ...requiredChecksFromApplicableMainRulesets(),
+  ...rulesetDiscovery.checks,
 ])];
 for (const name of REQUIRED_CHECK_NAMES) {
   const cr = checkRuns.find((c) => c.name === name);

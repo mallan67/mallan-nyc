@@ -564,4 +564,78 @@ describe("Mallan execution-control gate", () => {
     expect(probe(mainRule).stdout).toContain("true");
   });
 
+
+  test("ordinary implementation cannot change vercel.json even with environment mutation authority", () => {
+    const cwd = initRepo(baseControl({
+      authorized_paths: ["vercel.json"],
+      allowed_new_files: [],
+      impact_domains: ["environment"],
+      environment_mutation_authorized: true,
+      impact_graph: {
+        root_owner_paths: [MASTER],
+        writer_paths: ["vercel.json"],
+        reader_paths: ["lib/feature/reader.ts"],
+        publisher_paths: ["lib/feature/publisher.ts"],
+        downstream_surfaces: ["Vercel schedule configuration"],
+        test_paths: ["tests/runtime/mallan-execution-control.test.ts"],
+        compliance_surfaces: ["governance only"],
+      },
+    }));
+    write(cwd, "vercel.json", '{"crons":[]}\n');
+    git(cwd, "add", "vercel.json");
+    git(cwd, "commit", "-m", "base vercel config");
+    git(cwd, "branch", "-f", "origin-main");
+
+    write(cwd, "vercel.json", '{"crons":[{"path":"/api/cron/example","schedule":"0 4 * * *"}]}\n');
+    git(cwd, "add", "vercel.json");
+    git(cwd, "commit", "-m", "attempt schedule mutation");
+
+    const result = gate(cwd);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("protected execution/proof root");
+    expect(result.stderr).toContain("vercel.json");
+  });
+
+  test("control-update rejects non-string entries in control arrays", () => {
+    const cwd = initRepo(baseControl({ mode: "control-update", authorized_paths: [STATE] }));
+    const poisoned: any = baseControl({
+      mode: "implementation",
+      authorized_paths: [null],
+      allowed_new_files: [],
+      impact_domains: ["governance"],
+    });
+    write(cwd, STATE, controlMarkdown(poisoned));
+    git(cwd, "add", STATE);
+    git(cwd, "commit", "-m", "poison authorized paths");
+
+    const result = gate(cwd);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("control.authorized_paths entries must be non-empty strings");
+  });
+
+  test("control-update rejects non-string entries in impact graph arrays", () => {
+    const cwd = initRepo(baseControl({ mode: "control-update", authorized_paths: [STATE] }));
+    const poisoned: any = baseControl({
+      mode: "implementation",
+      authorized_paths: ["lib/allowed.ts"],
+      impact_domains: ["test"],
+      impact_graph: {
+        root_owner_paths: [MASTER],
+        writer_paths: [null],
+        reader_paths: ["lib/feature/reader.ts"],
+        publisher_paths: ["lib/feature/publisher.ts"],
+        downstream_surfaces: ["test downstream"],
+        test_paths: ["tests/runtime/mallan-execution-control.test.ts"],
+        compliance_surfaces: ["none"],
+      },
+    });
+    write(cwd, STATE, controlMarkdown(poisoned));
+    git(cwd, "add", STATE);
+    git(cwd, "commit", "-m", "poison impact graph");
+
+    const result = gate(cwd);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("control.impact_graph.writer_paths entries must be non-empty strings");
+  });
+
 });

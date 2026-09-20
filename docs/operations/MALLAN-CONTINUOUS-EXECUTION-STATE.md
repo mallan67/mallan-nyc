@@ -331,6 +331,26 @@ At diagnosis time, Vercel Preview and exact-head Codex review were still running
 
 Next action: land only the fixture correction + this handoff checkpoint, then rerun the entire exact-head proof chain. No provider/environment/schema/Production mutation is authorized or performed.
 
+# 4.3 Codex follow-up checkpoint — post-017adc review
+
+Codex's completed review of `017adc08d670e018d4eea934b4979e065d7bdd70` added three implementation findings that remain relevant after the fixture-only `b532a891...` commit:
+
+1. `vercel.json` was still outside `IMMUTABLE_CONTROL_PATHS`, allowing a later ordinary implementation packet with environment authority to re-arm a retired cron;
+2. control arrays accepted non-string entries such as `authorized_paths: [null]`, allowing a state-only update to poison the next base contract;
+3. Release Truth ruleset discovery treated GitHub API failure/malformed data as an empty dynamic required-check set instead of pending/unknown proof.
+
+Correction in the next head:
+
+- protect `vercel.json` in the control root;
+- require every control-array and impact-graph entry to be a non-empty string;
+- make required-check discovery fail closed into `main-ruleset-required-check-discovery` pending state so the bounded Release Truth wait retries and ultimately fails if discovery never recovers;
+- add negative tests for all three.
+- update the Master so schedule authority that can re-arm a retired writer is explicitly control-root protected.
+
+The separate `017adc` Codex fixture finding is already corrected in `b532a891...`.
+
+No Production/provider/environment/schema mutation is authorized or performed by this correction.
+
 # 5. Active continuous program
 
 The current sequence is now governance-first. Provider cleanup and product implementation are stopped until the execution boundary is real.

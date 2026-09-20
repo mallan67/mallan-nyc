@@ -251,6 +251,14 @@ describe('release-safety P2 — deploy-validator + workflow wiring pins (static)
     expect(releaseStatus).toContain('...requiredChecksFromApplicableMainRulesets()');
   });
 
+  test('required-check discovery failure stays pending instead of becoming an empty required-check set', () => {
+    expect(releaseStatus).toContain("ruleset-list-unavailable");
+    expect(releaseStatus).toContain("ruleset-detail-unavailable:");
+    expect(releaseStatus).toContain("main-ruleset-required-check-discovery");
+    expect(releaseStatus).toContain("evaluation.evaluation.pending.push('main-ruleset-required-check-discovery')");
+    expect(releaseStatus).not.toContain("if (!raw) return []");
+  });
+
   test('PR events invoke the aggregator with --pr (the DEPLOY_PREVIEW path), status still on the head SHA', () => {
     // The PR branch of Resolve target pairs the head SHA (checkout/status)
     // with a --pr aggregator invocation on the SAME line:

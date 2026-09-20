@@ -7342,6 +7342,8 @@ A held mutation freezes only that mutation; it does not authorize a substitute a
 
 When a provider mutation path is retired/quarantined, its scheduled writers, health alarms, CLI guidance and operator instructions must be retired or converted to explicit fail-closed compatibility surfaces in the same impact graph. Observability may not tell an operator to re-arm a prohibited provider path.
 
+A deployment/schedule authority file such as `vercel.json` is part of the protected control root whenever changing it could re-arm a retired writer or change Production scheduling. Ordinary implementation authorization is insufficient; it requires the control-root-maintenance sequence.
+
 ## 27.22 Execution-state boundary
 
 \`MALLAN-CONTINUOUS-EXECUTION-STATE.md\` owns current active packet, branch/head, PR, blockers, tests, runtime/provider evidence, holds and next exact action.

@@ -36,7 +36,8 @@ const IMMUTABLE_CONTROL_PATHS = new Set([
   "tests/runtime/neon-prune-cli.test.ts",
   "scripts/ops-health.js",
   "scripts/branch-prune-health.js",
-  "tests/runtime/branch-prune-health.test.ts"
+  "tests/runtime/branch-prune-health.test.ts",
+  "vercel.json"
 ]);
 
 const BOOTSTRAP_ALLOWED = new Set([
@@ -229,9 +230,11 @@ function validateControl(control) {
   }
   for (const key of ["authorized_paths", "allowed_new_files", "impact_domains", "provider_proof_required"]) {
     if (!Array.isArray(control[key])) throw new Error("control." + key + " must be an array");
-  }
-  for (const proof of control.provider_proof_required) {
-    if (typeof proof !== "string" || !proof.trim()) throw new Error("control.provider_proof_required entries must be non-empty strings");
+    for (const entry of control[key]) {
+      if (typeof entry !== "string" || !entry.trim()) {
+        throw new Error("control." + key + " entries must be non-empty strings");
+      }
+    }
   }
   for (const key of MUTATION_FLAGS) {
     if (typeof control[key] !== "boolean") throw new Error("control." + key + " must be boolean");
@@ -249,6 +252,11 @@ function validateControl(control) {
   for (const key of ["root_owner_paths","writer_paths","reader_paths","publisher_paths","downstream_surfaces","test_paths","compliance_surfaces"]) {
     if (!Array.isArray(control.impact_graph[key]) || control.impact_graph[key].length === 0) {
       throw new Error("control.impact_graph." + key + " must be a non-empty array");
+    }
+    for (const entry of control.impact_graph[key]) {
+      if (typeof entry !== "string" || !entry.trim()) {
+        throw new Error("control.impact_graph." + key + " entries must be non-empty strings");
+      }
     }
   }
 
