@@ -27,7 +27,7 @@ A chat, Desktop checkout, side branch, audit, dashboard or handoff can provide e
 ### 0.1 GitHub-only working state + provider authority (Maya directive 2026-09-18)
 
 - **Repository work happens in GitHub.** Read/write the current GitHub branch or PR directly. Do not use
-  `C:\Users\MayaAllan\Desktop\...`, local worktrees, Desktop mirrors, scratch repos, or copied project
+  Maya's Desktop, local worktrees, Desktop mirrors, scratch repos, or copied project
   folders as working state or authority. Do not create new local project/worktree folders.
 - **Git facts** (files, commits, branches, PRs, Actions) come from the current GitHub repository/PR, never
   from a stale checkout or old bot comment.
