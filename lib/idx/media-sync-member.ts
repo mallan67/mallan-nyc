@@ -132,6 +132,30 @@ export async function runMediaSyncMember({
           mirror_allowed: result.mirror_allowed,
           mirror_rejected_policy: result.mirror_rejected_policy,
           mirror_rejected_policy_parked: result.mirror_rejected_policy_parked,
+          // PHASE 4a — bounded R2 policy re-admission. This AuditEvent is the
+          // DOMAIN record for media-sync and the only durable evidence a
+          // standalone (non-One-Cycle) run leaves behind, so the sweep's
+          // counters belong here too, not only in the One Cycle member summary.
+          // Without them the correction is unobservable on exactly the path
+          // Production verification uses.
+          //   reevaluated = rows EXAMINED (may exceed the batch limit when the
+          //                 fairness top-up replaces deferred rows)
+          //   decided     = bounded write-intent rows (what the limit bounds)
+          //   readmitted / kept_parked = DB-CONFIRMED writes
+          //   deferred    = deliberately not written
+          r2_policy_reevaluated: result.r2_policy_reevaluated,
+          r2_policy_decided: result.r2_policy_decided,
+          r2_policy_readmitted: result.r2_policy_readmitted,
+          r2_policy_kept_parked: result.r2_policy_kept_parked,
+          r2_policy_deferred: result.r2_policy_deferred,
+          r2_policy_write_failed: result.r2_policy_write_failed,
+          r2_policy_selector_failed: result.r2_policy_selector_failed,
+          // Cursor faults are fail-OPEN; they must not be fail-INVISIBLE. A
+          // sustained write failure silently restores the starvation defect the
+          // cross-run rotation exists to prevent.
+          r2_policy_cursor_read_failed: result.r2_policy_cursor_read_failed,
+          r2_policy_cursor_write_failed: result.r2_policy_cursor_write_failed,
+          r2_policy_budget_exhausted: result.r2_policy_budget_exhausted,
           r2_mirrored: result.r2_mirrored,
           r2_uploaded: result.r2_uploaded,
           r2_reused: result.r2_reused,

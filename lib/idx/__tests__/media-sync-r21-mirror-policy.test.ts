@@ -45,14 +45,17 @@ jest.mock("@/lib/prisma", () => ({
       update: jest.fn(),
       findUnique: jest.fn(),
     },
-    // W3: the drain selection runs inside a $transaction holding a
-    // pg advisory xact lock. Grant the lock and route the tx-scoped
-    // findMany to the same mock so admission assertions see the calls.
+    // TWO transactional callers now share this mock:
+    //   * W3 drain selection — holds a pg advisory xact lock (grant it here);
+    //   * OPS-027 PHASE 4a persistence — re-reads sibling state and writes in
+    //     the SAME transaction, so `updateMany` must be routed too. Omitting it
+    //     made the sweep's writes throw and silently report zero.
     $transaction: (fn: unknown) =>
       (fn as (tx: unknown) => unknown)({
         $queryRaw: async () => [{ locked: true }],
         listingMedia: {
           findMany: (args: unknown) => mockListingMediaFindMany(args),
+          updateMany: (args: unknown) => mockListingMediaUpdateMany(args),
         },
       }),
   },
@@ -70,6 +73,9 @@ import {
   MALLAN_MIRROR_MEDIA_TYPES,
   MAX_FEED_MIRROR_PHOTOS_PER_LISTING,
   R2_POLICY_PARKED_ATTEMPTS,
+  R2_POLICY_REEVAL_RESERVE_MS,
+  DEFAULT_BUDGET_MS,
+  DEFAULT_PHASE2_RESERVE_MS,
   R2_RETRY_EXHAUSTED_THRESHOLD,
   runMediaSync,
   selectHeroPhoto,
@@ -119,6 +125,11 @@ interface PoolRow {
   listing_id: string;
   media_key: string;
   media_type: string;
+  // Canonical-classification inputs. `classifyMediaItem` weighs these BEFORE
+  // falling back to media_type, so a pool that omitted them could not model a
+  // FloorPlan stored as media_type=Photo.
+  media_category: string | null;
+  media_classification: string | null;
   status: string;
   preferred_photo_yn: boolean;
   order: number;
@@ -145,6 +156,8 @@ function makePoolRow(
     listing_id: String(listing.listing_id),
     media_key: `MK-${id}`,
     media_type: "Photo",
+    media_category: null,
+    media_classification: null,
     status: "active",
     preferred_photo_yn: false,
     order: id,
@@ -190,6 +203,36 @@ function installPool(
       where?: { status?: string; OR?: unknown[]; listing_id?: string; id?: { notIn?: bigint[] } };
       take?: number;
     };
+    // PHASE 4a — bounded policy RE-ADMISSION sweep. It shares
+    // `status:'active'` + a top-level `OR` with the backlog SELECT, so it must
+    // be recognised FIRST; otherwise it consumes a backlog fetch AND gets
+    // answered with rows that are not policy-parked at all. Keyed on the one
+    // clause only this selector carries: an AGE test on r2_policy_excluded_at.
+    const reevalAnd = (
+      (a?.where as { AND?: Array<Record<string, unknown>> } | undefined)?.AND ?? []
+    ).find((c) => {
+      const or = (c as { OR?: Array<Record<string, unknown>> }).OR;
+      return Array.isArray(or) && or.some((o) => (o?.r2_policy_excluded_at as { lt?: Date } | null)?.lt);
+    }) as { OR: Array<Record<string, unknown>> } | undefined;
+    if (reevalAnd) {
+      const threshold = reevalAnd.OR
+        .map((o) => (o?.r2_policy_excluded_at as { lt?: Date } | null)?.lt)
+        .find((d): d is Date => d instanceof Date)!;
+      return pool
+        .filter((r) => r.status === "active")
+        .filter((r) => r.media_key !== null)
+        .filter((r) => r.r2_key === null || r.media_url_cached === null)
+        // Either park encoding, each aged off its own clock. These fixtures do
+        // not model r2_last_attempt_at, so the legacy branch is keyed on the
+        // sentinel alone; the dedicated r2-policy-reevaluation suite pins the
+        // legacy age semantics.
+        .filter(
+          (r) =>
+            (r.r2_policy_excluded_at !== null && r.r2_policy_excluded_at < threshold) ||
+            (r.r2_policy_excluded_at === null && r.r2_attempts === R2_POLICY_PARKED_ATTEMPTS),
+        )
+        .slice(0, a.take ?? 60);
+    }
     if (a?.where?.status === "active" && Array.isArray(a.where.OR)) {
       backlogFetches++;
       if (
@@ -222,9 +265,27 @@ function installPool(
       //      the Listing summary in the SAME invocation after a mirror.
       // Only (1) is a "hero query" for the admission assertions below.
       const sel = (args as { select?: Record<string, unknown> }).select ?? {};
-      if ('media_url_original' in sel || 'r2_key' in sel) summaryReadCount++;
+      // DISCRIMINATOR (updated 2026-08-10). It used to key on
+      // `media_url_original`, but the ADMISSION hero read now selects that
+      // field too — it must, or `classifyMediaItem` cannot see a FloorPlan
+      // stored as `media_type='Photo'`. `r2_key` is the field only the SUMMARY
+      // read needs (it populates `primary_photo_r2_key`), so it is the honest
+      // discriminator now.
+      if ('r2_key' in sel) summaryReadCount++;
       else heroQueryCount++;
-      return pool.filter((r) => r.listing_id === a.where!.listing_id);
+      // Serve ONLY the selected columns. Returning the full row regardless of
+      // the select would make the harness MORE permissive than Prisma and hide
+      // exactly the narrow-select hero-parity defect this models.
+      const keys = Object.keys(sel);
+      return pool
+        .filter((r) => r.listing_id === a.where!.listing_id)
+        .map((r) =>
+          keys.length === 0
+            ? r
+            : (Object.fromEntries(
+                keys.map((k) => [k, (r as unknown as Record<string, unknown>)[k]]),
+              ) as unknown as PoolRow),
+        );
     }
     return [];
   });
@@ -386,6 +447,149 @@ describe("R2-1 — third-party displayable listing mirrors the canonical hero ON
     expect(park.data.r2_policy_excluded_at).toBeInstanceOf(Date);
     expect(park.data.r2_attempts).toBeUndefined();
     expect(park.data.r2_last_attempt_at).toBeUndefined();
+  });
+
+  it("HERO PARITY: Phase 3 admits the row computeListingMediaSummary calls the hero, not a disguised FloorPlan", async () => {
+    // Trestle defaults a MISSING MediaCategory to Photo, so a floor plan is
+    // STORED as media_type='Photo'. `classifyMediaItem` still catches it from
+    // the DOCUMENT-Pdf locator — but only if the caller SELECTED the locator.
+    // Before the hero reads were widened, Phase 3 mirrored this row as the hero
+    // and PARKED the genuine photo, disagreeing with the public card.
+    const disguisedFloorPlan = makePoolRow(1, FEED_DISPLAYABLE, {
+      media_key: "MK-floorplan",
+      order: 0, // would win the tiebreak if it were treated as a photo
+      media_url_original:
+        "https://api.cotality.com/trestle/Media/Property/DOCUMENT-Pdf/abc.pdf",
+    });
+    const genuinePhoto = makePoolRow(2, FEED_DISPLAYABLE, {
+      media_key: "MK-genuine",
+      order: 1,
+    });
+    installPool([disguisedFloorPlan, genuinePhoto]);
+    const mirrorDeps = makeMirrorDeps();
+
+    const result = await runMediaSync(makeOptions(mirrorDeps));
+
+    // The summary — the public card's source of truth — picks the genuine photo.
+    expect(computeListingMediaSummary([disguisedFloorPlan, genuinePhoto]).primary_photo_url).toBe(
+      genuinePhoto.media_url_original,
+    );
+    // Phase 3 must reach the SAME answer: exactly one admitted, and it is the
+    // genuine photo. The floor plan is deterministically rejected and parked.
+    expect(result.mirror_allowed).toBe(1);
+    expect(result.r2_mirrored).toBe(1);
+    // `existsInR2` returns true in this harness, so the admitted row is REUSED
+    // rather than uploaded — the key it is probed with is the identity proof.
+    const probedKeys = (mirrorDeps.existsInR2 as jest.Mock).mock.calls.map(([key]) => String(key));
+    expect(probedKeys).toHaveLength(1);
+    expect(probedKeys[0]).toContain("MK-genuine");
+    expect(probedKeys[0]).not.toContain("MK-floorplan");
+    // And the floor plan was deterministically PARKED, not merely skipped.
+    expect(result.mirror_rejected_policy_parked).toBe(1);
+  });
+
+  it("PHASE 4a wiring: runMediaSync re-admits a legacy-parked row that is NOW the hero", async () => {
+    // END-TO-END proof that `runMediaSync` actually RUNS the re-admission
+    // sweep. The call-classifier helpers above deliberately exclude the sweep
+    // from the main-backlog counters, so without this test a regression that
+    // deleted the Phase-4a call site would leave every suite green.
+    //
+    // Mirrors the measured Production shape: a third-party Photo parked by the
+    // LEGACY writer (attempts = 9) that has since become the canonical hero —
+    // 43 such rows exist in Production and can never acquire an R2 object.
+    const strandedHero = makePoolRow(1, FEED_DISPLAYABLE, {
+      r2_attempts: R2_POLICY_PARKED_ATTEMPTS,
+      preferred_photo_yn: true,
+      order: 9,
+    });
+    const formerHero = makePoolRow(2, FEED_DISPLAYABLE, {
+      order: 0,
+      r2_key: "r2/old-hero.jpg",
+      media_url_cached: "https://cdn/old-hero.jpg",
+    });
+    installPool([strandedHero, formerHero]);
+
+    const result = await runMediaSync(makeOptions(makeMirrorDeps()));
+
+    expect(result.r2_policy_reevaluated).toBe(1);
+    expect(result.r2_policy_readmitted).toBe(1);
+    expect(result.r2_policy_kept_parked).toBe(0);
+
+    // The write clears BOTH the exclusion and the legacy sentinel — leaving the
+    // sentinel would keep the row out of the backlog through `r2_attempts < 8`
+    // and make the re-admission a no-op.
+    const readmit = mockListingMediaUpdateMany.mock.calls
+      .map(([a]) => a as { where: { id: { in: bigint[] } }; data: Record<string, unknown> })
+      .find((c) => c.where.id.in.some((id) => Number(id) === 1));
+    expect(readmit!.data).toEqual({ r2_policy_excluded_at: null, r2_attempts: null });
+  });
+
+  it("OPS-028: a drain that reaches its budget still leaves PHASE 4a its reserved slice", async () => {
+    // Phase 3 used to stop at exactly `phase2ReserveMs`, the same threshold the
+    // Phase-4a gate needed to ENTER, so a saturated drain skipped the sweep by
+    // construction. The drain now stops at `phase2ReserveMs +
+    // R2_POLICY_REEVAL_RESERVE_MS`, so the sweep always gets a bounded window.
+    expect(R2_POLICY_REEVAL_RESERVE_MS).toBeGreaterThan(0);
+
+    // A large backlog plus a due parked row. The drain cannot consume the slice.
+    const backlog = Array.from({ length: 40 }, (_, i) =>
+      makePoolRow(i + 1, FEED_DISPLAYABLE, { preferred_photo_yn: i === 0 }),
+    );
+    const dueParked = makePoolRow(99, FEED_DISPLAYABLE, {
+      r2_attempts: R2_POLICY_PARKED_ATTEMPTS,
+      order: 500,
+    });
+    installPool([...backlog, dueParked]);
+
+    const result = await runMediaSync(makeOptions(makeMirrorDeps()));
+
+    // The sweep ran: its telemetry is present and coherent rather than absent.
+    expect(typeof result.r2_policy_reevaluated).toBe("number");
+    expect(typeof result.r2_policy_decided).toBe("number");
+    expect(result.r2_policy_reevaluated).toBe(
+      result.r2_policy_readmitted +
+        result.r2_policy_kept_parked +
+        result.r2_policy_deferred +
+        result.r2_policy_write_failed,
+    );
+    // And the drain still did its bounded work.
+    expect(result.mirror_allowed).toBeGreaterThanOrEqual(1);
+  });
+
+  it("OPS-028: no due sweep work means the reserve invents nothing", async () => {
+    // Nothing is policy-parked, so the sweep must find no candidates and write
+    // nothing — an unused reserve must not manufacture work.
+    installPool(Array.from({ length: 5 }, (_, i) =>
+      makePoolRow(i + 1, FEED_DISPLAYABLE, { preferred_photo_yn: i === 0 })));
+
+    const result = await runMediaSync(makeOptions(makeMirrorDeps()));
+
+    expect(result.r2_policy_reevaluated).toBe(0);
+    expect(result.r2_policy_decided).toBe(0);
+    expect(result.r2_policy_readmitted).toBe(0);
+    expect(result.r2_policy_budget_exhausted).toBe(false);
+    expect(result.r2_policy_selector_failed).toBe(false);
+  });
+
+  it("OPS-028: the total One Cycle budget is unchanged — only its internal boundary moves", async () => {
+    // DEFAULT_BUDGET_MS is the contract with the route's hard deadline. The
+    // reserve must come OUT of the drain's share, never be added on top.
+    expect(DEFAULT_BUDGET_MS).toBe(100_000);
+    expect(DEFAULT_PHASE2_RESERVE_MS + R2_POLICY_REEVAL_RESERVE_MS).toBeLessThan(DEFAULT_BUDGET_MS);
+  });
+
+  it("PHASE 4a wiring: a still-non-hero parked row is NOT re-admitted by the run", async () => {
+    const stillParked = makePoolRow(1, FEED_DISPLAYABLE, {
+      r2_attempts: R2_POLICY_PARKED_ATTEMPTS,
+      order: 9,
+    });
+    const realHero = makePoolRow(2, FEED_DISPLAYABLE, { order: 0 });
+    installPool([stillParked, realHero]);
+
+    const result = await runMediaSync(makeOptions(makeMirrorDeps()));
+
+    expect(result.r2_policy_readmitted).toBe(0);
+    expect(result.r2_policy_kept_parked).toBe(1);
   });
 
   it("hero parity with computeListingMediaSummary (the primary_photo_url source)", () => {

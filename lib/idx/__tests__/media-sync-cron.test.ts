@@ -445,6 +445,24 @@ describe("GET /api/cron/media-sync — happy path", () => {
       expect(ch).toHaveProperty(k);
     }
 
+    // PHASE 4a — bounded R2 policy re-admission. This AuditEvent is the DOMAIN
+    // record for media-sync and the only durable evidence a standalone
+    // (non-One-Cycle) run leaves behind, so the sweep's counters must persist
+    // HERE, not only in the One Cycle member summary. `reevaluated` (rows
+    // examined) and `decided` (bounded write-intent) are separate fields on
+    // purpose. The two cursor flags stop a fail-open rotation from failing
+    // invisibly. All aggregate integers/booleans — same allowlist class.
+    const phase4aPolicyCounters = [
+      "r2_policy_reevaluated", "r2_policy_decided", "r2_policy_readmitted",
+      "r2_policy_kept_parked", "r2_policy_deferred", "r2_policy_write_failed",
+      "r2_policy_selector_failed",
+      "r2_policy_cursor_read_failed", "r2_policy_cursor_write_failed",
+      "r2_policy_budget_exhausted",
+    ];
+    for (const k of phase4aPolicyCounters) {
+      expect(ch).toHaveProperty(k);
+    }
+
     // One Cycle W3 — adaptive-drain counters must persist (bounded values;
     // query_path_classification is a closed enum label, never free text).
     const w3DrainCounters = [
@@ -480,6 +498,7 @@ describe("GET /api/cron/media-sync — happy path", () => {
       ...r21Counters,
       ...w3DrainCounters,
       ...phase1CauseCounters,
+      ...phase4aPolicyCounters,
       "r2_mirrored", "r2_failed", "r2_skipped", "backlog_remaining",
       "duration_ms", "error",
       // Durable Cotality usage telemetry + One Cycle run correlation (aggregate

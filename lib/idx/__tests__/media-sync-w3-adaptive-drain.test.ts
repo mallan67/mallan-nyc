@@ -124,12 +124,32 @@ function makeMirrorDeps(): MirrorMediaToR2Deps {
 function makeOptions(over: Partial<RunMediaSyncOptions> = {}): RunMediaSyncOptions {
   return { listingsPerRun: 10, mediaPerListing: 5, fallbackWindowDays: 7, fetchDeps: makeFetchDeps(), mirrorDeps: makeMirrorDeps(), ...over };
 }
+/**
+ * PHASE 4a's bounded policy RE-ADMISSION select. It shares `status:'active'`
+ * and a top-level `OR` with the main backlog select, so it must be excluded or
+ * "exactly one main selection" would silently start counting two structurally
+ * different queries. Keyed on the one clause only this selector carries: an
+ * AGE test on `r2_policy_excluded_at`.
+ */
+function isPolicyReevalCall(call: unknown[]): boolean {
+  const args = call[0] as { where?: Record<string, unknown> };
+  const and = (args?.where?.AND as Array<Record<string, unknown>> | undefined) ?? [];
+  return and.some((c) => {
+    const or = (c as { OR?: Array<Record<string, unknown>> }).OR;
+    return (
+      Array.isArray(or) &&
+      or.some((o) => (o?.r2_policy_excluded_at as { lt?: unknown } | null)?.lt !== undefined)
+    );
+  });
+}
+
 function isMainBacklogCall(call: unknown[]): boolean {
   const a = call[0] as { where?: { status?: string; OR?: unknown[]; r2_attempts?: unknown }; take?: number };
   return (
     a?.where?.status === "active" &&
     Array.isArray(a.where.OR) &&
     a.where.r2_attempts === undefined &&
+    !isPolicyReevalCall(call) &&
     a.take !== R2_BACKLOG_PROBE_CAP + 1 // exclude the bounded remaining-probe
   );
 }

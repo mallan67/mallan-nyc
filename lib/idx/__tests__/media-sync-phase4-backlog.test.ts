@@ -190,6 +190,25 @@ function backlogRow(listingId: string, over: Record<string, unknown> = {}) {
   return row;
 }
 
+/**
+ * PHASE 4a's bounded policy re-admission SELECT. It also carries
+ * `status: 'active'` and a top-level `OR`, so `isMainBacklogCall` must exclude
+ * it — otherwise "exactly ONE main-backlog selection" would silently start
+ * counting two structurally different queries. Keyed on the one clause only
+ * this selector has: an AGE comparison on `r2_policy_excluded_at`.
+ */
+function isPolicyReevalCall(call: unknown[]): boolean {
+  const args = call[0] as { where?: Record<string, unknown> };
+  const and = (args?.where?.AND as Array<Record<string, unknown>> | undefined) ?? [];
+  return and.some((c) => {
+    const or = (c as { OR?: Array<Record<string, unknown>> }).OR;
+    return (
+      Array.isArray(or) &&
+      or.some((o) => (o?.r2_policy_excluded_at as { lt?: unknown } | null)?.lt !== undefined)
+    );
+  });
+}
+
 /** Main bounded backlog query: active + OR-missing-R2 + NOT parked-scoped. */
 function isMainBacklogCall(call: unknown[]): boolean {
   const args = call[0] as { where?: { status?: string; OR?: unknown[]; r2_attempts?: unknown }; select?: Record<string, unknown> };
@@ -197,6 +216,7 @@ function isMainBacklogCall(call: unknown[]): boolean {
     args?.where?.status === "active" &&
     Array.isArray(args.where.OR) &&
     args.where.r2_attempts === undefined &&
+    !isPolicyReevalCall(call) &&
     // W3: exclude the bounded backlog_remaining PROBE (ids-only select).
     !(args.select && Object.keys(args.select).join(",") === "id")
   );
@@ -217,6 +237,10 @@ function wireBacklogMocks(main: unknown[], parked: unknown[] = []) {
   let mainServed = false;
   let parkedServed = false;
   mockListingMediaFindMany.mockImplementation(async (args: unknown) => {
+    // PHASE 4a re-admission sweep: no row in these fixtures is policy-parked,
+    // so the honest answer is an empty candidate set. Answered FIRST so it can
+    // never be mistaken for the main backlog queue.
+    if (isPolicyReevalCall([args])) return [];
     if (isParkedRecoveryCall([args])) {
       if (parkedServed) return [];
       parkedServed = true;

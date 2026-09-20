@@ -23,17 +23,17 @@ to **⚪ UNVERIFIED / fail-closed**, not assumed-healthy.
 ## Auto-probed tier
 
 <!-- HEALTH:AUTO:START -->
-_Last probed (UTC): **2026-07-31T04:18:55Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
+_Last probed (UTC): **2026-08-11T05:01:47Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Repo / main HEAD | 🟢 | main `04db1b99`; probed from branch `docs/register-ops-026` |
-| Open PRs | 🟢 | 3 open (3 non-audit): #590, #589, #585 |
+| Repo / main HEAD | 🟢 | main `2d121daa`; probed from branch `fix/r2-policy-reevaluation-2026-08-10` |
+| Open PRs | 🟢 | 6 open (6 non-audit): #599, #596, #595, #592 |
 | PR #465 (rehydration guard) | 🟢 | MERGED 2026-07-02T02:35Z (gh merge-state only — deploy/runtime proof lives in RW-004) |
-| Neon canonical identity | 🟢 | default `main`=`br-crimson-frog-adr7g9gt` (ready); 1 branch(es) |
+| Neon canonical identity | 🟢 | default `main`=`br-crimson-frog-adr7g9gt` (ready); 2 branch(es) |
 | Gate 6 rollback branch | 🟡 | no pre-gate6 rollback branch present |
 | Neon facts drift (neon:verify) | 🟢 | NEON.md NEON:FACTS block == live Neon (12/12 facts incl. history_retention 21600s) |
-| Cron cadence (live Cotality) | 🟡 | 20 crons; idx-sync `MISSING`, media-sync `MISSING`, db-keepalive `MISSING` |
+| Cron cadence (live Cotality) | 🟢 | 20 crons; one-cycle-preflight `*/10 * * * *` (drives idx-sync + media-sync); db-keepalive intentionally absent: yes |
 | media-backfill removal (QUAL-006/OPS-008) | 🟢 | not scheduled AND route file absent (both verified) — idx:validate 0-critical baseline restored 2026-07-02 |
 | Cotality sync attempt freshness | ⚪ | no canonical DATABASE_URL in env (pass cold-waterfall to fill) |
 | Cotality last-run outcome | ⚪ | no canonical DATABASE_URL in env (pass cold-waterfall to fill) |
@@ -52,7 +52,7 @@ row. Do **not** mark 🟢 without a captured proof (log line, URL probe, validat
 
 | Area | Status | Verified (UTC) | Evidence / how to refresh |
 |------|--------|----------------|---------------------------|
-| Vercel production deploy | 🟡 | 2026-07-31 | Vercel API: production is **`dpl_BVgQhFFdiTf1RU77iHFppvZ5PuSk`** on **`e113a1ef`**, `target: production`, holding `mallan.nyc` / `www.mallan.nyc` / `mallannyhomes.com`. Current `main` is `04db1b99`, so **the alias is pinned to an older SHA** — but `git diff e113a1ef 04db1b99` touches **only** the issue registry and this dashboard (6 net lines, **zero** app/lib/prisma/workflow/env/cron/config). Production and `main` are **runtime-source equivalent**; the un-advanced alias is a **release-control** concern, cause NOT established. Supersedes the 2026-07-02 `dpl_2o8LW…`/`858da234` entry |
+| Vercel production deploy | 🟢 | 2026-08-10 | `https://mallan.nyc/api/release-identity` returns `commitSha` **`2d121daaf6dbcd3d027d6d337901a18e43c03ad8`**, `deploymentId` **`dpl_Ey4rGtD26mij3ULsgJvrs88md6yy`**, `targetEnv: production` — the alias serves the current `main` (PR #598 merge). Release Truth verdict **`PROD_PROVEN`** on the first run: production identity + listing smoke bound to that exact deployment. The 2026-07-31 alias-lag concern is resolved for this release. Supersedes the `dpl_BVgQ…` / `e113a1ef` entry |
 | Vercel runtime errors (24h/7d) | 🔴 | 2026-07-31 | Vercel MCP `get_runtime_errors` (`since=24h`, **single capture 2026-07-31, 03:20Z–03:29Z**). **PRODUCTION (`dpl_BVgQ…`):** `[public-cache]` degrade-to-live ×12 / 11 users — Neon connection-pool timeout (limit 5) + pooler unreachable; media-proxy aborted ×7; `P1017` ×4. **PREVIEW-ONLY, NOT PRODUCTION (`dpl_29Km…`, PR #149 branch, `target: null`):** `DATABASE_URL` missing on `/api/market` ×7 and `/api/listings/similar` ×6 — these fail before connecting and are excluded from production triage. Supersedes the untriaged 2026-07-28 count-only capture, which mixed both. Detail: `docs/operations/site-audit-handoff-2026-07-01.md` → 2026-07-31 block | Vercel MCP |
 | Live Cotality ingestion health | 🟢 | 2026-07-01 (handoff) | recent `/api/cron/idx-sync` runs fetched 148/159 records, 0 sync errors (Vercel logs); skip sources traced (backlog OPS notes) — reconfirm each cycle |
 | Media pipeline | 🟢 (Regression Watch) | 2026-07-03 | #465 rehydration guard MERGED + deployed + live-baselined: 2,032/2,032 archived rows stripped+hidden, population re-verified through 07-03 03:00 run (registry RW-004, watch to 2026-07-09). OPS-008 footgun RESOLVED via #471 (route deleted; script --execute refuses; deferred tail: route-catalog regen, tracked in OPS-008 row — the repo-audit-bot guardrail lines were removed by the 2026-07-25 Sentinel decommission) |
@@ -64,7 +64,7 @@ row. Do **not** mark 🟢 without a captured proof (log line, URL probe, validat
 | Open Houses | 🟢 (Regression Watch) | 2026-07-01 | twin-safe display fixes #463/#464 merged; SL-0007 ↔ RLS twin verified — registry RW-001: watch until 2026-07-08 (7d clean) before closing |
 | Compliance validators | 🟢 | 2026-07-03 | **idx:validate exit 0 / 0 critical on main@ab56ecd8 (QUAL-006 Verified Fixed via #471 — §B baseline restored)** · type-check 0 · rls 0 err/1 warn · compliance-check 0 BLOCKER+STRICT (QUAL-007 addressed by PR #545 — `ethics_training_gate` corrected to an administrative RECORD, not an auth gate; workflow completeness 11/11 locally, pending merge) · ucba 46/46, 0 REGRESSIONS · crm:test 39/39 |
 | Security | ⚪ | — | security-agent PASS required before any deploy touching auth/routes/env |
-| Neon health (compute/pooler) | 🟢 | 2026-07-02 | live neonctl reads: compute FIXED 0.25 CU min/max (max 180 CU-hr/mo < 300 baseline → **$19 flat, no overage**); history retention **6h** (previously documented as 7d; NEON.md §2 corrected 2026-07-02 — OPS-016); billed storage 1,493 MB (14.6% of cap); **1 branch (main only)** — the Gate-6 rollback branch was auto-pruned 2026-07-03 (OPS-022; a fresh protected one is a 5K prerequisite). keepalive 500s = OPS-002/OPS-015 noise |
+| Neon health (compute/pooler) | 🟢 | 2026-07-02 | live neonctl reads: compute FIXED 0.25 CU min/max (max 180 CU-hr/mo < 300 baseline → **$19 flat, no overage**); history retention **6h** (previously documented as 7d; NEON.md §2 corrected 2026-07-02 — OPS-016); billed storage 1,493 MB (14.6% of cap; **not re-measured 2026-08-10** — billable/synthetic size is not exposed through the MCP path used, so no storage trend is claimed). **2 branches as of 2026-08-10** (auto tier + `describe_project`): `main` plus a leftover `preview-pr597-commit11` (`br-old-dust-ad3idcf6`, created 2026-08-08, 36 MiB logical, state `ready`) — the branch-scoped DB used by the #597/#598 previews. The Gate-6 rollback branch was auto-pruned 2026-07-03 (OPS-022; a fresh protected one is a 5K prerequisite). 2026-08-10 read-only: physical `pg_database_size` 576 MB, branch logical 598 MiB. keepalive 500s = OPS-002/OPS-015 noise |
 | Runtime SODA/DOB queries | 🟡 | 2026-07-01 (handoff) | `seller-scoring` (`job_filed_date`), `demand-signals` (`community_board` grouping) 200-with-warnings |
 | Nearby POI (Overpass) | 🟡 | 2026-07-01 (handoff) | repeated `406` warnings though HTTP 200 — feature may be degraded |
 | Homepage feed timestamp | 🟢 | 2026-07-01 | live footer capture (Playwright) shows "Updated: July 1, 2026" — timestamp is current/live |
@@ -125,6 +125,19 @@ architecture is settled) → Track 4 **OPS-017 schema-drift audit** (diff DONE 2
 alarm, real drift = benign orphans, cleanup deferred to a held migration). Plus: build the
 **Platform Architecture document** (DOC-001) — full data-flow map (Cotality → sync → normalization →
 compliance → archive → search → website) incl. every cron, queue, webhook, API, and DB boundary.
+
+**Also new (2026-08-10) — two P3 items on PR #599, both REGISTERED and NOT accepted:**
+
+- **OPS-027** — PHASE 4a sibling-revalidation race. Bounded residual (worst case: one re-admission delayed by an interval, or one wasted admission the drain rejects; no user-visible effect, 0 observed occurrences). Disposition needed: implement serialization, accept as monitored, or hold.
+- **OPS-028** — PHASE 4a has no reserved time slice. Phase 3's drain exit and the Phase-4a entry gate use the **same** threshold, so a saturated drain skips the sweep by construction and the 14-day re-evaluation bound could be silently missed. Not occurring today (24h: `time_budget_exhausted` 0/144, `backlog_remaining` 0). The fix shortens the drain slightly, so it is a scheduling trade for Maya, not an implementer's call.
+
+**New this cycle (2026-08-10) — P2, so deliberately not in the P0/P1 queue above:** **OPS-026** —
+historical `Listing` media-summary drift, 4,847 of 20,721 photo-bearing listings, recomputed
+read-only against the production summary owners (not a hand-written `media_type='Photo'` proxy).
+New drift is **STOPPED** post-#597 (62/62 heroes correct since the 2026-08-10 01:35Z deploy). **Two severities:** the 4,832-row `primary_photo_r2_key` class is cost-only; **12 `primary_photo_url` rows are a correctness defect (8 a genuinely different asset, 4 live)**.
+Remediation **design CLOSED**; **Production backfill HELD** pending Maya's explicit authorization
+(≈17.1% of one day's ~28,351 DB row writes). Canonical row, blast radius and Evidence Score 8/10 in
+the registry; measurements at `docs/operations/r2-policy-and-drift-production-evidence-2026-08-10.md`.
 
 Full P2/P3 list + verified-PASS register (FARE 1,011/1,011 · attribution 1,011/1,011 · licensing)
 live in the registry.

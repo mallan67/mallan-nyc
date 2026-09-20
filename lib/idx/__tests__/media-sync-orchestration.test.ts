@@ -1353,16 +1353,35 @@ describe("runMediaSync — backlog_remaining + R2-independent summary", () => {
 
 describe("runMediaSync — Phase 3 failed-row isolation (Phase 4 bounded drain)", () => {
   // Main bounded query: active + OR-missing-R2, NOT the parked-recovery query.
+  /**
+   * PHASE 4a's bounded policy RE-ADMISSION select shares `status:'active'` and
+   * a top-level `OR` with the main backlog select. Keyed on the one clause only
+   * it carries: an AGE test on `r2_policy_excluded_at`.
+   */
+  const isPolicyReevalCall = (call: unknown[]): boolean => {
+    const args = call[0] as { where?: Record<string, unknown> };
+    const and = (args?.where?.AND as Array<Record<string, unknown>> | undefined) ?? [];
+    return and.some((c) => {
+      const or = (c as { OR?: Array<Record<string, unknown>> }).OR;
+      return (
+        Array.isArray(or) &&
+        or.some((o) => (o?.r2_policy_excluded_at as { lt?: unknown } | null)?.lt !== undefined)
+      );
+    });
+  };
+
   const isMainBacklogCall = (call: unknown[]): boolean => {
     const args = call[0] as { where?: { status?: string; OR?: unknown[]; r2_attempts?: unknown }; select?: Record<string, unknown> };
     // The parked-recovery selection carries a top-level r2_attempts predicate
     // (exact-match number since the #534-sentinel fix); the main backlog
     // selection never does. W3: the ids-only backlog_remaining PROBE is
-    // excluded too.
+    // excluded too, and PHASE 4a's re-admission sweep is a separate bounded
+    // selection, not a second main-backlog query.
     return (
       args?.where?.status === "active" &&
       Array.isArray(args.where.OR) &&
       args.where.r2_attempts === undefined &&
+      !isPolicyReevalCall(call) &&
       !(args.select && Object.keys(args.select).join(",") === "id")
     );
   };
