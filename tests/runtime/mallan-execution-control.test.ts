@@ -823,9 +823,82 @@ describe("Mallan execution-control gate", () => {
     ].join(String.fromCharCode(10)));
     git(cwd, "add", "lib/feature/reader.ts");
     git(cwd, "commit", "-m", "reader hides the host behind a slash-bearing string");
-    expect(gate(cwd).status).not.toBe(0);
+    expect(gate(cwd).stderr).toContain("Direct Neon control-plane capability is prohibited");
   });
 
+  // A regex character class may hold unescaped slashes, so /[///]/ is ONE regex. Reading
+  // the first of them as the terminator left the remaining two to be taken for a comment.
+  test("a regex character class does not blind every reading", () => {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+    });
+    const cwd = initRepo(control);
+    // Same three conditions as the other scanner cases: the construct, the seam and the
+    // endpoint share ONE line, and the seam is a LINE comment so the block-only reading
+    // cannot rescue it.
+    write(cwd, "lib/feature/reader.ts", [
+      "export const re = /[///]/; export const endpoint = " + JSON.stringify("https://console.") + " // seam",
+      "  + " + JSON.stringify("neon.tech/api/v2/projects") + ";",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", "reader hides the host behind a regex character class");
+    // Assert the REASON, not just a non-zero exit. A packet can be refused for a dozen
+    // unrelated reasons, and a status-only assertion passes on every one of them, which
+    // is how a scanner test ends up proving nothing about the scanner.
+    expect(gate(cwd).stderr).toContain("Direct Neon control-plane capability is prohibited");
+  });
+
+  // Python does not require whitespace before a # comment, so `("a"# seam` is a comment
+  // there. JavaScript opens a private field name with the same character. One character,
+  // two languages, opposite answers, so the two hash readings take opposite views and a
+  // signature has to be invisible in both.
+  test("a hash comment with no leading space is still a comment in Python", () => {
+    const rel = "backend/app/control.py";
+    const cwd = initRepo(baseControl({
+      authorized_paths: [rel],
+      allowed_new_files: [rel, "lib/allowed.ts"],
+    }));
+    write(cwd, rel, [
+      "URL = (" + JSON.stringify("https://console.") + String.fromCharCode(35) + " seam",
+      "    " + JSON.stringify("neon.tech/api/v2/projects") + ")",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", rel);
+    git(cwd, "commit", "-m", "python builds the host across a tight hash comment");
+    expect(gate(cwd).stderr).toContain("Direct Neon control-plane capability is prohibited");
+  });
+
+  // The boundary for both: an ordinary character class and an ordinary private field are
+  // not capability signatures, and the aggressive hash reading must not make them one.
+  test("ordinary character classes and private fields are not capability signatures", () => {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+      impact_graph: {
+        root_owner_paths: ["MALLAN-PLATFORM-MASTER-PLAN.md"],
+        writer_paths: ["lib/feature/reader.ts"],
+        reader_paths: ["lib/feature/reader.ts"],
+        publisher_paths: ["lib/feature/publisher.ts"],
+        downstream_surfaces: ["test downstream"],
+        test_paths: ["tests/runtime/mallan-execution-control.test.ts"],
+        compliance_surfaces: ["none for fixture"],
+      },
+    });
+    const cwd = initRepo(control);
+    const hash = String.fromCharCode(35);
+    write(cwd, "lib/feature/reader.ts", [
+      "export class Reader {",
+      "  " + hash + "slug = /[a-z/]+/;",
+      "  match(v: string) { return this." + hash + "slug.test(v); }",
+      "}",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", "reader uses a character class in a private field");
+    expect(gate(cwd).stderr).not.toContain("Direct Neon control-plane capability is prohibited");
+  });
   // The ) that closes an `if (...)` condition legitimately precedes a regex literal, and
   // ) also commonly precedes division, so a slash there is genuinely ambiguous. The
   // ambiguity is resolved on the side that COPIES text rather than the side that DELETES
@@ -846,7 +919,7 @@ describe("Mallan execution-control gate", () => {
     ].join(String.fromCharCode(10)));
     git(cwd, "add", "lib/feature/reader.ts");
     git(cwd, "commit", "-m", "reader hides the host behind an ambiguous slash");
-    expect(gate(cwd).status).not.toBe(0);
+    expect(gate(cwd).stderr).toContain("Direct Neon control-plane capability is prohibited");
   });
 
   // The cost of resolving that ambiguity toward regex is that ordinary division after a
@@ -898,7 +971,7 @@ describe("Mallan execution-control gate", () => {
     ].join(String.fromCharCode(10)));
     git(cwd, "add", "lib/feature/reader.ts");
     git(cwd, "commit", "-m", "reader hides the host behind a keyword-led regex");
-    expect(gate(cwd).status).not.toBe(0);
+    expect(gate(cwd).stderr).toContain("Direct Neon control-plane capability is prohibited");
   });
 
   // Boundary: division after an identifier is still division, and a regex after a
@@ -977,7 +1050,7 @@ describe("Mallan execution-control gate", () => {
     ].join(String.fromCharCode(10)));
     git(cwd, "add", "lib/feature/reader.ts");
     git(cwd, "commit", "-m", "reader hides the host behind a private field name");
-    expect(gate(cwd).status).not.toBe(0);
+    expect(gate(cwd).stderr).toContain("Direct Neon control-plane capability is prohibited");
   });
 
   // The hash family still has to work where it IS a comment. Python concatenates adjacent
@@ -1049,7 +1122,7 @@ describe("Mallan execution-control gate", () => {
     ].join(String.fromCharCode(10)));
     git(cwd, "add", "lib/feature/reader.ts");
     git(cwd, "commit", "-m", "reader assembles the host across a template expression");
-    expect(gate(cwd).status).not.toBe(0);
+    expect(gate(cwd).stderr).toContain("Direct Neon control-plane capability is prohibited");
   });
 
   // The boundary for template parsing: an ordinary template that interpolates the
@@ -1098,7 +1171,7 @@ describe("Mallan execution-control gate", () => {
     ].join(String.fromCharCode(10)));
     git(cwd, "add", "lib/feature/reader.ts");
     git(cwd, "commit", "-m", "reader hides the host behind a regex literal");
-    expect(gate(cwd).status).not.toBe(0);
+    expect(gate(cwd).stderr).toContain("Direct Neon control-plane capability is prohibited");
   });
 
   // The boundary: ordinary division and an ordinary regex must not be mistaken for a
@@ -1227,7 +1300,7 @@ describe("Mallan execution-control gate", () => {
     );
     git(cwd, "add", "lib/feature/reader.ts");
     git(cwd, "commit", "-m", "reader assembles the control-plane host around a comment");
-    expect(gate(cwd).status).not.toBe(0);
+    expect(gate(cwd).stderr).toContain("Direct Neon control-plane capability is prohibited");
   });
 
   test("a credential name split by a block comment is still refused", () => {
@@ -1246,7 +1319,7 @@ describe("Mallan execution-control gate", () => {
     );
     git(cwd, "add", "lib/feature/reader.ts");
     git(cwd, "commit", "-m", "reader assembles the credential name around a comment");
-    expect(gate(cwd).status).not.toBe(0);
+    expect(gate(cwd).stderr).toContain("Direct Neon control-plane capability is prohibited");
   });
 
   // The control for the pair above: stripping comments must not blind the scan to a host
@@ -1267,7 +1340,7 @@ describe("Mallan execution-control gate", () => {
     );
     git(cwd, "add", "lib/feature/reader.ts");
     git(cwd, "commit", "-m", "reader names the control-plane host outright");
-    expect(gate(cwd).status).not.toBe(0);
+    expect(gate(cwd).stderr).toContain("Direct Neon control-plane capability is prohibited");
   });
 
   // A default value belongs to the destructuring pattern, not to the name. Keeping it made

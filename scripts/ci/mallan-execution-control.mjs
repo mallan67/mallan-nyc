@@ -220,10 +220,16 @@ function stripSourceComments(body, options) {
     if (ch === "/" && next !== "/" && next !== "*" && regexMayStart(last, text, i)) {
       out += ch;
       i += 1;
+      // A character class may contain unescaped slashes, so /[///]/ is ONE regex. Reading
+      // the first of them as the terminator left the remaining two to be taken for a
+      // comment, which deleted the rest of the line.
+      let inClass = false;
       while (i < text.length && text[i] !== String.fromCharCode(10)) {
         out += text[i];
         if (text[i] === String.fromCharCode(92)) { if (i + 1 < text.length) out += text[i + 1]; i += 2; continue; }
-        if (text[i] === "/") { i += 1; break; }
+        if (text[i] === "[") { inClass = true; i += 1; continue; }
+        if (text[i] === "]") { inClass = false; i += 1; continue; }
+        if (text[i] === "/" && !inClass) { i += 1; break; }
         i += 1;
       }
       last = "/";
@@ -241,10 +247,15 @@ function stripSourceComments(body, options) {
       out += " ";
       continue;
     }
-    // A shell, Python or YAML comment, only where the # opens a token. Disabled in the
-    // reading that exists to be immune to this question, because in JavaScript the same
-    // character opens a private field name.
-    if (hashComments && ch === "#" && (i === 0 || /[\s;]/.test(text[i - 1]))) {
+    // A shell, Python or YAML comment. Python does not require whitespace before the #,
+    // so requiring it left `("a"# seam` uncommented. JavaScript meanwhile opens a private
+    // field name with the same character, so treating every # as a comment is wrong there.
+    // One character, two languages, opposite answers, and nothing in the text decides it.
+    //
+    // So neither reading has to be right on its own. THIS reading takes the aggressive
+    // view that any # outside a string opens a comment; the hashComments:false reading
+    // takes the opposite view that none does. A signature has to be invisible in BOTH.
+    if (hashComments && ch === "#") {
       while (i < text.length && text[i] !== String.fromCharCode(10)) i += 1;
       out += " ";
       continue;
