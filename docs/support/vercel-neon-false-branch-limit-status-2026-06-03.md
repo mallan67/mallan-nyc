@@ -12,7 +12,7 @@
 >
 > - **Canonical production data = `hidden-mountain-87248164` / "neon-green-school" / `ep-cold-waterfall-adno3ao2` / branch `main` (`br-crimson-frog-adr7g9gt`).**
 > - **`morning-bread-68708332` / "mallandb" / `ep-royal-dawn-ad6eh8t2` (`br-old-tree-admdlb9z`) is STALE / DO-NOT-SERVE.**
-> - **`round-recipe-12208101` / "neon-green-door" is NOT connected to mallan-nyc.**
+> - **`round-recipe-12208101` / "neon-green-door" is historical / currently UNVERIFIED.** Do not infer present Mallan ownership or disconnection from this June snapshot.
 > - **Only Vercel store bound to mallan-nyc = `store_K9l79ICRUTMsiRh2` → hidden-mountain** (store-API verified 2026-06-03). **No store binds morning-bread.**
 > - **DO NOT run `rotate-db-keys`. DO NOT prune `morning-bread` to "fix" the branch-limit check. DO NOT create Neon branches from stale/test/wip/probe Git branches.**
 
