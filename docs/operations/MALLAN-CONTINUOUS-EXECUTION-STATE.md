@@ -551,15 +551,17 @@ The next permitted step is a **control-update PR only**. It may update this exec
 ```json
 {
   "version": 1,
-  "mode": "control-update",
+  "mode": "implementation",
   "authorized_branch": "work/active",
   "base_branch": "main",
   "authorized_paths": [
-    "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
+    "docs/operations/site-audit-handoff-2026-09-20.md"
   ],
-  "allowed_new_files": [],
+  "allowed_new_files": [
+    "docs/operations/site-audit-handoff-2026-09-20.md"
+  ],
   "impact_domains": [
-    "governance"
+    "documentation"
   ],
   "provider_proof_required": [],
   "production_mutation_authorized": false,
@@ -572,45 +574,38 @@ The next permitted step is a **control-update PR only**. It may update this exec
   "requirements": {
     "impact_graph_required": true,
     "all_readers_writers_required": true,
-    "negative_tests_required": true,
+    "negative_tests_required": false,
     "integration_proof_required": true,
     "downstream_proof_required": true,
     "compliance_proof_required_when_applicable": true,
     "no_parallel_path_proof_required": true
   },
-  "packet_id": "GOVERNANCE-POST-MERGE-STATE-RECONCILIATION",
-  "objective": "Bootstrap is merged and its exception is closed. Authorize only a bounded state-only control update on work/active. The envelope below is deliberately unchanged: implementation, provider mutation and branch-protection changes each require a separately reviewed packet.",
+  "packet_id": "DOCS-HANDOFF-2026-09-20",
+  "objective": "Write ONE dated operational handoff for 2026-09-20 at docs/operations/site-audit-handoff-2026-09-20.md. Documentation only. This lane does not unblock code implementation, does not authorize any provider or environment change, and does not substitute for authority-root activation. It exits through a separate state-only control update back to control-update mode.",
   "impact_graph": {
     "root_owner_paths": [
       "MALLAN-PLATFORM-MASTER-PLAN.md",
       "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
     ],
     "writer_paths": [
-      "scripts/ci/mallan-execution-control.mjs",
-      ".github/workflows/pr-check.yml",
-      ".github/workflows/branch-authority.yml",
-      ".github/workflows/authority-root.yml"
+      "docs/operations/site-audit-handoff-2026-09-20.md"
     ],
     "reader_paths": [
       "AGENTS.md",
       "CLAUDE.md"
     ],
     "publisher_paths": [
-      ".github/workflows/pr-check.yml",
-      ".github/workflows/branch-authority.yml",
-      ".github/workflows/authority-root.yml"
+      "docs/operations/site-audit-handoff-2026-09-20.md"
     ],
     "downstream_surfaces": [
-      "GitHub pull-request merge eligibility",
-      "GitHub future branch creation",
-      "All later Mallan implementation packets"
+      "Any agent or operator reading the dated session narrative",
+      "No runtime, product, provider or compliance surface is reached by this packet"
     ],
     "test_paths": [
-      "tests/runtime/mallan-execution-control.test.ts",
       "tests/runtime/agent-authority-live-source.test.ts"
     ],
     "compliance_surfaces": [
-      "Governance only; no listing/public/client compliance mutation in this packet"
+      "None. A narrative handoff renders nothing public and changes no listing, portal, lead or display path."
     ]
   }
 }
@@ -799,6 +794,21 @@ check if re-run.
 needs its own control update naming its branch, its paths and its impact graph. Widening the
 envelope inside this state-only packet would be exactly the self-authorization the gate exists
 to prevent.
+
+## Current authorized lane — DOCUMENTATION ONLY
+
+The control block is in `implementation` mode for exactly one new file,
+`docs/operations/site-audit-handoff-2026-09-20.md`, because the gate has no separate
+documentation mode: any change to a file other than this Execution State requires
+`implementation`. That is a gate vocabulary limitation, not a policy change.
+
+**This lane does NOT unblock code implementation.** Every mutation flag is `false`, the
+authorized path set is one markdown file, and the impact graph reaches no runtime, product,
+provider or compliance surface. It is not, and may not be cited as, the implementation
+activation described below, and it does not substitute for `authority-root` activation.
+
+The lane exits through a separate state-only control update returning `mode` to
+`control-update`. Until that exit merges, this envelope authorizes nothing else.
 
 ## The next action, and what it is not
 
