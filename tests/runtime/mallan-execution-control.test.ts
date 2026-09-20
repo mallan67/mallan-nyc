@@ -826,6 +826,82 @@ describe("Mallan execution-control gate", () => {
     expect(gate(cwd).status).not.toBe(0);
   });
 
+  // In JavaScript # opens a private field name, not a comment. Reading it as a shell
+  // comment deleted the rest of the line, and a line-comment seam on that same line was
+  // then invisible to every reading that strips comments. Fourth distinct blind spot,
+  // fourth distinct LANGUAGE question, which is why the comment families are now
+  // separated rather than guessed at.
+  test("a private field name does not blind the comment-stripped reading", () => {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+    });
+    const cwd = initRepo(control);
+    const hash = String.fromCharCode(35);
+    // The private field and the seam must share a LINE. That is what makes the hash
+    // strip swallow the endpoint; on separate lines it swallows only its own line and
+    // the bypass does not exist.
+    write(cwd, "lib/feature/reader.ts", [
+      "export class Reader {",
+      "  " + hash + "count = 0; static endpoint = " + JSON.stringify("https://console.") + " // seam",
+      "    + " + JSON.stringify("neon.tech/api/v2/projects") + ";",
+      "}",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", "reader hides the host behind a private field name");
+    expect(gate(cwd).status).not.toBe(0);
+  });
+
+  // The hash family still has to work where it IS a comment. Python concatenates adjacent
+  // string literals inside parentheses, and a # comment may sit between them.
+  test("a hash-comment seam in Python is still refused", () => {
+    const rel = "backend/app/control.py";
+    const cwd = initRepo(baseControl({
+      authorized_paths: [rel],
+      allowed_new_files: [rel, "lib/allowed.ts"],
+    }));
+    write(cwd, rel, [
+      "URL = (",
+      "    " + JSON.stringify("https://console.") + "  " + String.fromCharCode(35) + " seam",
+      "    " + JSON.stringify("neon.tech/api/v2/projects"),
+      ")",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", rel);
+    git(cwd, "commit", "-m", "python builds the host across a hash comment");
+    expect(gate(cwd).stderr).toContain("Direct Neon control-plane capability is prohibited");
+  });
+
+  // Boundary for both: an ordinary private field and an ordinary shell comment are not
+  // capability signatures.
+  test("ordinary private fields and hash comments are not capability signatures", () => {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+      impact_graph: {
+        root_owner_paths: ["MALLAN-PLATFORM-MASTER-PLAN.md"],
+        writer_paths: ["lib/feature/reader.ts"],
+        reader_paths: ["lib/feature/reader.ts"],
+        publisher_paths: ["lib/feature/publisher.ts"],
+        downstream_surfaces: ["test downstream"],
+        test_paths: ["tests/runtime/mallan-execution-control.test.ts"],
+        compliance_surfaces: ["none for fixture"],
+      },
+    });
+    const cwd = initRepo(control);
+    const hash = String.fromCharCode(35);
+    write(cwd, "lib/feature/reader.ts", [
+      "export class Reader {",
+      "  " + hash + "count = 0;",
+      "  bump() { this." + hash + "count += 1; }",
+      "}",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", "reader uses an ordinary private field");
+    expect(gate(cwd).stderr).not.toContain("Direct Neon control-plane capability is prohibited");
+  });
   // A template EXPRESSION is code, not string text. Treating the whole backtick literal
   // as opaque meant a line comment inside ${ } never reached the comment scanner, and a
   // line comment cannot be removed by the block-only reading either, so all three

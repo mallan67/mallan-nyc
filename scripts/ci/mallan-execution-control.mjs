@@ -166,7 +166,8 @@ function collapseForCapabilityScan(body) {
 // The last one is why a backtick literal cannot be treated as opaque text. Everything
 // between ${ and its matching } is ordinary code and gets ordinary comment handling,
 // including nested templates.
-function stripSourceComments(body) {
+function stripSourceComments(body, options) {
+  const hashComments = !options || options.hashComments !== false;
   const text = String(body);
   let out = "";
   let i = 0;
@@ -240,8 +241,10 @@ function stripSourceComments(body) {
       out += " ";
       continue;
     }
-    // A shell, Python or YAML comment, only where the # opens a token.
-    if (ch === "#" && (i === 0 || /[\s;]/.test(text[i - 1]))) {
+    // A shell, Python or YAML comment, only where the # opens a token. Disabled in the
+    // reading that exists to be immune to this question, because in JavaScript the same
+    // character opens a private field name.
+    if (hashComments && ch === "#" && (i === 0 || /[\s;]/.test(text[i - 1]))) {
       while (i < text.length && text[i] !== String.fromCharCode(10)) i += 1;
       out += " ";
       continue;
@@ -279,15 +282,22 @@ function stripBlockCommentsOnly(body) {
   return String(body).replace(/\/\*[\s\S]*?\*\//g, " ");
 }
 
-// Three readings of the same file. A signature must be invisible in ALL of them to pass,
-// and they fail in different directions on purpose: the raw reading needs comments kept,
-// the stripped reading needs them gone, and the block-only reading is immune to every
-// line-comment question the other two can get wrong.
+// FOUR readings of the same file, and a signature must be invisible in ALL of them to
+// pass. They are chosen so that each removes a different comment family, which means a
+// mistake in handling one family cannot blind the readings that leave that family alone.
+// Every blind spot found so far came from two readings sharing one language judgement:
+//
+//   as written        a host written plainly needs its comments KEPT
+//   all comments off  a seam needs them GONE
+//   block only        immune to every line-comment question, // and # alike
+//   no hash comments  immune to the # question, which JavaScript answers differently
+//                     because #x is a private field and not a comment at all
 function capabilityScanReadings(body) {
   return [
     collapseForCapabilityScan(body),
     collapseForCapabilityScan(stripSourceComments(body)),
-    collapseForCapabilityScan(stripBlockCommentsOnly(body))
+    collapseForCapabilityScan(stripBlockCommentsOnly(body)),
+    collapseForCapabilityScan(stripSourceComments(body, { hashComments: false }))
   ];
 }
 
