@@ -51,39 +51,31 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Freeze PR-base execution gate
+      - name: Freeze exact PR-base execution gate
         env:
-          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          git fetch --no-tags origin "$BASE_BRANCH:refs/remotes/origin/$BASE_BRANCH"
-          if git cat-file -e "origin/$BASE_BRANCH:scripts/ci/mallan-execution-control.mjs" 2>/dev/null; then
-            git show "origin/$BASE_BRANCH:scripts/ci/mallan-execution-control.mjs" > /tmp/mallan-execution-control.mjs
+          git fetch --no-tags origin "$BASE_SHA"
+          if git cat-file -e "$BASE_SHA:scripts/ci/mallan-execution-control.mjs" 2>/dev/null; then
+            git show "$BASE_SHA:scripts/ci/mallan-execution-control.mjs" > /tmp/mallan-execution-control.mjs
           elif [ "$PR_NUMBER" = "632" ]; then
             cp scripts/ci/mallan-execution-control.mjs /tmp/mallan-execution-control.mjs
           else
-            echo "::error::Base execution controller missing outside bootstrap PR #632"
+            echo "::error::Exact PR base is missing the execution controller outside bootstrap PR #632"
             exit 1
           fi
 
-      - name: Read authority-root protection state
+      - name: Read authority-root protection state for main
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -uo pipefail
-          required=false
-          ids="$(gh api "repos/$GITHUB_REPOSITORY/rulesets?includes_parents=true" --jq '.[] | select(.enforcement=="active") | .id' 2>/dev/null || true)"
-          for id in $ids; do
-            value="$(gh api "repos/$GITHUB_REPOSITORY/rulesets/$id" --jq 'any(.rules[]?; .type=="required_status_checks" and any(.parameters.required_status_checks[]?; .context=="authority-root"))' 2>/dev/null || echo false)"
-            if [ "$value" = "true" ]; then required=true; break; fi
-          done
-          echo "MALLAN_AUTHORITY_ROOT_REQUIRED=$required" >> "$GITHUB_ENV"
-          echo "authority-root required status check: $required"
+        run: node /tmp/mallan-execution-control.mjs --authority-root-required-main
 
       - name: Mallan execution control — preflight
         env:
           GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
+          MALLAN_BASE_REF: ${{ github.event.pull_request.base.sha }}
           MALLAN_CONTROL_PHASE: preflight
         run: node /tmp/mallan-execution-control.mjs
 
@@ -201,6 +193,7 @@ jobs:
       - name: Mallan execution control — final proof
         env:
           GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
+          MALLAN_BASE_REF: ${{ github.event.pull_request.base.sha }}
           MALLAN_CONTROL_PHASE: final
           MALLAN_EXECUTION_PROOFS: negative-tests,integration,downstream,compliance,no-parallel-path
         run: node /tmp/mallan-execution-control.mjs

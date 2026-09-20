@@ -115,6 +115,15 @@ jobs:
             esac
           done
           echo "PR release dependencies settled/bounded at: $final"
+          if [ "$final" = "DEPLOY_PENDING" ] || [ "$final" = "DEPLOY_UNKNOWN" ]; then
+            echo "::error::Release Truth dependency wait expired while exact-head proof was still $final."
+            gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/${{ steps.target.outputs.sha }}" \
+              -f state=failure \
+              -f context=release-truth \
+              -f description="dependency wait expired; exact-head proof incomplete" \
+              -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            exit 1
+          fi
 
       # Phase 1 — TOKEN-FREE production identity proof. Asks mallan.nyc ITSELF
       # (GET /api/release-identity) which commit + deployment it is serving; a

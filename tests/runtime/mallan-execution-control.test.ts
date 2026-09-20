@@ -498,4 +498,61 @@ describe("Mallan execution-control gate", () => {
     expect(gate(cwd).stdout).toContain("state-only control update");
   });
 
+  test("glob authorization preserves the directory boundary", () => {
+    const cwd = initRepo(baseControl({
+      authorized_paths: ["lib/feature/**"],
+      allowed_new_files: [],
+    }));
+    write(cwd, "lib/feature-escape.ts", "export const escape = false;\n");
+    git(cwd, "add", "lib/feature-escape.ts");
+    git(cwd, "commit", "-m", "base sibling");
+    git(cwd, "branch", "-f", "origin-main");
+    write(cwd, "lib/feature-escape.ts", "export const escape = true;\n");
+    git(cwd, "add", "lib/feature-escape.ts");
+    git(cwd, "commit", "-m", "attempt sibling prefix escape");
+
+    const result = gate(cwd);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("outside the base-state authorization envelope");
+    expect(result.stderr).toContain("lib/feature-escape.ts");
+  });
+
+  test("authority-root ruleset probe only accepts an active rule that applies to main", () => {
+    const cwd = initRepo();
+    const authorityRule = {
+      type: "required_status_checks",
+      parameters: { required_status_checks: [{ context: "authority-root" }] },
+    };
+    const releaseOnly = [{
+      id: 1,
+      enforcement: "active",
+      target: "branch",
+      conditions: { ref_name: { include: ["refs/heads/release/*"], exclude: [] } },
+      rules: [authorityRule],
+    }];
+    const mainRule = [{
+      id: 2,
+      enforcement: "active",
+      target: "branch",
+      conditions: { ref_name: { include: ["refs/heads/main"], exclude: [] } },
+      rules: [authorityRule],
+    }];
+    const excludedMain = [{
+      id: 3,
+      enforcement: "active",
+      target: "branch",
+      conditions: { ref_name: { include: ["~ALL"], exclude: ["refs/heads/main"] } },
+      rules: [authorityRule],
+    }];
+
+    const probe = (fixture: unknown) => run("node", [GATE, "--authority-root-required-main"], cwd, {
+      NODE_ENV: "test",
+      MALLAN_RULESET_FIXTURE_JSON: JSON.stringify(fixture),
+    });
+
+    expect(probe(releaseOnly).stdout).toContain("false");
+    expect(probe(excludedMain).stdout).toContain("false");
+    expect(probe(mainRule).stdout).toContain("true");
+  });
+
 });

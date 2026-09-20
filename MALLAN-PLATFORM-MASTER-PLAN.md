@@ -7231,10 +7231,12 @@ A persistence-only census is incomplete. Regulated designations, license classes
 
 The system must not depend on an Agent reading this Master voluntarily.
 
-Implementation authorization is evaluated from protected/base authority, not from a proposed branch's self-edited instructions:
+Implementation authorization is evaluated from protected/base authority, not from a proposed branch's self-edited instructions.
+
+For a pull request, "base authority" means the **exact base commit SHA carried by that PR event**, not a later moving `origin/main`. The same frozen SHA must supply the controller, the Execution State read, and the base→head diff.
 
 ~~~text
-BASE MAIN
+EXACT PR EVENT BASE SHA
 → MASTER
 → CONTINUOUS EXECUTION STATE
 → AUTHORIZED PACKET / BRANCH
@@ -7299,7 +7301,9 @@ STATE-ONLY CONTROL UPDATE
 → separate STATE-ONLY exit back to control-update
 ~~~
 
-If live GitHub rules do not prove `authority-root` is required, control-root maintenance fails closed.
+If live GitHub rules do not prove `authority-root` is required **by an active branch ruleset whose ref conditions include `refs/heads/main`**, control-root maintenance fails closed. A check with the same name on an unrelated branch/ruleset is not proof.
+
+Release/deploy truth must wait for every required status check applicable to `main` plus the Mallan stable proof checks. If that bounded wait expires while any dependency remains pending/unknown, Release Truth fails closed; it does not publish a durable pending state and call the run complete.
 
 Exact workflow names, current branch and current GitHub ruleset status remain mutable Execution State facts.
 
@@ -7335,6 +7339,8 @@ The following remain explicit Maya authorization boundaries:
 - force-push/rebase of shared work.
 
 A held mutation freezes only that mutation; it does not authorize a substitute architecture.
+
+When a provider mutation path is retired/quarantined, its scheduled writers, health alarms, CLI guidance and operator instructions must be retired or converted to explicit fail-closed compatibility surfaces in the same impact graph. Observability may not tell an operator to re-arm a prohibited provider path.
 
 ## 27.22 Execution-state boundary
 

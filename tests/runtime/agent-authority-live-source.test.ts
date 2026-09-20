@@ -88,11 +88,17 @@ describe("agent authority docs stay on live sources", () => {
     expect(prCheck).toContain("Mallan execution control");
     expect(prCheck).toContain("fetch-depth: 0");
     expect(prCheck).toContain("scripts/ci/mallan-execution-control.mjs");
+    expect(prCheck).toContain("github.event.pull_request.base.sha");
+    expect(prCheck).toContain("MALLAN_BASE_REF");
+    expect(prCheck).toContain("--authority-root-required-main");
+    expect(prCheck).not.toContain('origin/$BASE_BRANCH:scripts/ci/mallan-execution-control.mjs');
 
     const root = read(".github/workflows/authority-root.yml");
     expect(root).toContain("pull_request_target:");
     expect(root).toContain("contents: read");
     expect(root).toContain("github.event.pull_request.base.sha");
+    expect(root).toContain("MALLAN_BASE_REF");
+    expect(root).toContain("--authority-root-required-main");
     expect(root).toContain("cp scripts/ci/mallan-execution-control.mjs /tmp/mallan-execution-control.mjs");
     expect(root).toContain("github.event.pull_request.head.sha");
     expect(root).toContain("node /tmp/mallan-execution-control.mjs");

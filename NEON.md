@@ -114,7 +114,7 @@ Unlike the Free tier (where 500 MB / 191.9 CU-hr were *hard* caps), Launch basel
 
 ### History — Free → Launch transition
 
-Until 2026-05-17, mallan-nyc was on Neon's Free plan (500 MB storage / 191.9 CU-hr compute / 10 branches). Operational discipline + the `neon-branch-prune` cron (PR #80) kept the project within those caps. On 2026-05-17 the plan was upgraded to Launch after the Vercel-Neon integration began reporting stale "Branch limit exceeded" on every preview deploy. The cron + retention window remain enabled as hygiene + cost-control discipline. See `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md` for the canonical false-check status + threshold/stale-state evidence.
+Until 2026-05-17, mallan-nyc was on Neon's Free plan (500 MB storage / 191.9 CU-hr compute / 10 branches). Historical direct-Neon pruning was introduced under that model. On 2026-05-17 the plan was upgraded to Launch after the Vercel-Neon integration reported a stale "Branch limit exceeded" condition. **Current authority:** the direct-Neon prune writer is quarantined and its Vercel cron is removed; branch topology/lifecycle must be verified through the authorized Vercel-managed Neon resource path.
 
 ---
 
@@ -433,33 +433,25 @@ provider surface can actually prove that scope.
 Always re-read Vercel before mutation. Variable **presence in `vercel env ls` is not proof of a usable
 value**; empty encrypted values have existed here.
 
-### Prune path — currently inert, fail-closed
+### Direct-Neon prune path — retired / quarantined
 
-`app/api/cron/neon-branch-prune/route.ts` is a fail-closed tombstone after 2026-09-20 convergence; the Vercel cron schedule is removed and it performs no Neon API call.
-Measured 2026-09-18, both effective Production values are empty. The route therefore:
+`app/api/cron/neon-branch-prune/route.ts` is a fail-closed tombstone and its Vercel cron schedule is removed.
+`scripts/neon-prune-branches.ts` and the PR-close cleanup workflow are also quarantined.
 
-1. authenticates the cron request;
-2. writes a `neon_branch_prune_cron` audit event with `status: "skipped"` / `reason: "missing_env"`;
-3. returns HTTP 503;
-4. does **not** call `pruneBranches()`.
+Current rules:
 
-Consequences:
+- do not infer branch health from historical `neon_branch_prune_cron` audit events;
+- `ops:health` does not report branch-prune cron status or recommend direct Neon credentials;
+- do not provision `NEON_API_KEY` / bare `NEON_PROJECT_ID` to reactivate the retired path;
+- branch/resource topology and lifecycle are verified through the authorized Vercel-managed Neon resource;
+- any future lifecycle mutation requires a separately authorized Git-controlled Vercel-managed packet.
 
-- an audit event is not proof a deletion pass ran;
-- `ops:health` must not infer successful pruning from the audit action alone;
-- the cron is safe from accidental deletion in this state, but it is not maintaining branches;
-- do not arm it merely to make health green. Its project model/auth/Preview lifecycle belong to the
-  dedicated cron/control-plane hardening packet.
+### Development / Preview topology rule
 
-The standalone `scripts/neon-prune-branches.ts` path remains reachable when an operator explicitly
-supplies valid authority; Packet 1's fail-closed `isPrunable()` corrections therefore protect a real path.
-
-### Development branch rule
-
-The approved Development topology is **not another Neon project**. If/when Packet 2A creates Development,
-it must be one durable **schema-only root branch** inside `hidden-mountain-87248164`, reached through the
-existing Vercel-managed resource. A normal `parent-data` child branch is forbidden because it clones
-Production rows, including auth/session material.
+No Development or Preview branch/project topology is pre-approved by historical direct-Neon experiments.
+If a future packet needs isolation, it must first re-read the live Vercel-managed Neon resource capabilities,
+prove data-isolation/compliance behavior, and receive explicit authorization. Production rows must never be
+silently cloned merely because a provider branch type makes that convenient.
 
 Before any Development branch is wired into Vercel:
 

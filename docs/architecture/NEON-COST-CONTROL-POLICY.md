@@ -150,9 +150,9 @@ nothing.
 
 | Command | What it reports | Budget-aware? |
 |---|---|---|
-| `npm run ops:health` | Storage % of plan cap, sync watermark, retention compliance, branch-prune cron status, listing/audit_event counts | ❌ NO — reports against plan capacity (10 GB) only |
+| `npm run ops:health` | Storage % of plan cap, sync watermark, retention compliance, listing/audit_event/media health | ❌ NO — reports against plan capacity (10 GB) only; direct-Neon branch-prune health was retired with the writer |
 | `npm run ops:health:json` | Same as above as JSON | ❌ NO |
-| `npm run ops:neon-prune` | Dry-run + execute mode for branch pruning | ❌ NO (operational, not reporting) |
+| `npm run ops:neon-prune` | **QUARANTINED compatibility entrypoint**; refuses direct-Neon branch control | n/a |
 | `npm run idx:validate` | IDX Plus 32-section validator (1278 checks) | n/a |
 | `npm run ucba:audit` | UCBA 2026 145-rule audit | n/a |
 
@@ -189,13 +189,16 @@ Any PR touching these files MUST include a cost-impact analysis in the PR body. 
 | `app/api/cron/*` (all 23 crons) | Each one adds baseline compute |
 | `lib/prisma.ts` | Connection-pool config affects warm-vs-cold time |
 
-### Branch-impact files (medium)
+### Branch-lifecycle files — retired direct-Neon path
 
-| File | Cost impact |
+| File | Current disposition |
 |---|---|
-| `lib/neon/branches.ts` | `DEFAULT_RETENTION_HOURS` defines the steady-state branch count |
-| `app/api/cron/neon-branch-prune/route.ts` | Cron cadence + retention policy |
-| `scripts/neon-prune-branches.ts` | One-off operator tool — same retention applies |
+| `lib/neon/branches.ts` | Historical direct-Neon implementation evidence; not current lifecycle authority |
+| `app/api/cron/neon-branch-prune/route.ts` | Quarantined fail-closed tombstone; no Vercel cron schedule |
+| `scripts/neon-prune-branches.ts` | Quarantined refusal-only compatibility entrypoint |
+| `scripts/ops-health.js` | Does not evaluate historical prune audit events as current health |
+
+Current branch/resource lifecycle evidence comes from the authorized Vercel-managed Neon resource path.
 
 ### Threshold-defining files (high — these ARE the policy)
 

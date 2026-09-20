@@ -33,7 +33,10 @@ const IMMUTABLE_CONTROL_PATHS = new Set([
   "app/api/cron/neon-branch-prune/route.ts",
   "scripts/neon-prune-branches.ts",
   "tests/runtime/neon-branch-prune-route.test.ts",
-  "tests/runtime/neon-prune-cli.test.ts"
+  "tests/runtime/neon-prune-cli.test.ts",
+  "scripts/ops-health.js",
+  "scripts/branch-prune-health.js",
+  "tests/runtime/branch-prune-health.test.ts"
 ]);
 
 const BOOTSTRAP_ALLOWED = new Set([
@@ -53,7 +56,8 @@ const BOOTSTRAP_ALLOWED = new Set([
   ".github/workflows/pr-check.yml", ".github/workflows/branch-authority.yml",
   ".github/workflows/authority-root.yml", ".github/workflows/release-truth.yml",
   ".github/workflows/cleanup-neon-preview-branch.yml", ".github/workflows/rotate-db-keys.yml",
-  "app/api/cron/neon-branch-prune/route.ts", "scripts/neon-prune-branches.ts", "vercel.json"
+  "app/api/cron/neon-branch-prune/route.ts", "scripts/neon-prune-branches.ts", "vercel.json",
+  "scripts/ops-health.js", "scripts/branch-prune-health.js", "tests/runtime/branch-prune-health.test.ts"
 ]);
 
 const MUTATION_FLAGS = [
@@ -139,10 +143,81 @@ function changedFiles(baseRef) {
 
 function pathAllowed(filePath, allowed) {
   return allowed.some((entry) => {
-    if (entry.endsWith("/**")) return filePath.startsWith(entry.slice(0, -3));
+    if (entry.endsWith("/**")) return filePath.startsWith(entry.slice(0, -2));
     if (entry.endsWith("/")) return filePath.startsWith(entry);
     return filePath === entry;
   });
+}
+
+function refPatternMatches(pattern, ref) {
+  if (pattern === "~ALL") return true;
+  if (pattern === "~DEFAULT_BRANCH") return ref === "refs/heads/main";
+  if (typeof pattern !== "string") return false;
+  const escaped = pattern
+    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+    .replace(/\*/g, ".*")
+    .replace(/\?/g, ".");
+  return new RegExp("^" + escaped + "$").test(ref);
+}
+
+function rulesetAppliesToMain(ruleset) {
+  if (!ruleset || ruleset.enforcement !== "active" || ruleset.target !== "branch") return false;
+  const refName = ruleset.conditions?.ref_name;
+  const includes = Array.isArray(refName?.include) ? refName.include : [];
+  const excludes = Array.isArray(refName?.exclude) ? refName.exclude : [];
+  const targetRef = "refs/heads/main";
+  return includes.some((p) => refPatternMatches(p, targetRef)) &&
+    !excludes.some((p) => refPatternMatches(p, targetRef));
+}
+
+function rulesetRequiresAuthorityRoot(ruleset) {
+  return Array.isArray(ruleset?.rules) && ruleset.rules.some(
+    (rule) =>
+      rule?.type === "required_status_checks" &&
+      Array.isArray(rule?.parameters?.required_status_checks) &&
+      rule.parameters.required_status_checks.some((check) => check?.context === "authority-root")
+  );
+}
+
+function loadRulesetsForAuthorityProbe() {
+  if (process.env.NODE_ENV === "test" && process.env.MALLAN_RULESET_FIXTURE_JSON) {
+    return JSON.parse(process.env.MALLAN_RULESET_FIXTURE_JSON);
+  }
+  const repository = process.env.GITHUB_REPOSITORY;
+  if (!repository) throw new Error("GITHUB_REPOSITORY is required for the authority-root ruleset probe");
+  const list = JSON.parse(execFileSync(
+    "gh",
+    ["api", "repos/" + repository + "/rulesets?includes_parents=true"],
+    { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
+  ));
+  const details = [];
+  for (const item of list) {
+    if (item?.enforcement !== "active" || item?.target !== "branch") continue;
+    const raw = execFileSync(
+      "gh",
+      ["api", "repos/" + repository + "/rulesets/" + item.id],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
+    );
+    details.push(JSON.parse(raw));
+  }
+  return details;
+}
+
+function probeAuthorityRootRequiredMain() {
+  let required = false;
+  try {
+    required = loadRulesetsForAuthorityProbe().some(
+      (ruleset) => rulesetAppliesToMain(ruleset) && rulesetRequiresAuthorityRoot(ruleset)
+    );
+  } catch (error) {
+    process.stderr.write("[MALLAN EXECUTION CONTROL] authority-root ruleset probe unavailable: " + error.message + "\n");
+    required = false;
+  }
+  if (process.env.GITHUB_ENV) {
+    fs.appendFileSync(process.env.GITHUB_ENV, "MALLAN_AUTHORITY_ROOT_REQUIRED=" + String(required) + "\n");
+  }
+  process.stdout.write("authority-root required on main: " + String(required) + "\n");
+  return required;
 }
 
 function validateControl(control) {
@@ -505,6 +580,8 @@ function main() {
 
 if (process.argv[2] === "--branch-created") {
   checkCreatedBranch();
+} else if (process.argv[2] === "--authority-root-required-main") {
+  probeAuthorityRootRequiredMain();
 } else {
   main();
 }

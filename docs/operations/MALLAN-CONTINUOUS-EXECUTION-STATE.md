@@ -11,7 +11,7 @@
 **Canonical branch:** `main`  
 **Current main:** `bba9d8d6c92bb3bfe95b9f4b90da69534650c276`  
 **Active governance convergence PR:** #632  
-**Checkpoint source head:** `84a97dca9e253a77399d35bdb5e2fc281dd8afcf` (last fully audited parent before the governance/code correction set; current PR head must be read live from GitHub)  
+**Checkpoint source head:** `aa601e760c6c7c0807449c7c2506b0a2c445019b` (exact head reviewed by Codex before this closure correction; current PR head must always be read live from GitHub)  
 **Authorized work surface:** GitHub repository + explicitly authorized provider connections only; Desktop/worktrees/scratch copies are not execution authority  
 **PR #595:** authority provenance / historical governance source; open, draft, unmerged, heavily diverged from current main
 
@@ -61,9 +61,8 @@ PR #595 established the original canonical Master Plan and the Continuous Execut
 Current canonical Master on PR #632:
 
 - path: `MALLAN-PLATFORM-MASTER-PLAN.md`
-- current blob: `69bb7e81753dc900ec99dab42b916665ccc1eaf9`
-- current size: 7,332 lines / 381,267 characters
 - still one file / one authority
+- **Do not persist a mutable blob hash, line count or character count here.** GitHub's current PR/head is the verification source for mutable file identity; a fingerprint in this handoff self-stales whenever the Master is legitimately amended.
 
 The current Master deliberately converges the durable content from:
 
@@ -279,6 +278,33 @@ VARIABLE / RESOURCE CONNECTION
 ```
 
 No Vercel environment cleanup, Neon resource mutation, branch creation, resource rebinding, credential rotation or destructive cleanup is authorized by this checkpoint.
+
+# 4.1 Live PR #632 closure checkpoint — 2026-09-20
+
+Exact Codex-reviewed head before this correction: `aa601e760c6c7c0807449c7c2506b0a2c445019b`.
+
+At that head GitHub PR checks, Guardrails, Claude review, Release Truth and Vercel were green, but Codex found seven correctness gaps that block merge despite green CI:
+
+1. directory glob `lib/feature/**` could admit sibling prefix `lib/feature-escape.ts`;
+2. PR/base controller freeze used moving `origin/main` instead of the event's exact base SHA;
+3. authority-root protection probe did not prove the matching ruleset applies to `refs/heads/main`;
+4. the retired direct-Neon prune writer still had a live `ops:health` alarm/CLI consumer that recommended restoring prohibited credentials;
+5. Release Truth timed out into another pending status instead of failing closed;
+6. Release Truth's dependency validator did not include future `authority-root` required-check protection;
+7. this Execution State carried a mutable Master blob/size fingerprint that had already gone stale.
+
+Closure correction in the next head:
+
+- preserve the directory boundary for `/**`;
+- freeze controller/state/diff evaluation to `github.event.pull_request.base.sha`;
+- centralize active-main ruleset proof in the base-controlled execution controller;
+- derive Release Truth required checks from active rulesets that apply to main and fail its bounded wait when proof stays pending/unknown;
+- retire prune-audit health/CLI guidance and keep direct-Neon compatibility surfaces fail-closed;
+- remove mutable Master fingerprints from this handoff;
+- add direct negative tests for every corrected bypass/consumer;
+- update the Master and current Neon authority docs so code and durable architecture agree.
+
+**Do not merge based on the green `aa601e` checks.** Closure requires a new exact-head PR check + Guardrails + Vercel Preview + Release Truth + independent Codex review with no unresolved findings.
 
 # 5. Active continuous program
 

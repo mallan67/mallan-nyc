@@ -30,10 +30,10 @@ If you're reading this because a Vercel preview build is stuck "pending" or a "N
 
 | Symptom class | Indicator | Likely cause | Action |
 |---|---|---|---|
-| **A. Stale Vercel-Neon branch check** | "Branch limit exceeded" but `ops:health` reports `branch_prune` examined ≤ 25 and Neon Console shows ≤ baseline branches | Stale Vercel-side cache of the integration's pre-Launch-plan state | NO settings change. Refresh the Vercel preview status display only. See `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`. |
+| **A. Stale Vercel-Neon branch check** | "Branch limit exceeded" while the current Vercel-managed Neon resource does not substantiate an actual branch-limit condition | Stale/incorrect integration state is possible; historical prune-audit counts are not current proof | NO direct-Neon settings change. Re-read the Vercel-managed resource and deployment evidence first. |
 | **B. Stale Vercel-GitHub legacy `Vercel` status** (RC8) | GitHub `gh pr checks` shows `Vercel: pending` indefinitely, but actual Vercel deployment state is `READY` and `Vercel Preview Comments` check-run is `success` | Vercel posts build-start "pending" to GitHub's legacy Statuses API but never sends the success post-back. Modern Check-Runs API works fine. | Cosmetic only. Verify via Vercel Dashboard or `mcp__claude_ai_Vercel__get_deployment` that `state=READY` and merge based on Vercel-side truth. **Do not** reconnect the Vercel-GitHub integration without explicit Maya approval. |
 | **C. Real failed deployment** | Vercel deployment state is `ERROR`; build logs show actual error | Genuine build/runtime failure | Inspect build logs via `mcp__claude_ai_Vercel__get_deployment_build_logs`. Fix the underlying error. |
-| **D. Real Neon branch exhaustion** | `ops:health` reports `branch_prune` examined ≥ 4000 (critical) or `≥ 25` (warn); Neon Console actually shows that count | Cron not pruning OR cron pointed at wrong project (the known `NEON_PROJECT_ID` ambiguity) | First confirm cron's actual target project via Neon Console + Vercel env read. Only then act. |
+| **D. Real Neon branch exhaustion** | The authorized Vercel-managed Neon resource itself shows a branch/capacity condition | Provider lifecycle/capacity issue | Diagnose through the Vercel-managed resource. Do not reactivate the retired direct-Neon prune path. |
 | **E. Alias-stale promotion** (PR #175 pattern; added 2026-05-22) | Branch alias serves an OLDER deployment than the latest READY one; latest deployment's `alias: [...]` does not include the branch-alias hostname OR the branch alias resolves to a different older deployment; multiple commits/deployments exist on the same branch and alias promotion did not advance correctly. | Vercel-side alias-promotion drift — the build/deployment succeeded, but the branch alias did not advance to the latest READY deployment. The build itself is NOT failed. | Verify the latest READY deployment for the PR head SHA via Vercel evidence (`mcp__claude_ai_Vercel__get_deployment` or list_deployments); verify immutable preview URL and branch alias **SEPARATELY** (curl each `-I` and compare `dpl_*` they resolve to). Confirm whether the branch alias points to the latest READY deployment. **If alias is stale: do NOT treat as build failure. Do NOT rerun deployments as the "fix" — the deployment is already READY. Do NOT touch app/listing/media code, Neon, Prisma, env vars, workflows, cron, or integrations.** Prepare Vercel support evidence with: affected PR, head SHA, latest READY deployment ID, immutable preview URL, branch alias URL, which deployment the branch alias actually resolves to, expected deployment-alias mapping, actual deployment-alias mapping. |
 
 **Do NOT (without explicit Maya approval AND symptom classification above):**
@@ -41,7 +41,7 @@ If you're reading this because a Vercel preview build is stuck "pending" or a "N
 - ❌ Do not copy one `NEON_PROJECT_ID` value to the other surface, and do not use either value as proof of production ownership (see §7)
 - ❌ Do not disconnect/reconnect the Vercel-Neon integration (resource id `store_K9l79ICRUTMsiRh2`)
 - ❌ Do not reconnect the Vercel-GitHub integration
-- ❌ Do not rotate DB credentials manually (the rotate workflow is the only authorized writer per §8)
+- ❌ Do not rotate DB credentials manually; the old direct-Neon rotate workflow is quarantined and is not an authorized writer
 - ❌ Do not change `DATABASE_URL` / `DATABASE_URL_UNPOOLED` / `ASSISTANT_DATABASE_URL` on any surface
 - ❌ Do not toggle Vercel preview-branching off (would route preview deploys at the production DB — see `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`)
 
@@ -175,7 +175,7 @@ Pair the table above with this single-sentence ticket summary:
 - Tune branch pruning retention in `lib/neon/branches.ts` (governed by `NEON-COST-CONTROL-POLICY.md`)
 - Modify the Vercel-Neon integration binding for mallan-nyc (`store_K9l79ICRUTMsiRh2`)
 
-The two projects share an account but **must remain operationally isolated** — provisioning, rotation, and cleanup are owned by separate workflows targeting different `NEON_PROJECT_ID` values.
+Any separate public-records project must remain operationally isolated. Mallan-nyc lifecycle/rotation is **not** owned by direct-Neon workflows or bare `NEON_PROJECT_ID`; those paths are quarantined.
 
 ---
 
@@ -220,8 +220,8 @@ in the stale `morning-bread` project, not in current Production.
 | historical branch-scoped bare DB overrides | five branch configurations; empty/dead/temp-QA provenance established; cleanup pending | manually-created Vercel project vars |
 | `database_*` family | generated by Vercel Neon Marketplace connection; currently spans Production/Preview/Development | **integration-owned**; do not hand-edit individual members |
 | `database_NEON_PROJECT_ID` | `hidden-mountain-87248164` | integration-owned metadata |
-| bare `NEON_PROJECT_ID` — Production | effective value measured **empty** | prune cron control plane |
-| bare `NEON_API_KEY` — Production | effective value measured **empty** | prune cron control plane |
+| bare `NEON_PROJECT_ID` — Production | historical/direct-control variable; current value is not lifecycle authority | retired/quarantined direct-Neon path |
+| bare `NEON_API_KEY` — Production | historical/direct-control variable; current value is not lifecycle authority | retired/quarantined direct-Neon path |
 | `ASSISTANT_DATABASE_URL` | present on multiple scopes; final reader/owner disposition unresolved | trace before cleanup |
 
 **Presence in `vercel env ls` is not proof of a usable value.** Empty encrypted variables have existed here.
@@ -320,8 +320,9 @@ CURRENT VERCEL DB RISK:
   Generic Preview bare DATABASE_URL* is fail-closed.
   database_* is Marketplace-owned and spans environments until the resource scope is reconciled.
 
-PRUNE CRON:
-  bare NEON_API_KEY + NEON_PROJECT_ID are currently empty -> scheduled route 503/skipped, no prune call.
+DIRECT-NEON PRUNE:
+  retired/quarantined; no Vercel cron schedule.
+  ops:health does not use historical prune audit events as current branch proof.
 
 ACCESS:
   vercel integration open neon neon-green-school
@@ -358,7 +359,7 @@ UNVERIFIED:
 - (deleted 2026-06-03) Launch-plan threshold audit — reframed by `NEON-COST-CONTROL-POLICY.md` as "capacity, not policy"
 - (deleted 2026-06-03) Vercel ↔ Neon integration deep-dive — the "Branch limit exceeded" check is **stale Vercel-side state**, not actual branch exhaustion; canonical status now in `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`
 - `.github/workflows/rotate-db-keys.yml` — credential rotation (this doc §8)
-- `app/api/cron/neon-branch-prune/route.ts` + `lib/neon/branches.ts` + `scripts/neon-prune-branches.ts` — preview cleanup (this doc §9)
+- `app/api/cron/neon-branch-prune/route.ts` + `scripts/neon-prune-branches.ts` — quarantined direct-Neon compatibility surfaces; not current preview-cleanup authority
 - `docs/architecture/PUBLIC-RECORDS-NEON-PROVISIONING-PLAN.md` — describes a future 3rd Neon project (`mallan-public-records`, intentionally Free); **unrelated to mallan-nyc's production/preview pair** (see Public-Records Firewall above)
 - **`docs/incidents/2026-05-21-chronic-media-sync-root-cause.md`** — canonical chronic-incident doctrine; documents RC1–RC7 (media-sync cursor freeze, stomping, R2 retry purgatory, storage churn, held migrations, observability gap, CI Trap #2) and RC8 (Vercel-GitHub status drift, expanded in this doc's RC8 section above)
 - **PR #176** (`b4f9ede0`, merged 2026-05-22) — paused `/api/cron/media-backfill` cron in `vercel.json`; first mitigation for the chronic media/Neon compute burn (see Separation section above)

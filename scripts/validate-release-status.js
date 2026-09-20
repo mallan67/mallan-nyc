@@ -203,8 +203,58 @@ if (vercelStatus?.state === 'success') {
   evaluation.evaluation.deploy_proof = { source: 'none', state: 'unknown', note: 'Neither legacy Vercel status nor Preview Comments check found' };
 }
 
-// 2. Required check-runs — pr-check, guardrails, claude-review must pass when present
-const REQUIRED_CHECK_NAMES = ['pr-check', 'guardrails', 'claude-review'];
+// 2. Required check-runs — stable Mallan checks plus every status check required
+// by an ACTIVE branch ruleset that actually applies to refs/heads/main.
+function refPatternMatches(pattern, ref) {
+  if (pattern === '~ALL') return true;
+  if (pattern === '~DEFAULT_BRANCH') return ref === 'refs/heads/main';
+  if (typeof pattern !== 'string') return false;
+  const escaped = pattern
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*/g, '.*')
+    .replace(/\?/g, '.');
+  return new RegExp('^' + escaped + '$').test(ref);
+}
+
+function rulesetAppliesToMain(ruleset) {
+  if (!ruleset || ruleset.enforcement !== 'active' || ruleset.target !== 'branch') return false;
+  const refName = ruleset.conditions?.ref_name;
+  const includes = Array.isArray(refName?.include) ? refName.include : [];
+  const excludes = Array.isArray(refName?.exclude) ? refName.exclude : [];
+  const ref = 'refs/heads/main';
+  return includes.some((p) => refPatternMatches(p, ref)) &&
+    !excludes.some((p) => refPatternMatches(p, ref));
+}
+
+function requiredChecksFromApplicableMainRulesets() {
+  const raw = gh('api repos/{owner}/{repo}/rulesets?includes_parents=true');
+  if (!raw) return [];
+  let list;
+  try { list = JSON.parse(raw); } catch { return []; }
+  const contexts = new Set();
+  for (const item of list) {
+    if (item?.enforcement !== 'active' || item?.target !== 'branch') continue;
+    const detailRaw = gh(`api repos/{owner}/{repo}/rulesets/${item.id}`);
+    if (!detailRaw) continue;
+    let detail;
+    try { detail = JSON.parse(detailRaw); } catch { continue; }
+    if (!rulesetAppliesToMain(detail)) continue;
+    for (const rule of detail.rules || []) {
+      if (rule?.type !== 'required_status_checks') continue;
+      for (const check of rule?.parameters?.required_status_checks || []) {
+        if (typeof check?.context === 'string' && check.context) contexts.add(check.context);
+      }
+    }
+  }
+  return [...contexts];
+}
+
+const REQUIRED_CHECK_NAMES = [...new Set([
+  'pr-check',
+  'guardrails',
+  'claude-review',
+  ...requiredChecksFromApplicableMainRulesets(),
+])];
 for (const name of REQUIRED_CHECK_NAMES) {
   const cr = checkRuns.find((c) => c.name === name);
   if (!cr) {

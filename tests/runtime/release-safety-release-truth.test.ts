@@ -235,11 +235,20 @@ describe('release-safety P2 — deploy-validator + workflow wiring pins (static)
     expect(workflow).toContain('reconfirm_rc');
   });
 
-  test('PR Release Truth waits boundedly for Vercel and required checks before aggregating', () => {
+  test('PR Release Truth waits boundedly and fails if dependencies never settle', () => {
     expect(workflow).toContain('Wait for PR release dependencies to settle');
     expect(workflow).toContain('seq 1 60');
     expect(workflow).toContain('validate-release-status.js --pr "$PR_NUMBER" --json');
     expect(workflow).toContain('DEPLOY_PENDING|DEPLOY_UNKNOWN) sleep 10');
+    expect(workflow).toContain('dependency wait expired; exact-head proof incomplete');
+    expect(workflow).toContain('exit 1');
+  });
+
+  test('deploy validator derives additional required checks from main-applicable active rulesets', () => {
+    expect(releaseStatus).toContain('requiredChecksFromApplicableMainRulesets');
+    expect(releaseStatus).toContain("refs/heads/main");
+    expect(releaseStatus).toContain("rule?.type !== 'required_status_checks'");
+    expect(releaseStatus).toContain('...requiredChecksFromApplicableMainRulesets()');
   });
 
   test('PR events invoke the aggregator with --pr (the DEPLOY_PREVIEW path), status still on the head SHA', () => {

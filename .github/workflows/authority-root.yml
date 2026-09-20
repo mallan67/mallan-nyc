@@ -23,22 +23,13 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Read authority-root protection state
+      - name: Freeze exact base-controlled execution gate
+        run: cp scripts/ci/mallan-execution-control.mjs /tmp/mallan-execution-control.mjs
+
+      - name: Read authority-root protection state for main
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -uo pipefail
-          required=false
-          ids="$(gh api "repos/$GITHUB_REPOSITORY/rulesets?includes_parents=true" --jq '.[] | select(.enforcement=="active") | .id' 2>/dev/null || true)"
-          for id in $ids; do
-            value="$(gh api "repos/$GITHUB_REPOSITORY/rulesets/$id" --jq 'any(.rules[]?; .type=="required_status_checks" and any(.parameters.required_status_checks[]?; .context=="authority-root"))' 2>/dev/null || echo false)"
-            if [ "$value" = "true" ]; then required=true; break; fi
-          done
-          echo "MALLAN_AUTHORITY_ROOT_REQUIRED=$required" >> "$GITHUB_ENV"
-          echo "authority-root required status check: $required"
-
-      - name: Freeze base-controlled execution gate
-        run: cp scripts/ci/mallan-execution-control.mjs /tmp/mallan-execution-control.mjs
+        run: node /tmp/mallan-execution-control.mjs --authority-root-required-main
 
       - name: Checkout proposed PR head
         uses: actions/checkout@v5
@@ -46,14 +37,15 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Ensure base ref is available
+      - name: Ensure exact event base SHA is available
         env:
-          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
-        run: git fetch --no-tags origin "$BASE_BRANCH:refs/remotes/origin/$BASE_BRANCH"
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: git fetch --no-tags origin "$BASE_SHA"
 
       - name: Enforce Mallan base-authority execution contract
         env:
           GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
           GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref }}
           GITHUB_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          MALLAN_BASE_REF: ${{ github.event.pull_request.base.sha }}
         run: node /tmp/mallan-execution-control.mjs
