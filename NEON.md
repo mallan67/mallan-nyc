@@ -1,10 +1,10 @@
 # 🗄️ NEON.md — READ THIS BEFORE ANY DB, PRISMA, OR MIGRATION WORK
 
-> **This file is the single source of truth for everything Neon / Prisma / DB-migration related on mallan-nyc. If you are about to touch `prisma/schema.prisma`, write a migration, add a column, drop an index, change `DATABASE_URL`, or modify `vercel.json` — stop and read this file first. Then read `docs/DEPLOYMENT.md` which is the authoritative architecture doc.**
+> **This file is OPERATING GUIDANCE for Neon / Prisma / DB-migration work. It is NOT an authority.** `MALLAN-PLATFORM-MASTER-PLAN.md` is the product/system authority and `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` holds current state. Where this file and the Master disagree, the Master wins and this file is the defect. Every identifier, count and setting recorded here is EVIDENCE OF A PAST READING, never a current fact: re-read it live through the Vercel-managed Neon resource before acting on it.
 
 **Last updated:** 2026-07-05 · **Review:** whenever tier changes, a migration ships, or `ops:health` surfaces a new warning.
 
-**Plan:** **Launch** (`launch_v3`, since 2026-05-17; live-verified 2026-07-05 via `neonctl projects get`). Storage cap 10 GB, compute fixed 0.25 CU, branch cap 5000 per project. See §2 for full table + the machine-checked canonical-facts block, §10 change log for tier-history.
+**Plan:** **Launch** (`launch_v3`, since 2026-05-17; as last read on 2026-07-05; re-verify live before relying on it). Storage cap 10 GB, compute fixed 0.25 CU, branch cap 5000 per project. See §2 for full table + the machine-checked canonical-facts block, §10 change log for tier-history.
 
 > **PITR / history retention is 6 hours (21600 s), live-verified 2026-07-05 — NOT 7 days.** Earlier revisions of this file claimed "7 days" sourced from Neon's plan documentation, never from the live setting; that was drift (OPS-016). 7-day PITR *is* available on the Launch plan but is not the current setting — see §2.1 for the verified value and the exact (Maya-gated) command to raise it.
 
@@ -22,9 +22,11 @@
 >   `main`, but that bounded response does **not** establish lifetime branch history. Repository evidence
 >   records 8 branches on 2026-05-17 and approximately 40 on 2026-06-01. Re-read current topology through
 >   the Vercel-managed resource before any branch decision.
-> - **Direct Neon control is quarantined.** The former PR-close cleanup, scheduled prune route/operator
->   prune CLI, and credential-rotation workflow may not call Neon directly. Provider lifecycle mutation
->   must be redesigned through the Vercel-managed resource contract and separately authorized.
+> - **Direct Neon control is DELETED, not disabled.** The PR-close cleanup workflow, the scheduled
+>   prune route, the operator prune CLI, the prune library and the credential-rotation workflow were
+>   removed from the repository. Re-adding any of them, including as a fail-only stub, is refused by
+>   `scripts/ci/mallan-execution-control.mjs`. Provider lifecycle mutation must be redesigned through
+>   the Vercel-managed resource contract and separately authorized.
 > - **Vercel is the entry path for the managed Neon resource.** Use
 >   `vercel integration open neon neon-green-school` for SSO into the bound Neon project. Reconcile
 >   direct Neon reads to this exact Vercel binding before treating them as Mallan truth.
@@ -69,7 +71,7 @@ The `vercel.json` `buildCommand` must not contain `prisma migrate deploy` or `pr
 
 ### 2.1 Canonical facts — machine-checked (OPS-016)
 
-These are the **live-verified** canonical identity + configuration facts for the production Neon project (read-only `neonctl`, 2026-07-05). They are the single source of truth: **`npm run neon:verify` parses this exact block and fails if any value drifts from live Neon** (exit 1 = drift, exit 2 = could-not-reach-Neon/unverified). Do not hand-edit a value here to silence a drift — fix the live setting or record the real new value.
+These were the canonical identity and configuration values for the production Neon project when they were last read on 2026-07-05. **They are dated evidence, not a source of truth.** `npm run neon:verify` compares this block against live Neon and fails on drift (exit 1 = drift, exit 2 = could not reach Neon / unverified). That check currently reads Neon through `neonctl`, which is NOT the authorized Mallan path; see the note under the block. Do not hand-edit a value here to silence a drift.
 
 <!-- NEON:FACTS:START -->
 project_id=hidden-mountain-87248164
@@ -86,15 +88,21 @@ history_retention_seconds=21600
 branches_limit=5000
 <!-- NEON:FACTS:END -->
 
-**Retention is settled at 6 h — this is the current standard, not a pending item.** Raising it to 7 days is an *optional* Launch-plan lever, not a fix owed. `neonctl` (2.22.0) cannot set retention; it is a Maya-gated Neon Console/API change and **has not been applied**. The exact change, prepared for approval:
+> **Open question, recorded rather than hidden (2026-09-20).** Mallan reaches Neon only through the
+> Vercel-managed Marketplace resource. `scripts/neon-verify.ts` and the Neon section of
+> `scripts/health/probe.ts` still read Neon through `neonctl`, which is not that path. Both are
+> strictly read-only. Vercel exposes no equivalent API for reading Neon branch topology, so these
+> checks cannot simply be rewired; they can only be kept as an acknowledged exception or deleted,
+> which would remove Mallan's ability to machine-detect drift in this block. That is Maya's decision
+> and it is not settled here.
 
-- **Console:** console.neon.tech → project `hidden-mountain-87248164` → **Settings → Storage / Instant restore** → set history retention to **7 days** → Save.
-- **API (equivalent):**
-  ```bash
-  curl -s -X PATCH https://console.neon.tech/api/v2/projects/hidden-mountain-87248164 \
-    -H "Authorization: Bearer $NEON_API_KEY" -H "Content-Type: application/json" \
-    -d '{"project":{"history_retention_seconds":604800}}'
-  ```
+**Retention was 6 h at the last reading.** Raising it to 7 days is an optional Launch-plan lever, not a fix owed, and it has not been applied.
+
+- **Not actionable from this document.** Raising retention is a Neon project-settings change. Mallan
+  reaches Neon only through the Vercel-managed Marketplace resource, so it is requested and performed
+  through that path with Maya's explicit authorization. A direct Neon Console login, a `neonctl`
+  session and a `NEON_API_KEY` call are not authorized Mallan paths, and the former instructions for
+  each were removed here on 2026-09-20.
   If applied, update `history_retention_seconds=604800` in the block above in the same change so `neon:verify` stays green. Trade-off: a longer window increases retained history/WAL storage (billed) — weigh against the ~1.5 GB current synthetic size.
 
 ### Plan-pressure ordering, not a hard ceiling
@@ -353,9 +361,9 @@ Full operational report. Use before every migration and after every deploy.
 
 Vercel dashboard → profile → Settings → Notifications → enable "Deployment Failed" + "Deployment Error". One-time config.
 
-### Neon console
+### Neon usage
 
-https://console.neon.tech → Project → Usage shows compute-hours used this month and reset date.
+Open the bound resource through Vercel (`vercel integration open neon <resource>`) and read Usage there. Do not sign in to the Neon console directly; the Vercel-managed binding is the only authorized path.
 
 ---
 
