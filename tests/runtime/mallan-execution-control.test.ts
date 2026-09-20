@@ -93,6 +93,8 @@ function initRepo(control = baseControl()) {
   write(cwd, "tests/runtime/mallan-execution-control.test.ts", "fixture\n");
   write(cwd, ".github/workflows/pr-check.yml", "name: fixture\n");
   write(cwd, ".github/workflows/geocode.yml", "name: geocode" + String.fromCharCode(10));
+  write(cwd, "lib/ops/db-target.ts", "export const target = process.env.DATABASE_URL;" + String.fromCharCode(10));
+  write(cwd, "package.json", JSON.stringify({ name: "fixture" }) + String.fromCharCode(10));
   git(
     cwd,
     "add",
@@ -104,7 +106,9 @@ function initRepo(control = baseControl()) {
     "tests/runtime/mallan-execution-control.test.ts",
     ".github/workflows/pr-check.yml",
     "vercel.json",
-    ".github/workflows/geocode.yml"
+    ".github/workflows/geocode.yml",
+    "lib/ops/db-target.ts",
+    "package.json"
   );
   git(cwd, "commit", "-m", "base authority");
   git(cwd, "branch", "origin-main");
@@ -445,12 +449,12 @@ describe("Mallan execution-control gate", () => {
   const FULL_DB_CHAIN = {
     vercel_integration: [".github/workflows/pr-check.yml"],
     env_resolution: [".github/workflows/pr-check.yml"],
-    db_target: ["lib/feature/reader.ts"],
+    db_target: ["lib/ops/db-target.ts"],
     prisma_pg: ["prisma/schema.prisma"],
     migrations: ["prisma/schema.prisma"],
     workflows_crons: [".github/workflows/pr-check.yml"],
-    preview: ["lib/feature/publisher.ts"],
-    production: ["lib/feature/publisher.ts"],
+    preview: [".github/workflows/pr-check.yml"],
+    production: [".github/workflows/pr-check.yml"],
     downstream_readers_writers: ["lib/feature/publisher.ts"],
     tests: ["tests/runtime/mallan-execution-control.test.ts"],
   };
@@ -493,6 +497,56 @@ describe("Mallan execution-control gate", () => {
     ["app/api/cron/branch-janitor/route.ts", "route"],
     ["lib/provider/branch-admin.ts", "library"],
   ] as const;
+
+  test("an existing but unrelated file does not satisfy a station", () => {
+    // package.json exists, is not free text and is not prose, so path existence alone
+    // used to satisfy the entire chain.
+    const chain = { ...FULL_DB_CHAIN };
+    for (const station of Object.keys(chain)) {
+      (chain as Record<string, string[]>)[station] = ["package.json"];
+    }
+    const cwd = initRepo(dbControl(chain));
+    touchSchema(cwd, "db change, every station package.json");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("not evidence FOR THAT STATION");
+  });
+
+  test("removing a database reader is still a database change", () => {
+    const rel = "lib/allowed.ts";
+    const control = dbControl(undefined);
+    control.authorized_paths = [rel];
+    control.allowed_new_files = [];
+    const cwd = initRepo(control);
+    // Base HAS the reader; HEAD removes it. Reading only HEAD erased the signal.
+    write(cwd, rel, "import { Pool } from " + JSON.stringify("pg") + ";" + String.fromCharCode(10) + "export const p = new Pool({ connectionString: process.env.DATABASE_URL });" + String.fromCharCode(10));
+    git(cwd, "add", rel);
+    git(cwd, "commit", "-m", "base has a reader");
+    git(cwd, "branch", "-f", "origin-main", "HEAD");
+    write(cwd, rel, "export const p = 1;" + String.fromCharCode(10));
+    git(cwd, "add", rel);
+    git(cwd, "commit", "-m", "remove the reader");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("database_impact_chain");
+  });
+
+  test("an aliased client constructor triggers the chain", () => {
+    const rel = "lib/allowed.ts";
+    const control = dbControl(undefined);
+    control.authorized_paths = [rel];
+    control.allowed_new_files = [rel];
+    const cwd = initRepo(control);
+    write(cwd, rel, [
+      "import { Pool as PgPool } from " + JSON.stringify("pg") + ";",
+      "export const p = new PgPool({ connectionString: " + JSON.stringify("postgresql://db.example/mallan") + " });",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", rel);
+    git(cwd, "commit", "-m", "aliased pool constructor");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("database_impact_chain");
+  });
 
   test("an UNVERIFIED station does not satisfy the mandatory chain", () => {
     const chain = { ...FULL_DB_CHAIN };

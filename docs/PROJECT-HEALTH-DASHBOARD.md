@@ -23,16 +23,16 @@ to **⚪ UNVERIFIED / fail-closed**, not assumed-healthy.
 ## Auto-probed tier
 
 <!-- HEALTH:AUTO:START -->
-_Last probed (UTC): **2026-07-31T04:18:55Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
+_Auto tier is **STALE**. It was last probe-refreshed 2026-07-31 and has since been hand-corrected for deleted machinery rather than regenerated. Treat every cell below as a dated reading, not current health, until `npm run health:probe` is run against a canonical database URL. ⚪ = not verified._
 
 | Area | Status | Evidence |
 |------|--------|----------|
 | Repo / main HEAD | 🟢 | main `04db1b99`; probed from branch `docs/register-ops-026` |
 | Open PRs | 🟢 | 3 open (3 non-audit): #590, #589, #585 |
 | PR #465 (rehydration guard) | 🟢 | MERGED 2026-07-02T02:35Z (gh merge-state only — deploy/runtime proof lives in RW-004) |
-| Neon canonical identity (RETIRED 2026-09-20) | 🟢 | default `main`=`br-crimson-frog-adr7g9gt` (ready); 1 branch(es) |
+| Neon canonical identity (RETIRED 2026-09-20) | ⚪ | default `main`=`br-crimson-frog-adr7g9gt` (ready); 1 branch(es) |  UNVERIFIED: dated reading, not exposed through the authorized Vercel-managed path |
 | Gate 6 rollback branch | 🟡 | no pre-gate6 rollback branch present |
-| Neon facts drift (RETIRED 2026-09-20) | 🟢 | cell retired: the the retired direct CLI (deleted 2026-09-20) verifier was deleted; Neon identity is read through the Vercel binding and recorded in the Execution State |
+| Neon facts drift (RETIRED 2026-09-20) | ⚪ | cell retired: the retired direct CLI verifier was deleted; Neon identity is read through the Vercel binding and recorded in the Execution State |  UNVERIFIED: dated reading, not exposed through the authorized Vercel-managed path |
 | Cron cadence (live Cotality) | 🟡 | 20 crons; idx-sync `MISSING`, media-sync `MISSING`, db-keepalive `MISSING` |
 | media-backfill removal (QUAL-006/OPS-008) | 🟢 | not scheduled AND route file absent (both verified) — idx:validate 0-critical baseline restored 2026-07-02 |
 | Cotality sync attempt freshness | ⚪ | no canonical DATABASE_URL in env (pass cold-waterfall to fill) |
@@ -64,7 +64,7 @@ row. Do **not** mark 🟢 without a captured proof (log line, URL probe, validat
 | Open Houses | 🟢 (Regression Watch) | 2026-07-01 | twin-safe display fixes #463/#464 merged; SL-0007 ↔ RLS twin verified — registry RW-001: watch until 2026-07-08 (7d clean) before closing |
 | Compliance validators | 🟢 | 2026-07-03 | **idx:validate exit 0 / 0 critical on main@ab56ecd8 (QUAL-006 Verified Fixed via #471 — §B baseline restored)** · type-check 0 · rls 0 err/1 warn · compliance-check 0 BLOCKER+STRICT (QUAL-007 addressed by PR #545 — `ethics_training_gate` corrected to an administrative RECORD, not an auth gate; workflow completeness 11/11 locally, pending merge) · ucba 46/46, 0 REGRESSIONS · crm:test 39/39 |
 | Security | ⚪ | — | security-agent PASS required before any deploy touching auth/routes/env |
-| Neon health (compute/pooler) | 🟢 | 2026-07-02 | live the retired direct CLI (deleted 2026-09-20) reads: compute FIXED 0.25 CU min/max (max 180 CU-hr/mo < 300 baseline → **$19 flat, no overage**); history retention **6h** (previously documented as 7d; NEON.md §2 corrected 2026-07-02 — OPS-016); billed storage 1,493 MB (14.6% of cap); **1 branch (main only)** — the Gate-6 rollback branch was auto-pruned 2026-07-03 (OPS-022; a fresh protected one is a 5K prerequisite). keepalive 500s = OPS-002/OPS-015 noise |
+| Neon health (compute/pooler) | ⚪ | 2026-07-02 | readings taken 2026-07-02 through the retired direct CLI, since deleted: compute FIXED 0.25 CU min/max (max 180 CU-hr/mo < 300 baseline → **$19 flat, no overage**); history retention **6h** (previously documented as 7d; NEON.md §2 corrected 2026-07-02 — OPS-016); billed storage 1,493 MB (14.6% of cap); **1 branch (main only)** — the Gate-6 rollback branch was auto-pruned 2026-07-03 (OPS-022; a fresh protected one is a 5K prerequisite). keepalive 500s = OPS-002/OPS-015 noise |  UNVERIFIED: dated reading, not exposed through the authorized Vercel-managed path |
 | Runtime SODA/DOB queries | 🟡 | 2026-07-01 (handoff) | `seller-scoring` (`job_filed_date`), `demand-signals` (`community_board` grouping) 200-with-warnings |
 | Nearby POI (Overpass) | 🟡 | 2026-07-01 (handoff) | repeated `406` warnings though HTTP 200 — feature may be degraded |
 | Homepage feed timestamp | 🟢 | 2026-07-01 | live footer capture (Playwright) shows "Updated: July 1, 2026" — timestamp is current/live |
@@ -144,7 +144,7 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 |---|---|---|---|---|
 | Vercel production deploy | 🟡 | 2026-07-31 | Superseded — see the current production row above: `dpl_BVgQ…` on `e113a1ef`, runtime-source equivalent to `main` `04db1b99`. The 2026-07-02 `main@7643ccb0` (#468) entry is historical |
 | Vercel build pipeline | 🟢 | 2026-07-01 | 20 recent deployments all READY, 0 failed builds in window | Vercel MCP |
-| Neon canonical identity (RETIRED 2026-09-20) | 🟢 | 2026-07-01 | no longer auto-probed | read through the Vercel-managed resource |
+| Neon canonical identity (RETIRED 2026-09-20) | ⚪ | 2026-07-01 | no longer auto-probed | read through the Vercel-managed resource |  UNVERIFIED: dated reading, not exposed through the authorized Vercel-managed path |
 | Neon compute/pooler reliability | 🟡 | 2026-07-02 | keepalive 500 last 07-01 18:00Z (OPS-002 monitoring); compute FIXED 0.25 CU, retention 6h — verified from Neon config (OPS-016) | runtime logs 7d window |
 | Neon backups / PITR / restore drill | 🔴 | 2026-07-03 | **Gate-6 rollback branch AUTO-PRUNED 2026-07-03T04:00:48Z (OPS-022)** — no rollback branch currently exists; PITR window is 6h (OPS-016); no restore DRILL ever run | recreate+protect branch (OPS-022) |
 | Neon facts drift (RETIRED 2026-09-20) | ⚪ | 2026-07-05 | cell retired 2026-09-20 with read through the Vercel-managed Marketplace resource | read through the Vercel-managed Marketplace resource |
@@ -152,7 +152,7 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 | R2 storage (media) | ⚪ | — | cost audit 2026-06-12 exists; orphan/consistency unverified this cycle | R2 inventory vs listing_media |
 | DNS / SSL / domains | 🟢 | 2026-07-01 | https/www/apex redirects verified live; cert valid (PROD-003) | curl probes |
 | Env vars / secrets hygiene | 🟡 | 2026-07-01 | no secret values leaked via routes (backend audit); ALLOW_DEV_LOGIN state UNKNOWN (PROD-008); CRON_SECRET fail-open pattern ×12 (PROD-005) | `vercel env ls` (names only) |
-| Rollback readiness | 🟡 | 2026-07-03 | Vercel: 4 rollback-candidate prod deployments (app-level OK). **Neon: Gate-6 rollback branch GONE (auto-pruned, OPS-022) — BLOCKER for 5K execute** | Vercel MCP + the retired direct CLI (deleted 2026-09-20) |
+| Rollback readiness | 🟡 | 2026-07-03 | Vercel: 4 rollback-candidate prod deployments (app-level OK). **Neon: Gate-6 rollback branch GONE (auto-pruned, OPS-022) — BLOCKER for 5K execute** | Vercel MCP + the retired direct CLI (deleted) |
 
 ### 2 · Runtime (284 API routes · 23 crons)
 | Component | Status | Last verified | Evidence / Registry | Verify via |

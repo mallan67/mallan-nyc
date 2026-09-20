@@ -120,18 +120,17 @@ const DATABASE_CONTENT_PATTERNS = [
 
 
 // Literal matching is necessary but not sufficient: the same capability survives being
-// assembled from fragments, e.g. ["console", "ne" + "on", "tech"].join("."). Collapsing the
-// body removes the seams a literal search depends on. Quotes, concatenation operators,
-// whitespace, backslashes, brackets and commas go; what remains is compared against the
-// same signatures with their own separators removed.
+// assembled from fragments. The body and the needles must be normalised IDENTICALLY,
+// otherwise a fragment that retains a separator matches neither pass. Both sides drop
+// whitespace, quotes, concatenation, brackets, commas, dots, underscores and hyphens.
 function collapseForCapabilityScan(body) {
-  return body.replace(/[\s'\"`+\\\[\],]/g, "").toLowerCase();
+  return body.replace(/[\s'\"`+\\\[\],\.,_-]/g, "").toLowerCase();
 }
 
 function capabilityNeedles() {
   return DIRECT_NEON_CAPABILITY_SIGNALS.map((signal) => ({
     signal,
-    collapsed: signal.replace(/[._-]/g, "").toLowerCase(),
+    collapsed: signal.replace(/[\s.\-_]/g, "").toLowerCase(),
   }));
 }
 
@@ -168,7 +167,7 @@ const BOOTSTRAP_ALLOWED = new Set([
   "docs/architecture/PUBLIC-RECORDS-NEON-PROVISIONING-PLAN.md",
   "artifacts/api-route-catalog.md", "scripts/reso/route-catalog.js",
   "lib/ops/db-target.ts", "scripts/ci/assert-canonical-neon-target.mjs",
-  "tests/runtime/canonical-neon-target.test.ts"
+  "tests/runtime/canonical-neon-target.test.ts", "docs/PLATFORM-ISSUE-REGISTRY.md"
 ]);
 
 // Maya's mandatory database chain. Any change that can move, name, resolve or consume the
@@ -196,18 +195,55 @@ const DATABASE_PATH_PREFIXES = ["prisma/", "sql/", "lib/db/", "lib/ops/", "lib/r
 const DATABASE_PATH_EXACT = ["lib/prisma.ts", "vercel.json"];
 const DATABASE_PATH_SUBSTRINGS = ["neon", "database", "db-target", "database_url"];
 
-function touchesDatabaseTarget(filePath, readHead) {
+// A file is database-shaped if EITHER its base version or its proposed version carries a
+// database signal. Reading only HEAD meant that REMOVING the database behaviour from a
+// neutral-path file, or deleting the file outright, erased the signal before classification
+// and the change escaped the chain. Removing a reader is a database change.
+function fileCarriesDatabaseSignal(body) {
+  if (!body) return false;
+  if (DATABASE_CONTENT_SIGNALS.some((signal) => body.includes(signal))) return true;
+  if (DATABASE_CONTENT_PATTERNS.some((pattern) => pattern.test(body))) return true;
+  // Constructors reached through an alias or a namespace. The literal names are not enough:
+  // `import { Pool as PgPool } from "pg"` followed by `new PgPool(...)` is the same consumer.
+  for (const alias of databaseClientAliases(body)) {
+    if (new RegExp("new\\s+" + alias + "\\s*\\(").test(body)) return true;
+  }
+  return false;
+}
+
+// Collect the local binding names for database client constructors, from value imports and
+// requires of pg or the Prisma client. Type-only imports are ignored deliberately: a census
+// of this repository found them common and inert.
+const DB_CLIENT_NAMED_IMPORT = /import\s+(?!type\s)\{([^}]*)\}\s*from\s*['"](?:pg|@prisma\/client)['"]/g;
+const DB_CLIENT_REQUIRE = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*require\s*\(\s*['"](?:pg|@prisma\/client)['"]/g;
+
+function databaseClientAliases(body) {
+  const aliases = new Set();
+  let match;
+  DB_CLIENT_NAMED_IMPORT.lastIndex = 0;
+  while ((match = DB_CLIENT_NAMED_IMPORT.exec(body)) !== null) {
+    for (const part of match[1].split(",")) {
+      const piece = part.trim();
+      if (!piece) continue;
+      const segments = piece.split(/\s+as\s+/);
+      const local = (segments[1] || segments[0]).trim();
+      if (/^[A-Za-z_$][\w$]*$/.test(local)) aliases.add(local);
+    }
+  }
+  DB_CLIENT_REQUIRE.lastIndex = 0;
+  while ((match = DB_CLIENT_REQUIRE.exec(body)) !== null) aliases.add(match[1]);
+  return aliases;
+}
+
+function touchesDatabaseTarget(filePath, readHead, readBase) {
   if (DATABASE_PATH_EXACT.includes(filePath)) return true;
   if (DATABASE_PATH_PREFIXES.some((prefix) => filePath.startsWith(prefix))) return true;
   const lower = filePath.toLowerCase();
   if (DATABASE_PATH_SUBSTRINGS.some((needle) => lower.includes(needle))) return true;
-  // Filename shape is not enough. A census of the repository found 52 database readers
-  // that match no path pattern, so the file's own content decides.
   if (!isExecutablePath(filePath)) return false;
-  const body = typeof readHead === "function" ? readHead(filePath) : null;
-  if (!body) return false;
-  if (DATABASE_CONTENT_SIGNALS.some((signal) => body.includes(signal))) return true;
-  return DATABASE_CONTENT_PATTERNS.some((pattern) => pattern.test(body));
+  const head = typeof readHead === "function" ? readHead(filePath) : null;
+  const base = typeof readBase === "function" ? readBase(filePath) : null;
+  return fileCarriesDatabaseSignal(head) || fileCarriesDatabaseSignal(base);
 }
 
 // A station is not satisfied by pointing at prose. A document records a claim; the station
@@ -608,12 +644,60 @@ function validateImpactPaths(control, baseRef) {
   }
 }
 
+// Path existence alone is not evidence. A fixture that filled all ten stations with
+// package.json passed, because package.json exists, is not free text and is not prose.
+// Each station therefore declares WHAT KIND of thing can stand as its evidence, and an
+// entry must satisfy its own station's class. The classes are deliberately broad enough
+// that an honest packet can satisfy them and narrow enough that an unrelated file cannot.
+const DATABASE_STATION_EVIDENCE = {
+  vercel_integration: {
+    describes: "the Vercel surface that binds the resource: vercel.json or a workflow",
+    accepts: (p) => p === "vercel.json" || p.startsWith(".github/workflows/"),
+  },
+  env_resolution: {
+    describes: "where the connection variables are resolved: vercel.json, a workflow, or a file that reads them",
+    accepts: (p, body) => p === "vercel.json" || p.startsWith(".github/workflows/") || fileCarriesDatabaseSignal(body),
+  },
+  db_target: {
+    describes: "the module that classifies or selects the database target",
+    accepts: (p, body) => p.startsWith("lib/ops/") || p === "lib/db.ts" || p === "lib/prisma.ts" || fileCarriesDatabaseSignal(body),
+  },
+  prisma_pg: {
+    describes: "the Prisma schema or a module that constructs a client",
+    accepts: (p, body) => p.startsWith("prisma/") || fileCarriesDatabaseSignal(body),
+  },
+  migrations: {
+    describes: "the migration surface: prisma/ or sql/",
+    accepts: (p) => p.startsWith("prisma/") || p.startsWith("sql/"),
+  },
+  workflows_crons: {
+    describes: "a workflow, a schedule file, or a cron route",
+    accepts: (p) => p.startsWith(".github/workflows/") || p === "vercel.json" || p.startsWith("app/api/cron/"),
+  },
+  preview: {
+    describes: "the machinery that produces preview proof: a workflow or a release-safety script",
+    accepts: (p) => p.startsWith(".github/workflows/") || p.startsWith("scripts/release-safety/"),
+  },
+  production: {
+    describes: "the machinery that produces production proof: a workflow or a release-safety script",
+    accepts: (p) => p.startsWith(".github/workflows/") || p.startsWith("scripts/release-safety/"),
+  },
+  downstream_readers_writers: {
+    describes: "application or library code that consumes the database",
+    accepts: (p, body) => p.startsWith("app/") || p.startsWith("lib/") || p.startsWith("scripts/") || fileCarriesDatabaseSignal(body),
+  },
+  tests: {
+    describes: "a test file",
+    accepts: (p) => p.startsWith("tests/") || p.includes("__tests__/") || /\.(test|spec)\.[tj]sx?$/.test(p),
+  },
+};
+
 // ONE PRE-SUCCESS INVARIANT. The chain used to run only on the implementation path, so a
 // control-update or control-root-maintenance packet could change a database-shaped file and
 // return success without it. This is called before EVERY successful return that can carry
 // database-shaped changes, so adding a future mode cannot silently reopen the hole.
-function assertDatabaseChain(control, changedPaths, readHead, baseRef) {
-  const databaseChanges = changedPaths.filter((filePath) => touchesDatabaseTarget(filePath, readHead));
+function assertDatabaseChain(control, changedPaths, readHead, readBase, baseRef) {
+  const databaseChanges = changedPaths.filter((filePath) => touchesDatabaseTarget(filePath, readHead, readBase));
   if (databaseChanges.length === 0) return;
 
   const chain = control?.impact_graph?.database_impact_chain;
@@ -647,6 +731,7 @@ function assertDatabaseChain(control, changedPaths, readHead, baseRef) {
   const freeText = [];
   const proseOnly = [];
   const unresolved = [];
+  const offClass = [];
   for (const station of DATABASE_IMPACT_STATIONS) {
     const entries = chain[station];
     if (stationIsDocumentationOnly(entries)) proseOnly.push(station);
@@ -654,9 +739,15 @@ function assertDatabaseChain(control, changedPaths, readHead, baseRef) {
       const value = entry.trim();
       if (value.toUpperCase().startsWith("UNVERIFIED")) { unverified.push(station + ": " + value); continue; }
       if (!value.includes("/") && !value.includes(".")) { freeText.push(station + ": " + value); continue; }
-      if (basePathExists(baseRef, value)) continue;
-      if ((control.allowed_new_files || []).includes(value)) continue;
-      unresolved.push(station + ": " + value);
+      const exists = basePathExists(baseRef, value);
+      const isNew = (control.allowed_new_files || []).includes(value);
+      if (!exists && !isNew) { unresolved.push(station + ": " + value); continue; }
+      // The path is real. It must also be the RIGHT KIND of thing for this station.
+      const klass = DATABASE_STATION_EVIDENCE[station];
+      const body = exists ? readBase(value) : readHead(value);
+      if (klass && !klass.accepts(value, body)) {
+        offClass.push(station + ": " + value + "  (station wants " + klass.describes + ")");
+      }
     }
   }
 
@@ -687,6 +778,14 @@ function assertDatabaseChain(control, changedPaths, readHead, baseRef) {
       "The database chain names repo paths that do not exist on the PR base and are not",
       "authorized new files. A fabricated station is not proof:",
       ...unresolved.map((item) => "  - " + item)
+    ].join(String.fromCharCode(10)));
+  }
+  if (offClass.length) {
+    fail([
+      "A database-chain station names a real file that is not evidence FOR THAT STATION.",
+      "Path existence alone is not proof: any repository file exists. Each station must",
+      "name the kind of thing it is about:",
+      ...offClass.map((item) => "  - " + item)
     ].join(String.fromCharCode(10)));
   }
 }
@@ -736,6 +835,10 @@ function main() {
   const readHead = (filePath) => {
       try { return git(["show", "HEAD:" + filePath]); } catch { return null; }
     };
+
+  // The base version matters as much as the proposed one: removing a database reader is
+  // itself a database change, and a deleted file has no HEAD content at all.
+  const readBase = (filePath) => readBaseFile(baseRef, filePath);
 
   // CAPABILITY, NOT FILENAME. The retired direct-Neon control plane may not return under
   // any new name. A file is refused for reaching the Neon control plane, whatever it is
@@ -832,7 +935,7 @@ function main() {
     }
     if (proposedControl.base_branch !== baseBranch) fail("Proposed execution contract targets base " + proposedControl.base_branch + "; control updates must remain anchored to " + baseBranch + ".");
     // Pre-success invariant: a database-shaped change cannot exit through this mode either.
-    assertDatabaseChain(control, changedPaths, readHead, baseRef);
+    assertDatabaseChain(control, changedPaths, readHead, readBase, baseRef);
     pass("Control-update PR is limited to a valid canonical Execution State.");
     return;
   }
@@ -849,7 +952,7 @@ function main() {
         fail("Control-root maintenance exit contract is invalid: " + error.message);
       }
       // Pre-success invariant: a database-shaped change cannot exit through this mode either.
-      assertDatabaseChain(control, changedPaths, readHead, baseRef);
+      assertDatabaseChain(control, changedPaths, readHead, readBase, baseRef);
       pass("Control-root maintenance exited through a state-only control update.");
       return;
     }
@@ -879,7 +982,7 @@ function main() {
     const unapproved = added.filter((p)=>!control.allowed_new_files.includes(p));
     if (unapproved.length) fail("Control-root maintenance created unapproved files:\n" + unapproved.map((p)=>"  - "+p).join("\n"));
     // Pre-success invariant: a database-shaped change cannot exit through this mode either.
-    assertDatabaseChain(control, changedPaths, readHead, baseRef);
+    assertDatabaseChain(control, changedPaths, readHead, readBase, baseRef);
     pass("Control-root maintenance is base-authorized and authority-root is required.");
     return;
   }
@@ -901,7 +1004,7 @@ function main() {
   // before it can pass. This is enforced from the changed paths, not from the packet's
   // own opinion of its scope, so a packet cannot escape the chain by declining to
   // mention that it touched the database.
-  assertDatabaseChain(control, changedPaths, readHead, baseRef);
+  assertDatabaseChain(control, changedPaths, readHead, readBase, baseRef);
 
   for (const protectedPath of [STATE_PATH, MASTER_PATH]) {
     if (changedPaths.includes(protectedPath)) {

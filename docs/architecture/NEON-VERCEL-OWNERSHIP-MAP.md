@@ -12,7 +12,7 @@
 > - **Branch history is not established by the 2026-09-18 current/deleted enumeration.** It returned
 >   only `main`, while repository evidence records 8 branches on 2026-05-17 and approximately 40 on
 >   2026-06-01. Current topology must be re-read through the Vercel-managed resource.
-> - **Direct Neon control is quarantined.** The old prune/cleanup/rotation paths are not current
+> - **Direct Neon control is DELETED.** The old prune, cleanup and rotation paths were removed from
 >   lifecycle authority and may not mutate Neon directly.
 > - The Vercel-managed Neon entry path is `vercel integration open neon neon-green-school` (SSO).
 > - Do not change DB env, resource scope, Neon settings, branch lifecycle, or rotation without Maya approval.
@@ -41,7 +41,7 @@ If you're reading this because a Vercel preview build is stuck "pending" or a "N
 - ❌ Do not copy one `NEON_PROJECT_ID` value to the other surface, and do not use either value as proof of production ownership (see §7)
 - ❌ Do not disconnect/reconnect the Vercel-Neon integration (resource id `store_K9l79ICRUTMsiRh2`)
 - ❌ Do not reconnect the Vercel-GitHub integration
-- ❌ Do not rotate DB credentials manually; the old direct-Neon rotate workflow is quarantined and is not an authorized writer
+- ❌ Do not rotate DB credentials manually; the old direct-Neon rotate workflow was DELETED on 2026-09-20 and is not an authorized writer
 - ❌ Do not change `DATABASE_URL` / `DATABASE_URL_UNPOOLED` / `ASSISTANT_DATABASE_URL` on any surface
 - ❌ Do not toggle Vercel preview-branching off (would route preview deploys at the production DB — see `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`)
 
@@ -326,7 +326,7 @@ CURRENT VERCEL DB RISK:
   database_* is Marketplace-owned and spans environments until the resource scope is reconciled.
 
 DIRECT-NEON PRUNE:
-  retired/quarantined; no Vercel cron schedule.
+  DELETED 2026-09-20; the file, its Vercel cron schedule and its tests are all absent.
   ops:health does not use historical prune audit events as current branch proof.
 
 ACCESS:

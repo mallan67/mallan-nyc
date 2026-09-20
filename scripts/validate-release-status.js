@@ -280,9 +280,17 @@ function requiredChecksFromApplicableMainRulesets() {
       return { ok: false, checks: [], reason: 'ruleset-detail-malformed:' + String(item.id) };
     }
     if (!rulesetAppliesToMain(detail)) continue;
+    // A truncated or malformed detail must make discovery UNKNOWN, not silently empty.
+    if (!Array.isArray(detail.rules)) {
+      return { ok: false, checks: [], reason: 'ruleset-detail-malformed-rules:' + String(item.id) };
+    }
     for (const rule of detail.rules || []) {
       if (rule?.type !== 'required_status_checks') continue;
-      for (const check of rule?.parameters?.required_status_checks || []) {
+      const declared = rule?.parameters?.required_status_checks;
+      if (!Array.isArray(declared)) {
+        return { ok: false, checks: [], reason: 'ruleset-required-checks-malformed:' + String(item.id) };
+      }
+      for (const check of declared) {
         if (typeof check?.context !== 'string' || !check.context) continue;
         const integrationId = Number.isInteger(check.integration_id) ? check.integration_id : null;
         const key = check.context + '\u0000' + String(integrationId ?? 'any');

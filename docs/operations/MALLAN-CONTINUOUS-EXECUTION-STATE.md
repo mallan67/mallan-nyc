@@ -710,7 +710,7 @@ Verified live GitHub state at that head:
 1. Exact correction head passes the semantic GitHub-only authority test.
 2. Exact correction head contains no current lifetime-history Neon overclaim in the changed authority/provider docs.
 3. Controller negative tests prove mutation flags, provider-proof fail-closed behavior, final-proof requirements, rename rejection and base-controlled root maintenance.
-4. Direct-Neon PR-close cleanup, scheduled prune and credential-rotation paths are demonstrably quarantined; the prune schedule is absent from `vercel.json`.
+4. Direct-Neon PR-close cleanup, scheduled prune and credential-rotation paths are DELETED from the repository, not disabled; the prune schedule is absent from `vercel.json` and the execution gate refuses their return under any filename.
 5. The optional local Cotality helper uses source that exists in Git and has no metadata-snapshot fallback; unavailable live Cotality fails closed.
 6. Release Truth waits for exact-head Vercel + required checks and finishes in a non-racy final state.
 7. A new independent review evaluates the exact corrected head; old review threads are resolved only after the corrected code/tests are visible.
