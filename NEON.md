@@ -2,9 +2,9 @@
 
 > **This file is OPERATING GUIDANCE for Neon / Prisma / DB-migration work. It is NOT an authority.** `MALLAN-PLATFORM-MASTER-PLAN.md` is the product/system authority and `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` holds current state. Where this file and the Master disagree, the Master wins and this file is the defect. Every identifier, count and setting recorded here is EVIDENCE OF A PAST READING, never a current fact: re-read it live through the Vercel-managed Neon resource before acting on it.
 
-**Last updated:** 2026-07-05 · **Review:** whenever tier changes, a migration ships, or `ops:health` surfaces a new warning.
+**Last updated:** 2026-09-20 · **Review:** whenever tier changes, a migration ships, or `ops:health` surfaces a new warning. Values recorded in this file are dated readings, not current facts.
 
-**Plan:** **Launch** (`launch_v3`, since 2026-05-17; as last read on 2026-07-05; re-verify live before relying on it). Storage cap 10 GB, compute fixed 0.25 CU, branch cap 5000 per project. See §2 for full table + the machine-checked canonical-facts block, §10 change log for tier-history.
+**Plan:** **Launch** (`launch_v3`, since 2026-05-17; as last read on 2026-07-05; re-verify live before relying on it). Storage cap 10 GB, compute fixed 0.25 CU, branch cap 5000 per project. See §2 for the full table and §2.1 for the dated canonical-facts reading, which is historical evidence and is no longer machine-checked; §10 change log for tier history.
 
 > **PITR / history retention read 6 hours (21600 s) on 2026-07-05 — NOT 7 days. That is a dated reading, not a current fact.** Earlier revisions of this file claimed "7 days" sourced from Neon's plan documentation, never from the live setting; that was drift (OPS-016). 7-day PITR *is* available on the Launch plan but is not the current setting — see §2.1 for the verified value and the exact (Maya-gated) command to raise it.
 
