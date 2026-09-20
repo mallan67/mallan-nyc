@@ -145,14 +145,14 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 | Vercel production deploy | 🟡 | 2026-07-31 | Superseded — see the current production row above: `dpl_BVgQ…` on `e113a1ef`, runtime-source equivalent to `main` `04db1b99`. The 2026-07-02 `main@7643ccb0` (#468) entry is historical |
 | Vercel build pipeline | 🟢 | 2026-07-01 | 20 recent deployments all READY, 0 failed builds in window | Vercel MCP |
 | Neon canonical identity (RETIRED 2026-09-20) | ⚪ | 2026-07-01 | no longer auto-probed | read through the Vercel-managed resource |  UNVERIFIED: dated reading, not exposed through the authorized Vercel-managed path |
-| Neon compute/pooler reliability | 🟡 | 2026-07-02 | keepalive 500 last 07-01 18:00Z (OPS-002 monitoring); compute FIXED 0.25 CU, retention 6h — verified from Neon config (OPS-016) | runtime logs 7d window |
-| Neon backups / PITR / restore drill | 🔴 | 2026-07-03 | **Gate-6 rollback branch AUTO-PRUNED 2026-07-03T04:00:48Z (OPS-022)** — no rollback branch currently exists; PITR window is 6h (OPS-016); no restore DRILL ever run | recreate+protect branch (OPS-022) |
+| Neon compute/pooler reliability | 🟡 | 2026-07-02 | keepalive 500 last 07-01 18:00Z (OPS-002 monitoring). **Compute and retention are a DATED 2026-07-02 reading** taken through the now-prohibited direct path (0.25 CU fixed, 6h) — UNVERIFIED against the authorized Vercel-managed resource (OPS-016) | runtime logs 7d window; compute/retention need the authorized Vercel-managed Neon resource |
+| Neon backups / PITR / restore drill | 🔴 | 2026-07-03 | **DATED 2026-07-03 reading, UNVERIFIED today.** The Gate-6 rollback branch was auto-pruned at 2026-07-03T04:00:48Z and the PITR window read 6h (OPS-016/OPS-022); both came from the now-prohibited direct path and neither has been re-read through the authorized Vercel-managed resource. No restore DRILL has ever been run | the authorized Vercel-managed Neon resource; branch recreation stays a Maya-held action (OPS-022) |
 | Neon facts drift (RETIRED 2026-09-20) | ⚪ | 2026-07-05 | cell retired 2026-09-20 with read through the Vercel-managed Marketplace resource | read through the Vercel-managed Marketplace resource |
 | Redis (locks/queues) | ⚪ | — | `createCronHandler` references a Redis lock but is dead code (OPS-007); live Redis usage uninventoried | code sweep + env check |
 | R2 storage (media) | ⚪ | — | cost audit 2026-06-12 exists; orphan/consistency unverified this cycle | R2 inventory vs listing_media |
 | DNS / SSL / domains | 🟢 | 2026-07-01 | https/www/apex redirects verified live; cert valid (PROD-003) | curl probes |
 | Env vars / secrets hygiene | 🟡 | 2026-07-01 | no secret values leaked via routes (backend audit); ALLOW_DEV_LOGIN state UNKNOWN (PROD-008); CRON_SECRET fail-open pattern ×12 (PROD-005) | `vercel env ls` (names only) |
-| Rollback readiness | 🟡 | 2026-07-03 | Vercel: 4 rollback-candidate prod deployments (app-level OK). **Neon: Gate-6 rollback branch GONE (auto-pruned, OPS-022) — BLOCKER for 5K execute** | Vercel MCP + the retired direct CLI (deleted) |
+| Rollback readiness | 🟡 | 2026-07-03 | Vercel: 4 rollback-candidate prod deployments (app-level OK). **Neon rollback state is UNVERIFIED** — the branch was gone on 2026-07-03 (OPS-022) and that remains a BLOCKER for the 5K execute, but the reading is dated and the path it came from is prohibited | Vercel MCP; Neon branch state needs the authorized Vercel-managed resource |
 
 ### 2 · Runtime (284 API routes · 23 crons)
 | Component | Status | Last verified | Evidence / Registry | Verify via |

@@ -124,7 +124,7 @@ const DATABASE_CONTENT_PATTERNS = [
 // otherwise a fragment that retains a separator matches neither pass. Both sides drop
 // whitespace, quotes, concatenation, brackets, commas, dots, underscores and hyphens.
 function collapseForCapabilityScan(body) {
-  return body.replace(/[\s'\"`+\\\[\],\.,_-]/g, "").toLowerCase();
+  return decodeSourceEscapes(body).replace(/[\s'\"`+\\\[\],\.,_-]/g, "").toLowerCase();
 }
 
 function capabilityNeedles() {
@@ -167,7 +167,11 @@ const BOOTSTRAP_ALLOWED = new Set([
   "docs/architecture/PUBLIC-RECORDS-NEON-PROVISIONING-PLAN.md",
   "artifacts/api-route-catalog.md", "scripts/reso/route-catalog.js",
   "lib/ops/db-target.ts", "scripts/ci/assert-canonical-neon-target.mjs",
-  "tests/runtime/canonical-neon-target.test.ts", "docs/PLATFORM-ISSUE-REGISTRY.md"
+  "tests/runtime/canonical-neon-target.test.ts", "docs/PLATFORM-ISSUE-REGISTRY.md",
+  "docs/audits/green-baseline-2026-06-07.md",
+  "docs/superpowers/plans/2026-06-07-systematic-fix-plan.md",
+  "lib/idx/__tests__/coverage-backfill-preview.test.ts.disabled",
+  "tests/runtime/release-safety-ruleset-discovery.test.ts"
 ]);
 
 // Maya's mandatory database chain. Any change that can move, name, resolve or consume the
@@ -197,41 +201,55 @@ const DATABASE_PATH_SUBSTRINGS = ["neon", "database", "db-target", "database_url
 
 // A file is database-shaped if EITHER its base version or its proposed version carries a
 // database signal. Reading only HEAD meant that REMOVING the database behaviour from a
-// neutral-path file, or deleting the file outright, erased the signal before classification
-// and the change escaped the chain. Removing a reader is a database change.
+// neutral-path file, or deleting the file, erased the signal before classification.
 function fileCarriesDatabaseSignal(body) {
   if (!body) return false;
   if (DATABASE_CONTENT_SIGNALS.some((signal) => body.includes(signal))) return true;
   if (DATABASE_CONTENT_PATTERNS.some((pattern) => pattern.test(body))) return true;
-  // Constructors reached through an alias or a namespace. The literal names are not enough:
-  // `import { Pool as PgPool } from "pg"` followed by `new PgPool(...)` is the same consumer.
+  // Constructors reached through an alias or a namespace. Literal names are not enough:
+  // `import { Pool as PgPool } from "pg"` and `const { Pool: PgPool } = require("pg")`
+  // are the same consumer under a different binding.
   for (const alias of databaseClientAliases(body)) {
     if (new RegExp("new\\s+" + alias + "\\s*\\(").test(body)) return true;
+    if (new RegExp("new\\s+[A-Za-z_$][\\w$]*\\." + alias + "\\s*\\(").test(body)) return true;
   }
   return false;
 }
 
-// Collect the local binding names for database client constructors, from value imports and
-// requires of pg or the Prisma client. Type-only imports are ignored deliberately: a census
-// of this repository found them common and inert.
-const DB_CLIENT_NAMED_IMPORT = /import\s+(?!type\s)\{([^}]*)\}\s*from\s*['"](?:pg|@prisma\/client)['"]/g;
-const DB_CLIENT_REQUIRE = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*require\s*\(\s*['"](?:pg|@prisma\/client)['"]/g;
+// Local binding names for database client constructors, from every ordinary spelling:
+// named ES import with or without `as`, default ES import, plain require, and destructured
+// require with or without renaming. Type-only imports are ignored on purpose; a census of
+// this repository found them common and inert.
+const DB_SPECIFIER = "(?:pg|@prisma\\/client)";
+const DB_NAMED_IMPORT = new RegExp("import\\s+(?!type\\s)\\{([^}]*)\\}\\s*from\\s*['\"]" + DB_SPECIFIER + "['\"]", "g");
+const DB_DEFAULT_IMPORT = new RegExp("import\\s+(?!type\\s)([A-Za-z_$][\\w$]*)\\s*(?:,|from)[^;]*['\"]" + DB_SPECIFIER + "['\"]", "g");
+const DB_PLAIN_REQUIRE = new RegExp("(?:const|let|var)\\s+([A-Za-z_$][\\w$]*)\\s*=\\s*require\\s*\\(\\s*['\"]" + DB_SPECIFIER + "['\"]", "g");
+const DB_DESTRUCTURED_REQUIRE = new RegExp("(?:const|let|var)\\s*\\{([^}]*)\\}\\s*=\\s*require\\s*\\(\\s*['\"]" + DB_SPECIFIER + "['\"]", "g");
+
+function addBindingNames(list, into) {
+  for (const part of String(list).split(",")) {
+    const piece = part.trim();
+    if (!piece) continue;
+    // `Pool as PgPool` (ES) and `Pool: PgPool` (destructuring) both rename.
+    const renamed = piece.split(/\s+as\s+|\s*:\s*/);
+    const local = (renamed[1] || renamed[0]).trim();
+    if (/^[A-Za-z_$][\w$]*$/.test(local)) into.add(local);
+  }
+}
 
 function databaseClientAliases(body) {
   const aliases = new Set();
   let match;
-  DB_CLIENT_NAMED_IMPORT.lastIndex = 0;
-  while ((match = DB_CLIENT_NAMED_IMPORT.exec(body)) !== null) {
-    for (const part of match[1].split(",")) {
-      const piece = part.trim();
-      if (!piece) continue;
-      const segments = piece.split(/\s+as\s+/);
-      const local = (segments[1] || segments[0]).trim();
-      if (/^[A-Za-z_$][\w$]*$/.test(local)) aliases.add(local);
+  for (const re of [DB_NAMED_IMPORT, DB_DESTRUCTURED_REQUIRE]) {
+    re.lastIndex = 0;
+    while ((match = re.exec(body)) !== null) addBindingNames(match[1], aliases);
+  }
+  for (const re of [DB_DEFAULT_IMPORT, DB_PLAIN_REQUIRE]) {
+    re.lastIndex = 0;
+    while ((match = re.exec(body)) !== null) {
+      if (/^[A-Za-z_$][\w$]*$/.test(match[1])) aliases.add(match[1]);
     }
   }
-  DB_CLIENT_REQUIRE.lastIndex = 0;
-  while ((match = DB_CLIENT_REQUIRE.exec(body)) !== null) aliases.add(match[1]);
   return aliases;
 }
 
@@ -244,6 +262,18 @@ function touchesDatabaseTarget(filePath, readHead, readBase) {
   const head = typeof readHead === "function" ? readHead(filePath) : null;
   const base = typeof readBase === "function" ? readBase(filePath) : null;
   return fileCarriesDatabaseSignal(head) || fileCarriesDatabaseSignal(base);
+}
+
+// String escapes evaluate at runtime, so "console\x2eneon\x2etech" IS the prohibited host.
+// Decode the ordinary numeric escapes before normalising, otherwise stripping backslashes
+// leaves x2e in place of the separator and the needle can never match.
+function decodeSourceEscapes(body) {
+  return String(body)
+    .replace(/\\x([0-9a-fA-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/\\u\{?([0-9a-fA-F]{1,6})\}?/g, (_, hex) => {
+      const code = parseInt(hex, 16);
+      return code <= 0x10ffff ? String.fromCodePoint(code) : "";
+    });
 }
 
 // A station is not satisfied by pointing at prose. A document records a claim; the station
@@ -644,51 +674,67 @@ function validateImpactPaths(control, baseRef) {
   }
 }
 
-// Path existence alone is not evidence. A fixture that filled all ten stations with
-// package.json passed, because package.json exists, is not free text and is not prose.
-// Each station therefore declares WHAT KIND of thing can stand as its evidence, and an
-// entry must satisfy its own station's class. The classes are deliberately broad enough
-// that an honest packet can satisfy them and narrow enough that an unrelated file cannot.
+// Path existence is not evidence, and neither is directory membership. A workflow that
+// geocodes addresses satisfied five stations purely by living under .github/workflows/.
+// Each station therefore requires BOTH a path shape AND content that actually concerns
+// that station. The content test is a keyword set rather than a parse: the goal is to
+// refuse a file that has nothing to do with the station, not to grade its quality.
 const DATABASE_STATION_EVIDENCE = {
   vercel_integration: {
-    describes: "the Vercel surface that binds the resource: vercel.json or a workflow",
-    accepts: (p) => p === "vercel.json" || p.startsWith(".github/workflows/"),
+    describes: "the Vercel surface that binds the resource, and it must mention Vercel",
+    accepts: (p, body) =>
+      (p === "vercel.json" || p.startsWith(".github/workflows/")) && /vercel/i.test(body || ""),
   },
   env_resolution: {
-    describes: "where the connection variables are resolved: vercel.json, a workflow, or a file that reads them",
-    accepts: (p, body) => p === "vercel.json" || p.startsWith(".github/workflows/") || fileCarriesDatabaseSignal(body),
+    describes: "where the connection variables are resolved, and it must name one",
+    accepts: (p, body) =>
+      /DATABASE_URL|database_DATABASE_URL|POSTGRES_URL|connectionString/i.test(body || ""),
   },
   db_target: {
     describes: "the module that classifies or selects the database target",
-    accepts: (p, body) => p.startsWith("lib/ops/") || p === "lib/db.ts" || p === "lib/prisma.ts" || fileCarriesDatabaseSignal(body),
+    accepts: (p, body) =>
+      fileCarriesDatabaseSignal(body) || /canonical-neon-target|db-target|isCanonicalNeon/i.test(body || ""),
   },
   prisma_pg: {
     describes: "the Prisma schema or a module that constructs a client",
-    accepts: (p, body) => p.startsWith("prisma/") || fileCarriesDatabaseSignal(body),
+    accepts: (p, body) =>
+      (p.startsWith("prisma/") && /datasource|generator|model\s/i.test(body || "")) ||
+      fileCarriesDatabaseSignal(body),
   },
   migrations: {
-    describes: "the migration surface: prisma/ or sql/",
-    accepts: (p) => p.startsWith("prisma/") || p.startsWith("sql/"),
+    describes: "the migration surface: a migration file, sql/, or the Prisma schema",
+    accepts: (p, body) =>
+      p.startsWith("prisma/migrations/") ||
+      p.startsWith("sql/") ||
+      (p === "prisma/schema.prisma" && /datasource|model\s/i.test(body || "")),
   },
   workflows_crons: {
-    describes: "a workflow, a schedule file, or a cron route",
-    accepts: (p) => p.startsWith(".github/workflows/") || p === "vercel.json" || p.startsWith("app/api/cron/"),
+    describes: "a workflow, schedule or cron route that touches the database",
+    accepts: (p, body) =>
+      (p.startsWith(".github/workflows/") || p === "vercel.json" || p.startsWith("app/api/cron/")) &&
+      /DATABASE_URL|cron|schedule|prisma|migrat/i.test(body || ""),
   },
   preview: {
-    describes: "the machinery that produces preview proof: a workflow or a release-safety script",
-    accepts: (p) => p.startsWith(".github/workflows/") || p.startsWith("scripts/release-safety/"),
+    describes: "the machinery that produces preview proof, and it must mention preview or deployment",
+    accepts: (p, body) =>
+      (p.startsWith(".github/workflows/") || p.startsWith("scripts/release-safety/")) &&
+      /preview|deploy/i.test(body || ""),
   },
   production: {
-    describes: "the machinery that produces production proof: a workflow or a release-safety script",
-    accepts: (p) => p.startsWith(".github/workflows/") || p.startsWith("scripts/release-safety/"),
+    describes: "the machinery that produces production proof, and it must mention production or deployment",
+    accepts: (p, body) =>
+      (p.startsWith(".github/workflows/") || p.startsWith("scripts/release-safety/")) &&
+      /production|deploy/i.test(body || ""),
   },
   downstream_readers_writers: {
-    describes: "application or library code that consumes the database",
-    accepts: (p, body) => p.startsWith("app/") || p.startsWith("lib/") || p.startsWith("scripts/") || fileCarriesDatabaseSignal(body),
+    describes: "code that actually consumes the database",
+    accepts: (p, body) => fileCarriesDatabaseSignal(body),
   },
   tests: {
-    describes: "a test file",
-    accepts: (p) => p.startsWith("tests/") || p.includes("__tests__/") || /\.(test|spec)\.[tj]sx?$/.test(p),
+    describes: "a test file that exercises the changed database behaviour",
+    accepts: (p, body) =>
+      (p.startsWith("tests/") || p.includes("__tests__/") || /\.(test|spec)\.[tj]sx?$/.test(p)) &&
+      /database|prisma|pool|neon|DATABASE_URL|chain/i.test(body || ""),
   },
 };
 

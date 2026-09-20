@@ -605,7 +605,7 @@ The corrected controller and required PR workflow now make the previously decora
 
 This section is not a closure claim. It becomes **PROVEN** only if the exact correction head passes its controller negative tests, PR checks, Guardrails, Release Truth, Vercel Preview and independent review.
 
-The Git gate controls Git changes and proof requirements. It does not claim to cryptographically prevent an actor who separately possesses out-of-band provider credentials from calling a provider API. Mallan therefore also requires provider mutation to be performed only through an explicitly authorized Git-controlled packet/workflow; direct Neon mutation paths are quarantined.
+The Git gate controls Git changes and proof requirements. It does not claim to cryptographically prevent an actor who separately possesses out-of-band provider credentials from calling a provider API. Mallan therefore also requires provider mutation to be performed only through an explicitly authorized Git-controlled packet/workflow; direct Neon mutation paths are DELETED from the tree, and the execution gate fails any change that revives one.
 
 
 ---

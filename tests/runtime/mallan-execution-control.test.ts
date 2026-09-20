@@ -87,12 +87,56 @@ function initRepo(control = baseControl()) {
   write(cwd, MASTER, "# MASTER\n");
   write(cwd, STATE, controlMarkdown(control));
   write(cwd, "lib/feature/reader.ts", "export const reader = true;\n");
-  write(cwd, "lib/feature/publisher.ts", "export const publisher = true;\n");
-  write(cwd, "prisma/schema.prisma", "generator client { provider = \"prisma-client-js\" }\n");
-  write(cwd, "vercel.json", JSON.stringify({ crons: [] }) + String.fromCharCode(10));
-  write(cwd, "tests/runtime/mallan-execution-control.test.ts", "fixture\n");
+  // A real downstream writer, so the downstream station has something true to point at.
+  write(
+    cwd,
+    "lib/feature/publisher.ts",
+    [
+      "import { PrismaClient } from " + JSON.stringify("@prisma/client") + ";",
+      "export const publisher = new PrismaClient();",
+      "",
+    ].join(String.fromCharCode(10))
+  );
+  write(
+    cwd,
+    "prisma/schema.prisma",
+    [
+      "generator client { provider = " + JSON.stringify("prisma-client-js") + " }",
+      "datasource db { provider = " + JSON.stringify("postgresql") + " url = env(" + JSON.stringify("DATABASE_URL") + ") }",
+      "",
+    ].join(String.fromCharCode(10))
+  );
+  write(
+    cwd,
+    "vercel.json",
+    JSON.stringify({ $schema: "https://openapi.vercel.sh/vercel.json", crons: [] }) +
+      String.fromCharCode(10)
+  );
+  write(
+    cwd,
+    "tests/runtime/mallan-execution-control.test.ts",
+    "fixture covering the database impact chain" + String.fromCharCode(10)
+  );
   write(cwd, ".github/workflows/pr-check.yml", "name: fixture\n");
   write(cwd, ".github/workflows/geocode.yml", "name: geocode" + String.fromCharCode(10));
+  // The deploy workflow genuinely spans env resolution, preview and production, which is
+  // why one file may legitimately stand for several stations here and package.json may not.
+  write(
+    cwd,
+    ".github/workflows/db-deploy.yml",
+    [
+      "name: db-deploy",
+      "on: { push: { branches: [main] } }",
+      "jobs:",
+      "  deploy:",
+      "    runs-on: ubuntu-latest",
+      "    steps:",
+      "      - run: npx prisma migrate deploy",
+      "        env: { DATABASE_URL: ${{ secrets.DATABASE_URL }} }",
+      "      - run: npx vercel deploy --prebuilt --prod   # preview and production",
+      "",
+    ].join(String.fromCharCode(10))
+  );
   write(cwd, "lib/ops/db-target.ts", "export const target = process.env.DATABASE_URL;" + String.fromCharCode(10));
   write(cwd, "package.json", JSON.stringify({ name: "fixture" }) + String.fromCharCode(10));
   git(
@@ -107,6 +151,7 @@ function initRepo(control = baseControl()) {
     ".github/workflows/pr-check.yml",
     "vercel.json",
     ".github/workflows/geocode.yml",
+    ".github/workflows/db-deploy.yml",
     "lib/ops/db-target.ts",
     "package.json"
   );
@@ -447,14 +492,14 @@ describe("Mallan execution-control gate", () => {
   // a station that cannot be proven must block the packet, so it cannot appear in a fixture
   // whose purpose is to pass.
   const FULL_DB_CHAIN = {
-    vercel_integration: [".github/workflows/pr-check.yml"],
-    env_resolution: [".github/workflows/pr-check.yml"],
+    vercel_integration: ["vercel.json"],
+    env_resolution: ["lib/ops/db-target.ts"],
     db_target: ["lib/ops/db-target.ts"],
     prisma_pg: ["prisma/schema.prisma"],
     migrations: ["prisma/schema.prisma"],
-    workflows_crons: [".github/workflows/pr-check.yml"],
-    preview: [".github/workflows/pr-check.yml"],
-    production: [".github/workflows/pr-check.yml"],
+    workflows_crons: [".github/workflows/db-deploy.yml"],
+    preview: [".github/workflows/db-deploy.yml"],
+    production: [".github/workflows/db-deploy.yml"],
     downstream_readers_writers: ["lib/feature/publisher.ts"],
     tests: ["tests/runtime/mallan-execution-control.test.ts"],
   };
@@ -548,6 +593,76 @@ describe("Mallan execution-control gate", () => {
     expect(res.stderr).toContain("database_impact_chain");
   });
 
+  // A workflow that exists but has nothing to do with a station is the same defect as
+  // package.json standing for all ten: the path resolves, the evidence is still absent.
+  test("a real file of the wrong kind does not satisfy a station", () => {
+    const chain = { ...FULL_DB_CHAIN };
+    (chain as Record<string, string[]>).production = [".github/workflows/geocode.yml"];
+    const cwd = initRepo(dbControl(chain));
+    touchSchema(cwd, "db change, production station points at a geocoder");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("production");
+  });
+
+  // A directory resolves through git cat-file, so path existence alone would accept it.
+  test("a directory does not satisfy a station", () => {
+    const chain = { ...FULL_DB_CHAIN };
+    (chain as Record<string, string[]>).downstream_readers_writers = ["lib/feature/"];
+    const cwd = initRepo(dbControl(chain));
+    touchSchema(cwd, "db change, downstream station points at a directory");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("downstream_readers_writers");
+  });
+
+  // Same consumer, different spelling. A destructured require with a rename binds the pg
+  // pool to a name the literal-name scan would never see.
+  test("a destructured require alias triggers the chain", () => {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+    });
+    const cwd = initRepo(control);
+    write(
+      cwd,
+      "lib/feature/reader.ts",
+      [
+        "const { Pool: PgPool } = require(" + JSON.stringify("pg") + ");",
+        "export const reader = new PgPool({});",
+        "",
+      ].join(String.fromCharCode(10))
+    );
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", "reader opens a pool under a renamed binding");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("database_impact_chain");
+  });
+
+  // String escapes evaluate at runtime, so an escaped host IS the prohibited host. A scan
+  // that only matches the literal spelling is a scan an author can spell around.
+  test("an escaped direct-Neon capability signature is still refused", () => {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+    });
+    const cwd = initRepo(control);
+    const escapedHost =
+      "console" + String.fromCharCode(92) + "x2eneon" + String.fromCharCode(92) + "x2etech";
+    write(
+      cwd,
+      "lib/feature/reader.ts",
+      [
+        "export const endpoint = " + JSON.stringify(escapedHost) + ";",
+        "",
+      ].join(String.fromCharCode(10))
+    );
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", "reader reaches the control plane through an escaped host");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+  });
   test("an UNVERIFIED station does not satisfy the mandatory chain", () => {
     const chain = { ...FULL_DB_CHAIN };
     for (const station of Object.keys(chain)) {

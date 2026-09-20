@@ -291,7 +291,18 @@ function requiredChecksFromApplicableMainRulesets() {
         return { ok: false, checks: [], reason: 'ruleset-required-checks-malformed:' + String(item.id) };
       }
       for (const check of declared) {
-        if (typeof check?.context !== 'string' || !check.context) continue;
+        // A malformed entry must make discovery UNKNOWN. Skipping it silently drops a
+        // required context and still reports success, which is the failure mode this
+        // whole guard exists to prevent.
+        if (!check || typeof check !== 'object' || Array.isArray(check)) {
+          return { ok: false, checks: [], reason: 'ruleset-check-entry-malformed:' + String(item.id) };
+        }
+        if (typeof check.context !== 'string' || !check.context.trim()) {
+          return { ok: false, checks: [], reason: 'ruleset-check-context-missing:' + String(item.id) };
+        }
+        if (check.integration_id !== undefined && check.integration_id !== null && !Number.isInteger(check.integration_id)) {
+          return { ok: false, checks: [], reason: 'ruleset-check-integration-malformed:' + String(item.id) };
+        }
         const integrationId = Number.isInteger(check.integration_id) ? check.integration_id : null;
         const key = check.context + '\u0000' + String(integrationId ?? 'any');
         specs.set(key, { context: check.context, integration_id: integrationId });

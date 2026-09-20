@@ -4,7 +4,7 @@
 > usage measurements below are historical snapshots unless explicitly re-verified. The 2026-09-18
 > current/deleted enumeration returned only `main`, but that response does not prove lifetime history:
 > repository evidence records 8 branches on 2026-05-17 and approximately 40 on 2026-06-01. Direct Neon
-> pruning/rotation paths are quarantined by the 2026-09-20 convergence correction. Therefore do **not**
+> pruning/rotation paths were DELETED by the 2026-09-20 convergence correction — removed from the tree, not disabled in place. Therefore do **not**
 > use old branch counts, "steady-state preview branch" assumptions, or prune-audit counts as current
 > operational truth. Before any cost/plan decision, re-read the Vercel-managed resource path. Policy
 > targets remain policy; dynamic measurements do not.
@@ -140,7 +140,7 @@ nothing.
 | **Production Neon project** | `hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2` (`DATABASE_URL` points here; repointed 2026-06-02) |
 | **Preview/integration Neon project** | `hidden-mountain-87248164` (Vercel-Neon integration creates preview branches here; UI lists product as `neon-green-school`) |
 | **Credential rotation owner** | **NONE. DELETED.** `.github/workflows/rotate-db-keys.yml` was removed from the repository on 2026-09-20 (PR #632). Direct Neon credential mutation is not an authorized Mallan path and no workflow performs it. A future rotation capability is designed against the Vercel-managed resource and separately authorized. |
-| **Preview branch cleanup owner** | **UNRESOLVED / Vercel-managed design required.** The former scheduled direct-Neon prune route is quarantined and removed from `vercel.json`. |
+| **Preview branch cleanup owner** | **UNRESOLVED / Vercel-managed design required.** The former scheduled direct-Neon prune route is DELETED — the route file, its workflow and its helper module are gone from the tree and its schedule is removed from `vercel.json`. |
 
 ---
 

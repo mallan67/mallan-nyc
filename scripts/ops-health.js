@@ -38,8 +38,10 @@
 //        must be read through the authorized Vercel-managed Neon resource.
 //     5. Media cron compute is a separate concern and must not be used to infer
 //        provider branch lifecycle.
-//     6. Direct Neon project-id / API-key mutation is quarantined. ops:health
-//        must not instruct operators to restore those retired credentials.
+//     6. Every direct Neon project-id / API-key path is DELETED from the tree, not
+//        disabled in place. ops:health must not instruct operators to restore those
+//        retired credentials, and must not itself read Neon through any path other
+//        than the authorized Vercel-managed resource.
 //
 // Exit codes:
 //   0 — healthy

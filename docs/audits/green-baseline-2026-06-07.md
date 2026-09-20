@@ -15,6 +15,12 @@ PR branch. The intended change-set is the Phase 0/0.4 test+validator+doc edits b
   `@/lib/idx/coverage-backfill-preview` absent; **0** production references; file was
   UNTRACKED (never committed). TODO: restore when the **HELD coverage-backfill** work lands
   (the `.disabled` file preserves the intended spec).
+  **SUPERSEDED 2026-09-20 — the file was DELETED, and this record is kept rather than
+  rewritten.** A disabled file is not an outcome: a Mallan path is FIXED, MERGED or DELETED.
+  Re-verified at that date, the implementation module was still absent and production
+  references were still zero, so the orphan was removed from the tree. If the HELD
+  coverage-backfill work ever lands, it brings its own tests; the spec is recoverable from
+  this commit's history.
 - **0.2** `lib/scanner/compliance/__tests__/suppression.test.ts`: pass explicit
   `new Date("2026-04-30")` (fixture canonical `captured_at`) into the two owner-name cases
   so they can't rot when `ms-002` expires 2026-06-01. **No fixture date bumped;
