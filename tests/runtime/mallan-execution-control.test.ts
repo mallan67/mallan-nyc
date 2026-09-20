@@ -638,4 +638,125 @@ describe("Mallan execution-control gate", () => {
     expect(result.stderr).toContain("control.impact_graph.writer_paths entries must be non-empty strings");
   });
 
+
+  test("control-root maintenance cannot delete essential authority files", () => {
+    const essentials = [
+      "scripts/ci/mallan-execution-control.mjs",
+      ".github/workflows/authority-root.yml",
+      ".github/workflows/pr-check.yml",
+      ".github/workflows/branch-authority.yml",
+    ];
+
+    for (const essential of essentials) {
+      const cwd = initRepo(baseControl({
+        mode: "control-root-maintenance",
+        authorized_paths: [essential],
+        allowed_new_files: [],
+        impact_domains: ["governance"],
+        impact_graph: {
+          root_owner_paths: [MASTER],
+          writer_paths: [essential],
+          reader_paths: ["lib/feature/reader.ts"],
+          publisher_paths: [essential],
+          downstream_surfaces: ["GitHub authority root"],
+          test_paths: ["tests/runtime/mallan-execution-control.test.ts"],
+          compliance_surfaces: ["governance only"],
+        },
+      }));
+
+      if (!fs.existsSync(path.join(cwd, essential))) {
+        write(cwd, essential, "fixture authority root\n");
+        git(cwd, "add", essential);
+        git(cwd, "commit", "-m", "establish essential authority file");
+        git(cwd, "branch", "-f", "origin-main");
+      }
+
+      git(cwd, "rm", essential);
+      git(cwd, "commit", "-m", "attempt essential authority deletion");
+      const result = gate(cwd, { MALLAN_AUTHORITY_ROOT_REQUIRED: "true" });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("may not delete");
+      expect(result.stderr).toContain(essential);
+    }
+  });
+
+  test("deleting a declared negative test cannot satisfy negative-test proof", () => {
+    const negativeTest = "tests/runtime/feature-negative.test.ts";
+    const cwd = initRepo(baseControl({
+      authorized_paths: ["lib/allowed.ts", negativeTest],
+      allowed_new_files: ["lib/allowed.ts"],
+      impact_graph: {
+        root_owner_paths: [MASTER],
+        writer_paths: ["lib/allowed.ts"],
+        reader_paths: ["lib/feature/reader.ts"],
+        publisher_paths: ["lib/feature/publisher.ts"],
+        downstream_surfaces: ["test downstream"],
+        test_paths: [negativeTest],
+        compliance_surfaces: ["none for fixture"],
+      },
+      requirements: {
+        impact_graph_required: true,
+        all_readers_writers_required: true,
+        negative_tests_required: true,
+        integration_proof_required: false,
+        downstream_proof_required: false,
+        compliance_proof_required_when_applicable: false,
+        no_parallel_path_proof_required: true,
+      },
+    }));
+
+    write(cwd, negativeTest, "test('negative fixture', () => expect(true).toBe(true));\n");
+    git(cwd, "add", negativeTest);
+    git(cwd, "commit", "-m", "establish declared negative test");
+    git(cwd, "branch", "-f", "origin-main");
+
+    git(cwd, "rm", negativeTest);
+    write(cwd, "lib/allowed.ts", "export const ok = true;\n");
+    git(cwd, "add", "lib/allowed.ts");
+    git(cwd, "commit", "-m", "delete declared negative test");
+
+    const result = gate(cwd);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("declared test paths were deleted");
+    expect(result.stderr).toContain(negativeTest);
+  });
+
+  test("a changed declared negative test must remain present at HEAD", () => {
+    const negativeTest = "tests/runtime/feature-negative.test.ts";
+    const cwd = initRepo(baseControl({
+      authorized_paths: ["lib/allowed.ts", negativeTest],
+      allowed_new_files: ["lib/allowed.ts"],
+      impact_graph: {
+        root_owner_paths: [MASTER],
+        writer_paths: ["lib/allowed.ts"],
+        reader_paths: ["lib/feature/reader.ts"],
+        publisher_paths: ["lib/feature/publisher.ts"],
+        downstream_surfaces: ["test downstream"],
+        test_paths: [negativeTest],
+        compliance_surfaces: ["none for fixture"],
+      },
+      requirements: {
+        impact_graph_required: true,
+        all_readers_writers_required: true,
+        negative_tests_required: true,
+        integration_proof_required: false,
+        downstream_proof_required: false,
+        compliance_proof_required_when_applicable: false,
+        no_parallel_path_proof_required: true,
+      },
+    }));
+
+    write(cwd, negativeTest, "test('negative fixture', () => expect(true).toBe(true));\n");
+    git(cwd, "add", negativeTest);
+    git(cwd, "commit", "-m", "establish declared negative test");
+    git(cwd, "branch", "-f", "origin-main");
+
+    write(cwd, negativeTest, "test('negative fixture', () => expect(false).toBe(false));\n");
+    write(cwd, "lib/allowed.ts", "export const ok = true;\n");
+    git(cwd, "add", negativeTest, "lib/allowed.ts");
+    git(cwd, "commit", "-m", "update declared negative test");
+
+    expect(gate(cwd).status).toBe(0);
+  });
+
 });

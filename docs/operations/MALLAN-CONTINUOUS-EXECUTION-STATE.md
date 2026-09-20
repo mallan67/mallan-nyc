@@ -324,7 +324,7 @@ Jest result:
 - 425 suites passed, 4 skipped, 1 failed;
 - 7,368 tests passed, 30 skipped, 1 failed;
 - sole failure: `glob authorization preserves the directory boundary`;
-- root cause: the **test fixture** inherited `impact_graph.writer_paths = ["lib/allowed.ts"]`, which does not exist on the base fixture, so impact-graph validation correctly failed before the test reached the directory-boundary assertion;
+- observed CI failure cause: the **test fixture** inherited `impact_graph.writer_paths = ["lib/allowed.ts"]`, which does not exist on the base fixture, so impact-graph validation correctly failed before the test reached the directory-boundary assertion;
 - controller implementation is not weakened. The correction gives that test an existing base writer path and preserves the sibling-prefix negative assertion.
 
 At diagnosis time, Vercel Preview and exact-head Codex review were still running. Release Truth was correctly waiting for exact-head dependencies.
@@ -372,6 +372,31 @@ Jest:
 - correction changes only that static assertion plus this handoff checkpoint.
 
 No implementation, provider, environment, schema or Production behavior is weakened by this test correction.
+
+# 4.5 Codex closure checkpoint — 9f4be329 — 2026-09-20
+
+Exact reviewed head: `9f4be329672e16be0fd45c34c5b7b2dfa5843b41`.
+
+The exact-head Codex review identified three new defects, and the prior review left three additional current-state defects that were not code-fixed by the one-file `9f4be329` test-alignment commit:
+
+1. control-root maintenance could delete the base execution controller or required authority workflow;
+2. a dynamically required legacy commit-status context could never settle because Release Truth looked only at check runs;
+3. the current recovery plan still named retired direct-Neon tombstones as active Neon-variable readers;
+4. deleting a declared negative test could still count as changed negative-test proof;
+5. the 017adc checkpoint used the reserved phrase “root cause” without the repository's required evidence score;
+6. Control semantics still said mutation/proof enforcement was unimplemented while §7.1 said it was implemented.
+
+Correction in the next head:
+
+- make the execution controller, `authority-root.yml`, `pr-check.yml` and `branch-authority.yml` non-deletable during control-root maintenance while still allowing in-place maintenance;
+- require declared negative tests to survive at HEAD and reject deletion of a declared test path;
+- settle dynamically required contexts from both GitHub Check Runs and Commit Statuses, conservatively failing/pending if either present source is non-success;
+- remove retired-reader claims and require a fresh exact-head reader/writer/recreator census before any Neon-variable deletion;
+- replace the unscored “root cause” phrase with an observed CI failure description;
+- mark mutation/proof enforcement as implemented but **proof pending**, removing the internal contradiction;
+- update the Master with the same durable rules.
+
+No schema, Vercel environment, Neon/provider, branch-protection, destructive-data, cron execution or Production mutation is authorized or performed by this correction.
 
 # 5. Active continuous program
 
@@ -475,9 +500,9 @@ Branch deletion is therefore the **last** step, not the first.
 
 **Phase D — Marketplace resource normalization.** After branch overrides are gone, inspect the single `neon-green-school` resource's Allowed Environments and connection behavior. Narrow or change the resource connection through Vercel as one governed resource operation; do not delete individual `database_*` members.
 
-**Phase E — manual bare-variable reconciliation.** Only after Marketplace ownership is stable, reconcile bare `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `ASSISTANT_DATABASE_URL`, `NEON_PROJECT_ID`, `NEON_API_KEY`, `NEON_PREVIEW_API_KEY`, rotation/admin variables and related GitHub Action variables against live readers/writers. Existing code proves that some of these still drive prune/rotation workflows, so apparent staleness is not enough for deletion.
+**Phase E — manual bare-variable reconciliation.** Only after Marketplace ownership is stable, reconcile bare `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `ASSISTANT_DATABASE_URL`, `NEON_PROJECT_ID`, `NEON_API_KEY`, `NEON_PREVIEW_API_KEY`, rotation/admin variables and related GitHub Action variables against a **fresh exact-head reader/writer/recreator census plus live Vercel resource ownership**. Do not preserve a variable merely because a historical reader once used it, and do not delete it merely because a previously named reader was retired.
 
-**Phase F — route/workflow correction.** Any cron/workflow that depends on a retired direct-Neon credential or dead branch model is either rewritten to use the Vercel-managed resource contract or disabled/retired in the same bounded packet. In particular, current readers of `NEON_PROJECT_ID` / `NEON_API_KEY` include the branch-prune cron and operator prune tooling, while `NEON_PREVIEW_API_KEY` is consumed by `.github/workflows/cleanup-neon-preview-branch.yml`. These cannot be deleted independently of their routes.
+**Phase F — route/workflow correction.** The #632 head already converts the previously named direct-Neon branch-prune route, operator prune CLI, PR-close cleanup workflow and credential-rotation workflow into fail-closed tombstones that load no direct-Neon provider credentials. They are therefore **not current evidence that the bare Neon control variables remain consumed**. Any later variable cleanup packet must re-census the exact head and provider/resource writers before deletion and must correct any newly proven live reader/writer in the same bounded packet.
 
 **Phase G — Git retirement.** After provider residue is removed and unique work is reconciled, close/supersede stale PRs and delete their branches in verified batches. The target operating estate is `main` plus the single authorized `work/active` lane; historical evidence belongs in merged history/PR history, not active execution branches.
 
@@ -592,7 +617,7 @@ The following observations were obtained in earlier work partly through direct N
 59. Repo docs contain mutually inconsistent branch-count records (including historical self-corrections that did not propagate). Mutable counts must not be copied into durable authority without timestamp/source.
 60. `scripts/ops-health.js` contains stale branch-count/project-ambiguity commentary and references a NEON.md heading that may no longer exist. **CONFIRMED-GITHUB for stale commentary shape; exact pointer requires correction packet.**
 61. OPS-022 remains disputed/unresolved in historical issue evidence. It is not silently closed by convergence.
-62. Release Truth has a green-job / pending-commit-status race. **CONFIRMED-GITHUB.**
+62. **CORRECTION INCLUDED IN #632; exact-head proof pending.** Release Truth now waits boundedly for exact-head dependencies and fails closed instead of finishing with a durable pending status. **CONFIRMED-GITHUB for correction shape; runtime closure pending.**
 
 ### G. Local filesystem sprawl — not execution authority, but cleanup debt
 
@@ -809,7 +834,7 @@ After this governance system is merged, the next permitted step is a **control-u
 - New files are denied unless named in `allowed_new_files`.
 - Any changed path outside `authorized_paths` fails the required PR check.
 - Any branch other than `authorized_branch` fails after bootstrap.
-- Schema/env/Neon/destructive/manual-cron/provider mutations are prohibited unless explicitly authorized by the base-state contract **and** Maya's explicit authorization exists. **Current implementation limitation:** the controller does not yet mechanically enforce all declared mutation/proof fields; §7.1 is a blocking defect and no stronger claim may be made until it is closed.
+- Schema/env/Neon/destructive/manual-cron/provider mutations are prohibited unless explicitly authorized by the base-state contract **and** Maya's explicit authorization exists. The controller implementation now mechanically enforces the declared mutation/proof contract described in §7.1; **exact-head closure proof is still pending**, so implementation is not yet a merge-ready closure claim.
 - A new canonical system is denied by default.
 - Authority files cannot be rewritten inside an implementation packet merely to make the packet pass.
 - The work contract is changed first, merged, and only then may the implementation packet begin.

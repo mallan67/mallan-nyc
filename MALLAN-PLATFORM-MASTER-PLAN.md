@@ -7267,6 +7267,8 @@ A material packet is invalid unless it identifies:
 
 Repo paths claimed by the graph must exist on the base or be explicitly authorized new files. A fabricated graph is not proof.
 
+When negative tests are required, deleting a declared regression/negative-test path cannot satisfy the requirement. The changed declared test must still exist in the proposed HEAD.
+
 ## 27.17 New files and parallel pathways are denied by default
 
 A new file/model/service/registry/engine/authority/pathway is not neutral.
@@ -7303,7 +7305,9 @@ STATE-ONLY CONTROL UPDATE
 
 If live GitHub rules do not prove `authority-root` is required **by an active branch ruleset whose ref conditions include `refs/heads/main`**, control-root maintenance fails closed. A check with the same name on an unrelated branch/ruleset is not proof.
 
-Release/deploy truth must wait for every required status check applicable to `main` plus the Mallan stable proof checks. If that bounded wait expires while any dependency remains pending/unknown, Release Truth fails closed; it does not publish a durable pending state and call the run complete.
+Control-root maintenance may change the protected evaluator and required-check workflows **in place**, but it may not delete the base execution controller or the workflows that preserve the authority boundary (`authority-root`, `pr-check`, `branch-authority`). Their continued existence is part of the maintenance proof.
+
+Release/deploy truth must wait for every required status check applicable to `main` plus the Mallan stable proof checks. A required context may be published through the GitHub Checks API or the legacy Commit Statuses API; if both are present, pending/failing evidence is not ignored. Required-check/ruleset discovery failure remains UNVERIFIED/PENDING. If the bounded wait expires while any dependency remains pending/unknown, Release Truth fails closed; it does not publish a durable pending state and call the run complete.
 
 Exact workflow names, current branch and current GitHub ruleset status remain mutable Execution State facts.
 

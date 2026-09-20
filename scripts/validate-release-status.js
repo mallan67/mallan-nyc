@@ -283,25 +283,62 @@ const REQUIRED_CHECK_NAMES = [...new Set([
 ])];
 for (const name of REQUIRED_CHECK_NAMES) {
   const cr = checkRuns.find((c) => c.name === name);
-  if (!cr) {
-    // P2 correction (fail-closed): a required check that has not appeared yet
-    // is PENDING evidence — its absence must never contribute to DEPLOY_PASS.
+  const statusContext = dedupedStatuses.find((s) => s.context === name);
+
+  if (!cr && !statusContext) {
+    // Fail closed: a required context absent from both Checks and Statuses APIs
+    // is pending evidence, never a pass.
     evaluation.evaluation.required_checks.push({ name, present: false, state: 'absent' });
     evaluation.evaluation.pending.push(name);
     continue;
   }
+
+  const sources = [];
+  let contextPending = false;
+  let contextFailure = null;
+
+  if (cr) {
+    const crState = cr.status === 'completed' ? cr.conclusion : cr.status;
+    sources.push({ source: 'check-run', state: crState, url: cr.url });
+    if (cr.status !== 'completed') {
+      contextPending = true;
+    } else if (!['success', 'neutral', 'skipped'].includes(cr.conclusion)) {
+      contextFailure = { detail: `check-run conclusion=${cr.conclusion}`, url: cr.url };
+    }
+  }
+
+  if (statusContext) {
+    sources.push({
+      source: 'commit-status',
+      state: statusContext.state,
+      url: statusContext.target_url,
+    });
+    if (statusContext.state === 'pending') {
+      contextPending = true;
+    } else if (statusContext.state !== 'success') {
+      contextFailure = {
+        detail: `commit-status state=${statusContext.state}`,
+        url: statusContext.target_url,
+      };
+    }
+  }
+
+  const state = contextFailure ? 'failure' : contextPending ? 'pending' : 'success';
   evaluation.evaluation.required_checks.push({
     name,
     present: true,
-    status: cr.status,
-    conclusion: cr.conclusion,
-    state: cr.status === 'completed' ? cr.conclusion : cr.status,
-    url: cr.url,
+    state,
+    sources,
   });
-  if (cr.status !== 'completed') {
+
+  if (contextFailure) {
+    evaluation.evaluation.blocking_failures.push({
+      name,
+      detail: contextFailure.detail,
+      url: contextFailure.url,
+    });
+  } else if (contextPending) {
     evaluation.evaluation.pending.push(name);
-  } else if (cr.conclusion === 'failure' || cr.conclusion === 'cancelled' || cr.conclusion === 'timed_out') {
-    evaluation.evaluation.blocking_failures.push({ name, detail: `conclusion=${cr.conclusion}`, url: cr.url });
   }
 }
 

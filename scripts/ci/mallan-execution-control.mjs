@@ -40,6 +40,13 @@ const IMMUTABLE_CONTROL_PATHS = new Set([
   "vercel.json"
 ]);
 
+const NONDELETABLE_CONTROL_ROOT_PATHS = new Set([
+  "scripts/ci/mallan-execution-control.mjs",
+  ".github/workflows/authority-root.yml",
+  ".github/workflows/pr-check.yml",
+  ".github/workflows/branch-authority.yml"
+]);
+
 const BOOTSTRAP_ALLOWED = new Set([
   "AGENTS.md", "CLAUDE.md", "MALLAN-PLATFORM-MASTER-PLAN.md", "NEON.md",
   ".mcp.json", "mcp/trestle-fields/index.ts",
@@ -302,6 +309,15 @@ function mutationRequirementsForPath(filePath) {
   return [...out];
 }
 
+function headPathExists(filePath) {
+  try {
+    git(["cat-file", "-e", "HEAD:" + filePath]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function validateExecutionEvidence(control, changes) {
   const providerProofs = csvSet("MALLAN_PROVIDER_PROOFS");
   const missingProvider = control.provider_proof_required.filter((proof)=>!providerProofs.has(proof));
@@ -316,9 +332,28 @@ function validateExecutionEvidence(control, changes) {
   if (failures.length) throw new Error("sensitive change class is not authorized by the base Execution State:\n" + failures.map((v)=>"  - "+v).join("\n"));
 
   if (control.requirements.negative_tests_required) {
-    const changedPaths = new Set(changes.map((c)=>c.path));
-    const changedTest = control.impact_graph.test_paths.some((p)=>changedPaths.has(p));
-    if (!changedTest) throw new Error("negative_tests_required=true but none of impact_graph.test_paths changed");
+    const declaredTests = new Set(control.impact_graph.test_paths);
+    const deletedDeclaredTests = changes
+      .filter((change) => change.status.startsWith("D") && declaredTests.has(change.path))
+      .map((change) => change.path);
+    if (deletedDeclaredTests.length) {
+      throw new Error(
+        "negative_tests_required=true but declared test paths were deleted:\n" +
+        deletedDeclaredTests.map((p) => "  - " + p).join("\n")
+      );
+    }
+
+    const changedLiveTest = changes.some(
+      (change) =>
+        declaredTests.has(change.path) &&
+        !change.status.startsWith("D") &&
+        headPathExists(change.path)
+    );
+    if (!changedLiveTest) {
+      throw new Error(
+        "negative_tests_required=true but no changed impact_graph.test_paths remains present at HEAD"
+      );
+    }
   }
 
   if ((process.env.MALLAN_CONTROL_PHASE || "preflight") === "final") {
@@ -512,6 +547,17 @@ function main() {
     if (outsideRoot.length) fail("Control-root maintenance contains paths outside the protected control root:\n" + outsideRoot.map((p)=>"  - "+p).join("\n"));
     const outsideEnvelope = changedPaths.filter((p)=>!pathAllowed(p,control.authorized_paths));
     if (outsideEnvelope.length) fail("Control-root maintenance changed paths outside its base-state envelope:\n" + outsideEnvelope.map((p)=>"  - "+p).join("\n"));
+
+    const deletedEssential = changes
+      .filter((change) => change.status.startsWith("D") && NONDELETABLE_CONTROL_ROOT_PATHS.has(change.path))
+      .map((change) => change.path);
+    if (deletedEssential.length) {
+      fail(
+        "Control-root maintenance may modify essential authority files in place but may not delete them:\n" +
+        deletedEssential.map((p) => "  - " + p).join("\n")
+      );
+    }
+
     try {
       validateImpactPaths(control, baseRef);
       validateExecutionEvidence(control, changes);

@@ -259,6 +259,13 @@ describe('release-safety P2 — deploy-validator + workflow wiring pins (static)
     expect(releaseStatus).not.toContain("if (!raw) return []");
   });
 
+  test('dynamically required contexts can be satisfied by commit-status evidence as well as check runs', () => {
+    expect(releaseStatus).toContain("const statusContext = dedupedStatuses.find((s) => s.context === name)");
+    expect(releaseStatus).toContain("source: 'commit-status'");
+    expect(releaseStatus).toContain("statusContext.state !== 'success'");
+    expect(releaseStatus).toContain("!cr && !statusContext");
+  });
+
   test('PR events invoke the aggregator with --pr (the DEPLOY_PREVIEW path), status still on the head SHA', () => {
     // The PR branch of Resolve target pairs the head SHA (checkout/status)
     // with a --pr aggregator invocation on the SAME line:
