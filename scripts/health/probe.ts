@@ -17,7 +17,7 @@ import { execSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import dotenv from "dotenv";
-import { dbGrowthCell, cotalityFreshnessCell, cotalityOutcomeCell } from "./health-status";
+import { dbGrowthCell, cotalityFreshnessCell, cotalityOutcomeCell, mainHeadCell } from "./health-status";
 
 // NO override: a shell-supplied env (the operator's explicit canonical `DATABASE_URL_UNPOOLED=… npm
 // run health:probe`) must WIN over a possibly-stale workstation .env.local (Codex #466).
@@ -52,12 +52,16 @@ const cells: Cell[] = [];
 const add = (area: string, status: Status, evidence: string) => cells.push({ area, status, evidence });
 
 // ── 1. Git / main SHA ───────────────────────────────────────────────────────
+// The decision lives in mainHeadCell so it can be tested without a git repository.
 tryProbe(() => {
-  const mainSha = sh("git rev-parse --short main");
   const branch = sh("git rev-parse --abbrev-ref HEAD");
-  add("Repo / main HEAD", "🟢", `main \`${mainSha}\`; probed from branch \`${branch}\``);
+  let originSha: string | null = null;
+  let localSha: string | null = null;
+  try { originSha = sh("git rev-parse --short origin/main"); } catch { originSha = null; }
+  if (!originSha) { try { localSha = sh("git rev-parse --short main"); } catch { localSha = null; } }
+  const cell = mainHeadCell(originSha, localSha, branch);
+  add("Repo / main HEAD", cell.status, cell.evidence);
 }, () => add("Repo / main HEAD", "⚪", "git unavailable"));
-
 // ── 2. Open PRs + #465 gate state ────────────────────────────────────────────
 tryProbe(() => {
   // --limit 200: gh defaults to 30, which would silently undercount the open-PR backlog (Codex #466).

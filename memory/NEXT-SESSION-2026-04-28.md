@@ -1,5 +1,12 @@
 # Next Session Entry Point — 2026-04-28 (close-of-day)
 
+> **SUPERSEDED 2026-09-20 — DO NOT ACT ON THIS FILE.**
+>
+> This is a dated close-of-day handoff from 2026-04-28, kept as a record. Its Action 1
+> instructs an operator to create a `NEON_API_KEY` and links to the Neon console. Both are
+> now PROHIBITED: Neon is reached only through the Vercel-managed Marketplace resource, and
+> the entire direct-Neon control plane was deleted on 2026-09-20. Current state lives in
+> `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md`.
 > **First doc to read in the next session.** Supersedes `memory/OUTSTANDING-WORK-2026-04-27.md` (now stale — every "remaining" item from that snapshot landed on `main` during the 2026-04-28 session). This file is the resume signal for whoever picks up next.
 
 ---

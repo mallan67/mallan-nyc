@@ -210,14 +210,36 @@ if (vercelStatus?.state === 'success') {
 
 // 2. Required check-runs — stable Mallan checks plus every status check required
 // by an ACTIVE branch ruleset that actually applies to refs/heads/main.
+// The ref tokens this translator understands. Anything else beginning with ~ is a token
+// from a vocabulary this code does not implement, and must block rather than be read as a
+// branch name that happens not to be main.
+const RULESET_REF_TOKENS = ['~ALL', '~DEFAULT_BRANCH'];
+
+// Syntax the translator does not implement. A character class, a brace list, an extglob
+// group or a negation would be escaped into a literal and could never match, which is
+// indistinguishable from an honest non-match.
+const UNIMPLEMENTED_PATTERN_SYNTAX = /[[\]{}()|!\\]/;
+
+function refPatternIsReadable(pattern) {
+  if (typeof pattern !== 'string' || !pattern.trim()) return false;
+  if (pattern.startsWith('~')) return RULESET_REF_TOKENS.includes(pattern);
+  return !UNIMPLEMENTED_PATTERN_SYNTAX.test(pattern);
+}
+
 function refPatternMatches(pattern, ref) {
   if (pattern === '~ALL') return true;
   if (pattern === '~DEFAULT_BRANCH') return ref === 'refs/heads/main';
   if (typeof pattern !== 'string') return false;
+  // ** crosses path separators, * does not. Leaving both as .* made an exclude of refs/*
+  // swallow refs/heads/main. The double star is parked on a placeholder first so the
+  // single-star rule cannot eat half of it.
+  const DOUBLE_STAR = '\u0000DS\u0000';
   const escaped = pattern
+    .replace(/\*\*/g, DOUBLE_STAR)
     .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-    .replace(/\*/g, '.*')
-    .replace(/\?/g, '.');
+    .replace(/\*/g, '[^/]*')
+    .replace(/\?/g, '.')
+    .split(DOUBLE_STAR).join('.*');
   return new RegExp('^' + escaped + '$').test(ref);
 }
 
@@ -306,7 +328,13 @@ function requiredChecksFromApplicableMainRulesets() {
       return { ok: false, checks: [], reason: 'ruleset-list-item-id-missing' };
     }
     if (item.enforcement !== 'active' || item.target !== 'branch') continue;
-    const detailRaw = gh(`api repos/{owner}/{repo}/rulesets/${item.id}`);
+    // The id reaches a shell. Constrain it to digits before it gets there rather than
+    // relying on the id comparison below to catch what a substituted response did.
+    const rulesetId = String(item.id).trim();
+    if (!/^[0-9]+$/.test(rulesetId)) {
+      return { ok: false, checks: [], reason: 'ruleset-list-item-id-malformed:' + rulesetId };
+    }
+    const detailRaw = gh(`api repos/{owner}/{repo}/rulesets/${rulesetId}`);
     if (!detailRaw) {
       return { ok: false, checks: [], reason: 'ruleset-detail-unavailable:' + String(item.id) };
     }
@@ -356,6 +384,22 @@ function requiredChecksFromApplicableMainRulesets() {
     if (patterns.some((p) => typeof p !== 'string' || !p.trim())) {
       return { ok: false, checks: [], reason: 'ruleset-ref-pattern-malformed:' + String(item.id) };
     }
+    // Readable is not the same as well-formed. A pattern the translator cannot implement
+    // compiles to a literal that never matches, and a non-match is how this function says
+    // "not about main" — so an unreadable pattern silently discards the whole ruleset.
+    const unreadable = patterns.filter((p) => !refPatternIsReadable(p));
+    if (unreadable.length) {
+      return {
+        ok: false,
+        checks: [],
+        reason: 'ruleset-ref-pattern-unreadable:' + String(item.id) + ':' + unreadable.join(','),
+      };
+    }
+    // A branch ruleset that includes no refs at all is an anomalous response, for the same
+    // reason a bare [] at the list level is. Unknown, not inapplicable.
+    if (refName.include.length === 0) {
+      return { ok: false, checks: [], reason: 'ruleset-ref-include-empty:' + String(item.id) };
+    }
     if (!rulesetAppliesToMain(detail)) continue;
     // A truncated or malformed detail must make discovery UNKNOWN, not silently empty.
     if (!Array.isArray(detail.rules)) {
@@ -380,6 +424,11 @@ function requiredChecksFromApplicableMainRulesets() {
       const declared = rule?.parameters?.required_status_checks;
       if (!Array.isArray(declared)) {
         return { ok: false, checks: [], reason: 'ruleset-required-checks-malformed:' + String(item.id) };
+      }
+      // A required-status-checks rule that requires nothing is the same anomaly as an empty
+      // list response. A missing key already blocks; an empty array must not be softer.
+      if (declared.length === 0) {
+        return { ok: false, checks: [], reason: 'ruleset-required-checks-empty:' + String(item.id) };
       }
       for (const check of declared) {
         // A malformed entry must make discovery UNKNOWN. Skipping it silently drops a

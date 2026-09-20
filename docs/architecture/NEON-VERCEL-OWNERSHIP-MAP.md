@@ -282,7 +282,9 @@ topology is **UNVERIFIED**, because it is not exposed through the authorized Ver
 and a bounded historical observation never established lifetime topology in either direction.
 Environments must be read live before any Preview-branching design change.
 
-Do not delete cleanup code merely because provisioning is currently broken; first decide the intended Preview
+**SUPERSEDED 2026-09-20 — the cleanup code IS deleted**, by owner decision, and this
+paragraph is kept as the record of the reasoning that preceded it rather than as current
+guidance. It read: do not delete cleanup code merely because provisioning is currently broken; first decide the intended Preview
 topology and then reconcile creator + cleanup + health semantics together.
 
 ## §11 — Files requiring cost-impact review (cross-reference)

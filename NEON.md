@@ -67,7 +67,7 @@ The `vercel.json` `buildCommand` must not contain `prisma migrate deploy` or `pr
 | Compute time | **300 CU-hours / month** baseline, overage at ~$0.16/CU-hr | fixed **0.25 CU** (autoscale min=max=0.25); well under baseline | historical read 2026-07-05; that method is no longer an authorized Mallan path |
 | Branches per project | **5000** (vs. 10 on Free) | **1 (main only)** on `neon-green-school` — live 2026-07-05 (the Gate-6 rollback branch was auto-pruned; see OPS-022) | historical read 2026-07-05; that method is no longer an authorized Mallan path |
 | Instant-restore window (PITR / history retention) | **6 hours on THIS project** — verified directly from Neon configuration (`history_retention_seconds=21600`, read from the Neon project configuration on 2026-07-02 by a method that is no longer an authorized Mallan path; NOT inferred from runtime). Why not 7 days: Neon defaults are Free = 6h, paid plans = 1 day; Launch allows **up to** 7 days as a project-level setting, changed inside the resource opened through Vercel SSO and only with explicit authorization. This project kept its Free-era 6h setting through the 2026-05-17 Launch upgrade — the earlier "7 days (Launch baseline)" here conflated the Launch MAXIMUM with the configured value. Consequences: point-in-time restore reaches back only ~6h (named branches pin their LSN independently and are the durable restore mechanism — e.g. the Gate-6 rollback branch); the ~6h window governs how fast HISTORY ages out after branch deletion — it does NOT mean billed storage drops: the S1 check (OPS-018, measured 2026-07-02) confirmed freed TOAST space is **reusable-not-returned** (physical size did not fall after branches were deleted + retention elapsed + autovacuum). Do not treat a missing same-day drop as an anomaly and do not escalate to compaction — disposition is no compaction now, no pg_repack until after the Gate-6 drain if at all, VACUUM FULL forbidden. Read again on 2026-07-05 (`history_retention_seconds=21600`, unchanged). **Nothing checks this value any more:** the drift check was deleted on 2026-09-20 with the rest of the neonctl path, so treat the number as a dated reading and re-establish it through the Vercel-managed resource before relying on it. Registry: OPS-016 (RESOLVED 2026-07-05) + OPS-018 | 21,600 s | historical read 2026-07-05 via a method no longer authorized, plus OPS-018 measurement |
-| Compute auto-suspend | 5 min idle (configurable; default unchanged from Free) | `db-keepalive` cron at `*/15` **mitigates, does not prevent** — see §3 Trap #3. The 15-min interval lets routine 5-min suspends happen between pings; the cron's job is preventing multi-hour idles, not 5-min suspends. | `app/api/cron/db-keepalive/route.ts`, `vercel.json` |
+| Compute auto-suspend | 5 min idle (configurable; default unchanged from Free) | ~~`db-keepalive` cron~~ **DELETED 2026-08-07** — there is no keepalive cron and none may be recreated. Cold-start handling now lives in the retry path, `lib/db/with-retry.ts`. The compute/uptime trade-off that produced the deletion is recorded in NEON-COST-CONTROL-POLICY.md. Historically it ran at `*/15` and mitigated rather than prevented suspends. The 15-min interval lets routine 5-min suspends happen between pings; the cron's job is preventing multi-hour idles, not 5-min suspends. | `app/api/cron/db-keepalive/route.ts`, `vercel.json` |
 
 ### 2.1 Canonical facts — DATED READING, no longer machine-checked (OPS-016, historical)
 
@@ -121,8 +121,11 @@ Unlike the Free tier (where 500 MB / 191.9 CU-hr were *hard* caps), Launch basel
 - Storage ≥ 70% of Launch cap (7 GB) → warning
 - Storage ≥ 85% sustained → **discuss Scale-plan upgrade**
 - Compute ≥ 240 hrs/month → warning (at 80% of 300)
-- Branch count ≥ 25 → warning (anomalous-growth signal; baseline ~8)
-- Branch count ≥ 4000 → critical (approaching 5000 plan cap)
+- ~~Branch count ≥ 25 → warning; ≥ 4000 → critical~~ **NOT IMPLEMENTED — do not expect these.**
+  `scripts/ops-health.js` contains no branch-count threshold and reports no branch count.
+  Branch topology is not available through the authorized Vercel-managed path, so nothing
+  measures it and no threshold can fire. The "baseline ~8" figure was a 2026-05-17-era
+  reading and is not current state.
 - Sync watermark > 2 hrs stale → warning
 
 **An upgrade is not the first resort. Reduce compute-burn / branch-count first.** Every DB query path added or removed matters; every preview-branch creation rate change matters.
@@ -179,7 +182,9 @@ My own mistake on 2026-04-19. I wrote a migration file, pushed the code that dep
 
 1. **Add nullable column** — `Boolean?` / `String?` / `DateTime?`. Never `NOT NULL DEFAULT …` even though PG ≥11 makes it metadata-only.
 2. **Dual-write in `lib/idx/sync.ts`** (JSON + column) — ensures new rows populate the column during the transition.
-3. **Wait ≥ one sync cycle** (idx-sync is `*/12 * * * *`).
+3. **Wait ≥ one sync cycle.** `idx-sync` has no cron entry of its own; it is driven by
+   `one-cycle-preflight` at `*/10`, so one cycle is ten minutes. (This step previously said
+   `*/12`, which was never the configured value.)
 4. **Migrate ONE reader** from JSON → column.
 5. **Verify `npm run ops:health`.**
 6. Repeat for the next reader.
@@ -242,7 +247,8 @@ npm run hooks:install
 
 # 1. Confirm Neon has headroom
 npm run ops:health
-# Read "pct_of_free" for storage (<80%) and compute hours used (<160)
+# Read "pct_of_free" for storage (<80%). NOTE: ops:health does NOT measure compute at all,
+# so there is no compute-hours figure to read here despite older wording.
 
 # 2. Apply the migration to PROD manually, from your machine
 #    (use the prod DATABASE_URL — NOT the local dev one)
@@ -280,7 +286,12 @@ Reports storage %, top tables, sync freshness, retention archive queue, upgrade 
 
 Deep tier-decision audit. Measures JSON bloat, index bloat, write volumes, growth projection. Run before any "upgrade vs optimize" discussion.
 
-### `scripts/neon-storage-audit.js` / `scripts/neon-listings-deep.js`
+### `scripts/neon-storage-audit.ts` (run it as `npm run ops:neon-audit`)
+
+> Corrected 2026-09-20: this heading previously named `scripts/neon-storage-audit.js` and
+> `scripts/neon-listings-deep.js`. The first has a `.ts` extension, not `.js`; the second
+> has never existed anywhere in this repository. Both names were dead ends for anyone told
+> that storage was high.
 
 Storage-focused audits for when `ops:health` reports storage >80%.
 
@@ -300,12 +311,14 @@ The HTTP-driver experiment (`lib/prisma-http.ts`, "Phase 5") was prototyped 2026
 
 Launch plan compute is **billed past 300 CU-hr/mo**, not blocked. The playbook below addresses both "approaching the baseline" (cost-discipline) and "way over baseline" (suggests a runaway query path that should be fixed regardless of plan).
 
-1. `npm run ops:health` — confirm compute hours are near/over the Launch baseline (300 CU-hr/mo)
+1. `npm run ops:health` — storage only. **It does not measure compute**, so it cannot confirm
+   CU-hours against the Launch baseline. Compute is not readable through the authorized
+   Vercel-managed path either, so treat compute as UNVERIFIED rather than assuming a number.
 2. Open the bound resource through Vercel (`vercel integration open neon <resource>`, or the Vercel
    project's Storage / Integrations panel) and read Usage there. Do not sign in to Neon directly;
    the Vercel-managed binding is the only authorized path (§0.12 of the Master).
 3. **Options (in order of preference):**
-   - Reduce compute-burn: audit recent changes for new DB query paths, check uptime-monitor frequency, consider slowing down `db-keepalive` or non-critical crons temporarily
+   - Reduce compute-burn: audit recent changes for new DB query paths, check uptime-monitor frequency, consider slowing down non-critical crons temporarily. (An earlier version of this step suggested slowing `db-keepalive`; that cron was DELETED 2026-08-07.)
    - Accept overage for the current month if a one-off (rare event, batch backfill, etc.) — Launch overage is metered, not catastrophic
    - **If sustained:** evaluate Scale plan upgrade (more baseline + lower per-CU-hr overage rate). Charter conversation required.
 4. Once stable, apply any deferred migration manually: `DATABASE_URL=prod npx prisma migrate deploy`
@@ -323,7 +336,10 @@ Launch plan compute is **billed past 300 CU-hr/mo**, not blocked. The playbook b
 ### C — "All routes 500ing with connection timeout"
 
 1. Load `https://mallan.nyc/api/health` — 503 means Next.js runtime itself is down; 200 means runtime is up, DB is likely cold
-2. Confirm `db-keepalive` cron is enabled in `vercel.json` (`*/3 * * * *`)
+2. ~~Confirm `db-keepalive` cron~~ **DO NOT DO THIS.** The route and its cron were DELETED
+   on 2026-08-07. There is nothing to confirm, and re-adding one during an outage would be
+   a change made under pressure to machinery that was removed on purpose. Skip to step 3.
+   (The `*/3` cadence this step named was never the configured value either; it ran `*/15`.)
 3. If compute must be restarted, do it inside the resource opened through Vercel SSO, not by signing
    in to Neon directly. Compute state is provider state: reaching it through any other route is
    prohibited (§0.12 of the Master), and a restart is a provider action, not a routine debugging step.
@@ -350,7 +366,7 @@ Folded into master refactor plan PR 5 (search projection). Master plan complete 
 
 ### B — Phase 5 HTTP adapter per-route adoption — DROPPED
 
-Per user decision 2026-04-25. The prototype `lib/prisma-http.ts` was removed. Remaining cold-start mitigation is provided by the `db-keepalive` cron (§3 trap #3). See `memory/REFACTOR-2026-04-25.md` line 9 for the dropped-workstream record.
+Per user decision 2026-04-25. The prototype `lib/prisma-http.ts` was removed. Cold-start mitigation was provided by the `db-keepalive` cron until it was DELETED on 2026-08-07; it now lives in the retry path, `lib/db/with-retry.ts`. See `memory/REFACTOR-2026-04-25.md` line 9 for the dropped-workstream record.
 
 ### Open follow-up — legacy JSON columns on `Listing`
 
@@ -487,6 +503,7 @@ Do not enable generic Preview branching as part of that operation.
 
 ### Production branch protection
 
-Production `main` is currently not protected. Protection is a separate, explicitly authorized
+Production `main` was not protected when this was read on 2026-09-18, and that reading has
+not been repeated since. Treat it as dated, not as current state. Protection is a separate, explicitly authorized
 control-plane change (Packet 2A.1), not something to bundle into Development creation. Verify workflow
 compatibility first, then prove Production endpoint/deployment behavior remains unchanged after any change.

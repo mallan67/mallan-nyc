@@ -337,7 +337,10 @@ The provisioning itself is a one-time human operation, executed manually by Maya
 - [ ] Operator has access to: Neon console, Cloudflare R2 dashboard, Vercel dashboard for mallan-nyc, mallan-marketing repo secrets
 
 **Step 1 — Provision Neon project:**
-- [ ] Log into Neon console (`https://console.neon.tech`)
+- [ ] ~~Log into Neon console~~ **PROHIBITED 2026-09-20.** Neon is reached only through the
+      Vercel-managed Marketplace resource, for reads as much as for writes. If this project
+      is ever provisioned it is provisioned that way; a direct console login is not an
+      approved step and must not be performed.
 - [ ] Click "Create new project"
 - [ ] Project name: `mallan-public-records`
 - [ ] Region: same as mallan-nyc (typically `AWS US East 1 / N. Virginia`) for lowest cross-DB read-time latency
@@ -358,7 +361,9 @@ The provisioning itself is a one-time human operation, executed manually by Maya
 **Step 4 — Generate and store connection strings:**
 - [ ] Generate writer connection string → store in mallan-marketing `.env` as `PUBLIC_RECORDS_DATABASE_URL`
 - [ ] Generate reader connection string → store in Vercel mallan-nyc production env as `PUBLIC_RECORDS_DATABASE_URL_READONLY`
-- [ ] Generate Neon API key scoped to this project only → store in Vercel mallan-nyc production env as `PUBLIC_RECORDS_NEON_API_KEY`
+- [ ] ~~Generate Neon API key~~ **PROHIBITED 2026-09-20.** No Mallan path may hold a Neon
+      API credential. The execution gate refuses any changed file that names one, whatever
+      the file is called. `PUBLIC_RECORDS_NEON_API_KEY` must not be created.
 - [ ] Store `PUBLIC_RECORDS_NEON_PROJECT_ID` in Vercel mallan-nyc production env
 
 **Step 5 — Provision R2:**

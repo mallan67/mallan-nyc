@@ -23,11 +23,11 @@ to **⚪ UNVERIFIED / fail-closed**, not assumed-healthy.
 ## Auto-probed tier
 
 <!-- HEALTH:AUTO:START -->
-_Last probed (UTC): **2026-09-20T14:57:57Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
+_Last probed (UTC): **2026-09-20T17:05:23Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Repo / main HEAD | 🟢 | main `2a83952a`; probed from branch `fix/agent-authority-live-sources-2026-09-18` |
+| Repo / main HEAD | 🟢 | main `bba9d8d6` (origin/main); probed from branch `fix/agent-authority-live-sources-2026-09-18` |
 | Open PRs | 🟡 | 24 open (24 non-audit): #632, #630, #629, #628 |
 | PR #465 (rehydration guard) | 🟢 | MERGED 2026-07-02T02:35Z (gh merge-state only — deploy/runtime proof lives in RW-004) |
 | Cron cadence (live Cotality) | 🟢 | 19 crons; one-cycle-preflight `*/10 * * * *` (drives idx-sync + media-sync); db-keepalive intentionally absent: yes |

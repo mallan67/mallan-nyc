@@ -90,7 +90,10 @@ const DIRECT_NEON_CAPABILITY_SIGNALS = [
 // shell, PowerShell, Python and Docker files from both the database classifier and the
 // capability scan. A guard that does not open the file cannot refuse what is in it.
 const EXECUTABLE_EXTENSIONS = [
-  ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs",
+  ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs",
+  // This repository is developed on Windows, and infrastructure-as-code is a shell by
+  // another name.
+  ".bat", ".cmd", ".tf", ".tfvars", ".hcl", ".ipynb",
   ".yml", ".yaml", ".toml",
   ".sh", ".bash", ".zsh", ".ps1", ".psm1",
   ".py", ".rb", ".go", ".rs", ".java", ".php",
@@ -139,7 +142,35 @@ const DATABASE_CONTENT_PATTERNS = [
   // Language-neutral: os.environ["DATABASE_URL"] in Python and $DATABASE_URL in shell
   // are the same participation in the database story as process.env.DATABASE_URL, and
   // naming the variable at all is what makes a file part of it.
-  /\bDATABASE_URL\b/
+  /\bDATABASE_URL\b/,
+  // The connection-variable families this repository actually sees. The station table
+  // already accepted POSTGRES_URL and connectionString as env-resolution evidence while
+  // the classifier refused to treat them as database involvement at all.
+  /\bPOSTGRES(?:_PRISMA)?_URL(?:_NON_POOLING|_NO_SSL)?\b/,
+  /\bconnectionString\b/,
+  // A connection URL is database involvement whatever the variable is called. A9 in the
+  // review repointed the canonical endpoint to the stale DO-NOT-SERVE one and passed,
+  // because only the variable NAME was a signal.
+  /\bpostgres(?:ql)?:\/\//,
+  // A client that arrives as a PARAMETER is still a client. `prisma.listing.findMany(`
+  // and `db.query(` are what a database consumer DOES, and dependency injection is the
+  // idiomatic way to write a testable one — so the type-only-import exclusion was hiding
+  // the normal case, not an exotic one.
+  /\b(?:prisma|db|tx|client)\s*\.\s*\$?(?:transaction|queryRaw|queryRawUnsafe|executeRaw|executeRawUnsafe|connect|disconnect)\b/,
+  /\b(?:prisma|db|tx)\s*\.\s*[a-z][\w]*\s*\.\s*(?:findUnique|findFirst|findMany|create|createMany|update|updateMany|upsert|delete|deleteMany|count|aggregate|groupBy)\s*\(/,
+  // A Prisma where-fragment is a database query even when it never names the client. This
+  // is the display-gate shape: an exported object of column predicates that every public
+  // query spreads.
+  /\b(?:idx_display_yn|internet_[a-z_]*display_yn|participant_only|owner_opt_out)\b/,
+  // SQL that changes data or shape, wherever the file lives. The repo's two tracked .sql
+  // files classify today only because each carries a psql comment an author may omit.
+  /\b(?:ALTER|CREATE|DROP|TRUNCATE)\s+(?:TABLE|INDEX|COLUMN|SCHEMA|DATABASE|VIEW)\b/i,
+  /\b(?:INSERT\s+INTO|UPDATE\s+[\w".]+\s+SET|DELETE\s+FROM)\b/i,
+  // A migrate or push command is a schema change wherever it is written down. NEON.md
+  // governs these explicitly; package.json is where they live and was not classified.
+  /\bprisma\s+(?:migrate|db\s+push|generate)\b/,
+  // The serverless driver, alongside pg and the Prisma client.
+  /['"]@neondatabase\/serverless['"]/
 ];
 
 
@@ -236,6 +267,19 @@ function stripSourceComments(body, options) {
       continue;
     }
 
+    // ECMA-262 Annex B.1.1: <!-- opens a single-line comment in sloppy-mode script, and a
+    // line-initial --> closes one. This package declares no module type, so every tracked
+    // .js file is such a script and both forms are live comment syntax there.
+    if (ch === "<" && text.startsWith("<!--", i)) {
+      while (i < text.length && text[i] !== String.fromCharCode(10)) i += 1;
+      out += " ";
+      continue;
+    }
+    if (ch === "-" && text.startsWith("-->", i) && (i === 0 || text[i - 1] === String.fromCharCode(10))) {
+      while (i < text.length && text[i] !== String.fromCharCode(10)) i += 1;
+      out += " ";
+      continue;
+    }
     if (ch === "/" && next === "/") {
       while (i < text.length && text[i] !== String.fromCharCode(10)) i += 1;
       out += " ";
@@ -360,7 +404,11 @@ function isExecutablePath(filePath, body) {
 }
 
 function hasShebang(body) {
-  return typeof body === "string" && body.slice(0, 2) === "#!";
+  if (typeof body !== "string") return false;
+  // A UTF-8 BOM is what PowerShell writes by default, and this repository is developed on
+  // Windows. The kernel would not honour the shebang, but `bash tools/x` does, and that is
+  // how a package script or a CI step invokes it.
+  return body.replace(/^\uFEFF/, "").slice(0, 2) === "#!";
 }
 
 // Configuration that names a command or a script LAUNCHES something, which makes it a
@@ -371,7 +419,10 @@ function hasShebang(body) {
 // The keys are read from the PARSED document, not from the source text. A JSON key may
 // be escaped, and "\\u0063ommand" is the command key by the time anything runs it, so a
 // spelling test can be written around and a parse cannot.
-const RUNNABLE_JSON_KEYS = new Set(["command", "scripts"]);
+// Any key that NAMES a command. vercel.json declares buildCommand and installCommand and
+// runs both on every deploy; renovate declares commands; semantic-release declares
+// prepareCmd. Matching only the exact word "command" missed all of them.
+const RUNNABLE_JSON_KEY = /^(?:scripts|commands?|.*(?:command|cmd))$/i;
 
 function declaresRunnableCommand(body) {
   if (typeof body !== "string") return false;
@@ -387,10 +438,13 @@ function declaresRunnableCommand(body) {
 }
 
 function jsonDeclaresKey(node, depth) {
-  if (depth > 12 || node === null || typeof node !== "object") return false;
+  // Too deep to walk is not the same as "declares nothing". The sibling branch (a JSON
+  // document that will not parse) already fails closed; this one used to fail open.
+  if (depth > 12) return true;
+  if (node === null || typeof node !== "object") return false;
   if (Array.isArray(node)) return node.some((child) => jsonDeclaresKey(child, depth + 1));
   for (const key of Object.keys(node)) {
-    if (RUNNABLE_JSON_KEYS.has(key)) return true;
+    if (RUNNABLE_JSON_KEY.test(key)) return true;
     if (jsonDeclaresKey(node[key], depth + 1)) return true;
   }
   return false;
@@ -429,7 +483,14 @@ const BOOTSTRAP_ALLOWED = new Set([
   "docs/audits/green-baseline-2026-06-07.md",
   "docs/superpowers/plans/2026-06-07-systematic-fix-plan.md",
   "lib/idx/__tests__/coverage-backfill-preview.test.ts.disabled",
-  "tests/runtime/release-safety-ruleset-discovery.test.ts"
+  "tests/runtime/release-safety-ruleset-discovery.test.ts",
+  // Corrections that followed the independent review of b873d4f2.
+  ".gitignore",
+  "docs/operations/one-cycle-w2-schedule-design-2026-07-23.md",
+  "docs/architecture/PUBLIC-RECORDS-NEON-PROVISIONING-PLAN.md",
+  "memory/NEXT-SESSION-2026-04-28.md",
+  "scripts/health/health-status.ts",
+  "tests/runtime/health-probe-status.test.ts"
 ]);
 
 // Maya's mandatory database chain. Any change that can move, name, resolve or consume the
@@ -479,8 +540,13 @@ function fileCarriesDatabaseSignal(body) {
 
 // Local binding names for database client constructors, from every ordinary spelling:
 // named ES import with or without `as`, default ES import, plain require, and destructured
-// require with or without renaming. Type-only imports are ignored on purpose; a census of
-// this repository found them common and inert.
+// require with or without renaming. A type-only import does not itself load the driver,
+// so it is not a DRIVER-LOAD signal. It is no longer treated as evidence of nothing,
+// though: a file that imports the client as a TYPE and then calls a model method through
+// an injected parameter is a database writer, and the behaviour patterns above catch it.
+// The earlier note here called type-only imports common and inert in this repository.
+// lib/media/crm-media.ts disproves the inert half: its only driver reference is a type,
+// and it creates and updates rows through a client it receives as an argument.
 const DB_SPECIFIER = "(?:pg|@prisma\\/client)";
 const DB_NAMED_IMPORT = new RegExp("import\\s+(?!type\\s)\\{([^}]*)\\}\\s*from\\s*['\"]" + DB_SPECIFIER + "['\"]", "g");
 const DB_DEFAULT_IMPORT = new RegExp("import\\s+(?!type\\s)([A-Za-z_$][\\w$]*)\\s*(?:,|from)[^;]*['\"]" + DB_SPECIFIER + "['\"]", "g");
@@ -530,27 +596,55 @@ function databaseClientAliases(body) {
   return aliases;
 }
 
+// Formats that CARRY a database target without being programs. A dotenv file exists to
+// set the connection variable, and it was the one format never opened.
+const DATABASE_CONFIG_SUFFIXES = [".env", ".env.local", ".env.example", ".env.production", ".env.development", ".ini", ".cfg", ".conf", ".properties"];
+
+function carriesDatabaseConfig(filePath) {
+  const base = String(filePath).toLowerCase().split("/").pop();
+  return DATABASE_CONFIG_SUFFIXES.some((s) => base === s.slice(1) || base.endsWith(s)) || base.startsWith(".env");
+}
+
 function touchesDatabaseTarget(filePath, readHead, readBase) {
   if (DATABASE_PATH_EXACT.includes(filePath)) return true;
   if (DATABASE_PATH_PREFIXES.some((prefix) => filePath.startsWith(prefix))) return true;
-  const lower = filePath.toLowerCase();
-  if (DATABASE_PATH_SUBSTRINGS.some((needle) => lower.includes(needle))) return true;
-  // Read first: an extensionless script announces itself in its first two characters,
-  // and the deciding version may be either side of the change.
+  // Read first: an extensionless script announces itself in its first two characters, a
+  // dotenv file announces itself by name, and the deciding version may be either side of
+  // the change.
   const head = typeof readHead === "function" ? readHead(filePath) : null;
   const base = typeof readBase === "function" ? readBase(filePath) : null;
-  if (!isExecutablePath(filePath, head) && !isExecutablePath(filePath, base)) return false;
-  return fileCarriesDatabaseSignal(head) || fileCarriesDatabaseSignal(base);
+  const openable =
+    isExecutablePath(filePath, head) || isExecutablePath(filePath, base) || carriesDatabaseConfig(filePath);
+  if (openable && (fileCarriesDatabaseSignal(head) || fileCarriesDatabaseSignal(base))) return true;
+  // The filename substring is the LAST resort, and only for a file that could execute or
+  // configure. Running it first made a one-line edit to a prose document named
+  // neon-write-amplification-forensic-2026-07-25.md demand all ten stations, which is the
+  // kind of noise that gets a rule worked around rather than obeyed.
+  if (!openable) return false;
+  const lower = filePath.toLowerCase();
+  return DATABASE_PATH_SUBSTRINGS.some((needle) => lower.includes(needle));
 }
 
 // String escapes evaluate at runtime, so "console\x2eneon\x2etech" IS the prohibited host.
 // Decode the ordinary numeric escapes before normalising, otherwise stripping backslashes
 // leaves x2e in place of the separator and the needle can never match.
+function codePoint(hex) {
+  const code = parseInt(hex, 16);
+  return code <= 0x10ffff ? String.fromCodePoint(code) : "";
+}
+
 function decodeSourceEscapes(body) {
   return String(body)
     .replace(/\\x([0-9a-fA-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
-    .replace(/\\u\{?([0-9a-fA-F]{1,6})\}?/g, (_, hex) => {
-      const code = parseInt(hex, 16);
+    // Braced form: 1 to 6 digits, terminated by the brace.
+    .replace(/\\u\{([0-9a-fA-F]{1,6})\}/g, (_, hex) => codePoint(hex))
+    // Unbraced form: EXACTLY four digits. Greedy matching here mis-decoded innocent text
+    // as well as hiding hostile text.
+    .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) => codePoint(hex))
+    // Python and shell octal, alongside the hex forms. \056 is a dot and \137 an
+    // underscore, which is enough to spell every host and credential name here.
+    .replace(/\\([0-7]{1,3})/g, (_, oct) => {
+      const code = parseInt(oct, 8);
       return code <= 0x10ffff ? String.fromCodePoint(code) : "";
     });
 }
@@ -978,62 +1072,76 @@ function validateImpactPaths(control, baseRef) {
 // Each station therefore requires BOTH a path shape AND content that actually concerns
 // that station. The content test is a keyword set rather than a parse: the goal is to
 // refuse a file that has nothing to do with the station, not to grade its quality.
+// Station content is judged with comments stripped. A file whose only claim to a station
+// is a sentence about it is describing the station, not evidencing it.
+function stationBody(body) {
+  if (typeof body !== "string") return "";
+  try {
+    return stripSourceComments(body);
+  } catch {
+    return body;
+  }
+}
+
 const DATABASE_STATION_EVIDENCE = {
   vercel_integration: {
     describes: "the Vercel surface that binds the resource, and it must mention Vercel",
     accepts: (p, body) =>
-      (p === "vercel.json" || p.startsWith(".github/workflows/")) && /vercel/i.test(body || ""),
+      (p === "vercel.json" || p.startsWith(".github/workflows/")) && /vercel/i.test(stationBody(body)),
   },
   env_resolution: {
     describes: "where the connection variables are resolved, and it must name one",
     accepts: (p, body) =>
-      /DATABASE_URL|database_DATABASE_URL|POSTGRES_URL|connectionString/i.test(body || ""),
+      /DATABASE_URL|POSTGRES(?:_PRISMA)?_URL|connectionString|postgres(?:ql)?:\/\//i.test(stationBody(body)),
   },
   db_target: {
     describes: "the module that classifies or selects the database target",
     accepts: (p, body) =>
-      fileCarriesDatabaseSignal(body) || /canonical-neon-target|db-target|isCanonicalNeon/i.test(body || ""),
+      fileCarriesDatabaseSignal(stationBody(body)) || /canonical-neon-target|db-target|isCanonicalNeon/i.test(stationBody(body)),
   },
   prisma_pg: {
     describes: "the Prisma schema or a module that constructs a client",
     accepts: (p, body) =>
-      (p.startsWith("prisma/") && /datasource|generator|model\s/i.test(body || "")) ||
-      fileCarriesDatabaseSignal(body),
+      (p.startsWith("prisma/") && /datasource|generator|model\s/i.test(stationBody(body))) ||
+      fileCarriesDatabaseSignal(stationBody(body)),
   },
   migrations: {
     describes: "the migration surface: a migration file, sql/, or the Prisma schema",
     accepts: (p, body) =>
-      p.startsWith("prisma/migrations/") ||
-      p.startsWith("sql/") ||
-      (p === "prisma/schema.prisma" && /datasource|model\s/i.test(body || "")),
+      ((p.startsWith("prisma/migrations/") || p.startsWith("sql/")) &&
+        /\b(?:ALTER|CREATE|DROP|TRUNCATE|INSERT|UPDATE|DELETE|SELECT|BEGIN|COMMIT)\b/i.test(stationBody(body))) ||
+      (p === "prisma/schema.prisma" && /datasource|model\s/i.test(stationBody(body))),
   },
   workflows_crons: {
     describes: "a workflow, schedule or cron route that touches the database",
     accepts: (p, body) =>
       (p.startsWith(".github/workflows/") || p === "vercel.json" || p.startsWith("app/api/cron/")) &&
-      /DATABASE_URL|cron|schedule|prisma|migrat/i.test(body || ""),
+      /DATABASE_URL|cron|schedule|prisma|migrat/i.test(stationBody(body)),
   },
   preview: {
-    describes: "the machinery that produces preview proof, and it must mention preview or deployment",
+    describes: "the machinery that produces PREVIEW proof, and it must name preview specifically",
     accepts: (p, body) =>
       (p.startsWith(".github/workflows/") || p.startsWith("scripts/release-safety/")) &&
-      /preview|deploy/i.test(body || ""),
+      /\bpreview\b/i.test(stationBody(body)),
   },
   production: {
-    describes: "the machinery that produces production proof, and it must mention production or deployment",
+    describes: "the machinery that produces PRODUCTION proof, and it must name production specifically",
     accepts: (p, body) =>
       (p.startsWith(".github/workflows/") || p.startsWith("scripts/release-safety/")) &&
-      /production|deploy/i.test(body || ""),
+      /\bproduction\b|\bprod\b/i.test(stationBody(body)),
   },
   downstream_readers_writers: {
     describes: "code that actually consumes the database",
-    accepts: (p, body) => fileCarriesDatabaseSignal(body),
+    accepts: (p, body) => fileCarriesDatabaseSignal(stationBody(body)),
   },
   tests: {
     describes: "a test file that exercises the changed database behaviour",
     accepts: (p, body) =>
       (p.startsWith("tests/") || p.includes("__tests__/") || /\.(test|spec)\.[tj]sx?$/.test(p)) &&
-      /database|prisma|pool|neon|DATABASE_URL|chain/i.test(body || ""),
+      // "chain" and "pool" are ordinary English and matched unrelated assertions, so the
+      // test station now wants a database term or a real database signal in the CODE.
+      (fileCarriesDatabaseSignal(stationBody(body)) ||
+        /\b(?:database|prisma|neon|DATABASE_URL|migration|schema)\b/i.test(stationBody(body))),
   },
 };
 

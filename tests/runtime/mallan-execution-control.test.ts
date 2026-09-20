@@ -131,9 +131,15 @@ function initRepo(control = baseControl()) {
       "  deploy:",
       "    runs-on: ubuntu-latest",
       "    steps:",
+      // The preview and production evidence must be REAL YAML, not a comment. Station
+      // content is judged with comments stripped, so a workflow that only mentions the
+      // environments in a remark evidences nothing — which is the whole point of the rule.
+      "      - name: deploy preview",
+      "        run: npx vercel deploy --prebuilt",
+      "      - name: deploy production",
+      "        run: npx vercel deploy --prebuilt --prod",
       "      - run: npx prisma migrate deploy",
       "        env: { DATABASE_URL: ${{ secrets.DATABASE_URL }} }",
-      "      - run: npx vercel deploy --prebuilt --prod   # preview and production",
       "",
     ].join(String.fromCharCode(10))
   );
@@ -1246,6 +1252,193 @@ describe("Mallan execution-control gate", () => {
     const res = gate(cwd);
     expect(res.status).not.toBe(0);
     expect(res.stderr).toContain(missing);
+  });
+  // THE DISPLAY GATE. lib/compliance/public-listing-filter.ts holds the shared Prisma
+  // where-fragment that enforces the REBNY display rules at the database layer. Changing
+  // one predicate there changes what EVERY public query returns. The classifier could not
+  // see it, because the file names no driver, no connection variable and no lib/prisma
+  // specifier — and that is the exact surface of the 2026-04-30 incident that put 7,594
+  // rows into an unlawful display state.
+  test("a change to a database-layer display gate triggers the chain", () => {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+    });
+    const cwd = initRepo(control);
+    write(cwd, "lib/feature/reader.ts", [
+      "export const PUBLIC_LISTING_GATE = {",
+      "  idx_display_yn: true,",
+      "  owner_opt_out: false,",
+      "};",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", "reader defines a display gate where-fragment");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("database_impact_chain");
+  });
+
+  // A client that arrives as a PARAMETER is still a client, and dependency injection is
+  // the idiomatic way to write a testable database module — so the type-only-import
+  // exclusion was hiding the normal case, not an exotic one.
+  test("an injected client that writes rows triggers the chain", () => {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+    });
+    const cwd = initRepo(control);
+    write(cwd, "lib/feature/reader.ts", [
+      "import type { PrismaClient } from " + JSON.stringify("@prisma/client") + ";",
+      "export async function save(prisma: PrismaClient, id: string) {",
+      "  return prisma.listingMedia.upsert({ where: { id }, create: {}, update: {} });",
+      "}",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", "reader writes rows through an injected client");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("database_impact_chain");
+  });
+
+  // A dotenv file exists to set the connection variable, and it was the one format the
+  // classifier never opened, because the content test sat behind the executable test.
+  test("a dotenv file that sets the connection variable triggers the chain", () => {
+    const rel = "config/production.env";
+    const cwd = initRepo(baseControl({
+      authorized_paths: [rel],
+      allowed_new_files: [rel, "lib/allowed.ts"],
+    }));
+    write(cwd, rel, [
+      "DATABASE_URL=postgresql://user:pass@example.neon.tech/db",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", rel);
+    git(cwd, "commit", "-m", "a dotenv file that sets the target");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("database_impact_chain");
+  });
+
+  // A migrate command is a schema change wherever it is written down, and package.json is
+  // where these live. Swapping a migration for a force-push was invisible.
+  test("changing a migrate command in package.json triggers the chain", () => {
+    const cwd = initRepo(baseControl({
+      authorized_paths: ["package.json"],
+    }));
+    write(cwd, "package.json", JSON.stringify({
+      name: "fixture",
+      scripts: { "db:migrate": "prisma db push --accept-data-loss" },
+    }) + String.fromCharCode(10));
+    git(cwd, "add", "package.json");
+    git(cwd, "commit", "-m", "swap migrate deploy for a forced push");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("database_impact_chain");
+  });
+
+  // The noise side. A rule that forces a ten-station declaration for a one-line edit to a
+  // prose document gets worked around rather than obeyed, and eight documents were in that
+  // position purely because their filename contained the word neon.
+  test("a prose document named after the provider is not a database change", () => {
+    const rel = "docs/operations/neon-write-amplification-2026-07-25.md";
+    const cwd = initRepo(baseControl({
+      authorized_paths: [rel],
+      allowed_new_files: [rel, "lib/allowed.ts"],
+    }));
+    write(cwd, rel, [
+      "# Write amplification notes",
+      "",
+      "Measured on 2026-07-25. Nothing in this document executes.",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", rel);
+    git(cwd, "commit", "-m", "a prose note whose filename names the provider");
+    expect(gate(cwd).stderr).not.toContain("database_impact_chain");
+  });
+
+  // A packet could issue its own ten-station chain out of files it wrote in the same
+  // commit, because every station test was a keyword search over raw text and a COMMENT
+  // contains keywords. Station content is now judged with comments stripped.
+  test("a station is not satisfied by a comment that merely names it", () => {
+    const rel = "lib/feature/note.ts";
+    const chain = { ...FULL_DB_CHAIN };
+    (chain as Record<string, string[]>).downstream_readers_writers = [rel];
+    const control = dbControl(chain);
+    control.allowed_new_files = [rel];
+    const cwd = initRepo(control);
+    write(cwd, rel, [
+      "// DATABASE_URL — this module is part of the database chain.",
+      "export const label = (s: string) => s.trim();",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", rel);
+    touchSchema(cwd, "db change whose downstream station is a comment");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("downstream_readers_writers");
+  });
+
+  // The migrations station had no content test at all, so any file under two directories
+  // satisfied it — including one containing only a comment.
+  test("an empty file under sql/ does not satisfy the migrations station", () => {
+    const rel = "sql/notes.sql";
+    const chain = { ...FULL_DB_CHAIN };
+    (chain as Record<string, string[]>).migrations = [rel];
+    const control = dbControl(chain);
+    control.allowed_new_files = [rel];
+    const cwd = initRepo(control);
+    write(cwd, rel, "-- nothing to see here" + String.fromCharCode(10));
+    git(cwd, "add", rel);
+    touchSchema(cwd, "db change whose migration station is an empty sql file");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("migrations");
+  });
+
+  // preview and production both accepted the bare word deploy, so they could never be
+  // distinguished and one deploy workflow stood for both.
+  test("a workflow that names only deployment does not satisfy the preview station", () => {
+    const rel = ".github/workflows/ship.yml";
+    const chain = { ...FULL_DB_CHAIN };
+    (chain as Record<string, string[]>).preview = [rel];
+    const control = dbControl(chain);
+    control.allowed_new_files = [rel];
+    const cwd = initRepo(control);
+    write(cwd, rel, [
+      "name: ship",
+      "jobs:",
+      "  go:",
+      "    steps:",
+      "      - run: npx vercel deploy --prebuilt",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", rel);
+    touchSchema(cwd, "db change whose preview station only says deploy");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("preview");
+  });
+
+  // The greedy unbraced \u escape was a CORRECTNESS bug: JavaScript's unbraced form is
+  // exactly four hex digits, and matching one to six swallowed the following character
+  // whenever it was also a hex digit. N is followed by E, so the credential name vanished
+  // from all four readings at once.
+  test("a four-digit unicode escape followed by a hex letter is still refused", () => {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+    });
+    const cwd = initRepo(control);
+    const slash = String.fromCharCode(92);
+    write(cwd, "lib/feature/reader.ts", [
+      "export const key = process.env[" + JSON.stringify(slash + "u004eEON_API_KEY") + "];",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", "reader spells the credential with a unicode escape");
+    expect(gate(cwd).stderr).toContain("Direct Neon control-plane capability is prohibited");
   });
   // Four spellings of the same consumer got past the alias scan in successive rounds, so
   // the rule stopped being about names: loading the driver as a value IS the dependency.

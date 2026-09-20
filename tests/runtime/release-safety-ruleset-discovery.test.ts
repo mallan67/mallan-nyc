@@ -20,7 +20,9 @@ type Discovery = { ok: boolean; checks: Array<{ context: string; integration_id:
 
 function loadDiscovery(responses: Record<string, string | null>): () => Discovery {
   const src = fs.readFileSync(SOURCE, "utf8");
-  const start = src.indexOf("function refPatternMatches(");
+  // Start at the ref-token allowlist: refPatternIsReadable and the pattern constants sit
+  // above refPatternMatches and the discovery function closes over them.
+  const start = src.indexOf("const RULESET_REF_TOKENS");
   const endMarker = "const rulesetDiscovery = requiredChecksFromApplicableMainRulesets();";
   const end = src.indexOf(endMarker);
   if (start < 0 || end < 0 || end <= start) {
@@ -252,6 +254,179 @@ describe("main-ruleset required-check discovery", () => {
     expect(result.reason).toContain("ruleset-ref-exclude-malformed");
   });
 
+  // The ref pattern was the one field that never got an allowlist, and it is the field
+  // every remaining fail-open ran through. refPatternMatches has only two outcomes, and
+  // `false` is this function's own encoding of "does not apply to main" — so a token or a
+  // glob syntax it cannot read became a silent skip of the whole ruleset.
+  test("an unrecognised ref token makes discovery unknown", () => {
+    for (const token of ["~ALL_BRANCHES", "~all", "~default_branch"]) {
+      const discover = loadDiscovery({
+        "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+        "rulesets/19435006": JSON.stringify({
+          id: 19435006,
+          enforcement: "active",
+          target: "branch",
+          conditions: { ref_name: { include: [token], exclude: [] } },
+          rules: [
+            { type: "required_status_checks", parameters: { required_status_checks: [{ context: "authority-root" }] } },
+          ],
+        }),
+      });
+      const result = discover();
+      expect(result.ok).toBe(false);
+      expect(result.reason).toContain("ruleset-ref-pattern-unreadable");
+    }
+  });
+
+  // The translator implements * and ? and nothing else. A character class, a brace list or
+  // an extglob group is escaped into a literal that can never match, which is
+  // indistinguishable from an honest non-match.
+  test("glob syntax the translator cannot implement makes discovery unknown", () => {
+    for (const pattern of ["refs/heads/ma[i]n", "refs/heads/{main,master}", "refs/heads/!(dev)"]) {
+      const discover = loadDiscovery({
+        "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+        "rulesets/19435006": JSON.stringify({
+          id: 19435006,
+          enforcement: "active",
+          target: "branch",
+          conditions: { ref_name: { include: [pattern], exclude: [] } },
+          rules: [
+            { type: "required_status_checks", parameters: { required_status_checks: [{ context: "authority-root" }] } },
+          ],
+        }),
+      });
+      const result = discover();
+      expect(result.ok).toBe(false);
+      expect(result.reason).toContain("ruleset-ref-pattern-unreadable");
+    }
+  });
+
+  // * and ** were both translated to .*, so an exclude of refs/* swallowed refs/heads/main
+  // and discarded the ruleset. Greedy in the EXCLUDE list is the fail-open direction.
+  test("a single star does not cross a path separator in an exclude", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: ["~ALL"], exclude: ["refs/*"] } },
+        rules: [
+          { type: "required_status_checks", parameters: { required_status_checks: [{ context: "pr-check" }] } },
+        ],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(true);
+    expect(result.checks).toEqual([{ context: "pr-check", integration_id: null }]);
+  });
+
+  test("a double star does cross a path separator in an exclude", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: ["~ALL"], exclude: ["refs/**"] } },
+        rules: [
+          { type: "required_status_checks", parameters: { required_status_checks: [{ context: "pr-check" }] } },
+        ],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(true);
+    expect(result.checks).toEqual([]);
+  });
+
+  // The function already refuses a bare [] at the list level, because an empty array is an
+  // anomalous response rather than an honest empty result. A branch ruleset that targets no
+  // refs, or requires no checks, is the same anomaly one and two levels down.
+  test("a ruleset that includes no refs at all makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: [], exclude: [] } },
+        rules: [
+          { type: "required_status_checks", parameters: { required_status_checks: [{ context: "authority-root" }] } },
+        ],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-ref-include-empty");
+  });
+
+  test("a required-checks rule that requires nothing makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": detail([
+        { type: "required_status_checks", parameters: { required_status_checks: [] } },
+      ]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-required-checks-empty");
+  });
+
+  // The id is interpolated into a shell command. It cannot currently cause a fail-open,
+  // because a substituted detail fails the id comparison — but it is a command-injection
+  // surface reached from an API response and is closed on its own terms.
+  test("a ruleset id that is not digits never reaches the shell", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": JSON.stringify([[
+        { id: "42; echo pwned", enforcement: "active", target: "branch" },
+      ]]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-list-item-id-malformed");
+  });
+
+  // THE BOUNDARY THAT MATTERS MOST. The live `Protect main` ruleset includes the literal
+  // `refs/heads/main`. If the readability guard rejected that, release proof would block
+  // permanently on every deployment, which is a worse failure than the one it prevents.
+  test("the live ruleset shape still resolves", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: ["refs/heads/main"], exclude: [] } },
+        rules: [
+          { type: "pull_request", parameters: { required_approving_review_count: 0 } },
+          { type: "required_status_checks", parameters: { required_status_checks: [{ context: "pr-check", integration_id: 15368 }] } },
+          { type: "non_fast_forward", parameters: {} },
+          { type: "deletion", parameters: {} },
+        ],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(true);
+    expect(result.checks).toEqual([{ context: "pr-check", integration_id: 15368 }]);
+  });
+
+  test("an ordinary wildcard include still resolves", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: ["refs/heads/*"], exclude: [] } },
+        rules: [
+          { type: "required_status_checks", parameters: { required_status_checks: [{ context: "pr-check" }] } },
+        ],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(true);
+    expect(result.checks).toEqual([{ context: "pr-check", integration_id: null }]);
+  });
   // Transmitted but not understood, one level deeper than enforcement and target.
   // "required_status_check", singular, is not a type this code knows, so skipping it is
   // a guess that it does not matter.

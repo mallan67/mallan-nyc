@@ -23,7 +23,7 @@
 1. **Launch is a temporary capacity tier, NOT permission to expand.** The long-term Neon operating model for mallan.nyc is **Free / minimum-cost discipline**.
 2. **Plan capacity ≠ budget target.** Plan capacity is what Neon will allow. Budget target is what Maya intends to live within.
 3. **Every decision that adds storage / compute / branch usage must be reviewed against the budget target**, not against the Launch plan ceiling.
-4. **Returning to Free is structurally blocked today** — DB is at 961 MB vs. Free's 500 MB cap. Reaching the budget target requires shipping the legacy JSON column drop (`memory/PLAN-LEGACY-JSON-DROP-2026-04-28.md`, ~115 MB recoverable on `listings` alone) plus continued discipline.
+4. **Returning to Free was structurally blocked at the last reading** — the DB measured 961 MB against the Free cap of 500 MB. That figure is a dated snapshot, not current state, and it has not been re-read through the authorized Vercel-managed path. Do not take a plan decision off it without re-measuring. Reaching the budget target requires shipping the legacy JSON column drop (`memory/PLAN-LEGACY-JSON-DROP-2026-04-28.md`, ~115 MB recoverable on `listings` alone) plus continued discipline.
 5. **`ops:health` thresholds set by PR #150 reflect plan capacity, not budget.** They prevent false positives. A future `ops:neon-budget` command (specified in §10 here) reports budget-vs-capacity diff separately.
 
 ---
@@ -38,7 +38,7 @@ The mallan-nyc Neon usage shape is designed so the project **fits inside the Fre
 - A bounded set of secondary tables (audit_events, demand_signals, listing_search_projection, etc.) that grow slowly
 - A single production branch (`main`) on the canonical production project (`hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2`)
 - Preview isolation must remain bounded and cost-disciplined **when it is intentionally authorized**. No lifetime branch-history claim is current authority; topology must be re-read through the Vercel-managed resource.
-- Compute discipline: no artificial DB keepalive — the `db-keepalive` cron was **removed** and `idx-sync`/`media-sync` widened to `*/30`/hourly in the approved 2026-07 compute-reduction (PR #481) so the endpoint can autosuspend between jobs; no synthetic health-probe DB load, no permanent connection pools beyond what serverless routes use
+- Compute discipline: no artificial DB keepalive — the `db-keepalive` cron was **removed** and `idx-sync`/`media-sync` widened in the approved 2026-07 compute-reduction (PR #481). CORRECTION 2026-09-20: neither has a cron entry of its own in `vercel.json` at all; both are driven by `one-cycle-preflight` at `*/10`, so the `*/30`/hourly cadences recorded here were superseded and should not be used as a baseline so the endpoint can autosuspend between jobs; no synthetic health-probe DB load, no permanent connection pools beyond what serverless routes use
 
 ### Why this is the policy, not just an aesthetic preference
 
@@ -83,8 +83,8 @@ a skipped audit row is not proof a prune pass ran.
 | Threshold | Value | Source | What fires |
 |---|---|---|---|
 | **Budget target** | 10 branches | Maya policy (matches Free cap) | "We want ≤10 steady-state" |
-| **Budget warning** | ≥ 8 branches | Within-2-of-target signal | Investigate why the count is rising — fast-pushing PRs? prune cron stalled? |
-| **Budget critical** | ≥ 10 branches | At-or-over target | Stop growth, prune aggressively, investigate why retention/cleanup isn't working |
+| **Budget warning** | ≥ 8 branches | Within-2-of-target signal | Investigate why the count is rising. NOTE: there is no prune cron to have stalled — it was DELETED 2026-09-20 — and branch count is not reported by any tool, so this row cannot fire today. |
+| **Budget critical** | ≥ 10 branches | At-or-over target | Stop growth. Do NOT prune: there is no authorized path that deletes a Neon branch from this repository, and the one that existed was deleted. Branch lifecycle is an open question owned by the Vercel-managed integration (§11). |
 | **Plan-capacity warning** | ≥ 25 branches | PR #150 threshold (3× baseline) | True anomalous growth — branches/day rate has tripled |
 | **Plan-capacity critical** | ≥ 4000 branches | PR #150 threshold (80% of 5000) | Imminent plan-ceiling — emergency |
 
@@ -93,10 +93,14 @@ a skipped audit row is not proof a prune pass ran.
 ### Current branch state
 
 Measured 2026-09-18: `hidden-mountain-87248164` has one branch, `main`, and no deleted Preview
-branches. The scheduled prune route is currently inert/fail-closed due to empty control-plane env values.
-That is a control-plane defect, not evidence that branch cleanup is working. Re-enable/repair Preview
-creation and cleanup as one lifecycle; do not optimize thresholds around a mechanism that currently creates
-nothing.
+branches — though "no deleted Preview branches" is a claim about lifetime history that a bounded
+enumeration cannot support, and this file's own header retracts it.
+
+**SUPERSEDED 2026-09-20.** This paragraph previously described the scheduled prune route as
+"currently inert/fail-closed" and instructed the reader to re-enable it. The route does not
+exist: it was DELETED, not disabled, along with its workflow and helper module. Nothing here
+may re-enable or repair it. Preview branch lifecycle is an open question owned by the
+Vercel-managed integration and is recorded as unresolved in §11.
 
 ---
 
@@ -124,8 +128,8 @@ nothing.
 
 ### Today's state vs. these thresholds
 
-- Storage: **961 MB** = ❌ budget critical (over target); ✓ plan-capacity OK
-- Compute: not currently measured by ops:health; need the new `ops:neon-budget` command (§10) to pull CU-hr from Neon API
+- Storage: **961 MB at the last reading** = ❌ budget critical against the target; plan-capacity OK. DATED, not re-verified through the authorized path. NEON.md §2 records a later and larger reading (~1.51 GB synthetic), so these two numbers are from different dates and neither is current.
+- Compute: not measured by ops:health, and not measurable from here. The `ops:neon-budget` command proposed in §12.2 would have pulled CU-hr from the Neon API; that design is WITHDRAWN because the Neon API is a prohibited access path. Compute is UNVERIFIED.
 
 ---
 
@@ -150,7 +154,7 @@ nothing.
 
 | Command | What it reports | Budget-aware? |
 |---|---|---|
-| `npm run ops:health` | Storage % of plan cap, sync watermark, retention compliance, listing/audit_event/media health | ❌ NO — reports against plan capacity (10 GB) only; direct-Neon branch-prune health was retired with the writer |
+| `npm run ops:health` | Storage % of plan cap, sync watermark, retention compliance, listing/audit_event/media health | ❌ NO — reports against plan capacity (10 GB) only; direct-Neon branch-prune health was DELETED with its writer |
 | `npm run ops:health:json` | Same as above as JSON | ❌ NO |
 | `npm run ops:neon-prune` | **DOES NOT EXIST.** Removed from `package.json` on 2026-09-20 with the CLI it invoked. Do not run it; it is not a refusing stub. | n/a |
 | `npm run idx:validate` | IDX Plus 32-section validator (1278 checks) | n/a |
@@ -160,7 +164,7 @@ nothing.
 
 | Command | What it would report | Status |
 |---|---|---|
-| **`npm run ops:neon-budget`** | Storage vs. **500 MB budget target** (+ delta) AND vs. 10 GB plan cap; CU-hr vs. **100 CU-hr budget target** AND vs. 300 CU-hr plan baseline; branches vs. **10 budget target** AND vs. 5000 plan cap. Three-column output: budget target / plan capacity / actual. Exit non-zero on budget-critical, regardless of plan-capacity verdict. | **Proposed (§12)** |
+| ~~**`npm run ops:neon-budget`**~~ **WITHDRAWN 2026-09-20 — do not build; see §12.2** | Storage vs. **500 MB budget target** (+ delta) AND vs. 10 GB plan cap; CU-hr vs. **100 CU-hr budget target** AND vs. 300 CU-hr plan baseline; branches vs. **10 budget target** AND vs. 5000 plan cap. Three-column output: budget target / plan capacity / actual. Exit non-zero on budget-critical, regardless of plan-capacity verdict. | **Proposed (§12)** |
 | ops:health extension | Add a "BUDGET" section below "STORAGE" that shows the budget-tier verdict alongside the plan-capacity verdict | **Proposed (§12)** |
 
 ---
@@ -184,7 +188,7 @@ Any PR touching these files MUST include a cost-impact analysis in the PR body. 
 | File | Cost impact |
 |---|---|
 | `vercel.json` (cron schedule) | Every cron tick is a DB query path. Tightening from `*/15` to `*/3` is a 5× compute burn |
-| _(removed 2026-08-07)_ `app/api/cron/db-keepalive/route.ts` | Route DELETED — it was unscheduled since the approved 2026-07 compute reduction (PR #481) and an executable endpoint invites accidental reactivation. The compute-vs-uptime trade-off is documented at line 32 of this file; `lib/db/with-retry.ts` carries the cold-start retry that replaced it. |
+| _(removed 2026-08-07)_ `app/api/cron/db-keepalive/route.ts` | Route DELETED — it was unscheduled since the approved 2026-07 compute reduction (PR #481) and an executable endpoint invites accidental reactivation. The compute-vs-uptime trade-off is documented at the compute-discipline bullet in §1 of this file; `lib/db/with-retry.ts` carries the cold-start retry that replaced it. |
 | `app/api/cron/idx-sync/route.ts` | Sync frequency × records-per-run = compute burn |
 | `app/api/cron/*` (all 23 crons) | Each one adds baseline compute |
 | `lib/prisma.ts` | Connection-pool config affects warm-vs-cold time |
@@ -193,7 +197,7 @@ Any PR touching these files MUST include a cost-impact analysis in the PR body. 
 
 | File | Current disposition |
 |---|---|
-| `lib/neon/branches.ts` | Historical direct-Neon implementation evidence; not current lifecycle authority |
+| ~~`lib/neon/branches.ts`~~ | **DELETED 2026-09-20 — the file does not exist.** Nothing in this table may be changed in it, and the execution gate refuses its return under any filename. |
 | `app/api/cron/neon-branch-prune/route.ts` | **DELETED 2026-09-20.** Route, its Vercel cron and its tests removed. |
 | `scripts/neon-prune-branches.ts` | **DELETED 2026-09-20**, with `lib/neon/branches.ts` and `scripts/branch-prune-health.js`. |
 | `scripts/ops-health.js` | Does not evaluate historical prune audit events as current health |
@@ -209,7 +213,7 @@ Current branch/resource lifecycle evidence comes from the authorized Vercel-mana
 
 ### Out-of-scope (low)
 
-`memory/SESSION-*` archival docs, `docs/architecture/PUBLIC-RECORDS-NEON-PROVISIONING-PLAN.md` (separate project intentionally Free), `tests/runtime/neon-branch-prune-route.test.ts` (test fixtures use fake counts, do not affect budget).
+`memory/SESSION-*` archival docs, `docs/architecture/PUBLIC-RECORDS-NEON-PROVISIONING-PLAN.md` (separate project intentionally Free), the deleted `tests/runtime/neon-branch-prune-route.test.ts` (test fixtures use fake counts, do not affect budget).
 
 ---
 
@@ -241,7 +245,15 @@ Each item below is a separate small PR with its own validation cycle. None are p
 
 **Estimated effort:** ~30 lines in ops-health.js; ~20 line test fixture update.
 
-### §12.2 — New `npm run ops:neon-budget` command
+### §12.2 — ~~New `npm run ops:neon-budget` command~~ — WITHDRAWN 2026-09-20
+
+> **Do not build this.** The design below specifies a command that calls the Neon API
+> with a `NEON_API_KEY`. That is the capability this repository deleted on 2026-09-20,
+> and it is prohibited rather than merely retired: Neon is reached only through the
+> Vercel-managed Marketplace resource. `npm run ops:neon-budget` does not exist and must
+> not be created. The section is kept as the record of a design that was rejected, not as
+> work to pick up. Any future budget check reads through the authorized path or does not
+> happen.
 
 **Scope:** New script `scripts/ops-neon-budget.js`. Pulls live values from Neon API (storage + CU-hr + branch count) AND from the local DB, then prints a three-column report:
 
@@ -280,9 +292,9 @@ Branches         10               5000             17        ❌ over budget
 
 ### §12.4 — No preview branch reliance on paid plan capacity
 
-**Scope:** Hard policy rule, no code change. The branch-prune cron + retention window MUST be designed to keep steady-state ≤ 10 branches even if the plan downgrades to Free.
+**Scope:** Hard policy rule, no code change. **SUPERSEDED 2026-09-20 — there is no branch-prune cron.** It was deleted with the direct-Neon control plane, so the rule below has nothing to govern and is kept as a dated record of the policy that applied while it existed. Preview branch lifecycle is now an unresolved question owned by the Vercel-managed integration, recorded in §11. The original text: the branch-prune cron + retention window MUST be designed to keep steady-state ≤ 10 branches even if the plan downgrades to Free.
 
-**Implementation today (verify, don't change):** retention=24h with daily prune at 04:00 UTC. At steady-state (~1–3 active PRs/day + 1–3 deploys/PR), 24h retention should hold ≤ 10. Recent ops:health smoke showed `examined=17` → 17 is over the budget target; retention may need tightening to 12h (matches the §B option in the older preview-branch-limit audit) if 24h reliably misses target.
+**Implementation as of 2026-07 (HISTORICAL — the prune no longer exists):** retention=24h with daily prune at 04:00 UTC. At steady-state (~1–3 active PRs/day + 1–3 deploys/PR), 24h retention should hold ≤ 10. Recent ops:health smoke showed `examined=17` → 17 is over the budget target; retention may need tightening to 12h (matches the §B option in the older preview-branch-limit audit) if 24h reliably misses target.
 
 **Recommended next step:** observe for 7 days at the current 24h retention; if branch count routinely exceeds 10, ship the 24h→12h retention PR (1-line edit in `lib/neon/branches.ts`).
 
