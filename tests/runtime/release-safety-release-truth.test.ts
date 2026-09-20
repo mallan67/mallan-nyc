@@ -10,7 +10,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 /* eslint-disable @typescript-eslint/no-var-requires */
-const { aggregate, decideExitCode } = require('../../scripts/release-safety/release-truth-verdict.js');
+const {
+  aggregate,
+  decideExitCode,
+  evaluateRequiredCheckRequirement,
+} = require('../../scripts/release-safety/release-truth-verdict.js');
 
 const ROOT = path.resolve(__dirname, '../..');
 
@@ -176,6 +180,87 @@ describe('release-safety P2 — exit-code contract', () => {
   });
 });
 
+describe('release-safety P2 — required-check integration binding', () => {
+  const baseRun = {
+    name: 'secured-check',
+    status: 'completed',
+    conclusion: 'success',
+    startedAt: '2026-09-20T04:59:00Z',
+    completedAt: '2026-09-20T05:00:00Z',
+    url: 'https://example.test/check',
+  };
+
+  test('integration-pinned requirement ignores a same-name check from the wrong GitHub App and legacy status', () => {
+    const result = evaluateRequiredCheckRequirement(
+      { context: 'secured-check', integration_id: 1234 },
+      [{ ...baseRun, appId: 9999 }],
+      [{ context: 'secured-check', state: 'success', target_url: 'https://example.test/status' }],
+    );
+    expect(result.record.present).toBe(false);
+    expect(result.record.state).toBe('absent');
+    expect(result.pending).toBe(true);
+    expect(result.failure).toBeNull();
+  });
+
+  test('newer pending rerun from the required App prevents an older success from satisfying the check', () => {
+    const result = evaluateRequiredCheckRequirement(
+      { context: 'secured-check', integration_id: 1234 },
+      [
+        { ...baseRun, appId: 1234 },
+        {
+          ...baseRun,
+          appId: 1234,
+          status: 'in_progress',
+          conclusion: null,
+          startedAt: '2026-09-20T05:01:00Z',
+          completedAt: null,
+          url: 'https://example.test/check-new',
+        },
+      ],
+      [],
+    );
+    expect(result.record.state).toBe('pending');
+    expect(result.pending).toBe(true);
+    expect(result.failure).toBeNull();
+    expect(result.record.sources).toEqual([
+      expect.objectContaining({ source: 'check-run', app_id: 1234, state: 'in_progress' }),
+    ]);
+  });
+
+  test('integration-pinned requirement passes only with a matching GitHub App check run', () => {
+    const result = evaluateRequiredCheckRequirement(
+      { context: 'secured-check', integration_id: 1234 },
+      [{ ...baseRun, appId: 1234 }],
+      [{ context: 'secured-check', state: 'failure', target_url: 'https://example.test/status' }],
+    );
+    expect(result.record.present).toBe(true);
+    expect(result.record.state).toBe('success');
+    expect(result.record.integration_id).toBe(1234);
+    expect(result.record.sources).toEqual([
+      expect.objectContaining({ source: 'check-run', app_id: 1234, state: 'success' }),
+    ]);
+    expect(result.pending).toBe(false);
+    expect(result.failure).toBeNull();
+  });
+
+  test('unbound requirement may use a legacy commit status but remains conservative when both APIs disagree', () => {
+    const statusOnly = evaluateRequiredCheckRequirement(
+      { context: 'legacy-context', integration_id: null },
+      [],
+      [{ context: 'legacy-context', state: 'success', target_url: 'https://example.test/status' }],
+    );
+    expect(statusOnly.record.state).toBe('success');
+
+    const disagree = evaluateRequiredCheckRequirement(
+      { context: 'legacy-context', integration_id: null },
+      [{ ...baseRun, name: 'legacy-context', appId: 9999, conclusion: 'failure' }],
+      [{ context: 'legacy-context', state: 'success', target_url: 'https://example.test/status' }],
+    );
+    expect(disagree.record.state).toBe('failure');
+    expect(disagree.failure).not.toBeNull();
+  });
+});
+
 describe('release-safety P2 — deploy-validator + workflow wiring pins (static)', () => {
   const normalize = (s: string) => s.replace(/\r\n/g, '\n');
   const releaseStatus = normalize(fs.readFileSync(path.join(ROOT, 'scripts', 'validate-release-status.js'), 'utf8'));
@@ -187,7 +272,23 @@ describe('release-safety P2 — deploy-validator + workflow wiring pins (static)
   });
 
   test('absent required checks are fail-closed into pending', () => {
-    expect(releaseStatus).toMatch(/state: 'absent' \}\);\n\s*evaluation\.evaluation\.pending\.push\(name\);\n\s*continue;/);
+    const result = evaluateRequiredCheckRequirement(
+      { context: 'missing-check', integration_id: null },
+      [],
+      [],
+    );
+    expect(result.record).toEqual(expect.objectContaining({
+      name: 'missing-check',
+      present: false,
+      state: 'absent',
+    }));
+    expect(result.pending).toBe(true);
+    expect(result.failure).toBeNull();
+  });
+
+  test('GitHub proof reads are not truncated at the default page size', () => {
+    expect(releaseStatus).toContain('/check-runs?per_page=100');
+    expect(releaseStatus).toContain('/statuses?per_page=100');
   });
 
   test('a PR target caps at DEPLOY_PREVIEW', () => {
@@ -249,6 +350,8 @@ describe('release-safety P2 — deploy-validator + workflow wiring pins (static)
     expect(releaseStatus).toContain("refs/heads/main");
     expect(releaseStatus).toContain("rule?.type !== 'required_status_checks'");
     expect(releaseStatus).toContain('...rulesetDiscovery.checks');
+    expect(releaseStatus).toContain('check.integration_id');
+    expect(releaseStatus).toContain('appId: Number.isInteger(c.app?.id) ? c.app.id : null');
   });
 
   test('required-check discovery failure stays pending instead of becoming an empty required-check set', () => {
@@ -259,11 +362,10 @@ describe('release-safety P2 — deploy-validator + workflow wiring pins (static)
     expect(releaseStatus).not.toContain("if (!raw) return []");
   });
 
-  test('dynamically required contexts can be satisfied by commit-status evidence as well as check runs', () => {
-    expect(releaseStatus).toContain("const statusContext = dedupedStatuses.find((s) => s.context === name)");
-    expect(releaseStatus).toContain("source: 'commit-status'");
-    expect(releaseStatus).toContain("statusContext.state !== 'success'");
-    expect(releaseStatus).toContain("!cr && !statusContext");
+  test('validator delegates required-context evaluation to the integration-aware pure matcher', () => {
+    expect(releaseStatus).toContain('evaluateRequiredCheckRequirement');
+    expect(releaseStatus).toContain('requiredSpecs.values()');
+    expect(releaseStatus).toContain('integration_id');
   });
 
   test('PR events invoke the aggregator with --pr (the DEPLOY_PREVIEW path), status still on the head SHA', () => {

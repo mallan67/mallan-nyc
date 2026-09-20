@@ -279,124 +279,29 @@ VARIABLE / RESOURCE CONNECTION
 
 No Vercel environment cleanup, Neon resource mutation, branch creation, resource rebinding, credential rotation or destructive cleanup is authorized by this checkpoint.
 
-# 4.1 Live PR #632 closure checkpoint — 2026-09-20
+# 4.1 PR #632 review and proof ledger — 2026-09-20
 
-Exact Codex-reviewed head before this correction: `aa601e760c6c7c0807449c7c2506b0a2c445019b`.
+This is an **execution/review ledger, not an issue registry**. Permanent issue definitions belong only to `docs/PLATFORM-ISSUE-REGISTRY.md`. Review-thread bodies remain the evidence source and are not duplicated here.
 
-At that head GitHub PR checks, Guardrails, Claude review, Release Truth and Vercel were green, but Codex found seven correctness gaps that block merge despite green CI:
+| Reviewed head | Codex review-thread evidence | Disposition recorded in later head |
+|---|---|---|
+| `50ec0083fc` | `PRRT_kwDOPcX5b86kF515`, `PRRT_kwDOPcX5b86kF51_`, `PRRT_kwDOPcX5b86kF52C` | corrected; later exact-head Jest/proof passed |
+| `aa601e760c` | `PRRT_kwDOPcX5b86kGqj_`, `PRRT_kwDOPcX5b86kGqkC`, `PRRT_kwDOPcX5b86kGqkH`, `PRRT_kwDOPcX5b86kGqkM`, `PRRT_kwDOPcX5b86kGqkP`, `PRRT_kwDOPcX5b86kGqkT`, `PRRT_kwDOPcX5b86kGqkV` | corrected; later exact-head proof passed |
+| `017adc08d6` | `PRRT_kwDOPcX5b86kG3Oc`, `PRRT_kwDOPcX5b86kG3Of`, `PRRT_kwDOPcX5b86kG3Oh`, `PRRT_kwDOPcX5b86kG3Oi` | corrected; later exact-head proof passed |
+| `3da2a7427c` | `PRRT_kwDOPcX5b86kG69x`, `PRRT_kwDOPcX5b86kG69y`, `PRRT_kwDOPcX5b86kG690`, `PRRT_kwDOPcX5b86kG691` | corrected; later exact-head proof passed |
+| `9f4be32967` | `PRRT_kwDOPcX5b86kG9Hd`, `PRRT_kwDOPcX5b86kG9Hg`, `PRRT_kwDOPcX5b86kG9Hh` | corrected in `8e4e2e8...` |
+| `8e4e2e8fb6` | `PRRT_kwDOPcX5b86kHG0C`, `PRRT_kwDOPcX5b86kHG0E`, `PRRT_kwDOPcX5b86kHG0F`, `PRRT_kwDOPcX5b86kHG0I` | correction prepared; exact-head proof must restart after commit |
 
-1. directory glob `lib/feature/**` could admit sibling prefix `lib/feature-escape.ts`;
-2. PR/base controller freeze used moving `origin/main` instead of the event's exact base SHA;
-3. authority-root protection probe did not prove the matching ruleset applies to `refs/heads/main`;
-4. the retired direct-Neon prune writer still had a live `ops:health` alarm/CLI consumer that recommended restoring prohibited credentials;
-5. Release Truth timed out into another pending status instead of failing closed;
-6. Release Truth's dependency validator did not include future `authority-root` required-check protection;
-7. this Execution State carried a mutable Master blob/size fingerprint that had already gone stale.
+Exact proof captured for `8e4e2e8fb66b7786cd7aadb0f641926bb8924ac9` before its completed Codex review:
 
-Closure correction in the next head:
-
-- preserve the directory boundary for `/**`;
-- freeze controller/state/diff evaluation to `github.event.pull_request.base.sha`;
-- centralize active-main ruleset proof in the base-controlled execution controller;
-- derive Release Truth required checks from active rulesets that apply to main and fail its bounded wait when proof stays pending/unknown;
-- retire prune-audit health/CLI guidance and keep direct-Neon compatibility surfaces fail-closed;
-- remove mutable Master fingerprints from this handoff;
-- add direct negative tests for every corrected bypass/consumer;
-- update the Master and current Neon authority docs so code and durable architecture agree.
-
-**Do not merge based on the green `aa601e` checks.** Closure requires a new exact-head PR check + Guardrails + Vercel Preview + Release Truth + independent Codex review with no unresolved findings.
-
-# 4.2 Exact-head verification checkpoint — 017adc08 — 2026-09-20
-
-Exact head tested: `017adc08d670e018d4eea934b4979e065d7bdd70`.
-
-Verified before the first failure:
-
+- PR checks: **SUCCESS**, including exact-base preflight, TypeScript, full Jest, RLS, UCBA, CRM, form mapping, CI compliance, REBNY display compliance, Build, and final execution-control proof;
 - Guardrails: **SUCCESS**;
-- exact PR event base-SHA controller freeze: **SUCCESS**;
-- active-main `authority-root` ruleset probe: **SUCCESS** (current ruleset correctly reports `authority-root` is not required yet);
-- Mallan execution-control preflight: **SUCCESS**;
-- Prisma validate/generate + ephemeral CI schema application: **SUCCESS**;
-- TypeScript type-check: **SUCCESS**.
+- Claude Code Review: **SUCCESS**;
+- Vercel Preview: **READY**, commit status **SUCCESS**, and no error/warning/fatal runtime logs in the checked one-hour window;
+- Release Truth: dependency wait **SUCCESS**, aggregator `PREVIEW_PROVEN`, commit status **SUCCESS**;
+- Production proof: **not performed / not claimed**.
 
-Jest result:
-
-- 425 suites passed, 4 skipped, 1 failed;
-- 7,368 tests passed, 30 skipped, 1 failed;
-- sole failure: `glob authorization preserves the directory boundary`;
-- observed CI failure cause: the **test fixture** inherited `impact_graph.writer_paths = ["lib/allowed.ts"]`, which does not exist on the base fixture, so impact-graph validation correctly failed before the test reached the directory-boundary assertion;
-- controller implementation is not weakened. The correction gives that test an existing base writer path and preserves the sibling-prefix negative assertion.
-
-At diagnosis time, Vercel Preview and exact-head Codex review were still running. Release Truth was correctly waiting for exact-head dependencies.
-
-Next action: land only the fixture correction + this handoff checkpoint, then rerun the entire exact-head proof chain. No provider/environment/schema/Production mutation is authorized or performed.
-
-# 4.3 Codex follow-up checkpoint — post-017adc review
-
-Codex's completed review of `017adc08d670e018d4eea934b4979e065d7bdd70` added three implementation findings that remain relevant after the fixture-only `b532a891...` commit:
-
-1. `vercel.json` was still outside `IMMUTABLE_CONTROL_PATHS`, allowing a later ordinary implementation packet with environment authority to re-arm a retired cron;
-2. control arrays accepted non-string entries such as `authorized_paths: [null]`, allowing a state-only update to poison the next base contract;
-3. Release Truth ruleset discovery treated GitHub API failure/malformed data as an empty dynamic required-check set instead of pending/unknown proof.
-
-Correction in the next head:
-
-- protect `vercel.json` in the control root;
-- require every control-array and impact-graph entry to be a non-empty string;
-- make required-check discovery fail closed into `main-ruleset-required-check-discovery` pending state so the bounded Release Truth wait retries and ultimately fails if discovery never recovers;
-- add negative tests for all three.
-- update the Master so schedule authority that can re-arm a retired writer is explicitly control-root protected.
-
-The separate `017adc` Codex fixture finding is already corrected in `b532a891...`.
-
-No Production/provider/environment/schema mutation is authorized or performed by this correction.
-
-# 4.4 Exact-head verification checkpoint — 3da2a742 — 2026-09-20
-
-Exact head tested: `3da2a7427ce40e1be98b410dea0ae7c2921e09dd`.
-
-Verified:
-
-- exact event-base freeze / main ruleset probe / execution preflight: **SUCCESS**;
-- Guardrails: **SUCCESS**;
-- Vercel Preview `dpl_33e4p5moXTGHWN6Jgvckuxa5ZsYB`: **READY** on the exact SHA;
-- exact Preview runtime error/warning/fatal query: **no matching logs**;
-- TypeScript and all pre-Jest PR-check setup: **SUCCESS**.
-
-Jest:
-
-- 425 suites passed, 4 skipped, 1 failed;
-- 7,372 tests passed, 30 skipped, 1 failed;
-- sole failure was a stale static source assertion in `tests/runtime/release-safety-release-truth.test.ts` that still expected the pre-hardening source text `...requiredChecksFromApplicableMainRulesets()`;
-- implementation now intentionally uses `...rulesetDiscovery.checks` so ruleset-discovery failure can remain pending/fail-closed;
-- correction changes only that static assertion plus this handoff checkpoint.
-
-No implementation, provider, environment, schema or Production behavior is weakened by this test correction.
-
-# 4.5 Codex closure checkpoint — 9f4be329 — 2026-09-20
-
-Exact reviewed head: `9f4be329672e16be0fd45c34c5b7b2dfa5843b41`.
-
-The exact-head Codex review identified three new defects, and the prior review left three additional current-state defects that were not code-fixed by the one-file `9f4be329` test-alignment commit:
-
-1. control-root maintenance could delete the base execution controller or required authority workflow;
-2. a dynamically required legacy commit-status context could never settle because Release Truth looked only at check runs;
-3. the current recovery plan still named retired direct-Neon tombstones as active Neon-variable readers;
-4. deleting a declared negative test could still count as changed negative-test proof;
-5. the 017adc checkpoint used the reserved phrase “root cause” without the repository's required evidence score;
-6. Control semantics still said mutation/proof enforcement was unimplemented while §7.1 said it was implemented.
-
-Correction in the next head:
-
-- make the execution controller, `authority-root.yml`, `pr-check.yml` and `branch-authority.yml` non-deletable during control-root maintenance while still allowing in-place maintenance;
-- require declared negative tests to survive at HEAD and reject deletion of a declared test path;
-- settle dynamically required contexts from both GitHub Check Runs and Commit Statuses, conservatively failing/pending if either present source is non-success;
-- remove retired-reader claims and require a fresh exact-head reader/writer/recreator census before any Neon-variable deletion;
-- replace the unscored “root cause” phrase with an observed CI failure description;
-- mark mutation/proof enforcement as implemented but **proof pending**, removing the internal contradiction;
-- update the Master with the same durable rules.
-
-No schema, Vercel environment, Neon/provider, branch-protection, destructive-data, cron execution or Production mutation is authorized or performed by this correction.
+The four `8e4e2e8...` review threads above are the only reason that proof set is not a closure record. Any correction commit invalidates the prior exact-head proof and must rerun the chain.
 
 # 5. Active continuous program
 
@@ -523,197 +428,13 @@ The system is not considered converged until all of the following are simultaneo
 - Preview/Development cannot fall through to Production by absence of an override;
 - no cleanup workflow can recreate, delete or target a provider path outside the current Execution State;
 - exact-head Preview/Production verification and independent review are green.
-## 5.2 Forensic defect register — complete 2026-09-20 session ledger
+## 5.2 Canonical issue ownership
 
-This register captures the entire forensic defect list supplied after the convergence review. It exists so no later agent can reduce the problem back to one branch, one variable, one doc, or one provider.
+Permanent platform issues are defined **only** in `docs/PLATFORM-ISSUE-REGISTRY.md`, which owns the single canonical ID and wording for each issue. This Execution State references registry IDs where a durable issue is carried forward; it does not create a second numbered defect register.
 
-Status labels:
+PR-review findings that are corrected inside the active packet remain review evidence in the PR thread/history rather than becoming parallel issue IDs. Historical observations that may inform later work must be promoted into the Platform Issue Registry before they are treated as actionable platform defects.
 
-- **CONFIRMED-GITHUB** — independently visible in current GitHub code/rules/PR state.
-- **CONFIRMED-VERCEL** — measured through the authorized Vercel project path during this session.
-- **HISTORICAL-EVIDENCE** — prior repo/provider evidence that must not be treated as current live state without re-verification.
-- **LOCAL-ONLY** — machine-local condition; not execution authority.
-- **REVERIFY-BEFORE-MUTATION** — plausible/proven earlier, but must be re-read through the current authorized path immediately before any destructive or provider mutation.
-
-### A. Agent-analysis failures that must not be repeated
-
-1. **Bounded-read → absolute-history error.** "hidden-mountain has had exactly one branch ever" was false. Historical repo evidence records 8 branches on 2026-05-17 and approximately 40 on 2026-06-01. **HISTORICAL-EVIDENCE / CONTRADICTION CLOSED IN THIS STATE.**
-2. **Prune-history overreach.** "The prune cron never pruned anything" was false; prior repository evidence includes a populated `pruned_branches` result. **HISTORICAL-EVIDENCE.**
-3. **Unsupported stop-date inference.** "Preview branching stopped 2026-06-02" was not proven. **DO NOT REPEAT.**
-4. **`vercel env ls` mistaken for effective env.** Project-list output is not sufficient proof of effective deployment values. **CONTROL RULE ADDED.**
-5. **Branch context omitted from a Cotality-doc claim.** A broken Cotality authority row existed on a branch, not current `main`; branch identity must accompany every repo fact.
-6. **Empty-vs-absent parser error.** Present-but-empty variables must not be reported as absent.
-7. **Repo SQL mistaken for live schema authority.** Objects in `sql/apply_all.sql` are not automatically production parity requirements.
-8. **Descriptive impact surfaces misclassified.** `downstream_surfaces` / `compliance_surfaces` are prose arrays by design; the real controller defect is lack of enforcement of mutation/proof fields.
-9. **Wrong provider route chased.** Direct Neon access is not an authorized Mallan execution path; Neon evidence/mutation must be mediated through Vercel.
-10. **More prose proposed as enforcement.** Large doc headers are not a control mechanism and are rejected as the convergence solution.
-11. **"Another sweep" as substitute for closure.** Contradictions now require a control update, not another unbounded audit.
-12. **Vercel provider capability understated.** Vercel deployment integration actions can manage provider behavior; do not assume Vercel is read-only.
-13. **Enforcement layer read too late.** Future work starts with GitHub rules/workflows/controller/provider binding before subordinate docs.
-14. **Provider facts taken from secondary guidance.** Cotality quotas/semantics must come from live provider contract/current provider docs, not skill prose or stale repo docs.
-15. **Scratchpad proliferation.** Temporary artifacts are not authority and may not become durable state.
-16. **Worktree existence assumed instead of verified.** Git state must be read before branch/worktree instructions are given.
-
-### B. Control-plane blockers
-
-17. **`authority-root` is not a required check.** Live `Protect main` ruleset `19435006` currently requires only `pr-check`. **CONFIRMED-GITHUB.**
-18. **CORRECTION INCLUDED IN #632; exact-head proof pending.** Six mutation booleans were declared but not read by the controller: `production_mutation_authorized`, `schema_migration_authorized`, `environment_mutation_authorized`, `neon_mutation_authorized`, `destructive_data_authorized`, `manual_cron_authorized`. **CONFIRMED-GITHUB.**
-19. **CORRECTION INCLUDED IN #632; exact-head proof pending.** Entire `requirements.*` block was not read by the controller. **CONFIRMED-GITHUB.**
-20. **CORRECTION INCLUDED IN #632; exact-head proof pending.** `provider_proof_required` was shape-validated only; corrected gating now fails closed unless the base-controlled workflow supplies each required proof token. **CONFIRMED-GITHUB.**
-21. `impact_domains` is required in implementation mode but does not itself gate detected change classes. **CONFIRMED-GITHUB.**
-22. **CORRECTION INCLUDED IN #632; exact-head proof pending.** Control-root maintenance was undefined; corrected design requires state-only entry, live proof that `authority-root` is required, a separate root PR evaluated by the base controller, and a state-only exit. **CONFIRMED-GITHUB.**
-23. Tracked `.githooks/` were reported locally as disarmed because local `core.hooksPath` pointed at empty `.git/hooks`. This cannot be guaranteed from GitHub alone and is **LOCAL-ONLY / not a durable boundary**.
-24. `.claude/` specialist agents/skills/settings are ignored/untracked and therefore not portable enforcement. **CONFIRMED-GITHUB for ignore/distribution shape; local contents are LOCAL-ONLY.**
-
-### C. Vercel control-plane defects
-
-25. Development bare `DATABASE_URL` / `DATABASE_URL_UNPOOLED` were previously measured pointing at Production. **CONFIRMED-VERCEL earlier in this session; REVERIFY-BEFORE-MUTATION.**
-26. Bare `NEON_API_KEY`, `NEON_PREVIEW_API_KEY`, `NEON_PROJECT_ID` were previously reported present-but-empty. **CONFIRMED-VERCEL earlier; REVERIFY-BEFORE-MUTATION.**
-27. Stored `VERCEL_TOKEN` was reported invalid to the Vercel API. **HISTORICAL-EVIDENCE / REVERIFY before any credential decision.**
-28. `ASSISTANT_DATABASE_URL` points at Production across environments and `.github/workflows/rotate-db-keys.yml` writes it to both GitHub Actions and Vercel Production, so deleting only the variable would allow recreation. **Writer path CONFIRMED-GITHUB; live value REVERIFY-BEFORE-MUTATION.**
-29. Integration-owned `database_*` family spans Production/Preview/Development and includes DB credentials. **CONFIRMED-VERCEL.**
-30. Five stale branch-scoped configurations exist; two were reported empty, two reference endpoint IDs not known to the current Vercel-connected resource path, one references temporary QA. **Branch-scope count CONFIRMED-VERCEL; endpoint liveness REVERIFY via authorized Vercel path.**
-31. Resource scope was reported as `All Environments`, likely inherited from prior connection setup rather than a deliberately documented architecture decision. **REVERIFY-BEFORE-MUTATION.**
-32. Sprawl measurement: **100 Vercel env entries / 78 unique keys / 24 branch-scoped entries across 5 branch configurations. CONFIRMED-VERCEL.**
-
-### D. Neon/provider-state evidence that must be re-grounded through Vercel
-
-The following observations were obtained in earlier work partly through direct Neon tooling. Because Mallan's authorized Neon path is Vercel-managed, they are **not sufficient execution authority** until re-read through Vercel/provider integration evidence:
-
-33. Production branch protection was reported `false`.
-34. `morning-bread` was reported at 10/10 branches, including nine historical parent-data copies.
-35. `lively-leaf` was reported as temporary QA tied to PR #627.
-36. Endpoint IDs `ep-rapid-sea-add131is` and `ep-royal-thunder-adgxj9ow` were present in Vercel branch overrides but not found in the earlier Neon inventory.
-37. `round-recipe-12208101` is named in repo docs but was not reachable in the earlier provider inventory.
-38. Production schema was reported as 82 public tables vs 76 Prisma models, plus `neon_auth` and `repack`.
-39. `financial_ledger` and `micro_commitments` were reported live with no Prisma model / 0 rows.
-
-**Rule:** none of 33–39 authorizes a delete, rename, protect-toggle, schema change, or provider cleanup until the fact is reproduced through the Vercel-managed resource path.
-
-### E. Live code hazards that affect convergence safety
-
-40. **CORRECTED IN #632; exact-head proof pending.** `.github/workflows/cleanup-neon-preview-branch.yml` formerly inverted the production/preview model and could issue direct Neon DELETE on PR close. The current correction replaces it with a manual fail-closed tombstone that loads no provider secret and always refuses.
-41. `lib/email/sendgrid.ts` has no top-level Vercel-environment delivery prohibition; SMTP configuration plus caller behavior governs delivery. Preview email safety must be proven at callers/config, not assumed from file name or environment. **CONFIRMED-GITHUB.**
-42. Twelve cron routes were reported to fail open without `CRON_SECRET`. **REVERIFY as a grouped code audit before any cron/auth hardening packet.**
-43. `lib/prisma.ts` was reported force-loading `.env.local` with `override:true`, creating a local target-authority hazard. **REVERIFY-GITHUB before correction.**
-44. Two contradictory environment-precedence regimes were reported: dotenv override vs Node `--env-file-if-exists`. **REVERIFY as one env-authority impact graph.**
-45. `scripts/seed-agents.ts` force-loads `.env.local` and can create agents with `password_hash`. **CONFIRMED-GITHUB.**
-46. `scripts/reset-password.js` uses ambient Prisma target and can create/update the broker account/password hash. **CONFIRMED-GITHUB.**
-47. 54/159 write routes were reported not to call `assertWriteAllowed`, including cron/auth routes. **REVERIFY as a full writer census before global gate rollout.**
-48. `sql/apply_all.sql` contains schema-changing SQL against deals/splits and view/function creation; its actual production applicability is disputed and it is not a safe bootstrap authority. **CONFIRMED-GITHUB for contents; live parity requires provider proof.**
-49. `npm run ops:health` was reported permanently false-critical. **REVERIFY-GITHUB/runtime before changing health semantics.**
-50. `npm run ops:storage-audit` was reported arithmetically stale after the Launch-plan migration. **REVERIFY.**
-51. `prisma migrate deploy` was reported unable to reconstruct the full live schema, while CI uses `db push`. **REVERIFY with schema-impact proof; do not bootstrap from this assumption.**
-52. `/agents` zero-row behavior was reported to produce a persistent loading skeleton. **Product/runtime defect; separate from control-plane cleanup.**
-53. `dev-login` comment/code mismatch was reported for localhost restriction. **REVERIFY before auth packet.**
-54. `@allow-destructive` exemption was reported file-wide rather than statement-scoped. **REVERIFY before destructive-operation governance packet.**
-
-### F. Documentation / status drift
-
-55. `NEON.md` contains stale statements about `NEON_PROJECT_ID`.
-56. Multiple governance/provider docs on PR #632 carried the retracted "one branch ever" conclusion and require correction before merge.
-57. `CLAUDE.md` references a repo-relative `.claude/skills/rebny-compliance/SKILL.md` while `.claude/` is not tracked as a portable repo control.
-58. Broken/stale doc pointers were reported on `main`, including old cron/scripts/portal/read-only/archive paths. Each pointer must be individually classified as stale prose vs missing required component; no bulk auto-rewrite.
-59. Repo docs contain mutually inconsistent branch-count records (including historical self-corrections that did not propagate). Mutable counts must not be copied into durable authority without timestamp/source.
-60. `scripts/ops-health.js` contains stale branch-count/project-ambiguity commentary and references a NEON.md heading that may no longer exist. **CONFIRMED-GITHUB for stale commentary shape; exact pointer requires correction packet.**
-61. OPS-022 remains disputed/unresolved in historical issue evidence. It is not silently closed by convergence.
-62. **CORRECTION INCLUDED IN #632; exact-head proof pending.** Release Truth now waits boundedly for exact-head dependencies and fails closed instead of finishing with a durable pending status. **CONFIRMED-GITHUB for correction shape; runtime closure pending.**
-
-### G. Local filesystem sprawl — not execution authority, but cleanup debt
-
-63. Approximately 10 dead worktree directories / ~11.5 GB were reported under the Desktop estate.
-64. Approximately ~20 GB total Mallan checkout/worktree footprint was reported.
-65. Claude session/scratch data was reported at hundreds of MB.
-66. Three non-git copies were reported.
-67. Local git hooks/configuration can differ from repo intent.
-68. Local cleanup must be handled only after unpushed/uncommitted evidence is proven unnecessary; **none of this local state may drive GitHub/provider architecture decisions.**
-
-### 5.2.1 Dependency-ordered recovery graph
-
-The defects above are not 68 independent tasks. They collapse into eight root workstreams:
-
-```text
-R1 GOVERNANCE ROOT
-  B17–B24 + F62
-  → make enforcement real before cleanup can recreate nothing
-
-R2 GIT ESTATE
-  37 branches + 24 open PRs + 12 no-PR diverged branches
-  → reconcile unique work before retirement
-
-R3 VERCEL BRANCH SCOPES
-  C25–C32
-  → remove manual branch overrides only after Git/deployment proof
-
-R4 PROVIDER RESOURCE CONTRACT
-  D33–D39
-  → re-prove through Vercel-managed Neon path; no direct-Neon authority
-
-R5 DANGEROUS WRITERS
-  E40, E45, E46, rotate-db-keys, prune routes/workflows
-  → quarantine/correct writers before deleting their inputs
-
-R6 ENV / DB TARGET AUTHORITY
-  E43–E44 + bare DB variables + integration variables
-  → one deterministic precedence model; no silent Production fallback
-
-R7 DOC / OBSERVABILITY TRUTH
-  F55–F62
-  → subordinate docs generated/verified from active controls, not copied claims
-
-R8 LOCAL HYGIENE
-  G63–G68
-  → clean only after GitHub convergence; never part of execution authority
-```
-
-### 5.2.2 Safe correction order
-
-The safe end-to-end order is:
-
-1. **Quarantine the ability to create more divergence.**
-   - Correct #632 controller enforcement and control-root maintenance.
-   - Correct Release Truth finalization.
-   - Correct the semantic GitHub-only authority test.
-   - Correct false Neon/provider claims in the changed governance docs.
-2. **Merge #632 only when its exact head satisfies its own criteria.**
-3. **Activate `authority-root` in `Protect main` with explicit Maya authorization.**
-4. **Run one read-only branch/PR reconciliation ledger over all 36 non-main branches.**
-5. **Quarantine dangerous provider writers before cleanup.**
-   - The PR-close Neon cleanup workflow must not retain an inverted production/preview model.
-   - Rotation/prune writers must not be able to recreate deleted variables or target retired identities.
-6. **Retire Vercel branch-scoped overrides one branch at a time.**
-   - prove Git content disposition;
-   - prove deployment reachability;
-   - prove no fallback-to-Production;
-   - remove manual override;
-   - redeploy/verify;
-   - then close/delete Git branch.
-7. **Normalize the single Vercel Marketplace resource connection.**
-   - one resource;
-   - deliberate environment scope;
-   - integration-owned vars managed only by the integration.
-8. **Reconcile bare DB/control variables and every writer.**
-   - remove/rename nothing until recreation paths are removed or intentionally retained.
-9. **Re-prove provider state through Vercel.**
-   - branch/protection/endpoint/schema facts that came from direct Neon tooling are reclassified from historical evidence to live authority only after Vercel-path proof.
-10. **Retire stale PRs/branches in verified batches.**
-11. **Run final no-parallel-path proof** across GitHub, Vercel env scopes, Vercel resource binding, workflows/crons, runtime DB identity and exact deployments.
-12. **Only then resume product packets.**
-
-### 5.2.3 Non-negotiable safety properties during convergence
-
-- No branch rename as a substitute for reconciliation.
-- No endpoint/project ID string substitution as a substitute for provider proof.
-- No individual deletion of integration-owned `database_*` variables.
-- No deletion of a variable while an active workflow can recreate it.
-- No deletion of a Git branch while Vercel still has a branch-scoped override for that branch.
-- No deletion of a Vercel branch override until current/historical deployment reachability is classified.
-- No provider cleanup until dangerous deletion/rotation/prune writers are quarantined or corrected.
-- No Development/Preview design that can fall through to Production when a variable is absent.
-- No direct-Neon observation promoted to current execution truth.
-- No local file/worktree state promoted to project authority.
-- No closure claim until the final inventory proves the old path cannot be recreated.
-
+The dependency-ordered recovery sequence for the current convergence program is §5.1 (Phases A–H). It is execution sequencing, not a second issue registry.
 
 # 6. Mandatory closure model
 

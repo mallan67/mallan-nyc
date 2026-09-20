@@ -7307,7 +7307,7 @@ If live GitHub rules do not prove `authority-root` is required **by an active br
 
 Control-root maintenance may change the protected evaluator and required-check workflows **in place**, but it may not delete the base execution controller or the workflows that preserve the authority boundary (`authority-root`, `pr-check`, `branch-authority`). Their continued existence is part of the maintenance proof.
 
-Release/deploy truth must wait for every required status check applicable to `main` plus the Mallan stable proof checks. A required context may be published through the GitHub Checks API or the legacy Commit Statuses API; if both are present, pending/failing evidence is not ignored. Required-check/ruleset discovery failure remains UNVERIFIED/PENDING. If the bounded wait expires while any dependency remains pending/unknown, Release Truth fails closed; it does not publish a durable pending state and call the run complete.
+Release/deploy truth must wait for every required status check applicable to `main` plus the Mallan stable proof checks. A required context may be published through the GitHub Checks API or the legacy Commit Statuses API; if both are present, pending/failing evidence is not ignored. **When GitHub's ruleset pins a required context to an `integration_id`, only a Check Run emitted by that exact GitHub App may satisfy it; a same-named legacy status or different App is not equivalent proof.** Required-check/ruleset discovery failure remains UNVERIFIED/PENDING. If the bounded wait expires while any dependency remains pending/unknown, Release Truth fails closed; it does not publish a durable pending state and call the run complete.
 
 Exact workflow names, current branch and current GitHub ruleset status remain mutable Execution State facts.
 
@@ -7355,5 +7355,7 @@ A deployment/schedule authority file such as `vercel.json` is part of the protec
 This Master owns durable business architecture and proof rules.
 
 If the Execution State conflicts with the Master on architecture, the Master wins. If the Master contains temporary status, move that status out rather than treating it as durable architecture.
+
+Permanent defect/issue definitions and IDs belong only to `docs/PLATFORM-ISSUE-REGISTRY.md`. The Execution State may reference canonical registry IDs and PR review-thread IDs as execution evidence, but it must not create a second numbered defect register or duplicate issue descriptions.
 
 ---

@@ -30,6 +30,7 @@
  */
 
 const { execSync } = require('child_process');
+const { evaluateRequiredCheckRequirement } = require('./release-safety/release-truth-verdict.js');
 
 // ─── CLI ─────────────────────────────────────────────────────────────────
 const args = process.argv.slice(2);
@@ -115,8 +116,8 @@ if (!repo) {
   process.exit(1);
 }
 
-const checkRunsRaw = gh(`api repos/${repo}/commits/${resolvedSha}/check-runs`);
-const statusesRaw = gh(`api repos/${repo}/commits/${resolvedSha}/statuses`);
+const checkRunsRaw = gh(`api repos/${repo}/commits/${resolvedSha}/check-runs?per_page=100`);
+const statusesRaw = gh(`api repos/${repo}/commits/${resolvedSha}/statuses?per_page=100`);
 
 let checkRuns = [];
 let statuses = [];
@@ -127,8 +128,10 @@ try {
       name: c.name,
       status: c.status,
       conclusion: c.conclusion,
+      startedAt: c.started_at,
       completedAt: c.completed_at,
       url: c.details_url,
+      appId: Number.isInteger(c.app?.id) ? c.app.id : null,
     }));
   }
   if (statusesRaw) {
@@ -240,7 +243,7 @@ function requiredChecksFromApplicableMainRulesets() {
     return { ok: false, checks: [], reason: 'ruleset-list-not-array' };
   }
 
-  const contexts = new Set();
+  const specs = new Map();
   for (const item of list) {
     if (item?.enforcement !== 'active' || item?.target !== 'branch') continue;
     const detailRaw = gh(`api repos/{owner}/{repo}/rulesets/${item.id}`);
@@ -257,11 +260,14 @@ function requiredChecksFromApplicableMainRulesets() {
     for (const rule of detail.rules || []) {
       if (rule?.type !== 'required_status_checks') continue;
       for (const check of rule?.parameters?.required_status_checks || []) {
-        if (typeof check?.context === 'string' && check.context) contexts.add(check.context);
+        if (typeof check?.context !== 'string' || !check.context) continue;
+        const integrationId = Number.isInteger(check.integration_id) ? check.integration_id : null;
+        const key = check.context + '\u0000' + String(integrationId ?? 'any');
+        specs.set(key, { context: check.context, integration_id: integrationId });
       }
     }
   }
-  return { ok: true, checks: [...contexts], reason: null };
+  return { ok: true, checks: [...specs.values()], reason: null };
 }
 
 const rulesetDiscovery = requiredChecksFromApplicableMainRulesets();
@@ -275,70 +281,29 @@ if (!rulesetDiscovery.ok) {
   evaluation.evaluation.pending.push('main-ruleset-required-check-discovery');
 }
 
-const REQUIRED_CHECK_NAMES = [...new Set([
-  'pr-check',
-  'guardrails',
-  'claude-review',
+const requiredSpecs = new Map();
+for (const spec of [
+  { context: 'pr-check', integration_id: null },
+  { context: 'guardrails', integration_id: null },
+  { context: 'claude-review', integration_id: null },
   ...rulesetDiscovery.checks,
-])];
-for (const name of REQUIRED_CHECK_NAMES) {
-  const cr = checkRuns.find((c) => c.name === name);
-  const statusContext = dedupedStatuses.find((s) => s.context === name);
+]) {
+  const key = spec.context + '\u0000' + String(spec.integration_id ?? 'any');
+  requiredSpecs.set(key, spec);
+}
 
-  if (!cr && !statusContext) {
-    // Fail closed: a required context absent from both Checks and Statuses APIs
-    // is pending evidence, never a pass.
-    evaluation.evaluation.required_checks.push({ name, present: false, state: 'absent' });
-    evaluation.evaluation.pending.push(name);
-    continue;
-  }
+for (const requirement of requiredSpecs.values()) {
+  const result = evaluateRequiredCheckRequirement(requirement, checkRuns, dedupedStatuses);
+  evaluation.evaluation.required_checks.push(result.record);
 
-  const sources = [];
-  let contextPending = false;
-  let contextFailure = null;
-
-  if (cr) {
-    const crState = cr.status === 'completed' ? cr.conclusion : cr.status;
-    sources.push({ source: 'check-run', state: crState, url: cr.url });
-    if (cr.status !== 'completed') {
-      contextPending = true;
-    } else if (!['success', 'neutral', 'skipped'].includes(cr.conclusion)) {
-      contextFailure = { detail: `check-run conclusion=${cr.conclusion}`, url: cr.url };
-    }
-  }
-
-  if (statusContext) {
-    sources.push({
-      source: 'commit-status',
-      state: statusContext.state,
-      url: statusContext.target_url,
-    });
-    if (statusContext.state === 'pending') {
-      contextPending = true;
-    } else if (statusContext.state !== 'success') {
-      contextFailure = {
-        detail: `commit-status state=${statusContext.state}`,
-        url: statusContext.target_url,
-      };
-    }
-  }
-
-  const state = contextFailure ? 'failure' : contextPending ? 'pending' : 'success';
-  evaluation.evaluation.required_checks.push({
-    name,
-    present: true,
-    state,
-    sources,
-  });
-
-  if (contextFailure) {
+  if (result.failure) {
     evaluation.evaluation.blocking_failures.push({
-      name,
-      detail: contextFailure.detail,
-      url: contextFailure.url,
+      name: requirement.context,
+      detail: result.failure.detail,
+      url: result.failure.url,
     });
-  } else if (contextPending) {
-    evaluation.evaluation.pending.push(name);
+  } else if (result.pending) {
+    evaluation.evaluation.pending.push(requirement.context);
   }
 }
 

@@ -1,32 +1,30 @@
 # trestle-fields MCP server
 
-Live Cotality field/enum lookup for the RLS resources. Parses the **live**
-`https://api.cotality.com/trestle/odata/$metadata` (OAuth2 client_credentials, same creds as
-`lib/idx/auth.ts`), refreshes it on a **10-min TTL** (`TRESTLE_METADATA_TTL_MS`) — aligned to the
-system's Cotality `idx-sync` cadence unless Cotality specifies otherwise — and exposes 4 tools:
-`trestle_lookup_field`, `trestle_list_fields`, `trestle_get_picklist`, `trestle_validate_field`.
+Optional local developer helper for live Cotality/Trestle field and enum lookup. It parses the **live**
+`$metadata` contract using OAuth2 client credentials and exposes:
+`trestle_lookup_field`, `trestle_list_fields`, `trestle_get_picklist`, and
+`trestle_validate_field`.
 
-Source of truth is the **live Cotality API only**. If the live fetch fails it falls back to
-`artifacts/metadata.xml` (a current-format snapshot), never a hardcoded field list.
+## Authority and failure behavior
 
-## ⚠️ HARD RULE — rebuild + reload after any change
+- The source of field/enum truth is the **live authorized Cotality/Trestle contract**.
+- **No local snapshot fallback is permitted.** If OAuth or live `$metadata` access fails, the helper fails closed and the dependent provider fact remains unverified.
+- `artifacts/metadata.xml`, when present elsewhere in the repo, is historical/diagnostic evidence only and must never satisfy live provider proof.
+- This local MCP helper is optional convenience, not the provider authority itself.
 
-`dist/` is **gitignored**. `.mcp.json` runs `mcp/trestle-fields/dist/index.js`, so editing
-`index.ts` does **nothing** at runtime until you rebuild — and a running MCP server keeps the
-**old** `dist` loaded until it is reloaded.
+## Runtime path
 
-**After merging any change here (or pulling one):**
+Checked-in `.mcp.json` runs the TypeScript source directly:
 
-```bash
-cd mcp/trestle-fields
-npm install      # first time only
-npm run build    # regenerate dist/index.js  ← REQUIRED
+```text
+npx --no-install tsx mcp/trestle-fields/index.ts
 ```
 
-Then **reload the MCP server** (restart the Claude Code session / MCP host). Skipping this means
-the code is "fixed" but the running server still uses the old build.
+There is no checked-in or required `dist` runtime for this MCP configuration. The root project dependencies must already be installed so `tsx` and the MCP SDK are available.
 
-> Any PR that changes this server MUST state the rebuild + reload requirement in its description.
+After changing `index.ts` or this MCP configuration, restart/reload the MCP host so the running process loads the new source. **Do not run a build merely to regenerate an ignored `dist` file; `.mcp.json` does not execute it.**
+
+The helper caches successfully fetched live metadata in memory for the configured TTL. That cache is process-local and does not become a fallback after a fresh live fetch fails once the cache is expired.
 
 ## Fix history
 

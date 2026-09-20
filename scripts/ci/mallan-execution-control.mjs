@@ -25,6 +25,7 @@ const IMMUTABLE_CONTROL_PATHS = new Set([
   ".github/workflows/pr-check.yml",
   ".github/workflows/release-truth.yml",
   "scripts/validate-release-status.js",
+  "scripts/release-safety/release-truth-verdict.js",
   "tests/runtime/mallan-execution-control.test.ts",
   "tests/runtime/agent-authority-live-source.test.ts",
   "tests/runtime/release-safety-release-truth.test.ts",
@@ -49,7 +50,7 @@ const NONDELETABLE_CONTROL_ROOT_PATHS = new Set([
 
 const BOOTSTRAP_ALLOWED = new Set([
   "AGENTS.md", "CLAUDE.md", "MALLAN-PLATFORM-MASTER-PLAN.md", "NEON.md",
-  ".mcp.json", "mcp/trestle-fields/index.ts",
+  ".mcp.json", "mcp/trestle-fields/index.ts", "mcp/trestle-fields/README.md",
   "docs/architecture/NEON-COST-CONTROL-POLICY.md",
   "docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md",
   "docs/audits/zero-billing-neon-vercel-2026-06-12.md",
@@ -57,6 +58,7 @@ const BOOTSTRAP_ALLOWED = new Set([
   "docs/superpowers/plans/2026-06-12-return-neon-to-free-tier-P2-MONEY.md",
   "docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md",
   "scripts/ci/mallan-execution-control.mjs", "scripts/validate-release-status.js",
+  "scripts/release-safety/release-truth-verdict.js",
   "tests/runtime/agent-authority-live-source.test.ts",
   "tests/runtime/mallan-execution-control.test.ts",
   "tests/runtime/release-safety-release-truth.test.ts",

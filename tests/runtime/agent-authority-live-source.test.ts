@@ -55,9 +55,24 @@ describe("agent authority docs stay on live sources", () => {
     expect(auth).toContain('scope: "api"');
     expect(auth).toContain("data.expires_in");
 
+    const readme = read("mcp/trestle-fields/README.md");
+    expect(readme).toContain("mcp/trestle-fields/index.ts");
+    expect(readme).toContain("No local snapshot fallback");
+    expect(readme).not.toContain("dist/index.js");
+    expect(readme).not.toContain("falls back to");
+
     const agents = read("AGENTS.md");
     expect(agents).toContain("optional local developer helper");
     expect(agents).toContain("authorized live Cotality/Trestle contract");
+  });
+
+  test("Execution State does not create a parallel defect-ID registry", () => {
+    const state = read("docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md");
+    expect(state).toContain("docs/PLATFORM-ISSUE-REGISTRY.md");
+    expect(state).not.toContain("Forensic defect register");
+    expect(state).not.toContain("B17–B24");
+    expect(state).not.toContain("C25–C32");
+    expect(state).not.toContain("G63–G68");
   });
 
   test("Neon authority is Vercel-managed and lifetime-history overclaims stay out", () => {
