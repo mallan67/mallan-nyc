@@ -89,7 +89,17 @@ function changedFiles(baseRef) {
   if (!out) return [];
   return out.split("\n").filter(Boolean).map((line) => {
     const parts = line.split("\t");
-    return { status: parts[0], path: parts[parts.length - 1] };
+    const status = parts[0];
+
+    if (status.startsWith("R") || status.startsWith("C")) {
+      return {
+        status,
+        sourcePath: parts[1],
+        path: parts[2],
+      };
+    }
+
+    return { status, sourcePath: null, path: parts[1] };
   });
 }
 
@@ -219,6 +229,19 @@ function main() {
   const baseRef = process.env.MALLAN_BASE_REF || "origin/" + baseBranch;
 
   const changes = changedFiles(baseRef);
+
+  const renameOrCopyChanges = changes.filter(
+    (item) => item.status.startsWith("R") || item.status.startsWith("C")
+  );
+  if (renameOrCopyChanges.length) {
+    fail(
+      "Renames/copies are not permitted by the Mallan execution gate because both source and destination authority must be reviewed explicitly.\n" +
+      renameOrCopyChanges
+        .map((item) => "  - " + item.status + ": " + item.sourcePath + " -> " + item.path)
+        .join("\n")
+    );
+  }
+
   const changedPaths = changes.map((item) => item.path);
 
   const baseMaster = readBaseFile(baseRef, MASTER_PATH);
@@ -304,7 +327,26 @@ function main() {
         changedPaths.map((filePath) => "  - " + filePath).join("\n")
       );
     }
-    pass("Control-update PR is limited to the canonical Execution State.");
+
+    let proposedControl;
+    try {
+      const proposedState = git(["show", "HEAD:" + STATE_PATH]);
+      proposedControl = parseControl(proposedState);
+      validateControl(proposedControl);
+      validateImpactPaths(proposedControl, baseRef);
+    } catch (error) {
+      fail("Proposed execution contract is invalid: " + error.message);
+    }
+
+    if (proposedControl.base_branch !== baseBranch) {
+      fail(
+        "Proposed execution contract targets base " +
+        proposedControl.base_branch +
+        "; control updates must remain anchored to " + baseBranch + "."
+      );
+    }
+
+    pass("Control-update PR is limited to a valid canonical Execution State.");
     return;
   }
 
