@@ -791,6 +791,56 @@ describe("Mallan execution-control gate", () => {
     expect(gate(cwd).status).not.toBe(0);
   });
 
+  // A template EXPRESSION is code, not string text. Treating the whole backtick literal
+  // as opaque meant a line comment inside ${ } never reached the comment scanner, and a
+  // line comment cannot be removed by the block-only reading either, so all three
+  // readings went blind on a literal that really does evaluate to the prohibited host.
+  test("a comment inside a template expression is still removed", () => {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+    });
+    const cwd = initRepo(control);
+    const tick = String.fromCharCode(96);
+    const dollar = String.fromCharCode(36);
+    write(cwd, "lib/feature/reader.ts", [
+      "export const endpoint = " + tick + "https://console." + dollar + "{",
+      "  " + JSON.stringify("") + " // seam",
+      "}neon.tech/api/v2/projects" + tick + ";",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", "reader assembles the host across a template expression");
+    expect(gate(cwd).status).not.toBe(0);
+  });
+
+  // The boundary for template parsing: an ordinary template that interpolates the
+  // connection variable is normal application code and must not be refused.
+  test("an ordinary template interpolation is not a capability signature", () => {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+      impact_graph: {
+        root_owner_paths: ["MALLAN-PLATFORM-MASTER-PLAN.md"],
+        writer_paths: ["lib/feature/reader.ts"],
+        reader_paths: ["lib/feature/reader.ts"],
+        publisher_paths: ["lib/feature/publisher.ts"],
+        downstream_surfaces: ["test downstream"],
+        test_paths: ["tests/runtime/mallan-execution-control.test.ts"],
+        compliance_surfaces: ["none for fixture"],
+      },
+    });
+    const cwd = initRepo(control);
+    const tick = String.fromCharCode(96);
+    const dollar = String.fromCharCode(36);
+    write(cwd, "lib/feature/reader.ts", [
+      "export const label = " + tick + "target=" + dollar + "{process.env.DATABASE_URL}" + tick + "; // ordinary",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", "reader interpolates the connection variable normally");
+    expect(gate(cwd).stderr).not.toContain("Direct Neon control-plane capability is prohibited");
+  });
   // Second time one line blinded a reading: a regex literal may contain a slash pair, and
   // treating it as a comment ate the rest of the line. The scanner now only reads a slash
   // as a regex where a value may begin, and a third reading removes block comments alone,

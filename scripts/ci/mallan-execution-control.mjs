@@ -157,18 +157,49 @@ function collapseForCapabilityScan(body) {
 // "https://console.neon.tech" at its own "//" and erases the signature it is looking for.
 // So both readings are scanned. A signature has to survive BOTH to stay hidden, and it
 // cannot: the seam form needs the comments gone, the plain URL form needs them kept.
+// Remove comments while leaving everything else byte for byte. Three things make this
+// harder than a regex, and each of them was a live bypass before it was handled:
+//   a string may contain //           "x//" is not a comment
+//   a regex literal may contain //    /x\/\// is not a comment
+//   a template EXPRESSION is code     `a${ "" // seam
+//                                     }b` really does concatenate a and b
+// The last one is why a backtick literal cannot be treated as opaque text. Everything
+// between ${ and its matching } is ordinary code and gets ordinary comment handling,
+// including nested templates.
 function stripSourceComments(body) {
   const text = String(body);
   let out = "";
   let i = 0;
-  // The last non-whitespace character seen outside a string or comment.
-  let last = "";
+  let last = "";            // last significant char in code, for the regex test
+  let inTemplate = false;   // inside the TEXT of a template literal
+  const expressionDepths = [];  // brace depth at which each open ${ closes
+  let braceDepth = 0;
+
   while (i < text.length) {
     const ch = text[i];
     const next = text[i + 1];
-    // Inside a string, a slash is a slash. Copy the whole literal through, honouring
-    // backslash escapes so an escaped quote does not end it early.
-    if (ch === "'" || ch === '\"' || ch === String.fromCharCode(96)) {
+
+    if (inTemplate) {
+      if (ch === String.fromCharCode(92)) { out += ch; if (i + 1 < text.length) out += text[i + 1]; i += 2; continue; }
+      if (ch === "$" && next === "{") {
+        // Back into code. Remember the depth this expression returns at.
+        out += "${";
+        expressionDepths.push(braceDepth);
+        braceDepth += 1;
+        inTemplate = false;
+        last = "{";
+        i += 2;
+        continue;
+      }
+      if (ch === String.fromCharCode(96)) { out += ch; inTemplate = false; last = ch; i += 1; continue; }
+      out += ch;
+      i += 1;
+      continue;
+    }
+
+    // A quoted string. Copy it through, honouring escapes so an escaped quote does not
+    // end it early.
+    if (ch === "'" || ch === '\"') {
       const quote = ch;
       last = quote;
       out += ch;
@@ -181,9 +212,11 @@ function stripSourceComments(body) {
       }
       continue;
     }
-    // A slash where a VALUE may begin opens a regex literal, not a comment. Without
-    // this, /\/\// reads as a comment and eats the rest of the line.
-    if (ch === "/" && (next !== "/" && next !== "*") && regexMayStart(last)) {
+
+    if (ch === String.fromCharCode(96)) { out += ch; inTemplate = true; i += 1; continue; }
+
+    // A slash where a VALUE may begin opens a regex literal, not a comment.
+    if (ch === "/" && next !== "/" && next !== "*" && regexMayStart(last)) {
       out += ch;
       i += 1;
       while (i < text.length && text[i] !== String.fromCharCode(10)) {
@@ -195,6 +228,7 @@ function stripSourceComments(body) {
       last = "/";
       continue;
     }
+
     if (ch === "/" && next === "/") {
       while (i < text.length && text[i] !== String.fromCharCode(10)) i += 1;
       out += " ";
@@ -206,20 +240,32 @@ function stripSourceComments(body) {
       out += " ";
       continue;
     }
-    // A shell, Python or YAML comment. Only when the # opens a token, so a fragment
-    // such as a colour literal or an anchor is left alone.
+    // A shell, Python or YAML comment, only where the # opens a token.
     if (ch === "#" && (i === 0 || /[\s;]/.test(text[i - 1]))) {
       while (i < text.length && text[i] !== String.fromCharCode(10)) i += 1;
       out += " ";
       continue;
     }
+
+    if (ch === "{") braceDepth += 1;
+    if (ch === "}") {
+      braceDepth -= 1;
+      if (expressionDepths.length && braceDepth === expressionDepths[expressionDepths.length - 1]) {
+        // This } closes a ${ }, so the template TEXT resumes after it.
+        expressionDepths.pop();
+        out += ch;
+        inTemplate = true;
+        i += 1;
+        continue;
+      }
+    }
+
     out += ch;
     if (!/\s/.test(ch)) last = ch;
     i += 1;
   }
   return out;
 }
-
 // Where a value may begin, a slash is a regex. After an identifier, a number or a
 // closing bracket it is division. Start of file counts as a place a value may begin.
 function regexMayStart(last) {
