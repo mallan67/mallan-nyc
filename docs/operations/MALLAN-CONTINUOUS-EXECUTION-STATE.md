@@ -58,7 +58,7 @@ AUTHORITATIVE SOURCE
 
 PR #595 established the original canonical Master Plan and the Continuous Execution State concept. It is the provenance of the authority model, but the current Master is now an **integrated successor**, not a byte-for-byte copy of the #595 blob.
 
-Current canonical Master on PR #632:
+Current canonical Master, on `main` since the #632 merge:
 
 - path: `MALLAN-PLATFORM-MASTER-PLAN.md`
 - still one file / one authority
@@ -202,8 +202,14 @@ Current repo/provider state:
 
 - `.mcp.json` declares the `trestle-fields` adapter;
 - runtime OAuth code exists in `lib/idx/auth.ts`;
-- the configured adapter points to `mcp/trestle-fields/dist/index.js`, but that built file is not tracked in Git;
-- adapter source can fall back to `artifacts/metadata.xml` after a live fetch failure, so a successful local response is not automatically live-provider proof;
+- the configured adapter invokes the TRACKED source `mcp/trestle-fields/index.ts` via `npx tsx`,
+  so a clean checkout has the file it needs. (Corrected 2026-09-20: this bullet previously said
+  the adapter pointed at an untracked `dist/index.js`. That was true before #632 and is not true
+  at `005786e`.);
+- the adapter FAILS CLOSED. It throws `No local snapshot fallback is permitted` when a live fetch
+  fails, and contains no reference to `artifacts/metadata.xml`. (Corrected 2026-09-20: this
+  bullet previously described a snapshot fallback that has been removed. An agent acting on the
+  old wording would reject a helper that is behaving correctly.);
 - the current runtime test proves configuration strings, not that a clean Git checkout can start the adapter and reach Cotality live;
 - the connected Cotality provider call was unavailable during the 2026-09-20 verification attempt (transport returned 429/404).
 
@@ -308,11 +314,18 @@ Exact proof captured for `8e4e2e8fb66b7786cd7aadb0f641926bb8924ac9` before its c
 - Release Truth: dependency wait **SUCCESS**, aggregator `PREVIEW_PROVEN`, commit status **SUCCESS**;
 - Production proof: **not performed / not claimed**.
 
-The four `8e4e2e8...` review threads above are the only reason that proof set is not a closure record. Any correction commit invalidates the prior exact-head proof and must rerun the chain.
+That proof set was superseded many times over: the branch went through nine further exact-head
+review rounds after it, each invalidating the previous proof and rerunning the chain, before the
+final head `fb100d6a` merged. The rule it states still holds for every future packet — any
+correction commit invalidates the prior exact-head proof and must rerun the chain.
 
 # 5. Active continuous program
 
-The current sequence is now governance-first. Provider cleanup and product implementation are stopped until the execution boundary is real.
+The current sequence is governance-first. Provider cleanup and product implementation are stopped
+until the execution boundary is real.
+
+**Position as of 2026-09-20: items 1 to 6 are COMPLETE. Item 7 is the current step and its second
+half is Maya-held. Item 8 has not begun.**
 
 1. **Close the remaining PR #632 defects before merge.**
    - DONE — the direct-Neon control plane is DELETED, not quarantined: the PR-close cleanup workflow, the
@@ -351,8 +364,19 @@ The current sequence is now governance-first. Provider cleanup and product imple
      smoke steps are skipped on PR events by design, so it is never evidence that Production runs this
      branch.
 5. **Run independent review on the exact corrected head and resolve only genuinely corrected threads.**
+   - DONE — nine exact-head Codex rounds, then a five-dimension independent adversarial review
+     when Codex reached its usage limit. Every finding was reproduced before any patch and every
+     fix was mutation-verified. Zero unresolved threads at merge.
 6. **Merge #632 only after its own stated merge criteria are actually true.**
+   - DONE — merged 2026-09-20T17:53:22Z as `005786e71818ef13f555111de67e3d6248412987`,
+     with `pr-check`, `release-truth`, `guardrails`, `target-platform-build`, `claude-review` and
+     Vercel all green on the final head, merge state CLEAN, and zero unresolved threads.
+     Production then deployed that exact SHA and was probed.
 7. **Post-merge activation:** once `authority-root` exists on protected `main`, run the authorized control-update PR and add `authority-root` to the live `Protect main` required status checks before any implementation packet can merge.
+   - **CURRENT STEP, HALF DONE.** `authority-root` exists on `main` and has now executed once,
+     from this control-update PR. Adding it to the `Protect main` required status checks is a
+     branch-protection change, is Maya-held, and is NOT authorized by this packet. Verified live:
+     ruleset `19435006` still requires `pr-check` only.
 8. **Only then run one Vercel control-plane reconciliation packet** over the existing `mallan-nyc → neon-green-school` connection, environment scopes, branch overrides and every DB/control reader/writer.
 9. **Only after that reconciliation may Development/Preview authority be designed.** No schema-only branch, second project, per-branch database or resource split is assumed in advance.
 10. **Cotality-dependent product work remains fail-closed until live provider proof is available through the authorized Cotality contract path.**
@@ -592,14 +616,14 @@ The next permitted step is a **control-update PR only**. It may update this exec
 - New files are denied unless named in `allowed_new_files`.
 - Any changed path outside `authorized_paths` fails the required PR check.
 - Any branch other than `authorized_branch` fails after bootstrap.
-- Schema/env/Neon/destructive/manual-cron/provider mutations are prohibited unless explicitly authorized by the base-state contract **and** Maya's explicit authorization exists. The controller implementation now mechanically enforces the declared mutation/proof contract described in §7.1; **exact-head closure proof is still pending**, so implementation is not yet a merge-ready closure claim.
+- Schema/env/Neon/destructive/manual-cron/provider mutations are prohibited unless explicitly authorized by the base-state contract **and** Maya's explicit authorization exists. The controller implementation mechanically enforces the declared mutation/proof contract described in §7.1. **Exact-head closure proof is COMPLETE** as of the merge of `fb100d6a`.
 - A new canonical system is denied by default.
 - Authority files cannot be rewritten inside an implementation packet merely to make the packet pass.
 - The work contract is changed first, merged, and only then may the implementation packet begin.
 
 ---
 
-## 7.1 Execution-controller coverage after the #632 correction set — PROOF PENDING
+## 7.1 Execution-controller coverage after the #632 correction set — PROVEN 2026-09-20
 
 The corrected controller and required PR workflow now make the previously decorative contract fields executable:
 
@@ -615,7 +639,13 @@ The corrected controller and required PR workflow now make the previously decora
 - root maintenance is evaluated by the base controller and exits through a separate state-only update back to `control-update`;
 - direct-Neon cleanup/rotation files and `vercel.json` are protected control-root paths so an ordinary implementation packet cannot silently re-arm them.
 
-This section is not a closure claim. It becomes **PROVEN** only if the exact correction head passes its controller negative tests, PR checks, Guardrails, Release Truth, Vercel Preview and independent review.
+**This section is now a closure record.** The exact correction head `fb100d6a` passed its
+controller negative tests, PR checks, Guardrails, Release Truth, Vercel Preview and independent
+review, and merged as `005786e`.
+
+What it does NOT prove, recorded so no later agent overstates it: the capability scan is not a
+containment boundary, it inspects changed files only rather than sweeping the tree, and
+non-executable files are outside it by design. §11 states the limits in full.
 
 The Git gate controls Git changes and proof requirements. It does not claim to cryptographically prevent an actor who separately possesses out-of-band provider credentials from calling a provider API. Mallan therefore also requires provider mutation to be performed only through an explicitly authorized Git-controlled packet/workflow; direct Neon mutation paths are DELETED from the tree, and the execution gate fails any change that revives one.
 
