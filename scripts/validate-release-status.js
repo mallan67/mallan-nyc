@@ -282,6 +282,15 @@ function requiredChecksFromApplicableMainRulesets() {
     // A ruleset that cannot be read is not a ruleset that does not apply. A truncated
     // or malformed conditions block would otherwise drop every check it requires while
     // discovery still reported success.
+    if (!detail || typeof detail !== 'object' || Array.isArray(detail)) {
+      return { ok: false, checks: [], reason: 'ruleset-detail-not-object:' + String(item.id) };
+    }
+    // The list already said this ruleset is an active branch ruleset. A detail that
+    // omits or contradicts that is not a detail saying it does not apply to main; it is
+    // a detail that cannot be trusted to say anything.
+    if (detail.enforcement !== item.enforcement || detail.target !== item.target) {
+      return { ok: false, checks: [], reason: 'ruleset-detail-metadata-mismatch:' + String(item.id) };
+    }
     const conditions = detail?.conditions;
     if (conditions !== undefined && (conditions === null || typeof conditions !== 'object' || Array.isArray(conditions))) {
       return { ok: false, checks: [], reason: 'ruleset-conditions-malformed:' + String(item.id) };

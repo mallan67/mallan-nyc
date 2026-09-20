@@ -669,6 +669,91 @@ describe("Mallan execution-control gate", () => {
     expect(res.stderr).toContain("database_impact_chain");
   });
 
+  // The scan never opened these formats, and this repository tracks five shell scripts, a
+  // PowerShell script, a Python module and a Dockerfile. A guard that does not open the
+  // file cannot refuse what is in it.
+  const UNSCANNED_FORMATS = [
+    ["scripts/ops/rotate.sh", "shell"],
+    ["scripts/ops/rotate.ps1", "powershell"],
+    ["backend/app/control.py", "python"],
+    ["backend/Dockerfile", "docker"],
+  ] as const;
+
+  test("a direct-Neon reach is refused in every executable format, not just JavaScript", () => {
+    for (const [rel, kind] of UNSCANNED_FORMATS) {
+      const cwd = initRepo(baseControl({
+        authorized_paths: [rel],
+        allowed_new_files: [rel],
+      }));
+      write(cwd, rel, [
+        "# " + kind + " reaching the Neon control plane",
+        "curl -s " + JSON.stringify("https://console.neon.tech/api/v2/projects"),
+        "",
+      ].join(String.fromCharCode(10)));
+      git(cwd, "add", rel);
+      git(cwd, "commit", "-m", "direct-neon reach from " + kind);
+      const err = gate(cwd).stderr;
+      expect(err).toContain("Direct Neon control-plane capability is prohibited");
+      expect(err).toContain(rel);
+    }
+  }, 120000);
+
+  // os.environ["DATABASE_URL"] is the same participation in the database story as
+  // process.env.DATABASE_URL. The JS-shaped literals could not see it.
+  test("a Python reader of the connection variable triggers the chain", () => {
+    const rel = "backend/app/reader.py";
+    const cwd = initRepo(baseControl({
+      authorized_paths: [rel],
+      // lib/allowed.ts stays declared: it is the fixture control's default writer, and
+      // dropping it would make the packet fail grounding before the chain is ever reached.
+      allowed_new_files: [rel, "lib/allowed.ts"],
+      impact_domains: ["reader"],
+    }));
+    write(cwd, rel, [
+      "import os",
+      "url = os.environ[" + JSON.stringify("DATABASE_URL") + "]",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", rel);
+    git(cwd, "commit", "-m", "python reader of the connection variable");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("database_impact_chain");
+  });
+
+  // Both readings blinded at once: the raw reading keeps the block comment, and a regex
+  // comment strip mistook the marker's slashes for a comment and deleted the rest of the
+  // line. Only a scanner that knows what a string is can tell those apart.
+  test("a string containing slashes does not blind the comment-stripped reading", () => {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+    });
+    const cwd = initRepo(control);
+    write(cwd, "lib/feature/reader.ts", [
+      "const marker = " + JSON.stringify("x//") + ";",
+      "const endpoint = " + JSON.stringify("https://console.") + " /* seam */ + " + JSON.stringify("neon.tech/api/v2/projects") + ";",
+      "export const reader = { marker, endpoint };",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", "reader hides the host behind a slash-bearing string");
+    expect(gate(cwd).status).not.toBe(0);
+  });
+
+  // Being ALLOWED to add a file is not the same as having added it.
+  test("a station citing a declared-but-absent new file is refused", () => {
+    const missing = "prisma/migrations/0002_never_written/migration.sql";
+    const chain = { ...FULL_DB_CHAIN };
+    (chain as Record<string, string[]>).migrations = [missing];
+    const control = dbControl(chain);
+    control.allowed_new_files = [missing];
+    const cwd = initRepo(control);
+    touchSchema(cwd, "db change citing a migration the packet never wrote");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain(missing);
+  });
   // Four spellings of the same consumer got past the alias scan in successive rounds, so
   // the rule stopped being about names: loading the driver as a value IS the dependency.
   // These two are spellings nobody had written yet when that rule was added.

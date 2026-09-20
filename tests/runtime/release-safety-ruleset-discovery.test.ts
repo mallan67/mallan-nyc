@@ -252,6 +252,51 @@ describe("main-ruleset required-check discovery", () => {
     expect(result.reason).toContain("ruleset-ref-exclude-malformed");
   });
 
+  // The list said active branch. A detail that omits or contradicts that is not a detail
+  // saying the ruleset does not apply; it is a detail that cannot be trusted to say
+  // anything. Reading it as inapplicable dropped an authority-root requirement.
+  test("a detail omitting its own enforcement and target makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        conditions: { ref_name: { include: ["~DEFAULT_BRANCH"], exclude: [] } },
+        rules: [
+          { type: "required_status_checks", parameters: { required_status_checks: [{ context: "authority-root" }] } },
+        ],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-detail-metadata-mismatch");
+  });
+
+  test("a detail contradicting the list enforcement makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "disabled",
+        target: "branch",
+        conditions: { ref_name: { include: ["~DEFAULT_BRANCH"], exclude: [] } },
+        rules: [],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-detail-metadata-mismatch");
+  });
+
+  test("a detail that is not an object at all makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify("truncated"),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-detail-not-object");
+  });
+
   test("a ruleset that does not apply to main contributes nothing", () => {
     const discover = loadDiscovery({
       "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,

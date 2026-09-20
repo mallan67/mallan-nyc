@@ -85,7 +85,21 @@ const DIRECT_NEON_CAPABILITY_SIGNALS = [
   "NEON_ROTATION_ADMIN"
 ];
 
-const EXECUTABLE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".yml", ".yaml"];
+// Every format in this repository that can run, configure a run, or carry a connection.
+// The previous list was JavaScript and YAML only, which silently exempted the tracked
+// shell, PowerShell, Python and Docker files from both the database classifier and the
+// capability scan. A guard that does not open the file cannot refuse what is in it.
+const EXECUTABLE_EXTENSIONS = [
+  ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs",
+  ".yml", ".yaml", ".toml",
+  ".sh", ".bash", ".zsh", ".ps1", ".psm1",
+  ".py", ".rb", ".go", ".rs", ".java", ".php",
+  ".sql", ".prisma", ".dockerfile"
+];
+
+// Extensionless runnables. Matched on the basename so backend/Dockerfile and
+// Dockerfile.worker are both covered.
+const EXECUTABLE_BASENAMES = ["dockerfile", "makefile", "procfile", "justfile"];
 
 // The gate and its negative tests must name the signals in order to enforce and prove
 // them. Nothing else in the repository may contain one.
@@ -115,7 +129,11 @@ const DATABASE_CONTENT_SIGNALS = [
 const DATABASE_CONTENT_PATTERNS = [
   /new\s+(?:[A-Za-z_$][\w$]*\.)*(?:PrismaClient|Pool|Client)\s*\(/,
   /['\"][^'\"]*\blib\/(?:prisma|db)(?:\/[\w.-]+)?['\"]/,
-  /^\s*(?:ASSISTANT_)?DATABASE_URL(?:_UNPOOLED)?\s*:/m
+  /^\s*(?:ASSISTANT_)?DATABASE_URL(?:_UNPOOLED)?\s*:/m,
+  // Language-neutral: os.environ["DATABASE_URL"] in Python and $DATABASE_URL in shell
+  // are the same participation in the database story as process.env.DATABASE_URL, and
+  // naming the variable at all is what makes a file part of it.
+  /\bDATABASE_URL\b/
 ];
 
 
@@ -134,9 +152,48 @@ function collapseForCapabilityScan(body) {
 // So both readings are scanned. A signature has to survive BOTH to stay hidden, and it
 // cannot: the seam form needs the comments gone, the plain URL form needs them kept.
 function stripSourceComments(body) {
-  return String(body)
-    .replace(/\/\*[\s\S]*?\*\//g, " ")
-    .replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");
+  const text = String(body);
+  let out = "";
+  let i = 0;
+  while (i < text.length) {
+    const ch = text[i];
+    const next = text[i + 1];
+    // Inside a string, a slash is a slash. Copy the whole literal through, honouring
+    // backslash escapes so an escaped quote does not end it early.
+    if (ch === "'" || ch === '\"' || ch === String.fromCharCode(96)) {
+      const quote = ch;
+      out += ch;
+      i += 1;
+      while (i < text.length) {
+        out += text[i];
+        if (text[i] === String.fromCharCode(92)) { if (i + 1 < text.length) out += text[i + 1]; i += 2; continue; }
+        if (text[i] === quote) { i += 1; break; }
+        i += 1;
+      }
+      continue;
+    }
+    if (ch === "/" && next === "/") {
+      while (i < text.length && text[i] !== String.fromCharCode(10)) i += 1;
+      out += " ";
+      continue;
+    }
+    if (ch === "/" && next === "*") {
+      const close = text.indexOf("*/", i + 2);
+      i = close === -1 ? text.length : close + 2;
+      out += " ";
+      continue;
+    }
+    // A shell, Python or YAML comment. Only when the # opens a token, so a fragment
+    // such as a colour literal or an anchor is left alone.
+    if (ch === "#" && (i === 0 || /[\s;]/.test(text[i - 1]))) {
+      while (i < text.length && text[i] !== String.fromCharCode(10)) i += 1;
+      out += " ";
+      continue;
+    }
+    out += ch;
+    i += 1;
+  }
+  return out;
 }
 
 function capabilityScanReadings(body) {
@@ -151,7 +208,10 @@ function capabilityNeedles() {
 }
 
 function isExecutablePath(filePath) {
-  return EXECUTABLE_EXTENSIONS.some((ext) => filePath.endsWith(ext));
+  const lower = String(filePath).toLowerCase();
+  if (EXECUTABLE_EXTENSIONS.some((ext) => lower.endsWith(ext))) return true;
+  const base = lower.slice(lower.lastIndexOf("/") + 1);
+  return EXECUTABLE_BASENAMES.some((name) => base === name || base.startsWith(name + "."));
 }
 
 const BOOTSTRAP_ALLOWED = new Set([
@@ -677,6 +737,15 @@ function checkCreatedBranch() {
 // Evidence must be a FILE. `git cat-file -e ref:some/dir` resolves the tree, so path
 // existence alone accepted a directory, and a directory can satisfy any station whose
 // rule is a path shape. Asking for the object TYPE settles it for every station at once.
+// Same question asked of the proposed tree rather than the base.
+function headPathIsFile(filePath) {
+  try {
+    return git(["cat-file", "-t", "HEAD:" + filePath]).trim() === "blob";
+  } catch {
+    return false;
+  }
+}
+
 function basePathIsFile(baseRef, filePath) {
   try {
     return git(["cat-file", "-t", baseRef + ":" + filePath]).trim() === "blob";
@@ -834,6 +903,12 @@ function assertDatabaseChain(control, changedPaths, readHead, readBase, baseRef)
       const exists = basePathExists(baseRef, value);
       const isNew = (control.allowed_new_files || []).includes(value);
       if (!exists && !isNew) { unresolved.push(station + ": " + value); continue; }
+      // Being ALLOWED to add a file is not the same as having added it. A station that
+      // cites a path this packet never produced is citing nothing at all.
+      if (!exists && !headPathIsFile(value)) {
+        unresolved.push(station + ": " + value + "  (declared new, but not present at HEAD)");
+        continue;
+      }
       // A tree is not evidence. A packet that names a folder has named a place to look,
       // which is what the station was asking the packet to have already done.
       if (exists && !basePathIsFile(baseRef, value)) {
