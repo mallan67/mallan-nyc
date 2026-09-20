@@ -431,39 +431,79 @@ For Vercel work:
 
 Vercel Marketplace resources may generate prefixed environment-variable families. Those variables are integration-owned. Do not manually copy, rename or promote them into Mallan's bare runtime authority variables without a verified mapping and explicit authorization.
 
-## 0.12 Neon is reached through Vercel
+## 0.12 Neon is reached only through Vercel
 
-Mallan's canonical Neon is a Vercel Marketplace-managed resource. The control path is:
+Mallan's database is a Neon instance provisioned as a **Vercel Marketplace resource**. Vercel is its control plane. Reaching that resource, or its control plane, is authorized only through the Vercel-managed binding — for reads exactly as much as for writes. The application's own runtime connection is a separate question, governed by §0.13.
 
-~~~text
-VERCEL mallan-nyc
-→ Marketplace Neon resource neon-green-school
-→ Vercel SSO
-→ bound Neon project
-→ branch / endpoint / database
-~~~
-
-The supported Vercel CLI/dashboard entry pattern is:
+The control path is:
 
 ~~~text
-vercel integration open neon neon-green-school
+VERCEL team
+→ the bound Vercel project
+→ Marketplace integration neon
+→ the bound Neon resource
+→ Vercel-issued SSO
+→ Neon project / branch / endpoint / database
 ~~~
 
-This opens the provider resource through Vercel SSO. Do not bypass the binding by inventing a second independent Neon project or treating a direct browser/CLI login as a separate Mallan authority.
+The resource has its own naming and its own login, and **both belong to Vercel**. Mallan does not invent a name, rename the resource, or work from a name remembered in a document, an audit or a chat. The name is discovered live, every time:
 
-The current Neon project, branch IDs, endpoint IDs and protection state are mutable infrastructure facts and live in the Execution State. Every Neon read must be reconciled to the Vercel-bound resource before it is treated as Mallan truth.
+~~~text
+vercel integration list [project]
+→ the integrations and Marketplace resources bound to this project, under their Vercel names
 
-Live database structure outranks an inferred Prisma-only inventory. Prisma is an application schema contract; it is not proof that no additional live schemas/tables/functions/extensions exist.
+vercel integration open <integration> [resource]
+→ opens that resource through Vercel-issued SSO
 
-Development/Preview database isolation is explicit:
+vercel integration open neon --format=json
+→ returns the Vercel-issued SSO link
+~~~
+
+The link `vercel integration open` returns is the login. It is issued by Vercel against the Vercel session. Reaching the resource or its control plane through this binding requires no Neon password, no Neon API key and no Neon CLI session, and none is to be used or stored for that purpose. The dashboard route — the Vercel team → the bound project → its Marketplace Neon resource → open through Vercel SSO — is the same binding on a different surface and carries the same authority. It is not a second path and does not relax anything below.
+
+`vercel integration resource connect|disconnect <resource> [project]` changes the binding itself. That is a Vercel resource mutation under §27.21 and requires explicit Maya authorization. It is never a troubleshooting step.
+
+### Prohibited paths
+
+None of the following is a Mallan path to Neon, at any privilege level, for any purpose including diagnosis:
+
+- a direct login at the Neon console;
+- `neonctl` or any other Neon CLI;
+- any Neon MCP server, in read mode or write mode;
+- any Neon API key or Neon-issued token, including one that exists as a Vercel environment variable or a repository secret;
+- any Neon account, organization or project that this Vercel project does not bind;
+- the second-resource and second-project workarounds already forbidden by §0.11, which apply here without exception.
+
+**A fact obtained through a prohibited path is not Mallan truth, even when it is accurate.** It does not enter this Master, the Execution State, a packet, a PR or a test baseline. It is re-established through the binding or it is discarded. When the binding cannot be opened, the fact is UNVERIFIED and the dependent claim, change or completion stops there under §0.1 — an unreachable fact is never replaced by a remembered one.
+
+**The presence of a direct-Neon credential in the environment is not authorization to use it.** A provisioned variable name, a repository secret or an inherited workflow records history, not permission. Where a path that calls the Neon control plane directly exists in shipped code, a scheduled job or an operator script, it is an open defect to be retired or converted to an explicit fail-closed surface in the same impact graph (§27.21). Its existence is not evidence that the path is sanctioned, and a schedule that still arms it is not a grant.
+
+Changing anything in this binding — the resource, a variable that carries a connection, the Preview topology, a scheduled job that touches branches — is a whole-system change, not a local one. It runs the §0.1 impact graph and builds the §27.16 packet graph: root owner, every writer, every reader, every publisher, downstream business surfaces, tests, compliance/security surfaces and the required provider proof. For this binding that graph extends to every workflow, scheduled job and environment the change reaches, not only the surface that prompted it.
+
+### No mutable identifier lives in this section
+
+Team, project, integration configuration, resource name, Neon project, branch IDs, endpoint IDs, connection hosts and protection state are mutable infrastructure facts. **This section records the rule and the path; it records no infrastructure identifier.** Each one is read live through the binding and recorded — with the date it was verified and the command that produced it — in the Execution State. Every Neon read is reconciled to the Vercel-bound resource before it is treated as Mallan truth.
+
+This is not a bookkeeping preference. A resource identifier copied into repository documentation outlives the resource it named: agents go on quoting it as the current binding long after the provider has stopped resolving it, and the document keeps asserting it either way. A memorized identifier is a defect waiting to be quoted with confidence.
+
+A connection string that arrives from anywhere but this binding — pasted from an old document, remembered from a previous session, or minted by an agent into a variable of its own naming — is outside the binding and fails closed under §0.13.
+
+### Live structure outranks the schema file
+
+Live database structure outranks an inferred Prisma-only inventory. Prisma is an application schema contract; it is not proof that no additional live schemas, tables, functions or extensions exist.
+
+### Development and Preview isolation
 
 - Development and Preview must never silently target Production;
 - no branch/project/resource topology is assumed in advance from old experiments;
 - any Development/Preview data model must be derived from the live Vercel-managed resource capabilities and separately authorized before creation;
 - Preview must fail closed until that model is deliberately authorized;
 - Production branch/resource mutation remains an explicit authorization boundary;
-- direct Neon control-plane prune/rotation paths are not canonical and remain quarantined unless reimplemented through the Vercel-managed resource contract.
-
+- the direct Neon control-plane prune and rotation paths are DELETED, not disabled: the workflow, the
+  scheduled route, the operator CLI, the shared library and their tests were removed from the
+  repository, and the execution gate refuses to let any of them return, including as a fail-only stub.
+  A future branch or credential lifecycle capability is designed against the Vercel-managed resource
+  contract and separately authorized; it does not restore a retired path.
 ## 0.13 Environment and database authority
 
 Mallan distinguishes:
@@ -495,6 +535,142 @@ VARIABLE
 ~~~
 
 Never print full database connection strings, passwords, OAuth secrets, API keys or provider credentials into evidence.
+
+### 0.13.1 One authority, and the shapes that break it
+
+Mallan has exactly **one** runtime database read path: the bare variable pair the application actually reads. The Prisma datasource resolves `DATABASE_URL` and `DATABASE_URL_UNPOOLED`; the direct pool client reads `DATABASE_URL`. Those two names, in that spelling, are the whole of the runtime read path, in every environment. No other variable is a Mallan runtime database read path, whatever it is named and whoever provisioned it. A variable may hold a valid connection value without being authority; the only route from the one to the other is the verified mapping in §0.11.
+
+No Agent, packet, branch or deployment may invent, fork, prefix, suffix, alias or duplicate that authority for deployed runtime use. The failure shapes are concrete, and each one is prohibited:
+
+- an unauthorized per-branch copy of the authority variables, scoped to one branch so that one branch "works" — the authorized form and its conditions are §0.13.3;
+- a differently spelled variant of the same connection authored so that a reader can avoid the authority pair — a renamed, prefixed, suffixed or case-shifted twin;
+- a second runtime connection variable introduced for one subsystem, because a script, cron, health probe or migration helper found the canonical pair inconvenient;
+- a personal, scratch, experiment or debugging value provisioned into a shared environment;
+- a value pasted in from another environment, another project, another provider resource or an older incident.
+
+A subsystem that cannot reach the database through the one authority is a defect in that subsystem. It is never grounds for a second runtime variable.
+
+This does not prohibit a deliberately isolated non-runtime target. A proof harness may read its own separate variable when that variable is never provisioned into a deployed environment, when the harness refuses to run unless the target is demonstrably the intended isolated one, when it refuses canonical Production and known-stale targets outright, and when it skips rather than silently falling back to the authority pair. That is isolation, and it is what keeps proof work off Production. It is not a second authority, and it may not become one by being promoted into a deployed environment.
+
+Every variable that is not the authority pair is classified — through the `VARIABLE → … → KEEP / RE-SCOPE / UPDATE / REMOVE / INTEGRATION-OWNED / BLOCK` classification line in §0.13 — before it is trusted, kept or removed.
+
+### 0.13.2 The integration-owned family is not Mallan's to author
+
+The `database_*` prefixed family is generated and owned by the Marketplace resource (§0.11, §0.12). The condition under which any integration-generated value may be promoted into runtime authority is stated once, in §0.11. It is not restated here and it is not relaxed here.
+
+Three consequences are Mallan's, and they are stated here because §0.11 does not state them:
+
+- Mallan does not author that family and does not hand-edit it member by member;
+- no member of it is a runtime read path — the authority pair in §0.13.1 is;
+- editing, renaming or deleting a member of an integration-owned family to "fix" an environment is a resource mutation, not a variable edit, and is bound by §27.21.
+
+### 0.13.3 A branch-scoped override is a control-plane mutation
+
+A branch-scoped environment override is a control-plane mutation, not a development convenience. It carries the same explicit authorization as any other Vercel environment change under §27.21, and the authorization record must name:
+
+- the exact branch the scope is bound to;
+- the reason no unscoped, canonical path was sufficient;
+- the expiry — the event or date at which the override is removed.
+
+An override with no named expiry is not authorized. It is an unbounded environment change wearing a branch name. Branch-scoped overrides are removed when the branch work ends; ending the work and leaving the scope behind is an incomplete packet, not a completed one.
+
+**A branch scope is keyed by the branch name, and the configuration can outlive the git branch it was made for.** Deleting a git branch does not delete the environment scope recorded against its name: the scope is a separate record with its own lifecycle, removed only by deleting that record. Because the key is the name and not the branch, the scope attaches again to any future branch created with the same name. An override whose git branch no longer exists is an **orphan**: a standing defect, a live credential surface, and a trap for the next branch that reuses the name. Orphans are reconciled and removed through §0.13.4. They are not left in place because they look inert, and they are not swept away by an unauthorized deletion pass either.
+
+### 0.13.4 Deletion order is not optional
+
+~~~text
+1  PROVE NO RESOLVER
+   → no deployment, workflow, cron or repo reader resolves the scope
+2  REMOVE THE OVERRIDE
+   → authorized environment mutation, scope named
+3  REDEPLOY / RE-VERIFY
+   → the affected environment is rebuilt or re-read live
+4  PROVE NO FALLTHROUGH
+   → nothing silently resolved to Production in place of the removed scope
+5  RETIRE THE GIT BRANCH
+~~~
+
+Steps 2 and 3 are themselves mutation boundaries under §27.21. The environment change and any Production deployment each require their own explicit authorization; this sequence orders those mutations, it does not pre-authorize them.
+
+Reversing any two of these steps produces the failure the order exists to prevent. A git branch retired first leaves an orphan nobody is looking for. An override removed without step 4 lets a Preview, workflow or scheduled reader fall through to Production unnoticed — and Development and Preview must never silently target Production (§0.12). Step 4 is where that is proven rather than assumed. A step that cannot be proven leaves the cleanup UNVERIFIED and the override in place; it does not authorize proceeding to the next step.
+
+Retired provider credentials that remain provisioned are a **cleanup obligation, never a fallback**. A rotation key, admin token, preview key or connection variable belonging to a deleted or retired path (§0.12) stays dangerous for exactly as long as it stays provisioned. Its continued presence is not evidence that the path is still supported, and it is not a spare route when the canonical path is blocked or authorization is pending. Reaching for it is re-arming a retired writer (§27.21). It is inventoried through the classification line in §0.13, marked REMOVE, and removed under authorization.
+
+## 0.14 Authorized login paths
+
+Every program Mallan runs has an access path, and every access path is a way into the brokerage. They are recorded here in one place: which paths exist, what each one may produce, and who may use it.
+
+This section carries the rule and the path. Mutable facts — which provider applications are registered, which variables are provisioned in which environment, which mailbox receives a delivered challenge, which lifetimes are configured — are infrastructure state and belong in the Execution State, re-read live (§0.1.1).
+
+Listing a path is not approving it. Several rows record a requirement that running behavior does not yet meet; those are marked with the proof vocabulary of §24.2. The current finding behind each marking is a live measurement and lives in the Execution State, not here.
+
+| Program / audience | Entry | Mechanism | Who may use it | Session and revocation |
+|---|---|---|---|---|
+| Public web — anyone | public site: Consumer Search, listing pages, Agent profiles, inquiry forms | none | any visitor, unauthenticated | no session; no member-only or professional field ever reaches it (§5.1, §5.18) |
+| Broker — principal broker | brokerage sign-in | password, then a mandatory one-time code delivered out of band | the active principal-broker record | session issued only after the code verifies; ends on sign-out, deactivation or expiry |
+| Agent / Associate Broker — licensees | brokerage sign-in | password | any active licensee record | session at sign-in; ends on sign-out, deactivation or expiry. A second factor is decided policy, not running behavior |
+| Agent onboarding — a new licensee | invitation issued from the canonical professional record | single-use expiring invitation; onboarding-only state until the Broker's authoritative association step (§17.5.1) | one named licensee | no ordinary session until association. `DESIGNED / NOT IMPLEMENTED` |
+| Client portal invitation — issuance | CRM Client record | licensee issues a single-use expiring invitation, stored so it cannot be read back out, bound to that one Client | the owning licensee, or the Broker for any Client | issues no session; re-issue supersedes the prior invitation. Ownership is enforced on one issuance path and not the other, and neither refuses a deactivated Client — `DESIGNED / NOT IMPLEMENTED` |
+| Client portal invitation — acceptance | portal acceptance page | invitation redeemed, Client sets a credential, invitation consumed | the holder of the invitation | Client session |
+| Client portal — password sign-in | public sign-in | password | any Client record holding a credential | Client session; a deactivated Client is not refused — `DESIGNED / NOT IMPLEMENTED` |
+| Client self sign-up | public sign-up | creates an unassigned Lead, with consent read from and held on the canonical Party (§19.1, §3.2), then an emailed verification code | any visitor | no session until sign-in; verification is a record flag, never a factor |
+| Client social sign-in — third-party identity provider | buttons on public sign-in and sign-up, and on the licensee sign-in surface | the provider's email string matched to a record | consumers only, by policy | mints a session on any match, privileged records included, with no challenge. **Contradicts policy** |
+| Family / co-client invitation — client-initiated | client portal | invites a named third party, or links an existing Client outright | any signed-in Client | grants shared visibility; no path removes one link without removing the person |
+| Co-client link — licensee-created | CRM Client record | links two Clients the licensee owns | the owning licensee, or the Broker | no path removes one link without removing the person |
+| Password reset — all audiences | forgot-password, then an emailed link | expiring token; redemption sets the credential | anyone who can read that record's mailbox | redemption issues a session, privileged records included, with no challenge; existing sessions survive. **Contradicts policy** |
+| Password change — authenticated self-service | account settings | current credential required; own record only | the session holder | issues no session; existing sessions survive the change |
+| Email verification — Client | verification page | emailed code marks the record verified | any Client address | not an access path; mints nothing; never a factor |
+| Broker impersonation — Broker acting as an Agent | CRM Agent record | Broker-only; target must be active; self-impersonation refused; start and stop audited | the principal broker | delegated session, intended to be bounded well below the Agent's own; it replaces the Broker's session. The bound is carried by the browser cookie and not by the session record — **Contradicts policy** |
+| Impersonation end | explicit stop | the presented session is destroyed and the cookie cleared, both audited | intended for the impersonating Broker; the path in fact ends whatever session presents itself — **Contradicts policy** | the Broker signs in again under their own credentials; nothing is restored automatically |
+| Administrative surface — Broker | administrative sign-in | the same credential verifier as the brokerage sign-in | the principal broker, by intent | role enforced in the browser after the session is already issued, over an edge guard that does not fail closed. **Contradicts policy** |
+| Development-only login | local development route | mints a privileged session with no credential at all | nobody in a deployed environment | opened by environment configuration only; must be absent from a Production build |
+| Provider — GitHub | repository control plane | GitHub account authority, §0.10 | authorized Mallan operator sessions | provider-side; never becomes a Mallan session |
+| Provider — Cotality / Trestle | live provider API | authorized live access path, §0.1 | authorized Mallan operator sessions and the runtime client-credentials path | provider-issued token lifetime; never a Mallan session |
+| Provider — Vercel | hosting, environment and Marketplace control plane | Vercel authority, §0.11 | authorized Mallan operator sessions | provider-side; mutation requires explicit authorization |
+| Provider — Neon | reached only through the Vercel-bound Marketplace resource | §0.12 — the control path and the SSO entry pattern are stated there and are not restated here | authorized Mallan operator sessions arriving through Vercel | provider-side, governed entirely by §0.12 |
+
+### Durable rules
+
+**Authentication is not authorization.** Signing in establishes who is asking. It does not entitle a field, a record, a surface or an action. This is the Search rule stated once more in the access layer: the negative proofs of §5.1.1 and the audience boundary of §5.1 bind a signed-in caller exactly as they bind an anonymous one, and the client-facing payload boundary of §5.18 and the permissioned views of §2.5 continue to govern both.
+
+**One authority issues a session, and every path that mints one meets the same assurance requirement.** A secondary path may not produce a privileged session that the primary path would have challenged. Social sign-in, a redeemed reset link, an impersonation hand-off and a development route are all session-minting paths and each owes the assurance the sign-in page owes. The assurance belongs to the identity, not to one route: a role test written into a single handler is not a second factor, it is one handler's behavior. The session record must itself carry the assurance it was minted under and the path that minted it. Sessions are recorded today; the assurance and the minting path are not, so nothing downstream can tell a challenged session from an unchallenged one — `DESIGNED / NOT IMPLEMENTED`.
+
+**A bound on a delegated session belongs to the session, not to the browser.** A lifetime enforced only by a cookie is a client-side preference: the server still honours the session behind it, and a sliding renewal will extend it. A session deliberately shortened must be shortened where it is validated. `DESIGNED / NOT IMPLEMENTED`.
+
+**A challenge must reach the person being challenged.** The delivery channel belongs to the individual record; a shared or redirected delivery address defeats the factor entirely. A delivery that failed must fail the challenge rather than report success, a surface may not advertise a channel that is not configured, and a challenge that cannot be delivered is a refusal, not a silent pass. `DESIGNED / NOT IMPLEMENTED`.
+
+**Testing for the presence of a credential is not authentication.** A gate that checks only that a cookie exists admits any value a caller invents; it is a redirect convenience, and it may not be described as, counted as, or relied on as a security boundary. The same defect appears wherever a comparison can evaluate true because both sides are absent — an unset expected value equals an unsent cookie, and the gate admits everyone. **A gate that cannot fail is worse than no gate, because it counts as coverage.** Authorization decisions belong to the handler that serves the record, and each one fails closed.
+
+**Deactivating a person revokes access, not history.** Deactivation ends sessions, cancels outstanding invitations and closes the account, while governed listing attribution, transactions, commissions, documents, communications and audit history remain intact and readable — §17.6 for licensees, §3.0 for Clients. Revocation must survive a stale row, a race and a direct database edit, so every authenticated request resolves the principal's current state. `DESIGNED / NOT IMPLEMENTED` — active state is read at sign-in only, for every audience, so a person deactivated outside the governed transition keeps a working, self-extending session.
+
+**A development-only path may never exist in Production.** An environment test is a configuration, not an architecture: it governs whether the path answers, never whether the path is there, and it is the same class of protection as an accident. A path that authenticates nobody and mints a privileged session must be absent from the Production build. `DESIGNED / NOT IMPLEMENTED`.
+
+**An invitation is single use, it expires, and it is bound to one canonical record.** It carries no rights beyond the record it names, it is stored so it cannot be read back out of Mallan, it is refused for a deactivated person, and it can be revoked individually without deactivating that person. Redeeming an invitation is authentication and nothing more: **acceptance may not rewrite lifecycle state**, because a lifecycle decision belongs to a licensee, not to a token. Delivery is part of the path — an invitation no operator can send, or a link that resolves to nothing, is not an implemented path however complete the route is, and two issuance paths for one invitation are one path too many.
+
+**No surface holds a second identity.** One canonical person, one canonical record, one account — §3.1 for a Party, §17.0 for an Agent. A provider sign-in, a portal, an administrative surface or an onboarding flow attaches to the canonical record; none of them may create a parallel account, a second credential store, or a role vocabulary of its own. Where an identifier could match more than one canonical record, the resolution is deterministic and recorded, never whichever store happened to be consulted first, and a provider that returns an address Mallan does not know does not thereby create a person. `DESIGNED / NOT IMPLEMENTED` — a credential is resolved against separate stores in a fixed order today.
+
+**A person may not widen their own authorization.** The role a Client holds is granted by the licensee who invited them and is one vocabulary with one normalizer, not several spellings reconciled at each call site. A self-service profile screen may complete a person's own details; it may not grant its holder a workspace, a role or a permission the licensee did not grant. `DESIGNED / NOT IMPLEMENTED`.
+
+**A shared-visibility link is governed, consented and reversible.** One link shape, one reader contract, one decision-maker. A Client may not link another Client without that person's consent and without a licensee decision, creating a person from a third party's details captures consent like any other intake (§3.2, §19.1), and a single link is removable without removing the person it names. `DESIGNED / NOT IMPLEMENTED`.
+
+**Every path that issues, refuses or ends access writes an audit event.** The event names the path, the principal, the outcome and, for a delegated session, the Broker who opened it. `DESIGNED / NOT IMPLEMENTED` — mutations of a credential and the start and stop of a delegated session are recorded today, but no path records the issuance of access as such, so a successful sign-in leaves no server-side account of itself, and work performed during an impersonation is attributed to the Agent rather than to the acting Broker.
+
+### Decided policy not yet implemented
+
+Each item below is decided product policy, stated in the proof vocabulary of §24.2. Do not treat any of them as existing. The current finding behind each is a live measurement and belongs in the Execution State.
+
+- **Agent onboarding invitation and onboarding-only state** — `DESIGNED / NOT IMPLEMENTED`. A licensee account is created active, with a temporary credential and no governed onboarding state.
+- **Assurance is a property of the identity, not of one route** — `DESIGNED / NOT IMPLEMENTED`.
+- **Assurance for a licensee who is not the principal broker is decided deliberately** — `DESIGNED / NOT IMPLEMENTED`. §2.3 holds that license class alone grants no elevated standing inside Mallan; that settles permissions, not the assurance owed at sign-in, and the assurance question is open and is Maya's to decide.
+- **Social sign-in is a consumer path** — `DESIGNED / NOT IMPLEMENTED`. It is offered on the licensee sign-in surface and will mint a session for any matching record, including a privileged one.
+- **A credential change revokes existing sessions** — `DESIGNED / NOT IMPLEMENTED`. Neither reset nor change ends any session, so a compromised session survives the change made to stop it.
+- **The administrative surface authorizes server-side before it renders** — `DESIGNED / NOT IMPLEMENTED`.
+- **An individual invitation can be revoked** — `DESIGNED / NOT IMPLEMENTED`.
+- **A licensee-issued Client invitation has one issuance path, and it is deliverable** — `DESIGNED / NOT IMPLEMENTED`. Two paths issue the same invitation; one sends it and resolves, the other neither sends nor resolves, and only one enforces Client ownership.
+- **A shared-visibility link is governed, consented and reversible** — `DESIGNED / NOT IMPLEMENTED`.
+- **One portal role vocabulary, with one normalizer** — `DESIGNED / NOT IMPLEMENTED`.
+- **Email verification is enforced where it is required, or it is not represented as a control** — `DESIGNED / NOT IMPLEMENTED`.
+- **Authentication audit coverage** — `DESIGNED / NOT IMPLEMENTED`, as above.
 
 ---
 
@@ -1419,6 +1595,10 @@ CRM / CLIENT WORKSPACE
 never the reverse.
 
 URL namespace does not establish application ownership. A professional Search may remain under a historical route for compatibility while still being an independent authenticated product.
+
+Authentication alone does not authorize a field. Agent Search is authenticated professional functionality, and every professional field it returns remains subject to its verified provider/source contract, the current entitlement, the applicable field/resource permission, the privacy rule, the applicable REBNY/RLS/UCBA and Fair Housing rule, and the Mallan business/display rule. A signed-in Agent is a precondition, never the proof. These are the gates already ordered in §5.0 and verified under §21.2, not a second gate list.
+
+This is the read side of the §4.1 rule that internal visibility is not authorization; that rule governs what Mallan may republish, this one governs what an authenticated Search may return.
 
 The Consumer and Agent products may share provider/mapping/identity/media infrastructure, but they retain separate permissions, DTOs/payload contracts, caches and tests. A refactor may remove duplicate implementation; it may not collapse the audience/display boundary.
 
@@ -4221,9 +4401,17 @@ Runtime Agent identity, authentication, CRM, directory, public profile, listing 
 
 Account / Invitation is a stage, not an afterthought. The professional record exists first; the account that lets the Agent log in is provisioned from it and stays linked to it.
 
-**The boundary of this lifecycle is an open Broker decision and is not settled here.** §2.2 and the paragraph above hold that Mallan is not an HR system and does not micromanage an independent contractor's business, while the representative broker's supervision responsibility remains non-delegable. Read as brokerage records and access — who holds an account, whose license is current, whose listings and clients transfer on exit — the chain is consistent with both. Read as a recruiting pipeline and personnel management, it is not. Maya decides which one Mallan builds before implementation.
+Entry runs on one account, not two. The Broker opens an Agent with **business terms only** — name, email and the agreed sale, rental and referral splits, which are recorded once under §19.6 and never copied onto a second record. A secure invitation then opens **onboarding-only access** on that same canonical account: enough access for the Agent to complete their own onboarding package — the professional data §17.1 owns and the onboarding package §11.12 governs — and nothing more. The Agent completes that package. The Broker does not complete it on the Agent's behalf and does not re-key it afterward.
 
-**Decided in part — the lifecycle is brokerage records and access, not personnel management.** The chain governs who holds an account, whose license and professional requirements are current, and whose listings, clients and obligations transfer on exit. It is not disciplinary or performance-management bureaucracy and it holds no employee HR file. The `RECRUIT / ADD AGENT` stage is the residue: whether Mallan builds a recruiting pipeline at all remains Maya's decision, and nothing here authorizes one.
+The governed agreement is drawn from that record rather than from re-entry. Canonical identity and verified license type and number are read from the Agent record, the agreed splits from the §19.6 plan, and the document generated under §11.7 restates none of them as free text. The one-record rule stated above therefore admits **no second onboarding account and no Broker re-key path**: a separate onboarding identity later merged into the real one is the second Agent record that rule already forbids, whatever it is called, and a Broker-entered copy of what the Agent has already supplied is a second truth of the same fact.
+
+Onboarding-only access is a state of the one account, not a second account. It opens at invitation and it is scoped to the onboarding package. The signed package returns to the Broker, and §17.5.1 governs everything after that — the authoritative association step, what replaces onboarding-only access with ordinary access, and how verified Cotality Member linkage attaches to the same canonical identity. §17.6 governs departure. Neither is restated here.
+
+**The boundary of this lifecycle is an open Broker decision and is not settled here.** §2.2 and the boundary stated at the head of this section hold that Mallan is not an HR system and does not micromanage an independent contractor's business, while the representative broker's supervision responsibility remains non-delegable. Read as brokerage records and access — who holds an account, whose license is current, whose listings and clients transfer on exit — the chain is consistent with both. Read as a recruiting pipeline and personnel management, it is not. Maya decides which one Mallan builds before implementation.
+
+**Decided — the lifecycle is brokerage records and access, not personnel management.** The chain governs who holds an account, whose license and professional requirements are current, and whose listings, clients and obligations transfer on exit. It is not disciplinary or performance-management bureaucracy and it holds no employee HR file.
+
+**Held for Maya decision — whether Mallan builds a recruiting pipeline.** `RECRUIT / ADD AGENT` is the one residue of that question. Adding an Agent who has already agreed to join is brokerage records and access, and is decided above. Candidate sourcing, recruiting funnel and pipeline management are not, and nothing here authorizes them. Until she decides, build the stage as *add an Agent*, not as *recruit one*.
 
 Brokerage↔Agent operating documents — Independent Contractor Agreement, policy and acknowledgment, confidentiality, the executed compensation-plan document, E&O proof, tax records, onboarding and offboarding records — are governed in §11.12 and surface in Agent My Business contextually. §11.12 carries the class and the open boundary question; do not restate either here.
 
@@ -7252,22 +7440,40 @@ An implementation branch cannot widen its own scope by editing the Execution Sta
 
 Control updates and implementation are separate operations.
 
-## 27.16 Impact graph is required before code
+## 27.16 The unit of change is the system — impact graph required before code
 
-A material packet is invalid unless it identifies:
+The unit of change is the **system**, never the file, the screen or the section. An Agent working inside one section is responsible for the effect of that change everywhere the touched concept is written, read, published, cached, projected, reported, shared or displayed. Correcting the place the defect was noticed is not the change; it is the first line of it.
 
-- root owner paths/canonical objects;
-- all writers;
-- all readers;
-- all publishers/presenters;
-- downstream business surfaces;
-- tests;
-- compliance/security surfaces;
-- required provider/runtime proof.
+The impact graph is required for **every** correction, change and build, not only for a large packet. §0.1 requires it before any technical change. Small changes are where this fails most often, because a small change feels local. A renamed field, a one-line default, a narrowed query, a tightened gate and a "just this one screen" fix each cross the same system a large packet crosses.
 
-Repo paths claimed by the graph must exist on the base or be explicitly authorized new files. A fabricated graph is not proof.
+Before code, the traversal §0.1 states in short form runs to full depth against the touched concept:
 
-When negative tests are required, deleting a declared regression/negative-test path cannot satisfy the requirement. The changed declared test must still exist in the proposed HEAD.
+~~~text
+CANONICAL OWNER OF THE CONCEPT
+→ EVERY WRITER
+→ EVERY READER
+→ EVERY PUBLISHER / PRESENTER
+→ EVERY CACHE / PROJECTION / JOB / EVENT
+→ EVERY PERMISSIONED VIEW
+→ EVERY DOWNSTREAM BUSINESS SURFACE
+→ EVERY COMPLIANCE / SECURITY SURFACE
+→ DIRECT AND NEGATIVE TESTS
+→ REQUIRED PROVIDER / RUNTIME PROOF
+~~~
+
+The writer and publisher sides of that traversal are the two-sided census of §27.14.6, and a persistence-only list does not satisfy them. The permissioned views are the four of §2.5, where the supervision pair and the audience surfaces are not interchangeable. A material packet is invalid unless it identifies every step of that traversal for the concept it touches, naming exact root owner paths/canonical objects and the exact provider/runtime proof required. This is the same graph §0.1 requires before an action and §25 requires before a correction is scoped; it is stated once, here, at full depth, rather than kept as a second list.
+
+**A section boundary is a document convenience. It is not a system boundary.** This Master is divided into sections so it can be read; the running system is not divided that way. A concept named in one section is very often owned in another — media is named in §9 and §21 and owned in §11.11; the professional identity carried by generated and public-facing materials is owned in §2.4; Listing identity is named across §5, §6, §7 and §10 and owned in §4. The Agent follows the concept to its canonical owner, not the heading it happened to be reading under.
+
+§21.9.1 is the worked example of this rule, not a media-only rule. A media correction must trace Agent/Member profile, Building, Listing Workspace, Search/cards/detail, client share/portal, CMA/reporting, marketing/e-blast, public pages, structured data, caches and storage. Every governed concept has an equivalent list, and the Agent produces that list before writing code rather than discovering it afterward.
+
+**A change that corrects one reader while leaving a second reader on the old behavior has not been made. It has been split.** The system is then worse than before the change, because two surfaces now disagree and the disagreement looks deliberate. Naming every affected reader is not a broader rewrite than the defect requires under §27.14.4 — it is how the extent of the defect is established, and it authorizes no unrelated cleanup inside the same packet. Where a second reader genuinely cannot move with the packet, that is a scope decision taken under §27.4 and recorded in the Execution State under §27.22 before implementation, not an omission announced after merge.
+
+Repo paths claimed by the graph must exist on the base or be explicitly authorized new files. A fabricated graph is not proof. A claimed graph whose paths do not resolve is a claim about a system that does not exist, and it fails the packet rather than describing it.
+
+When negative tests are required, deleting a declared regression/negative-test path cannot satisfy the requirement. The changed declared test must still exist in the proposed HEAD. A declared test that is deleted is not coverage.
+
+The graph closes where §27.1 closes: **prove no parallel path remains.** A traversal that found every reader and left one of them reading a second copy of the fact has located the defect and preserved it. Where the traversal finds that second copy, §27.17 governs whether it is permitted to exist at all.
 
 ## 27.17 New files and parallel pathways are denied by default
 
@@ -7344,7 +7550,7 @@ The following remain explicit Maya authorization boundaries:
 
 A held mutation freezes only that mutation; it does not authorize a substitute architecture.
 
-When a provider mutation path is retired/quarantined, its scheduled writers, health alarms, CLI guidance and operator instructions must be retired or converted to explicit fail-closed compatibility surfaces in the same impact graph. Observability may not tell an operator to re-arm a prohibited provider path.
+When a provider mutation path is retired, it is DELETED rather than left in place as a disabled or fail-only stub, and its scheduled writers, health alarms, CLI guidance, catalogs, tests and operator instructions are retired in the same impact graph. Observability may not tell an operator to re-arm a prohibited provider path, and a path once deleted may not return under any wrapper.
 
 A deployment/schedule authority file such as `vercel.json` is part of the protected control root whenever changing it could re-arm a retired writer or change Production scheduling. Ordinary implementation authorization is insufficient; it requires the control-root-maintenance sequence.
 
