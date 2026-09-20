@@ -669,6 +669,41 @@ describe("Mallan execution-control gate", () => {
     expect(res.stderr).toContain("database_impact_chain");
   });
 
+  // Naming runnable files one at a time is the same losing game as naming alias
+  // spellings was. Configuration that DECLARES a command or a script launches something,
+  // and that is what makes it a program.
+  test("a capability reach in runnable JSON configuration is refused", () => {
+    const rel = ".mcp.json";
+    const cwd = initRepo(baseControl({
+      authorized_paths: [rel],
+      allowed_new_files: [rel, "lib/allowed.ts"],
+    }));
+    write(cwd, rel, JSON.stringify({
+      mcpServers: { provider: { type: "stdio", command: "neonctl", args: ["branches", "list"] } },
+    }) + String.fromCharCode(10));
+    git(cwd, "add", rel);
+    git(cwd, "commit", "-m", "mcp server launches the retired CLI");
+    const err = gate(cwd).stderr;
+    expect(err).toContain("Direct Neon control-plane capability is prohibited");
+    expect(err).toContain(rel);
+  });
+
+  // The boundary that keeps the rule narrow: data JSON declares no command and no
+  // script, and must not be scanned as a program. Otherwise every fixture and catalog in
+  // the repository becomes a suspect.
+  test("data JSON is not treated as runnable configuration", () => {
+    const rel = "data/provider-notes.json";
+    const cwd = initRepo(baseControl({
+      authorized_paths: [rel],
+      allowed_new_files: [rel, "lib/allowed.ts"],
+    }));
+    write(cwd, rel, JSON.stringify({
+      notes: ["the retired CLI was called neonctl and must never return"],
+    }) + String.fromCharCode(10));
+    git(cwd, "add", rel);
+    git(cwd, "commit", "-m", "a data file that names the retired CLI");
+    expect(gate(cwd).stderr).not.toContain("Direct Neon control-plane capability is prohibited");
+  });
   // A file is executable because of what it IS. package.json runs npm scripts and
   // .githooks/pre-commit runs on every commit; neither has a name the old list could
   // have matched, and an extensionless hook cannot be enumerated at all.

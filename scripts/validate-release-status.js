@@ -231,6 +231,11 @@ function rulesetAppliesToMain(ruleset) {
     !excludes.some((p) => refPatternMatches(p, ref));
 }
 
+// The values GitHub documents for these fields. Anything else is not a different answer,
+// it is an answer this code cannot read, and it must block rather than be skipped.
+const RULESET_ENFORCEMENTS = ['active', 'evaluate', 'disabled'];
+const RULESET_TARGETS = ['branch', 'tag', 'push'];
+
 function requiredChecksFromApplicableMainRulesets() {
   // --paginate --slurp: gh emits one JSON array per page and --slurp wraps them in an
   // outer array. Without pagination a repository with more rulesets than a single page
@@ -273,6 +278,16 @@ function requiredChecksFromApplicableMainRulesets() {
     // ruleset whose qualification is unknown, and unknown is the blocking answer.
     if (typeof item.enforcement !== 'string' || typeof item.target !== 'string') {
       return { ok: false, checks: [], reason: 'ruleset-list-item-metadata-missing:' + String(item.id) };
+    }
+    // A string is not an understood value. "activ" is neither active nor a considered
+    // decision not to be; it means this response does not match the schema this code was
+    // written against. Skipping on an unrecognised value is how schema drift silently
+    // suppresses a ruleset, so an unknown value blocks.
+    if (!RULESET_ENFORCEMENTS.includes(item.enforcement)) {
+      return { ok: false, checks: [], reason: 'ruleset-enforcement-unknown:' + String(item.enforcement) };
+    }
+    if (!RULESET_TARGETS.includes(item.target)) {
+      return { ok: false, checks: [], reason: 'ruleset-target-unknown:' + String(item.target) };
     }
     // The id addresses the detail request. An absent or malformed one would build a
     // nonsense URL whose failure is indistinguishable from a real outage.

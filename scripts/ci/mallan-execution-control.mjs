@@ -306,11 +306,22 @@ function isExecutablePath(filePath, body) {
   if (EXECUTABLE_PREFIXES.some((prefix) => lower.startsWith(prefix))) return true;
   const base = lower.slice(lower.lastIndexOf("/") + 1);
   if (EXECUTABLE_BASENAMES.some((name) => base === name || base.startsWith(name + "."))) return true;
+  if (lower.endsWith(".json") && declaresRunnableCommand(body)) return true;
   return hasShebang(body);
 }
 
 function hasShebang(body) {
   return typeof body === "string" && body.slice(0, 2) === "#!";
+}
+
+// Configuration that names a command or a script LAUNCHES something, which makes it a
+// program however it is spelled. .mcp.json declares mcpServers.<name>.command;
+// package.json declares scripts. Data files declare neither, which is what keeps this
+// from sweeping in every fixture and catalog in the repository.
+const RUNNABLE_JSON_KEY = /"(?:command|scripts)"\s*:/;
+
+function declaresRunnableCommand(body) {
+  return typeof body === "string" && RUNNABLE_JSON_KEY.test(body);
 }
 
 const BOOTSTRAP_ALLOWED = new Set([

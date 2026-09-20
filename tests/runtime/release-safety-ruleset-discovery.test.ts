@@ -252,6 +252,50 @@ describe("main-ruleset required-check discovery", () => {
     expect(result.reason).toContain("ruleset-ref-exclude-malformed");
   });
 
+  // A string is not an understood value. "activ" is neither active nor a considered
+  // decision not to be: it means the response does not match the schema this code was
+  // written against, and skipping on it is how schema drift suppresses a ruleset.
+  test("an unrecognised enforcement value makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": JSON.stringify([[{ id: 1, enforcement: "activ", target: "branch" }]]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-enforcement-unknown");
+  });
+
+  test("an unrecognised target value makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": JSON.stringify([[{ id: 1, enforcement: "active", target: "commit" }]]),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-target-unknown");
+  });
+
+  // The boundary: the other values GitHub documents are understood answers, so they are
+  // skipped without blocking. A guard that blocks every repository is not a guard.
+  test("documented non-active enforcements are skipped without blocking", () => {
+    for (const enforcement of ["evaluate", "disabled"]) {
+      const discover = loadDiscovery({
+        "rulesets -f includes_parents=true": JSON.stringify([[{ id: 1, enforcement, target: "branch" }]]),
+      });
+      const result = discover();
+      expect(result.ok).toBe(true);
+      expect(result.checks).toEqual([]);
+    }
+  });
+
+  test("documented non-branch targets are skipped without blocking", () => {
+    for (const target of ["tag", "push"]) {
+      const discover = loadDiscovery({
+        "rulesets -f includes_parents=true": JSON.stringify([[{ id: 1, enforcement: "active", target }]]),
+      });
+      const result = discover();
+      expect(result.ok).toBe(true);
+      expect(result.checks).toEqual([]);
+    }
+  });
   // Three instances of one fail-open were reported in this function, each in a different
   // branch. These two are the remaining ones, found by re-reading every skip against the
   // same question rather than waiting for a fourth report.
