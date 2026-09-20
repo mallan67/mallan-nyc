@@ -302,6 +302,12 @@ function requiredChecksFromApplicableMainRulesets() {
     if (detail.enforcement !== item.enforcement || detail.target !== item.target) {
       return { ok: false, checks: [], reason: 'ruleset-detail-metadata-mismatch:' + String(item.id) };
     }
+    // The response must be the ruleset that was ASKED FOR. Without this, a detail for a
+    // different ruleset, or one that never says which ruleset it is, stands in for the
+    // listed active one and its required checks vanish with ok:true.
+    if (String(detail.id) !== String(item.id)) {
+      return { ok: false, checks: [], reason: 'ruleset-detail-id-mismatch:' + String(item.id) };
+    }
     const conditions = detail?.conditions;
     if (conditions !== undefined && (conditions === null || typeof conditions !== 'object' || Array.isArray(conditions))) {
       return { ok: false, checks: [], reason: 'ruleset-conditions-malformed:' + String(item.id) };
@@ -315,6 +321,14 @@ function requiredChecksFromApplicableMainRulesets() {
     }
     if (refName.exclude !== undefined && !Array.isArray(refName.exclude)) {
       return { ok: false, checks: [], reason: 'ruleset-ref-exclude-malformed:' + String(item.id) };
+    }
+    // An ARRAY of patterns is not the same as an array of readable patterns.
+    // refPatternMatches turns a null entry into a non-match, and a non-match is how this
+    // function says "does not apply to main" — so one unreadable pattern silently
+    // excused the whole ruleset.
+    const patterns = [...refName.include, ...(refName.exclude || [])];
+    if (patterns.some((p) => typeof p !== 'string' || !p.trim())) {
+      return { ok: false, checks: [], reason: 'ruleset-ref-pattern-malformed:' + String(item.id) };
     }
     if (!rulesetAppliesToMain(detail)) continue;
     // A truncated or malformed detail must make discovery UNKNOWN, not silently empty.

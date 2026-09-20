@@ -320,6 +320,74 @@ describe("main-ruleset required-check discovery", () => {
     expect(result.ok).toBe(true);
     expect(result.checks).toEqual([]);
   });
+  // The response must be the ruleset that was ASKED FOR.
+  test("a detail carrying a different ruleset id makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 999,
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: ["~DEFAULT_BRANCH"], exclude: [] } },
+        rules: [],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-detail-id-mismatch");
+  });
+
+  test("a detail that never says which ruleset it is makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: ["~DEFAULT_BRANCH"], exclude: [] } },
+        rules: [],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-detail-id-mismatch");
+  });
+
+  // An ARRAY of patterns is not an array of READABLE patterns. refPatternMatches turns an
+  // unreadable entry into a non-match, and a non-match is how this function says "does
+  // not apply to main", so one bad entry excused the whole ruleset.
+  test("an unreadable include pattern makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: [null], exclude: [] } },
+        rules: [
+          { type: "required_status_checks", parameters: { required_status_checks: [{ context: "authority-root" }] } },
+        ],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-ref-pattern-malformed");
+  });
+
+  test("an unreadable exclude pattern makes discovery unknown", () => {
+    const discover = loadDiscovery({
+      "rulesets -f includes_parents=true": LIST_ONE_ACTIVE,
+      "rulesets/19435006": JSON.stringify({
+        id: 19435006,
+        enforcement: "active",
+        target: "branch",
+        conditions: { ref_name: { include: ["~DEFAULT_BRANCH"], exclude: [""] } },
+        rules: [],
+      }),
+    });
+    const result = discover();
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain("ruleset-ref-pattern-malformed");
+  });
   // The list said active branch. A detail that omits or contradicts that is not a detail
   // saying the ruleset does not apply; it is a detail that cannot be trusted to say
   // anything. Reading it as inapplicable dropped an authority-root requirement.

@@ -99,7 +99,13 @@ const EXECUTABLE_EXTENSIONS = [
 
 // Extensionless runnables. Matched on the basename so backend/Dockerfile and
 // Dockerfile.worker are both covered.
-const EXECUTABLE_BASENAMES = ["dockerfile", "makefile", "procfile", "justfile"];
+// package.json runs npm scripts, so it is a program that happens to be JSON. Other
+// .json files are data and stay out: broadening to all JSON would sweep in fixtures,
+// contracts and catalogs, and a scan that cries wolf gets ignored.
+const EXECUTABLE_BASENAMES = ["dockerfile", "makefile", "procfile", "justfile", "package.json"];
+
+// Directories whose contents run by definition, whatever the files are called.
+const EXECUTABLE_PREFIXES = [".githooks/", ".husky/"];
 
 // The gate and its negative tests must name the signals in order to enforce and prove
 // them. Nothing else in the repository may contain one.
@@ -246,11 +252,19 @@ function capabilityNeedles() {
   }));
 }
 
-function isExecutablePath(filePath) {
+// The path is a fast answer, not the only one. An extensionless file with a shebang is
+// a program no list of names could have predicted, so the body gets the last word.
+function isExecutablePath(filePath, body) {
   const lower = String(filePath).toLowerCase();
   if (EXECUTABLE_EXTENSIONS.some((ext) => lower.endsWith(ext))) return true;
+  if (EXECUTABLE_PREFIXES.some((prefix) => lower.startsWith(prefix))) return true;
   const base = lower.slice(lower.lastIndexOf("/") + 1);
-  return EXECUTABLE_BASENAMES.some((name) => base === name || base.startsWith(name + "."));
+  if (EXECUTABLE_BASENAMES.some((name) => base === name || base.startsWith(name + "."))) return true;
+  return hasShebang(body);
+}
+
+function hasShebang(body) {
+  return typeof body === "string" && body.slice(0, 2) === "#!";
 }
 
 const BOOTSTRAP_ALLOWED = new Set([
@@ -392,9 +406,11 @@ function touchesDatabaseTarget(filePath, readHead, readBase) {
   if (DATABASE_PATH_PREFIXES.some((prefix) => filePath.startsWith(prefix))) return true;
   const lower = filePath.toLowerCase();
   if (DATABASE_PATH_SUBSTRINGS.some((needle) => lower.includes(needle))) return true;
-  if (!isExecutablePath(filePath)) return false;
+  // Read first: an extensionless script announces itself in its first two characters,
+  // and the deciding version may be either side of the change.
   const head = typeof readHead === "function" ? readHead(filePath) : null;
   const base = typeof readBase === "function" ? readBase(filePath) : null;
+  if (!isExecutablePath(filePath, head) && !isExecutablePath(filePath, base)) return false;
   return fileCarriesDatabaseSignal(head) || fileCarriesDatabaseSignal(base);
 }
 
@@ -1058,10 +1074,10 @@ function main() {
   // and are refused for what they do, not for containing the word neon.
   const neonCapabilityViolations = [];
   for (const filePath of changedPaths) {
-    if (!isExecutablePath(filePath)) continue;
     if (NEON_CAPABILITY_EXEMPT.has(filePath)) continue;
     const body = readHead(filePath);
     if (!body) continue;
+    if (!isExecutablePath(filePath, body)) continue;
     const readings = capabilityScanReadings(body);
     const found = capabilityNeedles()
       .filter((n) => body.includes(n.signal) || readings.some((r) => r.includes(n.collapsed)))

@@ -669,6 +669,56 @@ describe("Mallan execution-control gate", () => {
     expect(res.stderr).toContain("database_impact_chain");
   });
 
+  // A file is executable because of what it IS. package.json runs npm scripts and
+  // .githooks/pre-commit runs on every commit; neither has a name the old list could
+  // have matched, and an extensionless hook cannot be enumerated at all.
+  test("a capability reach through an npm script is refused", () => {
+    const cwd = initRepo(baseControl({ authorized_paths: ["package.json"] }));
+    write(cwd, "package.json", JSON.stringify({
+      name: "fixture",
+      scripts: { "db:rotate": "neonctl branches list" },
+    }) + String.fromCharCode(10));
+    git(cwd, "add", "package.json");
+    git(cwd, "commit", "-m", "npm script reaches the retired CLI");
+    const err = gate(cwd).stderr;
+    expect(err).toContain("Direct Neon control-plane capability is prohibited");
+    expect(err).toContain("package.json");
+  });
+
+  test("a capability reach in an extensionless hook is refused", () => {
+    const rel = ".githooks/pre-push";
+    const cwd = initRepo(baseControl({
+      authorized_paths: [rel],
+      allowed_new_files: [rel, "lib/allowed.ts"],
+    }));
+    write(cwd, rel, [
+      "#!/bin/sh",
+      "curl -s " + JSON.stringify("https://console.neon.tech/api/v2/projects"),
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", rel);
+    git(cwd, "commit", "-m", "git hook reaches the control plane");
+    const err = gate(cwd).stderr;
+    expect(err).toContain("Direct Neon control-plane capability is prohibited");
+    expect(err).toContain(rel);
+  });
+
+  // A file with no extension and no shebang is data, and a scan that refuses data would
+  // be refusing honest work. Only a shebang makes an unnamed file a program.
+  test("an extensionless file without a shebang is not treated as a program", () => {
+    const rel = "config/notes";
+    const cwd = initRepo(baseControl({
+      authorized_paths: [rel],
+      allowed_new_files: [rel, "lib/allowed.ts"],
+    }));
+    write(cwd, rel, [
+      "the retired CLI was called neonctl and must never return",
+      "",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", rel);
+    git(cwd, "commit", "-m", "a note that names the retired CLI in prose");
+    expect(gate(cwd).stderr).not.toContain("Direct Neon control-plane capability is prohibited");
+  });
   // The scan never opened these formats, and this repository tracks five shell scripts, a
   // PowerShell script, a Python module and a Dockerfile. A guard that does not open the
   // file cannot refuse what is in it.
