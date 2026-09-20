@@ -248,8 +248,21 @@ function requiredChecksFromApplicableMainRulesets() {
     return { ok: false, checks: [], reason: 'ruleset-list-not-array' };
   }
   // --slurp yields an array of pages; each page is itself an array of rulesets.
-  const list = pages.every((page) => Array.isArray(page)) ? pages.flat() : pages;
-  if (!Array.isArray(list) || list.some((item) => item === null || typeof item !== 'object')) {
+  // --slurp wraps one array PER PAGE in an outer array, so every outer element must itself
+  // be an array. The previous fallback accepted a non-array page set because typeof [] and
+  // typeof {} are both 'object', so [{}] and [[valid],{}] passed and returned ok:true with
+  // the required rulesets silently dropped. A mixed or non-array shape is now unknown, not
+  // empty, so malformed discovery stays pending instead of failing open.
+  // gh returns [[]] for a repository with no rulesets, so a bare [] is an anomalous
+  // response rather than an honest empty result. Unknown, not empty.
+  if (pages.length === 0) {
+    return { ok: false, checks: [], reason: 'ruleset-list-empty' };
+  }
+  if (!pages.every((page) => Array.isArray(page))) {
+    return { ok: false, checks: [], reason: 'ruleset-list-not-paged' };
+  }
+  const list = pages.flat();
+  if (list.some((item) => item === null || typeof item !== 'object' || Array.isArray(item))) {
     return { ok: false, checks: [], reason: 'ruleset-list-not-array' };
   }
 

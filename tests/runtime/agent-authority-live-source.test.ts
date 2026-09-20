@@ -97,6 +97,7 @@ describe("agent authority docs stay on live sources", () => {
       "lib/neon/branches.ts",
       "scripts/neon-prune-branches.ts",
       "scripts/branch-prune-health.js",
+      "scripts/neon-verify.ts",
     ];
     for (const rel of mustNotExist) {
       expect({ path: rel, exists: fs.existsSync(path.join(ROOT, rel)) }).toEqual({ path: rel, exists: false });

@@ -6,7 +6,7 @@
 
 **Plan:** **Launch** (`launch_v3`, since 2026-05-17; as last read on 2026-07-05; re-verify live before relying on it). Storage cap 10 GB, compute fixed 0.25 CU, branch cap 5000 per project. See §2 for the full table and §2.1 for the dated canonical-facts reading, which is historical evidence and is no longer machine-checked; §10 change log for tier history.
 
-> **PITR / history retention read 6 hours (21600 s) on 2026-07-05 — NOT 7 days. That is a dated reading, not a current fact.** Earlier revisions of this file claimed "7 days" sourced from Neon's plan documentation, never from the live setting; that was drift (OPS-016). 7-day PITR *is* available on the Launch plan but is not the current setting — see §2.1 for the verified value and the exact (Maya-gated) command to raise it.
+> **PITR / history retention read 6 hours (21600 s) on 2026-07-05 — NOT 7 days. That is a dated reading, not a current fact.** Earlier revisions of this file claimed "7 days" sourced from Neon's plan documentation, never from the live setting; that was drift (OPS-016). 7-day PITR *is* available on the Launch plan but is not the current setting — see §2.1 for the dated reading. Raising it is a Maya-gated provider setting changed inside the resource opened through Vercel SSO; no command for it exists in this repository.
 
 > ## 🛑 AGENT STOP — Neon/Vercel database authority
 >

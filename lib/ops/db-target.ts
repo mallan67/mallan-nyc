@@ -20,8 +20,8 @@
  * lib/ops/canonical-neon-target.ts, are rewired to delegate here in the same change.
  *
  * ONE EXECUTION MIRROR EXISTS, AND IT IS NOT AN EXCEPTION TO THAT.
- * `scripts/ci/assert-canonical-neon-target.mjs` runs inside `rotate-db-keys.yml` BEFORE any
- * dependency install, so it cannot import this module and carries its own copy of the host rule.
+ * (A pre-bootstrap CLI mirror used to enforce this before dependency install; it and the
+ * workflow it ran in were DELETED 2026-09-20, so this module is the only implementation.)
  * The honest description is therefore not "one implementation" but:
  *
  *   this module  = canonical application target semantics (the authority)

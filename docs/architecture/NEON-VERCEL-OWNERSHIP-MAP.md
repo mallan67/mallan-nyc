@@ -268,20 +268,18 @@ reaches the Neon control plane under a different name. Branch and resource lifec
 through the Vercel-managed Marketplace resource; a replacement capability must be designed against
 that contract and separately authorized.
 
-Measured Production control-plane values on 2026-09-18:
-- `NEON_API_KEY=""`
-- `NEON_PROJECT_ID=""`
-
-Therefore the scheduled route writes a skipped audit event, returns HTTP 503, and never calls
-`pruneBranches()`. The cron is fail-closed/inert today.
-
-The standalone operator script remains a reachable path when explicitly supplied valid credentials/target, so
-the shared pruning safety logic remains live code.
+Historical, 2026-09-18: the Production control-plane variables `NEON_API_KEY` and
+`NEON_PROJECT_ID` were measured empty, which made the then-existing scheduled route inert.
+That is a dated pre-deletion record. It describes nothing current: the route, the cron
+schedule, the operator CLI and the shared pruning library were DELETED on 2026-09-20, so
+there is no scheduled writer to be inert and no operator script to be reachable. At the
+current head no tracked file reads either variable.
 
 ### Vercel-managed Preview lifecycle
 
-Do not assume automatic Preview branches are functioning for the current project: live Neon shows zero such
-branches have ever existed in `hidden-mountain`. Vercel's integration/deployment actions and Allowed
+Do not assume automatic Preview branches are functioning for the current project: current branch
+topology is **UNVERIFIED**, because it is not exposed through the authorized Vercel-managed path,
+and a bounded historical observation never established lifetime topology in either direction.
 Environments must be read live before any Preview-branching design change.
 
 Do not delete cleanup code merely because provisioning is currently broken; first decide the intended Preview

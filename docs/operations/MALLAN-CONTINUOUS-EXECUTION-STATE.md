@@ -316,8 +316,11 @@ The current sequence is now governance-first. Provider cleanup and product imple
      unauthorized path authorized. Vercel exposes no equivalent read, so the capability is not replaced.
      **Consequence, stated rather than softened: Mallan no longer machine-detects drift between documented
      Neon values and live Neon.**
-   - DONE — NEON.md is reconciled with the deletion. No tracked file instructs an agent to reach Neon
-     directly, and NEON.md no longer presents itself as an authority.
+   - DONE — the direct-Neon operating guidance is reconciled across the current-guidance surfaces:
+     NEON.md, both architecture documents, the Project Health Dashboard, CLAUDE.md, AGENTS.md, the
+     Vercel/Neon support note and the public-records plan. The sweep covered tracked markdown;
+     dated change logs, audits, handoffs, plans and memory/ are retained as historical evidence and
+     were deliberately not rewritten. The claim is scoped to that sweep rather than to every file.
    - DONE — the Master carries the access/login section, the Neon-only-through-Vercel rule, the one
      database authority rule and the whole-system impact rule.
    - OPEN — exact-head CI and independent review on the final head. Not claimed until both are green.

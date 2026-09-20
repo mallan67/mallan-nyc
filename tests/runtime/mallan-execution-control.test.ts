@@ -89,8 +89,10 @@ function initRepo(control = baseControl()) {
   write(cwd, "lib/feature/reader.ts", "export const reader = true;\n");
   write(cwd, "lib/feature/publisher.ts", "export const publisher = true;\n");
   write(cwd, "prisma/schema.prisma", "generator client { provider = \"prisma-client-js\" }\n");
+  write(cwd, "vercel.json", JSON.stringify({ crons: [] }) + String.fromCharCode(10));
   write(cwd, "tests/runtime/mallan-execution-control.test.ts", "fixture\n");
   write(cwd, ".github/workflows/pr-check.yml", "name: fixture\n");
+  write(cwd, ".github/workflows/geocode.yml", "name: geocode" + String.fromCharCode(10));
   git(
     cwd,
     "add",
@@ -100,7 +102,9 @@ function initRepo(control = baseControl()) {
     "lib/feature/publisher.ts",
     "prisma/schema.prisma",
     "tests/runtime/mallan-execution-control.test.ts",
-    ".github/workflows/pr-check.yml"
+    ".github/workflows/pr-check.yml",
+    "vercel.json",
+    ".github/workflows/geocode.yml"
   );
   git(cwd, "commit", "-m", "base authority");
   git(cwd, "branch", "origin-main");
@@ -435,15 +439,18 @@ describe("Mallan execution-control gate", () => {
     expect(gate(cwd).stderr).toContain("schema_migration_authorized=true");
   });
 
+  // Every station grounded in a path that exists on the base. No UNVERIFIED, no free text:
+  // a station that cannot be proven must block the packet, so it cannot appear in a fixture
+  // whose purpose is to pass.
   const FULL_DB_CHAIN = {
-    vercel_integration: ["UNVERIFIED — read live through the Vercel-managed resource"],
-    env_resolution: ["UNVERIFIED — DATABASE_URL resolution read from Vercel"],
+    vercel_integration: [".github/workflows/pr-check.yml"],
+    env_resolution: [".github/workflows/pr-check.yml"],
     db_target: ["lib/feature/reader.ts"],
     prisma_pg: ["prisma/schema.prisma"],
-    migrations: ["UNVERIFIED — no migration in this packet"],
+    migrations: ["prisma/schema.prisma"],
     workflows_crons: [".github/workflows/pr-check.yml"],
-    preview: ["UNVERIFIED — preview proof pending"],
-    production: ["UNVERIFIED — production proof pending"],
+    preview: ["lib/feature/publisher.ts"],
+    production: ["lib/feature/publisher.ts"],
     downstream_readers_writers: ["lib/feature/publisher.ts"],
     tests: ["tests/runtime/mallan-execution-control.test.ts"],
   };
@@ -486,6 +493,102 @@ describe("Mallan execution-control gate", () => {
     ["app/api/cron/branch-janitor/route.ts", "route"],
     ["lib/provider/branch-admin.ts", "library"],
   ] as const;
+
+  test("an UNVERIFIED station does not satisfy the mandatory chain", () => {
+    const chain = { ...FULL_DB_CHAIN };
+    for (const station of Object.keys(chain)) {
+      (chain as Record<string, string[]>)[station] = ["UNVERIFIED - not established"];
+    }
+    const cwd = initRepo(dbControl(chain));
+    touchSchema(cwd, "db change, every station UNVERIFIED");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("UNVERIFIED");
+  });
+
+  test("free text does not satisfy a mandatory station", () => {
+    const chain = { ...FULL_DB_CHAIN };
+    (chain as Record<string, string[]>).env_resolution = ["checked"];
+    const cwd = initRepo(dbControl(chain));
+    touchSchema(cwd, "db change, free-text station");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("env_resolution");
+  });
+
+  test("control-root-maintenance cannot pass a database-shaped path without the chain", () => {
+    // vercel.json is a protected control path AND database-shaped. Root maintenance is the
+    // only mode allowed to touch it, so it is the mode that must still demand the chain.
+    const control = baseControl({
+      mode: "control-root-maintenance",
+      authorized_paths: ["vercel.json"],
+      allowed_new_files: [],
+      impact_domains: ["governance", "environment"],
+      environment_mutation_authorized: true,
+      impact_graph: {
+        root_owner_paths: [MASTER],
+        writer_paths: ["vercel.json"],
+        reader_paths: ["lib/feature/reader.ts"],
+        publisher_paths: ["vercel.json"],
+        downstream_surfaces: ["Vercel schedules"],
+        test_paths: ["tests/runtime/mallan-execution-control.test.ts"],
+        compliance_surfaces: ["governance only"],
+      },
+    });
+    const cwd = initRepo(control);
+    write(cwd, "vercel.json", JSON.stringify({ crons: [] }));
+    git(cwd, "add", "vercel.json");
+    git(cwd, "commit", "-m", "root maintenance touching a database-shaped path");
+    // Clear the authority-root precondition so the refusal can only come from the chain.
+    const res = gate(cwd, { MALLAN_AUTHORITY_ROOT_REQUIRED: "true" });
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("database_impact_chain");
+  });
+
+  test("a workflow that selects the database target triggers the chain", () => {
+    const rel = ".github/workflows/geocode.yml";
+    const control = dbControl(undefined);
+    control.authorized_paths = [rel];
+    control.allowed_new_files = [];
+    const cwd = initRepo(control);
+    write(cwd, rel, [
+      "name: fixture",
+      "env:",
+      "  DATABASE_URL: postgresql://example/db",
+      "  DATABASE_URL_UNPOOLED: postgresql://example/db",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", rel);
+    git(cwd, "commit", "-m", "workflow repoints the database target");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("database_impact_chain");
+  });
+
+  test("a fragmented direct-Neon writer is refused despite assembling the host at runtime", () => {
+    const rel = "lib/allowed.ts";
+    const cwd = initRepo(baseControl());
+    write(cwd, rel, [
+      "const host = [" + JSON.stringify("console") + ", " + JSON.stringify("ne") + " + " + JSON.stringify("on") + ", " + JSON.stringify("tech") + "].join(" + JSON.stringify(".") + ");",
+      "const key = process.env[" + JSON.stringify("NE") + " + " + JSON.stringify("ON_API") + " + " + JSON.stringify("_KEY") + "];",
+      "export const admin = () => fetch(" + JSON.stringify("https://") + " + host + " + JSON.stringify("/api/v2/projects") + ", { headers: { Authorization: key } });",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", rel);
+    git(cwd, "commit", "-m", "fragmented direct-neon capability");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("Direct Neon control-plane capability is prohibited");
+  });
+
+  test("the deleted verifier path cannot return", () => {
+    const rel = "scripts/neon-verify.ts";
+    const cwd = initRepo(baseControl({ authorized_paths: [rel], allowed_new_files: [rel] }));
+    write(cwd, rel, "export const verify = () => 1;" + String.fromCharCode(10));
+    git(cwd, "add", rel);
+    git(cwd, "commit", "-m", "restore the deleted verifier");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("may not return");
+  });
 
   test("a renamed direct-Neon writer is refused for its capability, not its filename", () => {
     for (const [rel, kind] of RENAMED_DIRECT_NEON) {
@@ -729,7 +832,7 @@ describe("Mallan execution-control gate", () => {
         compliance_surfaces: ["governance only"],
       },
     }));
-    write(cwd, "vercel.json", '{"crons":[]}\n');
+  write(cwd, "vercel.json", JSON.stringify({ crons: [{ path: "/api/cron/example", schedule: "0 5 * * *" }] }) + String.fromCharCode(10));
     git(cwd, "add", "vercel.json");
     git(cwd, "commit", "-m", "base vercel config");
     git(cwd, "branch", "-f", "origin-main");

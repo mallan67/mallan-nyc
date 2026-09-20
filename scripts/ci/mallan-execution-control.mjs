@@ -62,7 +62,8 @@ const DELETED_DIRECT_NEON_PATHS = new Set([
   "tests/runtime/neon-branch-prune-route.test.ts",
   "tests/runtime/neon-prune-cli.test.ts",
   "tests/runtime/branch-prune-health.test.ts",
-  "tests/runtime/neon-branch-prunability.test.ts"
+  "tests/runtime/neon-branch-prunability.test.ts",
+  "scripts/neon-verify.ts"
 ]);
 
 // The retired capability, derived from the code this packet deleted rather than guessed.
@@ -102,12 +103,37 @@ const DATABASE_CONTENT_SIGNALS = [
   "process.env.DATABASE_URL",
   "process.env.DATABASE_URL_UNPOOLED",
   "process.env.ASSISTANT_DATABASE_URL",
-  "new PrismaClient",
-  "new Pool(",
-  "new Client(",
-  "@/lib/prisma",
-  "@/lib/db"
+  "lib/ops/db-target",
+  "canonical-neon-target"
 ];
+
+// Patterns cover the spellings a literal cannot: a client constructed through an alias or
+// namespace, the canonical singleton imported by any relative or aliased specifier, and a
+// workflow or compose file that SETS the target as a YAML key rather than reading it in JS.
+// A workflow that repoints DATABASE_URL changes the database story as surely as application
+// code does, and previously escaped because YAML never writes process.env.
+const DATABASE_CONTENT_PATTERNS = [
+  /new\s+(?:[A-Za-z_$][\w$]*\.)*(?:PrismaClient|Pool|Client)\s*\(/,
+  /['\"][^'\"]*\blib\/(?:prisma|db)(?:\/[\w.-]+)?['\"]/,
+  /^\s*(?:ASSISTANT_)?DATABASE_URL(?:_UNPOOLED)?\s*:/m
+];
+
+
+// Literal matching is necessary but not sufficient: the same capability survives being
+// assembled from fragments, e.g. ["console", "ne" + "on", "tech"].join("."). Collapsing the
+// body removes the seams a literal search depends on. Quotes, concatenation operators,
+// whitespace, backslashes, brackets and commas go; what remains is compared against the
+// same signatures with their own separators removed.
+function collapseForCapabilityScan(body) {
+  return body.replace(/[\s'\"`+\\\[\],]/g, "").toLowerCase();
+}
+
+function capabilityNeedles() {
+  return DIRECT_NEON_CAPABILITY_SIGNALS.map((signal) => ({
+    signal,
+    collapsed: signal.replace(/[._-]/g, "").toLowerCase(),
+  }));
+}
 
 function isExecutablePath(filePath) {
   return EXECUTABLE_EXTENSIONS.some((ext) => filePath.endsWith(ext));
@@ -140,7 +166,9 @@ const BOOTSTRAP_ALLOWED = new Set([
   "scripts/neon-verify.ts", "scripts/health/probe.ts",
   "docs/PROJECT-HEALTH-DASHBOARD.md",
   "docs/architecture/PUBLIC-RECORDS-NEON-PROVISIONING-PLAN.md",
-  "artifacts/api-route-catalog.md", "scripts/reso/route-catalog.js"
+  "artifacts/api-route-catalog.md", "scripts/reso/route-catalog.js",
+  "lib/ops/db-target.ts", "scripts/ci/assert-canonical-neon-target.mjs",
+  "tests/runtime/canonical-neon-target.test.ts"
 ]);
 
 // Maya's mandatory database chain. Any change that can move, name, resolve or consume the
@@ -178,7 +206,8 @@ function touchesDatabaseTarget(filePath, readHead) {
   if (!isExecutablePath(filePath)) return false;
   const body = typeof readHead === "function" ? readHead(filePath) : null;
   if (!body) return false;
-  return DATABASE_CONTENT_SIGNALS.some((signal) => body.includes(signal));
+  if (DATABASE_CONTENT_SIGNALS.some((signal) => body.includes(signal))) return true;
+  return DATABASE_CONTENT_PATTERNS.some((pattern) => pattern.test(body));
 }
 
 // A station is not satisfied by pointing at prose. A document records a claim; the station
@@ -579,6 +608,89 @@ function validateImpactPaths(control, baseRef) {
   }
 }
 
+// ONE PRE-SUCCESS INVARIANT. The chain used to run only on the implementation path, so a
+// control-update or control-root-maintenance packet could change a database-shaped file and
+// return success without it. This is called before EVERY successful return that can carry
+// database-shaped changes, so adding a future mode cannot silently reopen the hole.
+function assertDatabaseChain(control, changedPaths, readHead, baseRef) {
+  const databaseChanges = changedPaths.filter((filePath) => touchesDatabaseTarget(filePath, readHead));
+  if (databaseChanges.length === 0) return;
+
+  const chain = control?.impact_graph?.database_impact_chain;
+  if (!chain || typeof chain !== "object" || Array.isArray(chain)) {
+    fail([
+      "This packet changes database-shaped paths, so impact_graph.database_impact_chain",
+      "is required and is absent. Declare every station:",
+      "  " + DATABASE_IMPACT_STATIONS.join(String.fromCharCode(32, 8594, 32)),
+      "Database-shaped paths changed here:",
+      ...databaseChanges.map((filePath) => "  - " + filePath)
+    ].join(String.fromCharCode(10)));
+  }
+
+  const incomplete = DATABASE_IMPACT_STATIONS.filter(
+    (station) => !Array.isArray(chain[station]) || chain[station].length === 0
+  );
+  if (incomplete.length) {
+    fail([
+      "The database chain is incomplete. Every station is required for a database change,",
+      "because a database change reaches all of them whether or not the packet looked:",
+      ...incomplete.map((station) => "  - missing: " + station)
+    ].join(String.fromCharCode(10)));
+  }
+
+  // A station must be GROUNDED. Three things that are not evidence, each refused by name:
+  //   UNVERIFIED  an honest truth state, and honestly a blocker. It records that the station
+  //               was not established, so it cannot also report that it was.
+  //   free text   a bare word such as checked asserts a conclusion and carries no locator.
+  //   prose       a .md or .txt file records a claim; it is not the thing that does the work.
+  const unverified = [];
+  const freeText = [];
+  const proseOnly = [];
+  const unresolved = [];
+  for (const station of DATABASE_IMPACT_STATIONS) {
+    const entries = chain[station];
+    if (stationIsDocumentationOnly(entries)) proseOnly.push(station);
+    for (const entry of entries) {
+      const value = entry.trim();
+      if (value.toUpperCase().startsWith("UNVERIFIED")) { unverified.push(station + ": " + value); continue; }
+      if (!value.includes("/") && !value.includes(".")) { freeText.push(station + ": " + value); continue; }
+      if (basePathExists(baseRef, value)) continue;
+      if ((control.allowed_new_files || []).includes(value)) continue;
+      unresolved.push(station + ": " + value);
+    }
+  }
+
+  if (unverified.length) {
+    fail([
+      "A database-chain station is UNVERIFIED. That is an honest state and it BLOCKS the",
+      "packet: a station that was not established cannot also serve as the evidence that it",
+      "was. Establish it, or stop the change here:",
+      ...unverified.map((item) => "  - " + item)
+    ].join(String.fromCharCode(10)));
+  }
+  if (freeText.length) {
+    fail([
+      "A database-chain station carries free text rather than evidence. A bare word asserts a",
+      "conclusion and names nothing that can be checked:",
+      ...freeText.map((item) => "  - " + item)
+    ].join(String.fromCharCode(10)));
+  }
+  if (proseOnly.length) {
+    fail([
+      "A database-chain station may not be satisfied by a document citation alone. A document",
+      "records a claim; the station must name what does the work:",
+      ...proseOnly.map((station) => "  - documentation-only: " + station)
+    ].join(String.fromCharCode(10)));
+  }
+  if (unresolved.length) {
+    fail([
+      "The database chain names repo paths that do not exist on the PR base and are not",
+      "authorized new files. A fabricated station is not proof:",
+      ...unresolved.map((item) => "  - " + item)
+    ].join(String.fromCharCode(10)));
+  }
+}
+
 function main() {
   const baseBranch = process.env.MALLAN_BASE_BRANCH || process.env.GITHUB_BASE_REF || "main";
   const headBranch =
@@ -635,7 +747,10 @@ function main() {
     if (NEON_CAPABILITY_EXEMPT.has(filePath)) continue;
     const body = readHead(filePath);
     if (!body) continue;
-    const found = DIRECT_NEON_CAPABILITY_SIGNALS.filter((signal) => body.includes(signal));
+    const collapsed = collapseForCapabilityScan(body);
+    const found = capabilityNeedles()
+      .filter((n) => body.includes(n.signal) || collapsed.includes(n.collapsed))
+      .map((n) => n.signal);
     if (found.length) neonCapabilityViolations.push(filePath + "  ->  " + found.join(", "));
   }
   if (neonCapabilityViolations.length) {
@@ -679,6 +794,9 @@ function main() {
     const control = parseControl(headState);
     validateControl(control);
 
+      // RECORDED EXCEPTION: the bootstrap PR is not chain-gated, because base main carries no
+      // Execution State to declare a chain in. The exception is bounded to one hard-coded PR
+      // number and closes the moment that PR merges; no later packet can reach this branch.
     pass(
       "Bootstrap PR #" + BOOTSTRAP_PR +
       " is limited to the fixed governance/control-plane allowlist."
@@ -713,6 +831,8 @@ function main() {
       fail("Proposed execution contract is invalid: " + error.message);
     }
     if (proposedControl.base_branch !== baseBranch) fail("Proposed execution contract targets base " + proposedControl.base_branch + "; control updates must remain anchored to " + baseBranch + ".");
+    // Pre-success invariant: a database-shaped change cannot exit through this mode either.
+    assertDatabaseChain(control, changedPaths, readHead, baseRef);
     pass("Control-update PR is limited to a valid canonical Execution State.");
     return;
   }
@@ -728,6 +848,8 @@ function main() {
       } catch (error) {
         fail("Control-root maintenance exit contract is invalid: " + error.message);
       }
+      // Pre-success invariant: a database-shaped change cannot exit through this mode either.
+      assertDatabaseChain(control, changedPaths, readHead, baseRef);
       pass("Control-root maintenance exited through a state-only control update.");
       return;
     }
@@ -756,6 +878,8 @@ function main() {
     const added = changes.filter((i)=>i.status.startsWith("A")).map((i)=>i.path);
     const unapproved = added.filter((p)=>!control.allowed_new_files.includes(p));
     if (unapproved.length) fail("Control-root maintenance created unapproved files:\n" + unapproved.map((p)=>"  - "+p).join("\n"));
+    // Pre-success invariant: a database-shaped change cannot exit through this mode either.
+    assertDatabaseChain(control, changedPaths, readHead, baseRef);
     pass("Control-root maintenance is base-authorized and authority-root is required.");
     return;
   }
@@ -777,60 +901,7 @@ function main() {
   // before it can pass. This is enforced from the changed paths, not from the packet's
   // own opinion of its scope, so a packet cannot escape the chain by declining to
   // mention that it touched the database.
-  const databaseChanges = changedPaths.filter((filePath) => touchesDatabaseTarget(filePath, readHead));
-  if (databaseChanges.length) {
-    const chain = control.impact_graph.database_impact_chain;
-    if (!chain || typeof chain !== "object" || Array.isArray(chain)) {
-      fail([
-        "This packet changes database-shaped paths, so impact_graph.database_impact_chain",
-        "is required and is absent. Declare every station:",
-        "  " + DATABASE_IMPACT_STATIONS.join(String.fromCharCode(32, 8594, 32)),
-        "Database-shaped paths changed here:",
-        ...databaseChanges.map((filePath) => "  - " + filePath)
-      ].join(String.fromCharCode(10)));
-    }
-    const incomplete = DATABASE_IMPACT_STATIONS.filter(
-      (station) => !Array.isArray(chain[station]) || chain[station].length === 0
-    );
-    if (incomplete.length) {
-      fail([
-        "The database chain is incomplete. Every station is required for a database change,",
-        "because a database change reaches all of them whether or not the packet looked:",
-        ...incomplete.map((station) => "  - missing: " + station)
-      ].join(String.fromCharCode(10)));
-    }
-    const proseOnly = DATABASE_IMPACT_STATIONS.filter(
-      (station) => stationIsDocumentationOnly(chain[station])
-    );
-    if (proseOnly.length) {
-      fail([
-        "A database-chain station may not be satisfied by a document citation alone. A",
-        "document records a claim; the station must name what does the work, or say",
-        "UNVERIFIED so the gap stays visible:",
-        ...proseOnly.map((station) => "  - documentation-only: " + station)
-      ].join(String.fromCharCode(10)));
-    }
-    // Every repo path a station names must resolve on the PR base, exactly as the
-    // generic graph must. A fabricated station is not proof.
-    const unresolved = [];
-    for (const station of DATABASE_IMPACT_STATIONS) {
-      for (const entry of chain[station]) {
-        const value = entry.trim();
-        if (!value.includes("/") && !value.includes(".")) continue;
-        if (value.toUpperCase().startsWith("UNVERIFIED")) continue;
-        if (basePathExists(baseRef, value)) continue;
-        if (control.allowed_new_files.includes(value)) continue;
-        unresolved.push(station + ": " + value);
-      }
-    }
-    if (unresolved.length) {
-      fail([
-        "The database chain names repo paths that do not exist on the PR base and are not",
-        "authorized new files. A fabricated station is not proof:",
-        ...unresolved.map((item) => "  - " + item)
-      ].join(String.fromCharCode(10)));
-    }
-  }
+  assertDatabaseChain(control, changedPaths, readHead, baseRef);
 
   for (const protectedPath of [STATE_PATH, MASTER_PATH]) {
     if (changedPaths.includes(protectedPath)) {

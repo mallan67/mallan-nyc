@@ -17,8 +17,7 @@
  * Consumers:
  *   - scripts/recover-stale-property-listings.ts (refuse recovery against a
  *     non-canonical target)
- *   - scripts/ci/assert-canonical-neon-target.mjs (pre-bootstrap CLI mirror;
- *     keeps these constants in sync — see the header of that file)
+ *   (the pre-bootstrap CLI mirror was DELETED 2026-09-20 with the workflow it ran in)
  *
  * The direct-Neon branch-prune route and the credential-rotation workflow were
  * DELETED in PR #632. Neon control is the Vercel-managed Marketplace resource.
@@ -36,12 +35,11 @@
  * not. Both now delegate to the single classifier in lib/ops/db-target.ts.
  * lib/ops/db-target.ts.
  *
- * One copy of the rule legitimately remains: scripts/ci/assert-canonical-neon-target.mjs runs
- * cannot import TypeScript, because it runs before any dependency install. It is a
- * pre-bootstrap EXECUTION MIRROR of db-target.ts's semantics, held to behavioural parity by the
- * CLI ↔ TS parity tests — not a second authority, and not free to disagree.
+ * There is no second copy of the rule any more. The pre-bootstrap CLI mirror was deleted on
+ * 2026-09-20 together with the workflow it existed for, so this module is the single
+ * implementation and nothing can hold a different opinion about the canonical target.
  *
- * The exported constant is still named `…_HOST_SUBSTRING` because callers, the CLI
+ * The exported constant is still named `…_HOST_SUBSTRING` because its callers and its
  * guard and its drift test all reference that name. Its VALUE is unchanged; only the comparison
  * that consumes it got stricter. It is an endpoint id, not a substring to search for.
  *
