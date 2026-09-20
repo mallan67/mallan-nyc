@@ -89,8 +89,6 @@
     "ops:neon-audit": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/neon-storage-audit.ts",
     "ops:neon-shed": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/neon-shed-raw-data.ts",
     "ops:neon-shed:execute": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/neon-shed-raw-data.ts --execute",
-    "ops:neon-prune": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/neon-prune-branches.ts",
-    "ops:neon-prune:execute": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/neon-prune-branches.ts --execute",
     "ops:projection-backfill": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/backfill-listing-search-projection.ts",
     "ops:projection-backfill:execute": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/backfill-listing-search-projection.ts --execute",
     "ops:projection-reconcile": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/reconcile-projection-idx-display.ts",

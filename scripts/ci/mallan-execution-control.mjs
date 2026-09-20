@@ -48,6 +48,23 @@ const NONDELETABLE_CONTROL_ROOT_PATHS = new Set([
   ".github/workflows/branch-authority.yml"
 ]);
 
+// PR #632 DELETED the direct-Neon control plane. Mallan reaches Neon only through the
+// Vercel-managed Marketplace resource, so these paths must never come back - not as a
+// re-implementation and not as a fail-only stub, because a tombstone is still a Mallan
+// path: it keeps the retired architecture in the tree and in every catalog that scans it.
+const DELETED_DIRECT_NEON_PATHS = new Set([
+  ".github/workflows/cleanup-neon-preview-branch.yml",
+  ".github/workflows/rotate-db-keys.yml",
+  "app/api/cron/neon-branch-prune/route.ts",
+  "lib/neon/branches.ts",
+  "scripts/neon-prune-branches.ts",
+  "scripts/branch-prune-health.js",
+  "tests/runtime/neon-branch-prune-route.test.ts",
+  "tests/runtime/neon-prune-cli.test.ts",
+  "tests/runtime/branch-prune-health.test.ts",
+  "tests/runtime/neon-branch-prunability.test.ts"
+]);
+
 const BOOTSTRAP_ALLOWED = new Set([
   "AGENTS.md", "CLAUDE.md", "MALLAN-PLATFORM-MASTER-PLAN.md", "NEON.md",
   ".mcp.json", "mcp/trestle-fields/index.ts", "mcp/trestle-fields/README.md",
@@ -67,7 +84,11 @@ const BOOTSTRAP_ALLOWED = new Set([
   ".github/workflows/authority-root.yml", ".github/workflows/release-truth.yml",
   ".github/workflows/cleanup-neon-preview-branch.yml", ".github/workflows/rotate-db-keys.yml",
   "app/api/cron/neon-branch-prune/route.ts", "scripts/neon-prune-branches.ts", "vercel.json",
-  "scripts/ops-health.js", "scripts/branch-prune-health.js", "tests/runtime/branch-prune-health.test.ts"
+  "scripts/ops-health.js", "scripts/branch-prune-health.js", "tests/runtime/branch-prune-health.test.ts",
+  "lib/neon/branches.ts", "tests/runtime/neon-branch-prunability.test.ts",
+  "package.json", "artifacts/api-route-catalog.json",
+  "lib/ops/canonical-neon-target.ts",
+  "scripts/media-image-health.js", "scripts/r2-retry-health.js"
 ]);
 
 const MUTATION_FLAGS = [
@@ -459,6 +480,21 @@ function main() {
   }
 
   const changedPaths = changes.map((item) => item.path);
+
+  // A deleted direct-Neon control path may be touched only to keep it deleted.
+  // If it still exists at HEAD it has been revived, and revival is refused in every mode.
+  const revivedNeonPaths = changedPaths.filter((filePath) => {
+    if (!DELETED_DIRECT_NEON_PATHS.has(filePath)) return false;
+    try { git(["cat-file", "-e", "HEAD:" + filePath]); return true; } catch { return false; }
+  });
+  if (revivedNeonPaths.length) {
+    fail([
+      "Deleted direct-Neon control paths may not return. Mallan reaches Neon only",
+      "through the Vercel-managed Marketplace resource. A re-added file, or a",
+      "fail-only stub, is still a Mallan path:",
+      ...revivedNeonPaths.map((filePath) => "  - " + filePath)
+    ].join(String.fromCharCode(10)));
+  }
 
   const baseMaster = readBaseFile(baseRef, MASTER_PATH);
   const baseState = readBaseFile(baseRef, STATE_PATH);

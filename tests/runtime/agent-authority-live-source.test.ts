@@ -84,18 +84,34 @@ describe("agent authority docs stay on live sources", () => {
     expect(combined).not.toContain("has never created one");
   });
 
-  test("direct Neon mutation routes are quarantined from active automation", () => {
-    const cleanup = read(".github/workflows/cleanup-neon-preview-branch.yml");
-    const rotate = read(".github/workflows/rotate-db-keys.yml");
-    const route = read("app/api/cron/neon-branch-prune/route.ts");
-    const cli = read("scripts/neon-prune-branches.ts");
-    const vercel = JSON.parse(read("vercel.json"));
+  test("obsolete direct-Neon control paths are deleted, not quarantined", () => {
+    // Mallan reaches Neon only through the Vercel-managed Marketplace resource.
+    // A fail-only tombstone is still a Mallan path: it keeps the retired
+    // architecture in the tree, keeps its name in catalogs and scripts, and can
+    // be revived by deleting three lines. Absence is therefore the assertion.
+    // A "contains QUARANTINED" test would pass on a stub and prove nothing.
+    const mustNotExist = [
+      ".github/workflows/cleanup-neon-preview-branch.yml",
+      ".github/workflows/rotate-db-keys.yml",
+      "app/api/cron/neon-branch-prune/route.ts",
+      "lib/neon/branches.ts",
+      "scripts/neon-prune-branches.ts",
+      "scripts/branch-prune-health.js",
+    ];
+    for (const rel of mustNotExist) {
+      expect({ path: rel, exists: fs.existsSync(path.join(ROOT, rel)) }).toEqual({ path: rel, exists: false });
+    }
 
-    expect(cleanup).toContain("QUARANTINED_DIRECT_NEON_CONTROL");
-    expect(rotate).toContain("QUARANTINED_DIRECT_NEON_CONTROL");
-    expect(route).toContain("direct_neon_control_quarantined");
-    expect(cli).toContain("QUARANTINED_DIRECT_NEON_CONTROL");
+    // The schedule that drove the deleted route must be gone from Vercel config.
+    const vercel = JSON.parse(read("vercel.json"));
     expect((vercel.crons || []).some((c: { path?: string }) => c.path === "/api/cron/neon-branch-prune")).toBe(false);
+
+    // No operator entry point may survive the code it invoked.
+    const pkg = JSON.parse(read("package.json"));
+    expect(Object.keys(pkg.scripts || {}).filter((s) => s.includes("neon-prune"))).toEqual([]);
+
+    // The generated route catalog must not advertise a route that no longer exists.
+    expect(read("artifacts/api-route-catalog.json")).not.toContain("/api/cron/neon-branch-prune");
   });
 
   test("GitHub enforcement workflows use canonical base authority", () => {

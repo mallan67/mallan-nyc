@@ -8,7 +8,7 @@
 // no_image_any_layer (JSON empty AND no active listing_media row) — the REAL
 // render-path placeholder count, and the number that sizes Phase-3/M4.
 //
-// Pure CommonJS, same pattern as branch-prune-health.js / r2-retry-health.js.
+// Pure CommonJS, same pattern as r2-retry-health.js.
 
 const THRESHOLDS = {
   no_image_warn: 1000, // >= 1K IDX-displayable render the placeholder on EVERY layer

@@ -312,11 +312,11 @@ async function run() {
     if (!e.message?.includes('does not exist')) throw e;
   }
 
-  // Direct-Neon branch pruning was retired/quarantined in PR #632.
-  // Branch/resource lifecycle health must be verified through the authorized
-  // Vercel-managed Neon resource path. Historical neon_branch_prune_cron audit
-  // events are evidence only and must not drive current health alarms or tell
-  // operators to restore retired direct-Neon credentials.
+  // Direct-Neon branch pruning was DELETED in PR #632 — route, CLI, library,
+  // health check and tests are all removed. Branch/resource lifecycle health is
+  // verified only through the authorized Vercel-managed Neon resource path.
+  // Historical neon_branch_prune_cron audit events are evidence only; they must
+  // not drive current health alarms or point an operator at a deleted path.
 
 
   // ─── Media Sync Health (added 2026-05-22) ────────────────────────

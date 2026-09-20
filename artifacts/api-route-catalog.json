@@ -3037,20 +3037,6 @@
       "gate_enforced": false
     },
     {
-      "route": "/api/cron/neon-branch-prune",
-      "file": "app/api/cron/neon-branch-prune/route.ts",
-      "methods": [
-        "GET"
-      ],
-      "auth_class": "cron",
-      "auth_signals": [
-        "cron-secret"
-      ],
-      "compliance_signals": [],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
       "route": "/api/cron/prospect-triggers",
       "file": "app/api/cron/prospect-triggers/route.ts",
       "methods": [
