@@ -9,11 +9,11 @@
 **Checkpoint:** 2026-09-20  
 **Repository:** `mallan67/mallan-nyc` only  
 **Canonical branch:** `main`  
-**Current main:** `bba9d8d6c92bb3bfe95b9f4b90da69534650c276`  
-**Active governance convergence PR:** #632  
-**Checkpoint source head:** `aa601e760c6c7c0807449c7c2506b0a2c445019b` (exact head reviewed by Codex before this closure correction; current PR head must always be read live from GitHub)  
+**Current main:** `005786e71818ef13f555111de67e3d6248412987`  
+**Active governance convergence PR:** none. PR #632 MERGED 2026-09-20T17:53:22Z as `005786e71818ef13f555111de67e3d6248412987`  
+**Checkpoint source head:** `fb100d6a12f572d78aaac0ec152c4cc57ac6ce74` (final #632 head; all checks green, zero unresolved review threads). Current head must always be read live from GitHub  
 **Authorized work surface:** GitHub repository + explicitly authorized provider connections only; Desktop/worktrees/scratch copies are not execution authority  
-**PR #595:** authority provenance / historical governance source; open, draft, unmerged, heavily diverged from current main
+**PR #595:** authority provenance / historical governance source; CLOSED 2026-09-20T17:54:35Z as superseded by #632, unmerged. Its lineage is in `main` history through #632
 
 ---
 
@@ -58,7 +58,7 @@ AUTHORITATIVE SOURCE
 
 PR #595 established the original canonical Master Plan and the Continuous Execution State concept. It is the provenance of the authority model, but the current Master is now an **integrated successor**, not a byte-for-byte copy of the #595 blob.
 
-Current canonical Master on PR #632:
+Current canonical Master, on `main` since the #632 merge:
 
 - path: `MALLAN-PLATFORM-MASTER-PLAN.md`
 - still one file / one authority
@@ -133,9 +133,11 @@ No historical #595 support file becomes a competing authority merely because it 
 
 ## Main
 
-`main = bba9d8d6c92bb3bfe95b9f4b90da69534650c276`
+`main = 005786e71818ef13f555111de67e3d6248412987`
 
-That commit merged PR #631, Database Authority Safety Packet 1.
+That commit merged PR #632, the integrated Master + execution control convergence. The
+preceding main, `bba9d8d6c92bb3bfe95b9f4b90da69534650c276`, merged PR #631 (Database
+Authority Safety Packet 1) and is now history.
 
 ## PR #631 — CLOSED
 
@@ -159,9 +161,10 @@ Delivered:
 
 No schema migration, Production data mutation, Neon branch creation, Vercel env mutation, cron execution or credential rotation was part of Packet 1.
 
-## PR #632 — ACTIVE GOVERNANCE CONVERGENCE
+## PR #632 — MERGED 2026-09-20
 
-Current purpose:
+Merged as `005786e71818ef13f555111de67e3d6248412987`. Recorded here as the provenance of the current authority system,
+not as work in flight. What it did:
 
 1. recover the exact #595 Master into the current Git path;
 2. establish one current Execution State;
@@ -169,7 +172,11 @@ Current purpose:
 4. install the machine execution controller in the existing required `pr-check`;
 5. stop agents from self-authorizing scope through side branches or branch-local state edits.
 
-PR #632 is the **one-time bootstrap exception** because current `main` does not yet contain the Master or Execution State.
+PR #632 was the **one-time bootstrap exception**, granted because `main` did not then contain
+the Master or the Execution State. **That exception is now CLOSED.** It was guarded on the
+ABSENCE of both files rather than on a PR number, and `main` now carries both, so the branch
+is unreachable for every pull request including #632 itself. Two tests in
+`tests/runtime/mallan-execution-control.test.ts` assert that property from the post-merge side.
 
 ## Branch estate
 
@@ -195,8 +202,14 @@ Current repo/provider state:
 
 - `.mcp.json` declares the `trestle-fields` adapter;
 - runtime OAuth code exists in `lib/idx/auth.ts`;
-- the configured adapter points to `mcp/trestle-fields/dist/index.js`, but that built file is not tracked in Git;
-- adapter source can fall back to `artifacts/metadata.xml` after a live fetch failure, so a successful local response is not automatically live-provider proof;
+- the configured adapter invokes the TRACKED source `mcp/trestle-fields/index.ts` via `npx tsx`,
+  so a clean checkout has the file it needs. (Corrected 2026-09-20: this bullet previously said
+  the adapter pointed at an untracked `dist/index.js`. That was true before #632 and is not true
+  at `005786e`.);
+- the adapter FAILS CLOSED. It throws `No local snapshot fallback is permitted` when a live fetch
+  fails, and contains no reference to `artifacts/metadata.xml`. (Corrected 2026-09-20: this
+  bullet previously described a snapshot fallback that has been removed. An agent acting on the
+  old wording would reject a helper that is behaving correctly.);
 - the current runtime test proves configuration strings, not that a clean Git checkout can start the adapter and reach Cotality live;
 - the connected Cotality provider call was unavailable during the 2026-09-20 verification attempt (transport returned 429/404).
 
@@ -301,11 +314,18 @@ Exact proof captured for `8e4e2e8fb66b7786cd7aadb0f641926bb8924ac9` before its c
 - Release Truth: dependency wait **SUCCESS**, aggregator `PREVIEW_PROVEN`, commit status **SUCCESS**;
 - Production proof: **not performed / not claimed**.
 
-The four `8e4e2e8...` review threads above are the only reason that proof set is not a closure record. Any correction commit invalidates the prior exact-head proof and must rerun the chain.
+That proof set was superseded many times over: the branch went through nine further exact-head
+review rounds after it, each invalidating the previous proof and rerunning the chain, before the
+final head `fb100d6a` merged. The rule it states still holds for every future packet — any
+correction commit invalidates the prior exact-head proof and must rerun the chain.
 
 # 5. Active continuous program
 
-The current sequence is now governance-first. Provider cleanup and product implementation are stopped until the execution boundary is real.
+The current sequence is governance-first. Provider cleanup and product implementation are stopped
+until the execution boundary is real.
+
+**Position as of 2026-09-20: items 1 to 6 are COMPLETE. Item 7 is the current step and its second
+half is Maya-held. Item 8 has not begun.**
 
 1. **Close the remaining PR #632 defects before merge.**
    - DONE — the direct-Neon control plane is DELETED, not quarantined: the PR-close cleanup workflow, the
@@ -344,8 +364,19 @@ The current sequence is now governance-first. Provider cleanup and product imple
      smoke steps are skipped on PR events by design, so it is never evidence that Production runs this
      branch.
 5. **Run independent review on the exact corrected head and resolve only genuinely corrected threads.**
+   - DONE — nine exact-head Codex rounds, then a five-dimension independent adversarial review
+     when Codex reached its usage limit. Every finding was reproduced before any patch and every
+     fix was mutation-verified. Zero unresolved threads at merge.
 6. **Merge #632 only after its own stated merge criteria are actually true.**
+   - DONE — merged 2026-09-20T17:53:22Z as `005786e71818ef13f555111de67e3d6248412987`,
+     with `pr-check`, `release-truth`, `guardrails`, `target-platform-build`, `claude-review` and
+     Vercel all green on the final head, merge state CLEAN, and zero unresolved threads.
+     Production then deployed that exact SHA and was probed.
 7. **Post-merge activation:** once `authority-root` exists on protected `main`, run the authorized control-update PR and add `authority-root` to the live `Protect main` required status checks before any implementation packet can merge.
+   - **CURRENT STEP, HALF DONE.** `authority-root` exists on `main` and has now executed once,
+     from this control-update PR. Adding it to the `Protect main` required status checks is a
+     branch-protection change, is Maya-held, and is NOT authorized by this packet. Verified live:
+     ruleset `19435006` still requires `pr-check` only.
 8. **Only then run one Vercel control-plane reconciliation packet** over the existing `mallan-nyc → neon-green-school` connection, environment scopes, branch overrides and every DB/control reader/writer.
 9. **Only after that reconciliation may Development/Preview authority be designed.** No schema-only branch, second project, per-branch database or resource split is assumed in advance.
 10. **Cotality-dependent product work remains fail-closed until live provider proof is available through the authorized Cotality contract path.**
@@ -422,7 +453,10 @@ Branch deletion is therefore the **last** step, not the first.
 
 ### Recovery phases
 
-**Phase A — governance lock.** Finish and merge a corrected #632, then activate `authority-root` as a required `Protect main` check. Until that is real, cleanup remains blocked because the system can recreate the same sprawl.
+**Phase A — governance lock. PARTIALLY COMPLETE.** #632 is merged (`005786e71818ef13f555111de67e3d6248412987`). What
+remains is activating `authority-root` as a required `Protect main` check, which requires
+Maya's explicit branch-protection authorization. Until that is real, cleanup remains blocked,
+because the system can still recreate the same sprawl.
 
 **Phase B — Git reconciliation.** Classify all 36 non-main branches. Open-PR branches are reconciled through their PR history; the 12 no-PR branches are compared against current main and either integrated into one authorized packet, explicitly rejected as obsolete, or retained only until required evidence is captured. No branch is deleted while unique required work remains unaccounted for.
 
@@ -499,9 +533,11 @@ The required GitHub PR check reads authorization from the **base branch**, not f
 
 That prevents an agent from editing this file in its own implementation PR and granting itself wider permissions.
 
-PR #632 is a one-time bootstrap exception because base `main` does not yet contain this file.
+PR #632 was a one-time bootstrap exception because base `main` did not then contain this file.
+It is merged and the exception is closed; base `main` now carries both authority files, so no
+PR can reach that branch again.
 
-After this governance system is merged, the next permitted step is a **control-update PR only**. It may update this execution-state file to authorize one bounded implementation packet. Code and scope expansion may not be combined into the same self-authorizing PR.
+The next permitted step is a **control-update PR only**. It may update this execution-state file to authorize one bounded implementation packet. Code and scope expansion may not be combined into the same self-authorizing PR.
 
 <!-- MALLAN_EXECUTION_CONTROL_V1_START -->
 ```json
@@ -534,8 +570,8 @@ After this governance system is merged, the next permitted step is a **control-u
     "compliance_proof_required_when_applicable": true,
     "no_parallel_path_proof_required": true
   },
-  "packet_id": "GOVERNANCE-CONTROL-BOOTSTRAP",
-  "objective": "After bootstrap, authorize only a bounded control update on work/active; implementation requires a separately reviewed impact graph.",
+  "packet_id": "GOVERNANCE-POST-MERGE-STATE-RECONCILIATION",
+  "objective": "Bootstrap is merged and its exception is closed. Authorize only a bounded state-only control update on work/active. The envelope below is deliberately unchanged: implementation, provider mutation and branch-protection changes each require a separately reviewed packet.",
   "impact_graph": {
     "root_owner_paths": [
       "MALLAN-PLATFORM-MASTER-PLAN.md",
@@ -580,14 +616,14 @@ After this governance system is merged, the next permitted step is a **control-u
 - New files are denied unless named in `allowed_new_files`.
 - Any changed path outside `authorized_paths` fails the required PR check.
 - Any branch other than `authorized_branch` fails after bootstrap.
-- Schema/env/Neon/destructive/manual-cron/provider mutations are prohibited unless explicitly authorized by the base-state contract **and** Maya's explicit authorization exists. The controller implementation now mechanically enforces the declared mutation/proof contract described in §7.1; **exact-head closure proof is still pending**, so implementation is not yet a merge-ready closure claim.
+- Schema/env/Neon/destructive/manual-cron/provider mutations are prohibited unless explicitly authorized by the base-state contract **and** Maya's explicit authorization exists. The controller implementation mechanically enforces the declared mutation/proof contract described in §7.1. **Exact-head closure proof is COMPLETE** as of the merge of `fb100d6a`.
 - A new canonical system is denied by default.
 - Authority files cannot be rewritten inside an implementation packet merely to make the packet pass.
 - The work contract is changed first, merged, and only then may the implementation packet begin.
 
 ---
 
-## 7.1 Execution-controller coverage after the #632 correction set — PROOF PENDING
+## 7.1 Execution-controller coverage after the #632 correction set — PROVEN 2026-09-20
 
 The corrected controller and required PR workflow now make the previously decorative contract fields executable:
 
@@ -596,14 +632,20 @@ The corrected controller and required PR workflow now make the previously decora
 - `provider_proof_required` fails closed unless the base-controlled workflow supplies each named proof token;
 - the full `requirements.*` object is required and validated;
 - declared negative-test coverage requires a changed declared test path;
-- the required PR workflow freezes the controller from the PR base (bootstrap #632 is the one-time exception because base main has no controller yet);
+- the required PR workflow freezes the controller from the PR base (the #632 bootstrap exception was the one-time carve-out and is now closed, because base main carries the controller);
 - the controller runs once before the work and once after the test/build/compliance chain;
 - the final phase consumes proof tokens only after the preceding GitHub steps have succeeded;
 - `control-root-maintenance` is an explicit mode that requires a prior state-only authorization plus live GitHub proof that `authority-root` is already a required main status check;
 - root maintenance is evaluated by the base controller and exits through a separate state-only update back to `control-update`;
 - direct-Neon cleanup/rotation files and `vercel.json` are protected control-root paths so an ordinary implementation packet cannot silently re-arm them.
 
-This section is not a closure claim. It becomes **PROVEN** only if the exact correction head passes its controller negative tests, PR checks, Guardrails, Release Truth, Vercel Preview and independent review.
+**This section is now a closure record.** The exact correction head `fb100d6a` passed its
+controller negative tests, PR checks, Guardrails, Release Truth, Vercel Preview and independent
+review, and merged as `005786e`.
+
+What it does NOT prove, recorded so no later agent overstates it: the capability scan is not a
+containment boundary, it inspects changed files only rather than sweeping the tree, and
+non-executable files are outside it by design. §11 states the limits in full.
 
 The Git gate controls Git changes and proof requirements. It does not claim to cryptographically prevent an actor who separately possesses out-of-band provider credentials from calling a provider API. Mallan therefore also requires provider mutation to be performed only through an explicitly authorized Git-controlled packet/workflow; direct Neon mutation paths are DELETED from the tree, and the execution gate fails any change that revives one.
 
@@ -631,9 +673,15 @@ The existing historical branch estate remains evidence until reconciled.
 
 GitHub's current `Protect main` ruleset is active, requires the `pr-check` status check, blocks non-fast-forward/deletion, has no bypass actors, and requires resolution of review threads.
 
-However, it currently requires **0 approving reviews**, and `authority-root` is not yet a required status check because that workflow does not exist on current `main`.
+It requires **0 approving reviews**. `authority-root` now EXISTS on `main` (it merged with
+#632) but is **still not a required status check** — verified live against ruleset `19435006`,
+whose required set is `pr-check` only.
 
-**Hard activation sequence after PR #632 merges:** create/open only the authorized `work/active` control-update PR so `authority-root` runs once, then add `authority-root` to the existing `Protect main` required status checks **before any implementation packet may merge**. Until that ruleset change is complete, implementation mode remains blocked by policy.
+**Hard activation sequence, current position:** step 1 is this control-update PR on
+`work/active`, which lets `authority-root` run once from protected `main`. Step 2 is adding
+`authority-root` to the `Protect main` required status checks, which is a Maya-held
+branch-protection change and is NOT authorized by this packet. Until that ruleset change is
+complete, implementation mode remains blocked by policy.
 
 If an AI agent operates through Maya's own GitHub identity, GitHub cannot distinguish a control update authored by Maya from one authored by the agent. Repository CI can prevent a PR from self-authorizing within the same branch, but it cannot cryptographically prove which human/agent initiated a later control-update PR when both share one identity.
 
@@ -685,47 +733,99 @@ Do not create another status file because this one becomes inconvenient.
 
 # 11. Current exact stop point
 
-**DO NOT MERGE PR #632 UNTIL THE CURRENT CORRECTION HEAD PASSES EXACT-HEAD CI, VERCEL PREVIEW PROOF AND INDEPENDENT REVIEW.**
+**PR #632 IS MERGED. The governance boundary is closed. `authority-root` is NOT yet a
+required check, so implementation mode remains blocked by policy.**
 
-Checkpoint source head before this handoff update: `9cd51d226e887389e15f843e7db8991eb64781ff`.
+## What is verified complete
 
-Verified live GitHub state at that head:
+| fact | value |
+|---|---|
+| PR #632 | MERGED 2026-09-20T17:53:22Z |
+| merge commit / current main | `005786e71818ef13f555111de67e3d6248412987` |
+| final reviewed head | `fb100d6a12f572d78aaac0ec152c4cc57ac6ce74` |
+| PR #595 | CLOSED 2026-09-20T17:54:35Z, unmerged, superseded |
+| unresolved review threads on #632 | 0 |
+| Production deployment | `dpl_9K1eKFva7W1mKmRjcqYWu2rqw6wp`, GitHub Production status `success`, source `main@005786e7` |
 
-- PR #632: open, mergeable, but merge state blocked;
-- `Protect main` ruleset ID `19435006`: active, no bypass actors, non-fast-forward/deletion protection, review-thread resolution required;
-- required status checks: **`pr-check` only**;
-- `authority-root` is not required and cannot run as a base-controlled `pull_request_target` gate until that workflow exists on `main`;
-- `branch-authority` is a branch-creation enforcement workflow, not a substitute required PR status;
-- PR checks: success;
-- Guardrails: success;
-- Claude Code Review workflow: success;
-- Release Truth workflow job: success, but the exact-head commit status remained **pending / UNVERIFIED** because it evaluated before the Vercel status settled;
-- Vercel exact-head status later became success;
-- three Codex review threads remained formally unresolved;
-- Codex findings for proposed-control validation and rename/copy bypass are corrected on the checkpoint head;
-- the Desktop-path review finding is not considered closed merely because wording was changed to make a literal-string test pass.
+Checks green on the final head: `pr-check` (the only required one), `release-truth`,
+`guardrails`, `target-platform-build`, `claude-review`, Vercel and Vercel Preview Comments.
 
-### Required closure before merge
+Production probed on the merged SHA: `/`, `/api/health`, `/search`, `/buy`, `/rent` and
+`/login` all 200; `/crm` and `/crm/search` return 307 to the CRM login page preserving the
+intended destination, which is the authentication redirect working rather than a break.
 
-1. Exact correction head passes the semantic GitHub-only authority test.
-2. Exact correction head contains no current lifetime-history Neon overclaim in the changed authority/provider docs.
-3. Controller negative tests prove mutation flags, provider-proof fail-closed behavior, final-proof requirements, rename rejection and base-controlled root maintenance.
-4. Direct-Neon PR-close cleanup, scheduled prune and credential-rotation paths are DELETED from the repository, not disabled; the prune schedule is absent from `vercel.json` and the execution gate refuses their return under any filename.
-5. The optional local Cotality helper uses source that exists in Git and has no metadata-snapshot fallback; unavailable live Cotality fails closed.
-6. Release Truth waits for exact-head Vercel + required checks and finishes in a non-racy final state.
-7. A new independent review evaluates the exact corrected head; old review threads are resolved only after the corrected code/tests are visible.
-8. PR checks, Guardrails and Vercel Preview are green on the exact corrected head.
-9. No Production/provider/environment/schema/destructive mutation occurs during this governance repair.
-10. No merge/Production deployment occurs without Maya's explicit merge/deploy authorization.
+Verified absent from `main`: both direct-Neon workflows, the prune route, `lib/neon/branches.ts`,
+the prune CLI, the verifier, the branch-prune health check, the canonical-target CLI guard and
+the quarantined orphan test. `vercel.json` carries 19 crons and no `neon-branch-prune`. No
+tracked executable outside the gate and its two test files names a Neon control-plane host, the
+CLI, or a control-plane credential.
 
-### Post-merge activation
+## What this packet is
 
-After a corrected #632 merges:
+A state-only control update. It changes this file and nothing else, because the merged control
+block authorizes exactly that. It exists because the merge left this file asserting three facts
+that had become false — a stale `main` SHA, #632 as the active PR, and #595 as open — and this
+file is the mutable current-state authority a fresh agent reads first. A governance system whose
+own state file is stale on day one teaches the next agent that the state file is not to be
+trusted.
 
-1. use the single authorized `work/active` control-update lane;
-2. allow `authority-root` to execute from protected `main`;
-3. with Maya's explicit branch-protection authorization, add `authority-root` to `Protect main` required status checks;
-4. implementation mode remains blocked until that activation is proven.
+## Immediate operational consequence of the merge — READ THIS FIRST
 
-**No Vercel/Neon cleanup, new database/resource/branch, Cotality rewrite, or product implementation is the next action. The next action is closing the governance boundary itself.**
+**Every open pull request is now gate-blocked.** Verified by running the merged controller
+from `main` against an existing PR branch: it exits 1 with *PR head is <branch>; only
+authorized branch work/active may execute*. At the time of writing that is **22 open PRs**,
+none of them on `work/active`.
 
+This is the designed behaviour, not a defect: the control block authorizes one branch and one
+file, so implementation cannot resume until a control update opens a lane for it. It is
+recorded here because it is a large, immediate change to how the repository behaves, it was
+not flagged at merge time, and a reader who finds their PR red needs to know the cause is the
+envelope rather than their code.
+
+None of those 22 PRs was broken BY the merge. The three that were already failing had been red
+since August: #624 `pr-check` (2026-08-23), #600 `pr-check` (2026-08-11),
+#596 `guardrails` (2026-08-06). What changed is that all 22 will now fail the branch
+check if re-run.
+
+**Unblocking is Maya-held and is not authorized by this packet.** Each implementation lane
+needs its own control update naming its branch, its paths and its impact graph. Widening the
+envelope inside this state-only packet would be exactly the self-authorization the gate exists
+to prevent.
+
+## The next action, and what it is not
+
+**Next: `authority-root` activation.** Add `authority-root` to the `Protect main` required
+status checks. It is a branch-protection change, it is Maya-held, and it is NOT authorized by
+this packet. Verified live: ruleset `19435006` currently requires `pr-check` only.
+
+Until that activation is proven, the following remain blocked and no agent may begin them:
+
+1. **Neon credential and env cleanup.** `NEON_API_KEY` and the bare `NEON_PROJECT_ID` still
+   exist in the Vercel project. No tracked file reads either, and the execution gate refuses
+   any change that would, but removing the credentials is a separate authorized packet.
+2. **The five branch-scoped bare `DATABASE_URL` overrides** in Vercel. Recorded, not changed.
+3. **Orphan Vercel branch scopes** and Git branch retirement. Phases B and C of §6 stand.
+4. **Any implementation packet.** Implementation mode is blocked by policy until activation.
+
+## Honest limits of what the merged gate proves
+
+Recorded so no later agent overstates it:
+
+- The **capability scan is not a containment boundary.** An independent review demonstrated
+  that two ordinary constants holding the two halves of a prohibited host defeat every reading,
+  with no obfuscation, because the statement separator between them survives the collapse and
+  there is no comment to remove. It raises the cost and catches the careless. What holds the
+  line is the deletion, the absence of any authorized path, and review.
+- The capability scan inspects **changed files only**, not the whole tree on every run. That is
+  sound by induction given main is clean at merge, which was verified at `005786e7`, but
+  there is no standing sweep.
+- **Non-executable files are outside the capability scan** by design, so documents can name the
+  prohibition. A credential name added to a tracked `.env.example` would not be caught by that
+  scan.
+- `control-root-maintenance` is blocked unless `authority-root` is a required check, and it
+  fails closed when it cannot tell. The mode is therefore currently unreachable, which is the
+  safe state — but that is the guard failing closed, not the protection being active.
+
+**No Vercel/Neon cleanup, new database/resource/branch, Cotality rewrite, or product
+implementation is the next action. The next action is `authority-root` activation, and it is
+Maya's to authorize.**
