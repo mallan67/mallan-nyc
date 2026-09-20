@@ -800,6 +800,74 @@ needs its own control update naming its branch, its paths and its impact graph. 
 envelope inside this state-only packet would be exactly the self-authorization the gate exists
 to prevent.
 
+## BLOCKING DEFECT — implementation mode is a one-way door
+
+**Do not set `mode` to `implementation` until this is fixed. It cannot be undone by any
+pull request.**
+
+Found by review on 2026-09-20 while attempting to open a documentation lane for the dated
+handoff, and demonstrated rather than reasoned. A fixture was built whose base Execution
+State is in `implementation` mode, and the promised state-only exit was run through the
+shipped controller:
+
+```
+changed files: docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md only
+gate exit code: 1
+  [MALLAN EXECUTION CONTROL] FAIL
+  Implementation PR may not modify authority file
+  docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md.
+```
+
+### Why it is a trap rather than an inconvenience
+
+1. `control.mode` is read from the BASE branch, so once `implementation` is merged it
+   governs every subsequent pull request.
+2. In `implementation` mode the controller refuses any PR that touches the Execution
+   State, as a protected-root modification, before it evaluates any proposed replacement
+   contract. So the contract can never be changed back.
+3. The only other route is `control-root-maintenance`, which is blocked until live GitHub
+   rules prove `authority-root` is a required main-branch status check. That is a
+   branch-protection change and is Maya-held.
+4. Amending the controller to add an exit is itself blocked, because
+   `scripts/ci/mallan-execution-control.mjs` is a protected control-root path requiring
+   that same unreachable mode.
+
+The result is a closed loop with no agent-reachable escape. The repository would be able
+to change exactly the files in that one envelope, permanently.
+
+### Current position is SAFE
+
+`main` is in `control-update` mode, which is reversible: a control update may change the
+Execution State, including the mode. Nothing is trapped today. The trap springs only on
+the first merge that sets `implementation`.
+
+### What this changes about the order of work
+
+**`authority-root` activation is no longer merely the next step. It is the only action
+that unblocks anything at all.** Until it is a required check on `Protect main`:
+
+- no file other than this one can be changed by any pull request without entering the
+  trap;
+- the controller cannot be amended to add the missing exit;
+- the dated operational handoff for 2026-09-20 cannot be committed to
+  `docs/operations/site-audit-handoff-2026-09-20.md`. Its content is written and posted on
+  PR #632 so the work exists on GitHub; it is pending a lane, not pending authorship.
+
+### Required fix, once the mode is reachable
+
+Add an implementation-mode state-only exit comparable to the existing
+`control-root-maintenance` exit: a PR whose ONLY changed path is this file, and whose
+proposed contract returns `mode` to `control-update`, must be permitted in
+`implementation` mode. Until that exists, treat `implementation` as unreachable.
+
+### A second, smaller divergence found at the same time
+
+`AGENTS.md:114` requires `npm run health:probe` as step 1 of the handoff protocol, and
+that command writes `docs/PROJECT-HEALTH-DASHBOARD.md`. The current `CLAUDE.md` on `main`
+carries no such requirement. Two files that are supposed to move together disagree.
+Recorded rather than silently resolved. Any future documentation envelope must authorize
+the dashboard as well as the handoff, or the documented protocol cannot be followed.
+
 ## The next action, and what it is not
 
 **Next: `authority-root` activation.** Add `authority-root` to the `Protect main` required
