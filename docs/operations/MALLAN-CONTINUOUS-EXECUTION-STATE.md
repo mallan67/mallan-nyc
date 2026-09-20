@@ -9,7 +9,12 @@
 **Checkpoint:** 2026-09-20  
 **Repository:** `mallan67/mallan-nyc` only  
 **Canonical branch:** `main`  
-**Current main:** `005786e71818ef13f555111de67e3d6248412987`  
+**Main at this checkpoint:** `005786e71818ef13f555111de67e3d6248412987` — the PR #632 merge
+commit, which is the commit this checkpoint describes. **This is not a claim about the current
+tip of `main` and must never be read as one.** Updating this file necessarily advances `main`
+past whatever SHA it records, so a literal current-main field here self-stales the moment it
+merges. §1 already forbids persisting mutable fingerprints for exactly this reason. **Read the
+live tip from GitHub.**  
 **Active governance convergence PR:** none. PR #632 MERGED 2026-09-20T17:53:22Z as `005786e71818ef13f555111de67e3d6248412987`  
 **Checkpoint source head:** `fb100d6a12f572d78aaac0ec152c4cc57ac6ce74` (final #632 head; all checks green, zero unresolved review threads). Current head must always be read live from GitHub  
 **Authorized work surface:** GitHub repository + explicitly authorized provider connections only; Desktop/worktrees/scratch copies are not execution authority  
