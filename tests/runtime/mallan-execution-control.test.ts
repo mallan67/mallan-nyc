@@ -1389,6 +1389,34 @@ describe("Mallan execution-control gate", () => {
     const res = gate(cwd);
     expect(res.status).not.toBe(0);
   });
+  // I went looking for a crash here and did not find one: the control contract already
+  // validates every station entry when the document is parsed, well before the chain is
+  // evaluated. These two tests exist because that behaviour had no coverage in this suite,
+  // so nothing would have noticed if the contract validation were later relaxed. The
+  // distinction they lock in is the one that matters for a governance gate: a malformed
+  // chain produces a REFUSAL naming the station, not a stack trace.
+  test("a station entry that is not a path is refused, not crashed on", () => {
+    const chain = { ...FULL_DB_CHAIN };
+    (chain as Record<string, unknown[]>).env_resolution = [42];
+    const cwd = initRepo(dbControl(chain));
+    touchSchema(cwd, "db change with a numeric station entry");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("entries must be non-empty strings");
+    expect(res.stderr).toContain("env_resolution");
+    // A refusal, not a crash: no stack trace reached the operator.
+    expect(res.stderr).not.toContain("TypeError");
+  });
+
+  test("an empty-string station entry is refused", () => {
+    const chain = { ...FULL_DB_CHAIN };
+    (chain as Record<string, unknown[]>).db_target = ["   "];
+    const cwd = initRepo(dbControl(chain));
+    touchSchema(cwd, "db change with a blank station entry");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("entries must be non-empty strings");
+  });
   test("an UNVERIFIED station does not satisfy the mandatory chain", () => {
     const chain = { ...FULL_DB_CHAIN };
     for (const station of Object.keys(chain)) {
