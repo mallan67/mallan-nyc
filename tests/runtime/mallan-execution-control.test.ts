@@ -502,6 +502,15 @@ describe("Mallan execution-control gate", () => {
     const cwd = initRepo(baseControl({
       authorized_paths: ["lib/feature/**"],
       allowed_new_files: [],
+      impact_graph: {
+        root_owner_paths: [MASTER],
+        writer_paths: ["lib/feature/reader.ts"],
+        reader_paths: ["lib/feature/reader.ts"],
+        publisher_paths: ["lib/feature/publisher.ts"],
+        downstream_surfaces: ["test downstream"],
+        test_paths: ["tests/runtime/mallan-execution-control.test.ts"],
+        compliance_surfaces: ["none for fixture"],
+      },
     }));
     write(cwd, "lib/feature-escape.ts", "export const escape = false;\n");
     git(cwd, "add", "lib/feature-escape.ts");

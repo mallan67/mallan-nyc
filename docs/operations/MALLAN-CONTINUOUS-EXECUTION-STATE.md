@@ -306,6 +306,31 @@ Closure correction in the next head:
 
 **Do not merge based on the green `aa601e` checks.** Closure requires a new exact-head PR check + Guardrails + Vercel Preview + Release Truth + independent Codex review with no unresolved findings.
 
+# 4.2 Exact-head verification checkpoint — 017adc08 — 2026-09-20
+
+Exact head tested: `017adc08d670e018d4eea934b4979e065d7bdd70`.
+
+Verified before the first failure:
+
+- Guardrails: **SUCCESS**;
+- exact PR event base-SHA controller freeze: **SUCCESS**;
+- active-main `authority-root` ruleset probe: **SUCCESS** (current ruleset correctly reports `authority-root` is not required yet);
+- Mallan execution-control preflight: **SUCCESS**;
+- Prisma validate/generate + ephemeral CI schema application: **SUCCESS**;
+- TypeScript type-check: **SUCCESS**.
+
+Jest result:
+
+- 425 suites passed, 4 skipped, 1 failed;
+- 7,368 tests passed, 30 skipped, 1 failed;
+- sole failure: `glob authorization preserves the directory boundary`;
+- root cause: the **test fixture** inherited `impact_graph.writer_paths = ["lib/allowed.ts"]`, which does not exist on the base fixture, so impact-graph validation correctly failed before the test reached the directory-boundary assertion;
+- controller implementation is not weakened. The correction gives that test an existing base writer path and preserves the sibling-prefix negative assertion.
+
+At diagnosis time, Vercel Preview and exact-head Codex review were still running. Release Truth was correctly waiting for exact-head dependencies.
+
+Next action: land only the fixture correction + this handoff checkpoint, then rerun the entire exact-head proof chain. No provider/environment/schema/Production mutation is authorized or performed.
+
 # 5. Active continuous program
 
 The current sequence is now governance-first. Provider cleanup and product implementation are stopped until the execution boundary is real.
