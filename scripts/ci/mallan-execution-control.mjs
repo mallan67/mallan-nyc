@@ -65,6 +65,54 @@ const DELETED_DIRECT_NEON_PATHS = new Set([
   "tests/runtime/neon-branch-prunability.test.ts"
 ]);
 
+// The retired capability, derived from the code this packet deleted rather than guessed.
+// rotate-db-keys.yml called console.neon.tech/api/v2/projects/<id>/branches/<id>/roles/
+// <role>/reset_password with a bearer NEON_API_KEY. cleanup-neon-preview-branch.yml listed
+// and DELETEd branches through the same host. neon-verify.ts and the health probe shelled
+// out to neonctl. Those are the signatures of direct Neon control.
+//
+// Blocking filenames is not enough: the same capability returns under any new name. This
+// set is matched against FILE CONTENT, so scripts/neon-control.ts, a neon-rotation-v2
+// workflow and a lib/ helper are all refused for what they do rather than what they are called.
+const DIRECT_NEON_CAPABILITY_SIGNALS = [
+  "console.neon.tech",
+  "api.neon.tech",
+  "neonctl",
+  "NEON_API_KEY",
+  "NEON_PREVIEW_API_KEY",
+  "NEON_ADMIN_KEY",
+  "NEON_ROTATION_ADMIN"
+];
+
+const EXECUTABLE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".yml", ".yaml"];
+
+// The gate and its negative tests must name the signals in order to enforce and prove
+// them. Nothing else in the repository may contain one.
+const NEON_CAPABILITY_EXEMPT = new Set([
+  "scripts/ci/mallan-execution-control.mjs",
+  "tests/runtime/mallan-execution-control.test.ts",
+  "tests/runtime/agent-authority-live-source.test.ts"
+]);
+
+// Content signals for the database chain. Derived from a census of every tracked reader:
+// 55 files read DATABASE_URL, construct a Prisma client or construct a pg pool, and 52 of
+// them matched none of the path patterns below. lib/db.ts is the clearest case, building a
+// pg Pool straight from process.env.DATABASE_URL while lib/db/ does not match lib/db.ts.
+const DATABASE_CONTENT_SIGNALS = [
+  "process.env.DATABASE_URL",
+  "process.env.DATABASE_URL_UNPOOLED",
+  "process.env.ASSISTANT_DATABASE_URL",
+  "new PrismaClient",
+  "new Pool(",
+  "new Client(",
+  "@/lib/prisma",
+  "@/lib/db"
+];
+
+function isExecutablePath(filePath) {
+  return EXECUTABLE_EXTENSIONS.some((ext) => filePath.endsWith(ext));
+}
+
 const BOOTSTRAP_ALLOWED = new Set([
   "AGENTS.md", "CLAUDE.md", "MALLAN-PLATFORM-MASTER-PLAN.md", "NEON.md",
   ".mcp.json", "mcp/trestle-fields/index.ts", "mcp/trestle-fields/README.md",
@@ -90,7 +138,9 @@ const BOOTSTRAP_ALLOWED = new Set([
   "lib/ops/canonical-neon-target.ts",
   "scripts/media-image-health.js", "scripts/r2-retry-health.js",
   "scripts/neon-verify.ts", "scripts/health/probe.ts",
-  "docs/PROJECT-HEALTH-DASHBOARD.md"
+  "docs/PROJECT-HEALTH-DASHBOARD.md",
+  "docs/architecture/PUBLIC-RECORDS-NEON-PROVISIONING-PLAN.md",
+  "artifacts/api-route-catalog.md", "scripts/reso/route-catalog.js"
 ]);
 
 // Maya's mandatory database chain. Any change that can move, name, resolve or consume the
@@ -118,11 +168,17 @@ const DATABASE_PATH_PREFIXES = ["prisma/", "sql/", "lib/db/", "lib/ops/", "lib/r
 const DATABASE_PATH_EXACT = ["lib/prisma.ts", "vercel.json"];
 const DATABASE_PATH_SUBSTRINGS = ["neon", "database", "db-target", "database_url"];
 
-function touchesDatabaseTarget(filePath) {
+function touchesDatabaseTarget(filePath, readHead) {
   if (DATABASE_PATH_EXACT.includes(filePath)) return true;
   if (DATABASE_PATH_PREFIXES.some((prefix) => filePath.startsWith(prefix))) return true;
   const lower = filePath.toLowerCase();
-  return DATABASE_PATH_SUBSTRINGS.some((needle) => lower.includes(needle));
+  if (DATABASE_PATH_SUBSTRINGS.some((needle) => lower.includes(needle))) return true;
+  // Filename shape is not enough. A census of the repository found 52 database readers
+  // that match no path pattern, so the file's own content decides.
+  if (!isExecutablePath(filePath)) return false;
+  const body = typeof readHead === "function" ? readHead(filePath) : null;
+  if (!body) return false;
+  return DATABASE_CONTENT_SIGNALS.some((signal) => body.includes(signal));
 }
 
 // A station is not satisfied by pointing at prose. A document records a claim; the station
@@ -563,6 +619,34 @@ function main() {
     ].join(String.fromCharCode(10)));
   }
 
+  // Read a changed file as it stands in the proposed HEAD. Deleted paths return null,
+  // which is the correct answer: a deletion cannot introduce a capability.
+  const readHead = (filePath) => {
+      try { return git(["show", "HEAD:" + filePath]); } catch { return null; }
+    };
+
+  // CAPABILITY, NOT FILENAME. The retired direct-Neon control plane may not return under
+  // any new name. A file is refused for reaching the Neon control plane, whatever it is
+  // called, so scripts/neon-control.ts and a neon-rotation-v2 workflow are equally refused
+  // and are refused for what they do, not for containing the word neon.
+  const neonCapabilityViolations = [];
+  for (const filePath of changedPaths) {
+    if (!isExecutablePath(filePath)) continue;
+    if (NEON_CAPABILITY_EXEMPT.has(filePath)) continue;
+    const body = readHead(filePath);
+    if (!body) continue;
+    const found = DIRECT_NEON_CAPABILITY_SIGNALS.filter((signal) => body.includes(signal));
+    if (found.length) neonCapabilityViolations.push(filePath + "  ->  " + found.join(", "));
+  }
+  if (neonCapabilityViolations.length) {
+    fail([
+      "Direct Neon control-plane capability is prohibited. Mallan reaches Neon only through",
+      "the Vercel-managed Marketplace resource. This is refused on CAPABILITY, not on the",
+      "filename, so renaming the file does not help:",
+      ...neonCapabilityViolations.map((item) => "  - " + item)
+    ].join(String.fromCharCode(10)));
+  }
+
   const baseMaster = readBaseFile(baseRef, MASTER_PATH);
   const baseState = readBaseFile(baseRef, STATE_PATH);
 
@@ -693,7 +777,7 @@ function main() {
   // before it can pass. This is enforced from the changed paths, not from the packet's
   // own opinion of its scope, so a packet cannot escape the chain by declining to
   // mention that it touched the database.
-  const databaseChanges = changedPaths.filter(touchesDatabaseTarget);
+  const databaseChanges = changedPaths.filter((filePath) => touchesDatabaseTarget(filePath, readHead));
   if (databaseChanges.length) {
     const chain = control.impact_graph.database_impact_chain;
     if (!chain || typeof chain !== "object" || Array.isArray(chain)) {

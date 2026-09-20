@@ -14,7 +14,7 @@
 > - **`morning-bread-68708332` / "mallandb" / `ep-royal-dawn-ad6eh8t2` (`br-old-tree-admdlb9z`) is STALE / DO-NOT-SERVE.**
 > - **`round-recipe-12208101` / "neon-green-door" is historical / currently UNVERIFIED.** Do not infer present Mallan ownership or disconnection from this June snapshot.
 > - **Only Vercel store bound to mallan-nyc = `store_K9l79ICRUTMsiRh2` → hidden-mountain** (store-API verified 2026-06-03). **No store binds morning-bread.**
-> - **DO NOT run `rotate-db-keys`. DO NOT prune `morning-bread` to "fix" the branch-limit check. DO NOT create Neon branches from stale/test/wip/probe Git branches.**
+> - **`rotate-db-keys` was DELETED 2026-09-20 and must not be recreated. DO NOT prune `morning-bread` to "fix" the branch-limit check. DO NOT create Neon branches from stale/test/wip/probe Git branches.**
 
 **Status:** the red "Neon branching: Branch limit exceeded" is a **stale / FALSE Vercel-side integration check** against `hidden-mountain-87248164`, which is far under limit (**2 / 5000**). It is **non-blocking** (deploys reach READY). Only Vercel can remove the red ❌.
 
@@ -47,7 +47,7 @@
 
 ## 5. ⛔ Hard warnings
 - **DO NOT prune `morning-bread` to fix this.** It is not the check's target; pruning will not clear the red and risks its `main` (PITR/rollback) and the `rotate-db-keys` target.
-- **DO NOT run `rotate-db-keys`.** It is quarantined by the 2026-09-20 convergence correction because direct Neon control is not an authorized Mallan provider path.
+- **`rotate-db-keys` no longer exists.** It was DELETED by the 2026-09-20 convergence correction because direct Neon control is not an authorized Mallan provider path.
 - **Keep "Require Active Resource Before Deploy" = OFF** and **"Create Database Branch for Production" = OFF** until Vercel resolves the false check.
 
 ## 6. Verify-before-you-act checklist (read-only)

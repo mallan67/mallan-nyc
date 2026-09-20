@@ -151,7 +151,7 @@ Neon's free tier caps at **10 branches per project**. The Vercel-Neon preview-br
 
 **Manual control point:** when provisioning, in Vercel → Project → Integrations → Neon → Configure, the public-records project's preview-branching toggle must be set to **disabled**.
 
-Should preview branching ever be re-enabled (e.g., for a future schema-test workflow), the existing `lib/neon/branches.ts` helpers + a public-records-scoped variant of the `neon-branch-prune` cron must be added BEFORE re-enabling. Document the decision in this file at that time.
+Should preview branching ever be re-enabled (e.g., for a future schema-test workflow), a replacement capability designed against the Vercel-managed resource contract (the former `lib/neon/branches.ts` helpers were DELETED on 2026-09-20 and may not be revived) + a public-records-scoped variant of the `neon-branch-prune` cron must be added BEFORE re-enabling. Document the decision in this file at that time.
 
 ---
 
@@ -414,7 +414,7 @@ Per charter Article 1.20: merging this plan does not authorize provisioning. Eac
 | Source-of-truth charter (architecture) | `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` |
 | Companion design doc | `mallan-marketing-plans/2026-05-14-public-records-intelligence-design.md` |
 | Neon operational discipline (primary project) | `NEON.md` |
-| Existing branch-prune pattern (reuse model) | `lib/neon/branches.ts` + `scripts/neon-prune-branches.ts` + `app/api/cron/neon-branch-prune/route.ts` |
+| Branch-prune pattern | **NOT A REUSE MODEL — DELETED 2026-09-20.** The former route, CLI and library called the Neon control plane directly, which is no longer an authorized Mallan path. |
 | Existing ops-health pattern (reuse model) | `scripts/ops-health.js` |
 | External-inventory hold (NOT released by this plan) | `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md` |
 | REBNY compliance rulebook | `CLAUDE.md` (root) + `compliance/README.md` (entry point to `compliance/` directory: `UCBA-2026.md`, `IDX-VOW-DISPLAY-RULES.md`, `NYC-NYS-REQUIREMENTS.md`, `THIRD-PARTY-AND-FEED-GOVERNANCE.md`) + `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` (field authority order in §0) + `data/UCBA-2026-Requirements.md` |

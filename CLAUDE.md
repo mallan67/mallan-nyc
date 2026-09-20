@@ -29,7 +29,7 @@
 >   `api`, provider-returned `expires_in`). `.mcp.json` / `trestle-fields` is an optional local
 >   developer helper, not provider authority, and must fail closed when live Cotality is unavailable.
 >   Verify the authorized live provider contract before repeating any field/enum/permission/API claim.
-> - **Do not run `rotate-db-keys` or mutate env/Neon settings without Maya's explicit authorization.**
+> - **`rotate-db-keys` was DELETED on 2026-09-20 and must not be recreated.** Do not mutate env or Neon settings without Maya's explicit authorization, and reach Neon only through the Vercel-managed resource.
 ---
 
 ## A. Absolute hard rules

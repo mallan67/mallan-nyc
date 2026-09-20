@@ -138,7 +138,7 @@ Pair the table above with this single-sentence ticket summary:
 
 - If the symptom is **alias-stale promotion** (the PR #175 pattern — branch alias points at an older deployment): a SEPARATE failure mode. See "⚠️ Do Not Fix Blindly" classifier row **E (alias-stale promotion)** and re-classify before any action.
 - If the symptom is a **real build error** (`state: ERROR`): do NOT apply this workaround. Inspect build logs via `mcp__claude_ai_Vercel__get_deployment_build_logs`.
-- If the symptom is a **real Neon branch-limit exhaustion** (verified via `ops:health` showing branch count ≥ 25 AND Neon Console confirming): see "⚠️ Do Not Fix Blindly" classifier row **D (real Neon branch exhaustion)**, not this RC8 doctrine.
+- If the symptom is a **real Neon branch-limit exhaustion** (verified via `ops:health` showing branch count ≥ 25 AND confirmation inside the resource opened through Vercel SSO, never a direct Neon Console login): see "⚠️ Do Not Fix Blindly" classifier row **D (real Neon branch exhaustion)**, not this RC8 doctrine.
 
 ---
 
@@ -242,7 +242,7 @@ independently establish runtime DB authority.
 
 ## §8 — Credential rotation
 
-`.github/workflows/rotate-db-keys.yml` is quarantined as direct Neon control. It is not a Production-capable operating path. Packet 1
+`.github/workflows/rotate-db-keys.yml` was DELETED on 2026-09-20 (PR #632). It is not a Production-capable operating path and it no longer exists. Packet 1
 added a fail-closed canonical-host preflight guard. Do not dispatch it merely because an old ownership-map row
 says rotation is due. Before any future run, re-read the current workflow HEAD and current Production binding,
 and obtain Maya's explicit authorization.
@@ -251,15 +251,22 @@ Historical rotation incidents remain evidence; they are not instructions to copy
 
 ## §9 — Preview branch cleanup
 
-### Current repo-side prune path
+### Repo-side prune path — DELETED
 
-Owner:
-- `app/api/cron/neon-branch-prune/route.ts`
+There is no repo-side prune path. On 2026-09-20 (PR #632) these were removed from the repository
+outright, not disabled and not left as tombstones:
+
+- `app/api/cron/neon-branch-prune/route.ts` and its Vercel cron schedule
 - `lib/neon/branches.ts`
 - `scripts/neon-prune-branches.ts`
+- `scripts/branch-prune-health.js`
+- `.github/workflows/cleanup-neon-preview-branch.yml`
+- `.github/workflows/rotate-db-keys.yml`
 
-Current code **does** contain a canonical-project guard through `isCanonicalNeonProject(projectId)`; the older
-statement that the route blindly trusts any `NEON_PROJECT_ID` is superseded.
+`scripts/ci/mallan-execution-control.mjs` refuses their return, and refuses any new file that
+reaches the Neon control plane under a different name. Branch and resource lifecycle is observed
+through the Vercel-managed Marketplace resource; a replacement capability must be designed against
+that contract and separately authorized.
 
 Measured Production control-plane values on 2026-09-18:
 - `NEON_API_KEY=""`
@@ -286,8 +293,8 @@ The full list is in `NEON-COST-CONTROL-POLICY.md` §11. Highlights for the owner
 
 | File | Cost impact | Why it's an ownership-map concern |
 |---|---|---|
-| `.github/workflows/rotate-db-keys.yml` | **QUARANTINED** direct-Neon rotation tombstone | Must not mutate provider/database state |
-| `app/api/cron/neon-branch-prune/route.ts` | **QUARANTINED** fail-closed tombstone; no Vercel cron schedule | Direct Neon branch deletion is not an authorized lifecycle path |
+| `.github/workflows/rotate-db-keys.yml` | **DELETED 2026-09-20 (PR #632); the execution gate refuses its return under any filename** | The file does not exist |
+| `app/api/cron/neon-branch-prune/route.ts` | **DELETED 2026-09-20 (PR #632); the execution gate refuses its return under any filename** | The file does not exist |
 | `lib/neon/branches.ts` | `DEFAULT_RETENTION_HOURS` defines steady-state count | Same |
 | `vercel.json` cron schedule | Defines cleanup cadence | Same |
 | `scripts/ops-health.js` THRESHOLDS | Encodes plan-capacity thresholds | Will be the surface for the §12.1 budget extension in the sister doc |
@@ -358,8 +365,8 @@ UNVERIFIED:
 - `NEON.md` — operational discipline (migrations, traps, change log)
 - (deleted 2026-06-03) Launch-plan threshold audit — reframed by `NEON-COST-CONTROL-POLICY.md` as "capacity, not policy"
 - (deleted 2026-06-03) Vercel ↔ Neon integration deep-dive — the "Branch limit exceeded" check is **stale Vercel-side state**, not actual branch exhaustion; canonical status now in `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`
-- `.github/workflows/rotate-db-keys.yml` — credential rotation (this doc §8)
-- `app/api/cron/neon-branch-prune/route.ts` + `scripts/neon-prune-branches.ts` — quarantined direct-Neon compatibility surfaces; not current preview-cleanup authority
+- `.github/workflows/rotate-db-keys.yml` — DELETED 2026-09-20; no credential-rotation path exists
+- `app/api/cron/neon-branch-prune/route.ts` + `scripts/neon-prune-branches.ts` — DELETED 2026-09-20; not present in the repository
 - `docs/architecture/PUBLIC-RECORDS-NEON-PROVISIONING-PLAN.md` — describes a future 3rd Neon project (`mallan-public-records`, intentionally Free); **unrelated to mallan-nyc's production/preview pair** (see Public-Records Firewall above)
 - **`docs/incidents/2026-05-21-chronic-media-sync-root-cause.md`** — canonical chronic-incident doctrine; documents RC1–RC7 (media-sync cursor freeze, stomping, R2 retry purgatory, storage churn, held migrations, observability gap, CI Trap #2) and RC8 (Vercel-GitHub status drift, expanded in this doc's RC8 section above)
 - **PR #176** (`b4f9ede0`, merged 2026-05-22) — paused `/api/cron/media-backfill` cron in `vercel.json`; first mitigation for the chronic media/Neon compute burn (see Separation section above)

@@ -84,7 +84,7 @@ A chat, Desktop checkout, side branch, audit, dashboard or handoff can provide e
 ## 2. Non-negotiable holds (require explicit Maya approval)
 
 Gate 6 `--execute` / any archive-drain execute / 20K–80K batches · manual cron trigger · Vercel env
-changes · Neon reclaim/downgrade · `VACUUM FULL` · `rotate-db-keys` · production migrations
+changes · Neon reclaim/downgrade · `VACUUM FULL` · production migrations
 (`prisma migrate deploy` / `db push`) · PR-5B · projection backfill · PageSpeed/media lane ·
 notification dispatcher · open-house v2 · admin merge bypass · force-push to main. (Full list + why:
 `CLAUDE.md` §C and the handoff snapshot.)

@@ -30,7 +30,7 @@ const AUTO_END = "<!-- HEALTH:AUTO:END -->";
 
 // Canonical Neon identity (mirror of AGENTS.md / CLAUDE.md — the probe fails closed if these drift).
 // Neon identifiers are NOT hard-coded here any more. They were consumed only by the
-// neonctl probes deleted on 2026-09-20, and a memorized provider identifier is exactly
+// direct-provider probes deleted on 2026-09-20, and a memorized provider identifier is exactly
 // the defect the Master forbids (section 0.12): it outlives the resource it named.
 // Current identity is read through the Vercel binding and recorded in the Execution State.
 const CANONICAL_ENDPOINT = "ep-cold-waterfall-adno3ao2";
@@ -92,7 +92,7 @@ tryProbe(() => {
 }, () => add("PR #465 (rehydration guard)", "⚪", "gh checks unavailable"));
 
 // ── 3. Neon identity and drift cells — REMOVED 2026-09-20 ───────────────────
-// These two probes read Neon through `neonctl`. Mallan reaches Neon only through
+// These two probes reached Neon through the retired direct CLI. Mallan reaches Neon only through
 // the Vercel-managed Marketplace resource, and read-only access does not make an
 // unauthorized path authorized. Vercel exposes no equivalent API for Neon branch
 // topology, plan or retention, so these checks could not be rewired and were

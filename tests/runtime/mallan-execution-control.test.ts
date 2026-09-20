@@ -478,6 +478,71 @@ describe("Mallan execution-control gate", () => {
     git(cwd, "commit", "-m", msg);
   }
 
+  // Capability, not filename. Each fixture uses a NEW name that the deleted-path set does
+  // not contain, and each must still be refused for what the file does.
+  const RENAMED_DIRECT_NEON = [
+    ["scripts/neon-control.ts", "script"],
+    [".github/workflows/neon-rotation-v2.yml", "workflow"],
+    ["app/api/cron/branch-janitor/route.ts", "route"],
+    ["lib/provider/branch-admin.ts", "library"],
+  ] as const;
+
+  test("a renamed direct-Neon writer is refused for its capability, not its filename", () => {
+    for (const [rel, kind] of RENAMED_DIRECT_NEON) {
+      const cwd = initRepo(baseControl({
+        authorized_paths: [rel],
+        allowed_new_files: [rel],
+      }));
+      const body = [
+        "// " + kind + " that reaches the Neon control plane under a new name",
+        "const api = " + JSON.stringify("https://" + " ".replace(" ", "") + "console.neon.tech" + "/api/v2") + ";",
+        "const key = process.env." + "NEON_API_KEY" + ";",
+      ].join(String.fromCharCode(10));
+      write(cwd, rel, body);
+      git(cwd, "add", rel);
+      git(cwd, "commit", "-m", "renamed direct-neon " + kind);
+      const err = gate(cwd).stderr;
+      expect(err).toContain("Direct Neon control-plane capability is prohibited");
+      expect(err).toContain(rel);
+      // Refused for the capability, NOT because the deleted-path set names it.
+      expect(err).not.toContain("Deleted direct-Neon control paths may not return");
+    }
+  }, 120000);
+
+  test("the retired CLI is refused even in a file whose name says nothing about the provider", () => {
+    const rel = "lib/allowed.ts";
+    const cwd = initRepo(baseControl());
+    write(cwd, rel, [
+      "import { execSync } from " + JSON.stringify("node:child_process") + ";",
+      "export const branches = () => execSync(" + JSON.stringify("neonctl" + " branches list") + ");",
+    ].join(String.fromCharCode(10)));
+    git(cwd, "add", rel);
+    git(cwd, "commit", "-m", "retired CLI under a neutral filename");
+    const err = gate(cwd).stderr;
+    expect(err).toContain("Direct Neon control-plane capability is prohibited");
+    expect(err).toContain(rel);
+  });
+
+  test("lib/db.ts triggers the mandatory database chain on content, not on its path", () => {
+    const rel = "lib/db.ts";
+    const cwd = initRepo(dbControl(undefined));
+    // Authorize the path so the refusal can only come from the missing chain.
+    const control = dbControl(undefined);
+    control.authorized_paths = [rel];
+    control.allowed_new_files = [rel];
+    const cwd2 = initRepo(control);
+    void cwd;
+    write(cwd2, rel, [
+      "import { Pool } from " + JSON.stringify("pg") + ";",
+      "export const pool = new Pool({ connectionString: process.env.DATABASE_URL });",
+    ].join(String.fromCharCode(10)));
+    git(cwd2, "add", rel);
+    git(cwd2, "commit", "-m", "canonical pool module");
+    const err = gate(cwd2).stderr;
+    expect(err).toContain("database_impact_chain");
+    expect(err).toContain(rel);
+  });
+
   test("a database-shaped change without the mandatory chain is refused", () => {
     const cwd = initRepo(dbControl(undefined));
     touchSchema(cwd, "db change, no chain");

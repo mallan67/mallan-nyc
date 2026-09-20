@@ -139,7 +139,7 @@ nothing.
 |---|---|
 | **Production Neon project** | `hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2` (`DATABASE_URL` points here; repointed 2026-06-02) |
 | **Preview/integration Neon project** | `hidden-mountain-87248164` (Vercel-Neon integration creates preview branches here; UI lists product as `neon-green-school`) |
-| **Credential rotation owner** | **QUARANTINED.** `.github/workflows/rotate-db-keys.yml` is a fail-closed tombstone; direct Neon credential mutation is not an authorized Mallan path. |
+| **Credential rotation owner** | **NONE. DELETED.** `.github/workflows/rotate-db-keys.yml` was removed from the repository on 2026-09-20 (PR #632). Direct Neon credential mutation is not an authorized Mallan path and no workflow performs it. A future rotation capability is designed against the Vercel-managed resource and separately authorized. |
 | **Preview branch cleanup owner** | **UNRESOLVED / Vercel-managed design required.** The former scheduled direct-Neon prune route is quarantined and removed from `vercel.json`. |
 
 ---
@@ -152,7 +152,7 @@ nothing.
 |---|---|---|
 | `npm run ops:health` | Storage % of plan cap, sync watermark, retention compliance, listing/audit_event/media health | ❌ NO — reports against plan capacity (10 GB) only; direct-Neon branch-prune health was retired with the writer |
 | `npm run ops:health:json` | Same as above as JSON | ❌ NO |
-| `npm run ops:neon-prune` | **QUARANTINED compatibility entrypoint**; refuses direct-Neon branch control | n/a |
+| `npm run ops:neon-prune` | **DOES NOT EXIST.** Removed from `package.json` on 2026-09-20 with the CLI it invoked. Do not run it; it is not a refusing stub. | n/a |
 | `npm run idx:validate` | IDX Plus 32-section validator (1278 checks) | n/a |
 | `npm run ucba:audit` | UCBA 2026 145-rule audit | n/a |
 
@@ -194,8 +194,8 @@ Any PR touching these files MUST include a cost-impact analysis in the PR body. 
 | File | Current disposition |
 |---|---|
 | `lib/neon/branches.ts` | Historical direct-Neon implementation evidence; not current lifecycle authority |
-| `app/api/cron/neon-branch-prune/route.ts` | Quarantined fail-closed tombstone; no Vercel cron schedule |
-| `scripts/neon-prune-branches.ts` | Quarantined refusal-only compatibility entrypoint |
+| `app/api/cron/neon-branch-prune/route.ts` | **DELETED 2026-09-20.** Route, its Vercel cron and its tests removed. |
+| `scripts/neon-prune-branches.ts` | **DELETED 2026-09-20**, with `lib/neon/branches.ts` and `scripts/branch-prune-health.js`. |
 | `scripts/ops-health.js` | Does not evaluate historical prune audit events as current health |
 
 Current branch/resource lifecycle evidence comes from the authorized Vercel-managed Neon resource path.

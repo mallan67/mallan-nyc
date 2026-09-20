@@ -111,7 +111,20 @@ describe("agent authority docs stay on live sources", () => {
     expect(Object.keys(pkg.scripts || {}).filter((s) => s.includes("neon-prune"))).toEqual([]);
 
     // The generated route catalog must not advertise a route that no longer exists.
-    expect(read("artifacts/api-route-catalog.json")).not.toContain("/api/cron/neon-branch-prune");
+    // BOTH generated catalogs, not just the JSON. One generator
+    // (scripts/reso/route-catalog.js) writes api-route-catalog.json AND
+    // api-route-catalog.md. Asserting only the JSON let the Markdown keep
+    // advertising the retired endpoint and its deleted route file.
+    for (const catalog of ["artifacts/api-route-catalog.json", "artifacts/api-route-catalog.md"]) {
+      expect({ catalog, advertisesRetiredRoute: read(catalog).includes("/api/cron/neon-branch-prune") })
+        .toEqual({ catalog, advertisesRetiredRoute: false });
+    }
+
+    // The generator must own both outputs, so the Markdown cannot silently drift
+    // behind the JSON again.
+    const generator = read("scripts/reso/route-catalog.js");
+    expect(generator).toContain("api-route-catalog.md");
+    expect(generator).toContain("api-route-catalog.json");
   });
 
   test("GitHub enforcement workflows use canonical base authority", () => {
