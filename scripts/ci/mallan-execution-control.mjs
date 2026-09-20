@@ -127,6 +127,22 @@ function collapseForCapabilityScan(body) {
   return decodeSourceEscapes(body).replace(/[\s'\"`+\\\[\],\.,_-]/g, "").toLowerCase();
 }
 
+// A comment can sit between the fragments of a concatenated signature, and the collapse
+// keeps the comment text, so the needle never becomes contiguous. Removing comments is
+// the obvious answer and is unsafe on its own: a line-comment strip cuts
+// "https://console.neon.tech" at its own "//" and erases the signature it is looking for.
+// So both readings are scanned. A signature has to survive BOTH to stay hidden, and it
+// cannot: the seam form needs the comments gone, the plain URL form needs them kept.
+function stripSourceComments(body) {
+  return String(body)
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");
+}
+
+function capabilityScanReadings(body) {
+  return [collapseForCapabilityScan(body), collapseForCapabilityScan(stripSourceComments(body))];
+}
+
 function capabilityNeedles() {
   return DIRECT_NEON_CAPABILITY_SIGNALS.map((signal) => ({
     signal,
@@ -232,7 +248,11 @@ function addBindingNames(list, into) {
     if (!piece) continue;
     // `Pool as PgPool` (ES) and `Pool: PgPool` (destructuring) both rename.
     const renamed = piece.split(/\s+as\s+|\s*:\s*/);
-    const local = (renamed[1] || renamed[0]).trim();
+    // A default value is part of the destructuring pattern, not part of the name:
+    // `{ Pool: PgPool = FallbackPool }` binds PgPool. Keeping the initializer made the
+    // whole thing fail the identifier test, so the binding was dropped and every use of
+    // it became invisible.
+    const local = (renamed[1] || renamed[0]).split("=")[0].trim();
     if (/^[A-Za-z_$][\w$]*$/.test(local)) into.add(local);
   }
 }
@@ -913,9 +933,9 @@ function main() {
     if (NEON_CAPABILITY_EXEMPT.has(filePath)) continue;
     const body = readHead(filePath);
     if (!body) continue;
-    const collapsed = collapseForCapabilityScan(body);
+    const readings = capabilityScanReadings(body);
     const found = capabilityNeedles()
-      .filter((n) => body.includes(n.signal) || collapsed.includes(n.collapsed))
+      .filter((n) => body.includes(n.signal) || readings.some((r) => r.includes(n.collapsed)))
       .map((n) => n.signal);
     if (found.length) neonCapabilityViolations.push(filePath + "  ->  " + found.join(", "));
   }

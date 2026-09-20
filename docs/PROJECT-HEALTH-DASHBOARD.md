@@ -23,17 +23,14 @@ to **⚪ UNVERIFIED / fail-closed**, not assumed-healthy.
 ## Auto-probed tier
 
 <!-- HEALTH:AUTO:START -->
-_Auto tier is **STALE**. It was last probe-refreshed 2026-07-31 and has since been hand-corrected for deleted machinery rather than regenerated. Treat every cell below as a dated reading, not current health, until `npm run health:probe` is run against a canonical database URL. ⚪ = not verified._
+_Last probed (UTC): **2026-09-20T14:16:12Z** — refreshed by `npm run health:probe` (read-only). ⚪ = not verified this run._
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Repo / main HEAD | 🟢 | main `04db1b99`; probed from branch `docs/register-ops-026` |
-| Open PRs | 🟢 | 3 open (3 non-audit): #590, #589, #585 |
+| Repo / main HEAD | 🟢 | main `2a83952a`; probed from branch `fix/agent-authority-live-sources-2026-09-18` |
+| Open PRs | 🟡 | 24 open (24 non-audit): #632, #630, #629, #628 |
 | PR #465 (rehydration guard) | 🟢 | MERGED 2026-07-02T02:35Z (gh merge-state only — deploy/runtime proof lives in RW-004) |
-| Neon canonical identity (RETIRED 2026-09-20) | ⚪ | default `main`=`br-crimson-frog-adr7g9gt` (ready); 1 branch(es) |  UNVERIFIED: dated reading, not exposed through the authorized Vercel-managed path |
-| Gate 6 rollback branch | 🟡 | no pre-gate6 rollback branch present |
-| Neon facts drift (RETIRED 2026-09-20) | ⚪ | cell retired: the retired direct CLI verifier was deleted; Neon identity is read through the Vercel binding and recorded in the Execution State |  UNVERIFIED: dated reading, not exposed through the authorized Vercel-managed path |
-| Cron cadence (live Cotality) | 🟡 | 20 crons; idx-sync `MISSING`, media-sync `MISSING`, db-keepalive `MISSING` |
+| Cron cadence (live Cotality) | 🟢 | 19 crons; one-cycle-preflight `*/10 * * * *` (drives idx-sync + media-sync); db-keepalive intentionally absent: yes |
 | media-backfill removal (QUAL-006/OPS-008) | 🟢 | not scheduled AND route file absent (both verified) — idx:validate 0-critical baseline restored 2026-07-02 |
 | Cotality sync attempt freshness | ⚪ | no canonical DATABASE_URL in env (pass cold-waterfall to fill) |
 | Cotality last-run outcome | ⚪ | no canonical DATABASE_URL in env (pass cold-waterfall to fill) |

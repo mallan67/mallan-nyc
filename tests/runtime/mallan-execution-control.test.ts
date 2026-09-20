@@ -669,6 +669,93 @@ describe("Mallan execution-control gate", () => {
     expect(res.stderr).toContain("database_impact_chain");
   });
 
+  // A comment can sit between the fragments of a concatenated signature. Removing
+  // comments is the obvious answer and is unsafe alone, because a line-comment strip cuts
+  // "https://console.neon.tech" at its own "//". Both readings are scanned, so a signature
+  // would have to survive with comments AND without them, which it cannot.
+  test("a capability signature split by a block comment is still refused", () => {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+    });
+    const cwd = initRepo(control);
+    write(
+      cwd,
+      "lib/feature/reader.ts",
+      [
+        "export const endpoint =",
+        "  " + JSON.stringify("https://console.") + " /* seam */ + " + JSON.stringify("neon.tech/api/v2/projects") + ";",
+        "",
+      ].join(String.fromCharCode(10))
+    );
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", "reader assembles the control-plane host around a comment");
+    expect(gate(cwd).status).not.toBe(0);
+  });
+
+  test("a credential name split by a block comment is still refused", () => {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+    });
+    const cwd = initRepo(control);
+    write(
+      cwd,
+      "lib/feature/reader.ts",
+      [
+        "export const key = process.env[" + JSON.stringify("NEON_") + " /* seam */ + " + JSON.stringify("API_KEY") + "];",
+        "",
+      ].join(String.fromCharCode(10))
+    );
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", "reader assembles the credential name around a comment");
+    expect(gate(cwd).status).not.toBe(0);
+  });
+
+  // The control for the pair above: stripping comments must not blind the scan to a host
+  // written plainly, whose own "//" a line-comment strip would cut.
+  test("a plainly written control-plane host is still refused", () => {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+    });
+    const cwd = initRepo(control);
+    write(
+      cwd,
+      "lib/feature/reader.ts",
+      [
+        "export const endpoint = " + JSON.stringify("https://console.neon.tech/api/v2/projects") + ";",
+        "",
+      ].join(String.fromCharCode(10))
+    );
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", "reader names the control-plane host outright");
+    expect(gate(cwd).status).not.toBe(0);
+  });
+
+  // A default value belongs to the destructuring pattern, not to the name. Keeping it made
+  // the whole fragment fail the identifier test, so the binding vanished.
+  test("a destructured alias with a default value triggers the chain", () => {
+    const control = baseControl({
+      authorized_paths: ["lib/feature/reader.ts"],
+      impact_domains: ["reader"],
+    });
+    const cwd = initRepo(control);
+    write(
+      cwd,
+      "lib/feature/reader.ts",
+      [
+        "const { Pool: PgPool = FallbackPool } = require(" + JSON.stringify("pg") + ");",
+        "export const reader = new PgPool({});",
+        "",
+      ].join(String.fromCharCode(10))
+    );
+    git(cwd, "add", "lib/feature/reader.ts");
+    git(cwd, "commit", "-m", "reader opens a pool under a defaulted renamed binding");
+    const res = gate(cwd);
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("database_impact_chain");
+  });
   // String escapes evaluate at runtime, so an escaped host IS the prohibited host. A scan
   // that only matches the literal spelling is a scan an author can spell around.
   test("an escaped direct-Neon capability signature is still refused", () => {
