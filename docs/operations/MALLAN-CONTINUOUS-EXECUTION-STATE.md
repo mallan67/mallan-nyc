@@ -800,7 +800,7 @@ needs its own control update naming its branch, its paths and its impact graph. 
 envelope inside this state-only packet would be exactly the self-authorization the gate exists
 to prevent.
 
-## BLOCKING DEFECT — implementation mode is a one-way door
+## BLOCKING DEFECT — OPS-026: implementation mode is a one-way door
 
 **Do not set `mode` to `implementation` until this is fixed. It cannot be undone by any
 pull request.**
@@ -860,13 +860,43 @@ Add an implementation-mode state-only exit comparable to the existing
 proposed contract returns `mode` to `control-update`, must be permitted in
 `implementation` mode. Until that exists, treat `implementation` as unreachable.
 
-### A second, smaller divergence found at the same time
+### OPS-027 — AGENTS.md and CLAUDE.md disagree about the handoff protocol
 
 `AGENTS.md:114` requires `npm run health:probe` as step 1 of the handoff protocol, and
 that command writes `docs/PROJECT-HEALTH-DASHBOARD.md`. The current `CLAUDE.md` on `main`
 carries no such requirement. Two files that are supposed to move together disagree.
 Recorded rather than silently resolved. Any future documentation envelope must authorize
 the dashboard as well as the handoff, or the documented protocol cannot be followed.
+
+### Registry debt — these two IDs are RESERVED, not yet registered
+
+`AGENTS.md` carries two invariants that this section currently cannot satisfy:
+
+- **Single-ID:** every issue has exactly one ID defined in the Platform Issue Registry,
+  and all other documents reference the ID instead of duplicating the description.
+- **Derived-summary:** changing any issue requires updating every derived summary in the
+  same PR — Issue Row, Priority Table, P0/P1 Summary, Dashboard, Handoff.
+
+Both require writing `docs/PLATFORM-ISSUE-REGISTRY.md`, `docs/PROJECT-HEALTH-DASHBOARD.md`
+and a handoff file. Every one of those needs `implementation` mode, which is OPS-026. **The
+remedy is blocked by the defect it would document.**
+
+So the identifiers are RESERVED here and the descriptions live here, temporarily, because
+the alternative is leaving two active blockers tracked nowhere at all:
+
+| reserved ID | what it is | registered? |
+|---|---|---|
+| **OPS-026** | implementation mode is a one-way door with no agent-reachable exit | NO — blocked by OPS-026 |
+| **OPS-027** | `AGENTS.md:114` requires a `health:probe` dashboard refresh for a handoff; the current `CLAUDE.md` does not | NO — blocked by OPS-026 |
+
+Verified before reserving: neither ID appears in the registry on `main`, and no open or
+closed pull request or branch claims either.
+
+**Part of the same unblock.** When `authority-root` activation makes a lane reachable, the
+first packet through it registers both IDs properly, propagates every derived summary, and
+replaces the descriptions above with references. Until then this section is knowingly in
+violation of the single-ID invariant, and saying so is better than quietly appearing to
+comply.
 
 ## The next action, and what it is not
 
