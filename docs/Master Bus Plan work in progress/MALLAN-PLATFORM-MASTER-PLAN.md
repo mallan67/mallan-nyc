@@ -797,6 +797,32 @@ Private supplemental StreetEasy references and Schedule A opportunities do **not
 Consumer payloads exclude internal/professional-only fields before serialization.
 
 Frontend Consumer Search and Backend Agent Search may share low-level provider client/auth, field registry, normalization, identity/address/media/provenance and retry infrastructure, but they require separate DTOs, permissions, filter contracts, caches and tests.
+**DECIDED COMPLIANCE BOUNDARY — this separation is intentional and must not be simplified away.** Frontend Consumer Search and Backend Agent Search serve different audiences with different legal/provider display rights. They are separate applications/products by design even where they consume the same canonical Listing identity and the same verified Cotality foundation. A future refactor may remove duplicated low-level implementation, but it may not collapse their audience, permission, DTO or display boundaries into one Search surface.
+
+Frontend Consumer Search exposes only inventory and fields authorized for public/consumer display after the public compliance gate. Professional/member-only fields, participant-only observations, private supplemental inventory, brokerage-only status/history, internal identifiers, client context, agent work state, commission/CRM data and any other non-public facts must never be serialized into the public Consumer Search payload merely because Backend Agent Search can see or use them.
+
+Backend Agent Search is an authenticated professional brokerage application. It may use the broader member-authorized Cotality contract and Mallan brokerage context only to the extent actually permitted by the verified provider contract, REBNY/RLS/UCBA rules, Fair Housing, privacy rules and Mallan business rules. Authentication alone does not authorize a field; every professional field still passes its applicable source, permission and display rule.
+
+The products share the canonical chain underneath them:
+
+```text
+COTALITY RAW CONTRACT
+-> VERIFIED MAPPING / VOCABULARY / PERMISSIONS
+-> CANONICAL LISTING / BUILDING / MEDIA / IDENTITY FOUNDATION
+-> AUDIENCE-SPECIFIC BUSINESS + COMPLIANCE GATE
+   -> FRONTEND CONSUMER SEARCH DTO / FILTER CONTRACT / CACHE / TESTS
+   -> BACKEND AGENT SEARCH DTO / FILTER CONTRACT / CACHE / TESTS
+```
+
+The public and professional Search products must therefore remain independently executable and independently testable. A route or UI consolidation is forbidden if it causes public and professional DTOs, filters, permissions, caches, saved-search semantics or result actions to become one ambiguous contract.
+
+Backend Agent Search/Listings may consume canonical CRM records and APIs for legitimate brokerage actions such as client assignment, durable Client × Listing activity, Saved Search ownership, reporting and CMA context. **It must not depend on the CRM application shell to boot, render or execute Search.** CRM launches the professional Search/Listings application and may pass authorized context; the dependency is `CRM -> Backend Search/Listings`, never `Backend Search/Listings -> CRM shell`. A CRM-shell failure must not make professional Search, My Listings, Sale/Rental editors or other Listing tools unavailable.
+
+URL namespace does not determine ownership. A professional Search route may remain under a historical `/crm/*` path for compatibility if the application behind it is technically independent and the permission boundary remains correct. Conversely, moving professional Search to `/search` is not allowed if that would collide with or blur the existing public Consumer Search contract. Route changes require reader/consumer impact proof before mutation.
+
+Public consumer Saved Search/alert behavior and professional Saved Search behavior are separate audience workflows. Consumer saving/alerts must use consumer consent and public criteria only. Professional Saved Search is brokerage work tied to the authorized Agent/Client context and may drive durable Client × Listing history, distribution, reports and CMA. Neither workflow may silently reuse the other's persistence or permission assumptions.
+
+Acceptance requires negative compliance proof as well as functional proof: a public Search request cannot obtain a professional/member-only field or private inventory; an unauthenticated caller cannot execute Backend Agent Search; Backend Agent Search can direct-load and execute without the CRM shell; and shared mapping/identity/media changes do not erase the DTO/permission boundary between the two products.
 
 ### Backend Agent Search
 
@@ -2939,24 +2965,28 @@ The HR-boundary decision recorded at the end of this section adopts that reading
 Agent lifecycle:
 
 ```text
-ONBOARDING DOCUMENT SET REQUIRED
-↓
-EXECUTED / ACKNOWLEDGED
-↓
-AGENT ACTIVE
-↓
-POLICY AMENDMENT → NEW ACKNOWLEDGMENT REQUIRED
-↓
-OFFBOARDING / DEACTIVATION
-├── EXECUTED DOCUMENTS RETAINED UNDER §11.8
-├── CLIENT / OPPORTUNITY REASSIGNMENT DECIDED AND RECORDED
-├── PIPELINE AND COMMISSION OBLIGATIONS RESOLVED UNDER §19
-└── ACCESS / VISIBILITY REMOVED
+BROKER OPENS NEW AGENT
+-> NAME / EMAIL / SALE SPLIT / RENTAL SPLIT / REFERRAL SPLIT
+-> SYSTEM INVITATION + ONBOARDING-ONLY LOGIN
+-> AGENT COMPLETES CONTACT / ADDRESS / PROFILE / LICENSE / W-9
+-> AGENT REVIEWS / SIGNS AGREEMENTS + POLICIES
+-> EXECUTED / ACKNOWLEDGED PACKAGE RETURNED TO BROKER
+-> PENDING BROKER LICENSE ACTIVATION
+-> BROKER COMPLETES NYS DOS LICENSE ASSOCIATION / ACTIVATION
+-> AGENT ACTIVE
+   - FULL ROLE-PERMITTED MALLAN ACCESS
+   - PUBLIC PROFILE LIVE
+   - COTALITY MEMBER / LISTING MONITORING LIVE
+-> POLICY AMENDMENT -> NEW ACKNOWLEDGMENT REQUIRED
+-> OFFBOARDING / DEACTIVATION
+   - LOGIN / ACTIVE SESSIONS REVOKED
+   - PUBLIC PROFILE / CURRENT ACCESS REMOVED
+   - EXECUTED DOCUMENTS RETAINED UNDER §11.8
+   - CLIENT / OPPORTUNITY REASSIGNMENT DECIDED AND RECORDED
+   - PIPELINE / COMMISSION / REFERRAL HISTORY PRESERVED
 ```
 
-An Agent does not become active until the required onboarding document set is complete. **Deactivation never deletes an executed document and never silently reassigns a client relationship.**
-
-**Held for Maya decision — the HR boundary.** §17 states that the system makes professional obligations visible and actionable without turning Mallan into an HR system. This class is contractual and regulatory paperwork: Mallan holds no payroll, performance-management or employment-file function, and adding one would also cut against the independent-contractor posture in §2.2. Maya decides whether §17's boundary is stated as that narrower rule or whether this class is scoped down. Until she decides, build only the documents listed above.
+Completing onboarding documents is necessary but not sufficient for activation. **The Agent does not become ACTIVE, receive normal Mallan access, or publish a live public profile until the Broker completes the required NYS DOS license association/activation.** Deactivation blocks login/access but does not delete the Agent or rewrite historical listings, deals, commissions, referrals or retained documents.
 
 **Decided — §17's boundary is stated as the narrower rule and this class is not scoped down.** Mallan governs the contractual, licensing, regulatory, tax and brokerage documents needed to operate licensed independent-contractor Agents and Associate Brokers, and builds no employee payroll, benefits administration, time-off management, employee HR file unrelated to brokerage operation or disciplinary/performance-management function. §17 carries the boundary in that narrowed form. The documents listed above are the class.
 
@@ -3333,33 +3363,31 @@ That boundary is narrow rather than broad. Mallan governs the contractual, licen
 
 Agent production and business intelligence — the practical performance measures in §19.2 and the Agent signals in §22.11 — help the Agent and the Broker operate the brokerage. **It is not an employee-HR performance system.** The representative broker's supervision responsibility under §2.2 is a separate and surviving obligation and is not narrowed here.
 
-An Agent is a governed lifecycle, not a set of scattered attributes. One ordered chain connects how an Agent enters the firm, operates inside it and leaves it:
+An Agent is one governed brokerage lifecycle, not a set of scattered attributes or a recruiting/HR subsystem. The lifecycle is now DECIDED:
 
 ```text
-RECRUIT / ADD AGENT
-→ IDENTITY
-→ LICENSE / PROFESSIONAL DATA
-→ BROKERAGE AGREEMENTS / POLICIES
-→ REQUIRED ACKNOWLEDGMENTS
-→ ACCOUNT / INVITATION
-→ LOGIN
-→ MY BUSINESS
-→ PUBLIC PROFILE / DIRECTORY
-→ LISTING / CLIENT / DEAL ACTIVITY
-→ COMMISSION / REFERRAL
-→ PROFESSIONAL REQUIREMENTS
-→ DEACTIVATE / OFFBOARD
+BROKER OPENS NEW AGENT
+-> ENTERS NAME / EMAIL / SALE SPLIT / RENTAL SPLIT / REFERRAL SPLIT
+-> SYSTEM SENDS SECURE INVITATION
+-> SAME ACCOUNT HAS ONBOARDING-ONLY LOGIN
+-> AGENT COMPLETES OWN CONTACT / ADDRESS / PROFILE / LICENSE / W-9 / DOCUMENTS
+-> AGENT REVIEWS AND SIGNS AUTO-POPULATED AGREEMENTS / POLICIES
+-> COMPLETED PACKAGE RETURNS TO BROKER
+-> BROKER COMPLETES NYS DOS LICENSE ASSOCIATION / ACTIVATION
+-> SAME ACCOUNT BECOMES ACTIVE WITH NORMAL ROLE-PERMITTED ACCESS
+-> PUBLIC PROFILE BECOMES LIVE
+-> VERIFIED COTALITY MEMBER / LISTING MONITORING BECOMES LIVE
+-> ON DEPARTURE BROKER DEACTIVATES ACCOUNT
+-> LOGIN AND ACTIVE SESSIONS ARE REVOKED; HISTORY AND RETAINED RECORDS REMAIN
 ```
 
-Runtime Agent identity, authentication, CRM, directory, public profile, listing attribution and professional designation resolve from this one chain. There is no second Agent record anywhere in the system.
+Runtime Agent identity, authentication, CRM, directory, public profile, listing attribution and professional designation resolve from this one chain. There is no second Agent record, second account, second onboarding system or parallel profile lifecycle anywhere in Mallan.
 
-Account / Invitation is a stage, not an afterthought. The professional record exists first; the account that lets the Agent log in is provisioned from it and stays linked to it.
+The invitation/login is a controlled onboarding stage, not full system access. The professional record exists first; the account is provisioned from that record and remains the same account through onboarding, activation and later deactivation.
 
-**The boundary of this lifecycle is an open Broker decision and is not settled here.** §2.2 and the paragraph above hold that Mallan is not an HR system and does not micromanage an independent contractor's business, while the representative broker's supervision responsibility remains non-delegable. Read as brokerage records and access — who holds an account, whose license is current, whose listings and clients transfer on exit — the chain is consistent with both. Read as a recruiting pipeline and personnel management, it is not. Maya decides which one Mallan builds before implementation.
+This lifecycle is brokerage records, access and representative-broker supervision. It is not personnel management, employee HR, payroll, benefits, disciplinary tracking or a recruiting pipeline. No further Broker decision is pending on the activation/access boundary described above.
 
-**Decided in part — the lifecycle is brokerage records and access, not personnel management.** The chain governs who holds an account, whose license and professional requirements are current, and whose listings, clients and obligations transfer on exit. It is not disciplinary or performance-management bureaucracy and it holds no employee HR file. The `RECRUIT / ADD AGENT` stage is the residue: whether Mallan builds a recruiting pipeline at all remains Maya's decision, and nothing here authorizes one.
-
-Brokerage↔Agent operating documents — Independent Contractor Agreement, policy and acknowledgment, confidentiality, the executed compensation-plan document, E&O proof, tax records, onboarding and offboarding records — are governed in §11.12 and surface in Agent My Business contextually. §11.12 carries the class and the open boundary question; do not restate either here.
+Brokerage-Agent operating documents - Independent Contractor Agreement, policy and acknowledgment, confidentiality, the executed compensation-plan document, E&O proof, tax records, onboarding and offboarding records - are governed in §11.12 and surface in Agent My Business contextually. §11.12 carries the document class; this section carries the Agent lifecycle and access state.
 
 ## 17.1 My Professional Requirements
 
@@ -3432,6 +3460,33 @@ The Agent sees, for each required item, whether it is provided, executed, curren
 
 Required acknowledgments are recorded, not assumed. When Mallan requires an Agent to acknowledge a policy or notice, the acknowledgment, its version and its date are retained as evidence under §11, and missing acknowledgments appear as firm exceptions under §18.
 
+## 17.6A Agent onboarding, activation and roster lifecycle - DECIDED
+
+This is the canonical Mallan onboarding path. Do not create a second onboarding system, a second Agent record, or a broker-side substitute for work the Agent is responsible for completing.
+
+The Broker starts onboarding with only the business terms needed to form the relationship: Agent name, email address, sale commission split, rental commission split, and referral split. Mallan then sends the Agent a system-generated invitation email containing the secure onboarding/login entry point. That invitation creates onboarding-only access: the Agent can authenticate and complete the onboarding workflow, but does not yet receive normal Mallan system access. The Broker does not collect, re-key, or upload the Agent's onboarding package for the Agent.
+
+The invited Agent completes the onboarding package directly in the Agent Portal. The Agent supplies and maintains the Agent's own contact information, including full mailing/home address, phone and email; photo and public biography/profile information; license information and requested license evidence; W-9; and every required brokerage agreement, policy, acknowledgment and other onboarding document.
+
+Commission and referral terms already agreed by the Broker are canonical business terms. The governed agreement shown to the Agent must auto-populate the Agent's canonical name, verified license type/number, and the applicable sale split, rental split and referral split from their governing authorities. The Agent reviews and signs the populated agreement; the signed document is evidence of the agreed identity/license/compensation terms and does not become a second authority for any of them.
+
+Required company policies and agreements must open inside the Portal for review/signature/acknowledgment. The Agent should not have to download a blank form, fill it elsewhere and send it back by email when Mallan already governs the form. The Agent is offered an opportunity to print or save a personal copy at execution.
+
+Every Agent-uploaded or executed onboarding record is retained by Mallan in the governed cloud document store and linked to the one canonical Agent record. Normal CRM/database fields retain document identity, status, dates, version, signatures and other required metadata; the cloud object is the retained file. The Broker supervises completion from Agent Roster but is not the upload clerk.
+
+The W-9 and any taxpayer-identification content are security-sensitive. After successful submission/execution, the normal Agent Portal must not rehydrate or redisplay the SSN/TIN. A disabled or grey button is presentation only and is not the security boundary. The Portal may show that the W-9 is completed and its completion date, while the sensitive retained object remains protected by restricted storage/access controls.
+
+Onboarding completion does not itself make the Agent publicly active or grant full Mallan access. Once the Agent has completed and signed the onboarding package, Mallan returns that completed package/status to the Broker for review. The Broker then performs the required license association/activation with New York State Department of State. Only after the Broker has completed that activation and Mallan can treat the license as current/active under the authoritative licensing workflow does the Agent transition to ACTIVE. That transition activates the public Mallan agent profile and upgrades the same account from onboarding-only access to normal role-permitted Mallan system access. No second account is created.
+
+The Agent Roster is the Broker's supervision view over this one lifecycle. Before completion it shows invitation/onboarding/activation state. After activation it shows the live Agent record, professional requirements, documents, commissions/referrals/deals and listing production without creating duplicate records.
+
+Agent listing production in Agent Roster is Cotality-backed. The Agent is reconciled to the verified Cotality Member identity, and the roster consumes the same canonical Cotality-backed listing authority used by Search/My Listings. Agent Roster does not own or persist a competing listing inventory. It must monitor and expose the Agent's applicable active, coming-soon, under-contract/pending, closed, expired, hold/temporarily-off, withdrawn/canceled and other verified Cotality statuses/history according to the provider contract and Mallan status business rules.
+
+Professional-requirement reminders are supervisory aids, not a second licensing authority. Mallan must alert the Broker and email the Agent when license/CE action is approaching; the current decided minimum trigger is 30 days before license expiration when CE proof or renewal action is still required. CE proof is retained only as a Mallan company record supplied by the Agent; Mallan does not represent that it files or proves CE to the State on the Agent's behalf.
+
+Retention policy for this workflow: CE completion proof is retained for two years; executed sale contracts, executed leases and transaction disclosures are retained for three years with their specific Deal. Automated shedding may be deferred while the brokerage is small, but retention metadata must be captured from the start so later shedding can be implemented without changing document identity or ownership.
+
+Acceptance is behavioral: Broker opens New Agent -> enters name/email/sale split/rental split/referral split -> system sends the secure invitation/login -> Agent signs in with onboarding-only access -> Agent completes contact/address/profile/license/W-9/documents -> governed agreements auto-populate the approved terms -> Agent signs -> files and signatures persist to cloud/canonical records -> completed package/status returns to Broker -> Broker activates the license through DOS -> the same Agent account becomes ACTIVE with normal role-permitted Mallan access -> public profile becomes live -> verified Cotality Member linkage populates and continues monitoring the Agent's listing production. On departure, Broker deactivates the canonical Agent account, all active sessions/access are revoked, and the Agent can no longer log in; historical listings, deals, commissions, referrals and retained documents remain preserved under their governing retention rules. No step is complete merely because its UI or code exists.
 ## 17.6 Deactivation / offboarding
 
 An Agent's departure is a governed transition, not a deletion.
