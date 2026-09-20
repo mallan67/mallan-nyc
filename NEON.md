@@ -18,12 +18,13 @@
 >   refusal identity in safety code; never target it for Mallan runtime.
 > - **Do not state `round-recipe-12208101` ownership/connectivity as fact.** It is not visible in the
 >   currently accessible Neon orgs, so its current state is UNVERIFIED.
-> - **Measured 2026-09-18:** `hidden-mountain` has exactly one branch ever, `main`, even when deleted
->   branches are included. Current Production preview-branch provisioning has therefore created zero
->   branches in this project.
-> - **Measured 2026-09-18:** Vercel Production `NEON_API_KEY` and `NEON_PROJECT_ID` exist by name but
->   have empty effective values. The prune cron therefore returns 503 / `status: skipped` before
->   `pruneBranches()`; an audit row alone is not proof that pruning occurred.
+> - **Branch-history correction (2026-09-20):** a 2026-09-18 current/deleted enumeration returned only
+>   `main`, but that bounded response does **not** establish lifetime branch history. Repository evidence
+>   records 8 branches on 2026-05-17 and approximately 40 on 2026-06-01. Re-read current topology through
+>   the Vercel-managed resource before any branch decision.
+> - **Direct Neon control is quarantined.** The former PR-close cleanup, scheduled prune route/operator
+>   prune CLI, and credential-rotation workflow may not call Neon directly. Provider lifecycle mutation
+>   must be redesigned through the Vercel-managed resource contract and separately authorized.
 > - **Vercel is the entry path for the managed Neon resource.** Use
 >   `vercel integration open neon neon-green-school` for SSO into the bound Neon project. Reconcile
 >   direct Neon reads to this exact Vercel binding before treating them as Mallan truth.
@@ -372,7 +373,7 @@ https://console.neon.tech → Project → Usage shows compute-hours used this mo
 | 2026-04-28 | Post-PR-#80 Codex review hardening — `scripts/neon-prune-branches.ts` now validates `--hours` is a positive finite number before passing to `pruneBranches` (prevents `Number("24h") === NaN` from making every branch look prunable on `--execute`); `app/api/cron/neon-branch-prune/route.ts` now returns HTTP 500 when `pruneBranches` reports per-branch DELETE failures, so Vercel Cron flags the run as failed instead of letting stale branches accumulate silently. Plus `memory/SESSION-2026-04-28-allnighter.md` captures the full operational sequence + numbers for future-session reference. | `dc79b5be` (#81) |
 | 2026-04-28 | Doc-drift cleanup pass — corrected stale `*/3` `db-keepalive` references to `*/15`, removed three references to deleted `lib/prisma-http.ts`, replaced §8 deferred-workstreams content with current status (A superseded, B dropped, JSON-drop work moved to a dedicated plan), refreshed last-updated header. New planning doc `memory/PLAN-LEGACY-JSON-DROP-2026-04-28.md` captures the remaining JSON-column drops on `Listing` (the largest unrealized storage lever, ~115 MB recoverable). | `86b2deb4` (#84) |
 | 2026-04-28 | Codex-review accuracy fix on PR #84 — original wording claimed `*/15` keepalive "beats the 5-min idle suspend window comfortably," which is factually wrong (Neon suspends after 5 min idle, so a 15-min cron lets the DB suspend between pings). §2 and §10 reworded to make the trade-off explicit: `*/15` mitigates multi-hour idles, not 5-min suspends. | (current) |
-| 2026-05-17 | **Plan upgrade Free → Launch.** Storage cap 500 MB → 10 GB. Compute baseline 191.9 → 300 CU-hr/mo. Branch cap 10 → 5000. The upgrade was confirmed via Vercel UI inspection (`neon-green-school` connected to `mallan-nyc`, Neon Console shows 8 / 5000 branches on `hidden-mountain-87248164`). The Vercel-Neon integration check "Branch limit exceeded" turned out to be stale Vercel-side state rather than real exhaustion — see `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md` for the false-check evidence. §2 and §11 of this file rewritten to Launch framing; §3 Trap #3 reframed since 5-min idle auto-suspend is plan-agnostic. The `neon-branch-prune` cron + 24h retention window remain enabled, reframed from cap-avoidance to hygiene + cost-control. Threshold update to `scripts/ops-health.js`: `>=8` → `branch_count_warning=25`, new `branch_count_critical=4000`, storage cap 500 MB → 10240 MB, compute baseline 191.9 → 300. See `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md` for the canonical status. | (current) |
+| 2026-05-17 | **Plan upgrade Free → Launch.** Storage cap 500 MB → 10 GB. Compute baseline 191.9 → 300 CU-hr/mo. Branch cap 10 → 5000. The upgrade was confirmed via Vercel UI inspection (`neon-green-school` connected to `mallan-nyc`, Neon Console shows 8 / 5000 branches on `hidden-mountain-87248164`). The Vercel-Neon integration check "Branch limit exceeded" turned out to be stale Vercel-side state rather than real exhaustion — see `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md` for the false-check evidence. §2 and §11 of this file rewritten to Launch framing; §3 Trap #3 reframed since 5-min idle auto-suspend is plan-agnostic. The `neon-branch-prune` cron + 24h retention window were historically enabled for hygiene + cost-control; direct Neon pruning is quarantined by the 2026-09-20 convergence correction. Threshold update to `scripts/ops-health.js`: `>=8` → `branch_count_warning=25`, new `branch_count_critical=4000`, storage cap 500 MB → 10240 MB, compute baseline 191.9 → 300. See `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md` for the canonical status. | (current) |
 | 2026-06-01 | **"Branch limit exceeded" confirmed a Vercel-side false check; made non-blocking.** Live verification: Neon API reports `branches_limit=5000` (`launch_v3`) on the bound project `hidden-mountain-87248164`; actual count ~40; a fresh test deploy created Neon branch #40 which reached `ready` — proving no real exhaustion. *Update Project Connection* (metadata re-sync) did **not** clear the red check. Two integration settings changed via the Vercel Storage UI (Maya, manual): (1) **"Create Database Branch For Deployment" → Production unchecked** (Preview still checked); (2) **"Require Active Resource Before Deploy" → OFF** — makes the false check **non-blocking** so deploys reach READY and the alias / custom-domain step completes (was "Skipped" under Require=ON). Test deploy `dpl_AUCCNDFtkDAQier4WcJtPjFWEa2d` reached READY; preview + production `/api/health` 200. Red ❌ still renders and is **only removable by Vercel**. Full record: `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`. No env vars / production DB / Neon branches / credentials touched. | (current) |
 | 2026-06-01 | **Tier 2 stabilization — PR-close preview-branch cleanup workflow (draft PR, HELD).** Added `.github/workflows/cleanup-neon-preview-branch.yml` (official `neondatabase/delete-branch-action@v3` + an isolation guard step) to delete `preview/<head_ref>` on PR close, complementing the daily `neon-branch-prune` cron. Uses dedicated preview-only creds `vars.NEON_PREVIEW_PROJECT_ID` (= `hidden-mountain-87248164`) + `secrets.NEON_PREVIEW_API_KEY`; hard-pinned to the preview project and refuses the legacy do-not-serve project (`morning-bread-68708332`), protected branch names, and suspicious refs. **HELD** until Maya adds the two GitHub config items + confirms a read-only key test. See `docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md`. | (draft PR) |
 | 2026-06-03 | Production DB confirmed on **`hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2` / `main` (`br-crimson-frog-adr7g9gt`)**; legacy `morning-bread`/`royal-dawn` is stale/do-not-serve. Stale Neon/Vercel docs removed; canonical facts live in the AGENT STOP box (top of this file) + `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md`. `rotate-db-keys` schedule disabled (PR #321). | (current) |
@@ -403,17 +404,18 @@ The Vercel CLI manages the Marketplace binding/environment connection. Objects *
 (branches, databases, roles) are Neon objects. Do not create a second unmanaged Neon project merely to
 work around the binding.
 
-### Branch reality — measured 2026-09-18
+### Branch reality — bounded evidence, not lifetime history
 
-Live Neon enumeration with deleted branches included shows **exactly one branch has ever existed in
-`hidden-mountain-87248164`: `main`**. Therefore the current project's Preview integration has not been
-creating Neon branches and no "created then pruned" explanation fits this project.
+The 2026-09-18 current/deleted enumeration returned only `main` for `hidden-mountain-87248164`.
+That response is a current bounded observation, not proof that no historical branches existed.
 
-Historical Vercel-created Preview branches exist in the stale personal/free project
-`morning-bread-68708332`; they are historical evidence, not current Production architecture.
+Historical repository evidence records **8 branches on 2026-05-17** and approximately **40 on
+2026-06-01**, including a fresh test deployment that reached branch #40. Those dated records do not prove
+the current branch estate either. Current topology must be read through the Vercel-managed resource before
+a branch lifecycle decision.
 
-Do not write prose such as "Preview branches accumulate in hidden-mountain" or "steady-state ~8" unless a
-fresh live enumeration proves it again.
+Do not claim lifetime branch uniqueness or a steady-state branch count unless the authorized current
+provider surface can actually prove that scope.
 
 ### Vercel database variable ownership — measured 2026-09-18
 
@@ -433,7 +435,7 @@ value**; empty encrypted values have existed here.
 
 ### Prune path — currently inert, fail-closed
 
-`app/api/cron/neon-branch-prune/route.ts` requires both `NEON_API_KEY` and `NEON_PROJECT_ID`.
+`app/api/cron/neon-branch-prune/route.ts` is a fail-closed tombstone after 2026-09-20 convergence; the Vercel cron schedule is removed and it performs no Neon API call.
 Measured 2026-09-18, both effective Production values are empty. The route therefore:
 
 1. authenticates the cron request;

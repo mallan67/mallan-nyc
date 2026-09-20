@@ -69,10 +69,10 @@ function baseControl(overrides: Record<string, unknown> = {}) {
     requirements: {
       impact_graph_required: true,
       all_readers_writers_required: true,
-      negative_tests_required: true,
-      integration_proof_required: true,
-      downstream_proof_required: true,
-      compliance_proof_required_when_applicable: true,
+      negative_tests_required: false,
+      integration_proof_required: false,
+      downstream_proof_required: false,
+      compliance_proof_required_when_applicable: false,
       no_parallel_path_proof_required: true,
     },
     ...overrides,
@@ -88,6 +88,7 @@ function initRepo(control = baseControl()) {
   write(cwd, STATE, controlMarkdown(control));
   write(cwd, "lib/feature/reader.ts", "export const reader = true;\n");
   write(cwd, "lib/feature/publisher.ts", "export const publisher = true;\n");
+  write(cwd, "prisma/schema.prisma", "generator client { provider = \"prisma-client-js\" }\n");
   write(cwd, "tests/runtime/mallan-execution-control.test.ts", "fixture\n");
   write(cwd, ".github/workflows/pr-check.yml", "name: fixture\n");
   git(
@@ -97,6 +98,7 @@ function initRepo(control = baseControl()) {
     STATE,
     "lib/feature/reader.ts",
     "lib/feature/publisher.ts",
+    "prisma/schema.prisma",
     "tests/runtime/mallan-execution-control.test.ts",
     ".github/workflows/pr-check.yml"
   );
@@ -396,6 +398,90 @@ describe("Mallan execution-control gate", () => {
     expect(result.stderr).toContain("Renames/copies are not permitted");
     expect(result.stderr).toContain(MASTER);
     expect(result.stderr).toContain("lib/feature/moved-master.md");
+  });
+
+  test("rejects a control contract that omits requirements", () => {
+    const broken: any = baseControl();
+    delete broken.requirements;
+    const cwd = initRepo(broken);
+    write(cwd, "lib/allowed.ts", "export const ok = true;\n");
+    git(cwd, "add", "lib/allowed.ts");
+    git(cwd, "commit", "-m", "missing requirements");
+    const result = gate(cwd);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("control.requirements must be an object");
+  });
+
+  test("required provider proof fails closed until supplied by base workflow", () => {
+    const cwd = initRepo(baseControl({ provider_proof_required: ["vercel:preview"] }));
+    write(cwd, "lib/allowed.ts", "export const ok = true;\n");
+    git(cwd, "add", "lib/allowed.ts");
+    git(cwd, "commit", "-m", "provider proof");
+    expect(gate(cwd).stderr).toContain("required provider proof is absent");
+    expect(gate(cwd, { MALLAN_PROVIDER_PROOFS: "vercel:preview" }).status).toBe(0);
+  });
+
+  test("schema-shaped changes require schema authorization", () => {
+    const cwd = initRepo(baseControl({
+      authorized_paths: ["prisma/schema.prisma"], allowed_new_files: [], impact_domains: ["schema"],
+      impact_graph: {
+        root_owner_paths:[MASTER], writer_paths:["prisma/schema.prisma"], reader_paths:["lib/feature/reader.ts"],
+        publisher_paths:["lib/feature/publisher.ts"], downstream_surfaces:["schema consumers"],
+        test_paths:["tests/runtime/mallan-execution-control.test.ts"], compliance_surfaces:["governance only"]
+      }
+    }));
+    write(cwd, "prisma/schema.prisma", "generator client { provider = \"prisma-client-js\" }\nmodel X { id Int @id }\n");
+    git(cwd, "add", "prisma/schema.prisma"); git(cwd, "commit", "-m", "schema without auth");
+    expect(gate(cwd).stderr).toContain("schema_migration_authorized=true");
+  });
+
+  test("final phase enforces required proof tokens", () => {
+    const cwd = initRepo(baseControl({ requirements: {
+      impact_graph_required:true, all_readers_writers_required:true, negative_tests_required:false,
+      integration_proof_required:true, downstream_proof_required:true,
+      compliance_proof_required_when_applicable:true, no_parallel_path_proof_required:true
+    }}));
+    write(cwd, "lib/allowed.ts", "export const ok = true;\n");
+    git(cwd, "add", "lib/allowed.ts"); git(cwd, "commit", "-m", "proof gated");
+    expect(gate(cwd,{MALLAN_CONTROL_PHASE:"final"}).stderr).toContain("final execution proof is incomplete");
+    expect(gate(cwd,{MALLAN_CONTROL_PHASE:"final",MALLAN_EXECUTION_PROOFS:"integration,downstream,compliance,no-parallel-path"}).status).toBe(0);
+  });
+
+  test("negative-tests requirement requires a changed declared test", () => {
+    const cwd = initRepo(baseControl({ requirements: {
+      impact_graph_required:true, all_readers_writers_required:true, negative_tests_required:true,
+      integration_proof_required:false, downstream_proof_required:false,
+      compliance_proof_required_when_applicable:false, no_parallel_path_proof_required:true
+    }}));
+    write(cwd, "lib/allowed.ts", "export const ok = true;\n");
+    git(cwd, "add", "lib/allowed.ts"); git(cwd, "commit", "-m", "missing negative test");
+    expect(gate(cwd).stderr).toContain("negative_tests_required=true");
+  });
+
+  test("control-root maintenance requires authority-root to be required", () => {
+    const cwd = initRepo(baseControl({
+      mode:"control-root-maintenance",
+      authorized_paths:[".github/workflows/pr-check.yml","tests/runtime/mallan-execution-control.test.ts"],
+      allowed_new_files:[], impact_domains:["governance"],
+      impact_graph:{
+        root_owner_paths:[MASTER], writer_paths:[".github/workflows/pr-check.yml"], reader_paths:["lib/feature/reader.ts"],
+        publisher_paths:[".github/workflows/pr-check.yml"], downstream_surfaces:["GitHub merge gate"],
+        test_paths:["tests/runtime/mallan-execution-control.test.ts"], compliance_surfaces:["governance only"]
+      }
+    }));
+    write(cwd,".github/workflows/pr-check.yml","name: maintained gate\n");
+    write(cwd,"tests/runtime/mallan-execution-control.test.ts","root proof\n");
+    git(cwd,"add",".github/workflows/pr-check.yml","tests/runtime/mallan-execution-control.test.ts");
+    git(cwd,"commit","-m","root maintenance");
+    expect(gate(cwd).stderr).toContain("authority-root is a required main-branch status check");
+    expect(gate(cwd,{MALLAN_AUTHORITY_ROOT_REQUIRED:"true"}).status).toBe(0);
+  });
+
+  test("control-root maintenance exits through state-only control update", () => {
+    const cwd=initRepo(baseControl({mode:"control-root-maintenance",authorized_paths:[".github/workflows/pr-check.yml"],allowed_new_files:[],impact_domains:["governance"]}));
+    write(cwd,STATE,controlMarkdown(baseControl({mode:"control-update",authorized_paths:[STATE],allowed_new_files:[],impact_domains:["governance"]})));
+    git(cwd,"add",STATE); git(cwd,"commit","-m","exit root maintenance");
+    expect(gate(cwd).stdout).toContain("state-only control update");
   });
 
 });

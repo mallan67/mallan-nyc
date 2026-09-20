@@ -23,6 +23,20 @@ jobs:
         with:
           node-version: "24"
 
+      - name: Read authority-root protection state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          required=false
+          ids="$(gh api "repos/$GITHUB_REPOSITORY/rulesets?includes_parents=true" --jq '.[] | select(.enforcement=="active") | .id' 2>/dev/null || true)"
+          for id in $ids; do
+            value="$(gh api "repos/$GITHUB_REPOSITORY/rulesets/$id" --jq 'any(.rules[]?; .type=="required_status_checks" and any(.parameters.required_status_checks[]?; .context=="authority-root"))' 2>/dev/null || echo false)"
+            if [ "$value" = "true" ]; then required=true; break; fi
+          done
+          echo "MALLAN_AUTHORITY_ROOT_REQUIRED=$required" >> "$GITHUB_ENV"
+          echo "authority-root required status check: $required"
+
       - name: Freeze base-controlled execution gate
         run: cp scripts/ci/mallan-execution-control.mjs /tmp/mallan-execution-control.mjs
 

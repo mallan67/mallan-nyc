@@ -11,7 +11,7 @@
 **Canonical branch:** `main`  
 **Current main:** `bba9d8d6c92bb3bfe95b9f4b90da69534650c276`  
 **Active governance convergence PR:** #632  
-**Checkpoint source head:** `9cd51d226e887389e15f843e7db8991eb64781ff` (the parent state verified for this checkpoint; this handoff update creates a newer PR head)  
+**Checkpoint source head:** `84a97dca9e253a77399d35bdb5e2fc281dd8afcf` (last fully audited parent before the governance/code correction set; current PR head must be read live from GitHub)  
 **Authorized work surface:** GitHub repository + explicitly authorized provider connections only; Desktop/worktrees/scratch copies are not execution authority  
 **PR #595:** authority provenance / historical governance source; open, draft, unmerged, heavily diverged from current main
 
@@ -285,8 +285,9 @@ No Vercel environment cleanup, Neon resource mutation, branch creation, resource
 The current sequence is now governance-first. Provider cleanup and product implementation are stopped until the execution boundary is real.
 
 1. **Close PR #632 control defects before merge.**
-   - Do not merge the current controller as the permanent root while declared permissions remain unenforced.
-   - Do not use provider cleanup as a substitute for governance closure.
+   - This correction set makes mutation/proof fields executable, adds a base-controlled root-maintenance mode, and fixes the Release Truth race with a bounded dependency wait.
+   - Direct-Neon branch prune/rotation writers are quarantined in the same PR so the Master cannot declare Vercel-only control while old automation remains armed.
+   - Closure still requires exact-head CI + independent review; do not use provider cleanup as a substitute.
 2. **Make the execution contract truthful and machine-enforced.**
    - Every declared mutation permission must produce pass/fail behavior or be removed from the machine-control claim.
    - The entire `requirements.*` proof block must be validated/enforced or explicitly remain advisory.
@@ -438,11 +439,11 @@ Status labels:
 ### B. Control-plane blockers
 
 17. **`authority-root` is not a required check.** Live `Protect main` ruleset `19435006` currently requires only `pr-check`. **CONFIRMED-GITHUB.**
-18. Six mutation booleans are declared but not read by the controller: `production_mutation_authorized`, `schema_migration_authorized`, `environment_mutation_authorized`, `neon_mutation_authorized`, `destructive_data_authorized`, `manual_cron_authorized`. **CONFIRMED-GITHUB.**
-19. Entire `requirements.*` block is not read by the controller. **CONFIRMED-GITHUB.**
-20. `provider_proof_required` is shape-validated only; provider proof is not executed. **CONFIRMED-GITHUB.**
+18. **CORRECTION INCLUDED IN #632; exact-head proof pending.** Six mutation booleans were declared but not read by the controller: `production_mutation_authorized`, `schema_migration_authorized`, `environment_mutation_authorized`, `neon_mutation_authorized`, `destructive_data_authorized`, `manual_cron_authorized`. **CONFIRMED-GITHUB.**
+19. **CORRECTION INCLUDED IN #632; exact-head proof pending.** Entire `requirements.*` block was not read by the controller. **CONFIRMED-GITHUB.**
+20. **CORRECTION INCLUDED IN #632; exact-head proof pending.** `provider_proof_required` was shape-validated only; corrected gating now fails closed unless the base-controlled workflow supplies each required proof token. **CONFIRMED-GITHUB.**
 21. `impact_domains` is required in implementation mode but does not itself gate detected change classes. **CONFIRMED-GITHUB.**
-22. Control-root maintenance procedure is undefined even though the controller demands an out-of-band procedure. **CONFIRMED-GITHUB.**
+22. **CORRECTION INCLUDED IN #632; exact-head proof pending.** Control-root maintenance was undefined; corrected design requires state-only entry, live proof that `authority-root` is required, a separate root PR evaluated by the base controller, and a state-only exit. **CONFIRMED-GITHUB.**
 23. Tracked `.githooks/` were reported locally as disarmed because local `core.hooksPath` pointed at empty `.git/hooks`. This cannot be guaranteed from GitHub alone and is **LOCAL-ONLY / not a durable boundary**.
 24. `.claude/` specialist agents/skills/settings are ignored/untracked and therefore not portable enforcement. **CONFIRMED-GITHUB for ignore/distribution shape; local contents are LOCAL-ONLY.**
 
@@ -722,58 +723,26 @@ After this governance system is merged, the next permitted step is a **control-u
 
 ---
 
-## 7.1 Exact controller coverage — BLOCKING GAP
+## 7.1 Execution-controller coverage after the #632 correction set — PROOF PENDING
 
-The full 415-line `scripts/ci/mallan-execution-control.mjs` was read against the current Execution State contract on 2026-09-20.
+The corrected controller and required PR workflow now make the previously decorative contract fields executable:
 
-### Mechanically enforced today
+- all mutation authorization fields are type-validated;
+- schema / Vercel-environment / Neon-control / destructive / Production-rotation change classes are mapped from changed repo paths and fail when their base-state authorization flag is false;
+- `provider_proof_required` fails closed unless the base-controlled workflow supplies each named proof token;
+- the full `requirements.*` object is required and validated;
+- declared negative-test coverage requires a changed declared test path;
+- the required PR workflow freezes the controller from the PR base (bootstrap #632 is the one-time exception because base main has no controller yet);
+- the controller runs once before the work and once after the test/build/compliance chain;
+- the final phase consumes proof tokens only after the preceding GitHub steps have succeeded;
+- `control-root-maintenance` is an explicit mode that requires a prior state-only authorization plus live GitHub proof that `authority-root` is already a required main status check;
+- root maintenance is evaluated by the base controller and exits through a separate state-only update back to `control-update`;
+- direct-Neon cleanup/rotation files and `vercel.json` are protected control-root paths so an ordinary implementation packet cannot silently re-arm them.
 
-- contract version;
-- non-empty `mode`, `authorized_branch`, `base_branch`, `packet_id`, `objective`;
-- arrays for `authorized_paths`, `allowed_new_files`, `impact_domains`, `provider_proof_required`;
-- non-empty impact-graph arrays for root owners, writers, readers, publishers, downstream surfaces, tests and compliance surfaces;
-- implementation mode requires non-empty authorized paths and impact domains;
-- branch identity and base branch;
-- control-update may change only this Execution State and must validate the proposed HEAD contract;
-- implementation cannot modify Master or Execution State;
-- changed-path envelope;
-- explicit new-file allowlist;
-- rename/copy rejection;
-- new-system-shaped file rejection when `new_canonical_system_authorized !== true`;
-- repo-path existence for impact-graph root-owner / writer / reader / publisher / test paths.
+This section is not a closure claim. It becomes **PROVEN** only if the exact correction head passes its controller negative tests, PR checks, Guardrails, Release Truth, Vercel Preview and independent review.
 
-### Declared but not operationally enforced
+The Git gate controls Git changes and proof requirements. It does not claim to cryptographically prevent an actor who separately possesses out-of-band provider credentials from calling a provider API. Mallan therefore also requires provider mutation to be performed only through an explicitly authorized Git-controlled packet/workflow; direct Neon mutation paths are quarantined.
 
-`provider_proof_required` is shape-validated but no provider proof is executed or checked.
-
-The following six mutation authorization booleans are not read by the controller at all:
-
-- `production_mutation_authorized`
-- `schema_migration_authorized`
-- `environment_mutation_authorized`
-- `neon_mutation_authorized`
-- `destructive_data_authorized`
-- `manual_cron_authorized`
-
-The entire `requirements` object is not validated or read:
-
-- `impact_graph_required`
-- `all_readers_writers_required`
-- `negative_tests_required`
-- `integration_proof_required`
-- `downstream_proof_required`
-- `compliance_proof_required_when_applicable`
-- `no_parallel_path_proof_required`
-
-Deleting the whole `requirements` object would not currently make the gate fail.
-
-### Control-root maintenance gap
-
-After bootstrap, any change to the controller or the three control workflows is rejected with:
-
-`Control-root maintenance requires an explicit out-of-band governance procedure.`
-
-No canonical procedure is presently defined. That is a blocking design gap: the root must be repairable only through a predeclared base-controlled mechanism, not through an improvised exception.
 
 ---
 
@@ -852,7 +821,7 @@ Do not create another status file because this one becomes inconvenient.
 
 # 11. Current exact stop point
 
-**DO NOT MERGE PR #632 AS-IS.**
+**DO NOT MERGE PR #632 UNTIL THE CURRENT CORRECTION HEAD PASSES EXACT-HEAD CI, VERCEL PREVIEW PROOF AND INDEPENDENT REVIEW.**
 
 Checkpoint source head before this handoff update: `9cd51d226e887389e15f843e7db8991eb64781ff`.
 
@@ -874,15 +843,16 @@ Verified live GitHub state at that head:
 
 ### Required closure before merge
 
-1. Correct the semantic GitHub-only authority test rather than wording around the assertion.
-2. Remove false/over-broad lifetime Neon claims from every changed governance/provider document.
-3. Close §7.1 by implementing real enforcement for the six mutation booleans and required proof semantics, or narrow the contract so it claims only what the machine actually enforces.
-4. Define a safe, base-controlled control-root maintenance procedure before the root becomes immutable.
-5. Make the Cotality authority path reproducible/fail-closed; local metadata fallback cannot satisfy live-provider proof.
-6. Fix Release Truth timing/orchestration so exact-head verification reaches a final state after required checks and Vercel settle.
-7. Obtain a new independent review of the exact corrected head; resolve threads only after their defects are actually closed.
-8. Keep all provider/environment/schema/destructive/Production mutations stopped during this governance repair.
-9. Do not merge/deploy until PR #632's own merge criteria are factually satisfied.
+1. Exact correction head passes the semantic GitHub-only authority test.
+2. Exact correction head contains no current lifetime-history Neon overclaim in the changed authority/provider docs.
+3. Controller negative tests prove mutation flags, provider-proof fail-closed behavior, final-proof requirements, rename rejection and base-controlled root maintenance.
+4. Direct-Neon PR-close cleanup, scheduled prune and credential-rotation paths are demonstrably quarantined; the prune schedule is absent from `vercel.json`.
+5. The optional local Cotality helper uses source that exists in Git and has no metadata-snapshot fallback; unavailable live Cotality fails closed.
+6. Release Truth waits for exact-head Vercel + required checks and finishes in a non-racy final state.
+7. A new independent review evaluates the exact corrected head; old review threads are resolved only after the corrected code/tests are visible.
+8. PR checks, Guardrails and Vercel Preview are green on the exact corrected head.
+9. No Production/provider/environment/schema/destructive mutation occurs during this governance repair.
+10. No merge/Production deployment occurs without Maya's explicit merge/deploy authorization.
 
 ### Post-merge activation
 

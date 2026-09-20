@@ -25,10 +25,10 @@
 > - **Cotality/Trestle is live authority for fields, strings, permissions, attribution, mapping, search,
 >   resources, media semantics, and API behavior.** Use the authorized live contract + current provider docs.
 >   Repo CSV/XML/JSON mirrors are evidence only.
-> - **Cotality access path is already in the repo.** `.mcp.json` → `trestle-fields` MCP using
->   `IDX_CLIENT_ID`, `IDX_CLIENT_SECRET`, `TRESTLE_API_URL`; runtime OAuth is `lib/idx/auth.ts`
->   (`client_credentials`, scope `api`, provider-returned `expires_in`). Verify against those live
->   paths before repeating any field/enum/permission/API claim.
+> - **Cotality proof must be live.** Runtime OAuth is `lib/idx/auth.ts` (`client_credentials`, scope
+>   `api`, provider-returned `expires_in`). `.mcp.json` / `trestle-fields` is an optional local
+>   developer helper, not provider authority, and must fail closed when live Cotality is unavailable.
+>   Verify the authorized live provider contract before repeating any field/enum/permission/API claim.
 > - **Do not run `rotate-db-keys` or mutate env/Neon settings without Maya's explicit authorization.**
 ---
 
@@ -36,11 +36,11 @@
 
 1. **NEON discipline** — READ `NEON.md` before any Prisma schema, migration, `prisma migrate deploy`, `prisma db push`, `vercel.json buildCommand`, `db-keepalive` cron, or new column / FK / index / table work. Failing to read it is how the 2026-04-19 silent-drift incident happened.
 2. **Source-of-truth charter** — READ `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` before creating, renaming, moving, or editing any file in search, CRM, featured/exclusives, neighborhoods/locations, media, listings, or IDX. No parallel `*-v2`/`*-new`/`*-final` files. No editing generated files (`public/crm/index-built.html` is built via `npm run crm:build`).
-3. **GitHub-only working-state rule** — repository work is performed against the current GitHub branch/PR. Do not mirror repo files to Maya's Desktop, create local worktrees/project copies, or use local folders as authority. If a machine-local cleanup is explicitly requested, treat it as a bounded cleanup only — never as repo state.
+3. **GitHub-only working-state rule** — Claude, ChatGPT and Codex perform repository work against the current GitHub branch/PR only. Do not mutate the repo from a local clone, Maya's Desktop, worktrees, project copies, or scratch folders. If Maya explicitly requests machine-local cleanup/evidence recovery, local files remain evidence only; repository mutations still happen through GitHub.
 4. **Compliance-first** — see §D.
 5. **Fail-closed on rule conflict or missing canonical file** — see §E.
 6. **Proof-first on completion claims** — see §F.
-7. **Never start without explicit Maya approval:** PR 5B, external-inventory implementation, syndication exports / partner integrations, schema migrations, env-var changes, Neon settings, cron config, CRM frontend (`public/crm/**`), agents, skills, `.github/workflows/**`, manual cron triggers, reconciliation runs, admin merge bypass, force push to main.
+7. **Never start without explicit Maya approval:** PR 5B, external-inventory implementation, syndication exports / partner integrations, schema migrations, env-var changes, Neon settings, cron config, CRM frontend (`public/crm/**`), agents, skills, `.github/workflows/**`, manual cron triggers, reconciliation runs, admin merge bypass, force push to main. Provider mutations must be executed only through an authorized GitHub-controlled packet/workflow; direct Neon control-plane mutation is not an approved fallback.
 8. **Never skip hooks** (`--no-verify`), never bypass signing (`--no-gpg-sign`), never amend a published commit.
 9. **`scripts/__pr147-soak-verify.mjs` stays UNTRACKED.** Do not commit it.
 

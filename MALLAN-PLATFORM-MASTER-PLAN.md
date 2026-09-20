@@ -80,16 +80,16 @@ Do not replace live authority with a local CSV, generated mirror, mapper, old au
 Last-verified token behavior on the historical entitlement was that \`scope=api\` issued the usable API token while advertised \`rets\` / \`offline_access\` scopes were not accepted for this client-credentials path. Treat that as historical provider evidence, not a permanent entitlement guarantee; re-probe current discovery/token behavior before changing auth.
 
 
-The repository already defines the authorized path:
+The canonical Cotality proof path is the authorized live provider API plus current provider documentation.
 
-- .mcp.json → trestle-fields MCP;
 - environment inputs: IDX_CLIENT_ID, IDX_CLIENT_SECRET, TRESTLE_API_URL;
 - runtime OAuth implementation: lib/idx/auth.ts;
 - base URL: TRESTLE_API_URL, then legacy IDX_ENDPOINT only where still supported, with the code fallback at https://api.cotality.com/trestle;
 - token endpoint: /oidc/connect/token;
 - grant: client_credentials;
 - scope: api;
-- token lifetime: use the provider-returned expires_in value; do not hard-code an assumed lifetime.
+- token lifetime: use the provider-returned expires_in value; do not hard-code an assumed lifetime;
+- .mcp.json / trestle-fields is an optional local developer helper only. It is not provider authority and must fail closed when live Cotality is unavailable.
 
 Secrets never belong in this Master, logs, PR comments or generated evidence.
 
@@ -401,16 +401,17 @@ Repository authority is GitHub, repository mallan67/mallan-nyc.
 
 Mandatory behavior:
 
+- Claude, ChatGPT and Codex perform repository reads/writes against GitHub branch/PR state only;
 - read current main and the PR base/head from GitHub before mutation;
 - read this Master first, then docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md;
-- side branches, old PRs, local clones, Desktop folders, temporary files and chat transcripts are evidence only;
+- side branches, old PRs, local clones, Desktop folders, worktrees, temporary files and chat transcripts are evidence only;
 - no agent may create an ad-hoc architecture branch or use a historical branch as the starting authority;
 - the active branch and allowed mutation envelope come from the Execution State;
 - durable code, documentation, tests and evidence belong in Git;
 - do not leave the only copy of a decision in a local scratchpad or chat;
 - required GitHub checks are part of the execution boundary, not optional reporting.
 
-A local Git checkout may be used only when the approved execution environment explicitly permits it. Maya's Desktop copy is not an agent working surface and must never be used to bypass GitHub authority.
+For Mallan agent work, a local clone/worktree is not an authorized repository working surface. Local files may be inspected only when Maya explicitly requests machine-local cleanup or evidence recovery; repository mutations still occur through GitHub. Read-only provider evidence may use the authorized provider connection, but provider mutations must originate from an explicitly authorized GitHub-controlled packet/workflow rather than an ad-hoc local CLI/API path.
 
 ## 0.11 Vercel operating authority
 
@@ -456,11 +457,12 @@ Live database structure outranks an inferred Prisma-only inventory. Prisma is an
 
 Development/Preview database isolation is explicit:
 
-- Development must never silently target Production;
-- a Development branch must not clone Production row data merely because ordinary Neon child branching makes that convenient;
-- schema-only/root branching is the required pattern when the active authorized packet calls for Development isolation;
-- Preview must fail closed until a safe Preview data model is deliberately authorized;
-- Production branch/resource mutation remains an explicit authorization boundary.
+- Development and Preview must never silently target Production;
+- no branch/project/resource topology is assumed in advance from old experiments;
+- any Development/Preview data model must be derived from the live Vercel-managed resource capabilities and separately authorized before creation;
+- Preview must fail closed until that model is deliberately authorized;
+- Production branch/resource mutation remains an explicit authorization boundary;
+- direct Neon control-plane prune/rotation paths are not canonical and remain quarantined unless reimplemented through the Vercel-managed resource contract.
 
 ## 0.13 Environment and database authority
 
@@ -7284,6 +7286,20 @@ Agents do not create arbitrary implementation branches as a substitute for under
 The current authorized branch/work lane is defined by the Execution State.
 
 The execution-control implementation must itself run from a protected/base-controlled surface so a proposed PR cannot weaken the gate that evaluates that PR.
+
+Control-root maintenance is a two-PR sequence, never an improvised bypass:
+
+~~~text
+STATE-ONLY CONTROL UPDATE
+→ mode = control-root-maintenance
+→ exact protected control paths + tests named
+→ authority-root must already be a REQUIRED main status check
+→ separate root-maintenance PR evaluated by the BASE controller
+→ exact tests/checks
+→ separate STATE-ONLY exit back to control-update
+~~~
+
+If live GitHub rules do not prove `authority-root` is required, control-root maintenance fails closed.
 
 Exact workflow names, current branch and current GitHub ruleset status remain mutable Execution State facts.
 

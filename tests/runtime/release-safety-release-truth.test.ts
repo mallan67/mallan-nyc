@@ -235,6 +235,13 @@ describe('release-safety P2 — deploy-validator + workflow wiring pins (static)
     expect(workflow).toContain('reconfirm_rc');
   });
 
+  test('PR Release Truth waits boundedly for Vercel and required checks before aggregating', () => {
+    expect(workflow).toContain('Wait for PR release dependencies to settle');
+    expect(workflow).toContain('seq 1 60');
+    expect(workflow).toContain('validate-release-status.js --pr "$PR_NUMBER" --json');
+    expect(workflow).toContain('DEPLOY_PENDING|DEPLOY_UNKNOWN) sleep 10');
+  });
+
   test('PR events invoke the aggregator with --pr (the DEPLOY_PREVIEW path), status still on the head SHA', () => {
     // The PR branch of Resolve target pairs the head SHA (checkout/status)
     // with a --pr aggregator invocation on the SAME line:

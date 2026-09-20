@@ -26,9 +26,11 @@ A chat, Desktop checkout, side branch, audit, dashboard or handoff can provide e
 
 ### 0.1 GitHub-only working state + provider authority (Maya directive 2026-09-18)
 
-- **Repository work happens in GitHub.** Read/write the current GitHub branch or PR directly. Do not use
-  Maya's Desktop, local worktrees, Desktop mirrors, scratch repos, or copied project
-  folders as working state or authority. Do not create new local project/worktree folders.
+- **Repository work happens in GitHub.** Claude, ChatGPT and Codex read/write the current GitHub branch
+  or PR directly. Do not use Maya's Desktop, local worktrees, Desktop mirrors, scratch repos, copied
+  project folders, or a local clone as repository working state or authority. Do not create new local
+  project/worktree folders. Machine-local evidence may be inspected only when Maya explicitly asks for
+  local cleanup/recovery; repo mutations still happen through GitHub.
 - **Git facts** (files, commits, branches, PRs, Actions) come from the current GitHub repository/PR, never
   from a stale checkout or old bot comment.
 - **Vercel facts** (project, deployment, environment-variable scope, Marketplace binding, runtime behavior)
@@ -41,13 +43,14 @@ A chat, Desktop checkout, side branch, audit, dashboard or handoff can provide e
   Vercel binding before being used as Mallan truth. Do not create an independent Neon resource to bypass it.
 - **Cotality/Trestle facts** come from the authorized live Cotality/Trestle contract and official provider
   documentation. Repo metadata, CSVs, generated enums, and old audits are caches/evidence only.
-- **Verified repo access path for Cotality/Trestle:** `.mcp.json` defines the live `trestle-fields` MCP
-  with `IDX_CLIENT_ID`, `IDX_CLIENT_SECRET`, and `TRESTLE_API_URL`. Runtime OAuth lives in
-  `lib/idx/auth.ts`: `TRESTLE_API_URL` (or legacy `IDX_ENDPOINT`) selects the base, the hard-coded
-  `https://api.cotality.com/trestle` value is fallback only, token grant is `client_credentials`,
-  scope is `api`, and token lifetime comes from the provider's `expires_in` response. Do not invent
-  quotas, TTLs, fields, enums, or permissions that are not proven by the live contract/provider docs.
+- **Cotality/Trestle proof is live-provider proof.** Runtime OAuth lives in `lib/idx/auth.ts`:
+  `TRESTLE_API_URL` (or legacy `IDX_ENDPOINT`) selects the base, token grant is `client_credentials`,
+  scope is `api`, and token lifetime comes from provider `expires_in`. `.mcp.json` / `trestle-fields`
+  is an **optional local developer helper only**, never provider authority; it must fail closed when live
+  Cotality is unavailable. Do not invent quotas, TTLs, fields, enums, permissions, or mappings that are
+  not proven by the live contract/provider docs.
 - If a provider fact cannot be verified live, mark it **UNVERIFIED and stop**. Do not fill the gap from memory.
+- **Provider mutations are Git-controlled.** Read-only provider evidence may use the authorized connector. Environment/resource/Neon control-plane mutations require the active Git packet plus Maya's explicit authorization; do not execute direct Neon CLI/API mutation paths.
 
 ---
 

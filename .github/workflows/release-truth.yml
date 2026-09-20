@@ -43,7 +43,7 @@ jobs:
     # This is only a CEILING — the job ends as soon as proof completes (ordinarily
     # 6–8 min); GitHub does not sit idle for the rest. Non-armed / PR runs finish
     # well inside it.
-    timeout-minutes: 15
+    timeout-minutes: 22
 
     env:
       DATABASE_URL: postgresql://stub:stub@localhost:5432/stub?schema=public
@@ -96,6 +96,25 @@ jobs:
 
       - name: npm ci
         run: npm ci
+
+      - name: Wait for PR release dependencies to settle
+        if: github.event_name == 'pull_request'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          final="DEPLOY_PENDING"
+          for attempt in $(seq 1 60); do
+            node scripts/validate-release-status.js --pr "$PR_NUMBER" --json > /tmp/release-deps.json
+            final=$(node -e 'const d=require("/tmp/release-deps.json"); process.stdout.write(String(d.verdict||"DEPLOY_UNKNOWN"))')
+            echo "release dependency verdict attempt $attempt: $final"
+            case "$final" in
+              DEPLOY_PREVIEW|DEPLOY_FAIL) break ;;
+              DEPLOY_PENDING|DEPLOY_UNKNOWN) sleep 10 ;;
+              *) echo "Unexpected deploy validator verdict: $final" >&2; exit 1 ;;
+            esac
+          done
+          echo "PR release dependencies settled/bounded at: $final"
 
       # Phase 1 — TOKEN-FREE production identity proof. Asks mallan.nyc ITSELF
       # (GET /api/release-identity) which commit + deployment it is serving; a

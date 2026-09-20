@@ -1,14 +1,13 @@
 # Neon Cost-Control Policy
 
 > **CURRENT-STATE CORRECTION — 2026-09-18.** This file defines cost policy, but older "today/current"
-> usage measurements below are historical snapshots unless explicitly re-verified. Live Neon enumeration
-> now shows `hidden-mountain-87248164` has exactly **one branch ever** (`main`), including deleted
-> branches. Current Preview provisioning has created zero branches in this project, and the scheduled
-> prune route is fail-closed/inert because its bare Production `NEON_API_KEY` and `NEON_PROJECT_ID`
-> effective values are empty. Therefore do **not** use old branch counts, "steady-state preview branch"
-> assumptions, or prune-audit counts as current operational truth. Before any cost/plan decision, re-read
-> live Neon + Vercel and use `NEON.md` / `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md` for the
-> current topology. Policy targets remain policy; dynamic measurements do not.
+> usage measurements below are historical snapshots unless explicitly re-verified. The 2026-09-18
+> current/deleted enumeration returned only `main`, but that response does not prove lifetime history:
+> repository evidence records 8 branches on 2026-05-17 and approximately 40 on 2026-06-01. Direct Neon
+> pruning/rotation paths are quarantined by the 2026-09-20 convergence correction. Therefore do **not**
+> use old branch counts, "steady-state preview branch" assumptions, or prune-audit counts as current
+> operational truth. Before any cost/plan decision, re-read the Vercel-managed resource path. Policy
+> targets remain policy; dynamic measurements do not.
 
 > Production project for all figures below is **`hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2`** (`DATABASE_URL` points there). The legacy `morning-bread-68708332` / `royal-dawn` project is stale / do-not-use; some historical storage figures here were measured on it.
 
@@ -38,7 +37,7 @@ The mallan-nyc Neon usage shape is designed so the project **fits inside the Fre
 - A small, slim-writer–constrained `listings` table (target ~80–200 MB after legacy JSON drop)
 - A bounded set of secondary tables (audit_events, demand_signals, listing_search_projection, etc.) that grow slowly
 - A single production branch (`main`) on the canonical production project (`hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2`)
-- Preview isolation must remain bounded and cost-disciplined **when it is intentionally re-enabled**. As measured 2026-09-18, the current Production project has no Preview branches and has never created one.
+- Preview isolation must remain bounded and cost-disciplined **when it is intentionally authorized**. No lifetime branch-history claim is current authority; topology must be re-read through the Vercel-managed resource.
 - Compute discipline: no artificial DB keepalive — the `db-keepalive` cron was **removed** and `idx-sync`/`media-sync` widened to `*/30`/hourly in the approved 2026-07 compute-reduction (PR #481) so the endpoint can autosuspend between jobs; no synthetic health-probe DB load, no permanent connection pools beyond what serverless routes use
 
 ### Why this is the policy, not just an aesthetic preference
@@ -140,8 +139,8 @@ nothing.
 |---|---|
 | **Production Neon project** | `hidden-mountain-87248164` / `ep-cold-waterfall-adno3ao2` (`DATABASE_URL` points here; repointed 2026-06-02) |
 | **Preview/integration Neon project** | `hidden-mountain-87248164` (Vercel-Neon integration creates preview branches here; UI lists product as `neon-green-school`) |
-| **Credential rotation owner** | `.github/workflows/rotate-db-keys.yml` (GitHub Actions; **targets the legacy `morning-bread` project and is DISABLED until retargeted to cold-waterfall + host-guarded**) |
-| **Preview branch cleanup owner** | `app/api/cron/neon-branch-prune/route.ts` daily 04:00 UTC + `lib/neon/branches.ts` shared logic (Vercel cron; targets preview project per cron audit-event evidence) |
+| **Credential rotation owner** | **QUARANTINED.** `.github/workflows/rotate-db-keys.yml` is a fail-closed tombstone; direct Neon credential mutation is not an authorized Mallan path. |
+| **Preview branch cleanup owner** | **UNRESOLVED / Vercel-managed design required.** The former scheduled direct-Neon prune route is quarantined and removed from `vercel.json`. |
 
 ---
 

@@ -9,10 +9,11 @@
 > - **Stale / DO-NOT-SERVE:** `morning-bread-68708332` / `ep-royal-dawn-ad6eh8t2`.
 > - **`round-recipe-12208101` is UNVERIFIED**, not proven disconnected; it is not visible in the currently
 >   accessible Neon orgs. Do not turn invisibility into an ownership claim.
-> - Live Neon enumeration with deleted branches included shows **one branch ever** in
->   `hidden-mountain-87248164`: `main`. Current Preview provisioning has created zero branches there.
-> - Vercel Production `NEON_API_KEY` and `NEON_PROJECT_ID` have been measured as empty effective values;
->   the repo prune cron therefore returns 503/skipped before any prune call.
+> - **Branch history is not established by the 2026-09-18 current/deleted enumeration.** It returned
+>   only `main`, while repository evidence records 8 branches on 2026-05-17 and approximately 40 on
+>   2026-06-01. Current topology must be re-read through the Vercel-managed resource.
+> - **Direct Neon control is quarantined.** The old prune/cleanup/rotation paths are not current
+>   lifecycle authority and may not mutate Neon directly.
 > - The Vercel-managed Neon entry path is `vercel integration open neon neon-green-school` (SSO).
 > - Do not change DB env, resource scope, Neon settings, branch lifecycle, or rotation without Maya approval.
 >
@@ -201,7 +202,7 @@ The two projects share an account but **must remain operationally isolated** —
 | Production branch | `main` / `br-crimson-frog-adr7g9gt` |
 | Production endpoint identity | `ep-cold-waterfall-adno3ao2` |
 | Resource environment connection | All Environments at time of 2026-09-18 audit; re-read live before changing |
-| Branch history in Production project | Exactly one branch ever (`main`), including deleted-branch enumeration |
+| Branch history in Production project | **UNVERIFIED as lifetime history.** 2026-09-18 current/deleted response returned `main` only; historical repo evidence records 8 branches (2026-05-17) and ~40 (2026-06-01). |
 | Vercel SSO entry | `vercel integration open neon neon-green-school` |
 
 The old statement that Preview branches "live here" is superseded. Historical auto-created Preview branches are
@@ -241,7 +242,7 @@ independently establish runtime DB authority.
 
 ## §8 — Credential rotation
 
-`.github/workflows/rotate-db-keys.yml` remains a controlled, manual-only Production-capable workflow. Packet 1
+`.github/workflows/rotate-db-keys.yml` is quarantined as direct Neon control. It is not a Production-capable operating path. Packet 1
 added a fail-closed canonical-host preflight guard. Do not dispatch it merely because an old ownership-map row
 says rotation is due. Before any future run, re-read the current workflow HEAD and current Production binding,
 and obtain Maya's explicit authorization.
@@ -285,8 +286,8 @@ The full list is in `NEON-COST-CONTROL-POLICY.md` §11. Highlights for the owner
 
 | File | Cost impact | Why it's an ownership-map concern |
 |---|---|---|
-| `.github/workflows/rotate-db-keys.yml` | Modifies which production env values are live; can re-bind via redeploy | Owns rotation (this doc §8). Changes here affect production DB connection |
-| `app/api/cron/neon-branch-prune/route.ts` | Defines the cleanup-cron behavior | Owns preview cleanup (this doc §9). Changes here affect the budget-target enforcement |
+| `.github/workflows/rotate-db-keys.yml` | **QUARANTINED** direct-Neon rotation tombstone | Must not mutate provider/database state |
+| `app/api/cron/neon-branch-prune/route.ts` | **QUARANTINED** fail-closed tombstone; no Vercel cron schedule | Direct Neon branch deletion is not an authorized lifecycle path |
 | `lib/neon/branches.ts` | `DEFAULT_RETENTION_HOURS` defines steady-state count | Same |
 | `vercel.json` cron schedule | Defines cleanup cadence | Same |
 | `scripts/ops-health.js` THRESHOLDS | Encodes plan-capacity thresholds | Will be the surface for the §12.1 budget extension in the sister doc |
@@ -310,8 +311,9 @@ STALE / REFUSE:
   morning-bread-68708332 / ep-royal-dawn-ad6eh8t2
 
 CURRENT BRANCH REALITY:
-  hidden-mountain has exactly one branch ever: main.
-  Do not claim current Preview branch creation without a fresh live proof.
+  2026-09-18 current/deleted enumeration returned main only.
+  That bounded response does not establish lifetime history.
+  Re-read current topology through the Vercel-managed resource before acting.
 
 CURRENT VERCEL DB RISK:
   Development bare DATABASE_URL* still targets Production.

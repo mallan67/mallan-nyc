@@ -15,72 +15,74 @@ describe("agent authority docs stay on live sources", () => {
     "docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md",
   ];
 
-  test("canonical agent docs forbid Desktop working-state drift", () => {
-    for (const rel of authorityDocs) {
-      const body = read(rel);
-      expect(body).not.toContain("C:\\Users\\MayaAllan\\Desktop");
-    }
+  function hasAffirmativeLocalWorkingInstruction(body: string): boolean {
+    return body.split(/\r?\n/).some((line) => {
+      const l = line.toLowerCase();
+      const local = /desktop|local worktree|local checkout|local clone|scratch repo/.test(l);
+      const affirmative = /repository work happens|work from|working state is|use .* as .*authority/.test(l);
+      const negated = /do not|never|not authority|cannot|must not/.test(l);
+      return local && affirmative && !negated;
+    });
+  }
 
-    expect(read("AGENTS.md")).toContain("GitHub-only working state");
+  test("canonical agent docs require GitHub working authority without rejecting prohibition text", () => {
+    expect(hasAffirmativeLocalWorkingInstruction("Repository work happens on a local Desktop checkout.")).toBe(true);
+    expect(hasAffirmativeLocalWorkingInstruction("Do not use a local Desktop checkout as working state or authority.")).toBe(false);
+    for (const rel of authorityDocs) expect(hasAffirmativeLocalWorkingInstruction(read(rel))).toBe(false);
+    expect(read("AGENTS.md")).toContain("Repository work happens in GitHub");
     expect(read("CLAUDE.md")).toContain("GitHub-only working-state rule");
   });
 
-  test("Cotality live access path is real and executable from repo configuration", () => {
+  test("Cotality helper is optional, executable from source, and fail-closed on live-provider loss", () => {
     const mcp = JSON.parse(read(".mcp.json"));
     const trestle = mcp?.mcpServers?.["trestle-fields"];
 
     expect(trestle).toBeDefined();
-    expect(trestle.command).toBe("node");
-    expect(trestle.args).toContain("mcp/trestle-fields/dist/index.js");
-    expect(trestle.env).toMatchObject({
-      IDX_CLIENT_ID: "${IDX_CLIENT_ID}",
-      IDX_CLIENT_SECRET: "${IDX_CLIENT_SECRET}",
-      TRESTLE_API_URL: "${TRESTLE_API_URL}",
-    });
+    expect(trestle.command).toBe("npx");
+    expect(trestle.args).toEqual(["--no-install", "tsx", "mcp/trestle-fields/index.ts"]);
+    expect(String(trestle.description)).toContain("Optional local helper");
+
+    const source = read("mcp/trestle-fields/index.ts");
+    expect(source).not.toContain("LOCAL_METADATA_FALLBACK");
+    expect(source).not.toContain("artifacts/metadata.xml");
+    expect(source).not.toContain("local_fallback");
+    expect(source).toContain("Live Cotality $metadata unavailable");
+    expect(source).toContain("No local snapshot fallback is permitted");
 
     const auth = read("lib/idx/auth.ts");
     expect(auth).toContain("process.env.TRESTLE_API_URL");
-    expect(auth).toContain('"https://api.cotality.com/trestle"');
     expect(auth).toContain('grant_type: "client_credentials"');
     expect(auth).toContain('scope: "api"');
     expect(auth).toContain("data.expires_in");
 
     const agents = read("AGENTS.md");
+    expect(agents).toContain("optional local developer helper");
     expect(agents).toContain("authorized live Cotality/Trestle contract");
-    expect(agents).toContain(".mcp.json");
-    expect(agents).toContain("lib/idx/auth.ts");
-    expect(agents).not.toContain("Known live truths (2026-07-05)");
   });
 
-  test("Neon authority path is Vercel-managed and stale claims cannot re-enter canonical docs", () => {
+  test("Neon authority is Vercel-managed and lifetime-history overclaims stay out", () => {
     const combined = authorityDocs.map(read).join("\n");
-
     expect(combined).toContain("store_K9l79ICRUTMsiRh2");
     expect(combined).toContain("hidden-mountain-87248164");
-    expect(combined).toContain("ep-cold-waterfall-adno3ao2");
-    expect(combined).toContain("vercel integration open neon neon-green-school");
-
-    for (const stale of [
-      "2/5000",
-      "This is where preview branches accumulate",
-      "NEON_PROJECT_ID on Vercel Production still names the legacy",
-      '`round-recipe-12208101` / "neon-green-door" is NOT connected',
-    ]) {
-      expect(combined).not.toContain(stale);
-    }
+    expect(combined).toContain("Vercel-managed");
+    expect(combined).not.toContain("exactly one branch ever");
+    expect(combined).not.toContain("has never created one");
   });
 
-  test("current prune documentation matches the fail-closed route shape", () => {
+  test("direct Neon mutation routes are quarantined from active automation", () => {
+    const cleanup = read(".github/workflows/cleanup-neon-preview-branch.yml");
+    const rotate = read(".github/workflows/rotate-db-keys.yml");
     const route = read("app/api/cron/neon-branch-prune/route.ts");
-    const neon = read("NEON.md");
+    const cli = read("scripts/neon-prune-branches.ts");
+    const vercel = JSON.parse(read("vercel.json"));
 
-    expect(route).toContain("if (!apiKey || !projectId)");
-    expect(route).toContain("{ status: 503 }");
-    expect(route).toContain("isCanonicalNeonProject(projectId)");
-
-    expect(neon).toContain("returns HTTP 503");
-    expect(neon).toContain("does **not** call `pruneBranches()`");
+    expect(cleanup).toContain("QUARANTINED_DIRECT_NEON_CONTROL");
+    expect(rotate).toContain("QUARANTINED_DIRECT_NEON_CONTROL");
+    expect(route).toContain("direct_neon_control_quarantined");
+    expect(cli).toContain("QUARANTINED_DIRECT_NEON_CONTROL");
+    expect((vercel.crons || []).some((c: { path?: string }) => c.path === "/api/cron/neon-branch-prune")).toBe(false);
   });
+
   test("GitHub enforcement workflows use canonical base authority", () => {
     const prCheck = read(".github/workflows/pr-check.yml");
     expect(prCheck).toContain("Mallan execution control");

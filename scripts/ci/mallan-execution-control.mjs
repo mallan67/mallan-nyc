@@ -22,27 +22,61 @@ const IMMUTABLE_CONTROL_PATHS = new Set([
   "scripts/ci/mallan-execution-control.mjs",
   ".github/workflows/authority-root.yml",
   ".github/workflows/branch-authority.yml",
-  ".github/workflows/pr-check.yml"
+  ".github/workflows/pr-check.yml",
+  ".github/workflows/release-truth.yml",
+  "scripts/validate-release-status.js",
+  "tests/runtime/mallan-execution-control.test.ts",
+  "tests/runtime/agent-authority-live-source.test.ts",
+  "tests/runtime/release-safety-release-truth.test.ts",
+  ".github/workflows/cleanup-neon-preview-branch.yml",
+  ".github/workflows/rotate-db-keys.yml",
+  "app/api/cron/neon-branch-prune/route.ts",
+  "scripts/neon-prune-branches.ts",
+  "tests/runtime/neon-branch-prune-route.test.ts",
+  "tests/runtime/neon-prune-cli.test.ts"
 ]);
 
 const BOOTSTRAP_ALLOWED = new Set([
-  "AGENTS.md",
-  "CLAUDE.md",
-  "MALLAN-PLATFORM-MASTER-PLAN.md",
-  "NEON.md",
+  "AGENTS.md", "CLAUDE.md", "MALLAN-PLATFORM-MASTER-PLAN.md", "NEON.md",
+  ".mcp.json", "mcp/trestle-fields/index.ts",
   "docs/architecture/NEON-COST-CONTROL-POLICY.md",
   "docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md",
   "docs/audits/zero-billing-neon-vercel-2026-06-12.md",
   "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md",
   "docs/superpowers/plans/2026-06-12-return-neon-to-free-tier-P2-MONEY.md",
   "docs/support/vercel-neon-false-branch-limit-status-2026-06-03.md",
-  "scripts/ci/mallan-execution-control.mjs",
+  "scripts/ci/mallan-execution-control.mjs", "scripts/validate-release-status.js",
   "tests/runtime/agent-authority-live-source.test.ts",
   "tests/runtime/mallan-execution-control.test.ts",
-  ".github/workflows/pr-check.yml",
-  ".github/workflows/branch-authority.yml",
-  ".github/workflows/authority-root.yml"
+  "tests/runtime/release-safety-release-truth.test.ts",
+  "tests/runtime/neon-branch-prune-route.test.ts", "tests/runtime/neon-prune-cli.test.ts",
+  ".github/workflows/pr-check.yml", ".github/workflows/branch-authority.yml",
+  ".github/workflows/authority-root.yml", ".github/workflows/release-truth.yml",
+  ".github/workflows/cleanup-neon-preview-branch.yml", ".github/workflows/rotate-db-keys.yml",
+  "app/api/cron/neon-branch-prune/route.ts", "scripts/neon-prune-branches.ts", "vercel.json"
 ]);
+
+const MUTATION_FLAGS = [
+  "production_mutation_authorized", "schema_migration_authorized",
+  "environment_mutation_authorized", "neon_mutation_authorized",
+  "destructive_data_authorized", "manual_cron_authorized",
+  "new_canonical_system_authorized"
+];
+
+const REQUIREMENT_KEYS = [
+  "impact_graph_required", "all_readers_writers_required", "negative_tests_required",
+  "integration_proof_required", "downstream_proof_required",
+  "compliance_proof_required_when_applicable", "no_parallel_path_proof_required"
+];
+
+const FLAG_DOMAINS = {
+  production_mutation_authorized: "production-mutation",
+  schema_migration_authorized: "schema",
+  environment_mutation_authorized: "environment",
+  neon_mutation_authorized: "neon-control-plane",
+  destructive_data_authorized: "destructive-data",
+  manual_cron_authorized: "manual-cron"
+};
 
 function git(args) {
   return execFileSync("git", args, {
@@ -112,48 +146,110 @@ function pathAllowed(filePath, allowed) {
 }
 
 function validateControl(control) {
+  const allowedModes = new Set(["control-update", "implementation", "control-root-maintenance"]);
+  if (!allowedModes.has(control.mode)) throw new Error("unsupported execution-control mode: " + control.mode);
+
   for (const key of ["mode", "authorized_branch", "base_branch", "packet_id", "objective"]) {
-    if (typeof control[key] !== "string" || !control[key].trim()) {
-      throw new Error("control." + key + " must be a non-empty string");
-    }
+    if (typeof control[key] !== "string" || !control[key].trim()) throw new Error("control." + key + " must be a non-empty string");
   }
-
   for (const key of ["authorized_paths", "allowed_new_files", "impact_domains", "provider_proof_required"]) {
-    if (!Array.isArray(control[key])) {
-      throw new Error("control." + key + " must be an array");
-    }
+    if (!Array.isArray(control[key])) throw new Error("control." + key + " must be an array");
+  }
+  for (const proof of control.provider_proof_required) {
+    if (typeof proof !== "string" || !proof.trim()) throw new Error("control.provider_proof_required entries must be non-empty strings");
+  }
+  for (const key of MUTATION_FLAGS) {
+    if (typeof control[key] !== "boolean") throw new Error("control." + key + " must be boolean");
   }
 
-  if (!control.impact_graph || typeof control.impact_graph !== "object") {
-    throw new Error("control.impact_graph must be an object");
+  if (!control.requirements || typeof control.requirements !== "object") throw new Error("control.requirements must be an object");
+  for (const key of REQUIREMENT_KEYS) {
+    if (typeof control.requirements[key] !== "boolean") throw new Error("control.requirements." + key + " must be boolean");
+  }
+  for (const key of ["impact_graph_required", "all_readers_writers_required", "no_parallel_path_proof_required"]) {
+    if (control.requirements[key] !== true) throw new Error("control.requirements." + key + " must remain true");
   }
 
-  const graphKeys = [
-    "root_owner_paths",
-    "writer_paths",
-    "reader_paths",
-    "publisher_paths",
-    "downstream_surfaces",
-    "test_paths",
-    "compliance_surfaces"
-  ];
-
-  for (const key of graphKeys) {
+  if (!control.impact_graph || typeof control.impact_graph !== "object") throw new Error("control.impact_graph must be an object");
+  for (const key of ["root_owner_paths","writer_paths","reader_paths","publisher_paths","downstream_surfaces","test_paths","compliance_surfaces"]) {
     if (!Array.isArray(control.impact_graph[key]) || control.impact_graph[key].length === 0) {
       throw new Error("control.impact_graph." + key + " must be a non-empty array");
     }
   }
 
-  if (control.mode === "implementation") {
-    if (control.authorized_paths.length === 0) {
-      throw new Error("implementation mode requires authorized_paths");
-    }
-    if (control.impact_domains.length === 0) {
-      throw new Error("implementation mode requires impact_domains");
+  if (control.mode === "implementation" || control.mode === "control-root-maintenance") {
+    if (control.authorized_paths.length === 0) throw new Error(control.mode + " mode requires authorized_paths");
+    if (control.impact_domains.length === 0) throw new Error(control.mode + " mode requires impact_domains");
+  }
+  if (control.mode === "control-root-maintenance") {
+    const invalid = control.authorized_paths.filter((p) => !IMMUTABLE_CONTROL_PATHS.has(p));
+    if (invalid.length) throw new Error("control-root-maintenance may authorize only protected control paths:\n" + invalid.map((p)=>"  - "+p).join("\n"));
+  }
+  for (const [flag, domain] of Object.entries(FLAG_DOMAINS)) {
+    if (control[flag] === true && !control.impact_domains.includes(domain)) {
+      throw new Error("control." + flag + "=true requires impact_domains to include " + domain);
     }
   }
 }
 
+function csvSet(name) {
+  return new Set(String(process.env[name] || "").split(",").map((v)=>v.trim()).filter(Boolean));
+}
+
+function mutationRequirementsForPath(filePath) {
+  const out = new Set();
+  if (filePath === "prisma/schema.prisma" || filePath.startsWith("prisma/migrations/") || filePath.startsWith("sql/")) out.add("schema_migration_authorized");
+  if (filePath === "vercel.json" || filePath === ".github/workflows/rotate-db-keys.yml") out.add("environment_mutation_authorized");
+  if ([
+    ".github/workflows/cleanup-neon-preview-branch.yml",
+    ".github/workflows/rotate-db-keys.yml",
+    "app/api/cron/neon-branch-prune/route.ts",
+    "scripts/neon-prune-branches.ts"
+  ].includes(filePath) || filePath.startsWith("lib/neon/")) out.add("neon_mutation_authorized");
+  if ([
+    ".github/workflows/cleanup-neon-preview-branch.yml",
+    ".github/workflows/rotate-db-keys.yml",
+    "app/api/cron/neon-branch-prune/route.ts",
+    "scripts/neon-prune-branches.ts"
+  ].includes(filePath)) out.add("destructive_data_authorized");
+  if (filePath === ".github/workflows/rotate-db-keys.yml") {
+    out.add("production_mutation_authorized");
+    out.add("manual_cron_authorized");
+  }
+  return [...out];
+}
+
+function validateExecutionEvidence(control, changes) {
+  const providerProofs = csvSet("MALLAN_PROVIDER_PROOFS");
+  const missingProvider = control.provider_proof_required.filter((proof)=>!providerProofs.has(proof));
+  if (missingProvider.length) throw new Error("required provider proof is absent from the base-controlled workflow:\n" + missingProvider.map((p)=>"  - "+p).join("\n"));
+
+  const failures = [];
+  for (const change of changes) {
+    for (const requiredFlag of mutationRequirementsForPath(change.path)) {
+      if (control[requiredFlag] !== true) failures.push(change.path + " requires " + requiredFlag + "=true");
+    }
+  }
+  if (failures.length) throw new Error("sensitive change class is not authorized by the base Execution State:\n" + failures.map((v)=>"  - "+v).join("\n"));
+
+  if (control.requirements.negative_tests_required) {
+    const changedPaths = new Set(changes.map((c)=>c.path));
+    const changedTest = control.impact_graph.test_paths.some((p)=>changedPaths.has(p));
+    if (!changedTest) throw new Error("negative_tests_required=true but none of impact_graph.test_paths changed");
+  }
+
+  if ((process.env.MALLAN_CONTROL_PHASE || "preflight") === "final") {
+    const proofs = csvSet("MALLAN_EXECUTION_PROOFS");
+    const needed = [];
+    if (control.requirements.negative_tests_required) needed.push("negative-tests");
+    if (control.requirements.integration_proof_required) needed.push("integration");
+    if (control.requirements.downstream_proof_required) needed.push("downstream");
+    if (control.requirements.compliance_proof_required_when_applicable) needed.push("compliance");
+    if (control.requirements.no_parallel_path_proof_required) needed.push("no-parallel-path");
+    const missing = needed.filter((p)=>!proofs.has(p));
+    if (missing.length) throw new Error("final execution proof is incomplete:\n" + missing.map((p)=>"  - "+p).join("\n"));
+  }
+}
 function checkCreatedBranch() {
   const createdBranch = process.argv[3] || process.env.CREATED_BRANCH || "";
   if (!createdBranch) fail("Created branch name was not provided.");
@@ -291,73 +387,72 @@ function main() {
     fail("Base execution contract is invalid: " + error.message);
   }
 
-  const controlRootChanges = changedPaths.filter((filePath) =>
-    IMMUTABLE_CONTROL_PATHS.has(filePath)
-  );
-  if (controlRootChanges.length) {
-    fail(
-      "PR attempts to modify the immutable execution-control root:\n" +
-      controlRootChanges.map((filePath) => "  - " + filePath).join("\n") +
-      "\nControl-root maintenance requires an explicit out-of-band governance procedure."
-    );
-  }
-
   if (baseBranch !== control.base_branch) {
-    fail(
-      "PR base is " + baseBranch +
-      "; execution contract requires " + control.base_branch + "."
-    );
+    fail("PR base is " + baseBranch + "; execution contract requires " + control.base_branch + ".");
   }
-
   if (headBranch !== control.authorized_branch) {
-    fail(
-      "PR head is " + headBranch +
-      "; only authorized branch " + control.authorized_branch + " may execute."
-    );
+    fail("PR head is " + headBranch + "; only authorized branch " + control.authorized_branch + " may execute.");
   }
 
   if (control.mode === "control-update") {
-    const onlyState =
-      changedPaths.length > 0 &&
-      changedPaths.every((filePath) => filePath === STATE_PATH);
-    if (!onlyState) {
-      fail(
-        "Execution contract is in control-update mode. Only " +
-        STATE_PATH + " may change.\n" +
-        changedPaths.map((filePath) => "  - " + filePath).join("\n")
-      );
-    }
-
+    const onlyState = changedPaths.length > 0 && changedPaths.every((filePath)=>filePath===STATE_PATH);
+    if (!onlyState) fail("Execution contract is in control-update mode. Only " + STATE_PATH + " may change.\n" + changedPaths.map((p)=>"  - "+p).join("\n"));
     let proposedControl;
     try {
-      const proposedState = git(["show", "HEAD:" + STATE_PATH]);
-      proposedControl = parseControl(proposedState);
+      proposedControl = parseControl(git(["show","HEAD:"+STATE_PATH]));
       validateControl(proposedControl);
       validateImpactPaths(proposedControl, baseRef);
     } catch (error) {
       fail("Proposed execution contract is invalid: " + error.message);
     }
-
-    if (proposedControl.base_branch !== baseBranch) {
-      fail(
-        "Proposed execution contract targets base " +
-        proposedControl.base_branch +
-        "; control updates must remain anchored to " + baseBranch + "."
-      );
-    }
-
+    if (proposedControl.base_branch !== baseBranch) fail("Proposed execution contract targets base " + proposedControl.base_branch + "; control updates must remain anchored to " + baseBranch + ".");
     pass("Control-update PR is limited to a valid canonical Execution State.");
     return;
   }
 
-  if (control.mode !== "implementation") {
-    fail("Unsupported execution mode: " + control.mode);
+  if (control.mode === "control-root-maintenance") {
+    const onlyState = changedPaths.length > 0 && changedPaths.every((filePath)=>filePath===STATE_PATH);
+    if (onlyState) {
+      try {
+        const proposed = parseControl(git(["show","HEAD:"+STATE_PATH]));
+        validateControl(proposed);
+        validateImpactPaths(proposed, baseRef);
+        if (proposed.mode !== "control-update") throw new Error("root maintenance may exit only to control-update mode");
+      } catch (error) {
+        fail("Control-root maintenance exit contract is invalid: " + error.message);
+      }
+      pass("Control-root maintenance exited through a state-only control update.");
+      return;
+    }
+    if (process.env.MALLAN_AUTHORITY_ROOT_REQUIRED !== "true") fail("Control-root maintenance is blocked until live GitHub rules prove authority-root is a required main-branch status check.");
+    const outsideRoot = changedPaths.filter((p)=>!IMMUTABLE_CONTROL_PATHS.has(p));
+    if (outsideRoot.length) fail("Control-root maintenance contains paths outside the protected control root:\n" + outsideRoot.map((p)=>"  - "+p).join("\n"));
+    const outsideEnvelope = changedPaths.filter((p)=>!pathAllowed(p,control.authorized_paths));
+    if (outsideEnvelope.length) fail("Control-root maintenance changed paths outside its base-state envelope:\n" + outsideEnvelope.map((p)=>"  - "+p).join("\n"));
+    try {
+      validateImpactPaths(control, baseRef);
+      validateExecutionEvidence(control, changes);
+    } catch (error) {
+      fail("Control-root maintenance proof failed: " + error.message);
+    }
+    const added = changes.filter((i)=>i.status.startsWith("A")).map((i)=>i.path);
+    const unapproved = added.filter((p)=>!control.allowed_new_files.includes(p));
+    if (unapproved.length) fail("Control-root maintenance created unapproved files:\n" + unapproved.map((p)=>"  - "+p).join("\n"));
+    pass("Control-root maintenance is base-authorized and authority-root is required.");
+    return;
   }
 
+  if (control.mode !== "implementation") fail("Unsupported execution mode: " + control.mode);
+
+  const controlRootChanges = changedPaths.filter((p)=>IMMUTABLE_CONTROL_PATHS.has(p));
+  if (controlRootChanges.length) {
+    fail("Implementation PR attempts to modify the protected execution/proof root:\n" + controlRootChanges.map((p)=>"  - "+p).join("\n") + "\nUse a prior state-only control update to authorize control-root-maintenance.");
+  }
   try {
     validateImpactPaths(control, baseRef);
+    validateExecutionEvidence(control, changes);
   } catch (error) {
-    fail("Impact graph is not grounded in the PR base: " + error.message);
+    fail("Implementation proof is not grounded in the base authority: " + error.message);
   }
 
   for (const protectedPath of [STATE_PATH, MASTER_PATH]) {
