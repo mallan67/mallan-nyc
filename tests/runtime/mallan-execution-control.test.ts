@@ -7,11 +7,39 @@ const GATE = path.resolve(__dirname, "../../scripts/ci/mallan-execution-control.
 const STATE = "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md";
 const MASTER = "MALLAN-PLATFORM-MASTER-PLAN.md";
 
+// Every environment input the gate reads, and the one file it writes. A fixture's gate inputs
+// must be exactly what the test passes, in BOTH directions:
+//   in   pr-check exports MALLAN_AUTHORITY_ROOT_REQUIRED for every later step, so once
+//        authority-root became required each fixture silently inherited true;
+//   out  the probe appends to GITHUB_ENV, so a fixture probe run inside the Jest step wrote
+//        its invented answer into the real job for every step after Jest.
+// Named individually on purpose: MALLAN_* also carries business configuration such as
+// MALLAN_OFFICE_MLS_IDS, which is not the gate's and must not be stripped by prefix.
+const GATE_ENVIRONMENT = [
+  "MALLAN_AUTHORITY_ROOT_REQUIRED",
+  "MALLAN_BASE_BRANCH",
+  "MALLAN_BASE_REF",
+  "MALLAN_CONTROL_PHASE",
+  "MALLAN_EXECUTION_PROOFS",
+  "MALLAN_HEAD_BRANCH",
+  "MALLAN_PR_NUMBER",
+  "MALLAN_PROVIDER_PROOFS",
+  "MALLAN_RULESET_FIXTURE_JSON",
+  "CREATED_BRANCH",
+  "GITHUB_BASE_REF",
+  "GITHUB_ENV",
+  "GITHUB_HEAD_REF",
+  "GITHUB_PR_NUMBER",
+  "GITHUB_REPOSITORY",
+];
+
 function run(cmd: string, args: string[], cwd: string, env: Record<string, string> = {}) {
+  const inherited: NodeJS.ProcessEnv = { ...process.env };
+  for (const key of GATE_ENVIRONMENT) delete inherited[key];
   return spawnSync(cmd, args, {
     cwd,
     encoding: "utf8",
-    env: { ...process.env, ...env },
+    env: { ...inherited, ...env },
   });
 }
 
@@ -1897,6 +1925,125 @@ describe("Mallan execution-control gate", () => {
     expect(gate(cwd).stdout).toContain("state-only control update");
   });
 
+  // The implementation-mode exit. Implementation mode was a one-way door: it refused every change to the
+  // Execution State, so the first merged implementation contract could never be replaced.
+  // These prove the exit exists AND that it is exactly as narrow as the maintenance exit.
+  const exitContract = (overrides: Record<string, unknown> = {}) => baseControl({
+    mode: "control-update",
+    authorized_paths: [STATE],
+    allowed_new_files: [],
+    impact_domains: ["governance"],
+    impact_graph: {
+      root_owner_paths: [MASTER],
+      writer_paths: [STATE],
+      reader_paths: ["lib/feature/reader.ts"],
+      publisher_paths: ["lib/feature/publisher.ts"],
+      downstream_surfaces: ["GitHub merge gate"],
+      test_paths: ["tests/runtime/mallan-execution-control.test.ts"],
+      compliance_surfaces: ["governance only"],
+    },
+    ...overrides,
+  });
+
+  test("implementation mode exits through a state-only control update", () => {
+    const cwd = initRepo(baseControl());
+    write(cwd, STATE, controlMarkdown(exitContract()));
+    git(cwd, "add", STATE);
+    git(cwd, "commit", "-m", "exit implementation");
+
+    const result = gate(cwd);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Implementation exited through a state-only control update");
+  });
+
+  test("the implementation exit cannot re-scope implementation", () => {
+    const cwd = initRepo(baseControl());
+    write(cwd, STATE, controlMarkdown(baseControl({ authorized_paths: ["app/", "lib/"] })));
+    git(cwd, "add", STATE);
+    git(cwd, "commit", "-m", "widen implementation in place");
+
+    const result = gate(cwd);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("only to exit to control-update mode");
+    expect(result.stderr).toContain("proposed mode is implementation");
+  });
+
+  test("the implementation exit cannot jump straight to control-root-maintenance", () => {
+    const cwd = initRepo(baseControl());
+    write(cwd, STATE, controlMarkdown(exitContract({
+      mode: "control-root-maintenance",
+      authorized_paths: ["scripts/ci/mallan-execution-control.mjs"],
+    })));
+    git(cwd, "add", STATE);
+    git(cwd, "commit", "-m", "jump to root maintenance");
+
+    const result = gate(cwd);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("proposed mode is control-root-maintenance");
+  });
+
+  test("the implementation exit cannot carry code with it", () => {
+    const cwd = initRepo(baseControl());
+    write(cwd, STATE, controlMarkdown(exitContract()));
+    // In-envelope on purpose: the refusal must come from the exit rule, not from scope.
+    write(cwd, "lib/allowed.ts", "export const carried = true;\n");
+    git(cwd, "add", STATE, "lib/allowed.ts");
+    git(cwd, "commit", "-m", "exit plus code");
+
+    const result = gate(cwd);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("may not modify authority file");
+  });
+
+  test("a malformed implementation exit contract is refused", () => {
+    const cwd = initRepo(baseControl());
+    const { requirements, ...withoutRequirements } = exitContract();
+    void requirements;
+    write(cwd, STATE, controlMarkdown(withoutRequirements));
+    git(cwd, "add", STATE);
+    git(cwd, "commit", "-m", "malformed exit");
+
+    const result = gate(cwd);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Implementation exit contract is invalid");
+  });
+
+  test("the implementation exit must stay anchored to the PR base", () => {
+    const cwd = initRepo(baseControl());
+    write(cwd, STATE, controlMarkdown(exitContract({ base_branch: "develop" })));
+    git(cwd, "add", STATE);
+    git(cwd, "commit", "-m", "re-anchor exit");
+
+    const result = gate(cwd);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("must remain anchored to main");
+  });
+
+  // The whole door, both directions, each step evaluated against the base the previous
+  // step merged. This is the demonstration the one-way-door record showed failing, run to completion.
+  test("control-update to implementation and back again round-trips", () => {
+    const cwd = initRepo(exitContract());
+
+    write(cwd, STATE, controlMarkdown(baseControl()));
+    git(cwd, "add", STATE);
+    git(cwd, "commit", "-m", "enter implementation");
+    expect(gate(cwd).status).toBe(0);
+    git(cwd, "branch", "-f", "origin-main");
+
+    write(cwd, STATE, controlMarkdown(exitContract({ packet_id: "EXIT" })));
+    git(cwd, "add", STATE);
+    git(cwd, "commit", "-m", "leave implementation");
+    const exit = gate(cwd);
+    expect(exit.status).toBe(0);
+    expect(exit.stdout).toContain("Implementation exited through a state-only control update");
+    git(cwd, "branch", "-f", "origin-main");
+
+    write(cwd, STATE, controlMarkdown(exitContract({ packet_id: "NEXT" })));
+    git(cwd, "add", STATE);
+    git(cwd, "commit", "-m", "ordinary control update");
+    expect(gate(cwd).stdout).toContain("Control-update PR");
+  });
+
   test("glob authorization preserves the directory boundary", () => {
     const cwd = initRepo(baseControl({
       authorized_paths: ["lib/feature/**"],
@@ -1961,6 +2108,64 @@ describe("Mallan execution-control gate", () => {
     expect(probe(releaseOnly).stdout).toContain("false");
     expect(probe(excludedMain).stdout).toContain("false");
     expect(probe(mainRule).stdout).toContain("true");
+  });
+
+  // The OUT direction: a fixture probe inside the Jest step once wrote its invented answer into
+  // the real job's GITHUB_ENV, so every later pr-check step, including the final
+  // execution-control proof, read true while the live probe had answered false.
+  test("a fixture probe cannot write the job's GITHUB_ENV", () => {
+    const cwd = initRepo();
+    const jobEnv = path.join(cwd, "job-github-env");
+    fs.writeFileSync(jobEnv, "");
+    const mainRule = [{
+      id: 2,
+      enforcement: "active",
+      target: "branch",
+      conditions: { ref_name: { include: ["refs/heads/main"], exclude: [] } },
+      rules: [{ type: "required_status_checks", parameters: { required_status_checks: [{ context: "authority-root" }] } }],
+    }];
+    const previous = process.env.GITHUB_ENV;
+    process.env.GITHUB_ENV = jobEnv;
+    try {
+      const fixture = run("node", [GATE, "--authority-root-required-main"], cwd, {
+        NODE_ENV: "test",
+        MALLAN_RULESET_FIXTURE_JSON: JSON.stringify(mainRule),
+      });
+      expect(fixture.stdout).toContain("true");
+      expect(fs.readFileSync(jobEnv, "utf8")).toBe("");
+    } finally {
+      if (previous === undefined) delete process.env.GITHUB_ENV;
+      else process.env.GITHUB_ENV = previous;
+    }
+  });
+
+  // The IN direction: exactly the CI failure on PR #637, where pr-check had exported true.
+  test("a job-level authority-root flag does not reach a fixture", () => {
+    const previous = process.env.MALLAN_AUTHORITY_ROOT_REQUIRED;
+    process.env.MALLAN_AUTHORITY_ROOT_REQUIRED = "true";
+    try {
+      const cwd = initRepo(baseControl({
+        mode: "control-root-maintenance",
+        authorized_paths: [".github/workflows/pr-check.yml", "tests/runtime/mallan-execution-control.test.ts"],
+        allowed_new_files: [], impact_domains: ["governance"],
+        impact_graph: {
+          root_owner_paths: [MASTER], writer_paths: [".github/workflows/pr-check.yml"], reader_paths: ["lib/feature/reader.ts"],
+          publisher_paths: [".github/workflows/pr-check.yml"], downstream_surfaces: ["GitHub merge gate"],
+          test_paths: ["tests/runtime/mallan-execution-control.test.ts"], compliance_surfaces: ["governance only"],
+        },
+      }));
+      write(cwd, ".github/workflows/pr-check.yml", "name: maintained gate\n");
+      write(cwd, "tests/runtime/mallan-execution-control.test.ts", "root proof\n");
+      git(cwd, "add", ".github/workflows/pr-check.yml", "tests/runtime/mallan-execution-control.test.ts");
+      git(cwd, "commit", "-m", "root maintenance");
+
+      const result = gate(cwd);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("authority-root is a required main-branch status check");
+    } finally {
+      if (previous === undefined) delete process.env.MALLAN_AUTHORITY_ROOT_REQUIRED;
+      else process.env.MALLAN_AUTHORITY_ROOT_REQUIRED = previous;
+    }
   });
 
 

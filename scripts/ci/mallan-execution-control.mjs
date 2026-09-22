@@ -1454,6 +1454,36 @@ function main() {
 
   if (control.mode !== "implementation") fail("Unsupported execution mode: " + control.mode);
 
+  // The implementation-mode exit (packet GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22).
+  // Implementation mode refuses any change to the Execution
+  // State below, so without this branch the first merged implementation contract could
+  // never be replaced: the mode is read from the base, the only other door needs the
+  // controller amended, and the controller is itself a protected root path. The exit is
+  // as narrow as the control-root-maintenance exit: this file ONLY, and ONLY back to
+  // control-update. It cannot re-scope implementation, cannot jump to maintenance, and
+  // cannot carry any other file with it.
+  const onlyStateChange = changedPaths.length > 0 && changedPaths.every((filePath) => filePath === STATE_PATH);
+  if (onlyStateChange) {
+    let proposed;
+    try {
+      proposed = parseControl(git(["show", "HEAD:" + STATE_PATH]));
+      validateControl(proposed);
+      validateImpactPaths(proposed, baseRef);
+    } catch (error) {
+      fail("Implementation exit contract is invalid: " + error.message);
+    }
+    if (proposed.mode !== "control-update") {
+      fail("Implementation mode may change " + STATE_PATH + " only to exit to control-update mode; the proposed mode is " + proposed.mode + ".");
+    }
+    if (proposed.base_branch !== baseBranch) {
+      fail("Proposed execution contract targets base " + proposed.base_branch + "; the exit must remain anchored to " + baseBranch + ".");
+    }
+    // Pre-success invariant: a database-shaped change cannot exit through this mode either.
+    assertDatabaseChain(control, changedPaths, readHead, readBase, baseRef);
+    pass("Implementation exited through a state-only control update.");
+    return;
+  }
+
   const controlRootChanges = changedPaths.filter((p)=>IMMUTABLE_CONTROL_PATHS.has(p));
   if (controlRootChanges.length) {
     fail("Implementation PR attempts to modify the protected execution/proof root:\n" + controlRootChanges.map((p)=>"  - "+p).join("\n") + "\nUse a prior state-only control update to authorize control-root-maintenance.");
