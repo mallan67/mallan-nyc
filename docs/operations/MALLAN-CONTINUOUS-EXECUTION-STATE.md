@@ -6,7 +6,7 @@
 > This file records current verified execution state and the machine-readable authorization envelope
 > consumed by the required GitHub PR check. It may not redefine the Master.
 
-**Checkpoint:** 2026-09-22 — governance activation recorded; the SHAs below still describe the 2026-09-20 #632 checkpoint  
+**Checkpoint:** 2026-09-22 — governance activation and the implementation-mode exit (#638) recorded; the SHAs below still describe the 2026-09-20 #632 checkpoint  
 **Repository:** `mallan67/mallan-nyc` only  
 **Canonical branch:** `main`  
 **Main at this checkpoint:** `005786e71818ef13f555111de67e3d6248412987` — the PR #632 merge
@@ -333,8 +333,8 @@ correction commit invalidates the prior exact-head proof and must rerun the chai
 The current sequence is governance-first. Provider cleanup and product implementation are stopped
 until the execution boundary is real.
 
-**Position as of 2026-09-22: items 1 to 7 are COMPLETE. Item 7a, the implementation-mode exit fix, is the current
-step. Item 8 has not begun.**
+**Position as of 2026-09-22: items 1 to 7a are COMPLETE. Item 8, run as the trace-to-closure program in §11,
+is the current step.**
 
 1. **Close the remaining PR #632 defects before merge.**
    - DONE — the direct-Neon control plane is DELETED, not quarantined: the PR-close cleanup workflow, the
@@ -396,8 +396,10 @@ step. Item 8 has not begun.**
    `tests/runtime/mallan-execution-control.test.ts`. A separate state-only PR then exits root
    maintenance back to `control-update`, records the fix, and only then may the Neon/Vercel
    cleanup packet be authorized.
-   - **CURRENT STEP.**
-8. **Only then run one Vercel control-plane reconciliation packet** over the existing `mallan-nyc → neon-green-school` connection, environment scopes, branch overrides and every DB/control reader/writer.
+   - **DONE 2026-09-22.** #637 authorized the packet (merged `d7bcc1d8`); #638 delivered it (merged
+     `f53b099a` from reviewed head `00bd788a`, `pr-check` and `authority-root` required and green,
+     zero threads). This state-only PR is the exit back to `control-update`. Details in §11.
+8. **CURRENT STEP — run as the trace-to-closure program in §11.** One Vercel control-plane reconciliation packet over the existing `mallan-nyc → neon-green-school` connection, environment scopes, branch overrides and every DB/control reader/writer.
 9. **Only after that reconciliation may Development/Preview authority be designed.** No schema-only branch, second project, per-branch database or resource split is assumed in advance.
 10. **Cotality-dependent product work remains fail-closed until live provider proof is available through the authorized Cotality contract path.**
 
@@ -557,18 +559,17 @@ PR #632 was a one-time bootstrap exception because base `main` did not then cont
 It is merged and the exception is closed; base `main` now carries both authority files, so no
 PR can reach that branch again.
 
-The current mode is **`control-root-maintenance`**, authorized for one packet, `GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22`: the implementation-mode exit fix. It may change only the two protected control-root paths named below, and it exits through a separate state-only PR back to `control-update`. Code and scope expansion may not be combined into the same self-authorizing PR.
+The current mode is **`control-update`**: only this execution-state file may change. The `GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22` maintenance packet is merged (#638) and this contract is its state-only exit. Code and scope expansion may not be combined into the same self-authorizing PR.
 
 <!-- MALLAN_EXECUTION_CONTROL_V1_START -->
 ```json
 {
   "version": 1,
-  "mode": "control-root-maintenance",
+  "mode": "control-update",
   "authorized_branch": "work/active",
   "base_branch": "main",
   "authorized_paths": [
-    "scripts/ci/mallan-execution-control.mjs",
-    "tests/runtime/mallan-execution-control.test.ts"
+    "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
   ],
   "allowed_new_files": [],
   "impact_domains": [
@@ -591,70 +592,40 @@ The current mode is **`control-root-maintenance`**, authorized for one packet, `
     "compliance_proof_required_when_applicable": true,
     "no_parallel_path_proof_required": true
   },
-  "packet_id": "GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22",
-  "objective": "Fix the implementation-mode one-way door only. Implementation mode must permit a PR whose sole changed path is the Execution State and whose proposed contract returns mode to control-update, and must refuse every other state change in that mode. No Neon, Vercel environment, Production, schema, branch-cleanup or Search/CRM/CMA change is authorized.",
+  "packet_id": "TRACE-TO-CLOSURE-VERCEL-NEON-DB-2026-09-22",
+  "objective": "Exit control-root-maintenance after #638. Authorize only state-only updates that record read-only trace evidence for the §11 artifact trace ledger. No provider mutation, environment change, deletion, credential change or implementation is authorized by this contract; each disposition that changes anything is its own separately authorized packet.",
   "impact_graph": {
     "root_owner_paths": [
       "MALLAN-PLATFORM-MASTER-PLAN.md",
       "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
     ],
     "writer_paths": [
-      "scripts/ci/mallan-execution-control.mjs"
+      "scripts/ci/mallan-execution-control.mjs",
+      ".github/workflows/pr-check.yml",
+      ".github/workflows/branch-authority.yml",
+      ".github/workflows/authority-root.yml"
     ],
     "reader_paths": [
-      ".github/workflows/pr-check.yml",
-      ".github/workflows/authority-root.yml",
-      ".github/workflows/branch-authority.yml"
+      "AGENTS.md",
+      "CLAUDE.md"
     ],
     "publisher_paths": [
       ".github/workflows/pr-check.yml",
+      ".github/workflows/branch-authority.yml",
       ".github/workflows/authority-root.yml"
     ],
     "downstream_surfaces": [
       "GitHub pull-request merge eligibility",
-      "Every later Mallan implementation packet and its exit"
+      "GitHub future branch creation",
+      "All later Mallan implementation packets"
     ],
     "test_paths": [
-      "tests/runtime/mallan-execution-control.test.ts"
+      "tests/runtime/mallan-execution-control.test.ts",
+      "tests/runtime/agent-authority-live-source.test.ts"
     ],
     "compliance_surfaces": [
       "Governance only; no listing/public/client compliance mutation in this packet"
-    ],
-    "database_impact_chain": {
-      "vercel_integration": [
-        "vercel.json"
-      ],
-      "env_resolution": [
-        "lib/ops/db-target.ts"
-      ],
-      "db_target": [
-        "lib/ops/db-target.ts",
-        "lib/ops/canonical-neon-target.ts"
-      ],
-      "prisma_pg": [
-        "prisma/schema.prisma",
-        "lib/prisma.ts"
-      ],
-      "migrations": [
-        "prisma/schema.prisma"
-      ],
-      "workflows_crons": [
-        ".github/workflows/pr-check.yml",
-        "vercel.json"
-      ],
-      "preview": [
-        "scripts/release-safety/release-truth-verdict.js"
-      ],
-      "production": [
-        ".github/workflows/release-truth.yml"
-      ],
-      "downstream_readers_writers": [
-        "lib/prisma.ts"
-      ],
-      "tests": [
-        "tests/runtime/mallan-execution-control.test.ts"
-      ]
-    }
+    ]
   }
 }
 ```
@@ -664,7 +635,7 @@ The current mode is **`control-root-maintenance`**, authorized for one packet, `
 
 - **`mode: control-update`**: only this execution-state file may change.
 - **`mode: control-root-maintenance`**: only the protected control-root paths named in `authorized_paths` may change, only while live GitHub rules prove `authority-root` is a required main check, and the packet exits through a separate state-only PR back to `control-update`.
-- **`mode: implementation`**: once the implementation-mode exit fix is merged, a PR whose only changed path is this file and whose proposed contract returns `mode` to `control-update` is the exit. Every other change to this file in implementation mode is refused. Until that fix is on `main`, implementation mode must not be set.
+- **`mode: implementation`**: a PR whose only changed path is this file and whose proposed contract returns `mode` to `control-update` is the exit (merged in #638, `f53b099a`). Every other change to this file in implementation mode is refused.
 - A later authorized implementation mode must list exact allowed paths/prefixes, exact allowed new files, required impact domains and provider proof requirements.
 - New files are denied unless named in `allowed_new_files`.
 - Any changed path outside `authorized_paths` fails the required PR check.
@@ -732,8 +703,17 @@ It requires **0 approving reviews**. `authority-root` is a **required status che
 
 **Hard activation sequence: COMPLETE.** Step 1, `authority-root` running from protected
 `main`, happened with #633. Step 2, adding it to the required checks, was made on
-2026-09-22 with Maya's explicit authorization. Implementation mode is now blocked by
-the implementation-mode one-way door alone (§11), not by activation.
+2026-09-22 with Maya's explicit authorization. The implementation-mode one-way door is
+closed by #638, so implementation mode is reachable and exitable; each implementation
+packet still needs its own control update.
+
+**Recorded 2026-09-22 — one-field bootstrap relaxation.** To merge #637, whose `pr-check`
+was blocked by the fixture leak below, Maya authorized removing ONLY `authority-root` from
+ruleset `19435006`. Full before/after comparison proved that was the only change. It was
+removed only after #637 had zero unresolved threads; #637 was re-run and merged at
+21:27:57 UTC, and `authority-root`
+(integration `15368`) was restored immediately after, verified byte-identical to the approved
+activation ruleset. #638 was opened only after the restore.
 
 If an AI agent operates through Maya's own GitHub identity, GitHub cannot distinguish a control update authored by Maya from one authored by the agent. Repository CI can prevent a PR from self-authorizing within the same branch, but it cannot cryptographically prove which human/agent initiated a later control-update PR when both share one identity.
 
@@ -785,9 +765,9 @@ Do not create another status file because this one becomes inconvenient.
 
 # 11. Current exact stop point
 
-**PR #632 IS MERGED. Governance activation is COMPLETE: `authority-root` is a required check
-on `Protect main` as of 2026-09-22. The implementation-mode one-way door is the one remaining blocker to implementation
-mode, and this control update authorizes the maintenance packet that fixes it.**
+**Governance activation is COMPLETE and the implementation-mode one-way door is CLOSED (#638).
+The current program is the artifact trace ledger below: every Vercel/Neon/database/MCP/branch
+artifact ends FIXED, MERGED or DELETED. Nothing ends UNVERIFIED.**
 
 ## What is verified complete
 
@@ -815,11 +795,9 @@ CLI, or a control-plane credential.
 
 ## What this packet is
 
-A state-only control update, changing this file and nothing else. It records governance
-activation as complete, removes every statement that it was pending, and authorizes exactly one
-`control-root-maintenance` packet, `GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22`: the implementation-mode exit fix, confined to
-`scripts/ci/mallan-execution-control.mjs` and `tests/runtime/mallan-execution-control.test.ts`,
-with every provider and destructive flag false.
+The state-only exit from `control-root-maintenance` back to `control-update`, changing this file
+and nothing else. It records #638, the CI fixture leak it closed, corrections to claims this file
+and its readers had repeated without live proof, and opens the artifact trace ledger.
 
 ## Immediate operational consequence of the merge — READ THIS FIRST
 
@@ -842,15 +820,27 @@ since August: #624 `pr-check` (2026-08-23), #600 `pr-check` (2026-08-11),
 #596 `guardrails` (2026-08-06). What changed is that all 22 will now fail the branch
 check if re-run.
 
+#596, stated exactly (re-read live 2026-09-22): on head `eb8b3eef527159b24a032143c5a9a6ede3284a8f` the
+Guardrails **workflow run** `31124013951` concluded `failure` (created 2026-08-06T17:44:42Z); its single
+**job** `guardrails` (check-run `92690687229`) concluded `cancelled` after running
+17:44:43Z → 17:59:44Z, which is why the PR's check list shows it as cancelled. The workflow sets no
+`timeout-minutes` or concurrency cancellation, and the run's logs are no longer retrievable, so the
+cause of the cancellation is not established.
+
 **Unblocking is Maya-held and is not authorized by this packet.** Each implementation lane
 needs its own control update naming its branch, its paths and its impact graph. Widening the
 envelope inside this state-only packet would be exactly the self-authorization the gate exists
 to prevent.
 
-## BLOCKING DEFECT — implementation mode is a one-way door (no registry ID yet; see Registry debt below)
+## CLOSED 2026-09-22 — implementation mode was a one-way door (no registry ID yet; see Registry debt below)
 
-**Do not set `mode` to `implementation` until this is fixed. It cannot be undone by any
-pull request.**
+**Fixed by #638 (`f53b099a`).** Implementation mode now permits exactly one state change: a PR
+whose only changed path is this file and whose proposed contract returns `mode` to
+`control-update`. Seven tests prove the exit and its refusals (re-scoping in place, jumping to
+maintenance, carrying code, a malformed contract, a re-anchored base) and a full round trip; six
+fail against the previous controller and each guard fails its own test when removed.
+
+The history below is kept as the record of what the defect was.
 
 Found by review on 2026-09-20 while attempting to open a documentation lane for the dated
 handoff, and demonstrated rather than reasoned. A fixture was built whose base Execution
@@ -882,29 +872,27 @@ gate exit code: 1
 The result is a closed loop with no agent-reachable escape. The repository would be able
 to change exactly the files in that one envelope, permanently.
 
-### Current position is SAFE
+### Position after #638
 
-`main` has never been in `implementation` mode, so nothing is trapped. This control update
-moves it to `control-root-maintenance`, which has its own tested state-only exit back to
-`control-update`. The trap springs only on the first merge that sets `implementation`, and no
-packet may set it until the fix below is merged.
+`main` never entered `implementation` mode, so nothing was ever trapped, and the trap no longer
+exists. This PR returns `main` to `control-update`.
 
 ### What this changes about the order of work
 
 `authority-root` activation is done, so the maintenance mode that can amend the controller is
 reachable. The order is now fixed:
 
-1. this state-only update authorizes the maintenance packet `GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22`;
-2. the maintenance PR adds the exit and its negative tests, and merges only with `pr-check`
-   and `authority-root` green;
-3. a state-only PR exits maintenance back to `control-update` and records the fix;
-4. only then may the Neon/Vercel cleanup packet be authorized.
+1. DONE — #637 authorized the maintenance packet `GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22`;
+2. DONE — #638 added the exit and its negative tests, merged with `pr-check` and
+   `authority-root` required and green;
+3. THIS PR — the state-only exit back to `control-update`;
+4. NEXT — the trace-to-closure program below.
 
-Until step 3 merges, the dated operational handoff for 2026-09-20 still cannot be committed to
+A documentation lane is now reachable, but none is authorized yet, so the dated operational handoff for 2026-09-20 still cannot be committed to
 `docs/operations/site-audit-handoff-2026-09-20.md`. Its content is written and posted on
 PR #632 so the work exists on GitHub; it is pending a lane, not pending authorship.
 
-### Required fix — AUTHORIZED 2026-09-22 as packet `GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22`
+### Required fix — MERGED 2026-09-22 as packet `GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22` (#638)
 
 Add an implementation-mode state-only exit comparable to the existing
 `control-root-maintenance` exit: a PR whose ONLY changed path is this file, and whose
@@ -937,8 +925,8 @@ blockers tracked nowhere at all:
 
 | identifier | what it is | registered? |
 |---|---|---|
-| **none yet** | implementation mode is a one-way door with no agent-reachable exit; fixed by packet `GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22` | NO — blocked by the one-way door itself |
-| **OPS-027** (reserved) | `AGENTS.md:114` requires a `health:probe` dashboard refresh for a handoff; the current `CLAUDE.md` does not | NO — blocked by the one-way door |
+| **none yet** | implementation mode was a one-way door with no agent-reachable exit; FIXED by #638 | NO — needs an authorized documentation packet |
+| **OPS-027** (reserved) | `AGENTS.md:114` requires a `health:probe` dashboard refresh for a handoff; the current `CLAUDE.md` does not | NO — needs an authorized documentation packet |
 
 **Correction 2026-09-22 — the OPS-026 reservation is WITHDRAWN.** It was recorded here as
 unused because it was absent from the registry on `main`. That check was too narrow:
@@ -956,22 +944,102 @@ descriptions above with references. Until then this section is knowingly in
 violation of the single-ID invariant, and saying so is better than quietly appearing to
 comply.
 
-## The next action, and what it is not
+## The next action — trace every artifact to closure
 
-**Next: the maintenance PR `GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22` on `work/active`**, authorized by the control block above.
-It may change only `scripts/ci/mallan-execution-control.mjs` and
-`tests/runtime/mallan-execution-control.test.ts`, and it must merge only with `pr-check` and
-`authority-root` green and every review thread resolved.
+**Rule (Maya, 2026-09-22).** Every Vercel variable, branch scope, integration variable, Git branch,
+PR, workflow, cron, database target, credential, MCP entry and configuration is traced to a
+**terminal closure**, and there are exactly three. Closure is a separate layer from the Master's
+provider classification below; neither replaces the other.
 
-Until the implementation-mode exit fix is merged and maintenance has exited to `control-update`, the following remain
-blocked and no agent may begin them:
+- **FIXED** — a required artifact verified or corrected onto the single canonical path, with its
+  consumer proven. This includes an artifact that was already correct but has now been conclusively
+  traced and established as the canonical retained authority.
+- **DELETED** — duplicate, obsolete, empty or unneeded, prohibited, dead-branch, orphaned or otherwise
+  noncanonical, removed and proven absent. This includes an artifact proven never to have existed.
+- **MERGED** — unique valid historical Git work reconciled into `main`, after which the old PR and
+  branch are deleted.
 
-1. **Neon credential and env cleanup.** `NEON_API_KEY` and the bare `NEON_PROJECT_ID` still
-   exist in the Vercel project. No tracked file reads either, and the execution gate refuses
-   any change that would, but removing the credentials is a separate authorized packet.
-2. **The five branch-scoped bare `DATABASE_URL` overrides** in Vercel. Recorded, not changed.
-3. **Orphan Vercel branch scopes** and Git branch retirement. Phases B and C of §6 stand.
-4. **Any implementation packet.** Implementation mode is blocked until the implementation-mode exit fix is merged.
+There is no fourth outcome: no KEEP-UNKNOWN, temporary duplicate, disabled-in-place, retain-just-in-case
+or maybe-later. **UNVERIFIED is a state of the investigation, never a disposition:** it means keep
+tracing, not keep the artifact. Every row below states the complete path to a terminal disposition
+for EACH outcome its evidence can produce.
+
+**Two layers, never merged into one (Maya, 2026-09-22).** For every environment-variable row, the
+Master §0.13 classification comes first and is preserved exactly: `KEEP / RE-SCOPE / UPDATE / REMOVE /
+INTEGRATION-OWNED / BLOCK`. This file is subordinate to the Master and does not replace or reinterpret
+it. Terminal closure (FIXED / MERGED / DELETED) is recorded separately, as where that classification
+ends:
+
+| Master §0.13 classification | terminal closure |
+|---|---|
+| KEEP | FIXED |
+| RE-SCOPE | FIXED |
+| UPDATE | FIXED |
+| REMOVE | DELETED |
+| INTEGRATION-OWNED | FIXED once ownership and binding are proven |
+| BLOCK | FIXED only when deliberate fail-closed behaviour is the canonical design; otherwise DELETED |
+
+The Master already classifies `database_*` as INTEGRATION-OWNED (§0.13, §0.13.2). An API field that
+does not independently prove the creator is not a reason to reclassify it. If fresh authorized Vercel
+evidence contradicts a Master classification, the row stops as **CONTRADICTION — CONTROL UPDATE
+REQUIRED**; it is never resolved by deleting the artifact. Rows that are not environment variables
+carry `n/a` in the classification column.
+
+### Corrections — claims repeated without live proof
+
+| claim as previously stated | status |
+|---|---|
+| Production bare `DATABASE_URL*` resolve to `ep-cold-waterfall-adno3ao2` (`NEON.md`, measured 2026-09-18) | UNVERIFIED — not re-established live; empty or non-empty is also unproven |
+| lowercase `database_*` are owned by the Vercel Neon Marketplace integration | the Master classification INTEGRATION-OWNED stands; the 2026-09-22 env API read (`configurationId: null`) did not independently prove the creator, and the binding is still to be verified through Vercel (ledger row 3) |
+| Development bare DB URLs also resolve to Production | UNVERIFIED — no Development-scoped bare `DATABASE_URL*` appears in the 2026-09-22 read |
+| `NEON_API_KEY` and bare `NEON_PROJECT_ID` exist in Vercel | UNVERIFIED — absent from the 2026-09-22 read, whose completeness is itself unproven (ledger row 5) |
+| 100 entries / 78 unique keys (2026-09-20) | CONFLICT — the 2026-09-22 read returned 100 entries and 24 unique keys, no pagination field |
+| `/api/health` 200 as database evidence | CORRECTED — the route makes zero database calls by design; it proves only that the runtime serves HTTP |
+
+### Verified 2026-09-22 (static or live, with source)
+
+- Runtime database readers are ONLY the bare pair: `prisma/schema.prisma:16-17`
+  (`DATABASE_URL`, `DATABASE_URL_UNPOOLED`) and `lib/db.ts:2` (`DATABASE_URL`). The lowercase family
+  is deliberately not mapped (`lib/prisma.ts:20`, `lib/ops/db-target.ts:79-83`). No runtime code under
+  `app/`, `lib/`, `prisma/` reads `ASSISTANT_DATABASE_URL`, any `database_*` or any `NEON_*`, directly,
+  by string literal, or by the two dynamic `process.env[...]` sites (which read `ONE_CYCLE_BUDGET_MS_*`
+  and a retention canary name). `lib/prisma.ts` force-loads a local `.env.local` with override; none is
+  tracked or deployed (`.gitignore:69-71,184`).
+- Vercel env read (connector, names/scopes only, no values decrypted): ledger rows 1-10.
+
+### Artifact trace ledger
+
+**This is execution evidence, not an issue registry.** Row numbers are positions in this table, not
+issue IDs. `AGENTS.md` requires every issue to have exactly one ID in
+`docs/PLATFORM-ISSUE-REGISTRY.md`; this state-only PR creates none and edits no registry. Each row
+names its existing canonical ID where one exists; otherwise it reads `NONE — evidence only; canonical
+ID required before remediation`. Where tracing proves a new defect, the next authorized
+documentation packet creates the canonical ID before any implementation acts on it.
+
+| # | artifact | Master §0.13 classification | evidence now | open trace step | terminal closure | canonical issue ID |
+|---|---|---|---|---|---|---|
+| 1 | `DATABASE_URL`, `DATABASE_URL_UNPOOLED` — Vercel Production, project scope | not yet assigned — candidates KEEP or UPDATE; assigned only from the traced value class and target | readers VERIFIED (above); value empty/non-empty UNVERIFIED; target UNVERIFIED; creator UNVERIFIED | read value class and endpoint identifier only; creator via Vercel | KEEP → FIXED (proven as the single canonical runtime source); UPDATE → FIXED (corrected onto it, consumer proven) | NONE — evidence only; canonical ID required before remediation |
+| 2 | `ASSISTANT_DATABASE_URL` — Production | not yet assigned — candidates REMOVE or KEEP | no runtime reader found (direct, literal or dynamic); named only in the gate's capability needles | confirm no workflow or script reader; value class | REMOVE → DELETED if no legitimate reader is proven; KEEP → FIXED if a legitimate canonical reader is proven | NONE — evidence only; canonical ID required before remediation |
+| 3 | 12 lowercase `database_*` keys — Production+Preview+Development | **INTEGRATION-OWNED** (Master §0.13 and §0.13.2 — not reclassified by this file) | no runtime reader (deliberately unmapped). The env API returns `configurationId: null`: that did not independently prove the creator, and it is NOT evidence that the family is disposable | verify the Vercel Marketplace resource binding and recreation behaviour through Vercel | INTEGRATION-OWNED → FIXED once the binding and recreation are proven and it is consumed only as §0.11/§0.13.2 allow. If live Vercel evidence contradicts the Master: **CONTRADICTION — CONTROL UPDATE REQUIRED** (stop; no deletion) | NONE — evidence only; canonical ID required before remediation |
+| 4 | `NEON_PREVIEW_API_KEY` — Preview+Production | not yet assigned — candidates REMOVE or KEEP | direct-Neon control credential; no runtime reader found | census workflows, scripts and other consumers | REMOVE → DELETED if no Vercel-only requirement is proven; KEEP → FIXED if one is proven | NONE — evidence only; canonical ID required before remediation |
+| 5 | `NEON_API_KEY`, bare `NEON_PROJECT_ID`, and the completeness of the 2026-09-22 read | not yet assigned — candidates REMOVE or KEEP if present | absent from a 100-entry read with no pagination field | `vercel env ls` full enumeration | absent after complete enumeration → DELETED — proven absent; present: REMOVE → DELETED, or KEEP → FIXED if required | NONE — evidence only; canonical ID required before remediation |
+| 6 | Vercel branch scope `fix/cotality-neon-media-system-root-cause-2026-08-06`: 13 `database_*` + `NEON_ADMIN_KEY` + `NEON_ROTATION_ADMIN` | candidate REMOVE (Git branch absent); the `database_*` copies are assessed against §0.13.2 as branch-scoped duplicates | Git branch ABSENT (verified 2026-09-22) | prove no deployment or workflow resolves this scope | REMOVE → DELETED; if a consumer resolves it, that consumer is FIXED onto the canonical path first | NONE — evidence only; canonical ID required before remediation |
+| 7 | Vercel branch scope `feat/agent-permanent-delete-2026-09-01`: bare `DATABASE_URL*` (Preview) | candidate REMOVE (branch-scoped override; Master §0.13.3) after branch reconciliation | Git branch EXISTS; draft PR #627 | unique-work comparison with `main`; prove no deployment/workflow resolves the scope | branch work: MERGED if it holds unique valid work not already on `main` (then its PR and branch are deleted), otherwise DELETED; scope: REMOVE → DELETED, proven not to fall back to Production | NONE — evidence only; canonical ID required before remediation |
+| 8 | Vercel branch scope `fix/neon-p0-event-driven-wake-2026-08-16`: bare `DATABASE_URL*` (Preview) | candidate REMOVE (branch-scoped override; Master §0.13.3) after branch reconciliation | Git branch EXISTS; draft PR #618 | unique-work comparison with `main`; prove no deployment/workflow resolves the scope | branch work: MERGED if it holds unique valid work not already on `main` (then its PR and branch are deleted), otherwise DELETED; scope: REMOVE → DELETED, proven not to fall back to Production | NONE — evidence only; canonical ID required before remediation |
+| 9 | Vercel branch scope `search/browser-integration-2026-09-05`: bare `DATABASE_URL*` (Preview) | candidate REMOVE (branch-scoped override; Master §0.13.3) after branch reconciliation | Git branch EXISTS; no PR | unique-work comparison with `main`; prove no deployment/workflow resolves the scope | branch work: MERGED if it holds unique valid work not already on `main` (then its PR and branch are deleted), otherwise DELETED; scope: REMOVE → DELETED, proven not to fall back to Production | NONE — evidence only; canonical ID required before remediation |
+| 10 | Vercel branch scope `search/clean-foundation-2026-09-04`: bare `DATABASE_URL*` (Preview) | candidate REMOVE (branch-scoped override; Master §0.13.3) after branch reconciliation | Git branch EXISTS; no PR | unique-work comparison with `main`; prove no deployment/workflow resolves the scope | branch work: MERGED if it holds unique valid work not already on `main` (then its PR and branch are deleted), otherwise DELETED; scope: REMOVE → DELETED, proven not to fall back to Production | NONE — evidence only; canonical ID required before remediation |
+| 11 | PR #621 / branch `chore/add-neon-mcp-project-connection` | n/a — not an environment variable | VERIFIED: adds `neon` → `https://mcp.neon.tech/mcp` to `.mcp.json` (prohibited by Master §0.12) | confirm no other unique commit on the branch | DELETED — close #621 and delete the branch; any other unique valid commit is MERGED first | NONE — evidence only; canonical ID required before remediation |
+| 12 | direct Neon access on Maya's machine: project-local `neon` MCP (`mcp.neon.tech`) and global `neonctl` | n/a — not an environment variable | removed 2026-09-22 (`claude mcp remove neon -s local`; `npm uninstall -g neonctl`); no Neon/DB variable in the user environment | — | DELETED (done) | NONE — machine-local; no repository remediation |
+| 13 | local file `.env.local.backup-before-repoint` in Maya's checkout | n/a — machine-local file, not a Vercel variable | contents unread (project deny rule); not tracked; not loaded by `lib/prisma.ts` (which loads only `.env.local`) | confirm it is not required for the live canonical path | DELETED | NONE — machine-local; no repository remediation |
+| 14 | Neon identifiers in code (`lib/ops/canonical-neon-target.ts`, `lib/ops/db-target.ts`, `lib/ops/seed-target-guard.ts`, tests, scripts) and in SQL COMMENTS only (no executable line) in `prisma/migrations/20260623233000_drop_agent_info_column/migration.sql` and `prisma/migrations/20260813120000_add_sync_state_last_listing_key/migration.sql` | n/a — not an environment variable | present; live Neon identity of every identifier UNVERIFIED; the 2026-06-23 migration comment line 3 instructs a rollback by repointing `DATABASE_URL` to `ep-cool-bird-adfi9kgl` | reconcile each identifier against the live Vercel-bound resource; prove Prisma's handling of an edited applied migration before touching one | code: FIXED (verified as live canonical/stale-refusal values, or corrected). Migration comments: FIXED as verified history if their targets are live, otherwise FIXED by correcting the comment once Prisma checksum safety is proven | NONE — evidence only; canonical ID required before remediation |
+| 15 | `pr-check.yml` exports `MALLAN_AUTHORITY_ROOT_REQUIRED` via `GITHUB_ENV` to every later step | n/a — CI job variable, not a Vercel variable | VERIFIED; the fixture half closed by #638 | scope the flag to the two gate steps (control-root maintenance) | FIXED | NONE — evidence only; canonical ID required before remediation |
+| 16 | `MALLAN_OFFICE_MLS_IDS`, `MALLAN_LIST_OFFICE_MLS_IDS`, `MALLAN_OH_OFFICE_MLS_IDS` and other Cotality-shaped `MALLAN_*` configuration | not yet assigned — none is set in the 2026-09-22 Vercel read | what Cotality field each represents is UNVERIFIED | trace each fallback source; verify against the live Cotality contract (connector needs authentication) | FIXED onto one mapping verified against the live Cotality contract; DELETED where no verified field supports it | NONE — evidence only; canonical ID required before remediation |
+| 17 | the 22 open PRs (verified 2026-09-22) and the non-`main` branch estate (36 per §5.1, 2026-09-20; recount live) | n/a — Git artifacts | #624 and #600 `pr-check` red since August; #596 as stated in the operational-consequence section; all other latest checks predate #632 | per-branch unique-work reconciliation | per PR/branch: MERGED if it holds unique valid work not already on `main` (then the PR is closed and the branch deleted), otherwise DELETED | NONE — evidence only; canonical ID required before remediation |
+| 18 | documentation claims corrected in this section (`NEON.md` Vercel database variable ownership; this file's §3 counts) | n/a — documentation | see Corrections | correct once the live evidence exists (documentation lane) | FIXED | `OPS-016` (NEON.md vs live Neon drift) for the NEON.md part; otherwise NONE — canonical ID required before remediation |
+| 19 | **No pull request can amend the Master.** `control-update` permits only the Execution State; `control-root-maintenance` authorizes only `IMMUTABLE_CONTROL_PATHS`, which excludes `MALLAN-PLATFORM-MASTER-PLAN.md`; `implementation` refuses Master changes (`scripts/ci/mallan-execution-control.mjs` L889-890, L1391, L1504-1506 on `main`) | n/a — governance control | VERIFIED from the controller source | design a bounded, base-authorized Master-amendment path with negative tests (control-root maintenance) | FIXED | NONE — evidence only; canonical ID required before remediation |
+| 20 | **Release Truth's dependency wait can expire before `pr-check` finishes** — #637's first run and #639's first head: `Release Truth dependency wait expired while exact-head proof was still DEPLOY_PENDING`, then `ERROR`, while `pr-check` later passed | n/a — CI control | VERIFIED from the run logs | measure `pr-check` duration against the bounded wait; fix without letting Release Truth pass on a pending dependency | FIXED | NONE — evidence only; canonical ID required before remediation |
+Until each row closes, no agent may begin an environment change, credential removal, branch
+deletion or implementation packet except as that row's separately authorized disposition.
 
 ## Honest limits of what the merged gate proves
 
@@ -991,7 +1059,15 @@ Recorded so no later agent overstates it:
 - `control-root-maintenance` is blocked unless `authority-root` is a required check, and it
   fails closed when it cannot tell. As of 2026-09-22 the check is required, so the mode is
   reachable and the protection is active rather than merely failing closed.
+- **Until #638, the final execution-control proof read a forged flag.** A ruleset-probe test
+  fixture inside the Jest step appended its invented answer to the real job's `GITHUB_ENV`, so
+  every `pr-check` step after Jest read `MALLAN_AUTHORITY_ROOT_REQUIRED=true` even when the live
+  probe earlier in the same job had answered `false` (visible in #636's run). Nothing was admitted
+  by it: every PR merged since #632 (#633, #634, #636, #637) was judged by a `control-update`
+  base, which never reads the flag, and maintenance preflight reads the live value. #638 stops the
+  leak in both directions at the test helper. Residual: `pr-check.yml` still exports the flag to
+  the whole job instead of only the two gate steps (ledger row 15).
 
-**No Vercel/Neon cleanup, new database/resource/branch, Cotality rewrite, or product
-implementation is the next action. The next action is the maintenance PR `GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22`, then its
-state-only exit.**
+**No deletion, environment change, new database/resource/branch, Cotality rewrite or product
+implementation is authorized by this contract. The next action is the read-only evidence pass
+for the §11 artifact trace ledger, through Vercel only.**
