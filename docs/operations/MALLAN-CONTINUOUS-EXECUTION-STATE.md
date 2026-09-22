@@ -593,7 +593,7 @@ The current mode is **`control-update`**: only this execution-state file may cha
     "no_parallel_path_proof_required": true
   },
   "packet_id": "TRACE-TO-CLOSURE-VERCEL-NEON-DB-2026-09-22",
-  "objective": "Exit control-root-maintenance after #638. Authorize only state-only updates that record read-only trace evidence for the §11 closure register. No provider mutation, environment change, deletion, credential change or implementation is authorized by this contract; each disposition that changes anything is its own separately authorized packet.",
+  "objective": "Exit control-root-maintenance after #638. Authorize only state-only updates that record read-only trace evidence for the §11 artifact trace ledger. No provider mutation, environment change, deletion, credential change or implementation is authorized by this contract; each disposition that changes anything is its own separately authorized packet.",
   "impact_graph": {
     "root_owner_paths": [
       "MALLAN-PLATFORM-MASTER-PLAN.md",
@@ -766,7 +766,7 @@ Do not create another status file because this one becomes inconvenient.
 # 11. Current exact stop point
 
 **Governance activation is COMPLETE and the implementation-mode one-way door is CLOSED (#638).
-The current program is the trace-to-closure register below: every Vercel/Neon/database/MCP/branch
+The current program is the artifact trace ledger below: every Vercel/Neon/database/MCP/branch
 artifact ends FIXED, MERGED or DELETED. Nothing ends UNVERIFIED.**
 
 ## What is verified complete
@@ -797,7 +797,7 @@ CLI, or a control-plane credential.
 
 The state-only exit from `control-root-maintenance` back to `control-update`, changing this file
 and nothing else. It records #638, the CI fixture leak it closed, corrections to claims this file
-and its readers had repeated without live proof, and opens the trace-to-closure register.
+and its readers had repeated without live proof, and opens the artifact trace ledger.
 
 ## Immediate operational consequence of the merge — READ THIS FIRST
 
@@ -815,10 +815,17 @@ recorded here because it is a large, immediate change to how the repository beha
 not flagged at merge time, and a reader who finds their PR red needs to know the cause is the
 envelope rather than their code.
 
-None of those 22 PRs was broken BY the merge. The two that were already failing had been red
-since August: #624 `pr-check` (2026-08-23) and #600 `pr-check` (2026-08-11). (#596 was
-previously listed here as a third; re-checked 2026-09-22, its `guardrails` run is CANCELLED, not
-failed.) What changed is that all 22 will now fail the branch check if re-run.
+None of those 22 PRs was broken BY the merge. The three that were already failing had been red
+since August: #624 `pr-check` (2026-08-23), #600 `pr-check` (2026-08-11),
+#596 `guardrails` (2026-08-06). What changed is that all 22 will now fail the branch
+check if re-run.
+
+#596, stated exactly (re-read live 2026-09-22): on head `eb8b3eef527159b24a032143c5a9a6ede3284a8f` the
+Guardrails **workflow run** `31124013951` concluded `failure` (created 2026-08-06T17:44:42Z); its single
+**job** `guardrails` (check-run `92690687229`) concluded `cancelled` after running
+17:44:43Z → 17:59:44Z, which is why the PR's check list shows it as cancelled. The workflow sets no
+`timeout-minutes` or concurrency cancellation, and the run's logs are no longer retrievable, so the
+cause of the cancellation is not established.
 
 **Unblocking is Maya-held and is not authorized by this packet.** Each implementation lane
 needs its own control update naming its branch, its paths and its impact graph. Widening the
@@ -940,8 +947,9 @@ comply.
 ## The next action — trace every artifact to closure
 
 **Rule (Maya, 2026-09-22).** Every Vercel variable, branch scope, integration variable, Git branch,
-PR, workflow, cron, database target, credential, MCP entry and configuration is traced to a final
-disposition, and there are exactly three:
+PR, workflow, cron, database target, credential, MCP entry and configuration is traced to a
+**terminal closure**, and there are exactly three. Closure is a separate layer from the Master's
+provider classification below; neither replaces the other.
 
 - **FIXED** — a required artifact verified or corrected onto the single canonical path, with its
   consumer proven. This includes an artifact that was already correct but has now been conclusively
@@ -956,46 +964,36 @@ or maybe-later. **UNVERIFIED is a state of the investigation, never a dispositio
 tracing, not keep the artifact. Every row below states the complete path to a terminal disposition
 for EACH outcome its evidence can produce.
 
-**The Master's variable classification is kept, not replaced (Maya, 2026-09-22).** Master §0.13
-requires every environment variable to be evaluated as `KEEP / RE-SCOPE / UPDATE / REMOVE /
-INTEGRATION-OWNED / BLOCK`, and this file is subordinate to the Master. That classification is how
-each variable row is evaluated; the three outcomes above are where each classification ends:
+**Two layers, never merged into one (Maya, 2026-09-22).** For every environment-variable row, the
+Master §0.13 classification comes first and is preserved exactly: `KEEP / RE-SCOPE / UPDATE / REMOVE /
+INTEGRATION-OWNED / BLOCK`. This file is subordinate to the Master and does not replace or reinterpret
+it. Terminal closure (FIXED / MERGED / DELETED) is recorded separately, as where that classification
+ends:
 
-| Master §0.13 classification | terminal outcome |
+| Master §0.13 classification | terminal closure |
 |---|---|
-| KEEP | FIXED — established as the canonical retained authority, consumer proven |
-| INTEGRATION-OWNED | FIXED — established as integration-owned and consumed only as §0.11/§0.13.2 allow |
-| RE-SCOPE, UPDATE | FIXED — corrected onto the canonical path, consumer proven |
-| REMOVE | DELETED — removed and proven absent |
-| BLOCK | not terminal — the investigation continues until one of the above is provable |
+| KEEP | FIXED |
+| RE-SCOPE | FIXED |
+| UPDATE | FIXED |
+| REMOVE | DELETED |
+| INTEGRATION-OWNED | FIXED once ownership and binding are proven |
+| BLOCK | FIXED only when deliberate fail-closed behaviour is the canonical design; otherwise DELETED |
 
-Where the Master states a classification as a rule (§0.13.2: the `database_*` family is generated
-and owned by the Marketplace resource), a row starts from that classification. Live evidence that
-contradicts a Master rule is brought to Maya before any disposition acts on it; this file does not
-overrule the Master.
-
-For every row: creator/writer → every reader → actual environment and branch scope → for a
-database connection, empty or non-empty and, only if non-empty, the endpoint/project identifier
-needed for reconciliation (never a full connection string, user, password or token) → whether
-Vercel, an integration or a workflow recreates it → comparison with the canonical Mallan/Vercel
-authority → disposition.
-
-**Evidence path.** Vercel only: the Vercel connector, and the Vercel CLI (installed; session
-`mayad67` verified 2026-09-22) for project/environment/integration reads, and
-`vercel integration open neon <resource>` only when Neon detail is needed. No Neon MCP, no
-`neonctl`, no direct Neon API or console. No edit or delete during the evidence pass; each
-disposition that changes anything is its own authorized packet.
+The Master already classifies `database_*` as INTEGRATION-OWNED (§0.13, §0.13.2). An API field that
+does not independently prove the creator is not a reason to reclassify it. If fresh authorized Vercel
+evidence contradicts a Master classification, the row stops as **CONTRADICTION — CONTROL UPDATE
+REQUIRED**; it is never resolved by deleting the artifact. Rows that are not environment variables
+carry `n/a` in the classification column.
 
 ### Corrections — claims repeated without live proof
 
 | claim as previously stated | status |
 |---|---|
 | Production bare `DATABASE_URL*` resolve to `ep-cold-waterfall-adno3ao2` (`NEON.md`, measured 2026-09-18) | UNVERIFIED — not re-established live; empty or non-empty is also unproven |
-| lowercase `database_*` are owned by the Vercel Neon Marketplace integration | UNVERIFIED — the Vercel env API returns `configurationId: null` for every entry, which proves neither integration nor manual ownership |
+| lowercase `database_*` are owned by the Vercel Neon Marketplace integration | the Master classification INTEGRATION-OWNED stands; the 2026-09-22 env API read (`configurationId: null`) did not independently prove the creator, and the binding is still to be verified through Vercel (ledger row 3) |
 | Development bare DB URLs also resolve to Production | UNVERIFIED — no Development-scoped bare `DATABASE_URL*` appears in the 2026-09-22 read |
-| `NEON_API_KEY` and bare `NEON_PROJECT_ID` exist in Vercel | UNVERIFIED — absent from the 2026-09-22 read, whose completeness is itself unproven (R5) |
+| `NEON_API_KEY` and bare `NEON_PROJECT_ID` exist in Vercel | UNVERIFIED — absent from the 2026-09-22 read, whose completeness is itself unproven (ledger row 5) |
 | 100 entries / 78 unique keys (2026-09-20) | CONFLICT — the 2026-09-22 read returned 100 entries and 24 unique keys, no pagination field |
-| #596 `guardrails` failing since 2026-08-06 | CORRECTED — its `guardrails` run is CANCELLED, not failed |
 | `/api/health` 200 as database evidence | CORRECTED — the route makes zero database calls by design; it proves only that the runtime serves HTTP |
 
 ### Verified 2026-09-22 (static or live, with source)
@@ -1007,42 +1005,39 @@ disposition that changes anything is its own authorized packet.
   by string literal, or by the two dynamic `process.env[...]` sites (which read `ONE_CYCLE_BUDGET_MS_*`
   and a retention canary name). `lib/prisma.ts` force-loads a local `.env.local` with override; none is
   tracked or deployed (`.gitignore:69-71,184`).
-- Vercel env read (connector, names/scopes only, no values decrypted): see R1-R10.
+- Vercel env read (connector, names/scopes only, no values decrypted): ledger rows 1-10.
 
-### Closure register
+### Artifact trace ledger
 
-**Registration pending — stated, not hidden.** `AGENTS.md` requires one Platform Issue Registry ID
-per issue, referenced everywhere else. The `R` numbers below are locators for trace rows in this
-file, NOT issue IDs. The registry on `main` covers only fragments (`OPS-016` for part of R18,
-`OPS-022` for prune history). By Maya's decision the next packet after this one is a documentation
-packet that allocates unused registry IDs for every defect row here (at minimum R14, R15, R18, R19,
-R20), for the one-way-door defect and for `OPS-027`, and propagates the Priority Table, P0/P1
-Summary, Dashboard and Handoff; each row then references its ID. Until that merges this register
-is knowingly outside the single-ID invariant.
+**This is execution evidence, not an issue registry.** Row numbers are positions in this table, not
+issue IDs. `AGENTS.md` requires every issue to have exactly one ID in
+`docs/PLATFORM-ISSUE-REGISTRY.md`; this state-only PR creates none and edits no registry. Each row
+names its existing canonical ID where one exists; otherwise it reads `NONE — evidence only; canonical
+ID required before remediation`. Where tracing proves a new defect, the next authorized
+documentation packet creates the canonical ID before any implementation acts on it.
 
-| # | artifact | evidence now | open trace step | target disposition |
-|---|---|---|---|---|
-| R1 | `DATABASE_URL`, `DATABASE_URL_UNPOOLED` — Vercel Production, project scope | readers VERIFIED (above); value empty/non-empty UNVERIFIED; target UNVERIFIED; creator UNVERIFIED | read value class and endpoint only; creator via Vercel | FIXED — proven as the single canonical runtime DB source (value class, target and creator established), or corrected onto it; DELETED if redundant after the canonical source is established |
-| R2 | `ASSISTANT_DATABASE_URL` — Production | no runtime reader found (direct, literal or dynamic); named only in the gate's capability needles | confirm no workflow/script reader; value class | DELETED if no legitimate reader is proven; FIXED if a legitimate canonical reader is proven |
-| R3 | 12 lowercase `database_*` keys — Production+Preview+Development | no runtime reader (deliberately unmapped); creator UNVERIFIED (`configurationId: null`) | `vercel integration list`; resource-to-variable binding; recreation behaviour | starts as INTEGRATION-OWNED per Master §0.13.2 → FIXED once the Vercel resource binding proves it and it is consumed only as the Master allows; if live Vercel evidence proves the family is NOT generated by the resource, that contradiction goes to Maya before any action, and only then may it become DELETED |
-| R4 | `NEON_PREVIEW_API_KEY` — Preview+Production | direct-Neon control credential; no runtime reader found | census workflows/scripts/other projects | FIXED if a legitimate Vercel-only requirement is proven; otherwise DELETED |
-| R5 | `NEON_API_KEY`, bare `NEON_PROJECT_ID`, and the completeness of the 2026-09-22 read | absent from a 100-entry read with no pagination field | `vercel env ls` full enumeration | if absent after complete enumeration: DELETED — proven absent; if present and required: FIXED; if present and not required: DELETED |
-| R6 | Vercel branch scope `fix/cotality-neon-media-system-root-cause-2026-08-06`: 13 `database_*` + `NEON_ADMIN_KEY` + `NEON_ROTATION_ADMIN` | Git branch ABSENT (verified 2026-09-22) | prove no deployment/workflow resolves this scope | DELETED once no deployment or workflow resolves the scope; if one does, that consumer is FIXED onto the canonical path first, then the scope DELETED |
-| R7 | branch scope `feat/agent-permanent-delete-2026-09-01`: bare `DATABASE_URL*` (Preview) | Git branch EXISTS; draft PR #627 | reconcile #627; value class/target | branch work: MERGED if it holds unique valid work not already on `main` (then its PR and branch are deleted), otherwise DELETED; Vercel scope: DELETED after proving no deployment or workflow resolves it and that removal cannot fall back to Production |
-| R8 | branch scope `fix/neon-p0-event-driven-wake-2026-08-16`: bare `DATABASE_URL*` | Git branch EXISTS; draft PR #618 | reconcile #618 | branch work: MERGED if it holds unique valid work not already on `main` (then its PR and branch are deleted), otherwise DELETED; Vercel scope: DELETED after proving no deployment or workflow resolves it and that removal cannot fall back to Production |
-| R9 | branch scope `search/browser-integration-2026-09-05`: bare `DATABASE_URL*` | Git branch EXISTS; no PR | unique-work comparison with `main` | branch work: MERGED if it holds unique valid work not already on `main` (then its PR and branch are deleted), otherwise DELETED; Vercel scope: DELETED after proving no deployment or workflow resolves it and that removal cannot fall back to Production |
-| R10 | branch scope `search/clean-foundation-2026-09-04`: bare `DATABASE_URL*` | Git branch EXISTS; no PR | unique-work comparison with `main` | branch work: MERGED if it holds unique valid work not already on `main` (then its PR and branch are deleted), otherwise DELETED; Vercel scope: DELETED after proving no deployment or workflow resolves it and that removal cannot fall back to Production |
-| R11 | PR #621 / branch `chore/add-neon-mcp-project-connection` | VERIFIED: adds `neon` → `https://mcp.neon.tech/mcp` to `.mcp.json` (prohibited by Master §0.12) | confirm no other unique commit on the branch | DELETED — close #621 and delete the branch; if the branch holds any other unique valid commit, that work is MERGED first |
-| R12 | direct Neon access on Maya's machine: project-local `neon` MCP (`mcp.neon.tech`) and global `neonctl` | removed 2026-09-22 (`claude mcp remove neon -s local`; `npm uninstall -g neonctl`); no Neon/DB variable in the user environment | — | DELETED (done) |
-| R13 | local file `.env.local.backup-before-repoint` in Maya's checkout | contents unread (project deny rule); not tracked, not loaded by `lib/prisma.ts` (it loads only `.env.local`) | Maya's decision on machine-local file | DELETED after confirming it is not required for the live canonical path (it is not loaded by `lib/prisma.ts`, which reads only `.env.local`) |
-| R14 | Neon identifiers hard-coded in code: `lib/ops/canonical-neon-target.ts`, `lib/ops/db-target.ts`, `lib/ops/seed-target-guard.ts`, tests and scripts; and in SQL COMMENTS only (no executable line) in `prisma/migrations/20260623233000_drop_agent_info_column/migration.sql` (`br-wandering-moon-adl515bq`, `br-crimson-frog-adr7g9gt`, `ep-cool-bird-adfi9kgl`) and `prisma/migrations/20260813120000_add_sync_state_last_listing_key/migration.sql` (`hidden-mountain-87248164`) | present; live Neon identity of every identifier UNVERIFIED; the 2026-06-23 migration comment line 3 instructs a rollback by repointing `DATABASE_URL` to `ep-cool-bird-adfi9kgl` | reconcile each identifier against the live Vercel-bound resource; prove Prisma's handling of an edited applied migration before touching one | code identifiers: FIXED (verified as live canonical/stale-refusal values, or corrected to them). Migration comments: FIXED as verified history if their targets are live; if a comment directs anyone to a non-live target, FIXED by correcting that comment once Prisma checksum safety is proven, with the correction recorded |
-| R15 | `pr-check.yml` exports `MALLAN_AUTHORITY_ROOT_REQUIRED` via `GITHUB_ENV` to every later step | VERIFIED; the fixture half closed by #638 | scope the flag to the two gate steps (control-root maintenance) | FIXED |
-| R16 | `MALLAN_OFFICE_MLS_IDS`, `MALLAN_LIST_OFFICE_MLS_IDS`, `MALLAN_OH_OFFICE_MLS_IDS` and other Cotality-shaped `MALLAN_*` configuration | not set in the 2026-09-22 Vercel read; what Cotality field each represents is UNVERIFIED | trace each fallback source; verify against the live Cotality contract (connector needs authentication) | FIXED onto one mapping verified against the live Cotality contract; DELETED where no verified field supports it |
-| R17 | the 22 open PRs (verified 2026-09-22) and the non-`main` branch estate (36 per §5.1, 2026-09-20; recount live) | #624 and #600 red since August; all other latest checks predate #632 | per-branch unique-work reconciliation | per PR/branch: MERGED if it holds unique valid work not already on `main` (then the PR is closed and the branch deleted), otherwise DELETED (PR closed, branch deleted) |
-| R18 | documentation claims corrected above (`NEON.md` §Vercel database variable ownership, this file's §3 counts) | see Corrections | correct once the live evidence exists (documentation lane) | FIXED |
-| R19 | **The Master cannot be amended by any pull request.** `control-update` permits only the Execution State; `control-root-maintenance` permits only `IMMUTABLE_CONTROL_PATHS`, which excludes `MALLAN-PLATFORM-MASTER-PLAN.md`; `implementation` refuses any change to the Master (`scripts/ci/mallan-execution-control.mjs`, found 2026-09-22 while answering Codex on #639) | VERIFIED from the controller source on `main` | design a bounded, base-authorized Master-amendment path with negative tests (control-root maintenance) | FIXED |
-| R20 | **Release Truth's dependency wait can expire before `pr-check` finishes.** Observed on #637's first run and #639's first head: `Release Truth dependency wait expired while exact-head proof was still DEPLOY_PENDING`, then `ERROR`, while `pr-check` later passed | VERIFIED from the run logs | measure `pr-check` duration against the bounded wait; fix without letting Release Truth pass on a pending dependency (control-root maintenance: `.github/workflows/release-truth.yml` / `scripts/release-safety/`) | FIXED |
-
+| # | artifact | Master §0.13 classification | evidence now | open trace step | terminal closure | canonical issue ID |
+|---|---|---|---|---|---|---|
+| 1 | `DATABASE_URL`, `DATABASE_URL_UNPOOLED` — Vercel Production, project scope | not yet assigned — candidates KEEP or UPDATE; assigned only from the traced value class and target | readers VERIFIED (above); value empty/non-empty UNVERIFIED; target UNVERIFIED; creator UNVERIFIED | read value class and endpoint identifier only; creator via Vercel | KEEP → FIXED (proven as the single canonical runtime source); UPDATE → FIXED (corrected onto it, consumer proven) | NONE — evidence only; canonical ID required before remediation |
+| 2 | `ASSISTANT_DATABASE_URL` — Production | not yet assigned — candidates REMOVE or KEEP | no runtime reader found (direct, literal or dynamic); named only in the gate's capability needles | confirm no workflow or script reader; value class | REMOVE → DELETED if no legitimate reader is proven; KEEP → FIXED if a legitimate canonical reader is proven | NONE — evidence only; canonical ID required before remediation |
+| 3 | 12 lowercase `database_*` keys — Production+Preview+Development | **INTEGRATION-OWNED** (Master §0.13 and §0.13.2 — not reclassified by this file) | no runtime reader (deliberately unmapped). The env API returns `configurationId: null`: that did not independently prove the creator, and it is NOT evidence that the family is disposable | verify the Vercel Marketplace resource binding and recreation behaviour through Vercel | INTEGRATION-OWNED → FIXED once the binding and recreation are proven and it is consumed only as §0.11/§0.13.2 allow. If live Vercel evidence contradicts the Master: **CONTRADICTION — CONTROL UPDATE REQUIRED** (stop; no deletion) | NONE — evidence only; canonical ID required before remediation |
+| 4 | `NEON_PREVIEW_API_KEY` — Preview+Production | not yet assigned — candidates REMOVE or KEEP | direct-Neon control credential; no runtime reader found | census workflows, scripts and other consumers | REMOVE → DELETED if no Vercel-only requirement is proven; KEEP → FIXED if one is proven | NONE — evidence only; canonical ID required before remediation |
+| 5 | `NEON_API_KEY`, bare `NEON_PROJECT_ID`, and the completeness of the 2026-09-22 read | not yet assigned — candidates REMOVE or KEEP if present | absent from a 100-entry read with no pagination field | `vercel env ls` full enumeration | absent after complete enumeration → DELETED — proven absent; present: REMOVE → DELETED, or KEEP → FIXED if required | NONE — evidence only; canonical ID required before remediation |
+| 6 | Vercel branch scope `fix/cotality-neon-media-system-root-cause-2026-08-06`: 13 `database_*` + `NEON_ADMIN_KEY` + `NEON_ROTATION_ADMIN` | candidate REMOVE (Git branch absent); the `database_*` copies are assessed against §0.13.2 as branch-scoped duplicates | Git branch ABSENT (verified 2026-09-22) | prove no deployment or workflow resolves this scope | REMOVE → DELETED; if a consumer resolves it, that consumer is FIXED onto the canonical path first | NONE — evidence only; canonical ID required before remediation |
+| 7 | Vercel branch scope `feat/agent-permanent-delete-2026-09-01`: bare `DATABASE_URL*` (Preview) | candidate REMOVE (branch-scoped override; Master §0.13.3) after branch reconciliation | Git branch EXISTS; draft PR #627 | unique-work comparison with `main`; prove no deployment/workflow resolves the scope | branch work: MERGED if it holds unique valid work not already on `main` (then its PR and branch are deleted), otherwise DELETED; scope: REMOVE → DELETED, proven not to fall back to Production | NONE — evidence only; canonical ID required before remediation |
+| 8 | Vercel branch scope `fix/neon-p0-event-driven-wake-2026-08-16`: bare `DATABASE_URL*` (Preview) | candidate REMOVE (branch-scoped override; Master §0.13.3) after branch reconciliation | Git branch EXISTS; draft PR #618 | unique-work comparison with `main`; prove no deployment/workflow resolves the scope | branch work: MERGED if it holds unique valid work not already on `main` (then its PR and branch are deleted), otherwise DELETED; scope: REMOVE → DELETED, proven not to fall back to Production | NONE — evidence only; canonical ID required before remediation |
+| 9 | Vercel branch scope `search/browser-integration-2026-09-05`: bare `DATABASE_URL*` (Preview) | candidate REMOVE (branch-scoped override; Master §0.13.3) after branch reconciliation | Git branch EXISTS; no PR | unique-work comparison with `main`; prove no deployment/workflow resolves the scope | branch work: MERGED if it holds unique valid work not already on `main` (then its PR and branch are deleted), otherwise DELETED; scope: REMOVE → DELETED, proven not to fall back to Production | NONE — evidence only; canonical ID required before remediation |
+| 10 | Vercel branch scope `search/clean-foundation-2026-09-04`: bare `DATABASE_URL*` (Preview) | candidate REMOVE (branch-scoped override; Master §0.13.3) after branch reconciliation | Git branch EXISTS; no PR | unique-work comparison with `main`; prove no deployment/workflow resolves the scope | branch work: MERGED if it holds unique valid work not already on `main` (then its PR and branch are deleted), otherwise DELETED; scope: REMOVE → DELETED, proven not to fall back to Production | NONE — evidence only; canonical ID required before remediation |
+| 11 | PR #621 / branch `chore/add-neon-mcp-project-connection` | n/a — not an environment variable | VERIFIED: adds `neon` → `https://mcp.neon.tech/mcp` to `.mcp.json` (prohibited by Master §0.12) | confirm no other unique commit on the branch | DELETED — close #621 and delete the branch; any other unique valid commit is MERGED first | NONE — evidence only; canonical ID required before remediation |
+| 12 | direct Neon access on Maya's machine: project-local `neon` MCP (`mcp.neon.tech`) and global `neonctl` | n/a — not an environment variable | removed 2026-09-22 (`claude mcp remove neon -s local`; `npm uninstall -g neonctl`); no Neon/DB variable in the user environment | — | DELETED (done) | NONE — machine-local; no repository remediation |
+| 13 | local file `.env.local.backup-before-repoint` in Maya's checkout | n/a — machine-local file, not a Vercel variable | contents unread (project deny rule); not tracked; not loaded by `lib/prisma.ts` (which loads only `.env.local`) | confirm it is not required for the live canonical path | DELETED | NONE — machine-local; no repository remediation |
+| 14 | Neon identifiers in code (`lib/ops/canonical-neon-target.ts`, `lib/ops/db-target.ts`, `lib/ops/seed-target-guard.ts`, tests, scripts) and in SQL COMMENTS only (no executable line) in `prisma/migrations/20260623233000_drop_agent_info_column/migration.sql` and `prisma/migrations/20260813120000_add_sync_state_last_listing_key/migration.sql` | n/a — not an environment variable | present; live Neon identity of every identifier UNVERIFIED; the 2026-06-23 migration comment line 3 instructs a rollback by repointing `DATABASE_URL` to `ep-cool-bird-adfi9kgl` | reconcile each identifier against the live Vercel-bound resource; prove Prisma's handling of an edited applied migration before touching one | code: FIXED (verified as live canonical/stale-refusal values, or corrected). Migration comments: FIXED as verified history if their targets are live, otherwise FIXED by correcting the comment once Prisma checksum safety is proven | NONE — evidence only; canonical ID required before remediation |
+| 15 | `pr-check.yml` exports `MALLAN_AUTHORITY_ROOT_REQUIRED` via `GITHUB_ENV` to every later step | n/a — CI job variable, not a Vercel variable | VERIFIED; the fixture half closed by #638 | scope the flag to the two gate steps (control-root maintenance) | FIXED | NONE — evidence only; canonical ID required before remediation |
+| 16 | `MALLAN_OFFICE_MLS_IDS`, `MALLAN_LIST_OFFICE_MLS_IDS`, `MALLAN_OH_OFFICE_MLS_IDS` and other Cotality-shaped `MALLAN_*` configuration | not yet assigned — none is set in the 2026-09-22 Vercel read | what Cotality field each represents is UNVERIFIED | trace each fallback source; verify against the live Cotality contract (connector needs authentication) | FIXED onto one mapping verified against the live Cotality contract; DELETED where no verified field supports it | NONE — evidence only; canonical ID required before remediation |
+| 17 | the 22 open PRs (verified 2026-09-22) and the non-`main` branch estate (36 per §5.1, 2026-09-20; recount live) | n/a — Git artifacts | #624 and #600 `pr-check` red since August; #596 as stated in the operational-consequence section; all other latest checks predate #632 | per-branch unique-work reconciliation | per PR/branch: MERGED if it holds unique valid work not already on `main` (then the PR is closed and the branch deleted), otherwise DELETED | NONE — evidence only; canonical ID required before remediation |
+| 18 | documentation claims corrected in this section (`NEON.md` Vercel database variable ownership; this file's §3 counts) | n/a — documentation | see Corrections | correct once the live evidence exists (documentation lane) | FIXED | `OPS-016` (NEON.md vs live Neon drift) for the NEON.md part; otherwise NONE — canonical ID required before remediation |
+| 19 | **No pull request can amend the Master.** `control-update` permits only the Execution State; `control-root-maintenance` authorizes only `IMMUTABLE_CONTROL_PATHS`, which excludes `MALLAN-PLATFORM-MASTER-PLAN.md`; `implementation` refuses Master changes (`scripts/ci/mallan-execution-control.mjs` L889-890, L1391, L1504-1506 on `main`) | n/a — governance control | VERIFIED from the controller source | design a bounded, base-authorized Master-amendment path with negative tests (control-root maintenance) | FIXED | NONE — evidence only; canonical ID required before remediation |
+| 20 | **Release Truth's dependency wait can expire before `pr-check` finishes** — #637's first run and #639's first head: `Release Truth dependency wait expired while exact-head proof was still DEPLOY_PENDING`, then `ERROR`, while `pr-check` later passed | n/a — CI control | VERIFIED from the run logs | measure `pr-check` duration against the bounded wait; fix without letting Release Truth pass on a pending dependency | FIXED | NONE — evidence only; canonical ID required before remediation |
 Until each row closes, no agent may begin an environment change, credential removal, branch
 deletion or implementation packet except as that row's separately authorized disposition.
 
@@ -1071,8 +1066,8 @@ Recorded so no later agent overstates it:
   by it: every PR merged since #632 (#633, #634, #636, #637) was judged by a `control-update`
   base, which never reads the flag, and maintenance preflight reads the live value. #638 stops the
   leak in both directions at the test helper. Residual: `pr-check.yml` still exports the flag to
-  the whole job instead of only the two gate steps (register row R15).
+  the whole job instead of only the two gate steps (ledger row 15).
 
 **No deletion, environment change, new database/resource/branch, Cotality rewrite or product
 implementation is authorized by this contract. The next action is the read-only evidence pass
-for the §11 register, through Vercel only.**
+for the §11 artifact trace ledger, through Vercel only.**
