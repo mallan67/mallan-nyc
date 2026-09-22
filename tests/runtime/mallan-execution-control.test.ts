@@ -34,9 +34,8 @@ const GATE_ENVIRONMENT = [
 ];
 
 function run(cmd: string, args: string[], cwd: string, env: Record<string, string> = {}) {
-  const inherited = Object.fromEntries(
-    Object.entries(process.env).filter(([key]) => !GATE_ENVIRONMENT.includes(key))
-  );
+  const inherited: NodeJS.ProcessEnv = { ...process.env };
+  for (const key of GATE_ENVIRONMENT) delete inherited[key];
   return spawnSync(cmd, args, {
     cwd,
     encoding: "utf8",
