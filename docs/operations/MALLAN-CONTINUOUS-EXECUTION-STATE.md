@@ -6,7 +6,7 @@
 > This file records current verified execution state and the machine-readable authorization envelope
 > consumed by the required GitHub PR check. It may not redefine the Master.
 
-**Checkpoint:** 2026-09-20  
+**Checkpoint:** 2026-09-22 — governance activation recorded; the SHAs below still describe the 2026-09-20 #632 checkpoint  
 **Repository:** `mallan67/mallan-nyc` only  
 **Canonical branch:** `main`  
 **Main at this checkpoint:** `005786e71818ef13f555111de67e3d6248412987` — the PR #632 merge
@@ -18,7 +18,8 @@ live tip from GitHub.**
 **Active governance convergence PR:** none. PR #632 MERGED 2026-09-20T17:53:22Z as `005786e71818ef13f555111de67e3d6248412987`  
 **Checkpoint source head:** `fb100d6a12f572d78aaac0ec152c4cc57ac6ce74` (final #632 head; all checks green, zero unresolved review threads). Current head must always be read live from GitHub  
 **Authorized work surface:** GitHub repository + explicitly authorized provider connections only; Desktop/worktrees/scratch copies are not execution authority  
-**PR #595:** authority provenance / historical governance source; CLOSED 2026-09-20T17:54:35Z as superseded by #632, unmerged. Its lineage is in `main` history through #632
+**PR #595:** authority provenance / historical governance source; CLOSED 2026-09-20T17:54:35Z as superseded by #632, unmerged. Its lineage is in `main` history through #632  
+**Governance activation:** COMPLETE 2026-09-22. `authority-root` is a required status check on the `Protect main` ruleset `19435006`, bound to the GitHub Actions integration `15368`. Required checks are `pr-check` and `authority-root`
 
 ---
 
@@ -332,8 +333,8 @@ correction commit invalidates the prior exact-head proof and must rerun the chai
 The current sequence is governance-first. Provider cleanup and product implementation are stopped
 until the execution boundary is real.
 
-**Position as of 2026-09-20: items 1 to 6 are COMPLETE. Item 7 is the current step and its second
-half is Maya-held. Item 8 has not begun.**
+**Position as of 2026-09-22: items 1 to 7 are COMPLETE. Item 7a, the implementation-mode exit fix, is the current
+step. Item 8 has not begun.**
 
 1. **Close the remaining PR #632 defects before merge.**
    - DONE — the direct-Neon control plane is DELETED, not quarantined: the PR-close cleanup workflow, the
@@ -381,10 +382,21 @@ half is Maya-held. Item 8 has not begun.**
      Vercel all green on the final head, merge state CLEAN, and zero unresolved threads.
      Production then deployed that exact SHA and was probed.
 7. **Post-merge activation:** once `authority-root` exists on protected `main`, run the authorized control-update PR and add `authority-root` to the live `Protect main` required status checks before any implementation packet can merge.
-   - **CURRENT STEP, HALF DONE.** `authority-root` exists on `main` and has now executed once,
-     from this control-update PR. Adding it to the `Protect main` required status checks is a
-     branch-protection change, is Maya-held, and is NOT authorized by this packet. Verified live:
-     ruleset `19435006` still requires `pr-check` only.
+   - **DONE 2026-09-22.** Maya explicitly authorized the ruleset change. `authority-root` was added
+     to the required status checks of the existing `Protect main` ruleset `19435006`, bound to the
+     GitHub Actions integration `15368` so a same-named status from any other source cannot satisfy
+     it. No other ruleset setting changed; a before/after comparison of the full ruleset differs
+     only by that one entry. Verified live: required checks are `pr-check` and `authority-root`,
+     and the base controller's own probe (`--authority-root-required-main`) returns `true`.
+     `authority-root` runs on `pull_request_target` for every PR with no path filter, and it
+     reported `success` on #633, #634 and #636, so requiring it cannot strand a PR without a result.
+7a. **Fix the implementation-mode one-way door before any implementation mode is ever set.** One `control-root-maintenance`
+   packet, authorized by this control update, adds the implementation-mode state-only exit to
+   `scripts/ci/mallan-execution-control.mjs` with its negative tests in
+   `tests/runtime/mallan-execution-control.test.ts`. A separate state-only PR then exits root
+   maintenance back to `control-update`, records the fix, and only then may the Neon/Vercel
+   cleanup packet be authorized.
+   - **CURRENT STEP.**
 8. **Only then run one Vercel control-plane reconciliation packet** over the existing `mallan-nyc → neon-green-school` connection, environment scopes, branch overrides and every DB/control reader/writer.
 9. **Only after that reconciliation may Development/Preview authority be designed.** No schema-only branch, second project, per-branch database or resource split is assumed in advance.
 10. **Cotality-dependent product work remains fail-closed until live provider proof is available through the authorized Cotality contract path.**
@@ -461,10 +473,10 @@ Branch deletion is therefore the **last** step, not the first.
 
 ### Recovery phases
 
-**Phase A — governance lock. PARTIALLY COMPLETE.** #632 is merged (`005786e71818ef13f555111de67e3d6248412987`). What
-remains is activating `authority-root` as a required `Protect main` check, which requires
-Maya's explicit branch-protection authorization. Until that is real, cleanup remains blocked,
-because the system can still recreate the same sprawl.
+**Phase A — governance lock. COMPLETE 2026-09-22.** #632 is merged (`005786e71818ef13f555111de67e3d6248412987`),
+and `authority-root` is a required `Protect main` check under Maya's explicit authorization
+(§5 item 7). Cleanup still waits for the implementation-mode exit fix (§5 item 7a), because the first implementation
+envelope a cleanup packet needs would otherwise be permanent.
 
 **Phase B — Git reconciliation.** Classify all 36 non-main branches. Open-PR branches are reconciled through their PR history; the 12 no-PR branches are compared against current main and either integrated into one authorized packet, explicitly rejected as obsolete, or retained only until required evidence is captured. No branch is deleted while unique required work remains unaccounted for.
 
@@ -545,17 +557,18 @@ PR #632 was a one-time bootstrap exception because base `main` did not then cont
 It is merged and the exception is closed; base `main` now carries both authority files, so no
 PR can reach that branch again.
 
-The next permitted step is a **control-update PR only**. It may update this execution-state file to authorize one bounded implementation packet. Code and scope expansion may not be combined into the same self-authorizing PR.
+The current mode is **`control-root-maintenance`**, authorized for one packet, `GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22`: the implementation-mode exit fix. It may change only the two protected control-root paths named below, and it exits through a separate state-only PR back to `control-update`. Code and scope expansion may not be combined into the same self-authorizing PR.
 
 <!-- MALLAN_EXECUTION_CONTROL_V1_START -->
 ```json
 {
   "version": 1,
-  "mode": "control-update",
+  "mode": "control-root-maintenance",
   "authorized_branch": "work/active",
   "base_branch": "main",
   "authorized_paths": [
-    "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
+    "scripts/ci/mallan-execution-control.mjs",
+    "tests/runtime/mallan-execution-control.test.ts"
   ],
   "allowed_new_files": [],
   "impact_domains": [
@@ -578,40 +591,70 @@ The next permitted step is a **control-update PR only**. It may update this exec
     "compliance_proof_required_when_applicable": true,
     "no_parallel_path_proof_required": true
   },
-  "packet_id": "GOVERNANCE-POST-MERGE-STATE-RECONCILIATION",
-  "objective": "Bootstrap is merged and its exception is closed. Authorize only a bounded state-only control update on work/active. The envelope below is deliberately unchanged: implementation, provider mutation and branch-protection changes each require a separately reviewed packet.",
+  "packet_id": "GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22",
+  "objective": "Fix the implementation-mode one-way door only. Implementation mode must permit a PR whose sole changed path is the Execution State and whose proposed contract returns mode to control-update, and must refuse every other state change in that mode. No Neon, Vercel environment, Production, schema, branch-cleanup or Search/CRM/CMA change is authorized.",
   "impact_graph": {
     "root_owner_paths": [
       "MALLAN-PLATFORM-MASTER-PLAN.md",
       "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
     ],
     "writer_paths": [
-      "scripts/ci/mallan-execution-control.mjs",
-      ".github/workflows/pr-check.yml",
-      ".github/workflows/branch-authority.yml",
-      ".github/workflows/authority-root.yml"
+      "scripts/ci/mallan-execution-control.mjs"
     ],
     "reader_paths": [
-      "AGENTS.md",
-      "CLAUDE.md"
+      ".github/workflows/pr-check.yml",
+      ".github/workflows/authority-root.yml",
+      ".github/workflows/branch-authority.yml"
     ],
     "publisher_paths": [
       ".github/workflows/pr-check.yml",
-      ".github/workflows/branch-authority.yml",
       ".github/workflows/authority-root.yml"
     ],
     "downstream_surfaces": [
       "GitHub pull-request merge eligibility",
-      "GitHub future branch creation",
-      "All later Mallan implementation packets"
+      "Every later Mallan implementation packet and its exit"
     ],
     "test_paths": [
-      "tests/runtime/mallan-execution-control.test.ts",
-      "tests/runtime/agent-authority-live-source.test.ts"
+      "tests/runtime/mallan-execution-control.test.ts"
     ],
     "compliance_surfaces": [
       "Governance only; no listing/public/client compliance mutation in this packet"
-    ]
+    ],
+    "database_impact_chain": {
+      "vercel_integration": [
+        "vercel.json"
+      ],
+      "env_resolution": [
+        "lib/ops/db-target.ts"
+      ],
+      "db_target": [
+        "lib/ops/db-target.ts",
+        "lib/ops/canonical-neon-target.ts"
+      ],
+      "prisma_pg": [
+        "prisma/schema.prisma",
+        "lib/prisma.ts"
+      ],
+      "migrations": [
+        "prisma/schema.prisma"
+      ],
+      "workflows_crons": [
+        ".github/workflows/pr-check.yml",
+        "vercel.json"
+      ],
+      "preview": [
+        "scripts/release-safety/release-truth-verdict.js"
+      ],
+      "production": [
+        ".github/workflows/release-truth.yml"
+      ],
+      "downstream_readers_writers": [
+        "lib/prisma.ts"
+      ],
+      "tests": [
+        "tests/runtime/mallan-execution-control.test.ts"
+      ]
+    }
   }
 }
 ```
@@ -620,6 +663,8 @@ The next permitted step is a **control-update PR only**. It may update this exec
 ### Control semantics
 
 - **`mode: control-update`**: only this execution-state file may change.
+- **`mode: control-root-maintenance`**: only the protected control-root paths named in `authorized_paths` may change, only while live GitHub rules prove `authority-root` is a required main check, and the packet exits through a separate state-only PR back to `control-update`.
+- **`mode: implementation`**: once the implementation-mode exit fix is merged, a PR whose only changed path is this file and whose proposed contract returns `mode` to `control-update` is the exit. Every other change to this file in implementation mode is refused. Until that fix is on `main`, implementation mode must not be set.
 - A later authorized implementation mode must list exact allowed paths/prefixes, exact allowed new files, required impact domains and provider proof requirements.
 - New files are denied unless named in `allowed_new_files`.
 - Any changed path outside `authorized_paths` fails the required PR check.
@@ -679,17 +724,16 @@ The existing historical branch estate remains evidence until reconciled.
 
 # 8.1 Human / agent identity boundary
 
-GitHub's current `Protect main` ruleset is active, requires the `pr-check` status check, blocks non-fast-forward/deletion, has no bypass actors, and requires resolution of review threads.
+GitHub's current `Protect main` ruleset (`19435006`) is active, requires the `pr-check` and `authority-root` status checks, blocks non-fast-forward/deletion, has no bypass actors, and requires resolution of review threads.
 
-It requires **0 approving reviews**. `authority-root` now EXISTS on `main` (it merged with
-#632) but is **still not a required status check** — verified live against ruleset `19435006`,
-whose required set is `pr-check` only.
+It requires **0 approving reviews**. `authority-root` is a **required status check** as of
+2026-09-22, bound to the GitHub Actions integration `15368` — verified live against ruleset
+`19435006`, whose required set is `pr-check` and `authority-root`.
 
-**Hard activation sequence, current position:** step 1 is this control-update PR on
-`work/active`, which lets `authority-root` run once from protected `main`. Step 2 is adding
-`authority-root` to the `Protect main` required status checks, which is a Maya-held
-branch-protection change and is NOT authorized by this packet. Until that ruleset change is
-complete, implementation mode remains blocked by policy.
+**Hard activation sequence: COMPLETE.** Step 1, `authority-root` running from protected
+`main`, happened with #633. Step 2, adding it to the required checks, was made on
+2026-09-22 with Maya's explicit authorization. Implementation mode is now blocked by
+the implementation-mode one-way door alone (§11), not by activation.
 
 If an AI agent operates through Maya's own GitHub identity, GitHub cannot distinguish a control update authored by Maya from one authored by the agent. Repository CI can prevent a PR from self-authorizing within the same branch, but it cannot cryptographically prove which human/agent initiated a later control-update PR when both share one identity.
 
@@ -741,8 +785,9 @@ Do not create another status file because this one becomes inconvenient.
 
 # 11. Current exact stop point
 
-**PR #632 IS MERGED. The governance boundary is closed. `authority-root` is NOT yet a
-required check, so implementation mode remains blocked by policy.**
+**PR #632 IS MERGED. Governance activation is COMPLETE: `authority-root` is a required check
+on `Protect main` as of 2026-09-22. The implementation-mode one-way door is the one remaining blocker to implementation
+mode, and this control update authorizes the maintenance packet that fixes it.**
 
 ## What is verified complete
 
@@ -770,12 +815,11 @@ CLI, or a control-plane credential.
 
 ## What this packet is
 
-A state-only control update. It changes this file and nothing else, because the merged control
-block authorizes exactly that. It exists because the merge left this file asserting three facts
-that had become false — a stale `main` SHA, #632 as the active PR, and #595 as open — and this
-file is the mutable current-state authority a fresh agent reads first. A governance system whose
-own state file is stale on day one teaches the next agent that the state file is not to be
-trusted.
+A state-only control update, changing this file and nothing else. It records governance
+activation as complete, removes every statement that it was pending, and authorizes exactly one
+`control-root-maintenance` packet, `GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22`: the implementation-mode exit fix, confined to
+`scripts/ci/mallan-execution-control.mjs` and `tests/runtime/mallan-execution-control.test.ts`,
+with every provider and destructive flag false.
 
 ## Immediate operational consequence of the merge — READ THIS FIRST
 
@@ -784,8 +828,11 @@ from `main` against an existing PR branch: it exits 1 with *PR head is <branch>;
 authorized branch work/active may execute*. At the time of writing that is **22 open PRs**,
 none of them on `work/active`.
 
-This is the designed behaviour, not a defect: the control block authorizes one branch and one
-file, so implementation cannot resume until a control update opens a lane for it. It is
+This is the designed behaviour, not a defect: the control block authorizes one branch,
+`work/active`, and in its current `control-root-maintenance` envelope exactly two files, the
+controller `scripts/ci/mallan-execution-control.mjs` and its declared test
+`tests/runtime/mallan-execution-control.test.ts`. Implementation cannot resume until a control
+update opens a lane for it. It is
 recorded here because it is a large, immediate change to how the repository behaves, it was
 not flagged at merge time, and a reader who finds their PR red needs to know the cause is the
 envelope rather than their code.
@@ -800,7 +847,7 @@ needs its own control update naming its branch, its paths and its impact graph. 
 envelope inside this state-only packet would be exactly the self-authorization the gate exists
 to prevent.
 
-## BLOCKING DEFECT — OPS-026: implementation mode is a one-way door
+## BLOCKING DEFECT — implementation mode is a one-way door (no registry ID yet; see Registry debt below)
 
 **Do not set `mode` to `implementation` until this is fixed. It cannot be undone by any
 pull request.**
@@ -837,23 +884,27 @@ to change exactly the files in that one envelope, permanently.
 
 ### Current position is SAFE
 
-`main` is in `control-update` mode, which is reversible: a control update may change the
-Execution State, including the mode. Nothing is trapped today. The trap springs only on
-the first merge that sets `implementation`.
+`main` has never been in `implementation` mode, so nothing is trapped. This control update
+moves it to `control-root-maintenance`, which has its own tested state-only exit back to
+`control-update`. The trap springs only on the first merge that sets `implementation`, and no
+packet may set it until the fix below is merged.
 
 ### What this changes about the order of work
 
-**`authority-root` activation is no longer merely the next step. It is the only action
-that unblocks anything at all.** Until it is a required check on `Protect main`:
+`authority-root` activation is done, so the maintenance mode that can amend the controller is
+reachable. The order is now fixed:
 
-- no file other than this one can be changed by any pull request without entering the
-  trap;
-- the controller cannot be amended to add the missing exit;
-- the dated operational handoff for 2026-09-20 cannot be committed to
-  `docs/operations/site-audit-handoff-2026-09-20.md`. Its content is written and posted on
-  PR #632 so the work exists on GitHub; it is pending a lane, not pending authorship.
+1. this state-only update authorizes the maintenance packet `GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22`;
+2. the maintenance PR adds the exit and its negative tests, and merges only with `pr-check`
+   and `authority-root` green;
+3. a state-only PR exits maintenance back to `control-update` and records the fix;
+4. only then may the Neon/Vercel cleanup packet be authorized.
 
-### Required fix, once the mode is reachable
+Until step 3 merges, the dated operational handoff for 2026-09-20 still cannot be committed to
+`docs/operations/site-audit-handoff-2026-09-20.md`. Its content is written and posted on
+PR #632 so the work exists on GitHub; it is pending a lane, not pending authorship.
+
+### Required fix — AUTHORIZED 2026-09-22 as packet `GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22`
 
 Add an implementation-mode state-only exit comparable to the existing
 `control-root-maintenance` exit: a PR whose ONLY changed path is this file, and whose
@@ -868,7 +919,7 @@ carries no such requirement. Two files that are supposed to move together disagr
 Recorded rather than silently resolved. Any future documentation envelope must authorize
 the dashboard as well as the handoff, or the documented protocol cannot be followed.
 
-### Registry debt — these two IDs are RESERVED, not yet registered
+### Registry debt — one ID RESERVED, one defect deliberately left without an ID
 
 `AGENTS.md` carries two invariants that this section currently cannot satisfy:
 
@@ -878,40 +929,49 @@ the dashboard as well as the handoff, or the documented protocol cannot be follo
   same PR — Issue Row, Priority Table, P0/P1 Summary, Dashboard, Handoff.
 
 Both require writing `docs/PLATFORM-ISSUE-REGISTRY.md`, `docs/PROJECT-HEALTH-DASHBOARD.md`
-and a handoff file. Every one of those needs `implementation` mode, which is OPS-026. **The
+and a handoff file. Every one of those needs `implementation` mode, which is the one-way door above. **The
 remedy is blocked by the defect it would document.**
 
-So the identifiers are RESERVED here and the descriptions live here, temporarily, because
-the alternative is leaving two active blockers tracked nowhere at all:
+So the descriptions live here, temporarily, because the alternative is leaving two active
+blockers tracked nowhere at all:
 
-| reserved ID | what it is | registered? |
+| identifier | what it is | registered? |
 |---|---|---|
-| **OPS-026** | implementation mode is a one-way door with no agent-reachable exit | NO — blocked by OPS-026 |
-| **OPS-027** | `AGENTS.md:114` requires a `health:probe` dashboard refresh for a handoff; the current `CLAUDE.md` does not | NO — blocked by OPS-026 |
+| **none yet** | implementation mode is a one-way door with no agent-reachable exit; fixed by packet `GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22` | NO — blocked by the one-way door itself |
+| **OPS-027** (reserved) | `AGENTS.md:114` requires a `health:probe` dashboard refresh for a handoff; the current `CLAUDE.md` does not | NO — blocked by the one-way door |
 
-Verified before reserving: neither ID appears in the registry on `main`, and no open or
-closed pull request or branch claims either.
+**Correction 2026-09-22 — the OPS-026 reservation is WITHDRAWN.** It was recorded here as
+unused because it was absent from the registry on `main`. That check was too narrow:
+`docs/operations/site-audit-handoff-2026-07-01.md` records `OPS-026` as an issue that was
+*withdrawn* in the 2026-07-01 registry consolidation. A withdrawn ID is still a used ID, and
+reusing it would conflate two unrelated issues in every search and closure record. The
+one-way-door defect therefore carries no registry ID until a separately authorized
+documentation packet allocates a genuinely unused one, and no state-only update allocates
+one. `OPS-027` has no prior use anywhere in the tree on `main` and stays reserved.
 
-**Part of the same unblock.** When `authority-root` activation makes a lane reachable, the
-first packet through it registers both IDs properly, propagates every derived summary, and
-replaces the descriptions above with references. Until then this section is knowingly in
+**Part of the same unblock.** When the implementation-mode exit is merged and a documentation lane is
+authorized, the first packet through it allocates an unused ID for the one-way-door defect,
+registers it and `OPS-027` properly, propagates every derived summary, and replaces the
+descriptions above with references. Until then this section is knowingly in
 violation of the single-ID invariant, and saying so is better than quietly appearing to
 comply.
 
 ## The next action, and what it is not
 
-**Next: `authority-root` activation.** Add `authority-root` to the `Protect main` required
-status checks. It is a branch-protection change, it is Maya-held, and it is NOT authorized by
-this packet. Verified live: ruleset `19435006` currently requires `pr-check` only.
+**Next: the maintenance PR `GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22` on `work/active`**, authorized by the control block above.
+It may change only `scripts/ci/mallan-execution-control.mjs` and
+`tests/runtime/mallan-execution-control.test.ts`, and it must merge only with `pr-check` and
+`authority-root` green and every review thread resolved.
 
-Until that activation is proven, the following remain blocked and no agent may begin them:
+Until the implementation-mode exit fix is merged and maintenance has exited to `control-update`, the following remain
+blocked and no agent may begin them:
 
 1. **Neon credential and env cleanup.** `NEON_API_KEY` and the bare `NEON_PROJECT_ID` still
    exist in the Vercel project. No tracked file reads either, and the execution gate refuses
    any change that would, but removing the credentials is a separate authorized packet.
 2. **The five branch-scoped bare `DATABASE_URL` overrides** in Vercel. Recorded, not changed.
 3. **Orphan Vercel branch scopes** and Git branch retirement. Phases B and C of §6 stand.
-4. **Any implementation packet.** Implementation mode is blocked by policy until activation.
+4. **Any implementation packet.** Implementation mode is blocked until the implementation-mode exit fix is merged.
 
 ## Honest limits of what the merged gate proves
 
@@ -929,9 +989,9 @@ Recorded so no later agent overstates it:
   prohibition. A credential name added to a tracked `.env.example` would not be caught by that
   scan.
 - `control-root-maintenance` is blocked unless `authority-root` is a required check, and it
-  fails closed when it cannot tell. The mode is therefore currently unreachable, which is the
-  safe state — but that is the guard failing closed, not the protection being active.
+  fails closed when it cannot tell. As of 2026-09-22 the check is required, so the mode is
+  reachable and the protection is active rather than merely failing closed.
 
 **No Vercel/Neon cleanup, new database/resource/branch, Cotality rewrite, or product
-implementation is the next action. The next action is `authority-root` activation, and it is
-Maya's to authorize.**
+implementation is the next action. The next action is the maintenance PR `GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22`, then its
+state-only exit.**
