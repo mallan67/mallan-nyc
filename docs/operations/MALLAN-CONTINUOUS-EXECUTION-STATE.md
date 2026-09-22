@@ -815,10 +815,10 @@ recorded here because it is a large, immediate change to how the repository beha
 not flagged at merge time, and a reader who finds their PR red needs to know the cause is the
 envelope rather than their code.
 
-None of those 22 PRs was broken BY the merge. The three that were already failing had been red
-since August: #624 `pr-check` (2026-08-23), #600 `pr-check` (2026-08-11),
-#596 `guardrails` (2026-08-06). What changed is that all 22 will now fail the branch
-check if re-run.
+None of those 22 PRs was broken BY the merge. The two that were already failing had been red
+since August: #624 `pr-check` (2026-08-23) and #600 `pr-check` (2026-08-11). (#596 was
+previously listed here as a third; re-checked 2026-09-22, its `guardrails` run is CANCELLED, not
+failed.) What changed is that all 22 will now fail the branch check if re-run.
 
 **Unblocking is Maya-held and is not authorized by this packet.** Each implementation lane
 needs its own control update naming its branch, its paths and its impact graph. Widening the
@@ -956,6 +956,24 @@ or maybe-later. **UNVERIFIED is a state of the investigation, never a dispositio
 tracing, not keep the artifact. Every row below states the complete path to a terminal disposition
 for EACH outcome its evidence can produce.
 
+**The Master's variable classification is kept, not replaced (Maya, 2026-09-22).** Master §0.13
+requires every environment variable to be evaluated as `KEEP / RE-SCOPE / UPDATE / REMOVE /
+INTEGRATION-OWNED / BLOCK`, and this file is subordinate to the Master. That classification is how
+each variable row is evaluated; the three outcomes above are where each classification ends:
+
+| Master §0.13 classification | terminal outcome |
+|---|---|
+| KEEP | FIXED — established as the canonical retained authority, consumer proven |
+| INTEGRATION-OWNED | FIXED — established as integration-owned and consumed only as §0.11/§0.13.2 allow |
+| RE-SCOPE, UPDATE | FIXED — corrected onto the canonical path, consumer proven |
+| REMOVE | DELETED — removed and proven absent |
+| BLOCK | not terminal — the investigation continues until one of the above is provable |
+
+Where the Master states a classification as a rule (§0.13.2: the `database_*` family is generated
+and owned by the Marketplace resource), a row starts from that classification. Live evidence that
+contradicts a Master rule is brought to Maya before any disposition acts on it; this file does not
+overrule the Master.
+
 For every row: creator/writer → every reader → actual environment and branch scope → for a
 database connection, empty or non-empty and, only if non-empty, the endpoint/project identifier
 needed for reconciliation (never a full connection string, user, password or token) → whether
@@ -993,11 +1011,20 @@ disposition that changes anything is its own authorized packet.
 
 ### Closure register
 
+**Registration pending — stated, not hidden.** `AGENTS.md` requires one Platform Issue Registry ID
+per issue, referenced everywhere else. The `R` numbers below are locators for trace rows in this
+file, NOT issue IDs. The registry on `main` covers only fragments (`OPS-016` for part of R18,
+`OPS-022` for prune history). By Maya's decision the next packet after this one is a documentation
+packet that allocates unused registry IDs for every defect row here (at minimum R14, R15, R18, R19,
+R20), for the one-way-door defect and for `OPS-027`, and propagates the Priority Table, P0/P1
+Summary, Dashboard and Handoff; each row then references its ID. Until that merges this register
+is knowingly outside the single-ID invariant.
+
 | # | artifact | evidence now | open trace step | target disposition |
 |---|---|---|---|---|
 | R1 | `DATABASE_URL`, `DATABASE_URL_UNPOOLED` — Vercel Production, project scope | readers VERIFIED (above); value empty/non-empty UNVERIFIED; target UNVERIFIED; creator UNVERIFIED | read value class and endpoint only; creator via Vercel | FIXED — proven as the single canonical runtime DB source (value class, target and creator established), or corrected onto it; DELETED if redundant after the canonical source is established |
 | R2 | `ASSISTANT_DATABASE_URL` — Production | no runtime reader found (direct, literal or dynamic); named only in the gate's capability needles | confirm no workflow/script reader; value class | DELETED if no legitimate reader is proven; FIXED if a legitimate canonical reader is proven |
-| R3 | 12 lowercase `database_*` keys — Production+Preview+Development | no runtime reader (deliberately unmapped); creator UNVERIFIED (`configurationId: null`) | `vercel integration list`; resource-to-variable binding; recreation behaviour | FIXED if legitimately integration-managed and made the single canonical source feeding R1; otherwise DELETED |
+| R3 | 12 lowercase `database_*` keys — Production+Preview+Development | no runtime reader (deliberately unmapped); creator UNVERIFIED (`configurationId: null`) | `vercel integration list`; resource-to-variable binding; recreation behaviour | starts as INTEGRATION-OWNED per Master §0.13.2 → FIXED once the Vercel resource binding proves it and it is consumed only as the Master allows; if live Vercel evidence proves the family is NOT generated by the resource, that contradiction goes to Maya before any action, and only then may it become DELETED |
 | R4 | `NEON_PREVIEW_API_KEY` — Preview+Production | direct-Neon control credential; no runtime reader found | census workflows/scripts/other projects | FIXED if a legitimate Vercel-only requirement is proven; otherwise DELETED |
 | R5 | `NEON_API_KEY`, bare `NEON_PROJECT_ID`, and the completeness of the 2026-09-22 read | absent from a 100-entry read with no pagination field | `vercel env ls` full enumeration | if absent after complete enumeration: DELETED — proven absent; if present and required: FIXED; if present and not required: DELETED |
 | R6 | Vercel branch scope `fix/cotality-neon-media-system-root-cause-2026-08-06`: 13 `database_*` + `NEON_ADMIN_KEY` + `NEON_ROTATION_ADMIN` | Git branch ABSENT (verified 2026-09-22) | prove no deployment/workflow resolves this scope | DELETED once no deployment or workflow resolves the scope; if one does, that consumer is FIXED onto the canonical path first, then the scope DELETED |
@@ -1013,6 +1040,8 @@ disposition that changes anything is its own authorized packet.
 | R16 | `MALLAN_OFFICE_MLS_IDS`, `MALLAN_LIST_OFFICE_MLS_IDS`, `MALLAN_OH_OFFICE_MLS_IDS` and other Cotality-shaped `MALLAN_*` configuration | not set in the 2026-09-22 Vercel read; what Cotality field each represents is UNVERIFIED | trace each fallback source; verify against the live Cotality contract (connector needs authentication) | FIXED onto one mapping verified against the live Cotality contract; DELETED where no verified field supports it |
 | R17 | the 22 open PRs (verified 2026-09-22) and the non-`main` branch estate (36 per §5.1, 2026-09-20; recount live) | #624 and #600 red since August; all other latest checks predate #632 | per-branch unique-work reconciliation | per PR/branch: MERGED if it holds unique valid work not already on `main` (then the PR is closed and the branch deleted), otherwise DELETED (PR closed, branch deleted) |
 | R18 | documentation claims corrected above (`NEON.md` §Vercel database variable ownership, this file's §3 counts) | see Corrections | correct once the live evidence exists (documentation lane) | FIXED |
+| R19 | **The Master cannot be amended by any pull request.** `control-update` permits only the Execution State; `control-root-maintenance` permits only `IMMUTABLE_CONTROL_PATHS`, which excludes `MALLAN-PLATFORM-MASTER-PLAN.md`; `implementation` refuses any change to the Master (`scripts/ci/mallan-execution-control.mjs`, found 2026-09-22 while answering Codex on #639) | VERIFIED from the controller source on `main` | design a bounded, base-authorized Master-amendment path with negative tests (control-root maintenance) | FIXED |
+| R20 | **Release Truth's dependency wait can expire before `pr-check` finishes.** Observed on #637's first run and #639's first head: `Release Truth dependency wait expired while exact-head proof was still DEPLOY_PENDING`, then `ERROR`, while `pr-check` later passed | VERIFIED from the run logs | measure `pr-check` duration against the bounded wait; fix without letting Release Truth pass on a pending dependency (control-root maintenance: `.github/workflows/release-truth.yml` / `scripts/release-safety/`) | FIXED |
 
 Until each row closes, no agent may begin an environment change, credential removal, branch
 deletion or implementation packet except as that row's separately authorized disposition.
