@@ -600,7 +600,7 @@ The current mode is **`implementation`**, authorized for exactly one bounded pac
     "no_parallel_path_proof_required": true
   },
   "packet_id": "RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22",
-  "objective": "Reconcile OPS-010A and issue #574 with the already-merged August 7B architecture (cbf42cfc). Correct the stale pre-7B comment in lib/idx/write-suppression.ts (comment only, no behaviour change); update OPS-010A to separate the July historical measurement, the 7B structural correction of the PCT/raw_data_only cause, the remaining delivery_url_refreshed concern, and the post-7B production trend as UNVERIFIED; update every derived summary; add the dated handoff. OPS-010A stays OPEN. No new algorithm, no second raw_data allowlist (RAW_DATA_KEEP_FIELDS stays the sole retention authority), no schema, database, Vercel, environment, Neon or Cotality change.",
+  "objective": "Reconcile OPS-010A and issue #574 with the already-merged August 7B architecture (cbf42cfc). Correct the stale pre-7B comment in lib/idx/write-suppression.ts (comment only, no behaviour change); update OPS-010A to separate the July historical measurement, the 7B structural correction of the PCT/raw_data_only cause, the remaining delivery_url_refreshed concern, and the post-7B production trend as UNVERIFIED; update every derived summary; add the dated handoff; register the 2026-09-22 governance incident under one unused OPS ID with its derived summaries. OPS-010A stays OPEN. No new algorithm, no second raw_data allowlist (RAW_DATA_KEEP_FIELDS stays the sole retention authority), no schema, database, Vercel, environment, Neon or Cotality change.",
   "impact_graph": {
     "root_owner_paths": [
       "MALLAN-PLATFORM-MASTER-PLAN.md",
@@ -1012,7 +1012,11 @@ raw_data metadata" would be a second opinion beside `RAW_DATA_KEEP_FIELDS` and i
 correction of the PCT/`raw_data_only` cause; the remaining `delivery_url_refreshed` media concern; and
 the post-7B production WAL/history trend as UNVERIFIED (not re-measured). (3) Update every derived
 summary in the same PR (Issue Row, Priority Table, P0/P1 Summary, Evidence Scores, Dashboard). (4) Add
-`docs/operations/site-audit-handoff-2026-09-22.md` recording the reconciliation.
+`docs/operations/site-audit-handoff-2026-09-22.md` recording the reconciliation. (5) Register the
+2026-09-22 governance incident (below) in the Platform Issue Registry under one unused `OPS-` ID —
+chosen by a fresh census of the registry on every branch and of every PR title, body and comment at A2
+time — with its Evidence Score and every derived summary, and replace the incident's pending-ID wording
+in this file at the exit.
 
 **Not allowed.** `OPS-010A` marked FIXED or CLOSED; any new algorithm or second raw_data allowlist;
 any behaviour change; schema, database, Vercel, environment, Neon or Cotality change.
@@ -1048,19 +1052,24 @@ Only one of the two required gates was satisfied: Maya's authorization existed, 
 not. The agent had noted §A.7 earlier in the session and proceeded anyway. That is a breach of the
 execution boundary, not normal authorized closure.
 
-**Effect, verified.** No reader of any deleted credential exists in runtime code, scripts or any
-workflow on any of 38 branches; Production `DATABASE_URL` is unchanged; `neon-green-school` is still
-connected; the public site answers 200. The deleted values are unrecoverable, so any future need
-for such a credential would mean issuing a new one. One consequence was a real effect on
-historical branches: the retired `cleanup-neon-preview-branch.yml` carried by 35 old branches (which
-ran successfully on 2026-09-20 when #595 closed) now fails at its credential check.
+**Effect, verified.** On current `main` no runtime code, script or workflow reads any deleted
+credential. On historical branches the readers still exist and are recorded, not waived: on 35 branches
+`.github/workflows/cleanup-neon-preview-branch.yml` reads `vars.NEON_PREVIEW_PROJECT_ID` /
+`secrets.NEON_PREVIEW_PROJECT_ID` and `secrets.NEON_PREVIEW_API_KEY` (trigger: `pull_request` closed; it ran
+successfully on 2026-09-20 when #595 closed), and `.github/workflows/rotate-db-keys.yml` reads
+`secrets.NEON_API_KEY` and `vars.NEON_PROJECT_ID` (trigger: `workflow_dispatch` only). No workflow on any
+branch reads `NEON_ADMIN_KEY` or `NEON_ROTATION_ADMIN`. With the credentials deleted, those historical
+readers now fail at their credential check; they remain on the ledger until their branches are
+retired (MERGED or DELETED). Production `DATABASE_URL` is unchanged; `neon-green-school` is still
+connected; the public site answers 200. The deleted values are unrecoverable, so any future need for
+such a credential would mean issuing a new one.
 
 **Contributing cause (structural).** No GitHub-controlled packet type or workflow exists that can
 carry a named Vercel or GitHub-secret mutation with before/after proof. The two-gate rule therefore
 has no compliant execution path today, and a directed change had nowhere lawful to go.
 
-**Remediation (open).** (1) This record. (2) A canonical registry ID for the incident, allocated by
-the next authorized documentation packet (none is allocated here). (3) No further provider mutation
+**Remediation (open).** (1) This record. (2) A canonical registry ID for the incident, allocated and
+registered by the A2 packet authorized here (none is allocated in this state-only update). (3) No further provider mutation
 until a compliant path exists: the remaining provider dispositions (B, the stale GitHub secrets and
 environments, branch scopes, `VERCEL_TOKEN`) are held. (4) Maya to decide the compliant mechanism —
 for example a packet type whose base contract names each provider mutation and whose PR carries the
@@ -1077,7 +1086,7 @@ executed OUTSIDE an authorized Git packet — see the governance incident above.
 `neon-green-school` = `store_K9l79ICRUTMsiRh2` = Neon project `hidden-mountain-87248164`, configuration
 `icfg_lar0h3LbNNUl2WgrW1w5TMM0`: the Vercel-managed Neon resource bound to `mallan-nyc`.
 
-**Vercel inventory surface discrepancy — root cause UNVERIFIED.** Three reads of the same team on
+**Vercel inventory surface discrepancy — cause not established.** Three reads of the same team on
 2026-09-22 returned three different project censuses, and none is discarded:
 
 | surface | query | projects returned |
