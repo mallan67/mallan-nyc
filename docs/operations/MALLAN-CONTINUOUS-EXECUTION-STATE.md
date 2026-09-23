@@ -333,8 +333,9 @@ correction commit invalidates the prior exact-head proof and must rerun the chai
 The current sequence is governance-first. Provider cleanup and product implementation are stopped
 until the execution boundary is real.
 
-**Position as of 2026-09-22: items 1 to 7a are COMPLETE. Item 8, run as the trace-to-closure program in §11,
-is the current step.**
+**Position as of 2026-09-22: items 1 to 7a are COMPLETE. The CURRENT packet is item 7b (A2). Item 8, the
+trace-to-closure program in §11, continues alongside it as a read-only investigation; its provider
+mutations are held (see the §11 governance incident).**
 
 1. **Close the remaining PR #632 defects before merge.**
    - DONE — the direct-Neon control plane is DELETED, not quarantined: the PR-close cleanup workflow, the
@@ -391,15 +392,18 @@ is the current step.**
      `authority-root` runs on `pull_request_target` for every PR with no path filter, and it
      reported `success` on #633, #634 and #636, so requiring it cannot strand a PR without a result.
 7a. **Fix the implementation-mode one-way door before any implementation mode is ever set.** One `control-root-maintenance`
-   packet, authorized by this control update, adds the implementation-mode state-only exit to
+   packet, authorized by #637, adds the implementation-mode state-only exit to
    `scripts/ci/mallan-execution-control.mjs` with its negative tests in
    `tests/runtime/mallan-execution-control.test.ts`. A separate state-only PR then exits root
    maintenance back to `control-update`, records the fix, and only then may the Neon/Vercel
    cleanup packet be authorized.
    - **DONE 2026-09-22.** #637 authorized the packet (merged `d7bcc1d8`); #638 delivered it (merged
      `f53b099a` from reviewed head `00bd788a`, `pr-check` and `authority-root` required and green,
-     zero threads). This state-only PR is the exit back to `control-update`. Details in §11.
-8. **CURRENT STEP — run as the trace-to-closure program in §11.** One Vercel control-plane reconciliation packet over the existing `mallan-nyc → neon-green-school` connection, environment scopes, branch overrides and every DB/control reader/writer.
+     zero threads). #639 (`b0ab6264`) was the state-only exit back to `control-update`. Details in §11.
+7b. **CURRENT PACKET — `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22` (A2), authorized by this control
+   update.** Scope, prohibitions and proof are in §11 "Current packet"; it exits through the #638
+   implementation-mode state-only exit.
+8. **IN PROGRESS (not the active packet) — the trace-to-closure program in §11, read-only; provider mutations held.** One Vercel control-plane reconciliation packet over the existing `mallan-nyc → neon-green-school` connection, environment scopes, branch overrides and every DB/control reader/writer.
 9. **Only after that reconciliation may Development/Preview authority be designed.** No schema-only branch, second project, per-branch database or resource split is assumed in advance.
 10. **Cotality-dependent product work remains fail-closed until live provider proof is available through the authorized Cotality contract path.**
 
@@ -1175,7 +1179,7 @@ GitHub secret) is read on current `main` only by `scripts/release-safety/*`, whi
 Local residue: 100 unpushed commits on 15 local branches, 52 further local branches, untracked
 `artifacts/` (256 MB), `.vercel/output/`.
 
-## The next action — trace every artifact to closure
+## The trace-to-closure program — runs alongside the current packet (A2)
 
 **Rule (Maya, 2026-09-22).** Every Vercel variable, branch scope, integration variable, Git branch,
 PR, workflow, cron, database target, credential, MCP entry and configuration is traced to a
