@@ -959,7 +959,8 @@ a historical-evidence ledger item, durable on PR #632 (comment `5752722341`), an
 authorized documentation lane must reconcile that handoff into a dated historical record, preserving its
 contemporaneous evidence while clearly marking its superseded operational instructions (for example
 "activate `authority-root`" and the then-pending Neon credential cleanup) as historical. It must not become
-current authority by verbatim republication. Terminal disposition: FIXED as historical evidence.
+current authority by verbatim republication. The item stays OPEN on the ledger until that reconciliation
+lands; its target terminal disposition, FIXED as historical evidence, is reached only then.
 
 ### Required fix — MERGED 2026-09-22 as packet `GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22` (#638)
 
