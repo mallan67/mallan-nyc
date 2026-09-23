@@ -656,7 +656,7 @@ The current mode is **`implementation`**, authorized for exactly one bounded pac
       "one-way-door defect: GitHub merge eligibility of every implementation packet and its state-only exit (controller, pr-check, authority-root)",
       "handoff-protocol mismatch: every agent session's handoff (AGENTS.md:114 health:probe step vs CLAUDE.md), the dashboard auto tier written by scripts/health/probe.ts",
       "governance incident: the provider-mutation authorization boundary (AGENTS.md:53 two-gate rule, CLAUDE.md §A.7) and the GitHub/Vercel credential stores it concerns",
-      "PCT dimension owners (comments only in A2; behaviour untouched): the incremental source trigger (lib/idx/fetch.ts), the media-sync PCT keyset cursor and media_sync_state.last_photos_change (lib/idx/media-sync.ts), feed-reconcile media writes, the one-cycle preflight source heads, and the listing/search invalidation paths",
+      "PCT dimension owners and readers (comments only in A2; behaviour untouched): the media-sync PCT keyset cursor and media_sync_state.last_photos_change (lib/idx/media-sync.ts), feed-reconcile media writes, the one-cycle preflight source heads, and the listing/search invalidation paths; lib/idx/fetch.ts defines the separate MT-only Property cursor boundary and neither owns nor triggers PCT",
       "Property incremental cursor fail-closed rule: an unpositionable record freezes the keyset (lib/idx/sync.ts:680-693) — newly covered by production tests; behaviour unchanged",
       "CI test integrity: an obsolete test of a local max(MT, PCT) copy (lib/idx/__tests__/sync-watermark.test.ts) removed from the root Jest run"
     ],
