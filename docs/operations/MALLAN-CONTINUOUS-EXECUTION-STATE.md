@@ -559,21 +559,28 @@ PR #632 was a one-time bootstrap exception because base `main` did not then cont
 It is merged and the exception is closed; base `main` now carries both authority files, so no
 PR can reach that branch again.
 
-The current mode is **`control-update`**: only this execution-state file may change. The `GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22` maintenance packet is merged (#638) and this contract is its state-only exit. Code and scope expansion may not be combined into the same self-authorizing PR.
+The current mode is **`implementation`**, authorized for exactly one bounded packet, `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22` (§11). It exits through the implementation-mode state-only exit merged in #638. Code and scope expansion may not be combined into the same self-authorizing PR.
 
 <!-- MALLAN_EXECUTION_CONTROL_V1_START -->
 ```json
 {
   "version": 1,
-  "mode": "control-update",
+  "mode": "implementation",
   "authorized_branch": "work/active",
   "base_branch": "main",
   "authorized_paths": [
-    "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
+    "lib/idx/write-suppression.ts",
+    "docs/PLATFORM-ISSUE-REGISTRY.md",
+    "docs/PROJECT-HEALTH-DASHBOARD.md",
+    "docs/operations/site-audit-handoff-2026-09-22.md"
   ],
-  "allowed_new_files": [],
+  "allowed_new_files": [
+    "docs/operations/site-audit-handoff-2026-09-22.md"
+  ],
   "impact_domains": [
-    "governance"
+    "governance",
+    "documentation",
+    "idx-sync"
   ],
   "provider_proof_required": [],
   "production_mutation_authorized": false,
@@ -586,46 +593,83 @@ The current mode is **`control-update`**: only this execution-state file may cha
   "requirements": {
     "impact_graph_required": true,
     "all_readers_writers_required": true,
-    "negative_tests_required": true,
+    "negative_tests_required": false,
     "integration_proof_required": true,
     "downstream_proof_required": true,
     "compliance_proof_required_when_applicable": true,
     "no_parallel_path_proof_required": true
   },
-  "packet_id": "TRACE-TO-CLOSURE-VERCEL-NEON-DB-2026-09-22",
-  "objective": "Exit control-root-maintenance after #638. Authorize only state-only updates that record read-only trace evidence for the §11 artifact trace ledger. No provider mutation, environment change, deletion, credential change or implementation is authorized by this contract; each disposition that changes anything is its own separately authorized packet.",
+  "packet_id": "RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22",
+  "objective": "Reconcile OPS-010A and issue #574 with the already-merged August 7B architecture (cbf42cfc). Correct the stale pre-7B comment in lib/idx/write-suppression.ts (comment only, no behaviour change); update OPS-010A to separate the July historical measurement, the 7B structural correction of the PCT/raw_data_only cause, the remaining delivery_url_refreshed concern, and the post-7B production trend as UNVERIFIED; update every derived summary; add the dated handoff. OPS-010A stays OPEN. No new algorithm, no second raw_data allowlist (RAW_DATA_KEEP_FIELDS stays the sole retention authority), no schema, database, Vercel, environment, Neon or Cotality change.",
   "impact_graph": {
     "root_owner_paths": [
       "MALLAN-PLATFORM-MASTER-PLAN.md",
-      "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
+      "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md",
+      "lib/compliance/raw-data-keep-fields.ts"
     ],
     "writer_paths": [
-      "scripts/ci/mallan-execution-control.mjs",
-      ".github/workflows/pr-check.yml",
-      ".github/workflows/branch-authority.yml",
-      ".github/workflows/authority-root.yml"
+      "lib/idx/write-suppression.ts",
+      "lib/idx/trestle-mapper.ts"
     ],
     "reader_paths": [
-      "AGENTS.md",
-      "CLAUDE.md"
+      "lib/idx/sync.ts",
+      "lib/idx/trestle-mapper.ts"
     ],
     "publisher_paths": [
-      ".github/workflows/pr-check.yml",
-      ".github/workflows/branch-authority.yml",
-      ".github/workflows/authority-root.yml"
+      "docs/PLATFORM-ISSUE-REGISTRY.md",
+      "docs/PROJECT-HEALTH-DASHBOARD.md"
     ],
     "downstream_surfaces": [
-      "GitHub pull-request merge eligibility",
-      "GitHub future branch creation",
-      "All later Mallan implementation packets"
+      "idx-sync listing write suppression and change classification (behaviour unchanged)",
+      "Platform Issue Registry OPS-010A and its derived summaries",
+      "issue #574 disposition after merge"
     ],
     "test_paths": [
-      "tests/runtime/mallan-execution-control.test.ts",
-      "tests/runtime/agent-authority-live-source.test.ts"
+      "lib/idx/__tests__/listing-change-classification.test.ts",
+      "lib/idx/__tests__/commit7-write-matrix.test.ts",
+      "lib/idx/__tests__/pct-deprecation.test.ts",
+      "tests/runtime/phase3-write-suppression-sync.test.ts"
     ],
     "compliance_surfaces": [
-      "Governance only; no listing/public/client compliance mutation in this packet"
-    ]
+      "UCBA Art. VIII §4 per-listing 'last updated' semantics documented in lib/idx/sync.ts — unchanged by a comment-only edit"
+    ],
+    "database_impact_chain": {
+      "vercel_integration": [
+        "vercel.json"
+      ],
+      "env_resolution": [
+        "lib/ops/db-target.ts"
+      ],
+      "db_target": [
+        "lib/ops/db-target.ts",
+        "lib/ops/canonical-neon-target.ts"
+      ],
+      "prisma_pg": [
+        "prisma/schema.prisma",
+        "lib/prisma.ts"
+      ],
+      "migrations": [
+        "prisma/schema.prisma"
+      ],
+      "workflows_crons": [
+        ".github/workflows/pr-check.yml",
+        "vercel.json"
+      ],
+      "preview": [
+        "scripts/release-safety/release-truth-verdict.js"
+      ],
+      "production": [
+        ".github/workflows/release-truth.yml"
+      ],
+      "downstream_readers_writers": [
+        "lib/idx/sync.ts",
+        "lib/prisma.ts"
+      ],
+      "tests": [
+        "lib/idx/__tests__/listing-change-classification.test.ts",
+        "tests/runtime/phase3-write-suppression-sync.test.ts"
+      ]
+    }
   }
 }
 ```
@@ -944,6 +988,90 @@ descriptions above with references. Until then this section is knowingly in
 violation of the single-ID invariant, and saying so is better than quietly appearing to
 comply.
 
+## Current packet — `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22` (A2)
+
+**Sequence (Maya, 2026-09-22).** A1 this state-only authorization → A2 the bounded reconciliation PR →
+verify and merge → A3 re-read `main`, then close issue #574 as superseded, citing `OPS-010A` and
+`cbf42cfc` → continue the Copilot recreator closure. B (the Development/Preview database chain) is a
+separate, read-only provider investigation and is NOT coupled to this packet.
+
+**Basis, verified on `main`.** `cbf42cfc` (2026-08-07, 7B-2B) removed `PhotosChangeTimestamp` from
+`RAW_DATA_KEEP_FIELDS` (`lib/compliance/raw-data-keep-fields.ts:176`; not among the array's 110 elements),
+canonicalizes historical PCT away on both sides of comparison (`lib/idx/write-suppression.ts:360-380`),
+and moves invalidation to the media path (`lib/idx/__tests__/commit7-write-matrix.test.ts:121,129`).
+Every #574 requirement is IMPLEMENTED or SUPERSEDED; its July "closed allowlist of non-business
+raw_data metadata" would be a second opinion beside `RAW_DATA_KEEP_FIELDS` and is not preserved.
+
+**Allowed.** (1) Correct the stale pre-7B paragraph in `lib/idx/write-suppression.ts` (currently
+`:642-651`, which says PCT "is NOT here" and that the replacement is "NOT done here", contradicting
+`:360-380` and `listing-change-classification.test.ts:196`) — comment only. (2) Update `OPS-010A` in
+`docs/PLATFORM-ISSUE-REGISTRY.md` to separate: the July historical measurement; the 7B structural
+correction of the PCT/`raw_data_only` cause; the remaining `delivery_url_refreshed` media concern; and
+the post-7B production WAL/history trend as UNVERIFIED (not re-measured). (3) Update every derived
+summary in the same PR (Issue Row, Priority Table, P0/P1 Summary, Evidence Scores, Dashboard). (4) Add
+`docs/operations/site-audit-handoff-2026-09-22.md` recording the reconciliation.
+
+**Not allowed.** `OPS-010A` marked FIXED or CLOSED; any new algorithm or second raw_data allowlist;
+any behaviour change; schema, database, Vercel, environment, Neon or Cotality change.
+
+**Required proof.** The diff shows `RAW_DATA_KEEP_FIELDS` untouched and still the sole retention
+authority; the `lib/idx/write-suppression.ts` change touches comment lines only (no executable token
+changes); the behaviour tests are unchanged and green; every `OPS-010A` derived summary agrees; no
+statement claims post-7B production churn is fixed without a fresh measurement.
+
+**Exit.** After merge, a state-only PR returns `mode` to `control-update` (the #638 exit), recording the
+merge and #574's closure.
+
+## Live evidence and actions — 2026-09-22, after #639
+
+Read through Vercel only: the connector (names/scopes), `vercel env ls` (complete enumeration) and
+`vercel env run` (values classified in memory; only endpoint/project identifiers printed; nothing
+written to disk). Every provider mutation below was explicitly directed by Maya in this session.
+
+**Verified identity.** `vercel integration list` and the Vercel-issued SSO link: resource
+`neon-green-school` = `store_K9l79ICRUTMsiRh2` = Neon project `hidden-mountain-87248164`, configuration
+`icfg_lar0h3LbNNUl2WgrW1w5TMM0`, bound to `mallan-nyc`. It is the only Neon resource in the Mallan team.
+Under the Mallan team scope `mallan-nyc` is the only project returned; other Vercel projects exist in
+Maya's broader account access; `mallan-nyc-syyb` is absent from the live project census.
+
+**Database targets (endpoint identifiers only).** Production: every bare and `database_*` connection →
+`ep-cold-waterfall-adno3ao2`. Development: bare `DATABASE_URL*` → `ep-cold-waterfall-adno3ao2`
+(Production). Preview (generic): no bare `DATABASE_URL`; `database_*` and `ASSISTANT_DATABASE_URL` →
+Production endpoint. Branch scopes: `feat/agent-permanent-delete-2026-09-01` → `ep-ancient-feather-arvoo9v4`
+(Neon project `lively-leaf-42641316`, not a Vercel-bound resource); `fix/neon-p0-event-driven-wake-2026-08-16`
+→ `ep-rapid-sea-add131is`; `fix/cotality-neon-media-system-root-cause-2026-08-06` (`database_*`) →
+`ep-royal-thunder-adgxj9ow`; both `search/*` scopes → empty. Every branch override was created under
+the account `mayad67` (the team's only member): 2026-08-08, 2026-08-19, 2026-09-03. Existence of the
+three undocumented endpoints is UNVERIFIED (Neon view through Vercel SSO pending, B).
+
+**DELETED 2026-09-22 (direct Neon credentials).** GitHub repository secrets `NEON_ADMIN_KEY`,
+`NEON_API_KEY`, `NEON_PREVIEW_API_KEY`, `NEON_PREVIEW_PROJECT_ID`, `NEON_ROTATION_ADMIN` and variable
+`NEON_PROJECT_ID`; Vercel `NEON_ADMIN_KEY`, `NEON_ROTATION_ADMIN` (Production/Preview/Development and the
+dead-branch scope), `NEON_API_KEY`, `NEON_PREVIEW_API_KEY`, `NEON_PROJECT_ID` (Production/Preview). Proven
+afterwards: no `NEON_*` injected in any environment or any of the five branch scopes; Production
+`DATABASE_URL` unchanged; `neon-green-school` still connected; `/ /search /buy /rent /login` 200. The
+retired `cleanup-neon-preview-branch.yml` survives on 35 old branches and ran successfully at
+2026-09-20T17:54:38Z when #595 closed; with the secrets gone it now fails at its credential check. The
+parent direct-Neon defect stays OPEN until its connected residue closes (old branches and their PR-close
+triggers, three archived workflow backups under `archive/backups-legacy/`, local build/cache output,
+Maya's personal Codespaces secrets (UNVERIFIED — not readable by this login), `lively-leaf-42641316`,
+the phantom endpoints and branch overrides).
+
+**DELETED 2026-09-22 (machine-local, Maya-authorized).** `.vercel/.env.production.local` (2026-03-02 Production
+pull) and `.env.local.backup-before-repoint` (2026-06-02; held `NEON_ADMIN_KEY`, `NEON_ROTATION_ADMIN`, and
+`A_CONN` → stale do-not-serve `ep-royal-dawn-ad6eh8t2`). No unique information; absence proven.
+
+**Traced, held (B and later packets).** GitHub secrets `DATABASE_URL`, `DATABASE_URL_UNPOOLED`,
+`ASSISTANT_DATABASE_URL`, `DEV_DATABASE_URL` have no reader on any of 38 branches (literal, dynamic,
+`secrets: inherit`, reusable or external workflows). Stale GitHub environments `DEV_DATABASE_URL`,
+`Preview/Production – mallan-nyc`, `Preview/Production – mallan-nyc-syyb` are inert (no secrets, rules
+or references; last use 2025-08-12 or never). The `copilot` environment was created 5 s after the
+Copilot coding agent opened #576; Copilot was unassigned from #574 on 2026-09-22; the coding agent itself
+is still to be turned off by Maya before that environment is deleted. `VERCEL_TOKEN` (Vercel env and
+GitHub secret) is read only by `scripts/release-safety/*`, which no workflow or Vercel build invokes.
+Local residue: 100 unpushed commits on 15 local branches, 52 further local branches, untracked
+`artifacts/` (256 MB), `.vercel/output/`.
+
 ## The next action — trace every artifact to closure
 
 **Rule (Maya, 2026-09-22).** Every Vercel variable, branch scope, integration variable, Git branch,
@@ -991,9 +1119,9 @@ carry `n/a` in the classification column.
 |---|---|
 | Production bare `DATABASE_URL*` resolve to `ep-cold-waterfall-adno3ao2` (`NEON.md`, measured 2026-09-18) | UNVERIFIED — not re-established live; empty or non-empty is also unproven |
 | lowercase `database_*` are owned by the Vercel Neon Marketplace integration | the Master classification INTEGRATION-OWNED stands; the 2026-09-22 env API read (`configurationId: null`) did not independently prove the creator, and the binding is still to be verified through Vercel (ledger row 3) |
-| Development bare DB URLs also resolve to Production | UNVERIFIED — no Development-scoped bare `DATABASE_URL*` appears in the 2026-09-22 read |
-| `NEON_API_KEY` and bare `NEON_PROJECT_ID` exist in Vercel | UNVERIFIED — absent from the 2026-09-22 read, whose completeness is itself unproven (ledger row 5) |
-| 100 entries / 78 unique keys (2026-09-20) | CONFLICT — the 2026-09-22 read returned 100 entries and 24 unique keys, no pagination field |
+| Development bare DB URLs also resolve to Production | **VERIFIED TRUE 2026-09-22** by in-memory read (`vercel env run -e development`, endpoint identifier only): Development `DATABASE_URL*` → `ep-cold-waterfall-adno3ao2`. The earlier UNVERIFIED came from a truncated connector read |
+| `NEON_API_KEY` and bare `NEON_PROJECT_ID` exist in Vercel | **VERIFIED, then DELETED 2026-09-22** (see Live evidence and actions below). Both existed, empty, in Production+Preview |
+| 100 entries / 78 unique keys (2026-09-20) | EXPLAINED — the connector returns at most 100 entries with no pagination field; `vercel env ls` (CLI, complete) is the enumeration of record |
 | `/api/health` 200 as database evidence | CORRECTED — the route makes zero database calls by design; it proves only that the runtime serves HTTP |
 
 ### Verified 2026-09-22 (static or live, with source)
@@ -1037,7 +1165,7 @@ documentation packet creates the canonical ID before any implementation acts on 
 | 17 | the 22 open PRs (verified 2026-09-22) and the non-`main` branch estate (36 per §5.1, 2026-09-20; recount live) | n/a — Git artifacts | #624 and #600 `pr-check` red since August; #596 as stated in the operational-consequence section; all other latest checks predate #632 | per-branch unique-work reconciliation | per PR/branch: MERGED if it holds unique valid work not already on `main` (then the PR is closed and the branch deleted), otherwise DELETED | NONE — evidence only; canonical ID required before remediation |
 | 18 | documentation claims corrected in this section (`NEON.md` Vercel database variable ownership; this file's §3 counts) | n/a — documentation | see Corrections | correct once the live evidence exists (documentation lane) | FIXED | `OPS-016` (NEON.md vs live Neon drift) for the NEON.md part; otherwise NONE — canonical ID required before remediation |
 | 19 | **No pull request can amend the Master.** `control-update` permits only the Execution State; `control-root-maintenance` authorizes only `IMMUTABLE_CONTROL_PATHS`, which excludes `MALLAN-PLATFORM-MASTER-PLAN.md`; `implementation` refuses Master changes (`scripts/ci/mallan-execution-control.mjs` L889-890, L1391, L1504-1506 on `main`) | n/a — governance control | VERIFIED from the controller source | design a bounded, base-authorized Master-amendment path with negative tests (control-root maintenance) | FIXED | NONE — evidence only; canonical ID required before remediation |
-| 20 | **Release Truth's dependency wait can expire before `pr-check` finishes** — #637's first run and #639's first head: `Release Truth dependency wait expired while exact-head proof was still DEPLOY_PENDING`, then `ERROR`, while `pr-check` later passed | n/a — CI control | VERIFIED from the run logs | measure `pr-check` duration against the bounded wait; fix without letting Release Truth pass on a pending dependency | FIXED | NONE — evidence only; canonical ID required before remediation |
+| 20 | **Release Truth's bounded dependency wait can expire while its verdict is still DEPLOY_PENDING.** CORRECTED 2026-09-22: the one proven instance is run `35790568953` (#639 first head), where `pr-check` had already passed at 22:11:42Z and the wait expired ~22:19:31Z; the loop logs only the verdict, so which dependency was pending is not recorded. #637's first run is NOT an instance (its log ends after attempt 14 with no expiry line) | n/a — CI control | VERIFIED from the run logs | measure `pr-check` duration against the bounded wait; fix without letting Release Truth pass on a pending dependency | FIXED | NONE — evidence only; canonical ID required before remediation |
 Until each row closes, no agent may begin an environment change, credential removal, branch
 deletion or implementation packet except as that row's separately authorized disposition.
 
