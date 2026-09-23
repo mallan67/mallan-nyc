@@ -1030,11 +1030,24 @@ tree on `main`. Open PR #599 (`fix/r2-policy-reevaluation-2026-08-10`, opened 20
 registry file on that branch. Reusing any of the three would give one ID two meanings. The
 handoff-protocol mismatch therefore has no registry ID until A2 allocates an unused one.
 
-**Registered by A2.** A2 is the first authorized documentation lane. It registers all three
-governance debts — the one-way-door defect (FIXED by #638), the handoff-protocol mismatch, and the
-2026-09-22 governance incident — under three distinct unused `OPS-` IDs, propagates every derived
-summary, and the state-only exit then replaces the descriptions above with references. Until A2's
-exit merges this section is knowingly outside the single-ID invariant, and says so.
+**Registered by A2 — and the registry governs from the moment A2 merges.** A2 is the first authorized
+documentation lane. It registers all three governance debts — the one-way-door defect (FIXED by #638),
+the handoff-protocol mismatch, and the 2026-09-22 governance incident — under three distinct unused
+`OPS-` IDs and propagates every derived summary in the registry, the dashboard and the handoff.
+
+**Standing rule for the interval, written now so this file is correct both before and after A2 merges:**
+once A2 is merged, the Platform Issue Registry rows it creates are the single canonical definition of
+these three issues. The descriptions in this section and in the governance incident below are then
+SUPERSEDED by those rows and stand only as the evidence trail, until the state-only exit replaces them
+with ID references. Any reader who finds an A2 registry row for one of these issues must treat that
+row, not this section, as the issue's definition and status.
+
+**Why the replacement cannot be atomic (structural, recorded).** The controller refuses any change to
+this file inside an implementation PR (`scripts/ci/mallan-execution-control.mjs:1504-1506`) — the
+protection against a packet rewriting its own authority. The registry change and this file's ID
+references therefore cannot land in the same PR; the standing rule above is what keeps the single-ID
+invariant true across the interval. The same structure applies to every future registry packet. It is a
+property of the gate, recorded alongside the Master-amendment gap (ledger row 19), not a defect of A2.
 
 ## Current packet — `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22` (A2)
 
@@ -1122,7 +1135,8 @@ carry a named Vercel or GitHub-secret mutation with before/after proof. The two-
 has no compliant execution path today, and a directed change had nowhere lawful to go.
 
 **Remediation (open).** (1) This record. (2) A canonical registry ID for the incident, allocated and
-registered by the A2 packet authorized here (none is allocated in this state-only update). (3) No further provider mutation
+registered by the A2 packet authorized here (none is allocated in this state-only update); from A2's
+merge, that registry row governs and this incident text is its evidence trail (see "Registered by A2"). (3) No further provider mutation
 until a compliant path exists: the remaining provider dispositions (B, the stale GitHub secrets and
 environments, branch scopes, `VERCEL_TOKEN`) are held. (4) Maya to decide the compliant mechanism —
 for example a packet type whose base contract names each provider mutation and whose PR carries the
