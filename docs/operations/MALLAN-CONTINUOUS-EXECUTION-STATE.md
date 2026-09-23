@@ -618,7 +618,8 @@ The current mode is **`implementation`**, authorized for exactly one bounded pac
       "lib/idx/write-suppression.ts",
       "lib/idx/trestle-mapper.ts",
       "scripts/ci/mallan-execution-control.mjs",
-      "scripts/health/probe.ts"
+      "scripts/health/probe.ts",
+      "lib/idx/media-sync.ts"
     ],
     "reader_paths": [
       "lib/idx/sync.ts",
@@ -627,7 +628,15 @@ The current mode is **`implementation`**, authorized for exactly one bounded pac
       "CLAUDE.md",
       ".github/workflows/pr-check.yml",
       ".github/workflows/authority-root.yml",
-      "scripts/health/health-status.ts"
+      "scripts/health/health-status.ts",
+      "lib/idx/fetch.ts",
+      "lib/idx/media-sync.ts",
+      "app/api/cron/feed-reconcile/route.ts",
+      "lib/idx/cursor/keyset-cursor.ts",
+      "lib/idx/watermark.ts",
+      "lib/idx/one-cycle-preflight.ts",
+      "lib/cache/public-listing-change-tags.ts",
+      "lib/search/listing-search-projection.ts"
     ],
     "publisher_paths": [
       "docs/PLATFORM-ISSUE-REGISTRY.md",
@@ -642,7 +651,8 @@ The current mode is **`implementation`**, authorized for exactly one bounded pac
       "issue #574 disposition after merge",
       "one-way-door defect: GitHub merge eligibility of every implementation packet and its state-only exit (controller, pr-check, authority-root)",
       "handoff-protocol mismatch: every agent session's handoff (AGENTS.md:114 health:probe step vs CLAUDE.md), the dashboard auto tier written by scripts/health/probe.ts",
-      "governance incident: the provider-mutation authorization boundary (AGENTS.md:53 two-gate rule, CLAUDE.md §A.7) and the GitHub/Vercel credential stores it concerns"
+      "governance incident: the provider-mutation authorization boundary (AGENTS.md:53 two-gate rule, CLAUDE.md §A.7) and the GitHub/Vercel credential stores it concerns",
+      "PCT dimension owners (comments only in A2; behaviour untouched): the incremental source trigger (lib/idx/fetch.ts), the media-sync PCT keyset cursor and media_sync_state.last_photos_change (lib/idx/media-sync.ts), feed-reconcile media writes, the one-cycle preflight source heads, and the listing/search invalidation paths"
     ],
     "test_paths": [
       "lib/idx/__tests__/listing-change-classification.test.ts",
@@ -897,10 +907,10 @@ Guardrails **workflow run** `31124013951` concluded `failure` (created 2026-08-0
 `timeout-minutes` or concurrency cancellation, and the run's logs are no longer retrievable, so the
 cause of the cancellation is not established.
 
-**Unblocking is Maya-held and is not authorized by this packet.** Each implementation lane
-needs its own control update naming its branch, its paths and its impact graph. Widening the
-envelope inside this state-only packet would be exactly the self-authorization the gate exists
-to prevent.
+**Unblocking the 22 historical PRs is Maya-held and is not authorized by this control update.** Each
+implementation lane needs its own control update naming its branch, its paths and its impact graph;
+A2 ("Current packet") is exactly such a lane and IS authorized by this update. Widening any envelope
+from inside the implementation PR it governs would be the self-authorization the gate exists to prevent.
 
 ## CLOSED 2026-09-22 — implementation mode was a one-way door (no registry ID yet; see Registry debt below)
 
@@ -1281,7 +1291,9 @@ documentation packet creates the canonical ID before any implementation acts on 
 | 19 | **No pull request can amend the Master.** `control-update` permits only the Execution State; `control-root-maintenance` authorizes only `IMMUTABLE_CONTROL_PATHS`, which excludes `MALLAN-PLATFORM-MASTER-PLAN.md`; `implementation` refuses Master changes (`scripts/ci/mallan-execution-control.mjs` L889-890, L1391, L1504-1506 on `main`) | n/a — governance control | VERIFIED from the controller source | design a bounded, base-authorized Master-amendment path with negative tests (control-root maintenance) | FIXED | NONE — evidence only; canonical ID required before remediation |
 | 20 | **Release Truth's bounded dependency wait can expire while its verdict is still DEPLOY_PENDING.** CORRECTED 2026-09-22: the one proven instance is run `35790568953` (#639 first head), where `pr-check` had already passed at 22:11:42Z and the wait expired ~22:19:31Z; the loop logs only the verdict, so which dependency was pending is not recorded. #637's first run is NOT an instance (its log ends after attempt 14 with no expiry line) | n/a — CI control | VERIFIED from the run logs | measure `pr-check` duration against the bounded wait; fix without letting Release Truth pass on a pending dependency | FIXED | NONE — evidence only; canonical ID required before remediation |
 Until each row closes, no agent may begin an environment change, credential removal, branch
-deletion or implementation packet except as that row's separately authorized disposition.
+deletion or implementation packet except (a) as that row's separately authorized disposition, or (b) the
+packet named in "Current packet" (A2), which this control update authorizes; A2 is not a ledger
+disposition and changes no ledger artifact.
 
 ## Honest limits of what the merged gate proves
 
