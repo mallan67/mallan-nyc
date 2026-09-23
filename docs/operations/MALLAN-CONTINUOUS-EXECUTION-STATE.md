@@ -1075,9 +1075,13 @@ executed OUTSIDE an authorized Git packet — see the governance incident above.
 
 **Verified identity.** `vercel integration list` and the Vercel-issued SSO link: resource
 `neon-green-school` = `store_K9l79ICRUTMsiRh2` = Neon project `hidden-mountain-87248164`, configuration
-`icfg_lar0h3LbNNUl2WgrW1w5TMM0`, bound to `mallan-nyc`. It is the only Neon resource in the Mallan team.
-Under the Mallan team scope `mallan-nyc` is the only project returned; other Vercel projects exist in
-Maya's broader account access; `mallan-nyc-syyb` is absent from the live project census.
+`icfg_lar0h3LbNNUl2WgrW1w5TMM0`: the Vercel-managed Neon resource bound to `mallan-nyc`. Exact scope of the
+wider census, 2026-09-22, CLI under Maya's login: `vercel teams ls` shows one team, `mallan`;
+`vercel project ls --scope mallan` returns five projects (`mallan-nyc`, `mayaallan`, `sabre-mcp-private`,
+`mallan-sabre-mcp`, `stocks-information-tracker`); `vercel integration list --all --scope mallan` returns five
+Marketplace resources, of which `neon-green-school` is the only Neon one (the other four are Supabase:
+`supabase-indigo-kite` bound to `mayaallan`, three suspended and unbound). Whether either list is paginated
+beyond what the CLI printed is not established. `mallan-nyc-syyb` is absent from the project census.
 
 **Database targets (endpoint identifiers only).** Production: every bare and `database_*` connection →
 `ep-cold-waterfall-adno3ao2`. Development: bare `DATABASE_URL*` → `ep-cold-waterfall-adno3ao2`
