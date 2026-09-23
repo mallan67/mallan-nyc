@@ -581,7 +581,8 @@ The current mode is **`implementation`**, authorized for exactly one bounded pac
     "lib/idx/__tests__/pct-deprecation.test.ts",
     "lib/idx/__tests__/changed-raw-data-keys.test.ts",
     "lib/idx/__tests__/sync-watermark.test.ts",
-    "tests/runtime/idx-property-cursor-contract.test.ts"
+    "tests/runtime/idx-property-cursor-contract.test.ts",
+    "lib/compliance/raw-data-keep-fields.ts"
   ],
   "allowed_new_files": [
     "docs/operations/site-audit-handoff-2026-09-22.md"
@@ -609,7 +610,7 @@ The current mode is **`implementation`**, authorized for exactly one bounded pac
     "no_parallel_path_proof_required": true
   },
   "packet_id": "RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22",
-  "objective": "Reconcile OPS-010A and issue #574 with the already-merged August 7B architecture (cbf42cfc). Close the stale PCT-authority chain: correct the stale PCT comments in lib/idx/write-suppression.ts (:642-651, :681-694), lib/idx/sync.ts (:1779-1784, :1813-1819), lib/idx/__tests__/pct-deprecation.test.ts and lib/idx/__tests__/changed-raw-data-keys.test.ts (comment only, no behaviour change); delete lib/idx/__tests__/sync-watermark.test.ts (it tests a local copy of a retired algorithm and contradicts production) and add mutation-verified production tests of the Property cursor freeze on unpositionable records to tests/runtime/idx-property-cursor-contract.test.ts; update OPS-010A to separate the July historical measurement, the 7B structural correction of the PCT/raw_data_only cause, the remaining delivery_url_refreshed concern, and the post-7B production trend as UNVERIFIED; update every derived summary; add the dated handoff; promote three evidence items recorded in the Execution State (the implementation-mode one-way door, the handoff-protocol mismatch, the 2026-09-22 governance incident) into the Platform Issue Registry as new issues under three distinct unused OPS IDs, excluding OPS-026/027/028 (defined on open PR #599), updating every derived summary in the same PR. OPS-010A stays OPEN. No new algorithm, no second raw_data allowlist (RAW_DATA_KEEP_FIELDS stays the sole retention authority), no schema, database, Vercel, environment, Neon or Cotality change.",
+  "objective": "Reconcile OPS-010A and issue #574 with the already-merged August 7B architecture (cbf42cfc). Close the stale PCT-authority chain: correct the stale PCT comments in lib/idx/write-suppression.ts (:642-651, :681-694), lib/idx/sync.ts (:1779-1784, :1813-1819), lib/idx/__tests__/pct-deprecation.test.ts, lib/idx/__tests__/changed-raw-data-keys.test.ts and lib/compliance/raw-data-keep-fields.ts:183-186 (comment only, no behaviour change; RAW_DATA_KEEP_FIELDS and RAW_DATA_KEEP_SET element-for-element identical); delete lib/idx/__tests__/sync-watermark.test.ts (it tests a local copy of a retired algorithm and contradicts production) and add mutation-verified production tests of the Property cursor freeze on unpositionable records to tests/runtime/idx-property-cursor-contract.test.ts; update OPS-010A to separate the July historical measurement, the 7B structural correction of the PCT/raw_data_only cause, the remaining delivery_url_refreshed concern, and the post-7B production trend as UNVERIFIED; update every derived summary; add the dated handoff; promote three evidence items recorded in the Execution State (the implementation-mode one-way door, the handoff-protocol mismatch, the 2026-09-22 governance incident) into the Platform Issue Registry as new issues under three distinct unused OPS IDs, excluding OPS-026/027/028 (defined on open PR #599), updating every derived summary in the same PR. OPS-010A stays OPEN. No new algorithm, no second raw_data allowlist (RAW_DATA_KEEP_FIELDS stays the sole retention authority), no schema, database, Vercel, environment, Neon or Cotality change.",
   "impact_graph": {
     "root_owner_paths": [
       "MALLAN-PLATFORM-MASTER-PLAN.md",
@@ -1041,7 +1042,13 @@ PCT belongs to `runMediaSync`). Test comments — comment only: `lib/idx/__tests
 (same `fetch.ts` OR claim) and `lib/idx/__tests__/changed-raw-data-keys.test.ts:27-29` ("the LIVE Property
 PCT still drives the incremental fetch filter"). Every other PCT mention in that sweep is current
 architecture or dated history (for example `fetch.ts:386` and `incremental-filter.test.ts:7`, both marked
-as the superseded contract). No fetch/source file is claimed to own or trigger PCT.
+as the superseded contract). Compliance comment — comment only: `lib/compliance/raw-data-keep-fields.ts:183-186`
+(says PCT freshness runs "Property.PhotosChangeTimestamp -> incremental source trigger -> complete media
+reconciliation -> media_sync_state.last_photos_change"; there is no Property incremental source trigger for PCT)
+is corrected to the real chain: `Property.PhotosChangeTimestamp` -> the media-sync PCT source query and keyset
+cursor (`lib/idx/media-sync.ts`) -> complete media reconciliation -> `media_sync_state.last_photos_change`. The
+sweep's search terms include "source trigger"; the remaining hits (`pct-deprecation.test.ts:170,192`) correctly
+place the PCT trigger in the media lane. No fetch/source file is claimed to own or trigger PCT.
 (1a) Test integrity: `lib/idx/__tests__/sync-watermark.test.ts` imports nothing from production; it defines
 a local `advanceBatchWatermark` computing `max(MT, PCT)` and tests that copy, and it runs in CI (root Jest
 lists `lib/idx/jest.config.js`). Its cases are superseded or contradicted: MT advancement and the empty
@@ -1070,7 +1077,9 @@ no issue-definition reconciliation is needed there, because this file defines no
 **Not allowed.** `OPS-010A` marked FIXED or CLOSED; any new algorithm or second raw_data allowlist;
 any behaviour change; schema, database, Vercel, environment, Neon or Cotality change.
 
-**Required proof.** The diff shows `RAW_DATA_KEEP_FIELDS` untouched and still the sole retention
+**Required proof.** `RAW_DATA_KEEP_FIELDS` and `RAW_DATA_KEEP_SET` are element-for-element identical on the
+base and the head (both exports evaluated, not diff-read), `lib/compliance/raw-data-keep-fields.ts` changes
+comment lines only, and `RAW_DATA_KEEP_FIELDS` stays the sole retention
 authority; the `lib/idx/write-suppression.ts` change touches comment lines only (no executable token
 changes) and the same holds for `lib/idx/sync.ts` and for both test-comment edits; the existing behaviour
 tests are unchanged and green; the new cursor-freeze tests pass and each fails when the freeze in
