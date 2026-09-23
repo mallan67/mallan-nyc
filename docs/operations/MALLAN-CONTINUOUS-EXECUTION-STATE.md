@@ -600,7 +600,7 @@ The current mode is **`implementation`**, authorized for exactly one bounded pac
     "no_parallel_path_proof_required": true
   },
   "packet_id": "RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22",
-  "objective": "Reconcile OPS-010A and issue #574 with the already-merged August 7B architecture (cbf42cfc). Correct the stale pre-7B comment in lib/idx/write-suppression.ts (comment only, no behaviour change); update OPS-010A to separate the July historical measurement, the 7B structural correction of the PCT/raw_data_only cause, the remaining delivery_url_refreshed concern, and the post-7B production trend as UNVERIFIED; update every derived summary; add the dated handoff; register the 2026-09-22 governance incident under one unused OPS ID with its derived summaries. OPS-010A stays OPEN. No new algorithm, no second raw_data allowlist (RAW_DATA_KEEP_FIELDS stays the sole retention authority), no schema, database, Vercel, environment, Neon or Cotality change.",
+  "objective": "Reconcile OPS-010A and issue #574 with the already-merged August 7B architecture (cbf42cfc). Correct the stale pre-7B comment in lib/idx/write-suppression.ts (comment only, no behaviour change); update OPS-010A to separate the July historical measurement, the 7B structural correction of the PCT/raw_data_only cause, the remaining delivery_url_refreshed concern, and the post-7B production trend as UNVERIFIED; update every derived summary; add the dated handoff; register three governance debts (the one-way-door defect, the handoff-protocol mismatch, the 2026-09-22 governance incident) under three distinct unused OPS IDs, excluding OPS-026/027/028 (defined on open PR #599), with their derived summaries. OPS-010A stays OPEN. No new algorithm, no second raw_data allowlist (RAW_DATA_KEEP_FIELDS stays the sole retention authority), no schema, database, Vercel, environment, Neon or Cotality change.",
   "impact_graph": {
     "root_owner_paths": [
       "MALLAN-PLATFORM-MASTER-PLAN.md",
@@ -935,9 +935,11 @@ reachable. The order is now fixed:
 3. DONE — #639 (`b0ab6264`), the state-only exit back to `control-update`;
 4. CURRENT — the trace-to-closure program below; the one authorized packet is in "Current packet".
 
-A documentation lane is now reachable, but none is authorized yet, so the dated operational handoff for 2026-09-20 still cannot be committed to
-`docs/operations/site-audit-handoff-2026-09-20.md`. Its content is written and posted on
-PR #632 so the work exists on GitHub; it is pending a lane, not pending authorship.
+HISTORY: before this update no documentation lane was authorized. A2 ("Current packet") now authorizes
+the registry, the dashboard and the 2026-09-22 handoff. The one documentation artifact still outside any
+authorized lane is the dated 2026-09-20 handoff (`docs/operations/site-audit-handoff-2026-09-20.md`): its
+content is written and posted on PR #632 (comment `5752722341`); it is NOT in A2's envelope and stays on
+the ledger until a lane commits it verbatim.
 
 ### Required fix — MERGED 2026-09-22 as packet `GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22` (#638)
 
@@ -946,7 +948,7 @@ Add an implementation-mode state-only exit comparable to the existing
 proposed contract returns `mode` to `control-update`, must be permitted in
 `implementation` mode. Until that exists, treat `implementation` as unreachable.
 
-### OPS-027 — AGENTS.md and CLAUDE.md disagree about the handoff protocol
+### Handoff-protocol mismatch — AGENTS.md and CLAUDE.md disagree (no registry ID yet; formerly reserved as `OPS-027`, WITHDRAWN)
 
 `AGENTS.md:114` requires `npm run health:probe` as step 1 of the handoff protocol, and
 that command writes `docs/PROJECT-HEALTH-DASHBOARD.md`. The current `CLAUDE.md` on `main`
@@ -973,7 +975,7 @@ blockers tracked nowhere at all:
 | identifier | what it is | registered? |
 |---|---|---|
 | **none yet** | implementation mode was a one-way door with no agent-reachable exit; FIXED by #638 | NO — needs an authorized documentation packet |
-| **OPS-027** (reserved) | `AGENTS.md:114` requires a `health:probe` dashboard refresh for a handoff; the current `CLAUDE.md` does not | NO — needs an authorized documentation packet |
+| **none yet** (the `OPS-027` reservation is WITHDRAWN) | `AGENTS.md:114` requires a `health:probe` dashboard refresh for a handoff; the current `CLAUDE.md` does not | NO — registered by A2 under an unused ID |
 
 **Correction 2026-09-22 — the OPS-026 reservation is WITHDRAWN.** It was recorded here as
 unused because it was absent from the registry on `main`. That check was too narrow:
@@ -982,14 +984,19 @@ unused because it was absent from the registry on `main`. That check was too nar
 reusing it would conflate two unrelated issues in every search and closure record. The
 one-way-door defect therefore carries no registry ID until a separately authorized
 documentation packet allocates a genuinely unused one, and no state-only update allocates
-one. `OPS-027` has no prior use anywhere in the tree on `main` and stays reserved.
+one.
 
-**Part of the same unblock.** When the implementation-mode exit is merged and a documentation lane is
-authorized, the first packet through it allocates an unused ID for the one-way-door defect,
-registers it and `OPS-027` properly, propagates every derived summary, and replaces the
-descriptions above with references. Until then this section is knowingly in
-violation of the single-ID invariant, and saying so is better than quietly appearing to
-comply.
+**Correction 2026-09-22 — the `OPS-027` reservation is also WITHDRAWN.** It was checked only against the
+tree on `main`. Open PR #599 (`fix/r2-policy-reevaluation-2026-08-10`, opened 2026-08-10) defines
+`OPS-026`, `OPS-027` and `OPS-028` in its registry changes as R2 media-sync issues, verified by reading the
+registry file on that branch. Reusing any of the three would give one ID two meanings. The
+handoff-protocol mismatch therefore has no registry ID until A2 allocates an unused one.
+
+**Registered by A2.** A2 is the first authorized documentation lane. It registers all three
+governance debts — the one-way-door defect (FIXED by #638), the handoff-protocol mismatch, and the
+2026-09-22 governance incident — under three distinct unused `OPS-` IDs, propagates every derived
+summary, and the state-only exit then replaces the descriptions above with references. Until A2's
+exit merges this section is knowingly outside the single-ID invariant, and says so.
 
 ## Current packet — `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22` (A2)
 
@@ -1012,11 +1019,13 @@ raw_data metadata" would be a second opinion beside `RAW_DATA_KEEP_FIELDS` and i
 correction of the PCT/`raw_data_only` cause; the remaining `delivery_url_refreshed` media concern; and
 the post-7B production WAL/history trend as UNVERIFIED (not re-measured). (3) Update every derived
 summary in the same PR (Issue Row, Priority Table, P0/P1 Summary, Evidence Scores, Dashboard). (4) Add
-`docs/operations/site-audit-handoff-2026-09-22.md` recording the reconciliation. (5) Register the
-2026-09-22 governance incident (below) in the Platform Issue Registry under one unused `OPS-` ID —
-chosen by a fresh census of the registry on every branch and of every PR title, body and comment at A2
-time — with its Evidence Score and every derived summary, and replace the incident's pending-ID wording
-in this file at the exit.
+`docs/operations/site-audit-handoff-2026-09-22.md` recording the reconciliation. (5) Register the three
+governance debts recorded in this file — the one-way-door defect (FIXED by #638), the handoff-protocol
+mismatch, and the 2026-09-22 governance incident — in the Platform Issue Registry under three distinct
+unused `OPS-` IDs, each with its Evidence Score and every derived summary. "Unused" is decided by a
+fresh census at A2 time of the registry on every branch and of every PR title, body and comment; it
+excludes `OPS-026`, `OPS-027` and `OPS-028` (defined on open PR #599). The state-only exit replaces the
+pending-ID wording in this file with those IDs.
 
 **Not allowed.** `OPS-010A` marked FIXED or CLOSED; any new algorithm or second raw_data allowlist;
 any behaviour change; schema, database, Vercel, environment, Neon or Cotality change.
