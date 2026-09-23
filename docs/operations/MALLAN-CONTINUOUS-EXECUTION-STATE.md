@@ -605,7 +605,7 @@ The current mode is **`implementation`**, authorized for exactly one bounded pac
     "no_parallel_path_proof_required": true
   },
   "packet_id": "RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22",
-  "objective": "Reconcile OPS-010A and issue #574 with the already-merged August 7B architecture (cbf42cfc). Correct the stale pre-7B PCT comments in lib/idx/write-suppression.ts (:642-651, :681-694) and lib/idx/sync.ts (:1779-1784) (comment only, no behaviour change); update OPS-010A to separate the July historical measurement, the 7B structural correction of the PCT/raw_data_only cause, the remaining delivery_url_refreshed concern, and the post-7B production trend as UNVERIFIED; update every derived summary; add the dated handoff; register three governance debts (the one-way-door defect, the handoff-protocol mismatch, the 2026-09-22 governance incident) under three distinct unused OPS IDs, excluding OPS-026/027/028 (defined on open PR #599), with their derived summaries. OPS-010A stays OPEN. No new algorithm, no second raw_data allowlist (RAW_DATA_KEEP_FIELDS stays the sole retention authority), no schema, database, Vercel, environment, Neon or Cotality change.",
+  "objective": "Reconcile OPS-010A and issue #574 with the already-merged August 7B architecture (cbf42cfc). Correct the stale pre-7B PCT comments in lib/idx/write-suppression.ts (:642-651, :681-694) and lib/idx/sync.ts (:1779-1784) (comment only, no behaviour change); update OPS-010A to separate the July historical measurement, the 7B structural correction of the PCT/raw_data_only cause, the remaining delivery_url_refreshed concern, and the post-7B production trend as UNVERIFIED; update every derived summary; add the dated handoff; promote three evidence items recorded in the Execution State (the implementation-mode one-way door, the handoff-protocol mismatch, the 2026-09-22 governance incident) into the Platform Issue Registry as new issues under three distinct unused OPS IDs, excluding OPS-026/027/028 (defined on open PR #599), updating every derived summary in the same PR. OPS-010A stays OPEN. No new algorithm, no second raw_data allowlist (RAW_DATA_KEEP_FIELDS stays the sole retention authority), no schema, database, Vercel, environment, Neon or Cotality change.",
   "impact_graph": {
     "root_owner_paths": [
       "MALLAN-PLATFORM-MASTER-PLAN.md",
@@ -847,7 +847,8 @@ Do not create another status file because this one becomes inconvenient.
 below). Everything else in this section that describes an earlier packet is history. Governance
 activation is COMPLETE, the implementation-mode one-way door is CLOSED (#638), and the artifact trace
 ledger below remains the program: every Vercel/Neon/database/MCP/branch artifact ends FIXED, MERGED
-or DELETED; nothing ends UNVERIFIED. A governance incident from 2026-09-22 is recorded below.**
+or DELETED; nothing ends UNVERIFIED. Evidence of a 2026-09-22 governance incident is recorded below as
+non-canonical evidence that A2 promotes to the Platform Issue Registry.**
 
 ## What is verified complete
 
@@ -912,15 +913,23 @@ implementation lane needs its own control update naming its branch, its paths an
 A2 ("Current packet") is exactly such a lane and IS authorized by this update. Widening any envelope
 from inside the implementation PR it governs would be the self-authorization the gate exists to prevent.
 
-## CLOSED 2026-09-22 — implementation mode was a one-way door (no registry ID yet; see Registry debt below)
+## Evidence pending promotion — three governance observations (NON-CANONICAL)
 
-**Fixed by #638 (`f53b099a`).** Implementation mode now permits exactly one state change: a PR
-whose only changed path is this file and whose proposed contract returns `mode` to
-`control-update`. Seven tests prove the exit and its refusals (re-scoping in place, jumping to
-maintenance, carrying code, a malformed contract, a re-anchored base) and a full round trip; six
-fail against the previous controller and each guard fails its own test when removed.
+**This file does not define these observations as canonical platform issues.** Their evidence is
+preserved below and in #638/#640 and the dated execution history. A2 ("Current packet") is authorized to
+promote the three verified observations — the implementation-mode one-way door, the handoff-protocol
+mismatch, and the 2026-09-22 governance incident (next section) — into the Platform Issue Registry. From
+the moment A2 merges, only those Registry rows and their `OPS-` IDs define them. This file carries no
+issue status, priority or remediation for them, and so holds no parallel issue definition that would
+need reconciling after A2.
 
-The history below is kept as the record of what the defect was.
+### Evidence: the implementation-mode one-way door (corrected by #638, `f53b099a`)
+
+#638 made implementation mode permit exactly one state change: a PR whose only changed path is this file
+and whose proposed contract returns `mode` to `control-update`. Seven tests prove the exit and its
+refusals (re-scoping in place, jumping to maintenance, carrying code, a malformed contract, a re-anchored
+base) and a full round trip; six fail against the previous controller, and each guard fails its own test
+when removed. `main` never entered `implementation` mode before #638, so nothing was trapped.
 
 Found by review on 2026-09-20 while attempting to open a documentation lane for the dated
 handoff, and demonstrated rather than reasoned. A fixture was built whose base Execution
@@ -952,12 +961,7 @@ gate exit code: 1
 The result is a closed loop with no agent-reachable escape. The repository would be able
 to change exactly the files in that one envelope, permanently.
 
-### Position after #638
-
-`main` never entered `implementation` mode, so nothing was ever trapped, and the trap no longer
-exists. #639 (`b0ab6264`) returned `main` to `control-update`.
-
-### What this changes about the order of work
+### Execution history of the exit (#637–#639)
 
 `authority-root` activation is done, so the maintenance mode that can amend the controller is
 reachable. The order is now fixed:
@@ -978,42 +982,13 @@ contemporaneous evidence while clearly marking its superseded operational instru
 current authority by verbatim republication. The item stays OPEN on the ledger until that reconciliation
 lands; its target terminal disposition, FIXED as historical evidence, is reached only then.
 
-### Required fix — MERGED 2026-09-22 as packet `GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22` (#638)
+### Evidence: the handoff-protocol mismatch
 
-Add an implementation-mode state-only exit comparable to the existing
-`control-root-maintenance` exit: a PR whose ONLY changed path is this file, and whose
-proposed contract returns `mode` to `control-update`, must be permitted in
-`implementation` mode. Until that exists, treat `implementation` as unreachable.
+`AGENTS.md:114` makes `npm run health:probe` step 1 of the handoff protocol; that command writes
+`docs/PROJECT-HEALTH-DASHBOARD.md`. `CLAUDE.md` on `main` contains no `health:probe` requirement (0
+occurrences, re-read 2026-09-22). The two files disagree on the protocol.
 
-### Handoff-protocol mismatch — AGENTS.md and CLAUDE.md disagree (no registry ID yet; formerly reserved as `OPS-027`, WITHDRAWN)
-
-`AGENTS.md:114` requires `npm run health:probe` as step 1 of the handoff protocol, and
-that command writes `docs/PROJECT-HEALTH-DASHBOARD.md`. The current `CLAUDE.md` on `main`
-carries no such requirement. Two files that are supposed to move together disagree.
-Recorded rather than silently resolved. Any future documentation envelope must authorize
-the dashboard as well as the handoff, or the documented protocol cannot be followed.
-
-### Registry debt — no ID reserved; three governance debts registered by A2
-
-`AGENTS.md` carries two invariants that this section did not satisfy before A2 (HISTORY; A2 registers
-the debts below):
-
-- **Single-ID:** every issue has exactly one ID defined in the Platform Issue Registry,
-  and all other documents reference the ID instead of duplicating the description.
-- **Derived-summary:** changing any issue requires updating every derived summary in the
-  same PR — Issue Row, Priority Table, P0/P1 Summary, Dashboard, Handoff.
-
-Both require writing `docs/PLATFORM-ISSUE-REGISTRY.md`, `docs/PROJECT-HEALTH-DASHBOARD.md`
-and a handoff file. HISTORY: every one of those needed `implementation` mode, which was the one-way door
-above, so the remedy was blocked by the defect it would document. #638 closed the door and A2 is the lane.
-
-So the descriptions live here, temporarily, because the alternative is leaving two active
-blockers tracked nowhere at all:
-
-| identifier | what it is | registered? |
-|---|---|---|
-| **none yet** | implementation mode was a one-way door with no agent-reachable exit; FIXED by #638 | NO — needs an authorized documentation packet |
-| **none yet** (the `OPS-027` reservation is WITHDRAWN) | `AGENTS.md:114` requires a `health:probe` dashboard refresh for a handoff; the current `CLAUDE.md` does not | NO — registered by A2 under an unused ID |
+### Evidence: registry-ID history for these observations
 
 **Correction 2026-09-22 — the OPS-026 reservation is WITHDRAWN.** It was recorded here as
 unused because it was absent from the registry on `main`. That check was too narrow:
@@ -1029,26 +1004,6 @@ tree on `main`. Open PR #599 (`fix/r2-policy-reevaluation-2026-08-10`, opened 20
 `OPS-026`, `OPS-027` and `OPS-028` in its registry changes as R2 media-sync issues, verified by reading the
 registry file on that branch. Reusing any of the three would give one ID two meanings. The
 handoff-protocol mismatch therefore has no registry ID until A2 allocates an unused one.
-
-**Registered by A2 — and the registry governs from the moment A2 merges.** A2 is the first authorized
-documentation lane. It registers all three governance debts — the one-way-door defect (FIXED by #638),
-the handoff-protocol mismatch, and the 2026-09-22 governance incident — under three distinct unused
-`OPS-` IDs and propagates every derived summary in the registry, the dashboard and the handoff.
-
-**Standing rule for the interval, written now so this file is correct both before and after A2 merges:**
-once A2 is merged, the Platform Issue Registry rows it creates are the single canonical definition of
-these three issues. The descriptions in this section and in the governance incident below are then
-SUPERSEDED by those rows and stand only as the evidence trail, until the state-only exit replaces them
-with ID references. Any reader who finds an A2 registry row for one of these issues must treat that
-row, not this section, as the issue's definition and status.
-
-**Why the replacement cannot be atomic (structural, recorded).** The controller refuses any change to
-this file inside an implementation PR (`scripts/ci/mallan-execution-control.mjs:1504-1506`) — the
-protection against a packet rewriting its own authority. The registry change and this file's ID
-references therefore cannot land in the same PR; the standing rule above is what keeps the single-ID
-invariant true across the interval. The same structure applies to every future registry packet. It is a
-property of the gate, recorded alongside the Master-amendment gap (ledger row 19), not a defect of A2.
-
 ## Current packet — `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22` (A2)
 
 **Sequence (Maya, 2026-09-22).** A1 this state-only authorization → A2 the bounded reconciliation PR →
@@ -1076,13 +1031,14 @@ dated history. (2) Update `OPS-010A` in
 correction of the PCT/`raw_data_only` cause; the remaining `delivery_url_refreshed` media concern; and
 the post-7B production WAL/history trend as UNVERIFIED (not re-measured). (3) Update every derived
 summary in the same PR (Issue Row, Priority Table, P0/P1 Summary, Evidence Scores, Dashboard). (4) Add
-`docs/operations/site-audit-handoff-2026-09-22.md` recording the reconciliation. (5) Register the three
-governance debts recorded in this file — the one-way-door defect (FIXED by #638), the handoff-protocol
-mismatch, and the 2026-09-22 governance incident — in the Platform Issue Registry under three distinct
-unused `OPS-` IDs, each with its Evidence Score and every derived summary. "Unused" is decided by a
-fresh census at A2 time of the registry on every branch and of every PR title, body and comment; it
-excludes `OPS-026`, `OPS-027` and `OPS-028` (defined on open PR #599). The state-only exit replaces the
-pending-ID wording in this file with those IDs.
+`docs/operations/site-audit-handoff-2026-09-22.md` recording the reconciliation. (5) Promote the three
+evidence items recorded in this file ("Evidence pending promotion" and the 2026-09-22 governance
+incident) into the Platform Issue Registry as three new issues under three distinct unused `OPS-` IDs,
+each with its Evidence Score, and update every derived summary — Priority Table, P0/P1 Summary,
+Dashboard, Handoff — in the same PR. "Unused" is decided by a fresh census at A2 time of the registry
+on every branch and of every PR title, body and comment; it excludes `OPS-026`, `OPS-027` and `OPS-028`
+(defined on open PR #599). The exit (A3) only records A2's merge and returns `mode` to `control-update`;
+no issue-definition reconciliation is needed there, because this file defines none.
 
 **Not allowed.** `OPS-010A` marked FIXED or CLOSED; any new algorithm or second raw_data allowlist;
 any behaviour change; schema, database, Vercel, environment, Neon or Cotality change.
@@ -1095,7 +1051,7 @@ statement claims post-7B production churn is fixed without a fresh measurement.
 **Exit.** After merge, a state-only PR returns `mode` to `control-update` (the #638 exit), recording the
 merge and #574's closure.
 
-## GOVERNANCE INCIDENT 2026-09-22 — provider mutations outside an authorized Git packet
+## Evidence — 2026-09-22 governance incident: provider mutations outside an authorized Git packet (NON-CANONICAL; A2 promotes it to the Registry)
 
 **Rule.** `AGENTS.md:53`: "Environment/resource/Neon control-plane mutations require the active Git
 packet plus Maya's explicit authorization." `CLAUDE.md` §A.7 likewise requires provider mutations to
@@ -1134,13 +1090,10 @@ such a credential would mean issuing a new one.
 carry a named Vercel or GitHub-secret mutation with before/after proof. The two-gate rule therefore
 has no compliant execution path today, and a directed change had nowhere lawful to go.
 
-**Remediation (open).** (1) This record. (2) A canonical registry ID for the incident, allocated and
-registered by the A2 packet authorized here (none is allocated in this state-only update); from A2's
-merge, that registry row governs and this incident text is its evidence trail (see "Registered by A2"). (3) No further provider mutation
-until a compliant path exists: the remaining provider dispositions (B, the stale GitHub secrets and
-environments, branch scopes, `VERCEL_TOKEN`) are held. (4) Maya to decide the compliant mechanism —
-for example a packet type whose base contract names each provider mutation and whose PR carries the
-before/after evidence, or a dedicated GitHub workflow — before any of those dispositions executes.
+**Execution hold (a control of this file, not an issue status).** No further provider mutation runs
+until Maya decides a compliant mechanism — for example a packet type whose base contract names each
+provider mutation and whose PR carries the before/after evidence, or a dedicated GitHub workflow. Held
+until then: B, the stale GitHub secrets and environments, the branch scopes, `VERCEL_TOKEN`.
 
 ## Live evidence and actions — 2026-09-22, after #639
 
