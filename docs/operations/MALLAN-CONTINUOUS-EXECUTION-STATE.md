@@ -574,6 +574,7 @@ The current mode is **`implementation`**, authorized for exactly one bounded pac
   "base_branch": "main",
   "authorized_paths": [
     "lib/idx/write-suppression.ts",
+    "lib/idx/sync.ts",
     "docs/PLATFORM-ISSUE-REGISTRY.md",
     "docs/PROJECT-HEALTH-DASHBOARD.md",
     "docs/operations/site-audit-handoff-2026-09-22.md"
@@ -604,7 +605,7 @@ The current mode is **`implementation`**, authorized for exactly one bounded pac
     "no_parallel_path_proof_required": true
   },
   "packet_id": "RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22",
-  "objective": "Reconcile OPS-010A and issue #574 with the already-merged August 7B architecture (cbf42cfc). Correct the stale pre-7B comment in lib/idx/write-suppression.ts (comment only, no behaviour change); update OPS-010A to separate the July historical measurement, the 7B structural correction of the PCT/raw_data_only cause, the remaining delivery_url_refreshed concern, and the post-7B production trend as UNVERIFIED; update every derived summary; add the dated handoff; register three governance debts (the one-way-door defect, the handoff-protocol mismatch, the 2026-09-22 governance incident) under three distinct unused OPS IDs, excluding OPS-026/027/028 (defined on open PR #599), with their derived summaries. OPS-010A stays OPEN. No new algorithm, no second raw_data allowlist (RAW_DATA_KEEP_FIELDS stays the sole retention authority), no schema, database, Vercel, environment, Neon or Cotality change.",
+  "objective": "Reconcile OPS-010A and issue #574 with the already-merged August 7B architecture (cbf42cfc). Correct the stale pre-7B PCT comments in lib/idx/write-suppression.ts (:642-651, :681-694) and lib/idx/sync.ts (:1779-1784) (comment only, no behaviour change); update OPS-010A to separate the July historical measurement, the 7B structural correction of the PCT/raw_data_only cause, the remaining delivery_url_refreshed concern, and the post-7B production trend as UNVERIFIED; update every derived summary; add the dated handoff; register three governance debts (the one-way-door defect, the handoff-protocol mismatch, the 2026-09-22 governance incident) under three distinct unused OPS IDs, excluding OPS-026/027/028 (defined on open PR #599), with their derived summaries. OPS-010A stays OPEN. No new algorithm, no second raw_data allowlist (RAW_DATA_KEEP_FIELDS stays the sole retention authority), no schema, database, Vercel, environment, Neon or Cotality change.",
   "impact_graph": {
     "root_owner_paths": [
       "MALLAN-PLATFORM-MASTER-PLAN.md",
@@ -1039,9 +1040,15 @@ and moves invalidation to the media path (`lib/idx/__tests__/commit7-write-matri
 Every #574 requirement is IMPLEMENTED or SUPERSEDED; its July "closed allowlist of non-business
 raw_data metadata" would be a second opinion beside `RAW_DATA_KEEP_FIELDS` and is not preserved.
 
-**Allowed.** (1) Correct the stale pre-7B paragraph in `lib/idx/write-suppression.ts` (currently
-`:642-651`, which says PCT "is NOT here" and that the replacement is "NOT done here", contradicting
-`:360-380` and `listing-change-classification.test.ts:196`) — comment only. (2) Update `OPS-010A` in
+**Allowed.** (1) Correct every stale pre-7B PCT comment found by a sweep of all PCT mentions in non-test
+`lib/` and `app/` code — comment only, no behaviour: `lib/idx/write-suppression.ts:642-651` (says PCT "is
+NOT here" and the replacement is "NOT done here", contradicting `:360-380` and
+`listing-change-classification.test.ts:196`); `lib/idx/write-suppression.ts:681-694` (the
+`changedRawDataMaterialKeys` doc lists `PhotosChangeTimestamp` as a reported content key, contradicting the
+canonicalizer and `changed-raw-data-keys.test.ts:142-151`); and `lib/idx/sync.ts:1779-1784` (says the
+PCT-drift eligibility rows "re-enter this SELECT on every cron pass", while `:1804` of the same function
+records that branch REMOVED in 7B-2B). Every other PCT mention in that sweep is current architecture or
+dated history. (2) Update `OPS-010A` in
 `docs/PLATFORM-ISSUE-REGISTRY.md` to separate: the July historical measurement; the 7B structural
 correction of the PCT/`raw_data_only` cause; the remaining `delivery_url_refreshed` media concern; and
 the post-7B production WAL/history trend as UNVERIFIED (not re-measured). (3) Update every derived
@@ -1059,7 +1066,7 @@ any behaviour change; schema, database, Vercel, environment, Neon or Cotality ch
 
 **Required proof.** The diff shows `RAW_DATA_KEEP_FIELDS` untouched and still the sole retention
 authority; the `lib/idx/write-suppression.ts` change touches comment lines only (no executable token
-changes); the behaviour tests are unchanged and green; every `OPS-010A` derived summary agrees; no
+changes) and the same holds for `lib/idx/sync.ts`; the behaviour tests are unchanged and green; every `OPS-010A` derived summary agrees; no
 statement claims post-7B production churn is fixed without a fresh measurement.
 
 **Exit.** After merge, a state-only PR returns `mode` to `control-update` (the #638 exit), recording the
