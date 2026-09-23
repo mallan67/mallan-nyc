@@ -954,9 +954,12 @@ reachable. The order is now fixed:
 
 HISTORY: before this update no documentation lane was authorized. A2 ("Current packet") now authorizes
 the registry, the dashboard and the 2026-09-22 handoff. The one documentation artifact still outside any
-authorized lane is the dated 2026-09-20 handoff (`docs/operations/site-audit-handoff-2026-09-20.md`): its
-content is written and posted on PR #632 (comment `5752722341`); it is NOT in A2's envelope and stays on
-the ledger until a lane commits it verbatim.
+authorized lane is the dated 2026-09-20 handoff (`docs/operations/site-audit-handoff-2026-09-20.md`). It is
+a historical-evidence ledger item, durable on PR #632 (comment `5752722341`), and NOT in A2's envelope. A future
+authorized documentation lane must reconcile that handoff into a dated historical record, preserving its
+contemporaneous evidence while clearly marking its superseded operational instructions (for example
+"activate `authority-root`" and the then-pending Neon credential cleanup) as historical. It must not become
+current authority by verbatim republication. Terminal disposition: FIXED as historical evidence.
 
 ### Required fix — MERGED 2026-09-22 as packet `GOVERNANCE-IMPLEMENTATION-MODE-EXIT-2026-09-22` (#638)
 
