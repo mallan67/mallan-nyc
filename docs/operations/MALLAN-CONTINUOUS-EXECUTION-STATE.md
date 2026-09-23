@@ -1075,13 +1075,26 @@ executed OUTSIDE an authorized Git packet — see the governance incident above.
 
 **Verified identity.** `vercel integration list` and the Vercel-issued SSO link: resource
 `neon-green-school` = `store_K9l79ICRUTMsiRh2` = Neon project `hidden-mountain-87248164`, configuration
-`icfg_lar0h3LbNNUl2WgrW1w5TMM0`: the Vercel-managed Neon resource bound to `mallan-nyc`. Exact scope of the
-wider census, 2026-09-22, CLI under Maya's login: `vercel teams ls` shows one team, `mallan`;
-`vercel project ls --scope mallan` returns five projects (`mallan-nyc`, `mayaallan`, `sabre-mcp-private`,
-`mallan-sabre-mcp`, `stocks-information-tracker`); `vercel integration list --all --scope mallan` returns five
-Marketplace resources, of which `neon-green-school` is the only Neon one (the other four are Supabase:
-`supabase-indigo-kite` bound to `mayaallan`, three suspended and unbound). Whether either list is paginated
-beyond what the CLI printed is not established. `mallan-nyc-syyb` is absent from the project census.
+`icfg_lar0h3LbNNUl2WgrW1w5TMM0`: the Vercel-managed Neon resource bound to `mallan-nyc`.
+
+**Vercel inventory surface discrepancy — root cause UNVERIFIED.** Three reads of the same team on
+2026-09-22 returned three different project censuses, and none is discarded:
+
+| surface | query | projects returned |
+|---|---|---|
+| authenticated CLI (Maya's login) | `vercel project ls --scope mallan` | 5: `mallan-nyc`, `mayaallan`, `sabre-mcp-private`, `mallan-sabre-mcp`, `stocks-information-tracker` |
+| connected Vercel `list_projects`, agent session | `teamId=team_kZQh5NYLyrOKqffK0r9EXf4E`, `limit=50` | 2: `mallan-nyc`, `mayaallan` (`count: 2`) |
+| connected Vercel `list_projects`, reviewer session | same team ID | 1: `mallan-nyc` (`count: 1`) |
+
+`vercel teams ls` (CLI) shows one team, `mallan`. The cause of the differences is not established; the
+connector is known to lack some team-level reads (integration configuration returned 403/404), which
+is a hypothesis, not an explanation. `mallan-nyc-syyb` is absent from every observed project inventory.
+
+Separately, the CLI `vercel integration list --all --scope mallan` returned five Marketplace resources, and
+`neon-green-school` is the only Neon resource in that CLI enumeration (the other four are Supabase:
+`supabase-indigo-kite` bound to `mayaallan`, three suspended and unbound). The connected Vercel tool exposes
+no equivalent Marketplace-resource census, so this is recorded as CLI evidence, not independently
+duplicated. Whether any of these lists is paginated beyond what was printed is not established.
 
 **Database targets (endpoint identifiers only).** Production: every bare and `database_*` connection →
 `ep-cold-waterfall-adno3ao2`. Development: bare `DATABASE_URL*` → `ep-cold-waterfall-adno3ao2`
