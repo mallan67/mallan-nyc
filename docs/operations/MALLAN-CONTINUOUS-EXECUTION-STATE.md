@@ -605,33 +605,51 @@ The current mode is **`implementation`**, authorized for exactly one bounded pac
     "root_owner_paths": [
       "MALLAN-PLATFORM-MASTER-PLAN.md",
       "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md",
-      "lib/compliance/raw-data-keep-fields.ts"
+      "lib/compliance/raw-data-keep-fields.ts",
+      "AGENTS.md",
+      "CLAUDE.md"
     ],
     "writer_paths": [
       "lib/idx/write-suppression.ts",
-      "lib/idx/trestle-mapper.ts"
+      "lib/idx/trestle-mapper.ts",
+      "scripts/ci/mallan-execution-control.mjs",
+      "scripts/health/probe.ts"
     ],
     "reader_paths": [
       "lib/idx/sync.ts",
-      "lib/idx/trestle-mapper.ts"
+      "lib/idx/trestle-mapper.ts",
+      "AGENTS.md",
+      "CLAUDE.md",
+      ".github/workflows/pr-check.yml",
+      ".github/workflows/authority-root.yml",
+      "scripts/health/health-status.ts"
     ],
     "publisher_paths": [
       "docs/PLATFORM-ISSUE-REGISTRY.md",
-      "docs/PROJECT-HEALTH-DASHBOARD.md"
+      "docs/PROJECT-HEALTH-DASHBOARD.md",
+      ".github/workflows/pr-check.yml",
+      ".github/workflows/authority-root.yml"
     ],
     "downstream_surfaces": [
       "idx-sync listing write suppression and change classification (behaviour unchanged)",
       "Platform Issue Registry OPS-010A and its derived summaries",
-      "issue #574 disposition after merge"
+      "issue #574 disposition after merge",
+      "one-way-door defect: GitHub merge eligibility of every implementation packet and its state-only exit (controller, pr-check, authority-root)",
+      "handoff-protocol mismatch: every agent session's handoff (AGENTS.md:114 health:probe step vs CLAUDE.md), the dashboard auto tier written by scripts/health/probe.ts",
+      "governance incident: the provider-mutation authorization boundary (AGENTS.md:53 two-gate rule, CLAUDE.md §A.7) and the GitHub/Vercel credential stores it concerns"
     ],
     "test_paths": [
       "lib/idx/__tests__/listing-change-classification.test.ts",
       "lib/idx/__tests__/commit7-write-matrix.test.ts",
       "lib/idx/__tests__/pct-deprecation.test.ts",
-      "tests/runtime/phase3-write-suppression-sync.test.ts"
+      "tests/runtime/phase3-write-suppression-sync.test.ts",
+      "tests/runtime/mallan-execution-control.test.ts",
+      "tests/runtime/health-probe-status.test.ts",
+      "tests/runtime/agent-authority-live-source.test.ts"
     ],
     "compliance_surfaces": [
-      "UCBA Art. VIII §4 per-listing 'last updated' semantics documented in lib/idx/sync.ts — unchanged by a comment-only edit"
+      "UCBA Art. VIII §4 per-listing 'last updated' semantics documented in lib/idx/sync.ts — unchanged by a comment-only edit",
+      "Governance registry integrity (AGENTS.md single-ID and derived-summary invariants) — documentation only"
     ],
     "database_impact_chain": {
       "vercel_integration": [
@@ -854,10 +872,9 @@ authorized branch work/active may execute*. At the time of writing that is **22 
 none of them on `work/active`.
 
 This is the designed behaviour, not a defect: the control block authorizes one branch,
-`work/active`, and in its current `control-root-maintenance` envelope exactly two files, the
-controller `scripts/ci/mallan-execution-control.mjs` and its declared test
-`tests/runtime/mallan-execution-control.test.ts`. Implementation cannot resume until a control
-update opens a lane for it. It is
+`work/active`, and only the paths its current envelope names (today: packet A2, see "Current
+packet"). HISTORY: under #639 the envelope was `control-root-maintenance` with exactly the controller
+and its test. Any other implementation lane still needs its own control update. It is
 recorded here because it is a large, immediate change to how the repository behaves, it was
 not flagged at merge time, and a reader who finds their PR red needs to know the cause is the
 envelope rather than their code.
@@ -956,9 +973,10 @@ carries no such requirement. Two files that are supposed to move together disagr
 Recorded rather than silently resolved. Any future documentation envelope must authorize
 the dashboard as well as the handoff, or the documented protocol cannot be followed.
 
-### Registry debt — one ID RESERVED, one defect deliberately left without an ID
+### Registry debt — no ID reserved; three governance debts registered by A2
 
-`AGENTS.md` carries two invariants that this section currently cannot satisfy:
+`AGENTS.md` carries two invariants that this section did not satisfy before A2 (HISTORY; A2 registers
+the debts below):
 
 - **Single-ID:** every issue has exactly one ID defined in the Platform Issue Registry,
   and all other documents reference the ID instead of duplicating the description.
@@ -966,8 +984,8 @@ the dashboard as well as the handoff, or the documented protocol cannot be follo
   same PR — Issue Row, Priority Table, P0/P1 Summary, Dashboard, Handoff.
 
 Both require writing `docs/PLATFORM-ISSUE-REGISTRY.md`, `docs/PROJECT-HEALTH-DASHBOARD.md`
-and a handoff file. Every one of those needs `implementation` mode, which is the one-way door above. **The
-remedy is blocked by the defect it would document.**
+and a handoff file. HISTORY: every one of those needed `implementation` mode, which was the one-way door
+above, so the remedy was blocked by the defect it would document. #638 closed the door and A2 is the lane.
 
 So the descriptions live here, temporarily, because the alternative is leaving two active
 blockers tracked nowhere at all:
