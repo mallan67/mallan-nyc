@@ -582,7 +582,9 @@ The current mode is **`implementation`**, authorized for exactly one bounded pac
     "lib/idx/__tests__/changed-raw-data-keys.test.ts",
     "lib/idx/__tests__/sync-watermark.test.ts",
     "tests/runtime/idx-property-cursor-contract.test.ts",
-    "lib/compliance/raw-data-keep-fields.ts"
+    "lib/compliance/raw-data-keep-fields.ts",
+    "lib/idx/__tests__/backfill-eligibility.test.ts",
+    "tests/runtime/backfill-empty-media-reachability.test.ts"
   ],
   "allowed_new_files": [
     "docs/operations/site-audit-handoff-2026-09-22.md"
@@ -610,7 +612,7 @@ The current mode is **`implementation`**, authorized for exactly one bounded pac
     "no_parallel_path_proof_required": true
   },
   "packet_id": "RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22",
-  "objective": "Reconcile OPS-010A and issue #574 with the already-merged August 7B architecture (cbf42cfc). Close the stale PCT-authority chain: correct the stale PCT comments in lib/idx/write-suppression.ts (:642-651, :681-694), lib/idx/sync.ts (:1779-1784, :1813-1819), lib/idx/__tests__/pct-deprecation.test.ts, lib/idx/__tests__/changed-raw-data-keys.test.ts and lib/compliance/raw-data-keep-fields.ts:183-186 (comment only, no behaviour change; RAW_DATA_KEEP_FIELDS and RAW_DATA_KEEP_SET element-for-element identical); delete lib/idx/__tests__/sync-watermark.test.ts (it tests a local copy of a retired algorithm and contradicts production) and add mutation-verified production tests of the Property cursor freeze on unpositionable records to tests/runtime/idx-property-cursor-contract.test.ts; update OPS-010A to separate the July historical measurement, the 7B structural correction of the PCT/raw_data_only cause, the remaining delivery_url_refreshed concern, and the post-7B production trend as UNVERIFIED; update every derived summary; add the dated handoff; promote three evidence items recorded in the Execution State (the implementation-mode one-way door, the handoff-protocol mismatch, the 2026-09-22 governance incident) into the Platform Issue Registry as new issues under three distinct unused OPS IDs, excluding OPS-026/027/028 (defined on open PR #599), updating every derived summary in the same PR. OPS-010A stays OPEN. No new algorithm, no second raw_data allowlist (RAW_DATA_KEEP_FIELDS stays the sole retention authority), no schema, database, Vercel, environment, Neon or Cotality change.",
+  "objective": "Reconcile OPS-010A and issue #574 with the already-merged August 7B architecture (cbf42cfc). Close the stale PCT-authority chain: correct the stale PCT comments in lib/idx/write-suppression.ts (:642-651, :681-694), lib/idx/sync.ts (:1779-1784, :1813-1819), lib/idx/__tests__/pct-deprecation.test.ts, lib/idx/__tests__/changed-raw-data-keys.test.ts and lib/compliance/raw-data-keep-fields.ts:183-186 (comment only, no behaviour change; RAW_DATA_KEEP_FIELDS and RAW_DATA_KEEP_SET element-for-element identical); delete lib/idx/__tests__/sync-watermark.test.ts and lib/idx/__tests__/backfill-eligibility.test.ts (each tests a local copy of a retired contract and imports no production code; the second models an unreachable function), correct only the describe title in tests/runtime/backfill-empty-media-reachability.test.ts and add mutation-verified production tests of the Property cursor freeze on unpositionable records to tests/runtime/idx-property-cursor-contract.test.ts; update OPS-010A to separate the July historical measurement, the 7B structural correction of the PCT/raw_data_only cause, the remaining delivery_url_refreshed concern, and the post-7B production trend as UNVERIFIED; update every derived summary; add the dated handoff; promote three evidence items recorded in the Execution State (the implementation-mode one-way door, the handoff-protocol mismatch, the 2026-09-22 governance incident) into the Platform Issue Registry as new issues under three distinct unused OPS IDs, excluding OPS-026/027/028 (defined on open PR #599), updating every derived summary in the same PR. OPS-010A stays OPEN. No new algorithm, no second raw_data allowlist (RAW_DATA_KEEP_FIELDS stays the sole retention authority), no schema, database, Vercel, environment, Neon or Cotality change.",
   "impact_graph": {
     "root_owner_paths": [
       "MALLAN-PLATFORM-MASTER-PLAN.md",
@@ -659,7 +661,8 @@ The current mode is **`implementation`**, authorized for exactly one bounded pac
       "governance incident: the provider-mutation authorization boundary (AGENTS.md:53 two-gate rule, CLAUDE.md §A.7) and the GitHub/Vercel credential stores it concerns",
       "PCT dimension owners and readers (comments only in A2; behaviour untouched): the media-sync PCT keyset cursor and media_sync_state.last_photos_change (lib/idx/media-sync.ts), feed-reconcile media writes, the one-cycle preflight source heads, and the listing/search invalidation paths; lib/idx/fetch.ts defines the separate MT-only Property cursor boundary and neither owns nor triggers PCT",
       "Property incremental cursor fail-closed rule: an unpositionable record freezes the keyset (lib/idx/sync.ts:680-693) — newly covered by production tests; behaviour unchanged",
-      "CI test integrity: an obsolete test of a local max(MT, PCT) copy (lib/idx/__tests__/sync-watermark.test.ts) removed from the root Jest run"
+      "CI test integrity: an obsolete test of a local max(MT, PCT) copy (lib/idx/__tests__/sync-watermark.test.ts) removed from the root Jest run",
+      "CI test integrity: a second self-contained test (lib/idx/__tests__/backfill-eligibility.test.ts), a copy of the unreachable backfillEmptyMedia predicate including its removed PCT clause, removed from the root Jest run"
     ],
     "test_paths": [
       "lib/idx/__tests__/listing-change-classification.test.ts",
@@ -672,7 +675,8 @@ The current mode is **`implementation`**, authorized for exactly one bounded pac
       "tests/runtime/idx-property-cursor-contract.test.ts",
       "tests/runtime/idx-keyset-cursor.test.ts",
       "lib/idx/__tests__/incremental-filter.test.ts",
-      "lib/idx/__tests__/changed-raw-data-keys.test.ts"
+      "lib/idx/__tests__/changed-raw-data-keys.test.ts",
+      "tests/runtime/backfill-empty-media-reachability.test.ts"
     ],
     "compliance_surfaces": [
       "UCBA Art. VIII §4 per-listing 'last updated' semantics documented in lib/idx/sync.ts — unchanged by a comment-only edit",
@@ -1040,7 +1044,7 @@ contradicting `:360-380` and `listing-change-classification.test.ts:196`); `lib/
 MT-only — its filter is built from `ModificationTimestamp` alone at `:468-473`, and `:380-405` records that
 PCT belongs to `runMediaSync`). Test comments — comment only: `lib/idx/__tests__/pct-deprecation.test.ts:11-15`
 (same `fetch.ts` OR claim) and `lib/idx/__tests__/changed-raw-data-keys.test.ts:27-29` ("the LIVE Property
-PCT still drives the incremental fetch filter"). Every other PCT mention in that sweep is current
+PCT still drives the incremental fetch filter"). Apart from the two tests in (1a) and (1b), every other PCT mention in that sweep is current
 architecture or dated history (for example `fetch.ts:386` and `incremental-filter.test.ts:7`, both marked
 as the superseded contract). Compliance comment — comment only: `lib/compliance/raw-data-keep-fields.ts:183-186`
 (says PCT freshness runs "Property.PhotosChangeTimestamp -> incremental source trigger -> complete media
@@ -1060,6 +1064,18 @@ keyset (`lib/idx/sync.ts:680-693`) — a rule no production-importing test exerc
 production tests of that freeze to `tests/runtime/idx-property-cursor-contract.test.ts` using its existing
 `syncListings` harness: missing MT, unparseable MT and missing ListingKey each leave the Property cursor
 unadvanced. Each new test must fail when the freeze is removed (mutation-verified).
+(1b) Test-integrity sweep: every test file on `main` was checked for importing no production code while
+mentioning PCT or claiming to mirror production. Exactly two match: `sync-watermark.test.ts` (1a) and
+`lib/idx/__tests__/backfill-eligibility.test.ts`. The latter hand-copies the `backfillEmptyMedia` eligibility
+predicate, including the PCT-drift clause (`:55-60`) that production removed (`lib/idx/sync.ts:1804-1811`; the
+live SQL at `:1837-1857` has no PCT clause), and omits production's gate and archived-row exclusions.
+`backfillEmptyMedia` has no caller, as `tests/runtime/backfill-empty-media-reachability.test.ts` proves. DELETE
+`backfill-eligibility.test.ts`; no replacement coverage is owed for an unreachable function, and the
+reachability pin is the correct guard. In that pin, correct only the `describe` title ("the stored-PCT
+dependency lives ONLY in that legacy function" describes a dependency that no longer exists) to say the
+predicate must never return outside the retired function; its assertions stay unchanged and green.
+`backfillEmptyMedia` itself, unreachable exported code, is NOT removed in A2 (that is a code change, not a
+comment) and is recorded as ledger row 21.
 (2) Update `OPS-010A` in
 `docs/PLATFORM-ISSUE-REGISTRY.md` to separate: the July historical measurement; the 7B structural
 correction of the PCT/`raw_data_only` cause; the remaining `delivery_url_refreshed` media concern; and
@@ -1083,8 +1099,9 @@ comment lines only, and `RAW_DATA_KEEP_FIELDS` stays the sole retention
 authority; the `lib/idx/write-suppression.ts` change touches comment lines only (no executable token
 changes) and the same holds for `lib/idx/sync.ts` and for both test-comment edits; the existing behaviour
 tests are unchanged and green; the new cursor-freeze tests pass and each fails when the freeze in
-`lib/idx/sync.ts:680-693` is removed; `sync-watermark.test.ts` is absent and every behaviour it claimed is
-either covered by a production-importing test or contradicted by production; every `OPS-010A` derived summary agrees; no
+`lib/idx/sync.ts:680-693` is removed; `sync-watermark.test.ts` and `backfill-eligibility.test.ts` are absent and every behaviour either claimed is
+covered by a production-importing test, contradicted by production, or unreachable in production; the
+reachability pin's assertions are byte-identical and green; every `OPS-010A` derived summary agrees; no
 statement claims post-7B production churn is fixed without a fresh measurement.
 
 **Exit.** After merge, a state-only PR returns `mode` to `control-update` (the #638 exit), recording the
@@ -1296,6 +1313,7 @@ documentation packet creates the canonical ID before any implementation acts on 
 | 18 | documentation claims corrected in this section (`NEON.md` Vercel database variable ownership; this file's §3 counts) | n/a — documentation | see Corrections | correct once the live evidence exists (documentation lane) | FIXED | `OPS-016` (NEON.md vs live Neon drift) for the NEON.md part; otherwise NONE — canonical ID required before remediation |
 | 19 | **No pull request can amend the Master.** `control-update` permits only the Execution State; `control-root-maintenance` authorizes only `IMMUTABLE_CONTROL_PATHS`, which excludes `MALLAN-PLATFORM-MASTER-PLAN.md`; `implementation` refuses Master changes (`scripts/ci/mallan-execution-control.mjs` L889-890, L1391, L1504-1506 on `main`) | n/a — governance control | VERIFIED from the controller source | design a bounded, base-authorized Master-amendment path with negative tests (control-root maintenance) | FIXED | NONE — evidence only; canonical ID required before remediation |
 | 20 | **Release Truth's bounded dependency wait can expire while its verdict is still DEPLOY_PENDING.** CORRECTED 2026-09-22: the one proven instance is run `35790568953` (#639 first head), where `pr-check` had already passed at 22:11:42Z and the wait expired ~22:19:31Z; the loop logs only the verdict, so which dependency was pending is not recorded. #637's first run is NOT an instance (its log ends after attempt 14 with no expiry line) | n/a — CI control | VERIFIED from the run logs | measure `pr-check` duration against the bounded wait; fix without letting Release Truth pass on a pending dependency | FIXED | NONE — evidence only; canonical ID required before remediation |
+| 21 | `backfillEmptyMedia` in `lib/idx/sync.ts` — exported, unreachable legacy code (no caller; `/api/cron/media-backfill` removed by PR #176 on 2026-05-21) | n/a — code artifact | VERIFIED: no non-test caller on `main`; `tests/runtime/backfill-empty-media-reachability.test.ts` pins that it is unreachable | prove no reader outside the pin, then remove the function with its reachability pin adjusted (a behavioural packet, not A2) | DELETED | NONE — evidence only; canonical ID required before remediation |
 Until each row closes, no agent may begin an environment change, credential removal, branch
 deletion or implementation packet except (a) as that row's separately authorized disposition, or (b) the
 packet named in "Current packet" (A2), which this control update authorizes; A2 is not a ledger
