@@ -6,7 +6,7 @@
 > This file records current verified execution state and the machine-readable authorization envelope
 > consumed by the required GitHub PR check. It may not redefine the Master.
 
-**Checkpoint:** 2026-09-22 — governance activation and the implementation-mode exit (#638) recorded; the SHAs below still describe the 2026-09-20 #632 checkpoint  
+**Checkpoint:** 2026-09-24 — A2 paused before execution by a factual contradiction and implementation mode exited through the #638 exit (§11 "A2 paused — contradiction"); 2026-09-22 governance activation and #638 recorded; the SHAs below still describe the 2026-09-20 #632 checkpoint  
 **Repository:** `mallan67/mallan-nyc` only  
 **Canonical branch:** `main`  
 **Main at this checkpoint:** `005786e71818ef13f555111de67e3d6248412987` — the PR #632 merge
@@ -333,7 +333,8 @@ correction commit invalidates the prior exact-head proof and must rerun the chai
 The current sequence is governance-first. Provider cleanup and product implementation are stopped
 until the execution boundary is real.
 
-**Position as of 2026-09-22: items 1 to 7a are COMPLETE. The CURRENT packet is item 7b (A2). Item 8, the
+**Position as of 2026-09-24: items 1 to 7a are COMPLETE. Item 7b (A2) is PAUSED before execution (a contradiction in its base
+text; §11 "A2 paused — contradiction"); the next packet is its state-only re-authorization. Item 8, the
 trace-to-closure program in §11, continues alongside it as a read-only investigation; its provider
 mutations are held (see the §11 governance incident).**
 
@@ -400,9 +401,9 @@ mutations are held (see the §11 governance incident).**
    - **DONE 2026-09-22.** #637 authorized the packet (merged `d7bcc1d8`); #638 delivered it (merged
      `f53b099a` from reviewed head `00bd788a`, `pr-check` and `authority-root` required and green,
      zero threads). #639 (`b0ab6264`) was the state-only exit back to `control-update`. Details in §11.
-7b. **CURRENT PACKET — `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22` (A2), authorized by this control
-   update.** Scope, prohibitions and proof are in §11 "Current packet"; it exits through the #638
-   implementation-mode state-only exit.
+7b. **NEXT PACKET — `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22` (A2), PAUSED 2026-09-24 before execution.** No A2 change was pushed.
+   It resumes only after a state-only control update re-authorizes the same envelope with the corrected
+   fact (§11 "A2 paused — contradiction"). Scope, prohibitions and proof are in §11 "Paused packet".
 8. **IN PROGRESS (not the active packet) — the trace-to-closure program in §11, read-only; provider mutations held.** One Vercel control-plane reconciliation packet over the existing `mallan-nyc → neon-green-school` connection, environment scopes, branch overrides and every DB/control reader/writer.
 9. **Only after that reconciliation may Development/Preview authority be designed.** No schema-only branch, second project, per-branch database or resource split is assumed in advance.
 10. **Cotality-dependent product work remains fail-closed until live provider proof is available through the authorized Cotality contract path.**
@@ -563,37 +564,21 @@ PR #632 was a one-time bootstrap exception because base `main` did not then cont
 It is merged and the exception is closed; base `main` now carries both authority files, so no
 PR can reach that branch again.
 
-The current mode is **`implementation`**, authorized for exactly one bounded packet, `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22` (§11). It exits through the implementation-mode state-only exit merged in #638. Code and scope expansion may not be combined into the same self-authorizing PR.
+The current mode is **`control-update`**: only this execution-state file may change. Implementation mode for A2 (`RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22`) was exited on 2026-09-24 through the implementation-mode state-only exit merged in #638 — its first real use — because A2's base text contradicted live evaluation (§11 "A2 paused — contradiction"). Code and scope expansion may not be combined into the same self-authorizing PR.
 
 <!-- MALLAN_EXECUTION_CONTROL_V1_START -->
 ```json
 {
   "version": 1,
-  "mode": "implementation",
+  "mode": "control-update",
   "authorized_branch": "work/active",
   "base_branch": "main",
   "authorized_paths": [
-    "lib/idx/write-suppression.ts",
-    "lib/idx/sync.ts",
-    "lib/idx/media-sync.ts",
-    "docs/PLATFORM-ISSUE-REGISTRY.md",
-    "docs/PROJECT-HEALTH-DASHBOARD.md",
-    "docs/operations/site-audit-handoff-2026-09-22.md",
-    "lib/idx/__tests__/pct-deprecation.test.ts",
-    "lib/idx/__tests__/changed-raw-data-keys.test.ts",
-    "lib/idx/__tests__/sync-watermark.test.ts",
-    "tests/runtime/idx-property-cursor-contract.test.ts",
-    "lib/compliance/raw-data-keep-fields.ts",
-    "lib/idx/__tests__/backfill-eligibility.test.ts",
-    "tests/runtime/backfill-empty-media-reachability.test.ts"
+    "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
   ],
-  "allowed_new_files": [
-    "docs/operations/site-audit-handoff-2026-09-22.md"
-  ],
+  "allowed_new_files": [],
   "impact_domains": [
-    "governance",
-    "documentation",
-    "idx-sync"
+    "governance"
   ],
   "provider_proof_required": [],
   "production_mutation_authorized": false,
@@ -612,116 +597,41 @@ The current mode is **`implementation`**, authorized for exactly one bounded pac
     "compliance_proof_required_when_applicable": true,
     "no_parallel_path_proof_required": true
   },
-  "packet_id": "RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22",
-  "objective": "Reconcile OPS-010A and issue #574 with the already-merged August 7B architecture (cbf42cfc). Close the stale PCT-authority chain: correct the stale PCT comments in lib/idx/write-suppression.ts (:642-651, :681-694), lib/idx/sync.ts (:1762-1767, :1779-1784, :1813-1819, :2016), the stale migrateMediaToR2 caller comments in lib/idx/media-sync.ts, lib/idx/__tests__/pct-deprecation.test.ts, lib/idx/__tests__/changed-raw-data-keys.test.ts and lib/compliance/raw-data-keep-fields.ts:183-186 (comment only, no behaviour change; RAW_DATA_KEEP_FIELDS and RAW_DATA_KEEP_SET element-for-element identical); delete lib/idx/__tests__/sync-watermark.test.ts and lib/idx/__tests__/backfill-eligibility.test.ts (each tests a local copy of a retired contract and imports no production code; the second models an unreachable function), strengthen tests/runtime/backfill-empty-media-reachability.test.ts (caller and no-other-module census over all non-test executable source; stored-PCT predicate absent from all executable sync.ts code; mutation-proven) and correct all of its stale descriptive text, and add mutation-verified production tests of the Property cursor freeze on unpositionable records to tests/runtime/idx-property-cursor-contract.test.ts; update OPS-010A to separate the July historical measurement, the 7B structural correction of the PCT/raw_data_only cause, the remaining delivery_url_refreshed concern, and the post-7B production trend as UNVERIFIED; update every derived summary; add the dated handoff; promote three evidence items recorded in the Execution State (the implementation-mode one-way door, the handoff-protocol mismatch, the 2026-09-22 governance incident) into the Platform Issue Registry as new issues under three distinct unused OPS IDs, excluding OPS-026/027/028 (defined on open PR #599), updating every derived summary in the same PR. OPS-010A stays OPEN. No new algorithm, no second raw_data allowlist (RAW_DATA_KEEP_FIELDS stays the sole retention authority), no schema, database, Vercel, environment, Neon or Cotality change.",
+  "packet_id": "A2-CONTRADICTION-EXIT-2026-09-24",
+  "objective": "Exit implementation mode through the #638 state-only exit (its first real use) because the base text of RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22 (A2) contradicted live evaluation: RAW_DATA_KEEP_FIELDS contains 109 unique elements on live main, so A2's present-tense claim of 110 is wrong. Correct that fact, record A2 as paused before execution (no A2 change was pushed), and change nothing else in A2's scope. The next packet is a state-only re-authorization of the same A2 envelope. No code, provider, environment, Neon, Vercel or Cotality change.",
   "impact_graph": {
     "root_owner_paths": [
       "MALLAN-PLATFORM-MASTER-PLAN.md",
-      "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md",
-      "lib/compliance/raw-data-keep-fields.ts",
-      "AGENTS.md",
-      "CLAUDE.md"
+      "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
     ],
     "writer_paths": [
-      "lib/idx/write-suppression.ts",
-      "lib/idx/sync.ts",
-      "app/api/cron/feed-reconcile/route.ts",
-      "lib/idx/trestle-mapper.ts",
       "scripts/ci/mallan-execution-control.mjs",
-      "scripts/health/probe.ts",
-      "lib/idx/media-sync.ts"
+      ".github/workflows/pr-check.yml",
+      ".github/workflows/branch-authority.yml",
+      ".github/workflows/authority-root.yml"
     ],
     "reader_paths": [
-      "lib/idx/sync.ts",
-      "lib/idx/trestle-mapper.ts",
       "AGENTS.md",
       "CLAUDE.md",
-      ".github/workflows/pr-check.yml",
-      ".github/workflows/authority-root.yml",
-      "scripts/health/health-status.ts",
-      "lib/idx/fetch.ts",
-      "lib/idx/media-sync.ts",
-      "app/api/cron/feed-reconcile/route.ts",
-      "lib/idx/cursor/keyset-cursor.ts",
-      "lib/idx/watermark.ts",
-      "lib/idx/one-cycle-preflight.ts",
-      "lib/cache/public-listing-change-tags.ts",
-      "lib/search/listing-search-projection.ts"
+      "lib/compliance/raw-data-keep-fields.ts"
     ],
     "publisher_paths": [
-      "docs/PLATFORM-ISSUE-REGISTRY.md",
-      "docs/PROJECT-HEALTH-DASHBOARD.md",
       ".github/workflows/pr-check.yml",
-      ".github/workflows/authority-root.yml",
-      "docs/operations/site-audit-handoff-2026-09-22.md"
+      ".github/workflows/branch-authority.yml",
+      ".github/workflows/authority-root.yml"
     ],
     "downstream_surfaces": [
-      "idx-sync listing write suppression and change classification (behaviour unchanged)",
-      "Platform Issue Registry OPS-010A and its derived summaries",
-      "issue #574 disposition after merge",
-      "one-way-door defect: GitHub merge eligibility of every implementation packet and its state-only exit (controller, pr-check, authority-root)",
-      "handoff-protocol mismatch: every agent session's handoff (AGENTS.md:114 health:probe step vs CLAUDE.md), the dashboard auto tier written by scripts/health/probe.ts",
-      "governance incident: the provider-mutation authorization boundary (AGENTS.md:53 two-gate rule, CLAUDE.md §A.7) and the GitHub/Vercel credential stores it concerns",
-      "PCT dimension owners and readers (comments only in A2; behaviour untouched): the media-sync PCT keyset cursor and media_sync_state.last_photos_change (lib/idx/media-sync.ts), feed-reconcile media writes, the one-cycle preflight source heads, and the listing/search invalidation paths; lib/idx/fetch.ts defines the separate MT-only Property cursor boundary and neither owns nor triggers PCT",
-      "Property incremental cursor fail-closed rule: an unpositionable record freezes the keyset (lib/idx/sync.ts:680-693) — newly covered by production tests; behaviour unchanged",
-      "CI test integrity: an obsolete test of a local max(MT, PCT) copy (lib/idx/__tests__/sync-watermark.test.ts) removed from the root Jest run",
-      "CI test integrity: a second self-contained test (lib/idx/__tests__/backfill-eligibility.test.ts), a copy of the unreachable backfillEmptyMedia predicate including its removed PCT clause, removed from the root Jest run; the reachability pin that guards the function is strengthened before that deletion relies on it"
+      "GitHub pull-request merge eligibility",
+      "GitHub future branch creation",
+      "The A2 re-authorization and every later Mallan implementation packet"
     ],
     "test_paths": [
-      "lib/idx/__tests__/listing-change-classification.test.ts",
-      "lib/idx/__tests__/commit7-write-matrix.test.ts",
-      "lib/idx/__tests__/pct-deprecation.test.ts",
-      "tests/runtime/phase3-write-suppression-sync.test.ts",
       "tests/runtime/mallan-execution-control.test.ts",
-      "tests/runtime/health-probe-status.test.ts",
-      "tests/runtime/agent-authority-live-source.test.ts",
-      "tests/runtime/idx-property-cursor-contract.test.ts",
-      "tests/runtime/idx-keyset-cursor.test.ts",
-      "lib/idx/__tests__/incremental-filter.test.ts",
-      "lib/idx/__tests__/changed-raw-data-keys.test.ts",
-      "tests/runtime/backfill-empty-media-reachability.test.ts"
+      "tests/runtime/agent-authority-live-source.test.ts"
     ],
     "compliance_surfaces": [
-      "UCBA Art. VIII §4 per-listing 'last updated' semantics documented in lib/idx/sync.ts — unchanged by a comment-only edit",
-      "Governance registry integrity (AGENTS.md single-ID and derived-summary invariants) — documentation only"
-    ],
-    "database_impact_chain": {
-      "vercel_integration": [
-        "vercel.json"
-      ],
-      "env_resolution": [
-        "lib/ops/db-target.ts"
-      ],
-      "db_target": [
-        "lib/ops/db-target.ts",
-        "lib/ops/canonical-neon-target.ts"
-      ],
-      "prisma_pg": [
-        "prisma/schema.prisma",
-        "lib/prisma.ts"
-      ],
-      "migrations": [
-        "prisma/schema.prisma"
-      ],
-      "workflows_crons": [
-        ".github/workflows/pr-check.yml",
-        "vercel.json"
-      ],
-      "preview": [
-        "scripts/release-safety/release-truth-verdict.js"
-      ],
-      "production": [
-        ".github/workflows/release-truth.yml"
-      ],
-      "downstream_readers_writers": [
-        "lib/idx/sync.ts",
-        "lib/prisma.ts"
-      ],
-      "tests": [
-        "lib/idx/__tests__/listing-change-classification.test.ts",
-        "tests/runtime/phase3-write-suppression-sync.test.ts"
-      ]
-    }
+      "Governance only; no listing/public/client compliance mutation in this packet"
+    ]
   }
 }
 ```
@@ -861,12 +771,14 @@ Do not create another status file because this one becomes inconvenient.
 
 # 11. Current exact stop point
 
-**CURRENT: `mode: implementation` for exactly one packet, `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22` (see "Current packet"
-below). Everything else in this section that describes an earlier packet is history. Governance
+**CURRENT: `mode: control-update` (2026-09-24). A2, `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22`, is PAUSED before execution
+(see "A2 paused — contradiction (2026-09-24)" below) and resumes only through a state-only
+re-authorization of the same envelope. Everything else in this section that describes an earlier packet is history. Governance
 activation is COMPLETE, the implementation-mode one-way door is CLOSED (#638), and the artifact trace
 ledger below remains the program: every Vercel/Neon/database/MCP/branch artifact ends FIXED, MERGED
 or DELETED; nothing ends UNVERIFIED. Evidence of a 2026-09-22 governance incident is recorded below as
-non-canonical evidence that A2 promotes to the Platform Issue Registry.**
+non-canonical evidence that A2 — paused, pending re-authorization — is to promote to the Platform Issue
+Registry.**
 
 ## What is verified complete
 
@@ -892,9 +804,33 @@ the quarantined orphan test. `vercel.json` carries 19 crons and no `neon-branch-
 tracked executable outside the gate and its two test files names a Neon control-plane host, the
 CLI, or a control-plane credential.
 
+## A2 paused — contradiction (2026-09-24)
+
+#640 merged as `ba5719bdbdc428409f90fec311177f07659d3acd` (2026-09-24T07:01:36Z) and put `main` in
+`implementation` mode for A2. Before any A2 change was pushed, live evaluation contradicted A2's base
+text. "Paused packet" said `PhotosChangeTimestamp` is "not among the array's 110 elements". On live
+`main`, `RAW_DATA_KEEP_FIELDS` contains **109** unique elements (verified independently twice on 2026-09-24:
+exports transpiled and executed; unique entries counted), so A2's present-tense claim of 110 is wrong. The
+substantive claim (PCT absent) is correct; the count is not.
+
+Under the contradiction rule (§0) A2 stopped with `CONTRADICTION — CONTROL UPDATE REQUIRED`; the
+correction is not deferred to A2's handoff. This update:
+
+- exits `implementation` mode through the #638 state-only exit — its first real use, which is the
+  live verification that exit was built for;
+- corrects the count in "Paused packet" (below);
+- records A2 as paused before execution, and changes nothing else in A2's scope.
+
+`work/active` was deleted by GitHub when #640 merged (`delete_branch_on_merge`) and was recreated on
+GitHub directly from `ba5719bd`; no A2 commit was pushed to it. Drafts prepared in a local session
+scratchpad are evidence only and are not a commit source: A2 will be rebuilt against the live
+`work/active` branch. The next packet is a state-only control update re-authorizing A2 with the identical
+envelope (paths, new file, impact graph, prohibitions, proof); the only difference is the corrected fact.
+
 ## What this packet is
 
-A1: a state-only control update authorizing `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22` (see "Current packet"), recording the
+`A2-CONTRADICTION-EXIT-2026-09-24`: the state-only implementation-mode exit and count correction described in "A2 paused —
+contradiction (2026-09-24)" above. HISTORY: A1 was a state-only control update authorizing `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22` (see "Paused packet"), recording the
 2026-09-22 live evidence, and recording the governance incident below. HISTORY: #639 (`b0ab6264`) was
 the state-only exit from `control-root-maintenance` back to `control-update`; it recorded #638 and the
 CI fixture leak it closed, and opened the artifact trace ledger.
@@ -907,8 +843,8 @@ authorized branch work/active may execute*. At the time of writing that is **22 
 none of them on `work/active`.
 
 This is the designed behaviour, not a defect: the control block authorizes one branch,
-`work/active`, and only the paths its current envelope names (today: packet A2, see "Current
-packet"). HISTORY: under #639 the envelope was `control-root-maintenance` with exactly the controller
+`work/active`, and only the paths its current envelope names (today: `control-update` — this file only;
+A2 is paused, see "Paused packet"). HISTORY: under #639 the envelope was `control-root-maintenance` with exactly the controller
 and its test. Any other implementation lane still needs its own control update. It is
 recorded here because it is a large, immediate change to how the repository behaves, it was
 not flagged at merge time, and a reader who finds their PR red needs to know the cause is the
@@ -928,13 +864,13 @@ cause of the cancellation is not established.
 
 **Unblocking the 22 historical PRs is Maya-held and is not authorized by this control update.** Each
 implementation lane needs its own control update naming its branch, its paths and its impact graph;
-A2 ("Current packet") is exactly such a lane and IS authorized by this update. Widening any envelope
+A2 ("Paused packet") is exactly such a lane; A1 authorized it and it is PAUSED until re-authorized. Widening any envelope
 from inside the implementation PR it governs would be the self-authorization the gate exists to prevent.
 
 ## Evidence pending promotion — three governance observations (NON-CANONICAL)
 
 **This file does not define these observations as canonical platform issues.** Their evidence is
-preserved below and in #638/#640 and the dated execution history. A2 ("Current packet") is authorized to
+preserved below and in #638/#640 and the dated execution history. A2 ("Paused packet"), once re-authorized, is to
 promote the three verified observations — the implementation-mode one-way door, the handoff-protocol
 mismatch, and the 2026-09-22 governance incident (next section) — into the Platform Issue Registry. From
 the moment A2 merges, only those Registry rows and their `OPS-` IDs define them. This file carries no
@@ -988,10 +924,10 @@ reachable. The order is now fixed:
 2. DONE — #638 added the exit and its negative tests, merged with `pr-check` and
    `authority-root` required and green;
 3. DONE — #639 (`b0ab6264`), the state-only exit back to `control-update`;
-4. CURRENT — the trace-to-closure program below; the one authorized packet is in "Current packet".
+4. CURRENT — the trace-to-closure program below; the next packet, A2 (paused), is in "Paused packet".
 
-HISTORY: before this update no documentation lane was authorized. A2 ("Current packet") now authorizes
-the registry, the dashboard and the 2026-09-22 handoff. The one documentation artifact still outside any
+HISTORY: before A1 no documentation lane was authorized. A1 authorized A2 ("Paused packet") over
+the registry, the dashboard and the 2026-09-22 handoff; A2 is paused until a state-only control update re-authorizes it. The one documentation artifact still outside any
 authorized lane is the dated 2026-09-20 handoff (`docs/operations/site-audit-handoff-2026-09-20.md`). It is
 a historical-evidence ledger item, durable on PR #632 (comment `5752722341`), and NOT in A2's envelope. A future
 authorized documentation lane must reconcile that handoff into a dated historical record, preserving its
@@ -1022,7 +958,11 @@ tree on `main`. Open PR #599 (`fix/r2-policy-reevaluation-2026-08-10`, opened 20
 `OPS-026`, `OPS-027` and `OPS-028` in its registry changes as R2 media-sync issues, verified by reading the
 registry file on that branch. Reusing any of the three would give one ID two meanings. The
 handoff-protocol mismatch therefore has no registry ID until A2 allocates an unused one.
-## Current packet — `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22` (A2)
+## Paused packet — `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22` (A2) — PAUSED 2026-09-24, awaiting state-only re-authorization
+
+**Status:** not executable under the current `control-update` contract. The specification below is the
+envelope a re-authorization will restore unchanged; "A2 does X" below describes planned work, not work done.
+The keep-array count in "Basis" is corrected (109 unique elements on live `main`).
 
 **Sequence (Maya, 2026-09-22).** A1 this state-only authorization → A2 the bounded reconciliation PR →
 verify and merge → A3 re-read `main`, then close issue #574 as superseded, citing `OPS-010A` and
@@ -1030,7 +970,7 @@ verify and merge → A3 re-read `main`, then close issue #574 as superseded, cit
 separate, read-only provider investigation and is NOT coupled to this packet.
 
 **Basis, verified on `main`.** `cbf42cfc` (2026-08-07, 7B-2B) removed `PhotosChangeTimestamp` from
-`RAW_DATA_KEEP_FIELDS` (`lib/compliance/raw-data-keep-fields.ts:176`; not among the array's 110 elements),
+`RAW_DATA_KEEP_FIELDS` (`lib/compliance/raw-data-keep-fields.ts:176`; not among the array's 109 unique elements on live `main`; corrected 2026-09-24),
 canonicalizes historical PCT away on both sides of comparison (`lib/idx/write-suppression.ts:360-380`),
 and moves invalidation to the media path (`lib/idx/__tests__/commit7-write-matrix.test.ts:121,129`).
 Every #574 requirement is IMPLEMENTED or SUPERSEDED; its July "closed allowlist of non-business
@@ -1134,7 +1074,7 @@ statement claims post-7B production churn is fixed without a fresh measurement.
 **Exit.** After merge, a state-only PR returns `mode` to `control-update` (the #638 exit), recording the
 merge and #574's closure.
 
-## Evidence — 2026-09-22 governance incident: provider mutations outside an authorized Git packet (NON-CANONICAL; A2 promotes it to the Registry)
+## Evidence — 2026-09-22 governance incident: provider mutations outside an authorized Git packet (NON-CANONICAL; A2, once re-authorized, promotes it to the Registry)
 
 **Rule.** `AGENTS.md:53`: "Environment/resource/Neon control-plane mutations require the active Git
 packet plus Maya's explicit authorization." `CLAUDE.md` §A.7 likewise requires provider mutations to
@@ -1246,7 +1186,7 @@ GitHub secret) is read on current `main` only by `scripts/release-safety/*`, whi
 Local residue: 100 unpushed commits on 15 local branches, 52 further local branches, untracked
 `artifacts/` (256 MB), `.vercel/output/`.
 
-## The trace-to-closure program — runs alongside the current packet (A2)
+## The trace-to-closure program — runs alongside the paused A2 packet
 
 **Rule (Maya, 2026-09-22).** Every Vercel variable, branch scope, integration variable, Git branch,
 PR, workflow, cron, database target, credential, MCP entry and configuration is traced to a
@@ -1340,10 +1280,10 @@ documentation packet creates the canonical ID before any implementation acts on 
 | 18 | documentation claims corrected in this section (`NEON.md` Vercel database variable ownership; this file's §3 counts) | n/a — documentation | see Corrections | correct once the live evidence exists (documentation lane) | FIXED | `OPS-016` (NEON.md vs live Neon drift) for the NEON.md part; otherwise NONE — canonical ID required before remediation |
 | 19 | **No pull request can amend the Master.** `control-update` permits only the Execution State; `control-root-maintenance` authorizes only `IMMUTABLE_CONTROL_PATHS`, which excludes `MALLAN-PLATFORM-MASTER-PLAN.md`; `implementation` refuses Master changes (`scripts/ci/mallan-execution-control.mjs` L889-890, L1391, L1504-1506 on `main`) | n/a — governance control | VERIFIED from the controller source | design a bounded, base-authorized Master-amendment path with negative tests (control-root maintenance) | FIXED | NONE — evidence only; canonical ID required before remediation |
 | 20 | **Release Truth's bounded dependency wait can expire while its verdict is still DEPLOY_PENDING.** CORRECTED 2026-09-22: the one proven instance is run `35790568953` (#639 first head), where `pr-check` had already passed at 22:11:42Z and the wait expired ~22:19:31Z; the loop logs only the verdict, so which dependency was pending is not recorded. #637's first run is NOT an instance (its log ends after attempt 14 with no expiry line) | n/a — CI control | VERIFIED from the run logs | measure `pr-check` duration against the bounded wait; fix without letting Release Truth pass on a pending dependency | FIXED | NONE — evidence only; canonical ID required before remediation |
-| 21 | `backfillEmptyMedia` and `migrateMediaToR2` in `lib/idx/sync.ts` — exported, uncalled legacy code (their only caller, the `/api/cron/media-backfill` cron, was removed by PR #176 on 2026-05-21) — and the comments that still describe them as live (`sync.ts:1762-1767`, `sync.ts:2016`, `media-sync.ts:3216-3222`, `:3403-3405`, `:3450-3451`, `:3902`) | n/a — code artifact | VERIFIED 2026-09-23 on `main` `b0ab6264`: no non-test caller of either function; those comments are stale | comments: corrected by A2 (comment only). Functions: not changed by this packet | comments: FIXED once A2 corrects them. Functions: row stays OPEN — DELETED if their removal is authorized under a new canonical OPS ID; FIXED only if they are proven to be intentionally retained canonical code | NONE — evidence only; canonical ID required before remediation. `OPS-008` (VERIFIED FIXED 2026-07-03) is related historical evidence that already records both functions as uncalled library code; this row is not merged into it, because both functions remain on `main` |
+| 21 | `backfillEmptyMedia` and `migrateMediaToR2` in `lib/idx/sync.ts` — exported, uncalled legacy code (their only caller, the `/api/cron/media-backfill` cron, was removed by PR #176 on 2026-05-21) — and the comments that still describe them as live (`sync.ts:1762-1767`, `sync.ts:2016`, `media-sync.ts:3216-3222`, `:3403-3405`, `:3450-3451`, `:3902`) | n/a — code artifact | VERIFIED 2026-09-23 on `main` `b0ab6264`: no non-test caller of either function; those comments are stale | comments: to be corrected by the re-authorized A2 (comment only; NOT yet corrected). Functions: not changed by A2 | comments: FIXED once the re-authorized A2 corrects them. Functions: row stays OPEN — DELETED if their removal is authorized under a new canonical OPS ID; FIXED only if they are proven to be intentionally retained canonical code | NONE — evidence only; canonical ID required before remediation. `OPS-008` (VERIFIED FIXED 2026-07-03) is related historical evidence that already records both functions as uncalled library code; this row is not merged into it, because both functions remain on `main` |
 Until each row closes, no agent may begin an environment change, credential removal, branch
 deletion or implementation packet except (a) as that row's separately authorized disposition, or (b) the
-packet named in "Current packet" (A2), which this control update authorizes; A2 is not a ledger
+packet named in "Paused packet" (A2), once a state-only control update re-authorizes it; A2 is not a ledger
 disposition and changes no ledger artifact.
 
 ## Honest limits of what the merged gate proves
@@ -1373,7 +1313,8 @@ Recorded so no later agent overstates it:
   leak in both directions at the test helper. Residual: `pr-check.yml` still exports the flag to
   the whole job instead of only the two gate steps (ledger row 15).
 
-**This contract authorizes exactly one implementation packet, `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22`. It authorizes no
+**This contract (`A2-CONTRADICTION-EXIT-2026-09-24`, `control-update`) authorizes no implementation packet: only this file may
+change. A2 (`RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22`) is paused until a state-only control update re-authorizes it. It authorizes no
 deletion, environment change, credential change, new database/resource/branch, Cotality change or
 product implementation. Provider mutations require BOTH an active Git packet that names them AND
 Maya's explicit authorization (AGENTS.md:53); see the governance incident below. The Development/Preview
