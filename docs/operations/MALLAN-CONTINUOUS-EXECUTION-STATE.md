@@ -6,7 +6,7 @@
 > This file records current verified execution state and the machine-readable authorization envelope
 > consumed by the required GitHub PR check. It may not redefine the Master.
 
-**Checkpoint:** 2026-09-24 — A2 paused before execution by a factual contradiction and implementation mode exited through the #638 exit (§11 "A2 paused — contradiction"); 2026-09-22 governance activation and #638 recorded; the SHAs below still describe the 2026-09-20 #632 checkpoint  
+**Checkpoint:** 2026-09-24 — #641 merged (`fadd3937`): A2 exited implementation mode on a contradiction; Maya then deprioritized A2 and authorized the ledger row 19 control-root-maintenance packet (§5 item 7c, §11); 2026-09-22 governance activation and #638 recorded; the SHAs below still describe the 2026-09-20 #632 checkpoint  
 **Repository:** `mallan67/mallan-nyc` only  
 **Canonical branch:** `main`  
 **Main at this checkpoint:** `005786e71818ef13f555111de67e3d6248412987` — the PR #632 merge
@@ -334,7 +334,8 @@ The current sequence is governance-first. Provider cleanup and product implement
 until the execution boundary is real.
 
 **Position as of 2026-09-24: items 1 to 7a are COMPLETE. Item 7b (A2) is PAUSED before execution (a contradiction in its base
-text; §11 "A2 paused — contradiction"); the next packet is its state-only re-authorization. Item 8, the
+text; §11 "A2 paused — contradiction") and DEPRIORITIZED by Maya on 2026-09-24. Item 7c, the ledger row 19
+control-root-maintenance packet, is the CURRENT packet. Item 8, the
 trace-to-closure program in §11, continues alongside it as a read-only investigation; its provider
 mutations are held (see the §11 governance incident).**
 
@@ -401,9 +402,15 @@ mutations are held (see the §11 governance incident).**
    - **DONE 2026-09-22.** #637 authorized the packet (merged `d7bcc1d8`); #638 delivered it (merged
      `f53b099a` from reviewed head `00bd788a`, `pr-check` and `authority-root` required and green,
      zero threads). #639 (`b0ab6264`) was the state-only exit back to `control-update`. Details in §11.
-7b. **NEXT PACKET — `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22` (A2), PAUSED 2026-09-24 before execution.** No A2 change was pushed.
-   It resumes only after a state-only control update re-authorizes the same envelope with the corrected
-   fact (§11 "A2 paused — contradiction"). Scope, prohibitions and proof are in §11 "Paused packet".
+7b. **DEPRIORITIZED — `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22` (A2), PAUSED 2026-09-24 before execution.** No A2 change was pushed.
+   Maya deprioritized it on 2026-09-24: it is not resumed unless she reprioritizes it. Its envelope stays on record in
+   §11 "Paused packet".
+7c. **CURRENT PACKET — `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` (ledger row 19), control-root maintenance, authorized by
+   this control update.** Scope, required proofs and exit are in the §7 contract. Sequence (Maya, 2026-09-24): this packet →
+   its state-only exit to `control-update` → a separately authorized Master-only amendment of §0.12 (live Vercel resource
+   discovery: `vercel integration list mallan-nyc --format=json`, then `vercel integration open neon <LIVE_RESOURCE_NAME>
+   --format=json`) → a documentation packet reconciling `CLAUDE.md`, `AGENTS.md`, `NEON.md` and
+   `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md` → the Neon/Vercel infrastructure convergence program.
 8. **IN PROGRESS (not the active packet) — the trace-to-closure program in §11, read-only; provider mutations held.** One Vercel control-plane reconciliation packet over the existing `mallan-nyc → neon-green-school` connection, environment scopes, branch overrides and every DB/control reader/writer.
 9. **Only after that reconciliation may Development/Preview authority be designed.** No schema-only branch, second project, per-branch database or resource split is assumed in advance.
 10. **Cotality-dependent product work remains fail-closed until live provider proof is available through the authorized Cotality contract path.**
@@ -564,7 +571,7 @@ PR #632 was a one-time bootstrap exception because base `main` did not then cont
 It is merged and the exception is closed; base `main` now carries both authority files, so no
 PR can reach that branch again.
 
-The current mode is **`control-update`**: only this execution-state file may change. Implementation mode for A2 (`RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22`) was exited on 2026-09-24 through the implementation-mode state-only exit merged in #638 — its first real use — because A2's base text contradicted live evaluation (§11 "A2 paused — contradiction"). Code and scope expansion may not be combined into the same self-authorizing PR.
+The current mode is **`control-root-maintenance`** for exactly one packet, `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` (ledger row 19): only `scripts/ci/mallan-execution-control.mjs` and `tests/runtime/mallan-execution-control.test.ts` may change, only while live GitHub rules prove `authority-root` is a required main check, and the packet exits through a separate state-only PR back to `control-update`. Implementation mode for A2 (`RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22`) was exited on 2026-09-24 through the #638 exit (#641) because A2's base text contradicted live evaluation (§11 "A2 paused — contradiction"); A2 is deprioritized. Code and scope expansion may not be combined into the same self-authorizing PR.
 
 <!-- MALLAN_EXECUTION_CONTROL_V1_START -->
 ```json
