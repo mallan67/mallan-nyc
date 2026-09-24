@@ -598,7 +598,7 @@ The current mode is **`control-update`**: only this execution-state file may cha
     "no_parallel_path_proof_required": true
   },
   "packet_id": "A2-CONTRADICTION-EXIT-2026-09-24",
-  "objective": "Exit implementation mode through the #638 state-only exit (its first real use) because the base text of RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22 (A2) contradicted live evaluation: RAW_DATA_KEEP_FIELDS has 109 current elements, not 110 (110 is the 2026-04-28 production-backfill keep-set size, before 7B-2B removed PhotosChangeTimestamp). Correct that fact, record A2 as paused before execution (no A2 change was pushed), and change nothing else in A2's scope. The next packet is a state-only re-authorization of the same A2 envelope. No code, provider, environment, Neon, Vercel or Cotality change.",
+  "objective": "Exit implementation mode through the #638 state-only exit (its first real use) because the base text of RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22 (A2) contradicted live evaluation: RAW_DATA_KEEP_FIELDS contains 109 unique elements on live main, so A2's present-tense claim of 110 is wrong. Correct that fact, record A2 as paused before execution (no A2 change was pushed), and change nothing else in A2's scope. The next packet is a state-only re-authorization of the same A2 envelope. No code, provider, environment, Neon, Vercel or Cotality change.",
   "impact_graph": {
     "root_owner_paths": [
       "MALLAN-PLATFORM-MASTER-PLAN.md",
@@ -808,11 +808,9 @@ CLI, or a control-plane credential.
 
 #640 merged as `ba5719bdbdc428409f90fec311177f07659d3acd` (2026-09-24T07:01:36Z) and put `main` in
 `implementation` mode for A2. Before any A2 change was pushed, live evaluation contradicted A2's base
-text. "Paused packet" said `PhotosChangeTimestamp` is "not among the array's 110 elements". Evaluated on
-`main`, `RAW_DATA_KEEP_FIELDS` has **109** elements; it was verified independently twice on 2026-09-24
-(exports transpiled and executed; unique entries counted). The file's own header
-(`lib/compliance/raw-data-keep-fields.ts:8-9`) records **110** as the keep-set size at the 2026-04-28
-production backfill, before 7B-2B (`cbf42cfc`, 2026-08-07) removed `PhotosChangeTimestamp`. The
+text. "Paused packet" said `PhotosChangeTimestamp` is "not among the array's 110 elements". On live
+`main`, `RAW_DATA_KEEP_FIELDS` contains **109** unique elements (verified independently twice on 2026-09-24:
+exports transpiled and executed; unique entries counted), so A2's present-tense claim of 110 is wrong. The
 substantive claim (PCT absent) is correct; the count is not.
 
 Under the contradiction rule (§0) A2 stopped with `CONTRADICTION — CONTROL UPDATE REQUIRED`; the
@@ -964,7 +962,7 @@ handoff-protocol mismatch therefore has no registry ID until A2 allocates an unu
 
 **Status:** not executable under the current `control-update` contract. The specification below is the
 envelope a re-authorization will restore unchanged; "A2 does X" below describes planned work, not work done.
-The keep-array count in "Basis" is corrected (109 current; 110 historical).
+The keep-array count in "Basis" is corrected (109 unique elements on live `main`).
 
 **Sequence (Maya, 2026-09-22).** A1 this state-only authorization → A2 the bounded reconciliation PR →
 verify and merge → A3 re-read `main`, then close issue #574 as superseded, citing `OPS-010A` and
@@ -972,8 +970,7 @@ verify and merge → A3 re-read `main`, then close issue #574 as superseded, cit
 separate, read-only provider investigation and is NOT coupled to this packet.
 
 **Basis, verified on `main`.** `cbf42cfc` (2026-08-07, 7B-2B) removed `PhotosChangeTimestamp` from
-`RAW_DATA_KEEP_FIELDS` (`lib/compliance/raw-data-keep-fields.ts:176`; not among the array's 109 current elements — 110 was the
-keep-set size at the 2026-04-28 production backfill, before 7B-2B removed PCT; corrected 2026-09-24),
+`RAW_DATA_KEEP_FIELDS` (`lib/compliance/raw-data-keep-fields.ts:176`; not among the array's 109 unique elements on live `main`; corrected 2026-09-24),
 canonicalizes historical PCT away on both sides of comparison (`lib/idx/write-suppression.ts:360-380`),
 and moves invalidation to the media path (`lib/idx/__tests__/commit7-write-matrix.test.ts:121,129`).
 Every #574 requirement is IMPLEMENTED or SUPERSEDED; its July "closed allowlist of non-business
