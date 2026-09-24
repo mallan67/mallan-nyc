@@ -570,15 +570,17 @@ The current mode is **`control-update`**: only this execution-state file may cha
 ```json
 {
   "version": 1,
-  "mode": "control-update",
+  "mode": "control-root-maintenance",
   "authorized_branch": "work/active",
   "base_branch": "main",
   "authorized_paths": [
-    "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
+    "scripts/ci/mallan-execution-control.mjs",
+    "tests/runtime/mallan-execution-control.test.ts"
   ],
   "allowed_new_files": [],
   "impact_domains": [
-    "governance"
+    "governance",
+    "control-root"
   ],
   "provider_proof_required": [],
   "production_mutation_authorized": false,
@@ -597,41 +599,77 @@ The current mode is **`control-update`**: only this execution-state file may cha
     "compliance_proof_required_when_applicable": true,
     "no_parallel_path_proof_required": true
   },
-  "packet_id": "A2-CONTRADICTION-EXIT-2026-09-24",
-  "objective": "Exit implementation mode through the #638 state-only exit (its first real use) because the base text of RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22 (A2) contradicted live evaluation: RAW_DATA_KEEP_FIELDS contains 109 unique elements on live main, so A2's present-tense claim of 110 is wrong. Correct that fact, record A2 as paused before execution (no A2 change was pushed), and change nothing else in A2's scope. The next packet is a state-only re-authorization of the same A2 envelope. No code, provider, environment, Neon, Vercel or Cotality change.",
+  "packet_id": "GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24",
+  "objective": "Ledger row 19 disposition (control-root maintenance). Add to scripts/ci/mallan-execution-control.mjs a bounded Master-amendment mode, with negative tests in tests/runtime/mallan-execution-control.test.ts, so that MALLAN-PLATFORM-MASTER-PLAN.md can change only through a base-authorized, Master-only packet. Each property must be proven by a test, and every new property by a test that fails against the current controller: (1) a Master amendment is authorized only by the BASE Execution State contract, never by the PR HEAD; (2) a PR cannot self-authorize a Master amendment by editing the Execution State; (3) an amendment PR may change MALLAN-PLATFORM-MASTER-PLAN.md only, and the Execution State, code, tests, workflows or provider, environment or database paths in the same PR fail; (4) implementation mode still refuses Master changes; (5) control-update and control-root-maintenance still refuse Master changes; (6) an unauthorized Master edit fails in every mode; (7) the amendment mode exits only through a state-only PR back to control-update; (8) the amendment mode requires the same live proof as control-root maintenance that authority-root is a required main check; (9) no weakening of authority-root, pr-check, release-truth, branch-authority, the database chain, the direct-Neon capability scan, the mutation-class guards or NONDELETABLE_CONTROL_ROOT_PATHS. Changes are limited to the two authorized paths. This packet changes no Master text and authorizes no provider, environment, Neon, Vercel, Cotality, database, documentation or branch mutation. It exits through a state-only PR back to control-update; the Master-only amendment of Master section 0.12 (live Vercel resource discovery) is authorized separately afterwards.",
   "impact_graph": {
     "root_owner_paths": [
       "MALLAN-PLATFORM-MASTER-PLAN.md",
-      "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
+      "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md",
+      "scripts/ci/mallan-execution-control.mjs"
     ],
     "writer_paths": [
-      "scripts/ci/mallan-execution-control.mjs",
-      ".github/workflows/pr-check.yml",
-      ".github/workflows/branch-authority.yml",
-      ".github/workflows/authority-root.yml"
+      "scripts/ci/mallan-execution-control.mjs"
     ],
     "reader_paths": [
-      "AGENTS.md",
-      "CLAUDE.md",
-      "lib/compliance/raw-data-keep-fields.ts"
+      ".github/workflows/pr-check.yml",
+      ".github/workflows/authority-root.yml",
+      ".github/workflows/branch-authority.yml"
     ],
     "publisher_paths": [
       ".github/workflows/pr-check.yml",
-      ".github/workflows/branch-authority.yml",
       ".github/workflows/authority-root.yml"
     ],
     "downstream_surfaces": [
-      "GitHub pull-request merge eligibility",
-      "GitHub future branch creation",
-      "The A2 re-authorization and every later Mallan implementation packet"
+      "GitHub pull-request merge eligibility of every future packet (pr-check, authority-root)",
+      "the only governed path by which MALLAN-PLATFORM-MASTER-PLAN.md may change (ledger row 19)",
+      "the separately authorized Master-only amendment of section 0.12 (live Vercel resource discovery)"
     ],
     "test_paths": [
       "tests/runtime/mallan-execution-control.test.ts",
       "tests/runtime/agent-authority-live-source.test.ts"
     ],
     "compliance_surfaces": [
-      "Governance only; no listing/public/client compliance mutation in this packet"
-    ]
+      "Governance only: no listing, public, client, provider or database behaviour changes in this packet"
+    ],
+    "database_impact_chain": {
+      "vercel_integration": [
+        "vercel.json"
+      ],
+      "env_resolution": [
+        "lib/db.ts",
+        "lib/ops/db-target.ts"
+      ],
+      "db_target": [
+        "lib/ops/db-target.ts",
+        "lib/ops/canonical-neon-target.ts"
+      ],
+      "prisma_pg": [
+        "prisma/schema.prisma",
+        "lib/prisma.ts"
+      ],
+      "migrations": [
+        "prisma/schema.prisma"
+      ],
+      "workflows_crons": [
+        "vercel.json",
+        ".github/workflows/pr-check.yml"
+      ],
+      "preview": [
+        "scripts/release-safety/release-truth-verdict.js"
+      ],
+      "production": [
+        ".github/workflows/release-truth.yml",
+        "scripts/release-safety/release-truth-verdict.js"
+      ],
+      "downstream_readers_writers": [
+        "lib/db.ts",
+        "lib/prisma.ts"
+      ],
+      "tests": [
+        "tests/runtime/mallan-execution-control.test.ts",
+        "tests/runtime/db-target-authority.test.ts"
+      ]
+    }
   }
 }
 ```
