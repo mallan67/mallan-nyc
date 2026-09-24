@@ -816,9 +816,10 @@ Do not create another status file because this one becomes inconvenient.
 
 # 11. Current exact stop point
 
-**CURRENT: `mode: control-update` (2026-09-24). A2, `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22`, is PAUSED before execution
-(see "A2 paused — contradiction (2026-09-24)" below) and resumes only through a state-only
-re-authorization of the same envelope. Everything else in this section that describes an earlier packet is history. Governance
+**CURRENT: `mode: control-root-maintenance` (2026-09-24) for exactly one packet, `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24`:
+the ledger row 19 disposition, a bounded, base-authorized Master-amendment path with negative tests (§7 contract). A2,
+`RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22`, is PAUSED (see "A2 paused — contradiction (2026-09-24)" below) and
+DEPRIORITIZED by Maya on 2026-09-24. Everything else in this section that describes an earlier packet is history. Governance
 activation is COMPLETE, the implementation-mode one-way door is CLOSED (#638), and the artifact trace
 ledger below remains the program: every Vercel/Neon/database/MCP/branch artifact ends FIXED, MERGED
 or DELETED; nothing ends UNVERIFIED. Evidence of a 2026-09-22 governance incident is recorded below as
@@ -869,12 +870,15 @@ correction is not deferred to A2's handoff. This update:
 `work/active` was deleted by GitHub when #640 merged (`delete_branch_on_merge`) and was recreated on
 GitHub directly from `ba5719bd`; no A2 commit was pushed to it. Drafts prepared in a local session
 scratchpad are evidence only and are not a commit source: A2 will be rebuilt against the live
-`work/active` branch. The next packet is a state-only control update re-authorizing A2 with the identical
-envelope (paths, new file, impact graph, prohibitions, proof); the only difference is the corrected fact.
+`work/active` branch. At that time the planned next packet was a state-only control update re-authorizing A2 with the identical
+envelope (paths, new file, impact graph, prohibitions, proof); the only difference was the corrected fact.
+Superseded 2026-09-24: Maya deprioritized A2 (§11 CURRENT).
 
 ## What this packet is
 
-`A2-CONTRADICTION-EXIT-2026-09-24`: the state-only implementation-mode exit and count correction described in "A2 paused —
+`GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24`: the ledger row 19 control-root-maintenance packet authorized by this state-only
+control update (§7 contract). HISTORY: `A2-CONTRADICTION-EXIT-2026-09-24` (#641, merged as `fadd3937`) was the state-only
+implementation-mode exit and count correction described in "A2 paused —
 contradiction (2026-09-24)" above. HISTORY: A1 was a state-only control update authorizing `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22` (see "Paused packet"), recording the
 2026-09-22 live evidence, and recording the governance incident below. HISTORY: #639 (`b0ab6264`) was
 the state-only exit from `control-root-maintenance` back to `control-update`; it recorded #638 and the
@@ -888,8 +892,8 @@ authorized branch work/active may execute*. At the time of writing that is **22 
 none of them on `work/active`.
 
 This is the designed behaviour, not a defect: the control block authorizes one branch,
-`work/active`, and only the paths its current envelope names (today: `control-update` — this file only;
-A2 is paused, see "Paused packet"). HISTORY: under #639 the envelope was `control-root-maintenance` with exactly the controller
+`work/active`, and only the paths its current envelope names (today: `control-root-maintenance` — the controller and its test only,
+packet `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24`; A2 is paused and deprioritized, see "Paused packet"). HISTORY: under #639 the envelope was `control-root-maintenance` with exactly the controller
 and its test. Any other implementation lane still needs its own control update. It is
 recorded here because it is a large, immediate change to how the repository behaves, it was
 not flagged at merge time, and a reader who finds their PR red needs to know the cause is the
@@ -969,7 +973,8 @@ reachable. The order is now fixed:
 2. DONE — #638 added the exit and its negative tests, merged with `pr-check` and
    `authority-root` required and green;
 3. DONE — #639 (`b0ab6264`), the state-only exit back to `control-update`;
-4. CURRENT — the trace-to-closure program below; the next packet, A2 (paused), is in "Paused packet".
+4. CURRENT — the ledger row 19 control-root-maintenance packet (`GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24`); the
+   trace-to-closure program below continues read-only; A2 (paused, deprioritized) is in "Paused packet".
 
 HISTORY: before A1 no documentation lane was authorized. A1 authorized A2 ("Paused packet") over
 the registry, the dashboard and the 2026-09-22 handoff; A2 is paused until a state-only control update re-authorizes it. The one documentation artifact still outside any
@@ -1003,10 +1008,10 @@ tree on `main`. Open PR #599 (`fix/r2-policy-reevaluation-2026-08-10`, opened 20
 `OPS-026`, `OPS-027` and `OPS-028` in its registry changes as R2 media-sync issues, verified by reading the
 registry file on that branch. Reusing any of the three would give one ID two meanings. The
 handoff-protocol mismatch therefore has no registry ID until A2 allocates an unused one.
-## Paused packet — `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22` (A2) — PAUSED 2026-09-24, awaiting state-only re-authorization
+## Paused packet — `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22` (A2) — PAUSED 2026-09-24; DEPRIORITIZED by Maya 2026-09-24
 
-**Status:** not executable under the current `control-update` contract. The specification below is the
-envelope a re-authorization will restore unchanged; "A2 does X" below describes planned work, not work done.
+**Status:** not executable under the current contract, and not resumed unless Maya reprioritizes it. The specification below is the
+envelope a later re-authorization would restore; "A2 does X" below describes planned work, not work done.
 The keep-array count in "Basis" is corrected (109 unique elements on live `main`).
 
 **Sequence (Maya, 2026-09-22).** A1 this state-only authorization → A2 the bounded reconciliation PR →
@@ -1323,7 +1328,7 @@ documentation packet creates the canonical ID before any implementation acts on 
 | 16 | `MALLAN_OFFICE_MLS_IDS`, `MALLAN_LIST_OFFICE_MLS_IDS`, `MALLAN_OH_OFFICE_MLS_IDS` and other Cotality-shaped `MALLAN_*` configuration | not yet assigned — none is set in the 2026-09-22 Vercel read | what Cotality field each represents is UNVERIFIED | trace each fallback source; verify against the live Cotality contract (connector needs authentication) | FIXED onto one mapping verified against the live Cotality contract; DELETED where no verified field supports it | NONE — evidence only; canonical ID required before remediation |
 | 17 | the 22 open PRs (verified 2026-09-22) and the non-`main` branch estate (36 per §5.1, 2026-09-20; recount live) | n/a — Git artifacts | #624 and #600 `pr-check` red since August; #596 as stated in the operational-consequence section; all other latest checks predate #632 | per-branch unique-work reconciliation | per PR/branch: MERGED if it holds unique valid work not already on `main` (then the PR is closed and the branch deleted), otherwise DELETED | NONE — evidence only; canonical ID required before remediation |
 | 18 | documentation claims corrected in this section (`NEON.md` Vercel database variable ownership; this file's §3 counts) | n/a — documentation | see Corrections | correct once the live evidence exists (documentation lane) | FIXED | `OPS-016` (NEON.md vs live Neon drift) for the NEON.md part; otherwise NONE — canonical ID required before remediation |
-| 19 | **No pull request can amend the Master.** `control-update` permits only the Execution State; `control-root-maintenance` authorizes only `IMMUTABLE_CONTROL_PATHS`, which excludes `MALLAN-PLATFORM-MASTER-PLAN.md`; `implementation` refuses Master changes (`scripts/ci/mallan-execution-control.mjs` L889-890, L1391, L1504-1506 on `main`) | n/a — governance control | VERIFIED from the controller source | design a bounded, base-authorized Master-amendment path with negative tests (control-root maintenance) | FIXED | NONE — evidence only; canonical ID required before remediation |
+| 19 | **No pull request can amend the Master.** `control-update` permits only the Execution State; `control-root-maintenance` authorizes only `IMMUTABLE_CONTROL_PATHS`, which excludes `MALLAN-PLATFORM-MASTER-PLAN.md`; `implementation` refuses Master changes (`scripts/ci/mallan-execution-control.mjs` L889-890, L1391, L1504-1506 on `main`) | n/a — governance control | VERIFIED from the controller source | design a bounded, base-authorized Master-amendment path with negative tests (control-root maintenance) — AUTHORIZED 2026-09-24 as packet `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` (current §7 contract) | FIXED | NONE — evidence only; canonical ID required before remediation |
 | 20 | **Release Truth's bounded dependency wait can expire while its verdict is still DEPLOY_PENDING.** CORRECTED 2026-09-22: the one proven instance is run `35790568953` (#639 first head), where `pr-check` had already passed at 22:11:42Z and the wait expired ~22:19:31Z; the loop logs only the verdict, so which dependency was pending is not recorded. #637's first run is NOT an instance (its log ends after attempt 14 with no expiry line) | n/a — CI control | VERIFIED from the run logs | measure `pr-check` duration against the bounded wait; fix without letting Release Truth pass on a pending dependency | FIXED | NONE — evidence only; canonical ID required before remediation |
 | 21 | `backfillEmptyMedia` and `migrateMediaToR2` in `lib/idx/sync.ts` — exported, uncalled legacy code (their only caller, the `/api/cron/media-backfill` cron, was removed by PR #176 on 2026-05-21) — and the comments that still describe them as live (`sync.ts:1762-1767`, `sync.ts:2016`, `media-sync.ts:3216-3222`, `:3403-3405`, `:3450-3451`, `:3902`) | n/a — code artifact | VERIFIED 2026-09-23 on `main` `b0ab6264`: no non-test caller of either function; those comments are stale | comments: to be corrected by the re-authorized A2 (comment only; NOT yet corrected). Functions: not changed by A2 | comments: FIXED once the re-authorized A2 corrects them. Functions: row stays OPEN — DELETED if their removal is authorized under a new canonical OPS ID; FIXED only if they are proven to be intentionally retained canonical code | NONE — evidence only; canonical ID required before remediation. `OPS-008` (VERIFIED FIXED 2026-07-03) is related historical evidence that already records both functions as uncalled library code; this row is not merged into it, because both functions remain on `main` |
 Until each row closes, no agent may begin an environment change, credential removal, branch
@@ -1358,8 +1363,9 @@ Recorded so no later agent overstates it:
   leak in both directions at the test helper. Residual: `pr-check.yml` still exports the flag to
   the whole job instead of only the two gate steps (ledger row 15).
 
-**This contract (`A2-CONTRADICTION-EXIT-2026-09-24`, `control-update`) authorizes no implementation packet: only this file may
-change. A2 (`RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22`) is paused until a state-only control update re-authorizes it. It authorizes no
+**This contract (`GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24`, `control-root-maintenance`) authorizes exactly one packet, the ledger
+row 19 Master-amendment path, changing only `scripts/ci/mallan-execution-control.mjs` and `tests/runtime/mallan-execution-control.test.ts`;
+it changes no Master text. A2 (`RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22`) is paused and deprioritized. It authorizes no
 deletion, environment change, credential change, new database/resource/branch, Cotality change or
 product implementation. Provider mutations require BOTH an active Git packet that names them AND
 Maya's explicit authorization (AGENTS.md:53); see the governance incident below. The Development/Preview
