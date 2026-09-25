@@ -2825,4 +2825,32 @@ describe("Mallan execution-control gate", () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("Master amendment is base-authorized, Master-only and content-pinned");
   });
+
+  // Codex P1 on #643 (third finding, head 6251d644): lookalike detection is context-free. Setext
+  // headings owned by containers and raw HTML heading elements are heading-like decoys too.
+  test("containers: container-owned setext headings and raw HTML heading elements are boundary decoys", () => {
+    const decoys = [
+      "> Decoy in quote\n> ---",
+      "> Decoy in quote\n> ===",
+      "- Decoy in a list item\n  ---",
+      "1. Decoy in an ordered item\n   ---",
+      "> - Decoy in a nested container\n>   ---",
+      "Decoy setext title\n===",
+      "<h2>Decoy heading element</h2>",
+      "<div><h1 class=\"x\">Decoy heading element</h1></div>",
+    ];
+    for (const decoy of decoys) {
+      const base = AM_BASE.replace("Detail text.", "Detail text.\n\n" + decoy);
+      expectRefused(amendGate(containerRepo(base)), "heading-like text that is not an actual Master heading");
+    }
+  });
+
+  test("containers: thematic breaks, table rules and headings after the section do not block a valid amendment", () => {
+    const base = AM_BASE
+      .replace("Detail text.", "Detail text.\n\n---\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n***\n\n> quoted\n>\n> ---")
+      .replace("Tail text.", "Tail text.\n\n> After the section\n> ---\n\n<h2>After the section</h2>");
+    const result = amendGate(containerRepo(base));
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Master amendment is base-authorized, Master-only and content-pinned");
+  });
 });
