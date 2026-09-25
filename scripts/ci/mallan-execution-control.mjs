@@ -1018,10 +1018,34 @@ function opensContainer(line) {
   return false;
 }
 
+// The heading level a line looks like once every Markdown container prefix is peeled off: any
+// run of spaces or tabs (list continuation, indented code), block-quote markers ('>') and
+// list-item markers ('-', '*', '+', '1.', '1)'), repeatedly and nested. '> ## x', '- ## x',
+// '1. ## x', '> - ## x' and '    ## x' all look like level-2 headings here. This is used only
+// for lookalike detection; such a line is never a governing heading.
+function containerHeadingLevel(line) {
+  let i = 0;
+  for (;;) {
+    while (i < line.length && (line[i] === 0x20 || line[i] === 0x09)) i++;
+    if (i >= line.length) return 0;
+    const c = line[i];
+    const next = i + 1 < line.length ? line[i + 1] : -1;
+    if (c === 0x3e) { i++; continue; }
+    if ((c === 0x2d || c === 0x2a || c === 0x2b) && (next === 0x20 || next === 0x09)) { i += 2; continue; }
+    let d = i;
+    while (d < line.length && d - i < 9 && line[d] >= 0x30 && line[d] <= 0x39) d++;
+    if (d > i && d + 1 < line.length && (line[d] === 0x2e || line[d] === 0x29) && (line[d + 1] === 0x20 || line[d + 1] === 0x09)) {
+      i = d + 2;
+      continue;
+    }
+    return atxHeadingLevel(line.subarray(i));
+  }
+}
+
 // One entry per line of the raw bytes. level is the actual governing heading level: only an ATX
 // heading that starts in column 0 and lies outside every fenced code block and raw HTML block.
 // likeLevel is the level the line merely looks like: any ATX heading-like line wherever it sits
-// (fence, raw HTML, 1-3 spaces of indentation that a list container may own) and the text line of
+// (fence, raw HTML, indentation, block quotes, list items, nested containers) and the text line of
 // a setext heading. Both are kept so that heading-like text that is not a governing heading can
 // never silently become a section anchor or boundary.
 function scanMasterLines(bytes) {
@@ -1034,7 +1058,7 @@ function scanMasterLines(bytes) {
     const nl = bytes.indexOf(0x0a, pos);
     const end = nl < 0 ? bytes.length : nl;
     const line = bytes.subarray(pos, end);
-    const likeLevel = atxHeadingLevel(line);
+    const likeLevel = containerHeadingLevel(line);
     const entry = { start: pos, end, level: 0, likeLevel };
     lines.push(entry);
     if (fence) {
