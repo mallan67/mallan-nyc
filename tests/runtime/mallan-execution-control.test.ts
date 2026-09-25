@@ -2,6 +2,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import crypto from "node:crypto";
 
 const GATE = path.resolve(__dirname, "../../scripts/ci/mallan-execution-control.mjs");
 const STATE = "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md";
@@ -2363,4 +2364,512 @@ describe("Mallan execution-control gate", () => {
     expect(gate(cwd).status).toBe(0);
   });
 
+
+  // ---------------------------------------------------------------------------------------------
+  // MASTER AMENDMENT MODE (ledger row 19, packet GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24).
+  // Every property of the merged contract is proven here, and each test fails against the
+  // controller that preceded this packet, which had no master-amendment mode at all.
+  // Section bytes are computed below by plain string search on an ASCII fixture, independently of
+  // the controller's own byte scanner.
+  // ---------------------------------------------------------------------------------------------
+  const AM_START = "## 0.12 Live Vercel resource discovery";
+  const AM_END = "## 0.13 Next section";
+  const AM_BASE = [
+    "# MALLAN PLATFORM MASTER PLAN",
+    "",
+    "## 0.1 Scope",
+    "Scope text.",
+    "",
+    AM_START,
+    "Old discovery rule.",
+    "",
+    "### 0.12.1 Detail",
+    "Detail text.",
+    "",
+    AM_END,
+    "Next text.",
+    "",
+    "## 0.14 Tail",
+    "Tail text.",
+    "",
+  ].join("\n");
+  const AM_HEAD = AM_BASE.replace("Old discovery rule.", "New discovery rule.");
+
+  const sha256Hex = (bytes: Buffer) => crypto.createHash("sha256").update(bytes).digest("hex");
+  const gitBlobSha = (bytes: Buffer) =>
+    crypto.createHash("sha1").update(Buffer.concat([Buffer.from("blob " + bytes.length + "\0"), bytes])).digest("hex");
+  const sectionOf = (text: string, start: string = AM_START, end: string | null = AM_END) => {
+    const a = text.indexOf(start + "\n");
+    const z = end === null ? text.length : text.indexOf("\n" + end + "\n", a) + 1;
+    return Buffer.from(text.slice(a, z), "utf8");
+  };
+  const amEnvelope = (base: string = AM_BASE, head: string = AM_HEAD, overrides: Record<string, unknown> = {}) => ({
+    base_master_blob: gitBlobSha(Buffer.from(base, "utf8")),
+    section_start_heading: AM_START,
+    section_end_heading: AM_END as unknown,
+    section_before_sha256: sha256Hex(sectionOf(base)),
+    section_after_sha256: sha256Hex(sectionOf(head)),
+    ...overrides,
+  });
+  const amendmentControl = (envelope: Record<string, unknown> | undefined, overrides: Record<string, unknown> = {}) => {
+    const control: Record<string, unknown> = baseControl({
+      mode: "master-amendment",
+      authorized_paths: [MASTER],
+      allowed_new_files: [],
+      impact_domains: ["governance"],
+      impact_graph: {
+        root_owner_paths: [MASTER],
+        writer_paths: [MASTER],
+        reader_paths: ["lib/feature/reader.ts"],
+        publisher_paths: ["lib/feature/publisher.ts"],
+        downstream_surfaces: ["the governed Master"],
+        test_paths: ["tests/runtime/mallan-execution-control.test.ts"],
+        compliance_surfaces: ["governance only"],
+      },
+      ...overrides,
+    });
+    if (envelope !== undefined) control.master_amendment = envelope;
+    return control;
+  };
+  // BASE = the given contract and base Master; the caller then commits the HEAD edits.
+  function amendmentRepo(control: Record<string, unknown>, baseMaster: string = AM_BASE) {
+    const cwd = initRepo();
+    write(cwd, MASTER, baseMaster);
+    write(cwd, STATE, controlMarkdown(control));
+    git(cwd, "add", MASTER, STATE);
+    git(cwd, "commit", "-m", "base master-amendment contract");
+    git(cwd, "branch", "-f", "origin-main");
+    return cwd;
+  }
+  const amendGate = (cwd: string, overrides: Record<string, string> = {}) =>
+    gate(cwd, { MALLAN_AUTHORITY_ROOT_REQUIRED: "true", ...overrides });
+  function commitMaster(cwd: string, text: string, message = "amend master") {
+    write(cwd, MASTER, text);
+    git(cwd, "add", MASTER);
+    git(cwd, "commit", "-m", message);
+  }
+  function expectRefused(result: ReturnType<typeof gate>, message: string) {
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(message);
+  }
+
+  test("t1 master amendment: correct base Master, section and exactly the expected replacement passes", () => {
+    const cwd = amendmentRepo(amendmentControl(amEnvelope()));
+    commitMaster(cwd, AM_HEAD);
+    const result = amendGate(cwd);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Master amendment is base-authorized, Master-only and content-pinned");
+  });
+
+  test("t1 master amendment: an explicitly recorded end-of-file boundary passes", () => {
+    const start = "## 0.14 Tail";
+    const head = AM_BASE.replace("Tail text.", "Tail text, amended.");
+    const cwd = amendmentRepo(amendmentControl(amEnvelope(AM_BASE, head, {
+      section_start_heading: start,
+      section_end_heading: { end_of_file: true },
+      section_before_sha256: sha256Hex(sectionOf(AM_BASE, start, null)),
+      section_after_sha256: sha256Hex(sectionOf(head, start, null)),
+    })));
+    commitMaster(cwd, head);
+    expect(amendGate(cwd).status).toBe(0);
+  });
+
+  test("t2 master amendment: a wrong or stale base Master blob fails", () => {
+    const cwd = amendmentRepo(amendmentControl(amEnvelope(AM_BASE, AM_HEAD, {
+      base_master_blob: gitBlobSha(Buffer.from("# stale master\n", "utf8")),
+    })));
+    commitMaster(cwd, AM_HEAD);
+    expectRefused(amendGate(cwd), "the base Master blob is");
+  });
+
+  test("t3 master amendment: a wrong section-before digest fails", () => {
+    const cwd = amendmentRepo(amendmentControl(amEnvelope(AM_BASE, AM_HEAD, {
+      section_before_sha256: sha256Hex(Buffer.from("not the section", "utf8")),
+    })));
+    commitMaster(cwd, AM_HEAD);
+    expectRefused(amendGate(cwd), "the section-before SHA-256 does not match");
+  });
+
+  test("t4 master amendment: a wrong section-after digest fails", () => {
+    const cwd = amendmentRepo(amendmentControl(amEnvelope(AM_BASE, AM_HEAD, {
+      section_after_sha256: sha256Hex(Buffer.from("some other amendment", "utf8")),
+    })));
+    commitMaster(cwd, AM_HEAD);
+    expectRefused(amendGate(cwd), "the section-after SHA-256 does not match");
+  });
+
+  test("t5 master amendment: an extra unintended edit inside the authorized section fails", () => {
+    const cwd = amendmentRepo(amendmentControl(amEnvelope()));
+    commitMaster(cwd, AM_HEAD.replace("Detail text.", "Detail text, also changed."));
+    expectRefused(amendGate(cwd), "the section-after SHA-256 does not match");
+  });
+
+  test("t6 master amendment: an edit outside the authorized section fails", () => {
+    const before = amendmentRepo(amendmentControl(amEnvelope()));
+    commitMaster(before, AM_HEAD.replace("Scope text.", "Scope text, changed."));
+    expectRefused(amendGate(before), "bytes before the authorized section changed");
+
+    const only = amendmentRepo(amendmentControl(amEnvelope()));
+    commitMaster(only, AM_BASE.replace("Tail text.", "Tail text, changed."));
+    expectRefused(amendGate(only), "the section-after SHA-256 does not match");
+  });
+
+  test("t7 master amendment: the authorized edit plus an edit to another Master section fails", () => {
+    const cwd = amendmentRepo(amendmentControl(amEnvelope()));
+    commitMaster(cwd, AM_HEAD.replace("Next text.", "Next text, changed."));
+    expectRefused(amendGate(cwd), "bytes after the authorized section changed");
+  });
+
+  test("t8 master amendment: heading or boundary manipulation fails", () => {
+    const variants: Array<[string, string, string]> = [
+      ["renamed start heading", AM_HEAD.replace(AM_START, "## 0.12 Renamed discovery"), "the start heading occurs 0 times"],
+      ["demoted start heading", AM_HEAD.replace(AM_START, "#" + AM_START), "the start heading occurs 0 times"],
+      ["removed start heading", AM_HEAD.replace(AM_START + "\n", ""), "the start heading occurs 0 times"],
+      ["added second start heading", AM_HEAD.replace("Tail text.", "Tail text.\n\n" + AM_START), "the start heading occurs 2 times"],
+      ["renamed closing heading", AM_HEAD.replace(AM_END, "## 0.13 Renamed next"), "the closing heading occurs 0 times"],
+      ["removed closing heading", AM_HEAD.replace(AM_END + "\n", ""), "the closing heading occurs 0 times"],
+      ["closing heading moved by an inserted heading", AM_HEAD.replace("### 0.12.1 Detail", "## 0.12.9 Inserted heading"),
+        "the recorded closing heading is not the first heading at the same or a higher level"],
+      ["start heading moved below the closing heading",
+        AM_HEAD.replace(AM_START + "\n", "").replace(AM_END + "\n", AM_END + "\n" + AM_START + "\n"),
+        "the closing heading appears before the start heading"],
+    ];
+    for (const [name, text, message] of variants) {
+      const cwd = amendmentRepo(amendmentControl(amEnvelope()));
+      commitMaster(cwd, text, name);
+      expectRefused(amendGate(cwd), message);
+    }
+  });
+
+  test("t9 master amendment: HEAD cannot change its own authorization", () => {
+    const other = AM_BASE.replace("Old discovery rule.", "Some other rule.");
+
+    const withMaster = amendmentRepo(amendmentControl(amEnvelope()));
+    write(withMaster, STATE, controlMarkdown(amendmentControl(amEnvelope(AM_BASE, other))));
+    write(withMaster, MASTER, other);
+    git(withMaster, "add", STATE, MASTER);
+    git(withMaster, "commit", "-m", "self-authorize a different amendment");
+    expectRefused(amendGate(withMaster), "Master amendment may change " + MASTER + " only");
+
+    const stateOnly = amendmentRepo(amendmentControl(amEnvelope()));
+    write(stateOnly, STATE, controlMarkdown(amendmentControl(amEnvelope(AM_BASE, other))));
+    git(stateOnly, "add", STATE);
+    git(stateOnly, "commit", "-m", "re-scope the envelope in place");
+    expectRefused(amendGate(stateOnly), "may exit only to control-update mode");
+
+    const fromUpdate = initRepo(baseControl({ mode: "control-update", authorized_paths: [STATE], allowed_new_files: [], impact_domains: ["governance"] }));
+    write(fromUpdate, STATE, controlMarkdown(amendmentControl(amEnvelope("# MASTER\n", "# MASTER\nchanged\n"))));
+    write(fromUpdate, MASTER, "# MASTER\nchanged\n");
+    git(fromUpdate, "add", STATE, MASTER);
+    git(fromUpdate, "commit", "-m", "grant and use a Master amendment in one PR");
+    expectRefused(amendGate(fromUpdate), "Execution contract is in control-update mode. Only");
+  });
+
+  test("t10 master amendment: the Master plus the Execution State in the same PR fails", () => {
+    const cwd = amendmentRepo(amendmentControl(amEnvelope()));
+    write(cwd, STATE, controlMarkdown(amendmentControl(amEnvelope())) + "\nState note added in the amendment PR.\n");
+    write(cwd, MASTER, AM_HEAD);
+    git(cwd, "add", STATE, MASTER);
+    git(cwd, "commit", "-m", "master and state together");
+    const result = amendGate(cwd);
+    expectRefused(result, "Master amendment may change " + MASTER + " only");
+    expect(result.stderr).toContain(STATE);
+  });
+
+  test("t11 master amendment: the Master plus any second repository path fails", () => {
+    const second = [
+      "lib/allowed.ts",
+      "tests/runtime/mallan-execution-control.test.ts",
+      ".github/workflows/pr-check.yml",
+      "vercel.json",
+      "prisma/schema.prisma",
+      "lib/ops/db-target.ts",
+      "scripts/ci/mallan-execution-control.mjs",
+      "docs/notes.md",
+    ];
+    for (const extra of second) {
+      const cwd = amendmentRepo(amendmentControl(amEnvelope()));
+      write(cwd, MASTER, AM_HEAD);
+      write(cwd, extra, "changed alongside the Master\n");
+      git(cwd, "add", MASTER, extra);
+      git(cwd, "commit", "-m", "master plus " + extra);
+      const result = amendGate(cwd);
+      expectRefused(result, "Master amendment may change " + MASTER + " only");
+      expect(result.stderr).toContain(extra);
+    }
+  });
+
+  test("t12 master amendment: equal-length substitutions and line-ending or whitespace-only changes fail", () => {
+    const variants: Array<[string, string, string]> = [
+      ["equal-length byte substitution", AM_HEAD.replace("New discovery rule.", "New discovery rulf."), "the section-after SHA-256 does not match"],
+      ["CRLF line ending inside the section", AM_HEAD.replace("New discovery rule.\n", "New discovery rule.\r\n"), "the section-after SHA-256 does not match"],
+      ["trailing whitespace inside the section", AM_HEAD.replace("New discovery rule.", "New discovery rule. "), "the section-after SHA-256 does not match"],
+      ["tab instead of a space inside the section", AM_HEAD.replace("New discovery rule.", "New\tdiscovery rule."), "the section-after SHA-256 does not match"],
+      ["CRLF line ending outside the section", AM_HEAD.replace("Tail text.\n", "Tail text.\r\n"), "bytes after the authorized section changed"],
+    ];
+    for (const [name, text, message] of variants) {
+      const cwd = amendmentRepo(amendmentControl(amEnvelope()));
+      commitMaster(cwd, text, name);
+      expectRefused(amendGate(cwd), message);
+    }
+  });
+
+  test("t13 master amendment: duplicate or ambiguous anchors and boundaries fail closed", () => {
+    const withHead = (base: string) => base.replace("Old discovery rule.", "New discovery rule.");
+    const cases: Array<[string, string, Record<string, unknown>, string]> = [
+      ["duplicated start heading", AM_BASE.replace("Tail text.", "Tail text.\n\n" + AM_START), {}, "the start heading occurs 2 times"],
+      ["duplicated closing heading", AM_BASE.replace("Tail text.", "Tail text.\n\n" + AM_END), {}, "the closing heading occurs 2 times"],
+      ["closing heading duplicated inside a fenced block", AM_BASE.replace("Tail text.", "Tail text.\n\n```\n" + AM_END + "\n```"), {}, "the closing heading occurs 2 times"],
+      ["closing boundary before the start", AM_BASE, { section_end_heading: "## 0.1 Scope" }, "the closing heading appears before the start heading"],
+      ["decoy heading inside a fenced block", AM_BASE.replace("Detail text.", "Detail text.\n\n```md\n## Decoy heading\n```"), {}, "heading-like text that is not an actual Master heading"],
+      ["start heading only inside a fenced block", AM_BASE.replace(AM_START + "\n", "```\n" + AM_START + "\n```\n"), {}, "the start heading line is not an actual Master heading"],
+      ["unclosed fenced block", AM_BASE.replace("Detail text.", "Detail text.\n```"), {}, "unclosed fenced code block"],
+      ["end of file recorded while a closing heading exists", AM_BASE, { section_end_heading: { end_of_file: true } }, "the envelope records end of file"],
+    ];
+    for (const [name, base, overrides, message] of cases) {
+      const head = withHead(base);
+      const cwd = amendmentRepo(amendmentControl(amEnvelope(base, head, overrides)), base);
+      commitMaster(cwd, head, name);
+      expectRefused(amendGate(cwd), message);
+    }
+  });
+
+  test("master amendment: the base contract must carry all five content-envelope values", () => {
+    const keys = ["base_master_blob", "section_start_heading", "section_end_heading", "section_before_sha256", "section_after_sha256"];
+    for (const key of keys) {
+      const envelope: Record<string, unknown> = amEnvelope();
+      delete envelope[key];
+      const cwd = amendmentRepo(amendmentControl(envelope));
+      commitMaster(cwd, AM_HEAD);
+      expectRefused(amendGate(cwd), "control.master_amendment." + key + " is required");
+    }
+    const bare = amendmentRepo(amendmentControl(undefined));
+    commitMaster(bare, AM_HEAD);
+    expectRefused(amendGate(bare), "requires the control.master_amendment content envelope");
+
+    const byLine = amendmentRepo(amendmentControl(amEnvelope(AM_BASE, AM_HEAD, { section_end_heading: 12 })));
+    commitMaster(byLine, AM_HEAD);
+    expectRefused(amendGate(byLine), "control.master_amendment.section_end_heading must be one exact heading line");
+  });
+
+  test("master amendment: the contract may authorize only the Master and no mutation class", () => {
+    const wider = amendmentRepo(amendmentControl(amEnvelope(), { authorized_paths: [MASTER, STATE] }));
+    commitMaster(wider, AM_HEAD);
+    expectRefused(amendGate(wider), "master-amendment mode must authorize exactly one path");
+
+    const mutation = amendmentRepo(amendmentControl(amEnvelope(), { schema_migration_authorized: true, impact_domains: ["governance", "schema"] }));
+    commitMaster(mutation, AM_HEAD);
+    expectRefused(amendGate(mutation), "master-amendment mode requires control.schema_migration_authorized=false");
+  });
+
+  test("master amendment requires the same live authority-root proof as control-root maintenance", () => {
+    const cwd = amendmentRepo(amendmentControl(amEnvelope()));
+    commitMaster(cwd, AM_HEAD);
+    expectRefused(gate(cwd), "Master amendment is blocked until live GitHub rules prove authority-root");
+    expectRefused(gate(cwd, { MALLAN_AUTHORITY_ROOT_REQUIRED: "false" }), "Master amendment is blocked until live GitHub rules prove authority-root");
+  });
+
+  test("master amendment exits only through a state-only PR back to control-update", () => {
+    const exit = amendmentRepo(amendmentControl(amEnvelope()));
+    write(exit, STATE, controlMarkdown(exitContract()));
+    git(exit, "add", STATE);
+    git(exit, "commit", "-m", "exit master amendment");
+    const result = gate(exit);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Master amendment exited through a state-only control update");
+
+    const toImplementation = amendmentRepo(amendmentControl(amEnvelope()));
+    write(toImplementation, STATE, controlMarkdown(baseControl()));
+    git(toImplementation, "add", STATE);
+    git(toImplementation, "commit", "-m", "jump to implementation");
+    expectRefused(gate(toImplementation), "may exit only to control-update mode; the proposed mode is implementation");
+  });
+
+  test("master amendment: a deleted Master is refused", () => {
+    const cwd = amendmentRepo(amendmentControl(amEnvelope()));
+    git(cwd, "rm", "-q", MASTER);
+    git(cwd, "commit", "-m", "delete master");
+    expectRefused(amendGate(cwd), "Master amendment must modify " + MASTER + " in place");
+  });
+
+  test("an unauthorized Master edit still fails in implementation, control-update and control-root-maintenance", () => {
+    const implementation = initRepo();
+    commitMaster(implementation, "# MASTER\nchanged\n");
+    expectRefused(amendGate(implementation), "Implementation PR may not modify authority file " + MASTER);
+
+    const update = initRepo(baseControl({ mode: "control-update", authorized_paths: [STATE], allowed_new_files: [], impact_domains: ["governance"] }));
+    commitMaster(update, "# MASTER\nchanged\n");
+    expectRefused(amendGate(update), "Execution contract is in control-update mode. Only");
+
+    const root = initRepo(baseControl({ mode: "control-root-maintenance", authorized_paths: [".github/workflows/pr-check.yml"], allowed_new_files: [], impact_domains: ["governance"] }));
+    commitMaster(root, "# MASTER\nchanged\n");
+    expectRefused(amendGate(root), "Control-root maintenance contains paths outside the protected control root");
+
+    const implementationNamesMaster = initRepo(baseControl({ authorized_paths: [MASTER, "lib/allowed.ts"] }));
+    commitMaster(implementationNamesMaster, "# MASTER\nchanged\n");
+    expectRefused(amendGate(implementationNamesMaster), MASTER + " may be authorized only by a master-amendment contract");
+
+    const rootNamesMaster = initRepo(baseControl({ mode: "control-root-maintenance", authorized_paths: [MASTER], allowed_new_files: [], impact_domains: ["governance"] }));
+    commitMaster(rootNamesMaster, "# MASTER\nchanged\n");
+    expectRefused(amendGate(rootNamesMaster), "control-root-maintenance may authorize only protected control paths");
+
+    const envelopeOutsideMode = initRepo(baseControl({ master_amendment: amEnvelope() }));
+    commitMaster(envelopeOutsideMode, "# MASTER\nchanged\n");
+    expectRefused(amendGate(envelopeOutsideMode), "control.master_amendment is valid only in master-amendment mode");
+  });
+
+  // Codex P1 on #643: a heading-like line inside a raw HTML block or another Markdown block
+  // container is never a governing Master heading. It may not be the start anchor, the closing
+  // anchor or a boundary, and ambiguous or unclosed containers fail closed.
+  const withNewRule = (base: string) => base.replace("Old discovery rule.", "New discovery rule.");
+  function containerRepo(base: string, overrides: Record<string, unknown> = {}, end: string | null = AM_END) {
+    const head = withNewRule(base);
+    const envelope = amEnvelope(base, head, {
+      section_before_sha256: sha256Hex(sectionOf(base, AM_START, end)),
+      section_after_sha256: sha256Hex(sectionOf(head, AM_START, end)),
+      ...overrides,
+    });
+    const cwd = amendmentRepo(amendmentControl(envelope), base);
+    commitMaster(cwd, head);
+    return cwd;
+  }
+
+  test("raw HTML: an ATX heading-looking line inside <div>...</div> cannot be the closing anchor", () => {
+    const base = AM_BASE.replace("Detail text.", "Detail text.\n\n<div>\n## Decoy\n</div>");
+    const cwd = containerRepo(base, { section_end_heading: "## Decoy" }, "## Decoy");
+    expectRefused(amendGate(cwd), "heading-like text that is not an actual Master heading");
+  });
+
+  test("raw HTML: other raw HTML block forms cannot supply a closing anchor either", () => {
+    const forms = [
+      "<!--\n## Decoy\n-->",
+      "<pre>\n## Decoy\n\n</pre>",
+      "<script>\n## Decoy\n</script>",
+      "<table>\n## Decoy\n</table>",
+    ];
+    for (const form of forms) {
+      const base = AM_BASE.replace("Detail text.", "Detail text.\n\n" + form);
+      const cwd = containerRepo(base, { section_end_heading: "## Decoy" }, "## Decoy");
+      expectRefused(amendGate(cwd), "heading-like text that is not an actual Master heading");
+    }
+  });
+
+  test("raw HTML: a pseudo start heading inside raw HTML is not the section start", () => {
+    const base = AM_BASE.replace(AM_START + "\n", "<div>\n" + AM_START + "\n</div>\n");
+    const cwd = containerRepo(base);
+    expectRefused(amendGate(cwd), "the start heading line is not an actual Master heading");
+  });
+
+  test("raw HTML: a pseudo closing heading inside raw HTML is not the closing heading", () => {
+    const base = AM_BASE.replace(AM_END + "\n", "<details>\n" + AM_END + "\n</details>\n");
+    const cwd = containerRepo(base);
+    expectRefused(amendGate(cwd), "heading-like text that is not an actual Master heading");
+  });
+
+  test("raw HTML: a decoy between the real start and the real closing heading fails", () => {
+    const base = AM_BASE.replace("Detail text.", "Detail text.\n\n<div>\n## Decoy between\n</div>");
+    const cwd = containerRepo(base);
+    expectRefused(amendGate(cwd), "heading-like text that is not an actual Master heading");
+  });
+
+  test("raw HTML and containers: ambiguous or unclosed forms fail closed", () => {
+    const cases: Array<[string, string]> = [
+      [AM_BASE.replace("Detail text.", "Detail text.\n\n<!--\ncomment never closed"), "unclosed raw HTML block"],
+      [AM_BASE.replace("Detail text.", "Detail text.\n\n<pre>\npre never closed"), "unclosed raw HTML block"],
+      [AM_BASE.replace("Detail text.", "- list item\n  ## Decoy owned by the list"), "heading-like text that is not an actual Master heading"],
+      [AM_BASE.replace("Detail text.", "Decoy setext title\n---"), "heading-like text that is not an actual Master heading"],
+    ];
+    for (const [base, message] of cases) {
+      expectRefused(amendGate(containerRepo(base)), message);
+    }
+    const indentedAnchor = containerRepo(AM_BASE, { section_start_heading: " " + AM_START });
+    expectRefused(amendGate(indentedAnchor), "must be a Markdown heading line starting in column 0");
+  });
+
+  test("raw HTML: real headings outside containers still resolve and the amendment passes", () => {
+    const base = AM_BASE
+      .replace("Detail text.", "Detail text.\n\n<div>\nplain html, no heading\n</div>\n\n<!-- a one-line comment -->\n\n---\n\nMore detail.")
+      .replace("Tail text.", "Tail text.\n\n<div>\n## Not governing, after the section\n</div>");
+    const result = amendGate(containerRepo(base));
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Master amendment is base-authorized, Master-only and content-pinned");
+  });
+
+  // Codex P1 on #643 (second finding, head 959af808): headings owned by Markdown containers - block
+  // quotes, list items, nested containers and indented code - are heading-like decoys. They are never
+  // governing headings, and one between the real start and the real closing heading fails closed.
+  test("containers: block-quote, list-item, nested and indented-code headings are boundary decoys", () => {
+    const decoys = [
+      "> ## Decoy in a block quote",
+      ">## Decoy in a tight block quote",
+      "- ## Decoy in a bullet item",
+      "* ## Decoy in a star item",
+      "+ ## Decoy in a plus item",
+      "1. ## Decoy in an ordered item",
+      "2) ## Decoy in a paren item",
+      "> - ## Decoy in a nested container",
+      "    ## Decoy in indented code",
+      "\t## Decoy after a tab",
+    ];
+    for (const decoy of decoys) {
+      const base = AM_BASE.replace("Detail text.", "Detail text.\n\n" + decoy);
+      expectRefused(amendGate(containerRepo(base)), "heading-like text that is not an actual Master heading");
+    }
+  });
+
+  test("containers: container content without heading-like lines, and container headings after the section, still pass", () => {
+    const base = AM_BASE
+      .replace("Detail text.", "Detail text.\n\n> a quoted line\n\n- a list item\n- another item\n\n1. an ordered item\n\n    indented code line")
+      .replace("Tail text.", "Tail text.\n\n> ## Container heading after the section");
+    const result = amendGate(containerRepo(base));
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Master amendment is base-authorized, Master-only and content-pinned");
+  });
+
+  // Codex P1 on #643 (third finding, head 6251d644): lookalike detection is context-free. Setext
+  // headings owned by containers and raw HTML heading elements are heading-like decoys too.
+  test("containers: container-owned setext headings and raw HTML heading elements are boundary decoys", () => {
+    const decoys = [
+      "> Decoy in quote\n> ---",
+      "> Decoy in quote\n> ===",
+      "- Decoy in a list item\n  ---",
+      "1. Decoy in an ordered item\n   ---",
+      "> - Decoy in a nested container\n>   ---",
+      "Decoy setext title\n===",
+      "<h2>Decoy heading element</h2>",
+      "<div><h1 class=\"x\">Decoy heading element</h1></div>",
+    ];
+    for (const decoy of decoys) {
+      const base = AM_BASE.replace("Detail text.", "Detail text.\n\n" + decoy);
+      expectRefused(amendGate(containerRepo(base)), "heading-like text that is not an actual Master heading");
+    }
+  });
+
+  test("containers: thematic breaks, table rules and headings after the section do not block a valid amendment", () => {
+    const base = AM_BASE
+      .replace("Detail text.", "Detail text.\n\n---\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n***\n\n> quoted\n>\n> ---")
+      .replace("Tail text.", "Tail text.\n\n> After the section\n> ---\n\n<h2>After the section</h2>");
+    const result = amendGate(containerRepo(base));
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Master amendment is base-authorized, Master-only and content-pinned");
+  });
+
+  // Codex P1 on #643 (fourth finding, head a44247a0): every heading form on a line takes part in the
+  // boundary check. The shallowest level wins, whether it comes from a later HTML element or from an
+  // HTML element on a line that also looks like a deeper ATX heading.
+  test("mixed lines: the shallowest heading form on a line is a boundary decoy", () => {
+    const decoys = [
+      "<h3>minor</h3><h2>boundary decoy</h2>",
+      "<h6>a</h6> <h5>b</h5> <h1>decoy</h1>",
+      "### minor <h2>decoy</h2>",
+      "> #### minor <h1>decoy</h1>",
+    ];
+    for (const decoy of decoys) {
+      const base = AM_BASE.replace("Detail text.", "Detail text.\n\n" + decoy);
+      expectRefused(amendGate(containerRepo(base)), "heading-like text that is not an actual Master heading");
+    }
+    const deeperOnly = AM_BASE.replace("Detail text.", "Detail text.\n\n<h3>minor</h3><h4>minor</h4>\n\n#### minor <h5>minor</h5>");
+    const result = amendGate(containerRepo(deeperOnly));
+    expect(result.status).toBe(0);
+  });
 });
