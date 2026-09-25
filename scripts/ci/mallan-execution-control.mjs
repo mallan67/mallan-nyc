@@ -11,12 +11,15 @@
 
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import { createHash } from "node:crypto";
 
 const STATE_PATH = "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md";
 const MASTER_PATH = "MALLAN-PLATFORM-MASTER-PLAN.md";
 const CONTROL_START = "<!-- MALLAN_EXECUTION_CONTROL_V1_START -->";
 const CONTROL_END = "<!-- MALLAN_EXECUTION_CONTROL_V1_END -->";
 const BOOTSTRAP_PR = "632";
+// The only mode in which MALLAN-PLATFORM-MASTER-PLAN.md may change (ledger row 19).
+const MASTER_AMENDMENT_MODE = "master-amendment";
 
 const IMMUTABLE_CONTROL_PATHS = new Set([
   "scripts/ci/mallan-execution-control.mjs",
@@ -819,7 +822,7 @@ function probeAuthorityRootRequiredMain() {
 }
 
 function validateControl(control) {
-  const allowedModes = new Set(["control-update", "implementation", "control-root-maintenance"]);
+  const allowedModes = new Set(["control-update", "implementation", "control-root-maintenance", MASTER_AMENDMENT_MODE]);
   if (!allowedModes.has(control.mode)) throw new Error("unsupported execution-control mode: " + control.mode);
 
   for (const key of ["mode", "authorized_branch", "base_branch", "packet_id", "objective"]) {
@@ -889,10 +892,239 @@ function validateControl(control) {
     const invalid = control.authorized_paths.filter((p) => !IMMUTABLE_CONTROL_PATHS.has(p));
     if (invalid.length) throw new Error("control-root-maintenance may authorize only protected control paths:\n" + invalid.map((p)=>"  - "+p).join("\n"));
   }
+  // The Master is never an ordinary authorized path. Only a master-amendment contract may name it,
+  // and only that mode may carry a content envelope (ledger row 19).
+  if (control.mode !== MASTER_AMENDMENT_MODE && control.authorized_paths.includes(MASTER_PATH)) {
+    throw new Error(MASTER_PATH + " may be authorized only by a master-amendment contract");
+  }
+  if (control.mode === MASTER_AMENDMENT_MODE) validateMasterAmendmentContract(control);
+  else if (control.master_amendment !== undefined) throw new Error("control.master_amendment is valid only in master-amendment mode");
   for (const [flag, domain] of Object.entries(FLAG_DOMAINS)) {
     if (control[flag] === true && !control.impact_domains.includes(domain)) {
       throw new Error("control." + flag + "=true requires impact_domains to include " + domain);
     }
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// MASTER AMENDMENT (ledger row 19, packet GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24).
+// MALLAN-PLATFORM-MASTER-PLAN.md may change only through a base-authorized, Master-only packet
+// whose BASE contract pins the exact content change in control.master_amendment:
+//   base_master_blob        the exact BASE Master Git blob SHA
+//   section_start_heading   the exact heading line that starts the authorized section
+//   section_end_heading     the exact closing heading line - the first actual Master heading at
+//                           the same or a higher level after the start - or, only where recorded
+//                           explicitly, {"end_of_file": true}
+//   section_before_sha256   SHA-256 of the section bytes in the BASE Master
+//   section_after_sha256    SHA-256 of the section bytes in the HEAD Master
+// Both digests are taken over the raw Git blob payload bytes (no object header), byte for byte:
+// no decoding, re-encoding, charset conversion, string round-trip or newline/whitespace/Unicode
+// normalization. The range starts at the first byte of the start heading line and ends
+// immediately before the first byte of the closing heading line. Boundaries come from headings,
+// never from line numbers. Every byte outside the section must be identical in BASE and HEAD.
+// ---------------------------------------------------------------------------------------------
+const MASTER_AMENDMENT_KEYS = [
+  "base_master_blob",
+  "section_start_heading",
+  "section_end_heading",
+  "section_before_sha256",
+  "section_after_sha256"
+];
+
+// ATX heading level of one raw line (bytes), or 0. Up to three leading spaces, 1-6 '#', then a
+// space, a tab or the end of the line.
+function atxHeadingLevel(line) {
+  let i = 0;
+  while (i < 3 && i < line.length && line[i] === 0x20) i++;
+  let n = 0;
+  while (i + n < line.length && line[i + n] === 0x23) n++;
+  if (n < 1 || n > 6) return 0;
+  const next = i + n < line.length ? line[i + n] : -1;
+  return next === -1 || next === 0x20 || next === 0x09 ? n : 0;
+}
+
+// A fenced-code-block marker line (``` or ~~~, three or more, up to three leading spaces).
+function fenceMarker(line) {
+  let i = 0;
+  while (i < 3 && i < line.length && line[i] === 0x20) i++;
+  const ch = i < line.length ? line[i] : -1;
+  if (ch !== 0x60 && ch !== 0x7e) return null;
+  let n = 0;
+  while (i + n < line.length && line[i + n] === ch) n++;
+  if (n < 3) return null;
+  const rest = line.subarray(i + n);
+  if (ch === 0x60 && rest.includes(0x60)) return null;
+  return { ch, len: n, bare: rest.every((b) => b === 0x20 || b === 0x09) };
+}
+
+// One entry per line of the raw bytes. level is the actual heading level (0 for a non-heading
+// and for anything inside a fenced code block); likeLevel is the level the line would have if
+// fences were ignored. Both are kept so heading-like text inside a fence can never silently
+// become a section boundary.
+function scanMasterLines(bytes) {
+  const lines = [];
+  let fence = null;
+  let pos = 0;
+  while (pos < bytes.length) {
+    const nl = bytes.indexOf(0x0a, pos);
+    const end = nl < 0 ? bytes.length : nl;
+    const line = bytes.subarray(pos, end);
+    const likeLevel = atxHeadingLevel(line);
+    const marker = fenceMarker(line);
+    let level = 0;
+    if (fence) {
+      if (marker && marker.ch === fence.ch && marker.len >= fence.len && marker.bare) fence = null;
+    } else if (marker) {
+      fence = marker;
+    } else {
+      level = likeLevel;
+    }
+    lines.push({ start: pos, end, level, likeLevel });
+    if (nl < 0) break;
+    pos = nl + 1;
+  }
+  return { lines, unclosedFence: fence !== null };
+}
+
+function isEndOfFileBoundary(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value) &&
+    Object.keys(value).length === 1 && value.end_of_file === true;
+}
+
+function masterHeadingLineLevel(value, key) {
+  if (typeof value !== "string" || !value || /[\r\n]/.test(value)) {
+    throw new Error("control.master_amendment." + key + " must be one exact heading line");
+  }
+  const level = atxHeadingLevel(Buffer.from(value, "utf8"));
+  if (!level) throw new Error("control.master_amendment." + key + " must be a Markdown heading line");
+  return level;
+}
+
+function validateMasterAmendmentContract(control) {
+  if (control.authorized_paths.length !== 1 || control.authorized_paths[0] !== MASTER_PATH) {
+    throw new Error("master-amendment mode must authorize exactly one path, " + MASTER_PATH);
+  }
+  if (control.allowed_new_files.length) throw new Error("master-amendment mode may not authorize new files");
+  if (control.provider_proof_required.length) throw new Error("master-amendment mode may not require provider proof");
+  if (control.impact_domains.length === 0) throw new Error("master-amendment mode requires impact_domains");
+  for (const key of MUTATION_FLAGS) {
+    if (control[key] !== false) throw new Error("master-amendment mode requires control." + key + "=false");
+  }
+  const envelope = control.master_amendment;
+  if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) {
+    throw new Error("master-amendment mode requires the control.master_amendment content envelope");
+  }
+  for (const key of MASTER_AMENDMENT_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(envelope, key)) {
+      throw new Error("control.master_amendment." + key + " is required");
+    }
+  }
+  const unknown = Object.keys(envelope).filter((key) => !MASTER_AMENDMENT_KEYS.includes(key));
+  if (unknown.length) throw new Error("control.master_amendment has unknown keys: " + unknown.join(", "));
+  if (typeof envelope.base_master_blob !== "string" || !/^[0-9a-f]{40}$/.test(envelope.base_master_blob)) {
+    throw new Error("control.master_amendment.base_master_blob must be a 40-character lowercase Git blob SHA");
+  }
+  for (const key of ["section_before_sha256", "section_after_sha256"]) {
+    if (typeof envelope[key] !== "string" || !/^[0-9a-f]{64}$/.test(envelope[key])) {
+      throw new Error("control.master_amendment." + key + " must be a lowercase SHA-256 hex digest");
+    }
+  }
+  if (envelope.section_before_sha256 === envelope.section_after_sha256) {
+    throw new Error("control.master_amendment digests are equal; an amendment must change its section");
+  }
+  const startLevel = masterHeadingLineLevel(envelope.section_start_heading, "section_start_heading");
+  if (!isEndOfFileBoundary(envelope.section_end_heading)) {
+    const endLevel = masterHeadingLineLevel(envelope.section_end_heading, "section_end_heading");
+    if (envelope.section_end_heading === envelope.section_start_heading) {
+      throw new Error("control.master_amendment start and end headings must differ");
+    }
+    if (endLevel > startLevel) {
+      throw new Error("control.master_amendment.section_end_heading must be at the same or a higher heading level than the start");
+    }
+  }
+}
+
+function lineIndexesEqualTo(bytes, lines, text) {
+  const want = Buffer.from(text, "utf8");
+  const out = [];
+  lines.forEach((line, index) => {
+    if (bytes.subarray(line.start, line.end).equals(want)) out.push(index);
+  });
+  return out;
+}
+
+// Locate the authorized section in one Master (raw bytes). Every anchor must resolve uniquely;
+// anything missing, duplicated, reordered or ambiguous fails closed.
+function locateMasterSection(bytes, envelope, side) {
+  const { lines, unclosedFence } = scanMasterLines(bytes);
+  if (unclosedFence) throw new Error(side + " Master has an unclosed fenced code block, so its section boundaries are ambiguous");
+  const starts = lineIndexesEqualTo(bytes, lines, envelope.section_start_heading);
+  if (starts.length !== 1) {
+    throw new Error(side + " Master: the start heading occurs " + starts.length + " times as a line; exactly one is required");
+  }
+  const s = starts[0];
+  const level = lines[s].level;
+  if (!level) throw new Error(side + " Master: the start heading line is not an actual Master heading");
+  let actual = -1;
+  for (let j = s + 1; j < lines.length; j++) {
+    if (lines[j].level && lines[j].level <= level) { actual = j; break; }
+  }
+  let lookalike = -1;
+  for (let j = s + 1; j < lines.length; j++) {
+    if (lines[j].likeLevel && lines[j].likeLevel <= level) { lookalike = j; break; }
+  }
+  if (lookalike !== actual) {
+    throw new Error(side + " Master: heading-like text that is not an actual Master heading (line " + (lookalike + 1) + ") could change the section boundary");
+  }
+  if (isEndOfFileBoundary(envelope.section_end_heading)) {
+    if (actual !== -1) {
+      throw new Error(side + " Master: the envelope records end of file, but a heading at the same or a higher level closes the section at line " + (actual + 1));
+    }
+    return { start: lines[s].start, end: bytes.length };
+  }
+  const ends = lineIndexesEqualTo(bytes, lines, envelope.section_end_heading);
+  if (ends.length !== 1) {
+    throw new Error(side + " Master: the closing heading occurs " + ends.length + " times as a line; exactly one is required");
+  }
+  if (ends[0] < s) throw new Error(side + " Master: the closing heading appears before the start heading");
+  if (ends[0] !== actual) {
+    throw new Error(side + " Master: the recorded closing heading is not the first heading at the same or a higher level after the start" +
+      (actual === -1 ? " (none follows)" : " (line " + (actual + 1) + " is)"));
+  }
+  return { start: lines[s].start, end: lines[actual].start };
+}
+
+// Raw Git blob payload bytes: no encoding option, no trim.
+function gitBlobBytes(spec) {
+  return execFileSync("git", ["cat-file", "blob", spec], {
+    stdio: ["ignore", "pipe", "pipe"],
+    maxBuffer: 256 * 1024 * 1024
+  });
+}
+
+function verifyMasterAmendment(envelope, baseRef) {
+  const baseBlob = git(["rev-parse", baseRef + ":" + MASTER_PATH]);
+  if (baseBlob !== envelope.base_master_blob) {
+    throw new Error("the base Master blob is " + baseBlob + "; the base contract pins " + envelope.base_master_blob);
+  }
+  const base = gitBlobBytes(baseRef + ":" + MASTER_PATH);
+  const computed = createHash("sha1").update(Buffer.concat([Buffer.from("blob " + base.length + "\0"), base])).digest("hex");
+  if (computed !== envelope.base_master_blob) throw new Error("the base Master bytes do not hash to the pinned blob");
+  const head = gitBlobBytes("HEAD:" + MASTER_PATH);
+  const b = locateMasterSection(base, envelope, "BASE");
+  const h = locateMasterSection(head, envelope, "HEAD");
+  const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
+  if (digest(base.subarray(b.start, b.end)) !== envelope.section_before_sha256) {
+    throw new Error("the section-before SHA-256 does not match the BASE Master section");
+  }
+  if (digest(head.subarray(h.start, h.end)) !== envelope.section_after_sha256) {
+    throw new Error("the section-after SHA-256 does not match the HEAD Master section");
+  }
+  if (!base.subarray(0, b.start).equals(head.subarray(0, h.start))) {
+    throw new Error("bytes before the authorized section changed");
+  }
+  if (!base.subarray(b.end).equals(head.subarray(h.end))) {
+    throw new Error("bytes after the authorized section changed");
   }
 }
 
@@ -1449,6 +1681,48 @@ function main() {
     // Pre-success invariant: a database-shaped change cannot exit through this mode either.
     assertDatabaseChain(control, changedPaths, readHead, readBase, baseRef);
     pass("Control-root maintenance is base-authorized and authority-root is required.");
+    return;
+  }
+
+  // MASTER AMENDMENT (ledger row 19). Authorized only by the BASE contract; the PR changes the
+  // Master and nothing else; the change is exactly the byte range the base envelope pins.
+  if (control.mode === MASTER_AMENDMENT_MODE) {
+    const onlyState = changedPaths.length > 0 && changedPaths.every((filePath) => filePath === STATE_PATH);
+    if (onlyState) {
+      try {
+        const proposed = parseControl(git(["show", "HEAD:" + STATE_PATH]));
+        validateControl(proposed);
+        validateImpactPaths(proposed, baseRef);
+        if (proposed.mode !== "control-update") {
+          throw new Error("a Master amendment may exit only to control-update mode; the proposed mode is " + proposed.mode);
+        }
+        if (proposed.base_branch !== baseBranch) throw new Error("the exit must remain anchored to " + baseBranch);
+      } catch (error) {
+        fail("Master amendment exit contract is invalid: " + error.message);
+      }
+      // Pre-success invariant: a database-shaped change cannot exit through this mode either.
+      assertDatabaseChain(control, changedPaths, readHead, readBase, baseRef);
+      pass("Master amendment exited through a state-only control update.");
+      return;
+    }
+    if (process.env.MALLAN_AUTHORITY_ROOT_REQUIRED !== "true") {
+      fail("Master amendment is blocked until live GitHub rules prove authority-root is a required main-branch status check.");
+    }
+    if (changedPaths.length !== 1 || changedPaths[0] !== MASTER_PATH) {
+      fail("Master amendment may change " + MASTER_PATH + " only. Changed paths:\n" + changedPaths.map((p) => "  - " + p).join("\n"));
+    }
+    if (!changes[0].status.startsWith("M")) {
+      fail("Master amendment must modify " + MASTER_PATH + " in place; git status " + changes[0].status + " is refused.");
+    }
+    try {
+      validateImpactPaths(control, baseRef);
+      verifyMasterAmendment(control.master_amendment, baseRef);
+    } catch (error) {
+      fail("Master amendment content pinning failed: " + error.message);
+    }
+    // Pre-success invariant: a database-shaped change cannot pass through this mode either.
+    assertDatabaseChain(control, changedPaths, readHead, readBase, baseRef);
+    pass("Master amendment is base-authorized, Master-only and content-pinned.");
     return;
   }
 
