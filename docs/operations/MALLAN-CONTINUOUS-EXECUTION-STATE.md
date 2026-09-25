@@ -6,7 +6,7 @@
 > This file records current verified execution state and the machine-readable authorization envelope
 > consumed by the required GitHub PR check. It may not redefine the Master.
 
-**Checkpoint:** 2026-09-24 — #641 merged (`fadd3937`): A2 exited implementation mode on a contradiction; Maya then deprioritized A2 and authorized the ledger row 19 control-root-maintenance packet (§5 item 7c, §11); 2026-09-22 governance activation and #638 recorded; the SHAs below still describe the 2026-09-20 #632 checkpoint  
+**Checkpoint:** 2026-09-25 — #643 merged (`c353c171`): the ledger row 19 Master-amendment path (the bounded `master-amendment` controller mode with its negative tests) is on protected `main`, and a state-only exit returns the contract to `control-update` (§5 item 7c, §11); no Master amendment is authorized. HISTORY: 2026-09-24 — #641 merged (`fadd3937`): A2 exited implementation mode on a contradiction; Maya then deprioritized A2 and authorized the ledger row 19 control-root-maintenance packet (§5 item 7c, §11); 2026-09-22 governance activation and #638 recorded; the SHAs below still describe the 2026-09-20 #632 checkpoint  
 **Repository:** `mallan67/mallan-nyc` only  
 **Canonical branch:** `main`  
 **Main at this checkpoint:** `005786e71818ef13f555111de67e3d6248412987` — the PR #632 merge
@@ -333,10 +333,9 @@ correction commit invalidates the prior exact-head proof and must rerun the chai
 The current sequence is governance-first. Provider cleanup and product implementation are stopped
 until the execution boundary is real.
 
-**Position as of 2026-09-24: items 1 to 7a are COMPLETE. Item 7b (A2) is PAUSED before execution (a contradiction in its base
-text; §11 "A2 paused — contradiction") and DEPRIORITIZED by Maya on 2026-09-24. Item 7c, the ledger row 19
-control-root-maintenance packet, is the CURRENT packet. Item 8, the
-trace-to-closure program in §11, continues alongside it as a read-only investigation; its provider
+**Position as of 2026-09-25: items 1 to 7a and item 7c are COMPLETE; no packet is active and the mode is `control-update`. Item 7b (A2)
+is PAUSED before execution (a contradiction in its base text; §11 "A2 paused — contradiction") and DEPRIORITIZED by Maya on 2026-09-24.
+Item 8, the trace-to-closure program in §11, continues as a read-only investigation; its provider
 mutations are held (see the §11 governance incident).**
 
 1. **Close the remaining PR #632 defects before merge.**
@@ -405,12 +404,18 @@ mutations are held (see the §11 governance incident).**
 7b. **DEPRIORITIZED — `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22` (A2), PAUSED 2026-09-24 before execution.** No A2 change was pushed.
    Maya deprioritized it on 2026-09-24: it is not resumed unless she reprioritizes it. Its envelope stays on record in
    §11 "Paused packet".
-7c. **CURRENT PACKET — `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` (ledger row 19), control-root maintenance, authorized by
-   this control update.** Scope, required proofs and exit are in the §7 contract. Sequence (Maya, 2026-09-24): this packet →
+7c. **DONE 2026-09-25 — `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` (ledger row 19), control-root maintenance, authorized by
+   #642 (merged `016a0933`).** Sequence (Maya, 2026-09-24): this packet →
    its state-only exit to `control-update` → a separately authorized Master-only amendment of §0.12 (live Vercel resource
    discovery: `vercel integration list mallan-nyc --format=json`, then `vercel integration open neon <LIVE_RESOURCE_NAME>
    --format=json`) → a documentation packet reconciling `CLAUDE.md`, `AGENTS.md`, `NEON.md` and
    `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md` → the Neon/Vercel infrastructure convergence program.
+   - **DONE 2026-09-25.** #643 delivered the packet: merged as `c353c171dc58170a893ba8135845c6bac801f794`, adding the bounded
+     `master-amendment` mode to `scripts/ci/mallan-execution-control.mjs` and its negative and regression tests to
+     `tests/runtime/mallan-execution-control.test.ts` (`pr-check` and `authority-root` required and green; the final Codex review
+     found no major issues; every review thread resolved). A state-only PR is the packet's exit back to `control-update`.
+   - The next step in the sequence above, a Master-only amendment of §0.12, is **NOT authorized** by that exit. Any Master
+     amendment needs its own later state-only control update that sets `master-amendment` mode with its content envelope.
 8. **IN PROGRESS (not the active packet) — the trace-to-closure program in §11, read-only; provider mutations held.** One Vercel control-plane reconciliation packet over the existing `mallan-nyc → neon-green-school` connection, environment scopes, branch overrides and every DB/control reader/writer.
 9. **Only after that reconciliation may Development/Preview authority be designed.** No schema-only branch, second project, per-branch database or resource split is assumed in advance.
 10. **Cotality-dependent product work remains fail-closed until live provider proof is available through the authorized Cotality contract path.**
@@ -571,23 +576,21 @@ PR #632 was a one-time bootstrap exception because base `main` did not then cont
 It is merged and the exception is closed; base `main` now carries both authority files, so no
 PR can reach that branch again.
 
-The current mode is **`control-root-maintenance`** for exactly one packet, `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` (ledger row 19): only `scripts/ci/mallan-execution-control.mjs` and `tests/runtime/mallan-execution-control.test.ts` may change, only while live GitHub rules prove `authority-root` is a required main check, and the packet exits through a separate state-only PR back to `control-update`. Implementation mode for A2 (`RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22`) was exited on 2026-09-24 through the #638 exit (#641) because A2's base text contradicted live evaluation (§11 "A2 paused — contradiction"); A2 is deprioritized. Code and scope expansion may not be combined into the same self-authorizing PR.
+The current mode is **`control-update`**: only this execution-state file may change. The `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` maintenance packet (ledger row 19) is merged (#643, `c353c171`) and this contract is its state-only exit; it authorizes no Master amendment. HISTORY: from #642 until #643 the mode was `control-root-maintenance` for that packet, changing only `scripts/ci/mallan-execution-control.mjs` and `tests/runtime/mallan-execution-control.test.ts`. Implementation mode for A2 (`RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22`) was exited on 2026-09-24 through the #638 exit (#641) because A2's base text contradicted live evaluation (§11 "A2 paused — contradiction"); A2 is deprioritized. Code and scope expansion may not be combined into the same self-authorizing PR.
 
 <!-- MALLAN_EXECUTION_CONTROL_V1_START -->
 ```json
 {
   "version": 1,
-  "mode": "control-root-maintenance",
+  "mode": "control-update",
   "authorized_branch": "work/active",
   "base_branch": "main",
   "authorized_paths": [
-    "scripts/ci/mallan-execution-control.mjs",
-    "tests/runtime/mallan-execution-control.test.ts"
+    "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
   ],
   "allowed_new_files": [],
   "impact_domains": [
-    "governance",
-    "control-root"
+    "governance"
   ],
   "provider_proof_required": [],
   "production_mutation_authorized": false,
@@ -606,77 +609,40 @@ The current mode is **`control-root-maintenance`** for exactly one packet, `GOVE
     "compliance_proof_required_when_applicable": true,
     "no_parallel_path_proof_required": true
   },
-  "packet_id": "GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24",
-  "objective": "Ledger row 19 disposition (control-root maintenance). Add to scripts/ci/mallan-execution-control.mjs a bounded Master-amendment mode, with negative tests in tests/runtime/mallan-execution-control.test.ts, so that MALLAN-PLATFORM-MASTER-PLAN.md can change only through a base-authorized, Master-only packet. Each property must be proven by a test, and every new property by a test that fails against the current controller: (1) a Master amendment is authorized only by the BASE Execution State contract, never by the PR HEAD; (2) a PR cannot self-authorize a Master amendment by editing the Execution State; (3) an amendment PR may change MALLAN-PLATFORM-MASTER-PLAN.md only, and the Execution State, code, tests, workflows or provider, environment or database paths in the same PR fail; (4) implementation mode still refuses Master changes; (5) control-update and control-root-maintenance still refuse Master changes; (6) an unauthorized Master edit fails in every mode; (7) the amendment mode exits only through a state-only PR back to control-update; (8) the amendment mode requires the same live proof as control-root maintenance that authority-root is a required main check; (9) no weakening of authority-root, pr-check, release-truth, branch-authority, the database chain, the direct-Neon capability scan, the mutation-class guards or NONDELETABLE_CONTROL_ROOT_PATHS; (10) CONTENT PINNING IS MANDATORY: the BASE contract of every Master-amendment packet must carry a machine-readable content envelope with all five of: (a) the exact BASE Master blob SHA; (b) the exact permitted Master section heading, as the start anchor; (c) the exact section end boundary, derived from the next Master heading at the same level (a higher-level heading also closes the section), never from line numbers; (d) the exact digest of the authorized section before amendment; (e) the exact digest of the authorized section after amendment. Both section digests are SHA-256 (lowercase hex) computed over the section range of the exact raw file-content bytes stored as the Git blob payload, excluding the Git object header, read and hashed byte-for-byte with no decoding, re-encoding or normalization of any kind (no newline, whitespace or Unicode normalization, no charset conversion and no string round-trip before hashing); the contract governs the hashed bytes, not a particular API. The range starts at the first byte of the start-heading line and ends immediately before the first byte of the closing heading line, so the start heading line is included and the closing heading line is excluded; end of file may be the boundary only where the envelope explicitly records it; the after-digest range is located the same way in the amended file. The anchors must resolve uniquely and fail closed, in both the BASE and the HEAD Master: the exact start-heading line must occur exactly once as a line anywhere in the file; the recorded closing heading line must also occur exactly once, after the start, and must be the first actual Master heading at the same or a higher level following the start; missing, duplicate, reordered or ambiguous anchors fail; and heading-like text that is not an actual governing section heading (for example a heading-like line inside a fenced code block) never silently becomes the boundary: if it could change the selected byte range, the packet fails. A packet missing any of the five fails, and a full-file post-amendment SHA may not be the only mechanism. The controller tests must prove: (t1) correct base Master, correct section and exactly the expected replacement passes; (t2) a wrong or stale base Master blob fails; (t3) a wrong section-before digest fails; (t4) a wrong section-after digest fails; (t5) an extra unintended edit elsewhere inside the authorized section fails; (t6) an edit outside the authorized section fails; (t7) the authorized section edit plus an edit to another Master section fails; (t8) heading or boundary manipulation (renaming, moving, adding or removing the start heading or the closing heading) fails; (t9) HEAD cannot change its own authorization; (t10) the Master plus the Execution State in the same amendment PR fails; (t11) the Master plus any second repository path fails; (t12) an equal-length byte substitution inside the authorized section fails, and so does a change that differs only in line endings or whitespace; (t13) a duplicate or ambiguous section anchor or boundary fails closed, including at least a duplicated authorized start heading, a duplicated or ambiguous closing heading, a closing boundary that appears before the start, and a decoy heading or boundary that would make the controller select a different byte range. Changes are limited to the two authorized paths. This packet changes no Master text and authorizes no provider, environment, Neon, Vercel, Cotality, database, documentation or branch mutation. It exits through a state-only PR back to control-update; the Master-only amendment of Master section 0.12 (live Vercel resource discovery) is authorized separately afterwards.",
+  "packet_id": "GOVERNANCE-MASTER-AMENDMENT-PATH-EXIT-2026-09-25",
+  "objective": "Exit control-root-maintenance after #643 (merged c353c171dc58170a893ba8135845c6bac801f794), which delivered packet GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24 (ledger row 19): the bounded master-amendment controller mode and its negative tests are on protected main. Authorize only state-only updates to this file. No packet is active. No Master amendment is authorized by this contract: any change to MALLAN-PLATFORM-MASTER-PLAN.md needs its own later state-only control update that sets master-amendment mode with the content envelope the controller requires. No provider, environment, Neon, Vercel, Cotality, database, branch or implementation mutation is authorized.",
   "impact_graph": {
     "root_owner_paths": [
       "MALLAN-PLATFORM-MASTER-PLAN.md",
-      "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md",
-      "scripts/ci/mallan-execution-control.mjs"
+      "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
     ],
     "writer_paths": [
-      "scripts/ci/mallan-execution-control.mjs"
+      "scripts/ci/mallan-execution-control.mjs",
+      ".github/workflows/pr-check.yml",
+      ".github/workflows/branch-authority.yml",
+      ".github/workflows/authority-root.yml"
     ],
     "reader_paths": [
-      ".github/workflows/pr-check.yml",
-      ".github/workflows/authority-root.yml",
-      ".github/workflows/branch-authority.yml"
+      "AGENTS.md",
+      "CLAUDE.md"
     ],
     "publisher_paths": [
       ".github/workflows/pr-check.yml",
+      ".github/workflows/branch-authority.yml",
       ".github/workflows/authority-root.yml"
     ],
     "downstream_surfaces": [
-      "GitHub pull-request merge eligibility of every future packet (pr-check, authority-root)",
-      "the only governed path by which MALLAN-PLATFORM-MASTER-PLAN.md may change (ledger row 19)",
-      "the separately authorized Master-only amendment of section 0.12 (live Vercel resource discovery)"
+      "GitHub pull-request merge eligibility",
+      "GitHub future branch creation",
+      "All later Mallan packets, including any later separately authorized Master amendment"
     ],
     "test_paths": [
       "tests/runtime/mallan-execution-control.test.ts",
       "tests/runtime/agent-authority-live-source.test.ts"
     ],
     "compliance_surfaces": [
-      "Governance only: no listing, public, client, provider or database behaviour changes in this packet"
-    ],
-    "database_impact_chain": {
-      "vercel_integration": [
-        "vercel.json"
-      ],
-      "env_resolution": [
-        "lib/db.ts",
-        "lib/ops/db-target.ts"
-      ],
-      "db_target": [
-        "lib/ops/db-target.ts",
-        "lib/ops/canonical-neon-target.ts"
-      ],
-      "prisma_pg": [
-        "prisma/schema.prisma",
-        "lib/prisma.ts"
-      ],
-      "migrations": [
-        "prisma/schema.prisma"
-      ],
-      "workflows_crons": [
-        "vercel.json",
-        ".github/workflows/pr-check.yml"
-      ],
-      "preview": [
-        "scripts/release-safety/release-truth-verdict.js"
-      ],
-      "production": [
-        ".github/workflows/release-truth.yml",
-        "scripts/release-safety/release-truth-verdict.js"
-      ],
-      "downstream_readers_writers": [
-        "lib/db.ts",
-        "lib/prisma.ts"
-      ],
-      "tests": [
-        "tests/runtime/mallan-execution-control.test.ts",
-        "tests/runtime/db-target-authority.test.ts"
-      ]
-    }
+      "Governance only; no listing/public/client compliance mutation in this packet"
+    ]
   }
 }
 ```
@@ -816,8 +782,10 @@ Do not create another status file because this one becomes inconvenient.
 
 # 11. Current exact stop point
 
-**CURRENT: `mode: control-root-maintenance` (2026-09-24) for exactly one packet, `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24`:
-the ledger row 19 disposition, a bounded, base-authorized Master-amendment path with negative tests (§7 contract). A2,
+**CURRENT: `mode: control-update` (2026-09-25); no packet is active and no Master amendment is authorized. The ledger row 19 packet
+`GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` (a bounded, base-authorized Master-amendment path with negative tests) is COMPLETE: #642
+authorized it, #643 delivered it (merged `c353c171`), and this state-only control update is its exit. HISTORY: from #642 until #643 the mode
+was `control-root-maintenance` for that packet. A2,
 `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22`, is PAUSED (see "A2 paused — contradiction (2026-09-24)" below) and
 DEPRIORITIZED by Maya on 2026-09-24. Everything else in this section that describes an earlier packet is history. Governance
 activation is COMPLETE, the implementation-mode one-way door is CLOSED (#638), and the artifact trace
@@ -876,8 +844,10 @@ Superseded 2026-09-24: Maya deprioritized A2 (§11 CURRENT).
 
 ## What this packet is
 
-`GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24`: the ledger row 19 control-root-maintenance packet authorized by this state-only
-control update (§7 contract). HISTORY: `A2-CONTRADICTION-EXIT-2026-09-24` (#641, merged as `fadd3937`) was the state-only
+No packet is active. This state-only control update (`control-update`, §7 contract) is the exit of `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24`.
+HISTORY: `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` was the ledger row 19 control-root-maintenance packet, authorized by #642 (`016a0933`)
+and delivered by #643 (`c353c171`).
+HISTORY: `A2-CONTRADICTION-EXIT-2026-09-24` (#641, merged as `fadd3937`) was the state-only
 implementation-mode exit and count correction described in "A2 paused —
 contradiction (2026-09-24)" above. HISTORY: A1 was a state-only control update authorizing `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22` (see "Paused packet"), recording the
 2026-09-22 live evidence, and recording the governance incident below. HISTORY: #639 (`b0ab6264`) was
@@ -892,8 +862,8 @@ authorized branch work/active may execute*. At the time of writing that is **22 
 none of them on `work/active`.
 
 This is the designed behaviour, not a defect: the control block authorizes one branch,
-`work/active`, and only the paths its current envelope names (today: `control-root-maintenance` — the controller and its test only,
-packet `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24`; A2 is paused and deprioritized, see "Paused packet"). HISTORY: under #639 the envelope was `control-root-maintenance` with exactly the controller
+`work/active`, and only the paths its current envelope names (today: `control-update` — this file only; no packet is active;
+A2 is paused and deprioritized, see "Paused packet"). HISTORY: from #642 until #643 the envelope was `control-root-maintenance` with exactly the controller and its test, packet `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24`. HISTORY: under #639 the envelope was `control-root-maintenance` with exactly the controller
 and its test. Any other implementation lane still needs its own control update. It is
 recorded here because it is a large, immediate change to how the repository behaves, it was
 not flagged at merge time, and a reader who finds their PR red needs to know the cause is the
@@ -973,7 +943,9 @@ reachable. The order is now fixed:
 2. DONE — #638 added the exit and its negative tests, merged with `pr-check` and
    `authority-root` required and green;
 3. DONE — #639 (`b0ab6264`), the state-only exit back to `control-update`;
-4. CURRENT — the ledger row 19 control-root-maintenance packet (`GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24`); the
+4. DONE — the ledger row 19 control-root-maintenance packet (`GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24`), authorized by #642
+   (`016a0933`) and delivered by #643 (`c353c171`);
+5. CURRENT — `control-update` after that packet's state-only exit; no packet is active and no Master amendment is authorized; the
    trace-to-closure program below continues read-only; A2 (paused, deprioritized) is in "Paused packet".
 
 HISTORY: before A1 no documentation lane was authorized. A1 authorized A2 ("Paused packet") over
@@ -1328,7 +1300,7 @@ documentation packet creates the canonical ID before any implementation acts on 
 | 16 | `MALLAN_OFFICE_MLS_IDS`, `MALLAN_LIST_OFFICE_MLS_IDS`, `MALLAN_OH_OFFICE_MLS_IDS` and other Cotality-shaped `MALLAN_*` configuration | not yet assigned — none is set in the 2026-09-22 Vercel read | what Cotality field each represents is UNVERIFIED | trace each fallback source; verify against the live Cotality contract (connector needs authentication) | FIXED onto one mapping verified against the live Cotality contract; DELETED where no verified field supports it | NONE — evidence only; canonical ID required before remediation |
 | 17 | the 22 open PRs (verified 2026-09-22) and the non-`main` branch estate (36 per §5.1, 2026-09-20; recount live) | n/a — Git artifacts | #624 and #600 `pr-check` red since August; #596 as stated in the operational-consequence section; all other latest checks predate #632 | per-branch unique-work reconciliation | per PR/branch: MERGED if it holds unique valid work not already on `main` (then the PR is closed and the branch deleted), otherwise DELETED | NONE — evidence only; canonical ID required before remediation |
 | 18 | documentation claims corrected in this section (`NEON.md` Vercel database variable ownership; this file's §3 counts) | n/a — documentation | see Corrections | correct once the live evidence exists (documentation lane) | FIXED | `OPS-016` (NEON.md vs live Neon drift) for the NEON.md part; otherwise NONE — canonical ID required before remediation |
-| 19 | **No pull request can amend the Master.** `control-update` permits only the Execution State; `control-root-maintenance` authorizes only `IMMUTABLE_CONTROL_PATHS`, which excludes `MALLAN-PLATFORM-MASTER-PLAN.md`; `implementation` refuses Master changes (`scripts/ci/mallan-execution-control.mjs` L889-890, L1391, L1504-1506 on `main`) | n/a — governance control | VERIFIED from the controller source | design a bounded, base-authorized Master-amendment path with negative tests (control-root maintenance) — AUTHORIZED 2026-09-24 as packet `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` (current §7 contract) | FIXED | NONE — evidence only; canonical ID required before remediation |
+| 19 | **No pull request can amend the Master.** `control-update` permits only the Execution State; `control-root-maintenance` authorizes only `IMMUTABLE_CONTROL_PATHS`, which excludes `MALLAN-PLATFORM-MASTER-PLAN.md`; `implementation` refuses Master changes (`scripts/ci/mallan-execution-control.mjs` L889-890, L1391, L1504-1506 on `main`) | n/a — governance control | VERIFIED from the controller source; FIXED 2026-09-25 by #643 (merged `c353c171dc58170a893ba8135845c6bac801f794`): the bounded `master-amendment` mode and its negative tests are on protected `main` | design a bounded, base-authorized Master-amendment path with negative tests (control-root maintenance) — AUTHORIZED 2026-09-24 as packet `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` (#642, merged `016a0933`), DELIVERED by #643 (`c353c171`); the packet is closed | FIXED | NONE — evidence only; canonical ID required before remediation |
 | 20 | **Release Truth's bounded dependency wait can expire while its verdict is still DEPLOY_PENDING.** CORRECTED 2026-09-22: the one proven instance is run `35790568953` (#639 first head), where `pr-check` had already passed at 22:11:42Z and the wait expired ~22:19:31Z; the loop logs only the verdict, so which dependency was pending is not recorded. #637's first run is NOT an instance (its log ends after attempt 14 with no expiry line) | n/a — CI control | VERIFIED from the run logs | measure `pr-check` duration against the bounded wait; fix without letting Release Truth pass on a pending dependency | FIXED | NONE — evidence only; canonical ID required before remediation |
 | 21 | `backfillEmptyMedia` and `migrateMediaToR2` in `lib/idx/sync.ts` — exported, uncalled legacy code (their only caller, the `/api/cron/media-backfill` cron, was removed by PR #176 on 2026-05-21) — and the comments that still describe them as live (`sync.ts:1762-1767`, `sync.ts:2016`, `media-sync.ts:3216-3222`, `:3403-3405`, `:3450-3451`, `:3902`) | n/a — code artifact | VERIFIED 2026-09-23 on `main` `b0ab6264`: no non-test caller of either function; those comments are stale | comments: to be corrected by the re-authorized A2 (comment only; NOT yet corrected). Functions: not changed by A2 | comments: FIXED once the re-authorized A2 corrects them. Functions: row stays OPEN — DELETED if their removal is authorized under a new canonical OPS ID; FIXED only if they are proven to be intentionally retained canonical code | NONE — evidence only; canonical ID required before remediation. `OPS-008` (VERIFIED FIXED 2026-07-03) is related historical evidence that already records both functions as uncalled library code; this row is not merged into it, because both functions remain on `main` |
 Until each row closes, no agent may begin an environment change, credential removal, branch
@@ -1363,9 +1335,10 @@ Recorded so no later agent overstates it:
   leak in both directions at the test helper. Residual: `pr-check.yml` still exports the flag to
   the whole job instead of only the two gate steps (ledger row 15).
 
-**This contract (`GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24`, `control-root-maintenance`) authorizes exactly one packet, the ledger
-row 19 Master-amendment path, changing only `scripts/ci/mallan-execution-control.mjs` and `tests/runtime/mallan-execution-control.test.ts`;
-it changes no Master text. A2 (`RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22`) is paused and deprioritized. It authorizes no
+**This contract (`GOVERNANCE-MASTER-AMENDMENT-PATH-EXIT-2026-09-25`, `control-update`) is the state-only exit of the ledger row 19 packet
+`GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` after #643 (merged `c353c171`). It authorizes only state-only updates to this file and no packet.
+It authorizes no Master amendment: any change to `MALLAN-PLATFORM-MASTER-PLAN.md` needs its own later state-only control update that sets
+`master-amendment` mode with the content envelope the controller requires. A2 (`RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22`) is paused and deprioritized. It authorizes no
 deletion, environment change, credential change, new database/resource/branch, Cotality change or
 product implementation. Provider mutations require BOTH an active Git packet that names them AND
 Maya's explicit authorization (AGENTS.md:53); see the governance incident below. The Development/Preview
