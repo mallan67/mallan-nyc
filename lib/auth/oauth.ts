@@ -2,7 +2,7 @@
 // Shared helpers for OAuth sign-in flows
 
 import prisma from "@/lib/prisma";
-import { createSession, SESSION_COOKIE } from "@/lib/auth";
+import { createSession, isPrincipalBrokerRole, SESSION_COOKIE } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://mallan.nyc";
@@ -34,6 +34,19 @@ export async function handleOAuthLogin(profile: OAuthProfile) {
     if (agent.status !== "active") {
       return NextResponse.redirect(
         `${SITE_URL}/sign-in?error=Account+is+inactive+or+suspended`
+      );
+    }
+
+    // ── OAuth identity alone must NOT mint a principal-broker session ──
+    // Google, Facebook and LinkedIn all funnel through this one helper, so the
+    // correction belongs here rather than in three callback copies. Proving
+    // control of an email address at an identity provider is not broker MFA.
+    // Fail closed: send the broker through the standard password + OTP sign-in.
+    // No privileged token is placed in a URL and no second MFA state machine is
+    // introduced. Non-broker agents are unaffected.
+    if (isPrincipalBrokerRole(agent.role)) {
+      return NextResponse.redirect(
+        `${SITE_URL}/sign-in?error=Broker+accounts+must+sign+in+with+a+password+and+verification+code`
       );
     }
 
