@@ -620,12 +620,10 @@ The current mode is **`control-update`**: only this execution-state file may cha
       "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
     ],
     "writer_paths": [
-      "scripts/ci/mallan-execution-control.mjs",
-      ".github/workflows/pr-check.yml",
-      ".github/workflows/branch-authority.yml",
-      ".github/workflows/authority-root.yml"
+      "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
     ],
     "reader_paths": [
+      "scripts/ci/mallan-execution-control.mjs",
       "AGENTS.md",
       "CLAUDE.md"
     ],
