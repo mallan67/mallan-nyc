@@ -2853,4 +2853,23 @@ describe("Mallan execution-control gate", () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("Master amendment is base-authorized, Master-only and content-pinned");
   });
+
+  // Codex P1 on #643 (fourth finding, head a44247a0): every heading form on a line takes part in the
+  // boundary check. The shallowest level wins, whether it comes from a later HTML element or from an
+  // HTML element on a line that also looks like a deeper ATX heading.
+  test("mixed lines: the shallowest heading form on a line is a boundary decoy", () => {
+    const decoys = [
+      "<h3>minor</h3><h2>boundary decoy</h2>",
+      "<h6>a</h6> <h5>b</h5> <h1>decoy</h1>",
+      "### minor <h2>decoy</h2>",
+      "> #### minor <h1>decoy</h1>",
+    ];
+    for (const decoy of decoys) {
+      const base = AM_BASE.replace("Detail text.", "Detail text.\n\n" + decoy);
+      expectRefused(amendGate(containerRepo(base)), "heading-like text that is not an actual Master heading");
+    }
+    const deeperOnly = AM_BASE.replace("Detail text.", "Detail text.\n\n<h3>minor</h3><h4>minor</h4>\n\n#### minor <h5>minor</h5>");
+    const result = amendGate(containerRepo(deeperOnly));
+    expect(result.status).toBe(0);
+  });
 });
