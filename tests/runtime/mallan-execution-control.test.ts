@@ -2717,4 +2717,81 @@ describe("Mallan execution-control gate", () => {
     commitMaster(envelopeOutsideMode, "# MASTER\nchanged\n");
     expectRefused(amendGate(envelopeOutsideMode), "control.master_amendment is valid only in master-amendment mode");
   });
+
+  // Codex P1 on #643: a heading-like line inside a raw HTML block or another Markdown block
+  // container is never a governing Master heading. It may not be the start anchor, the closing
+  // anchor or a boundary, and ambiguous or unclosed containers fail closed.
+  const withNewRule = (base: string) => base.replace("Old discovery rule.", "New discovery rule.");
+  function containerRepo(base: string, overrides: Record<string, unknown> = {}, end: string | null = AM_END) {
+    const head = withNewRule(base);
+    const envelope = amEnvelope(base, head, {
+      section_before_sha256: sha256Hex(sectionOf(base, AM_START, end)),
+      section_after_sha256: sha256Hex(sectionOf(head, AM_START, end)),
+      ...overrides,
+    });
+    const cwd = amendmentRepo(amendmentControl(envelope), base);
+    commitMaster(cwd, head);
+    return cwd;
+  }
+
+  test("raw HTML: an ATX heading-looking line inside <div>...</div> cannot be the closing anchor", () => {
+    const base = AM_BASE.replace("Detail text.", "Detail text.\n\n<div>\n## Decoy\n</div>");
+    const cwd = containerRepo(base, { section_end_heading: "## Decoy" }, "## Decoy");
+    expectRefused(amendGate(cwd), "heading-like text that is not an actual Master heading");
+  });
+
+  test("raw HTML: other raw HTML block forms cannot supply a closing anchor either", () => {
+    const forms = [
+      "<!--\n## Decoy\n-->",
+      "<pre>\n## Decoy\n\n</pre>",
+      "<script>\n## Decoy\n</script>",
+      "<table>\n## Decoy\n</table>",
+    ];
+    for (const form of forms) {
+      const base = AM_BASE.replace("Detail text.", "Detail text.\n\n" + form);
+      const cwd = containerRepo(base, { section_end_heading: "## Decoy" }, "## Decoy");
+      expectRefused(amendGate(cwd), "heading-like text that is not an actual Master heading");
+    }
+  });
+
+  test("raw HTML: a pseudo start heading inside raw HTML is not the section start", () => {
+    const base = AM_BASE.replace(AM_START + "\n", "<div>\n" + AM_START + "\n</div>\n");
+    const cwd = containerRepo(base);
+    expectRefused(amendGate(cwd), "the start heading line is not an actual Master heading");
+  });
+
+  test("raw HTML: a pseudo closing heading inside raw HTML is not the closing heading", () => {
+    const base = AM_BASE.replace(AM_END + "\n", "<details>\n" + AM_END + "\n</details>\n");
+    const cwd = containerRepo(base);
+    expectRefused(amendGate(cwd), "heading-like text that is not an actual Master heading");
+  });
+
+  test("raw HTML: a decoy between the real start and the real closing heading fails", () => {
+    const base = AM_BASE.replace("Detail text.", "Detail text.\n\n<div>\n## Decoy between\n</div>");
+    const cwd = containerRepo(base);
+    expectRefused(amendGate(cwd), "heading-like text that is not an actual Master heading");
+  });
+
+  test("raw HTML and containers: ambiguous or unclosed forms fail closed", () => {
+    const cases: Array<[string, string]> = [
+      [AM_BASE.replace("Detail text.", "Detail text.\n\n<!--\ncomment never closed"), "unclosed raw HTML block"],
+      [AM_BASE.replace("Detail text.", "Detail text.\n\n<pre>\npre never closed"), "unclosed raw HTML block"],
+      [AM_BASE.replace("Detail text.", "- list item\n  ## Decoy owned by the list"), "heading-like text that is not an actual Master heading"],
+      [AM_BASE.replace("Detail text.", "Decoy setext title\n---"), "heading-like text that is not an actual Master heading"],
+    ];
+    for (const [base, message] of cases) {
+      expectRefused(amendGate(containerRepo(base)), message);
+    }
+    const indentedAnchor = containerRepo(AM_BASE, { section_start_heading: " " + AM_START });
+    expectRefused(amendGate(indentedAnchor), "must be a Markdown heading line starting in column 0");
+  });
+
+  test("raw HTML: real headings outside containers still resolve and the amendment passes", () => {
+    const base = AM_BASE
+      .replace("Detail text.", "Detail text.\n\n<div>\nplain html, no heading\n</div>\n\n<!-- a one-line comment -->\n\n---\n\nMore detail.")
+      .replace("Tail text.", "Tail text.\n\n<div>\n## Not governing, after the section\n</div>");
+    const result = amendGate(containerRepo(base));
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Master amendment is base-authorized, Master-only and content-pinned");
+  });
 });
