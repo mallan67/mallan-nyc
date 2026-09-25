@@ -405,22 +405,25 @@ mutations are held (see the §11 governance incident).**
    Maya deprioritized it on 2026-09-24: it is not resumed unless she reprioritizes it. Its envelope stays on record in
    §11 "Paused packet".
 7c. **DONE 2026-09-25 — `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` (ledger row 19), control-root maintenance, authorized by
-   #642 (merged `016a0933`).** Sequence (Maya, 2026-09-24): this packet →
-   its state-only exit to `control-update` → a separately authorized Master-only amendment of §0.12 (live Vercel resource
-   discovery: `vercel integration list mallan-nyc --format=json`, then `vercel integration open neon <LIVE_RESOURCE_NAME>
-   --format=json`) → a documentation packet reconciling `CLAUDE.md`, `AGENTS.md`, `NEON.md` and
-   `docs/architecture/NEON-VERCEL-OWNERSHIP-MAP.md` → the Neon/Vercel infrastructure convergence program.
+   #642 (merged `016a0933`).**
    - **DONE 2026-09-25.** #643 delivered the packet: merged as `c353c171dc58170a893ba8135845c6bac801f794`, adding the bounded
      `master-amendment` mode to `scripts/ci/mallan-execution-control.mjs` and its negative and regression tests to
      `tests/runtime/mallan-execution-control.test.ts` (`pr-check` and `authority-root` required and green; the final Codex review
-     found no major issues; every review thread resolved). A state-only PR is the packet's exit back to `control-update`.
-   - The next step in the sequence above, a Master-only amendment of §0.12, is **NOT authorized** by that exit. Any Master
-     amendment needs its own later state-only control update that sets `master-amendment` mode with its content envelope.
-8. **IN PROGRESS (not the active packet) — the trace-to-closure program in §11, read-only; provider mutations held.** One Vercel control-plane reconciliation packet over the existing `mallan-nyc → neon-green-school` connection, environment scopes, branch overrides and every DB/control reader/writer.
-9. **Only after that reconciliation may Development/Preview authority be designed.** No schema-only branch, second project, per-branch database or resource split is assumed in advance.
-10. **Cotality-dependent product work remains fail-closed until live provider proof is available through the authorized Cotality contract path.**
+     found no major issues; every review thread resolved). This state-only PR is the packet's exit back to `control-update`.
+   - **The prerequisite-driven sequence recorded on 2026-09-24 stops here.** Maya directed on 2026-09-25 that no §0.12,
+     G2/G9, documentation, Neon/Vercel or other Master/control-plane packet follows automatically. No Master amendment is
+     authorized. Future work is selected from an actual platform defect or cleanup need and must advance that defect toward
+     system-wide closure rather than create another prerequisite chain.
+8. **READ-ONLY EVIDENCE, not an active blocking program — the trace-to-closure material in §11.** Consult it when a selected
+   defect actually touches Vercel/Neon/database/MCP/branch artifacts. Do not let artifact tracing displace product repair or
+   become a prerequisite program of its own. Provider mutations remain held unless separately and explicitly authorized.
+9. Development/Preview/database authority is corrected only when an active defect requires it and only against the canonical
+   architecture; no schema-only branch, second project, per-branch database or resource split is assumed in advance.
+10. Cotality-dependent product fixes use the authorized live Cotality contract for the specific provider facts they touch.
+    Lack of an unrelated provider census is not a reason to stall a fix whose required provider facts are already verified.
 
-Do not insert unrelated Search/CRM/CMA/forms rewrites into this governance/control-plane convergence packet.
+Do not use governance/control-plane convergence as a blanket blocker for Search, CRM, CMA, forms, media or other brokerage work.
+When a chosen defect crosses those systems, trace and correct its full impact graph as one coordinated repair.
 
 ## 5.1 Convergence recovery ledger — branches, Vercel overrides and retirement order
 
@@ -777,6 +780,27 @@ This file must remain current on:
 - next exact authorized action.
 
 Do not create another status file because this one becomes inconvenient.
+
+### Maya operating directive — solution-first, system-wide repair and cleanup (2026-09-25)
+
+- **Start from the real defect or cleanup need and drive it to closure.** Investigation is bounded to the root cause and blast
+  radius needed to fix it; audits, governance, registries, handoffs and tooling are support functions, not the product and not
+  substitutes for correction.
+- **Every defect is system-wide.** Trace the affected concept from Cotality/raw contract → verified mapping → canonical
+  Mallan identity/storage → business rule → every writer, reader, publisher, cache, job and permissioned view → every affected
+  Search, CMA, CRM, form, workspace, media, report, marketing, portal, public/SEO, compliance and runtime surface. A local patch
+  that leaves another consumer stale is incomplete.
+- **Default to consolidation and cleanup, not expansion.** Before adding a model, service, registry, rule, workflow, mapper,
+  cache or parallel path, prove the canonical one cannot be corrected. Duplicate engines, duplicate mappings, stale rules,
+  dead wrappers, obsolete instructions and parallel truths are defects to remove once their consumers are proven safe to retire.
+- **Do not build prerequisite chains around the fix.** Existing controls are used as-is unless the specific defect literally
+  cannot be corrected safely without one minimal prerequisite. Do not create a new audit/control layer merely because the
+  current system is difficult to repair.
+- **No serial micro-patch loop.** Fix the canonical root and all affected readers/writers together, then run targeted direct,
+  negative, integration, downstream, compliance and runtime proof as one closure packet. A green local test is not closure
+  while another surface still disagrees.
+- **Success means a cleaner, faster, more powerful Mallan system with fewer duplicate paths and rules and correct end-to-end
+  brokerage behavior — not more process.**
 
 ---
 
