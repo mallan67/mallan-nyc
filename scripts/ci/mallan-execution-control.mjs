@@ -957,33 +957,122 @@ function fenceMarker(line) {
   return { ch, len: n, bare: rest.every((b) => b === 0x20 || b === 0x09) };
 }
 
-// One entry per line of the raw bytes. level is the actual heading level (0 for a non-heading
-// and for anything inside a fenced code block); likeLevel is the level the line would have if
-// fences were ignored. Both are kept so heading-like text inside a fence can never silently
-// become a section boundary.
+// Raw HTML blocks (CommonMark block types 1-7). Classification only: the bytes are read as
+// latin1 purely to test these ASCII patterns, never for hashing. Types 1-5 end at their end
+// marker, which may be on the start line; an unclosed one fails closed. Every other line whose
+// first non-space character (within three spaces) is '<' is treated as a type 6/7 block that ends
+// at the next blank line. That is deliberately conservative: a heading-like line such a block
+// swallows is never a governing heading, and if it could move a boundary the packet fails.
+const HTML_BLOCK_KINDS = [
+  { start: /^<(?:script|pre|style|textarea)(?:[ \t>]|$)/i, end: /<\/(?:script|pre|style|textarea)>/i, from: 1 },
+  { start: /^<!--/, end: /-->/, from: 4 },
+  { start: /^<\?/, end: /\?>/, from: 2 },
+  { start: /^<![A-Za-z]/, end: />/, from: 2 },
+  { start: /^<!\[CDATA\[/, end: /\]\]>/, from: 9 },
+];
+
+function htmlBlockStart(line) {
+  let i = 0;
+  while (i < 3 && i < line.length && line[i] === 0x20) i++;
+  if (i >= line.length || line[i] !== 0x3c) return null;
+  const text = line.subarray(i).toString("latin1");
+  for (const kind of HTML_BLOCK_KINDS) {
+    if (kind.start.test(text)) return { end: kind.end, closed: kind.end.test(text.slice(kind.from)) };
+  }
+  return { end: null, closed: false };
+}
+
+function isBlankLine(line) {
+  return line.every((b) => b === 0x20 || b === 0x09 || b === 0x0d);
+}
+
+// Setext underline (a line of only '=' or only '-', up to three leading spaces): 1, 2 or 0.
+function setextUnderlineLevel(line) {
+  let i = 0;
+  while (i < 3 && i < line.length && line[i] === 0x20) i++;
+  const ch = i < line.length ? line[i] : -1;
+  if (ch !== 0x3d && ch !== 0x2d) return 0;
+  let j = i;
+  while (j < line.length && line[j] === ch) j++;
+  for (let k = j; k < line.length; k++) {
+    if (line[k] !== 0x20 && line[k] !== 0x09 && line[k] !== 0x0d) return 0;
+  }
+  return ch === 0x3d ? 1 : 2;
+}
+
+// Block-quote and list-item marker lines open containers; they are never paragraph text that a
+// setext underline could turn into a heading at this level.
+function opensContainer(line) {
+  let i = 0;
+  while (i < 3 && i < line.length && line[i] === 0x20) i++;
+  const c = i < line.length ? line[i] : -1;
+  if (c === 0x3e) return true;
+  const next = i + 1 < line.length ? line[i + 1] : -1;
+  if ((c === 0x2d || c === 0x2a || c === 0x2b) && (next === 0x20 || next === 0x09 || next === -1)) return true;
+  let d = i;
+  while (d < line.length && d - i < 9 && line[d] >= 0x30 && line[d] <= 0x39) d++;
+  if (d > i && d < line.length && (line[d] === 0x2e || line[d] === 0x29)) {
+    const after = d + 1 < line.length ? line[d + 1] : -1;
+    return after === 0x20 || after === 0x09 || after === -1;
+  }
+  return false;
+}
+
+// One entry per line of the raw bytes. level is the actual governing heading level: only an ATX
+// heading that starts in column 0 and lies outside every fenced code block and raw HTML block.
+// likeLevel is the level the line merely looks like: any ATX heading-like line wherever it sits
+// (fence, raw HTML, 1-3 spaces of indentation that a list container may own) and the text line of
+// a setext heading. Both are kept so that heading-like text that is not a governing heading can
+// never silently become a section anchor or boundary.
 function scanMasterLines(bytes) {
   const lines = [];
   let fence = null;
+  let html = null;
+  let paragraph = false;
   let pos = 0;
   while (pos < bytes.length) {
     const nl = bytes.indexOf(0x0a, pos);
     const end = nl < 0 ? bytes.length : nl;
     const line = bytes.subarray(pos, end);
     const likeLevel = atxHeadingLevel(line);
-    const marker = fenceMarker(line);
-    let level = 0;
+    const entry = { start: pos, end, level: 0, likeLevel };
+    lines.push(entry);
     if (fence) {
+      const marker = fenceMarker(line);
       if (marker && marker.ch === fence.ch && marker.len >= fence.len && marker.bare) fence = null;
-    } else if (marker) {
-      fence = marker;
+      paragraph = false;
+    } else if (html) {
+      if (html.end ? html.end.test(line.toString("latin1")) : isBlankLine(line)) html = null;
+      paragraph = false;
+    } else if (isBlankLine(line)) {
+      paragraph = false;
     } else {
-      level = likeLevel;
+      const marker = fenceMarker(line);
+      const htmlStart = marker ? null : htmlBlockStart(line);
+      const underline = setextUnderlineLevel(line);
+      if (marker) {
+        fence = marker;
+        paragraph = false;
+      } else if (htmlStart) {
+        if (!htmlStart.closed) html = htmlStart;
+        paragraph = false;
+      } else if (likeLevel) {
+        entry.level = line[0] === 0x23 ? likeLevel : 0;
+        paragraph = false;
+      } else if (underline) {
+        if (paragraph) {
+          const text = lines[lines.length - 2];
+          if (!text.likeLevel) text.likeLevel = underline;
+        }
+        paragraph = false;
+      } else {
+        paragraph = !opensContainer(line);
+      }
     }
-    lines.push({ start: pos, end, level, likeLevel });
     if (nl < 0) break;
     pos = nl + 1;
   }
-  return { lines, unclosedFence: fence !== null };
+  return { lines, unclosedFence: fence !== null, unclosedHtml: html !== null && html.end !== null };
 }
 
 function isEndOfFileBoundary(value) {
@@ -996,7 +1085,7 @@ function masterHeadingLineLevel(value, key) {
     throw new Error("control.master_amendment." + key + " must be one exact heading line");
   }
   const level = atxHeadingLevel(Buffer.from(value, "utf8"));
-  if (!level) throw new Error("control.master_amendment." + key + " must be a Markdown heading line");
+  if (!level || value[0] !== "#") throw new Error("control.master_amendment." + key + " must be a Markdown heading line starting in column 0");
   return level;
 }
 
@@ -1056,8 +1145,9 @@ function lineIndexesEqualTo(bytes, lines, text) {
 // Locate the authorized section in one Master (raw bytes). Every anchor must resolve uniquely;
 // anything missing, duplicated, reordered or ambiguous fails closed.
 function locateMasterSection(bytes, envelope, side) {
-  const { lines, unclosedFence } = scanMasterLines(bytes);
+  const { lines, unclosedFence, unclosedHtml } = scanMasterLines(bytes);
   if (unclosedFence) throw new Error(side + " Master has an unclosed fenced code block, so its section boundaries are ambiguous");
+  if (unclosedHtml) throw new Error(side + " Master has an unclosed raw HTML block, so its section boundaries are ambiguous");
   const starts = lineIndexesEqualTo(bytes, lines, envelope.section_start_heading);
   if (starts.length !== 1) {
     throw new Error(side + " Master: the start heading occurs " + starts.length + " times as a line; exactly one is required");
