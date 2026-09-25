@@ -1028,10 +1028,22 @@ function containerHeadingLevel(line) {
   return atxHeadingLevel(line.subarray(peelContainerPrefixes(line)));
 }
 
-// A raw HTML heading element (<h1>-<h6>) anywhere on the line. Classification only (latin1).
+// The shallowest (most significant) non-zero heading level among the candidates, or 0. Every
+// heading form a line carries must take part in the boundary check, so the shallowest one wins.
+function shallowestLevel(...levels) {
+  let best = 0;
+  for (const level of levels) if (level && (!best || level < best)) best = level;
+  return best;
+}
+
+// The shallowest raw HTML heading element (<h1>-<h6>) anywhere on the line: every element is
+// inspected, not only the first. Classification only (latin1).
 function htmlHeadingLevel(line) {
-  const match = /<h([1-6])(?=[\s>\/]|$)/i.exec(line.toString("latin1"));
-  return match ? Number(match[1]) : 0;
+  const text = line.toString("latin1");
+  const pattern = /<h([1-6])(?=[\s>\/]|$)/gi;
+  let best = 0;
+  for (let match = pattern.exec(text); match; match = pattern.exec(text)) best = shallowestLevel(best, Number(match[1]));
+  return best;
 }
 
 // One entry per line of the raw bytes.
@@ -1052,7 +1064,7 @@ function scanMasterLines(bytes) {
     const nl = bytes.indexOf(0x0a, pos);
     const end = nl < 0 ? bytes.length : nl;
     const line = bytes.subarray(pos, end);
-    const entry = { start: pos, end, level: 0, likeLevel: Math.max(containerHeadingLevel(line), htmlHeadingLevel(line)) };
+    const entry = { start: pos, end, level: 0, likeLevel: shallowestLevel(containerHeadingLevel(line), htmlHeadingLevel(line)) };
     lines.push(entry);
     if (fence) {
       const marker = fenceMarker(line);
@@ -1076,7 +1088,7 @@ function scanMasterLines(bytes) {
     const text = bytes.subarray(lines[k].start, lines[k].end);
     const rest = text.subarray(peelContainerPrefixes(text));
     if (isBlankLine(rest) || setextUnderlineLevel(rest) || atxHeadingLevel(rest)) continue;
-    lines[k].likeLevel = lines[k].likeLevel ? Math.min(lines[k].likeLevel, underline) : underline;
+    lines[k].likeLevel = shallowestLevel(lines[k].likeLevel, underline);
   }
   return { lines, unclosedFence: fence !== null, unclosedHtml: html !== null && html.end !== null };
 }
