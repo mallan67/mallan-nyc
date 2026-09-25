@@ -1,6 +1,6 @@
 # IDX & VOW Display Rules
 
-> **Feed:** REBNY RLS via Trestle (Cotality) | **LMP:** RealPlus (listing input to RLS) | **IDX Display:** Trestle IDX Plus WebAPI — public display + internal CRM + reporting (REBNY confirmed 2026-03-27). IDX-eligible inventory only, not full-market search.
+> **Feed:** REBNY RLS via Trestle (Cotality) | **IDX Display:** Trestle IDX Plus WebAPI — public display + internal CRM + reporting (REBNY confirmed 2026-03-27). IDX-eligible inventory only, not full-market search.
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 
 ---

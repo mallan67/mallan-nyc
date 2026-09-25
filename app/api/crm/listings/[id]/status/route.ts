@@ -369,7 +369,6 @@ export async function PATCH(
     previous_status: currentStatus,
     status: newStatus,
     publicUrl: urls.publicUrl,
-    realPlusUrl: urls.realPlusUrl,
     days_on_market: domUpdate.days_on_market,
     ...(domReset ? { dom_reset: true } : {}),
   });

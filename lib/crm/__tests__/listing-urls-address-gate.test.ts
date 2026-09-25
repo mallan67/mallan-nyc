@@ -53,23 +53,21 @@ const urls = (over: Record<string, unknown>) =>
   buildListingUrls({ ...base, ...over } as never);
 
 /** Every way the street or unit could leak into a URL. */
-function assertNoAddressLeak(u: { publicUrl: string | null; realPlusUrl: string | null }) {
-  for (const url of [u.publicUrl, u.realPlusUrl]) {
-    if (!url) continue;
-    const lower = url.toLowerCase();
-    expect(lower).not.toContain('57th');
-    expect(lower).not.toContain('217');
-    expect(lower).not.toContain('127');
-    expect(lower).not.toContain('128');
-    expect(lower).not.toContain('10019');
-  }
+function assertNoAddressLeak(u: { publicUrl: string | null }) {
+  const url = u.publicUrl;
+  if (!url) return;
+  const lower = url.toLowerCase();
+  expect(lower).not.toContain('57th');
+  expect(lower).not.toContain('217');
+  expect(lower).not.toContain('127');
+  expect(lower).not.toContain('128');
+  expect(lower).not.toContain('10019');
 }
 
 describe('RLS-backed: address permitted', () => {
   it('entire=true + address=true -> address slug', () => {
     const u = urls({});
     expect(u.publicUrl).toContain('57th');
-    expect(u.realPlusUrl).toContain('57th');
   });
 });
 
@@ -151,8 +149,18 @@ describe('unknown provenance fails closed', () => {
   });
 });
 
-describe('non-active listings still produce no realPlusUrl', () => {
-  it('a Draft listing has realPlusUrl null', () => {
-    expect(urls({ status: 'Draft' }).realPlusUrl).toBeNull();
+describe('the canonical public URL is NOT status-gated', () => {
+  // The retired second URL was literally `isActive ? publicUrl : null`, so a
+  // non-active listing produced null and the old test asserted that. Under the
+  // corrected contract there is exactly ONE URL, and publish eligibility is
+  // expressed by the publish-contract fields (featuredEligible /
+  // exclusiveEligible / eligibilityReason) — never by nulling the canonical URL.
+  it('a Draft listing still resolves its canonical public URL', () => {
+    expect(urls({ status: 'Draft' }).publicUrl).toContain('sl-0007');
+  });
+
+  it('exposes exactly one URL property — no second/legacy URL survives', () => {
+    expect(Object.keys(urls({ status: 'Draft' }))).toEqual(['publicUrl']);
+    expect(Object.keys(urls({}))).toEqual(['publicUrl']);
   });
 });

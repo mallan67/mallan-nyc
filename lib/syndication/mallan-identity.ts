@@ -12,7 +12,7 @@
 //
 // Before ANY syndication eligibility check can pass on a Trestle row,
 // MAYA must populate one or both of these arrays with the values that
-// REBNY / RealPlus / Trestle issued to Mallan Real Estate Inc. and to
+// REBNY / Trestle issued to Mallan Real Estate Inc. and to
 // each licensed Mallan agent.
 //
 // Sources to consult when filling these in:
@@ -20,8 +20,8 @@
 //      registered as an LMP / IDX-Plus participant. This is the SAME
 //      value Trestle returns in the Property resource as
 //      `ListOfficeMlsId`. Maya should be able to confirm the office ID
-//      via her RealPlus broker dashboard, REBNY RLS portal, or by
-//      asking rlssupport@rebny.com / 212-616-5270.
+//      via the REBNY RLS portal, or by asking
+//      rlssupport@rebny.com / 212-616-5270.
 //
 //   2. Per-agent MLS IDs are stored on the `Agent.trestle_mls_id`
 //      column in the DB (see prisma/schema.prisma:37). The eligibility

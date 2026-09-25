@@ -11,7 +11,7 @@
         function _initListingTracker() {
             if (typeof MallanAPI === 'undefined') return;
             MallanAPI.onReady(function() {
-                // Fetch sale count — ALL statuses on RLS (matches RealPlus total ~14K+)
+                // Fetch sale count — ALL statuses on RLS
                 // status=* skips status filter entirely for accurate RLS total
                 MallanAPI.idx.search({ type: 'sale', limit: 1, status: '*' }).then(function(result) {
                     var count = 0;
