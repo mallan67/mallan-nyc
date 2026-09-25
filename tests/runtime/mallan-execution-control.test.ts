@@ -2794,4 +2794,35 @@ describe("Mallan execution-control gate", () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("Master amendment is base-authorized, Master-only and content-pinned");
   });
+
+  // Codex P1 on #643 (second finding, head 959af808): headings owned by Markdown containers - block
+  // quotes, list items, nested containers and indented code - are heading-like decoys. They are never
+  // governing headings, and one between the real start and the real closing heading fails closed.
+  test("containers: block-quote, list-item, nested and indented-code headings are boundary decoys", () => {
+    const decoys = [
+      "> ## Decoy in a block quote",
+      ">## Decoy in a tight block quote",
+      "- ## Decoy in a bullet item",
+      "* ## Decoy in a star item",
+      "+ ## Decoy in a plus item",
+      "1. ## Decoy in an ordered item",
+      "2) ## Decoy in a paren item",
+      "> - ## Decoy in a nested container",
+      "    ## Decoy in indented code",
+      "\t## Decoy after a tab",
+    ];
+    for (const decoy of decoys) {
+      const base = AM_BASE.replace("Detail text.", "Detail text.\n\n" + decoy);
+      expectRefused(amendGate(containerRepo(base)), "heading-like text that is not an actual Master heading");
+    }
+  });
+
+  test("containers: container content without heading-like lines, and container headings after the section, still pass", () => {
+    const base = AM_BASE
+      .replace("Detail text.", "Detail text.\n\n> a quoted line\n\n- a list item\n- another item\n\n1. an ordered item\n\n    indented code line")
+      .replace("Tail text.", "Tail text.\n\n> ## Container heading after the section");
+    const result = amendGate(containerRepo(base));
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Master amendment is base-authorized, Master-only and content-pinned");
+  });
 });
