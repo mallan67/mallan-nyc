@@ -1000,34 +1000,14 @@ function setextUnderlineLevel(line) {
   return ch === 0x3d ? 1 : 2;
 }
 
-// Block-quote and list-item marker lines open containers; they are never paragraph text that a
-// setext underline could turn into a heading at this level.
-function opensContainer(line) {
-  let i = 0;
-  while (i < 3 && i < line.length && line[i] === 0x20) i++;
-  const c = i < line.length ? line[i] : -1;
-  if (c === 0x3e) return true;
-  const next = i + 1 < line.length ? line[i + 1] : -1;
-  if ((c === 0x2d || c === 0x2a || c === 0x2b) && (next === 0x20 || next === 0x09 || next === -1)) return true;
-  let d = i;
-  while (d < line.length && d - i < 9 && line[d] >= 0x30 && line[d] <= 0x39) d++;
-  if (d > i && d < line.length && (line[d] === 0x2e || line[d] === 0x29)) {
-    const after = d + 1 < line.length ? line[d + 1] : -1;
-    return after === 0x20 || after === 0x09 || after === -1;
-  }
-  return false;
-}
-
-// The heading level a line looks like once every Markdown container prefix is peeled off: any
-// run of spaces or tabs (list continuation, indented code), block-quote markers ('>') and
-// list-item markers ('-', '*', '+', '1.', '1)'), repeatedly and nested. '> ## x', '- ## x',
-// '1. ## x', '> - ## x' and '    ## x' all look like level-2 headings here. This is used only
-// for lookalike detection; such a line is never a governing heading.
-function containerHeadingLevel(line) {
+// Index of the first byte after every Markdown container prefix: any run of spaces or tabs (list
+// continuation, indented code), block-quote markers ('>') and list-item markers ('-', '*', '+',
+// '1.', '1)'), peeled repeatedly so nested containers ('> - ') are peeled too.
+function peelContainerPrefixes(line) {
   let i = 0;
   for (;;) {
     while (i < line.length && (line[i] === 0x20 || line[i] === 0x09)) i++;
-    if (i >= line.length) return 0;
+    if (i >= line.length) return i;
     const c = line[i];
     const next = i + 1 < line.length ? line[i + 1] : -1;
     if (c === 0x3e) { i++; continue; }
@@ -1038,63 +1018,65 @@ function containerHeadingLevel(line) {
       i = d + 2;
       continue;
     }
-    return atxHeadingLevel(line.subarray(i));
+    return i;
   }
 }
 
-// One entry per line of the raw bytes. level is the actual governing heading level: only an ATX
-// heading that starts in column 0 and lies outside every fenced code block and raw HTML block.
-// likeLevel is the level the line merely looks like: any ATX heading-like line wherever it sits
-// (fence, raw HTML, indentation, block quotes, list items, nested containers) and the text line of
-// a setext heading. Both are kept so that heading-like text that is not a governing heading can
-// never silently become a section anchor or boundary.
+// ATX heading level once container prefixes are peeled: '> ## x', '- ## x', '1. ## x',
+// '> - ## x' and '    ## x' all look like level-2 headings.
+function containerHeadingLevel(line) {
+  return atxHeadingLevel(line.subarray(peelContainerPrefixes(line)));
+}
+
+// A raw HTML heading element (<h1>-<h6>) anywhere on the line. Classification only (latin1).
+function htmlHeadingLevel(line) {
+  const match = /<h([1-6])(?=[\s>\/]|$)/i.exec(line.toString("latin1"));
+  return match ? Number(match[1]) : 0;
+}
+
+// One entry per line of the raw bytes.
+//   level      the actual GOVERNING heading level: only an ATX heading that starts in column 0 and
+//              lies outside every fenced code block and raw HTML block. Nothing else ever governs.
+//   likeLevel  the level the line merely LOOKS like, decided context-free so that no container,
+//              fence or HTML block can hide it: an ATX heading after peeling container prefixes; a
+//              raw HTML <h1>-<h6> element; or the text line of a setext heading (a non-blank line
+//              directly followed by a '=' or '-' underline, both read after peeling prefixes).
+// Any line with a likeLevel that is not governing is a decoy: if it could move the selected byte
+// range, locateMasterSection fails closed.
 function scanMasterLines(bytes) {
   const lines = [];
   let fence = null;
   let html = null;
-  let paragraph = false;
   let pos = 0;
   while (pos < bytes.length) {
     const nl = bytes.indexOf(0x0a, pos);
     const end = nl < 0 ? bytes.length : nl;
     const line = bytes.subarray(pos, end);
-    const likeLevel = containerHeadingLevel(line);
-    const entry = { start: pos, end, level: 0, likeLevel };
+    const entry = { start: pos, end, level: 0, likeLevel: Math.max(containerHeadingLevel(line), htmlHeadingLevel(line)) };
     lines.push(entry);
     if (fence) {
       const marker = fenceMarker(line);
       if (marker && marker.ch === fence.ch && marker.len >= fence.len && marker.bare) fence = null;
-      paragraph = false;
     } else if (html) {
       if (html.end ? html.end.test(line.toString("latin1")) : isBlankLine(line)) html = null;
-      paragraph = false;
-    } else if (isBlankLine(line)) {
-      paragraph = false;
-    } else {
+    } else if (!isBlankLine(line)) {
       const marker = fenceMarker(line);
       const htmlStart = marker ? null : htmlBlockStart(line);
-      const underline = setextUnderlineLevel(line);
-      if (marker) {
-        fence = marker;
-        paragraph = false;
-      } else if (htmlStart) {
-        if (!htmlStart.closed) html = htmlStart;
-        paragraph = false;
-      } else if (likeLevel) {
-        entry.level = line[0] === 0x23 ? likeLevel : 0;
-        paragraph = false;
-      } else if (underline) {
-        if (paragraph) {
-          const text = lines[lines.length - 2];
-          if (!text.likeLevel) text.likeLevel = underline;
-        }
-        paragraph = false;
-      } else {
-        paragraph = !opensContainer(line);
-      }
+      if (marker) fence = marker;
+      else if (htmlStart) { if (!htmlStart.closed) html = htmlStart; }
+      else if (line[0] === 0x23) entry.level = atxHeadingLevel(line);
     }
     if (nl < 0) break;
     pos = nl + 1;
+  }
+  for (let k = 0; k + 1 < lines.length; k++) {
+    const under = bytes.subarray(lines[k + 1].start, lines[k + 1].end);
+    const underline = setextUnderlineLevel(under.subarray(peelContainerPrefixes(under)));
+    if (!underline) continue;
+    const text = bytes.subarray(lines[k].start, lines[k].end);
+    const rest = text.subarray(peelContainerPrefixes(text));
+    if (isBlankLine(rest) || setextUnderlineLevel(rest) || atxHeadingLevel(rest)) continue;
+    lines[k].likeLevel = lines[k].likeLevel ? Math.min(lines[k].likeLevel, underline) : underline;
   }
   return { lines, unclosedFence: fence !== null, unclosedHtml: html !== null && html.end !== null };
 }
