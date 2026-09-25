@@ -103,6 +103,7 @@ body { font-family: Manrope, sans-serif; }
 </style>
 <!-- API Client — identity from session cookie, no PII in URLs -->
 <script src="js/core/api-client.js"></script>
+<script src="js/core/owner-picker.js"></script>
 <script>
 // ── Auth gate (defense-in-depth — middleware is primary) ──
 // NOTE: session_token is httpOnly — JS cannot read it via document.cookie.
@@ -355,6 +356,36 @@ body { font-family: Manrope, sans-serif; }
             <input type="hidden" id="saleUnparsedAddress" value="" data-rls-field="UnparsedAddress">
         </div>
 
+
+        <!-- Canonical Seller (Listing.owner_client_id) -->
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-user-check"></i> Seller (Client)</div>
+            <p class="text-xs text-gray-500 mb-3">
+                The seller must be an existing client. This link is what lets the seller
+                see their own listing in the client portal, and a listing cannot be
+                published without it.
+            </p>
+            <div class="relative">
+                <label class="field-label" for="saleOwnerSearch">Search your seller clients</label>
+                <div class="flex gap-2">
+                    <input type="text" id="saleOwnerSearch" class="field-input w-full"
+                           placeholder="Type a name, email or phone" autocomplete="off"
+                           data-rls-ignore="true">
+                    <button type="button" id="saleOwnerClear"
+                            class="px-3 py-2 text-sm border rounded-lg text-gray-600 hover:bg-gray-50">Clear</button>
+                </div>
+                <!-- THE AUTHORITY. `id` is exactly the API field name so the form's
+                     generic field collector sweeps it into the POST/PATCH body. -->
+                <input type="hidden" id="owner_client_id" name="owner_client_id" value="" data-rls-ignore="true">
+                <div id="saleOwnerResults"
+                     class="hidden absolute z-30 left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg max-h-64 overflow-y-auto"></div>
+            </div>
+            <p class="text-xs text-gray-400 mt-2">
+                Not in the list? Create the client in the CRM first — a seller typed here
+                but not selected is not linked.
+            </p>
+        </div>
+
         <!-- Agent & Dates -->
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-user-tie"></i> Agent & Dates</div>
@@ -473,7 +504,7 @@ body { font-family: Manrope, sans-serif; }
                                 </div>
                                 <div class="border-l-4 border-blue-400 pl-3 bg-blue-50 py-2 pr-2 rounded-r">
                                     <p class="font-bold text-blue-800">In-House — Web Only <span class="text-[10px] text-blue-600 font-semibold">mallan.nyc ONLY</span></p>
-                                    <p class="text-gray-600 mt-1">Published on <strong>mallan.nyc only</strong>. Not submitted to REBNY RLS or any portal. Requires seller authorization to advertise. Can be featured on the homepage. Can be used as RealPlus Listing Url.</p>
+                                    <p class="text-gray-600 mt-1">Published on <strong>mallan.nyc only</strong>. Not submitted to REBNY RLS or any portal. Requires seller authorization to advertise. Can be featured on the homepage. Its public URL can be used wherever a listing link is required.</p>
                                     <p class="text-blue-600 text-xs mt-1"><i class="fas fa-globe mr-1"></i>No RLS, no IDX, no syndication. Public on mallan.nyc only.</p>
                                 </div>
                                 <hr class="border-gray-200">
@@ -508,7 +539,7 @@ body { font-family: Manrope, sans-serif; }
                         <i class="fas fa-lock text-gray-600 mt-0.5"></i>
                         <div class="text-xs text-gray-700">
                             <p class="font-semibold mb-1 text-gray-900">Internal Only: Not Public</p>
-                            <p>This listing is for <strong>CRM/brokerage use only</strong>. It will NOT appear on mallan.nyc, will NOT be eligible for Featured Listings, and should NOT be used as a RealPlus Listing Url.</p>
+                            <p>This listing is for <strong>CRM/brokerage use only</strong>. It will NOT appear on mallan.nyc, will NOT be eligible for Featured Listings, and has no public listing URL.</p>
                             <p class="mt-1">Status will remain <strong>Draft</strong>. To make this listing public on mallan.nyc, change listing type to <strong>In-House — Web Only</strong>.</p>
                         </div>
                     </div>
@@ -522,7 +553,7 @@ body { font-family: Manrope, sans-serif; }
                                 <li>Not on REBNY RLS — other brokers will NOT see this listing</li>
                                 <li>No IDX, no syndication to Realtor.com, Zillow, StreetEasy, or any portal</li>
                                 <li>Can be pinned to Featured Listings on mallan.nyc homepage</li>
-                                <li>Can be used as RealPlus Listing Url when Active</li>
+                                <li>Has a public listing URL when Active</li>
                                 <li>Fair Housing Act + NY DOS advertising laws STILL apply</li>
                             </ul>
                         </div>
@@ -7552,7 +7583,7 @@ function collectSaleFormData() {
     data.ListAgentDirectPhone = data.saleUpdatingAgentPhone || '';
     // CRM-owned Mallan rows use the canonical office NAME. Office MLS id/key are
     // intentionally left blank until verified from a trusted canonical source
-    // (REBNY/Cotality/RealPlus) — never the "mallan" slug, never the REBNY
+    // (REBNY/Cotality) — never the "mallan" slug, never the REBNY
     // "MAllan" typo. (Maya decision, 2026-05-28.)
     data.ListOfficeName = data.saleUpdatingAgentCompanyName || 'Mallan Real Estate Inc.';
     // ListOfficeKey / ListOfficeMlsId are intentionally NOT written here: the
@@ -8061,10 +8092,16 @@ function submitSalesListing() {
             _pendingMediaFiles = [];
             // Determine the best URL from status transition or create/update result
             var publicUrl = (typeof statusResult !== 'undefined' && statusResult && statusResult.publicUrl) || result.publicUrl || null;
-            var realPlusUrl = (typeof statusResult !== 'undefined' && statusResult && statusResult.realPlusUrl) || result.realPlusUrl || null;
-            if (finalStatus === 'Active' && realPlusUrl) {
+            // Mallan's own public URL, exposed while the listing is live.
+            // This read a third-party-named URL field and labelled the panel with
+            // that legacy intermediary's name,
+            // but the value was never a provider URL - just this URL under a
+            // foreign provider's name. Cotality is the only provider authority
+            // in this architecture, so the field and the label are both gone.
+            var publicActiveUrl = (typeof statusResult !== 'undefined' && statusResult && statusResult.publicActiveUrl) || result.publicActiveUrl || null;
+            if (finalStatus === 'Active' && publicActiveUrl) {
                 showToast('Listing ' + lid + ' published — Status: Active', 'success');
-                // Show RealPlus URL panel
+                // Show the public listing URL panel
                 var urlPanel = document.getElementById('salePublishUrlPanel');
                 if (!urlPanel) {
                     urlPanel = document.createElement('div');
@@ -8078,9 +8115,9 @@ function submitSalesListing() {
                     '<div class="mb-3"><label class="text-xs font-semibold text-gray-500 block mb-1">Public URL</label>' +
                     '<div class="flex items-center gap-2"><input id="salePublicUrlInput" type="text" readonly value="' + publicUrl + '" class="flex-1 text-sm border rounded px-3 py-2 bg-gray-50 text-gray-800 font-mono" />' +
                     '<button onclick="navigator.clipboard.writeText(document.getElementById(\'salePublicUrlInput\').value);showToast(\'Public URL copied\',\'success\')" class="px-3 py-2 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700"><i class="fas fa-copy mr-1"></i>Copy</button></div></div>' +
-                    '<div class="mb-4"><label class="text-xs font-semibold text-gray-500 block mb-1">RealPlus URL</label>' +
-                    '<div class="flex items-center gap-2"><input id="saleRealPlusUrlInput" type="text" readonly value="' + realPlusUrl + '" class="flex-1 text-sm border rounded px-3 py-2 bg-gray-50 text-gray-800 font-mono" />' +
-                    '<button onclick="navigator.clipboard.writeText(document.getElementById(\'saleRealPlusUrlInput\').value);showToast(\'RealPlus URL copied\',\'success\')" class="px-3 py-2 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700"><i class="fas fa-copy mr-1"></i>Copy</button></div></div>' +
+                    '<div class="mb-4"><label class="text-xs font-semibold text-gray-500 block mb-1">Public Listing URL</label>' +
+                    '<div class="flex items-center gap-2"><input id="salePublicActiveUrlInput" type="text" readonly value="' + publicActiveUrl + '" class="flex-1 text-sm border rounded px-3 py-2 bg-gray-50 text-gray-800 font-mono" />' +
+                    '<button onclick="navigator.clipboard.writeText(document.getElementById(\'salePublicActiveUrlInput\').value);showToast(\'Public listing URL copied\',\'success\')" class="px-3 py-2 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700"><i class="fas fa-copy mr-1"></i>Copy</button></div></div>' +
                     '<div class="flex justify-end gap-2">' +
                     '<button onclick="document.getElementById(\'salePublishUrlPanel\').remove();window.location.href=\'/crm/dashboard#/ops/listings\'" class="px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm font-medium hover:bg-gray-300">Go to Dashboard</button>' +
                     '<a href="' + publicUrl + '" target="_blank" class="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 inline-flex items-center"><i class="fas fa-external-link-alt mr-1"></i>View Listing</a></div></div>';
@@ -9719,8 +9756,37 @@ function _restoreSaleNeighborhoodSelect(value, boroughHint) {
     nEl.value = newOpt.value;
 }
 
+
+// ═══ CANONICAL OWNER PICKER ═══════════════════════════════════════════════════
+// `Listing.owner_client_id` is the only Seller/Landlord owner relation. The
+// hidden input carries the Lead id; the visible box is a search field and is
+// never the authority. Mounted from the shared module so Sale and Rental share
+// one implementation instead of a fifth copy-pasted client picker.
+var _saleOwnerPicker = null;
+
+function _mountSaleOwnerPicker() {
+    if (_saleOwnerPicker || typeof OwnerPicker === 'undefined') return _saleOwnerPicker;
+    _saleOwnerPicker = OwnerPicker.mount({
+        searchId: 'saleOwnerSearch',
+        hiddenId: 'owner_client_id',
+        listId: 'saleOwnerResults',
+        clearId: 'saleOwnerClear',
+        role: 'seller',
+    });
+    return _saleOwnerPicker;
+}
+
+document.addEventListener('DOMContentLoaded', _mountSaleOwnerPicker);
+
 function _populateSaleFormFromApi(listing) {
     _pendingMediaFiles = [];
+
+    // Restore the canonical owner. The listing GET returns `owner_client_id`
+    // but no client name, so the picker resolves the display name through the
+    // authenticated clients API — and keeps the ID even if that lookup fails,
+    // because losing it would silently unassign the seller on the next save.
+    var _ownerPicker = _mountSaleOwnerPicker();
+    if (_ownerPicker) _ownerPicker.hydrate(listing.owner_client_id);
     var raw = listing.raw_data || {};
     var addr = listing.address || {};
     var features = listing.features || {};
@@ -9936,7 +10002,7 @@ function _populateSaleFormFromApi(listing) {
 
     // ── Composite address field (the main input the user sees) ──
     // Fallback MUST include StreetDirPrefix (E/W/N/S) or "333 E 46th St" would
-    // restore as "333 46th St" — the exact bug that broke RealPlus URL lookup.
+    // restore as "333 46th St" — the exact bug that broke public URL lookup.
     var streetAddr = addr.UnparsedAddress || raw.UnParsedAddress || raw.UnparsedAddress || '';
     if (!streetAddr) {
         var parts = [

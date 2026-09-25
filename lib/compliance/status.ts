@@ -33,7 +33,7 @@
 export const Status = {
   ACTIVE: 'Active',
   ACTIVE_UNDER_CONTRACT: 'ActiveUnderContract',
-  CANCELLED: 'Cancelled',
+  CANCELED: 'Canceled',
   CLOSED: 'Closed',
   COMING_SOON: 'ComingSoon',
   EXPIRED: 'Expired',
@@ -58,7 +58,7 @@ const INPUT_TO_CANONICAL: Record<string, StatusValue> = {
   // Canonical (pass-through)
   'Active': Status.ACTIVE,
   'ActiveUnderContract': Status.ACTIVE_UNDER_CONTRACT,
-  'Cancelled': Status.CANCELLED,
+  'Canceled': Status.CANCELED,
   'Closed': Status.CLOSED,
   'ComingSoon': Status.COMING_SOON,
   'Expired': Status.EXPIRED,
@@ -73,8 +73,17 @@ const INPUT_TO_CANONICAL: Record<string, StatusValue> = {
   'Active Under Contract': Status.ACTIVE_UNDER_CONTRACT,
   'Coming Soon': Status.COMING_SOON,
 
-  // Common typo / alternate spelling
-  'Canceled': Status.CANCELLED,
+  // LEGACY MALLAN SPELLING — accepted on input, never emitted.
+  //
+  // This entry used to read `'Canceled': Status.CANCELLED` under the comment
+  // "Common typo / alternate spelling". It had the two values the wrong way
+  // round: `Canceled` (one L) is the live Cotality value, and `Cancelled`
+  // (two Ls) is the one Mallan invented. The provider's own value was filed
+  // here as the typo.
+  //
+  // Real rows carry both and no backfill is in scope, so the invented spelling
+  // stays accepted as INPUT forever. It is simply no longer what we store.
+  'Cancelled': Status.CANCELED,
 
   // URL / API-param format (rarely incoming, but defensively accepted)
   'ACTIVE': Status.ACTIVE,
@@ -84,7 +93,8 @@ const INPUT_TO_CANONICAL: Record<string, StatusValue> = {
   'PENDING': Status.PENDING,
   'SOLD': Status.SOLD,
   'WITHDRAWN': Status.WITHDRAWN,
-  'CANCELLED': Status.CANCELLED,
+  'CANCELED': Status.CANCELED,
+  'CANCELLED': Status.CANCELED,
   'EXPIRED': Status.EXPIRED,
   'HOLD': Status.HOLD,
   'LEASED': Status.LEASED,
@@ -101,7 +111,7 @@ const INPUT_TO_CANONICAL: Record<string, StatusValue> = {
 const CANONICAL_TO_LABEL: Record<StatusValue, string> = {
   [Status.ACTIVE]: 'Active',
   [Status.ACTIVE_UNDER_CONTRACT]: 'Under Contract',
-  [Status.CANCELLED]: 'Cancelled',
+  [Status.CANCELED]: 'Canceled',
   [Status.CLOSED]: 'Closed',
   [Status.COMING_SOON]: 'Coming Soon',
   [Status.EXPIRED]: 'Expired',
@@ -136,7 +146,7 @@ const ACTIVE_DISPLAY_STATUSES = new Set<StatusValue>([
  * 24-hour removal enforcement.
  */
 const TERMINAL_STATUSES = new Set<StatusValue>([
-  Status.CANCELLED,
+  Status.CANCELED,
   Status.CLOSED,
   Status.EXPIRED,
   Status.LEASED,
@@ -191,7 +201,7 @@ export const ACTIVE_DISPLAY_VALUES: readonly StatusValue[] = Object.freeze([
 ]);
 
 export const TERMINAL_VALUES: readonly StatusValue[] = Object.freeze([
-  Status.CANCELLED,
+  Status.CANCELED,
   Status.CLOSED,
   Status.EXPIRED,
   Status.LEASED,

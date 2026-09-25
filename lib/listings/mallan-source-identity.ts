@@ -13,11 +13,18 @@
  *      namespace. It is only barred from being the PUBLIC CANONICAL listing.
  *   3. Third-party RLS/IDX — normal public inventory, untouched.
  *
- * WHY A RETURN-COPY EXISTS AT ALL: Mallan enters its listing into RealPlus,
- * RealPlus submits to REBNY RLS, and the listing returns to Mallan through
- * Cotality as an `RLS*` row. That return trip is OUTSIDE this system; Mallan
- * never writes back. The local `SL-`/`RL-` row stays canonical and the returned
- * copy is publicly suppressed but retained for audit/reconciliation.
+ * WHY A RETURN-COPY EXISTS AT ALL: Mallan's listing reaches REBNY RLS through a
+ * LEGACY UPSTREAM INTERMEDIARY - a listing-input system outside this repo, named
+ * nowhere in this architecture because Cotality API is the only provider
+ * authority here. RLS distribution then returns the listing to Mallan through
+ * Cotality as an `RLS*` row.
+ *
+ *     Mallan local row -> legacy upstream intermediary -> REBNY RLS distribution
+ *                      -> Cotality return-copy
+ *
+ * That round trip is OUTSIDE this system; Mallan never writes back. The local
+ * `SL-`/`RL-` row stays canonical and the returned copy is publicly suppressed
+ * but retained for audit/reconciliation.
  *
  * IDENTITY IS SOURCE-FIELD ONLY. Never `agent_id` (that is a CRM history/roster
  * association — `syncAgentHistory` sets it from BOTH list-side and BUYER-side

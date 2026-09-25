@@ -2,6 +2,7 @@
 // Generate a portal invite token for a client.
 // Security: token is hashed before storage, has 72h TTL, raw token never returned in JSON.
 import { NextRequest, NextResponse } from "next/server";
+import { PORTAL_ROLE_VALUES, isPortalRole } from "@/lib/api/schemas/client";
 import prisma from "@/lib/prisma";
 import {
   requireAgentOrBroker,
@@ -45,6 +46,21 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     lead.portal_role ??
     lead.roles[0] ??
     null;
+
+  // DEFENCE IN DEPTH. This value is copied verbatim into Session.role by every
+  // login path, so an unconstrained string here is how "BROKER" reached the
+  // staff authorization check. The boundary fix in requireRole makes that
+  // harmless, but an invite must still never MINT a bad value — including from
+  // a stale lead.portal_role or roles[0] carried forward by the ?? chain above.
+  if (portalRole !== null && !isPortalRole(portalRole)) {
+    return NextResponse.json(
+      {
+        error: "portal_role must be a client portal role",
+        allowed: PORTAL_ROLE_VALUES,
+      },
+      { status: 400 },
+    );
+  }
 
   if (!portalRole) {
     return NextResponse.json(

@@ -22,7 +22,12 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mallan.nyc';
  */
 interface ListingForUrl {
   listing_id: string;
-  status: string;
+  /**
+   * NULL = the listing has no market status yet. The active-URL check below is
+   * an ALLOW-list, so null fails closed with no extra branch: a listing that was
+   * never on the market has no public active URL.
+   */
+  status: string | null;
   address: Record<string, unknown> | null;
   /** `false` = website-only (non-RLS). Anything else is treated as RLS-backed. */
   rls_eligible?: boolean | null;
@@ -30,9 +35,34 @@ interface ListingForUrl {
   internet_address_display_yn?: boolean | null;
 }
 
+/**
+ * Mallan's own canonical URLs for a listing.
+ *
+ * A THIRD-PARTY-NAMED URL FIELD USED TO BE RETURNED HERE AND IS GONE. It carried
+ * the name of a legacy upstream intermediary, and it was not a provider URL
+ * at all — the implementation was literally
+ *
+ *     const <legacyProviderNamedUrl> = isActive ? publicUrl : null;
+ *
+ * i.e. Mallan's own public URL under a foreign provider's name, wired through
+ * the CRM write DTOs and rendered in the sale form as a labelled provider-URL
+ * panel with its own copy button.
+ * Cotality is this architecture's only provider authority, so a parallel
+ * provider concept in an executable contract is drift twice over: the name was
+ * forbidden AND it described the wrong thing.
+ *
+ * It is NOT renamed to a Cotality URL, because no verified Cotality URL is
+ * represented by this value. It is Mallan's public canonical URL, so it is
+ * called publicUrl and nothing else.
+ *
+ * `publicActiveUrl` replaces the one real behaviour the old field carried: the
+ * same URL, exposed only when the listing is publicly live. Callers that need
+ * "the URL to hand out right now" use that; callers that need "where this
+ * listing lives" use publicUrl.
+ */
 export function buildListingUrls(listing: ListingForUrl): {
   publicUrl: string | null;
-  realPlusUrl: string | null;
+  publicActiveUrl: string | null;
 } {
   const addr = (listing.address || {}) as Record<string, string>;
   const isActive = listing.status === 'Active' || listing.status === 'ComingSoon' || listing.status === 'ActiveUnderContract';
@@ -61,12 +91,12 @@ export function buildListingUrls(listing: ListingForUrl): {
   // Canonical URL guard: a published CRM listing with displayable address
   // must NEVER expose a generic `listing-XXX` URL publicly. If we got one,
   // return null for both URLs so the form shows "URL pending" instead of
-  // a broken canonical that would dilute SEO and confuse RealPlus.
+  // a broken canonical that would dilute SEO.
   const isGenericSlug = slug.startsWith('listing-');
   if (isGenericSlug && addressDisplayable && isActive) {
     // eslint-disable-next-line no-console
     console.error(`[listing-urls] Refusing to advertise generic slug for ${listing.listing_id} — address incomplete`);
-    return { publicUrl: null, realPlusUrl: null };
+    return { publicUrl: null, publicActiveUrl: null };
   }
 
   // Build the SEPARATED canonical URL via the shared helper. Single source
@@ -74,7 +104,8 @@ export function buildListingUrls(listing: ListingForUrl): {
   // any other surface that links to a listing.
   const canonicalPath = buildCanonicalListingPath({ slug, id: listing.listing_id });
   const publicUrl = `${SITE_URL}${canonicalPath}`;
-  const realPlusUrl = isActive ? publicUrl : null;
+  // The same Mallan URL, exposed only while the listing is publicly live.
+  const publicActiveUrl = isActive ? publicUrl : null;
 
-  return { publicUrl, realPlusUrl };
+  return { publicUrl, publicActiveUrl };
 }

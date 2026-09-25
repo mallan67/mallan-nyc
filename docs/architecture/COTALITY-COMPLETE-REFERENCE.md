@@ -41,7 +41,7 @@ Cotality ref: docs/architecture/COTALITY-COMPLETE-REFERENCE.md §18 (CRM Buildin
 | System | Role |
 |---|---|
 | **Cotality/Trestle** | External data provider. REBNY IDX Plus feed via OData v4. Read-only consumption by mallan.nyc. |
-| **RealPlus/RLS** | Listing-entry source for official REBNY listings. Maya enters listings into RealPlus; they appear in the Cotality feed as `RLS*` IDs. |
+| **Legacy upstream intermediary / RLS** | Listing-entry path for official REBNY listings. Mallan's listings reach REBNY RLS through a listing-input system OUTSIDE this repo, then appear in the Cotality feed as `RLS*` IDs. That intermediary is deliberately NOT named here: Cotality API is the only provider authority in this architecture. |
 | **mallan.nyc** | Consumes Cotality data for public display, search, building reference, and media. Does NOT write back to Trestle. |
 | **InHouse/local web** | Mallan-created website-only records (`SL-*` / `RL-*` IDs). Not on RLS. Must be manually reconciled when an official `RLS*` feed record arrives. |
 
@@ -1083,7 +1083,7 @@ Uses existing `/listing/<slug>` detail route. No separate `/exclusives` route.
 | Phase | Action |
 |---|---|
 | Before feed arrives | Show manual `SL-*` listing. Pin in FeaturedConfig. |
-| After feed arrives | **Local `SL-*`/`RL-*` REMAINS CANONICAL.** The returned `RLS*` row is the Mallan RLS return-copy: retained internally for source/audit/reconciliation, SUPPRESSED from every public canonical surface. Do NOT withdraw the local row, do NOT pin `RLS*`, do NOT switch the public URL. RealPlus URL handling is OUTSIDE this system. See REPO-SOURCE-OF-TRUTH-CHARTER.md Section 1A. |
+| After feed arrives | **Local `SL-*`/`RL-*` REMAINS CANONICAL.** The returned `RLS*` row is the Mallan RLS return-copy: retained internally for source/audit/reconciliation, SUPPRESSED from every public canonical surface. Do NOT withdraw the local row, do NOT pin `RLS*`, do NOT switch the public URL. Any URL handling by the legacy upstream intermediary is OUTSIDE this system. See REPO-SOURCE-OF-TRUTH-CHARTER.md Section 1A. |
 
 Manual process. No automated dedup. `SL-*` and `RLS*` are separate DB rows.
 

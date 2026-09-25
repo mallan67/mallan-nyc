@@ -951,7 +951,7 @@
     "oldUrlsNote": "Deprecated hosts removed (ceased March 31, 2026)",
     "migrationDeadline": "2026-03-31",
     "dataStandard": "RESO DD 2.0",
-    "lmp": "RealPlus (listing input to RLS)",
+    "lmp": "legacy upstream intermediary (listing input to REBNY RLS) - NOT a Mallan system authority; Cotality API is the only provider authority",
     "idx_display": "Trestle IDX Plus WebAPI (Trestle-11371-20) — read-only on mallan.nyc",
     "compensationFieldsRemoved": "2025-08-01",
     "fareActFeeFields": "LIVE — MoveInCosts, OngoingFees, TenantPays, TenantPaysDescription, AdditionalFee/Description/YN, FeeFrequency",

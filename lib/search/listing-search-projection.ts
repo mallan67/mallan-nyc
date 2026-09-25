@@ -718,7 +718,6 @@ export interface DualWriteProjectionPrisma {
  *   - app/api/crm/convert/route.ts                (Lead → Listing convert)
  *   - app/api/cron/feed-reconcile/route.ts        (orphan-recovery cron)
  *   - app/api/idx/ensure-listing/route.ts         (on-demand listing create)
- *   - app/api/crm/listings/reset-sync/route.ts    (broker re-sync)
  *   - scripts/import-closed-from-trestle.ts       (closed-listing import)
  *
  * Uses the same canonical projection shape as `npm run ops:projection-backfill`

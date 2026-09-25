@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { isAuthError, logAuditEvent, requirePortalRole } from "@/lib/auth";
 import { normalizeSellerSignalPayload } from "@/lib/seller-signals/summary";
+import { resolveOwnedListingId } from "@/lib/portal/listing-ownership";
 
 const SIGNAL_EVENTS = [
   "seller_valuation_request",
@@ -48,7 +49,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Seller not found" }, { status: 404 });
   }
 
-  const listingId = payload.listing_id || lead.active_sale_listing_id || null;
+  // A SELLER MAY ONLY ATTACH SIGNALS TO A LISTING THEY OWN.
+  //
+  // This was `payload.listing_id || lead.active_sale_listing_id || null`. The
+  // first term is caller-supplied and was never checked; the second is the
+  // unverified `Lead` backref hint. Either could name another owner's listing
+  // or a Cotality-sourced row, and the value is written into
+  // `PortalEvent.listing_id` — Mallan's own activity/audit history, and what the
+  // agent's seller-signal panel reads.
+  //
+  // `owner_client_id` is the canonical relation and the only authorization.
+  const owned = await resolveOwnedListingId(prisma, {
+    leadId: lead.id,
+    listingType: "sale",
+    requestedListingId: payload.listing_id,
+    hintedListingId: lead.active_sale_listing_id,
+  });
+  if (!owned.ok) {
+    return NextResponse.json(
+      {
+        error: "That listing is not yours.",
+        code: "LISTING_NOT_OWNED",
+        listing_id: owned.requested,
+      },
+      { status: 403 },
+    );
+  }
+  // May legitimately be null: a seller planning a sale before the listing
+  // exists. Recording no attribution is truthful; inventing one is not.
+  const listingId = owned.listingId;
+
   const created = await prisma.$transaction(
     SIGNAL_EVENTS.map((eventType) =>
       prisma.portalEvent.create({

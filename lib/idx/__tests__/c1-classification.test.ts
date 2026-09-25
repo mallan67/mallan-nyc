@@ -73,49 +73,34 @@ describe('classifyDbListing — provenance predicate', () => {
     expect(classifyDbListing(BASE)).toBe('third-party-idx');
   });
 
-  it('classifies a row with agent_id set as mallan-exclusive', () => {
-    expect(
-      classifyDbListing({ ...BASE, agent_id: '42', owner_client_id: null }),
-    ).toBe('mallan-exclusive');
+  // THESE CASES USED TO ASSERT THE OPPOSITE, AND THEY PINNED A REAL DEFECT.
+  //
+  // Three cases here previously required `agent_id` or `owner_client_id` alone
+  // to produce 'mallan-exclusive'. `agent_id` is not an ownership signal:
+  // `syncAgentHistory` stamps it onto provider-synced THIRD-PARTY rows whenever
+  // a Mallan agent appears on either side of a deal, because
+  // `buildAgentHistoricalFilter` matches `ListAgentMlsId OR BuyerAgentMlsId`.
+  // 'mallan-exclusive' then suppresses attribution and the disclaimer, so
+  // another brokerage's listing advertised on mallan.nyc as Mallan's — UCBA
+  // Art. III §2(C), NY DOS 19 NYCRR §175.25.
+  //
+  // Provenance is now decided by AUTHORSHIP (the SL-/RL- listing_id prefix, or
+  // website-only inventory), which is the charter's own predicate.
+  it('a provider row with a Mallan agent on the deal is STILL third-party', () => {
+    expect(classifyDbListing({ ...BASE, listing_id: 'RLS20093870' })).toBe('third-party-idx');
   });
 
-  it('classifies a row with owner_client_id set as mallan-exclusive', () => {
-    expect(
-      classifyDbListing({ ...BASE, agent_id: null, owner_client_id: '7' }),
-    ).toBe('mallan-exclusive');
+  it('an SL- row is a Mallan exclusive', () => {
+    expect(classifyDbListing({ ...BASE, listing_id: 'SL-0004' })).toBe('mallan-exclusive');
   });
 
-  it('classifies a row with both ownership FKs set as mallan-exclusive', () => {
-    expect(
-      classifyDbListing({ ...BASE, agent_id: '42', owner_client_id: '7' }),
-    ).toBe('mallan-exclusive');
+  it('an RL- row is a Mallan exclusive', () => {
+    expect(classifyDbListing({ ...BASE, listing_id: 'RL-0007' })).toBe('mallan-exclusive');
   });
 
-  it('accepts bigint values for ownership FKs', () => {
-    // Prisma returns BigInt? as native bigint before the route serializes.
-    // The classifier must handle either shape.
-    expect(
-      classifyDbListing({
-        ...BASE,
-        agent_id: BigInt(42),
-        owner_client_id: null,
-      }),
-    ).toBe('mallan-exclusive');
-  });
-
-  it('classifies website-only commercial rows ahead of ownership signals', () => {
+  it('classifies website-only commercial rows ahead of the authorship signal', () => {
     expect(
       classifyDbListing({ ...BASE, rls_eligible: false }),
-    ).toBe('website-only');
-    // Even with ownership populated, website-only short-circuits — the row
-    // bypasses RLS so the IDX-vs-exclusive distinction is moot.
-    expect(
-      classifyDbListing({
-        ...BASE,
-        rls_eligible: false,
-        agent_id: '42',
-        owner_client_id: '7',
-      }),
     ).toBe('website-only');
   });
 });
@@ -140,9 +125,11 @@ describe('dbListingToPublicDTO — provenance-driven _source + _displayComplianc
   });
 
   it('mallan-authored row emits _source=exclusive, disclaimerRequired=false', () => {
+    // Keyed on the SL- prefix, not on agent_id. An agent association records who
+    // worked a deal; it never establishes that Mallan owns the listing.
     const dto = dbListingToPublicDTO({
       ...BASE,
-      agent_id: '42',
+      listing_id: 'SL-0004',
       agent_info: {
         ListOfficeName: 'Mallan Real Estate Inc.',
         ListAgentFullName: 'Maya Allan',
@@ -155,13 +142,19 @@ describe('dbListingToPublicDTO — provenance-driven _source + _displayComplianc
     );
   });
 
-  it('owner-client-linked row also emits _source=exclusive', () => {
+  it('a PROVIDER row carrying an owner_client_id is still third-party', () => {
+    // Inverted deliberately. This case previously asserted that owner_client_id
+    // alone made a row a Mallan exclusive. A provider row is the provider's
+    // listing whatever local association columns say, and treating it otherwise
+    // strips the real listing broker's attribution.
     const dto = dbListingToPublicDTO({
       ...BASE,
+      listing_id: 'RLS20093870',
       owner_client_id: '7',
     });
-    expect(dto._source).toBe('exclusive');
-    expect(dto._displayCompliance.disclaimerRequired).toBe(false);
+    expect(dto._source).toBe('db+idx');
+    expect(dto._displayCompliance.disclaimerRequired).toBe(true);
+    expect(dto._displayCompliance.requiresAttribution).toBe(true);
   });
 
   it('website-only commercial row emits _source=exclusive, disclaimerRequired=false', () => {

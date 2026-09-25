@@ -5,7 +5,7 @@
 import prisma from '@/lib/prisma';
 import { RECOMMENDATION_LIMIT } from './config';
 import type { RecommendationItem } from './types';
-import { canDisplayListingAddress, SEARCH_DISPLAY_GATE } from '@/lib/search/listing-access-decision';
+import { canDisplayListingAddress, publicListingVisibilityWhere } from '@/lib/search/listing-access-decision';
 
 /**
  * Get personalized listing recommendations for a lead based on their intent profile.
@@ -23,7 +23,10 @@ export async function getRecommendations(
   // Build query filters from profile
   const where: Record<string, unknown> = {
     status: 'Active',
-    ...SEARCH_DISPLAY_GATE,
+    // Gates AND return-copy suppression. Spreading SEARCH_DISPLAY_GATE alone
+    // recommended the same home twice — once as Mallan's canonical SL-/RL- row
+    // and once as the copy that came back through Cotality.
+    ...publicListingVisibilityWhere(),
   };
 
   // Price range

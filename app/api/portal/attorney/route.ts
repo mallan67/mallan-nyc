@@ -1,4 +1,6 @@
-// /api/portal/attorney — Seller's attorney information
+// /api/portal/attorney — the CLIENT's own attorney information.
+// Any deal-side portal role: buyer, renter, seller, landlord. Strictly
+// self-scoped — reads and writes only the authenticated lead's own row.
 // GET: Read attorney info. PUT: Update attorney info.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
@@ -7,7 +9,19 @@ import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeJson } from "@/lib/api/safe-json";
 
 export async function GET(req: NextRequest) {
-  const auth = await requirePortalRole(req, "buyer", "seller");
+  // ALL FOUR DEAL-SIDE ROLES, not just the sale side.
+  //
+  // This gate read ("buyer", "seller"), so a RENTER and a LANDLORD got 403 on
+  // their OWN record. It was not protecting anything: the query below is keyed
+  // on `auth.userId` and returns nothing that belongs to anyone else, so the
+  // gate was withholding a client's data from that client. A renter can inquire
+  // on listings (the portal listings route is gated "buyer","renter") and a
+  // landlord signs leases and retains counsel exactly as a seller does.
+  //
+  // Widened, not removed — a lead carrying any other portal_role is still 403.
+  // Locked by tests/runtime/portal-role-symmetry-self-scoped.test.ts, which also
+  // asserts the self-scoping that makes the widening safe.
+  const auth = await requirePortalRole(req, "buyer", "renter", "seller", "landlord");
   if (isAuthError(auth)) return auth;
 
   const lead = await prisma.lead.findUnique({
@@ -36,7 +50,7 @@ export async function PUT(req: NextRequest) {
 
   const blocked = assertWriteAllowed();
   if (blocked) return blocked;
-  const auth = await requirePortalRole(req, "buyer", "seller");
+  const auth = await requirePortalRole(req, "buyer", "renter", "seller", "landlord");
   if (isAuthError(auth)) return auth;
 
   const [body, _parseErr] = await safeJson(req);

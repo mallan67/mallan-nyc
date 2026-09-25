@@ -4,7 +4,7 @@ import { dedupeRawDbRows } from '@/lib/listings/dedupe-crm-vs-idx';
 import { generateListingSlug, composeSlugStreetName } from '@/lib/listing-slug';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { ACTIVE_DISPLAY_VALUES } from '@/lib/compliance/status';
-import { excludeMallanRlsReturnCopies } from "@/lib/listings/mallan-source-identity";
+import { publicListingVisibilityWhere } from '@/lib/search/listing-access-decision';
 
 const BASE_URL = 'https://mallan.nyc';
 
@@ -80,27 +80,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     const listingsRaw = await prisma.listing.findMany({
       where: {
-        // Distribution gates — all must pass for sitemap inclusion
-        idx_display_yn: true,
-        internet_entire_listing_display_yn: true,
-        owner_opt_out: false,
-        participant_only: false,
+        // ONE visibility authority: gates AND Mallan RLS return-copy suppression
+        // (CHARTER Section 1A). This used to declare the four gate columns
+        // inline and re-add the suppression by hand — the same hand-rolled
+        // pattern that four other client-facing surfaces simply forgot to make,
+        // double-counting Mallan inventory in each. Without the suppression the
+        // sitemap emits a SECOND canonical URL for one physical listing: a
+        // duplicate-content defect, and the returned copy is not the canonical
+        // listing — the local `SL-`/`RL-` row is.
+        ...publicListingVisibilityWhere(),
         // Only active listings (closed removed per 24h rule).
         // Canonical values from lib/compliance/status.ts — was
         // `['Active', 'Coming Soon']` which never matched because DB
         // stores `ComingSoon` (no space). Sitemap excluded every Coming
         // Soon listing as a result. Fixed here.
         status: { in: [...ACTIVE_DISPLAY_VALUES] },
-        // MALLAN RLS RETURN-COPY SUPPRESSION — CHARTER Section 1A.
-        //
-        // Mallan's own listing returns through Cotality as an `RLS*` row.
-        // Without this the sitemap emitted a SECOND canonical URL for the same
-        // physical listing — a duplicate-content/SEO defect — and the returned
-        // copy is not Mallan's public canonical listing; the local `SL-`/`RL-`
-        // row is. This route builds its gate inline rather than through
-        // `buildSearchDisplayWhere`, so the exclusion is applied explicitly
-        // from the SAME single owner.
-        AND: [excludeMallanRlsReturnCopies()],
       },
       select: {
         listing_id: true,

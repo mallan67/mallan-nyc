@@ -43,7 +43,12 @@ describe("computeGateColumns — terminal-status guard", () => {
         ownerOptOut: false,
       });
       expect(result.is_terminal).toBe(true);
-      expect(result.normalized_status).toBe(terminal);
+      // NOT `toBe(terminal)`. One member of the set is deliberately rewritten:
+      // the legacy `Cancelled` normalizes to the live Cotality value `Canceled`.
+      // It stays IN the set so untouched rows keep gating (no backfill is in
+      // scope), but it is not what the normalizer emits. What has to hold for
+      // every member is that normalization lands on something still terminal.
+      expect(TERMINAL_STATUSES.has(result.normalized_status)).toBe(true);
       expect(result.idx_display_yn).toBe(false);
       // Other gate columns are independent of terminal status.
       expect(result.internet_entire_listing_display_yn).toBe(true);
@@ -111,24 +116,49 @@ describe("computeGateColumns — status normalization reaches the guard", () => 
     expect(result.idx_display_yn).toBe(false);
   });
 
-  it("accepts known alias (canceled → Cancelled) and blocks", () => {
+  it("accepts the legacy alias (Cancelled → Canceled) and blocks", () => {
+    // The arrow used to point the other way. `Canceled` — one L — is the live
+    // Cotality Property.StandardStatus value; `Cancelled` is the one Mallan
+    // invented. The normalizer now converges on the provider.
     const result = computeGateColumns({
-      status: "canceled",
+      status: "cancelled",
       internetEntireListingDisplayYN: true,
     });
-    expect(result.normalized_status).toBe("Cancelled");
+    expect(result.normalized_status).toBe("Canceled");
     expect(result.idx_display_yn).toBe(false);
   });
 
-  it("defaults null/undefined/non-string status to Active (displayable)", () => {
+  it("blocks a row that still carries the legacy spelling", () => {
+    // The no-backfill half of the invariant: an untouched row reads exactly the
+    // same as a freshly-written one.
+    const result = computeGateColumns({
+      status: "Cancelled",
+      internetEntireListingDisplayYN: true,
+    });
+    expect(result.is_terminal).toBe(true);
+    expect(result.idx_display_yn).toBe(false);
+  });
+
+  it("an ABSENT status is not displayable (was: defaulted to Active)", () => {
+    // CONTRACT CHANGED 2026-08-27 with the authorized nullable-status schema
+    // correction. This used to assert normalized_status === "Active" and
+    // idx_display_yn === true. That was fail-OPEN and, once `listings.status`
+    // became nullable, reachable from every listing that has no market status
+    // yet: the gate would publish a market claim nobody made.
+    //
+    // The normalizer now returns its empty token for absent input, and the
+    // aggregate refuses a row with no market status. `is_terminal` stays false
+    // because "no status" is genuinely not terminal — displayability is what
+    // changed, not terminality. Rationale + behavioural proof:
+    // tests/runtime/absent-status-never-becomes-active.test.ts.
     for (const input of [null, undefined, 0, 1, {}, []] as unknown[]) {
       const result = computeGateColumns({
         status: input,
         internetEntireListingDisplayYN: true,
       });
-      expect(result.normalized_status).toBe("Active");
+      expect(result.normalized_status).toBe("");
       expect(result.is_terminal).toBe(false);
-      expect(result.idx_display_yn).toBe(true);
+      expect(result.idx_display_yn).toBe(false);
     }
   });
 });

@@ -73,7 +73,6 @@ describe("Phase C — STATIC GUARD: no producer persists agent_info JSON", () =>
     "app/api/idx/ensure-listing/route.ts",
     "app/api/crm/listings/route.ts",
     "app/api/crm/listings/[id]/route.ts",
-    "app/api/crm/listings/reset-sync/route.ts",
     "app/api/cron/feed-reconcile/route.ts",
     "scripts/import-closed-from-trestle.ts",
     "scripts/ops/set-exclusive-listing-agent.mjs",

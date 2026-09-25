@@ -101,27 +101,50 @@ export function normalizeSearchStatuses(input: unknown): StatusValue[] {
   return [...new Set(statuses)];
 }
 
+/**
+ * THE canonical visibility fragment for any public or client-facing listing set.
+ *
+ * `SEARCH_DISPLAY_GATE` is only HALF a visibility decision — the four gate
+ * columns. A public set also needs MALLAN RLS RETURN-COPY SUPPRESSION
+ * (CHARTER Section 1A): Mallan's own listing returns through Cotality as an
+ * `RLS*` row carrying Mallan's `ListOfficeMlsId`, so one property exists as two
+ * rows. The local `SL-`/`RL-` row stays canonical; the returned copy is kept for
+ * audit and must never surface as a second public listing.
+ *
+ * WHY THIS EXISTS AS ITS OWN EXPORT. The suppression used to live only inside
+ * `buildSearchDisplayWhere`, while `SEARCH_DISPLAY_GATE` was exported alongside
+ * it and spread directly by seven surfaces. Each of those then had to remember
+ * to re-add the suppression by hand. Exactly one did
+ * (app/api/listings/similar/route.ts, with a comment explaining why). Four
+ * client-facing surfaces did not, and every Mallan listing that had round-tripped
+ * through RLS was counted twice in each of them: the CMA a broker hands a seller,
+ * neighborhood market medians, buyer recommendations, and portal comparables.
+ *
+ * Suppression lands INSIDE the query so it happens BEFORE `count`, `skip` and
+ * `take`. Filtering afterwards is page-local: a local row on one page and its
+ * twin on another lets the twin surface, and `total`/`hasMore` describe the
+ * pre-suppression population.
+ *
+ * DELIBERATELY NO STATUS. A CMA needs closed comps; market-pulse needs a period;
+ * search needs the active-display set. Bundling one status here is what would
+ * push callers back onto the bare gate — which is how this happened.
+ *
+ * Fail-closed on SUPPRESSION, not on display: a row with unknown provenance (no
+ * `list_office_mls_id`) keeps normal public treatment rather than vanishing.
+ */
+export function publicListingVisibilityWhere(): Prisma.ListingWhereInput {
+  return {
+    ...SEARCH_DISPLAY_GATE,
+    AND: [excludeMallanRlsReturnCopies()],
+  };
+}
+
 export function buildSearchDisplayWhere(statusInput?: unknown): Prisma.ListingWhereInput {
   const statuses = normalizeSearchStatuses(statusInput);
 
   return {
-    ...SEARCH_DISPLAY_GATE,
+    ...publicListingVisibilityWhere(),
     status: statuses.length > 0 ? { in: statuses } : { in: [] },
-    // MALLAN RLS RETURN-COPY SUPPRESSION — CHARTER Section 1A.
-    //
-    // Mallan's own listing returns through Cotality as an `RLS*` row. The LOCAL
-    // `SL-`/`RL-` row stays canonical; the returned copy is retained internally
-    // for audit/reconciliation but is never a PUBLIC listing.
-    //
-    // Applied HERE, inside the canonical public gate, so it lands BEFORE
-    // `count`, `skip` and `take` in every caller. Filtering after pagination is
-    // page-local: a local row on one page and its twin on another would let the
-    // twin surface, and `total`/`hasMore` would describe the pre-suppression
-    // population. One owner, so no emitter can forget it.
-    //
-    // Fail-closed on SUPPRESSION, not on display — a row with unknown
-    // provenance (no `list_office_mls_id`) keeps normal public treatment.
-    AND: [excludeMallanRlsReturnCopies()],
   };
 }
 

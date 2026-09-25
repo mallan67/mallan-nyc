@@ -48,6 +48,11 @@ export interface IDXListing {
   standardStatus:
     | 'Active'
     | 'ActiveUnderContract'
+    // Both spellings appear on real rows: `Canceled` is the live Cotality
+    // value the Trestle sync writes raw; `Cancelled` is the value Mallan
+    // invented and the CRM write path stored. No backfill is in scope, so
+    // the type has to admit both.
+    | 'Canceled'
     | 'Cancelled'
     | 'Closed'
     | 'ComingSoon'

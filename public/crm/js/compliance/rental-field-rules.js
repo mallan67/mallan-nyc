@@ -114,8 +114,10 @@
             if (leased) leased.style.display = 'none';
             if (leasedRent) leasedRent.style.display = 'none';
 
-            // Off Market / Withdrawn / Cancelled / Expired → show Off Market Date
-            if (['PermOffMarket', 'TempOffMarket', 'Expired', 'Withdrawn', 'Cancelled'].includes(status)) {
+            // Off Market / Withdrawn / Canceled / Expired -> show Off Market Date.
+            // Both spellings of canceled: `Canceled` is the live Cotality value,
+            // `Cancelled` the one Mallan invented and stored on real rows.
+            if (['PermOffMarket', 'TempOffMarket', 'Expired', 'Withdrawn', 'Canceled', 'Cancelled'].includes(status)) {
                 if (offMarket) offMarket.style.display = '';
             }
             // Leased → show Leased Date + Leased Rent

@@ -5,7 +5,7 @@
 
 import prisma from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
-import { canDisplayListingAddress, SEARCH_DISPLAY_GATE } from '@/lib/search/listing-access-decision';
+import { canDisplayListingAddress, publicListingVisibilityWhere } from '@/lib/search/listing-access-decision';
 
 export interface CmaInput {
   property_address: string;
@@ -27,7 +27,13 @@ export interface CompResult {
   bedrooms: number | null;
   bathrooms: number | null;
   living_area: number | null;
-  status: string;
+  /**
+   * Cotality market status, or NULL when the listing has none yet.
+   * A Mallan-authored listing that has not been published has no market
+   * status at all; null is that fact, and it fails closed in every
+   * displayable allow-list.
+   */
+  status: string | null;
   days_on_market: number;
   similarity_score: number;
   adjustments: Adjustment[];
@@ -61,7 +67,11 @@ export async function findComps(
   since.setMonth(since.getMonth() - radiusMonths);
 
   const where: Record<string, unknown> = {
-    ...SEARCH_DISPLAY_GATE,
+    // Gates AND return-copy suppression. A CMA is a document a broker hands a
+    // seller. Spreading SEARCH_DISPLAY_GATE alone listed every Mallan property
+    // that had round-tripped through RLS twice, so the same sale argued its own
+    // comparable and pulled the analysis toward itself.
+    ...publicListingVisibilityWhere(),
   };
 
   // Match neighborhood or borough
@@ -89,10 +99,18 @@ export async function findComps(
     };
   }
 
-  // Sold or active
+  // Active, or closed within the window.
+  //
+  // `Closed` is the COTALITY word. A Mallan-local listing never reaches it — the
+  // CRM status route writes `Sold` for a sale and `Rented` for a rental
+  // (Pending → Sold | Rented), and `Leased` survives in read-side sets. Matching
+  // only `Closed` meant a CMA silently omitted the brokerage's OWN closed sales:
+  // the comps most relevant to the seller, and the ones the broker actually has
+  // first-hand knowledge of, were the ones missing from the document.
+  const CLOSED_STATUSES = ['Closed', 'Sold', 'Rented', 'Leased'];
   where.OR = [
     { status: 'Active' },
-    { status: 'Closed', contract_closed: { gte: since } },
+    { status: { in: CLOSED_STATUSES }, contract_closed: { gte: since } },
   ];
 
   const listings = await prisma.listing.findMany({

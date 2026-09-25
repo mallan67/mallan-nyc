@@ -13,7 +13,7 @@
  *   - Only touches rows where last_synced_from_trestle IS NOT NULL — the
  *     deterministic signal that this row's raw_data was last written by the
  *     Trestle mapper (set by lib/idx/sync.ts main loop, syncAgentHistory,
- *     feed-reconcile, AND reset-sync — covers every programmatic Trestle
+ *     and feed-reconcile — covers every programmatic Cotality
  *     write path, including agent-linked imports). Pure CRM-created
  *     listings never have this column populated and are skipped.
  *   - Idempotent — re-running on already-slimmed rows is a no-op (slimRawData

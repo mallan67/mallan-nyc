@@ -1,8 +1,12 @@
-// /api/crm/syndication/refresh — POST: broker-only syndication refresh trigger
+// /api/crm/syndication/refresh — POST: broker-only. RECORDS a syndication
+// refresh request. It does not export anything: syndication is held closed
+// (lib/syndication/mallan-identity.ts, empty MALLAN_OFFICE_MLS_IDS) and no
+// export path exists. The response says so rather than implying otherwise.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { MALLAN_OFFICE_MLS_IDS } from "@/lib/syndication/mallan-identity";
 
 export async function POST(req: NextRequest) {
   const writeBlock = assertWriteAllowed();
@@ -39,8 +43,16 @@ export async function POST(req: NextRequest) {
   const ipAddress = req.headers.get("x-forwarded-for") ?? undefined;
   const now = new Date();
 
-  // Log the syndication refresh request as an audit event.
-  // Actual sync happens via cron — this just records the request.
+  // IS THERE ANYWHERE FOR THIS TO GO?
+  //
+  // Derived, never hardcoded. `MALLAN_OFFICE_MLS_IDS` is the Layer 1.PRE
+  // empty-config guard (lib/syndication/mallan-identity.ts invariant I.5: with
+  // it empty, ALL listings are blocked at Layer 1). Reading it here means that
+  // when Maya populates it, this route stops reporting "not configured" on its
+  // own — nobody has to remember to come back and edit a string.
+  const syndicationConfigured = MALLAN_OFFICE_MLS_IDS.length > 0;
+
+  // Record the request either way. Audit is not conditional on outcome.
   await logAuditEvent(
     "syndication_refresh_requested",
     "listing",
@@ -50,11 +62,28 @@ export async function POST(req: NextRequest) {
       listing_db_id: listing.id.toString(),
       rls_eligible: listing.rls_eligible,
       requested_at: now.toISOString(),
+      syndication_configured: syndicationConfigured,
     },
     ipAddress
   );
 
-  return NextResponse.json({ status: "queued",
+  // THIS USED TO ANSWER `{ status: "queued" }`.
+  //
+  // There is no queue. Nothing reads the audit event this route just wrote; no
+  // export route exists in the tree; and the syndication program is held closed
+  // by the empty-config guard above. The CRM turned that word into the toast
+  // "Syndication refresh queued", and the natural next thing a broker does with
+  // that is tell a seller their listing has been re-published to the portals —
+  // a representation made to a client on the strength of a status this system
+  // invented.
+  //
+  // REQUESTED, EXPORTED and DELIVERED are three different facts. The honest
+  // report is the first one only: the request is on the record, nothing was
+  // exported, and here is why.
+  return NextResponse.json({
+    status: "recorded",
+    exported: false,
+    reason: syndicationConfigured ? null : "SYNDICATION_NOT_CONFIGURED",
     listing_id,
     requested_at: now.toISOString(),
   });

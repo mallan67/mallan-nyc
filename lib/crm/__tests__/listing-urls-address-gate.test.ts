@@ -53,8 +53,8 @@ const urls = (over: Record<string, unknown>) =>
   buildListingUrls({ ...base, ...over } as never);
 
 /** Every way the street or unit could leak into a URL. */
-function assertNoAddressLeak(u: { publicUrl: string | null; realPlusUrl: string | null }) {
-  for (const url of [u.publicUrl, u.realPlusUrl]) {
+function assertNoAddressLeak(u: { publicUrl: string | null; publicActiveUrl: string | null }) {
+  for (const url of [u.publicUrl, u.publicActiveUrl]) {
     if (!url) continue;
     const lower = url.toLowerCase();
     expect(lower).not.toContain('57th');
@@ -69,7 +69,7 @@ describe('RLS-backed: address permitted', () => {
   it('entire=true + address=true -> address slug', () => {
     const u = urls({});
     expect(u.publicUrl).toContain('57th');
-    expect(u.realPlusUrl).toContain('57th');
+    expect(u.publicActiveUrl).toContain('57th');
   });
 });
 
@@ -151,8 +151,11 @@ describe('unknown provenance fails closed', () => {
   });
 });
 
-describe('non-active listings still produce no realPlusUrl', () => {
-  it('a Draft listing has realPlusUrl null', () => {
-    expect(urls({ status: 'Draft' }).realPlusUrl).toBeNull();
+describe('non-active listings still produce no publicly-live URL', () => {
+  // Renamed with the field. `publicActiveUrl` was Mallan's own publicUrl under a
+  // foreign provider's name; the BEHAVIOUR it encoded — expose the URL only
+  // while the listing is live — is what publicActiveUrl keeps.
+  it('a Draft listing has publicActiveUrl null', () => {
+    expect(urls({ status: 'Draft' }).publicActiveUrl).toBeNull();
   });
 });

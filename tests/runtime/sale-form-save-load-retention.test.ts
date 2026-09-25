@@ -219,9 +219,27 @@ describe('Sale form save/load retention — PR-E populate/autosave race hardenin
   });
 
   it('applySalesFieldRules is invoked exactly once inside populate (excluding comments)', () => {
+    // BOUNDED BY THE NEXT FUNCTION, NOT BY A CHARACTER COUNT.
+    //
+    // This used to slice a fixed 24,000-char window, with a comment explaining
+    // that the number was tuned to reach the real call at +23078 while stopping
+    // before _offerDraftRestore at +24733. Any edit inside populate moved the
+    // call, and the window silently stopped covering it: adding the canonical
+    // owner hydrate at the top of the function left ONLY the C9 comment mention
+    // inside the window, which comment-stripping then removed, so the assertion
+    // read 0 and failed for a reason that had nothing to do with the invariant.
+    //
+    // The invariant is "exactly one call INSIDE THIS FUNCTION". Slicing to the
+    // next function's signature expresses that directly and cannot drift.
+    const populateStart = formHtml.indexOf('function _populateSaleFormFromApi(listing)');
+    const nextFunctionStart = formHtml.indexOf('function _offerDraftRestore', populateStart);
+    expect(populateStart).toBeGreaterThan(-1);
+    expect(nextFunctionStart).toBeGreaterThan(populateStart);
+    const trueBody = formHtml.slice(populateStart, nextFunctionStart);
+
     // Real call sites only. The C9 comment block mentions the function by
     // name; strip line comments first.
-    const codeOnly = populateBody
+    const codeOnly = trueBody
       .replace(/\r/g, '')
       .split('\n')
       .map((line) => line.replace(/\/\/.*$/, ''))

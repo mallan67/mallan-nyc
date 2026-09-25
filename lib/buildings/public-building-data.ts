@@ -27,7 +27,7 @@ import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
 // needs only R2_PUBLIC_URL and returns null (never throws) so this public read
 // path falls back to the source locator instead of crashing.
 import { r2PublicUrlForKeyRead } from '@/lib/images/r2';
-import { excludeMallanRlsReturnCopies } from '@/lib/listings/mallan-source-identity';
+import { publicListingVisibilityWhere } from '@/lib/search/listing-access-decision';
 
 import { isActiveDisplayStatus, Status } from '@/lib/compliance/status';
 import { lookupBBL, fetchAcrisSales, boroughFromPostalCode } from '@/lib/buildings/acris-building-sales';
@@ -490,18 +490,17 @@ async function fetchManifestPage(
   const batch = (await prisma.listing.findMany({
       where: {
         AND: [
-          { idx_display_yn: true },
-          { owner_opt_out: false },
-          { internet_entire_listing_display_yn: true },
-          { participant_only: false },
-          // MALLAN RLS RETURN-COPY SUPPRESSION — CHARTER Section 1A.
+          // ONE visibility authority: the four distribution gates AND Mallan RLS
+          // return-copy suppression (CHARTER Section 1A). The building manifest
+          // is a PUBLIC surface — without the suppression, Mallan's own returned
+          // Cotality row appears as a separate unit in its own building, beside
+          // the local canonical listing.
           //
-          // The building manifest is a PUBLIC surface. Without this, Mallan's
-          // own returned Cotality row would appear as a separate unit in its own
-          // building, next to the local canonical listing. Applied inside the
-          // query so it precedes the shard page window, from the same single
-          // owner as every other emitter.
-          excludeMallanRlsReturnCopies(),
+          // The gates were declared inline here and the suppression re-added by
+          // hand. That hand-rolled pattern is what four other client-facing
+          // surfaces forgot to make; using the shared layer removes the chance to
+          // forget. Applied inside the query so it precedes the shard page window.
+          publicListingVisibilityWhere(),
           { address: { path: ['StreetNumber'], string_starts_with: shard } },
         ],
       },

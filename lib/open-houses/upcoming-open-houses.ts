@@ -351,7 +351,9 @@ async function fetchLocalUpcoming(): Promise<UpcomingEntry[]> {
       // Website-only exclusive bypass (rls_eligible=false): displayable on a displayable status.
       const displayable =
         l.rls_eligible === false
-          ? OPEN_HOUSE_ELIGIBLE_STATUSES.includes(l.status)
+          // A listing with no market status is not on the market, so it
+          // cannot hold a public open house.
+          ? l.status != null && OPEN_HOUSE_ELIGIBLE_STATUSES.includes(l.status)
           : evaluateDisplayGate({
               status: l.status,
               owner_opt_out: l.owner_opt_out,
@@ -363,7 +365,7 @@ async function fetchLocalUpcoming(): Promise<UpcomingEntry[]> {
       // FEED matches the RSVP-linkage predicate (isLocalOpenHousePubliclyEligible) —
       // otherwise the RLS branch would expose a ComingSoon/Pending open house the RSVP
       // path (correctly) refuses to link, dropping every RSVP for that shown event.
-      if (!displayable || !OPEN_HOUSE_ELIGIBLE_STATUSES.includes(l.status)) continue;
+      if (!displayable || l.status == null || !OPEN_HOUSE_ELIGIBLE_STATUSES.includes(l.status)) continue;
       const addr = pickAddressParts(l.address);
       const timeParts = (s.time || '').split('-').map((t) => t.trim());
       out.push({

@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireWorkspace, isAuthError } from "@/lib/auth";
 import { sanitizeForPublic } from "@/lib/compliance/dto";
-import { SEARCH_DISPLAY_GATE } from "@/lib/search/listing-access-decision";
+import { publicListingVisibilityWhere } from "@/lib/search/listing-access-decision";
 import { canAccessOwnerListing, isOwnerLead } from "@/lib/portal/listing-ownership";
 
 export async function GET(req: NextRequest) {
@@ -62,8 +62,15 @@ export async function GET(req: NextRequest) {
       id: { not: listing.id },
       neighborhood,
       borough,
-      status: { in: ["Active", "Closed", "Sold", "Leased"] },
-      ...SEARCH_DISPLAY_GATE,
+      // `Rented` was missing. Nothing in this codebase ever WRITES `Leased`
+      // — it survives only in read-side sets — while `Rented` is what the CRM
+      // status route writes when a Mallan rental closes (Pending -> Rented).
+      // So rental comps included a status no row holds and excluded the one
+      // every Mallan rental ends up in.
+      status: { in: ["Active", "Closed", "Sold", "Leased", "Rented"] },
+      // Gates AND return-copy suppression — otherwise a seller sees their own
+      // building's Mallan listings twice in their comparables.
+      ...publicListingVisibilityWhere(),
     },
     orderBy: { modification_timestamp: "desc" },
     take: 20,

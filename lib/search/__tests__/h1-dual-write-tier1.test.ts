@@ -27,7 +27,6 @@ const WIRED_WRITERS: { label: string; rel: string }[] = [
   { label: "crm/convert", rel: "app/api/crm/convert/route.ts" },
   { label: "cron/feed-reconcile", rel: "app/api/cron/feed-reconcile/route.ts" },
   { label: "idx/ensure-listing", rel: "app/api/idx/ensure-listing/route.ts" },
-  { label: "crm/listings/reset-sync", rel: "app/api/crm/listings/reset-sync/route.ts" },
   { label: "scripts/import-closed-from-trestle", rel: "scripts/import-closed-from-trestle.ts" },
 ];
 

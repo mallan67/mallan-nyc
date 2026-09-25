@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { publicListingVisibilityWhere } from '@/lib/search/listing-access-decision';
 import { cachedPublicRead, SEARCH_CACHE_TAG } from '@/lib/cache/public-cache';
 import type { Prisma } from '@prisma/client';
 import { getAccessToken } from '@/lib/idx/auth';
@@ -113,13 +114,21 @@ export async function GET(request: Request) {
     const periodStart = getPeriodStart(period);
     const now = new Date();
 
-    // Base where clause — distribution gates enforced
+    // Base where clause — the CANONICAL visibility layer, not a local copy.
+    //
+    // This hand-declared the four distribution-gate columns and therefore
+    // omitted MALLAN RLS RETURN-COPY SUPPRESSION, so every Mallan listing that
+    // had round-tripped through REBNY RLS was counted TWICE in these aggregates:
+    // once as the canonical SL-/RL- row and once as the returned Cotality copy.
+    // Doubled inventory, skewed medians, and a distorted days-on-market — in a
+    // response that is published as market statistics.
+    //
+    // `publicListingVisibilityWhere()` carries the gates AND the suppression,
+    // and deliberately imposes no status, which is why the status filters below
+    // stay this route's own decision.
     const baseWhere: Prisma.ListingWhereInput = {
       listing_type: type === 'rent' ? 'rent' : 'sale',
-      idx_display_yn: true,
-      internet_entire_listing_display_yn: true,
-      owner_opt_out: false,
-      participant_only: false,
+      ...publicListingVisibilityWhere(),
     };
 
     if (borough) {

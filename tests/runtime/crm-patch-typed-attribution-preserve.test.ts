@@ -27,7 +27,9 @@ jest.mock('@/lib/auth', () => ({
 }));
 jest.mock('@/lib/auth/readonly-guard', () => ({ __esModule: true, assertWriteAllowed: () => null }));
 jest.mock('@/lib/search/listing-search-projection', () => ({ __esModule: true, dualWriteProjectionForListingId: async () => undefined }));
-jest.mock('@/lib/crm/listing-urls', () => ({ __esModule: true, buildListingUrls: () => ({ publicUrl: '/listing/x', realPlusUrl: 'https://realplus/x' }) }));
+// Mirrors the REAL return shape — the helper no longer returns a
+// third-party-named URL field.
+jest.mock('@/lib/crm/listing-urls', () => ({ __esModule: true, buildListingUrls: () => ({ publicUrl: '/listing/x', publicActiveUrl: '/listing/x' }) }));
 
 // Existing typed attribution on the row; agent_info JSON is empty (post-Phase-C).
 function baseRow(overrides: Record<string, unknown> = {}) {

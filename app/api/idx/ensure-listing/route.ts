@@ -108,7 +108,10 @@ export async function POST(req: NextRequest) {
         listing_id: trimmedId,
         mls_id: trimmedId,
         listing_type: isRental ? "rent" : "sale",
-        status: canonicalStatus,
+        // The normalizer's empty token means "no status was sent"; the column
+        // spells that NULL. Writing '' would be a third spelling of the same
+        // condition that no gate knows about.
+        status: canonicalStatus || null,
         address: addressJson as Prisma.InputJsonValue,
         list_price: body.price != null ? Number(body.price) : 0,
         bedrooms_total: body.beds != null ? Number(body.beds) : null,
@@ -128,7 +131,12 @@ export async function POST(req: NextRequest) {
         // data-retention cron, and ops:health cannot disagree on whether
         // the row is terminal. Reuses the C2 canonical TERMINAL_STATUSES
         // set (lib/idx/trestle-mapper.ts is the source of truth).
-        idx_display_yn: !TERMINAL_STATUSES.has(canonicalStatus),
+        // The leading emptiness check is the condition the nullable column made
+        // reachable: this is a DENY-list on terminal statuses, so "no status was
+        // sent" is not terminal and would have been published. A row asserting
+        // no market status is not IDX-displayable.
+        idx_display_yn:
+          canonicalStatus !== "" && !TERMINAL_STATUSES.has(canonicalStatus),
         // Archive Eligibility Clock (#415/#446): seed terminal_since when this minimal
         // external record is created already-terminal (arbitrary body.status). This path
         // has NO stable close/off-market source (raw_data/features empty), so a terminal
