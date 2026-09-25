@@ -34,6 +34,10 @@ jobs:
       # CI configures CONTACT_DB_INTEGRATION_URL to use the ephemeral PostgreSQL
       # service. Local runs must use a throwaway database.
       CONTACT_DB_INTEGRATION_URL: postgresql://dev_user:dev_password@127.0.0.1:5432/mallan?schema=public
+      # Same ephemeral service for the CRM media summary/rollback integration
+      # suite. Persistence, transactions and cross-table convergence are proven
+      # against real Postgres — a mocked Prisma cannot roll anything back.
+      CRM_MEDIA_DB_INTEGRATION_URL: postgresql://dev_user:dev_password@127.0.0.1:5432/mallan?schema=public
       # Enables tests/runtime/one-cycle-claim.integration.test.ts to run the real
       # claimCycle (advisory lock + JSON-path run_id query) against the ephemeral
       # postgres service. Never points at a real/production database.

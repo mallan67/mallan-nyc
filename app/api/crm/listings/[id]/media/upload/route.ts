@@ -12,6 +12,7 @@
 // Content-Type: multipart/form-data
 // Body: file (image), caption? (string), order? (number)
 
+import { withCrmMediaConvergence } from "@/lib/media/crm-media-mutation";
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import prisma from "@/lib/prisma";
@@ -137,11 +138,6 @@ export async function POST(
   // Lazily import any legacy `listing.media` JSON for this listing into rows so
   // the rows set is COMPLETE before we add the new one (the public resolver
   // prefers rows when any exist — partial rows would hide the JSON photos).
-  await importJsonMediaToRows(prisma, {
-    listing_id: listing.listing_id,
-    media: listing.media,
-    last_synced_from_trestle: listing.last_synced_from_trestle,
-  });
 
   // Dedup: if this exact image is already an active row on this listing, 409.
   const existingRow = await prisma.listingMedia.findUnique({
@@ -179,12 +175,26 @@ export async function POST(
   // Sanitize listing ID for R2 key — prevent path traversal
   const rawListingId = listing.listing_id || listing.id.toString();
   const listingId = rawListingId.replace(/[^a-zA-Z0-9_-]/g, "_");
-  const timestamp = Date.now();
+  // R2_DB_EXTERNAL_ATOMICITY_GAP — content-addressed keys, not timestamps.
+  //
+  // A PostgreSQL transaction cannot make R2 atomic: the objects are written
+  // BEFORE the transaction opens, so a DB rollback leaves them behind. With a
+  // `Date.now()` key every retry produced a NEW set of objects, so each failure
+  // permanently multiplied orphans.
+  //
+  // `contentHash` is already computed above (it derives media_key) and
+  // PutObject overwrites by key, so keying on it makes the upload IDEMPOTENT:
+  // retrying the same file rewrites the same objects instead of creating more.
+  // A rollback then leaves at most one object per (content, variant), which the
+  // next retry reuses. This bounds the orphan set; it does not eliminate it —
+  // an object whose transaction never succeeds is still unreferenced, which is
+  // the R2 orphan-reconciliation lane's job, not this route's.
+  const contentKey = contentHash.slice(0, 32);
   const urls: Record<string, string> = {};
 
   try {
     for (const variant of variants) {
-      const key = `listings/${listingId}/${timestamp}-${variant.variant}.webp`;
+      const key = `listings/${listingId}/${contentKey}-${variant.variant}.webp`;
       const url = await uploadToR2(key, variant.buffer, variant.contentType);
       urls[variant.variant] = url;
     }
@@ -226,7 +236,7 @@ export async function POST(
     preferred = existingPreferred === 0;
   }
 
-  const heroVariantKey = `listings/${listingId}/${timestamp}-hero.webp`;
+  const heroVariantKey = `listings/${listingId}/${contentKey}-hero.webp`;
   const cachedUrl = urls.card || urls.hero || "";
 
   const writeSelect = {
@@ -243,8 +253,16 @@ export async function POST(
   // above, so a truthy existingRow here is non-active. RESTORE it to active with
   // the fresh R2 variants — a create() would hit the media_key @unique
   // constraint (P2002) and 500. (Codex media P0 finding #3.)
-  const created = existingRow
-    ? await prisma.listingMedia.update({
+  const created = await withCrmMediaConvergence(listing.listing_id, async (tx) => {
+    // Legacy CRM JSON import joins THIS transaction. Run separately it would
+    // commit rows that survive a later rollback of the mutation and summary.
+    await importJsonMediaToRows(tx, {
+      listing_id: listing.listing_id,
+      media: listing.media,
+      last_synced_from_trestle: listing.last_synced_from_trestle,
+    });
+    const row = existingRow
+    ? await tx.listingMedia.update({
         where: { media_key: mediaKey },
         data: {
           media_url_original: urls.hero || cachedUrl,
@@ -263,7 +281,7 @@ export async function POST(
         },
         select: writeSelect,
       })
-    : await prisma.listingMedia.create({
+    : await tx.listingMedia.create({
         data: {
           listing_id: listing.listing_id,
           media_key: mediaKey,
@@ -281,6 +299,8 @@ export async function POST(
         },
         select: writeSelect,
       });
+    return row;
+  });
   const restored = !!existingRow;
 
   // P1C4: never bump MT on Trestle-synced rows (idx-sync cursor reads it);

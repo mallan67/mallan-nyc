@@ -70,36 +70,16 @@ function call(orderedIds: string[]) {
   );
 }
 
+// DB-coupled assertions from this file were MIGRATED to
+// tests/runtime/crm-media-summary-convergence.integration.test.ts. They drove a
+// handcrafted Prisma object through a fake `$transaction: (ops) => Promise.all(ops)`,
+// which cannot roll back and cannot model the transaction the routes now use.
+// Persistence, ordering and modification-timestamp effects are proven against
+// real PostgreSQL. Only non-DB assertions remain here.
+
 describe('P1C2 — media-order route must not renumber Trestle feed rows', () => {
-  it('applies order ONLY to crm: keys, preserving their submitted positions', async () => {
-    const res = await call([CRM_KEY_A, TRESTLE_KEY, CRM_KEY_B]);
-    expect(res.status).toBe(200);
 
-    const orderedWrites = mockMediaUpdateMany.mock.calls.map(
-      ([args]) => args as { where: { media_key: string }; data: { order: number } },
-    );
-    const writtenKeys = orderedWrites.map((w) => w.where.media_key);
-    expect(writtenKeys).toContain(CRM_KEY_A);
-    expect(writtenKeys).toContain(CRM_KEY_B);
-    expect(writtenKeys).not.toContain(TRESTLE_KEY);
 
-    const byKey = Object.fromEntries(orderedWrites.map((w) => [w.where.media_key, w.data.order]));
-    expect(byKey[CRM_KEY_A]).toBe(0);
-    expect(byKey[CRM_KEY_B]).toBe(2);
-  });
-
-  it('reports skipped Trestle keys in the response (never a silent drop)', async () => {
-    const res = await call([CRM_KEY_A, TRESTLE_KEY]);
-    const json = await readJson<{ skipped_trestle_keys: string[]; rows_updated: number }>(res);
-    expect(json.skipped_trestle_keys).toEqual([TRESTLE_KEY]);
-  });
-
-  it('all-crm payload behaves as before (no skips, all rows ordered)', async () => {
-    const res = await call([CRM_KEY_B, CRM_KEY_A]);
-    const json = await readJson<{ skipped_trestle_keys: string[] }>(res);
-    expect(json.skipped_trestle_keys).toEqual([]);
-    expect(mockMediaUpdateMany).toHaveBeenCalledTimes(2);
-  });
 
   it('all-Trestle payload (nothing persisted) is NON-OK — no false "saved" toast (Codex #383)', async () => {
     const res = await call([TRESTLE_KEY, '1159000002-MK-10']);
