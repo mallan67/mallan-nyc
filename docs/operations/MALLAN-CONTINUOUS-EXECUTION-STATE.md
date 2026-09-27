@@ -6,7 +6,7 @@
 > This file records current verified execution state and the machine-readable authorization envelope
 > consumed by the required GitHub PR check. It may not redefine the Master.
 
-**Checkpoint:** 2026-09-25 — #643 merged (`c353c171`): the ledger row 19 Master-amendment path (the bounded `master-amendment` controller mode with its negative tests) is on protected `main`, and a state-only exit returns the contract to `control-update` (§5 item 7c, §11); no Master amendment is authorized. HISTORY: 2026-09-24 — #641 merged (`fadd3937`): A2 exited implementation mode on a contradiction; Maya then deprioritized A2 and authorized the ledger row 19 control-root-maintenance packet (§5 item 7c, §11); 2026-09-22 governance activation and #638 recorded; the SHAs below still describe the 2026-09-20 #632 checkpoint  
+**Checkpoint:** 2026-09-26 — state-only authorization for `GOVERNANCE-CI-CLAUDE-RELEASE-TRUTH-REPAIR-2026-09-26`: repair the proven CI regression before resuming the single-canonical-checkout Master amendment. Proven defect chain: `anthropics/claude-code-action@v1` moved from action commit `9171db3e57d6a3140a37ddc2ba92788584e0ead6` (Claude Code 2.1.282; green on 2026-09-25) to `756cc22e19660d20e8cc9496b4f242475a7f7790` (Claude Code 2.1.283; immediate `is_error:true` / zero model usage on 2026-09-27), while Release Truth aborts under `set -e` before reading the validator's valid `DEPLOY_FAIL` JSON and therefore reports `ERROR: no reasons captured`. The packet is limited to pinning the known-good Claude action revision across every Mallan Claude workflow, correcting Release Truth's fail-closed verdict capture, and adding regression tests. No Master, product, provider, schema, environment, production, database, Cotality, Vercel or Neon mutation is authorized. HISTORY: the prior proposed single-checkout Master amendment remains deferred until this CI packet is closed green.  
 **Repository:** `mallan67/mallan-nyc` only  
 **Canonical branch:** `main`  
 **Main at this checkpoint:** `005786e71818ef13f555111de67e3d6248412987` — the PR #632 merge
@@ -579,23 +579,73 @@ PR #632 was a one-time bootstrap exception because base `main` did not then cont
 It is merged and the exception is closed; base `main` now carries both authority files, so no
 PR can reach that branch again.
 
-The current mode is **`control-update`**: only this execution-state file may change. The `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` maintenance packet (ledger row 19) is merged (#643, `c353c171`) and this contract is its state-only exit; it authorizes no Master amendment. HISTORY: from #642 until #643 the mode was `control-root-maintenance` for that packet, changing only `scripts/ci/mallan-execution-control.mjs` and `tests/runtime/mallan-execution-control.test.ts`. Implementation mode for A2 (`RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22`) was exited on 2026-09-24 through the #638 exit (#641) because A2's base text contradicted live evaluation (§11 "A2 paused — contradiction"); A2 is deprioritized. Code and scope expansion may not be combined into the same self-authorizing PR.
+The current mode is **`implementation`** for packet `GOVERNANCE-CI-CLAUDE-RELEASE-TRUTH-REPAIR-2026-09-26`. This packet repairs CI infrastructure only. It may (1) pin both Mallan Claude workflows to the last proven-good immutable `anthropics/claude-code-action` commit `9171db3e57d6a3140a37ddc2ba92788584e0ead6` instead of the moving `@v1` tag, (2) correct the Release Truth dependency-wait shell so a validator exit code of 1 with valid `DEPLOY_FAIL` JSON is captured and reported honestly rather than being converted to `ERROR: no reasons captured`, and (3) add/update focused regression tests proving both invariants. Release Truth must continue treating `claude-review` as a required release-truth dependency; this packet may not weaken or remove that requirement. The previously proposed single-checkout Master amendment is deferred until this CI packet exits green through a separate state-only PR.
 
 <!-- MALLAN_EXECUTION_CONTROL_V1_START -->
 ```json
 {
   "version": 1,
-  "mode": "control-update",
+  "mode": "implementation",
+  "packet_id": "GOVERNANCE-CI-CLAUDE-RELEASE-TRUTH-REPAIR-2026-09-26",
+  "objective": "Repair the proven CI regression before resuming the single-canonical-checkout Master amendment. Pin every Mallan workflow that invokes anthropics/claude-code-action from moving @v1 to the last proven-good immutable action commit 9171db3e57d6a3140a37ddc2ba92788584e0ead6, which installed Claude Code 2.1.282 and passed on 2026-09-25; current failing @v1 resolves to 756cc22e19660d20e8cc9496b4f242475a7f7790, installs 2.1.283, and exits immediately with is_error:true and zero model usage. Correct Release Truth's dependency-wait shell so validate-release-status.js may return exit 1 with valid DEPLOY_FAIL JSON without set -e aborting before the verdict/reasons are read. Preserve claude-review as a required Release Truth dependency. Add focused regression tests. No Master, product, provider, schema, environment, production, database, Cotality, Vercel or Neon mutation is authorized.",
   "authorized_branch": "work/active",
   "base_branch": "main",
   "authorized_paths": [
-    "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
+    ".github/workflows/claude-code-review.yml",
+    ".github/workflows/claude.yml",
+    ".github/workflows/release-truth.yml",
+    "tests/runtime/release-safety-release-truth.test.ts",
+    "tests/runtime/claude-action-pin.test.ts"
   ],
-  "allowed_new_files": [],
+  "allowed_new_files": [
+    "tests/runtime/claude-action-pin.test.ts"
+  ],
   "impact_domains": [
     "governance"
   ],
   "provider_proof_required": [],
+  "impact_graph": {
+    "root_owner_paths": [
+      ".github/workflows/claude-code-review.yml",
+      ".github/workflows/claude.yml",
+      ".github/workflows/release-truth.yml",
+      "scripts/validate-release-status.js"
+    ],
+    "writer_paths": [
+      ".github/workflows/claude-code-review.yml",
+      ".github/workflows/claude.yml",
+      ".github/workflows/release-truth.yml",
+      "tests/runtime/release-safety-release-truth.test.ts",
+      "tests/runtime/claude-action-pin.test.ts"
+    ],
+    "reader_paths": [
+      "scripts/ci/mallan-execution-control.mjs",
+      "scripts/validate-release-status.js",
+      "scripts/release-safety/release-truth-verdict.js",
+      "docs/operations/release-safety-runbook.md",
+      "docs/engineering/vercel-preview-proof-rules.md",
+      "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
+    ],
+    "publisher_paths": [
+      ".github/workflows/claude-code-review.yml",
+      ".github/workflows/claude.yml",
+      ".github/workflows/release-truth.yml"
+    ],
+    "downstream_surfaces": [
+      "Claude Code PR review execution",
+      "Claude issue/PR automation execution",
+      "Release Truth PR dependency verdicts",
+      "GitHub Actions failure notifications",
+      "PR exact-head closure evidence"
+    ],
+    "test_paths": [
+      "tests/runtime/release-safety-release-truth.test.ts",
+      "tests/runtime/claude-action-pin.test.ts"
+    ],
+    "compliance_surfaces": [
+      "Governance/CI only; no listing, public, client, RLS, UCBA or Fair Housing behavior changes"
+    ]
+  },
   "production_mutation_authorized": false,
   "schema_migration_authorized": false,
   "environment_mutation_authorized": false,
@@ -609,41 +659,8 @@ The current mode is **`control-update`**: only this execution-state file may cha
     "negative_tests_required": true,
     "integration_proof_required": true,
     "downstream_proof_required": true,
-    "compliance_proof_required_when_applicable": true,
+    "compliance_proof_required_when_applicable": false,
     "no_parallel_path_proof_required": true
-  },
-  "packet_id": "GOVERNANCE-MASTER-AMENDMENT-PATH-EXIT-2026-09-25",
-  "objective": "Exit control-root-maintenance after #643 (merged c353c171dc58170a893ba8135845c6bac801f794), which delivered packet GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24 (ledger row 19): the bounded master-amendment controller mode and its negative tests are on protected main. Authorize only state-only updates to this file. No packet is active. No Master amendment is authorized by this contract: any change to MALLAN-PLATFORM-MASTER-PLAN.md needs its own later state-only control update that sets master-amendment mode with the content envelope the controller requires. No provider, environment, Neon, Vercel, Cotality, database, branch or implementation mutation is authorized.",
-  "impact_graph": {
-    "root_owner_paths": [
-      "MALLAN-PLATFORM-MASTER-PLAN.md",
-      "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
-    ],
-    "writer_paths": [
-      "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
-    ],
-    "reader_paths": [
-      "scripts/ci/mallan-execution-control.mjs",
-      "AGENTS.md",
-      "CLAUDE.md"
-    ],
-    "publisher_paths": [
-      ".github/workflows/pr-check.yml",
-      ".github/workflows/branch-authority.yml",
-      ".github/workflows/authority-root.yml"
-    ],
-    "downstream_surfaces": [
-      "GitHub pull-request merge eligibility",
-      "GitHub future branch creation",
-      "All later Mallan packets, including any later separately authorized Master amendment"
-    ],
-    "test_paths": [
-      "tests/runtime/mallan-execution-control.test.ts",
-      "tests/runtime/agent-authority-live-source.test.ts"
-    ],
-    "compliance_surfaces": [
-      "Governance only; no listing/public/client compliance mutation in this packet"
-    ]
   }
 }
 ```
