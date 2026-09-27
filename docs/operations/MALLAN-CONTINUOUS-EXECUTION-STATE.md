@@ -585,17 +585,49 @@ The current mode is **`control-update`**: only this execution-state file may cha
 ```json
 {
   "version": 1,
-  "mode": "control-update",
+  "mode": "implementation",
+  "packet_id": "GOVERNANCE-SINGLE-CANONICAL-CHECKOUT-2026-09-26",
+  "objective": "Reconcile AGENTS.md and CLAUDE.md with Maya's explicit single-checkout directive: one canonical local Mallan checkout at C:\\Users\\MayaAllan\\Desktop\\mallan-nyc may be used when local repository work is explicitly being performed, while GitHub remains authority for remote branches, pull requests, required checks and merges. Prohibit all additional clones, worktrees, mirrors, copied source trees, PR-specific clones and recovery repositories. Require pre-mutation verification of canonical path, origin, authorized branch, HEAD and status. No product, provider, schema, environment, production, database, Cotality, Vercel or Neon mutation is authorized.",
   "authorized_branch": "work/active",
   "base_branch": "main",
   "authorized_paths": [
-    "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
+    "AGENTS.md",
+    "CLAUDE.md"
   ],
   "allowed_new_files": [],
   "impact_domains": [
     "governance"
   ],
   "provider_proof_required": [],
+  "impact_graph": {
+    "root_owner_paths": [
+      "MALLAN-PLATFORM-MASTER-PLAN.md",
+      "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
+    ],
+    "writer_paths": [
+      "AGENTS.md",
+      "CLAUDE.md"
+    ],
+    "reader_paths": [
+      "AGENTS.md",
+      "CLAUDE.md",
+      "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
+    ],
+    "publisher_paths": [],
+    "downstream_surfaces": [
+      "Claude repository startup discipline",
+      "ChatGPT repository startup discipline",
+      "Codex repository startup discipline",
+      "Local Mallan checkout and GitHub handoff discipline"
+    ],
+    "test_paths": [
+      "tests/runtime/agent-authority-live-source.test.ts",
+      "tests/runtime/mallan-execution-control.test.ts"
+    ],
+    "compliance_surfaces": [
+      "Governance only; no listing, public, client, RLS, UCBA or Fair Housing surface changes"
+    ]
+  },
   "production_mutation_authorized": false,
   "schema_migration_authorized": false,
   "environment_mutation_authorized": false,
@@ -606,44 +638,11 @@ The current mode is **`control-update`**: only this execution-state file may cha
   "requirements": {
     "impact_graph_required": true,
     "all_readers_writers_required": true,
-    "negative_tests_required": true,
-    "integration_proof_required": true,
-    "downstream_proof_required": true,
-    "compliance_proof_required_when_applicable": true,
+    "negative_tests_required": false,
+    "integration_proof_required": false,
+    "downstream_proof_required": false,
+    "compliance_proof_required_when_applicable": false,
     "no_parallel_path_proof_required": true
-  },
-  "packet_id": "GOVERNANCE-MASTER-AMENDMENT-PATH-EXIT-2026-09-25",
-  "objective": "Exit control-root-maintenance after #643 (merged c353c171dc58170a893ba8135845c6bac801f794), which delivered packet GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24 (ledger row 19): the bounded master-amendment controller mode and its negative tests are on protected main. Authorize only state-only updates to this file. No packet is active. No Master amendment is authorized by this contract: any change to MALLAN-PLATFORM-MASTER-PLAN.md needs its own later state-only control update that sets master-amendment mode with the content envelope the controller requires. No provider, environment, Neon, Vercel, Cotality, database, branch or implementation mutation is authorized.",
-  "impact_graph": {
-    "root_owner_paths": [
-      "MALLAN-PLATFORM-MASTER-PLAN.md",
-      "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
-    ],
-    "writer_paths": [
-      "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
-    ],
-    "reader_paths": [
-      "scripts/ci/mallan-execution-control.mjs",
-      "AGENTS.md",
-      "CLAUDE.md"
-    ],
-    "publisher_paths": [
-      ".github/workflows/pr-check.yml",
-      ".github/workflows/branch-authority.yml",
-      ".github/workflows/authority-root.yml"
-    ],
-    "downstream_surfaces": [
-      "GitHub pull-request merge eligibility",
-      "GitHub future branch creation",
-      "All later Mallan packets, including any later separately authorized Master amendment"
-    ],
-    "test_paths": [
-      "tests/runtime/mallan-execution-control.test.ts",
-      "tests/runtime/agent-authority-live-source.test.ts"
-    ],
-    "compliance_surfaces": [
-      "Governance only; no listing/public/client compliance mutation in this packet"
-    ]
   }
 }
 ```
