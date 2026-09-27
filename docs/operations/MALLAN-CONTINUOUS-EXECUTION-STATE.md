@@ -6,7 +6,7 @@
 > This file records current verified execution state and the machine-readable authorization envelope
 > consumed by the required GitHub PR check. It may not redefine the Master.
 
-**Checkpoint:** 2026-09-26 — state-only authorization for `GOVERNANCE-SINGLE-CANONICAL-CHECKOUT-2026-09-26`: the active packet is limited to reconciling `AGENTS.md` and `CLAUDE.md` with Maya's explicit single-canonical-checkout directive; no product, provider, schema, environment, production, database, Cotality, Vercel or Neon mutation is authorized. HISTORY: 2026-09-25 — #643 merged (`c353c171`) and #644 exited the ledger row 19 Master-amendment path back to `control-update`; 2026-09-24 — #641 merged (`fadd3937`) after A2 exited implementation mode on a contradiction; 2026-09-22 governance activation and #638 recorded; the SHAs below still describe the 2026-09-20 #632 checkpoint  
+**Checkpoint:** 2026-09-26 — state-only authorization for `GOVERNANCE-SINGLE-CANONICAL-CHECKOUT-MASTER-2026-09-26`: the active packet is a bounded `master-amendment` of only Master §0.10 GitHub / Git operating authority, with the exact before/after content hashes pinned below. Its purpose is to reconcile the durable authority with Maya's explicit single-canonical-checkout directive before subordinate agent files are changed. No other Master section and no product, provider, schema, environment, production, database, Cotality, Vercel or Neon mutation is authorized. HISTORY: 2026-09-25 — #643 merged (`c353c171`) and #644 exited the ledger row 19 Master-amendment path back to `control-update`; 2026-09-24 — #641 merged (`fadd3937`) after A2 exited implementation mode on a contradiction; 2026-09-22 governance activation and #638 recorded; the SHAs below still describe the 2026-09-20 #632 checkpoint  
 **Repository:** `mallan67/mallan-nyc` only  
 **Canonical branch:** `main`  
 **Main at this checkpoint:** `005786e71818ef13f555111de67e3d6248412987` — the PR #632 merge
@@ -579,20 +579,19 @@ PR #632 was a one-time bootstrap exception because base `main` did not then cont
 It is merged and the exception is closed; base `main` now carries both authority files, so no
 PR can reach that branch again.
 
-The current mode is **`implementation`** for packet `GOVERNANCE-SINGLE-CANONICAL-CHECKOUT-2026-09-26`. The only authorized implementation paths are `AGENTS.md` and `CLAUDE.md`, solely to reconcile agent instructions with Maya's explicit single-canonical-checkout directive. The canonical local checkout is `C:\Users\MayaAllan\Desktop\mallan-nyc`; additional clones, worktrees, mirrors, copied source trees, PR-specific clones and recovery repositories are prohibited. GitHub remains authority for remote branches, pull requests, required checks and merges. No Master, product, provider, schema, environment, production, database, Cotality, Vercel or Neon mutation is authorized. HISTORY: #643 merged (`c353c171`) and #644 returned the ledger row 19 Master-amendment path to `control-update`; A2 (`RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22`) remains deprioritized after its contradiction exit. Code and scope expansion may not be combined into the same self-authorizing PR.
+The current mode is **`master-amendment`** for packet `GOVERNANCE-SINGLE-CANONICAL-CHECKOUT-MASTER-2026-09-26`. The only authorized path is `MALLAN-PLATFORM-MASTER-PLAN.md`, and the controller pins the exact §0.10 section boundary plus the before/after SHA-256 digests. The amendment may only establish one canonical local checkout at `C:\Users\MayaAllan\Desktop\mallan-nyc` as a conditional execution surface under the current Execution State while keeping GitHub authoritative for remote collaboration and merge state; all duplicate source trees remain prohibited. No other Master section or mutation surface is authorized. After that Master-only packet, this contract must exit through a separate state-only PR back to `control-update` before any subordinate `AGENTS.md` / `CLAUDE.md` reconciliation is authorized.
 
 <!-- MALLAN_EXECUTION_CONTROL_V1_START -->
 ```json
 {
   "version": 1,
-  "mode": "implementation",
-  "packet_id": "GOVERNANCE-SINGLE-CANONICAL-CHECKOUT-2026-09-26",
-  "objective": "Reconcile AGENTS.md and CLAUDE.md with Maya's explicit single-checkout directive: one canonical local Mallan checkout at C:\\Users\\MayaAllan\\Desktop\\mallan-nyc may be used when local repository work is explicitly being performed, while GitHub remains authority for remote branches, pull requests, required checks and merges. Prohibit all additional clones, worktrees, mirrors, copied source trees, PR-specific clones and recovery repositories. Require pre-mutation verification of canonical path, origin, authorized branch, HEAD and status. No product, provider, schema, environment, production, database, Cotality, Vercel or Neon mutation is authorized.",
+  "mode": "master-amendment",
+  "packet_id": "GOVERNANCE-SINGLE-CANONICAL-CHECKOUT-MASTER-2026-09-26",
+  "objective": "Amend only MALLAN-PLATFORM-MASTER-PLAN.md section 0.10 GitHub / Git operating authority to replace the GitHub-only/local-clone prohibition with Maya's explicit single-canonical-checkout rule: one authorized local checkout at C:\\Users\\MayaAllan\\Desktop\\mallan-nyc may be used only when the current Execution State authorizes local repository work and only on its authorized branch; GitHub remains authority for remote branches, pull requests, Actions, protection rules, reviews and merges; all additional clones, worktrees, mirrors, copied project trees, recovery repositories, PR-specific clones and scratch repositories remain prohibited. No other Master section and no product, provider, schema, environment, production, database, Cotality, Vercel or Neon mutation is authorized.",
   "authorized_branch": "work/active",
   "base_branch": "main",
   "authorized_paths": [
-    "AGENTS.md",
-    "CLAUDE.md"
+    "MALLAN-PLATFORM-MASTER-PLAN.md"
   ],
   "allowed_new_files": [],
   "impact_domains": [
@@ -605,8 +604,7 @@ The current mode is **`implementation`** for packet `GOVERNANCE-SINGLE-CANONICAL
       "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
     ],
     "writer_paths": [
-      "AGENTS.md",
-      "CLAUDE.md"
+      "MALLAN-PLATFORM-MASTER-PLAN.md"
     ],
     "reader_paths": [
       "AGENTS.md",
@@ -619,14 +617,12 @@ The current mode is **`implementation`** for packet `GOVERNANCE-SINGLE-CANONICAL
       ".github/workflows/authority-root.yml"
     ],
     "downstream_surfaces": [
-      "Claude repository startup discipline",
-      "ChatGPT repository startup discipline",
-      "Codex repository startup discipline",
-      "Local Mallan checkout and GitHub handoff discipline"
+      "All Mallan agent repository startup and mutation discipline",
+      "Future governance packets that authorize local repository work"
     ],
     "test_paths": [
-      "tests/runtime/agent-authority-live-source.test.ts",
-      "tests/runtime/mallan-execution-control.test.ts"
+      "tests/runtime/mallan-execution-control.test.ts",
+      "tests/runtime/agent-authority-live-source.test.ts"
     ],
     "compliance_surfaces": [
       "Governance only; no listing, public, client, RLS, UCBA or Fair Housing surface changes"
@@ -647,6 +643,13 @@ The current mode is **`implementation`** for packet `GOVERNANCE-SINGLE-CANONICAL
     "downstream_proof_required": false,
     "compliance_proof_required_when_applicable": false,
     "no_parallel_path_proof_required": true
+  },
+  "master_amendment": {
+    "base_master_blob": "a3600e9348296cc795f6940637a93113b7327ad8",
+    "section_start_heading": "## 0.10 GitHub / Git operating authority",
+    "section_end_heading": "## 0.11 Vercel operating authority",
+    "section_before_sha256": "e8ae24098b37cbeb74a3c7087a8bc6efb0424b9dfafda2c37232f0ecd91b2305",
+    "section_after_sha256": "10753b370764bba03f541ec05d09af3b656f45976f17a7817ce904d22674c455"
   }
 }
 ```
