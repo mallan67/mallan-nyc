@@ -6,7 +6,7 @@
 > This file records current verified execution state and the machine-readable authorization envelope
 > consumed by the required GitHub PR check. It may not redefine the Master.
 
-**Checkpoint:** 2026-09-26 — state-only authorization for `GOVERNANCE-SINGLE-CANONICAL-CHECKOUT-MASTER-2026-09-26`: the active packet is a bounded `master-amendment` of only Master §0.10 GitHub / Git operating authority, with the exact before/after content hashes pinned below. Its purpose is to reconcile the durable authority with Maya's explicit single-canonical-checkout directive before subordinate agent files are changed. No other Master section and no product, provider, schema, environment, production, database, Cotality, Vercel or Neon mutation is authorized. HISTORY: 2026-09-25 — #643 merged (`c353c171`) and #644 exited the ledger row 19 Master-amendment path back to `control-update`; 2026-09-24 — #641 merged (`fadd3937`) after A2 exited implementation mode on a contradiction; 2026-09-22 governance activation and #638 recorded; the SHAs below still describe the 2026-09-20 #632 checkpoint  
+**Checkpoint:** 2026-09-26 — state-only authorization for `GOVERNANCE-CI-CLAUDE-RELEASE-TRUTH-REPAIR-2026-09-26`: repair the proven CI regression before resuming the single-canonical-checkout Master amendment. Proven defect chain: `anthropics/claude-code-action@v1` moved from action commit `9171db3e57d6a3140a37ddc2ba92788584e0ead6` (Claude Code 2.1.282; green on 2026-09-25) to `756cc22e19660d20e8cc9496b4f242475a7f7790` (Claude Code 2.1.283; immediate `is_error:true` / zero model usage on 2026-09-27), while Release Truth aborts under `set -e` before reading the validator's valid `DEPLOY_FAIL` JSON and therefore reports `ERROR: no reasons captured`. The packet is limited to pinning the known-good Claude action revision across every Mallan Claude workflow, correcting Release Truth's fail-closed verdict capture, and adding regression tests. No Master, product, provider, schema, environment, production, database, Cotality, Vercel or Neon mutation is authorized. HISTORY: the prior proposed single-checkout Master amendment remains deferred until this CI packet is closed green.  
 **Repository:** `mallan67/mallan-nyc` only  
 **Canonical branch:** `main`  
 **Main at this checkpoint:** `005786e71818ef13f555111de67e3d6248412987` — the PR #632 merge
@@ -579,80 +579,70 @@ PR #632 was a one-time bootstrap exception because base `main` did not then cont
 It is merged and the exception is closed; base `main` now carries both authority files, so no
 PR can reach that branch again.
 
-The current mode is **`master-amendment`** for packet `GOVERNANCE-SINGLE-CANONICAL-CHECKOUT-MASTER-2026-09-26`. The only authorized path is `MALLAN-PLATFORM-MASTER-PLAN.md`, and the controller pins the exact §0.10 section boundary plus the before/after SHA-256 digests. The amendment may only establish one canonical local checkout at `C:\Users\MayaAllan\Desktop\mallan-nyc` as a conditional execution surface under the current Execution State while keeping GitHub authoritative for remote collaboration and merge state; all duplicate source trees remain prohibited. No other Master section or mutation surface is authorized. After that Master-only packet, this contract must exit through a separate state-only PR back to `control-update` before any subordinate `AGENTS.md` / `CLAUDE.md` reconciliation is authorized.
-
-### Exact target bytes for the authorized Master §0.10 amendment
-
-The following fenced payload is execution evidence, not a second authority. It records the **exact UTF-8 target bytes** whose SHA-256 is pinned by `control.master_amendment.section_after_sha256`. The Master-only follow-up must replace only the bounded §0.10 section with this payload byte-for-byte; independently rewritten wording is not authorized.
-
-```text
-## 0.10 GitHub / Git operating authority
-
-Repository authority is GitHub, repository mallan67/mallan-nyc. Mallan has one authorized local checkout at `C:\Users\MayaAllan\Desktop\mallan-nyc`. That checkout is an execution surface only when the current Execution State permits local repository work and only on the branch it authorizes; it is never a second authority.
-
-Mandatory behavior:
-
-- read current `main` and the PR base/head from GitHub before mutation;
-- read this Master first, then `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md`;
-- when local repository work is authorized, verify before mutation that the Git top-level path is exactly `C:\Users\MayaAllan\Desktop\mallan-nyc`, `origin` is `mallan67/mallan-nyc`, the checked-out branch is the branch currently authorized by the Execution State, HEAD is known, and working-tree status is understood;
-- do not create or use additional local clones, worktrees, Desktop mirrors, copied project trees, recovery repositories, PR-specific clones or scratch repositories for Mallan source work;
-- old PRs, historical branches, unauthorized local copies, temporary files and chat transcripts are evidence only;
-- no agent may create an ad-hoc architecture branch or use a historical branch as the starting authority;
-- the active branch and allowed mutation envelope come from the Execution State;
-- durable code, documentation, tests and evidence belong in Git;
-- do not leave the only copy of a decision in a local scratchpad or chat;
-- required GitHub checks are part of the execution boundary, not optional reporting.
-
-For Mallan agent work, repository mutations may occur through connected GitHub operations or through the single canonical local checkout only when the current Execution State authorizes that work. GitHub remains authoritative for remote branches, pull requests, Actions, protection rules, reviews and merge state; a local branch, commit or checkout never grants scope by itself. Read-only provider evidence may use the authorized provider connection, but provider mutations must originate from an explicitly authorized GitHub-controlled packet/workflow rather than an ad-hoc local CLI/API path.
-
-```
+The current mode is **`implementation`** for packet `GOVERNANCE-CI-CLAUDE-RELEASE-TRUTH-REPAIR-2026-09-26`. This packet repairs CI infrastructure only. It may (1) pin both Mallan Claude workflows to the last proven-good immutable `anthropics/claude-code-action` commit `9171db3e57d6a3140a37ddc2ba92788584e0ead6` instead of the moving `@v1` tag, (2) correct the Release Truth dependency-wait shell so a validator exit code of 1 with valid `DEPLOY_FAIL` JSON is captured and reported honestly rather than being converted to `ERROR: no reasons captured`, and (3) add/update focused regression tests proving both invariants. Release Truth must continue treating `claude-review` as a required release-truth dependency; this packet may not weaken or remove that requirement. The previously proposed single-checkout Master amendment is deferred until this CI packet exits green through a separate state-only PR.
 
 <!-- MALLAN_EXECUTION_CONTROL_V1_START -->
 ```json
 {
   "version": 1,
-  "mode": "master-amendment",
-  "packet_id": "GOVERNANCE-SINGLE-CANONICAL-CHECKOUT-MASTER-2026-09-26",
-  "objective": "Amend only MALLAN-PLATFORM-MASTER-PLAN.md section 0.10 GitHub / Git operating authority to replace the GitHub-only/local-clone prohibition with Maya's explicit single-canonical-checkout rule: one authorized local checkout at C:\\Users\\MayaAllan\\Desktop\\mallan-nyc may be used only when the current Execution State authorizes local repository work and only on its authorized branch; GitHub remains authority for remote branches, pull requests, Actions, protection rules, reviews and merges; all additional clones, worktrees, mirrors, copied project trees, recovery repositories, PR-specific clones and scratch repositories remain prohibited. No other Master section and no product, provider, schema, environment, production, database, Cotality, Vercel or Neon mutation is authorized.",
+  "mode": "implementation",
+  "packet_id": "GOVERNANCE-CI-CLAUDE-RELEASE-TRUTH-REPAIR-2026-09-26",
+  "objective": "Repair the proven CI regression before resuming the single-canonical-checkout Master amendment. Pin every Mallan workflow that invokes anthropics/claude-code-action from moving @v1 to the last proven-good immutable action commit 9171db3e57d6a3140a37ddc2ba92788584e0ead6, which installed Claude Code 2.1.282 and passed on 2026-09-25; current failing @v1 resolves to 756cc22e19660d20e8cc9496b4f242475a7f7790, installs 2.1.283, and exits immediately with is_error:true and zero model usage. Correct Release Truth's dependency-wait shell so validate-release-status.js may return exit 1 with valid DEPLOY_FAIL JSON without set -e aborting before the verdict/reasons are read. Preserve claude-review as a required Release Truth dependency. Add focused regression tests. No Master, product, provider, schema, environment, production, database, Cotality, Vercel or Neon mutation is authorized.",
   "authorized_branch": "work/active",
   "base_branch": "main",
   "authorized_paths": [
-    "MALLAN-PLATFORM-MASTER-PLAN.md"
+    ".github/workflows/claude-code-review.yml",
+    ".github/workflows/claude.yml",
+    ".github/workflows/release-truth.yml",
+    "tests/runtime/release-safety-release-truth.test.ts",
+    "tests/runtime/claude-action-pin.test.ts"
   ],
-  "allowed_new_files": [],
+  "allowed_new_files": [
+    "tests/runtime/claude-action-pin.test.ts"
+  ],
   "impact_domains": [
     "governance"
   ],
   "provider_proof_required": [],
   "impact_graph": {
     "root_owner_paths": [
-      "MALLAN-PLATFORM-MASTER-PLAN.md",
-      "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
+      ".github/workflows/claude-code-review.yml",
+      ".github/workflows/claude.yml",
+      ".github/workflows/release-truth.yml",
+      "scripts/validate-release-status.js"
     ],
     "writer_paths": [
-      "MALLAN-PLATFORM-MASTER-PLAN.md"
+      ".github/workflows/claude-code-review.yml",
+      ".github/workflows/claude.yml",
+      ".github/workflows/release-truth.yml",
+      "tests/runtime/release-safety-release-truth.test.ts",
+      "tests/runtime/claude-action-pin.test.ts"
     ],
     "reader_paths": [
-      "scripts/ci/mallan-execution-control.mjs",
-      "AGENTS.md",
-      "CLAUDE.md",
+      "scripts/validate-release-status.js",
+      "scripts/release-safety/release-truth-verdict.js",
+      "docs/operations/release-safety-runbook.md",
+      "docs/engineering/vercel-preview-proof-rules.md",
       "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
     ],
     "publisher_paths": [
-      ".github/workflows/pr-check.yml",
-      ".github/workflows/branch-authority.yml",
-      ".github/workflows/authority-root.yml"
+      ".github/workflows/claude-code-review.yml",
+      ".github/workflows/claude.yml",
+      ".github/workflows/release-truth.yml"
     ],
     "downstream_surfaces": [
-      "All Mallan agent repository startup and mutation discipline",
-      "Future governance packets that authorize local repository work"
+      "Claude Code PR review execution",
+      "Claude issue/PR automation execution",
+      "Release Truth PR dependency verdicts",
+      "GitHub Actions failure notifications",
+      "PR exact-head closure evidence"
     ],
     "test_paths": [
-      "tests/runtime/mallan-execution-control.test.ts",
-      "tests/runtime/agent-authority-live-source.test.ts"
+      "tests/runtime/release-safety-release-truth.test.ts",
+      "tests/runtime/claude-action-pin.test.ts"
     ],
     "compliance_surfaces": [
-      "Governance only; no listing, public, client, RLS, UCBA or Fair Housing surface changes"
+      "Governance/CI only; no listing, public, client, RLS, UCBA or Fair Housing behavior changes"
     ]
   },
   "production_mutation_authorized": false,
@@ -665,18 +655,11 @@ For Mallan agent work, repository mutations may occur through connected GitHub o
   "requirements": {
     "impact_graph_required": true,
     "all_readers_writers_required": true,
-    "negative_tests_required": false,
-    "integration_proof_required": false,
-    "downstream_proof_required": false,
+    "negative_tests_required": true,
+    "integration_proof_required": true,
+    "downstream_proof_required": true,
     "compliance_proof_required_when_applicable": false,
     "no_parallel_path_proof_required": true
-  },
-  "master_amendment": {
-    "base_master_blob": "a3600e9348296cc795f6940637a93113b7327ad8",
-    "section_start_heading": "## 0.10 GitHub / Git operating authority",
-    "section_end_heading": "## 0.11 Vercel operating authority",
-    "section_before_sha256": "e8ae24098b37cbeb74a3c7087a8bc6efb0424b9dfafda2c37232f0ecd91b2305",
-    "section_after_sha256": "10753b370764bba03f541ec05d09af3b656f45976f17a7817ce904d22674c455"
   }
 }
 ```
