@@ -581,6 +581,32 @@ PR can reach that branch again.
 
 The current mode is **`master-amendment`** for packet `GOVERNANCE-SINGLE-CANONICAL-CHECKOUT-MASTER-2026-09-26`. The only authorized path is `MALLAN-PLATFORM-MASTER-PLAN.md`, and the controller pins the exact §0.10 section boundary plus the before/after SHA-256 digests. The amendment may only establish one canonical local checkout at `C:\Users\MayaAllan\Desktop\mallan-nyc` as a conditional execution surface under the current Execution State while keeping GitHub authoritative for remote collaboration and merge state; all duplicate source trees remain prohibited. No other Master section or mutation surface is authorized. After that Master-only packet, this contract must exit through a separate state-only PR back to `control-update` before any subordinate `AGENTS.md` / `CLAUDE.md` reconciliation is authorized.
 
+### Exact target bytes for the authorized Master §0.10 amendment
+
+The following fenced payload is execution evidence, not a second authority. It records the **exact UTF-8 target bytes** whose SHA-256 is pinned by `control.master_amendment.section_after_sha256`. The Master-only follow-up must replace only the bounded §0.10 section with this payload byte-for-byte; independently rewritten wording is not authorized.
+
+```text
+## 0.10 GitHub / Git operating authority
+
+Repository authority is GitHub, repository mallan67/mallan-nyc. Mallan has one authorized local checkout at `C:\Users\MayaAllan\Desktop\mallan-nyc`. That checkout is an execution surface only when the current Execution State permits local repository work and only on the branch it authorizes; it is never a second authority.
+
+Mandatory behavior:
+
+- read current `main` and the PR base/head from GitHub before mutation;
+- read this Master first, then `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md`;
+- when local repository work is authorized, verify before mutation that the Git top-level path is exactly `C:\Users\MayaAllan\Desktop\mallan-nyc`, `origin` is `mallan67/mallan-nyc`, the checked-out branch is the branch currently authorized by the Execution State, HEAD is known, and working-tree status is understood;
+- do not create or use additional local clones, worktrees, Desktop mirrors, copied project trees, recovery repositories, PR-specific clones or scratch repositories for Mallan source work;
+- old PRs, historical branches, unauthorized local copies, temporary files and chat transcripts are evidence only;
+- no agent may create an ad-hoc architecture branch or use a historical branch as the starting authority;
+- the active branch and allowed mutation envelope come from the Execution State;
+- durable code, documentation, tests and evidence belong in Git;
+- do not leave the only copy of a decision in a local scratchpad or chat;
+- required GitHub checks are part of the execution boundary, not optional reporting.
+
+For Mallan agent work, repository mutations may occur through connected GitHub operations or through the single canonical local checkout only when the current Execution State authorizes that work. GitHub remains authoritative for remote branches, pull requests, Actions, protection rules, reviews and merge state; a local branch, commit or checkout never grants scope by itself. Read-only provider evidence may use the authorized provider connection, but provider mutations must originate from an explicitly authorized GitHub-controlled packet/workflow rather than an ad-hoc local CLI/API path.
+
+```
+
 <!-- MALLAN_EXECUTION_CONTROL_V1_START -->
 ```json
 {
@@ -607,6 +633,7 @@ The current mode is **`master-amendment`** for packet `GOVERNANCE-SINGLE-CANONIC
       "MALLAN-PLATFORM-MASTER-PLAN.md"
     ],
     "reader_paths": [
+      "scripts/ci/mallan-execution-control.mjs",
       "AGENTS.md",
       "CLAUDE.md",
       "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
