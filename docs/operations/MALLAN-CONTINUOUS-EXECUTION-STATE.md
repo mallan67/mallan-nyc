@@ -613,7 +613,11 @@ The current mode is **`implementation`** for packet `GOVERNANCE-SINGLE-CANONICAL
       "CLAUDE.md",
       "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
     ],
-    "publisher_paths": [],
+    "publisher_paths": [
+      ".github/workflows/pr-check.yml",
+      ".github/workflows/branch-authority.yml",
+      ".github/workflows/authority-root.yml"
+    ],
     "downstream_surfaces": [
       "Claude repository startup discipline",
       "ChatGPT repository startup discipline",
