@@ -619,6 +619,7 @@ The current mode is **`implementation`** for packet `GOVERNANCE-CI-CLAUDE-RELEAS
       "tests/runtime/claude-action-pin.test.ts"
     ],
     "reader_paths": [
+      "scripts/ci/mallan-execution-control.mjs",
       "scripts/validate-release-status.js",
       "scripts/release-safety/release-truth-verdict.js",
       "docs/operations/release-safety-runbook.md",
