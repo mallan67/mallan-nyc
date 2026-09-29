@@ -3213,13 +3213,13 @@ export const DEFAULT_BUDGET_MS = 100_000;
 export const DEFAULT_PHASE1_RESERVE_MS = 55_000;
 export const DEFAULT_PHASE2_RESERVE_MS = 12_000;
 /**
- * R2 mirror concurrency for Phase 3. Matches the production-tested pattern
- * in `lib/idx/sync.ts:694` (`MAX_CONCURRENT = 5` inside `migrateMediaToR2`).
- * Trestle's published Media URL ceiling is 480/min ≈ 8/sec
- * (per `data/RLS-FIELD-REGISTRY.md:307-310`); concurrency-5 with sequential
- * batches sustains ~5/sec — comfortably within Trestle's bandwidth budget
- * and matches the proven-production `migrateMediaToR2` cron that has drained
- * 128K+ photos without incident.
+ * R2 mirror concurrency for Phase 3.
+ *
+ * Bounded by Trestle's published Media URL ceiling of 480/min ≈ 8/sec
+ * (`data/RLS-FIELD-REGISTRY.md:307-310`). Concurrency 5 over sequential
+ * batches sustains ~5/sec, leaving headroom for the concurrent per-listing
+ * reads this phase also issues, so the mirror cannot saturate the Media
+ * budget the rest of the sync depends on.
  */
 export const R2_MIRROR_CONCURRENCY = 5;
 
@@ -3401,7 +3401,7 @@ export const defaultFetchDeps: MediaSyncFetchDeps = {
  *     Queries `listing_media` rows where `r2_key IS NULL OR
  *     media_url_cached IS NULL` (oldest first). Processes them with
  *     `Promise.allSettled` and concurrency 5 — matching the proven-
- *     production pattern in `lib/idx/sync.ts:694-708` (`migrateMediaToR2`),
+ *     bounded by Trestle's published Media URL ceiling
  *     and within Trestle's 480/min Media URL ceiling
  *     (per `data/RLS-FIELD-REGISTRY.md:307-310`). Stops when remaining
  *     time < `phase2ReserveMs`. R2 failures count in `r2_failed` (separate
@@ -3448,7 +3448,7 @@ export const defaultFetchDeps: MediaSyncFetchDeps = {
  *
  * Throughput:
  *   - Phase 3 R2 mirror uses `Promise.allSettled` with `R2_MIRROR_CONCURRENCY=5`,
- *     matching the production `migrateMediaToR2` pattern in `lib/idx/sync.ts:694-708`.
+ *     bounded by Trestle's 480/min Media URL ceiling (~5/sec sustained).
  *
  * Reader/PR-4 boundary:
  *   - Never writes `Listing.media` JSON.
@@ -3899,7 +3899,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   }
 
   // ── PHASE 3: R2 enrichment backlog (parallel, concurrency = 5) ───────
-  // Pattern matches lib/idx/sync.ts:694-708 (migrateMediaToR2). Trestle's
+  // Bounded by Trestle's published Media URL ceiling. Trestle's
   // 480/min Media URL ceiling allows 8/sec sustained; concurrency-5 peaks
   // ~5/sec → comfortably within bandwidth, regression-safe.
   //

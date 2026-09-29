@@ -305,7 +305,7 @@ function asLegacyMediaItem(v: unknown): LegacyMediaItem | null {
 
 /**
  * Material identity for the LEGACY `listings.media` JSON batch writers
- * (lib/idx/sync.ts batch-media blocks + backfillEmptyMedia). This is NOT the
+ * (lib/idx/sync.ts batch-media blocks). This is NOT the
  * PR #547 `listing_media`-row comparator and must not replace it — it covers
  * the older JSON-array write path only.
  *
@@ -361,7 +361,7 @@ export function mediaArraysMateriallyEqual(existing: unknown, next: LegacyMediaI
  * CURSOR input — its durable home is `media_sync_state.last_photos_change`. It
  * is no longer persisted in `raw_data` (commit 7B-2B removed it from
  * RAW_DATA_KEEP_FIELDS), and its last stored-value consumer — the eligibility
- * predicate in the unreachable legacy `backfillEmptyMedia()` — was removed with
+ * predicate in the legacy media-backfill helper (retired) — was removed with
  * it.
  *
  * Historical rows still physically contain the key and NO cleanup backfill is

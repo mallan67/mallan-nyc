@@ -309,8 +309,8 @@ describe('infrastructure non-changes around PR-S.6', () => {
     //     /api/cron/media-sync was making negligible R2 progress
     //     (r2_mirrored=1 vs r2_failed=151 per 24h).
     //   - /api/cron/media-backfill ran redundantly without a
-    //     concurrency guard, calling backfillEmptyMedia +
-    //     migrateMediaToR2 in lib/idx/sync.ts which rewrote the
+    //     concurrency guard, calling the retired media-backfill helper +
+    //     and R2 migration in lib/idx/sync.ts which rewrote the
     //     legacy Listing.media JSON column.
     //   - Pausing media-backfill cuts the cron compute pressure in
     //     half while the newer listing_media + R2 path remains
