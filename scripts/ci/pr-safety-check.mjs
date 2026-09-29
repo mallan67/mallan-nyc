@@ -913,7 +913,7 @@ export function evaluate(ctx) {
     if (!authorized.has(label)) {
       failures.push({
         rule: "authorization:" + cls,
-        message: "This pull request makes a " + CHANGE_CLASSES[cls].boundary + " change. It needs Maya's explicit authorization, the label " + label + labelNote(label) + ". No other label authorizes it:",
+        message: "This pull request crosses Maya's authorization boundary \"" + CHANGE_CLASSES[cls].boundary + "\". It needs her explicit authorization, the label " + label + labelNote(label) + ". No other label authorizes it:",
         items,
       });
     }
