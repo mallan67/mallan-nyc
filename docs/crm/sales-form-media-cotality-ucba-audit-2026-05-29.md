@@ -1,6 +1,6 @@
 # Sales-Form Media — Cotality/IDX Plus + REBNY UCBA Audit
 
-> Generated 2026-05-29. **Audit only — no code, no PR.** Grounded in Cotality/IDX Plus normalized media rules (canonical) + REBNY UCBA advertising/display requirements. RealPlus is NOT treated as source of truth. No listing-identity/canonical-URL code touched. No SL-0004 rename. No Sentinel-L change (one future-detector recommendation noted in §9).
+> Generated 2026-05-29. **Audit only — no code, no PR.** Grounded in Cotality/IDX Plus normalized media rules (canonical) + REBNY UCBA advertising/display requirements. The external LMP is NOT treated as source of truth. No listing-identity/canonical-URL code touched. No SL-0004 rename. No Sentinel-L change (one future-detector recommendation noted in §9).
 >
 > Scope: Sales form media section (`public/crm/SALE-FORM-REDESIGN.html`) + backend media persistence + public media display. Evidence includes a real-browser (Playwright) capture of SL-0004's production detail page.
 

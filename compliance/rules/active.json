@@ -6,7 +6,6 @@
     "brokerage": "Mallan Real Estate Inc.",
     "license": "#10991205323",
     "feed": "REBNY RLS via Trestle (Cotality)",
-    "lmp": "RealPlus (listing input to RLS)",
     "idx_display": "Trestle IDX Plus WebAPI (Trestle-11371-20) — read-only on mallan.nyc",
     "fieldAuthorityOrder": [
       "1. UCBA governs everything",

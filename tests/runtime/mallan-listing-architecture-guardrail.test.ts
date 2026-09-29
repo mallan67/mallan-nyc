@@ -2,8 +2,8 @@
  * ARCHITECTURE DRIFT GUARDRAIL — Maya's Mallan-local-canonical rule.
  *
  * The repository previously carried the REVERSED reconciliation model in two
- * ACTIVE architecture documents: "withdraw SL-*, pin official RLS*, update
- * RealPlus Listing Url", plus a live runtime comment saying "the Trestle version
+ * ACTIVE architecture documents: "withdraw SL-*, pin official RLS*, update the
+ * external listing URL", plus a live runtime comment saying "the Trestle version
  * takes precedence". Under the standing architecture the LOCAL Mallan listing is
  * canonical and the returned Cotality RLS copy is publicly suppressed but
  * retained internally.
@@ -28,8 +28,16 @@ const REVERSED_PATTERNS: Array<{ re: RegExp; why: string }> = [
   { re: /pin\s+official\s+`?RLS/i, why: 'the RLS return-copy must NOT be pinned in place of the local listing' },
   { re: /replace\s+`?SL-\*?`?\s+with\s+`?RLS/i, why: 'the RLS copy must NOT replace the local listing' },
   { re: /Trestle\s+version\s+takes\s+precedence/i, why: 'local Mallan row is canonical, not the Trestle version' },
-  { re: /update\s+RealPlus\s+Listing\s+Url/i, why: 'RealPlus URL handling is OUTSIDE this system' },
-  { re: /submitted\s+to\s+(REBNY\s+)?RLS\s+via\s+Cotality/i, why: 'submission goes through RealPlus/RLS; Cotality is the INBOUND return path' },
+  // Vendor-neutral successor to the old provider-specific pattern: the invariant
+  // was never about one vendor's URL, it is that mallan.nyc NEVER writes a
+  // listing URL back into any external listing system. Any reintroduction of the
+  // retired provider name is caught repo-wide by
+  // tests/runtime/legacy-provider-reference-guard.test.ts.
+  {
+    re: /update\s+(the\s+)?(external|outbound|upstream)\s+listing\s+url/i,
+    why: 'external listing-URL handling is OUTSIDE this system; mallan.nyc never writes back',
+  },
+  { re: /submitted\s+to\s+(REBNY\s+)?RLS\s+via\s+Cotality/i, why: 'submission happens outside this system; Cotality is the INBOUND return path' },
 ];
 
 /** Paths whose job is to record history — excluded by design. */
