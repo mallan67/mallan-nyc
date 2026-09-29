@@ -23,6 +23,8 @@ Every agent starts from the same chain:
 
 A chat, Desktop checkout, side branch, audit, dashboard or handoff can provide evidence but cannot become the authority chain.
 
+Changes reach `main` only through a pull request that passes the required `pr-check` and `pr-safety` checks and that Maya merges (Master §27.18). Agents never merge and never add `authorized:*` labels; only Maya does.
+
 
 ### 0.1 GitHub-only working state + provider authority (Maya directive 2026-09-18)
 

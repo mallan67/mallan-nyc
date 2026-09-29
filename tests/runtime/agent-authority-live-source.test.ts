@@ -128,10 +128,10 @@ describe("agent authority docs stay on live sources", () => {
     expect(generator).toContain("api-route-catalog.json");
   });
 
-  test("main is protected by real PR tests, not an agent-maintained branch gate", () => {
-    // Retired 2026-09-29 by Maya's decision (Master §27.18): the one-branch rule,
-    // the State-authorization cycle and the workflows that enforced them. Absence
-    // is the assertion, so the gate cannot quietly return.
+  test("main is protected by PR checks, not an agent-maintained branch gate", () => {
+    // Retired 2026-09-29 by Maya's decision (Master §27.18): the branch restriction, the
+    // State-authorization modes and the three-PR cycle. Absence is the assertion, so the
+    // gate cannot quietly return.
     for (const rel of [
       ".github/workflows/branch-authority.yml",
       ".github/workflows/authority-root.yml",
@@ -140,7 +140,17 @@ describe("agent authority docs stay on live sources", () => {
       expect({ path: rel, exists: fs.existsSync(path.join(ROOT, rel)) }).toEqual({ path: rel, exists: false });
     }
 
-    // The required PR check must keep running the real tests; dropping one is a regression.
+    // The database/provider/destructive safety rules live on in the PR safety check. It runs
+    // from the PR base and never checks out the proposed head.
+    const safety = read(".github/workflows/pr-safety.yml");
+    expect(safety).toContain("pull_request_target:");
+    expect(safety).toContain("ref: ${{ github.event.pull_request.base.sha }}");
+    expect(safety).not.toMatch(/ref:\s*\$\{\{\s*github\.event\.pull_request\.head/);
+    expect(safety).toContain("contents: read");
+    expect(safety).toContain("node scripts/ci/pr-safety-check.mjs");
+    expect(fs.existsSync(path.join(ROOT, "scripts/ci/pr-safety-check.mjs"))).toBe(true);
+
+    // The required PR check keeps running the real tests; dropping one is a regression.
     const prCheck = read(".github/workflows/pr-check.yml");
     for (const step of ["npm run type-check", "npx jest --ci", "npm run build"]) {
       expect({ step, present: prCheck.includes(step) }).toEqual({ step, present: true });

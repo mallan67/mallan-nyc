@@ -263,9 +263,8 @@ outright, not disabled and not left as tombstones:
 - `.github/workflows/cleanup-neon-preview-branch.yml`
 - `.github/workflows/rotate-db-keys.yml`
 
-`tests/runtime/agent-authority-live-source.test.ts`, run by the required `pr-check`, refuses their
-return under these names. A new file that reaches the Neon control plane under a different name is
-caught in review, not by a machine check. Branch and resource lifecycle is observed
+`scripts/ci/pr-safety-check.mjs` (the required `pr-safety` check) refuses their return, and refuses
+any new file that reaches the Neon control plane under a different name. Branch and resource lifecycle is observed
 through the Vercel-managed Marketplace resource; a replacement capability must be designed against
 that contract and separately authorized.
 

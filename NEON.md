@@ -25,7 +25,7 @@
 > - **Direct Neon control is DELETED, not disabled.** The PR-close cleanup workflow, the scheduled
 >   prune route, the operator prune CLI, the prune library and the credential-rotation workflow were
 >   removed from the repository. Re-adding any of them, including as a fail-only stub, is refused by
->   `tests/runtime/agent-authority-live-source.test.ts` in the required `pr-check`. Provider lifecycle mutation must be redesigned through
+>   `scripts/ci/pr-safety-check.mjs` (the required `pr-safety` check). Provider lifecycle mutation must be redesigned through
 >   the Vercel-managed resource contract and separately authorized.
 > - **Vercel is the entry path for the managed Neon resource.** Use
 >   `vercel integration open neon neon-green-school` for SSO into the bound Neon project. Reconcile
@@ -473,8 +473,8 @@ value**; empty encrypted values have existed here.
 The route, the operator CLI, the shared branch library, the PR-close cleanup workflow, the
 credential-rotation workflow and all of their tests were REMOVED from the repository, and the Vercel
 cron schedule was removed with them. Nothing was left behind as a disabled or fail-only stub.
-`tests/runtime/agent-authority-live-source.test.ts`, run by the required `pr-check`, refuses to let
-any of those paths return, including as a stub. A future branch or credential lifecycle capability is designed against the
+`scripts/ci/pr-safety-check.mjs` (the required `pr-safety` check) refuses to let any of those paths
+return, including as a stub, and no authorization label overrides it. A future branch or credential lifecycle capability is designed against the
 Vercel-managed resource contract and separately authorized; it does not restore a retired path.
 
 Current rules:

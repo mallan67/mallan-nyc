@@ -1,0 +1,45 @@
+name: PR safety
+
+# Guards database, provider and destructive-infrastructure changes on every pull request,
+# whatever the branch is called. The check always runs from the PR BASE and reads the proposed
+# change only through the GitHub API: the pull request's own code is never checked out or run
+# here, so a pull request cannot weaken the check that judges it.
+#
+# Rules and authorization labels: scripts/ci/pr-safety-check.mjs (Master §27.15-§27.18).
+# `labeled`, `unlabeled` and `edited` re-run the check when Maya adds an authorization label
+# or when the database chain in the description changes.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled, edited]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+jobs:
+  pr-safety:
+    name: pr-safety
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the PR base (never the proposed head)
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+
+      - name: Run the base copy of the PR safety check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          MALLAN_SAFETY_AUTHORIZERS: ${{ vars.MALLAN_SAFETY_AUTHORIZERS || 'mallan67' }}
+        run: node scripts/ci/pr-safety-check.mjs

@@ -7417,7 +7417,7 @@ A persistence-only census is incomplete. Regulated designations, license classes
 
 ## 27.15 Scope is stated on the pull request and decided by Maya
 
-The system must not depend on an Agent reading this Master voluntarily. It depends on GitHub protection of `main` and on Maya reviewing and merging every change.
+The system must not depend on an Agent reading this Master voluntarily. It depends on GitHub protection of `main`, on the required pull-request checks, and on Maya reviewing and merging every change.
 
 Each stage of work states its scope on its pull request before code is pushed: the concept being corrected, the impact graph required by §27.16, the files it will change or delete, any new file and why it is needed (§27.17), the provider or mutation permissions it needs (§27.21), and the tests that prove it. The pull request's changed files must match that statement; anything outside it is removed or explained before merge.
 
@@ -7494,9 +7494,11 @@ Four rules make the chain real rather than decorative:
 The verifier derives each station from repository code and the live platform. It does not accept
 the builder's summary of its own graph (§27.14).
 
-This is enforced in review, not by convention: a pull request that touches any station states the
-full chain in its description, and Maya does not merge a database-touching pull request whose chain
-is incomplete. The retired direct-Neon paths are refused by the required pull-request tests.
+This is enforced by the required `pr-safety` check, not by convention. The chain is declared in the
+pull-request description as a fenced `database-chain` block (a JSON object of station → repo paths),
+and the check refuses a missing station, an UNVERIFIED station, free text, a document citation, a path
+that does not exist, a directory, and a real file of the wrong kind for its station. The exact file and
+test names are implementation detail and belong to the Execution State, not to this Master.
 
 ---
 
@@ -7522,18 +7524,21 @@ Work proceeds one stage at a time. Each stage has one branch, created from the c
 
 A stage is finished only when its pull request is merged into `main`. The next stage starts from the new `main`. Branches are not left open to drift: a branch that will not be merged is closed with the reason recorded on its pull request.
 
-`main` is protected by GitHub, not by an Agent-maintained gate:
+`main` is protected by GitHub and by required pull-request checks, not by branch names or an Agent-maintained authorization file:
 
 ~~~text
 PULL REQUEST REQUIRED
 → REQUIRED pr-check: type-check, tests, compliance validators, build
+→ REQUIRED pr-safety: database, provider and destructive-infrastructure guard
 → NO FORCE-PUSH, NO DELETION OF main
 → MAYA REVIEWS AND MERGES
 ~~~
 
-Agents never merge, never enable auto-merge and never change branch protection or rulesets (§27.21).
+`pr-safety` runs from the pull request's BASE and reads the proposed change only through the GitHub API, so a pull request can neither run its own code there nor weaken the check that judges it. It refuses the retired direct-Neon paths and any direct Neon control-plane capability outright, whatever the file is called. It requires Maya's `authorized:*` label on the pull request for schema/migration, environment (`vercel.json`), Neon-control, destructive-data, production and manual-cron changes, and for any change to the safety root (the check itself, its workflow, `pr-check`, Release Truth and their tests). It requires the full database chain (§27.16.1) for any database-shaped change. A label counts only when it was added by an account listed as an authorizer.
 
-While Agents act through Maya's own GitHub identity, GitHub cannot tell an Agent from Maya, so merge control rests on Maya merging personally. The durable control is a separate Agent GitHub identity with write access and no admin rights, plus a `main` rule requiring Maya's approving review, so an Agent can never approve its own change.
+Agents never merge, never enable auto-merge, never add `authorized:*` labels and never change branch protection or rulesets (§27.21).
+
+While Agents act through Maya's own GitHub identity, GitHub cannot tell an Agent from Maya, so merge control and authorization labels rest on Maya acting personally. The durable control is a separate Agent GitHub identity with write access and no admin rights, plus a `main` rule requiring Maya's approving review; from then on a label the Agent account adds is refused by `pr-safety`, and an Agent can never approve its own change.
 
 "Done" requires the branch, commit SHA, pull request number, check results, Preview, merged yes/no and the resulting `main` SHA. Without those it is not done.
 
@@ -7576,7 +7581,7 @@ A held mutation freezes only that mutation; it does not authorize a substitute a
 
 When a provider mutation path is retired, it is DELETED rather than left in place as a disabled or fail-only stub, and its scheduled writers, health alarms, CLI guidance, catalogs, tests and operator instructions are retired in the same impact graph. Observability may not tell an operator to re-arm a prohibited provider path, and a path once deleted may not return under any wrapper.
 
-A deployment/schedule authority file such as `vercel.json` is sensitive whenever changing it could re-arm a retired writer or change Production scheduling. Such a change needs Maya's explicit authorization, stated on the pull request.
+A deployment/schedule authority file such as `vercel.json` is sensitive whenever changing it could re-arm a retired writer or change Production scheduling. It is part of the PR safety root: a change needs Maya's `authorized:environment` and `authorized:safety-root` labels on the pull request.
 
 ## 27.22 Execution-state boundary
 

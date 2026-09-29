@@ -4,9 +4,9 @@
 >
 > `MALLAN-PLATFORM-MASTER-PLAN.md` is the sole durable product/business/system authority.
 > This file records current verified execution state: the current stage, branch, pull request, holds
-> and next action. It may not redefine the Master.
+> and next action. No check reads authorization from it. It may not redefine the Master.
 
-**Checkpoint:** 2026-09-29 — the machine execution controller, its State-authorization cycle and the one-branch rule are retired by Maya's decision (§7). `main` is protected by GitHub: pull request, required `pr-check`, Maya merges. Next: clean `main` one stage at a time (§11).
+**Checkpoint:** 2026-09-29 — the branch restriction, the State-authorization modes and the three-PR cycle are retired by Maya's decision (§7). The database/provider/destructive safety rules continue as the required `pr-safety` check. `main` is protected by GitHub: pull request, required `pr-check` and `pr-safety`, Maya merges. Next: clean `main` one stage at a time (§11).
 **Repository:** `mallan67/mallan-nyc` only  
 **Canonical branch:** `main`  
 **Main at this checkpoint:** `005786e71818ef13f555111de67e3d6248412987` — the PR #632 merge
@@ -19,7 +19,7 @@ live tip from GitHub.**
 **Checkpoint source head:** `fb100d6a12f572d78aaac0ec152c4cc57ac6ce74` (final #632 head; all checks green, zero unresolved review threads). Current head must always be read live from GitHub  
 **Authorized work surface:** GitHub repository + explicitly authorized provider connections only; Desktop/worktrees/scratch copies are not execution authority  
 **PR #595:** authority provenance / historical governance source; CLOSED 2026-09-20T17:54:35Z as superseded by #632, unmerged. Its lineage is in `main` history through #632  
-**Governance activation:** RETIRED 2026-09-29. The execution controller, `authority-root` and the one-branch rule were retired by Maya's decision; the required check on the `Protect main` ruleset `19435006` is `pr-check` (§7, §8.1). `authority-root` was required from 2026-09-22 to 2026-09-29.
+**Governance activation:** RETIRED 2026-09-29. The execution controller, `authority-root` and the branch restriction were retired by Maya's decision; the required checks on the `Protect main` ruleset `19435006` are `pr-check` and `pr-safety` (§7, §8.1). `authority-root` was required from 2026-09-22 to 2026-09-29.
 
 ---
 
@@ -571,16 +571,30 @@ A source-string test, green CI, merged PR, deployment, or isolated UI proof is n
 
 # 7. How changes reach `main` (from 2026-09-29)
 
-The machine execution controller, its State-authorization cycle and the one-branch rule are retired by Maya's decision of 2026-09-29. They kept unsafe changes out of `main`, but they also kept correct changes out: from 2026-09-18 to 2026-09-26 all thirteen merges to `main` (#632–#644) were governance updates and none changed the product. Their history is in Git and is not repeated here.
+The branch restriction (`work/active` and the auto-delete of every other branch), the State-authorization modes and the three-PR cycle are retired by Maya's decision of 2026-09-29. They kept unsafe changes out of `main`, but they also kept correct changes out: from 2026-09-18 to 2026-09-26 all thirteen merges to `main` (#632–#644) were governance updates and none changed the product. Their history is in Git and is not repeated here.
 
 `main` is protected by GitHub:
 
 - every change arrives through a pull request;
-- the required check is `pr-check`: type-check, Jest, the compliance validators, the CRM tests and the build;
+- the required `pr-check` runs type-check, Jest, the compliance validators, the CRM tests and the build;
+- the required `pr-safety` check (`.github/workflows/pr-safety.yml`, `scripts/ci/pr-safety-check.mjs`, tests in `tests/runtime/pr-safety-check.test.ts`) guards database, provider and destructive-infrastructure changes, independent of branch names and of this file;
 - force-push and deletion of `main` are blocked;
-- Maya reviews and merges every pull request. Agents never merge, never enable auto-merge and never change branch protection.
+- Maya reviews and merges every pull request. Agents never merge, never enable auto-merge, never add `authorized:*` labels and never change branch protection.
 
-Retired with the controller: `scripts/ci/mallan-execution-control.mjs`, its test, `.github/workflows/authority-root.yml` and `.github/workflows/branch-authority.yml`. The retired direct-Neon paths stay refused by `tests/runtime/agent-authority-live-source.test.ts`, which runs inside the required `pr-check`.
+`pr-safety` runs from the pull request's BASE and reads the proposed change only through the GitHub API, so a pull request can neither run its own code there nor weaken the check that judges it. It refuses the retired direct-Neon paths and any direct Neon control-plane capability outright, whatever the file is called. It requires Maya's `authorized:*` label on the pull request for schema/migration, environment (`vercel.json`), Neon-control, destructive-data, production and manual-cron changes, and for any change to the safety root (the check itself, its workflow, `pr-check`, Release Truth and their tests). It requires the full database chain (§27.16.1) for any database-shaped change. A label counts only when it was added by an account listed as an authorizer.
+
+| Change | What `pr-safety` requires |
+|---|---|
+| retired direct-Neon path returns, or a runnable file carries direct Neon control-plane capability | refused outright; no label authorizes it |
+| `prisma/schema.prisma`, `prisma/migrations/`, `sql/` | `authorized:schema-migration` |
+| `vercel.json` | `authorized:environment` and `authorized:safety-root` |
+| `lib/neon/` | `authorized:neon-control` |
+| safety root: the check, its workflow, `pr-check.yml`, `release-truth.yml`, the Release Truth scripts, `scripts/ops-health.js` and their tests | `authorized:safety-root` |
+| any database-shaped change | a complete `database-chain` block in the pull-request description (Master §27.16.1) |
+
+Authorizers are the accounts in the repository variable `MALLAN_SAFETY_AUTHORIZERS` (default `mallan67`).
+
+Retired: `scripts/ci/mallan-execution-control.mjs`, its test, `.github/workflows/authority-root.yml` and `.github/workflows/branch-authority.yml`. Every database/provider/destructive rule the controller enforced was carried into `pr-safety` with the same detection code.
 
 ---
 
@@ -596,15 +610,15 @@ Retired with the controller: `scripts/ci/mallan-execution-control.mjs`, its test
 
 # 8.1 Human / agent identity boundary
 
-GitHub's `Protect main` ruleset (`19435006`) requires a pull request and the `pr-check` status check, and blocks non-fast-forward pushes and deletion of `main`. It requires 0 approving reviews and has no bypass actors. `authority-root` was removed from its required checks on 2026-09-29 with Maya's explicit authorization, when the controller behind it was retired.
+GitHub's `Protect main` ruleset (`19435006`) requires a pull request and required status checks, and blocks non-fast-forward pushes and deletion of `main`. It requires 0 approving reviews and has no bypass actors. On 2026-09-29, with Maya's explicit authorization, `authority-root` is removed from its required checks when the controller behind it is retired, and `pr-safety` is added once the change that introduces it is merged (a check cannot report on the pull request that creates it). Read the live ruleset for the current required set.
 
-If an AI agent operates through Maya's own GitHub identity, GitHub cannot distinguish a change made by Maya from one made by the agent, and repository CI cannot prove which of them opened or approved a pull request.
+If an AI agent operates through Maya's own GitHub identity, GitHub cannot distinguish a change made by Maya from one made by the agent, and repository CI cannot prove which of them opened a pull request or added an authorization label.
 
 Therefore:
 
 - do not claim that CI separates Maya from an agent; it cannot while they share one identity;
-- every pull request to `main` is Maya's merge decision;
-- no agent may enable auto-merge or merge any pull request on Maya's behalf;
+- every pull request to `main` and every `authorized:*` label is Maya's decision;
+- no agent may enable auto-merge, merge any pull request or add an `authorized:*` label on Maya's behalf;
 - the durable non-bypass solution is a separate agent GitHub identity / GitHub App or an external managed approval boundary that the agent cannot impersonate;
 - until identity separation is installed, this is a known control-plane limitation, not a hidden assumption.
 
@@ -668,7 +682,7 @@ Do not create another status file because this one becomes inconvenient.
 
 # 11. Current exact stop point
 
-**2026-09-29 — stop point.** The execution gate is retired (§7). Next, one stage at a time, each merged before the next starts: (a) delete the dead old-system files and scripts; (b) replace the REBNY CSVs and repository snapshots in the validators with the live Cotality contract; (c) one mapper; (d) one Search; (e) CMA built on that Search; (f) the listing forms. Everything below this entry is history.
+**2026-09-29 — stop point.** The execution gate is retired and its database/provider/destructive rules continue as the required `pr-safety` check (§7). Next, one stage at a time, each merged before the next starts: (a) delete the dead old-system files and scripts; (b) replace the REBNY CSVs and repository snapshots in the validators with the live Cotality contract; (c) one mapper; (d) one Search; (e) CMA built on that Search; (f) the listing forms. Everything below this entry is history.
 
 **HISTORY (superseded 2026-09-29): `mode: control-update` (2026-09-25); no packet is active and no Master amendment is authorized. The ledger row 19 packet
 `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` (a bounded, base-authorized Master-amendment path with negative tests) is COMPLETE: #642
