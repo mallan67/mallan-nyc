@@ -1739,6 +1739,13 @@ export function listingMediaSummaryUnchanged(
 }
 
 /**
+ * The subset of the Prisma client `updateListingMediaSummary` needs. Accepting
+ * this rather than `PrismaClient` lets a `$transaction` client be injected
+ * without widening the dependency or duplicating the summary formula.
+ */
+export type SummaryDbClient = Pick<Prisma.TransactionClient, "listingMedia" | "listing">;
+
+/**
  * Re-derive and persist the 4 Listing summary columns from the current
  * `listing_media` rows for `listingId`.
  *
@@ -1763,10 +1770,20 @@ export async function updateListingMediaSummary(
     counters?: SummaryWriteCounters;
     /** One Cycle W1: revalidation accounting sink (bounded aggregates). */
     revalidation?: { pages_revalidated: number; revalidation_failures: number };
+    /**
+     * Transaction client. CRM media mutations must persist the media row change
+     * and this derived summary ATOMICALLY: appending a summary write after an
+     * already-committed media write leaves the two inconsistent whenever the
+     * second write fails. Pass the `$transaction` client so both commit or
+     * neither does. Defaults to the module client for the Cotality sync path,
+     * whose failure semantics are handled by cursor non-advancement instead.
+     */
+    client?: SummaryDbClient;
   },
 ): Promise<ListingMediaSummary> {
   const counters = options?.counters;
-  const rows = await prisma.listingMedia.findMany({
+  const db = options?.client ?? prisma;
+  const rows = await db.listingMedia.findMany({
     where: { listing_id: listingId },
     select: {
       media_type: true,
@@ -1800,7 +1817,7 @@ export async function updateListingMediaSummary(
   // any read failure falls through to the write (fail-closed).
   let stored: StoredListingMediaSummary | null = null;
   try {
-    stored = await prisma.listing.findUnique({
+    stored = await db.listing.findUnique({
       where: { listing_id: listingId },
       select: {
         primary_photo_url: true,
@@ -1822,7 +1839,7 @@ export async function updateListingMediaSummary(
     return summary;
   }
 
-  await prisma.listing.update({
+  await db.listing.update({
     where: { listing_id: listingId },
     data: {
       primary_photo_url: summary.primary_photo_url,

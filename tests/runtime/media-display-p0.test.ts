@@ -191,13 +191,13 @@ describe('route invariants (source-locked)', () => {
   const item = read('app/api/crm/listings/[id]/media/[mediaId]/route.ts');
 
   it('upload writes a listing_media row keyed by the crm media_key', () => {
-    expect(upload).toMatch(/prisma\.listingMedia\.create/);
+    expect(upload).toMatch(/(?:prisma|tx)\.listingMedia\.create/);
     expect(upload).toMatch(/crmMediaKey\(listing\.listing_id, contentHash\)/);
     expect(upload).toMatch(/preferred_photo_yn:/);
   });
 
   it('reorder persists listing_media.order by media_key (not raw_data)', () => {
-    expect(order).toMatch(/prisma\.listingMedia\.updateMany/);
+    expect(order).toMatch(/(?:prisma|tx)\.listingMedia\.updateMany/);
     expect(order).toMatch(/data: \{ order: index \}/);
     expect(order).not.toMatch(/updatedRawData/); // the old raw_data.media_order write the resolver ignored is gone
   });
@@ -314,7 +314,7 @@ describe('CRM media P0 — Codex follow-up hotfix', () => {
   // ── Finding #1: GET is read-only ──
   it('GET /media performs NO import/migration and NO DB write', () => {
     expect(getRoute).not.toMatch(/importJsonMediaToRows\s*\(/);
-    expect(getRoute).not.toMatch(/prisma\.listingMedia\.(create|update|updateMany|delete|deleteMany|upsert)/);
+    expect(getRoute).not.toMatch(/(?:prisma|tx)\.listingMedia\.(create|update|updateMany|delete|deleteMany|upsert)/);
   });
 
   it('GET /media distinguishes "no rows" (legacy preview) from "all deleted" (authoritative empty)', () => {
@@ -331,8 +331,8 @@ describe('CRM media P0 — Codex follow-up hotfix', () => {
 
   // ── Finding #3: re-upload of a deleted image restores instead of crashing ──
   it('upload restores a soft-deleted row (update) instead of create() on existing key', () => {
-    expect(uploadRoute).toMatch(/existingRow\s*\?[\s\S]*?prisma\.listingMedia\.update\(/);
-    expect(uploadRoute).toMatch(/:\s*await prisma\.listingMedia\.create\(/);
+    expect(uploadRoute).toMatch(/existingRow\s*\?[\s\S]*?(?:prisma|tx)\.listingMedia\.update\(/);
+    expect(uploadRoute).toMatch(/:\s*await (?:prisma|tx)\.listingMedia\.create\(/);
   });
 
   it('upload still returns a controlled 409 for an ACTIVE duplicate (no regression)', () => {

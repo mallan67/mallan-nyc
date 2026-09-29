@@ -6,6 +6,12 @@
 // synced rows can never be modified through this CRM endpoint (guardrail #10).
 // Cotality/IDX Plus remains the source of truth for the media shape.
 
+import {
+  withCrmMediaConvergence,
+  expectAffected,
+  isCrmMediaPreconditionError,
+  CrmMediaPreconditionError,
+} from "@/lib/media/crm-media-mutation";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
@@ -83,19 +89,35 @@ export async function DELETE(
   if (resolved.kind === "denied") return resolved.error;
   const { listing } = resolved;
 
-  await importJsonMediaToRows(prisma, {
-    listing_id: listing.listing_id,
-    media: listing.media,
-    last_synced_from_trestle: listing.last_synced_from_trestle,
-  });
 
   // Soft-delete (audit trail preserved), scoped to this listing.
-  const res = await prisma.listingMedia.updateMany({
-    where: { media_key: mediaKey, listing_id: listing.listing_id, status: "active" },
-    data: { status: "deleted" },
-  });
-  if (res.count === 0) {
-    return NextResponse.json({ error: "Media not found" }, { status: 404 });
+  // Soft-delete and the derived Listing summary commit TOGETHER. Appending the
+  // summary write after an already-committed tombstone is what left 8 listings
+  // reporting a stale photo_count: the media row changed, the summary did not.
+  // The precondition is checked INSIDE the transaction: the service converges
+  // the summary after the callback returns, so returning a zero count would
+  // still write a summary for an operation that changed nothing and then answer
+  // 404. Throwing aborts the transaction — a not-found delete writes nothing.
+  try {
+    await withCrmMediaConvergence(listing.listing_id, async (tx) => {
+      // Legacy CRM JSON import joins THIS transaction. Run separately it would
+      // commit rows that survive a later rollback of the mutation and summary.
+      await importJsonMediaToRows(tx, {
+        listing_id: listing.listing_id,
+        media: listing.media,
+        last_synced_from_trestle: listing.last_synced_from_trestle,
+      });
+      const updated = await tx.listingMedia.updateMany({
+        where: { media_key: mediaKey, listing_id: listing.listing_id, status: "active" },
+        data: { status: "deleted" },
+      });
+      expectAffected(updated.count, 1, "soft-delete media row");
+    });
+  } catch (err) {
+    if (isCrmMediaPreconditionError(err)) {
+      return NextResponse.json({ error: "Media not found" }, { status: 404 });
+    }
+    throw err;
   }
 
   // P1C4: never bump MT on Trestle-synced rows (idx-sync cursor reads it);
@@ -154,27 +176,11 @@ export async function PATCH(
   if (resolved.kind === "denied") return resolved.error;
   const { listing } = resolved;
 
-  await importJsonMediaToRows(prisma, {
-    listing_id: listing.listing_id,
-    media: listing.media,
-    last_synced_from_trestle: listing.last_synced_from_trestle,
-  });
 
-  // The target must be an existing active Photo on this listing (floor plans /
-  // videos can never be the hero).
-  const target = await prisma.listingMedia.findFirst({
-    where: { media_key: mediaKey, listing_id: listing.listing_id, status: "active" },
-    select: { media_type: true },
-  });
-  if (!target) {
-    return NextResponse.json({ error: "Media not found" }, { status: 404 });
-  }
-  if (target.media_type !== "Photo") {
-    return NextResponse.json(
-      { error: "Only a photo can be the main image" },
-      { status: 400 },
-    );
-  }
+  // Target validation happens INSIDE the transaction below. Checking it out here
+  // leaves a window in which a concurrent delete or set-main changes the row
+  // between check and write: the clear commits, the target update matches
+  // nothing, the hero falls back to another photo, and the route still says 200.
 
   // Exactly one CRM-preferred photo: clear `crm:` siblings only, then set this
   // one.
@@ -190,21 +196,52 @@ export async function PATCH(
   // The agent's choice is now honored by HERO PRECEDENCE instead: a `crm:`
   // preferred row outranks a feed-preferred row in `selectHeroPhoto`, with no
   // write to any feed row at all.
-  await prisma.$transaction([
-    prisma.listingMedia.updateMany({
-      where: {
+  // Callback form (not the array form) so the derived summary participates in
+  // the SAME transaction as the preferred-photo flips: the hero is part of the
+  // summary, so a committed flip with a failed summary write is a split state.
+  try {
+    await withCrmMediaConvergence(listing.listing_id, async (tx) => {
+      // Legacy CRM JSON import joins THIS transaction. Run separately it would
+      // commit rows that survive a later rollback of the mutation and summary.
+      await importJsonMediaToRows(tx, {
         listing_id: listing.listing_id,
-        status: "active",
-        preferred_photo_yn: true,
-        media_key: { startsWith: CRM_MEDIA_KEY_PREFIX },
-      },
-      data: { preferred_photo_yn: false },
-    }),
-    prisma.listingMedia.updateMany({
-      where: { media_key: mediaKey, listing_id: listing.listing_id, status: "active" },
-      data: { preferred_photo_yn: true },
-    }),
-  ]);
+        media: listing.media,
+        last_synced_from_trestle: listing.last_synced_from_trestle,
+      });
+      const target = await tx.listingMedia.findFirst({
+        where: { media_key: mediaKey, listing_id: listing.listing_id, status: "active" },
+        select: { media_type: true },
+      });
+      if (!target) throw new CrmMediaPreconditionError("set-main target not found");
+      if (target.media_type !== "Photo") {
+        throw new CrmMediaPreconditionError("set-main target is not a Photo");
+      }
+      await tx.listingMedia.updateMany({
+        where: {
+          listing_id: listing.listing_id,
+          status: "active",
+          preferred_photo_yn: true,
+          media_key: { startsWith: CRM_MEDIA_KEY_PREFIX },
+        },
+        data: { preferred_photo_yn: false },
+      });
+      const set = await tx.listingMedia.updateMany({
+        where: { media_key: mediaKey, listing_id: listing.listing_id, status: "active" },
+        data: { preferred_photo_yn: true },
+      });
+      // Without this the clear could commit while the target matched nothing.
+      expectAffected(set.count, 1, "set preferred photo");
+    });
+  } catch (err) {
+    if (isCrmMediaPreconditionError(err)) {
+      const notPhoto = String((err as Error).message).includes("not a Photo");
+      return NextResponse.json(
+        { error: notPhoto ? "Only a photo can be the main image" : "Media not found" },
+        { status: notPhoto ? 400 : 404 },
+      );
+    }
+    throw err;
+  }
 
   // P1C4: never bump MT on Trestle-synced rows (idx-sync cursor reads it);
   // CRM-only exclusives keep the touch. See crmListingTouchData.
