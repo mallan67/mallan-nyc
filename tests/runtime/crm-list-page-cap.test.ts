@@ -55,6 +55,7 @@ function makeGetRequest(url: string): NextRequest {
 const LEADS_PATH = path.resolve(__dirname, '../../app/api/crm/leads/route.ts');
 const CLIENTS_PATH = path.resolve(__dirname, '../../app/api/crm/clients/route.ts');
 const LISTINGS_PATH = path.resolve(__dirname, '../../app/api/crm/listings/route.ts');
+const SCOPE_PATH = path.resolve(__dirname, '../../lib/crm/listings-scope.ts');
 
 // ═══════════════════════════════════════════════════════════════════════
 // Source pins — all 3 routes clamp limit to [1, 200] with NaN guard
@@ -80,10 +81,30 @@ describe('PR-CRM.4 — source pins (limit clamp on all 3 list routes)', () => {
   });
 
   it('listings route clamps limit to [1, 200] with min-guard + NaN-guard', () => {
+    // 2026-09-04: the listings clamp MOVED; it did not weaken. It now lives in
+    // `lib/crm/listings-scope.ts` as `resolvePageSize()`, beside the CRM
+    // listings population predicate, so both are exercised as functions rather
+    // than matched as text. The PR-CRM.4 bulk-extraction guarantee is unchanged
+    // and is pinned here in its new home. The route must DELEGATE rather than
+    // re-implement, so a second unclamped read cannot reappear beside it.
+    const scopeSrc = readFileSync(SCOPE_PATH, 'utf8');
+
+    // The security bound itself, and the [1, MAX_PAGE_SIZE] clamp fed by a
+    // NaN/empty-guarded request value.
+    expect(scopeSrc).toMatch(/export const MAX_PAGE_SIZE\s*=\s*200\s*;/);
+    expect(scopeSrc).toMatch(
+      /Math\.min\(\s*Math\.max\(\s*requestedLimit\s*,\s*1\s*\)\s*,\s*MAX_PAGE_SIZE\s*\)/
+    );
+    expect(scopeSrc).toMatch(/parseInt\(rawLimit\)\s*\|\|\s*DEFAULT_PAGE_SIZE/);
+
+    // The route delegates and never clamps inline.
     const src = readFileSync(LISTINGS_PATH, 'utf8');
-    expect(src).toMatch(clampPattern);
-    // Negative pin: ensure the prior min-unguarded shape is gone.
+    expect(src).toMatch(/resolvePageSize\(/);
+    expect(src).not.toMatch(/const\s+limit\s*=\s*Math\.min\(/);
+
+    // Negative pins: neither the prior min-unguarded shape, nor a raised cap.
     expect(src).not.toMatch(/^[^/\n]*const\s+limit\s*=\s*Math\.min\(parseInt\(searchParams\.get\(['"]limit['"]\)\s*\|\|\s*['"]\d+['"]\),\s*200\)\s*;/m);
+    expect(scopeSrc).not.toMatch(/MAX_PAGE_SIZE\s*=\s*(?!200\b)\d+/);
   });
 });
 
