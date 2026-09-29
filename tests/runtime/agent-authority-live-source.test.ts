@@ -128,32 +128,24 @@ describe("agent authority docs stay on live sources", () => {
     expect(generator).toContain("api-route-catalog.json");
   });
 
-  test("GitHub enforcement workflows use canonical base authority", () => {
+  test("main is protected by real PR tests, not an agent-maintained branch gate", () => {
+    // Retired 2026-09-29 by Maya's decision (Master §27.18): the one-branch rule,
+    // the State-authorization cycle and the workflows that enforced them. Absence
+    // is the assertion, so the gate cannot quietly return.
+    for (const rel of [
+      ".github/workflows/branch-authority.yml",
+      ".github/workflows/authority-root.yml",
+      "scripts/ci/mallan-execution-control.mjs",
+    ]) {
+      expect({ path: rel, exists: fs.existsSync(path.join(ROOT, rel)) }).toEqual({ path: rel, exists: false });
+    }
+
+    // The required PR check must keep running the real tests; dropping one is a regression.
     const prCheck = read(".github/workflows/pr-check.yml");
-    expect(prCheck).toContain("Mallan execution control");
-    expect(prCheck).toContain("fetch-depth: 0");
-    expect(prCheck).toContain("scripts/ci/mallan-execution-control.mjs");
-    expect(prCheck).toContain("github.event.pull_request.base.sha");
-    expect(prCheck).toContain("MALLAN_BASE_REF");
-    expect(prCheck).toContain("--authority-root-required-main");
-    expect(prCheck).not.toContain('origin/$BASE_BRANCH:scripts/ci/mallan-execution-control.mjs');
-
-    const root = read(".github/workflows/authority-root.yml");
-    expect(root).toContain("pull_request_target:");
-    expect(root).toContain("contents: read");
-    expect(root).toContain("github.event.pull_request.base.sha");
-    expect(root).toContain("MALLAN_BASE_REF");
-    expect(root).toContain("--authority-root-required-main");
-    expect(root).toContain("cp scripts/ci/mallan-execution-control.mjs /tmp/mallan-execution-control.mjs");
-    expect(root).toContain("github.event.pull_request.head.sha");
-    expect(root).toContain("node /tmp/mallan-execution-control.mjs");
-
-    const branchGuard = read(".github/workflows/branch-authority.yml");
-    expect(branchGuard).toContain("create:");
-    expect(branchGuard).toContain("contents: write");
-    expect(branchGuard).toContain("ref: main");
-    expect(branchGuard).toContain("--branch-created");
-    expect(branchGuard).toContain("gh api -X DELETE");
+    for (const step of ["npm run type-check", "npx jest --ci", "npm run build"]) {
+      expect({ step, present: prCheck.includes(step) }).toEqual({ step, present: true });
+    }
+    expect(prCheck).not.toContain("mallan-execution-control");
   });
 
 });

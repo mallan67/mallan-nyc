@@ -1,12 +1,12 @@
 # MALLAN CONTINUOUS EXECUTION STATE
 
-> **STATUS + EXECUTION CONTROL ONLY.**
+> **STATUS ONLY.**
 >
 > `MALLAN-PLATFORM-MASTER-PLAN.md` is the sole durable product/business/system authority.
-> This file records current verified execution state and the machine-readable authorization envelope
-> consumed by the required GitHub PR check. It may not redefine the Master.
+> This file records current verified execution state: the current stage, branch, pull request, holds
+> and next action. It may not redefine the Master.
 
-**Checkpoint:** 2026-09-25 — #643 merged (`c353c171`): the ledger row 19 Master-amendment path (the bounded `master-amendment` controller mode with its negative tests) is on protected `main`, and a state-only exit returns the contract to `control-update` (§5 item 7c, §11); no Master amendment is authorized. HISTORY: 2026-09-24 — #641 merged (`fadd3937`): A2 exited implementation mode on a contradiction; Maya then deprioritized A2 and authorized the ledger row 19 control-root-maintenance packet (§5 item 7c, §11); 2026-09-22 governance activation and #638 recorded; the SHAs below still describe the 2026-09-20 #632 checkpoint  
+**Checkpoint:** 2026-09-29 — the machine execution controller, its State-authorization cycle and the one-branch rule are retired by Maya's decision (§7). `main` is protected by GitHub: pull request, required `pr-check`, Maya merges. Next: clean `main` one stage at a time (§11).
 **Repository:** `mallan67/mallan-nyc` only  
 **Canonical branch:** `main`  
 **Main at this checkpoint:** `005786e71818ef13f555111de67e3d6248412987` — the PR #632 merge
@@ -19,14 +19,14 @@ live tip from GitHub.**
 **Checkpoint source head:** `fb100d6a12f572d78aaac0ec152c4cc57ac6ce74` (final #632 head; all checks green, zero unresolved review threads). Current head must always be read live from GitHub  
 **Authorized work surface:** GitHub repository + explicitly authorized provider connections only; Desktop/worktrees/scratch copies are not execution authority  
 **PR #595:** authority provenance / historical governance source; CLOSED 2026-09-20T17:54:35Z as superseded by #632, unmerged. Its lineage is in `main` history through #632  
-**Governance activation:** COMPLETE 2026-09-22. `authority-root` is a required status check on the `Protect main` ruleset `19435006`, bound to the GitHub Actions integration `15368`. Required checks are `pr-check` and `authority-root`
+**Governance activation:** RETIRED 2026-09-29. The execution controller, `authority-root` and the one-branch rule were retired by Maya's decision; the required check on the `Protect main` ruleset `19435006` is `pr-check` (§7, §8.1). `authority-root` was required from 2026-09-22 to 2026-09-29.
 
 ---
 
 # 0. Authority order
 
 1. **`MALLAN-PLATFORM-MASTER-PLAN.md`** — sole durable Mallan product/business/system authority.
-2. **This file** — current execution/status + machine execution authorization only.
+2. **This file** — current execution status only.
 3. **Fresh GitHub/provider/runtime evidence** — current reality for mutable facts.
 4. **`AGENTS.md` / `CLAUDE.md` / `NEON.md` / Compliance Canonical Index** — subordinate operating/specialized guidance.
 5. Historical PRs, audits, old handoffs, old branches, Desktop copies, chat history and agent memory — evidence only.
@@ -472,7 +472,7 @@ Read-only Vercel inventory found **24 branch-scoped environment entries across 5
 - Do not rename Git branches that have Vercel branch-scoped variables. A rename can leave the old Vercel scope behind and create a second branch identity.
 - Do not "rename" dead Neon endpoint values. Endpoint IDs are identities, not aliases. A reference to a nonexistent endpoint is removed after proof; it is not retargeted by string substitution.
 - Do not rename or hand-edit individual integration-owned `database_*` variables. Their owner is the Vercel Marketplace resource connection.
-- Do not rename a dead branch scope into `work/active`. `work/active` is the future authorized execution lane, not a recycling target for historical state.
+- Do not rename a dead branch into a new stage branch. A stage branch starts fresh from the current `main`; it is not a recycling target for historical state.
 
 ### Required retirement sequence for every historical branch
 
@@ -510,7 +510,7 @@ envelope a cleanup packet needs would otherwise be permanent.
 
 **Phase F — route/workflow correction.** The #632 head DELETES the direct-Neon branch-prune route, the operator prune CLI, the shared branch library, the PR-close cleanup workflow and the credential-rotation workflow outright. Nothing was left as a fail-closed tombstone, and the execution gate refuses their return under any filename. They are therefore **not current evidence that the bare Neon control variables remain consumed**. Any later variable cleanup packet must re-census the exact head and provider/resource writers before deletion and must correct any newly proven live reader/writer in the same bounded packet.
 
-**Phase G — Git retirement.** After provider residue is removed and unique work is reconciled, close/supersede stale PRs and delete their branches in verified batches. The target operating estate is `main` plus the single authorized `work/active` lane; historical evidence belongs in merged history/PR history, not active execution branches.
+**Phase G — Git retirement.** After provider residue is removed and unique work is reconciled, close/supersede stale PRs and delete their branches in verified batches. The target operating estate is `main` plus the one current stage branch; historical evidence belongs in merged history/PR history, not active execution branches.
 
 **Phase H — final convergence proof.** Re-enumerate GitHub branches, open PRs, Vercel branch-scoped env entries, Vercel Marketplace resources, exact Production deployment identity and runtime DB authority. Closure requires no unexplained branch-scoped DB override, no dead endpoint reference, no duplicate database authority, no workflow that can recreate the retired path, and no stale branch capable of passing the required execution gate.
 
@@ -519,7 +519,7 @@ envelope a cleanup packet needs would otherwise be permanent.
 The system is not considered converged until all of the following are simultaneously true:
 
 - one canonical Master and one current Execution State;
-- protected `main` + one authorized `work/active` execution lane;
+- protected `main` + one stage branch at a time, merged before the next starts;
 - every remaining historical branch has a documented, justified reason to exist or is retired;
 - no Vercel branch-scoped DB override exists without an explicitly authorized active branch use case;
 - one Vercel Neon Marketplace resource is the provider control path;
@@ -569,177 +569,42 @@ A source-string test, green CI, merged PR, deployment, or isolated UI proof is n
 
 ---
 
-# 7. Machine execution control
+# 7. How changes reach `main` (from 2026-09-29)
 
-The required GitHub PR check reads authorization from the **base branch**, not from the proposed branch.
+The machine execution controller, its State-authorization cycle and the one-branch rule are retired by Maya's decision of 2026-09-29. They kept unsafe changes out of `main`, but they also kept correct changes out: from 2026-09-18 to 2026-09-26 all thirteen merges to `main` (#632–#644) were governance updates and none changed the product. Their history is in Git and is not repeated here.
 
-That prevents an agent from editing this file in its own implementation PR and granting itself wider permissions.
+`main` is protected by GitHub:
 
-PR #632 was a one-time bootstrap exception because base `main` did not then contain this file.
-It is merged and the exception is closed; base `main` now carries both authority files, so no
-PR can reach that branch again.
+- every change arrives through a pull request;
+- the required check is `pr-check`: type-check, Jest, the compliance validators, the CRM tests and the build;
+- force-push and deletion of `main` are blocked;
+- Maya reviews and merges every pull request. Agents never merge, never enable auto-merge and never change branch protection.
 
-The current mode is **`control-update`**: only this execution-state file may change. The `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` maintenance packet (ledger row 19) is merged (#643, `c353c171`) and this contract is its state-only exit; it authorizes no Master amendment. HISTORY: from #642 until #643 the mode was `control-root-maintenance` for that packet, changing only `scripts/ci/mallan-execution-control.mjs` and `tests/runtime/mallan-execution-control.test.ts`. Implementation mode for A2 (`RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22`) was exited on 2026-09-24 through the #638 exit (#641) because A2's base text contradicted live evaluation (§11 "A2 paused — contradiction"); A2 is deprioritized. Code and scope expansion may not be combined into the same self-authorizing PR.
-
-<!-- MALLAN_EXECUTION_CONTROL_V1_START -->
-```json
-{
-  "version": 1,
-  "mode": "control-update",
-  "authorized_branch": "work/active",
-  "base_branch": "main",
-  "authorized_paths": [
-    "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
-  ],
-  "allowed_new_files": [],
-  "impact_domains": [
-    "governance"
-  ],
-  "provider_proof_required": [],
-  "production_mutation_authorized": false,
-  "schema_migration_authorized": false,
-  "environment_mutation_authorized": false,
-  "neon_mutation_authorized": false,
-  "destructive_data_authorized": false,
-  "manual_cron_authorized": false,
-  "new_canonical_system_authorized": false,
-  "requirements": {
-    "impact_graph_required": true,
-    "all_readers_writers_required": true,
-    "negative_tests_required": true,
-    "integration_proof_required": true,
-    "downstream_proof_required": true,
-    "compliance_proof_required_when_applicable": true,
-    "no_parallel_path_proof_required": true
-  },
-  "packet_id": "GOVERNANCE-MASTER-AMENDMENT-PATH-EXIT-2026-09-25",
-  "objective": "Exit control-root-maintenance after #643 (merged c353c171dc58170a893ba8135845c6bac801f794), which delivered packet GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24 (ledger row 19): the bounded master-amendment controller mode and its negative tests are on protected main. Authorize only state-only updates to this file. No packet is active. No Master amendment is authorized by this contract: any change to MALLAN-PLATFORM-MASTER-PLAN.md needs its own later state-only control update that sets master-amendment mode with the content envelope the controller requires. No provider, environment, Neon, Vercel, Cotality, database, branch or implementation mutation is authorized.",
-  "impact_graph": {
-    "root_owner_paths": [
-      "MALLAN-PLATFORM-MASTER-PLAN.md",
-      "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
-    ],
-    "writer_paths": [
-      "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
-    ],
-    "reader_paths": [
-      "scripts/ci/mallan-execution-control.mjs",
-      "AGENTS.md",
-      "CLAUDE.md"
-    ],
-    "publisher_paths": [
-      ".github/workflows/pr-check.yml",
-      ".github/workflows/branch-authority.yml",
-      ".github/workflows/authority-root.yml"
-    ],
-    "downstream_surfaces": [
-      "GitHub pull-request merge eligibility",
-      "GitHub future branch creation",
-      "All later Mallan packets, including any later separately authorized Master amendment"
-    ],
-    "test_paths": [
-      "tests/runtime/mallan-execution-control.test.ts",
-      "tests/runtime/agent-authority-live-source.test.ts"
-    ],
-    "compliance_surfaces": [
-      "Governance only; no listing/public/client compliance mutation in this packet"
-    ]
-  }
-}
-```
-<!-- MALLAN_EXECUTION_CONTROL_V1_END -->
-
-### Control semantics
-
-- **`mode: control-update`**: only this execution-state file may change.
-- **`mode: control-root-maintenance`**: only the protected control-root paths named in `authorized_paths` may change, only while live GitHub rules prove `authority-root` is a required main check, and the packet exits through a separate state-only PR back to `control-update`.
-- **`mode: implementation`**: a PR whose only changed path is this file and whose proposed contract returns `mode` to `control-update` is the exit (merged in #638, `f53b099a`). Every other change to this file in implementation mode is refused.
-- A later authorized implementation mode must list exact allowed paths/prefixes, exact allowed new files, required impact domains and provider proof requirements.
-- New files are denied unless named in `allowed_new_files`.
-- Any changed path outside `authorized_paths` fails the required PR check.
-- Any branch other than `authorized_branch` fails after bootstrap.
-- Schema/env/Neon/destructive/manual-cron/provider mutations are prohibited unless explicitly authorized by the base-state contract **and** Maya's explicit authorization exists. The controller implementation mechanically enforces the declared mutation/proof contract described in §7.1. **Exact-head closure proof is COMPLETE** as of the merge of `fb100d6a`.
-- A new canonical system is denied by default.
-- Authority files cannot be rewritten inside an implementation packet merely to make the packet pass.
-- The work contract is changed first, merged, and only then may the implementation packet begin.
+Retired with the controller: `scripts/ci/mallan-execution-control.mjs`, its test, `.github/workflows/authority-root.yml` and `.github/workflows/branch-authority.yml`. The retired direct-Neon paths stay refused by `tests/runtime/agent-authority-live-source.test.ts`, which runs inside the required `pr-check`.
 
 ---
 
-## 7.1 Execution-controller coverage after the #632 correction set — PROVEN 2026-09-20
+# 8. Branch policy
 
-The corrected controller and required PR workflow now make the previously decorative contract fields executable:
-
-- all mutation authorization fields are type-validated;
-- schema / Vercel-environment / Neon-control / destructive / Production-rotation change classes are mapped from changed repo paths and fail when their base-state authorization flag is false;
-- `provider_proof_required` fails closed unless the base-controlled workflow supplies each named proof token;
-- the full `requirements.*` object is required and validated;
-- declared negative-test coverage requires a changed declared test path;
-- the required PR workflow freezes the controller from the PR base (the #632 bootstrap exception was the one-time carve-out and is now closed, because base main carries the controller);
-- the controller runs once before the work and once after the test/build/compliance chain;
-- the final phase consumes proof tokens only after the preceding GitHub steps have succeeded;
-- `control-root-maintenance` is an explicit mode that requires a prior state-only authorization plus live GitHub proof that `authority-root` is already a required main status check;
-- root maintenance is evaluated by the base controller and exits through a separate state-only update back to `control-update`;
-- direct-Neon cleanup/rotation files and `vercel.json` are protected control-root paths so an ordinary implementation packet cannot silently re-arm them.
-
-**This section is now a closure record.** The exact correction head `fb100d6a` passed its
-controller negative tests, PR checks, Guardrails, Release Truth, Vercel Preview and independent
-review, and merged as `005786e`.
-
-What it does NOT prove, recorded so no later agent overstates it: the capability scan is not a
-containment boundary, it inspects changed files only rather than sweeping the tree, and
-non-executable files are outside it by design. §11 states the limits in full.
-
-The Git gate controls Git changes and proof requirements. It does not claim to cryptographically prevent an actor who separately possesses out-of-band provider credentials from calling a provider API. Mallan therefore also requires provider mutation to be performed only through an explicitly authorized Git-controlled packet/workflow; direct Neon mutation paths are DELETED from the tree, and the execution gate fails any change that revives one.
-
-
----
-
-# 8. Branch / file creation policy
-
-After bootstrap:
-
-- agents do not create ad-hoc `fix/*`, `feat/*`, `search/*`, `diag/*`, `agent/*` or `preserve/*` branches for new work;
-- the controlled implementation lane is `work/active`;
-- `.github/workflows/branch-authority.yml` runs on GitHub branch creation and reads the canonical Execution State from `main`;
-- `.github/workflows/authority-root.yml` runs on `pull_request_target`, freezes the execution gate from the PR base, then evaluates the proposed head; the PR cannot alter the code that is deciding its scope;
-- a newly created branch other than `main` or the currently authorized work branch is automatically deleted by GitHub and the workflow fails visibly;
-- existing historical branches are preserved until the dedicated branch-reconciliation packet determines whether they contain unmerged work that must be retained;
-- existing historical branches cannot pass the required implementation gate unless they are the branch explicitly authorized by the base Execution State;
-- new canonical files/models/services are denied unless the base execution contract explicitly names them.
-
-The existing historical branch estate remains evidence until reconciled.
+- Work proceeds one stage at a time. Each stage has one branch, created from the current `main` and named for the stage.
+- A draft pull request is opened as soon as the branch exists, and its description states the stage scope (Master §27.15).
+- Every completed unit of work is committed and pushed to that pull request. Nothing of value stays unpushed or local.
+- A stage is finished when its pull request is merged; the next stage starts from the new `main`.
+- Historical branches and pull requests are evidence only. Each is either carried into a stage or closed with the reason recorded on it; none is deleted before that decision.
 
 ---
 
 # 8.1 Human / agent identity boundary
 
-GitHub's current `Protect main` ruleset (`19435006`) is active, requires the `pr-check` and `authority-root` status checks, blocks non-fast-forward/deletion, has no bypass actors, and requires resolution of review threads.
+GitHub's `Protect main` ruleset (`19435006`) requires a pull request and the `pr-check` status check, and blocks non-fast-forward pushes and deletion of `main`. It requires 0 approving reviews and has no bypass actors. `authority-root` was removed from its required checks on 2026-09-29 with Maya's explicit authorization, when the controller behind it was retired.
 
-It requires **0 approving reviews**. `authority-root` is a **required status check** as of
-2026-09-22, bound to the GitHub Actions integration `15368` — verified live against ruleset
-`19435006`, whose required set is `pr-check` and `authority-root`.
-
-**Hard activation sequence: COMPLETE.** Step 1, `authority-root` running from protected
-`main`, happened with #633. Step 2, adding it to the required checks, was made on
-2026-09-22 with Maya's explicit authorization. The implementation-mode one-way door is
-closed by #638, so implementation mode is reachable and exitable; each implementation
-packet still needs its own control update.
-
-**Recorded 2026-09-22 — one-field bootstrap relaxation.** To merge #637, whose `pr-check`
-was blocked by the fixture leak below, Maya authorized removing ONLY `authority-root` from
-ruleset `19435006`. Full before/after comparison proved that was the only change. It was
-removed only after #637 had zero unresolved threads; #637 was re-run and merged at
-21:27:57 UTC, and `authority-root`
-(integration `15368`) was restored immediately after, verified byte-identical to the approved
-activation ruleset. #638 was opened only after the restore.
-
-If an AI agent operates through Maya's own GitHub identity, GitHub cannot distinguish a control update authored by Maya from one authored by the agent. Repository CI can prevent a PR from self-authorizing within the same branch, but it cannot cryptographically prove which human/agent initiated a later control-update PR when both share one identity.
+If an AI agent operates through Maya's own GitHub identity, GitHub cannot distinguish a change made by Maya from one made by the agent, and repository CI cannot prove which of them opened or approved a pull request.
 
 Therefore:
 
-- do not claim the execution controller provides human/agent identity separation by itself;
-- control-update PRs remain Maya-approval decisions;
-- no agent may enable auto-merge or merge a control-update PR on Maya's behalf;
+- do not claim that CI separates Maya from an agent; it cannot while they share one identity;
+- every pull request to `main` is Maya's merge decision;
+- no agent may enable auto-merge or merge any pull request on Maya's behalf;
 - the durable non-bypass solution is a separate agent GitHub identity / GitHub App or an external managed approval boundary that the agent cannot impersonate;
 - until identity separation is installed, this is a known control-plane limitation, not a hidden assumption.
 
@@ -764,14 +629,13 @@ A held mutation freezes that mutation only. It does not authorize a substitute a
 
 ---
 
-# 10. What must be updated at every control checkpoint
+# 10. What must be updated at every checkpoint
 
 This file must remain current on:
 
 - current main SHA;
 - active PR/branch;
-- active packet;
-- exact allowed mutation envelope;
+- current stage and its stated scope;
 - provider facts required by that packet;
 - blockers / explicit holds;
 - closure evidence;
@@ -804,7 +668,9 @@ Do not create another status file because this one becomes inconvenient.
 
 # 11. Current exact stop point
 
-**CURRENT: `mode: control-update` (2026-09-25); no packet is active and no Master amendment is authorized. The ledger row 19 packet
+**2026-09-29 — stop point.** The execution gate is retired (§7). Next, one stage at a time, each merged before the next starts: (a) delete the dead old-system files and scripts; (b) replace the REBNY CSVs and repository snapshots in the validators with the live Cotality contract; (c) one mapper; (d) one Search; (e) CMA built on that Search; (f) the listing forms. Everything below this entry is history.
+
+**HISTORY (superseded 2026-09-29): `mode: control-update` (2026-09-25); no packet is active and no Master amendment is authorized. The ledger row 19 packet
 `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` (a bounded, base-authorized Master-amendment path with negative tests) is COMPLETE: #642
 authorized it, #643 delivered it (merged `c353c171`), and this state-only control update is its exit. HISTORY: from #642 until #643 the mode
 was `control-root-maintenance` for that packet. A2,
@@ -876,7 +742,7 @@ contradiction (2026-09-24)" above. HISTORY: A1 was a state-only control update a
 the state-only exit from `control-root-maintenance` back to `control-update`; it recorded #638 and the
 CI fixture leak it closed, and opened the artifact trace ledger.
 
-## Immediate operational consequence of the merge — READ THIS FIRST
+## HISTORY (superseded 2026-09-29) — operational consequence of the #632 merge
 
 **Every open pull request is now gate-blocked.** Verified by running the merged controller
 from `main` against an existing PR branch: it exits 1 with *PR head is <branch>; only
@@ -967,7 +833,7 @@ reachable. The order is now fixed:
 3. DONE — #639 (`b0ab6264`), the state-only exit back to `control-update`;
 4. DONE — the ledger row 19 control-root-maintenance packet (`GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24`), authorized by #642
    (`016a0933`) and delivered by #643 (`c353c171`);
-5. CURRENT — `control-update` after that packet's state-only exit; no packet is active and no Master amendment is authorized; the
+5. SUPERSEDED 2026-09-29 — `control-update` after that packet's state-only exit; no packet is active and no Master amendment is authorized; the
    trace-to-closure program below continues read-only; A2 (paused, deprioritized) is in "Paused packet".
 
 HISTORY: before A1 no documentation lane was authorized. A1 authorized A2 ("Paused packet") over
@@ -1357,7 +1223,7 @@ Recorded so no later agent overstates it:
   leak in both directions at the test helper. Residual: `pr-check.yml` still exports the flag to
   the whole job instead of only the two gate steps (ledger row 15).
 
-**This contract (`GOVERNANCE-MASTER-AMENDMENT-PATH-EXIT-2026-09-25`, `control-update`) is the state-only exit of the ledger row 19 packet
+**HISTORY (superseded 2026-09-29): the former contract (`GOVERNANCE-MASTER-AMENDMENT-PATH-EXIT-2026-09-25`, `control-update`) was the state-only exit of the ledger row 19 packet
 `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` after #643 (merged `c353c171`). It authorizes only state-only updates to this file and no packet.
 It authorizes no Master amendment: any change to `MALLAN-PLATFORM-MASTER-PLAN.md` needs its own later state-only control update that sets
 `master-amendment` mode with the content envelope the controller requires. A2 (`RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22`) is paused and deprioritized. It authorizes no

@@ -7415,30 +7415,13 @@ Every regulated/canonical fact must census both:
 
 A persistence-only census is incomplete. Regulated designations, license classes, brokerage roles, disclosures, listing facts, source attribution and public structured data require the two-sided census.
 
-## 27.15 Base-authority execution contract
+## 27.15 Scope is stated on the pull request and decided by Maya
 
-The system must not depend on an Agent reading this Master voluntarily.
+The system must not depend on an Agent reading this Master voluntarily. It depends on GitHub protection of `main` and on Maya reviewing and merging every change.
 
-Implementation authorization is evaluated from protected/base authority, not from a proposed branch's self-edited instructions.
+Each stage of work states its scope on its pull request before code is pushed: the concept being corrected, the impact graph required by §27.16, the files it will change or delete, any new file and why it is needed (§27.17), the provider or mutation permissions it needs (§27.21), and the tests that prove it. The pull request's changed files must match that statement; anything outside it is removed or explained before merge.
 
-For a pull request, "base authority" means the **exact base commit SHA carried by that PR event**, not a later moving `origin/main`. The same frozen SHA must supply the controller, the Execution State read, and the base→head diff.
-
-~~~text
-EXACT PR EVENT BASE SHA
-→ MASTER
-→ CONTINUOUS EXECUTION STATE
-→ AUTHORIZED PACKET / BRANCH
-→ REQUIRED IMPACT GRAPH
-→ EXACT ALLOWED PATHS
-→ EXPLICIT ALLOWED NEW FILES
-→ PROVIDER / MUTATION PERMISSIONS
-→ PROPOSED CHANGE
-→ REQUIRED GITHUB GATE
-~~~
-
-An implementation branch cannot widen its own scope by editing the Execution State in that same PR.
-
-Control updates and implementation are separate operations.
+An Agent cannot widen its own scope by editing its pull request description or any repository file. A change of scope is a new decision for Maya.
 
 ## 27.16 The unit of change is the system — impact graph required before code
 
@@ -7511,9 +7494,9 @@ Four rules make the chain real rather than decorative:
 The verifier derives each station from repository code and the live platform. It does not accept
 the builder's summary of its own graph (§27.14).
 
-This is enforced by the base-controlled gate, not by convention. The enforcement and its negative
-proofs live with the execution controller; the exact file and test names are implementation detail
-and belong to the Execution State, not to this Master.
+This is enforced in review, not by convention: a pull request that touches any station states the
+full chain in its description, and Maya does not merge a database-touching pull request whose chain
+is incomplete. The retired direct-Neon paths are refused by the required pull-request tests.
 
 ---
 
@@ -7531,29 +7514,28 @@ Before permitting one, prove:
 
 If not proven, modify the existing canonical system.
 
-## 27.18 Branch and authority-root control
+## 27.18 Branch, pull request and merge control
 
-Agents do not create arbitrary implementation branches as a substitute for understanding the system.
+All repository work happens in GitHub. No local checkout, Desktop copy, worktree, temp copy or side repository holds Mallan work (§27.19).
 
-The current authorized branch/work lane is defined by the Execution State.
+Work proceeds one stage at a time. Each stage has one branch, created from the current `main` and named for the stage. A draft pull request is opened as soon as the branch exists, so the work is visible from its first commit. Every completed unit of work is committed and pushed to that pull request; nothing of value stays unpushed.
 
-The execution-control implementation must itself run from a protected/base-controlled surface so a proposed PR cannot weaken the gate that evaluates that PR.
+A stage is finished only when its pull request is merged into `main`. The next stage starts from the new `main`. Branches are not left open to drift: a branch that will not be merged is closed with the reason recorded on its pull request.
 
-Control-root maintenance is a two-PR sequence, never an improvised bypass:
+`main` is protected by GitHub, not by an Agent-maintained gate:
 
 ~~~text
-STATE-ONLY CONTROL UPDATE
-→ mode = control-root-maintenance
-→ exact protected control paths + tests named
-→ authority-root must already be a REQUIRED main status check
-→ separate root-maintenance PR evaluated by the BASE controller
-→ exact tests/checks
-→ separate STATE-ONLY exit back to control-update
+PULL REQUEST REQUIRED
+→ REQUIRED pr-check: type-check, tests, compliance validators, build
+→ NO FORCE-PUSH, NO DELETION OF main
+→ MAYA REVIEWS AND MERGES
 ~~~
 
-If live GitHub rules do not prove `authority-root` is required **by an active branch ruleset whose ref conditions include `refs/heads/main`**, control-root maintenance fails closed. A check with the same name on an unrelated branch/ruleset is not proof.
+Agents never merge, never enable auto-merge and never change branch protection or rulesets (§27.21).
 
-Control-root maintenance may change the protected evaluator and required-check workflows **in place**, but it may not delete the base execution controller or the workflows that preserve the authority boundary (`authority-root`, `pr-check`, `branch-authority`). Their continued existence is part of the maintenance proof.
+While Agents act through Maya's own GitHub identity, GitHub cannot tell an Agent from Maya, so merge control rests on Maya merging personally. The durable control is a separate Agent GitHub identity with write access and no admin rights, plus a `main` rule requiring Maya's approving review, so an Agent can never approve its own change.
+
+"Done" requires the branch, commit SHA, pull request number, check results, Preview, merged yes/no and the resulting `main` SHA. Without those it is not done.
 
 Release/deploy truth must wait for every required status check applicable to `main` plus the Mallan stable proof checks. A required context may be published through the GitHub Checks API or the legacy Commit Statuses API; if both are present, pending/failing evidence is not ignored. **When GitHub's ruleset pins a required context to an `integration_id`, only a Check Run emitted by that exact GitHub App may satisfy it; a same-named legacy status or different App is not equivalent proof.** Required-check/ruleset discovery failure remains UNVERIFIED/PENDING. If the bounded wait expires while any dependency remains pending/unknown, Release Truth fails closed; it does not publish a durable pending state and call the run complete.
 
@@ -7594,7 +7576,7 @@ A held mutation freezes only that mutation; it does not authorize a substitute a
 
 When a provider mutation path is retired, it is DELETED rather than left in place as a disabled or fail-only stub, and its scheduled writers, health alarms, CLI guidance, catalogs, tests and operator instructions are retired in the same impact graph. Observability may not tell an operator to re-arm a prohibited provider path, and a path once deleted may not return under any wrapper.
 
-A deployment/schedule authority file such as `vercel.json` is part of the protected control root whenever changing it could re-arm a retired writer or change Production scheduling. Ordinary implementation authorization is insufficient; it requires the control-root-maintenance sequence.
+A deployment/schedule authority file such as `vercel.json` is sensitive whenever changing it could re-arm a retired writer or change Production scheduling. Such a change needs Maya's explicit authorization, stated on the pull request.
 
 ## 27.22 Execution-state boundary
 

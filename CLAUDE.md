@@ -53,12 +53,12 @@ Do not keep mutable project status in this file.
 Read:
 
 1. `MALLAN-PLATFORM-MASTER-PLAN.md` for durable architecture/business rules.
-2. `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` for the active packet, branch, base SHA, authorization envelope, holds and exact stop point.
+2. `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` for the current stage, branch, pull request, holds and exact stop point.
 3. Current GitHub/Vercel/Neon/Cotality evidence for any mutable fact needed by that packet.
 
 A historical audit, old PR, old branch, Desktop checkout, local worktree or chat transcript is evidence only and cannot grant scope.
 
-The required GitHub `pr-check` runs `scripts/ci/mallan-execution-control.mjs` and evaluates implementation scope from the **PR base branch's** Execution State. A branch-local edit to the Execution State cannot self-authorize broader implementation.
+Changes reach `main` only through a pull request that passes the required `pr-check` (type-check, tests, compliance validators, build) and that Maya merges. Work goes one stage at a time: one branch per stage, a draft pull request from the first commit, every finished unit pushed, and the next stage only after the previous one is merged (Master §27.18).
 
 
 ## C. Current holds (require explicit Maya approval before starting)
@@ -145,7 +145,7 @@ CI runs the same chain via `.github/workflows/pr-check.yml`. Don't merge with re
 | Topic | Authority |
 |---|---|
 | Mallan product/business/system architecture | `MALLAN-PLATFORM-MASTER-PLAN.md` |
-| Current execution + machine authorization | `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` |
+| Current execution state | `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` |
 | Cross-agent discipline | `AGENTS.md` |
 | Compliance implementation map | `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` |
 | Neon / Prisma / DB rules | `NEON.md` |
