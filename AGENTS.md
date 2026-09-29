@@ -16,12 +16,14 @@ website." It has downstream consumers: search, CRM, portal, media, compliance, a
 Every agent starts from the same chain:
 
 1. `MALLAN-PLATFORM-MASTER-PLAN.md` — sole durable product/business/system authority.
-2. `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` — current execution state and machine authorization envelope.
+2. `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` — current execution state: stage, branch, pull request, holds. Status and history only; it authorizes nothing.
 3. Current GitHub branch/PR/base SHA and required checks.
 4. Live provider/runtime evidence required by the active packet.
 5. This file plus specialized guidance such as `CLAUDE.md`, `NEON.md` and the Compliance Canonical Index.
 
 A chat, Desktop checkout, side branch, audit, dashboard or handoff can provide evidence but cannot become the authority chain.
+
+Changes reach `main` only through a pull request that passes the required `pr-check` and that Maya reviews and merges. The protection is INTERIM (Master §27.18). Agents never merge.
 
 
 ### 0.1 GitHub-only working state + provider authority (Maya directive 2026-09-18)
@@ -94,7 +96,7 @@ notification dispatcher · open-house v2 · admin merge bypass · force-push to 
 | Rank | Topic | Authority |
 |---|---|---|
 | 1 | Product/business/system architecture | `MALLAN-PLATFORM-MASTER-PLAN.md` |
-| 2 | Current execution + authorization envelope | `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` |
+| 2 | Current execution state | `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` |
 | 3 | Current repository reality | GitHub current base/head/PR/checks |
 | 3 | Cotality/Trestle provider truth | Authorized live Cotality/Trestle API + current provider documentation |
 | 3 | Vercel runtime/integration truth | Connected Vercel project + current official Vercel documentation |

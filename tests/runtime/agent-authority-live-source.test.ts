@@ -128,32 +128,26 @@ describe("agent authority docs stay on live sources", () => {
     expect(generator).toContain("api-route-catalog.json");
   });
 
-  test("GitHub enforcement workflows use canonical base authority", () => {
-    const prCheck = read(".github/workflows/pr-check.yml");
-    expect(prCheck).toContain("Mallan execution control");
-    expect(prCheck).toContain("fetch-depth: 0");
-    expect(prCheck).toContain("scripts/ci/mallan-execution-control.mjs");
-    expect(prCheck).toContain("github.event.pull_request.base.sha");
-    expect(prCheck).toContain("MALLAN_BASE_REF");
-    expect(prCheck).toContain("--authority-root-required-main");
-    expect(prCheck).not.toContain('origin/$BASE_BRANCH:scripts/ci/mallan-execution-control.mjs');
+  test("the retired execution wall is gone and pr-check is read-only", () => {
+    // Retired 2026-09-29 by Maya's decision (#646; Master §27.15, §27.18). Absence is the assertion,
+    // so the wall cannot quietly return. This proves only the interim unblock: it requires no
+    // future gate and pins no provider validator.
+    for (const rel of [
+      ".github/workflows/branch-authority.yml",
+      ".github/workflows/authority-root.yml",
+      "scripts/ci/mallan-execution-control.mjs",
+      "tests/runtime/mallan-execution-control.test.ts",
+    ]) {
+      expect({ path: rel, exists: fs.existsSync(path.join(ROOT, rel)) }).toEqual({ path: rel, exists: false });
+    }
 
-    const root = read(".github/workflows/authority-root.yml");
-    expect(root).toContain("pull_request_target:");
-    expect(root).toContain("contents: read");
-    expect(root).toContain("github.event.pull_request.base.sha");
-    expect(root).toContain("MALLAN_BASE_REF");
-    expect(root).toContain("--authority-root-required-main");
-    expect(root).toContain("cp scripts/ci/mallan-execution-control.mjs /tmp/mallan-execution-control.mjs");
-    expect(root).toContain("github.event.pull_request.head.sha");
-    expect(root).toContain("node /tmp/mallan-execution-control.mjs");
-
-    const branchGuard = read(".github/workflows/branch-authority.yml");
-    expect(branchGuard).toContain("create:");
-    expect(branchGuard).toContain("contents: write");
-    expect(branchGuard).toContain("ref: main");
-    expect(branchGuard).toContain("--branch-created");
-    expect(branchGuard).toContain("gh api -X DELETE");
+    const prCheck = read(".github/workflows/pr-check.yml").replace(/\r\n/g, "\n");
+    // No controller call remains.
+    expect(prCheck).not.toMatch(/mallan-execution-control|authority-root|MALLAN_CONTROL_PHASE|MALLAN_EXECUTION_PROOFS/);
+    // Read-only: the pull request's own code runs in this job and never receives write credentials.
+    expect(prCheck).toMatch(/^permissions:\n  contents: read\n/m);
+    expect(prCheck).not.toMatch(/:\s*write\b/);
+    expect(prCheck).toContain("persist-credentials: false");
   });
 
 });

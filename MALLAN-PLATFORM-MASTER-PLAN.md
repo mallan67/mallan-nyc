@@ -406,7 +406,7 @@ Mandatory behavior:
 - read this Master first, then docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md;
 - side branches, old PRs, local clones, Desktop folders, worktrees, temporary files and chat transcripts are evidence only;
 - no agent may create an ad-hoc architecture branch or use a historical branch as the starting authority;
-- the active branch and allowed mutation envelope come from the Execution State;
+- the Execution State is status and history only; it authorizes no branch name, file path, implementation scope or mutation envelope (§27.15);
 - durable code, documentation, tests and evidence belong in Git;
 - do not leave the only copy of a decision in a local scratchpad or chat;
 - required GitHub checks are part of the execution boundary, not optional reporting.
@@ -7415,30 +7415,13 @@ Every regulated/canonical fact must census both:
 
 A persistence-only census is incomplete. Regulated designations, license classes, brokerage roles, disclosures, listing facts, source attribution and public structured data require the two-sided census.
 
-## 27.15 Base-authority execution contract
+## 27.15 The retired execution controller (2026-09-29)
 
 The system must not depend on an Agent reading this Master voluntarily.
 
-Implementation authorization is evaluated from protected/base authority, not from a proposed branch's self-edited instructions.
+The base-authority execution controller is **retired** (#646): `scripts/ci/mallan-execution-control.mjs` and its test, the `authority-root` and `branch-authority` workflows, `work/active` as the only branch, branch auto-deletion, the Execution State modes and path envelopes, and the controller's authorization cycle. The Execution State is status and history only; it authorizes no branch, path, scope or mutation. The scope of a change is stated on its pull request and is Maya's decision; an Agent cannot widen it by editing any repository file.
 
-For a pull request, "base authority" means the **exact base commit SHA carried by that PR event**, not a later moving `origin/main`. The same frozen SHA must supply the controller, the Execution State read, and the base→head diff.
-
-~~~text
-EXACT PR EVENT BASE SHA
-→ MASTER
-→ CONTINUOUS EXECUTION STATE
-→ AUTHORIZED PACKET / BRANCH
-→ REQUIRED IMPACT GRAPH
-→ EXACT ALLOWED PATHS
-→ EXPLICIT ALLOWED NEW FILES
-→ PROVIDER / MUTATION PERMISSIONS
-→ PROPOSED CHANGE
-→ REQUIRED GITHUB GATE
-~~~
-
-An implementation branch cannot widen its own scope by editing the Execution State in that same PR.
-
-Control updates and implementation are separate operations.
+The protection that follows is **INTERIM** (§27.18). Permanent governance is designed only after `main` has been cleaned (Execution State §11).
 
 ## 27.16 The unit of change is the system — impact graph required before code
 
@@ -7511,9 +7494,9 @@ Four rules make the chain real rather than decorative:
 The verifier derives each station from repository code and the live platform. It does not accept
 the builder's summary of its own graph (§27.14).
 
-This is enforced by the base-controlled gate, not by convention. The enforcement and its negative
-proofs live with the execution controller; the exact file and test names are implementation detail
-and belong to the Execution State, not to this Master.
+The execution controller that enforced this chain is retired (§27.15). During the interim (§27.18) the
+chain is enforced by Maya's review of the pull request; its permanent automated enforcement is designed
+only after `main` has been cleaned.
 
 ---
 
@@ -7531,29 +7514,19 @@ Before permitting one, prove:
 
 If not proven, modify the existing canonical system.
 
-## 27.18 Branch and authority-root control
+## 27.18 Branch, pull request and merge control — INTERIM
 
-Agents do not create arbitrary implementation branches as a substitute for understanding the system.
+All repository work happens in GitHub. No local checkout, Desktop copy, worktree, temp copy or side repository holds Mallan work (§27.19).
 
-The current authorized branch/work lane is defined by the Execution State.
+Work proceeds one stage at a time. Each stage has one branch, created from the current `main` and named for the stage, and one pull request. A stage is finished only when its pull request is merged; the next stage starts from the new `main`.
 
-The execution-control implementation must itself run from a protected/base-controlled surface so a proposed PR cannot weaken the gate that evaluates that PR.
+**Historical branches and pull requests are evidence only.** They are never merged, cherry-picked, copied from, or used as implementation authority. Every new stage is built fresh from the cleaned current `main`, using newly verified live authority. Historical branches are closed with the reason recorded after their evidentiary value has been reviewed.
 
-Control-root maintenance is a two-PR sequence, never an improvised bypass:
+**After the retired controller (§27.15) the protection of `main` is INTERIM:** a pull request, the current required `pr-check`, no force-push and no deletion of `main`, and Maya's review and merge. Agents never merge, never enable auto-merge and never change branch protection or rulesets (§27.21).
 
-~~~text
-STATE-ONLY CONTROL UPDATE
-→ mode = control-root-maintenance
-→ exact protected control paths + tests named
-→ authority-root must already be a REQUIRED main status check
-→ separate root-maintenance PR evaluated by the BASE controller
-→ exact tests/checks
-→ separate STATE-ONLY exit back to control-update
-~~~
-
-If live GitHub rules do not prove `authority-root` is required **by an active branch ruleset whose ref conditions include `refs/heads/main`**, control-root maintenance fails closed. A check with the same name on an unrelated branch/ruleset is not proof.
-
-Control-root maintenance may change the protected evaluator and required-check workflows **in place**, but it may not delete the base execution controller or the workflows that preserve the authority boundary (`authority-root`, `pr-check`, `branch-authority`). Their continued existence is part of the maintenance proof.
+- **Passing `pr-check` during the interim does not certify provider correctness.** `main` still contains obsolete provider implementation, including the `rls:validate` and `validate:form-rls` validators built on the REBNY RLS CSVs and RESO mappings. It is not provider authority and must be cleaned before permanent governance is designed. Provider authority is the chain of §21.2: COTALITY RAW CONTRACT → VERIFIED MAPPING → MALLAN STORAGE → MALLAN BUSINESS RULE → PUBLIC/CRM CONSUMER.
+- **No Search, CMA, forms, CRM, listing or other product development merges during the interim cleanup.**
+- The permanent required checks and their enforcement are designed only after `main` is cleaned and the live Cotality contract is verified (Execution State §11).
 
 Release/deploy truth must wait for every required status check applicable to `main` plus the Mallan stable proof checks. A required context may be published through the GitHub Checks API or the legacy Commit Statuses API; if both are present, pending/failing evidence is not ignored. **When GitHub's ruleset pins a required context to an `integration_id`, only a Check Run emitted by that exact GitHub App may satisfy it; a same-named legacy status or different App is not equivalent proof.** Required-check/ruleset discovery failure remains UNVERIFIED/PENDING. If the bounded wait expires while any dependency remains pending/unknown, Release Truth fails closed; it does not publish a durable pending state and call the run complete.
 
@@ -7594,7 +7567,7 @@ A held mutation freezes only that mutation; it does not authorize a substitute a
 
 When a provider mutation path is retired, it is DELETED rather than left in place as a disabled or fail-only stub, and its scheduled writers, health alarms, CLI guidance, catalogs, tests and operator instructions are retired in the same impact graph. Observability may not tell an operator to re-arm a prohibited provider path, and a path once deleted may not return under any wrapper.
 
-A deployment/schedule authority file such as `vercel.json` is part of the protected control root whenever changing it could re-arm a retired writer or change Production scheduling. Ordinary implementation authorization is insufficient; it requires the control-root-maintenance sequence.
+A deployment/schedule authority file such as `vercel.json` is sensitive whenever changing it could re-arm a retired writer or change Production scheduling. The control-root-maintenance sequence that governed it is retired (§27.15); during the interim a change to it needs Maya's explicit authorization on its pull request.
 
 ## 27.22 Execution-state boundary
 

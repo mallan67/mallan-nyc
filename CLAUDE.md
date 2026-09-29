@@ -2,7 +2,7 @@
 
 > Claude-specific operating instructions for `mallan67/mallan-nyc`.
 >
-> **Authority order is fixed:** `MALLAN-PLATFORM-MASTER-PLAN.md` → `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` → fresh GitHub/provider/runtime evidence → specialized guidance. This file is subordinate to the Master and Execution State and may not redefine either.
+> **Authority order is fixed:** `MALLAN-PLATFORM-MASTER-PLAN.md` → `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` (status and history only; it authorizes nothing) → fresh GitHub/provider/runtime evidence → specialized guidance. This file is subordinate to the Master, may not redefine it, and may not contradict the recorded state.
 >
 > **Compliance-first.** When work touches a compliance-shaped surface, read `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` and the specialized authority it points to before mutation.
 
@@ -53,12 +53,12 @@ Do not keep mutable project status in this file.
 Read:
 
 1. `MALLAN-PLATFORM-MASTER-PLAN.md` for durable architecture/business rules.
-2. `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` for the active packet, branch, base SHA, authorization envelope, holds and exact stop point.
+2. `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` for the current stage, branch, pull request, holds and exact stop point.
 3. Current GitHub/Vercel/Neon/Cotality evidence for any mutable fact needed by that packet.
 
 A historical audit, old PR, old branch, Desktop checkout, local worktree or chat transcript is evidence only and cannot grant scope.
 
-The required GitHub `pr-check` runs `scripts/ci/mallan-execution-control.mjs` and evaluates implementation scope from the **PR base branch's** Execution State. A branch-local edit to the Execution State cannot self-authorize broader implementation.
+Changes reach `main` only through a pull request that passes the required `pr-check` and that Maya reviews and merges. The execution controller is retired and the protection is INTERIM (Master §27.15, §27.18): no Search, CMA, forms, CRM, listing or other product development merges until `main` is cleaned (Execution State §11). Agents never merge; only Maya does.
 
 
 ## C. Current holds (require explicit Maya approval before starting)
@@ -145,7 +145,7 @@ CI runs the same chain via `.github/workflows/pr-check.yml`. Don't merge with re
 | Topic | Authority |
 |---|---|
 | Mallan product/business/system architecture | `MALLAN-PLATFORM-MASTER-PLAN.md` |
-| Current execution + machine authorization | `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` |
+| Current execution state | `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` |
 | Cross-agent discipline | `AGENTS.md` |
 | Compliance implementation map | `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` |
 | Neon / Prisma / DB rules | `NEON.md` |

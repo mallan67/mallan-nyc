@@ -24,8 +24,9 @@
 >   the Vercel-managed resource before any branch decision.
 > - **Direct Neon control is DELETED, not disabled.** The PR-close cleanup workflow, the scheduled
 >   prune route, the operator prune CLI, the prune library and the credential-rotation workflow were
->   removed from the repository. Re-adding any of them, including as a fail-only stub, is refused by
->   `scripts/ci/mallan-execution-control.mjs`. Provider lifecycle mutation must be redesigned through
+>   removed from the repository. Re-adding any of them, including as a fail-only stub, is prohibited by
+>   the Master; during the interim cleanup that is enforced by Maya's review and the test that keeps the
+>   retired paths deleted. Provider lifecycle mutation must be redesigned through
 >   the Vercel-managed resource contract and separately authorized.
 > - **Vercel is the entry path for the managed Neon resource.** Use
 >   `vercel integration open neon neon-green-school` for SSO into the bound Neon project. Reconcile
@@ -473,8 +474,10 @@ value**; empty encrypted values have existed here.
 The route, the operator CLI, the shared branch library, the PR-close cleanup workflow, the
 credential-rotation workflow and all of their tests were REMOVED from the repository, and the Vercel
 cron schedule was removed with them. Nothing was left behind as a disabled or fail-only stub.
-`scripts/ci/mallan-execution-control.mjs` refuses to let any of those paths return, in any mode,
-including as a stub. A future branch or credential lifecycle capability is designed against the
+The Master prohibits any of those paths from returning, including as a stub. During the interim cleanup this is enforced by Maya's review plus
+`tests/runtime/agent-authority-live-source.test.ts`, which asserts the retired paths stay deleted (a
+renamed capability is caught only by review). Permanent automated enforcement is designed only after
+`main` is cleaned. A future branch or credential lifecycle capability is designed against the
 Vercel-managed resource contract and separately authorized; it does not restore a retired path.
 
 Current rules:

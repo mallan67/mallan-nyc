@@ -1,12 +1,13 @@
 # MALLAN CONTINUOUS EXECUTION STATE
 
-> **STATUS + EXECUTION CONTROL ONLY.**
+> **STATUS ONLY.**
 >
 > `MALLAN-PLATFORM-MASTER-PLAN.md` is the sole durable product/business/system authority.
-> This file records current verified execution state and the machine-readable authorization envelope
-> consumed by the required GitHub PR check. It may not redefine the Master.
+> This file records current verified execution state: the current stage, branch, pull request, holds
+> and next action. It is status and history only: it authorizes no branch name, file path, implementation
+> scope or mutation envelope, and no check reads authorization from it. It may not redefine the Master.
 
-**Checkpoint:** 2026-09-25 — #643 merged (`c353c171`): the ledger row 19 Master-amendment path (the bounded `master-amendment` controller mode with its negative tests) is on protected `main`, and a state-only exit returns the contract to `control-update` (§5 item 7c, §11); no Master amendment is authorized. HISTORY: 2026-09-24 — #641 merged (`fadd3937`): A2 exited implementation mode on a contradiction; Maya then deprioritized A2 and authorized the ledger row 19 control-root-maintenance packet (§5 item 7c, §11); 2026-09-22 governance activation and #638 recorded; the SHAs below still describe the 2026-09-20 #632 checkpoint  
+**Checkpoint:** 2026-09-29 — Maya decided to retire the old execution wall: the branch restriction, the State modes and path envelopes, the controller's authorization cycle and `authority-root` (§7). #646 removes only that wall and adds no new gate. **PENDING:** Maya temporarily removes `authority-root` from `Protect main` so #646 can merge; the protection is then INTERIM (§7). Until then the live required checks are `pr-check` and `authority-root`. The sequence after that is §11.
 **Repository:** `mallan67/mallan-nyc` only  
 **Canonical branch:** `main`  
 **Main at this checkpoint:** `005786e71818ef13f555111de67e3d6248412987` — the PR #632 merge
@@ -19,14 +20,14 @@ live tip from GitHub.**
 **Checkpoint source head:** `fb100d6a12f572d78aaac0ec152c4cc57ac6ce74` (final #632 head; all checks green, zero unresolved review threads). Current head must always be read live from GitHub  
 **Authorized work surface:** GitHub repository + explicitly authorized provider connections only; Desktop/worktrees/scratch copies are not execution authority  
 **PR #595:** authority provenance / historical governance source; CLOSED 2026-09-20T17:54:35Z as superseded by #632, unmerged. Its lineage is in `main` history through #632  
-**Governance activation:** COMPLETE 2026-09-22. `authority-root` is a required status check on the `Protect main` ruleset `19435006`, bound to the GitHub Actions integration `15368`. Required checks are `pr-check` and `authority-root`
+**Governance activation:** `authority-root` has been a required status check on the `Protect main` ruleset `19435006` since 2026-09-22, bound to the GitHub Actions integration `15368`; the live required checks are `pr-check` and `authority-root` (verified 2026-09-29). #646 retires it; Maya temporarily removes it from the ruleset so #646 can merge (§11). Read the live ruleset for the current required set.
 
 ---
 
 # 0. Authority order
 
 1. **`MALLAN-PLATFORM-MASTER-PLAN.md`** — sole durable Mallan product/business/system authority.
-2. **This file** — current execution/status + machine execution authorization only.
+2. **This file** — current execution status only.
 3. **Fresh GitHub/provider/runtime evidence** — current reality for mutable facts.
 4. **`AGENTS.md` / `CLAUDE.md` / `NEON.md` / Compliance Canonical Index** — subordinate operating/specialized guidance.
 5. Historical PRs, audits, old handoffs, old branches, Desktop copies, chat history and agent memory — evidence only.
@@ -193,11 +194,11 @@ Live GitHub enumeration on 2026-09-18 showed **37 branches**.
 
 Those branches are not 37 authorities and not 37 active programs.
 
-Until a dedicated branch-reconciliation packet classifies them, every non-main branch other than the currently authorized branch is:
+Every non-main branch is:
 
 `EVIDENCE / UNMERGED WORK ONLY — NOT ARCHITECTURE OR EXECUTION AUTHORITY`
 
-Do not delete branches merely because they look old; first determine whether unmerged work exists that must be reconciled.
+Historical branches and pull requests are never merged, cherry-picked, copied from, or used as implementation authority (§8). Do not delete a branch merely because it looks old: its evidentiary value is reviewed first, and it is then closed with the reason recorded.
 
 ---
 
@@ -328,12 +329,14 @@ review rounds after it, each invalidating the previous proof and rerunning the c
 final head `fb100d6a` merged. The rule it states still holds for every future packet — any
 correction commit invalidates the prior exact-head proof and must rerun the chain.
 
-# 5. Active continuous program
+# 5. Former continuous program (HISTORY, superseded 2026-09-29)
 
-The current sequence is governance-first. Provider cleanup and product implementation are stopped
-until the execution boundary is real.
+**HISTORY.** This governance-first program ran until 2026-09-29. Maya's decision recorded in §7 and the stage order in §11
+supersede it: it no longer stops provider cleanup or product work, and the controller, `authority-root`, the State modes and the
+control-update, control-root-maintenance and Master-amendment procedures it describes are removed by #646. The items below are
+evidence only; none of them is an instruction.
 
-**Position as of 2026-09-25: items 1 to 7a and item 7c are COMPLETE; no packet is active and the mode is `control-update`. Item 7b (A2)
+**Position as of 2026-09-25 (history): items 1 to 7a and item 7c are COMPLETE; no packet is active and the mode is `control-update`. Item 7b (A2)
 is PAUSED before execution (a contradiction in its base text; §11 "A2 paused — contradiction") and DEPRIORITIZED by Maya on 2026-09-24.
 Item 8, the trace-to-closure program in §11, continues as a read-only investigation; its provider
 mutations are held (see the §11 governance incident).**
@@ -402,8 +405,9 @@ mutations are held (see the §11 governance incident).**
      `f53b099a` from reviewed head `00bd788a`, `pr-check` and `authority-root` required and green,
      zero threads). #639 (`b0ab6264`) was the state-only exit back to `control-update`. Details in §11.
 7b. **DEPRIORITIZED — `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22` (A2), PAUSED 2026-09-24 before execution.** No A2 change was pushed.
-   Maya deprioritized it on 2026-09-24: it is not resumed unless she reprioritizes it. Its envelope stays on record in
-   §11 "Paused packet".
+   Maya deprioritized it on 2026-09-24: it is not resumed unless she reprioritizes it. Its former envelope is history in
+   §11 "Paused packet"; if Maya reprioritizes the work, it is restated as a stage scope on a new pull request (§8), never
+   re-authorized from this file.
 7c. **DONE 2026-09-25 — `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` (ledger row 19), control-root maintenance, authorized by
    #642 (merged `016a0933`).**
    - **DONE 2026-09-25.** #643 delivered the packet: merged as `c353c171dc58170a893ba8135845c6bac801f794`, adding the bounded
@@ -427,7 +431,9 @@ When a chosen defect crosses those systems, trace and correct its full impact gr
 
 ## 5.1 Convergence recovery ledger — branches, Vercel overrides and retirement order
 
-This is not a branch-deletion exercise. Git state, Vercel branch scopes, deployments, database authority and historical PR content must be converged in one order so removal cannot create a fallback to Production or strand unique work.
+This is not a branch-deletion exercise. Git state, Vercel branch scopes, deployments and database authority must be retired in one order so removal cannot create a fallback to Production or lose evidence before it is reviewed.
+
+**Rule (Maya, 2026-09-29), overriding every row below:** historical branches and pull requests are evidence only. Wherever this ledger says a branch is to be "reconciled" or "integrated", read: its evidentiary value is reviewed, and it is then closed with the reason recorded. Nothing is merged, cherry-picked or copied from it, and it is never implementation authority (§8, Master §27.18).
 
 ### Current Git branch estate
 
@@ -440,18 +446,18 @@ Live GitHub enumeration on 2026-09-20:
 
 | No-open-PR branch | Ahead of main | Behind main | Compared files | Current disposition |
 |---|---:|---:|---:|---|
-| `chore/remove-ai-reference-sprawl-2026-09-06` | 1 | 2 | 30 | reconcile unique commit, then retire |
-| `claude/mallan-cotality-context-l0o1oa` | 4 | 2 | 6 | reconcile evidence, then retire |
-| `design/frontend-backend-integration-2026-07-28` | 17 | 180 | 20 | historical product evidence; reconcile only surviving requirements |
+| `chore/remove-ai-reference-sprawl-2026-09-06` | 1 | 2 | 30 | evidentiary review, then close (§8) |
+| `claude/mallan-cotality-context-l0o1oa` | 4 | 2 | 6 | evidentiary review, then close (§8) |
+| `design/frontend-backend-integration-2026-07-28` | 17 | 180 | 20 | historical product evidence; record surviving requirements for a fresh stage, then close (§8) |
 | `diag/neon-preview-provision-2026-09-17` | 3 | 2 | 3 | diagnostic evidence only; retire after provider facts are captured in canonical state |
-| `feat/broker-delegated-access-2026-09-05` | 28 | 2 | 90 | product work; reconcile before deletion |
-| `feat/listing-external-media-authority-2026-08-12` | 32 | 54 | 55 | product work; reconcile before deletion |
-| `fix/cotality-provider-boundary-2026-08-23` | 96 | 7 | 300 | major provider-boundary evidence; reconcile into canonical authority before retirement |
-| `fix/rental-listing-workflow-p0-2026-08-20` | 12 | 7 | 72 | product work; reconcile before deletion |
-| `masterplan-cotality-section` | 24 | 95 | 6 | authority provenance already being integrated by #632; retire only after exact reconciliation proof |
-| `preserve/agent-permanent-delete-wip-cc34bcd8` | 12 | 2 | 23 | preserved WIP; reconcile against PR #627 before retirement |
-| `search/browser-integration-2026-09-05` | 63 | 2 | 300 | **HIGH RISK:** no PR + Vercel DB branch override; reconcile before provider detach |
-| `search/clean-foundation-2026-09-04` | 4 | 2 | 23 | **HIGH RISK:** no PR + Vercel DB branch override; reconcile before provider detach |
+| `feat/broker-delegated-access-2026-09-05` | 28 | 2 | 90 | product work; record its requirements for a fresh stage, then close (§8) |
+| `feat/listing-external-media-authority-2026-08-12` | 32 | 54 | 55 | product work; record its requirements for a fresh stage, then close (§8) |
+| `fix/cotality-provider-boundary-2026-08-23` | 96 | 7 | 300 | major provider-boundary evidence; record its verified facts in canonical authority, then close (§8) |
+| `fix/rental-listing-workflow-p0-2026-08-20` | 12 | 7 | 72 | product work; record its requirements for a fresh stage, then close (§8) |
+| `masterplan-cotality-section` | 24 | 95 | 6 | authority provenance for #632 (merged 2026-09-20); evidentiary review, then close (§8) |
+| `preserve/agent-permanent-delete-wip-cc34bcd8` | 12 | 2 | 23 | preserved WIP; evidentiary review alongside PR #627, then close (§8) |
+| `search/browser-integration-2026-09-05` | 63 | 2 | 300 | **HIGH RISK:** no PR + Vercel DB branch override; evidentiary review, then provider detach, then close (§8) |
+| `search/clean-foundation-2026-09-04` | 4 | 2 | 23 | **HIGH RISK:** no PR + Vercel DB branch override; evidentiary review, then provider detach, then close (§8) |
 
 ### Vercel branch-scoped DB/control residue
 
@@ -459,10 +465,10 @@ Read-only Vercel inventory found **24 branch-scoped environment entries across 5
 
 | Vercel branch scope | Git state | Vercel residue | Safe disposition |
 |---|---|---|---|
-| `search/browser-integration-2026-09-05` | branch exists; no PR; 63 ahead / 2 behind | `DATABASE_URL` + `DATABASE_URL_UNPOOLED` | reconcile branch content; prove deployment reachability; remove branch overrides; redeploy/verify; then retire Git branch |
+| `search/browser-integration-2026-09-05` | branch exists; no PR; 63 ahead / 2 behind | `DATABASE_URL` + `DATABASE_URL_UNPOOLED` | evidentiary review of the branch (§8); prove deployment reachability; remove branch overrides; redeploy/verify; then close the Git branch |
 | `search/clean-foundation-2026-09-04` | branch exists; no PR; 4 ahead / 2 behind | `DATABASE_URL` + `DATABASE_URL_UNPOOLED` | same sequence |
-| `feat/agent-permanent-delete-2026-09-01` | branch exists; draft PR #627 | `DATABASE_URL` + `DATABASE_URL_UNPOOLED` | keep until PR #627 is reconciled; no provider cleanup first |
-| `fix/neon-p0-event-driven-wake-2026-08-16` | branch exists; draft PR #618 | `DATABASE_URL` + `DATABASE_URL_UNPOOLED` | keep until PR #618/provider work is reconciled; no provider cleanup first |
+| `feat/agent-permanent-delete-2026-09-01` | branch exists; draft PR #627 | `DATABASE_URL` + `DATABASE_URL_UNPOOLED` | keep until PR #627's evidentiary review is done; no provider cleanup first |
+| `fix/neon-p0-event-driven-wake-2026-08-16` | branch exists; draft PR #618 | `DATABASE_URL` + `DATABASE_URL_UNPOOLED` | keep until the evidentiary review of PR #618 and its provider work is done; no provider cleanup first |
 | `fix/cotality-neon-media-system-root-cause-2026-08-06` | **Git branch absent** | **16 branch-scoped variables**, including Vercel/Neon admin/control and duplicate `database_*` connection entries | strongest retirement candidate, but first prove no active deployment, workflow or reader still resolves this branch scope; remove the Vercel branch scope as one bounded cleanup, not by renaming individual variables |
 
 ### Renaming rules
@@ -472,14 +478,13 @@ Read-only Vercel inventory found **24 branch-scoped environment entries across 5
 - Do not rename Git branches that have Vercel branch-scoped variables. A rename can leave the old Vercel scope behind and create a second branch identity.
 - Do not "rename" dead Neon endpoint values. Endpoint IDs are identities, not aliases. A reference to a nonexistent endpoint is removed after proof; it is not retargeted by string substitution.
 - Do not rename or hand-edit individual integration-owned `database_*` variables. Their owner is the Vercel Marketplace resource connection.
-- Do not rename a dead branch scope into `work/active`. `work/active` is the future authorized execution lane, not a recycling target for historical state.
+- Do not rename a dead branch into a new stage branch. A stage branch starts fresh from the current `main`; it is not a recycling target for historical state.
 
 ### Required retirement sequence for every historical branch
 
 ```text
 GIT BRANCH / PR
-→ UNIQUE COMMITS + BUSINESS/PROVIDER REQUIREMENTS
-→ CURRENT MAIN EQUIVALENCE / REQUIRED RECONCILIATION
+→ EVIDENTIARY REVIEW (requirements and defects noted for a fresh stage; nothing merged, cherry-picked or copied)
 → VERCEL BRANCH-SCOPED ENV OVERRIDES
 → ACTIVE / HISTORICAL VERCEL DEPLOYMENTS
 → WORKFLOW / CRON / PROVIDER READERS
@@ -500,7 +505,7 @@ and `authority-root` is a required `Protect main` check under Maya's explicit au
 (§5 item 7). Cleanup still waits for the implementation-mode exit fix (§5 item 7a), because the first implementation
 envelope a cleanup packet needs would otherwise be permanent.
 
-**Phase B — Git reconciliation.** Classify all 36 non-main branches. Open-PR branches are reconciled through their PR history; the 12 no-PR branches are compared against current main and either integrated into one authorized packet, explicitly rejected as obsolete, or retained only until required evidence is captured. No branch is deleted while unique required work remains unaccounted for.
+**Phase B — Git evidence review.** Review every non-main branch and open pull request for evidentiary value only: requirements and defects it reveals are recorded for a fresh stage built from the cleaned current `main` using newly verified live authority. Nothing is merged, cherry-picked or copied from a historical branch, and none is used as implementation authority. Each is then closed with the reason recorded.
 
 **Phase C — Vercel branch override retirement.** Work one branch scope at a time. Prove the branch is no longer an execution target, remove only its manual branch-scoped overrides, trigger a fresh deployment where applicable, and prove no fallback reaches Production. The dead-Git `fix/cotality-neon-media-system-root-cause-2026-08-06` scope is the first candidate once this proof exists.
 
@@ -510,7 +515,7 @@ envelope a cleanup packet needs would otherwise be permanent.
 
 **Phase F — route/workflow correction.** The #632 head DELETES the direct-Neon branch-prune route, the operator prune CLI, the shared branch library, the PR-close cleanup workflow and the credential-rotation workflow outright. Nothing was left as a fail-closed tombstone, and the execution gate refuses their return under any filename. They are therefore **not current evidence that the bare Neon control variables remain consumed**. Any later variable cleanup packet must re-census the exact head and provider/resource writers before deletion and must correct any newly proven live reader/writer in the same bounded packet.
 
-**Phase G — Git retirement.** After provider residue is removed and unique work is reconciled, close/supersede stale PRs and delete their branches in verified batches. The target operating estate is `main` plus the single authorized `work/active` lane; historical evidence belongs in merged history/PR history, not active execution branches.
+**Phase G — Git retirement.** After provider residue is removed and each branch's evidentiary value has been reviewed, close/supersede stale PRs and delete their branches in verified batches. The target operating estate is `main` plus the one current stage branch; historical evidence belongs in merged history/PR history, not active execution branches.
 
 **Phase H — final convergence proof.** Re-enumerate GitHub branches, open PRs, Vercel branch-scoped env entries, Vercel Marketplace resources, exact Production deployment identity and runtime DB authority. Closure requires no unexplained branch-scoped DB override, no dead endpoint reference, no duplicate database authority, no workflow that can recreate the retired path, and no stale branch capable of passing the required execution gate.
 
@@ -519,7 +524,7 @@ envelope a cleanup packet needs would otherwise be permanent.
 The system is not considered converged until all of the following are simultaneously true:
 
 - one canonical Master and one current Execution State;
-- protected `main` + one authorized `work/active` execution lane;
+- protected `main` + one stage branch at a time, merged before the next starts;
 - every remaining historical branch has a documented, justified reason to exist or is retired;
 - no Vercel branch-scoped DB override exists without an explicitly authorized active branch use case;
 - one Vercel Neon Marketplace resource is the provider control path;
@@ -569,177 +574,61 @@ A source-string test, green CI, merged PR, deployment, or isolated UI proof is n
 
 ---
 
-# 7. Machine execution control
+# 7. How changes reach `main` — INTERIM (2026-09-29)
 
-The required GitHub PR check reads authorization from the **base branch**, not from the proposed branch.
+Maya decided on 2026-09-29 to retire the old execution wall:
+- `work/active` as the only branch, and branch auto-deletion;
+- the State modes and path envelopes;
+- the controller's authorization cycle;
+- `authority-root`.
 
-That prevents an agent from editing this file in its own implementation PR and granting itself wider permissions.
+It kept unsafe changes out of `main`, but it also kept correct changes out: from 2026-09-18 to 2026-09-26 all thirteen merges to `main` (#632–#644) were governance updates and none changed the product. Its history is in Git.
 
-PR #632 was a one-time bootstrap exception because base `main` did not then contain this file.
-It is merged and the exception is closed; base `main` now carries both authority files, so no
-PR can reach that branch again.
+#646 removes only that wall:
+- `scripts/ci/mallan-execution-control.mjs` and its test;
+- `.github/workflows/authority-root.yml` and `.github/workflows/branch-authority.yml`;
+- the controller steps in `pr-check`.
 
-The current mode is **`control-update`**: only this execution-state file may change. The `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` maintenance packet (ledger row 19) is merged (#643, `c353c171`) and this contract is its state-only exit; it authorizes no Master amendment. HISTORY: from #642 until #643 the mode was `control-root-maintenance` for that packet, changing only `scripts/ci/mallan-execution-control.mjs` and `tests/runtime/mallan-execution-control.test.ts`. Implementation mode for A2 (`RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22`) was exited on 2026-09-24 through the #638 exit (#641) because A2's base text contradicted live evaluation (§11 "A2 paused — contradiction"); A2 is deprioritized. Code and scope expansion may not be combined into the same self-authorizing PR.
+It adds no new gate. It also makes `pr-check` read-only (`permissions: contents: read`, checkout with `persist-credentials: false`), so pull-request code never receives repository write credentials.
 
-<!-- MALLAN_EXECUTION_CONTROL_V1_START -->
-```json
-{
-  "version": 1,
-  "mode": "control-update",
-  "authorized_branch": "work/active",
-  "base_branch": "main",
-  "authorized_paths": [
-    "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
-  ],
-  "allowed_new_files": [],
-  "impact_domains": [
-    "governance"
-  ],
-  "provider_proof_required": [],
-  "production_mutation_authorized": false,
-  "schema_migration_authorized": false,
-  "environment_mutation_authorized": false,
-  "neon_mutation_authorized": false,
-  "destructive_data_authorized": false,
-  "manual_cron_authorized": false,
-  "new_canonical_system_authorized": false,
-  "requirements": {
-    "impact_graph_required": true,
-    "all_readers_writers_required": true,
-    "negative_tests_required": true,
-    "integration_proof_required": true,
-    "downstream_proof_required": true,
-    "compliance_proof_required_when_applicable": true,
-    "no_parallel_path_proof_required": true
-  },
-  "packet_id": "GOVERNANCE-MASTER-AMENDMENT-PATH-EXIT-2026-09-25",
-  "objective": "Exit control-root-maintenance after #643 (merged c353c171dc58170a893ba8135845c6bac801f794), which delivered packet GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24 (ledger row 19): the bounded master-amendment controller mode and its negative tests are on protected main. Authorize only state-only updates to this file. No packet is active. No Master amendment is authorized by this contract: any change to MALLAN-PLATFORM-MASTER-PLAN.md needs its own later state-only control update that sets master-amendment mode with the content envelope the controller requires. No provider, environment, Neon, Vercel, Cotality, database, branch or implementation mutation is authorized.",
-  "impact_graph": {
-    "root_owner_paths": [
-      "MALLAN-PLATFORM-MASTER-PLAN.md",
-      "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
-    ],
-    "writer_paths": [
-      "docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md"
-    ],
-    "reader_paths": [
-      "scripts/ci/mallan-execution-control.mjs",
-      "AGENTS.md",
-      "CLAUDE.md"
-    ],
-    "publisher_paths": [
-      ".github/workflows/pr-check.yml",
-      ".github/workflows/branch-authority.yml",
-      ".github/workflows/authority-root.yml"
-    ],
-    "downstream_surfaces": [
-      "GitHub pull-request merge eligibility",
-      "GitHub future branch creation",
-      "All later Mallan packets, including any later separately authorized Master amendment"
-    ],
-    "test_paths": [
-      "tests/runtime/mallan-execution-control.test.ts",
-      "tests/runtime/agent-authority-live-source.test.ts"
-    ],
-    "compliance_surfaces": [
-      "Governance only; no listing/public/client compliance mutation in this packet"
-    ]
-  }
-}
-```
-<!-- MALLAN_EXECUTION_CONTROL_V1_END -->
+**The protection after #646 is INTERIM:**
+- every change arrives through a pull request;
+- the required `pr-check` runs as it does today;
+- force-push and deletion of `main` are blocked;
+- Maya reviews and merges every pull request. Agents never merge, never enable auto-merge and never change branch protection or rulesets.
 
-### Control semantics
+**What the interim protection does not certify.** `pr-check` still runs `rls:validate` and `validate:form-rls`. They are validators of the retired provider authority: the REBNY RLS CSVs, the RESO field map and a RESO-to-RLS rename table. They are not provider authority and are not correct or canonical. They remain only until the first cleanup pull request removes them together with their old provider readers, writers and source files, and nothing requires or protects them.
 
-- **`mode: control-update`**: only this execution-state file may change.
-- **`mode: control-root-maintenance`**: only the protected control-root paths named in `authorized_paths` may change, only while live GitHub rules prove `authority-root` is a required main check, and the packet exits through a separate state-only PR back to `control-update`.
-- **`mode: implementation`**: a PR whose only changed path is this file and whose proposed contract returns `mode` to `control-update` is the exit (merged in #638, `f53b099a`). Every other change to this file in implementation mode is refused.
-- A later authorized implementation mode must list exact allowed paths/prefixes, exact allowed new files, required impact domains and provider proof requirements.
-- New files are denied unless named in `allowed_new_files`.
-- Any changed path outside `authorized_paths` fails the required PR check.
-- Any branch other than `authorized_branch` fails after bootstrap.
-- Schema/env/Neon/destructive/manual-cron/provider mutations are prohibited unless explicitly authorized by the base-state contract **and** Maya's explicit authorization exists. The controller implementation mechanically enforces the declared mutation/proof contract described in §7.1. **Exact-head closure proof is COMPLETE** as of the merge of `fb100d6a`.
-- A new canonical system is denied by default.
-- Authority files cannot be rewritten inside an implementation packet merely to make the packet pass.
-- The work contract is changed first, merged, and only then may the implementation packet begin.
+Passing `pr-check` during the interim therefore does not certify provider correctness. `main` still contains obsolete provider implementation, which must be cleaned before permanent governance is designed. The architectural authority is unchanged (Master §21.2):
+
+COTALITY RAW CONTRACT → VERIFIED MAPPING → MALLAN STORAGE → MALLAN BUSINESS RULE → PUBLIC/CRM CONSUMER
+
+**No Search, CMA, forms, CRM, listing or other product development merges during the interim cleanup.**
+
+**Direct Neon.** The retired direct-Neon architecture remains prohibited by the Master. During the interim, its enforcement is Maya's review plus `tests/runtime/agent-authority-live-source.test.ts`, which asserts the retired direct-Neon paths stay deleted. A renamed capability is caught only by review. Permanent automated enforcement is designed only after `main` is cleaned (§11, step 8).
 
 ---
 
-## 7.1 Execution-controller coverage after the #632 correction set — PROVEN 2026-09-20
+# 8. Branch policy
 
-The corrected controller and required PR workflow now make the previously decorative contract fields executable:
-
-- all mutation authorization fields are type-validated;
-- schema / Vercel-environment / Neon-control / destructive / Production-rotation change classes are mapped from changed repo paths and fail when their base-state authorization flag is false;
-- `provider_proof_required` fails closed unless the base-controlled workflow supplies each named proof token;
-- the full `requirements.*` object is required and validated;
-- declared negative-test coverage requires a changed declared test path;
-- the required PR workflow freezes the controller from the PR base (the #632 bootstrap exception was the one-time carve-out and is now closed, because base main carries the controller);
-- the controller runs once before the work and once after the test/build/compliance chain;
-- the final phase consumes proof tokens only after the preceding GitHub steps have succeeded;
-- `control-root-maintenance` is an explicit mode that requires a prior state-only authorization plus live GitHub proof that `authority-root` is already a required main status check;
-- root maintenance is evaluated by the base controller and exits through a separate state-only update back to `control-update`;
-- direct-Neon cleanup/rotation files and `vercel.json` are protected control-root paths so an ordinary implementation packet cannot silently re-arm them.
-
-**This section is now a closure record.** The exact correction head `fb100d6a` passed its
-controller negative tests, PR checks, Guardrails, Release Truth, Vercel Preview and independent
-review, and merged as `005786e`.
-
-What it does NOT prove, recorded so no later agent overstates it: the capability scan is not a
-containment boundary, it inspects changed files only rather than sweeping the tree, and
-non-executable files are outside it by design. §11 states the limits in full.
-
-The Git gate controls Git changes and proof requirements. It does not claim to cryptographically prevent an actor who separately possesses out-of-band provider credentials from calling a provider API. Mallan therefore also requires provider mutation to be performed only through an explicitly authorized Git-controlled packet/workflow; direct Neon mutation paths are DELETED from the tree, and the execution gate fails any change that revives one.
-
-
----
-
-# 8. Branch / file creation policy
-
-After bootstrap:
-
-- agents do not create ad-hoc `fix/*`, `feat/*`, `search/*`, `diag/*`, `agent/*` or `preserve/*` branches for new work;
-- the controlled implementation lane is `work/active`;
-- `.github/workflows/branch-authority.yml` runs on GitHub branch creation and reads the canonical Execution State from `main`;
-- `.github/workflows/authority-root.yml` runs on `pull_request_target`, freezes the execution gate from the PR base, then evaluates the proposed head; the PR cannot alter the code that is deciding its scope;
-- a newly created branch other than `main` or the currently authorized work branch is automatically deleted by GitHub and the workflow fails visibly;
-- existing historical branches are preserved until the dedicated branch-reconciliation packet determines whether they contain unmerged work that must be retained;
-- existing historical branches cannot pass the required implementation gate unless they are the branch explicitly authorized by the base Execution State;
-- new canonical files/models/services are denied unless the base execution contract explicitly names them.
-
-The existing historical branch estate remains evidence until reconciled.
+- Work proceeds one stage at a time. Each stage has one branch, created from the current `main` and named for the stage, and one pull request whose description states the stage scope.
+- Every completed unit of work is committed and pushed to that pull request. Nothing of value stays unpushed or local.
+- A stage is finished when its pull request is merged; the next stage starts from the new `main`.
+- **Historical branches and pull requests are evidence only.** They are never merged, cherry-picked, copied from, or used as implementation authority. Every new stage is built fresh from the cleaned current `main`, using newly verified live authority. Historical branches are closed with the reason recorded after their evidentiary value has been reviewed.
 
 ---
 
 # 8.1 Human / agent identity boundary
 
-GitHub's current `Protect main` ruleset (`19435006`) is active, requires the `pr-check` and `authority-root` status checks, blocks non-fast-forward/deletion, has no bypass actors, and requires resolution of review threads.
+GitHub's `Protect main` ruleset (`19435006`) requires a pull request and the `pr-check` and `authority-root` status checks, and blocks non-fast-forward pushes and deletion of `main`. It requires 0 approving reviews, requires review threads to be resolved, and has no bypass actors (verified live 2026-09-29). `authority-root` runs the retired controller, which refuses #646 by design, so Maya temporarily removes it from the required checks for #646 to merge (§11, step 2). The protection is then INTERIM (§7): pull request + current `pr-check` + Maya's review. The permanent required-check set is designed only after `main` is cleaned (§11, step 8). Read the live ruleset for the current required set.
 
-It requires **0 approving reviews**. `authority-root` is a **required status check** as of
-2026-09-22, bound to the GitHub Actions integration `15368` — verified live against ruleset
-`19435006`, whose required set is `pr-check` and `authority-root`.
-
-**Hard activation sequence: COMPLETE.** Step 1, `authority-root` running from protected
-`main`, happened with #633. Step 2, adding it to the required checks, was made on
-2026-09-22 with Maya's explicit authorization. The implementation-mode one-way door is
-closed by #638, so implementation mode is reachable and exitable; each implementation
-packet still needs its own control update.
-
-**Recorded 2026-09-22 — one-field bootstrap relaxation.** To merge #637, whose `pr-check`
-was blocked by the fixture leak below, Maya authorized removing ONLY `authority-root` from
-ruleset `19435006`. Full before/after comparison proved that was the only change. It was
-removed only after #637 had zero unresolved threads; #637 was re-run and merged at
-21:27:57 UTC, and `authority-root`
-(integration `15368`) was restored immediately after, verified byte-identical to the approved
-activation ruleset. #638 was opened only after the restore.
-
-If an AI agent operates through Maya's own GitHub identity, GitHub cannot distinguish a control update authored by Maya from one authored by the agent. Repository CI can prevent a PR from self-authorizing within the same branch, but it cannot cryptographically prove which human/agent initiated a later control-update PR when both share one identity.
+If an AI agent operates through Maya's own GitHub identity, GitHub cannot distinguish a change made by Maya from one made by the agent, and repository CI cannot prove which of them opened a pull request.
 
 Therefore:
 
-- do not claim the execution controller provides human/agent identity separation by itself;
-- control-update PRs remain Maya-approval decisions;
-- no agent may enable auto-merge or merge a control-update PR on Maya's behalf;
+- do not claim that CI separates Maya from an agent; it cannot while they share one identity;
+- every pull request to `main` is Maya's decision;
+- no agent may enable auto-merge or merge any pull request on Maya's behalf;
 - the durable non-bypass solution is a separate agent GitHub identity / GitHub App or an external managed approval boundary that the agent cannot impersonate;
 - until identity separation is installed, this is a known control-plane limitation, not a hidden assumption.
 
@@ -764,14 +653,13 @@ A held mutation freezes that mutation only. It does not authorize a substitute a
 
 ---
 
-# 10. What must be updated at every control checkpoint
+# 10. What must be updated at every checkpoint
 
 This file must remain current on:
 
 - current main SHA;
 - active PR/branch;
-- active packet;
-- exact allowed mutation envelope;
+- current stage and its stated scope;
 - provider facts required by that packet;
 - blockers / explicit holds;
 - closure evidence;
@@ -804,14 +692,27 @@ Do not create another status file because this one becomes inconvenient.
 
 # 11. Current exact stop point
 
-**CURRENT: `mode: control-update` (2026-09-25); no packet is active and no Master amendment is authorized. The ledger row 19 packet
+**2026-09-29 — stop point.** The actual sequence, one step at a time. Nothing in steps 4–8 is implemented by #646.
+
+1. #646 removes only the old execution wall (§7).
+2. Maya temporarily removes `authority-root` from `Protect main` so #646 can merge.
+3. Protection is explicitly INTERIM: pull request + current `pr-check` + Maya's review (§7).
+4. Clean current `main`. The first cleanup pull request removes `rls:validate` and `validate:form-rls` together with their old provider readers, writers and source files.
+5. Remove the old provider authority and duplicate/parallel systems.
+6. Verify the live Cotality contract.
+7. Build the single Cotality mapping from the cleaned `main`.
+8. Only after the corrected source exists, design and build the permanent `pr-check`, the provider-contract check, `pr-safety` and the final `Protect main` required-check set.
+
+No Search, CMA, forms, CRM, listing or other product development merges during the interim cleanup. Everything below this entry is history.
+
+**HISTORY (superseded 2026-09-29): `mode: control-update` (2026-09-25); no packet is active and no Master amendment is authorized. The ledger row 19 packet
 `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` (a bounded, base-authorized Master-amendment path with negative tests) is COMPLETE: #642
 authorized it, #643 delivered it (merged `c353c171`), and this state-only control update is its exit. HISTORY: from #642 until #643 the mode
 was `control-root-maintenance` for that packet. A2,
 `RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22`, is PAUSED (see "A2 paused — contradiction (2026-09-24)" below) and
 DEPRIORITIZED by Maya on 2026-09-24. Everything else in this section that describes an earlier packet is history. Governance
 activation is COMPLETE, the implementation-mode one-way door is CLOSED (#638), and the artifact trace
-ledger below remains the program: every Vercel/Neon/database/MCP/branch artifact ends FIXED, MERGED
+ledger below remains the program: every Vercel/Neon/database/MCP/branch artifact ends FIXED, CLOSED
 or DELETED; nothing ends UNVERIFIED. Evidence of a 2026-09-22 governance incident is recorded below as
 non-canonical evidence that A2 — paused, pending re-authorization — is to promote to the Platform Issue
 Registry.**
@@ -876,7 +777,7 @@ contradiction (2026-09-24)" above. HISTORY: A1 was a state-only control update a
 the state-only exit from `control-root-maintenance` back to `control-update`; it recorded #638 and the
 CI fixture leak it closed, and opened the artifact trace ledger.
 
-## Immediate operational consequence of the merge — READ THIS FIRST
+## HISTORY (superseded 2026-09-29) — operational consequence of the #632 merge
 
 **Every open pull request is now gate-blocked.** Verified by running the merged controller
 from `main` against an existing PR branch: it exits 1 with *PR head is <branch>; only
@@ -967,7 +868,7 @@ reachable. The order is now fixed:
 3. DONE — #639 (`b0ab6264`), the state-only exit back to `control-update`;
 4. DONE — the ledger row 19 control-root-maintenance packet (`GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24`), authorized by #642
    (`016a0933`) and delivered by #643 (`c353c171`);
-5. CURRENT — `control-update` after that packet's state-only exit; no packet is active and no Master amendment is authorized; the
+5. SUPERSEDED 2026-09-29 — `control-update` after that packet's state-only exit; no packet is active and no Master amendment is authorized; the
    trace-to-closure program below continues read-only; A2 (paused, deprioritized) is in "Paused packet".
 
 HISTORY: before A1 no documentation lane was authorized. A1 authorized A2 ("Paused packet") over
@@ -1149,7 +1050,7 @@ successfully on 2026-09-20 when #595 closed), and `.github/workflows/rotate-db-k
 `secrets.NEON_API_KEY` and `vars.NEON_PROJECT_ID` (trigger: `workflow_dispatch` only). No workflow on any
 branch reads `NEON_ADMIN_KEY` or `NEON_ROTATION_ADMIN`. With the credentials deleted, those historical
 readers now fail at their credential check; they remain on the ledger until their branches are
-retired (MERGED or DELETED). Production `DATABASE_URL` is unchanged; `neon-green-school` is still
+retired (CLOSED or DELETED). Production `DATABASE_URL` is unchanged; `neon-green-school` is still
 connected; the public site answers 200. The deleted values are unrecoverable, so any future need for
 such a credential would mean issuing a new one.
 
@@ -1242,8 +1143,9 @@ provider classification below; neither replaces the other.
   traced and established as the canonical retained authority.
 - **DELETED** — duplicate, obsolete, empty or unneeded, prohibited, dead-branch, orphaned or otherwise
   noncanonical, removed and proven absent. This includes an artifact proven never to have existed.
-- **MERGED** — unique valid historical Git work reconciled into `main`, after which the old PR and
-  branch are deleted.
+- **CLOSED** — a historical Git branch or pull request whose evidentiary value has been reviewed, closed
+  with the reason recorded. It is never merged, cherry-picked or copied from (§8; this replaces the former
+  MERGED outcome, 2026-09-29).
 
 There is no fourth outcome: no KEEP-UNKNOWN, temporary duplicate, disabled-in-place, retain-just-in-case
 or maybe-later. **UNVERIFIED is a state of the investigation, never a disposition:** it means keep
@@ -1253,7 +1155,7 @@ for EACH outcome its evidence can produce.
 **Two layers, never merged into one (Maya, 2026-09-22).** For every environment-variable row, the
 Master §0.13 classification comes first and is preserved exactly: `KEEP / RE-SCOPE / UPDATE / REMOVE /
 INTEGRATION-OWNED / BLOCK`. This file is subordinate to the Master and does not replace or reinterpret
-it. Terminal closure (FIXED / MERGED / DELETED) is recorded separately, as where that classification
+it. Terminal closure (FIXED / CLOSED / DELETED) is recorded separately, as where that classification
 ends:
 
 | Master §0.13 classification | terminal closure |
@@ -1310,17 +1212,17 @@ documentation packet creates the canonical ID before any implementation acts on 
 | 4 | `NEON_PREVIEW_API_KEY` — Preview+Production | REMOVE | existed (empty) in Preview+Production. Readers: none on current `main`; on 35 historical branches `.github/workflows/cleanup-neon-preview-branch.yml` reads `secrets.NEON_PREVIEW_API_KEY` (trigger: `pull_request` closed; ran 2026-09-20) and now fails its credential check, and stays on the ledger until those branches are retired. DELETED 2026-09-22 — executed OUTSIDE an authorized Git packet (see governance incident); absence proven in every environment and branch scope | — (terminal action taken; incident remediation open) | DELETED | NONE — evidence only; canonical ID required before remediation |
 | 5 | `NEON_API_KEY`, bare `NEON_PROJECT_ID`, and the completeness of the 2026-09-22 read | REMOVE | `NEON_API_KEY` and bare `NEON_PROJECT_ID` existed (empty) in Preview+Production. Readers: none on current `main`; on 35 historical branches `.github/workflows/rotate-db-keys.yml` (trigger: `workflow_dispatch` only) reads `secrets.NEON_API_KEY` and `vars.NEON_PROJECT_ID` and now fails its credential check, and stays on the ledger until those branches are retired; the read's completeness is now established by `vercel env ls` (CLI, complete). DELETED 2026-09-22 — executed OUTSIDE an authorized Git packet (see governance incident); absence proven | — (terminal action taken; incident remediation open) | DELETED | NONE — evidence only; canonical ID required before remediation |
 | 6 | Vercel branch scope `fix/cotality-neon-media-system-root-cause-2026-08-06`: 13 `database_*` (→ `ep-royal-thunder-adgxj9ow`) + `VERCEL_TOKEN`; its `NEON_ADMIN_KEY` / `NEON_ROTATION_ADMIN` copies were DELETED 2026-09-22 outside an authorized Git packet | candidate REMOVE (Git branch absent); the `database_*` copies are assessed against §0.13.2 as branch-scoped duplicates | Git branch ABSENT (verified 2026-09-22); PR #597 merged 2026-08-10; 16 entries created 2026-08-08T04:17:04Z–04:19:20Z under `mayad67`; 14 remain | prove no deployment or workflow resolves this scope | REMOVE → DELETED; if a consumer resolves it, that consumer is FIXED onto the canonical path first | NONE — evidence only; canonical ID required before remediation |
-| 7 | Vercel branch scope `feat/agent-permanent-delete-2026-09-01`: bare `DATABASE_URL*` (Preview) | candidate REMOVE (branch-scoped override; Master §0.13.3) after branch reconciliation | Git branch EXISTS; draft PR #627 | unique-work comparison with `main`; prove no deployment/workflow resolves the scope | branch work: MERGED if it holds unique valid work not already on `main` (then its PR and branch are deleted), otherwise DELETED; scope: REMOVE → DELETED, proven not to fall back to Production | NONE — evidence only; canonical ID required before remediation |
-| 8 | Vercel branch scope `fix/neon-p0-event-driven-wake-2026-08-16`: bare `DATABASE_URL*` (Preview) | candidate REMOVE (branch-scoped override; Master §0.13.3) after branch reconciliation | Git branch EXISTS; draft PR #618 | unique-work comparison with `main`; prove no deployment/workflow resolves the scope | branch work: MERGED if it holds unique valid work not already on `main` (then its PR and branch are deleted), otherwise DELETED; scope: REMOVE → DELETED, proven not to fall back to Production | NONE — evidence only; canonical ID required before remediation |
-| 9 | Vercel branch scope `search/browser-integration-2026-09-05`: bare `DATABASE_URL*` (Preview) | candidate REMOVE (branch-scoped override; Master §0.13.3) after branch reconciliation | Git branch EXISTS; no PR | unique-work comparison with `main`; prove no deployment/workflow resolves the scope | branch work: MERGED if it holds unique valid work not already on `main` (then its PR and branch are deleted), otherwise DELETED; scope: REMOVE → DELETED, proven not to fall back to Production | NONE — evidence only; canonical ID required before remediation |
-| 10 | Vercel branch scope `search/clean-foundation-2026-09-04`: bare `DATABASE_URL*` (Preview) | candidate REMOVE (branch-scoped override; Master §0.13.3) after branch reconciliation | Git branch EXISTS; no PR | unique-work comparison with `main`; prove no deployment/workflow resolves the scope | branch work: MERGED if it holds unique valid work not already on `main` (then its PR and branch are deleted), otherwise DELETED; scope: REMOVE → DELETED, proven not to fall back to Production | NONE — evidence only; canonical ID required before remediation |
-| 11 | PR #621 / branch `chore/add-neon-mcp-project-connection` | n/a — not an environment variable | VERIFIED: adds `neon` → `https://mcp.neon.tech/mcp` to `.mcp.json` (prohibited by Master §0.12) | confirm no other unique commit on the branch | DELETED — close #621 and delete the branch; any other unique valid commit is MERGED first | NONE — evidence only; canonical ID required before remediation |
+| 7 | Vercel branch scope `feat/agent-permanent-delete-2026-09-01`: bare `DATABASE_URL*` (Preview) | candidate REMOVE (branch-scoped override; Master §0.13.3) after the branch's evidentiary review and closure | Git branch EXISTS; draft PR #627 | evidentiary review of the branch (§8); prove no deployment/workflow resolves the scope | branch: CLOSED after its evidentiary review, with the reason recorded; never merged, cherry-picked or copied from (§8); scope: REMOVE → DELETED, proven not to fall back to Production | NONE — evidence only; canonical ID required before remediation |
+| 8 | Vercel branch scope `fix/neon-p0-event-driven-wake-2026-08-16`: bare `DATABASE_URL*` (Preview) | candidate REMOVE (branch-scoped override; Master §0.13.3) after the branch's evidentiary review and closure | Git branch EXISTS; draft PR #618 | evidentiary review of the branch (§8); prove no deployment/workflow resolves the scope | branch: CLOSED after its evidentiary review, with the reason recorded; never merged, cherry-picked or copied from (§8); scope: REMOVE → DELETED, proven not to fall back to Production | NONE — evidence only; canonical ID required before remediation |
+| 9 | Vercel branch scope `search/browser-integration-2026-09-05`: bare `DATABASE_URL*` (Preview) | candidate REMOVE (branch-scoped override; Master §0.13.3) after the branch's evidentiary review and closure | Git branch EXISTS; no PR | evidentiary review of the branch (§8); prove no deployment/workflow resolves the scope | branch: CLOSED after its evidentiary review, with the reason recorded; never merged, cherry-picked or copied from (§8); scope: REMOVE → DELETED, proven not to fall back to Production | NONE — evidence only; canonical ID required before remediation |
+| 10 | Vercel branch scope `search/clean-foundation-2026-09-04`: bare `DATABASE_URL*` (Preview) | candidate REMOVE (branch-scoped override; Master §0.13.3) after the branch's evidentiary review and closure | Git branch EXISTS; no PR | evidentiary review of the branch (§8); prove no deployment/workflow resolves the scope | branch: CLOSED after its evidentiary review, with the reason recorded; never merged, cherry-picked or copied from (§8); scope: REMOVE → DELETED, proven not to fall back to Production | NONE — evidence only; canonical ID required before remediation |
+| 11 | PR #621 / branch `chore/add-neon-mcp-project-connection` | n/a — not an environment variable | VERIFIED: adds `neon` → `https://mcp.neon.tech/mcp` to `.mcp.json` (prohibited by Master §0.12) | evidentiary review of the branch (§8) | DELETED — close #621 with the reason recorded and delete the branch; nothing on it is merged, cherry-picked or copied (§8) | NONE — evidence only; canonical ID required before remediation |
 | 12 | direct Neon access on Maya's machine: project-local `neon` MCP (`mcp.neon.tech`) and global `neonctl` | n/a — not an environment variable | removed 2026-09-22 (`claude mcp remove neon -s local`; `npm uninstall -g neonctl`); no Neon/DB variable in the user environment | — | DELETED (done) | NONE — machine-local; no repository remediation |
 | 13 | local file `.env.local.backup-before-repoint` in Maya's checkout | n/a — machine-local file, not a Vercel variable | contents unread (project deny rule); not tracked; not loaded by `lib/prisma.ts` (which loads only `.env.local`) | confirm it is not required for the live canonical path | DELETED | NONE — machine-local; no repository remediation |
 | 14 | Neon identifiers in code (`lib/ops/canonical-neon-target.ts`, `lib/ops/db-target.ts`, `lib/ops/seed-target-guard.ts`, tests, scripts) and in SQL COMMENTS only (no executable line) in `prisma/migrations/20260623233000_drop_agent_info_column/migration.sql` and `prisma/migrations/20260813120000_add_sync_state_last_listing_key/migration.sql` | n/a — not an environment variable | present; live Neon identity of every identifier UNVERIFIED; the 2026-06-23 migration comment line 3 instructs a rollback by repointing `DATABASE_URL` to `ep-cool-bird-adfi9kgl` | reconcile each identifier against the live Vercel-bound resource; prove Prisma's handling of an edited applied migration before touching one | code: FIXED (verified as live canonical/stale-refusal values, or corrected). Migration comments: FIXED as verified history if their targets are live, otherwise FIXED by correcting the comment once Prisma checksum safety is proven | NONE — evidence only; canonical ID required before remediation |
 | 15 | `pr-check.yml` exports `MALLAN_AUTHORITY_ROOT_REQUIRED` via `GITHUB_ENV` to every later step | n/a — CI job variable, not a Vercel variable | VERIFIED; the fixture half closed by #638 | scope the flag to the two gate steps (control-root maintenance) | FIXED | NONE — evidence only; canonical ID required before remediation |
 | 16 | `MALLAN_OFFICE_MLS_IDS`, `MALLAN_LIST_OFFICE_MLS_IDS`, `MALLAN_OH_OFFICE_MLS_IDS` and other Cotality-shaped `MALLAN_*` configuration | not yet assigned — none is set in the 2026-09-22 Vercel read | what Cotality field each represents is UNVERIFIED | trace each fallback source; verify against the live Cotality contract (connector needs authentication) | FIXED onto one mapping verified against the live Cotality contract; DELETED where no verified field supports it | NONE — evidence only; canonical ID required before remediation |
-| 17 | the 22 open PRs (verified 2026-09-22) and the non-`main` branch estate (36 per §5.1, 2026-09-20; recount live) | n/a — Git artifacts | #624 and #600 `pr-check` red since August; #596 as stated in the operational-consequence section; all other latest checks predate #632 | per-branch unique-work reconciliation | per PR/branch: MERGED if it holds unique valid work not already on `main` (then the PR is closed and the branch deleted), otherwise DELETED | NONE — evidence only; canonical ID required before remediation |
+| 17 | the 22 open PRs (verified 2026-09-22) and the non-`main` branch estate (36 per §5.1, 2026-09-20; recount live) | n/a — Git artifacts | #624 and #600 `pr-check` red since August; #596 as stated in the operational-consequence section; all other latest checks predate #632 | per-branch evidentiary review (§8) | per PR/branch: CLOSED with the reason recorded after its evidentiary value is reviewed; never merged, cherry-picked or copied from | NONE — evidence only; canonical ID required before remediation |
 | 18 | documentation claims corrected in this section (`NEON.md` Vercel database variable ownership; this file's §3 counts) | n/a — documentation | see Corrections | correct once the live evidence exists (documentation lane) | FIXED | `OPS-016` (NEON.md vs live Neon drift) for the NEON.md part; otherwise NONE — canonical ID required before remediation |
 | 19 | **No pull request can amend the Master.** `control-update` permits only the Execution State; `control-root-maintenance` authorizes only `IMMUTABLE_CONTROL_PATHS`, which excludes `MALLAN-PLATFORM-MASTER-PLAN.md`; `implementation` refuses Master changes (`scripts/ci/mallan-execution-control.mjs` L889-890, L1391, L1504-1506 on `main`) | n/a — governance control | VERIFIED from the controller source; FIXED 2026-09-25 by #643 (merged `c353c171dc58170a893ba8135845c6bac801f794`): the bounded `master-amendment` mode and its negative tests are on protected `main` | design a bounded, base-authorized Master-amendment path with negative tests (control-root maintenance) — AUTHORIZED 2026-09-24 as packet `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` (#642, merged `016a0933`), DELIVERED by #643 (`c353c171`); the packet is closed | FIXED | NONE — evidence only; canonical ID required before remediation |
 | 20 | **Release Truth's bounded dependency wait can expire while its verdict is still DEPLOY_PENDING.** CORRECTED 2026-09-22: the one proven instance is run `35790568953` (#639 first head), where `pr-check` had already passed at 22:11:42Z and the wait expired ~22:19:31Z; the loop logs only the verdict, so which dependency was pending is not recorded. #637's first run is NOT an instance (its log ends after attempt 14 with no expiry line) | n/a — CI control | VERIFIED from the run logs | measure `pr-check` duration against the bounded wait; fix without letting Release Truth pass on a pending dependency | FIXED | NONE — evidence only; canonical ID required before remediation |
@@ -1357,7 +1259,7 @@ Recorded so no later agent overstates it:
   leak in both directions at the test helper. Residual: `pr-check.yml` still exports the flag to
   the whole job instead of only the two gate steps (ledger row 15).
 
-**This contract (`GOVERNANCE-MASTER-AMENDMENT-PATH-EXIT-2026-09-25`, `control-update`) is the state-only exit of the ledger row 19 packet
+**HISTORY (superseded 2026-09-29): the former contract (`GOVERNANCE-MASTER-AMENDMENT-PATH-EXIT-2026-09-25`, `control-update`) was the state-only exit of the ledger row 19 packet
 `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` after #643 (merged `c353c171`). It authorizes only state-only updates to this file and no packet.
 It authorizes no Master amendment: any change to `MALLAN-PLATFORM-MASTER-PLAN.md` needs its own later state-only control update that sets
 `master-amendment` mode with the content envelope the controller requires. A2 (`RECONCILE-OPS-010A-ISSUE-574-WITH-7B-2026-09-22`) is paused and deprioritized. It authorizes no
