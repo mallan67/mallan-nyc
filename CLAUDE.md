@@ -126,7 +126,6 @@ Guardrail docs: `docs/engineering/pr-verification-checklist.md` + `docs/engineer
 
 ```bash
 npm run type-check          # 0 TypeScript errors required
-npm run rls:validate        # 10-section REBNY RLS validator
 npm run compliance-check    # 93+ rules — BLOCKER+STRICT must be 0 failures
 npm run ucba:audit          # 145-rule UCBA — REGRESSIONS must be 0
 npm run idx:validate        # 32-section IDX Plus — 0 critical
@@ -190,7 +189,7 @@ Codex is a **static code-path reviewer only.** Codex reads the repo; it does **n
 
 **J.7 — Status / compliance gates use explicit status semantics:** normalize draft-like statuses before comparing · Draft / Incomplete / empty must not be blocked by publish-only gates · public / display-ready statuses stay **fail-closed** · do not reuse a narrow helper for a broader compliance gate unless the status sets are **proven** equivalent.
 
-**J.8 — No "green checks" claim stands alone.** When reporting passing checks, state per check **what it proves and what it does not.** Example: "`rls:validate` green proves the static RLS binding rules pass; it does **not** prove any field is live on Cotality."
+**J.8 — No "green checks" claim stands alone.** When reporting passing checks, state per check **what it proves and what it does not.** Example: "`ucba:audit` green proves the UCBA checklist patterns pass; it does **not** prove any field is live on Cotality."
 
 ---
 

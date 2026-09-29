@@ -343,7 +343,6 @@ if (prohibitedTerms.length > 0) {
     /\.spec\./,
     /prohibited-terms\.json$/,
     /rls-rules\.json$/,
-    /MASTER_REGISTRY\.json$/,          // Cotality/Trestle API field-dictionary / metadata reference — documents fields (e.g. SeniorCommunityYN), not advertising copy
     /compliance\/audit\/route\.ts$/,   // compliance scanner contains patterns to DETECT prohibited terms
     /rls-enforcement\.ts$/,            // RLS enforcement scanner references terms to block them
   ];

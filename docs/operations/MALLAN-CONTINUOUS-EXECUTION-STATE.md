@@ -7,7 +7,7 @@
 > and next action. It is status and history only: it authorizes no branch name, file path, implementation
 > scope or mutation envelope, and no check reads authorization from it. It may not redefine the Master.
 
-**Checkpoint:** 2026-09-29 — Maya decided to retire the old execution wall: the branch restriction, the State modes and path envelopes, the controller's authorization cycle and `authority-root` (§7). #646 removes only that wall and adds no new gate. **PENDING:** Maya temporarily removes `authority-root` from `Protect main` so #646 can merge; the protection is then INTERIM (§7). Until then the live required checks are `pr-check` and `authority-root`. The sequence after that is §11.
+**Checkpoint:** 2026-09-29 — #646 MERGED (`3656a42333f2be5e837015e0165387ea96fe99b6`): the old execution wall is retired (§7). Maya removed `authority-root` from `Protect main`; the live required check is `pr-check` only, and protection is INTERIM (§7). **`main` is FROZEN at `3656a423`.** The only exception is a hotfix: if Production breaks or blocks the business, a minimal, reviewed fix may go to `main` with Maya's approval, and is then merged into the convergence branch. All cleanup and the Cotality migration happen on the convergence branch `recovery/cotality-main-convergence`, which merges into `main` once, after the whole-system proof (§11).
 **Repository:** `mallan67/mallan-nyc` only  
 **Canonical branch:** `main`  
 **Main at this checkpoint:** `005786e71818ef13f555111de67e3d6248412987` — the PR #632 merge
@@ -20,7 +20,7 @@ live tip from GitHub.**
 **Checkpoint source head:** `fb100d6a12f572d78aaac0ec152c4cc57ac6ce74` (final #632 head; all checks green, zero unresolved review threads). Current head must always be read live from GitHub  
 **Authorized work surface:** GitHub repository + explicitly authorized provider connections only; Desktop/worktrees/scratch copies are not execution authority  
 **PR #595:** authority provenance / historical governance source; CLOSED 2026-09-20T17:54:35Z as superseded by #632, unmerged. Its lineage is in `main` history through #632  
-**Governance activation:** `authority-root` has been a required status check on the `Protect main` ruleset `19435006` since 2026-09-22, bound to the GitHub Actions integration `15368`; the live required checks are `pr-check` and `authority-root` (verified 2026-09-29). #646 retires it; Maya temporarily removes it from the ruleset so #646 can merge (§11). Read the live ruleset for the current required set.
+**Governance activation:** HISTORY. `authority-root` was a required status check on the `Protect main` ruleset `19435006` from 2026-09-22 until Maya removed it on 2026-09-29 (ruleset updated 17:17 -04:00); #646, merged as `3656a423`, retired it. The live required check is `pr-check` only (verified 2026-09-29). Read the live ruleset for the current required set.
 
 ---
 
@@ -584,20 +584,20 @@ Maya decided on 2026-09-29 to retire the old execution wall:
 
 It kept unsafe changes out of `main`, but it also kept correct changes out: from 2026-09-18 to 2026-09-26 all thirteen merges to `main` (#632–#644) were governance updates and none changed the product. Its history is in Git.
 
-#646 removes only that wall:
+#646 (merged 2026-09-29 as `3656a42333f2be5e837015e0165387ea96fe99b6`) removed only that wall:
 - `scripts/ci/mallan-execution-control.mjs` and its test;
 - `.github/workflows/authority-root.yml` and `.github/workflows/branch-authority.yml`;
 - the controller steps in `pr-check`.
 
-It adds no new gate. It also makes `pr-check` read-only (`permissions: contents: read`, checkout with `persist-credentials: false`), so pull-request code never receives repository write credentials.
+It added no new gate. It also made `pr-check` read-only (`permissions: contents: read`, checkout with `persist-credentials: false`), so pull-request code never receives repository write credentials.
 
 **The protection after #646 is INTERIM:**
 - every change arrives through a pull request;
-- the required `pr-check` runs as it does today;
+- `pr-check` is the only required check (Maya removed `authority-root` on 2026-09-29);
 - force-push and deletion of `main` are blocked;
 - Maya reviews and merges every pull request. Agents never merge, never enable auto-merge and never change branch protection or rulesets.
 
-**What the interim protection does not certify.** `pr-check` still runs `rls:validate` and `validate:form-rls`. They are validators of the retired provider authority: the REBNY RLS CSVs, the RESO field map and a RESO-to-RLS rename table. They are not provider authority and are not correct or canonical. They remain only until the first cleanup pull request removes them together with their old provider readers, writers and source files, and nothing requires or protects them.
+**What the interim protection does not certify.** The first commits of the convergence branch (§11) remove `rls:validate` and `validate:form-rls` from `pr-check`, together with the files only they used: the RLS alias, form-binding, internal-only and overlay lists, and the tooling around them. Old provider authority that live code still reads stays until its business function is migrated on the convergence branch (§11). That includes the REBNY RLS CSVs, which `idx-validate` and the CRM listing gate read, the RESO field map and the RESO-to-RLS rename table. None of it is provider authority, correct or canonical, and nothing requires or protects it.
 
 Passing `pr-check` during the interim therefore does not certify provider correctness. `main` still contains obsolete provider implementation, which must be cleaned before permanent governance is designed. The architectural authority is unchanged (Master §21.2):
 
@@ -620,7 +620,7 @@ COTALITY RAW CONTRACT → VERIFIED MAPPING → MALLAN STORAGE → MALLAN BUSINES
 
 # 8.1 Human / agent identity boundary
 
-GitHub's `Protect main` ruleset (`19435006`) requires a pull request and the `pr-check` and `authority-root` status checks, and blocks non-fast-forward pushes and deletion of `main`. It requires 0 approving reviews, requires review threads to be resolved, and has no bypass actors (verified live 2026-09-29). `authority-root` runs the retired controller, which refuses #646 by design, so Maya temporarily removes it from the required checks for #646 to merge (§11, step 2). The protection is then INTERIM (§7): pull request + current `pr-check` + Maya's review. The permanent required-check set is designed only after `main` is cleaned (§11, step 8). Read the live ruleset for the current required set.
+GitHub's `Protect main` ruleset (`19435006`) requires a pull request and the `pr-check` status check (strict, branch up to date). It blocks non-fast-forward pushes and deletion of `main`, requires 0 approving reviews, requires review threads to be resolved, and has no bypass actors. This was verified live on 2026-09-29, after Maya removed `authority-root` at 17:17 -04:00 and #646 merged. The protection is INTERIM (§7), and `main` is frozen at `3656a423` during the convergence (§11). The permanent required-check set is designed only after the convergence branch has merged (§11). Read the live ruleset for the current required set.
 
 If an AI agent operates through Maya's own GitHub identity, GitHub cannot distinguish a change made by Maya from one made by the agent, and repository CI cannot prove which of them opened a pull request.
 
@@ -692,18 +692,27 @@ Do not create another status file because this one becomes inconvenient.
 
 # 11. Current exact stop point
 
-**2026-09-29 — stop point.** The actual sequence, one step at a time. Nothing in steps 4–8 is implemented by #646.
+**2026-09-29 — stop point.** The Cotality convergence is ACTIVE. The sequence:
 
-1. #646 removes only the old execution wall (§7).
-2. Maya temporarily removes `authority-root` from `Protect main` so #646 can merge.
-3. Protection is explicitly INTERIM: pull request + current `pr-check` + Maya's review (§7).
-4. Clean current `main`. The first cleanup pull request removes `rls:validate` and `validate:form-rls` together with their old provider readers, writers and source files.
-5. Remove the old provider authority and duplicate/parallel systems.
-6. Verify the live Cotality contract.
-7. Build the single Cotality mapping from the cleaned `main`.
-8. Only after the corrected source exists, design and build the permanent `pr-check`, the provider-contract check, `pr-safety` and the final `Protect main` required-check set.
+1. DONE — #646 merged 2026-09-29 as `3656a42333f2be5e837015e0165387ea96fe99b6`; the old execution wall is retired (§7).
+2. DONE — Maya removed `authority-root` from `Protect main` (2026-09-29, 17:17 -04:00); the live required check is `pr-check` only.
+3. IN FORCE — protection is INTERIM: pull request + `pr-check` + Maya's review (§7). `main` is FROZEN at `3656a423`. The only exception is a hotfix: a minimal, reviewed fix that goes to `main` with Maya's approval when Production breaks or blocks the business, and is then merged into the convergence branch.
+4. ACTIVE — the convergence branch `recovery/cotality-main-convergence`, created from `3656a423`, with one draft pull request to `main`. Its first commits remove the old provider authority that no live code reads, including `rls:validate`, `validate:form-rls` and the files only they used. They also correct the documentation and this file's status lines. They do not touch the live consumers of the old authority.
+5. Verify the live Cotality contract, from actual authorized Cotality data.
+6. Migrate by shared business function, not by file, on the convergence branch. The functions are: provider query contract; raw Cotality record mapping; listing status and lifecycle; property and listing classification; canonical identity and reconciliation; write validation and Listing Management; visibility, display and attribution; source and fallback behaviour. For each function:
+   - **Seam:** every caller goes through one seam.
+   - **Shadow:** the old implementation, the live-Cotality implementation and the current stored Mallan value are compared for the same input, and every difference is classified.
+   - **Switch:** the seam moves to the verified implementation, with downstream proof.
+   - **Delete:** the old implementation, its data, its tests and its fallback are removed, and negative tests stop them returning.
 
-No Search, CMA, forms, CRM, listing or other product development merges during the interim cleanup. Everything below this entry is history.
+   A function is closed only with one caller interface, one implementation, zero old fallbacks and zero competing mappings.
+7. Whole-system proof, all together:
+   - LIVE COTALITY → ONE VERIFIED MAPPING → STORAGE → IDENTITY → SEARCH → CRM → LISTING MANAGEMENT → CMA → REPORTS → CLIENT/PUBLIC DISPLAY → COMPLIANCE;
+   - zero readers of the old REBNY provider CSVs and RESO maps;
+   - no RESO→RLS translation, no RLS bindings used as provider truth, no static provider fallback, no duplicate status maps and no duplicate raw mappers.
+8. One merge of the convergence branch into `main`, by Maya. Only after that, design and build the permanent `pr-check`, the provider-contract check, `pr-safety` and the final `Protect main` required-check set.
+
+Nothing is merged into `main` except the hotfix exception until step 8. Everything below this entry is history.
 
 **HISTORY (superseded 2026-09-29): `mode: control-update` (2026-09-25); no packet is active and no Master amendment is authorized. The ledger row 19 packet
 `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` (a bounded, base-authorized Master-amendment path with negative tests) is COMPLETE: #642

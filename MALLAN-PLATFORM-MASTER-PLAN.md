@@ -7524,7 +7524,7 @@ Work proceeds one stage at a time. Each stage has one branch, created from the c
 
 **After the retired controller (§27.15) the protection of `main` is INTERIM:** a pull request, the current required `pr-check`, no force-push and no deletion of `main`, and Maya's review and merge. Agents never merge, never enable auto-merge and never change branch protection or rulesets (§27.21).
 
-- **Passing `pr-check` during the interim does not certify provider correctness.** `main` still contains obsolete provider implementation, including the `rls:validate` and `validate:form-rls` validators built on the REBNY RLS CSVs and RESO mappings. It is not provider authority and must be cleaned before permanent governance is designed. Provider authority is the chain of §21.2: COTALITY RAW CONTRACT → VERIFIED MAPPING → MALLAN STORAGE → MALLAN BUSINESS RULE → PUBLIC/CRM CONSUMER.
+- **Passing `pr-check` during the interim does not certify provider correctness.** `main` still contains obsolete provider implementation, such as the REBNY RLS CSV field tables and the RESO mappings that live code still reads. It is not provider authority and must be cleaned before permanent governance is designed. Provider authority is the chain of §21.2: COTALITY RAW CONTRACT → VERIFIED MAPPING → MALLAN STORAGE → MALLAN BUSINESS RULE → PUBLIC/CRM CONSUMER.
 - **No Search, CMA, forms, CRM, listing or other product development merges during the interim cleanup.**
 - The permanent required checks and their enforcement are designed only after `main` is cleaned and the live Cotality contract is verified (Execution State §11).
 

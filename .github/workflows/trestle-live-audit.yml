@@ -100,19 +100,6 @@ jobs:
         continue-on-error: true
         run: npm run trestle:audit-resources
 
-      - name: CSV vs live diff
-        id: csv-diff
-        if: steps.secrets.outputs.is_configured == 'true'
-        continue-on-error: true
-        run: |
-          # trestle:diff exits non-zero on migration residue — CSV (field,resource)
-          # rows whose field no longer exists on live for that resource (e.g. a
-          # field migrated to another resource and the old row survived). The
-          # aggregate step below flags/opens an issue when this outcome != success.
-          # (Read-only: trestle:diff never writes the CSV; use refresh-csv --prune
-          # locally to fix residue once reviewed.)
-          npm run trestle:diff
-
       - name: Aggregate result
         id: aggregate
         if: steps.secrets.outputs.is_configured == 'true'
@@ -121,7 +108,6 @@ jobs:
           [ "${{ steps.audit-forms.outcome }}" != "success" ] && fail=$((fail+1))
           [ "${{ steps.audit-server.outcome }}" != "success" ] && fail=$((fail+1))
           [ "${{ steps.audit-resources.outcome }}" != "success" ] && fail=$((fail+1))
-          [ "${{ steps.csv-diff.outcome }}" != "success" ] && fail=$((fail+1))
           echo "failed_audits=$fail" >> "$GITHUB_OUTPUT"
           if [ "$fail" -gt 0 ]; then
             echo "::error::Trestle live audit detected drift in $fail audit(s)"
@@ -158,16 +144,15 @@ jobs:
           - audit-forms: \`${{ steps.audit-forms.outcome }}\`
           - audit-server: \`${{ steps.audit-server.outcome }}\`
           - audit-resources: \`${{ steps.audit-resources.outcome }}\`
-          - csv-diff: \`${{ steps.csv-diff.outcome }}\`
 
           Triage steps:
           1. Pull latest \`main\`
           2. Run the failed audit locally with \`.env.local\` populated
-          3. If it's a vendor-side schema change, update the affected code or CSV
+          3. If it's a vendor-side schema change, update the affected code
           4. If it's a regression (a field name was changed in our code), fix the code
 
           See \`scripts/audit-server-trestle-coverage.ts\`, \`scripts/audit-form-trestle-coverage.ts\`,
-          \`scripts/audit-trestle-non-property-resources.ts\`, and \`scripts/refresh-trestle-csv.ts\` for details.
+          and \`scripts/audit-trestle-non-property-resources.ts\` for details.
           EOF
           )"
 

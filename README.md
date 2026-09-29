@@ -873,7 +873,6 @@ The full compliance surface — REBNY RLS / UCBA 2026, IDX Plus / Trestle connec
 Operational gates that block CI / commits:
 
 - `npm run ucba:audit` — 145-rule checklist; **REGRESSIONS must be 0** (annotated FAILs are tracked in `compliance/rules/ucba-audit-checklist.json`)
-- `npm run rls:validate` — 10-section RLS validator (fields, renames, gates, masking, coverage)
 - `npm run idx:validate` — 32-section IDX Plus validator
 - `npm run compliance-check` — pre-commit sanity gate
 - `npm run ops:health` — Neon storage / compute headroom + sync freshness
