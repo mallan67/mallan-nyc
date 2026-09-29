@@ -6,6 +6,8 @@ import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { assertLeadAccess } from "@/lib/crm/access";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
+import { initialPublication, withPublication } from "@/lib/crm/publication-state";
+import type { Prisma } from "@prisma/client";
 
 const VALID_ACTIONS = [
   "promote_to_listing",
@@ -201,16 +203,20 @@ async function handlePromoteToListing(
     };
   }
 
-  // H1 fix (2026-05-13) + amend: defence-in-depth terminal-status guard
-  // routed through the canonical normalizer. Status is hardcoded "Draft"
-  // below (non-terminal canonical), so the guard is a no-op today. Kept
-  // for symmetry with the other CRM writers (listings POST/PATCH) — if a
-  // future refactor lets convert produce a non-Draft initial status, the
-  // SAME guard (normalize → check TERMINAL_STATUSES) prevents a terminal
-  // listing from being born with idx_display_yn=true. Single source of
-  // truth: lib/idx/trestle-mapper.ts exports TERMINAL_STATUSES +
-  // normalizeStandardStatus.
-  const convertInitialStatus = normalizeStandardStatus("Draft");
+  // A LEAD CONVERTED INTO A LISTING IS NOT ON THE MARKET YET.
+  //
+  // This was the Mallan word "Draft" written into the column that holds the
+  // Cotality market fact. NULL is the truthful value, and it matches the other
+  // create path (STATUS_INITIAL in app/api/crm/listings/route.ts) exactly —
+  // one initial state, not two. Mallan publication state lives in
+  // `compliance.mallan_publication`, written below.
+  //
+  // H1 fix (2026-05-13) + amend: the defence-in-depth terminal-status guard is
+  // kept for symmetry with the other CRM writers — if a future refactor lets
+  // convert produce a real initial status, the SAME guard (normalize → check
+  // TERMINAL_STATUSES) prevents a terminal listing from being born with
+  // idx_display_yn=true. Single source of truth: lib/idx/trestle-mapper.ts.
+  const convertInitialStatus: string | null = null;
   await prisma.listing.create({
     data: {
       listing_id: generatedListingId,
@@ -225,9 +231,17 @@ async function handlePromoteToListing(
       listing_contract_date: exclusiveStart ? new Date(exclusiveStart) : null,
       expiration_date: exclusiveExpires ? new Date(exclusiveExpires) : null,
       rls_eligible: true,
-      idx_display_yn: !TERMINAL_STATUSES.has(convertInitialStatus),
+      // No market status = not on the market = not IDX-displayable. The
+      // terminal check alone is a DENY-list, so without the null branch a
+      // status-less listing would read as displayable.
+      idx_display_yn:
+        convertInitialStatus !== null &&
+        !TERMINAL_STATUSES.has(normalizeStandardStatus(convertInitialStatus)),
       internet_entire_listing_display_yn: true,
       internet_address_display_yn: true,
+      // Mallan DRAFT lives here, not in the market-status column — the same
+      // initial record the direct create path writes.
+      compliance: withPublication({}, initialPublication()) as Prisma.InputJsonValue,
     },
   });
 

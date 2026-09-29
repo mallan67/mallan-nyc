@@ -2,6 +2,7 @@
 // Agent generates a portal invite link for a client and sends invite email.
 // Security: token hashed before storage, 72h TTL, raw token only in email link.
 import { NextRequest, NextResponse } from "next/server";
+import { PORTAL_ROLE_VALUES, isPortalRole } from "@/lib/api/schemas/client";
 import prisma from "@/lib/prisma";
 import {
   requireAgentOrBroker,
@@ -31,22 +32,48 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const validRoles = ["buyer", "tenant", "seller", "landlord"];
-    if (!validRoles.includes(portalRole)) {
+    // THE CANONICAL VOCABULARY, not a local copy.
+    //
+    // This route kept its own list — ["buyer","tenant","seller","landlord"] —
+    // which omits "renter". Since requirePortalRole normalises tenant -> renter
+    // and both spellings exist on real rows, a renter client could not be
+    // invited to their own portal at all. A second role list is also how the
+    // vocabularies drift apart in the first place.
+    if (!isPortalRole(portalRole)) {
       return NextResponse.json(
-        { error: `portalRole must be one of: ${validRoles.join(", ")}` },
+        { error: `portalRole must be one of: ${PORTAL_ROLE_VALUES.join(", ")}` },
         { status: 400 }
       );
     }
 
     const lead = await prisma.lead.findUnique({
       where: { id: BigInt(leadId) },
+      select: { id: true, agent_id: true, email: true, first_name: true, last_name: true },
     });
     if (!lead) {
       return NextResponse.json(
         { error: "Lead not found" },
         { status: 404 }
       );
+    }
+
+    // OWNERSHIP, NOT JUST ROLE.
+    //
+    // This looked the lead up by raw id with no agent_id filter, so ANY
+    // authenticated agent could repoint portal_role on ANY lead in the
+    // brokerage — including another agent's client — and trigger a live portal
+    // invite email carrying a working credential to that person.
+    //
+    // The acting agent never sees the raw token (it is not returned in the
+    // response), so this is not credential theft. It is an unauthorised
+    // mutation of another agent's client record plus unsolicited contact with
+    // that client, which is a brokerage-conduct surface as much as a technical
+    // one.
+    //
+    // The sibling route app/api/crm/clients/[id]/invite already scopes exactly
+    // this way; this one simply never did.
+    if (auth.role !== "BROKER" && lead.agent_id !== auth.userId) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
     // Generate token: raw for email URL, hash for DB storage

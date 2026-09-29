@@ -20,7 +20,11 @@ export const DOM_RESET_DAYS = 30;
 const DOM_ACCRUING_STATUSES = new Set(["Active", "ActiveUnderContract"]);
 
 /** Statuses that can trigger a DOM reset after DOM_RESET_DAYS */
-const DOM_RESET_ELIGIBLE_STATUSES = new Set(["Withdrawn", "Cancelled"]);
+// `Canceled` (live Cotality spelling) as well as the legacy `Cancelled`.
+// Without the provider spelling, a listing the PROVIDER canceled never
+// qualified for the 30-day DOM reset, so DOM kept accruing across a period
+// the rule says it should not (UCBA Art. I §11).
+const DOM_RESET_ELIGIBLE_STATUSES = new Set(["Withdrawn", "Canceled", "Cancelled"]);
 
 /** Permissions values that suppress DOM accrual even when status is Active */
 const DOM_SUPPRESSING_PERMISSIONS = new Set([

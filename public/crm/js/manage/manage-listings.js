@@ -46,7 +46,10 @@ function _mapApiListingToManage(api) {
         'Draft': 'Draft', 'Active': 'Active', 'ActiveUnderContract': 'Offer Out',
         'Pending': 'Contract Signed', 'ComingSoon': 'Coming Soon', 'Hold': 'Temp Off Market',
         'Withdrawn': 'Perm Off Market', 'Closed': isSale ? 'Sold' : 'Leased', 'Expired': 'Expired',
-        'Canceled': 'Perm Off Market', 'Delete': 'Perm Off Market'
+        // Both spellings — see the boundary fold in core/api-client.js. This map
+        // is also fed by paths that do not pass through it.
+        'Canceled': 'Perm Off Market', 'Cancelled': 'Perm Off Market',
+        'Delete': 'Perm Off Market'
     };
     var displayStatus = statusMap[api.status] || api.status || 'Draft';
 

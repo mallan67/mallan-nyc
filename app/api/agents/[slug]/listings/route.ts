@@ -321,8 +321,14 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
     // the synced row. Without this dedupe, the wrong row (typically the
     // IDX duplicate with "RLS · Listing Courtesy of …" attribution) wins
     // on /agents/{slug}. See lib/listings/dedupe-crm-vs-idx.ts.
-    const activeRows = displayable.filter((l) => activeStatuses.includes(l.status));
-    const closedRows = serialized.filter((l) => closedStatuses.includes(l.status));
+    // Null market status is in neither allow-list, so it appears in neither
+    // public bucket. Fail closed.
+    const activeRows = displayable.filter(
+      (l) => l.status != null && activeStatuses.includes(l.status),
+    );
+    const closedRows = serialized.filter(
+      (l) => l.status != null && closedStatuses.includes(l.status),
+    );
 
     // FEED-authority for BOTH tabs in ONE grouped query (lib/media/feed-media-authority.ts).
     // This surface carries third-party rows stamped by syncAgentHistory, and Past Deals in

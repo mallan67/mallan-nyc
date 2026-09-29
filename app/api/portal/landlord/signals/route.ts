@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { isAuthError, logAuditEvent, requirePortalRole } from "@/lib/auth";
 import { normalizeLandlordSignalPayload } from "@/lib/rental-signals/summary";
+import { resolveOwnedListingId } from "@/lib/portal/listing-ownership";
 
 const SIGNAL_EVENTS = [
   "landlord_vacancy_cost_estimate",
@@ -56,7 +57,34 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Landlord not found" }, { status: 404 });
   }
 
-  const listingId = payload.listing_id || lead.active_rental_listing_id || null;
+  // A LANDLORD MAY ONLY ATTACH SIGNALS TO A LISTING THEY OWN.
+  //
+  // Same defect as the seller route: this was
+  // `payload.listing_id || lead.active_rental_listing_id || null`, where the
+  // first term is caller-supplied and unchecked and the second is the unverified
+  // `Lead` backref hint. The value is written into `PortalEvent.listing_id` —
+  // durable Mallan activity/audit history, read by the agent's rental-signal
+  // panel. `owner_client_id` is the only authorization.
+  const owned = await resolveOwnedListingId(prisma, {
+    leadId: lead.id,
+    listingType: "rent",
+    requestedListingId: payload.listing_id,
+    hintedListingId: lead.active_rental_listing_id,
+  });
+  if (!owned.ok) {
+    return NextResponse.json(
+      {
+        error: "That listing is not yours.",
+        code: "LISTING_NOT_OWNED",
+        listing_id: owned.requested,
+      },
+      { status: 403 },
+    );
+  }
+  // May legitimately be null: a landlord planning a relist before the listing
+  // exists. Recording no attribution is truthful; inventing one is not.
+  const listingId = owned.listingId;
+
   const metadata = {
     ...payload,
     listing_id: listingId,

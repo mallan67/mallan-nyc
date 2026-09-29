@@ -13,7 +13,13 @@
         // Add default permissions to all listings that don't have explicit permissions set
         listings.forEach(function(l) {
             if (!l.permissions) {
-                l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: true };
+                // NOTE: no `syndication` member. Every other permission here is DERIVED from
+            // the row; `syndication: true` was a constant, and there is no syndicate
+            // field in the CRM listings DTO to derive it from. Since the compliance
+            // output phrases the negative as "listing will not be distributed to
+            // third-party portals", asserting true made the absence of that warning
+            // read as a promise of distribution the system does not perform.
+            l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false };
             }
         });
 
@@ -267,7 +273,8 @@
                     participantOnly: apiListing.participant_only === true,
                     idxDisplay: apiListing.idx_display_yn !== false,
                     internetDisplay: apiListing.internet_entire_listing_display_yn !== false,
-                    syndication: true,
+                    // No `syndication` member — see the note above. It was a constant
+                    // with no source field, and syndication is held closed.
                 },
                 _apiId: apiListing.id,
                 _listingId: apiListing.listing_id,
@@ -399,7 +406,13 @@
                 if (!l.listedDate) l.listedDate = '--';
                 if (!l.company) l.company = '';
                 if (!l.permissions) {
-                    l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: true };
+                    // NOTE: no `syndication` member. Every other permission here is DERIVED from
+            // the row; `syndication: true` was a constant, and there is no syndicate
+            // field in the CRM listings DTO to derive it from. Since the compliance
+            // output phrases the negative as "listing will not be distributed to
+            // third-party portals", asserting true made the absence of that warning
+            // read as a promise of distribution the system does not perform.
+            l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false };
                 }
             });
             listings.forEach(function(l) { resolveNeighborhoodCanonical(l); });

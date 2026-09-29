@@ -163,8 +163,20 @@ var UI = (function () {
     return '<span class="badge badge-' + (role || 'buyer') + '">' + E(role || 'buyer') + '</span>';
   }
 
+  // A LISTING WITH NO MARKET STATUS IS NOT ACTIVE.
+  //
+  // This fell back to 'active' for any absent status. That was invisible while
+  // listings.status was NOT NULL DEFAULT 'Active'; now that the column is
+  // nullable, EVERY Mallan-authored listing that is not on the market yet
+  // arrives here with no status - and every one of them was being badged green
+  // "active" to the broker who just created it.
+  //
+  // 'Draft' is the same word legacy rows still store for this state, so a NULL
+  // row and a legacy 'Draft' row render identically. No backfill is authorized,
+  // and this is what makes that safe.
   function statusBadge(status) {
-    return '<span class="badge badge-' + (status || 'active') + '">' + E(status || 'active') + '</span>';
+    var s = status || 'Draft';
+    return '<span class="badge badge-' + s + '">' + E(s) + '</span>';
   }
 
   function stageBadge(stage) {

@@ -1,6 +1,6 @@
 # Forms & RLS Submission
 
-> **LMP:** RealPlus (listing input to RLS) | **IDX Display:** Trestle IDX Plus WebAPI (read-only on mallan.nyc) | **Feed:** REBNY RLS via Trestle (Cotality)
+> **LMP:** legacy upstream intermediary (listing input to REBNY RLS) | **IDX Display:** Trestle IDX Plus WebAPI (read-only on mallan.nyc) | **Feed:** REBNY RLS via Trestle (Cotality)
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 
 ---
@@ -15,8 +15,8 @@
 
 | Form | File | Fields | Purpose |
 |------|------|--------|---------|
-| Sale Listing | `SALE-FORM-REDESIGN.html` | 719 | Sale listing data entry (CRM internal — RLS submission is via RealPlus/LMP) |
-| Rental Listing | `RENTAL-FORM-REDESIGN.html` | 525 | Rental listing data entry (CRM internal — RLS submission is via RealPlus/LMP) |
+| Sale Listing | `SALE-FORM-REDESIGN.html` | 719 | Sale listing data entry (CRM internal — RLS submission is via the legacy upstream intermediary (LMP)) |
+| Rental Listing | `RENTAL-FORM-REDESIGN.html` | 525 | Rental listing data entry (CRM internal — RLS submission is via the legacy upstream intermediary (LMP)) |
 | Buyer Deal | `BUYER-DEAL-FORM.html` | ~50 | Buyer transaction tracking |
 | Tenant Deal | `TENANT-DEAL-FORM.html` | ~30 | Tenant transaction tracking |
 
@@ -24,12 +24,12 @@
 
 ## 2. CRM Listing Data Entry Workflow
 
-> **NOTE:** mallan.nyc does NOT submit listings to the RLS. Actual RLS submission is via RealPlus (LMP). The workflow below describes CRM-internal data entry and validation.
+> **NOTE:** mallan.nyc does NOT submit listings to the RLS. Actual RLS submission is via the legacy upstream intermediary (LMP). The workflow below describes CRM-internal data entry and validation.
 
 ```
 Agent fills form → Auto-save (30s) → Validate (47+ fields) → Content scan
   → Fair Housing scan → Distribution gate check → Preview → Save to CRM
-  → Agent enters listing in RealPlus (LMP) for actual RLS submission
+  → Agent enters listing in the legacy upstream intermediary (LMP) for actual RLS submission
 ```
 
 ### Pre-Submission Checklist (Automated)

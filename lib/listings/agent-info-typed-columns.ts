@@ -3,7 +3,7 @@
  *
  * `typedAgentColumnsFromJson` derives the 8 typed agent columns (added in A1) from a
  * RESO-shaped `agent_info` JSON object. Every WRITER (Trestle mapper, idx-sync, CRM
- * POST/PATCH, reset-sync, ensure-listing, exclusive-agent-assignment, ops scripts)
+ * POST/PATCH, ensure-listing, exclusive-agent-assignment, ops scripts)
  * uses this single function so the typed columns and the JSON stay in lock-step
  * (same source, two destinations) — this is the "dual-write" invariant.
  *

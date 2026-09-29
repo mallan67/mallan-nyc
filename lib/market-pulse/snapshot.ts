@@ -4,7 +4,7 @@
 
 import prisma from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
-import { SEARCH_DISPLAY_GATE } from '@/lib/search/listing-access-decision';
+import { publicListingVisibilityWhere } from '@/lib/search/listing-access-decision';
 
 /**
  * Compute market snapshot for a neighborhood + period.
@@ -21,7 +21,10 @@ export async function computeSnapshot(
   const where: Prisma.ListingWhereInput = {
     neighborhood,
     listing_type: listingType,
-    ...SEARCH_DISPLAY_GATE,
+    // Gates AND return-copy suppression. Without the suppression every Mallan
+    // listing that had round-tripped through RLS was counted twice, inflating
+    // neighborhood inventory and skewing every median computed from it.
+    ...publicListingVisibilityWhere(),
   };
 
   // Active inventory at end of period

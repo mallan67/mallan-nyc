@@ -20,9 +20,23 @@ import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { checkFeeDisclosure, isDisplayReadyStatus } from "@/lib/crm/fee-disclosure";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
+import {
+  marketStatusForBusinessOutcome,
+  marketStatusLabel,
+} from "@/lib/crm/market-status-label";
 
 // REBNY RLS status state machine
 // Valid transitions map: current → allowed next statuses
+/**
+ * Transitions available from "no market status yet" (a NULL column).
+ *
+ * The same set `Draft` had, because it is the same situation: a Mallan-authored
+ * listing that has not been on the market. The difference is that this state is
+ * now represented by the ABSENCE of a provider fact rather than by a Mallan word
+ * sitting in the provider's column.
+ */
+const NO_MARKET_STATUS_TRANSITIONS: string[] = ["Active", "ComingSoon"];
+
 const STATUS_TRANSITIONS: Record<string, string[]> = {
   Draft: ["Active", "ComingSoon"],
   ComingSoon: ["Active", "Withdrawn"],
@@ -34,7 +48,8 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
   Rented: [], // Terminal
   Withdrawn: ["Active", "Draft"],
   Expired: ["Active", "Draft"],
-  Cancelled: [], // Terminal
+  Canceled: [], // Terminal — live Cotality spelling
+  Cancelled: [], // Terminal — legacy Mallan spelling, still on real rows
 };
 
 export async function PATCH(
@@ -93,9 +108,20 @@ export async function PATCH(
     );
   }
 
-  // Validate transition
+  // Validate transition.
+  //
+  // NULL IS A LEGITIMATE STARTING POINT, not an error. A Mallan-authored
+  // listing has no market status until someone sets one; that is what the
+  // nullable column means. The transitions available from "no market status
+  // yet" are the ones that put a listing ON the market for the first time.
+  //
+  // `Draft` is retained as a key only so listings still carrying the legacy
+  // sentinel keep working; no writer produces it any more.
   const currentStatus = listing.status;
-  const allowed = STATUS_TRANSITIONS[currentStatus];
+  const allowed =
+    currentStatus == null
+      ? NO_MARKET_STATUS_TRANSITIONS
+      : STATUS_TRANSITIONS[currentStatus];
 
   if (!allowed) {
     return NextResponse.json(
@@ -115,6 +141,37 @@ export async function PATCH(
         allowed,
       },
       { status: 422 }
+    );
+  }
+
+  // AN OWNERLESS DRAFT IS NOT WORKFLOW-COMPLETE.
+  //
+  // Creating a Mallan-local listing without naming its seller or landlord is
+  // permitted — an agent may not have the client record to hand yet — but that
+  // state is a DRAFT, not a listing ready to go live. The owner link is the
+  // only path by which a seller or landlord reaches their own listing (the
+  // portal queries Listing.owner_client_id and fails closed on null), so
+  // activating an ownerless listing publishes a property whose owner can never
+  // see it, comment on it, or be shown its activity.
+  //
+  // Refused with 409 rather than 403: the caller has the authority, the RECORD
+  // is not ready. That distinction is what tells the CRM to prompt for the
+  // owner instead of reporting a permissions problem.
+  const isGoingLive = newStatus === "Active" || newStatus === "ComingSoon";
+  // Scoped to MALLAN-LOCAL listings only: `mls_id === null` is what identifies
+  // a listing Mallan authored. A provider-sourced row has no Mallan owner
+  // client by design, and gating it here would block routine status work on
+  // inventory Mallan does not own.
+  if (isGoingLive && listing.mls_id === null && listing.owner_client_id === null) {
+    return NextResponse.json(
+      {
+        error:
+          "This listing has no owner. Assign the seller or landlord client before activating it.",
+        code: "OWNER_REQUIRED_BEFORE_PUBLICATION",
+        current: currentStatus,
+        requested: newStatus,
+      },
+      { status: 409 },
     );
   }
 
@@ -170,7 +227,8 @@ export async function PATCH(
         listingType: (listing.listing_type as "sale" | "rent") ?? "sale",
         isNewDevelopment: (existingRaw.NewDevelopmentYN as boolean) === true,
         currentStatus: newStatus,
-        previousStatus: currentStatus,
+        // null previous status = the listing was never on market.
+        previousStatus: currentStatus ?? undefined,
         statusChangedAt: listing.status_changed_at ?? undefined,
         existingActivationDate: existingRaw.ActivationDate as string | undefined,
         rlsEligible: listing.rls_eligible,
@@ -191,7 +249,8 @@ export async function PATCH(
   // Compute DOM tracking fields for this transition
   const domUpdate = computeDomTransition(
     {
-      status: currentStatus,
+      // A listing with no market status has accrued no days-on-market.
+      status: currentStatus ?? "",
       status_changed_at: listing.status_changed_at,
       first_active_date: listing.first_active_date,
       days_on_market: listing.days_on_market,
@@ -252,10 +311,29 @@ export async function PATCH(
     expirationDateFallback: listing.expiration_date,
   });
 
+  // THE BROKER'S WORD IS NOT THE PROVIDER'S FACT.
+  //
+  // A broker marks a listing "Sold" (sale) or "Rented" (rental). Cotality has
+  // ONE value for both — `Closed`: "the purchase agreement has been fulfilled or
+  // the lease agreement has been executed". Writing the business word into the
+  // market-status column answered a PRESENTATION need by falsifying a PROVIDER
+  // fact, and it is why `listings.status` came to hold `Sold`, `Rented` and
+  // `Leased`, none of which are StandardStatus members.
+  //
+  // The API vocabulary is unchanged: the request still says Sold/Rented, every
+  // gate above still keys on that (broker approval, ClosePrice, DOM), and the
+  // transition table is untouched. Only the PERSISTED value becomes the provider
+  // fact, and the business word is derived for display via marketStatusLabel().
+  //
+  // Legacy rows keep their historical values and stay readable — every terminal
+  // set already carries Closed, Sold, Leased and Rented, and no backfill is
+  // authorized.
+  const persistedStatus = marketStatusForBusinessOutcome(newStatus);
+
   await prisma.listing.update({
     where: { id: listing.id },
     data: {
-      status: newStatus,
+      status: persistedStatus,
       modification_timestamp: new Date(),
       status_changed_at: domUpdate.status_changed_at,
       first_active_date: domUpdate.first_active_date,
@@ -354,7 +432,9 @@ export async function PATCH(
 
   const urls = buildListingUrls({
     listing_id: listing.listing_id,
-    status: newStatus,
+    // The PERSISTED value: public-URL eligibility is judged on the stored market
+    // status, not on the broker's business word for it.
+    status: persistedStatus,
     address: listing.address as Record<string, unknown> | null,
     // Required by the canonical public-address decision: a prefix is not
     // permission, and a null IDX flag must fail closed on a DB row.
@@ -367,9 +447,17 @@ export async function PATCH(
     id: listing.id.toString(),
     listing_id: listing.listing_id,
     previous_status: currentStatus,
-    status: newStatus,
+    // What is STORED — the Cotality market fact.
+    status: persistedStatus,
+    // What a human should READ. Derived from the market status plus the listing
+    // type, so a closed sale says "Sold" and a closed rental says "Rented"
+    // without either word being written into the provider column.
+    statusLabel: marketStatusLabel(persistedStatus, listing.listing_type),
+    // The business outcome the caller asked for, echoed so a client that sent
+    // "Sold" can reconcile its own request.
+    requestedStatus: newStatus,
     publicUrl: urls.publicUrl,
-    realPlusUrl: urls.realPlusUrl,
+    publicActiveUrl: urls.publicActiveUrl,
     days_on_market: domUpdate.days_on_market,
     ...(domReset ? { dom_reset: true } : {}),
   });

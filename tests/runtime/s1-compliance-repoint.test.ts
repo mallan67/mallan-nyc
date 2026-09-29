@@ -109,9 +109,6 @@ describe("S1 (#445 Codex P1) — authored compliance preserved on Trestle UPDATE
     expect(mediaPatches).toBeGreaterThanOrEqual(2);
     expect(compliancePatches).toBe(mediaPatches);
   });
-  it("reset-sync UPDATE omits compliance via the patch", () => {
-    expect(read("app/api/crm/listings/reset-sync/route.ts")).toMatch(/\.\.\.complianceUpdatePatch\(\)/);
-  });
   it("CREATE branches still write the mapper's (now-empty) compliance for new rows", () => {
     // New Trestle rows have no authored compliance → seeding {} on CREATE is correct.
     expect(read("lib/idx/sync.ts")).toMatch(/compliance: mapped\.compliance as Prisma\.InputJsonValue/);

@@ -175,6 +175,38 @@ var MallanAPI = (function () {
 
   // ─── Listings ────────────────────────────────────────────────────────────
 
+  // ONE BOUNDARY FOR THE CANCELED SPELLING.
+  //
+  // `listings.status` holds two spellings of the same status. `Canceled` (one L)
+  // is the live Cotality value, written raw into the column by the Trestle sync.
+  // `Cancelled` (two Ls) is a value Mallan invented, and it is what the CRM write
+  // path stored for a long time. Real rows carry both and no backfill is in scope.
+  //
+  // Every screen that compares `l.status` to a literal - the agent-roster status
+  // badges and filter (dashboard/panels.js), the per-type status counts, the
+  // Perm Off Market label map (manage/manage-listings.js) - was written against
+  // ONE spelling, so each of them silently reported on half the listings.
+  //
+  // Fixing it at each comparison would mean four copies of the same rule, which
+  // is how the split happened in the first place. It is folded here instead, on
+  // the way in, so every screen downstream sees the provider spelling and nothing
+  // else has to know.
+  var LEGACY_STATUS_SPELLINGS = { Cancelled: 'Canceled' };
+
+  function _foldStatus(row) {
+    if (row && LEGACY_STATUS_SPELLINGS[row.status]) {
+      row.status = LEGACY_STATUS_SPELLINGS[row.status];
+    }
+    return row;
+  }
+
+  function _foldListingStatuses(res) {
+    if (res && Array.isArray(res.listings)) res.listings.forEach(_foldStatus);
+    else if (res && res.listing) _foldStatus(res.listing);
+    else _foldStatus(res);
+    return res;
+  }
+
   var listings = {
     list: function (params) {
       params = params || {};
@@ -184,11 +216,12 @@ var MallanAPI = (function () {
       if (params.limit) qs.push('limit=' + params.limit);
       if (params.offset) qs.push('offset=' + params.offset);
       var query = qs.length ? '?' + qs.join('&') : '';
-      return _fetch('/api/crm/listings' + query);
+      return _fetch('/api/crm/listings' + query).then(_foldListingStatuses);
     },
 
     get: function (id) {
-      return _fetch('/api/crm/listings/' + encodeURIComponent(id));
+      return _fetch('/api/crm/listings/' + encodeURIComponent(id))
+        .then(_foldListingStatuses);
     },
 
     create: function (data) {
@@ -264,6 +297,14 @@ var MallanAPI = (function () {
       params = params || {};
       var qs = [];
       if (params.status) qs.push('status=' + encodeURIComponent(params.status));
+      // `search` and `role` were dropped here even though the server has
+      // supported both for as long as the route has existed
+      // (lib/db/clients.ts findClients: `search` matches name/email/phone/entity,
+      // `clientRole` filters `roles has`). Callers that needed either had to
+      // hand-roll their own fetch, which is how four separate copy-pasted client
+      // pickers ended up in the CRM.
+      if (params.search) qs.push('search=' + encodeURIComponent(params.search));
+      if (params.role) qs.push('role=' + encodeURIComponent(params.role));
       if (params.limit) qs.push('limit=' + params.limit);
       if (params.offset) qs.push('offset=' + params.offset);
       var query = qs.length ? '?' + qs.join('&') : '';

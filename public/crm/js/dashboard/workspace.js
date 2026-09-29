@@ -6245,9 +6245,23 @@ var Workspace = (function () {
     MallanAPI._fetch('/api/crm/syndication/refresh', {
       method: 'POST',
       body: JSON.stringify({ listing_id: _listingId })
-    }).then(function () {
+    }).then(function (res) {
       Events.log('syndication_refresh_requested', 'listing', _listingId);
-      CRM.toast('Syndication refresh queued', 'info');
+      // This said "Syndication refresh queued". There is no queue: nothing reads
+      // the audit event the route writes, no export path exists, and the
+      // syndication program is held closed. A broker who reads "queued" tells a
+      // seller the listing has been re-published to the portals. Report what the
+      // server actually reports.
+      if (res && res.exported === false) {
+        CRM.toast(
+          res.reason === 'SYNDICATION_NOT_CONFIGURED'
+            ? 'Request recorded. Syndication is not configured, so nothing was sent to any portal.'
+            : 'Request recorded. Nothing has been exported yet.',
+          'info'
+        );
+      } else {
+        CRM.toast('Syndication refresh recorded', 'info');
+      }
     }).catch(function (err) {
       CRM.toast('Refresh failed: ' + (err.message || 'Try again'), 'error');
     });

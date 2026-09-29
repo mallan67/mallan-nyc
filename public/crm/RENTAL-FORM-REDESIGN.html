@@ -86,6 +86,7 @@ body { font-family: Manrope, sans-serif; }
 </style>
 <!-- API Client — identity from session cookie, no PII in URLs -->
 <script src="js/core/api-client.js"></script>
+<script src="js/core/owner-picker.js"></script>
 <script>
 // ── Auth gate (defense-in-depth — middleware is primary) ──
 // NOTE: session_token is httpOnly — JS cannot read it via document.cookie.
@@ -1531,6 +1532,36 @@ body { font-family: Manrope, sans-serif; }
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalBuyerAgentRLSParticipantYN" class="w-4 h-4" data-rls-ignore="true" data-removed-field="BuyerAgentRLSParticipantYN"> Tenant's Agent is RLS Participant</label>
                 <span class="text-xs text-gray-500">(RLS/RESO/IDX: BuyerAgentRLSParticipantYN)</span>
             </div>
+        </div>
+
+        <!-- Canonical Landlord (Listing.owner_client_id) -->
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-user-check"></i> Landlord (Client)</div>
+            <p class="text-xs text-gray-500 mb-3">
+                The landlord must be an existing client. This link is what lets the
+                landlord see their own listing in the client portal, and a listing
+                cannot be published without it. The contact fields below are
+                supplementary detail, not the owner's identity.
+            </p>
+            <div class="relative">
+                <label class="field-label" for="rentalOwnerSearch">Search your landlord clients</label>
+                <div class="flex gap-2">
+                    <input type="text" id="rentalOwnerSearch" class="field-input w-full"
+                           placeholder="Type a name, email or phone" autocomplete="off"
+                           data-rls-ignore="true">
+                    <button type="button" id="rentalOwnerClear"
+                            class="px-3 py-2 text-sm border rounded-lg text-gray-600 hover:bg-gray-50">Clear</button>
+                </div>
+                <!-- THE AUTHORITY. `id` is exactly the API field name so the form's
+                     generic field collector sweeps it into the POST/PATCH body. -->
+                <input type="hidden" id="owner_client_id" name="owner_client_id" value="" data-rls-ignore="true">
+                <div id="rentalOwnerResults"
+                     class="hidden absolute z-30 left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg max-h-64 overflow-y-auto"></div>
+            </div>
+            <p class="text-xs text-gray-400 mt-2">
+                Not in the list? Create the client in the CRM first — a landlord typed
+                here but not selected is not linked.
+            </p>
         </div>
 
         <!-- Owner/Landlord -->
@@ -6874,7 +6905,33 @@ function _checkRentalEditMode() {
     });
 }
 
+
+// ═══ CANONICAL OWNER PICKER ═══════════════════════════════════════════════════
+// `Listing.owner_client_id` is the only Seller/Landlord owner relation. The
+// hidden input carries the Lead id; the visible box is a search field and is
+// never the authority. Mounted from the shared module so Sale and Rental share
+// one implementation instead of a fifth copy-pasted client picker.
+var _rentalOwnerPicker = null;
+
+function _mountRentalOwnerPicker() {
+    if (_rentalOwnerPicker || typeof OwnerPicker === 'undefined') return _rentalOwnerPicker;
+    _rentalOwnerPicker = OwnerPicker.mount({
+        searchId: 'rentalOwnerSearch',
+        hiddenId: 'owner_client_id',
+        listId: 'rentalOwnerResults',
+        clearId: 'rentalOwnerClear',
+        role: 'landlord',
+    });
+    return _rentalOwnerPicker;
+}
+
+document.addEventListener('DOMContentLoaded', _mountRentalOwnerPicker);
+
 function _populateRentalFormFromApi(listing) {
+    // Restore the canonical owner — see the Sale form for the full reasoning.
+    var _ownerPicker = _mountRentalOwnerPicker();
+    if (_ownerPicker) _ownerPicker.hydrate(listing.owner_client_id);
+
     var raw = listing.raw_data || {};
     var addr = listing.address || {};
     var features = listing.features || {};

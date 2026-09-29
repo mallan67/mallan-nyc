@@ -533,12 +533,20 @@
                                     </div>
                                     <!-- Col 3: Distribution -->
                                     <div class="space-y-2 text-sm">
+                                        <!-- Syndication is THREE states, not two. It used to render
+                                             \`permissions.syndication ? 'Yes' : 'No'\` over a value that
+                                             core/data-loader.js hardcoded to true, so every listing showed
+                                             "Syndication: Yes" — a literal claim of portal distribution the
+                                             system does not perform (no export route, no cron, and
+                                             MALLAN_OFFICE_MLS_IDS empty blocks every row at Layer 1). The
+                                             hardcode is gone, and absent now reads "Not configured" rather
+                                             than a bare "No" that would look like a per-listing setting. -->
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold">Distribution</div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Owner Opt-Out</span><span class="font-semibold">${listing.permissions && listing.permissions.ownerOptOut ? 'Yes' : 'No'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Participant Only</span><span class="font-semibold">${listing.permissions && listing.permissions.participantOnly ? 'Yes' : 'No'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Internet Entire Listing</span><span class="font-semibold">${listing.internetDisplayYN !== false ? 'Yes' : 'No'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">IDX Display</span><span class="font-semibold">${listing.idxDisplayYN !== false ? 'Yes' : 'No'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Syndication</span><span class="font-semibold">${listing.permissions && listing.permissions.syndication ? 'Yes' : 'No'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Syndication</span><span class="font-semibold">${listing.permissions && listing.permissions.syndication === true ? 'Yes' : listing.permissions && listing.permissions.syndication === false ? 'No' : 'Not configured'}</span></div>
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold mt-2">CoBroke</div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">CoBroke Agreement</span><span class="font-semibold">---</span></div>
                                     </div>

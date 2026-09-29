@@ -45,7 +45,7 @@ The mallan.nyc CRM has a working core: borough/neighborhood/beds/price/status/li
 
 ### Non-Goals
 - Public-site rebuild (`app/search/page.tsx`) — separate domain per Charter §3.
-- LMP / RealPlus integration — mallan.nyc is read-only IDX consumer per CLAUDE.md.
+- LMP / the legacy upstream intermediary integration — mallan.nyc is read-only IDX consumer per CLAUDE.md.
 - Auction listings (UCBA Art. I exception, post-C3 work).
 - Schema redesign — Prisma models stay as-is unless explicit user approval per master plan PR 5.
 - VOW (Virtual Office Website) consumer-facing flows for non-buyer/non-tenant clients — that's portal work, not CRM.
@@ -465,7 +465,7 @@ Phases are ordered by **compliance risk × user-facing impact**. Each phase is o
 - **Public-site rewrite** — `app/search/page.tsx` is a separate domain per Charter §3.
 - **VOW consumer flows** — portal work, not CRM.
 - **Auction listings** — UCBA Art. I exception, post-C3 work.
-- **LMP submission** — mallan.nyc is read-only IDX consumer. RealPlus owns submission.
+- **LMP submission** — mallan.nyc is read-only IDX consumer. The legacy upstream intermediary owns submission.
 - **AI / embeddings on MLS data** — explicitly prohibited by REBNY (CLAUDE.md "PROHIBITED").
 
 ---

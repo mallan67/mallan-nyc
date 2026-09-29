@@ -4937,7 +4937,7 @@ if (VIEWER_MODE && typeof MallanAPI !== 'undefined') {
             // Store in VIEWER_LISTINGS so loadSaleListingData() finds it
             VIEWER_LISTINGS[VIEWER_LISTING_ID] = {
                 listingId: apiData.listing_id || VIEWER_LISTING_ID,
-                status: apiData.status || 'Active',
+                status: apiData.status || '',
                 address: ((apiData.address || {}).StreetNumber || '') + ' ' + ((apiData.address || {}).StreetName || ''),
                 unit: (apiData.address || {}).UnitNumber || '',
                 city: apiData.city || 'New York',
@@ -4978,7 +4978,7 @@ window.addEventListener('message', function(event) {
         MallanAPI.listings.get(id).then(function(apiData) {
             VIEWER_LISTINGS[id] = {
                 listingId: apiData.listing_id || id,
-                status: apiData.status || 'Active',
+                status: apiData.status || '',
                 address: ((apiData.address || {}).StreetNumber || '') + ' ' + ((apiData.address || {}).StreetName || ''),
                 unit: (apiData.address || {}).UnitNumber || '',
                 city: apiData.city || 'New York', state: 'NY',

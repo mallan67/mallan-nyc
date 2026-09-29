@@ -43,7 +43,40 @@ export async function requireAuth(
 }
 
 /**
- * Require a specific role. Returns the session user or a 401/403 response.
+ * STAFF AUTHORIZATION — requires the staff IDENTITY DOMAIN, not merely the text
+ * "AGENT" or "BROKER".
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * THE DEFECT THIS CLOSES.
+ *
+ * Mallan keeps two different kinds of principal in one `Session.role` string:
+ * staff roles (AGENT/BROKER) and client portal roles (buyer/renter/seller/
+ * landlord). `Session.userType` separately knows which domain a principal is
+ * in — "agent" or "lead" — and this function used to ignore it entirely:
+ *
+ *     const normalizedRole = result.role.toUpperCase();
+ *     if (!allowedRoles.map(r => r.toUpperCase()).includes(normalizedRole)) 403
+ *
+ * `Lead.portal_role` is copied verbatim into `Session.role` by EVERY login path
+ * (password login, invite acceptance, password reset, OAuth). So a client whose
+ * portal_role read "BROKER" produced Session(userType="lead", role="BROKER") and
+ * satisfied requireBroker() — on every broker-only route, including agent
+ * administration and impersonation, which mints a genuine staff session and
+ * therefore bypasses the Broker MFA path entirely.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * WHY THE CHECK BELONGS HERE AND NOT ONLY AT THE WRITERS.
+ *
+ * Constraining `portal_role` at its writers is necessary defence in depth and is
+ * done as well. But it cannot be the boundary: it does nothing about rows
+ * already carrying a bad value, and it would have to be re-proven at every
+ * future writer. Fixing the AUTHORIZATION check makes every stale row harmless
+ * immediately, with no data migration and no backfill.
+ *
+ * Verified safe: `requireRole` has exactly three callers — health/crons,
+ * requireBroker, requireAgentOrBroker — and all three are staff-only. No portal
+ * path uses it; `requirePortalRole` is the lead path and already bypasses on
+ * `userType === "agent"`.
  */
 export async function requireRole(
   req: NextRequest,
@@ -51,6 +84,13 @@ export async function requireRole(
 ): Promise<SessionUser | NextResponse> {
   const result = await requireAuth(req);
   if (result instanceof NextResponse) return result;
+
+  // THE TRUST BOUNDARY. A lead session can never hold staff authority, whatever
+  // string its role happens to contain. Fails closed and says nothing about why,
+  // so the response cannot be used to probe for the role vocabulary.
+  if (result.userType !== "agent") {
+    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+  }
 
   const normalizedRole = result.role.toUpperCase();
   if (!allowedRoles.map(r => r.toUpperCase()).includes(normalizedRole)) {

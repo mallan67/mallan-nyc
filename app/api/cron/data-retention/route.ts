@@ -26,7 +26,13 @@ export const maxDuration = 60;
 const T30_BATCH_CAP = 1000;
 const T180_BATCH_CAP = 500;
 
-const TERMINAL_STATUSES = ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled"] as const;
+// Mirrors ARCHIVE_TERMINAL_STATUSES in lib/retention/archive-terminals.ts.
+// Both spellings of canceled are present on purpose: `Canceled` (one L) is
+// the live Cotality value written raw by the Trestle sync, `Cancelled` (two
+// Ls) is the invented value the CRM write path stored. This list is used as
+// `status: { in: [...] }` at both call sites below, so a missing spelling is
+// a silently skipped row, not an error.
+const TERMINAL_STATUSES = ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Canceled", "Cancelled"] as const;
 
 // (T+180 archive summary/strip helpers moved to lib/retention/archive-terminals.ts — Gate 6,
 // shared with the controlled operator drain so the two paths cannot drift.)
@@ -142,7 +148,13 @@ export async function GET(req: NextRequest) {
   const closedCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const staleClosedListings = await prisma.listing.findMany({
     where: {
-      status: { in: ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled"] },
+      // THE MODULE CONST, not a private copy. This was an inline literal — a
+      // seventh copy of the terminal list, in the same file as the const it
+      // duplicated — and it carried only the invented `Cancelled` spelling.
+      // A listing the PROVIDER marked `Canceled` therefore kept
+      // idx_display_yn=true forever: the §2.05 24-hour removal never
+      // happened as far as the stored distribution gate was concerned.
+      status: { in: [...TERMINAL_STATUSES] },
       status_changed_at: { lt: closedCutoff },
       idx_display_yn: true, // still marked for IDX display
     },

@@ -636,6 +636,13 @@ export const TERMINAL_STATUSES: ReadonlySet<string> = new Set([
   'Rented',
   'Withdrawn',
   'Expired',
+  // BOTH SPELLINGS, DELIBERATELY. `Canceled` (one L) is the live Cotality
+  // value; `Cancelled` (two Ls) is a value Mallan invented and wrote into rows
+  // for a long time. Real rows carry both, and no backfill is in scope, so a
+  // set that knows only one spelling is a set that silently misses half the
+  // population. New writes converge on `Canceled` via STATUS_ALIASES; this set
+  // keeps accepting the legacy spelling forever so stale rows stay gated.
+  'Canceled',
   'Cancelled',
 ]);
 
@@ -653,33 +660,70 @@ const ACTIVE_STATUSES: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * CRM lifecycle statuses that exist outside the public IDX displayable set
- * but are still legitimate inputs from CRM forms (Mallan exclusives). Folding
- * non-canonical variants like `"draft"` / `"pending"` back to canonical keeps
- * CRM rows queryable by exact-case predicates and prevents the stealth-audit-
- * anomaly class (row stored with non-canonical status, invisible to every
- * exact-case counter).
+ * Statuses that are RECOGNISED but neither publicly displayable nor
+ * past-its-life. This is the third leg of the partition; the other two are
+ * ACTIVE_STATUSES (displayable) and TERMINAL_STATUSES (archivable).
+ *
+ * Membership here does exactly one thing: it makes the normalizer RECOGNISE
+ * the value, so a lowercase or padded input folds back to canonical instead of
+ * falling through. That matters because the fall-through branch returns the
+ * raw input, which is the stealth-audit-anomaly class this function's docstring
+ * warns about - a row stored as `"hold"` is invisible to every exact-case
+ * counter in the codebase, including the ops:health drift census.
+ *
+ * `Hold` and `Delete` are LIVE COTALITY StandardStatus members
+ * (data/cotality-enums.live.json, pulled 2026-07-05; corroborated by the
+ * compiled contract captured 2026-08-18). Before this, neither appeared in ANY
+ * set, so `normalizeStandardStatus('hold')` returned the string `'hold'`.
+ *
+ * They are deliberately NOT in TERMINAL_STATUSES:
+ *
+ *   Hold   - Cotality: a contract exists and the listing is expected back on
+ *            market. Marking it terminal would stamp `terminal_since` and tell
+ *            feed-reconcile the listing departed. It has not.
+ *   Delete - Cotality: "the listing contract was never valid". Arguably
+ *            terminal, but promoting it would make it archive-eligible, and
+ *            archival strips media. That is a destructive change that needs
+ *            Maya, not a side effect of a spelling fix. FLAGGED, NOT DECIDED.
+ *
+ * Neither is a public-display risk in the meantime: all three public read paths
+ * are ALLOW-lists (buildSearchDisplayWhere, buildProjectionSearchWhere,
+ * filterDisplayableDbListings), so an unrecognised or off-market status fails
+ * closed regardless of what this set says.
  */
-const CRM_LIFECYCLE_STATUSES: ReadonlySet<string> = new Set([
+const RECOGNISED_NON_TERMINAL_STATUSES: ReadonlySet<string> = new Set([
   'Draft',
   'Incomplete',
   'Pending',
+  'Hold',
+  'Delete',
 ]);
 
 /**
- * Alias map for known non-canonical spellings of terminal statuses that the
- * normalizer rewrites to the canonical REBNY/Trestle form. Limited to
- * canonical-equivalent spellings — never coerces an arbitrary unknown string
- * into a terminal value. Examples:
- *   - "canceled" (US English single-L) → "Cancelled" (RESO canonical double-L)
+ * Rewrite rules for spellings Mallan has stored that the PROVIDER does not use.
  *
- * Add a new entry here only when a real-world client has been observed
- * submitting that variant. The alias map is the only place where one status
- * string is rewritten into a different status string; everywhere else the
- * normalizer is a case-fold + trim operation that preserves identity.
+ * THIS MAP USED TO POINT THE WRONG WAY. It read:
+ *
+ *     canceled: 'Cancelled', // single-L -> double-L
+ *
+ * with the comment '"canceled" (US English single-L) -> "Cancelled" (RESO
+ * canonical double-L)'. That is backwards. `Canceled` - one L - IS the live
+ * Cotality value (`Property.StandardStatus` lookup: value "Canceled",
+ * standardValue "Canceled", legacyODataValue "Canceled", resoStandard true).
+ * `Cancelled` is not a Cotality value at all. Mallan invented it, filed the
+ * provider's real value as the typo, and then rewrote every incoming provider
+ * value into the invention before storing it.
+ *
+ * The arrow now points at the provider. Legacy rows keep working because
+ * TERMINAL_STATUSES carries both spellings; anything that passes back through
+ * this normalizer converges on `Canceled` without a backfill.
+ *
+ * Add a new entry only for a spelling Mallan has actually stored. This map is
+ * the only place one status string becomes a different status string;
+ * everywhere else the normalizer is a case-fold + trim that preserves identity.
  */
 const STATUS_ALIASES: Record<string, string> = {
-  canceled: 'Cancelled', // single-L → double-L
+  cancelled: 'Canceled', // Mallan's invented double-L -> the live Cotality value
 };
 
 /**
@@ -695,34 +739,61 @@ const STATUS_ALIASES: Record<string, string> = {
  * and the guard so they cannot disagree.
  *
  * Behavior:
- *   - Empty / null / non-string input              → "Active"
+ *   - Empty / null / non-string input              → "" (see below)
+ *   - Known alias (checked FIRST, see below)         → provider spelling
  *   - Exact-case canonical hit                      → returned as-is
  *   - Trim + case-fold match against a known set    → canonical form
- *   - Known alias (e.g., "canceled" → "Cancelled")  → canonical form
+ *   - Known alias ("Cancelled" → "Canceled")        → provider spelling
  *   - Anything else                                 → trimmed input (preserved)
  *
  * Unknown statuses are NOT silently rewritten to a known value. If a new
- * RESO status emerges, add it to the right set (TERMINAL_STATUSES,
- * ACTIVE_STATUSES, CRM_LIFECYCLE_STATUSES) and the normalizer picks it up
- * automatically.
+ * Cotality status emerges, add it to the right set (TERMINAL_STATUSES,
+ * ACTIVE_STATUSES, RECOGNISED_NON_TERMINAL_STATUSES) and the normalizer picks
+ * it up automatically. The three sets together must cover every member of
+ * STANDARD_STATUS_MEMBERS, the live-truth projection in the canonical search
+ * package. That is asserted by
+ * tests/runtime/status-vocabulary-cotality-binding.test.ts. (Named, not
+ * imported: the canonical package is deliberately NOT WIRED into runtime
+ * readers, and canonical-a1-contract.test.ts enforces that by scanning for
+ * the path.)
  */
 export function normalizeStandardStatus(input: unknown): string {
-  if (typeof input !== 'string') return 'Active';
+  // ABSENT IS NOT ACTIVE.
+  //
+  // This returned 'Active'. That was never a decision — it was an inherited
+  // default, and it was unreachable from real rows while `listings.status` was
+  // `NOT NULL DEFAULT 'Active'`. Making the column nullable makes it reachable
+  // from every listing that has no market status yet, and it fails OPEN:
+  // `ensure-listing` would write a fabricated `Active` AND derive
+  // `idx_display_yn` from it, publishing a market claim the provider never
+  // sent — the same defect as the mapper's old `|| "Active"`.
+  //
+  // The empty string is the "I was given nothing" token: a member of no status
+  // set, so every allow-list gate downstream fails closed with no caller
+  // change. The DB column says the same thing with NULL; writers convert at
+  // the boundary.
+  if (typeof input !== 'string') return '';
   const trimmed = input.trim();
-  if (!trimmed) return 'Active';
+  if (!trimmed) return '';
+
+  // REWRITE FIRST, IDENTITY SECOND.
+  //
+  // The alias lookup has to run BEFORE the exact-case fast path, not after.
+  // TERMINAL_STATUSES deliberately contains the legacy `Cancelled` so stale
+  // rows still gate, which means the fast path would match it and return it
+  // unchanged - and the rewrite would never fire. An alias is a rewrite rule;
+  // rewrite rules outrank identity checks.
+  const lower = trimmed.toLowerCase();
+  if (STATUS_ALIASES[lower]) return STATUS_ALIASES[lower];
 
   // Fast path — exact-case canonical.
   if (
     TERMINAL_STATUSES.has(trimmed) ||
     ACTIVE_STATUSES.has(trimmed) ||
-    CRM_LIFECYCLE_STATUSES.has(trimmed)
+    RECOGNISED_NON_TERMINAL_STATUSES.has(trimmed)
   ) {
     return trimmed;
   }
-
-  // Lowercase alias hit (e.g., "canceled" → "Cancelled").
-  const lower = trimmed.toLowerCase();
-  if (STATUS_ALIASES[lower]) return STATUS_ALIASES[lower];
 
   // Case-insensitive match against the known canonical sets.
   for (const s of TERMINAL_STATUSES) {
@@ -731,7 +802,7 @@ export function normalizeStandardStatus(input: unknown): string {
   for (const s of ACTIVE_STATUSES) {
     if (s.toLowerCase() === lower) return s;
   }
-  for (const s of CRM_LIFECYCLE_STATUSES) {
+  for (const s of RECOGNISED_NON_TERMINAL_STATUSES) {
     if (s.toLowerCase() === lower) return s;
   }
 
@@ -753,7 +824,7 @@ export function normalizeStandardStatus(input: unknown): string {
 //   - internet_consumer_comment_yn
 //
 // Before this helper, every writer (Trestle mapper, CRM POST, CRM PATCH, CRM
-// status PATCH, listing-expiration cron, ensure-listing, convert, reset-sync)
+// status PATCH, listing-expiration cron, ensure-listing, convert)
 // re-implemented the same combination of:
 //   1. normalizeStandardStatus → canonical status string
 //   2. TERMINAL_STATUSES.has  → terminal-status guard
@@ -789,7 +860,7 @@ export function normalizeStandardStatus(input: unknown): string {
 //     boolean shape.
 //
 //   - status is normalized via normalizeStandardStatus, so callers can pass
-//     a lowercased / whitespace-padded / aliased ("canceled" → "Cancelled")
+//     a lowercased / whitespace-padded / aliased ("Cancelled" → "Canceled")
 //     input safely. Terminal statuses force idx_display_yn=false regardless
 //     of the other flags (this is the H1 fix at writer-side; the cron is
 //     belt-and-suspenders for DB-direct mutation paths).
@@ -958,8 +1029,17 @@ export function computeGateColumns(
   // the existing inline CRM POST gate (`rlsEligible && ...` in
   // app/api/crm/listings/route.ts) so commercial / website-only listings
   // can never become publicly-displayable IDX rows.
+  //
+  // `has_market_status` is the condition the nullable column made reachable.
+  // This aggregate is a DENY-list on terminal statuses, not an allow-list on
+  // on-market ones, so "no market status yet" is not terminal and would have
+  // been published. A listing the provider has said nothing about, or that
+  // Mallan has authored but never put on the market, is not IDX-displayable.
+  const has_market_status = normalized_status !== '';
+
   const idx_display_yn =
     rls_eligible &&
+    has_market_status &&
     !is_terminal &&
     internet_entire_listing_display_yn &&
     !participant_only &&
@@ -984,7 +1064,8 @@ export function computeGateColumns(
 export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   listing_id: string;
   mls_id: string | null;
-  status: string;
+  /** The provider's StandardStatus, or null when Cotality sent none. */
+  status: string | null;
   listing_type: string;
   property_type: string | null;
   property_sub_type: string | null;
@@ -1028,7 +1109,23 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
 
   const listingId = String(raw.ListingId || raw.ListingKey || "");
   const mlsId = raw.ListingKey ? String(raw.ListingKey) : null;
-  const status = String(raw.StandardStatus || raw.MlsStatus || "Active");
+  // THE PROVIDER'S FACT, OR NOTHING. Never a fabricated one.
+  //
+  // This read `String(raw.StandardStatus || raw.MlsStatus || "Active")`. When
+  // Cotality sent no status at all, Mallan invented `Active` — asserting to
+  // every downstream reader that the provider had said a listing was on the
+  // market when the provider had said nothing. Because `Active` is in every
+  // displayable allow-list, an unknown-status row became publicly displayable
+  // on the strength of a default.
+  //
+  // Now the column is nullable, "the provider did not tell us" has a truthful
+  // representation, and null fails closed everywhere: no display allow-list
+  // contains it.
+  const rawStatus = raw.StandardStatus ?? raw.MlsStatus;
+  const status =
+    typeof rawStatus === "string" && rawStatus.trim() !== ""
+      ? String(rawStatus)
+      : null;
   const listingType = inferListingType(raw);
 
   // Explicit columns

@@ -332,7 +332,8 @@ export function mapRESOToListing(reso: RESOListing): Partial<Listing> {
     Rented: 'Rented',
     Withdrawn: 'Withdrawn',
     Expired: 'Expired',
-    Cancelled: 'Withdrawn',
+    Canceled: 'Withdrawn', // live Cotality spelling
+    Cancelled: 'Withdrawn', // legacy Mallan spelling
   };
 
   return {

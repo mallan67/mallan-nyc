@@ -48,7 +48,7 @@
  */
 export const RAW_DATA_KEEP_FIELDS: readonly string[] = [
   // ── Identifiers (sync identity + change detection) ─────────────────
-  // Used by lib/idx/sync.ts to detect edits + by reset-sync route.
+  // Used by lib/idx/sync.ts to detect edits.
   'ListingKey',
   'ListingId',
   'SourceSystemKey',

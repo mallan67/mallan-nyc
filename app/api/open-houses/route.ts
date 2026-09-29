@@ -502,7 +502,9 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
         const gate = l.rls_eligible === false
           ? {
               // ComingSoon excluded — no public open houses on Coming Soon (UCBA Art. I §16).
-              displayable: OPEN_HOUSE_ELIGIBLE_STATUSES.includes(l.status),
+              // Null market status fails closed: not on market, no open house.
+              displayable:
+                l.status != null && OPEN_HOUSE_ELIGIBLE_STATUSES.includes(l.status),
               addressDisplayable: l.internet_address_display_yn !== false,
             }
           : // Canonical gate — same evaluator the main listing pipeline uses. If any gate fails
@@ -520,7 +522,7 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
       // Mallan-owned. Codex #472 r15: the status check makes the feed match the RSVP-
       // linkage predicate (isLocalOpenHousePubliclyEligible) so no ComingSoon/Pending RLS
       // open house is shown-but-unlinkable (UCBA: ComingSoon has no showings).
-      .filter(({ gate, l }) => gate.displayable && OPEN_HOUSE_ELIGIBLE_STATUSES.includes(l.status) && isMallanOwnedLocalListing(l))
+      .filter(({ gate, l }) => gate.displayable && l.status != null && OPEN_HOUSE_ELIGIBLE_STATUSES.includes(l.status) && isMallanOwnedLocalListing(l))
       .map(({ s, l, gate }) => {
       // Address is stored as JSON. CRM/local listings persist it in RESO PascalCase
       // (StreetNumber/StreetName/UnitNumber…); reading only camelCase produced an EMPTY street, which

@@ -42,7 +42,6 @@ describe("writer rule wired into every terminal-status writer", () => {
     for (const f of [
       "lib/idx/sync.ts",
       "app/api/cron/feed-reconcile/route.ts",
-      "app/api/crm/listings/reset-sync/route.ts",
     ]) {
       expect(read(f)).toMatch(/expirationDateFallback:\s*raw\.ExpirationDate/);
     }
@@ -62,12 +61,6 @@ describe("writer rule wired into every terminal-status writer", () => {
   });
   it("import-closed sets terminal_since from the stable date", () => {
     expect(read("scripts/import-closed-from-trestle.ts")).toMatch(/deriveTerminalSince/);
-  });
-  it("reset-sync uses computeTerminalSincePatch on create + update (#446)", () => {
-    const s = read("app/api/crm/listings/reset-sync/route.ts");
-    expect(s).toMatch(/computeTerminalSincePatch/);
-    expect(s).toMatch(/\.\.\.terminalSinceCreate/);
-    expect(s).toMatch(/\.\.\.terminalSinceUpdate/);
   });
   it("CRM DELETE (soft-delete → Withdrawn) sets terminal_since (#446)", () => {
     const s = read("app/api/crm/listings/[id]/route.ts");

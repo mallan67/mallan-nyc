@@ -10,7 +10,7 @@
 | System | Role |
 |---|---|
 | **Cotality/Trestle** | External MLS data provider. REBNY IDX Plus feed via OData v4 (`https://api.cotality.com/trestle`). Read-only consumption. |
-| **RealPlus/RLS** | Listing-entry source for official REBNY/RLS listings. Maya enters listings into RealPlus; they appear in the Cotality feed. |
+| **the legacy upstream intermediary / RLS** | Listing-entry source for official REBNY/RLS listings. Maya enters listings into the legacy upstream intermediary; they appear in the Cotality feed. |
 | **mallan.nyc** | Consumes Cotality data for public display, search, building reference, and media. Does NOT write back to Trestle. |
 | **InHouse/local web** | Mallan-created website-only records (`SL-*` IDs). Not on RLS. Must be manually reconciled when an official `RLS*` feed record arrives. |
 
@@ -232,7 +232,7 @@ Uses existing `/listing/<slug>` detail route. No separate `/exclusives` route un
 | Phase | Action |
 |---|---|
 | Before feed arrives | Show manual `SL-*` listing. Pin in FeaturedConfig. URL = `/listing/<slug>-sl0042`. |
-| After feed arrives | **Local `SL-*`/`RL-*` REMAINS CANONICAL.** The returned `RLS*` row is the Mallan RLS return-copy: retained internally for source/audit/reconciliation, SUPPRESSED from every public canonical surface. Do NOT withdraw the local row, do NOT pin `RLS*`, do NOT switch the public URL. RealPlus URL handling is OUTSIDE this system. See REPO-SOURCE-OF-TRUTH-CHARTER.md Section 1A. |
+| After feed arrives | **Local `SL-*`/`RL-*` REMAINS CANONICAL.** The returned `RLS*` row is the Mallan RLS return-copy: retained internally for source/audit/reconciliation, SUPPRESSED from every public canonical surface. Do NOT withdraw the local row, do NOT pin `RLS*`, do NOT switch the public URL. legacy-intermediary URL handling is OUTSIDE this system. See REPO-SOURCE-OF-TRUTH-CHARTER.md Section 1A. |
 
 Manual process. No automated dedup exists. `SL-*` and `RLS*` are separate DB rows with different `listing_id` key spaces.
 
@@ -249,7 +249,7 @@ Manual process. No automated dedup exists. `SL-*` and `RLS*` are separate DB row
 | Address dedup | Does NOT exist. Sync only matches by `listing_id`. |
 | Canonical relationship | Does NOT exist in schema. Use `raw_data._anticipatedRlsListingId` for manual cross-reference. |
 | Duplicate prevention | Different key spaces prevent accidental overwrite. Visual duplicate = two rows for same address. |
-| Reconciliation | **Local Mallan row stays canonical; Cotality return-copy is publicly suppressed and retained internally.** No withdrawal, no pinning of `RLS*`, no RealPlus URL step in this system. See CHARTER Section 1A. |
+| Reconciliation | **Local Mallan row stays canonical; Cotality return-copy is publicly suppressed and retained internally.** No withdrawal, no pinning of `RLS*`, no legacy-intermediary URL step in this system. See CHARTER Section 1A. |
 
 ---
 
