@@ -7,7 +7,7 @@
 > and next action. It is status and history only: it authorizes no branch name, file path, implementation
 > scope or mutation envelope, and no check reads authorization from it. It may not redefine the Master.
 
-**Checkpoint:** 2026-09-29 — the branch restriction, the State-authorization modes and the three-PR cycle are retired by Maya's decision (§7). The database/provider/destructive safety rules continue as the required `pr-safety` check. `main` is protected by GitHub: pull request, required `pr-check` and `pr-safety`, Maya merges. Next: clean `main` one stage at a time (§11).
+**Checkpoint:** 2026-09-29 — Maya decided to retire the branch restriction, the State-authorization modes and the three-PR cycle, and to keep the database/provider/destructive safety rules as the `pr-safety` check (§7). **This transition is PENDING:** it takes effect only when #646 is merged and Maya then authorizes the `Protect main` ruleset change (remove `authority-root`, add `pr-safety`). Until then the live required checks are `pr-check` and `authority-root`. After the transition: clean `main` one stage at a time (§11).
 **Repository:** `mallan67/mallan-nyc` only  
 **Canonical branch:** `main`  
 **Main at this checkpoint:** `005786e71818ef13f555111de67e3d6248412987` — the PR #632 merge
@@ -20,7 +20,7 @@ live tip from GitHub.**
 **Checkpoint source head:** `fb100d6a12f572d78aaac0ec152c4cc57ac6ce74` (final #632 head; all checks green, zero unresolved review threads). Current head must always be read live from GitHub  
 **Authorized work surface:** GitHub repository + explicitly authorized provider connections only; Desktop/worktrees/scratch copies are not execution authority  
 **PR #595:** authority provenance / historical governance source; CLOSED 2026-09-20T17:54:35Z as superseded by #632, unmerged. Its lineage is in `main` history through #632  
-**Governance activation:** RETIRED 2026-09-29. The execution controller, `authority-root` and the branch restriction were retired by Maya's decision; the required checks on the `Protect main` ruleset `19435006` are `pr-check` and `pr-safety` (§7, §8.1). `authority-root` was required from 2026-09-22 to 2026-09-29.
+**Governance activation:** `authority-root` has been a required status check on the `Protect main` ruleset `19435006` since 2026-09-22, bound to the GitHub Actions integration `15368`; the live required checks are `pr-check` and `authority-root` (verified 2026-09-29). Its retirement is PENDING (§7): after #646 merges, Maya's explicitly authorized ruleset change removes `authority-root` and adds `pr-safety`. Read the live ruleset for the current required set.
 
 ---
 
@@ -572,38 +572,73 @@ A source-string test, green CI, merged PR, deployment, or isolated UI proof is n
 
 ---
 
-# 7. How changes reach `main` (from 2026-09-29)
+# 7. How changes reach `main` (decided 2026-09-29; transition pending)
 
-The branch restriction (`work/active` and the auto-delete of every other branch), the State-authorization modes and the three-PR cycle are retired by Maya's decision of 2026-09-29. They kept unsafe changes out of `main`, but they also kept correct changes out: from 2026-09-18 to 2026-09-26 all thirteen merges to `main` (#632–#644) were governance updates and none changed the product. Their history is in Git and is not repeated here.
+Maya decided on 2026-09-29 to retire the branch restriction (`work/active` and the auto-delete of every other branch), the State-authorization modes and the three-PR cycle. They kept unsafe changes out of `main`, but they also kept correct changes out: from 2026-09-18 to 2026-09-26 all thirteen merges to `main` (#632–#644) were governance updates and none changed the product. Their history is in Git and is not repeated here.
 
-`main` is protected by GitHub:
+**Transition status: PENDING.** It completes in two steps, in this order:
+
+1. #646 merges, which removes the controller and its workflows from the repository and adds `pr-safety`;
+2. with Maya's explicit authorization, the `Protect main` ruleset drops `authority-root` and adds `pr-safety` to its required checks.
+
+Until step 2 the live ruleset still requires `authority-root`. Between the two steps no new pull request can satisfy `authority-root`, because the workflow that reports it no longer exists on `main`, so step 2 follows step 1 directly.
+
+Once the transition is complete, `main` is protected by GitHub:
 
 - every change arrives through a pull request;
 - the required `pr-check` runs type-check, Jest, the compliance validators, the CRM tests and the build;
-- the required `pr-safety` check (`.github/workflows/pr-safety.yml`, `scripts/ci/pr-safety-check.mjs`, tests in `tests/runtime/pr-safety-check.test.ts`) guards database, provider and destructive-infrastructure changes, independent of branch names and of this file;
+- the required `pr-safety` check (`.github/workflows/pr-safety.yml`, `scripts/ci/pr-safety-check.mjs`, tests in `tests/runtime/pr-safety-check.test.ts` and `tests/runtime/reserved-check-names.test.ts`) guards database, provider, destructive-infrastructure and safety-root changes, independent of branch names and of this file;
 - force-push and deletion of `main` are blocked;
 - Maya reviews and merges every pull request. Agents never merge, never enable auto-merge, never add `authorized:*` labels and never change branch protection.
 
-`pr-safety` runs from the pull request's BASE and reads the proposed change only through the GitHub API, so a pull request can neither run its own code there nor weaken the check that judges it. It refuses the retired direct-Neon paths and any direct Neon control-plane capability outright, whatever the file is called; no label authorizes them. Each explicit Maya authorization boundary needs its own `authorized:*` label on the pull request: schema/migration/backfill; Production database/Neon mutation; Development/Preview Neon creation or control; Vercel environment/resource mutation; credential rotation; destructive data/R2/storage operations; manual cron/reconciliation execution; Production deployment/alias mutation; provider publishing/syndication; and safety-root/ruleset changes. A boundary is detected from the changed paths and from the code lines the pull request introduces, not from one historical filename, and no label authorizes any boundary but its own. Any database-shaped change also needs the full database chain (§27.16.1). A label counts only when it was added by an account listed as an authorizer. While Agents operate through Maya's own GitHub account (`mallan67`), an `authorized:*` label cannot cryptographically distinguish Maya from an Agent: it records an authorization, it does not prove who gave it.
+`pr-safety` runs from the pull request's BASE and reads the proposed change only through the GitHub API, so a pull request can neither run its own code there nor weaken the check that judges it. It first establishes that it can judge the change at all, and fails closed otherwise: the pull request must come from a branch of this repository, its changed-file list must be complete, and every changed path must read as a regular file (a symlink, submodule, directory, unreadable file, or a runnable file that is binary or too large fails). It refuses outright, and no label authorizes: the retired direct-Neon paths; the direct Neon control-plane tokens in any changed file other than prose, including escaped, concatenated, percent-encoded and full-width forms; and any workflow, action or status call, other than the canonical workflow, that uses a required check name. Beyond that it decides by WHERE a change is, not by trying to understand the code. Each boundary needs its own `authorized:*` label, and no label authorizes another: schema/migration/backfill; Production database/Neon mutation; Development/Preview Neon creation or control; Vercel environment/resource mutation; credential rotation; destructive data/R2/storage operations; manual cron/reconciliation execution; Production deployment/alias mutation; provider publishing/syndication; operator programs (`scripts/`, `tools/`, shell, container and infrastructure files, anything executable); and the safety root: the check and its tests, everything under `.github/`, the npm, TypeScript, Jest and Babel configuration, the validators' rules and data, every file the required `pr-check` runs, this Master, and the agent instructions and agent tool configuration. In application code a short list of well-known operations acts as a tripwire and asks for the matching label when a pull request adds an occurrence; it catches the usual spellings, it cannot prove code harmless, and review remains the control there. A label counts only when an authorizer added it after the current head commit was pushed: a new push or a change of base branch removes the labels given before it, and no earlier label authorizes the new commit. Every new runnable file is named in the pull request's description (§27.15), and a change to the database's infrastructure or connections also needs the database chain (§27.16.1). While Agents operate through Maya's own GitHub account (`mallan67`), an `authorized:*` label cannot cryptographically distinguish Maya from an Agent: it records an authorization for one commit, it does not prove who gave it.
 
-| Boundary (§9) | Label | Detected from (changed paths, or code lines the PR introduces) |
+| Boundary (§9) | Label | Decided by (path first; tripwires in application code) |
 |---|---|---|
-| retired direct-Neon path, or direct Neon control-plane capability | none; refused outright | the 11 retired paths; `console.neon.tech`, `api.neon.tech`, `neonctl`, `NEON_*_KEY` in any runnable file, under any name |
-| schema / migration / backfill | `authorized:schema-migration` | `prisma/schema.prisma`, `prisma/migrations/`, `sql/`, backfill/migration programs; `prisma migrate` / `db push`, schema DDL, backfills run from operator surfaces or crons |
-| Production database / Neon mutation | `authorized:production-database` | the Production database-target modules; the canonical Production database identity, a Neon connection host, `prisma migrate deploy`, a data-loss flag, a database URL taken from a stored secret |
-| Development / Preview Neon creation or control | `authorized:preview-neon` | `lib/neon/`; Neon branch/endpoint/compute create, delete, reset, restore, prune or provision; Vercel integration install/remove |
-| Vercel environment / resource mutation | `authorized:environment` | `vercel.json`, `.vercel/`; `vercel env/domains/…` mutations; Vercel API environment/resource endpoints |
-| credential rotation | `authorized:credential-rotation` | rotation/revocation programs; password resets, rotate/regenerate/revoke of keys, secrets, passwords or tokens, GitHub secret writes, role password changes |
-| destructive data / R2 / storage | `authorized:destructive-data` | purge/wipe/prune/delete/cleanup operators; R2/S3 object or bucket deletes, destructive SQL, unconditional `deleteMany`, data-loss resets |
-| manual cron / reconciliation execution | `authorized:manual-cron` | reconcile/replay/run-cron operators; cron endpoints or `CRON_SECRET` used from operator surfaces, reconciliation runs, `workflow_dispatch` |
-| Production deployment / alias mutation | `authorized:production-deploy` | `vercel.json`; `vercel --prod`, `vercel deploy/promote/rollback/redeploy/alias`, alias/promote/rollback endpoints, deploy hooks |
-| provider publishing / syndication | `authorized:provider-publishing` | syndication surfaces and outbound feed routes; listing-portal feed/upload/API endpoints, FTP/SFTP feed delivery, RLS/REBNY submission calls, writes to Cotality/Trestle |
-| safety root / rulesets | `authorized:safety-root` | the check, its workflow, `pr-check.yml`, `release-truth.yml`, the Release Truth scripts, `scripts/ops-health.js`, `vercel.json` and their tests; ruleset/branch-protection API calls; `pull_request_target` or write-all permissions in a workflow |
-| any database-shaped change | (no label) | a complete `database-chain` block in the pull-request description (Master §27.16.1) |
+| retired direct-Neon path, or direct Neon control-plane token | none; refused outright | the 11 retired paths; `console.neon.tech`, `api.neon.tech`, `neonctl`, `NEON_*_KEY` in any changed file other than prose, including escaped, concatenated, percent-encoded and full-width forms |
+| a required check name used outside its workflow | none; refused outright | `pr-check` or `pr-safety` in another workflow or action, or next to a commit-status / check-run call |
+| schema / migration / backfill | `authorized:schema-migration` | `prisma/`, `sql/`, `prisma.config.*`; tripwires: `prisma migrate` / `db push`, schema DDL |
+| Production database / Neon mutation | `authorized:production-database` | the database target and client modules; tripwires: the Production database identity, a Neon host, `prisma migrate deploy`, a data-loss flag, a database URL from a stored secret, a Production environment pull |
+| Development / Preview Neon creation or control | `authorized:preview-neon` | `lib/neon/`; tripwires: Neon branch/endpoint lifecycle calls, the Neon management SDK, Vercel integration install/remove |
+| Vercel environment / resource mutation | `authorized:environment` | `vercel.json`, `.vercel/`; tripwires: `vercel env/domains/…` mutations, Vercel environment/resource API and SDK calls |
+| credential rotation | `authorized:credential-rotation` | tripwires: password resets, GitHub secret writes, role password changes |
+| destructive data / R2 / storage | `authorized:destructive-data` | `lib/retention/` and storage clean-up helpers; tripwires: R2/S3 deletes, destructive SQL, unconditional `deleteMany`, data-loss resets |
+| manual cron / reconciliation execution | `authorized:manual-cron` | `app/api/cron/`; tripwire: dispatching a workflow run |
+| Production deployment / alias mutation | `authorized:production-deploy` | `vercel.json`; tripwires: `vercel … --prod`, promote/rollback/redeploy/alias, deploy hooks |
+| provider publishing / syndication | `authorized:provider-publishing` | syndication/publishing surfaces and feed routes; tripwires: portal feed/upload endpoints, FTP/SFTP delivery, RLS/REBNY submission, writes to Cotality/Trestle |
+| operator programs | `authorized:operator` | `scripts/`, `tools/`, `bin/`, shell, PowerShell and batch files, Make/Docker/compose/Terraform files, git hooks, any file marked executable or started with `#!`; deleting one needs no label |
+| safety root | `authorized:safety-root` | this check and its tests; everything under `.github/`; `package.json`, the lockfile, `.npmrc`, `tsconfig*.json`, Jest and Babel configuration, `next.config.js`, `vercel.json`; the validators' rules and data (`compliance/`, `data/`); every file `pr-check` runs, resolved from the base with imports followed; the Master; `CLAUDE.md` / `AGENTS.md` anywhere, `.claude/`, `.mcp.json`; tripwires: ruleset / branch-protection API calls |
+| a new runnable file | (no label) | named in the pull-request description (Master §27.15) |
+| a change to the database's infrastructure or connections | (no label) | a complete `database-chain` block that names every changed database file, proven on the proposed head (Master §27.16.1) |
 
-Authorizers are the accounts in the repository variable `MALLAN_SAFETY_AUTHORIZERS` (default `mallan67`). **Limitation:** while agents operate through `mallan67`, an `authorized:*` label cannot cryptographically distinguish Maya from an agent. It records an authorization; it does not prove who gave it.
+Authorizers are the accounts in the repository variable `MALLAN_SAFETY_AUTHORIZERS` (default `mallan67`). A label counts only when an authorizer added it after the current head commit was pushed (and after any change of the base branch); the push removes the labels given before it. **Limitation:** while agents operate through `mallan67`, an `authorized:*` label cannot cryptographically distinguish Maya from an agent. It records an authorization for one commit; it does not prove who gave it.
 
-Retired: `scripts/ci/mallan-execution-control.mjs`, its test, `.github/workflows/authority-root.yml` and `.github/workflows/branch-authority.yml`. Every database/provider/destructive rule the controller enforced was carried into `pr-safety` with the same detection code. The narrow filename-based authorization list was replaced by the ten boundaries above, detected from changed paths and introduced content, each with a negative test in `tests/runtime/pr-safety-check.test.ts`.
+Removed by #646 when it merges: `scripts/ci/mallan-execution-control.mjs`, its test, `.github/workflows/authority-root.yml` and `.github/workflows/branch-authority.yml`. The retired controller's features were each given a disposition — **A** a lightweight automated invariant in `pr-safety`, **B** a Master-required review invariant, **C** intentionally retired:
+
+| Retired controller feature | Disposition | Where it lives now |
+|---|---|---|
+| explicit new-file authorization (each new path listed in the State envelope before implementation) | **A**, lightweight: every new runnable file is named in the pull request's description, with no separate authorization cycle | `pr-safety` (`scope:new-files`); Master §27.15 |
+| `new_canonical_system_authorized` | **B**: Maya decides in review whether a stated new file is a second system (the five proofs of Master §27.17). A name-based label rule was tried in #646 and retired: it would have blocked the planned mapper, Search and CMA work, and a renamed file escaped it | Master §27.17 |
+| impact graph | **B**: stated in the pull request's scope and reviewed by Maya | Master §27.15, §27.16 |
+| all readers / writers | **A** for database changes (the chain must name every changed database file and its downstream station must be a real consumer on the proposed head); **B** otherwise, as part of the impact graph | `pr-safety`; Master §27.16, §27.16.1 |
+| no-parallel-path proof | **B**: the impact graph's closure and §27.17, reviewed by Maya. The controller's final `MALLAN_EXECUTION_PROOFS` step only echoed a fixed list and proved nothing: **C**, retired | Master §27.16, §27.17 |
+| branch restriction, State modes and path envelopes, the three-PR cycle, the Master-amendment mode | **C**, retired by Maya's decision. A Master change is a safety-root change: it needs `authorized:safety-root` on its pull request | Master §27.18 |
+| retired direct-Neon paths and capability | **A**, absolute | `pr-safety` |
+| database chain | **A**, now proven on the proposed head and bound to the changed files | `pr-safety`; Master §27.16.1 |
+| execution from the PR base | **A**: `pr-safety` runs from the base, as `authority-root` did | `.github/workflows/pr-safety.yml` |
+
+**How the design was reached.** Three adversarial review rounds on #646 showed that reading code for dangerous operations is an open-ended contest: equivalent APIs, spelling and encoding tricks, values built far from their use, and guards removed without changing an operation's text form families no list of patterns closes. `pr-safety` therefore decides by where a change is, keeps a short tripwire list for application code, and leaves the rest to review, instead of claiming a completeness it cannot have.
+
+**Known limits of `pr-safety` (recorded, not hidden):**
+- In application code (`app/`, `lib/`, `components/`) the content tripwires are not a boundary: an equivalent API, an unusual spelling, a value built far from where it is used, a runtime-decoded string, or a guard removed without changing an operation's text is not seen. Review is the control there.
+- Content is counted: a pull request that removes one occurrence of an operation and adds another in the same file is not seen; moving an operation to a new file, or a comment naming it in runnable code, counts as adding it.
+- The Neon token scan does not see a host decoded at runtime (base64, character codes); the retired-path rule and review cover it.
+- Any GitHub Actions job, on any branch, can report a check named `pr-check` or `pr-safety` on any commit. `pr-safety` refuses such a job only inside the pull request it judges, and pinning the required checks to the GitHub Actions integration does not help, because every workflow reports as that integration. The durable fixes need Maya's authorization: required checks posted by a dedicated GitHub App whose key only `main` jobs can use (an environment restricted to `main`), pinned in the ruleset; and a separate Agent identity without admin rights plus Maya's required approving review (Master §27.18). Repository settings verified 2026-09-29: default workflow token permissions `write`; workflows may approve pull requests.
+- A label authorizes the head the pull request has when it is added; the check cannot tell which commit Maya looked at. Its output names the head SHA it judged.
+- `data/` holds product content (for example the legal pages) next to the validators' data; all of it is in the safety root, because the check cannot tell them apart without reading the validators.
+- Code the build or the tests load can still influence the required `pr-check` (for example a module that exits early); that is visible only in review.
+- Direct Neon control through the `@neondatabase/api-client` SDK is gated by `authorized:preview-neon`, not by the absolute prohibition.
+- While agents operate through `mallan67`, an `authorized:*` label cannot prove Maya added it.
 
 ---
 
@@ -619,7 +654,7 @@ Retired: `scripts/ci/mallan-execution-control.mjs`, its test, `.github/workflows
 
 # 8.1 Human / agent identity boundary
 
-GitHub's `Protect main` ruleset (`19435006`) requires a pull request and required status checks, and blocks non-fast-forward pushes and deletion of `main`. It requires 0 approving reviews and has no bypass actors. On 2026-09-29, with Maya's explicit authorization, `authority-root` is removed from its required checks when the controller behind it is retired, and `pr-safety` is added once the change that introduces it is merged (a check cannot report on the pull request that creates it). Read the live ruleset for the current required set.
+GitHub's `Protect main` ruleset (`19435006`) requires a pull request and the `pr-check` and `authority-root` status checks, and blocks non-fast-forward pushes and deletion of `main`. It requires 0 approving reviews and has no bypass actors (verified live 2026-09-29). **Pending transition (§7):** after #646 merges, and only with Maya's explicit authorization, `authority-root` is removed from the required checks and `pr-safety` is added (a check cannot report on the pull request that creates it, so it is added after the merge). Read the live ruleset for the current required set.
 
 If an AI agent operates through Maya's own GitHub identity, GitHub cannot distinguish a change made by Maya from one made by the agent, and repository CI cannot prove which of them opened a pull request or added an authorization label.
 
@@ -691,7 +726,7 @@ Do not create another status file because this one becomes inconvenient.
 
 # 11. Current exact stop point
 
-**2026-09-29 — stop point.** The execution gate is retired and its database/provider/destructive rules continue as the required `pr-safety` check (§7). Next, one stage at a time, each merged before the next starts: (a) delete the dead old-system files and scripts; (b) replace the REBNY CSVs and repository snapshots in the validators with the live Cotality contract; (c) one mapper; (d) one Search; (e) CMA built on that Search; (f) the listing forms. Everything below this entry is history.
+**2026-09-29 — stop point.** PENDING: #646 (retire the execution gate and keep its database/provider/destructive rules as `pr-safety`, §7) awaits Maya's review and merge, followed by her explicitly authorized ruleset change. The gate is not retired until both are done. After that, one stage at a time, each merged before the next starts: (a) delete the dead old-system files and scripts; (b) replace the REBNY CSVs and repository snapshots in the validators with the live Cotality contract; (c) one mapper; (d) one Search; (e) CMA built on that Search; (f) the listing forms. Everything below this entry is history.
 
 **HISTORY (superseded 2026-09-29): `mode: control-update` (2026-09-25); no packet is active and no Master amendment is authorized. The ledger row 19 packet
 `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` (a bounded, base-authorized Master-amendment path with negative tests) is COMPLETE: #642

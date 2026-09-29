@@ -149,6 +149,9 @@ describe("agent authority docs stay on live sources", () => {
     expect(safety).toContain("contents: read");
     expect(safety).toContain("node scripts/ci/pr-safety-check.mjs");
     expect(fs.existsSync(path.join(ROOT, "scripts/ci/pr-safety-check.mjs"))).toBe(true);
+    // A label authorizes the commit it was given on: a new push revokes every authorized:* label.
+    expect(safety).toContain("if: github.event.action == 'synchronize'");
+    expect(safety).toContain("node scripts/ci/pr-safety-check.mjs --revoke");
 
     // The required PR check keeps running the real tests; dropping one is a regression.
     const prCheck = read(".github/workflows/pr-check.yml");

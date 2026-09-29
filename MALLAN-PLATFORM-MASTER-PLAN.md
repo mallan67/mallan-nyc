@@ -7488,17 +7488,25 @@ Four rules make the chain real rather than decorative:
 3. **A document citation does not satisfy a station.** A document records a claim, not a fact. A
    station names the thing that does the work, or it says `UNVERIFIED` so the gap stays visible
    instead of being papered over. Pointing a station at a `.md` file fails closed.
-4. **Every repository path a station names must resolve on the PR base**, or be an explicitly
-   authorized new file. A fabricated station is not proof.
+4. **Every station is proven on the proposed head.** Each repository path a station names must be a
+   regular file in the pull request's head commit and is judged by its head content. A station the
+   pull request deletes or guts fails; a new or replacement file the pull request adds counts when
+   its own content does the station's work. A fabricated station is not proof.
 
 The verifier derives each station from repository code and the live platform. It does not accept
 the builder's summary of its own graph (§27.14).
 
-This is enforced by the required `pr-safety` check, not by convention. The chain is declared in the
-pull-request description as a fenced `database-chain` block (a JSON object of station → repo paths),
-and the check refuses a missing station, an UNVERIFIED station, free text, a document citation, a path
-that does not exist, a directory, and a real file of the wrong kind for its station. The exact file and
-test names are implementation detail and belong to the Execution State, not to this Master.
+This is enforced by the required `pr-safety` check, not by convention. The check demands the chain
+when a pull request changes the database's infrastructure (the schema, migrations and SQL, the database
+target and client, Neon control, retention jobs, cron routes, `vercel.json`, environment files) or
+changes how any file connects to the database (the connection variables, URLs, clients and drivers it
+names). A query made through the existing canonical client is part of the impact graph of §27.16,
+reviewed on the pull request, not of this machine-checked chain. The chain is declared in the
+pull-request description as a fenced `database-chain` block (a JSON object of station → repo paths).
+It must place every database file the pull request changes in a station, and the check refuses a missing
+station, an UNVERIFIED station, free text, a document citation, a path that is not a regular file on the
+proposed head, and a file whose proposed-head content is not evidence for its station. The exact file
+and test names are implementation detail and belong to the Execution State, not to this Master.
 
 ---
 
@@ -7515,6 +7523,12 @@ Before permitting one, prove:
 5. no second truth is created.
 
 If not proven, modify the existing canonical system.
+
+Every new file is stated in the pull request's scope with the reason it is needed (§27.15); `pr-safety`
+refuses a pull request that adds a runnable file its description does not name, so each new file is
+visible to Maya. Whether a stated new file is a second system, and the five proofs above, are Maya's
+review of that scope together with the impact graph and its closure (§27.16). No automated rule can tell
+a new owner from a parallel one by a file's name or content, so none pretends to.
 
 ## 27.18 Branch, pull request and merge control
 
@@ -7536,11 +7550,13 @@ PULL REQUEST REQUIRED
 → MAYA REVIEWS AND MERGES
 ~~~
 
-`pr-safety` runs from the pull request's BASE and reads the proposed change only through the GitHub API, so a pull request can neither run its own code there nor weaken the check that judges it. It refuses the retired direct-Neon paths and any direct Neon control-plane capability outright, whatever the file is called; no label authorizes them. Each explicit Maya authorization boundary needs its own `authorized:*` label on the pull request: schema/migration/backfill; Production database/Neon mutation; Development/Preview Neon creation or control; Vercel environment/resource mutation; credential rotation; destructive data/R2/storage operations; manual cron/reconciliation execution; Production deployment/alias mutation; provider publishing/syndication; and safety-root/ruleset changes. A boundary is detected from the changed paths and from the code lines the pull request introduces, not from one historical filename, and no label authorizes any boundary but its own. Any database-shaped change also needs the full database chain (§27.16.1). A label counts only when it was added by an account listed as an authorizer. While Agents operate through Maya's own GitHub account (`mallan67`), an `authorized:*` label cannot cryptographically distinguish Maya from an Agent: it records an authorization, it does not prove who gave it.
+`pr-safety` runs from the pull request's BASE and reads the proposed change only through the GitHub API, so a pull request can neither run its own code there nor weaken the check that judges it. It first establishes that it can judge the change at all, and fails closed otherwise: the pull request must come from a branch of this repository, its changed-file list must be complete, and every changed path must read as a regular file (a symlink, submodule, directory, unreadable file, or a runnable file that is binary or too large fails). It refuses outright, and no label authorizes: the retired direct-Neon paths; the direct Neon control-plane tokens in any changed file other than prose, including escaped, concatenated, percent-encoded and full-width forms; and any workflow, action or status call, other than the canonical workflow, that uses a required check name. Beyond that it decides by WHERE a change is, not by trying to understand the code. Each boundary needs its own `authorized:*` label, and no label authorizes another: schema/migration/backfill; Production database/Neon mutation; Development/Preview Neon creation or control; Vercel environment/resource mutation; credential rotation; destructive data/R2/storage operations; manual cron/reconciliation execution; Production deployment/alias mutation; provider publishing/syndication; operator programs (`scripts/`, `tools/`, shell, container and infrastructure files, anything executable); and the safety root: the check and its tests, everything under `.github/`, the npm, TypeScript, Jest and Babel configuration, the validators' rules and data, every file the required `pr-check` runs, this Master, and the agent instructions and agent tool configuration. In application code a short list of well-known operations acts as a tripwire and asks for the matching label when a pull request adds an occurrence; it catches the usual spellings, it cannot prove code harmless, and review remains the control there. A label counts only when an authorizer added it after the current head commit was pushed: a new push or a change of base branch removes the labels given before it, and no earlier label authorizes the new commit. Every new runnable file is named in the pull request's description (§27.15), and a change to the database's infrastructure or connections also needs the database chain (§27.16.1). While Agents operate through Maya's own GitHub account (`mallan67`), an `authorized:*` label cannot cryptographically distinguish Maya from an Agent: it records an authorization for one commit, it does not prove who gave it.
 
 Agents never merge, never enable auto-merge, never add `authorized:*` labels and never change branch protection or rulesets (§27.21).
 
 While Agents act through Maya's own GitHub identity, GitHub cannot tell an Agent from Maya, so merge control and authorization labels rest on Maya acting personally. The durable control is a separate Agent GitHub identity with write access and no admin rights, plus a `main` rule requiring Maya's approving review; from then on a label the Agent account adds is refused by `pr-safety`, and an Agent can never approve its own change.
+
+A required check is only as strong as whoever reports it. Any GitHub Actions job, on any branch, can report a check under a required name, and pinning a required check to the GitHub Actions integration does not change that, because every workflow reports as that integration. Until the required checks are reported by a dedicated GitHub App whose key only jobs on `main` can use, and the separate Agent identity and Maya's required review are in place, a green `pr-check` or `pr-safety` is evidence for Maya's review, not a substitute for it.
 
 "Done" requires the branch, commit SHA, pull request number, check results, Preview, merged yes/no and the resulting `main` SHA. Without those it is not done.
 
