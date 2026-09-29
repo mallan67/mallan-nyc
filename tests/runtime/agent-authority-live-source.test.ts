@@ -165,16 +165,22 @@ describe("agent authority docs stay on live sources", () => {
     expect(prCheck).toMatch(/^permissions:\n  contents: read\n/m);
     expect(prCheck).toContain("persist-credentials: false");
 
-    // Every retained required step is present exactly once, and none may be skipped or allowed to fail.
+    // Provider-neutral invariants only: install, type-check, tests, build, the 2026 UCBA audit, the
+    // CI compliance check and the Fair Housing / attribution / privacy / display audits. Each is
+    // present exactly once, and none may be skipped or allowed to fail.
+    //
+    // Provider authority is deliberately NOT pinned here. The provider-contract gate built on the
+    // live Cotality contract is the next stage (Execution State §11) and does not exist yet, so the
+    // provider check is UNVERIFIED. The two remaining validators of the retired provider authority,
+    // `rls:validate` and `validate:form-rls` (REBNY RLS CSVs, RESO field map, RESO-to-RLS renames),
+    // are not protected: they are evidence only, and the provider stage removes them (Master §21.2).
     const steps = prCheck.split(/\n(?=      - name: )/);
     for (const command of [
       "npm ci",
       "npm run type-check",
       "npx jest --ci --forceExit",
-      "npm run rls:validate",
       "npm run ucba:audit",
       "npm run crm:test",
-      "npm run validate:form-rls",
       "node scripts/ci-compliance-check.js",
       "npm run audit:display-compliance",
       "npm run build",
@@ -184,15 +190,13 @@ describe("agent authority docs stay on live sources", () => {
       expect({ command, conditional: /^\s+(?:if|continue-on-error):/m.test(matching[0] || "") }).toEqual({ command, conditional: false });
     }
 
-    // The npm scripts those steps call still run the type-check, the validators, the audits and
-    // the build, and no pre/post hook wraps them.
+    // The npm scripts those steps call still run the type-check, the compliance audits, the CRM
+    // tests and the build, and no pre/post hook wraps them.
     const scripts = JSON.parse(read("package.json")).scripts;
     const expected: Record<string, string> = {
       "type-check": "tsc --noEmit",
-      "rls:validate": "node scripts/validate-rls-compliance.js",
       "ucba:audit": "node scripts/ucba-compliance-audit.js",
       "crm:test": "node scripts/crm-test-runner.js",
-      "validate:form-rls": "node scripts/validate-form-rls.js",
       "audit:display-compliance": "npm run audit:attribution && npm run audit:pii && npm run audit:coming-soon && npm run audit:stat-disclaimer && npm run audit:fair-housing && npm run audit:closed-24h",
       "audit:attribution": "npx tsx scripts/audit-public-attribution.ts",
       "audit:pii": "npx tsx scripts/audit-pii-masking.ts",

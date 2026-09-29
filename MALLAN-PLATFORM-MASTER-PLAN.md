@@ -5283,6 +5283,8 @@ PUBLIC / CRM CONSUMER
 
 **A mapping that stops at Mallan storage is not finished.** The same chain must reach the Mallan business rule that uses the field and the surface that renders it — public page, client-facing payload, Agent screen, CMA or report — or the field is not proven. The validator-scoped separation of raw contract, observed population, verified mapping and Mallan storage in §27.14.1 is the evidence half of this same chain.
 
+**Historical RLS / RESO / REBNY-CSV mappings are evidence only, never provider authority.** The REBNY RLS field and lookup CSVs, RESO-to-RLS rename tables, RLS field aliases and form bindings, and any repository snapshot of them record what an earlier system assumed. They do not establish what Cotality supplies, and no validator, mapping or consumer may treat them as the source of provider-field truth. Provider-field truth comes only from the live authorized Cotality contract through the chain above: resources, fields, exact names, types, nullability, picklists, field-to-resource membership, lengths, the relationships a consumer uses, and entitlements. REBNY / RLS / UCBA terms remain where they state a current compliance obligation (submission, display, advertising, conduct); there they are compliance authority, not provider-field truth. When the live contract cannot be verified, the dependent case is UNVERIFIED (§27.20). It never falls back to a historical mapping, and no work is built on one.
+
 ## 21.3 Rule Registry
 
 A governed rule record should identify at minimum:
