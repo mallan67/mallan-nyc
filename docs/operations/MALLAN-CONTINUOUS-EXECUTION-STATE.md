@@ -7,7 +7,7 @@
 > and next action. It is status and history only: it authorizes no branch name, file path, implementation
 > scope or mutation envelope, and no check reads authorization from it. It may not redefine the Master.
 
-**Checkpoint:** 2026-09-29 — Maya decided to retire the branch restriction, the State-authorization modes and the three-PR cycle, and to keep the database/provider/destructive safety rules as the `pr-safety` check (§7). **This transition is PENDING** and takes three steps, each Maya's own decision (§7): remove `authority-root` from the `Protect main` required checks (it refuses #646 by design, so #646 cannot merge while it is required); merge #646; then add `pr-safety` as a required check. Until the first step the live required checks are `pr-check` and `authority-root`. After the transition: clean `main` one stage at a time (§11).
+**Checkpoint:** 2026-09-29 — Maya decided to retire the old execution wall: the branch restriction, the State modes and path envelopes, the controller's authorization cycle and `authority-root` (§7). #646 removes only that wall and adds no new gate. **PENDING:** Maya temporarily removes `authority-root` from `Protect main` so #646 can merge; the protection is then INTERIM (§7). Until then the live required checks are `pr-check` and `authority-root`. The sequence after that is §11.
 **Repository:** `mallan67/mallan-nyc` only  
 **Canonical branch:** `main`  
 **Main at this checkpoint:** `005786e71818ef13f555111de67e3d6248412987` — the PR #632 merge
@@ -20,7 +20,7 @@ live tip from GitHub.**
 **Checkpoint source head:** `fb100d6a12f572d78aaac0ec152c4cc57ac6ce74` (final #632 head; all checks green, zero unresolved review threads). Current head must always be read live from GitHub  
 **Authorized work surface:** GitHub repository + explicitly authorized provider connections only; Desktop/worktrees/scratch copies are not execution authority  
 **PR #595:** authority provenance / historical governance source; CLOSED 2026-09-20T17:54:35Z as superseded by #632, unmerged. Its lineage is in `main` history through #632  
-**Governance activation:** `authority-root` has been a required status check on the `Protect main` ruleset `19435006` since 2026-09-22, bound to the GitHub Actions integration `15368`; the live required checks are `pr-check` and `authority-root` (verified 2026-09-29). Its retirement is PENDING (§7), in three steps, each Maya's own: remove `authority-root` from the required checks, merge #646, then add `pr-safety`. Read the live ruleset for the current required set.
+**Governance activation:** `authority-root` has been a required status check on the `Protect main` ruleset `19435006` since 2026-09-22, bound to the GitHub Actions integration `15368`; the live required checks are `pr-check` and `authority-root` (verified 2026-09-29). #646 retires it; Maya temporarily removes it from the ruleset so #646 can merge (§11). Read the live ruleset for the current required set.
 
 ---
 
@@ -574,81 +574,44 @@ A source-string test, green CI, merged PR, deployment, or isolated UI proof is n
 
 ---
 
-# 7. How changes reach `main` (decided 2026-09-29; transition pending)
+# 7. How changes reach `main` — INTERIM (2026-09-29)
 
-Maya decided on 2026-09-29 to retire the branch restriction (`work/active` and the auto-delete of every other branch), the State-authorization modes and the three-PR cycle. They kept unsafe changes out of `main`, but they also kept correct changes out: from 2026-09-18 to 2026-09-26 all thirteen merges to `main` (#632–#644) were governance updates and none changed the product. Their history is in Git and is not repeated here.
+Maya decided on 2026-09-29 to retire the old execution wall:
+- `work/active` as the only branch, and branch auto-deletion;
+- the State modes and path envelopes;
+- the controller's authorization cycle;
+- `authority-root`.
 
-**Transition status: PENDING.** It completes in three steps, in this order, each one Maya's own decision:
+It kept unsafe changes out of `main`, but it also kept correct changes out: from 2026-09-18 to 2026-09-26 all thirteen merges to `main` (#632–#644) were governance updates and none changed the product. Its history is in Git.
 
-1. with Maya's explicit authorization, `authority-root` is removed from the `Protect main` required checks. #646 cannot merge while it is required: `authority-root` runs the retired controller from the base, and that controller refuses #646 by design;
-2. Maya reviews and merges #646, which removes the controller and its workflows from the repository and adds `pr-safety`;
-3. with Maya's explicit authorization, `pr-safety` is added to the `Protect main` required checks. It cannot be required earlier: a check does not report on the pull request that creates it, and it runs only once its workflow is on `main`.
+#646 removes only that wall:
+- `scripts/ci/mallan-execution-control.mjs` and its test;
+- `.github/workflows/authority-root.yml` and `.github/workflows/branch-authority.yml`;
+- the controller steps in `pr-check`.
 
-Until step 1 the live ruleset requires `pr-check` and `authority-root`. Between steps 1 and 3, `main` is protected by the pull-request requirement, `pr-check` and Maya's review alone, so step 3 follows step 2 directly.
+It adds no new gate. It also makes `pr-check` read-only (`permissions: contents: read`, checkout with `persist-credentials: false`), so pull-request code never receives repository write credentials.
 
-Once the transition is complete, `main` is protected by GitHub:
-
+**The protection after #646 is INTERIM:**
 - every change arrives through a pull request;
-- the required `pr-check` runs type-check, Jest, the 2026 UCBA audit, the CI compliance check, the Fair Housing / attribution / privacy / display audits, the CRM tests and the build. It still also runs `rls:validate` and `validate:form-rls`, two validators of the retired provider authority (the REBNY RLS CSVs, the RESO field map, the RESO-to-RLS rename table). They are evidence only, not provider authority, and nothing protects them; the provider stage (§11, stage b) removes them (Master §21.2). **Provider contract gate: UNVERIFIED — not yet built.** Until it exists, `pr-check` does not verify provider data against the live Cotality contract, so the protection of `main` is not current for provider data, and no Search, CMA, forms, CRM or listing work is built on the old validation;
-- the required `pr-safety` check (`.github/workflows/pr-safety.yml`, `scripts/ci/pr-safety-check.mjs`, tests in `tests/runtime/pr-safety-check.test.ts` and `tests/runtime/reserved-check-names.test.ts`) guards database, provider, destructive-infrastructure and safety-root changes, independent of branch names and of this file;
+- the required `pr-check` runs as it does today;
 - force-push and deletion of `main` are blocked;
-- Maya reviews and merges every pull request. Agents never merge, never enable auto-merge, never add `authorized:*` labels and never change branch protection.
+- Maya reviews and merges every pull request. Agents never merge, never enable auto-merge and never change branch protection or rulesets.
 
-`pr-safety` runs from the pull request's BASE and reads the proposed change only through the GitHub API, so a pull request can neither run its own code there nor weaken the check that judges it. It first establishes that it can judge the change at all, and fails closed otherwise: the pull request must come from a branch of this repository, its changed-file list must be complete, and every changed path must read as a regular file (a symlink, submodule, directory, unreadable file, or a runnable file that is binary or too large fails). It refuses outright, and no label authorizes: the retired direct-Neon paths; the direct Neon control-plane tokens in any changed file other than prose, including escaped, concatenated, percent-encoded and full-width forms; and any workflow, action or status call, other than the canonical workflow, that uses a required check name. Beyond that it decides by WHERE a change is, not by trying to understand the code. Each boundary needs its own `authorized:*` label, and no label authorizes another: schema/migration/backfill; Production database/Neon mutation; Development/Preview Neon creation or control; Vercel environment/resource mutation; credential rotation; destructive data/R2/storage operations; manual cron/reconciliation execution; Production deployment/alias mutation; provider publishing/syndication; operator programs (`scripts/`, `tools/`, shell, container and infrastructure files, anything executable); and the safety root: the check and its tests, everything under `.github/`, the npm, TypeScript, Jest and Babel configuration, the compliance rules, every file the required `pr-check` runs and every data file it names, this Master, and the agent instructions and agent tool configuration. In application code a short list of well-known operations acts as a tripwire and asks for the matching label when a pull request adds an occurrence; it catches the usual spellings, it cannot prove code harmless, and review remains the control there. A label counts only when an authorizer added it after the current head commit was pushed: a new push or a change of base branch removes the labels given before it, and no earlier label authorizes the new commit. Every new runnable file is named in the pull request's description (§27.15), and a change to the database's infrastructure or connections also needs the database chain (§27.16.1). While Agents operate through Maya's own GitHub account (`mallan67`), an `authorized:*` label cannot cryptographically distinguish Maya from an Agent: it records an authorization for one commit, it does not prove who gave it.
+**What the interim protection does not certify.** `pr-check` still runs `rls:validate` and `validate:form-rls`. They are validators of the retired provider authority: the REBNY RLS CSVs, the RESO field map and a RESO-to-RLS rename table. They are not provider authority and are not correct or canonical. They remain only until the first cleanup pull request removes them together with their old provider readers, writers and source files, and nothing requires or protects them.
 
-| Boundary (§9) | Label | Decided by (path first; tripwires in application code) |
-|---|---|---|
-| retired direct-Neon path, or direct Neon control-plane token | none; refused outright | the 11 retired paths; `console.neon.tech`, `api.neon.tech`, `neonctl`, `NEON_*_KEY` in any changed file other than prose, including escaped, concatenated, percent-encoded and full-width forms |
-| a required check name used outside its workflow | none; refused outright | `pr-check` or `pr-safety` in another workflow or action, or next to a commit-status / check-run call |
-| schema / migration / backfill | `authorized:schema-migration` | `prisma/`, `sql/`, `prisma.config.*`; tripwires: `prisma migrate` / `db push`, schema DDL |
-| Production database / Neon mutation | `authorized:production-database` | the database target and client modules; tripwires: the Production database identity, a Neon host, `prisma migrate deploy`, a data-loss flag, a database URL from a stored secret, a Production environment pull |
-| Development / Preview Neon creation or control | `authorized:preview-neon` | `lib/neon/`; tripwires: Neon branch/endpoint lifecycle calls, the Neon management SDK, Vercel integration install/remove |
-| Vercel environment / resource mutation | `authorized:environment` | `vercel.json`, `.vercel/`; tripwires: `vercel env/domains/…` mutations, Vercel environment/resource API and SDK calls |
-| credential rotation | `authorized:credential-rotation` | tripwires: password resets, GitHub secret writes, role password changes |
-| destructive data / R2 / storage | `authorized:destructive-data` | `lib/retention/` and storage clean-up helpers; tripwires: R2/S3 deletes, destructive SQL, unconditional `deleteMany`, data-loss resets |
-| manual cron / reconciliation execution | `authorized:manual-cron` | `app/api/cron/`; tripwire: dispatching a workflow run |
-| Production deployment / alias mutation | `authorized:production-deploy` | `vercel.json`; tripwires: `vercel … --prod`, promote/rollback/redeploy/alias, deploy hooks |
-| provider publishing / syndication | `authorized:provider-publishing` | syndication/publishing surfaces and feed routes; tripwires: portal feed/upload endpoints, FTP/SFTP delivery, RLS/REBNY submission, writes to Cotality/Trestle |
-| operator programs | `authorized:operator` | `scripts/`, `tools/`, `bin/`, shell, PowerShell and batch files, Make/Docker/compose/Terraform files, git hooks, any file marked executable or started with `#!`; deleting one needs no label |
-| safety root | `authorized:safety-root` | this check and its tests; everything under `.github/`; `package.json`, the lockfile, `.npmrc`, `tsconfig*.json`, Jest and Babel configuration, `next.config.js`, `vercel.json`; the compliance rules (`compliance/`); every file `pr-check` runs, resolved from the base with imports followed, and every `data/` file or directory those files name; the Master; `CLAUDE.md` / `AGENTS.md` anywhere, `.claude/`, `.mcp.json`; tripwires: ruleset / branch-protection API calls |
-| a new runnable file | (no label) | named in the pull-request description (Master §27.15) |
-| a change to the database's infrastructure or connections | (no label) | a complete `database-chain` block that names every changed database file, proven on the proposed head (Master §27.16.1) |
+Passing `pr-check` during the interim therefore does not certify provider correctness. `main` still contains obsolete provider implementation, which must be cleaned before permanent governance is designed. The architectural authority is unchanged (Master §21.2):
 
-Authorizers are the accounts in the repository variable `MALLAN_SAFETY_AUTHORIZERS` (default `mallan67`). A label counts only when an authorizer added it after the current head commit was pushed (and after any change of the base branch); the push removes the labels given before it. **Limitation:** while agents operate through `mallan67`, an `authorized:*` label cannot cryptographically distinguish Maya from an agent. It records an authorization for one commit; it does not prove who gave it.
+COTALITY RAW CONTRACT → VERIFIED MAPPING → MALLAN STORAGE → MALLAN BUSINESS RULE → PUBLIC/CRM CONSUMER
 
-Removed by #646 when it merges: `scripts/ci/mallan-execution-control.mjs`, its test, `.github/workflows/authority-root.yml` and `.github/workflows/branch-authority.yml`. The retired controller's features were each given a disposition — **A** a lightweight automated invariant in `pr-safety`, **B** a Master-required review invariant, **C** intentionally retired:
+**No Search, CMA, forms, CRM, listing or other product development merges during the interim cleanup.**
 
-| Retired controller feature | Disposition | Where it lives now |
-|---|---|---|
-| explicit new-file authorization (each new path listed in the State envelope before implementation) | **A**, lightweight: every new runnable file is named in the pull request's description, with no separate authorization cycle | `pr-safety` (`scope:new-files`); Master §27.15 |
-| `new_canonical_system_authorized` | **B**: Maya decides in review whether a stated new file is a second system (the five proofs of Master §27.17). A name-based label rule was tried in #646 and retired: it would have blocked the planned mapper, Search and CMA work, and a renamed file escaped it | Master §27.17 |
-| impact graph | **B**: stated in the pull request's scope and reviewed by Maya | Master §27.15, §27.16 |
-| all readers / writers | **A** for database changes (the chain must name every changed database file and its downstream station must be a real consumer on the proposed head); **B** otherwise, as part of the impact graph | `pr-safety`; Master §27.16, §27.16.1 |
-| no-parallel-path proof | **B**: the impact graph's closure and §27.17, reviewed by Maya. The controller's final `MALLAN_EXECUTION_PROOFS` step only echoed a fixed list and proved nothing: **C**, retired | Master §27.16, §27.17 |
-| branch restriction, State modes and path envelopes, the three-PR cycle, the Master-amendment mode | **C**, retired by Maya's decision. A Master change is a safety-root change: it needs `authorized:safety-root` on its pull request | Master §27.18 |
-| retired direct-Neon paths and capability | **A**, absolute | `pr-safety` |
-| database chain | **A**, now proven on the proposed head and bound to the changed files | `pr-safety`; Master §27.16.1 |
-| execution from the PR base | **A**: `pr-safety` runs from the base, as `authority-root` did | `.github/workflows/pr-safety.yml` |
-
-**How the design was reached.** Three adversarial review rounds on #646 showed that reading code for dangerous operations is an open-ended contest: equivalent APIs, spelling and encoding tricks, values built far from their use, and guards removed without changing an operation's text form families no list of patterns closes. `pr-safety` therefore decides by where a change is, keeps a short tripwire list for application code, and leaves the rest to review, instead of claiming a completeness it cannot have.
-
-**Known limits of `pr-safety` (recorded, not hidden):**
-- In application code (`app/`, `lib/`, `components/`) the content tripwires are not a boundary: an equivalent API, an unusual spelling, a value built far from where it is used, a runtime-decoded string, or a guard removed without changing an operation's text is not seen. Review is the control there.
-- Content is counted: a pull request that removes one occurrence of an operation and adds another in the same file is not seen; moving an operation to a new file, or a comment naming it in runnable code, counts as adding it.
-- The Neon token scan does not see a host decoded at runtime (base64, character codes); the retired-path rule and review cover it.
-- Any GitHub Actions job, on any branch, can report a check named `pr-check` or `pr-safety` on any commit. `pr-safety` refuses such a job only inside the pull request it judges, and pinning the required checks to the GitHub Actions integration does not help, because every workflow reports as that integration. The durable fixes need Maya's authorization: required checks posted by a dedicated GitHub App whose key only `main` jobs can use (an environment restricted to `main`), pinned in the ruleset; and a separate Agent identity without admin rights plus Maya's required approving review (Master §27.18). Repository settings verified 2026-09-29: default workflow token permissions `write`; workflows may approve pull requests.
-- A label authorizes the head the pull request has when it is added; the check cannot tell which commit Maya looked at. Its output names the head SHA it judged.
-- Only the `data/` files the required checks name are in the safety root: a path written whole (`'data/…'`), a `path.join(…, 'data', …)` sequence, or a directory named that way. Product content such as the legal pages is not. A data file whose name a validator builds at run time is not recognised; the validator itself is in the safety root.
-- Code the build or the tests load can still influence the required `pr-check` (for example a module that exits early); that is visible only in review.
-- Direct Neon control through the `@neondatabase/api-client` SDK is gated by `authorized:preview-neon`, not by the absolute prohibition.
-- While agents operate through `mallan67`, an `authorized:*` label cannot prove Maya added it.
+**Direct Neon.** The retired direct-Neon architecture remains prohibited by the Master. During the interim, its enforcement is Maya's review plus `tests/runtime/agent-authority-live-source.test.ts`, which asserts the retired direct-Neon paths stay deleted. A renamed capability is caught only by review. Permanent automated enforcement is designed only after `main` is cleaned (§11, step 8).
 
 ---
 
 # 8. Branch policy
 
-- Work proceeds one stage at a time. Each stage has one branch, created from the current `main` and named for the stage.
-- A draft pull request is opened as soon as the branch exists, and its description states the stage scope (Master §27.15).
+- Work proceeds one stage at a time. Each stage has one branch, created from the current `main` and named for the stage, and one pull request whose description states the stage scope.
 - Every completed unit of work is committed and pushed to that pull request. Nothing of value stays unpushed or local.
 - A stage is finished when its pull request is merged; the next stage starts from the new `main`.
 - **Historical branches and pull requests are evidence only.** They are never merged, cherry-picked, copied from, or used as implementation authority. Every new stage is built fresh from the cleaned current `main`, using newly verified live authority. Historical branches are closed with the reason recorded after their evidentiary value has been reviewed.
@@ -657,15 +620,15 @@ Removed by #646 when it merges: `scripts/ci/mallan-execution-control.mjs`, its t
 
 # 8.1 Human / agent identity boundary
 
-GitHub's `Protect main` ruleset (`19435006`) requires a pull request and the `pr-check` and `authority-root` status checks, and blocks non-fast-forward pushes and deletion of `main`. It requires 0 approving reviews and has no bypass actors (verified live 2026-09-29). **Pending transition (§7), in this order, each step only with Maya's explicit authorization:** `authority-root` is removed from the required checks (it refuses #646 by design, so #646 cannot merge while it is required); Maya merges #646; `pr-safety` is added to the required checks (a check cannot report on the pull request that creates it, so it is added after the merge). Read the live ruleset for the current required set.
+GitHub's `Protect main` ruleset (`19435006`) requires a pull request and the `pr-check` and `authority-root` status checks, and blocks non-fast-forward pushes and deletion of `main`. It requires 0 approving reviews, requires review threads to be resolved, and has no bypass actors (verified live 2026-09-29). `authority-root` runs the retired controller, which refuses #646 by design, so Maya temporarily removes it from the required checks for #646 to merge (§11, step 2). The protection is then INTERIM (§7): pull request + current `pr-check` + Maya's review. The permanent required-check set is designed only after `main` is cleaned (§11, step 8). Read the live ruleset for the current required set.
 
-If an AI agent operates through Maya's own GitHub identity, GitHub cannot distinguish a change made by Maya from one made by the agent, and repository CI cannot prove which of them opened a pull request or added an authorization label.
+If an AI agent operates through Maya's own GitHub identity, GitHub cannot distinguish a change made by Maya from one made by the agent, and repository CI cannot prove which of them opened a pull request.
 
 Therefore:
 
 - do not claim that CI separates Maya from an agent; it cannot while they share one identity;
-- every pull request to `main` and every `authorized:*` label is Maya's decision;
-- no agent may enable auto-merge, merge any pull request or add an `authorized:*` label on Maya's behalf;
+- every pull request to `main` is Maya's decision;
+- no agent may enable auto-merge or merge any pull request on Maya's behalf;
 - the durable non-bypass solution is a separate agent GitHub identity / GitHub App or an external managed approval boundary that the agent cannot impersonate;
 - until identity separation is installed, this is a known control-plane limitation, not a hidden assumption.
 
@@ -729,7 +692,18 @@ Do not create another status file because this one becomes inconvenient.
 
 # 11. Current exact stop point
 
-**2026-09-29 — stop point.** PENDING: #646 (retire the execution gate and keep its database/provider/destructive rules as `pr-safety`, §7) awaits Maya's review. The transition then takes three steps, in this order and each Maya's own: remove `authority-root` from the `Protect main` required checks; merge #646; add `pr-safety` as a required check. The gate is not retired until all three are done. After that, one stage at a time, each merged before the next starts: (a) delete the dead old-system files and scripts; (b) establish the live Cotality contract and replace the retired provider validation (`rls:validate`, `validate:form-rls`, the REBNY RLS CSVs, the RESO field map and RESO-to-RLS renames) with a provider-contract gate verified against it: resources, fields, exact names, types, nullability, picklists, field-to-resource membership, lengths, consumed relationships and entitlements (`cotality:verify` compares enums only and is not that gate; the 2026 UCBA, Fair Housing and display compliance checks stay); until that gate exists the provider check is UNVERIFIED and no product work is built on the old validation; (c) one mapper; (d) one Search; (e) CMA built on that Search; (f) the listing forms. Everything below this entry is history.
+**2026-09-29 — stop point.** The actual sequence, one step at a time. Nothing in steps 4–8 is implemented by #646.
+
+1. #646 removes only the old execution wall (§7).
+2. Maya temporarily removes `authority-root` from `Protect main` so #646 can merge.
+3. Protection is explicitly INTERIM: pull request + current `pr-check` + Maya's review (§7).
+4. Clean current `main`. The first cleanup pull request removes `rls:validate` and `validate:form-rls` together with their old provider readers, writers and source files.
+5. Remove the old provider authority and duplicate/parallel systems.
+6. Verify the live Cotality contract.
+7. Build the single Cotality mapping from the cleaned `main`.
+8. Only after the corrected source exists, design and build the permanent `pr-check`, the provider-contract check, `pr-safety` and the final `Protect main` required-check set.
+
+No Search, CMA, forms, CRM, listing or other product development merges during the interim cleanup. Everything below this entry is history.
 
 **HISTORY (superseded 2026-09-29): `mode: control-update` (2026-09-25); no packet is active and no Master amendment is authorized. The ledger row 19 packet
 `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` (a bounded, base-authorized Master-amendment path with negative tests) is COMPLETE: #642

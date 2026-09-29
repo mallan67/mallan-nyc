@@ -406,7 +406,7 @@ Mandatory behavior:
 - read this Master first, then docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md;
 - side branches, old PRs, local clones, Desktop folders, worktrees, temporary files and chat transcripts are evidence only;
 - no agent may create an ad-hoc architecture branch or use a historical branch as the starting authority;
-- the Execution State is status and history only; it does not authorize branch names, file paths, implementation scope or mutation envelopes (scope is stated on the pull request, §27.15; sensitive changes need Maya's authorization, §27.18 and §27.21);
+- the Execution State is status and history only; it authorizes no branch name, file path, implementation scope or mutation envelope (§27.15);
 - durable code, documentation, tests and evidence belong in Git;
 - do not leave the only copy of a decision in a local scratchpad or chat;
 - required GitHub checks are part of the execution boundary, not optional reporting.
@@ -5283,8 +5283,6 @@ PUBLIC / CRM CONSUMER
 
 **A mapping that stops at Mallan storage is not finished.** The same chain must reach the Mallan business rule that uses the field and the surface that renders it — public page, client-facing payload, Agent screen, CMA or report — or the field is not proven. The validator-scoped separation of raw contract, observed population, verified mapping and Mallan storage in §27.14.1 is the evidence half of this same chain.
 
-**Historical RLS / RESO / REBNY-CSV mappings are evidence only, never provider authority.** The REBNY RLS field and lookup CSVs, RESO-to-RLS rename tables, RLS field aliases and form bindings, and any repository snapshot of them record what an earlier system assumed. They do not establish what Cotality supplies, and no validator, mapping or consumer may treat them as the source of provider-field truth. Provider-field truth comes only from the live authorized Cotality contract through the chain above: resources, fields, exact names, types, nullability, picklists, field-to-resource membership, lengths, the relationships a consumer uses, and entitlements. REBNY / RLS / UCBA terms remain where they state a current compliance obligation (submission, display, advertising, conduct); there they are compliance authority, not provider-field truth. When the live contract cannot be verified, the dependent case is UNVERIFIED (§27.20). It never falls back to a historical mapping, and no work is built on one.
-
 ## 21.3 Rule Registry
 
 A governed rule record should identify at minimum:
@@ -7417,13 +7415,13 @@ Every regulated/canonical fact must census both:
 
 A persistence-only census is incomplete. Regulated designations, license classes, brokerage roles, disclosures, listing facts, source attribution and public structured data require the two-sided census.
 
-## 27.15 Scope is stated on the pull request and decided by Maya
+## 27.15 The retired execution controller (2026-09-29)
 
-The system must not depend on an Agent reading this Master voluntarily. It depends on GitHub protection of `main`, on the required pull-request checks, and on Maya reviewing and merging every change.
+The system must not depend on an Agent reading this Master voluntarily.
 
-Each stage of work states its scope on its pull request before code is pushed: the concept being corrected, the impact graph required by §27.16, the files it will change or delete, any new file and why it is needed (§27.17), the provider or mutation permissions it needs (§27.21), and the tests that prove it. The pull request's changed files must match that statement; anything outside it is removed or explained before merge.
+The base-authority execution controller is **retired** (#646): `scripts/ci/mallan-execution-control.mjs` and its test, the `authority-root` and `branch-authority` workflows, `work/active` as the only branch, branch auto-deletion, the Execution State modes and path envelopes, and the controller's authorization cycle. The Execution State is status and history only; it authorizes no branch, path, scope or mutation. The scope of a change is stated on its pull request and is Maya's decision; an Agent cannot widen it by editing any repository file.
 
-An Agent cannot widen its own scope by editing its pull request description or any repository file. A change of scope is a new decision for Maya.
+The protection that follows is **INTERIM** (§27.18). Permanent governance is designed only after `main` has been cleaned (Execution State §11).
 
 ## 27.16 The unit of change is the system — impact graph required before code
 
@@ -7490,25 +7488,15 @@ Four rules make the chain real rather than decorative:
 3. **A document citation does not satisfy a station.** A document records a claim, not a fact. A
    station names the thing that does the work, or it says `UNVERIFIED` so the gap stays visible
    instead of being papered over. Pointing a station at a `.md` file fails closed.
-4. **Every station is proven on the proposed head.** Each repository path a station names must be a
-   regular file in the pull request's head commit and is judged by its head content. A station the
-   pull request deletes or guts fails; a new or replacement file the pull request adds counts when
-   its own content does the station's work. A fabricated station is not proof.
+4. **Every repository path a station names must resolve on the PR base**, or be an explicitly
+   authorized new file. A fabricated station is not proof.
 
 The verifier derives each station from repository code and the live platform. It does not accept
 the builder's summary of its own graph (§27.14).
 
-This is enforced by the required `pr-safety` check, not by convention. The check demands the chain
-when a pull request changes the database's infrastructure (the schema, migrations and SQL, the database
-target and client, Neon control, retention jobs, cron routes, `vercel.json`, environment files) or
-changes how any file connects to the database (the connection variables, URLs, clients and drivers it
-names). A query made through the existing canonical client is part of the impact graph of §27.16,
-reviewed on the pull request, not of this machine-checked chain. The chain is declared in the
-pull-request description as a fenced `database-chain` block (a JSON object of station → repo paths).
-It must place every database file the pull request changes in a station, and the check refuses a missing
-station, an UNVERIFIED station, free text, a document citation, a path that is not a regular file on the
-proposed head, and a file whose proposed-head content is not evidence for its station. The exact file
-and test names are implementation detail and belong to the Execution State, not to this Master.
+The execution controller that enforced this chain is retired (§27.15). During the interim (§27.18) the
+chain is enforced by Maya's review of the pull request; its permanent automated enforcement is designed
+only after `main` has been cleaned.
 
 ---
 
@@ -7526,41 +7514,19 @@ Before permitting one, prove:
 
 If not proven, modify the existing canonical system.
 
-Every new file is stated in the pull request's scope with the reason it is needed (§27.15); `pr-safety`
-refuses a pull request that adds a runnable file its description does not name, so each new file is
-visible to Maya. Whether a stated new file is a second system, and the five proofs above, are Maya's
-review of that scope together with the impact graph and its closure (§27.16). No automated rule can tell
-a new owner from a parallel one by a file's name or content, so none pretends to.
-
-## 27.18 Branch, pull request and merge control
+## 27.18 Branch, pull request and merge control — INTERIM
 
 All repository work happens in GitHub. No local checkout, Desktop copy, worktree, temp copy or side repository holds Mallan work (§27.19).
 
-Work proceeds one stage at a time. Each stage has one branch, created from the current `main` and named for the stage. A draft pull request is opened as soon as the branch exists, so the work is visible from its first commit. Every completed unit of work is committed and pushed to that pull request; nothing of value stays unpushed.
-
-A stage is finished only when its pull request is merged into `main`. The next stage starts from the new `main`. Branches are not left open to drift: a branch that will not be merged is closed with the reason recorded on its pull request.
+Work proceeds one stage at a time. Each stage has one branch, created from the current `main` and named for the stage, and one pull request. A stage is finished only when its pull request is merged; the next stage starts from the new `main`.
 
 **Historical branches and pull requests are evidence only.** They are never merged, cherry-picked, copied from, or used as implementation authority. Every new stage is built fresh from the cleaned current `main`, using newly verified live authority. Historical branches are closed with the reason recorded after their evidentiary value has been reviewed.
 
-`main` is protected by GitHub and by required pull-request checks, not by branch names or an Agent-maintained authorization file:
+**After the retired controller (§27.15) the protection of `main` is INTERIM:** a pull request, the current required `pr-check`, no force-push and no deletion of `main`, and Maya's review and merge. Agents never merge, never enable auto-merge and never change branch protection or rulesets (§27.21).
 
-~~~text
-PULL REQUEST REQUIRED
-→ REQUIRED pr-check: type-check, tests, compliance validators, build
-→ REQUIRED pr-safety: database, provider and destructive-infrastructure guard
-→ NO FORCE-PUSH, NO DELETION OF main
-→ MAYA REVIEWS AND MERGES
-~~~
-
-`pr-safety` runs from the pull request's BASE and reads the proposed change only through the GitHub API, so a pull request can neither run its own code there nor weaken the check that judges it. It first establishes that it can judge the change at all, and fails closed otherwise: the pull request must come from a branch of this repository, its changed-file list must be complete, and every changed path must read as a regular file (a symlink, submodule, directory, unreadable file, or a runnable file that is binary or too large fails). It refuses outright, and no label authorizes: the retired direct-Neon paths; the direct Neon control-plane tokens in any changed file other than prose, including escaped, concatenated, percent-encoded and full-width forms; and any workflow, action or status call, other than the canonical workflow, that uses a required check name. Beyond that it decides by WHERE a change is, not by trying to understand the code. Each boundary needs its own `authorized:*` label, and no label authorizes another: schema/migration/backfill; Production database/Neon mutation; Development/Preview Neon creation or control; Vercel environment/resource mutation; credential rotation; destructive data/R2/storage operations; manual cron/reconciliation execution; Production deployment/alias mutation; provider publishing/syndication; operator programs (`scripts/`, `tools/`, shell, container and infrastructure files, anything executable); and the safety root: the check and its tests, everything under `.github/`, the npm, TypeScript, Jest and Babel configuration, the compliance rules, every file the required `pr-check` runs and every data file it names, this Master, and the agent instructions and agent tool configuration. In application code a short list of well-known operations acts as a tripwire and asks for the matching label when a pull request adds an occurrence; it catches the usual spellings, it cannot prove code harmless, and review remains the control there. A label counts only when an authorizer added it after the current head commit was pushed: a new push or a change of base branch removes the labels given before it, and no earlier label authorizes the new commit. Every new runnable file is named in the pull request's description (§27.15), and a change to the database's infrastructure or connections also needs the database chain (§27.16.1). While Agents operate through Maya's own GitHub account (`mallan67`), an `authorized:*` label cannot cryptographically distinguish Maya from an Agent: it records an authorization for one commit, it does not prove who gave it.
-
-Agents never merge, never enable auto-merge, never add `authorized:*` labels and never change branch protection or rulesets (§27.21).
-
-While Agents act through Maya's own GitHub identity, GitHub cannot tell an Agent from Maya, so merge control and authorization labels rest on Maya acting personally. The durable control is a separate Agent GitHub identity with write access and no admin rights, plus a `main` rule requiring Maya's approving review; from then on a label the Agent account adds is refused by `pr-safety`, and an Agent can never approve its own change.
-
-A required check is only as strong as whoever reports it. Any GitHub Actions job, on any branch, can report a check under a required name, and pinning a required check to the GitHub Actions integration does not change that, because every workflow reports as that integration. Until the required checks are reported by a dedicated GitHub App whose key only jobs on `main` can use, and the separate Agent identity and Maya's required review are in place, a green `pr-check` or `pr-safety` is evidence for Maya's review, not a substitute for it.
-
-"Done" requires the branch, commit SHA, pull request number, check results, Preview, merged yes/no and the resulting `main` SHA. Without those it is not done.
+- **Passing `pr-check` during the interim does not certify provider correctness.** `main` still contains obsolete provider implementation, including the `rls:validate` and `validate:form-rls` validators built on the REBNY RLS CSVs and RESO mappings. It is not provider authority and must be cleaned before permanent governance is designed. Provider authority is the chain of §21.2: COTALITY RAW CONTRACT → VERIFIED MAPPING → MALLAN STORAGE → MALLAN BUSINESS RULE → PUBLIC/CRM CONSUMER.
+- **No Search, CMA, forms, CRM, listing or other product development merges during the interim cleanup.**
+- The permanent required checks and their enforcement are designed only after `main` is cleaned and the live Cotality contract is verified (Execution State §11).
 
 Release/deploy truth must wait for every required status check applicable to `main` plus the Mallan stable proof checks. A required context may be published through the GitHub Checks API or the legacy Commit Statuses API; if both are present, pending/failing evidence is not ignored. **When GitHub's ruleset pins a required context to an `integration_id`, only a Check Run emitted by that exact GitHub App may satisfy it; a same-named legacy status or different App is not equivalent proof.** Required-check/ruleset discovery failure remains UNVERIFIED/PENDING. If the bounded wait expires while any dependency remains pending/unknown, Release Truth fails closed; it does not publish a durable pending state and call the run complete.
 
@@ -7601,7 +7567,7 @@ A held mutation freezes only that mutation; it does not authorize a substitute a
 
 When a provider mutation path is retired, it is DELETED rather than left in place as a disabled or fail-only stub, and its scheduled writers, health alarms, CLI guidance, catalogs, tests and operator instructions are retired in the same impact graph. Observability may not tell an operator to re-arm a prohibited provider path, and a path once deleted may not return under any wrapper.
 
-A deployment/schedule authority file such as `vercel.json` is sensitive whenever changing it could re-arm a retired writer or change Production scheduling. It is part of the PR safety root: a change needs Maya's `authorized:environment`, `authorized:production-deploy` and `authorized:safety-root` labels on the pull request.
+A deployment/schedule authority file such as `vercel.json` is sensitive whenever changing it could re-arm a retired writer or change Production scheduling. The control-root-maintenance sequence that governed it is retired (§27.15); during the interim a change to it needs Maya's explicit authorization on its pull request.
 
 ## 27.22 Execution-state boundary
 

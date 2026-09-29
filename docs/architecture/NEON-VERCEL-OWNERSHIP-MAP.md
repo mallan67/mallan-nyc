@@ -263,8 +263,11 @@ outright, not disabled and not left as tombstones:
 - `.github/workflows/cleanup-neon-preview-branch.yml`
 - `.github/workflows/rotate-db-keys.yml`
 
-`scripts/ci/pr-safety-check.mjs` (the required `pr-safety` check) refuses their return, and refuses
-any new file that reaches the Neon control plane under a different name. Branch and resource lifecycle is observed
+The Master prohibits their return, and any new file that reaches the Neon control plane under a
+different name. During the interim cleanup this is enforced by Maya's review plus
+`tests/runtime/agent-authority-live-source.test.ts`, which asserts the retired paths stay deleted (a
+renamed capability is caught only by review). Permanent automated enforcement is designed only after
+`main` is cleaned. Branch and resource lifecycle is observed
 through the Vercel-managed Marketplace resource; a replacement capability must be designed against
 that contract and separately authorized.
 

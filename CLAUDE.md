@@ -58,7 +58,7 @@ Read:
 
 A historical audit, old PR, old branch, Desktop checkout, local worktree or chat transcript is evidence only and cannot grant scope.
 
-Changes reach `main` only through a pull request that passes the required `pr-check` (type-check, tests, compliance validators, build) and `pr-safety` (database, provider and destructive-infrastructure guard, run from the PR base) checks and that Maya merges. Work goes one stage at a time: one branch per stage, a draft pull request from the first commit, every finished unit pushed, and the next stage only after the previous one is merged (Master §27.18). Agents never merge and never add `authorized:*` labels; only Maya does.
+Changes reach `main` only through a pull request that passes the required `pr-check` and that Maya reviews and merges. The execution controller is retired and the protection is INTERIM (Master §27.15, §27.18): no Search, CMA, forms, CRM, listing or other product development merges until `main` is cleaned (Execution State §11). Agents never merge; only Maya does.
 
 
 ## C. Current holds (require explicit Maya approval before starting)
