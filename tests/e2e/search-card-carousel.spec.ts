@@ -18,8 +18,18 @@
  *
  * Run:
  *   PLAYWRIGHT_BASE_URL=<preview-url> npx playwright test tests/e2e/search-card-carousel.spec.ts
+ *
+ * If you need machine-readable output, write it into an ALREADY-IGNORED
+ * artifact directory rather than the repo root — a stray reporter file
+ * at the root once got committed, and the "fix" of ignoring its filename
+ * repo-wide was worse than the problem (`sw*.json` would swallow a real
+ * swagger.json, `r2.json` a real Cloudflare config):
+ *   … --reporter=json > test-results/run.json
  */
 import { test, expect, type Page, type Request } from '@playwright/test';
+// The ladder is the single source of truth for the expected rung — the
+// test must not hardcode widths that can drift from the config.
+import { CARD_IMAGE_WIDTHS } from '../../lib/media/responsive-image';
 
 /** Every search surface that renders a card variant. */
 const GRID_PAGES = ['/search?tab=buy-residential', '/search?tab=rent-residential'];
@@ -292,6 +302,136 @@ test.describe('Image delivery — cards must not download originals', () => {
       expect(s.bytes, `${s.src} rendered at ${s.rendered}px`).toBeLessThan(250_000);
     }
   });
+});
+
+test.describe('Card images stay within the premium resolution tolerance, without rung escalation', () => {
+  /**
+   * REGRESSION GUARD for the 641-767px blur (found by Codex review,
+   * 2026-08-02; live on production until fixed).
+   *
+   * Every GridCard layout is one column until Tailwind md = 768px, but
+   * the `sizes` hint switched to 50vw at 641px. Cards in that band were
+   * full width and received a half-width image:
+   *   700px @1x -> rendered 693, received 384  = 0.55x
+   *   700px @2x -> rendered 695, received 828  = 0.60x
+   *
+   * The original test matrix was 390/1440/1920 and skipped the entire
+   * 641-1023 band, which is exactly why this shipped. This sweep walks
+   * the breakpoint edges so a `sizes` value that disagrees with the CSS
+   * cannot pass again.
+   */
+  // Each view mode uses a DIFFERENT sizeProfile, so string-level unit
+  // tests are not a substitute for selecting each layout in a browser.
+  // The default URL only ever exercises all-listings (below lg) and
+  // split (at lg+), which left list and the 3-col grid view untested.
+  const MODES: Array<{ view: string; url: string; widths: number[] }> = [
+    { view: 'all-listings', url: '&view=all-listings', widths: [360, 639, 640, 700, 767, 768, 800, 900, 1023, 1024, 1440, 1920] },
+    { view: 'grid',         url: '&view=grid',         widths: [768, 900, 1023, 1024, 1280, 1440, 1920] },
+    { view: 'list',         url: '&view=list',         widths: [360, 639, 640, 768, 1024, 1440, 1920] },
+    { view: 'split',        url: '&view=split',        widths: [1024, 1280, 1440, 1920] },
+  ];
+
+  for (const mode of MODES) {
+  for (const width of mode.widths) {
+    for (const dpr of [1, 2]) {
+      test(`${mode.view} ${width}px @${dpr}x — correct rung (no escalation)`, async ({ browser }) => {
+        const ctx = await browser.newContext({
+          viewport: { width, height: 900 },
+          deviceScaleFactor: dpr,
+        });
+        const page = await ctx.newPage();
+        try {
+          await page.goto(`/search?tab=buy-residential${mode.url}`);
+          await page.waitForSelector('.glass-card img', { timeout: 30_000 });
+          await page
+            .waitForFunction(
+              () => {
+                const i = document.querySelector<HTMLImageElement>('.glass-card img');
+                return Boolean(i?.currentSrc?.includes('/_next/image'));
+              },
+              { timeout: 15_000 },
+            )
+            .catch(() => {});
+
+          const r = await page.evaluate(() => {
+            const i = document.querySelector<HTMLImageElement>('.glass-card img');
+            if (!i) return null;
+            const u = new URL(i.currentSrc, location.origin);
+            return {
+              rendered: Math.round(i.getBoundingClientRect().width),
+              chosen: Number(u.searchParams.get('w')),
+              sizes: i.getAttribute('sizes'),
+              currentSrc: i.currentSrc,
+              optimized: i.currentSrc.includes('/_next/image'),
+            };
+          });
+
+          // MUST NOT SKIP. Optimizer delivery is part of the contract for
+          // these audited card surfaces — an earlier revision of this test
+          // returned null and skipped when currentSrc was not an optimizer
+          // URL, which turned every delivery failure into a false green.
+          expect(r, 'no card image rendered at all').not.toBeNull();
+          expect(
+            r!.optimized,
+            `${width}px @${dpr}x: card was NOT optimizer-served — currentSrc=${r!.currentSrc.slice(0, 120)}`,
+          ).toBe(true);
+
+          const need = Math.round(r!.rendered * dpr);
+          // FAIL CLOSED. The previous `?? Math.max(...)` fallback meant a
+          // need larger than the whole ladder would "expect" the biggest
+          // rung and PASS — i.e. genuine under-resolution reported green.
+          const expected = CARD_IMAGE_WIDTHS.find((w) => w >= need);
+          expect(
+            expected,
+            `${width}px @${dpr}x: no configured candidate covers ${need}px ` +
+              `(ladder tops out at ${Math.max(...CARD_IMAGE_WIDTHS)})`,
+          ).toBeDefined();
+
+          // Assert the correct rung WITHOUT upward escalation, allowing
+          // the immediately lower rung only within the measured jitter
+          // band below. `>= need` alone prevents blur but silently
+          // permits gross over-download — it passed a 1920 candidate for
+          // a 369px card at the 768px boundary.
+          // Rendered width jitters by a pixel or two between runs
+          // (scrollbar presence, sub-pixel layout). When `need` sits
+          // within that jitter of a rung boundary, either neighbouring
+          // rung is a correct selection, so accept both rather than
+          // making this permanently flaky. Every real defect found so
+          // far was 2-5 rungs off, well outside this band.
+          // TOLERANCE IS ONE-SIDED, TOWARD THE SMALLER RUNG.
+          //
+          // A card measured at 414px may render 412 or 417 between runs,
+          // and 414 x 2 = 828 sits exactly on a rung, so the "correct"
+          // rung flips with sub-pixel jitter. Accepting the next rung
+          // DOWN absorbs that: serving 828 for an 834px need is 0.7%
+          // under, imperceptible.
+          //
+          // Accepting the next rung UP would not be symmetric-and-fair,
+          // it would be a loophole. With a two-sided band, a need of 825
+          // accepts {828, 1080} — so a 30% over-download passes merely
+          // by sitting near a boundary, which is exactly the defect
+          // class this assertion exists to expose. One-sided keeps 828
+          // for 834 while still rejecting 1080 for 825.
+          const JITTER_PX = 3;
+          const exact = CARD_IMAGE_WIDTHS.find((w) => w >= need);
+          const toleratedLower = CARD_IMAGE_WIDTHS.find(
+            (w) => w >= Math.max(1, need - JITTER_PX * dpr),
+          );
+          const acceptable = new Set(
+            [exact, toleratedLower].filter((w): w is number => w !== undefined),
+          );
+          expect(
+            acceptable.has(r!.chosen),
+            `${width}px @${dpr}x: rendered ${r!.rendered}px, needs ${need}px, ` +
+              `acceptable rung(s) ${[...acceptable].join(' or ')}, received ${r!.chosen} — sizes="${r!.sizes}"`,
+          ).toBe(true);
+        } finally {
+          await ctx.close();
+        }
+      });
+    }
+  }
+  }
 });
 
 test.describe('No console or hydration errors block interaction', () => {
