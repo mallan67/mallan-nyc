@@ -406,7 +406,7 @@ Mandatory behavior:
 - read this Master first, then docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md;
 - side branches, old PRs, local clones, Desktop folders, worktrees, temporary files and chat transcripts are evidence only;
 - no agent may create an ad-hoc architecture branch or use a historical branch as the starting authority;
-- the active branch and allowed mutation envelope come from the Execution State;
+- the Execution State is status and history only; it does not authorize branch names, file paths, implementation scope or mutation envelopes (scope is stated on the pull request, §27.15; sensitive changes need Maya's authorization, §27.18 and §27.21);
 - durable code, documentation, tests and evidence belong in Git;
 - do not leave the only copy of a decision in a local scratchpad or chat;
 - required GitHub checks are part of the execution boundary, not optional reporting.
@@ -7524,6 +7524,8 @@ Work proceeds one stage at a time. Each stage has one branch, created from the c
 
 A stage is finished only when its pull request is merged into `main`. The next stage starts from the new `main`. Branches are not left open to drift: a branch that will not be merged is closed with the reason recorded on its pull request.
 
+**Historical branches and pull requests are evidence only.** They are never merged, cherry-picked, copied from, or used as implementation authority. Every new stage is built fresh from the cleaned current `main`, using newly verified live authority. Historical branches are closed with the reason recorded after their evidentiary value has been reviewed.
+
 `main` is protected by GitHub and by required pull-request checks, not by branch names or an Agent-maintained authorization file:
 
 ~~~text
@@ -7534,7 +7536,7 @@ PULL REQUEST REQUIRED
 → MAYA REVIEWS AND MERGES
 ~~~
 
-`pr-safety` runs from the pull request's BASE and reads the proposed change only through the GitHub API, so a pull request can neither run its own code there nor weaken the check that judges it. It refuses the retired direct-Neon paths and any direct Neon control-plane capability outright, whatever the file is called. It requires Maya's `authorized:*` label on the pull request for schema/migration, environment (`vercel.json`), Neon-control, destructive-data, production and manual-cron changes, and for any change to the safety root (the check itself, its workflow, `pr-check`, Release Truth and their tests). It requires the full database chain (§27.16.1) for any database-shaped change. A label counts only when it was added by an account listed as an authorizer.
+`pr-safety` runs from the pull request's BASE and reads the proposed change only through the GitHub API, so a pull request can neither run its own code there nor weaken the check that judges it. It refuses the retired direct-Neon paths and any direct Neon control-plane capability outright, whatever the file is called; no label authorizes them. Each explicit Maya authorization boundary needs its own `authorized:*` label on the pull request: schema/migration/backfill; Production database/Neon mutation; Development/Preview Neon creation or control; Vercel environment/resource mutation; credential rotation; destructive data/R2/storage operations; manual cron/reconciliation execution; Production deployment/alias mutation; provider publishing/syndication; and safety-root/ruleset changes. A boundary is detected from the changed paths and from the code lines the pull request introduces, not from one historical filename, and no label authorizes any boundary but its own. Any database-shaped change also needs the full database chain (§27.16.1). A label counts only when it was added by an account listed as an authorizer. While Agents operate through Maya's own GitHub account (`mallan67`), an `authorized:*` label cannot cryptographically distinguish Maya from an Agent: it records an authorization, it does not prove who gave it.
 
 Agents never merge, never enable auto-merge, never add `authorized:*` labels and never change branch protection or rulesets (§27.21).
 
@@ -7581,7 +7583,7 @@ A held mutation freezes only that mutation; it does not authorize a substitute a
 
 When a provider mutation path is retired, it is DELETED rather than left in place as a disabled or fail-only stub, and its scheduled writers, health alarms, CLI guidance, catalogs, tests and operator instructions are retired in the same impact graph. Observability may not tell an operator to re-arm a prohibited provider path, and a path once deleted may not return under any wrapper.
 
-A deployment/schedule authority file such as `vercel.json` is sensitive whenever changing it could re-arm a retired writer or change Production scheduling. It is part of the PR safety root: a change needs Maya's `authorized:environment` and `authorized:safety-root` labels on the pull request.
+A deployment/schedule authority file such as `vercel.json` is sensitive whenever changing it could re-arm a retired writer or change Production scheduling. It is part of the PR safety root: a change needs Maya's `authorized:environment`, `authorized:production-deploy` and `authorized:safety-root` labels on the pull request.
 
 ## 27.22 Execution-state boundary
 

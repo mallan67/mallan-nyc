@@ -16,7 +16,7 @@ website." It has downstream consumers: search, CRM, portal, media, compliance, a
 Every agent starts from the same chain:
 
 1. `MALLAN-PLATFORM-MASTER-PLAN.md` — sole durable product/business/system authority.
-2. `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` — current execution state: stage, branch, pull request, holds.
+2. `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` — current execution state: stage, branch, pull request, holds. Status and history only; it authorizes nothing.
 3. Current GitHub branch/PR/base SHA and required checks.
 4. Live provider/runtime evidence required by the active packet.
 5. This file plus specialized guidance such as `CLAUDE.md`, `NEON.md` and the Compliance Canonical Index.

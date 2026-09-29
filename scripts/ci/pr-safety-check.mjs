@@ -13,16 +13,22 @@
  *
  *   1. retired direct-Neon paths may never return, not even as a fail-only stub;
  *   2. no changed runnable file may carry direct Neon control-plane capability, under any name;
- *   3. sensitive change classes (schema/migration, environment, Neon control, destructive data,
- *      production, manual cron) need Maya's authorization label on the pull request;
- *   4. the safety root (this check, its workflow, pr-check, Release Truth and their tests)
- *      changes only with Maya's authorization label;
+ *   3. each of Maya's authorization boundaries (CHANGE_CLASSES) needs her authorized:* label on
+ *      the pull request. A class is detected from the changed paths and from the code lines the
+ *      pull request INTRODUCES (comments stripped), so it follows what a change does rather than
+ *      one historical filename, and editing near an existing operation does not trip it;
+ *   4. the safety root (this check, its workflow, pr-check, Release Truth and their tests) and
+ *      ruleset/branch-protection code change only with Maya's authorized:safety-root label;
  *   5. a database-shaped change must declare the full database chain in the PR description.
  *
  * An authorization label counts only when the account that added it is listed in
- * MALLAN_SAFETY_AUTHORIZERS (default: mallan67). While agents act through Maya's own account
- * GitHub cannot tell the two apart; once agents have their own identity, a label they add is
- * refused here.
+ * MALLAN_SAFETY_AUTHORIZERS (default: mallan67).
+ *
+ * LIMITATION, stated so nobody overstates it: while agents operate through Maya's own GitHub
+ * account (mallan67), an authorized:* label cannot cryptographically distinguish Maya from an
+ * agent. The label records an authorization; it does not prove who gave it. Once agents have
+ * their own GitHub identity and it is left out of MALLAN_SAFETY_AUTHORIZERS, a label that
+ * identity adds is refused here.
  *
  * Usage:
  *   node scripts/ci/pr-safety-check.mjs           CI: reads the pull request through `gh`
@@ -32,18 +38,23 @@
 
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 
 // ---------------------------------------------------------------------------------------
 // Rule tables
 // ---------------------------------------------------------------------------------------
 
+// One label per explicit Maya authorization boundary (Master §27.21).
 export const AUTH_LABELS = {
   schema_migration: "authorized:schema-migration",
+  production_database: "authorized:production-database",
+  preview_neon: "authorized:preview-neon",
   environment: "authorized:environment",
-  neon_control: "authorized:neon-control",
+  credential_rotation: "authorized:credential-rotation",
   destructive_data: "authorized:destructive-data",
-  production: "authorized:production",
   manual_cron: "authorized:manual-cron",
+  production_deploy: "authorized:production-deploy",
+  provider_publishing: "authorized:provider-publishing",
   safety_root: "authorized:safety-root",
 };
 
@@ -125,24 +136,213 @@ const EXECUTABLE_BASENAMES = ["dockerfile", "makefile", "procfile", "justfile", 
 // Directories whose contents run by definition, whatever the files are called.
 const EXECUTABLE_PREFIXES = [".githooks/", ".husky/"];
 
-// Change classes that need Maya's explicit authorization label, by changed path.
-export function sensitiveClassesForPath(filePath) {
-  const out = new Set();
-  if (filePath === "prisma/schema.prisma" || filePath.startsWith("prisma/migrations/") || filePath.startsWith("sql/")) out.add("schema_migration");
-  if (filePath === "vercel.json" || filePath === ".github/workflows/rotate-db-keys.yml") out.add("environment");
-  const retiredNeonControl = [
-    ".github/workflows/cleanup-neon-preview-branch.yml",
-    ".github/workflows/rotate-db-keys.yml",
-    "app/api/cron/neon-branch-prune/route.ts",
-    "scripts/neon-prune-branches.ts"
-  ];
-  if (retiredNeonControl.includes(filePath) || filePath.startsWith("lib/neon/")) out.add("neon_control");
-  if (retiredNeonControl.includes(filePath)) out.add("destructive_data");
-  if (filePath === ".github/workflows/rotate-db-keys.yml") {
-    out.add("production");
-    out.add("manual_cron");
+// ---------------------------------------------------------------------------------------
+// Authorization classes (one per Maya boundary)
+// ---------------------------------------------------------------------------------------
+//
+// A class fires when a changed PATH matches one of its path rules (any change: add, modify or
+// delete), or when a code line the pull request INTRODUCES matches one of its content rules.
+// Content rules read only runnable/configuration files, with comments stripped, and skip test
+// files (tests cannot mutate production) and the check's own files (they must name the
+// patterns; changing them already needs authorized:safety-root).
+//
+// `where` narrows a content rule to the surfaces where the pattern means an operation is being
+// run rather than served: OPERATOR = scripts, tools, workflows, hooks, package.json and shell
+// files, where a line executes against real infrastructure when someone runs it.
+
+const TEST_PATH = /(^|\/)(?:tests|__tests__)\/|\.(?:test|spec)\.[cm]?[jt]sx?$/;
+const OPERATOR = (p) =>
+  /^(?:scripts|tools|\.github\/workflows|\.githooks|\.husky)\//.test(p) || p === "package.json" ||
+  /\.(?:sh|bash|zsh|ps1|psm1|bat|cmd)$/i.test(p);
+
+// The canonical Production database identity (repository CLAUDE.md, "Canonical Production DB
+// identity"). Naming it in code points that code at Production.
+const PRODUCTION_DB_IDENTITY = /\b(?:neon-green-school|store_K9l79ICRUTMsiRh2|hidden-mountain-87248164|br-crimson-frog-adr7g9gt|ep-cold-waterfall-adno3ao2)\b/;
+
+export const CHANGE_CLASSES = {
+  schema_migration: {
+    boundary: "schema / migration / backfill",
+    paths: [
+      ["Prisma schema", /^prisma\/schema\.prisma$/],
+      ["Prisma migration", /^prisma\/migrations\//],
+      ["SQL file under sql/", /^sql\//],
+      ["backfill or migration program", /(?:^|\/)[^/]*(?:backfill|migrat)[^/]*\.(?:[cm]?[jt]sx?|py|sh|sql|ps1)$/i],
+    ],
+    content: [
+      ["prisma migrate / db push", /\bprisma\s+(?:migrate\s+(?:dev|deploy|reset|resolve)|db\s+push)\b/],
+      // SQL keywords in upper case, or the exact lower-case statement, so UI text such as
+      // "Create view" does not read as DDL.
+      ["schema DDL", /\b(?:ALTER|CREATE|DROP)\s+(?:TABLE|INDEX|COLUMN|SCHEMA|VIEW|TYPE|EXTENSION|MATERIALIZED\s+VIEW)\b|\b(?:alter|create|drop)\s+(?:table|index|schema|extension|materialized\s+view)\b/],
+      ["backfill run from an operator surface or cron", /\bbackfill/i, (p) => OPERATOR(p) || p.startsWith("app/api/cron/")],
+    ],
+  },
+  production_database: {
+    boundary: "Production database / Neon mutation",
+    paths: [
+      ["Production database target selection", /^lib\/ops\/(?:db-target|canonical-neon-target)\.[cm]?[jt]s$/],
+      ["Production database target assertion", /^scripts\/ci\/assert-canonical-neon-target\.mjs$/],
+    ],
+    content: [
+      ["canonical Production database identity", PRODUCTION_DB_IDENTITY],
+      ["Neon connection host", /\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.neon\.tech\b/i],
+      ["prisma migrate deploy", /\bprisma\s+migrate\s+deploy\b/],
+      ["data-loss flag", /\baccept-data-loss\b/],
+      ["database URL taken from a stored secret", /\b(?:ASSISTANT_)?DATABASE_URL(?:_UNPOOLED)?\b\s*[:=]\s*["']?\$\{\{\s*secrets\./],
+    ],
+  },
+  preview_neon: {
+    boundary: "Development / Preview Neon creation or control",
+    paths: [
+      ["Neon library", /^lib\/neon\//],
+    ],
+    content: [
+      // A branch/endpoint/project/compute lifecycle call reached through Neon (for example
+      // integrations.neon.createBranch), or the same operation written out in words.
+      ["Neon branch/endpoint lifecycle call", /\bneon\b[^\n]{0,60}\b(?:create|delete|reset|restore|prune|provision)[A-Za-z]*(?:Branch|Branches|Endpoint|Project|Database|Compute)\b/i],
+      ["Neon branch/endpoint lifecycle operation", /\b(?:create|delete|reset|restore|prune|provision)\w*\s+(?:a\s+|the\s+)?(?:neon\s+)?(?:preview\s+|dev(?:elopment)?\s+)?(?:branch|branches|endpoint|compute)\b[^\n]{0,60}\bneon\b|\bneon\b[^\n]{0,60}\b(?:branch|branches|endpoint|compute)\b[^\n]{0,30}\b(?:create|delete|reset|restore|prune|provision)/i],
+      ["Vercel integration install/remove", /\bvercel\s+integration\s+(?:add|remove|install|uninstall)\b/],
+    ],
+  },
+  environment: {
+    boundary: "Vercel environment / resource mutation",
+    paths: [
+      ["vercel.json", /^vercel\.json$/],
+      ["Vercel project link", /^\.vercel\//],
+    ],
+    content: [
+      ["vercel CLI environment/resource mutation", /\bvercel\s+(?:env|domains|dns|certs|secrets|project|projects|git|blob|edge-config|integration)\s+(?:add|rm|remove|update|connect|disconnect|create|delete|install|uninstall)\b/],
+      ["Vercel API environment/resource endpoint", /api\.vercel\.com\/v\d+\/(?:projects\/[^\s'"`]+\/(?:env|domains)|env\b|domains\b|edge-config|storage|integrations)/],
+    ],
+  },
+  credential_rotation: {
+    boundary: "credential rotation",
+    paths: [
+      ["rotation/revocation program or workflow", /^(?:scripts|tools|\.github\/workflows)\/(?:[^/]+\/)*[^/]*(?:rotat|rekey|revok)[^/]*$/i],
+    ],
+    content: [
+      ["password reset", /\breset_password\b/i],
+      ["credential rotation/revocation", /\b(?:rotat|regenerat|revok|rekey)\w*[^\n]{0,60}\b(?:keys?|secrets?|passwords?|credentials?|tokens?)\b|\b(?:keys?|secrets?|passwords?|credentials?|tokens?)\b[^\n]{0,60}\b(?:rotat|regenerat|revok|rekey)\w*/i],
+      ["GitHub secret write", /\bgh\s+secret\s+(?:set|delete|remove)\b|\/actions\/secrets\b/],
+      ["database role password change", /\bALTER\s+(?:ROLE|USER)\b[^\n]*\bPASSWORD\b/i],
+    ],
+  },
+  destructive_data: {
+    boundary: "destructive data / R2 / storage operations",
+    paths: [
+      ["purge/wipe/prune/delete/cleanup operator", /^(?:scripts|tools|\.github\/workflows|app\/api\/cron)\/(?:[^/]+\/)*[^/]*(?:purge|wipe|prune|truncate|drop|delete|cleanup|clean-up)[^/]*$/i],
+    ],
+    content: [
+      ["object-storage delete (R2/S3)", /\bDelete(?:Object|Objects|Bucket)Command\b|\.delete(?:Object|Objects|Bucket)\s*\(|\bwrangler\s+r2\s+(?:object|bucket)\s+delete\b|\baws\s+s3\s+(?:rm|rb)\b|\bs3api\s+delete-|\brclone\s+(?:delete|purge|deletefile)\b/i],
+      // Upper-case SQL, or the exact lower-case statement: the Tailwind class `truncate` and UI
+      // text such as "Delete from favorites" are not SQL.
+      ["destructive SQL", /\bTRUNCATE\s+(?:TABLE\s+)?(?:ONLY\s+)?["`\w.]+|\bDROP\s+(?:TABLE|SCHEMA|DATABASE|COLUMN|INDEX|VIEW)\b|\bDELETE\s+FROM\b|\btruncate\s+table\b|\bdrop\s+(?:table|schema|database)\b|\bdelete\s+from\s+["`\w.]+\s+where\b/],
+      ["unconditional deleteMany", /\.deleteMany\s*\(\s*(?:\{\s*\}\s*)?\)/],
+      ["data-loss reset", /\baccept-data-loss\b|\bprisma\s+migrate\s+reset\b|--force-reset\b/],
+    ],
+  },
+  manual_cron: {
+    boundary: "manual cron / reconciliation execution",
+    paths: [
+      ["reconcile/replay/run-cron operator", /^(?:scripts|tools)\/(?:[^/]+\/)*[^/]*(?:reconcil|run-cron|trigger-cron|replay|resync)[^/]*$/i],
+    ],
+    content: [
+      ["cron endpoint called from an operator surface", /\/api\/cron\/[\w-]+/, OPERATOR],
+      ["cron secret sent from an operator surface", /\bCRON_SECRET\b/, OPERATOR],
+      ["reconciliation run from an operator surface", /\breconcil\w*/i, OPERATOR],
+      ["manual workflow trigger", /\bworkflow_dispatch\b/, (p) => p.startsWith(".github/workflows/")],
+    ],
+  },
+  production_deploy: {
+    boundary: "Production deployment / alias mutation",
+    paths: [
+      ["vercel.json", /^vercel\.json$/],
+    ],
+    content: [
+      ["vercel --prod", /\bvercel\b[^\n]*\s--prod(?:uction)?\b/],
+      ["vercel deploy/promote/rollback/redeploy/alias", /\bvercel\s+(?:deploy|promote|rollback|redeploy|alias|rolling-release)\b/],
+      ["Vercel alias/promote/rollback endpoint", /api\.vercel\.com\/v\d+\/(?:aliases|projects\/[^\s'"`]+\/(?:promote|rollback)|deployments\/[^\s'"`]+\/aliases)/],
+      ["deploy hook", /\/v1\/integrations\/deploy\/|\bVERCEL_DEPLOY_HOOK\w*/],
+      ["third-party Vercel deploy action", /\bamondnet\/vercel-action\b/],
+    ],
+  },
+  provider_publishing: {
+    boundary: "provider publishing / syndication",
+    paths: [
+      ["syndication surface", /^(?:app|lib|scripts)\/(?:[^/]+\/)*(?:syndication|syndicate|publish(?:ing|er)?)(?:\/|[-_.])/i],
+      ["outbound feed API route", /^app\/api\/(?:[^/]+\/)*feeds?(?:\/|-[\w-]+\/)/i],
+    ],
+    content: [
+      // A portal is only a publishing target when the code reaches its feed/upload/API surface;
+      // a profile link or a testimonial that names the portal is not publishing.
+      ["listing-portal feed/upload/API endpoint", /\b(?:streeteasy|zillow|trulia|renthop|nakedapartments|hotpads|apartments)\.(?:com|net)\/[^\s'"`]*\b(?:feeds?|upload|ingest|api|syndication)\b/i],
+      ["feed delivery over FTP/SFTP", /['"](?:ssh2-sftp-client|basic-ftp|ftp)['"]|\bs?ftp:\/\//],
+      ["RLS/REBNY submission call", /\b(?:submit|publish|transmit|syndicate|push)\w*(?:Rls|RLS|Rebny|REBNY)\w*\s*\(/],
+      ["write to the Cotality/Trestle provider", /\btrestle\b[^\n]{0,80}\b(?:POST|PUT|PATCH|DELETE)\b|\b(?:POST|PUT|PATCH|DELETE)\b[^\n]{0,80}\btrestle/i],
+    ],
+  },
+  safety_root: {
+    boundary: "safety root / ruleset and branch-protection changes",
+    paths: [], // SAFETY_ROOT_PATHS are checked by name in evaluate()
+    content: [
+      ["ruleset / branch-protection API", /\/rulesets\b|\/branches\/[^\s'"`]+\/protection\b|\brequired_status_checks\b|\bbypass_actors\b|\benforce_admins\b/],
+      ["privileged workflow trigger or permission", /\bpull_request_target\b|\bpermissions:\s*write-all\b|\badministration:\s*write\b/, (p) => p.startsWith(".github/workflows/")],
+    ],
+  },
+};
+
+const HASH_COMMENT_FILE = (p) => {
+  const lower = p.toLowerCase(), base = lower.split("/").pop();
+  return /\.(?:ya?ml|sh|bash|zsh|py|rb|toml|ps1|psm1|tf|tfvars|hcl)$/.test(lower) ||
+    ["dockerfile", "makefile", "procfile", "justfile"].some((n) => base === n || base.startsWith(n + ".")) || base.startsWith(".env");
+};
+
+// Code lines of a file, comments stripped. A # opens a comment only in formats where it does.
+function codeLines(filePath, body) {
+  if (typeof body !== "string") return [];
+  let stripped;
+  try { stripped = stripSourceComments(body, { hashComments: HASH_COMMENT_FILE(filePath) }); } catch { stripped = body; }
+  let lines = stripped.split(/\r?\n/);
+  // SQL line comments.
+  if (/\.sql$/i.test(filePath)) lines = lines.map((l) => l.replace(/--.*$/, ""));
+  return lines.map((l) => l.trim()).filter(Boolean);
+}
+
+// Lines present in the proposed file but not in the base file (a multiset difference), so a line
+// that moves into a file counts as introduced there, and an untouched existing line does not.
+export function introducedLines(filePath, base, head) {
+  const remaining = new Map();
+  for (const l of codeLines(filePath, base)) remaining.set(l, (remaining.get(l) || 0) + 1);
+  const out = [];
+  for (const l of codeLines(filePath, head)) {
+    const n = remaining.get(l) || 0;
+    if (n > 0) remaining.set(l, n - 1); else out.push(l);
   }
-  return [...out];
+  return out;
+}
+
+// The classes one change needs, each with the rule that fired.
+export function classifyChange(change, readBase, readHead) {
+  const hits = new Map();
+  const p = change.path;
+  if (TEST_PATH.test(p) || NEON_CAPABILITY_EXEMPT.has(p)) return hits;
+  for (const [cls, def] of Object.entries(CHANGE_CLASSES)) {
+    for (const [name, re] of def.paths) if (re.test(p)) { hits.set(cls, name); break; }
+  }
+  const base = change.status === "A" ? null : readBase(p);
+  const head = change.status === "D" ? null : readHead(p);
+  if (head === null) return hits;
+  const scannable = isExecutablePath(p, head) || carriesDatabaseConfig(p);
+  if (!scannable) return hits;
+  const added = introducedLines(p, base, head);
+  if (!added.length) return hits;
+  for (const [cls, def] of Object.entries(CHANGE_CLASSES)) {
+    if (hits.has(cls)) continue;
+    for (const [name, re, where] of def.content) {
+      if (where && !where(p)) continue;
+      if (added.some((line) => re.test(line))) { hits.set(cls, name); break; }
+    }
+  }
+  return hits;
 }
 
 // ---------------------------------------------------------------------------------------
@@ -701,23 +901,22 @@ export function evaluate(ctx) {
     failures.push({ rule: "neon-capability", message: "Direct Neon control-plane capability is prohibited, whatever the file is called. Mallan reaches Neon only through the Vercel-managed Marketplace resource. No label authorizes this:", items: capability });
   }
 
-  // 3. Sensitive change classes need Maya's label.
+  // 3 + 4. Each authorization boundary needs its own label; the safety root is named by path.
   const needed = new Map();
-  for (const p of changedPaths) for (const cls of sensitiveClassesForPath(p)) {
-    if (!needed.has(cls)) needed.set(cls, []);
-    needed.get(cls).push(p);
+  const need = (cls, item) => { if (!needed.has(cls)) needed.set(cls, []); needed.get(cls).push(item); };
+  for (const p of changedPaths) if (SAFETY_ROOT_PATHS.has(p)) need("safety_root", p + "  (safety-root file)");
+  for (const change of ctx.changes) {
+    for (const [cls, why] of classifyChange(change, ctx.readBase, ctx.readHead)) need(cls, change.path + "  (" + why + ")");
   }
-  for (const [cls, paths] of needed) {
+  for (const [cls, items] of needed) {
     const label = AUTH_LABELS[cls];
     if (!authorized.has(label)) {
-      failures.push({ rule: "authorization:" + cls, message: "This change class needs Maya's explicit authorization: the label " + label + " on this pull request" + labelNote(label) + ".", items: paths });
+      failures.push({
+        rule: "authorization:" + cls,
+        message: "This pull request makes a " + CHANGE_CLASSES[cls].boundary + " change. It needs Maya's explicit authorization, the label " + label + labelNote(label) + ". No other label authorizes it:",
+        items,
+      });
     }
-  }
-
-  // 4. The safety root changes only with Maya's label.
-  const rootChanges = changedPaths.filter((p) => SAFETY_ROOT_PATHS.has(p));
-  if (rootChanges.length && !authorized.has(AUTH_LABELS.safety_root)) {
-    failures.push({ rule: "authorization:safety_root", message: "This pull request changes the PR safety root. It needs Maya's label " + AUTH_LABELS.safety_root + labelNote(AUTH_LABELS.safety_root) + ":", items: rootChanges });
   }
 
   // 5. Database-shaped changes declare the full chain.
@@ -847,4 +1046,6 @@ function main() {
   else { process.stderr.write(out); process.exitCode = 1; }
 }
 
-main();
+// Run only when executed, not when imported.
+const real = (p) => { try { return fs.realpathSync.native(p); } catch { return p; } };
+if (process.argv[1] && real(process.argv[1]) === real(fileURLToPath(import.meta.url))) main();

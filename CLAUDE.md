@@ -2,7 +2,7 @@
 
 > Claude-specific operating instructions for `mallan67/mallan-nyc`.
 >
-> **Authority order is fixed:** `MALLAN-PLATFORM-MASTER-PLAN.md` → `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` → fresh GitHub/provider/runtime evidence → specialized guidance. This file is subordinate to the Master and Execution State and may not redefine either.
+> **Authority order is fixed:** `MALLAN-PLATFORM-MASTER-PLAN.md` → `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` (status and history only; it authorizes nothing) → fresh GitHub/provider/runtime evidence → specialized guidance. This file is subordinate to the Master, may not redefine it, and may not contradict the recorded state.
 >
 > **Compliance-first.** When work touches a compliance-shaped surface, read `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` and the specialized authority it points to before mutation.
 
