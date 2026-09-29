@@ -15,9 +15,9 @@
  *       a symlink, a submodule or a directory fails; a missing file is never treated as harmless.
  *       A runnable file that is binary or too large to read fails.
  *    d. An authorized:* label counts only if an authorizer added it AFTER GitHub first saw the
- *       current head commit (and after any change of the base branch). A new push removes the
- *       labels given before it, and that evaluation ignores labels, so a label never authorizes
- *       code pushed after it was given.
+ *       current head commit (and after any change of the base branch). On a new push the workflow
+ *       removes the labels the pull request carried at that moment, and that evaluation ignores
+ *       labels, so a label never authorizes code pushed after it was given.
  * 2. ABSOLUTE PROHIBITIONS — no label authorizes them.
  *    The retired direct-Neon paths; the direct Neon control-plane tokens in any changed text file
  *    (escaped, concatenated, percent-encoded or full-width forms included); and a workflow, action
@@ -28,8 +28,9 @@
  *    helpers, and every operator program (scripts/, tools/, shell, containers, infrastructure).
  *    The safety root is everything that decides what is checked or who decides: this check and
  *    its tests, everything under .github/, the npm, TypeScript, Jest and Babel configuration, the
- *    validators' rules and data (compliance/, data/), every file the required pr-check runs
- *    (resolved from the BASE), the Master, and the agent instructions and agent tool configuration.
+ *    compliance rules (compliance/), every file the required pr-check runs and every data/ file it
+ *    names (resolved from the BASE), the Master, and the agent instructions and agent tool
+ *    configuration.
  * 4. CONTENT TRIPWIRES — a short list of well-known operations (SIGNATURES), matched in runnable
  *    non-test files. One counts when the pull request's version of a file contains it more often
  *    than the base version, with whitespace and line breaks collapsed. No language is parsed.
@@ -48,7 +49,6 @@
  *
  * Usage:
  *   node scripts/ci/pr-safety-check.mjs           CI: judges the pull request through `gh`
- *   node scripts/ci/pr-safety-check.mjs --revoke  CI: removes labels given before a new push
  *   node scripts/ci/pr-safety-check.mjs --stdin   tests: evaluates a JSON fixture from stdin
  */
 
@@ -116,7 +116,7 @@ const SAFETY_ROOT_PATTERNS = [
   ["test-runner configuration", /(?:^|\/)jest\.config\.(?:[cm]?[jt]s|json)$/i],
   ["compiler configuration", /^tsconfig(?:\.[\w-]+)?\.json$|(?:^|\/)(?:babel\.config\.(?:[cm]?js|json)|\.babelrc(?:\.[cm]?js|\.json)?|\.swcrc)$/i],
   ["agent instructions or agent tool configuration", /(?:^|\/)(?:claude|agents|gemini)\.md$|^\.claude\//i],
-  ["validator rules and data", /^(?:compliance|data)\//i],
+  ["compliance rules", /^compliance\//i],
 ];
 
 // ---------------------------------------------------------------------------------------
@@ -406,7 +406,7 @@ export function requiredCheckFiles(readBase) {
   // The local modules those scripts load, followed to the end: every relative require, import
   // (including a bare `import "./x"`) or dynamic import that stays inside scripts/, tools/,
   // compliance/ or config/. Product code under lib/ and app/ is covered by the tests themselves;
-  // the rule and data files the validators read are rooted by directory (compliance/, data/).
+  // compliance/ is rooted as a whole, and the data/ files the validators read are added below.
   const queue = [...files];
   while (queue.length && files.size < 2000) {
     const f = queue.shift();
@@ -423,7 +423,25 @@ export function requiredCheckFiles(readBase) {
       }
     }
   }
+  // The data/ files those checks read: every data/ path a rooted file names, written whole
+  // ('data/rls-x.json') or as path.join pieces ('data', 'rls-x.json'). A name without an extension
+  // is a directory, and everything under it is rooted. A file name built at run time is not seen.
+  const data = new Set();
+  for (const f of files) {
+    const text = readBase(f);
+    if (typeof text !== "string") continue;
+    for (const m of text.matchAll(/["'`](data\/[\w./-]+)["'`]/g)) data.add(normalizePath(m[1]));
+    for (const m of text.matchAll(/["']data["']((?:\s*,\s*["'][\w.-]+["'])+)/g)) data.add("data/" + [...m[1].matchAll(/["']([\w.-]+)["']/g)].map((x) => x[1]).join("/"));
+  }
+  for (const d of data) files.add(d);
   return { files, error: null };
+}
+
+// Whether a path is a file the required check runs or reads, or lies under a data/ directory it reads.
+export function inRequiredRoot(files, p) {
+  if (files.has(p)) return true;
+  for (const f of files) if (f.startsWith("data/") && !/\.\w+$/.test(f) && p.startsWith(f + "/")) return true;
+  return false;
 }
 
 // ---------------------------------------------------------------------------------------
@@ -1032,13 +1050,13 @@ export function evaluate(ctx) {
   if (root.error) fail("trust:required-check-root", "The files the required pr-check runs could not be resolved from the base (" + root.error + "), so the safety root is unknown and nothing is authorized.");
   for (const p of changedPaths) {
     if (SAFETY_ROOT_FILES.has(p.toLowerCase())) need("safety_root", p + "  (safety root)");
-    else if (root.files.has(p)) need("safety_root", p + "  (run by the required pr-check)");
+    else if (inRequiredRoot(root.files, p)) need("safety_root", p + "  (run or read by the required pr-check)");
     else for (const [why, re] of SAFETY_ROOT_PATTERNS) if (re.test(p)) { need("safety_root", p + "  (" + why + ")"); break; }
   }
   for (const c of ctx.changes) {
     if (opaque.includes(c.path)) continue;
     const executable = c.status !== "D" && ctx.entry("head", c.path).executable;
-    const inRoot = root.files.has(c.path) || isSafetyRoot(c.path);
+    const inRoot = inRequiredRoot(root.files, c.path) || isSafetyRoot(c.path);
     for (const [cls, why] of classifyChange(c, readBase, readHead, executable)) {
       if (cls === "operator" && inRoot) continue;
       need(cls, c.path + "  (" + why + ")");
@@ -1251,22 +1269,6 @@ function githubContext() {
   };
 }
 
-// On a new push or a base change, remove every authorization label given before it. A label an
-// authorizer added after it (while this job was starting) is kept.
-function revokeLabels() {
-  const repo = process.env.GITHUB_REPOSITORY, number = process.env.PR_NUMBER, headSha = process.env.HEAD_SHA;
-  if (!repo || !number || !headSha) throw new Error("GITHUB_REPOSITORY, PR_NUMBER and HEAD_SHA are required");
-  const pr = ghJson([`repos/${repo}/pulls/${number}`]);
-  const { labels, baseChangedAt } = labelsAndBaseChange(repo, number, pr.labels || []);
-  const cutoff = headSeenAt(repo, number, pr.head.ref, headSha, baseChangedAt);
-  const authorization = new Set(Object.values(AUTH_LABELS));
-  for (const l of labels.filter((x) => authorization.has(x.name))) {
-    if (cutoff && Date.parse(l.addedAt) > Date.parse(cutoff)) { process.stdout.write("kept " + l.name + " (added after the change)\n"); continue; }
-    gh(["api", "-X", "DELETE", `repos/${repo}/issues/${number}/labels/${encodeURIComponent(l.name)}`]);
-    process.stdout.write("revoked " + l.name + " (given before the change)\n");
-  }
-}
-
 function report(result, info) {
   const lines = [];
   if (info) lines.push(`PR #${info.number} ${info.repo}  base ${info.baseSha}  head ${info.headSha}`);
@@ -1285,7 +1287,6 @@ function main() {
     process.stdout.write(JSON.stringify(result) + "\n");
     return;
   }
-  if (process.argv.includes("--revoke")) return revokeLabels();
   let ctx, result;
   try {
     ctx = githubContext();

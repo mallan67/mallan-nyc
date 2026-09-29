@@ -5,6 +5,10 @@ on:
     paths:
       - '**/*'
 
+# The pull request's own code runs here, so its token may only read the repository.
+permissions:
+  contents: read
+
 jobs:
   pr-check:
     runs-on: ubuntu-latest
@@ -44,6 +48,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v5

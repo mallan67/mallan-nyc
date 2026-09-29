@@ -17,34 +17,27 @@ permissions: {}
 
 jobs:
   # A label authorizes the commit it was given on. A new push, or a change of base branch, removes
-  # the authorized:* labels given before it; the check below also ignores them on that event and
-  # any label older than the new commit.
+  # the authorized:* labels the pull request carried at that moment (a label added afterwards is
+  # not in the event and is kept). The check below also ignores labels on that event and any label
+  # older than the new commit. No code is checked out here.
   revoke-authorizations:
     if: github.event.action == 'synchronize' || (github.event.action == 'edited' && github.event.changes.base.ref.from)
     runs-on: ubuntu-latest
     permissions:
-      contents: read
       issues: write
       pull-requests: write
     steps:
-      - name: Checkout the PR base (never the proposed head)
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.pull_request.base.sha }}
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
-        with:
-          node-version: "24"
-
-      - name: Remove authorization labels given before this change
+      - name: Remove the authorization labels given before this change
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: node scripts/ci/pr-safety-check.mjs --revoke
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          jq -r '.[] | select(startswith("authorized:"))' <<< "$LABELS" | while IFS= read -r label; do
+            gh api -X DELETE "repos/$REPO/issues/$PR_NUMBER/labels/$(jq -rn --arg l "$label" '$l | @uri')" --silent
+            echo "revoked $label"
+          done
 
   pr-safety:
     name: pr-safety

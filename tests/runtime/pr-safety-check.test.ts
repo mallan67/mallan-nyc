@@ -49,11 +49,11 @@ const TREE: Record<string, string> = {
   "jest.config.js": JEST,
   "tests/runtime/jest.config.js": RUNTIME_JEST,
   "tests/runtime/setup.ts": "export {};\n",
-  "scripts/validate-rls-compliance.js": "require('./rls/rules');\n",
+  "scripts/validate-rls-compliance.js": "require('./rls/rules');\nconst ALIASES = path.join(ROOT, 'data', 'rls-field-aliases.json');\n",
   "scripts/rls/rules.js": "require('./data');\nmodule.exports = [];\n",
-  "scripts/rls/data.js": "import './extra.js';\nmodule.exports = {};\n",
+  "scripts/rls/data.js": "import './extra.js';\nconst GEO = path.join(ROOT, 'data', 'rls');\nmodule.exports = {};\n",
   "scripts/rls/extra.js": "export {};\n",
-  "scripts/ci-compliance-check.js": "process.exitCode = 0;\n",
+  "scripts/ci-compliance-check.js": "const NEIGHBORHOODS = ['data/manhattan-neighborhoods.json'];\nprocess.exitCode = 0;\n",
   "scripts/audit-public-attribution.ts": "export {};\n",
   "scripts/audit-pii-masking.ts": "export {};\n",
 };
@@ -284,7 +284,9 @@ describe("PR safety check", () => {
       ["scripts/rls/extra.js", "a module loaded by a bare import"],
       ["scripts/audit-pii-masking.ts", "a script pr-check runs through a nested npm script"],
       ["compliance/rules/ucba-audit-checklist.json", "a validator's rules"],
-      ["data/rls-form-bindings.json", "a validator's data"],
+      ["data/rls-field-aliases.json", "data a validator names through path.join"],
+      ["data/manhattan-neighborhoods.json", "data a required check names by path"],
+      ["data/rls/geo/neighborhoods.v1.geojson", "data under a directory a validator names"],
       [".github/workflows/nightly.yml", "any workflow"],
       [".github/actions/setup/action.yml", "any action"],
       [".github/pull_request_template.md", "GitHub configuration"],
@@ -296,6 +298,11 @@ describe("PR safety check", () => {
       expect(needed).toContain("authorization:safety_root");
       expect(needed).not.toContain("authorization:operator");
       expect(authRules(check({ ...change, labels: [label(LABEL.safety_root), label(LABEL.environment), label(LABEL.production_deploy)] }))).toEqual([]);
+    });
+
+    test("data no required check names is ordinary content", () => {
+      expect(check(modified("data/pages/terms.json", '{"title":"Terms"}\n', '{"title":"Terms of use"}\n'))).toMatchObject({ ok: true, failures: [] });
+      expect(check(modified("data/rls-crm-overlays.json", "{}\n", '{"a":1}\n'))).toMatchObject({ ok: true });
     });
 
     test("package.json turning required scripts into no-ops needs authorized:safety-root", () => {
@@ -316,7 +323,7 @@ describe("PR safety check", () => {
       const pkg = modified("package.json", PACKAGE, PACKAGE.replace("node scripts/validate-rls-compliance.js", "true"));
       const script = modified("scripts/validate-rls-compliance.js", TREE["scripts/validate-rls-compliance.js"], "// disabled\n");
       expect(check(merge(pkg, script)).failures.find((f) => f.rule === "authorization:safety_root")!.items).toEqual(
-        expect.arrayContaining([expect.stringContaining("scripts/validate-rls-compliance.js  (run by the required pr-check)")]));
+        expect.arrayContaining([expect.stringContaining("scripts/validate-rls-compliance.js  (run or read by the required pr-check)")]));
     });
 
     test("an unreadable required-check definition on the base fails closed", () => {
