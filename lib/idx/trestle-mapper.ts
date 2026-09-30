@@ -8,35 +8,6 @@ import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 
 // ═══════════════════════════════════════════════════════════
-// RESO-to-RLS RENAMES (23 fields)
-// Trestle sends the RLS name; we normalize to our canonical name.
-// ═══════════════════════════════════════════════════════════
-export const RESO_TO_RLS_RENAMES: Record<string, string> = {
-  SourceSystemKey: "ListingKey",
-  MlsStatus: "StandardStatus",
-  SourceSystemModificationTimestamp: "ModificationTimestamp",
-  BuyerAgentMlsId: "BuyerAgentKey",
-  BuyerOfficeMlsId: "BuyerOfficeKey",
-  BuyerTeamMlsId: "BuyerTeamKey",
-  CableTVExpense: "CableTvExpense",
-  CoBuyerAgentMlsId: "CoBuyerAgentKey",
-  CoBuyerOfficeMlsId: "CoBuyerOfficeKey",
-  DuplicateListingIDs: "CoExclusiveListingKey",
-  CoListAgent2MLSID: "CoListAgent2Key",
-  CoListAgent3MLSID: "CoListAgent3Key",
-  CoListAgentMlsId: "CoListAgentKey",
-  ListAgentMlsId: "ListAgentKey",
-  ListOfficeMlsId: "ListOfficeKey",
-  ListTeamMlsId: "ListTeamKey",
-  LotSizeSource: "LotDimensionsSource",
-  ShowingContactPhone: "ShowingContactPhoneExt",
-  UnParsedAddress: "UnparsedAddress",
-};
-
-// CeilingHeightFeet + CeilingHeightInches → CeilingHeight (split into 2)
-// Handled specially in mapTrestleToPrisma
-
-// ═══════════════════════════════════════════════════════════
 // PROPERTY $select. Every name is a field the live Cotality Property resource
 // serves (Master §0.2 FIELD). Most groups also decide which JSON column
 // (address / features / agent_info) mapTrestleToPrisma stores a field in.
@@ -55,8 +26,8 @@ const B1_ADDRESS = [
 const B2_CLASSIFICATION = [
   // `ListingKey` is REQUIRED by the Property keyset cursor (2026-08-13).
   //
-  // `SourceSystemKey` alone is not enough. RESO_TO_RLS_RENAMES maps
-  // SourceSystemKey -> ListingKey defensively, but this feed sends ListingKey
+  // `ListingKey` is the provider primary key (Master §0.2 IDENTIFIER);
+  // `SourceSystemKey` is never identity. This feed sends ListingKey
   // DIRECTLY and leaves SourceSystemKey NULL. Verified live against
   // api.cotality.com the same day: a $select of both returns
   // ListingKey="1091862396" with SourceSystemKey=null on every sampled row.
@@ -446,24 +417,6 @@ function pick(
     }
   }
   return result;
-}
-
-/** Normalize rename: if Trestle sends RLS name, map to our canonical name. */
-function normalizeRenames(raw: Record<string, unknown>): Record<string, unknown> {
-  const normalized = { ...raw };
-  for (const [rlsName, canonicalName] of Object.entries(RESO_TO_RLS_RENAMES)) {
-    if (rlsName in normalized && !(canonicalName in normalized)) {
-      normalized[canonicalName] = normalized[rlsName];
-    }
-  }
-  // Special: CeilingHeightFeet + CeilingHeightInches → combined
-  // /* IDX-VALIDATE-IGNORE: CeilingHeight fields excluded from IDX Plus — only populated on CRM listing submissions, not IDX fetch */
-  if (normalized.CeilingHeightFeet || normalized.CeilingHeightInches) {
-    const feet = Number(normalized.CeilingHeightFeet) || 0;
-    const inches = Number(normalized.CeilingHeightInches) || 0;
-    normalized.CeilingHeight = feet + inches / 12; /* IDX-VALIDATE-IGNORE: derived field */
-  }
-  return normalized;
 }
 
 /**
@@ -858,7 +811,7 @@ export function computeGateColumns(
  * Map a raw Trestle record to our Prisma Listing shape.
  * Returns the data object ready for prisma.listing.upsert().
  */
-export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
+export function mapTrestleToPrisma(raw: Record<string, unknown>): {
   listing_id: string;
   mls_id: string | null;
   status: string;
@@ -901,8 +854,6 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   last_synced_from_trestle: Date;
   sync_status: string;
 } {
-  const raw = normalizeRenames(rawInput);
-
   const listingId = String(raw.ListingId || raw.ListingKey || "");
   const mlsId = raw.ListingKey ? String(raw.ListingKey) : null;
   const status = String(raw.StandardStatus || raw.MlsStatus || "Active");
@@ -1142,7 +1093,7 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
     // in raw_data via app/api/crm/listings/route.ts → buildPersistenceRecord.
     // stripPrivateFields always returns an object, so slimRawData's null
     // branch is unreachable here — coerce for the mapped TrestleMapping type.
-    raw_data: slimRawData(stripPrivateFields(rawInput)) ?? {},
+    raw_data: slimRawData(stripPrivateFields(raw)) ?? {},
     modification_timestamp: modTimestamp,
     listing_contract_date: contractDate,
     last_synced_from_trestle: new Date(),
@@ -1171,7 +1122,6 @@ export function checkDistributionGates(raw: Record<string, unknown>): {
   // Lazy require to avoid potential bundler cycle with lib/compliance/status.ts
 
   const { evaluateDisplayGate } = require("@/lib/compliance/gates") as typeof import("@/lib/compliance/gates");
-  const normalized = normalizeRenames(raw);
   // This wrapper is exclusively for raw Trestle records on the REBNY IDX Plus
   // feed (sync ingest + /api/idx/search live path). Pass `idxPlusPreFiltered:
   // true` so null `InternetEntireListingDisplayYN` / `InternetAddressDisplayYN`
@@ -1180,7 +1130,7 @@ export function checkDistributionGates(raw: Record<string, unknown>): {
   // writer-side convention at lines 705-706 above. AVM, ConsumerComment,
   // owner_opt_out, participant_only, closed-24h remain fail-closed.
   const result = evaluateDisplayGate(
-    normalized as Record<string, unknown>,
+    raw,
     { idxPlusPreFiltered: true },
   );
   if (result.displayable) return { displayable: true };
@@ -1210,9 +1160,8 @@ export function validateRequiredFields(raw: Record<string, unknown>): {
   valid: boolean;
   missingFields: string[];
 } {
-  const normalized = normalizeRenames(raw);
   const missing = REQUIRED_RLS_FIELDS.filter(
-    (field) => normalized[field] === undefined || normalized[field] === null
+    (field) => raw[field] === undefined || raw[field] === null
   );
   return { valid: missing.length === 0, missingFields: missing };
 }
@@ -1238,9 +1187,8 @@ export function validateHistoricalFields(raw: Record<string, unknown>): {
   valid: boolean;
   missingFields: string[];
 } {
-  const normalized = normalizeRenames(raw);
   const missing = REQUIRED_HISTORICAL_FIELDS.filter(
-    (field) => normalized[field] === undefined || normalized[field] === null
+    (field) => raw[field] === undefined || raw[field] === null
   );
   return { valid: missing.length === 0, missingFields: missing };
 }

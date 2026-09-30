@@ -234,7 +234,7 @@ The CRM search is a **separate** pipeline from public search. Different shell, d
 | Trestle HTTP client | `lib/idx/fetch.ts` | Pulls from Cotality/Trestle API |
 | Trestle OAuth | `lib/idx/auth.ts` | Bearer token refresh, 8h TTL |
 | CRM media batch endpoint | `app/api/media/batch/route.ts` | Bulk photo backfill (auth-gated) |
-| Trestle field arrays + mapper | `lib/idx/trestle-mapper.ts` | `IDX_PLUS_SELECT_FIELDS`, `RESO_TO_RLS_RENAMES`, `mapTrestleToPrisma`, `checkDistributionGates` wrapper |
+| Trestle field arrays + mapper | `lib/idx/trestle-mapper.ts` | `IDX_PLUS_SELECT_FIELDS`, `mapTrestleToPrisma`, `checkDistributionGates` wrapper |
 
 **Hard rule:** never hand-edit `public/crm/index-built.html`. Edit source files (`public/crm/{index.html, html/, css/, js/}`) and run `npm run crm:build`. CI will run `crm:check-build` and fail if the bundle drifts.
 
@@ -334,7 +334,7 @@ The data flow has three distinct layers. Conflating them is how compliance bugs 
 
 | Layer | Canonical file | Notes |
 |---|---|---|
-| Trestle field arrays | `lib/idx/trestle-mapper.ts` exports `IDX_PLUS_SELECT_FIELDS` (the Property `$select`), `RESO_TO_RLS_RENAMES`, `REQUIRED_RLS_FIELDS` | Field names come from the live Cotality contract (Master §0.2) |
+| Trestle field arrays | `lib/idx/trestle-mapper.ts` exports `IDX_PLUS_SELECT_FIELDS` (the Property `$select`), `REQUIRED_RLS_FIELDS` | Field names come from the live Cotality contract (Master §0.2) |
 | Trestle → Prisma mapper | `lib/idx/trestle-mapper.ts` `mapTrestleToPrisma()` | Writer-side: Trestle → DB |
 | Distribution gate wrapper (Trestle records) | `lib/idx/trestle-mapper.ts` `checkDistributionGates()` | Passes `idxPlusPreFiltered: true` to evaluateDisplayGate |
 | IDX sync orchestrator | `lib/idx/sync.ts` | Cron-run sync. **Do not touch IDX sync without explicit authorization.** |

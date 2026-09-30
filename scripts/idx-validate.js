@@ -376,13 +376,6 @@ function section6() {
     }
   }
 
-  // Check RESO_TO_RLS_RENAMES completeness
-  const renamesMatch = mapper.match(/RESO_TO_RLS_RENAMES[^{]*\{([^}]+)\}/);
-  if (renamesMatch) {
-    const renames = (renamesMatch[1].match(/\w+:/g) || []).length;
-    pass(s, `RESO_TO_RLS_RENAMES: ${renames} field renames defined`);
-  }
-
   // Check SyndicateYN vs SyndicateTo mismatch
   if (enforcement) {
     if (/SyndicateYN/.test(enforcement) && !/SyndicateTo/.test(enforcement)) {
