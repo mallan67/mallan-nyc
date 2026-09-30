@@ -63,6 +63,50 @@ function odataCatalogPath(entitySet: "Field" | "Lookup", args: Record<string, un
   return `/odata/${entitySet}?${params.toString()}`;
 }
 
+
+function boundedQueryText(args: Record<string, unknown>, key: string, maxLength = 4000): string | undefined {
+  const value = args[key];
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.length > maxLength) throw new Error(`${key} exceeds ${maxLength} characters`);
+  return trimmed;
+}
+
+async function liveEntitySets(): Promise<Set<string>> {
+  const response = await cotalityFetch("/odata");
+  const payload = await response.json() as { value?: Array<{ name?: unknown }> };
+  const names = new Set(
+    (payload.value || [])
+      .map((row) => typeof row.name === "string" ? row.name : "")
+      .filter(Boolean),
+  );
+  if (names.size === 0) throw new Error("Cotality service document returned no entity sets");
+  return names;
+}
+
+function odataResourcePath(resource: string, args: Record<string, unknown>): string {
+  const params = new URLSearchParams();
+  const filter = boundedQueryText(args, "filter");
+  const select = boundedQueryText(args, "select");
+  const orderby = boundedQueryText(args, "orderby");
+  const apply = boundedQueryText(args, "apply");
+
+  if (filter) params.set("$filter", filter);
+  if (select) params.set("$select", select);
+  if (orderby) params.set("$orderby", orderby);
+  if (apply) params.set("$apply", apply);
+  params.set("$top", String(cappedTop(args.top)));
+
+  const skip = Number(args.skip);
+  if (Number.isFinite(skip) && skip > 0) {
+    params.set("$skip", String(Math.min(1_000_000, Math.trunc(skip))));
+  }
+  if (args.count === true) params.set("$count", "true");
+
+  return `/odata/${encodeURIComponent(resource)}?${params.toString()}`;
+}
+
 function serverInfoMeta() {
   return {
     "io.modelcontextprotocol/serverInfo": {
@@ -124,6 +168,26 @@ const tools = [
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   },
+  {
+    name: "cotality_resource_query",
+    description: "Read actual rows from a live Cotality entity set exposed to Mallan. The requested resource is validated against the live OData service document on every call. Read-only, capped at 100 rows, and intended to prove real feed values/population/query behavior rather than infer from metadata or lookup catalogs.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        resource: { type: "string", minLength: 1, description: "Exact live Cotality entity-set name, for example Property, Media, Member, Office, OpenHouse, Building, or HistoryTransactional." },
+        filter: { type: "string", description: "Optional OData $filter expression." },
+        select: { type: "string", description: "Optional OData $select expression." },
+        orderby: { type: "string", description: "Optional OData $orderby expression." },
+        apply: { type: "string", description: "Optional OData $apply expression for provider-supported read-only aggregation/grouping." },
+        top: { type: "integer", minimum: 1, maximum: 100, default: 25 },
+        skip: { type: "integer", minimum: 0, maximum: 1000000, default: 0 },
+        count: { type: "boolean", default: false },
+      },
+      required: ["resource"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+
 ];
 
 async function callTool(name: string, args: Record<string, unknown>) {
@@ -182,6 +246,35 @@ async function callTool(name: string, args: Record<string, unknown>) {
       structuredContent: {
         source: `${cotalityBase()}${path}`,
         entitySet,
+        live: true,
+        result: parsed,
+      },
+    };
+  }
+
+
+  if (name === "cotality_resource_query") {
+    const resource = String(args.resource || "").trim();
+    if (!resource) throw new Error("resource is required");
+    if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(resource)) {
+      throw new Error("resource must be an exact Cotality entity-set name");
+    }
+
+    const entitySets = await liveEntitySets();
+    if (!entitySets.has(resource)) {
+      throw new Error(`Resource "${resource}" is not exposed by Mallan's live Cotality service document`);
+    }
+
+    const path = odataResourcePath(resource, args);
+    const response = await cotalityFetch(path);
+    const text = await response.text();
+    let parsed: unknown = text;
+    try { parsed = JSON.parse(text); } catch {}
+    return {
+      content: [{ type: "text", text }],
+      structuredContent: {
+        source: `${cotalityBase()}${path}`,
+        entitySet: resource,
         live: true,
         result: parsed,
       },
