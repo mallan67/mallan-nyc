@@ -24,19 +24,23 @@ describe("Vercel-hosted Cotality MCP boundary", () => {
     expect(source).not.toContain("tunnel-client");
   });
 
-  test("exposes contract-only read tools and no listing-row endpoint", () => {
+  test("exposes contract tools plus one bounded live-resource read tool", () => {
     for (const tool of [
       "cotality_service_document",
       "cotality_metadata_search",
       "cotality_field_catalog",
       "cotality_lookup_catalog",
+      "cotality_resource_query",
     ]) {
       expect(source).toContain(tool);
     }
-    expect(source).not.toContain('/odata/Property');
-    expect(source).not.toContain('/odata/Member');
-    expect(source).not.toContain('/odata/Office');
-    expect(source).not.toContain('/odata/Media');
+    expect(source).toContain("liveEntitySets()");
+    expect(source).toContain("entitySets.has(resource)");
+    expect(source).toContain("Math.min(100");
+    expect(source).toContain("readOnlyHint: true");
+    expect(source).not.toContain("POST /odata");
+    expect(source).not.toContain("PATCH /odata");
+    expect(source).not.toContain("DELETE /odata");
   });
 
   test("fails closed if the configured provider URL leaves Cotality", () => {
