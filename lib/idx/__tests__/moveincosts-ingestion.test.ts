@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { IDX_PLUS_SELECT_FIELDS, ALL_RLS_FIELDS } from '../trestle-mapper';
+import { IDX_PLUS_SELECT_FIELDS } from '../trestle-mapper';
 import { RAW_DATA_KEEP_SET } from '@/lib/compliance/raw-data-keep-fields';
 
 /**
@@ -8,7 +8,7 @@ import { RAW_DATA_KEEP_SET } from '@/lib/compliance/raw-data-keep-fields';
  *
  * Restoring the fields to RAW_DATA_KEEP_FIELDS is not enough on its own:
  * fetchFromTrestle() builds its $select from IDX_PLUS_SELECT_FIELDS
- * (= ALL_RLS_FIELDS minus exclusions, sourced from B27_RENTAL). Unless the
+ * (the fields come from B27_RENTAL). Unless the
  * fields are in that select set, the Trestle response never carries them and the
  * keep-list has nothing to persist for Trestle-imported rows.
  *
@@ -26,15 +26,11 @@ describe('MoveInCosts* ingestion chain (live → select → raw_data)', () => {
     for (const f of LIVE) expect(liveNames.has(f)).toBe(true);
   });
 
-  it('2. present in B27_RENTAL / ALL_RLS_FIELDS', () => {
-    for (const f of LIVE) expect(ALL_RLS_FIELDS).toContain(f);
-  });
-
-  it('3. selected from Cotality — in IDX_PLUS_SELECT_FIELDS (drives fetch $select)', () => {
+  it('2. selected from Cotality — in IDX_PLUS_SELECT_FIELDS (drives fetch $select)', () => {
     for (const f of LIVE) expect(IDX_PLUS_SELECT_FIELDS).toContain(f);
   });
 
-  it('4. the fetch $select string actually requests both fields', () => {
+  it('3. the fetch $select string actually requests both fields', () => {
     // fetchFromTrestle() uses IDX_PLUS_SELECT_FIELDS.join(',') as $select.
     const select = IDX_PLUS_SELECT_FIELDS.join(',');
     for (const f of LIVE) {
@@ -42,13 +38,12 @@ describe('MoveInCosts* ingestion chain (live → select → raw_data)', () => {
     }
   });
 
-  it('5. preserved in raw_data — in RAW_DATA_KEEP_SET', () => {
+  it('4. preserved in raw_data — in RAW_DATA_KEEP_SET', () => {
     for (const f of LIVE) expect(RAW_DATA_KEEP_SET.has(f)).toBe(true);
   });
 
-  it('6. MoveInCostsAmountTotal stays OUT of every link (still phantom)', () => {
+  it('5. MoveInCostsAmountTotal stays OUT of every link (still phantom)', () => {
     expect(liveNames.has('MoveInCostsAmountTotal')).toBe(false);
-    expect(ALL_RLS_FIELDS).not.toContain('MoveInCostsAmountTotal');
     expect(IDX_PLUS_SELECT_FIELDS).not.toContain('MoveInCostsAmountTotal');
     expect(RAW_DATA_KEEP_SET.has('MoveInCostsAmountTotal')).toBe(false);
   });

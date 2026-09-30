@@ -190,7 +190,6 @@ VOW (Virtual Office Website) provides more data than IDX but requires consumer r
 > **Important:** The REBNY IDX Plus CSV (902 fields) is a subset. Trestle provisions additional
 > fields on the IDX Plus feed beyond the CSV. The live metadata has 1,457 Property definitions.
 > Fields returned by Trestle on your feed are authorized — Trestle filters payloads per feed type.
-> IDX_PLUS_EXCLUDED_FIELDS in `trestle-mapper.ts` was validated live against Trestle on 2026-03-04.
 
 | Field | In IDX Plus CSV? | Returned by Trestle IDX Plus feed? | Notes |
 |-------|:---:|:---:|-------|

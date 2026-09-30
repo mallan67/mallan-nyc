@@ -22,7 +22,6 @@
  *   ── IDX Pipeline ──
  *    1. $select Field Completeness
  *    2. Distribution Gate → DB Column Mapping
- *    3. Field Count Verification (all 1,426 OData fields accounted)
  *    4. REQUIRED_RLS_FIELDS vs IDX Plus Availability
  *    5. Prisma Listing ↔ Mapper Return Type
  *    6. Picklist / Value Canonicalization
@@ -144,7 +143,7 @@ function hasAnnotation(content, index, annotation) {
 // ── Shared data extractors ────────────────────────────────────────────────
 function getMapperFields() {
   const mapper = readFile('lib/idx/trestle-mapper.ts');
-  if (!mapper) return { allRls: new Set(), excluded: new Set(), select: new Set(), required: new Set(), blocks: new Map() };
+  if (!mapper) return { allRls: new Set(), select: new Set(), required: new Set(), blocks: new Map() };
   const blockRx = /const\s+(B\d+_\w+)\s*=\s*\[([\s\S]*?)\];/g;
   const blocks = new Map();
   const allRls = new Set();
@@ -155,14 +154,11 @@ function getMapperFields() {
     blocks.set(name, fields);
     for (const field of fields) allRls.add(field);
   }
-  const exMatch = mapper.match(/IDX_PLUS_EXCLUDED_FIELDS\s*=\s*new\s+Set\(\[\s*([\s\S]*?)\]\)/);
-  const excluded = new Set();
-  if (exMatch) { for (const n of (exMatch[1].match(/"([^"]+)"/g) || [])) excluded.add(n.replace(/"/g, '')); }
-  const select = new Set([...allRls].filter(f => !excluded.has(f)));
+  const select = allRls;
   const reqMatch = mapper.match(/REQUIRED_RLS_FIELDS\s*=\s*\[\s*([\s\S]*?)\]/);
   const required = new Set();
   if (reqMatch) { for (const n of (reqMatch[1].match(/"([^"]+)"/g) || [])) required.add(n.replace(/"/g, '')); }
-  return { allRls, excluded, select, required, blocks, content: mapper };
+  return { allRls, select, required, blocks, content: mapper };
 }
 
 function getListingColumns() {
@@ -176,19 +172,6 @@ function getListingColumns() {
     if (m) cols.set(m[1], { type: m[2], nullable: !!m[3] });
   }
   return cols;
-}
-
-function getPropertyFieldCoveragePolicy() {
-  const policy = readFile('config/idx/property-field-coverage-policy.json');
-  if (!policy) return { searchCritical: new Set(), fieldReasons: new Map() };
-  try {
-    const parsed = JSON.parse(policy);
-    const fieldReasons = new Map(Object.entries(parsed.fieldReasons || {}));
-    const searchCritical = new Set(parsed.searchCritical || []);
-    return { searchCritical, fieldReasons };
-  } catch {
-    return { searchCritical: new Set(), fieldReasons: new Map() };
-  }
 }
 
 function parseCsvRows(content) {
@@ -235,7 +218,7 @@ function getRebnyLookupPicklists() {
 // ═══════════════════════════════════════════════════════════════════════════
 function section1() {
   const s = startSection(1, '$select Field Completeness', 'IDX Pipeline');
-  const { select, excluded, allRls, blocks, content: mapper } = getMapperFields();
+  const { select, blocks, content: mapper } = getMapperFields();
   if (!mapper) { critical(s, 'trestle-mapper.ts', 'File not found'); return; }
 
   const expandFields = new Set(['Media','MediaURL','MediaCategory','Order','PreferredPhotoYN','ShortDescription',
@@ -266,17 +249,13 @@ function section1() {
       pass(s, `${field} (annotated pre-filtered)`);
     else if (hasAnnotation(mapper, mapper.indexOf(`raw.${field}`) >= 0 ? mapper.indexOf(`raw.${field}`) : mapper.indexOf(`normalized.${field}`), 'IDX-VALIDATE-IGNORE'))
       pass(s, `${field} (annotated ignore)`);
-    else if (excluded.has(field))
-      critical(s, field, `Accessed via raw.${field} but EXCLUDED from $select and not pre-filtered. Always undefined.`);
-    else if (!allRls.has(field))
-      critical(s, field, `Accessed via raw.${field} but NOT in any RLS category (B1-B30). Never fetched.`);
+    else
+      critical(s, field, `Accessed via raw.${field} but NOT in the Property $select (IDX_PLUS_SELECT_FIELDS). Never fetched.`);
   }
 
   for (const field of picked) {
     if (accessed.has(field)) continue;
     if (select.has(field)) pass(s, `${field} (via pick)`); 
-    else if (excluded.has(field)) pass(s, `${field} (via pick, excluded from $select)`);
-    else if (allRls.has(field)) pass(s, `${field} (via pick)`);
   }
 }
 
@@ -311,113 +290,13 @@ function section2() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SECTION 3: Field Count Verification (all 1,426 OData fields)
-// ═══════════════════════════════════════════════════════════════════════════
-function section3() {
-  const s = startSection(3, 'Field Count Verification', 'IDX Pipeline');
-  const { allRls, excluded, select } = getMapperFields();
-
-  // Check CSV (IDX Plus field reference)
-  const fieldRows = getRebnyFieldRows();
-  if (!fieldRows) { warning(s, 'rebny-rls-property-fields.csv', 'File not found'); return; }
-  const csvFields = new Set();
-  const csvByResource = {};
-  for (const { name, resource } of fieldRows) {
-    csvFields.add(name);
-    csvByResource[resource] = (csvByResource[resource] || 0) + 1;
-  }
-
-  pass(s, `CSV total: ${csvFields.size} IDX Plus fields across ${Object.keys(csvByResource).length} resources`);
-  for (const [res, count] of Object.entries(csvByResource)) {
-    pass(s, `  ${res}: ${count} fields`);
-  }
-
-  // Check OData metadata (1,426 fields)
-  const meta = readFile('artifacts/metadata.xml');
-  if (meta) {
-    const propCount = (meta.match(/<Property\s+Name="/g) || []).length;
-    pass(s, `OData metadata: ${propCount} total field definitions`);
-  } else {
-    info(s, 'artifacts/metadata.xml not found', 'Cannot verify OData field count');
-  }
-
-  // Check mapper coverage of CSV Property fields
-  const { searchCritical, fieldReasons } = getPropertyFieldCoveragePolicy();
-  const csvPropertyFields = new Set();
-  for (const { name, resource } of fieldRows) {
-    if (resource === 'Property') csvPropertyFields.add(name);
-  }
-
-  const mappedPropertyFields = [...csvPropertyFields].filter(f => allRls.has(f));
-  const intentionallyExcludedPropertyFields = [...csvPropertyFields].filter(f => !allRls.has(f) && fieldReasons.has(f));
-  const unclassifiedPropertyFields = [...csvPropertyFields].filter(f => !allRls.has(f) && !fieldReasons.has(f));
-  const criticalMissingPropertyFields = [...csvPropertyFields].filter(f => !allRls.has(f) && searchCritical.has(f));
-  const stalePolicyFields = [...fieldReasons.keys()].filter(f => !csvPropertyFields.has(f));
-  const mappedPolicyFields = [...fieldReasons.keys()].filter(f => csvPropertyFields.has(f) && allRls.has(f));
-  const staleSearchCriticalFields = [...searchCritical].filter(f => !csvPropertyFields.has(f));
-  const noopExcludedFields = [...excluded].filter(f => !allRls.has(f));
-  const classifiedPct = (((mappedPropertyFields.length + intentionallyExcludedPropertyFields.length) / csvPropertyFields.size) * 100).toFixed(1);
-
-  for (const field of criticalMissingPropertyFields) {
-    critical(s, field, 'Search-critical Property field is missing from mapper.');
-  }
-
-  pass(s, `Property fields: ${csvPropertyFields.size} total`);
-  pass(s, `Property fields mapped: ${mappedPropertyFields.length}`);
-  pass(s, `Property fields intentionally excluded: ${intentionallyExcludedPropertyFields.length}`);
-  pass(s, `Property fields classified: ${mappedPropertyFields.length + intentionallyExcludedPropertyFields.length}/${csvPropertyFields.size} (${classifiedPct}%)`);
-
-  if (unclassifiedPropertyFields.length === 0) {
-    pass(s, 'Property field coverage policy: no unclassified gaps');
-  } else {
-    warning(s, `Property field coverage: ${unclassifiedPropertyFields.length} unclassified gap(s)`,
-      unclassifiedPropertyFields.slice(0, 25).join(', '));
-  }
-  if (stalePolicyFields.length === 0) {
-    pass(s, 'Property field coverage policy: no stale field reasons');
-  } else {
-    warning(s, `Property field coverage policy: ${stalePolicyFields.length} stale reason(s)`,
-      `These fields are no longer in the current REBNY Property CSV: ${stalePolicyFields.slice(0, 25).join(', ')}`);
-  }
-  if (mappedPolicyFields.length === 0) {
-    pass(s, 'Property field coverage policy: no mapped fields still marked excluded');
-  } else {
-    warning(s, `Property field coverage policy: ${mappedPolicyFields.length} mapped field(s) still have exclusion reasons`,
-      `Remove no-longer-needed reasons: ${mappedPolicyFields.slice(0, 25).join(', ')}`);
-  }
-  if (staleSearchCriticalFields.length === 0) {
-    pass(s, 'Search-critical field policy: no stale fields');
-  } else {
-    warning(s, `Search-critical field policy: ${staleSearchCriticalFields.length} stale field(s)`,
-      `These fields are no longer in the current REBNY Property CSV: ${staleSearchCriticalFields.join(', ')}`);
-  }
-  if (noopExcludedFields.length === 0) {
-    pass(s, 'IDX_PLUS_EXCLUDED: all excluded fields are present in mapper categories');
-  } else {
-    warning(s, `IDX_PLUS_EXCLUDED: ${noopExcludedFields.length} no-op exclusion(s)`,
-      `These exclusions no longer affect $select because the fields are not in ALL_RLS_FIELDS: ${noopExcludedFields.slice(0, 25).join(', ')}`);
-  }
-
-  pass(s, `Mapper ALL_RLS_FIELDS: ${allRls.size} unique fields`);
-  pass(s, `IDX_PLUS_EXCLUDED: ${excluded.size} fields`);
-  pass(s, `IDX_PLUS_SELECT (fetched): ${select.size} fields`);
-
-  // Check picklist coverage
-  const lookup = readFile('data/rebny-rls-property-lookup.csv');
-  if (lookup) {
-    const lookupLines = lookup.split('\n').filter(l => l.trim()).length - 1;
-    pass(s, `Picklist values: ${lookupLines} entries in lookup CSV`);
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
 // SECTION 4: REQUIRED_RLS_FIELDS vs IDX Plus Availability
 // ═══════════════════════════════════════════════════════════════════════════
 function section4() {
-  const s = startSection(4, 'REQUIRED vs IDX Plus Availability', 'IDX Pipeline');
-  const { required, excluded } = getMapperFields();
+  const s = startSection(4, 'REQUIRED vs Property $select', 'IDX Pipeline');
+  const { required, select } = getMapperFields();
   for (const f of required) {
-    if (excluded.has(f)) critical(s, `${f} — in REQUIRED AND EXCLUDED`, 'Remove from REQUIRED or add back to $select');
+    if (!select.has(f)) critical(s, `${f} — REQUIRED but not in the Property $select`, 'Add it to IDX_PLUS_SELECT_FIELDS or remove it from REQUIRED');
     else pass(s, f);
   }
 }
@@ -2175,20 +2054,21 @@ console.log('');
 console.log('═══════════════════════════════════════════════════════════');
 console.log('  IDX Plus Compliance Validator v3 — mallan.nyc');
 console.log('  REBNY RLS / UCBA 2026 / Trestle IDX Plus');
-console.log('  40 sections · 1,426 OData fields · Full-stack audit');
+console.log('  Full-stack audit');
 console.log('═══════════════════════════════════════════════════════════');
 console.log('');
 
-const allSections = [section1,section2,section3,section4,section5,section6,section7,section8,section9,
+const allSections = [section1,section2,section4,section5,section6,section7,section8,section9,
   section10,section11,section12,section13,section14,section15,section16,section17,section18,section19,
   section20,section21,section22,section23,section24,section25,section26,
   section27,section28,section29,section30,section31,section32,
   section33,section34,section35,section36,section37,section38,section39,section40];
 
-for (let i = 0; i < allSections.length; i++) {
-  if (sectionFilter && sectionFilter !== (i + 1)) continue;
-  try { allSections[i](); } catch (e) {
-    const s = sections[sections.length - 1] || startSection(i + 1, 'Error', 'Unknown');
+for (const run of allSections) {
+  const n = Number(run.name.replace('section', ''));
+  if (sectionFilter && sectionFilter !== n) continue;
+  try { run(); } catch (e) {
+    const s = sections[sections.length - 1] || startSection(n, 'Error', 'Unknown');
     critical(s, 'Section crashed', e.message);
   }
 }

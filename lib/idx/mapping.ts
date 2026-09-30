@@ -8,7 +8,7 @@
  */
 
 import type { IDXListing } from './types';
-import { RESO_TO_RLS_RENAMES, ALL_RLS_FIELDS, REQUIRED_RLS_FIELDS } from './trestle-mapper';
+import { RESO_TO_RLS_RENAMES, REQUIRED_RLS_FIELDS } from './trestle-mapper';
 import { normalizeStreetCase } from './normalize-street-case';
 import { classifyTrestleMediaCategory } from '@/lib/media/media-sync-service';
 
@@ -508,4 +508,4 @@ export function generateAttributionText(timestamp: Date = new Date()): string {
 }
 
 // Re-export for convenience
-export { ALL_RLS_FIELDS, REQUIRED_RLS_FIELDS, RESO_TO_RLS_RENAMES };
+export { REQUIRED_RLS_FIELDS, RESO_TO_RLS_RENAMES };

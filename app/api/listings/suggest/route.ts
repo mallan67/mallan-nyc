@@ -47,7 +47,7 @@ function checkRateLimit(ip: string): boolean {
 /**
  * PR-S.1c + PR-S.1d (2026-05-15) — minimal `$select` for suggest's Trestle calls.
  *
- * Default `fetchFromTrestle()` pulls all 902 `IDX_PLUS_SELECT_FIELDS`. For
+ * Default `fetchFromTrestle()` pulls every `IDX_PLUS_SELECT_FIELDS` field. For
  * autocomplete that's wasteful (latency + payload bloat). We only need:
  *   - Gate fields (so `checkDistributionGates(raw)` and the secondary
  *     address-suppression check can evaluate correctly)

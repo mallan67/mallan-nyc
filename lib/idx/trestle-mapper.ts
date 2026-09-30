@@ -1,6 +1,5 @@
 // lib/idx/trestle-mapper.ts
-// Trestle/REBNY RLS to Prisma Listing model mapper (902 IDX Plus fields across 7 resources).
-// Maps ALL 29 RLS categories. Handles 23 RESO-to-RLS renames.
+// Cotality (Trestle) Property records → Prisma Listing model mapper.
 // READ-ONLY: maps inbound data only — nothing goes back to Trestle.
 
 import { affirmPermission } from "@/lib/compliance/gates";
@@ -38,22 +37,21 @@ export const RESO_TO_RLS_RENAMES: Record<string, string> = {
 // Handled specially in mapTrestleToPrisma
 
 // ═══════════════════════════════════════════════════════════
-// ALL RLS PROPERTY FIELD NAMES (for $select query)
-// Grouped by the 29 RLS categories (B1–B29)
+// PROPERTY $select. Every name is a field the live Cotality Property resource
+// serves (Master §0.2 FIELD). Most groups also decide which JSON column
+// (address / features / agent_info) mapTrestleToPrisma stores a field in.
 // ═══════════════════════════════════════════════════════════
 
-// B1: Address (25 fields)
+// B1: Address
 const B1_ADDRESS = [
   "StreetNumber", "StreetName", "StreetDirPrefix", "StreetDirSuffix",
   "StreetSuffix", "UnitNumber", "City", "CityRegion", "SubdivisionName", "PostalCity",
   "PostalCode", "StateOrProvince", "CountyOrParish", "Country",
   "CrossStreet", "Directions", "Latitude", "Longitude",
-  "UnParsedAddress", "AlternateStreetName", "AlternateStreetNumber",
-  "AlternateStreetDirPrefix", "AlternateStreetDirSuffix",
-  "AlternateStreetSuffix", "MapCoordinate",
+  "MapCoordinate",
 ];
 
-// B2: Classification (18 fields)
+// B2: Classification
 const B2_CLASSIFICATION = [
   // `ListingKey` is REQUIRED by the Property keyset cursor (2026-08-13).
   //
@@ -71,49 +69,42 @@ const B2_CLASSIFICATION = [
   "ListingKey",
   "ListingId", "SourceSystemKey", "PropertyType", "PropertySubType",
   "CommonInterest", "OwnershipType", "StructureType", "NewConstructionYN",
-  "NewDevelopmentYN", "DevelopmentStatus", "NumberOfUnitsTotal",
+  "DevelopmentStatus", "NumberOfUnitsTotal",
   "NumberOfUnitsVacant", "NumberOfUnitsLeased", "NumberOfBuildings",
   "StoriesTotal", "NumberOfSeparateElectricMeters", "NumberOfSeparateGasMeters",
   "NumberOfSeparateWaterMeters", "BusinessType",
 ];
 
-// B3: Listing Agreement (13 fields)
+// B3: Listing Agreement
 const B3_LISTING_AGREEMENT = [
   "ListingAgreement", "ListingContractDate", "ExpirationDate",
   "OriginalEntryTimestamp", "ListingService", "MlsStatus",
-  "DuplicateListingIDs", "ParticipantTypes", "ExclusiveAgency",
   "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
   "SyndicationRemarks",
   "Permission", // Owner opt-out detection — required by checkDistributionGates() (singular, not "Permissions")
 ];
 
-// B4: Status & Dates (32 fields)
+// B4: Status & Dates
 const B4_STATUS_DATES = [
-  "StandardStatus", "SourceSystemModificationTimestamp",
+  "StandardStatus",
   "ModificationTimestamp", "StatusChangeTimestamp",
-  "ActivationDate", "ActivationTimestamp", "OnMarketDate",
+  "ActivationDate", "OnMarketDate",
   "OffMarketDate", "OffMarketTimestamp", "BackOnMarketDate",
   "BackOnMarketTimestamp", "ContractStatusChangeDate",
   "PurchaseContractDate", "CloseDate", "ClosePrice",
-  "CancelationDate", "WithdrawnDate",
+  "WithdrawnDate",
   "DaysOnMarket", "CumulativeDaysOnMarket",
   "PendingTimestamp", "ContingentDate",
   "AvailabilityDate",
-  // PossessionDate is RESO-standard but Trestle ignores it (CLAUDE.md, verified
-  // 2026-04-19). Use AvailabilityDate for rental availability and CloseDate for
-  // sale possession.
-  "ComingSoonDate", "ComingSoonTimestamp",
-  "ActiveOpenHouseCount",
   "OriginalListPrice", "PreviousListPrice",
   "ListPriceLow", "ListPrice",
-  "LastChangeType", "LastChangeTimestamp",
 ];
 
-// B5: Pricing Extras (8 fields)
+// B5: Pricing Extras
 const B5_PRICING = [
-  "SpecialListingConditions", "SaleType", "Concessions",
+  "SpecialListingConditions", "Concessions",
   "ConcessionsAmount", "ConcessionsComments",
-  "AuctionType", "LeaseAmount", "LeaseAmountFrequency",
+  "LeaseAmount", "LeaseAmountFrequency",
 ];
 
 // B6: Display Flags / Distribution
@@ -129,101 +120,94 @@ const B6_DISPLAY_FLAGS = [
   "ListingURL",
 ];
 
-// B7: Remarks (8 fields)
+// B7: Remarks
 const B7_REMARKS = [
   "PublicRemarks", "PrivateRemarks", "SyndicationRemarks",
   "ShowingInstructions", "ListingTerms",
   "Disclaimer", "CopyrightNotice", "PropertyCondition",
 ];
 
-// B8: List Agent & Office (18 fields)
+// B8: List Agent & Office
 const B8_LIST_AGENT = [
   "ListAgentMlsId", "ListAgentKey", "ListAgentFirstName",
   "ListAgentLastName", "ListAgentFullName", "ListAgentEmail",
   "ListAgentDirectPhone", "ListAgentOfficePhone", "ListAgentURL",
   "ListOfficeMlsId", "ListOfficeKey", "ListOfficeName",
   "ListOfficePhone", "ListOfficeURL", "ListOfficeEmail",
-  "ListTeamMlsId", "ListTeamKey", "ListTeamName",
+  "ListTeamKey", "ListTeamName",
 ];
 
-// B9: Co-List Agents (24 fields)
+// B9: Co-List Agents
 const B9_COLIST_AGENT = [
   "CoListAgentMlsId", "CoListAgentKey", "CoListAgentFirstName",
   "CoListAgentLastName", "CoListAgentFullName", "CoListAgentEmail",
   "CoListAgentDirectPhone", "CoListAgentURL",
   "CoListOfficeMlsId", "CoListOfficeKey", "CoListOfficeName",
   "CoListOfficePhone",
-  "CoListAgent2MLSID", "CoListAgent2Key", "CoListAgent2FirstName",
+  "CoListAgent2Key", "CoListAgent2FirstName",
   "CoListAgent2LastName", "CoListAgent2FullName",
-  "CoListAgent3MLSID", "CoListAgent3Key", "CoListAgent3FirstName",
+  "CoListAgent3Key", "CoListAgent3FirstName",
   "CoListAgent3LastName", "CoListAgent3FullName",
-  "CoListTeamKey", "CoListTeamName",
 ];
 
-// B10: Buyer Agent & Office (18 fields)
+// B10: Buyer Agent & Office
 const B10_BUYER_AGENT = [
   "BuyerAgentMlsId", "BuyerAgentKey", "BuyerAgentFirstName",
   "BuyerAgentLastName", "BuyerAgentFullName", "BuyerAgentEmail",
   "BuyerAgentDirectPhone", "BuyerAgentURL",
   "BuyerOfficeMlsId", "BuyerOfficeKey", "BuyerOfficeName",
   "BuyerOfficePhone", "BuyerOfficeURL",
-  "BuyerTeamMlsId", "BuyerTeamKey", "BuyerTeamName",
+  "BuyerTeamKey", "BuyerTeamName",
   "BuyerAgentOfficePhone", "BuyerOfficeEmail",
 ];
 
-// B11: Co-Buyer Agent (14 fields)
+// B11: Co-Buyer Agent
 const B11_COBUYER_AGENT = [
   "CoBuyerAgentMlsId", "CoBuyerAgentKey", "CoBuyerAgentFirstName",
   "CoBuyerAgentLastName", "CoBuyerAgentFullName", "CoBuyerAgentEmail",
   "CoBuyerAgentDirectPhone", "CoBuyerAgentURL",
   "CoBuyerOfficeMlsId", "CoBuyerOfficeKey", "CoBuyerOfficeName",
   "CoBuyerOfficePhone",
-  "CoBuyerTeamKey", "CoBuyerTeamName",
 ];
 
-// B12: Unit Rooms & Size (25 fields)
+// B12: Unit Rooms & Size
 const B12_UNIT_ROOMS = [
   "BedroomsTotal", "BathroomsFull", "BathroomsHalf",
   "BathroomsOneQuarter", "BathroomsThreeQuarter",
-  "BathroomsPartial", "BathroomsTotal", "BathroomsTotalInteger",
+  "BathroomsPartial", "BathroomsTotalInteger",
   "LivingArea", "LivingAreaUnits", "LivingAreaSource",
   "AboveGradeFinishedArea", "AboveGradeFinishedAreaSource",
   "AboveGradeFinishedAreaUnits", "BelowGradeFinishedArea",
   "BelowGradeFinishedAreaSource", "BelowGradeFinishedAreaUnits",
   "BuildingAreaTotal", "BuildingAreaSource", "BuildingAreaUnits",
-  "RoomsTotal", "NumberOfDiningAreas", "NumberOfMasterBathrooms",
-  "CeilingHeightFeet", "CeilingHeightInches",
-  "TotalLegalRooms", "Levels", "Stories", "EntryLevel",
+  "RoomsTotal", "Levels", "Stories", "EntryLevel",
 ];
 
-// B13: Building Details (23 fields)
+// B13: Building Details
 const B13_BUILDING = [
-  "BuildingName", "BuilderName", "ArchitectName",
+  "BuildingName", "BuilderName",
   "YearBuilt", "YearBuiltSource", "YearBuiltDetails",
   "ArchitecturalStyle", "ConstructionMaterials",
-  "Roof", "Foundation", "Heating", "Cooling",
+  "Roof", "Heating", "Cooling",
   // Search/CRM filters and reporting depend on these live IDX Plus fields.
   "Basement", "CoolingYN", "HeatingYN", "DirectionFaces",
   "ElectricOnPropertyYN", "Sewer", "WaterSource",
-  "OtherStructures", "FloorNumber", "FloorNumberInBuilding",
+  "OtherStructures",
   "BuildingKeyNumeric", "BasementYN", "FoundationArea", "FoundationDetails",
 ];
 
-// B14: Building Amenities (20 fields)
+// B14: Building Amenities
 const B14_BUILDING_AMENITIES = [
   "BuildingFeatures",
   "AssociationAmenities", "CommunityFeatures",
   "SecurityFeatures", "AccessibilityFeatures",
-  "BuildingAccessibilityFeatures",
-  "AttendanceType", "ElevatorYN",
   "PoolPrivateYN", "PoolFeatures", "SpaYN", "SpaFeatures",
-  "GymYN", "DoormanYN", "LaundryFeatures",
-  "StorageYN", "BicycleStorageYN",
-  "WalkScore", "TransitScore", "BikeScore",
+  "LaundryFeatures",
+  "WalkScore",
   "CommonWalls",
 ];
 
-// B15: Financial — Unit (14 fields)
+// B15: Financial — Unit
 const B15_FINANCIAL_UNIT = [
   "AssociationFee", "AssociationFeeFrequency",
   "AssociationFee2", "AssociationFee2Frequency",
@@ -236,35 +220,35 @@ const B15_FINANCIAL_UNIT = [
   "TaxMapNumber",
 ];
 
-// B16: Financial — Building (10 fields)
+// B16: Financial — Building
 const B16_FINANCIAL_BUILDING = [
   "GrossIncome", "GrossScheduledIncome", "NetOperatingIncome",
   "OperatingExpense", "OperatingExpenseIncludes",
   "IncomeIncludes", "NumberOfUnitsTotal",
-  "CapRate", "GrossRentMultiplier", "PricePerUnit",
+  "CapRate",
 ];
 
-// B17: Expenses (16 fields)
+// B17: Expenses
 const B17_EXPENSES = [
   "ElectricExpense", "FuelExpense", "GardenerExpense",
   "InsuranceExpense", "MaintenanceExpense", "ManagerExpense",
   "NewTaxesExpense", "OtherExpense", "PestControlExpense",
   "ProfessionalManagementExpense", "SuppliesExpense",
   "TrashExpense", "VacancyAllowance", "WaterSewerExpense",
-  "WorkmansCompensationExpense", "CableTVExpense",
+  "WorkmansCompensationExpense",
 ];
 
-// B18: Concessions (4 fields)
+// B18: Concessions
 const B18_CONCESSIONS = [
   "Concessions", "ConcessionsAmount", "ConcessionsComments",
   "SpecialListingConditions",
 ];
 
-// B19: Lot & Land (15 fields)
+// B19: Lot & Land
 const B19_LOT_LAND = [
   "LotSizeArea", "LotSizeUnits", "LotSizeSource",
   "LotSizeDimensions", "LotDimensionsSource",
-  "LotFeatures", "FrontageLength", "FrontageLengthUnits",
+  "LotFeatures", "FrontageLength",
   "FrontageLengthUnit",
   "FrontageType", "RoadSurfaceType", "RoadFrontageType",
   "Topography", "Vegetation", "WaterfrontFeatures",
@@ -272,34 +256,24 @@ const B19_LOT_LAND = [
   "ZoningDescription",
 ];
 
-// B20: Unit Features (19 fields)
+// B20: Unit Features
 const B20_UNIT_FEATURES = [
   "InteriorFeatures", "ExteriorFeatures", "Flooring",
   "WindowFeatures", "FireplaceYN", "FireplaceFeatures",
   "FireplacesTotal", "Appliances", "PatioAndPorchFeatures",
   "Fencing", "View", "ViewYN",
   "Exposures",
-  "BathroomCondition", "KitchenCondition",
-  "AreaOverFAR", "AreaUnderFAR",
   "Furnished", "PropertyCondition", "CurrentUse",
 ];
 
-// B21: Parking (8 fields)
+// B21: Parking
 const B21_PARKING = [
   "ParkingFeatures", "ParkingTotal", "GarageSpaces",
   "GarageYN", "AttachedGarageYN", "CarportSpaces", "CarportYN",
   "OpenParkingSpaces", "OpenParkingYN",
 ];
 
-// B22: Outdoor & Pets (8 fields)
-const B22_OUTDOOR_PETS = [
-  "GardenYN", "GardenDescription",
-  "DeckYN", "DeckDescription",
-  "PatioYN", "PatioDescription",
-  "PetsAllowed", "PetRestrictions",
-];
-
-// B23: Showings (8 fields)
+// B23: Showings
 const B23_SHOWINGS = [
   "ShowingContactName", "ShowingContactPhone",
   "ShowingContactPhoneExt", "ShowingContactType",
@@ -307,19 +281,19 @@ const B23_SHOWINGS = [
   "LockBoxType", "LockBoxLocation",
 ];
 
-// B24: New Development (6 fields)
+// B24: New Development
 const B24_NEW_DEV = [
-  "NewConstructionYN", "NewDevelopmentYN",
+  "NewConstructionYN",
   "DevelopmentStatus", "BuilderName",
   "BuilderModel", "GreenBuildingVerificationType",
 ];
 
-// B25: Green / Energy (8 fields)
+// B25: Green / Energy
 const B25_GREEN = [
   "GreenEnergyEfficient", "GreenEnergyGeneration",
   "GreenWaterConservation", "GreenIndoorAirQuality",
   "GreenSustainability", "GreenBuildingVerificationType",
-  "GreenCertification", "PowerProductionType",
+  "PowerProductionType",
 ];
 
 // B26: Media — Property-level media metadata (counts, timestamps, tour URLs).
@@ -332,26 +306,17 @@ export const B26_MEDIA = [
   "VirtualTourURLBranded", "VirtualTourURLUnbranded", "VirtualTourURLUnbranded2", "VirtualTourURLUnbranded3",
   "DocumentsAvailable", "DocumentsCount", "DocumentsChangeTimestamp",
   "MapURL",
-  "Media", "MediaURL",
 ];
 
 // B27: Rental-Specific
-// Live-Trestle truth (verified 2026-04-19; MoveInCosts* re-verified 2026-06-04):
-//   - PossessionDate is a RESO field that Trestle ignores (CLAUDE.md "fields
-//     that DO NOT exist on Trestle"). Use AvailabilityDate.
-//   - MoveInCostsAmount (Edm.Decimal) + MoveInCostsComments (Edm.String) ARE live
-//     Property fields as of 2026-06-04 (the cached snapshot had lagged). Both are
-//     selected here alongside the MoveInCosts multi-select picklist.
-//   - MoveInCostsAmountTotal still does NOT exist on Trestle — kept out (phantom).
 const B27_RENTAL = [
   "LeaseAmount", "LeaseAmountFrequency",
-  "LeaseConsideredTerms", "LeaseTerm",
+  "LeaseTerm",
   "AvailabilityDate",
   "AvailableLeaseType", "ExistingLeaseType",
-  "Furnished", "FurnishedDescription",
-  "PetsAllowed", "PetDeposit", "PetRestrictions",
-  "RentalApplicationRequired", "ApplicationFee",
-  "SecurityDeposit", "KeyDeposit",
+  "Furnished",
+  "PetsAllowed", "PetDeposit",
+  "SecurityDeposit",
   "TenantPays",
   // FARE Act fee transparency (NYC LL 119/2024)
   // MoveInCosts (multi-select cost types) + MoveInCostsAmount (Edm.Decimal $) +
@@ -360,14 +325,7 @@ const B27_RENTAL = [
   "OngoingFees", "TenantPaysDescription",
 ];
 
-// B30: FARE Act Custom Property Fields (4 fields — need $expand=CustomProperty)
-const B30_FARE_ACT_FEES = [
-  "AdditionalFee", "AdditionalFeeDescription",
-  "AdditionalFeeYN", "FeeFrequency",
-];
-
-// B28: (empty in REBNY — reserved)
-// B29: Other / Misc (12 fields)
+// B29: Other / Misc
 const B29_OTHER = [
   "Disclaimer", "CopyrightNotice",
   "OriginatingSystemID", "OriginatingSystemName",
@@ -379,8 +337,11 @@ const B29_OTHER = [
   "WaterfrontYN",
 ];
 
-/** All REBNY IDX Plus Property field names combined. Deduplicated. */
-export const ALL_RLS_FIELDS: string[] = [...new Set([
+/**
+ * The Property `$select` sent to Cotality by fetchFromTrestle(): every group
+ * above, deduplicated.
+ */
+export const IDX_PLUS_SELECT_FIELDS: string[] = [...new Set([
   ...B1_ADDRESS, ...B2_CLASSIFICATION, ...B3_LISTING_AGREEMENT,
   ...B4_STATUS_DATES, ...B5_PRICING, ...B6_DISPLAY_FLAGS,
   ...B7_REMARKS, ...B8_LIST_AGENT, ...B9_COLIST_AGENT,
@@ -388,93 +349,9 @@ export const ALL_RLS_FIELDS: string[] = [...new Set([
   ...B13_BUILDING, ...B14_BUILDING_AMENITIES, ...B15_FINANCIAL_UNIT,
   ...B16_FINANCIAL_BUILDING, ...B17_EXPENSES, ...B18_CONCESSIONS,
   ...B19_LOT_LAND, ...B20_UNIT_FEATURES, ...B21_PARKING,
-  ...B22_OUTDOOR_PETS, ...B23_SHOWINGS, ...B24_NEW_DEV,
-  ...B25_GREEN, ...B26_MEDIA, ...B27_RENTAL, ...B30_FARE_ACT_FEES, ...B29_OTHER,
+  ...B23_SHOWINGS, ...B24_NEW_DEV, ...B25_GREEN,
+  ...B26_MEDIA, ...B27_RENTAL, ...B29_OTHER,
 ])];
-
-// ═══════════════════════════════════════════════════════════
-// IDX PLUS FEED — FIELD EXCLUSIONS
-// These 85 fields exist in the full RLS spec but are NOT available
-// on the IDX Plus feed ("IDX Plus feed for Mallan Real Estate Inc").
-// Validated live against Trestle on 2026-03-04.
-//
-// Reasons:
-//   - IDX/VOW/Participant gate fields: pre-filtered by Trestle (the feed
-//     only returns listings that pass these gates, so the fields aren't exposed)
-//   - Media: navigation property — requires $expand=Media, not $select
-//   - Team MLS IDs, some building/rental details: not provisioned on IDX Plus
-//
-// Trestle IDX Plus WebAPI provides all 1,363 fields. VOW-enriched fields
-// (ClosePrice, DaysOnMarket, etc.) are served to authenticated portal users
-// via sanitizeForVOW() in lib/compliance/dto.ts — no license upgrade needed.
-// ═══════════════════════════════════════════════════════════
-const IDX_PLUS_EXCLUDED_FIELDS = new Set([
-  // (IDX*/VOW*/IDXParticipationYN/ParticipantOnlyYN previously listed here are
-  // not present in any of the canonical B-category arrays anymore; they do not
-  // exist on live Trestle — the gate model uses the `Permission` enum.)
-  // Address alternates
-  "UnParsedAddress", "AlternateStreetName", "AlternateStreetNumber",
-  "AlternateStreetDirPrefix", "AlternateStreetDirSuffix", "AlternateStreetSuffix",
-  // Classification
-  "NewDevelopmentYN",
-  // Listing agreement
-  "DuplicateListingIDs", "ParticipantTypes", "ExclusiveAgency",
-  // Status & dates (PossessionDate already removed from B4_STATUS_DATES — RESO-only)
-  "SourceSystemModificationTimestamp", "ActivationTimestamp",
-  "CancelationDate",
-  "ComingSoonDate", "ComingSoonTimestamp",
-  "ActiveOpenHouseCount", "LastChangeType", "LastChangeTimestamp",
-  // Pricing
-  "SaleType", "AuctionType",
-  // Agent/team
-  "ListTeamMlsId", "BuyerTeamMlsId",
-  "CoListAgent2MLSID", "CoListAgent3MLSID",
-  "CoListTeamKey", "CoListTeamName",
-  "CoBuyerTeamKey", "CoBuyerTeamName",
-  // Unit rooms
-  "BathroomsTotal", "CeilingHeightFeet", "CeilingHeightInches",
-  "NumberOfDiningAreas", "NumberOfMasterBathrooms", "TotalLegalRooms",
-  // Building (BuildingKeyNumeric re-enabled — Trestle 6.17, deployed 2026-03-04, metadata live 2026-03-10)
-  "ArchitectName", "FloorNumber", "FloorNumberInBuilding",
-  "Foundation",
-  // Building amenities
-  "BuildingAccessibilityFeatures", "AttendanceType",
-  "ElevatorYN", "GymYN", "DoormanYN",
-  "StorageYN", "BicycleStorageYN",
-  "TransitScore", "BikeScore",
-  // Financial
-  "GrossRentMultiplier", "PricePerUnit", "CableTVExpense",
-  // Lot & land
-  "FrontageLengthUnits",
-  // Unit features
-  "BathroomCondition", "KitchenCondition", "AreaOverFAR", "AreaUnderFAR",
-  // Outdoor & pets
-  "GardenYN", "GardenDescription", "DeckYN", "DeckDescription",
-  "PatioYN", "PatioDescription", "PetRestrictions",
-  // Green
-  "GreenCertification",
-  // Media navigation property + Media-resource field — excluded from the flat
-  // Property $select; media items are fetched via $expand=Media / fetchListingMedia
-  // (classified by MediaCategory). Phantom *URL names removed 2026-06-04 (not on live).
-  "Media", "MediaURL",
-  // Rental
-  "LeaseConsideredTerms", "FurnishedDescription",
-  "RentalApplicationRequired", "ApplicationFee", "KeyDeposit",
-  // (MoveInCostsAmount + MoveInCostsComments are NOT excluded — they are live
-  // Property fields selected via B27_RENTAL as of 2026-06-04. MoveInCostsAmountTotal
-  // remains absent from live and is simply never listed in any B-category array.)
-  // FARE Act CustomProperty fields (need $expand=CustomProperty)
-  "AdditionalFee", "AdditionalFeeDescription", "AdditionalFeeYN", "FeeFrequency",
-]);
-
-/**
- * Fields validated for the IDX Plus feed $select query.
- * = ALL_RLS_FIELDS minus fields not available on the IDX Plus feed.
- * Use this for $select in fetchFromTrestle() to avoid 400 errors.
- */
-export const IDX_PLUS_SELECT_FIELDS: string[] = ALL_RLS_FIELDS.filter(
-  (f) => !IDX_PLUS_EXCLUDED_FIELDS.has(f)
-);
 
 // ═══════════════════════════════════════════════════════════
 // DISTRIBUTION PROFILES
@@ -1141,12 +1018,10 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
     ...pick(raw, B19_LOT_LAND),
     ...pick(raw, B20_UNIT_FEATURES),
     ...pick(raw, B21_PARKING),
-    ...pick(raw, B22_OUTDOOR_PETS),
     ...pick(raw, B23_SHOWINGS),
     ...pick(raw, B24_NEW_DEV),
     ...pick(raw, B25_GREEN),
     ...pick(raw, B27_RENTAL),
-    ...pick(raw, B30_FARE_ACT_FEES),
     ...pick(raw, B29_OTHER),
   };
   // S1 (#415): stop persisting the redundant Trestle `compliance` JSON copy.
