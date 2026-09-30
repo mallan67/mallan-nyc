@@ -279,99 +279,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   });
 }
 
-export async function GET(req: NextRequest): Promise<Response> {
-  if (process.env.VERCEL_ENV !== "preview" || req.nextUrl.searchParams.get("selftest") !== "1") {
-    return new Response("Method Not Allowed", {
-      status: 405,
-      headers: { Allow: "POST" },
-    });
-  }
-
-  const invoke = async (payload: JsonRpcRequest) => {
-    const subrequest = new NextRequest("https://selftest.invalid/api/mcp/cotality", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const response = await POST(subrequest);
-    return {
-      status: response.status,
-      body: await response.json() as Record<string, unknown>,
-    };
-  };
-
-  const initialize = await invoke({
-    jsonrpc: "2.0",
-    id: 1,
-    method: "initialize",
-    params: {
-      protocolVersion: LEGACY_PROTOCOL_VERSION,
-      capabilities: {},
-      clientInfo: { name: "vercel-preview-selftest", version: "1.0.0" },
-    },
-  });
-  const toolList = await invoke({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
-  const serviceDocument = await invoke({
-    jsonrpc: "2.0",
-    id: 3,
-    method: "tools/call",
-    params: { name: "cotality_service_document", arguments: {} },
-  });
-  const metadata = await invoke({
-    jsonrpc: "2.0",
-    id: 4,
-    method: "tools/call",
-    params: {
-      name: "cotality_metadata_search",
-      arguments: { query: "SubdivisionName", max_matches: 1 },
-    },
-  });
-  const fieldCatalog = await invoke({
-    jsonrpc: "2.0",
-    id: 5,
-    method: "tools/call",
-    params: { name: "cotality_field_catalog", arguments: { top: 1 } },
-  });
-  const lookupCatalog = await invoke({
-    jsonrpc: "2.0",
-    id: 6,
-    method: "tools/call",
-    params: { name: "cotality_lookup_catalog", arguments: { top: 1 } },
-  });
-
-  const extract = (entry: { status: number; body: Record<string, unknown> }) => {
-    const result = entry.body.result as Record<string, unknown> | undefined;
-    return {
-      httpStatus: entry.status,
-      rpcError: Boolean(entry.body.error),
-      toolError: Boolean(result?.isError),
-    };
-  };
-
-  const listedTools = (((toolList.body.result as Record<string, unknown> | undefined)?.tools) || []) as Array<Record<string, unknown>>;
-  const checks = {
-    initialize: extract(initialize),
-    toolsList: { ...extract(toolList), names: listedTools.map((tool) => tool.name) },
-    serviceDocument: extract(serviceDocument),
-    metadataSubdivisionName: extract(metadata),
-    fieldCatalog: extract(fieldCatalog),
-    lookupCatalog: extract(lookupCatalog),
-  };
-
-  const ok = Object.values(checks).every((check) => (
-    check.httpStatus === 200 &&
-    check.rpcError === false &&
-    check.toolError === false
-  ));
-
-  return NextResponse.json({
-    ok,
-    environment: process.env.VERCEL_ENV,
-    provider: cotalityBase(),
-    checks,
-  }, {
-    status: ok ? 200 : 500,
-    headers: { "Cache-Control": "no-store" },
+export async function GET(): Promise<Response> {
+  return new Response("Method Not Allowed", {
+    status: 405,
+    headers: { Allow: "POST" },
   });
 }
 
