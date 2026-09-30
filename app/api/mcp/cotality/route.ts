@@ -187,7 +187,7 @@ const tools = [
       additionalProperties: false,
     },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
-
+  },
 ];
 
 async function callTool(name: string, args: Record<string, unknown>) {
