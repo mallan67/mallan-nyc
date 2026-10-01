@@ -45,17 +45,12 @@
 | File | Contents | Use |
 |------|----------|-----|
 
-### Canonical enforcement rules (machine-readable)
+### Machine-readable rule data
 
-> **Folder:** `compliance/rules/` — the enforcement "law" used by all scripts and validators.
-> **Single pointer:** `active.json` tells every script which rule files are enforced. No guessing, no snapshots.
+> **Folder:** `compliance/rules/` — machine-readable rule data read by `npm run ucba:audit` (`ucba-audit-checklist.json`, which uses `content-restrictions.json` as evidence) and the workflow validators (`workflow-map.json`, `operational-actions.json`).
 
 | File | Contents | Source |
 |------|----------|--------|
-| [`rules/active.json`](rules/active.json) | Single pointer to all enforced rule files, field data, and validator scripts | All below |
-| [`rules/rls-required.json`](rules/rls-required.json) | 52 always-required fields + 14 conditional groups + 11 cross-field validations | UCBA 2026 Exhibit A + RLS CSV |
-| [`rules/export-policy.json`](rules/export-policy.json) | 8 distribution profiles, 6 gates, display cascade, never-export list, close-only fields, syndication portals | UCBA 2026 + REBNY RLS Rules |
-| [`rules/status-rules.json`](rules/status-rules.json) | 9 status definitions, valid/invalid transitions, DOM rules, 5 timing SLAs | UCBA 2026 Art. I |
 | [`rules/content-restrictions.json`](rules/content-restrictions.json) | 11 content restriction rules + 4 scanner definitions (Fair Housing, Agent Info, Off-Market, Compensation) | UCBA 2026 Art. I, III, VIII + Exhibit C |
 | [`rules/ucba-audit-checklist.json`](rules/ucba-audit-checklist.json) | **Machine-readable UCBA 2026 audit checklist** — 145 verifiable rules with file paths, regex patterns, and verdicts. Used by `scripts/ucba-compliance-audit.js` for regression detection. | UCBA 2026 (all sections) |
 

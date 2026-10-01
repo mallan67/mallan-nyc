@@ -3,7 +3,7 @@
 > **Version:** 1.0.0
 > **Date:** 2026-03-01
 > **Applies to:** mallan-nyc repo (production)
-> **Enforcement:** `public/crm/scripts/validate-production.sh` (CRM validation) + `npm run audit:pii` (mallan-nyc; part of the required `pr-check`)
+> **Enforcement:** CI `crm-validate` (`.github/workflows/crm-validate.yml`) + `npm run audit:pii` (mallan-nyc; part of the required `pr-check`)
 
 ---
 
@@ -43,7 +43,7 @@ All 6 gates are enforced at the API layer. UI may only DISPLAY gate status (read
 |------|-------|-------------|------------|
 | 1. Owner Opt-Out | `OwnerOptOutYN` | If true, exclude from all public feeds | Gray "Owner Opt-Out" badge |
 | 2. Participant Only | `ParticipantOnlyYN` | If true, exclude from IDX/VOW | Gray "Participant Only" badge |
-| 3. IDX Display | `InternetEntireListingDisplayYN` | If false, exclude from IDX search *(no separate IDX field on Trestle)* | Hidden from search results |
+| 3. IDX Display | `InternetEntireListingDisplayYN` | If false, exclude from IDX search *(no separate IDX field in the live Cotality schema)* | Hidden from search results |
 | 4. Syndication | `SyndicateTo` | If disabled, exclude from syndication feeds *(UCBA: `SyndicateYN`)* | Orange "NOT SYNDICATED" badge |
 | 5. Coming Soon | `ComingSoonDate` | If set + future, show badge, block showings | Blue "Coming Soon" badge |
 | 6. Closed Status | `MlsStatus` = Closed/Expired | Remove/mark within 24 hours | Strike-through or hidden |
@@ -52,17 +52,13 @@ All 6 gates are enforced at the API layer. UI may only DISPLAY gate status (read
 
 ---
 
-## 4. REBNY RLS Field Coverage
+## 4. Provider Field Contract
 
 | Requirement | Status |
 |-------------|--------|
-| Total RLS fields | 902 |
-| Required fields | 41 |
-| Conditional fields | 86 |
-| RESO-to-RLS renames | 23 |
-| Picklist values | 2,066 across 117 lookups |
-| Field mapping source of truth | the live Cotality contract (Master §21.2); the REBNY RLS CSV is not provider authority |
-| Validator | `rls:validate` is retired (Cotality convergence); the Cotality contract check is built later in the convergence |
+| Field, value and picklist authority | The live Cotality API (`$metadata`; committed copy `data/cotality-enums.live.json`; Master §0, §21.2) |
+| Mandatory listing fields | UCBA 2026 Exhibit A (`data/UCBA-2026-Requirements.md` §B); provider field names verified against the live Cotality API |
+| Drift check | `npm run cotality:verify` against live `$metadata`; regenerate with `npm run cotality:pull` |
 
 ---
 
@@ -74,7 +70,7 @@ All 6 gates are enforced at the API layer. UI may only DISPLAY gate status (read
 | No `type="submit"` buttons | No submission capability |
 | No `setInterval` for autosave | No background saves |
 | `VIEWER_MODE = true` always | No form-mode code path |
-| `data-rls-viewer="true"` on body | Validator can identify viewers |
+| `data-rls-viewer="true"` on body | CI `crm-validate` identifies viewers (frozen Sales/Rental Tools forms) |
 | Agent info masked for buyer/tenant | API-layer + CSS defense-in-depth |
 
 ---
@@ -110,8 +106,7 @@ All 6 gates are enforced at the API layer. UI may only DISPLAY gate status (read
 ## Verification Commands
 
 ```bash
-# CRM validation:
-bash public/crm/scripts/validate-production.sh
+# CRM validation runs in CI: .github/workflows/crm-validate.yml
 
 # In mallan-nyc:
 npm run audit:pii

@@ -1,13 +1,13 @@
 # IDX & VOW Display Rules
 
-> **Feed:** REBNY RLS via Trestle (Cotality) | **LMP:** RealPlus (listing input to RLS) | **IDX Display:** Trestle IDX Plus WebAPI — public display + internal CRM + reporting (REBNY confirmed 2026-03-27). IDX-eligible inventory only, not full-market search.
+> **Feed:** REBNY RLS via the Cotality API | **LMP:** RealPlus (listing input to RLS) | **IDX Display:** Cotality IDX Plus Web API — public display + internal CRM + reporting (REBNY confirmed 2026-03-27). IDX-eligible inventory only, not full-market search.
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 
 ---
 
-> ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
-> 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+> ### AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
+> 1. **NY law/DOS, Fair Housing and REBNY rules (UCBA 2026, REBNY Listing Service)** govern use, display and conduct. 2. **The live Cotality API** is the only authority for provider fields, values and picklists (`data/cotality-enums.live.json` is its committed copy).
+> 3. **Mallan business rules** govern how verified facts are used; Mallan-created fields (mostly commercial and private-listing fields) are Mallan facts, never presented as provider data, and can restrict but never override a law/REBNY/provider display restriction (Master §0.2, §4, §21.1). 4. **Fail closed = NON-DISPLAY.** Plan: `MALLAN-PLATFORM-MASTER-PLAN.md`; state: `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md`.
 
 ---
 
@@ -48,17 +48,17 @@ Every listing must pass through ALL 6 gates before appearing on any public chann
 
 ### Gate 3: IDX Display
 
-| Field | `InternetEntireListingDisplayYN` *(Trestle field; UCBA refers to "IDX Entire Listing Display" — no separate `IDXEntireListingDisplayYN` field exists on Trestle)* |
+| Field | `InternetEntireListingDisplayYN` *(Cotality field; UCBA refers to "IDX Entire Listing Display" — no separate `IDXEntireListingDisplayYN` field exists in the live Cotality schema)* |
 |-------|------|
 | Source | Art. III, Sec. 2(C) |
 | Default | **True** (LMPs must default to True) |
 | True | All public-eligible fields flow to IDX broker websites. Attribution required. |
 | False | Excluded from all IDX. Remains on RLS. |
-| Dependency | Also requires `ListOfficeIDXParticipationYN = True` (system-managed). |
+| Dependency | Also requires the listing office's IDX participation (`Office.IDXOfficeParticipationYN` in the live Cotality schema; system-managed). |
 
 ### Gate 4: Syndication
 
-| Field | `SyndicateTo` *(Trestle field; UCBA refers to "SyndicateYN" as boolean — Trestle uses `SyndicateTo` for portal selection)* |
+| Field | `SyndicateTo` *(Cotality field; UCBA refers to "SyndicateYN" as boolean — Cotality uses `SyndicateTo` for portal selection)* |
 |-------|------|
 | Source | UCBA General |
 | Default | **True** (LMPs must default to True) |
@@ -101,16 +101,16 @@ When `InternetEntireListingDisplayYN = False`, these fields AUTO-CASCADE to Fals
 
 ---
 
-## Display Control Flags (7 Total)
+## Display Control Flags (6 Total)
 
-| # | Trestle Field | Required | Default | Effect When False |
+| # | Cotality Field | Required | Default | Effect When False |
 |---|-----------|----------|---------|-------------------|
-| 1 | `InternetEntireListingDisplayYN` | **REQ** | True | Master switch — cascades all below to False. Also serves as IDX display gate (no separate `IDXEntireListingDisplayYN` on Trestle). |
+| 1 | `InternetEntireListingDisplayYN` | **REQ** | True | Master switch — cascades all below to False. Also serves as IDX display gate (no separate `IDXEntireListingDisplayYN` in the live Cotality schema). |
 | 2 | `InternetAddressDisplayYN` | **REQ** | True | **Address MUST be suppressed.** Violation if displayed. |
 | 3 | `InternetAutomatedValuationDisplayYN` | **REQ** | True | AVM (Zestimate-style) display disabled |
 | 4 | `InternetConsumerCommentYN` | **REQ** | True | Consumer comments/blogs disabled |
 | 5 | `SyndicateTo` | **REQ** | True | Excluded from syndication portals. *(UCBA references as `SyndicateYN`)* |
-| 6 | `ListOfficeIDXParticipationYN` | SYS | -- | System-managed from REBNY membership |
+| 6 | `Office.IDXOfficeParticipationYN` (Office resource) | SYS | -- | System-managed from REBNY membership |
 
 ---
 
@@ -121,7 +121,7 @@ When `InternetEntireListingDisplayYN = False`, these fields AUTO-CASCADE to Fals
 | Requirement | Source | Implementation |
 |-------------|--------|----------------|
 | Listing broker attribution | Art. III, Sec. 2(C) | "Listing Courtesy of [ListOfficeName]" — font not smaller than median |
-| Data timestamp | RESO IDX Rules | "Last updated: [date/time]" |
+| Data timestamp | IDX display practice — source not yet verified (no UCBA 2026 citation) | "Last updated: [date/time]" |
 | Fair Housing logo/link | Federal + NYC HRL | Equal Housing Opportunity icon |
 | Commission negotiability | Art. I, Sec. 17 | Disclosure accessible from listing |
 
@@ -158,17 +158,17 @@ VOW (Virtual Office Website) provides more data than IDX but requires consumer r
 
 > **Verified 2026-03-26:** The REBNY IDX/VOW Compliance Checklist (Dec 2021) contains NO field-level
 > restriction blocking ClosePrice, OriginalListPrice, or PreviousListPrice from IDX display.
-> These fields are in the REBNY IDX Plus CSV (902 fields). NAR IDX Policy 7.58 requires sold data
-> on IDX when publicly accessible — NYC sold prices are public via ACRIS.
+> NAR IDX Policy 7.58 requires sold data on IDX when publicly accessible — NYC sold prices are public via ACRIS.
+> Field existence comes from live `$metadata` (committed copy `data/cotality-enums.live.json`); population must be checked live (Master §0.5).
 
 | Feature | IDX | VOW |
 |---------|-----|-----|
 | Authentication | None | Consumer login required |
-| Data scope | IDX Plus feed fields (902 in CSV + additional Trestle-provisioned fields) | Same feed + VOW registration requirements |
+| Data scope | Fields the live Cotality IDX Plus feed returns | Same feed + VOW registration requirements |
 | Address display | Follows `InternetAddressDisplayYN` | Same |
 | Agent info fields | Public fields only | Extended agent info |
-| Sold/closed data (ClosePrice, CloseDate) | **Available** (in IDX Plus CSV) | Available |
-| DaysOnMarket, CumulativeDaysOnMarket | **Returned by Trestle on IDX Plus feed** (validated live 2026-03-04, not in CSV but provisioned) | Available |
+| Sold/closed data (ClosePrice, CloseDate) | **Available** | Available |
+| Days on market | Mallan derives DOM from `OnMarketDate`; `DaysOnMarket` / `CumulativeDaysOnMarket` are suppressed and null on the feed (Master §0.5) | Same |
 | Search | Basic property search | Advanced, saved searches |
 
 ### VOW Requirements
@@ -181,48 +181,31 @@ VOW (Virtual Office Website) provides more data than IDX but requires consumer r
 | Attribution | Same as IDX — "Listing Courtesy of [Broker]" |
 | Opt-out respect | Same gate logic as IDX — all 6 gates apply |
 
-### Field Availability on IDX Plus Feed
+### Field Availability on the Cotality IDX Plus Feed
 
-> **Corrected 2026-03-26:** ClosePrice, CloseDate, OriginalListPrice, PreviousListPrice are IN the
-> IDX Plus CSV and CAN be displayed publicly. The previous version of this section incorrectly
-> classified them as "VOW-Only." The REBNY IDX/VOW Compliance Checklist has no such restriction.
+> **Corrected 2026-03-26:** ClosePrice, CloseDate, OriginalListPrice, PreviousListPrice CAN be displayed publicly.
+> The REBNY IDX/VOW Compliance Checklist has no VOW-only restriction on them.
 >
-> **Important:** The REBNY IDX Plus CSV (902 fields) is a subset. Trestle provisions additional
-> fields on the IDX Plus feed beyond the CSV. The live metadata has 1,457 Property definitions.
-> Fields returned by Trestle on your feed are authorized — Trestle filters payloads per feed type.
+> A field the live Cotality feed returns on Mallan's licence is available to Mallan; whether it may be shown, and to
+> whom, is decided by REBNY/UCBA rules and the display rules on this page (Master §21.1 — both stacks apply).
+> Re-verify a field with a live query before relying on it (Master §0.1: `$metadata` alone does not prove a field).
 
-| Field | In IDX Plus CSV? | Returned by Trestle IDX Plus feed? | Notes |
-|-------|:---:|:---:|-------|
-| ClosePrice | YES | YES | IDX-safe |
-| CloseDate | YES | YES | IDX-safe |
-| OriginalListPrice | YES | YES | IDX-safe |
-| PreviousListPrice | YES | YES | IDX-safe |
-| DaysOnMarket | NO | **YES** (validated live) | Not in CSV but Trestle provisions it — in $select, not in excluded list |
-| CumulativeDaysOnMarket | NO | **YES** (validated live) | Same as DaysOnMarket |
-| Concessions / ConcessionsAmount | NO | Needs verification | Not in CSV, check if Trestle returns values |
-| CancelledDate | NO | Trestle-only. |
-| ExpirationDate | NO | Explicitly "Hidden" per UCBA Exhibit A — never display. |
-| PropertyCondition | NO | Agent-only per UCBA — with disclaimer if shown to agents. |
-| Extended agent info (direct phone, email) | YES (in CSV) | But REBNY checklist prohibits seller/occupant contact info. Agent PII display is for attribution only. |
-
-### Fields IN IDX Plus Spec (CAN display publicly)
-
-| Field | Verified Source |
-|-------|----------------|
-| ClosePrice | IDX Plus CSV line 406 |
-| CloseDate | IDX Plus CSV line 405 |
-| OriginalListPrice | IDX Plus CSV line 694 |
-| PreviousListPrice | IDX Plus CSV line 742 |
-| ListingContractDate | IDX Plus CSV line 622 |
-| PurchaseContractDate | IDX Plus CSV line 752 |
-| BuyerFinancing | IDX Plus CSV line 393 |
-| WithdrawnDate | IDX Plus CSV line 847 |
+| Field | Display rule |
+|-------|--------------|
+| ClosePrice, CloseDate, OriginalListPrice, PreviousListPrice, PurchaseContractDate, WithdrawnDate | REBNY IDX display permission (checked 2026-03-26 against REBNY's IDX Plus specification); may be displayed publicly when returned on Mallan's IDX Plus feed. Presence in `$metadata` or `data/cotality-enums.live.json` alone is not display permission. |
+| ListingContractDate, BuyerFinancing | Conflicting rules: `compliance/FRONTEND-COMPLIANCE.md` §8 and `compliance/PORTALS-AND-RBAC.md` hide `ListingContractDate`; the feed writer strips `BuyerFinancing` before storage (`PRIVATE_FIELDS` in `lib/idx/trestle-mapper.ts`). Fail closed — do not display publicly until the REBNY rule is re-verified. |
+| DaysOnMarket, CumulativeDaysOnMarket | Suppressed and null on the feed; DOM is derived from `OnMarketDate` (Master §0.5) |
+| Concessions / ConcessionsAmount | Live fields; verify population before display |
+| CancellationDate | Live field |
+| ExpirationDate | Explicitly "Hidden" per UCBA Exhibit A — never display. |
+| PropertyCondition | Agent-only per UCBA — with disclaimer if shown to agents. |
+| Extended agent info (direct phone, email) | REBNY checklist prohibits seller/occupant contact info. Agent PII display is for attribution only. |
 
 ---
 
 ## Syndication Rules
 
-### Active Syndication Portals (via Trestle)
+### Active Syndication Portals (via Cotality)
 
 | Portal | Cost | Status |
 |--------|------|--------|
@@ -263,7 +246,7 @@ When a listing goes off-market:
 
 - [ ] Gate 1: Filter Owner Opt-Out from all public queries
 - [ ] Gate 2: Filter Participant Only from all public queries
-- [ ] Gate 3: Check `InternetEntireListingDisplayYN` before IDX display *(no separate IDX field on Trestle)*
+- [ ] Gate 3: Check `InternetEntireListingDisplayYN` before IDX display *(no separate IDX field in the live Cotality schema)*
 - [ ] Gate 4: Check `SyndicateTo` before syndication *(UCBA: `SyndicateYN`)*
 - [ ] Gate 5: Coming Soon badge on all Coming Soon listings
 - [ ] Gate 6: Closed listings removed/marked within 24hrs

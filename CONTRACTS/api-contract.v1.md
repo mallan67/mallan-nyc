@@ -132,7 +132,7 @@ No tokens, API keys, or credentials should appear in HTML/JS source.
 | POST | `/api/portal/showings` | Portal pages | Request a showing |
 | GET  | `/api/portal/offers` | Portal (seller/landlord) | Incoming offers |
 
-### IDX/Trestle (Sprint 7)
+### IDX feed (Sprint 7)
 
 | Method | Path | Used By | Purpose |
 |--------|------|---------|---------|
@@ -182,7 +182,6 @@ No tokens, API keys, or credentials should appear in HTML/JS source.
     "participant_only": false,
     "coming_soon_date": null
   },
-  "rls_fields": { "...902 IDX Plus mapped fields..." },
   "created_at": "ISO8601",
   "updated_at": "ISO8601"
 }
