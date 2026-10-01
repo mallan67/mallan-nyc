@@ -27,7 +27,7 @@ import { NextRequest } from 'next/server';
 
 const redisGet = jest.fn();
 const redisSet = jest.fn();
-const fetchFromTrestle = jest.fn();
+const mockFetchFromCotality = jest.fn();
 
 /** null models lib/redis.ts with the UPSTASH_* env vars absent. */
 let mockRedisClient: { get: jest.Mock; set: jest.Mock } | null = null;
@@ -43,7 +43,7 @@ jest.mock('@/lib/redis', () => ({
   },
 }));
 jest.mock('@/lib/idx/fetch', () => ({
-  fetchFromTrestle: (...args: unknown[]) => fetchFromTrestle(...args),
+  fetchFromTrestle: (...args: unknown[]) => mockFetchFromCotality(...args),
 }));
 // The Prisma-backed machine must never be evaluated for real in a unit test.
 jest.mock('@/app/api/cron/one-cycle/route', () => ({
@@ -65,7 +65,7 @@ const HEAD_PHOTOS = '2026-08-02T06:50:00.000Z';
 
 /** Probe echoes the stored heads back => a genuine "unchanged" verdict. */
 function mockSameHeads() {
-  fetchFromTrestle.mockImplementation(async (options: { select?: string[] }) => {
+  mockFetchFromCotality.mockImplementation(async (options: { select?: string[] }) => {
     const field = options.select?.[1];
     if (field === 'ModificationTimestamp') {
       return {
@@ -122,7 +122,7 @@ let warnSpy: jest.SpyInstance;
 beforeEach(() => {
   redisGet.mockReset();
   redisSet.mockReset();
-  fetchFromTrestle.mockReset();
+  mockFetchFromCotality.mockReset();
   mockRedisClient = { get: redisGet, set: redisSet };
   mockCycleBody = VALID_COMPLETION;
   process.env.CRON_SECRET = CRON_SECRET;
@@ -212,7 +212,7 @@ describe('the route emits the REAL finalize outcome, end to end', () => {
     // Read succeeds but returns nothing, and the probe then throws, so there is
     // no snapshot to carry forward. Normal, and must not read as a write failure.
     redisGet.mockResolvedValue(null);
-    fetchFromTrestle.mockRejectedValue(secretBearingError('TrestleProbeError'));
+    mockFetchFromCotality.mockRejectedValue(secretBearingError('CotalityProbeError'));
 
     await callRoute();
 
@@ -243,7 +243,7 @@ describe('the route emits the REAL finalize outcome, end to end', () => {
     const run = async (arrange: () => void) => {
       redisGet.mockReset();
       redisSet.mockReset();
-      fetchFromTrestle.mockReset();
+      mockFetchFromCotality.mockReset();
       logSpy.mockClear();
       mockRedisClient = { get: redisGet, set: redisSet };
       mockCycleBody = VALID_COMPLETION;
@@ -264,7 +264,7 @@ describe('the route emits the REAL finalize outcome, end to end', () => {
     });
     await run(() => {
       redisGet.mockResolvedValue(null);
-      fetchFromTrestle.mockRejectedValue(new Error('probe down'));
+      mockFetchFromCotality.mockRejectedValue(new Error('probe down'));
     });
     await run(() => {
       mockRedisClient = null;

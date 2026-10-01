@@ -4,7 +4,7 @@
  *
  * Codex #413 P2: the create branch spreads `...mapped`, but the UPDATE branch in
  * reset-sync enumerates fields, so before this fix the 8 typed agent columns would
- * NOT persist on update. This test mocks Trestle + Prisma (NOT the real
+ * NOT persist on update. This test mocks Cotality + Prisma (NOT the real
  * `typedAgentColumnsFromJson` seam) and asserts the captured UPDATE payload carries
  * all 8 typed columns, each derived from the mapper's `agent_info` JSON.
  *

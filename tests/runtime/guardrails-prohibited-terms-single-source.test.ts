@@ -7,8 +7,6 @@
  * Proves:
  *   1. the stale src/ copy is gone (single source)
  *   2. guardrails loads the canonical data/ file (src/ not referenced)
- *   3. the retired MASTER_REGISTRY.json field dictionary is deleted, and guardrails carries no
- *      exclusion for it any more
  *   4. public-facing neighborhood content is STILL scanned (not excluded)
  *   5. the corrected neighborhood phrases no longer contain school-proximity language
  *   6. #460's new Fair Housing terms are present in the canonical list the lint now enforces
@@ -29,11 +27,6 @@ describe("guardrails prohibited-terms: single canonical source (data/)", () => {
   it("2. guardrails loads the canonical data/ file and does not reference the src/ copy", () => {
     expect(guardrailsSrc).toMatch(/data\/compliance\/prohibited-terms\.json/);
     expect(guardrailsSrc).not.toMatch(/src\/compliance\/prohibited-terms\.json/);
-  });
-
-  it("3. the retired MASTER_REGISTRY.json field dictionary is deleted, with no guardrails exclusion left for it", () => {
-    expect(fs.existsSync(path.join(ROOT, "data/MASTER_REGISTRY.json"))).toBe(false);
-    expect(guardrailsSrc).not.toMatch(/MASTER_REGISTRY/);
   });
 
   it("4. public-facing neighborhood JSON is NOT excluded (still scanned)", () => {

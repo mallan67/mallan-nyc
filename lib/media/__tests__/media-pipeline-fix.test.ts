@@ -17,9 +17,9 @@ import { isPhotoMedia, getHeroPhoto, LISTING_PLACEHOLDER_IMAGE } from '@/lib/med
 
 const PHOTO1 = { MediaURL: 'https://cdn.example.com/p1.jpg', MediaCategory: 'Photo', Order: 1 };
 const PHOTO2 = { MediaURL: 'https://cdn.example.com/p2.jpg', MediaCategory: 'Photo', Order: 2 };
-// FloorPlan tagged by category, ordered FIRST (the Trestle default that caused the bug).
+// FloorPlan tagged by category, ordered FIRST (the Cotality default that caused the bug).
 const FLOORPLAN = { MediaURL: 'https://cdn.example.com/fp.jpg', MediaCategory: 'FloorPlan', Order: 0 };
-// FloorPlan with NULL category but a Trestle DOCUMENT- URL (the null-category leak case).
+// FloorPlan with NULL category but a Cotality DOCUMENT- URL (the null-category leak case).
 const FLOORPLAN_NULLCAT = { MediaURL: 'https://api.cotality.com/trestle/Media/Property/DOCUMENT-Jpeg/abc', MediaCategory: null, Order: 0 };
 
 describe('classifyMediaItem — floorplan detection', () => {

@@ -8,7 +8,7 @@
  *   - Agent "Maya Allan": id=1, trestle_mls_id=39361, email=maya@mallan.nyc
  *   - SL-0004 (CRM exclusive):   agent_id=1, idx_display_yn=false, rls_eligible=false,
  *                                agent_info.ListAgentMlsId="" (empty — broken picker)
- *   - RLS20093870 (Trestle copy): agent_id=null, idx_display_yn=true,
+ *   - RLS20093870 (Cotality copy): agent_id=null, idx_display_yn=true,
  *                                  ListAgentMlsId=39361 (== Maya), same unit 2G
  *
  * Mix of runtime (real functions) + source-verification (route/auth/form wiring).
@@ -25,14 +25,14 @@ import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 const ROOT = process.cwd();
 const read = (p: string) => readFileSync(join(ROOT, p), 'utf8');
 
-// ── RUNTIME: cross-source dedupe survives DB-shape vs Trestle-shape divergence ──
-describe('cross-source dedupe — DB DTO vs Trestle DTO address shapes', () => {
+// ── RUNTIME: cross-source dedupe survives DB-shape vs Cotality-shape divergence ──
+describe('cross-source dedupe — DB DTO vs Cotality DTO address shapes', () => {
   // DB shape (dbListingToPublicDTO): streetDirPrefix separate, streetName = name+suffix.
   const SL_0004: DedupeCandidate = {
     id: 'SL-0004',
     address: { streetNumber: '333', streetDirPrefix: 'E', streetName: '46th Street', unitNumber: '2G', postalCode: '10017' },
   };
-  // Trestle shape (toPublicDTO via mapRESOToInternal): no streetDirPrefix,
+  // Cotality shape (toPublicDTO via mapRESOToInternal): no streetDirPrefix,
   // streetName already = "<dir> <name> <suffix>".
   const RLS_20093870: DedupeCandidate = {
     id: 'RLS20093870',
@@ -47,11 +47,11 @@ describe('cross-source dedupe — DB DTO vs Trestle DTO address shapes', () => {
     address: { streetNumber: '333', streetName: 'W 46th Street', unitNumber: '2G', postalCode: '10017' }, // different direction
   };
 
-  it('DB-shape and Trestle-shape rows for the same unit produce the IDENTICAL address key', () => {
+  it('DB-shape and Cotality-shape rows for the same unit produce the IDENTICAL address key', () => {
     expect(buildAddressKey(SL_0004.address)).toBe(buildAddressKey(RLS_20093870.address));
   });
 
-  it('agent-page merge: SL-0004 (CRM) wins, RLS20093870 (Trestle dup) suppressed', () => {
+  it('agent-page merge: SL-0004 (CRM) wins, RLS20093870 (Cotality dup) suppressed', () => {
     const merged = preferCrmExclusiveOverIdxDuplicate([SL_0004, RLS_20093870, RLS_20087929]);
     const ids = merged.map((l) => l.id);
     expect(ids).toContain('SL-0004');
@@ -69,7 +69,7 @@ describe('cross-source dedupe — DB DTO vs Trestle DTO address shapes', () => {
     expect(merged.map((l) => l.id).sort()).toEqual(['RLS20099999', 'SL-0004']);
   });
 
-  it('when no CRM row exists, the Trestle row is kept (no over-suppression)', () => {
+  it('when no CRM row exists, the Cotality row is kept (no over-suppression)', () => {
     const merged = preferCrmExclusiveOverIdxDuplicate([RLS_20093870, RLS_20087929]);
     expect(merged.map((l) => l.id).sort()).toEqual(['RLS20087929', 'RLS20093870']);
   });
@@ -106,7 +106,7 @@ describe('agent route — Cotality identity + display gate + cross-source dedupe
   it('agent lookup selects trestle_mls_id', () => {
     expect(route).toMatch(/trestle_mls_id:\s*true/);
   });
-  it('Trestle branch matches by ListAgentMlsId when an MLS id is present', () => {
+  it('Cotality branch matches by ListAgentMlsId when an MLS id is present', () => {
     expect(route).toMatch(/ListAgentMlsId eq '\$\{/);
   });
   it('name matching is fallback only (ListAgentFullName behind the mlsId ternary)', () => {

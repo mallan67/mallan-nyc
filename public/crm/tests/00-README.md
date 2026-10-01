@@ -17,7 +17,7 @@ The standalone source files (01-18) were **removed 2026-03-24** as duplicates â€
 
 ## Files in This Directory
 
-### Form Validators (browser â€” loaded by form HTML files)
+### Form Validators (exercised by `npm run crm:test` via scripts/crm-tests/ â€” no HTML page loads them)
 
 | File | Lines | Description |
 |------|-------|-------------|
@@ -25,21 +25,6 @@ The standalone source files (01-18) were **removed 2026-03-24** as duplicates â€
 | `20-form-validators-rental.js` | 185 | Rental form: validateStatusChange(), checkDescriptionCompliance() |
 | `21-description-compliance.js` | 189 | Real-time Fair Housing + REBNY description scanner |
 | `22-date-and-listing-validators.js` | 443 | Date validation + full listing submission validator |
-
-### Doctor Modules (browser â€” loaded by standalone form HTML)
-
-| File | Lines | Description |
-|------|-------|-------------|
-| `sale-form-doctor.js` | 1,390 | Sale form diagnostic: DQ, CF, UN, RESO, NYC checks |
-| `rental-form-doctor.js` | 1,574 | Rental form diagnostic: validation, Fair Housing, SOI, content scan |
-| `search-doctor.js` | 1,186 | Search diagnostic: wiring, Fair Housing, REBNY compliance |
-| `search-core.js` | 1,102 | Core search functions + reference data (STATUS_MAP, OWNERSHIP_MAP) |
-
-### Node.js CLI
-
-| File | Lines | Description |
-|------|-------|-------------|
-| `validate-standalone.js` | 760 | 30-check Node.js validator: file structure, function presence, parity |
 
 ### Test Framework
 
@@ -61,9 +46,6 @@ npm run idx:validate --fails  # Show only failures
 npm run idx:validate --json   # Machine-readable output
 npm run idx:validate --section 7  # Run specific section
 ```
-
-### Form Doctors
-Load `sale-form-doctor.js` or `rental-form-doctor.js` in the respective form page. Diagnostic panel renders automatically.
 
 ### Node.js Validation
 ```bash

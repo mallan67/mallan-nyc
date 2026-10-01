@@ -2,7 +2,7 @@
 /**
  * Shared open-house resolver (lib/open-houses/upcoming-open-houses.ts) — the single source of truth
  * for the open-house SCOPE constants and the listing-card `nextOpenHouse` matching. Runtime unit
- * tests for the pure functions; the live Trestle/DB fetch is exercised separately (probes + e2e).
+ * tests for the pure functions; the live Cotality/DB fetch is exercised separately (probes + e2e).
  *
  * Key property under test: TWIN-SAFE matching. #4D is the website-only exclusive SL-0007 on
  * Featured/exclusive surfaces but its open house lives on the RLS twin RLS20099289 — a plain

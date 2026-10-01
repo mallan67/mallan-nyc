@@ -473,7 +473,7 @@ describe("display gate is derived from CURRENT provider Permission", () => {
 
   it("still treats rls_eligible as LOCAL authority", () => {
     // Proven local: no Cotality field maps to it, mapTrestleToPrisma never
-    // emits it, it is absent from LISTING_SYNC_COMPARE_SELECT, and the Trestle
+    // emits it, it is absent from LISTING_SYNC_COMPARE_SELECT, and the Cotality
     // path hard-codes the constant true. The provider cannot answer it, so the
     // local value is the authority and must keep explaining a hidden row.
     const provider = providerRow({ Permission: "Public", MlsStatus: "Active" });

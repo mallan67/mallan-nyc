@@ -10,7 +10,7 @@
  *   - skip rules for owner_opt_out / participant_only / missing keys
  *   - hard caps (listingsPerRun, mediaPerListing)
  *
- * No live R2, no live Trestle, no live DB.
+ * No live R2, no live Cotality, no live DB.
  */
 
 import type {
@@ -511,7 +511,7 @@ describe("runMediaSync — per-listing failure isolation", () => {
     // New phased semantics:
     //   - Phase 1 source ingest succeeds for the listing → rows_failed stays 0
     //   - Phase 2 cursor advances for the listing
-    //   - Phase 3 R2 mirror fails (Trestle returns 500) → r2_failed=1
+    //   - Phase 3 R2 mirror fails (Cotality returns 500) → r2_failed=1
     //   - status='partial' because r2_failed > 0
     //   - The listing's cursor advance is NOT undone — it stays in cursorRecords.
     mockMediaSyncFindUnique.mockResolvedValue(null);
@@ -789,7 +789,7 @@ describe("runMediaSync — tombstoneVanished is TRUE on a complete paginated fet
       fetchProperties: jest.fn().mockResolvedValueOnce([
         makeProperty({ ListingId: "RLS-A", ListingKey: "K-A" }),
       ]),
-      // Mixed batch: MK-A active + MK-X is an explicit Trestle delete.
+      // Mixed batch: MK-A active + MK-X is an explicit Cotality delete.
       fetchMedia: jest.fn().mockResolvedValueOnce([
         makeMediaInput({ MediaKey: "MK-A" }),
         makeMediaInput({ MediaKey: "MK-X", MediaStatus: "Deleted" }),
@@ -908,7 +908,7 @@ describe("buildPropertyQuery", () => {
   // (ts set, key null) for the $select/$orderby/$top shape tests.
   const transition = { lastPhotosChange: TS, lastListingKey: null, fallbackSince: TS };
 
-  it("$select includes the canonical Trestle compliance fields Permission (singular) and MlsStatus", () => {
+  it("$select includes the canonical Cotality compliance fields Permission (singular) and MlsStatus", () => {
     const params = buildPropertyQuery(transition, 50);
     const select = params.get("$select") || "";
     const fields = select.split(",");
@@ -920,7 +920,7 @@ describe("buildPropertyQuery", () => {
     expect(fields).toContain("PhotosChangeTimestamp");
   });
 
-  it("$select does NOT include Permissions (plural) — Trestle returns HTTP 400 for that field", () => {
+  it("$select does NOT include Permissions (plural) — Cotality returns HTTP 400 for that field", () => {
     // Regression guard for the 2026-05-09T07:00:25Z first-firing failure.
     const params = buildPropertyQuery(transition, 50);
     const select = params.get("$select") || "";
@@ -1536,7 +1536,7 @@ describe("runMediaSync — Phase 3 failed-row isolation (Phase 4 bounded drain)"
 
 // ─── Phase 3 cross-invocation cooldown (added 2026-05-10) ────────────────
 //
-// Stale Trestle URLs (HTTP 404 forever) used to be retried 96×/day. Cooldown
+// Stale Cotality URLs (HTTP 404 forever) used to be retried 96×/day. Cooldown
 // throttles them to 4×/day by adding a `r2_last_attempt_at >= NOW() - 6h`
 // filter to the Phase 3 backlog query.
 

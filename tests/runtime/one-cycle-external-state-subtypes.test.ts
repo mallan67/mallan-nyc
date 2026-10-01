@@ -21,7 +21,7 @@
  * that preserved the strings but inverted a branch, dropped a `shouldRun`, or
  * short-circuited the client check would still pass. Every test below imports
  * and CALLS the real functions, driving the real fail-open branches by making
- * the mocked Redis client absent / rejecting and the mocked Trestle probe throw.
+ * the mocked Redis client absent / rejecting and the mocked Cotality probe throw.
  *
  * lib/redis.ts exports `null` when UPSTASH_* is absent (it does not throw), so
  * a null client is modelled exactly, via a getter on the mocked module.
@@ -35,7 +35,7 @@ import type {
 
 const redisGet = jest.fn();
 const redisSet = jest.fn();
-const fetchFromTrestle = jest.fn();
+const mockFetchFromCotality = jest.fn();
 
 /**
  * Swapped per test. `null` is the real production shape when the UPSTASH_*
@@ -54,7 +54,7 @@ jest.mock('@/lib/redis', () => ({
   },
 }));
 jest.mock('@/lib/idx/fetch', () => ({
-  fetchFromTrestle: (...args: unknown[]) => fetchFromTrestle(...args),
+  fetchFromTrestle: (...args: unknown[]) => mockFetchFromCotality(...args),
 }));
 
 const preflight =
@@ -113,7 +113,7 @@ function secretBearingError(name: string): Error {
 
 /** Probe returns exactly the stored heads => a genuine "unchanged" verdict. */
 function mockSameHeads() {
-  fetchFromTrestle.mockImplementation(async (options: { select?: string[] }) => {
+  mockFetchFromCotality.mockImplementation(async (options: { select?: string[] }) => {
     const field = options.select?.[1];
     if (field === 'ModificationTimestamp') {
       return {
@@ -134,7 +134,7 @@ function mockSameHeads() {
 
 /** Probe returns a newer modification head => a genuine "changed" verdict. */
 function mockChangedHeads() {
-  fetchFromTrestle.mockImplementation(async (options: { select?: string[] }) => {
+  mockFetchFromCotality.mockImplementation(async (options: { select?: string[] }) => {
     const field = options.select?.[1];
     if (field === 'ModificationTimestamp') {
       return {
@@ -158,7 +158,7 @@ let warnSpy: jest.SpyInstance;
 beforeEach(() => {
   redisGet.mockReset();
   redisSet.mockReset();
-  fetchFromTrestle.mockReset();
+  mockFetchFromCotality.mockReset();
   mockRedisClient = { get: redisGet, set: redisSet };
   warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
   delete process.env.ONE_CYCLE_BACKLOG_INTERVAL_SECONDS;
@@ -204,7 +204,7 @@ const SCENARIOS: Scenario[] = [
     reason: 'source_probe_failed',
     arrange: () => {
       redisGet.mockResolvedValue(validState);
-      fetchFromTrestle.mockRejectedValue(secretBearingError('TrestleProbeError'));
+      mockFetchFromCotality.mockRejectedValue(secretBearingError('CotalityProbeError'));
     },
   },
   {
@@ -286,7 +286,7 @@ describe('decision-time subtypes are distinguishable BY BEHAVIOUR', () => {
     // The short-circuit must happen BEFORE any I/O: a missing client cannot be
     // allowed to spend a Cotality probe on every 10-minute poll.
     expect(redisGet).not.toHaveBeenCalled();
-    expect(fetchFromTrestle).not.toHaveBeenCalled();
+    expect(mockFetchFromCotality).not.toHaveBeenCalled();
   });
 
   it('a throwing read returns redis_read_failed and fails open', async () => {
@@ -319,7 +319,7 @@ describe('decision-time subtypes are distinguishable BY BEHAVIOUR', () => {
 
   it('a throwing Cotality probe returns source_probe_failed, distinct from the Redis subtypes', async () => {
     redisGet.mockResolvedValue(validState);
-    fetchFromTrestle.mockRejectedValue(secretBearingError('TrestleProbeError'));
+    mockFetchFromCotality.mockRejectedValue(secretBearingError('CotalityProbeError'));
 
     const decision = await preflight.decideOneCyclePreflight(NOW);
 
@@ -334,7 +334,7 @@ describe('decision-time subtypes are distinguishable BY BEHAVIOUR', () => {
     expect(decision.snapshot).toEqual(snapshot);
 
     const logged = warnOutput();
-    expect(logged).toContain('TrestleProbeError');
+    expect(logged).toContain('CotalityProbeError');
     expect(logged).not.toContain(SECRET_TOKEN);
   });
 
@@ -376,7 +376,7 @@ describe('decision-time subtypes are distinguishable BY BEHAVIOUR', () => {
     const observed: string[] = [];
     for (const scenario of SCENARIOS.filter((s) => failureLabels.includes(s.reason))) {
       redisGet.mockReset();
-      fetchFromTrestle.mockReset();
+      mockFetchFromCotality.mockReset();
       mockRedisClient = { get: redisGet, set: redisSet };
       observed.push((await decideWith(scenario)).reason);
     }
@@ -469,7 +469,7 @@ describe('finalize returns a real, actionable outcome', () => {
     for (const scenario of SCENARIOS) {
       redisGet.mockReset();
       redisSet.mockReset();
-      fetchFromTrestle.mockReset();
+      mockFetchFromCotality.mockReset();
       mockRedisClient = { get: redisGet, set: redisSet };
       // Make every write fail, so a leaked write-outcome would surface.
       redisSet.mockRejectedValue(new Error('write down'));
@@ -485,7 +485,7 @@ describe("'external_state_unavailable' is dead — nothing can emit it", () => {
     for (const scenario of SCENARIOS) {
       redisGet.mockReset();
       redisSet.mockReset();
-      fetchFromTrestle.mockReset();
+      mockFetchFromCotality.mockReset();
       mockRedisClient = { get: redisGet, set: redisSet };
       const { reason } = await decideWith(scenario);
       expect(reason).not.toBe('external_state_unavailable');
@@ -497,7 +497,7 @@ describe("'external_state_unavailable' is dead — nothing can emit it", () => {
     for (const scenario of SCENARIOS) {
       redisGet.mockReset();
       redisSet.mockReset();
-      fetchFromTrestle.mockReset();
+      mockFetchFromCotality.mockReset();
       mockRedisClient = { get: redisGet, set: redisSet };
       observed.push((await decideWith(scenario)).reason);
     }
@@ -516,7 +516,7 @@ describe('FAIL OPEN — uncertainty must never look like "nothing to do"', () =>
     expect(failures).toHaveLength(4);
     for (const scenario of failures) {
       redisGet.mockReset();
-      fetchFromTrestle.mockReset();
+      mockFetchFromCotality.mockReset();
       mockRedisClient = { get: redisGet, set: redisSet };
       const decision = await decideWith(scenario);
       expect({ reason: decision.reason, shouldRun: decision.shouldRun }).toEqual({
@@ -529,7 +529,7 @@ describe('FAIL OPEN — uncertainty must never look like "nothing to do"', () =>
   it('the ONLY skip is a proven-quiet source with no backlog due', async () => {
     for (const scenario of SCENARIOS) {
       redisGet.mockReset();
-      fetchFromTrestle.mockReset();
+      mockFetchFromCotality.mockReset();
       mockRedisClient = { get: redisGet, set: redisSet };
       const decision = await decideWith(scenario);
       // shouldRun is FALSE for exactly one reason and TRUE for all the others.

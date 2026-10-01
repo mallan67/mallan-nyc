@@ -46,7 +46,7 @@ const baseSale: ListingProjectionSource = {
     StateOrProvince: "NY",
     Latitude: 40.7659,
     Longitude: -73.9808,
-    ListingKey: "Trestle-217W57",
+    ListingKey: "1146217057",
   },
   features: {
     PublicRemarks: "Sun-drenched corner unit with high ceilings and renovated kitchen.",
@@ -109,7 +109,7 @@ describe("buildListingSearchProjectionFromListing", () => {
     expect(row.is_exclusive).toBe(false);
     expect(row.rls_eligible).toBe(true);
     expect(row.modified_at).toEqual(new Date("2026-04-29T12:00:00Z"));
-    expect(row.listing_key).toBe("Trestle-217W57");
+    expect(row.listing_key).toBe("1146217057");
     expect(row.source_system).toBe("Trestle");
     expect(row.mls_status).toBe("Active");
   });

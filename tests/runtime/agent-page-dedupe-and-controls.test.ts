@@ -1,7 +1,7 @@
 /// <reference types="jest" />
 /**
  * Agent-page duplicate suppression (Task A) — a CRM/Mallan exclusive must
- * suppress its Trestle/IDX duplicate of the SAME physical unit, even when the
+ * suppress its Cotality/IDX duplicate of the SAME physical unit, even when the
  * two rows spell the address differently ("East" vs "E", "Street" vs "St").
  *
  * Live bug reproduced: /agents/maya-allan showed TWO cards for the same unit —

@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 /**
- * `POST /api/idx/ensure-listing` MUST NOT poison the Trestle incremental cursor.
+ * `POST /api/idx/ensure-listing` MUST NOT poison the Cotality incremental cursor.
  *
  * PROVEN DEFECT (found by the post-correction audit, 2026-08-09).
  *
@@ -9,16 +9,16 @@
  * and its result feeds the OData filter `ModificationTimestamp gt SINCE`.
  *
  * PR-S.7 restricted that query to rows with a non-null `last_synced_from_trestle`
- * precisely so it "selects ONLY Trestle-sync writers" — CRM-only writers like
+ * precisely so it selects only Cotality-sync writers — CRM-only writers like
  * /api/crm/convert leave the column NULL and are excluded.
  *
- * This route is NOT a Trestle-sync writer: it creates a local STUB from IDX
+ * This route is NOT a Cotality-sync writer: it creates a local STUB from IDX
  * search-result data in the request body so showings and listing-sends have a
  * Prisma row to reference. But it stamped BOTH
  *     last_synced_from_trestle: new Date()   (a false claim — never synced)
- *     modification_timestamp:  new Date()    (LOCAL clock, not the Trestle clock)
+ *     modification_timestamp:  new Date()    (LOCAL clock, not the Cotality clock)
  * so the stub passed the cursor filter carrying a local-NOW watermark. One call
- * pushed the cursor far past every genuine Trestle ModificationTimestamp, and
+ * pushed the cursor far past every genuine Cotality ModificationTimestamp, and
  * the next incremental sync skipped real upstream changes until wall-clock time
  * caught up — the exact hazard PR-S.7 documented, through a door it left open.
  */
@@ -77,7 +77,7 @@ beforeEach(() => {
   }));
 });
 
-describe('the created stub is not a Trestle-sync writer', () => {
+describe('the created stub is not a Cotality-sync writer', () => {
   it('does NOT claim last_synced_from_trestle', async () => {
     const { POST } = await import('@/app/api/idx/ensure-listing/route');
     await POST(req(BODY));

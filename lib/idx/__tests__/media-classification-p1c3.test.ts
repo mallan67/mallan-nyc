@@ -2,7 +2,7 @@
  * P1C3 (ledger M3) — media classification on the two remaining broken sites
  * (behavioral RED→GREEN).
  *
- * Trestle's MediaCategory enum serializes the MEMBER NAME — 'FloorPlan',
+ * Cotality's MediaCategory enum serializes the MEMBER NAME — 'FloorPlan',
  * 'UnbrandedVirtualTour', 'BrandedVirtualTour' (no spaces; verified against
  * the live MediaCategory enum in data/cotality-enums.live.json). The old with-space checks
  * (`cat.includes('floor plan')`, `cat.includes('virtual tour')`) never
@@ -111,7 +111,7 @@ describe("P1C3 — mapAgentCardMedia (agent cards live batch)", () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const fs = require("node:fs") as typeof import("node:fs");
     const src = fs.readFileSync("app/api/agents/[slug]/listings/route.ts", "utf8");
-    // Codex #393: clamped to Trestle's documented 500-row max $top —
+    // Codex #393: clamped to Cotality's documented 500-row max $top —
     // an over-limit page is rejected and the fail-soft return would
     // placeholder the WHOLE batch.
     expect(src).toContain("Math.min(needsPhotos.length * 10, 500)");

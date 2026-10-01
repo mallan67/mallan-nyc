@@ -1,13 +1,13 @@
 /**
  * COMMIT 11 — canonical DB DTO field-ownership corrections.
  *
- * Both are storage-shape defects, not cosmetic: on a SYNCED Trestle row the
+ * Both are storage-shape defects, not cosmetic: on a SYNCED Cotality row the
  * canonical builder was reading the wrong JSON bucket and silently returning
  * `undefined`, which is why the detail page had grown its own fallbacks.
  *
  * A. PublicRemarks — `mapTrestleToPrisma` does NOT put B7_REMARKS into
  *    `features` (trestle-mapper.ts:372 lists B7 among the raw_data fields), and
- *    S1 (#415) retired the redundant Trestle `compliance` JSON copy. So synced
+ *    S1 (#415) retired the redundant provider `compliance` JSON copy. So synced
  *    remarks live in `raw_data`. `features` still wins for CRM/legacy rows.
  *
  * B. BuildingName — B13_BUILDING owns it and is spread into `features`

@@ -6,8 +6,8 @@ import { mapRESOToInternal } from '../mapping';
  * PR-live-2 (2026-06-04) — the entire-listing display gate must be driven
  * SOLELY by the live field `InternetEntireListingDisplayYN`.
  *
- * `IDXEntireListingDisplayYN` does NOT exist on the live Cotality/Trestle feed
- * (verified via trestle:audit-server against live $metadata; absent from
+ * `IDXEntireListingDisplayYN` does NOT exist on the live Cotality feed
+ * (verified against the live Cotality $metadata; absent from
  * data/cotality-enums.live.json). The reader previously fell back to it
  * (`normalized.IDXEntireListingDisplayYN ?? normalized.InternetEntireListingDisplayYN`),
  * which is a phantom read. This locks the behavior:

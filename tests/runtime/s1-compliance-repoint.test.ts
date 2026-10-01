@@ -3,7 +3,7 @@
  * S1 PR-1 (#415) — compliance render/writer repoint.
  *
  * Proves:
- *  - the Trestle mapper no longer writes the redundant `compliance` JSON copy
+ *  - the Cotality sync mapper no longer writes the redundant `compliance` JSON copy
  *    (emits `{}`), while the typed display/gate columns + raw_data are unchanged,
  *  - public render reads PublicRemarks from features/raw_data (not compliance),
  *  - cards/search DTO + public DTO never depend on / leak the compliance column,
@@ -17,7 +17,7 @@ import * as path from "path";
 import { mapTrestleToPrisma } from "@/lib/idx/trestle-mapper";
 import { complianceUpdatePatch } from "@/lib/idx/sync";
 
-function buildTrestleRow(extras: Record<string, unknown> = {}): Record<string, unknown> {
+function buildCotalityRow(extras: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     ListingKey: "RBNY-TEST-001",
     ListingId: "RBNY-TEST-001",
@@ -57,8 +57,8 @@ const root = (p: string) => path.resolve(__dirname, "../../", p);
 const read = (p: string) => readFileSync(root(p), "utf8");
 
 describe("S1 — mapper stops writing the redundant compliance copy", () => {
-  it("mapTrestleToPrisma emits compliance = {} (no Trestle bulk copy)", () => {
-    const result = mapTrestleToPrisma(buildTrestleRow());
+  it("mapTrestleToPrisma emits compliance = {} (no bulk provider copy)", () => {
+    const result = mapTrestleToPrisma(buildCotalityRow());
     expect(result.compliance).toEqual({});
     const c = result.compliance as Record<string, unknown>;
     // None of the previously-copied keys survive in compliance.
@@ -68,12 +68,12 @@ describe("S1 — mapper stops writing the redundant compliance copy", () => {
   });
 
   it("the render fallback source survives: raw_data still carries PublicRemarks", () => {
-    const raw = mapTrestleToPrisma(buildTrestleRow()).raw_data as Record<string, unknown>;
+    const raw = mapTrestleToPrisma(buildCotalityRow()).raw_data as Record<string, unknown>;
     expect(raw.PublicRemarks).toBe("Sunny one bedroom.");
   });
 
   it("typed display/gate columns are UNCHANGED (computed from raw.*, not compliance)", () => {
-    const r = mapTrestleToPrisma(buildTrestleRow());
+    const r = mapTrestleToPrisma(buildCotalityRow());
     expect(r.status).toBe("Active");
     expect(r.idx_display_yn).toBe(true);
     expect(r.internet_entire_listing_display_yn).toBe(true);
@@ -85,24 +85,24 @@ describe("S1 — mapper stops writing the redundant compliance copy", () => {
   });
 
   it("terminal status still forces idx_display_yn=false — gate driven by status, not compliance", () => {
-    const r = mapTrestleToPrisma(buildTrestleRow({ StandardStatus: "Closed", MlsStatus: "Closed" }));
+    const r = mapTrestleToPrisma(buildCotalityRow({ StandardStatus: "Closed", MlsStatus: "Closed" }));
     expect(r.idx_display_yn).toBe(false);
     expect(r.compliance).toEqual({}); // still no compliance copy
   });
 
   it("owner opt-out / participant gates still computed (independent of compliance JSON)", () => {
-    const optOut = mapTrestleToPrisma(buildTrestleRow({ Permissions: "OwnerOptOut" }));
+    const optOut = mapTrestleToPrisma(buildCotalityRow({ Permissions: "OwnerOptOut" }));
     expect(optOut.owner_opt_out).toBe(true);
-    const priv = mapTrestleToPrisma(buildTrestleRow({ Permissions: "Private" }));
+    const priv = mapTrestleToPrisma(buildCotalityRow({ Permissions: "Private" }));
     expect(priv.participant_only).toBe(true);
   });
 });
 
-describe("S1 (#445 Codex P1) — authored compliance preserved on Trestle UPDATE", () => {
+describe("S1 (#445 Codex P1) — authored compliance preserved on Cotality UPDATE", () => {
   it("complianceUpdatePatch() omits the key (returns {}) so UPDATE never stomps authored data", () => {
     expect(complianceUpdatePatch()).toEqual({});
   });
-  it("every Trestle UPDATE branch in sync.ts omits compliance via the patch (one per mediaUpdatePatch)", () => {
+  it("every Cotality UPDATE branch in sync.ts omits compliance via the patch (one per mediaUpdatePatch)", () => {
     const sync = read("lib/idx/sync.ts");
     const mediaPatches = (sync.match(/\.\.\.mediaUpdatePatch\(/g) || []).length;
     const compliancePatches = (sync.match(/\.\.\.complianceUpdatePatch\(\)/g) || []).length;
@@ -113,7 +113,7 @@ describe("S1 (#445 Codex P1) — authored compliance preserved on Trestle UPDATE
     expect(read("app/api/crm/listings/reset-sync/route.ts")).toMatch(/\.\.\.complianceUpdatePatch\(\)/);
   });
   it("CREATE branches still write the mapper's (now-empty) compliance for new rows", () => {
-    // New Trestle rows have no authored compliance → seeding {} on CREATE is correct.
+    // New Cotality rows have no authored compliance → seeding {} on CREATE is correct.
     expect(read("lib/idx/sync.ts")).toMatch(/compliance: mapped\.compliance as Prisma\.InputJsonValue/);
   });
 });
@@ -159,7 +159,7 @@ describe("S1 — consumer guards (display gate / syndication / CRM preserved)", 
 
   it("production gate columns are computed by the mapper from status/flags (not the compliance JSON)", () => {
     // computeGateColumns is the typed-column source of truth; assert it exists + is status-driven.
-    const r = mapTrestleToPrisma(buildTrestleRow());
+    const r = mapTrestleToPrisma(buildCotalityRow());
     expect(typeof r.idx_display_yn).toBe("boolean");
   });
 

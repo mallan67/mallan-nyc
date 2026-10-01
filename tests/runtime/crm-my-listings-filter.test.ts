@@ -1,9 +1,9 @@
 /// <reference types="jest" />
 /**
- * CRM My Listings filter (2026-05-27) — CRM-created + closed Trestle only.
+ * CRM My Listings filter (2026-05-27) — CRM-created + closed Cotality only.
  *
  * My Listings shows: (1) CRM-created listings (mls_id null / SL-/RL- prefix),
- * and (2) closed/terminal Trestle-synced deals. Active/Pending Trestle
+ * and (2) closed/terminal Cotality-synced deals. Active/Pending Cotality
  * listings are managed via REBNY RLS, not the CRM.
  */
 
@@ -17,7 +17,7 @@ const ROUTE_PATH = path.resolve(
 const routeSource = readFileSync(ROUTE_PATH, 'utf-8');
 
 describe('CRM My Listings filter', () => {
-  test('GET query uses OR filter for CRM-created vs Trestle-closed', () => {
+  test('GET query uses OR filter for CRM-created vs Cotality-closed', () => {
     expect(routeSource).toMatch(/OR:\s*\[crmCreated,\s*crmCreatedRental,\s*feedClosed\]/);
   });
 
@@ -26,7 +26,7 @@ describe('CRM My Listings filter', () => {
     expect(routeSource).toMatch(/crmCreatedRental\s*=.*mls_id:\s*null.*listing_id.*startsWith.*RL-.*status.*notIn.*CRM_HIDDEN/s);
   });
 
-  test('Trestle-closed filter requires mls_id not null + terminal status', () => {
+  test('Cotality-closed filter requires mls_id not null + terminal status', () => {
     expect(routeSource).toMatch(/feedClosed.*mls_id.*not.*null.*status.*in.*FEED_CLOSED/s);
   });
 

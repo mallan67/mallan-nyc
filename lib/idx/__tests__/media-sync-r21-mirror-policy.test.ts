@@ -18,7 +18,7 @@
  * These tests drive `runMediaSync` Phase 3 with an in-memory backlog pool so
  * the in-code (fail-closed) admission filter is proven even when rows that
  * production's DB-side where would exclude are fed to it directly.
- * No live R2, no live Trestle, no live DB.
+ * No live R2, no live Cotality, no live DB.
  */
 
 const mockMediaSyncFindUnique = jest.fn<Promise<unknown>, [unknown]>();

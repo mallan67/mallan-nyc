@@ -110,7 +110,7 @@ describe('mapRESOToInternal — IDX Plus pre-filter parity (C1)', () => {
   });
 
   it('legacy idxEntireListingDisplayYN mirrors InternetEntireListingDisplayYN under IDX Plus parity', () => {
-    // The IDXEntireListingDisplayYN field does not exist on live Trestle
+    // The IDXEntireListingDisplayYN field does not exist on live Cotality
     // (verified 2026-04-19). The mapper falls back to InternetEntireListingDisplayYN.
     // C1 fix: that fallback now uses the same !== false convention.
     const raw = {

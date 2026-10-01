@@ -5,7 +5,7 @@
  * `_source: 'exclusive'` on every DB row. Three provenance buckets are
  * tested:
  *
- *   1. Third-party IDX/RLS — `agent_id` and `owner_client_id` both null,
+ *   1. Third-party Cotality/IDX — `agent_id` and `owner_client_id` both null,
  *      `rls_eligible` true. Must yield `_source: 'db+idx'` and
  *      `disclaimerRequired: true`. This is the cohort that the production
  *      DB query counted at 10,484 / 10,484 rows before the fix landed.

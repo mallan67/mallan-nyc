@@ -217,7 +217,7 @@ describe("computeGateColumns — per-row opt-out flags (fail-closed via affirmPe
     expect(result.internet_automated_valuation_display_yn).toBe(true);
   });
 
-  it("treats string 'true' AVM as allowed (Trestle OData boolean-as-string)", () => {
+  it("treats string 'true' AVM as allowed (Cotality OData boolean-as-string)", () => {
     const result = computeGateColumns({
       status: "Active",
       internetAutomatedValuationDisplayYN: "true",
@@ -399,8 +399,8 @@ describe("computeGateColumns — rls_eligible first-class gate (Codex PR #165 re
     }
   });
 
-  it("undefined / null / missing rls_eligible defaults to true (preserves Trestle-mapper behavior)", () => {
-    // The mapper does NOT pass rls_eligible; Trestle-sourced rows are always
+  it("undefined / null / missing rls_eligible defaults to true (preserves Cotality raw-mapper behavior)", () => {
+    // The mapper does NOT pass rls_eligible; Cotality-sourced rows are always
     // REBNY-eligible. Default-to-true keeps that path byte-equivalent.
     for (const input of [undefined, null] as unknown[]) {
       const result = computeGateColumns({

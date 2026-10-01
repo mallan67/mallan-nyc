@@ -35,16 +35,16 @@ describe("agent authority docs stay on live sources", () => {
 
   test("Cotality helper is optional, executable from source, and fail-closed on live-provider loss", () => {
     const mcp = JSON.parse(read(".mcp.json"));
-    const trestle = mcp?.mcpServers?.["trestle-fields"];
+    const cotalityHelper = mcp?.mcpServers?.["trestle-fields"];
 
-    expect(trestle).toBeDefined();
-    expect(trestle.command).toBe("npx");
-    expect(trestle.args).toEqual(["--no-install", "tsx", "mcp/trestle-fields/index.ts"]);
-    expect(String(trestle.description)).toContain("Optional local helper");
+    expect(cotalityHelper).toBeDefined();
+    expect(cotalityHelper.command).toBe("npx");
+    expect(cotalityHelper.args).toEqual(["--no-install", "tsx", "mcp/trestle-fields/index.ts"]);
+    expect(String(cotalityHelper.description)).toContain("Optional local helper");
 
     const source = read("mcp/trestle-fields/index.ts");
     expect(source).not.toContain("LOCAL_METADATA_FALLBACK");
-    expect(source).not.toContain("artifacts/metadata.xml");
+    expect(source).not.toMatch(/(?:from\s+|require\(\s*|import\(\s*)['"](?:node:)?fs\b/);
     expect(source).not.toContain("local_fallback");
     expect(source).toContain("Live Cotality $metadata unavailable");
     expect(source).toContain("No local snapshot fallback is permitted");

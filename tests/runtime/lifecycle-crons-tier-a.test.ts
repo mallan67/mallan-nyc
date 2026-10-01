@@ -421,17 +421,17 @@ describe('feed-reconcile cron — ghost-cap abort alert', () => {
   }
 
   it('sends broker alert email + writes audit + returns 503 + makes NO listing transitions when ghosts > cap', async () => {
-    // Mock global fetch — return a SMALL set of Trestle Active IDs
+    // Mock global fetch — return a SMALL set of Cotality Active IDs
     // (3 IDs) so most of our DB rows look like ghosts.
-    const trestleSmallSet = ['RLS_KEEP_1', 'RLS_KEEP_2', 'RLS_KEEP_3'];
+    const cotalitySmallSet = ['RLS_KEEP_1', 'RLS_KEEP_2', 'RLS_KEEP_3'];
     const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(async () => {
       return new Response(
-        JSON.stringify({ value: trestleSmallSet.map((id) => ({ ListingId: id })) }),
+        JSON.stringify({ value: cotalitySmallSet.map((id) => ({ ListingId: id })) }),
         { status: 200, headers: { 'content-type': 'application/json' } },
       );
     });
 
-    // Mock getAccessToken (Trestle auth)
+    // Mock getAccessToken (Cotality auth)
     jest.doMock('@/lib/idx/auth', () => ({
       __esModule: true,
       getAccessToken: jest.fn(async () => 'fake-token'),
@@ -443,7 +443,7 @@ describe('feed-reconcile cron — ghost-cap abort alert', () => {
     for (let i = 0; i < 2500; i++) {
       ourActive.push({ id: BigInt(i + 1), listing_id: `RLS_OUR_${i}`, status: 'Active' });
     }
-    const ourAll = [...ourActive.map((r) => ({ listing_id: r.listing_id })), ...trestleSmallSet.map((id) => ({ listing_id: id }))];
+    const ourAll = [...ourActive.map((r) => ({ listing_id: r.listing_id })), ...cotalitySmallSet.map((id) => ({ listing_id: id }))];
     listingFindManyMock.mockImplementation((async (args: { where?: { status?: string } }) => {
       if (args?.where?.status === 'Active') return ourActive;
       return ourAll;
@@ -464,7 +464,7 @@ describe('feed-reconcile cron — ghost-cap abort alert', () => {
     const body = await res.json();
     expect(body.aborted).toBe(true);
     expect(body.reason).toBe('ghost_count_exceeds_safety_cap');
-    // ourActive has 2500 rows (RLS_OUR_*); trestleIds has 3 disjoint
+    // ourActive has 2500 rows (RLS_OUR_*); cotalitySmallSet has 3 disjoint
     // IDs (RLS_KEEP_*) so all 2500 rows are ghosts (no overlap).
     expect(body.ghosts_detected).toBe(2500);
     expect(body.cap).toBe(2000);
@@ -509,7 +509,7 @@ describe('feed-reconcile cron — ghost-cap abort alert', () => {
   });
 
   it('skips broker alert send (gracefully) when no brokers have email', async () => {
-    const trestleSmallSet: string[] = [];
+    const cotalitySmallSet: string[] = [];
     const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(async () => {
       return new Response(JSON.stringify({ value: [] }), {
         status: 200,
@@ -554,7 +554,7 @@ describe('feed-reconcile cron — ghost-cap abort alert', () => {
     });
     expect(abortAudit).toBeDefined();
 
-    void trestleSmallSet;
+    void cotalitySmallSet;
     fetchSpy.mockRestore();
   });
 

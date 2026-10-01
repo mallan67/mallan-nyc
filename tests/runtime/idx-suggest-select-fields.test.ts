@@ -7,7 +7,7 @@
  * #127 caught that the field list was missing `CloseDate`, which is
  * required by `lib/compliance/gates.ts` `isClosedPast24Hours` and
  * `isClosedWithin24Hours` to evaluate the §2.05 24-hour terminal-status
- * grace window. Without `CloseDate` in the select, Trestle returns the
+ * grace window. Without `CloseDate` in the select, Cotality returns the
  * field as `undefined`, the gate logic treats the row as "not closed at
  * all," and recently-closed listing-id suggestions are mis-classified.
  *
@@ -22,7 +22,7 @@
 import { SUGGEST_SELECT_FIELDS } from '@/app/api/listings/suggest/route';
 
 describe('SUGGEST_SELECT_FIELDS · gate-input field coverage (PR-S.1d)', () => {
-  // Every raw Trestle field name accessed by `evaluateDisplayGate` and its
+  // Every raw Cotality field name accessed by `evaluateDisplayGate` and its
   // helpers in `lib/compliance/gates.ts`. Keep in sync with the gate file.
   const GATE_REQUIRED_FIELDS = [
     'Permission',

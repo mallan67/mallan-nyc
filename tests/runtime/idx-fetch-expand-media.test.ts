@@ -5,7 +5,7 @@
  * Background:
  *   - PR-S.1c removed `$expand=Media` from the default (still included
  *     `$expand=CustomProperty` because the codebase assumed it was safe).
- *   - PR-S.1b production logs after PR-S.1c deploy proved Trestle ALSO
+ *   - PR-S.1b production logs after PR-S.1c deploy proved Cotality ALSO
  *     rejects `$expand=CustomProperty($select=DownPaymentAssistance…,CustomFields)`
  *     with HTTP 400. Error text contained "CustomProperty",
  *     "DownPaymentAssistance", and "Could not find".
@@ -20,7 +20,7 @@
 
 import { fetchFromTrestle } from '@/lib/idx/fetch';
 
-// Mock the auth module so the test doesn't need real Trestle credentials.
+// Mock the auth module so the test doesn't need real Cotality credentials.
 jest.mock('@/lib/idx/auth', () => ({
   getAccessToken: jest.fn().mockResolvedValue('test-token'),
   invalidateToken: jest.fn(),
@@ -114,7 +114,7 @@ describe('fetchFromTrestle · $expand contract (PR-S.1c + PR-S.1e)', () => {
     it('uses bare CustomProperty (NO inner $select) — the rejected payload', async () => {
       // The previous default was
       // `CustomProperty($select=DownPaymentAssistanceAmount,DownPaymentAssistanceCount,CustomFields)`
-      // and Trestle rejected it. The opt-in form must NOT carry that
+      // and Cotality rejected it. The opt-in form must NOT carry that
       // inner $select until the schema is audited.
       await fetchFromTrestle({ filter: "X", top: 1, maxTotal: 1, expandCustomProperty: true });
       const expand = getExpandParam(capturedUrls[0]) ?? '';

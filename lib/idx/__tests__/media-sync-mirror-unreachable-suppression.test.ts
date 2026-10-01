@@ -27,7 +27,7 @@
  * Suppression remains conditional on MATERIAL equality — a parked row whose
  * content actually changed still writes.
  *
- * No live R2, Trestle or database access.
+ * No live R2, Cotality or database access.
  */
 
 import { mediaRowMirrorUnreachable, R2_RETRY_EXHAUSTED_THRESHOLD, R2_POLICY_PARKED_ATTEMPTS } from "../media-sync";

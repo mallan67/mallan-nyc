@@ -1,9 +1,9 @@
 /**
- * C2 fix (2026-05-13) — status-aware idx_display_yn in the Trestle writer.
+ * C2 fix (2026-05-13) — status-aware idx_display_yn in the Cotality raw-mapper writer.
  *
  * Before this fix, `lib/idx/trestle-mapper.ts:724` computed
  * `idxDisplayYn = internetEntireListing && !participantOnly && !ownerOptOut`
- * without consulting `StandardStatus`. Every time Trestle re-emitted a
+ * without consulting `StandardStatus`. Every time Cotality re-emitted a
  * terminal row (price update, photo edit, ModificationTimestamp tick), the
  * next idx-sync pass set `idx_display_yn = true` again and undid the
  * 03:00 UTC data-retention cron's §2.05 §2.05 cleanup. Audit-event JOIN
@@ -87,7 +87,7 @@ describe('C2 — terminal statuses force idx_display_yn=false', () => {
     const mapped = mapTrestleToPrisma(raw);
     expect(mapped.idx_display_yn).toBe(false);
     // Sanity — the display permission booleans themselves are still TRUE
-    // (the writer doesn't lie about Trestle's input); only the legacy
+    // (the writer doesn't lie about Cotality's input); only the legacy
     // `idx_display_yn` aggregate is forced false.
     expect(mapped.internet_entire_listing_display_yn).toBe(true);
     expect(mapped.internet_address_display_yn).toBe(true);
@@ -196,7 +196,7 @@ describe('C2 — regression: a closed row cannot be re-flipped true by mapper ou
   it('reproduces the audit-trail scenario from the C2 investigation', () => {
     // Synthesizes the production scenario observed on RLS20070684 etc.:
     //   - The data-retention cron set idx_display_yn=false at 03:00 UTC.
-    //   - Trestle then re-emits the same listing later in the day with the
+    //   - Cotality then re-emits the same listing later in the day with the
     //     status still Closed but display permissions still true (the
     //     normal post-close state on the IDX Plus feed).
     //   - Pre-fix: mapper recomputed true and the next idx-sync flipped the
@@ -262,7 +262,7 @@ describe('C2 — DOM/typo robustness', () => {
     // Phase A (2026-05-20): the inline gate computation moved into the
     // shared `computeGateColumns` helper, which always runs
     // `normalizeStandardStatus` on its `status` input. That means even the
-    // Trestle-sourced mapper path now case-folds "closed" → "Closed" and
+    // Cotality-sourced mapper path now case-folds "closed" → "Closed" and
     // matches the canonical TERMINAL_STATUSES set — so a hypothetical
     // upstream emit of lowercased "closed" is now correctly blocked at the
     // writer instead of silently passing through.
@@ -270,7 +270,7 @@ describe('C2 — DOM/typo robustness', () => {
     // The cron predicate at app/api/cron/data-retention/route.ts:79 still
     // uses Prisma's exact-case `status: { in: [...] }`, so this is a one-
     // sided defensive improvement: the writer is now MORE defensive than
-    // the cron. If Trestle ever did emit "closed" (lowercase), the writer
+    // the cron. If Cotality ever did emit "closed" (lowercase), the writer
     // would set idx_display_yn=false at ingest time and no cron sweep
     // would be needed. Strictly safer than the previous symmetric-but-
     // permissive contract.

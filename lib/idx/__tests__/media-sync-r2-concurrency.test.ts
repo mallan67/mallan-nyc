@@ -35,7 +35,7 @@
  * A test in this file that passes against that head is not exposing its defect
  * and must be strengthened before any implementation work begins.
  *
- * NO live R2, Trestle, or database access. Layer 1 is pure simulation.
+ * NO live R2, Cotality, or database access. Layer 1 is pure simulation.
  */
 
 import type { MirrorMediaToR2Deps, MirrorMediaToR2Row } from "../media-sync";
@@ -646,7 +646,7 @@ function makeDeps(response: Response): MirrorMediaToR2Deps {
 
 /**
  * LIVE-OBSERVED permanent failure (34/100 on 2026-07-28): HTTP 404 with the
- * Trestle JSON error body. Tombstone-eligible.
+ * Cotality JSON error body. Tombstone-eligible.
  */
 const permanentDeps = (body: string = LIVE_404_MEDIA_GONE) =>
   makeDeps(makeFetchResponse(404, "application/json; charset=utf-8", body));

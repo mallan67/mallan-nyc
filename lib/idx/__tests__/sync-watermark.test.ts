@@ -7,7 +7,7 @@
  * would re-fetch every row whose PCT advanced past the (MT-only) watermark.
  *
  * The watermark advancement happens inline inside `syncListings`. To keep this
- * test independent of the Prisma + Trestle stack we replicate the inline loop
+ * test independent of the Prisma + Cotality stack we replicate the inline loop
  * exactly. If the production loop drifts from this test, the test will fail
  * and we'll know the watermark logic regressed.
  */

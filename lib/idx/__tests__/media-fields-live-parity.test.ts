@@ -5,7 +5,7 @@ import { B26_MEDIA } from "../trestle-mapper";
 /**
  * Live-parity guard for the B26 media field group.
  *
- * Every name in B26_MEDIA must correspond to a real field on a live Cotality/Trestle
+ * Every name in B26_MEDIA must correspond to a real field on a live Cotality
  * resource (verified against the committed live contract data/cotality-enums.live.json).
  *
  * This catches PHANTOM media fields — names that look plausible (VideoURL,

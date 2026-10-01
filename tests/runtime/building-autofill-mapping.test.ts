@@ -145,9 +145,9 @@ describe('populateBuildingFromIDX fills all building fields', () => {
   });
 });
 
-// ── 6. Backend includes CityRegion in Trestle $select ──
+// ── 6. Backend includes CityRegion in Cotality $select ──
 
-describe('Backend Trestle query includes borough fields', () => {
+describe('Backend Cotality query includes borough fields', () => {
   it('$select includes CityRegion', () => {
     expect(routeTs).toContain("'CityRegion'");
   });
@@ -156,7 +156,7 @@ describe('Backend Trestle query includes borough fields', () => {
     expect(routeTs).toContain("'CountyOrParish'");
   });
 
-  it('Trestle result uses CityRegion for borough', () => {
+  it('Cotality result uses CityRegion for borough', () => {
     expect(routeTs).toContain("borough: String(r.CityRegion || '')");
   });
 });

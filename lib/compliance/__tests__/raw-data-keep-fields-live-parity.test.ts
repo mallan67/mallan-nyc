@@ -9,14 +9,14 @@ import {
  * Live-parity guard for the raw_data keep-field set.
  *
  * The keep-list must never retain a field that does NOT exist on the live
- * Cotality/Trestle feed. Keeping a phantom is harmless for storage (the feed
+ * Cotality feed. Keeping a phantom is harmless for storage (the feed
  * never returns it) but it is a stale-truth landmine: future readers assume the
  * field is real, and `trestle:audit-server` flags it. The single source of field
  * truth is the live `$metadata` (committed as data/cotality-enums.live.json); static
  * snapshots/docs are not authoritative.
  *
  * Still phantom (kept out): MoveInCostsAmountTotal, FirstShowingDate — neither is
- * on live Trestle (use MoveInCosts picklist; ActivationDate for activation).
+ * on live Cotality (use MoveInCosts picklist; ActivationDate for activation).
  *
  * Restored 2026-06-04: MoveInCostsAmount + MoveInCostsComments. The live Cotality
  * $metadata exposes both as Property fields (Edm.Decimal / Edm.String); #340 had
@@ -24,7 +24,7 @@ import {
  * PR. Live feed wins over the cached snapshot.
  *
  * The forbidden set mirrors FORBIDDEN_FIELDS in
- * scripts/audit-server-trestle-coverage.ts — the live-audit source of truth.
+ * scripts/trestle-forbidden-fields.ts (the guard list the live Cotality audit uses).
  */
 describe('RAW_DATA_KEEP_FIELDS live-parity (no phantom Cotality fields kept)', () => {
   // Every entity, field, enum and enum-member name in the committed live contract
@@ -59,7 +59,7 @@ describe('RAW_DATA_KEEP_FIELDS live-parity (no phantom Cotality fields kept)', (
     expect(liveNames.size).toBeGreaterThan(500);
   });
 
-  it('the still-phantom fields are genuinely absent from live Trestle', () => {
+  it('the still-phantom fields are genuinely absent from live Cotality', () => {
     for (const f of ['MoveInCostsAmountTotal', 'FirstShowingDate']) {
       expect(liveNames.has(f)).toBe(false);
     }

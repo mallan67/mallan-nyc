@@ -11,7 +11,7 @@ describe("crm idx mapper", () => {
     expect(mapDisplayPropertyType({ PropertySubType: "Apartment" })).toBe("Residential");
   });
 
-  it("classifies media category using RESO content category", () => {
+  it("classifies media category from the MediaCategory field", () => {
     expect(classifyMediaCategory({ MediaCategory: "Floor Plan" })).toBe("FloorPlan");
     expect(classifyMediaCategory({ MediaCategory: "Video" })).toBe("Video");
     expect(classifyMediaCategory({ MediaCategory: "Virtual Tour" })).toBe("VirtualTour");
@@ -19,7 +19,7 @@ describe("crm idx mapper", () => {
   });
 
   // ── REBNY IDX Plus pre-filter semantics (Phase 0a, 2026-05-01) ────────────
-  // The CRM mapper consumes raw Trestle records on the /api/idx/search live
+  // The CRM mapper consumes raw Cotality records on the /api/idx/search live
   // path. REBNY/Cotality pre-filter non-displayable rows out of the IDX Plus
   // feed at the provider level, leaving these two booleans null on the
   // survivors. The mapper must mirror the writer-side convention at
@@ -200,7 +200,7 @@ describe("crm idx mapper", () => {
   //
   // UCBA prohibits "Off-Market" labeling. The prior fallback
   //   const status = statusMap[mlsStatus] || mlsStatus.toUpperCase()
-  // could produce "OFF MARKET" if Trestle returned that string,
+  // could produce "OFF MARKET" if Cotality returned that string,
   // exposing the platform to UCBA fines. Tests below pin the
   // contract: any unmapped or off-market variant must NEVER produce
   // an "OFF MARKET" value in the rendered status field.
@@ -273,7 +273,7 @@ describe("crm idx mapper", () => {
   // until [date]." The date must be specific. Previously
   // comingSoonDate was hard-coded null, so the badge renderer fell
   // back to a vague "until active date" string. Now populated from
-  // Trestle ActivationDate (preferred) or OnMarketDate (fallback).
+  // Cotality ActivationDate (preferred) or OnMarketDate (fallback).
   // ═══════════════════════════════════════════════════════════════════
 
   describe("comingSoonDate — UCBA Art. I §16(C)", () => {

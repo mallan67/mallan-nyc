@@ -201,7 +201,7 @@ describe('SHOWINGS — private client showings survive', () => {
   });
 });
 
-describe('CURSOR SAFETY — CRM writes must not poison the Trestle watermark', () => {
+describe('CURSOR SAFETY — CRM writes must not poison the Cotality watermark', () => {
   /**
    * `getLastSyncTimestamp()` (lib/idx/sync.ts) returns
    *   MAX(modification_timestamp) WHERE last_synced_from_trestle IS NOT NULL

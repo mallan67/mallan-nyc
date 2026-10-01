@@ -121,7 +121,7 @@ jest.mock("@/lib/prisma", () => ({
   __esModule: true,
   default: { listing: { findMany: (...a: unknown[]) => findManyMock(...(a as [Record<string, unknown>])) } },
 }));
-jest.mock("@/lib/idx/auth", () => ({ getAccessToken: jest.fn(async () => { throw new Error("no trestle"); }) }));
+jest.mock("@/lib/idx/auth", () => ({ getAccessToken: jest.fn(async () => { throw new Error("no cotality"); }) }));
 jest.mock("@/lib/buildings/acris-building-sales", () => ({
   lookupBBL: jest.fn(async () => null),
   fetchAcrisSales: jest.fn(async () => []),

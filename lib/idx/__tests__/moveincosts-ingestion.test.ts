@@ -9,8 +9,8 @@ import { RAW_DATA_KEEP_SET } from '@/lib/compliance/raw-data-keep-fields';
  * Restoring the fields to RAW_DATA_KEEP_FIELDS is not enough on its own:
  * fetchFromTrestle() builds its $select from IDX_PLUS_SELECT_FIELDS
  * (the fields come from B27_RENTAL). Unless the
- * fields are in that select set, the Trestle response never carries them and the
- * keep-list has nothing to persist for Trestle-imported rows.
+ * fields are in that select set, the Cotality response never carries them and the
+ * keep-list has nothing to persist for Cotality-imported rows.
  *
  * The chain that must hold for MoveInCostsAmount + MoveInCostsComments:
  *   live in Cotality  →  selected from Cotality  →  preserved in raw_data.
