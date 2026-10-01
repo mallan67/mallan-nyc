@@ -12,7 +12,7 @@
 // phantom in the captured $metadata snapshot OR is a documented live-but-
 // intentional exception (ResourceRecordID). The live-drift guard below
 // (detectForbiddenNowLive) catches the same condition against FRESH live metadata
-// when the audit runs in trestle-live-audit.yml.
+// when the audit runs with live Cotality credentials.
 export const FORBIDDEN_FIELDS: Record<string, string> = {
   IDXEntireListingDisplayYN: 'use InternetEntireListingDisplayYN',
   SyndicateYN: 'use SyndicateTo (multi-select)',

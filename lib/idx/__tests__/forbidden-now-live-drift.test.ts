@@ -7,8 +7,8 @@ import {
 /**
  * Live-drift guard for the server phantom list.
  *
- * `detectForbiddenNowLive` is what makes the daily live audit
- * (.github/workflows/trestle-live-audit.yml → trestle:audit-server) fail the
+ * `detectForbiddenNowLive` is what makes the live server-field audit
+ * (run by an operator with live Cotality credentials) fail the
  * moment Cotality turns one of the forbidden phantoms into a real live $metadata
  * field — the case the snapshot parity test cannot see (it reads the committed
  * data/cotality-enums.live.json). It is pure, so we drive it with simulated "live"

@@ -280,8 +280,8 @@ function isVendorBlessedFallback(field: string, content: string): boolean {
 
   // 4. Live-drift guard — a forbidden field that has turned up in the live
   //    $metadata SCHEMA (vendor added/renamed it), excluding the documented
-  //    intentional allowlist. This is the guard the daily trestle-live-audit.yml
-  //    needs: the snapshot unit test cannot see fresh vendor drift.
+  //    intentional allowlist. This catches fresh vendor drift that the
+  //    snapshot unit test cannot see.
   //
   //    Basis = the deterministic schema (union of byResource field Names), NOT
   //    live.all. live.all also folds in CustomFields keys harvested from sampled

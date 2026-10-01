@@ -12,8 +12,8 @@ import {
  * Scope: this checks the list against the committed live contract
  * data/cotality-enums.live.json — a fast, creds-free SNAPSHOT guard, NOT a live-drift
  * guard. Fresh vendor drift (Cotality adding a forbidden name to the live feed)
- * is caught by `detectForbiddenNowLive` in the audit, run daily against the live
- * feed by .github/workflows/trestle-live-audit.yml — see
+ * is caught by `detectForbiddenNowLive` in the audit when an operator runs it
+ * against the live feed with live Cotality credentials — see
  * forbidden-now-live-drift.test.ts for that logic.
  *
  * Invariant: every forbidden field must be EITHER absent from the snapshot (a
