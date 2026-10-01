@@ -6,7 +6,7 @@
 - [ ] Class B/C/D verified independently — command/notice/proof: _______________
 
 ## Cotality field change (if any field added/changed)
-- [ ] Live field confirmed (`trestle:audit-server` / `trestle:probe` / `$metadata`)
+- [ ] Live field confirmed (`trestle:audit-server` / `$metadata`)
 - [ ] Traced: select → map → `raw_data` → DTO (DB path) → DTO (Trestle-direct path) → render/save
 - [ ] Numeric fallback zero-safe (`0` not swallowed)
 - [ ] Tests added

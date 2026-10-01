@@ -348,7 +348,6 @@ The data flow has three distinct layers. Conflating them is how compliance bugs 
 | Compliance DTO sanitizer | `lib/compliance/dto.ts` | Public/portal/CRM tier sanitizer |
 | RLS field CSV | `data/rebny-rls-property-fields.csv` | 902+ REBNY IDX Plus fields. Replaced 2026-03-19. |
 | RLS lookup CSV | `data/rebny-rls-property-lookup.csv` | 2,066+ picklist values |
-| RLS field registry doc | `data/RLS-FIELD-REGISTRY.md` | Human-readable registry |
 | UCBA rules | `data/UCBA-2026-Requirements.md` | Extracted from PDF |
 | Trestle metadata snapshot | `artifacts/metadata.xml` | Full Trestle OData metadata |
 
@@ -372,10 +371,6 @@ The following files are **generated**. Do not hand-edit:
 | `public/crm/index-built.html` | `node public/crm/build.js` | After any change to `public/crm/{index.html, html/, css/, js/}`. CI fails if drifted. |
 | `public/crm/data/validator-results.json` | `npm run idx:validate` | Daily / on demand. Consumed by CRM System Health dashboard. |
 | `.idx-validate/run-history.local.json` | `npm run idx:validate` | Validator run history (local-only, gitignored). |
-| `data/MASTER_REGISTRY.json` | `node scripts/generate-master-registry.js` | When schema/CSV changes. |
-| `data/FIELD_REGISTRY.json` | (generator script in scripts/) | When schema/CSV changes. |
-| `artifacts/reso-drift/latest.json` | `npm run reso:drift` | Regularly. |
-| `artifacts/schema-audit.json` | `npm run reso:schema-audit` | On demand. |
 
 **Rules:**
 
@@ -483,7 +478,6 @@ If you are an AI/Codex/Claude session reading this charter:
 | `CLAUDE.md` (top of repo) | Per-session AI rules. Points here at the top. |
 | `NEON.md` (top of repo) | DB / Prisma / migration discipline. Read before any schema change. |
 | `MASTER-PROJECT-TREE-v3.3.md` | Codebase reference. Larger and older than this charter; treat as background context, not authoritative. |
-| `data/RLS-FIELD-REGISTRY.md` | Trestle field registry. Authoritative for field names. |
 | `data/UCBA-2026-Requirements.md` | UCBA rules. Authoritative for compliance. |
 | `.claude/skills/rebny-compliance/SKILL.md` | REBNY compliance gate. Read at session start. |
 

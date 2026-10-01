@@ -1254,7 +1254,7 @@ export const REBNY_FIELD_TABLES = {
   // ═══════════════════════════════════════════════════════════════════════════
   // 10. VOW (Virtual Office Website) DISPLAY RULES
   //     VOW = client portal requiring login. Shows more data than IDX.
-  //     Source: UCBA 2026; RLS-Syndication-Research.md
+  //     Source: UCBA 2026
   // ═══════════════════════════════════════════════════════════════════════════
 
   vowDisplayRules: {

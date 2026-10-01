@@ -52,7 +52,7 @@ When sources disagree about whether a field exists, what it is named, or whether
 | | |
 |---|---|
 | **Canonical** | `.claude/skills/rebny-compliance/SKILL.md` §2 (the 6 distribution gates); `lib/idx/trestle-mapper.ts` (the writer-side implementation — `TERMINAL_STATUSES`, `normalizeStandardStatus`, `computeGateColumns` post-PR-#165) |
-| **Backup** | `data/RLS-FIELD-REGISTRY.md`; `data/UCBA-2026-Requirements.md`; `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` (the canonical incident report) |
+| **Backup** | `data/UCBA-2026-Requirements.md`; `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` (the canonical incident report) |
 | **Validator** | `npm run rls:validate` (10-section validator: fields, renames, gates, masking, coverage); `npm run compliance-check` |
 | **When to read** | Any IDX / listing-display / feed / projection / search-result change |
 | **Fail-closed** | The 6 gates (Owner Opt-Out, Participant Only, Internet Entire Display, Address Display, Terminal Status §2.05, Coming Soon badge) are non-negotiable. If a field is null and you don't know whether it's REBNY-pre-filtered or per-row opt-out, STOP — wrong assumption corrupted 7,594 rows in 2026-04-30. |
@@ -62,7 +62,7 @@ When sources disagree about whether a field exists, what it is named, or whether
 | | |
 |---|---|
 | **Canonical** | `data/rebny-rls-property-fields.csv` (all 902 fields across 7 REBNY-specified resources: Property 527, CustomProperty 106, Member 72, Office 66, Media 46, PropertyUnitTypes 46, OpenHouse 39) |
-| **Backup** | `data/rebny-rls-property-lookup.csv` (2,066 picklist values); `data/RLS-FIELD-REGISTRY.md`; `.claude/skills/rebny-compliance/SKILL.md` §2; `artifacts/metadata.xml` (live Trestle OData metadata) |
+| **Backup** | `data/rebny-rls-property-lookup.csv` (2,066 picklist values); `.claude/skills/rebny-compliance/SKILL.md` §2; `artifacts/metadata.xml` (live Trestle OData metadata) |
 | **Validator** | `npm run idx:validate` (32-section validator) — current baseline 1278 pass / 0 critical |
 | **When to read** | Any Trestle OData $select, $expand, or $filter change; any new field on Listing model or projection; mapper change |
 | **Fail-closed** | IDX Plus does NOT include `IDXEntireListingDisplayYN`, `ParticipantOnlyYN`, `VOW*` gate fields, `SyndicateYN`, `FirstShowingDate`, `MoveInCostsAmountTotal`, `PossessionDate`, `YearRenovated`. If you see those in code, they are phantom fields — verify against the CSV before referencing. **`Latitude`/`Longitude` are NOT phantom** — they exist in Trestle `$metadata` but are **always null on IDX Plus**, so they are not usable for map/transit filtering (do not build Lat/Lng filters; geocoordinates come from the separate geocode backfill). |
@@ -72,7 +72,7 @@ When sources disagree about whether a field exists, what it is named, or whether
 | | |
 |---|---|
 | **Canonical** | `lib/idx/auth.ts` (OAuth2 client_credentials, token cache, 8s timeout); `lib/idx/fetch.ts` (OData fetch + pagination + AbortController + retry); `lib/idx/trestle-mapper.ts` (the mapper); `.claude/skills/rebny-compliance/SKILL.md` Trestle Media API Rules §4 |
-| **Backup** | `data/RLS-FIELD-REGISTRY.md`; `artifacts/metadata.xml` (live $metadata); `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` (three-layer model: REBNY policy / Cotality serving / RESO certification) |
+| **Backup** | `artifacts/metadata.xml` (live $metadata); `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` (three-layer model: REBNY policy / Cotality serving / RESO certification) |
 | **Validator** | `tests/runtime/idx-suggest-select-fields.test.ts`, `tests/runtime/idx-fetch-expand-media.test.ts`, `tests/runtime/idx-sync-max-records.test.ts`, `tests/runtime/idx-sync-cursor-modification-timestamp.test.ts`, `tests/runtime/idx-sync-diagnostic-audit-events.test.ts`, `lib/idx/__tests__/*` |
 | **When to read** | New OData query, new endpoint, new $expand, new $select field, new Media query, new $filter; auth/token changes; rate-limit/throttle work |
 | **Fail-closed** | API base = `https://api.cotality.com/trestle`. Old hosts `api-trestle.corelogic.com` + `api-prod.corelogic.com` deprecated hard 2026-03-31 (media proxy allowlists all 3 during transition). Media `Media/All` endpoint deprecated — query `/odata/Media` with `$filter=ResourceRecordKey eq '...'` (see §8 below). HTTP 400 on `InternetEntireListingDisplayYN` / `InternetAddressDisplayYN` `$filter` is the canonical signal of REBNY provider-level pre-filter. |
@@ -152,7 +152,7 @@ When sources disagree about whether a field exists, what it is named, or whether
 | | |
 |---|---|
 | **Canonical** | `app/listing/[...slug]/page.tsx` (rental FARE disclosure block); `lib/idx/trestle-mapper.ts` fields. Canonical FARE public-display fields are the **live Property** fields `MoveInCosts`, `MoveInCostsAmount`, `MoveInCostsComments`, `OngoingFees`, `TenantPays`, `TenantPaysDescription`; `AdditionalFee*` / `FeeFrequency` are **legacy CustomProperty fallback**. |
-| **Backup** | `.claude/skills/rebny-compliance/SKILL.md` §5; `data/UCBA-2026-Requirements.md`; `data/RLS-Syndication-Research.md` (Standard Active / Non-Syndicated rental category) |
+| **Backup** | `.claude/skills/rebny-compliance/SKILL.md` §5; `data/UCBA-2026-Requirements.md` |
 | **Validator** | `npm run compliance-check` (FARE Act section grep). **GAP NOTE 2026-05-20:** the source-grep validator passes, but the live-page rendering on production rentals was verified MISSING in `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` A4 — a rendering-conditional bug, not a missing file. New PR required. |
 | **When to read** | Any rental listing display path; any new rental-fee CRM form; any rental syndication work |
 | **Fail-closed** | Tenant cannot be required to pay broker fee unless tenant specifically engaged the broker. If landlord does NOT pay → `InternetEntireListingDisplayYN = False` → excluded from IDX/VOW/syndication. DCWP penalties: §20-699.21 $1,000–$1,800; §20-699.22 up to $2,000 per violation. Litigation status: REBNY 2nd Circuit appeal pending (filed July 2025); law in force and enforceable. |

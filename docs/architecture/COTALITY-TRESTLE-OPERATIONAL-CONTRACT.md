@@ -68,7 +68,7 @@
 
 ### Member / Office
 
-Referenced in `data/RLS-FIELD-REGISTRY.md` but not actively queried in current routes. Available at `/odata/Member` and `/odata/Office`.
+Not actively queried in current routes. Available at `/odata/Member` and `/odata/Office`.
 
 ---
 

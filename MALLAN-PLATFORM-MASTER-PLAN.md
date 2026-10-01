@@ -371,6 +371,10 @@ retrievable asset, and code must handle the majority that are not.
 | incremental `ModificationTimestamp gt <iso>` | supported (Property and Media) |
 | replication ordering `$orderby=ModificationTimestamp,ListingKey` | supported |
 
+Published quotas, recorded 2026-03-20 from Cotality's documentation and **not re-verified
+live**: WebAPI queries 180/min (7,200/hour); Media URL requests 480/min (18,000/hour).
+`lib/idx/media-sync.ts` sizes R2 mirroring to stay under the Media quota.
+
 ## 0.9 The route — establishing any of this again
 
 ```text
