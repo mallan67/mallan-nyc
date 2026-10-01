@@ -7,17 +7,16 @@
 > and next action. It is status and history only: it authorizes no branch name, file path, implementation
 > scope or mutation envelope, and no check reads authorization from it. It may not redefine the Master.
 
-**Checkpoint:** 2026-09-29 — #646 MERGED (`3656a42333f2be5e837015e0165387ea96fe99b6`): the old execution wall is retired (§7). Maya removed `authority-root` from `Protect main`; the live required check is `pr-check` only, and protection is INTERIM (§7). **`main` is FROZEN at `3656a423`.** The only exception is a hotfix: if Production breaks or blocks the business, a minimal, reviewed fix may go to `main` with Maya's approval, and is then merged into the convergence branch. All cleanup and the Cotality migration happen on the convergence branch `recovery/cotality-main-convergence`, which becomes the new `main` once the old system is zero (§11).
+**Checkpoint:** 2026-10-01 — the Cotality convergence is ACTIVE on draft PR #647 (`recovery/cotality-main-convergence` → `main`), DRAFT and unmerged. At this checkpoint the PR holds 13 Git commits representing 8 numbered convergence milestones; all current CI is green; preview proof exists and production proof does not (§11). **`main` is FROZEN at `3656a423`** — #646 MERGED (`3656a42333f2be5e837015e0165387ea96fe99b6`) retired the old execution wall; the live required check is `pr-check` only, and protection is INTERIM (§7). The only exception is a hotfix: if Production breaks or blocks the business, a minimal, reviewed fix may go to `main` with Maya's approval, and is then merged into the convergence branch. All cleanup and the Cotality migration happen on the convergence branch, which becomes the new `main` once the old system is zero (§11).
 **Repository:** `mallan67/mallan-nyc` only  
 **Canonical branch:** `main`  
-**Main at this checkpoint:** `005786e71818ef13f555111de67e3d6248412987` — the PR #632 merge
-commit, which is the commit this checkpoint describes. **This is not a claim about the current
-tip of `main` and must never be read as one.** Updating this file necessarily advances `main`
-past whatever SHA it records, so a literal current-main field here self-stales the moment it
-merges. §1 already forbids persisting mutable fingerprints for exactly this reason. **Read the
-live tip from GitHub.**  
-**Active governance convergence PR:** none. PR #632 MERGED 2026-09-20T17:53:22Z as `005786e71818ef13f555111de67e3d6248412987`  
-**Checkpoint source head:** `fb100d6a12f572d78aaac0ec152c4cc57ac6ce74` (final #632 head; all checks green, zero unresolved review threads). Current head must always be read live from GitHub  
+**Main at this checkpoint:** `3656a42333f2be5e837015e0165387ea96fe99b6` — the #646 merge
+commit; `main` is frozen there during the convergence (§11). **This is not a claim about the
+current tip of `main` and must never be read as one.** A literal current-tip field here
+self-stales the moment the branch it describes moves. §1 already forbids persisting mutable
+fingerprints for exactly this reason. **Read the live tip from GitHub.**  
+**Active convergence PR:** #647, `recovery/cotality-main-convergence` → `main`, DRAFT, unmerged; Maya merges it once the old system is zero (§11). HISTORY: PR #632 MERGED 2026-09-20T17:53:22Z as `005786e71818ef13f555111de67e3d6248412987`  
+**Checkpoint source head:** `0e0cc29daff27ac5d4884236b4ded0123fed5f0a` (#647 head at convergence milestone 8; all current checks green on it). The documentation commit that records this checkpoint moves the head past it; read the current head live from GitHub  
 **Authorized work surface:** GitHub repository + explicitly authorized provider connections only; Desktop/worktrees/scratch copies are not execution authority  
 **PR #595:** authority provenance / historical governance source; CLOSED 2026-09-20T17:54:35Z as superseded by #632, unmerged. Its lineage is in `main` history through #632  
 **Governance activation:** HISTORY. `authority-root` was a required status check on the `Protect main` ruleset `19435006` from 2026-09-22 until Maya removed it on 2026-09-29 (ruleset updated 17:17 -04:00); #646, merged as `3656a423`, retired it. The live required check is `pr-check` only (verified 2026-09-29). Read the live ruleset for the current required set.
@@ -141,13 +140,14 @@ No historical #595 support file becomes a competing authority merely because it 
 ## Main
 
 **This section records checkpoint data, not the live tip.** Read the current tip from GitHub.
-No SHA written into this file can be the live tip, because merging this file moves `main` past
-whatever it records.
+No SHA written here is guaranteed to be the live tip: the convergence head moves with every commit,
+including the one that records this file, and `main` moves when a hotfix or the convergence PR merges.
 
-The commit this checkpoint describes is `005786e71818ef13f555111de67e3d6248412987`, which merged
-PR #632, the integrated Master + execution control convergence. The commit before it,
-`bba9d8d6c92bb3bfe95b9f4b90da69534650c276`, merged PR #631 (Database Authority Safety Packet 1).
-Both are history; neither is a claim about where `main` points now.
+At this checkpoint (2026-10-01) `main` is frozen at `3656a42333f2be5e837015e0165387ea96fe99b6`,
+which merged #646 (§7); the convergence work is on draft PR #647 (§11). Earlier,
+`005786e71818ef13f555111de67e3d6248412987` merged PR #632, the integrated Master + execution
+control convergence, and `bba9d8d6c92bb3bfe95b9f4b90da69534650c276` merged PR #631 (Database
+Authority Safety Packet 1). These are history; none is a claim about where `main` points now.
 
 ## PR #631 — CLOSED
 
@@ -186,7 +186,7 @@ PR #632 was the **one-time bootstrap exception**, granted because `main` did not
 the Master or the Execution State. **That exception is now CLOSED.** It was guarded on the
 ABSENCE of both files rather than on a PR number, and `main` now carries both, so the branch
 is unreachable for every pull request including #632 itself. Two tests in
-`tests/runtime/mallan-execution-control.test.ts` assert that property from the post-merge side.
+`tests/runtime/mallan-execution-control.test.ts` asserted that property until #646 deleted the controller and that test (§7).
 
 ## Branch estate
 
@@ -540,7 +540,7 @@ Permanent platform issues are defined **only** in `docs/PLATFORM-ISSUE-REGISTRY.
 
 PR-review findings that are corrected inside the active packet remain review evidence in the PR thread/history rather than becoming parallel issue IDs. Historical observations that may inform later work must be promoted into the Platform Issue Registry before they are treated as actionable platform defects.
 
-The dependency-ordered recovery sequence for the current convergence program is §5.1 (Phases A–H). It is execution sequencing, not a second issue registry.
+The dependency-ordered recovery sequence for the former (2026-09-20) governance convergence program was §5.1 (Phases A–H). The current Cotality convergence sequence is §11 steps 5–6. It is execution sequencing, not a second issue registry.
 
 # 6. Mandatory closure model
 
@@ -597,7 +597,7 @@ It added no new gate. It also made `pr-check` read-only (`permissions: contents:
 - force-push and deletion of `main` are blocked;
 - Maya reviews and merges every pull request. Agents never merge, never enable auto-merge and never change branch protection or rulesets.
 
-**What the interim protection does not certify.** The first commits of the convergence branch (§11) remove `rls:validate` and `validate:form-rls` from `pr-check`, together with the files only they used: the RLS alias, form-binding, internal-only and overlay lists, and the tooling around them. Old provider authority that live code still reads stays until it is replaced in place on the convergence branch (§11). That includes the REBNY RLS CSVs, which `idx-validate` and the CRM listing gate read, the RESO field map and the RESO-to-RLS rename table. None of it is provider authority, correct or canonical, and nothing requires or protects it.
+**What the interim protection does not certify.** Convergence milestone 1 (§11) removed `rls:validate` and `validate:form-rls` from `pr-check` on the convergence branch, together with the files only they used: the RLS alias, form-binding, internal-only and overlay lists, and the tooling around them. Old provider authority that live code still reads stays until it is replaced in place on the convergence branch (§11). On that branch the RESO-to-RLS rename table (milestone 4), `artifacts/metadata.xml` and both REBNY RLS CSVs (milestone 8) are already gone. What remains, including the CSV-derived `lib/compliance/rls-rules.json` that the CRM listing gate reads and the RESO field map, is listed under §11 "Open". None of it is provider authority, correct or canonical, and nothing requires or protects it.
 
 Passing `pr-check` during the interim therefore does not certify provider correctness. `main` still contains obsolete provider implementation, which must be cleaned before permanent governance is designed. The architectural authority is unchanged (Master §21.2):
 
@@ -692,12 +692,12 @@ Do not create another status file because this one becomes inconvenient.
 
 # 11. Current exact stop point
 
-**2026-09-29 — stop point.** The Cotality convergence is ACTIVE. The sequence:
+**2026-10-01 — stop point.** The Cotality convergence is ACTIVE. The sequence (set 2026-09-29):
 
 1. DONE — #646 merged 2026-09-29 as `3656a42333f2be5e837015e0165387ea96fe99b6`; the old execution wall is retired (§7).
 2. DONE — Maya removed `authority-root` from `Protect main` (2026-09-29, 17:17 -04:00); the live required check is `pr-check` only.
 3. IN FORCE — protection is INTERIM: pull request + `pr-check` + Maya's review (§7). `main` is FROZEN at `3656a423`. The only exception is a hotfix: a minimal, reviewed fix that goes to `main` with Maya's approval when Production breaks or blocks the business, and is then merged into the convergence branch.
-4. ACTIVE — the convergence branch `recovery/cotality-main-convergence`, created from `3656a423`, with one draft pull request to `main`. Its first commits remove the old provider authority that no live code reads, including `rls:validate`, `validate:form-rls` and the files only they used. They also correct the documentation and this file's status lines. They do not touch the live consumers of the old authority.
+4. ACTIVE — the convergence branch `recovery/cotality-main-convergence`, created from `3656a423`, with one draft pull request to `main`: #647. Convergence milestones 1–8 are complete ("Convergence progress" below). Milestone 1 removed the old provider authority that no live code read, including `rls:validate`, `validate:form-rls` and the files only they used; later milestones replace live consumers in place under step 5.
 5. Replace the old system component by component, in the existing code, never beside it:
    1. identify the next old or wrong component;
    2. verify the exact live Cotality contract that component needs;
@@ -714,7 +714,67 @@ Do not create another status file because this one becomes inconvenient.
 7. Merge the corrected system as the new `main` (Maya merges the convergence pull request).
 8. Only after that, design the permanent required checks.
 
-Nothing is merged into `main` except the hotfix exception until step 7. Everything below this entry is history.
+Nothing is merged into `main` except the hotfix exception until step 7.
+
+## Convergence progress — PR #647 (checkpoint 2026-10-01)
+
+| fact | value at this checkpoint |
+|---|---|
+| PR | #647, OPEN, DRAFT, unmerged; mergeable (`CLEAN`) |
+| base | `main` at `3656a42333f2be5e837015e0165387ea96fe99b6`, frozen |
+| head | `0e0cc29daff27ac5d4884236b4ded0123fed5f0a` (convergence milestone 8) |
+| commits | 13 Git commits representing 8 numbered convergence milestones |
+| CI on the head | all green: `pr-check` (the only required check), `build`, `validate`, `geo-validate`, `guardrails`, `target-platform-build`, `claude-review`, `release-truth`, Vercel, Vercel Preview Comments |
+| proof | `release-truth`: `PREVIEW_PROVEN` (PR checks + preview deployment green). Production is NOT proven |
+
+Read the live PR for the current head, commit count and checks; this documentation commit itself moves the head past `0e0cc29d`.
+
+## Completed — convergence milestones 1–8
+
+1. **`47a144c6` — dead old provider authority removed.** 60 files that nothing live read: the retired `rls:validate` and `validate:form-rls` validators with their `pr-check` steps; the RLS alias, form-binding, internal-only and overlay lists and their tooling; the REBNY field registries (`FIELD_REGISTRY`, `SEARCH_CONTROL_MAP`, `MASTER_REGISTRY`) and their generators; the Trestle dictionary snapshot; `compliance/fields.json`, `compliance/lookups.json`, `reso-rls-renames.json`; the CSV sync tools; `reso:drift` and `reso:schema-audit`; dead duplicate code and orphan probe scripts. 15 files that pointed at them were edited.
+2. **`bb90a20c` — execution sequence corrected to replace-in-place.** This section's steps 5–6; the earlier seam/shadow wording is gone.
+3. **`ef3f07b3` — Property `$select` reduced to live Cotality-supported fields** (component 1). In `lib/idx/trestle-mapper.ts`, 72 names from the REBNY RLS field list that are not fields of the live Property resource, plus `ListTeamMlsId` and `BuyerTeamMlsId` (live, never requested), left the category arrays; `IDX_PLUS_EXCLUDED_FIELDS` and the duplicate `ALL_RLS_FIELDS` were deleted, leaving one list, `IDX_PLUS_SELECT_FIELDS`. Cotality still receives the same 339 fields. `idx-validate` section 3 and its only input, `config/idx/property-field-coverage-policy.json`, were deleted.
+4. **`57127e51` — RESO→RLS rename layer removed** (part of component 2). `RESO_TO_RLS_RENAMES` (19 entries, none a valid mapping under the live contract) and `normalizeRenames()` in `lib/idx/trestle-mapper.ts`, the two rename loops in `lib/idx/mapping.ts`, and idx-validate's rename count. No output change.
+5. **Cotality MCP in the Vercel runtime with a bounded live resource query** — the milestone began at `9993e1b8` and includes its follow-up commits through `53c58d97` (six Git commits). `9993e1b8` added the read-only contract MCP endpoint `/api/mcp/cotality`, which uses the existing Vercel IDX credentials through `lib/idx/auth.ts`; `3216810e` added a preview-only live self-test and `ff7f229e` removed it after the live proof; `4d25acf3` exposed the bounded live resource query and `b7703d0c` fixed its tool definition (a missing closing brace); `53c58d97` pins its boundary in `tests/runtime/cotality-vercel-mcp.test.ts`. No environment mutation, schema change, provider write or production deployment.
+6. **`3f362ede` — Batch 1a dead-system cleanup.** Files with no importer, script, workflow, test or page: dead CI (`baseline-verify.yml`, `dispatch-check.yml`, the geocode workflow and its inputs), the orphan `app/HomeClient.tsx`, one-off scripts (including one carrying a raw production database URL and one that printed password hashes), the fabricated `data/open-houses.json` and the unread `data/featured-config.json`, dead code (`lib/commission.ts`, a copy of the public listing gate, the `backend/` FastAPI stub, `docker-compose.yml`), CRM files no page loads, and obsolete docs.
+7. **`6fc97e16` — Batch 1b-1 RLS/RESO probe and registry cleanup.** The `scripts/reso/` probe kit and its nine `reso:*` npm scripts (`scripts/reso/route-catalog.js` stays), `scripts/status-snapshot.js`, `scripts/probe-trestle-fields.ts` with `trestle:probe`, unread RESO evidence artifacts, `data/RLS-FIELD-REGISTRY.md` (its one unique fact, the published quotas, moved to Master §0.8, labelled not re-verified live), `data/RLS-Syndication-Research.md`, and the stale CRM manifest tooling.
+8. **`0e0cc29d` — one live Cotality enum/field contract replaces `artifacts/metadata.xml` and both RLS CSVs** (its commit labels it Batch 1b-3). `data/cotality-enums.live.json` carries every entity with its fields and declared types, and every enum (17 entities, 183 enums, regenerated live 2026-10-01; 22 enums had drifted since the 2026-07-05 copy). It is a committed copy generated from live `$metadata` by `scripts/cotality/pull-enums.mjs` and drift-checked against live by `cotality:verify`; live Cotality remains the authority (§3). The 11 tests that read `artifacts/metadata.xml` were re-pointed to it with zero differences in the identifiers they check. `scripts/idx-validate.js` sections 6 and 39 were re-pointed from the RLS CSVs (both emit pass/info/warning only), and `tests/runtime/sale-form-canonical-enum-compliance.test.ts` now checks the frozen sale form against live Cotality, which exposed the `PetsAllowed` defect below. Removed: `artifacts/metadata.xml`, `data/rebny-rls-property-fields.csv`, `data/rebny-rls-property-lookup.csv`, `scripts/get-metadata.js`.
+
+**Batch 1b-2.** No separate Batch 1b-2 convergence commit exists in Git history. Where that work went is not recorded here unless evidence later proves it.
+
+## Open — remaining convergence work
+
+- converge the remaining raw mapper implementations into one (`lib/idx/trestle-mapper.ts`, `lib/idx/mapping.ts`, `lib/search/crm-idx-mapper.ts`);
+- converge duplicate status logic;
+- converge duplicate property/listing classification;
+- replace or remove the provider-rule dependencies of `lib/compliance/rebny-validator.ts` (it reads `lib/compliance/rls-rules.json`, derived from the removed REBNY RLS CSV);
+- remove the `data/listings.json` runtime fallback (`app/api/listings/[id]/route.ts`);
+- remove `public/crm/js/core/reso-field-map.js` and the `data-rls` provider bindings once their consumers are safely replaced. Those consumers are the frozen forms and the `index-built.html` bundle, so this waits until those tools are unfrozen for their Cotality conversion;
+- continue the file-by-file disposition of `lib/search/canonical`;
+- complete Batch 1d: obsolete rule and compliance-copy cleanup;
+- zero-reference proof for the old provider authority (step 6).
+
+## Known held defect — Sale Redesign `PetsAllowed` (frozen tool)
+
+- The Sale Redesign form currently writes `UnitYes` (and `UnitCatsOK`, `UnitDogsOK`, …) into `PetsAllowed`.
+- Live Cotality serves `Yes` (and `CatsOk`, `DogsOk`, …).
+- Current contract protection (`tests/runtime/sale-form-canonical-enum-compliance.test.ts`, milestone 8) blocks introducing any new non-live value; the existing values stand.
+- The frozen form itself is not modified during this cleanup phase.
+- Correct it when the standalone Sale Redesign form is unfrozen for its Cotality conversion.
+
+## Frozen during the current cleanup
+
+These are not modified by the cleanup:
+
+- Sale Redesign — `public/crm/SALE-FORM-REDESIGN.html`
+- Rental Redesign — `public/crm/RENTAL-FORM-REDESIGN.html`
+- Sales Tools — `public/crm/SALE-FORM-WITH-TOOLS.html`
+- Rental Tools — `public/crm/RENTAL-FORM-WITH-TOOLS.html`
+- Buyer Deal — `public/crm/BUYER-DEAL-FORM.html`
+- Tenant Deal — `public/crm/TENANT-DEAL-FORM.html`
+- `public/crm/index-built.html` and its Search/CMA bundle inputs
+
+Everything below this point in §11 is history.
 
 **HISTORY (superseded 2026-09-29): `mode: control-update` (2026-09-25); no packet is active and no Master amendment is authorized. The ledger row 19 packet
 `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` (a bounded, base-authorized Master-amendment path with negative tests) is COMPLETE: #642
