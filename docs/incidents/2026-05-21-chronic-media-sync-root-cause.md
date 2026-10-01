@@ -33,7 +33,7 @@ description / Trace Record with this preamble, completed honestly:**
    state the mapping explicitly to avoid collision, e.g. correction-RC5 ≠ incident-RC5).
 3. **Which chronic root causes remain OPEN after this PR** — no PR may imply the architecture
    is fixed. As of 2026-06-10 the open set includes: the Phase-1 writer-loop closures
-   (`docs/superpowers/plans/2026-06-10-phase1-media-loop-closures-plan.md`), M1
+   (the 2026-06-10 Phase-1 media loop-closures plan (retired; Git history)), M1
    source-of-truth/held migrations (§4 RC5), observability gaps (§4 RC6), and ALL data cleaning
    (deleted-photo strike, targeted re-sync, M4 backfill, R2 orphans).
 4. **Why this PR cannot reintroduce the four canonical regressions:**

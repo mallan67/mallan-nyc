@@ -22,7 +22,7 @@
 >   project. Reconcile any direct Neon read to the Vercel resource before using it as Mallan truth.
 > - **Dynamic facts must be re-read live.** Branch counts, env values, Preview provisioning, prune status,
 >   deployment state, and integration settings are not trustworthy merely because a repo doc says them.
-> - **Cotality/Trestle is live authority for fields, strings, permissions, attribution, mapping, search,
+> - **Cotality is the live authority for fields, strings, permissions, attribution, mapping, search,
 >   resources, media semantics, and API behavior.** Use the authorized live contract + current provider docs.
 >   Repo CSV/XML/JSON mirrors are evidence only.
 > - **Cotality proof must be live.** Runtime OAuth is `lib/idx/auth.ts` (`client_credentials`, scope
@@ -34,15 +34,14 @@
 
 ## A. Absolute hard rules
 
-1. **NEON discipline** — READ `NEON.md` before any Prisma schema, migration, `prisma migrate deploy`, `prisma db push`, `vercel.json buildCommand`, `db-keepalive` cron, or new column / FK / index / table work. Failing to read it is how the 2026-04-19 silent-drift incident happened.
+1. **NEON discipline** — READ `NEON.md` before any Prisma schema, migration, `prisma migrate deploy`, `prisma db push`, `vercel.json buildCommand`, cron configuration, or new column / FK / index / table work. Failing to read it is how the 2026-04-19 silent-drift incident happened.
 2. **Source-of-truth charter** — READ `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` before creating, renaming, moving, or editing any file in search, CRM, featured/exclusives, neighborhoods/locations, media, listings, or IDX. No parallel `*-v2`/`*-new`/`*-final` files. No editing generated files (`public/crm/index-built.html` is built via `npm run crm:build`).
 3. **GitHub-only working-state rule** — Claude, ChatGPT and Codex perform repository work against the current GitHub branch/PR only. Do not mutate the repo from a local clone, Maya's Desktop, worktrees, project copies, or scratch folders. If Maya explicitly requests machine-local cleanup/evidence recovery, local files remain evidence only; repository mutations still happen through GitHub.
 4. **Compliance-first** — see §D.
 5. **Fail-closed on rule conflict or missing canonical file** — see §E.
 6. **Proof-first on completion claims** — see §F.
-7. **Never start without explicit Maya approval:** PR 5B, external-inventory implementation, syndication exports / partner integrations, schema migrations, env-var changes, Neon settings, cron config, CRM frontend (`public/crm/**`), agents, skills, `.github/workflows/**`, manual cron triggers, reconciliation runs, admin merge bypass, force push to main. Provider mutations must be executed only through an authorized GitHub-controlled packet/workflow; direct Neon control-plane mutation is not an approved fallback.
+7. **Never start without explicit Maya approval:** PR 5B (`refactor/05-listing-search-projection`, the public reader swap from `listings.idx_display_yn` to `listing_search_projection.idx_display_yn` — see `memory/REFACTOR-2026-04-25.md`), syndication exports / partner integrations, schema migrations, env-var changes, Neon settings, cron config, CRM frontend (`public/crm/**`), agents, skills, `.github/workflows/**`, manual cron triggers, reconciliation runs, admin merge bypass, force push to main. Private supplemental sale inventory is explicitly reauthorized by Master §4.5 and is no longer on this list. Convergence-specific holds are recorded in the Execution State (§7, §9, §11). Provider mutations must be executed only through an authorized GitHub-controlled packet/workflow; direct Neon control-plane mutation is not an approved fallback.
 8. **Never skip hooks** (`--no-verify`), never bypass signing (`--no-gpg-sign`), never amend a published commit.
-9. **`scripts/__pr147-soak-verify.mjs` stays UNTRACKED.** Do not commit it.
 
 ---
 
@@ -65,11 +64,9 @@ Changes reach `main` only through a pull request that passes the required `pr-ch
 
 | Item | Status | Where the hold is recorded |
 |---|---|---|
-| **PR 5B** — `refactor/05-listing-search-projection` (public reader swap from `listings.idx_display_yn` → `listing_search_projection.idx_display_yn`) | HELD | `memory/REFACTOR-2026-04-25.md` master plan + recurring Maya direction |
-| **External-inventory implementation** (OneKey / NY-State MLS / other non-REBNY feeds) | HELD | `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`; spec at `docs/superpowers/specs/2026-04-30-external-inventory-listings-design.md` |
-| **Syndication exports / partner integrations** | HELD | `MALLAN_OFFICE_MLS_IDS=[]` in `lib/syndication/mallan-identity.ts`; Layer 1.PRE empty-config-guard blocks all rows (PR #162 + #163); no `/api/exports/*` route exists |
-| Schema migrations · env vars · Neon · cron config · CRM frontend (`public/crm/**`) · agents · skills · `.github/workflows/**` | HELD | Maya standing directive |
-| Manual cron triggers · reconciliation runs · admin merge bypass · force-push to main | HELD | Maya standing directive |
+| **PR 5B** — `refactor/05-listing-search-projection` (public reader swap from `listings.idx_display_yn` → `listing_search_projection.idx_display_yn`) | HELD | `memory/REFACTOR-2026-04-25.md` + recurring Maya direction (rule A.7) |
+
+Every other mutation boundary named in rule A.7 (schema/migration, env vars, Neon, cron, CRM frontend edits, agents/skills/workflow files, manual cron/reconciliation runs, admin merge bypass, force-push) is a standing Maya directive restated there, not a second hold list. Convergence-specific holds (what may merge during the interim cleanup, and the current stop point) are recorded only in `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` (§7, §9, §11) — read them there. A hold freezes the held work only and never authorizes a substitute path.
 
 ---
 
@@ -78,7 +75,7 @@ Changes reach `main` only through a pull request that passes the required `pr-ch
 If a task touches ANY of the following surfaces, READ `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` **first**, then read the canonical file the index points to for the specific area, then proceed:
 
 - Public listings · listing-display rendering · FeaturedListings · search-result composition
-- IDX · RLS · Trestle / Cotality Web API · OData queries · field mapping
+- IDX · RLS · Cotality Web API · OData queries · field mapping
 - Syndication · Mallan exclusives · partner export
 - CRM lead routing · inquiry · contact · open-house RSVP · sign-up · CMA · guides · search-alerts · favorites · saved-searches
 - Seller / landlord intake forms (`SALE-FORM-REDESIGN.html`, `RENTAL-FORM-REDESIGN.html`)
@@ -89,21 +86,21 @@ If a task touches ANY of the following surfaces, READ `docs/compliance/COMPLIANC
 - Audit-event creation · lead consent capture · retention windows
 - Display gate writes (`idx_display_yn`, `internet_*_display_yn`, `participant_only`, `owner_opt_out`)
 - Status transitions (`TERMINAL_STATUSES`, `normalizeStandardStatus`)
-- Media / photo / floorplan / video (Trestle Media API rules — `ResourceRecordKey` not `ResourceRecordID`)
+- Media / photo / floorplan / video (Cotality Media resource rules — `ResourceRecordKey` not `ResourceRecordID`)
 
-The compliance index has 18 numbered areas, each with: canonical file · backup / reference · validator / test · when to read · fail-closed instruction. No compliance rule lives directly in this CLAUDE.md — only the pointer.
+The compliance index has numbered areas, each with: canonical file · backup / reference · validator / test · when to read · fail-closed instruction. No compliance rule lives directly in this CLAUDE.md — only the pointer.
 
 ---
 
 ## E. Fail-closed rule
 
-If REBNY / RLS / IDX Plus / Trestle / Cotality / FARE Act / NY DOS / Fair Housing / TCPA / NY SHIELD requirements are unclear, conflicting, or absent from the canonical file:
+If REBNY / RLS / IDX Plus / Cotality / FARE Act / NY DOS / Fair Housing / TCPA / NY SHIELD requirements are unclear, conflicting, or absent from the canonical file:
 
 - **STOP and report.**
 - **Do NOT guess** from memory.
 - **Do NOT extrapolate** from one MLS's behavior to another's, or from one field's null-handling to another's.
 
-The 2026-04-30 incident — 7,594-row corruption — happened because `affirmPermission()` was assumed to be correct for `InternetEntireListingDisplayYN` (which is REBNY-pre-filtered, so null = displayable). The full incident is canonicalized at `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md`. Read it once if you have not already.
+The 2026-04-30 incident — 7,594-row corruption — happened because `affirmPermission()` was assumed to be correct for `InternetEntireListingDisplayYN` (which is REBNY-pre-filtered, so null = displayable). The display-gate behavior it produced is implemented in `lib/compliance/gates.ts` (`GateOptions.idxPlusPreFiltered`); re-verify it against live Cotality before relying on it. The incident narrative is in Git history.
 
 ---
 
@@ -126,10 +123,10 @@ Guardrail doc: `docs/operations/proof-first-guardrails.md`.
 
 ```bash
 npm run type-check          # 0 TypeScript errors required
-npm run compliance-check    # 93+ rules — BLOCKER+STRICT must be 0 failures
-npm run ucba:audit          # 145-rule UCBA — REGRESSIONS must be 0
-npm run idx:validate        # 32-section IDX Plus — 0 critical
-npm run crm:test            # if public/crm/** touched (172/172 smoke)
+npm run compliance-check    # BLOCKER+STRICT must be 0 failures
+npm run ucba:audit          # UCBA checklist — REGRESSIONS must be 0
+npm run idx:validate        # IDX Plus validator — 0 critical
+npm run crm:test            # if public/crm/** touched
 npm run ops:health          # before major deploys (see NEON.md)
 ```
 
@@ -149,23 +146,22 @@ CI runs the same chain via `.github/workflows/pr-check.yml`. Don't merge with re
 | Compliance implementation map | `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` |
 | Neon / Prisma / DB rules | `NEON.md` |
 | Repo source-of-truth charter | `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` |
-| Cotality/Trestle provider truth | Authorized live API + current provider documentation |
+| Cotality provider truth | Authorized live Cotality API + current provider documentation |
 | Vercel truth | Connected Vercel project + current official documentation |
 | Neon truth | Live Neon evidence reconciled to the Vercel-managed resource |
 
 Repo snapshots, CSV/XML/JSON mirrors, historical audits, dashboards and handoffs are supporting evidence. They do not outrank the Master, Execution State, or current provider/runtime evidence.
 
 
-## I. Historical archive pointers
+## I. Historical material
 
-- `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` — canonical incident report (the 7,594-row corruption)
-- `memory/AUDIT-2026-05-12.md` — pre-PR-#148 audit
+Git history is the archive. Dated audits, handoffs, plans, session logs and `memory/` records are evidence only; none of them is current instruction, and none may be revived as an authority.
 
 ---
 
 ## J. Codex findings — classify before acting
 
-Codex is a **static code-path reviewer only.** Codex reads the repo; it does **not** query `api.cotality.com`, does not see the live IDX Plus feed, does not see production Neon/Vercel state, and does not receive REBNY/Trestle notices. Claude must not treat Codex as live field authority. Claude independently verifies field truth with live tools **before** making any field-truth claim.
+Codex is a **static code-path reviewer only.** Codex reads the repo; it does **not** query `api.cotality.com`, does not see the live IDX Plus feed, does not see production Neon/Vercel state, and does not receive REBNY/Cotality notices. Claude must not treat Codex as live field authority. Claude independently verifies field truth with live tools **before** making any field-truth claim.
 
 **J.1 — Classify every Codex finding before action.** Exactly one of:
 
@@ -173,19 +169,19 @@ Codex is a **static code-path reviewer only.** Codex reads the repo; it does **n
 |---|---|
 | **A** | Static repo code-path issue (the code does X) |
 | **B** | Live Cotality field-truth issue (the feed contains / lacks / moved a field) |
-| **C** | REBNY / Trestle notice / compliance-rule issue |
+| **C** | REBNY / Cotality notice / compliance-rule issue |
 | **D** | Runtime / Vercel / Neon / env issue |
 | **E** | Generated artifact / validator-baseline issue |
 
 **J.2 — Codex is strong evidence for Class A only.** Accept a Codex Class-A finding as actionable when it is one of: missing `select` list · missing DTO path · fallback bug (e.g. `||` swallowing a legitimate `0`) · draft-gate / status-logic bug · route-local `select` mismatch · generated-artifact / test mismatch.
 
-**J.3 — Codex is NOT authority for Class B / C / D.** Do not act on, repeat, or write into a PR any Codex claim that: a field exists / is populated live on IDX Plus · a field moved to another resource · a REBNY/Trestle rule changed · production DB / env state is correct. For B/C/D, Codex output is a **hypothesis to verify**, never a conclusion.
+**J.3 — Codex is NOT authority for Class B / C / D.** Do not act on, repeat, or write into a PR any Codex claim that: a field exists / is populated live on IDX Plus · a field moved to another resource · a REBNY/Cotality rule changed · production DB / env state is correct. For B/C/D, Codex output is a **hypothesis to verify**, never a conclusion.
 
-**J.4 — B/C/D require independent proof.** Class B requires the authorized live Cotality/Trestle API plus the provider's current documentation for semantics/permissions/attribution; repo mirrors alone are insufficient. Useful live probes include `npm run trestle:audit-server`, `npm run cotality:verify`, and a live `$metadata` query. Class C requires the governing REBNY/Trestle notice/rule. Class D requires live Vercel/Neon evidence from the bound resource. No PR CI check proves live provider truth.
+**J.4 — B/C/D require independent proof.** Class B requires the authorized live Cotality API plus the provider's current documentation for semantics/permissions/attribution; repo mirrors alone are insufficient. Useful live probes include `npm run cotality:verify` and a live `$metadata` query. Class C requires the governing REBNY/Cotality notice/rule. Class D requires live Vercel/Neon evidence from the bound resource. No PR CI check proves live provider truth.
 
-**J.5 — Every Cotality field change must trace end-to-end** (each link confirmed, not assumed): live field exists → selected from Trestle → route-local select lists checked → mapped → `raw_data` preserved if needed → public DTO **DB path** checked → public DTO **Trestle-direct path** checked → rendered if public → form save/hydrate checked if CRM → legacy fallback zero-safe if numeric → tests added.
+**J.5 — Every Cotality field change must trace end-to-end** (each link confirmed, not assumed): live field exists → selected in the Cotality `$select` → route-local select lists checked → mapped → `raw_data` preserved if needed → public DTO **DB path** checked → public DTO **Cotality-direct path** checked → rendered if public → form save/hydrate checked if CRM → legacy fallback zero-safe if numeric → tests added.
 
-**J.6 — Every generated-artifact PR (Class E) must prove:** the generator actually ran · source files unchanged unless explicitly in scope · generated "unknown" count is zero or explicitly accepted · `npm run test:rls` passes before merge. Note: **`test:rls` is NOT in PR CI today** (`.github/workflows/pr-check.yml` does not run it) — run it by hand and state the result, or state plainly that it was not run.
+**J.6 — Every generated-artifact PR (Class E) must prove:** the generator actually ran · source files unchanged unless explicitly in scope · generated "unknown" count is zero or explicitly accepted · the artifact's own live drift check passes before merge (for `data/cotality-enums.live.json`: `npm run cotality:verify` against live Cotality). If that check is not in PR CI, run it by hand and state the result, or state plainly that it was not run.
 
 **J.7 — Status / compliance gates use explicit status semantics:** normalize draft-like statuses before comparing · Draft / Incomplete / empty must not be blocked by publish-only gates · public / display-ready statuses stay **fail-closed** · do not reuse a narrow helper for a broader compliance gate unless the status sets are **proven** equivalent.
 
@@ -195,7 +191,7 @@ Codex is a **static code-path reviewer only.** Codex reads the repo; it does **n
 
 ## Operational tips
 
-- **For a quick "what's the project state right now"** → use the GitHub connector/API to read current `main`, open PRs, current PR HEADs, Actions, and the latest repo handoff/audit. Do not consult a Desktop checkout or assume the audit named in an older agent doc is still the latest.
+- **For a quick "what's the project state right now"** → read `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md`, then use the GitHub connector/API to read current `main`, open PRs, current PR HEADs and Actions. Do not consult a Desktop checkout or treat a dated handoff/audit as current state.
 - **For a compliance question** → `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` first, then the canonical file it points to.
 - **For "is there a test for X"** → check `tests/runtime/` and `lib/**/__tests__/` first; the test name usually matches the feature.
 - **For Neon / Prisma / cron-DB work** → `NEON.md` is non-negotiable reading.

@@ -3,7 +3,7 @@
 > **Status: DESIGN ONLY — NOT AUTHORIZED FOR IMPLEMENTATION.**
 > Dated 2026-07-10. Extends and *corrects* the prior "Mallan Search & Intelligence — Architecture Analysis + Design Plan" (Backend-Search analysis, main @ `2a06e0a0`/#492).
 > This document changes **no** application code, Prisma schema, migration, Vercel config, or production data. All entity/field names below are **reserved logical names**, not a migration.
-> Implementation of any supplemental / external-inventory capability remains **HELD** (`memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`); syndication remains **HELD**. Nothing here releases a hold.
+> Supplemental / external-inventory implementation is governed by Master §4.5 and is not authorized by this addendum; syndication remains **HELD**. Current holds are recorded in the Execution State; nothing here releases a hold.
 
 ### Revision history
 - **Rev 1** (2026-07-10) — initial addendum.
@@ -380,7 +380,7 @@ DEFERRED: i18n — only after A, B, C stable.
 4. **Internationalization is deferred** until search, supplemental inventory, comps, and factual reports are stable.
 
 ## 11. Compliance & holds register
-- **External-inventory implementation HELD** (`memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`); this addendum is design only and does not release it.
+- **External-inventory implementation** is governed by Master §4.5 and the current Execution State holds; this addendum is design only and authorizes nothing.
 - **Syndication / partner export HELD** — supplemental inventory is private/internal and is **not** syndicated or publicly displayed.
 - **Licensing/ToS**: no supplemental ingestion or persistence without an approved `SourceLicenseProfile` whose `SourcePermissionCapabilities` permit the specific use (G2). Cotality field availability never implies display/report/export permission.
 - **Fair Housing / advertising / FARE**: any displayed supplemental text/media passes the existing Fair Housing scanner and (for rentals) FARE fields before broker-facing render.

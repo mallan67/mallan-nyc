@@ -6,7 +6,7 @@
 **Companion charter:** `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md`
 **Compliance source of truth:** `CLAUDE.md` and `compliance/README.md` (entry point to the tracked `compliance/` directory)
 **Companion design (separate repo):** `mallan-marketing-plans/2026-05-14-public-records-intelligence-design.md`
-**Hold record this charter does NOT release:** `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`
+**Supplemental-inventory authority this charter does NOT change:** Master §4.5; current holds are recorded in `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` (the 2026-04-30 hold record is retired; Git history)
 
 ---
 
@@ -288,7 +288,7 @@ This charter operates within the rules in `CLAUDE.md` and the tracked `complianc
 
 ### 7.3 — Relationship to the external-inventory hold
 
-This charter does **not** release the hold documented in `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`. The external-inventory spec remains parked. Public-records intelligence is a distinct workstream and its sequencing under Article 1.19 is independent of the external-inventory release conditions.
+This charter does **not** authorize supplemental / external-inventory implementation; that is governed by Master §4.5 and the current Execution State holds. The 2026-04-30 external-inventory spec and hold record are retired (Git history). Public-records intelligence is a distinct workstream and its sequencing under Article 1.19 is independent of the external-inventory release conditions.
 
 ### 7.4 — Relationship to in-flight design work
 
@@ -404,7 +404,7 @@ _None yet. This is the initial charter._
 | Phase B 13-scanner system (extended to 15) | `mallan-marketing-plans/2026-05-12-townhouse-hunter-completion-plan.md` |
 | Phase A compliance pipeline | `mallan-marketing-plans/2026-05-12-mallan-marketing-phase-a-plan.md` |
 | Active follow-up (master plan + holds) | `CLAUDE.md` top block + `memory/REFACTOR-2026-04-25.md` |
-| External-inventory hold (NOT released by this charter) | `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md` |
+| Supplemental-inventory authority (not changed by this charter) | Master §4.5; current holds: Execution State |
 | Neon / Prisma / migration discipline | `NEON.md` |
 
 ---

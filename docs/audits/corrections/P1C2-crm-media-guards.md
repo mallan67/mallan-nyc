@@ -1,7 +1,7 @@
 # Correction Trace Record — `P1C2` crm: media guards (tombstoneVanished + media-order)
 
 > **Status: IN-PR.** Phase-1 media loop-closure Correction 2 (plan:
-> `docs/superpowers/plans/2026-06-10-phase1-media-loop-closures-plan.md`). Maya queue position 3
+> the 2026-06-10 Phase-1 media loop-closures plan (retired; Git history)). Maya queue position 3
 > ("crm: guards … right after #382"). **Code fix only — NO schema, NO DB writes at fix time, NO
 > R2 ops, NO backfill, NO cron/env/.github, NO public/crm frontend.** PR merges only AFTER the
 > RC5 (#382) post-deploy proof completes (one write/merge lane).

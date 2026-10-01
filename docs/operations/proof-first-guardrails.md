@@ -248,15 +248,14 @@ satisfy the rule.
 This document layers on top of the existing project rules. Every audit must
 ALSO honor:
 
-- **`CLAUDE.md`** — project instructions (authoritative)
+- **`MALLAN-PLATFORM-MASTER-PLAN.md`** — sole product/business/system authority
+- **`docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md`** — current execution state (holds, stop point)
+- **`CLAUDE.md`** — Claude-specific operating instructions (subordinate to the Master)
 - **`NEON.md`** — Neon / Prisma / DB / migration discipline
 - **`docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md`** — canonical files by domain; no parallel-name files
-- **`memory/REFACTOR-2026-04-25.md`** — master plan PR sequence; PR 4 status
-- **`memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`** — hold record + release conditions
-- **`memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md`** — incident closeout checklist
 - **`scripts/ci/repo-hygiene.mjs`** — 8 enforcement rules + ALLOW_* bypasses
 - **`compliance/rules/ucba-audit-checklist.json`** — 145 UCBA 2026 rules
-- `.claude/skills/rebny-compliance/SKILL.md` — REBNY compliance source-of-truth
+- **`docs/compliance/COMPLIANCE-CANONICAL-INDEX.md`** — compliance implementation map (per-area canonical files)
 
 When this document conflicts with one of the above, the more conservative rule
 wins. When in doubt, ask before acting.

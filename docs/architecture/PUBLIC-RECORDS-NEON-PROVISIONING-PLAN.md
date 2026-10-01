@@ -421,7 +421,7 @@ Per charter Article 1.20: merging this plan does not authorize provisioning. Eac
 | Neon operational discipline (primary project) | `NEON.md` |
 | Branch-prune pattern | **NOT A REUSE MODEL — DELETED 2026-09-20.** The former route, CLI and library called the Neon control plane directly, which is no longer an authorized Mallan path. |
 | Existing ops-health pattern (reuse model) | `scripts/ops-health.js` |
-| External-inventory hold (NOT released by this plan) | `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md` |
+| Supplemental-inventory authority (not changed by this plan) | Master §4.5; current holds: Execution State |
 | REBNY compliance rulebook | `CLAUDE.md` (root) + `compliance/README.md` (entry point to `compliance/` directory: `UCBA-2026.md`, `IDX-VOW-DISPLAY-RULES.md`, `NYC-NYS-REQUIREMENTS.md`, `THIRD-PARTY-AND-FEED-GOVERNANCE.md`) + `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` (field authority order in §0) + `data/UCBA-2026-Requirements.md` |
 
 ---

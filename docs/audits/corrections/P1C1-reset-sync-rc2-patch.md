@@ -1,7 +1,7 @@
 # Correction Trace Record — `P1C1` reset-sync RC2 patch
 
 > **Status: IN-PR.** Phase-1 media loop-closure Correction 1 (plan:
-> `docs/superpowers/plans/2026-06-10-phase1-media-loop-closures-plan.md`, Maya queue item after
+> the 2026-06-10 Phase-1 media loop-closures plan (retired; Git history), Maya queue item after
 > #384). **Code fix only — NO schema, NO DB writes at fix time, NO R2 ops, NO backfill, NO
 > cron/env, NO public/crm frontend.**
 

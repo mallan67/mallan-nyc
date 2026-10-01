@@ -8,9 +8,7 @@
 - CLAUDE.md (§A hard rules, §C holds, §D compliance-first, §E fail-closed, §F proof-first)
 - docs/compliance/COMPLIANCE-CANONICAL-INDEX.md (18 numbered areas)
 - memory/REFACTOR-2026-04-25.md (master refactor plan)
-- docs/superpowers/specs/2026-04-30-external-inventory-listings-design.md (701 lines, HELD)
-- docs/superpowers/specs/2026-04-30-sponsor-database-design.md (1003 lines, HELD)
-- memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md (hold record)
+- the 2026-04-30 external-inventory and sponsor-database specs and their hold record (retired; Git history; superseded by Master §4.5)
 - docs/backend-crm-current-gap-audit-2026-05-18.md (Class A/B/C/D gap list)
 - docs/audits/exclusive-launch-readiness-audit-2026-05-20.md (A1–A4 closed + LIVE)
 - docs/idx/post-reconciliation-tightening-audit-2026-05-20.md (W1–W4, B2–B6, O1–O5)
@@ -39,7 +37,7 @@ Two parked specs (701-line external-inventory + 1003-line sponsor-database, both
 
 1. **CRM hardening** (no schema): 8 Class-A defects from the 2026-05-18 audit + 5 ranked items from the 2026-05-16 workflow audit can land before any external/sponsor work.
 2. **Agent-search shell** (no schema): a real agent-search UI + ranking + per-agent scoping over today's `Listing` table can ship before PR 5B.
-3. **Tiered inventory** (schema, HELD): Tier 2 (StreetEasy-scraped non-RLS) and Tier 3 (Schedule A sponsor) require explicit Maya approval per `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`. Both specs are reviewed and aligned; PR 5B does NOT block them but the master plan parks them after PR 4 (media metadata) closeout.
+3. **Tiered inventory** (schema, HELD): Tier 2 (StreetEasy-scraped non-RLS) and Tier 3 (Schedule A sponsor) require explicit Maya approval per the retired 2026-04-30 hold record (Git history). Both specs are reviewed and aligned; PR 5B does NOT block them but the master plan parks them after PR 4 (media metadata) closeout.
 
 PR 5B (the `ListingSearchProjection` reader swap) remains held until W4 closes (closed-list import script — only writer not on Phase A wiring) and a soak-watch passes.
 
@@ -300,7 +298,7 @@ TENANT-DEAL-FORM submit         (broker approve/reject)           (broker approv
 
 ### D.3 Commission confirmation (post-NAR settlement — applies to ALL listings)
 
-Per `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md` §14b open-question, Maya's correction 2026-04-30:
+Per the retired 2026-04-30 hold record (Git history) §14b open-question, Maya's correction 2026-04-30:
 - Post-Sitzer/Burnett (Aug 2024), buyer-broker compensation is no longer on MLS feeds.
 - Buyer-rep agreements are mandatory before touring.
 - Compensation has multiple sources per transaction (seller concession + listing co-broke if any + buyer payment + closing credits).
@@ -1049,7 +1047,7 @@ Suggested relevance score combining:
 
 | # | PR | Scope | Dependency |
 |---|---|---|---|
-| 15 | **PR-T2-1** | External-inventory schema (`external_inventory_listings`, `external_inventory_client_shares`, `external_inventory_pii_reveal_log`) + Prisma migration | Maya approval per `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md` |
+| 15 | **PR-T2-1** | External-inventory schema (`external_inventory_listings`, `external_inventory_client_shares`, `external_inventory_pii_reveal_log`) + Prisma migration | Maya approval per the retired 2026-04-30 hold record (Git history) |
 | 16 | **PR-T2-2** | External-inventory CRM API + UI (Add Off-Market modal, list, detail, reveal-gate, share) | PR-T2-1 |
 | 17 | **PR-T2-3** | Agent-search T2 toggle + `include_external_inventory` param + non-RLS disclaimer stamping | PR-AS-2 + PR-T2-2 |
 | 18 | **PR-T2-4** | Reverse boundary pin CI test (`lib/external-listings/**` can't import `lib/search/**`) | PR-T2-1 |
@@ -1115,7 +1113,7 @@ The agent search shell built in Lane 2 will need a single-line reader swap when 
 - T2/T3 tiered inventory schema + migration (HELD; requires Maya approval AND should NOT compete with PR 5B for Neon writes; sensible to land T2/T3 schema AFTER PR 5B soak passes)
 - Geo / PostGIS adoption (deferred — needs schema + Neon extension)
 - Sponsor ETL cron + dry-run (HELD)
-- `CommissionConfirmation` model (HELD — depends on Maya's NAR-post-settlement decision per `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md` §14b)
+- `CommissionConfirmation` model (HELD — depends on Maya's NAR-post-settlement decision per the retired 2026-04-30 hold record (Git history) §14b)
 - Public `/exclusives` page (per Mallan Exclusives syndication plan §7) — held behind Mallan exclusive launch metrics
 
 ---
@@ -1162,7 +1160,7 @@ The agent search shell built in Lane 2 will need a single-line reader swap when 
 - ✅ Report/doc cleanup (this audit + post-recon Phase D observability) — Lane 6
 - ✅ Agent search shell (Lane 2) — 4 PRs, no schema
 - ✅ Lead plugin (Lane 4) — 2 PRs, no schema
-- ⚠️ External / sponsor architecture (Lane 3) — 11 PRs, schema, **HELD per `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`** → requires Maya approval
+- ⚠️ External / sponsor architecture (Lane 3) — 11 PRs, schema, **HELD per the retired 2026-04-30 hold record (Git history)** → requires Maya approval
 - ⚠️ Schema / migration PRs only after Maya approval
 - ⚠️ PR 5B reader swap (Lane 5) — LATER, NOT NOW, depends on W4 close + soak
 

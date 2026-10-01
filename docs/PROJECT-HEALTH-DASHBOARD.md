@@ -50,7 +50,7 @@ row. Do **not** mark 🟢 without a captured proof (log line, URL probe, validat
 | Area | Status | Verified (UTC) | Evidence / how to refresh |
 |------|--------|----------------|---------------------------|
 | Vercel production deploy | 🟡 | 2026-07-31 | Vercel API: production is **`dpl_BVgQhFFdiTf1RU77iHFppvZ5PuSk`** on **`e113a1ef`**, `target: production`, holding `mallan.nyc` / `www.mallan.nyc` / `mallannyhomes.com`. Current `main` is `04db1b99`, so **the alias is pinned to an older SHA** — but `git diff e113a1ef 04db1b99` touches **only** the issue registry and this dashboard (6 net lines, **zero** app/lib/prisma/workflow/env/cron/config). Production and `main` are **runtime-source equivalent**; the un-advanced alias is a **release-control** concern, cause NOT established. Supersedes the 2026-07-02 `dpl_2o8LW…`/`858da234` entry |
-| Vercel runtime errors (24h/7d) | 🔴 | 2026-07-31 | Vercel MCP `get_runtime_errors` (`since=24h`, **single capture 2026-07-31, 03:20Z–03:29Z**). **PRODUCTION (`dpl_BVgQ…`):** `[public-cache]` degrade-to-live ×12 / 11 users — Neon connection-pool timeout (limit 5) + pooler unreachable; media-proxy aborted ×7; `P1017` ×4. **PREVIEW-ONLY, NOT PRODUCTION (`dpl_29Km…`, PR #149 branch, `target: null`):** `DATABASE_URL` missing on `/api/market` ×7 and `/api/listings/similar` ×6 — these fail before connecting and are excluded from production triage. Supersedes the untriaged 2026-07-28 count-only capture, which mixed both. Detail: `docs/operations/site-audit-handoff-2026-07-01.md` → 2026-07-31 block | Vercel MCP |
+| Vercel runtime errors (24h/7d) | 🔴 | 2026-07-31 | Vercel MCP `get_runtime_errors` (`since=24h`, **single capture 2026-07-31, 03:20Z–03:29Z**). **PRODUCTION (`dpl_BVgQ…`):** `[public-cache]` degrade-to-live ×12 / 11 users — Neon connection-pool timeout (limit 5) + pooler unreachable; media-proxy aborted ×7; `P1017` ×4. **PREVIEW-ONLY, NOT PRODUCTION (`dpl_29Km…`, PR #149 branch, `target: null`):** `DATABASE_URL` missing on `/api/market` ×7 and `/api/listings/similar` ×6 — these fail before connecting and are excluded from production triage. Supersedes the untriaged 2026-07-28 count-only capture, which mixed both. Detail: the 2026-07-31 block of the retired 2026-07-01 site-audit handoff (Git history) | Vercel MCP |
 | Live Cotality ingestion health | 🟢 | 2026-07-01 (handoff) | recent `/api/cron/idx-sync` runs fetched 148/159 records, 0 sync errors (Vercel logs); skip sources traced (backlog OPS notes) — reconfirm each cycle |
 | Media pipeline | 🟢 (Regression Watch) | 2026-07-03 | #465 rehydration guard MERGED + deployed + live-baselined: 2,032/2,032 archived rows stripped+hidden, population re-verified through 07-03 03:00 run (registry RW-004, watch to 2026-07-09). OPS-008 footgun RESOLVED via #471 (route deleted; script --execute refuses; deferred tail: route-catalog regen, tracked in OPS-008 row — the repo-audit-bot guardrail lines were removed by the 2026-07-25 Sentinel decommission) |
 | Search projection | 🟡 | 2026-07-01 | dual-write is best-effort/non-transactional (backlog OPS-011) — heal before any PR-5B reader swap; PR-5B HELD |
@@ -75,7 +75,7 @@ row. Do **not** mark 🟢 without a captured proof (log line, URL probe, validat
 
 ## Open production risks (source: handoff snapshot)
 
-Canonical detail lives in [`docs/operations/site-audit-handoff-2026-07-01.md`](operations/site-audit-handoff-2026-07-01.md).
+Canonical issue detail lives in [`docs/PLATFORM-ISSUE-REGISTRY.md`](PLATFORM-ISSUE-REGISTRY.md); the dated 2026-07-01 site-audit handoff is retired (Git history).
 
 - ✅ RESOLVED (production) 2026-07-29 — **OPS-024**: PR #587 Phase 1A froze Property ingestion for 4 cycles (19:10–19:40 UTC; 500 rows/cycle rejected `missing_listing_key`, 0 processed). Vercel rolled back to `e113a1ef`; ingestion recovered 19:50. `main` reverted by PR #588 (tree byte-identical to `e113a1ef`). Corrected Phase 1A pending as a separate draft PR. Secondary **OPS-025** (`mls_id` possibly null feed-wide) is pre-existing and NOT in scope.
 - ✅ RESOLVED 2026-07-02 — PR #465 merged after 4 Codex rounds on current HEAD; guard live on `858da234`; now registry **RW-004** regression watch (to 2026-07-09).
@@ -296,7 +296,7 @@ db-keepalive redundancy separately (decision, not a fix now).
 
 1. `npm run health:probe` — refreshes the auto tier (pass the canonical `DATABASE_URL_UNPOOLED` to fill DB rows).
 2. Update any assessed-tier rows you actually verified this session (with evidence). Leave the rest ⚪.
-3. Update [`docs/operations/site-audit-handoff-YYYY-MM-DD.md`](operations/) with the session narrative + exact stop point.
+3. Record the session narrative + exact stop point in the active pull request and, when the stage, holds or stop point change, in [`docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md`](operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md). Do not create dated handoff files.
 4. Do not mark 🟢 without proof. Do not rely on chat memory.
 
 **OPS-023** — P2 · Open · lifecycle-policy decision required.

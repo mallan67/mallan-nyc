@@ -962,7 +962,7 @@ occurrences, re-read 2026-09-22). The two files disagree on the protocol.
 
 **Correction 2026-09-22 — the OPS-026 reservation is WITHDRAWN.** It was recorded here as
 unused because it was absent from the registry on `main`. That check was too narrow:
-`docs/operations/site-audit-handoff-2026-07-01.md` records `OPS-026` as an issue that was
+the dated 2026-07-01 site-audit handoff (retired in the #647 cleanup; Git history) records `OPS-026` as an issue that was
 *withdrawn* in the 2026-07-01 registry consolidation. A withdrawn ID is still a used ID, and
 reusing it would conflate two unrelated issues in every search and closure record. The
 one-way-door defect therefore carries no registry ID until a separately authorized

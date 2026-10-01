@@ -63,7 +63,7 @@ describe("agent authority docs stay on live sources", () => {
 
     const agents = read("AGENTS.md");
     expect(agents).toContain("optional local developer helper");
-    expect(agents).toContain("authorized live Cotality/Trestle contract");
+    expect(agents).toContain("authorized live Cotality contract");
   });
 
   test("Execution State does not create a parallel defect-ID registry", () => {

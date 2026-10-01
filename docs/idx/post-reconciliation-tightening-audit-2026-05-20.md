@@ -111,7 +111,7 @@ The following remain held by prior Maya directives and are **not unblocked by th
 | Item | Status | Source of hold |
 |---|---|---|
 | **PR 5B** (refactor/05-listing-search-projection — reader swap from `listings.idx_display_yn` → `listing_search_projection`) | NOT-STARTED, held | `memory/REFACTOR-2026-04-25.md` master plan + recurring Maya instruction across sessions |
-| **External-inventory implementation** (parked behind PR 5B closeout + Maya approval) | HELD | `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md` |
+| **External-inventory implementation** (parked behind PR 5B closeout + Maya approval) | HELD (2026-05-20) | retired 2026-04-30 hold record (Git history); now governed by Master §4.5 |
 | **Sentinel changes** (workflow / agent / skill / cron) | UNTOUCHED | Maya recurring directive |
 | **Schema migrations** (Prisma) | NONE planned in Phase A-F | `NEON.md` discipline; all 6 phases above are no-migration |
 | **Env / Neon / cron config / CRM / agent / skill / workflow changes** | NONE planned by this audit | Maya recurring directive |
