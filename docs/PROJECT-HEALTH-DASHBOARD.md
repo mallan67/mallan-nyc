@@ -1,7 +1,7 @@
 # Project Health Dashboard — mallan.nyc
 
-> **Living operational status for the live Cotality/Trestle synchronization platform.** Shared source
-> of truth for **Claude · Codex · ChatGPT** (see [`AGENTS.md`](../AGENTS.md)). This is not "an IDX
+> **Living operational status for the live Cotality synchronization platform**, shared by
+> **Claude · Codex · ChatGPT** (see [`AGENTS.md`](../AGENTS.md)); current execution state lives in `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` under `MALLAN-PLATFORM-MASTER-PLAN.md`. This is not "an IDX
 > website" — it is a live sync platform with downstream consumers: search, CRM, portal, media,
 > compliance, archive, email, contact.
 
@@ -59,7 +59,7 @@ row. Do **not** mark 🟢 without a captured proof (log line, URL probe, validat
 | Email / notifications | 🟡 | 2026-07-02 | dispatcher gap real in code (BIZ-005, now **P2**) but LIVE COUNT 2026-07-02: **zero email/sms rows ever accumulated** (30 in_app/pending only — H-002 resolved). Unsubscribe suppression divergence still open (BIZ-012, P1) |
 | Contact funnel | 🟡 | 2026-07-03 | **H-001 DISPROVED live (2 ways):** suspect columns nullable AND a new lead+inquiry SUCCEEDED 06-28 23:01:52 (same window as the errors). H-004 (transient 06-28 connectivity blip) corroborated → Medium-High. Funnel idle since (0 submissions/5d; 51 leads ever). Close via one approved controlled submission (OPS-001) |
 | Open Houses | 🟢 (Regression Watch) | 2026-07-01 | twin-safe display fixes #463/#464 merged; SL-0007 ↔ RLS twin verified — registry RW-001: watch until 2026-07-08 (7d clean) before closing |
-| Compliance validators | 🟢 | 2026-07-03 | **idx:validate exit 0 / 0 critical on main@ab56ecd8 (QUAL-006 Verified Fixed via #471 — §B baseline restored)** · type-check 0 · rls 0 err/1 warn · compliance-check 0 BLOCKER+STRICT (QUAL-007 addressed by PR #545 — `ethics_training_gate` corrected to an administrative RECORD, not an auth gate; workflow completeness 11/11 locally, pending merge) · ucba 46/46, 0 REGRESSIONS · crm:test 39/39 |
+| Compliance validators | 🟢 | 2026-07-03 | **idx:validate exit 0 / 0 critical on main@ab56ecd8 (QUAL-006 Verified Fixed via #471 — §B baseline restored)** · type-check 0 · compliance-check 0 BLOCKER+STRICT (QUAL-007 addressed by PR #545 — `ethics_training_gate` corrected to an administrative RECORD, not an auth gate; workflow completeness 11/11 locally, pending merge) · ucba 46/46, 0 REGRESSIONS · crm:test 39/39 |
 | Security | ⚪ | — | security-agent PASS required before any deploy touching auth/routes/env |
 | Neon health (compute/pooler) | ⚪ | 2026-07-02 | readings taken 2026-07-02 through the retired direct CLI, since deleted: compute FIXED 0.25 CU min/max (max 180 CU-hr/mo < 300 baseline → **$19 flat, no overage**); history retention **6h** (previously documented as 7d; NEON.md §2 corrected 2026-07-02 — OPS-016); billed storage 1,493 MB (14.6% of cap); **1 branch (main only)** — the Gate-6 rollback branch was auto-pruned 2026-07-03 (OPS-022; a fresh protected one is a 5K prerequisite). keepalive 500s = OPS-002/OPS-015 noise |  UNVERIFIED: dated reading, not exposed through the authorized Vercel-managed path |
 | Runtime SODA/DOB queries | 🟡 | 2026-07-01 (handoff) | `seller-scoring` (`job_filed_date`), `demand-signals` (`community_board` grouping) 200-with-warnings |

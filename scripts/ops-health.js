@@ -3,7 +3,7 @@
 // Run on demand (or as a weekly cron) to see:
 //   - Storage: DB size, top tables, growth velocity, listings/listing_media dead-tuple ratio
 //   - Sync: last run status, error rate, watermark age (Property cron)
-//   - Media sync (added 2026-05-22 per docs/incidents/2026-05-21-chronic-media-sync-root-cause.md):
+//   - Media sync (added 2026-05-22 after the 2026-05-21 media-sync incident):
 //       * media_sync_state cursor staleness (RC1 — boundary-cluster deadlock detector)
 //       * listing_media coverage of IDX-displayable + R2 cached coverage
 //       * Public image usability (first image: R2 / Cotality proxy / empty)
@@ -18,8 +18,7 @@
 //   indefinitely. This script does NOT probe that integration (it is read-only
 //   against Neon only), but operators should be aware that `gh pr checks`
 //   reporting "Vercel: pending" forever is a documented chronic drift, not
-//   an actual build failure. See docs/incidents/2026-05-21-chronic-media-sync-root-cause.md
-//   §RC8 + Path B for the diagnostic chain and the recommended Vercel-side fix.
+//   an actual build failure (2026-05-21 incident §RC8; the record is in git history).
 //
 // SEPARATE-INCIDENT clarification (Maya, 2026-05-22):
 //   The Vercel/Neon preview-branch stale integration and the media-cron
@@ -324,7 +323,7 @@ async function run() {
   // ─── Media Sync Health (added 2026-05-22) ────────────────────────
   // Read-only checks against `media_sync_state`, `listing_media`, `listings`,
   // and `audit_events`. Catches the chronic patterns documented in
-  // docs/incidents/2026-05-21-chronic-media-sync-root-cause.md:
+  // the 2026-05-21 media-sync incident (record retired to git history):
   //   RC1 — Phase 1 boundary-cluster cursor deadlock
   //   RC3 — Phase 3 R2 mirror retry purgatory
   //   RC4 — Storage bloat (dead-tuple, see Storage extension below)
@@ -357,7 +356,7 @@ async function run() {
         report.issues.push({
           level: 'critical',
           category: 'media-sync',
-          msg: `media-sync cursor (last_photos_change) is ${cursorAgeH.toFixed(1)}h stale (> ${THRESHOLDS.media_cursor_freeze_hours}h) — likely Phase 1 boundary-cluster deadlock; see docs/incidents/2026-05-21-chronic-media-sync-root-cause.md RC1`,
+          msg: `media-sync cursor (last_photos_change) is ${cursorAgeH.toFixed(1)}h stale (> ${THRESHOLDS.media_cursor_freeze_hours}h) — likely Phase 1 boundary-cluster deadlock (2026-05-21 incident class RC1)`,
         });
       } else if (cursorAgeH !== null && cursorAgeH > THRESHOLDS.media_cursor_stale_hours) {
         report.issues.push({
@@ -615,7 +614,7 @@ async function run() {
       report.issues.push({
         level: 'critical',
         category: 'storage',
-        msg: `listings table dead-tuple ratio ${listingsHealth.dead_pct}% (critical >= ${THRESHOLDS.listings_dead_tuple_critical_pct}%) — VACUUM FULL needed; see docs/incidents/2026-05-21-chronic-media-sync-root-cause.md RC4`,
+        msg: `listings table dead-tuple ratio ${listingsHealth.dead_pct}% (critical >= ${THRESHOLDS.listings_dead_tuple_critical_pct}%) — VACUUM FULL needed (2026-05-21 incident class RC4)`,
       });
     } else if (listingsHealth && Number(listingsHealth.dead_pct) >= THRESHOLDS.listings_dead_tuple_warn_pct) {
       report.issues.push({

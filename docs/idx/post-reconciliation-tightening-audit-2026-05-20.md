@@ -10,7 +10,7 @@
 | **Commit at time of audit** | `2a00ccdd` (PR #148 merge) |
 | **Soak watch state** | drift=0; daily 03:00/03:30/04:00 UTC critical-cron window cleared clean (data-retention id 22953, feed-reconcile audit_events 271→304, branch-prune ok) |
 | **PR #148 outcome** | 1,889 rows reconciled, 0 errors, post-flight drift=0, no residual |
-| **Sources** | 3 parallel research agents + `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` + `memory/REFACTOR-2026-04-25.md` + `docs/backend-crm-current-gap-audit-2026-05-18.md` + live `ops:health` + live drift probe |
+| **Sources** | 3 parallel research agents + `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` + `memory/REFACTOR-2026-04-25.md` + the 2026-05-18 backend/CRM gap audit (retired to git history) + live `ops:health` + live drift probe |
 
 ---
 
@@ -34,7 +34,7 @@ Source: writer-guard bypass audit (read-only investigation of every code path th
 |---|---|---|---|---|
 | **W1** | `app/api/crm/listings/[id]/status/route.ts:170-181` | CRM status PATCH transitions a listing to a terminal status (`Closed`/`Cancelled`/`Expired`/`Withdrawn`/`Sold`) without flipping `idx_display_yn=false` and without dual-writing the projection. The Listing row keeps `idx_display_yn=true` with a terminal status until the next `data-retention` cron at 03:00 UTC. | Cleaned up by `data-retention` cron within ≤24h | **24h public-facing leakage on terminal listings** once readers trust projection |
 | **W2** | `app/api/cron/listing-expiration/route.ts:206-213` | Cron sets `status: "Expired"` and bumps `modification_timestamp` but never sets `idx_display_yn=false` and never dual-writes the projection. The bumped `modification_timestamp` is the exact pattern that caused the original ping-pong incident — cron 03:00 cleans up, next sync re-emits, projection out of sync. | Cleaned up by `data-retention` cron within ≤24h | Same 24h leakage **plus** re-emit ping-pong risk |
-| **W3** | `app/api/crm/listings/route.ts:340-345` (CRM POST) + `app/api/crm/listings/[id]/route.ts:143-188` (CRM PATCH) | Both routes have the terminal-status guard on `idx_display_yn` (PR #112/#113 carried into the CRM code path), but **neither dual-writes the projection.** Every CRM-authored listing (Mallan exclusives) is created/updated only on the `listings` table; projection rows are created lazily by the next `lib/idx/sync.ts` run — but `lib/idx/sync.ts` only writes Trestle-sourced rows. Mallan exclusives may never get a projection row from the sync path. | Mallan exclusives may have NO projection row until manual `npm run ops:projection-backfill` | **Mallan exclusives invisible or stale on public surfaces** once readers trust projection |
+| **W3** | `app/api/crm/listings/route.ts:340-345` (CRM POST) + `app/api/crm/listings/[id]/route.ts:143-188` (CRM PATCH) | Both routes have the terminal-status guard on `idx_display_yn` (PR #112/#113 carried into the CRM code path), but **neither dual-writes the projection.** Every CRM-authored listing (Mallan exclusives) is created/updated only on the `listings` table; projection rows are created lazily by the next `lib/idx/sync.ts` run — but `lib/idx/sync.ts` only writes Cotality-sourced rows. Mallan exclusives may never get a projection row from the sync path. | Mallan exclusives may have NO projection row until manual `npm run ops:projection-backfill` | **Mallan exclusives invisible or stale on public surfaces** once readers trust projection |
 | **W4** | `scripts/import-closed-from-trestle.ts:316-321` | Closed-listing import script hardcodes `idx_display_yn: true, internet_entire_listing_display_yn: true, internet_address_display_yn: true` for terminal-status rows, relying on the next `data-retention` cron tick to flip the flag. Between the script run and the cron, the projection has `idx_display_yn=true` on a closed row — exactly the drift class PR #148 just cleaned up. | Cleaned up by `data-retention` cron within ≤24h | Same 24h leakage |
 
 **Out of scope (no actively-broken writers found):**
@@ -53,7 +53,7 @@ Source: writer-guard bypass audit (read-only investigation of every code path th
 
 ## 3. Backend safety gaps (B2 / B6 / B4 / B3)
 
-Source: backend gap-audit follow-up (verification of the 10 Class-A items from `docs/backend-crm-current-gap-audit-2026-05-18.md` lines 449–466). Of the 10 items: 1 SHIPPED (PR #146 deal-form submit wiring), 1 verified already correct (auth invite TTL), 2 PARTIAL, 6 NOT-STARTED. The four below are the highest-ROI of the open items.
+Source: backend gap-audit follow-up (verification of the 10 Class-A items from the 2026-05-18 backend/CRM gap audit, retired to git history). Of the 10 items: 1 SHIPPED (PR #146 deal-form submit wiring), 1 verified already correct (auth invite TTL), 2 PARTIAL, 6 NOT-STARTED. The four below are the highest-ROI of the open items.
 
 | ID | Item | Status | Risk class | Regulatory hook |
 |---|---|---|---|---|
@@ -172,7 +172,6 @@ Grounding documents (read but not modified):
 
 - `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` — incident report + architectural debt (H1/H2/H3/M1/M2)
 - `memory/REFACTOR-2026-04-25.md` — master plan (PR 5 still NOT_STARTED)
-- `docs/backend-crm-current-gap-audit-2026-05-18.md` — original Class-A enumeration
 
 ---
 
@@ -195,4 +194,4 @@ Grounding documents (read but not modified):
 | NY SHIELD Act §899-bb | `CLAUDE.md` Data Retention Policies |
 | Master plan status | `memory/REFACTOR-2026-04-25.md` |
 | 2026-04-30 incident architectural follow-ups | `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md:155-208` |
-| Class-A audit source | `docs/backend-crm-current-gap-audit-2026-05-18.md:449-466` |
+| Class-A audit source | 2026-05-18 backend/CRM gap audit (retired to git history) |

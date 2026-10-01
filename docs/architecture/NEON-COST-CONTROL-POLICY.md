@@ -179,7 +179,7 @@ Any PR touching these files MUST include a cost-impact analysis in the PR body. 
 |---|---|
 | `prisma/schema.prisma` | Every new column / table / index adds storage. Wide columns + JSON-typed columns are the worst offenders |
 | `prisma/migrations/**` | Same — every `ADD COLUMN` is recurring storage |
-| `lib/idx/sync.ts` | Controls Trestle → DB write shape. PR #75 slim-writer pattern cut listings by ~104 MB; reverting/widening writes is a budget-critical change |
+| `lib/idx/sync.ts` | Controls Cotality → DB write shape. PR #75 slim-writer pattern cut listings by ~104 MB; reverting/widening writes is a budget-critical change |
 | `lib/idx/trestle-mapper.ts` | The mapper's keep-set defines `raw_data` shape on every listing |
 | `lib/compliance/raw-data-keep-fields.ts` | The keep-set itself — every field added grows every listing row |
 

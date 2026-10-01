@@ -2,7 +2,7 @@
 /**
  * CRM media P0 — Cotality-shaped listing_media for CRM exclusives.
  *
- * Covers the P0 contract (docs/crm/sales-form-media-p0-implementation-plan-2026-05-29.md):
+ * Covers the P0 contract (2026-05-29 CRM media P0 plan, retired to git history):
  *  - upload writes Cotality-shaped rows (media_key/media_type/media_category/order/preferred)
  *  - content-dedup via stable media_key
  *  - hero = preferred_photo_yn photo (not first upload)

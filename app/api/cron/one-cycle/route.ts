@@ -10,8 +10,7 @@ import { runMediaSyncMember } from '@/lib/idx/media-sync-member';
 // cadence, 2026-07-24) ───────────────────────────────────────────────────────
 //
 // Replaces the independent idx-sync (*/30) and media-sync (hourly) schedules
-// with ONE orchestrated cycle every 10 minutes, per the W2 design doc
-// (docs/operations/one-cycle-w2-schedule-design-2026-07-23.md §(b)/(d)) with
+// with ONE orchestrated cycle every 10 minutes, per the 2026-07-23 W2 design (retired to git history) with
 // Maya's cadence override (10 min, not 30).
 //
 // NEON COST — stated accurately, NOT claimed as a reduction:

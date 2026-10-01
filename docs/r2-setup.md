@@ -1,6 +1,6 @@
 # Cloudflare R2 — Setup Runbook
 
-Single-source-of-truth provisioning guide for the R2 bucket that backs mallan-nyc media (Trestle photo cache, future floor-plan + Matterport mirror, signed-URL gating in the master refactor plan).
+Single-source-of-truth provisioning guide for the R2 bucket that backs mallan-nyc media (Cotality photo cache, future floor-plan + Matterport mirror, signed-URL gating in the master refactor plan).
 
 **This is the gate that PRs 3 and 4 of the master refactor (`memory/REFACTOR-2026-04-25.md`) check before they merge.** No PR depending on R2 lands until `npm run ops:r2-health` returns exit 0 in production.
 
@@ -215,8 +215,8 @@ If usage trends toward the free tier ceiling, upgrade R2 plan via Cloudflare das
 
 Once R2 health is green and the env vars are in Vercel:
 
-- **PR 3** (`refactor/03-media-sync-service`) — background sync that downloads changed Trestle media and stores in R2 keyed by `ResourceRecordKey` (per Trestle 2026-04-07 vendor guidance). Uses the existing `uploadToR2()` from `lib/images/r2.ts`.
-- **PR 4** (`refactor/04-media-batch-rewrite`) — replace `/api/media/batch`'s live Trestle fetches with R2/Neon reads. Uses the existing `getR2PublicUrl()` and `keyFromUrl()`.
+- **PR 3** (`refactor/03-media-sync-service`) — background sync that downloads changed Cotality media and stores in R2 keyed by `ResourceRecordKey` (per Cotality 2026-04-07 vendor guidance). Uses the existing `uploadToR2()` from `lib/images/r2.ts`.
+- **PR 4** (`refactor/04-media-batch-rewrite`) — replace `/api/media/batch`'s live Cotality fetches with R2/Neon reads. Uses the existing `getR2PublicUrl()` and `keyFromUrl()`.
 
 Both PRs declare `npm run ops:r2-health` exit 0 in their Production Verification Note as a merge gate.
 

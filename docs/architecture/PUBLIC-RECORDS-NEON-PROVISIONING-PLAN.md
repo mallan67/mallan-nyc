@@ -217,7 +217,7 @@ This rule is the principal lever keeping Neon under the 500 MB free-tier cap. A 
 
 ## 14. Raw PDFs / OCR / LLM outputs stored outside Neon — Cloudflare R2
 
-Cloudflare R2 is the chosen home for raw artifacts. mallan-nyc already uses R2 for Trestle listing media (see `CLAUDE.md` mention of "Trestle photos cached to Cloudflare R2"), so there is no new vendor relationship to set up.
+Cloudflare R2 is the chosen home for raw artifacts. mallan-nyc already uses R2 for Cotality listing media, so there is no new vendor relationship to set up.
 
 ### Bucket layout
 
@@ -226,7 +226,7 @@ Cloudflare R2 is the chosen home for raw artifacts. mallan-nyc already uses R2 f
 | `mallan-public-records` | Raw artifacts (PDFs, OCR text, LLM intermediate outputs) | ❌ Private | Permanent for source PDFs; 30-day for OCR/LLM intermediates |
 | `mallan-public-records-backups` | Weekly `pg_dump` exports + quarterly snapshots | ❌ Private | Per §11 retention |
 
-Both buckets are **separate from the existing R2 bucket used for Trestle media**. Charter Article 1.10 (no commingling) extends to object storage by analogy.
+Both buckets are **separate from the existing R2 bucket used for Cotality listing media**. Charter Article 1.10 (no commingling) extends to object storage by analogy.
 
 ### Object key conventions
 

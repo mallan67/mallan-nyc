@@ -91,11 +91,11 @@ are corrected below.
 `sync.ts` includes `raw_data` in the material-change comparison (`:722/:737`) and
 **deliberately writes the row for provenance-only changes** (`:780` — "a source
 revision must persist"), while the projection layer correctly suppresses the
-search/cache work. So a Trestle re-emit whose only delta is a ticking `raw_data`
+search/cache work. So a Cotality re-emit whose only delta is a ticking `raw_data`
 produces a full-row + TOAST rewrite in which the **search projection was suppressed**
 (no search-visible change) — but whether that raw_data delta affected another public-
 detail or compliance consumer is **UNMEASURED** until the changed-key histogram runs
-(raw_data feeds the public DTO Trestle-direct path). Sample cycle 20:20:
+(raw_data feeds the public DTO Cotality-direct path). Sample cycle 20:20:
 `listings rows_updated=75`, `listing_change_reasons.raw_data_only=75`,
 `projections rows_updated=0` (all suppressed downstream). This is a **confirmed recent**
 source of listing write-amplification (~30% of recent listing updates, §5.3). Its share
@@ -110,7 +110,7 @@ In the cited `raw_data_only` cases, only the **base `listings` row** is confirme
 
 | Store | Size | Note |
 |---|---|---|
-| `raw_data` (retained Trestle **keep-set, 110 fields** — NOT a full echo; `raw-data-keep-fields.ts`) | 68 MB | rewritten on the base row when material; confirmed write in `raw_data_only` cases |
+| `raw_data` (retained Cotality **keep-set, 110 fields** — NOT a full echo; `raw-data-keep-fields.ts`) | 68 MB | rewritten on the base row when material; confirmed write in `raw_data_only` cases |
 | Legacy JSON: `features` 24 MB + `address` 7 MB + `media` 5 MB | 36 MB | `media` mostly retired (only 6,239 listings); omitted on incremental updates |
 | ~40 typed columns | heap | re-derived on the base row |
 | `listing_search_projection` | 75 MB table | **frequently suppressed** when search-invisible (often NOT rewritten) |
@@ -154,7 +154,7 @@ short-window rate. Consumption-history API is Scale-plan-gated (unavailable on L
   (`listings_reset_sync` audit = 0 rows) — but that route writes its audit only AFTER
   delete+fetch+reload finishes, so a crash after the deletes would leave no row; this
   rules out a *completed audited* run, **NOT** that the route never started. Also PROVEN
-  by code: `feed-reconcile` has no listing-delete path (only a Trestle `$filter`), and the
+  by code: `feed-reconcile` has no listing-delete path (only a Cotality `$filter`), and the
   live `upsert` sync path never deletes. No current scheduled listing bulk-delete path
   was identified. **The source and timing of the historical delete counters remain
   unresolved** (no dated theory is asserted — static review does not exclude an

@@ -18,7 +18,7 @@
 - **Fail-closed** on unknown/unsupported criteria, unresolved audience, missing license, or unverified evidence.
 - **Compliance-first** (§D of CLAUDE.md): RLS/IDX Plus display rules, FARE Act (rentals), Fair Housing scanning on any displayed text, NY DOS §175.25 attribution, NY SHIELD/retention. Supplemental inventory is **private (broker/agent only) and is never surfaced through the public IDX display path**, so it does not enter the REBNY IDX display gate — but it is still subject to Fair Housing / advertising / licensing review before any rendering.
 - **Licensing before ingestion.** No external source is ingested or persisted until a `SourceLicenseProfile` with completed legal/ToS review authorizes the specific use. This document does **not** assert that any StreetEasy/Zillow/partner ingestion is currently permitted.
-- **Cotality field existence ≠ permission.** The presence of a field in the Cotality/Trestle feed does **not** imply the right to display it publicly, use it in a report, or export it. Display/report/export/comp rights come **only** from `SourcePermissionCapabilities` (§1.4, Appendix A), never from feed availability.
+- **Cotality field existence ≠ permission.** The presence of a field in the Cotality feed does **not** imply the right to display it publicly, use it in a report, or export it. Display/report/export/comp rights come **only** from `SourcePermissionCapabilities` (§1.4, Appendix A), never from feed availability.
 
 ### 0.1 Factual authorities (source of truth) vs. derived index
 

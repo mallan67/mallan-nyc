@@ -7,7 +7,7 @@ levels. **Compliance-bound throughout.**
 
 **Status:** PLAN ONLY. Nothing executes. Every phase is HELD behind an explicit per-step
 Maya GO. Builds on the 2026-06-07 systematic fix plan (Phases 0/0.4/0.5 already shipped; retired, Git history) and
-the verified findings in `docs/audits/repo-wide-audit-verification-2026-06-07.md` +
+the verified findings in the 2026-06-07 repo-wide audit verification (retired to git history) +
 `docs/incidents/2026-06-06-system-root-cause-registry.md`.
 
 **Three non-negotiables (CLAUDE.md):** §F proof-first (failing-test-flips-green or live URL
@@ -117,7 +117,7 @@ cross-system regressions.
 
 ### B0. Layer 0 — The harness (every commit) — the regression floor
 The §G chain **plus** `type-check` and `build`, run identically every time and **diffed
-against the frozen baseline** (`docs/audits/green-baseline-2026-06-07.md`):
+against the frozen 2026-06-07 baseline** (retired to git history):
 ```
 type-check · lint · test:runtime · crm:test · test:scanner · ucba:audit
 compliance-check · idx:validate · audit:display-compliance · build

@@ -108,13 +108,6 @@ describe('Sentinel decommission — the bot subsystem stays gone', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('the agent-routing mandate carries no live Sentinel-G routing section', () => {
-    const mandate = read('docs/agents/AGENT-ROUTING-MANDATE-2026-05-28.md');
-    expect(mandate).not.toMatch(/^##\s*Sentinel-G\b/m);
-    expect(mandate).not.toContain('run-sentinel-g');
-    expect(mandate).not.toContain('SENTINEL-G-MANDATE');
-  });
-
   it('the durable decommission record still exists (the allowlisted place the paths may be named)', () => {
     expect(exists('memory/SENTINEL-DECOMMISSION-2026-07-25.md')).toBe(true);
   });

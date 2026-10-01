@@ -24,7 +24,7 @@ crosses, with each layer's evidence captured in the closing report.**
 The standard layer chain for a public-facing data issue:
 
 ```
-source (Trestle / RESO / external feed)
+source (Cotality API / external feed)
   → sync (lib/idx/sync.ts and the 5 non-sync writers in H1 Tier-1)
     → DB (listings.* columns, listing_search_projection.*, audit_events, sync_errors)
       → API / DTO (app/api/listings/*, lib/idx/db-to-public-dto.ts, lib/idx/public-dto.ts)
@@ -49,10 +49,10 @@ catches:
 
 | Failure class | Example from this codebase |
 |---|---|
-| Code path not actually taken at runtime | `media-backfill` cron runs the eligibility query every 8 min but never updates listings whose Trestle source has zero photos — readers of the SQL alone might assume those rows get healed |
+| Code path not actually taken at runtime | `media-backfill` cron runs the eligibility query every 8 min but never updates listings whose Cotality source has zero photos — readers of the SQL alone might assume those rows get healed |
 | Static check matches but runtime drift | Static guard regex `mailto:contact@mallan\.nyc[^"'\`]*subject=...Inquiry` failed to catch template-literal mailto bypasses on listing detail desktop sidebar |
 | One file fixed, sibling file missed | Floor-plan classifier corrected in `lib/media/listing-media-resolver.ts` but `lib/media/media-sync-service.ts` continued to miss `floor_plan` underscore variant for several weeks |
-| Snake-case vs camelCase vs SourceSystemKey vs ListingKey | `mls_id` persists as null because `CARD_SELECT_FIELDS` may not request `ListingKey` from Trestle, even though the mapper code "looks right" |
+| Snake-case vs camelCase vs SourceSystemKey vs ListingKey | `mls_id` persists as null because `CARD_SELECT_FIELDS` may not request `ListingKey` from Cotality, even though the mapper code "looks right" |
 
 **Required:** every concluding statement must cite file:line evidence AND a runtime
 or DB-side check that proves the code path actually fires the expected behavior.
@@ -70,9 +70,9 @@ shows broken behavior to users is still broken.
 | `npm run type-check` | Type errors | Runtime data shape divergence (e.g. media JSON shape variance between sync paths) |
 | `npm run lint` | Style, dead code | Behavior errors |
 | `npm run compliance-check` | 93 rule grep checks | Rules not yet codified |
-| `npm run idx:validate` | 1,276 IDX-Plus field checks | DB state ≠ Trestle state at runtime |
+| `npm run idx:validate` | 1,276 IDX-Plus field checks | DB state ≠ Cotality state at runtime |
 | `npm run ucba:audit` | 145 UCBA 2026 rules | Rule fires on a file that's no longer the canonical surface |
-| `lib/search/__tests__/*.test.ts` | Static source patterns + small unit cases | Behavior under real DB or live Trestle |
+| `lib/search/__tests__/*.test.ts` | Static source patterns + small unit cases | Behavior under real DB or live Cotality |
 | `tests/runtime/*.test.ts` | Mocked-prisma route handlers | Mock shape may not match live Prisma return shape |
 | `npm run repo:hygiene` | Working-tree scope, PR 4 paths, telemetry | Whether the staged change actually fixes the user-visible issue |
 | `node scripts/ci/guardrails.mjs` | Phase-3 parallel-safe checks | Specific to its named scope |
@@ -100,15 +100,15 @@ Every audit / patch must verify:
 3. **Runtime branches are exercised** — a defensive `if (foo) { ... }` branch
    may never fire if `foo` is always falsy in production. Confirm with DB
    query or log inspection that the branch matters.
-4. **Payload shapes match across boundaries** — Trestle returns `MediaCategory` /
+4. **Payload shapes match across boundaries** — Cotality returns `MediaCategory` /
    `MediaURL`; sync writes `mediaType` / `url`; some DB rows still hold the
    raw shape. Every mapper/filter must defensively handle BOTH shapes or
    document that the population is normalized.
 5. **Same identifier across layers** — `listing_id` (RLS-prefixed string) vs
-   `mls_id` (Trestle ListingKey numeric string) vs `id` (DB BigInt PK) vs
+   `mls_id` (Cotality `ListingKey` numeric string) vs `id` (DB BigInt PK) vs
    `ResourceRecordKey` vs `ResourceRecordID` vs `ListingKey` vs `SourceSystemKey`
    vs `OriginatingSystemKey` — these are seven different identifiers. A fix
-   that passes the wrong one to a Trestle query gets 0 results and looks
+   that passes the wrong one to a Cotality query gets 0 results and looks
    correct on the wire.
 
 ---
@@ -121,11 +121,11 @@ without an explicit declaration.
 
 | Class | Definition | Example |
 |---|---|---|
-| **Root cause** | The originating defect that, if fixed, eliminates the problem entirely | "Trestle source genuinely has 0 photos for these 478 listings" |
+| **Root cause** | The originating defect that, if fixed, eliminates the problem entirely | "Cotality source genuinely has 0 photos for these 478 listings" |
 | **Secondary cause** | A real bug that compounds the symptom but isn't the originating defect | "`mls_id` persists as null because `CARD_SELECT_FIELDS` doesn't request `ListingKey`" — fixing this doesn't fill the missing photos but causes downstream cron inefficiency |
 | **Cosmetic mitigation** | A render-side or display-side patch that hides the symptom without fixing the source | "Filter zero-photo listings out of FeaturedListings before display" — the listing still has no photos, but the homepage stops showing placeholders |
 | **Test/validator gap** | A check that should have caught this but didn't, requiring its own remediation | "Static guard regex `mailto:contact@mallan\.nyc[^"'\`]*subject=...Inquiry` doesn't match template literals with backticks; tightened guard needed" |
-| **Unknown** | Insufficient evidence to classify; explicitly states what additional evidence is required | "DB shows 484 empty-media listings; live Trestle Property `PhotosCount` not yet checked for the full population — sample of 6 confirms source-empty for 4, but extrapolating without bulk verification is unsupported" |
+| **Unknown** | Insufficient evidence to classify; explicitly states what additional evidence is required | "DB shows 484 empty-media listings; live Cotality Property `PhotosCount` not yet checked for the full population — sample of 6 confirms source-empty for 4, but extrapolating without bulk verification is unsupported" |
 
 **Required:** every audit's executive verdict must declare the classification for
 every finding. "Mixed causes" is acceptable IF every contributing cause is itself
@@ -216,8 +216,8 @@ media-related claim must be proven across this matrix:
 
 | Layer | Required proof | Example evidence |
 |---|---|---|
-| **Trestle source** | Live Trestle Property `PhotosCount` field for the listing | `{"PhotosCount": 17}` from `Property?$filter=ListingId eq '...'` |
-| **Trestle Media resource** | Direct Media query using ALL plausible keys (RRK / RRID / RRKN) | All three queries return identical record counts; no key-mapping ambiguity |
+| **Cotality source** | Live Cotality Property `PhotosCount` field for the listing | `{"PhotosCount": 17}` from `Property?$filter=ListingId eq '...'` |
+| **Cotality Media resource** | Direct Media query using ALL plausible keys (RRK / RRID / RRKN) | All three queries return identical record counts; no key-mapping ambiguity |
 | **Sync key mapping** | `lib/idx/sync.ts` line that constructs the Media filter; `mls_id` column populated as expected | `mls_id` matches `ListingKey`, or fallback to `ListingId`-based RRID filter is exercised |
 | **DB media JSON** | `listings.media` array length and category breakdown | `SELECT jsonb_array_length(media), jsonb_path_query_array(media, '$[*].mediaType') FROM listings WHERE listing_id = '...'` |
 | **API DTO** | Public listing API response for the listing | `curl /api/listings/<id>` showing `media[]` and `photosCount` |
@@ -228,11 +228,11 @@ media-related claim must be proven across this matrix:
 
 **Special rule for media — the safety classifier:**
 
-> If `Trestle PhotosCount > 0` BUT `DB media count == 0`, this is a SYNC BUG
+> If `Cotality PhotosCount > 0` BUT `DB media count == 0`, this is a SYNC BUG
 > and must be classified as such, not as "source missing."
 
 This rule is the inverse-test that prevents misclassifying genuine sync failures as
-"Trestle has nothing." The proof matrix's Trestle source row + DB row together
+"Cotality has nothing." The proof matrix's Cotality source row + DB row together
 satisfy the rule.
 
 **Special rule for media — staged vs deployed:**

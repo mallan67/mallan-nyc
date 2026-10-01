@@ -2,7 +2,7 @@
 /**
  * Agent + listing identity (Cotality-authoritative) + canonical URL.
  *
- * Audit: docs/crm/agent-listing-identity-cotality-url-audit-2026-05-28.md
+ * Audit: 2026-05-28 agent/listing identity audit (retired to git history).
  *
  * Verified live values that drive these tests:
  *   - Agent "Maya Allan": id=1, trestle_mls_id=39361, email=maya@mallan.nyc

@@ -14,7 +14,7 @@ direct Read.
   `Listing` — `raw_data`, `media`, `compliance`, `features`, `agent_info`, `address`.
 - **None are strippable today.** Every column is **render-critical at minimum**, and most are also
   CRM-, syndication-, search-projection-, or archive-critical — and **all six are actively re-written
-  by the Trestle/CRM writers**, so they cannot be emptied without being repopulated.
+  by the Cotality-feed/CRM writers**, so they cannot be emptied without being repopulated.
 - **Step 6 is addressed here as a current FAIL / blocked gate — not forgotten and not merely
   deferred.** Step 6 (prove production DB billed/synthetic size is below the Neon Free cap) **cannot
   be proven as PASS today** because the only realistic storage-reduction path (legacy-JSON
@@ -79,7 +79,7 @@ direct Read.
   (`prisma/schema.prisma:2561-2563`) has only `searchable_text`/`amenity_keys`/`feature_flags`; `:556`
   passes `media` in as *builder input*, not storage. Used by `lib/search/core.ts:24,250`.
 - **Writers / refill:** idx-sync `lib/idx/sync.ts:298,332,1135,1163`; **`backfillEmptyMedia`
-  `lib/idx/sync.ts:696-721`** re-fetches Trestle media when JSON is empty/null (the **purgatory
+  `lib/idx/sync.ts:696-721`** re-fetches Cotality media when JSON is empty/null (the **purgatory
   re-fill loop**); `migrateMediaToR2` `:850`; `feed-reconcile:379`; CRM photo-add (authoritative)
   `app/api/crm/listings/[id]/photos/route.ts:69,84`; CRM edit `.../[id]/route.ts:437`.
 - **Archiver:** sets `media:[]` at T+30d (`data-retention/route.ts:142-151`) and T+180d (`:273`) —
@@ -127,8 +127,8 @@ direct Read.
 - **Disambiguation:** only the `listings.features` JSON column is in scope — NOT the projection's
   derived feature storage (`ListingSearchProjection` has only `amenity_keys`/`feature_flags` Json
   columns, `prisma/schema.prisma:2562-2563` — the migration *destination*; it does **not** define
-  `*_features String[]` columns), nor the DTO-shaped `listing.features.interior/...` TS type. The RESO
-  mapper (`reso-mapper.ts:239-253`) reads the **DTO**, not this column.
+  `*_features String[]` columns), nor the DTO-shaped `listing.features.interior/...` TS type. The former
+  DTO-side feature mapper (since deleted) read the **DTO**, not this column.
 - **Readers (render-critical):** public DTO `lib/idx/db-to-public-dto.ts:272,392-468` reads **~50
   keys** (CommonInterest, PublicRemarks, FARE-Act fee group MoveInCosts/OngoingFees/TenantPays/
   AdditionalFee/FeeFrequency, AssociationFee, TaxAnnualAmount, amenity arrays, YearBuilt, …); detail
@@ -204,7 +204,7 @@ direct Read.
 - **Readers (CRM/archive/CMA/recommender):** many `app/api/portal/**` + `app/api/crm/**` selects;
   archiver `data-retention/route.ts:221-232` (`address_line`); `lib/cma/engine.ts:180-182`;
   `lib/buyer-intent/recommender.ts:104-106`.
-- **Writers / refill:** Trestle mapper `lib/idx/mapping.ts:282-305` (camelCase); `lib/idx/sync.ts:
+- **Writers / refill:** feed mapper `lib/idx/mapping.ts:282-305` (camelCase); `lib/idx/sync.ts:
   296,330,378,1133,1161,1204`; `feed-reconcile:377`; projection backfill
   `scripts/backfill-listing-search-projection.ts:107,149`.
 - **Runtime surfaces:** public render, search (incl. raw-SQL JSON-path filters), projection, archive,

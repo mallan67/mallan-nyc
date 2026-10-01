@@ -2,8 +2,8 @@
 
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 > **Agent:** Maya Allan | **License:** #10311201806
-> **Jurisdiction:** New York State / NYC | **Feed:** REBNY RLS via Trestle (Cotality)
-> **LMP:** RealPlus (listing input to RLS — external to mallan.nyc) | **IDX Display:** Trestle IDX Plus WebAPI (public display + internal CRM + reporting) | **Stage:** Live Production
+> **Jurisdiction:** New York State / NYC | **Feed:** REBNY RLS data via the Cotality API
+> **LMP:** RealPlus (listing input to RLS — external to mallan.nyc) | **IDX Display:** Cotality IDX Plus Web API (public display + internal CRM + reporting) | **Stage:** Live Production
 >
 > **IDX SCOPE (Confirmed by REBNY 2026-03-27):** IDX feed powers: (1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting. Client data stays on mallan.nyc — never passes through RealPlus or third parties. IDX feed is limited to the IDX-released field set and IDX-eligible inventory only — it is NOT full-market search. Agents use RealPlus for full RLS inventory and listing submission. mallan.nyc does NOT submit listings to the RLS and is NOT an LMP.
 
@@ -11,14 +11,16 @@
 
 ## FIELD AUTHORITY ORDER (ENFORCED — ALL WORK)
 
-| Priority | Authority | Governs |
+`MALLAN-PLATFORM-MASTER-PLAN.md` §0.1.1 and §21.1 govern. These are separate authority layers: reconcile them, never collapse them into one. Law and REBNY rules sit above the provider contract, which is registered as source terms/license and is never a peer of New York law (Master §21.1); satisfying one layer never discharges another.
+
+| Layer | Authority | Governs |
 |----------|-----------|---------|
-| **1** | **UCBA** | Everything — contractual obligations, timing, statuses, agent conduct |
-| **2** | **REBNY RLS rules + fields** | Permissions, timing, statuses, mapping, IDs, dissemination |
-| **3** | **RLS overrides RESO/IDX** | If an RLS rule/field exists, it overrides all RESO/IDX schema or vendor defaults |
-| **4** | **RESO/IDX fills gaps** | If no RLS rule/field exists, use RESO definitions for naming/types/enums |
-| **5** | **INTERNAL-ONLY** | If neither RLS nor RESO/IDX governs, must not affect public display eligibility |
-| **6** | **Fail closed** | Any uncertainty or missing permission data defaults to **NON-DISPLAY** |
+| **Law / DOS** | Applicable federal, New York State and NYC law, including NY DOS (19 NYCRR Part 175), Fair Housing and NYS/NYC human-rights law | Licensing, advertising, fair-housing, anti-discrimination and consumer-protection obligations |
+| **REBNY rules** | UCBA 2026 and REBNY RLS rules | Brokerage use, display permissions and conduct; dissemination of RLS data; contractual timing and status obligations |
+| **Provider contract** | The live Cotality API (`$metadata`, mirrored in `data/cotality-enums.live.json`) and its license/source terms | Which fields, types, resources, enum values and permission flags exist, plus the provider's use, display and attribution terms. No other source may invent a provider field, status, picklist value or permission. A field's presence in the feed never grants display permission |
+| **Mallan business rules** | `MALLAN-PLATFORM-MASTER-PLAN.md` | How verified facts are used inside the brokerage |
+| **INTERNAL-ONLY** | Mallan internal-only fields | Must not affect public display eligibility |
+| **Fail closed** | — | Any uncertainty or missing permission data defaults to **NON-DISPLAY** |
 
 ---
 
@@ -36,8 +38,8 @@
 | [`FORMS-AND-RLS-SUBMISSION.md`](FORMS-AND-RLS-SUBMISSION.md) | Form field requirements, RLS submission workflow, mandatory field checklist | Forms, Backend |
 | [`CRM-AND-MESSAGING-COMPLIANCE.md`](CRM-AND-MESSAGING-COMPLIANCE.md) | TCPA, CAN-SPAM, Fair Housing in comms, no agent info in descriptions | CRM, Marketing |
 | [`AUDIT-LOGGING-AND-EVIDENCE.md`](AUDIT-LOGGING-AND-EVIDENCE.md) | NY SHIELD Act, data access logging, evidence retention, breach response | Backend, Security |
-| [`THIRD-PARTY-AND-FEED-GOVERNANCE.md`](THIRD-PARTY-AND-FEED-GOVERNANCE.md) | Trestle/Cotality API, StreetEasy, syndication portals, data license rules | Backend, Ops |
-| [`UPDATES.md`](UPDATES.md) | Running changelog — REBNY, RESO, Cotality, FARE Act updates with dates | All |
+| [`THIRD-PARTY-AND-FEED-GOVERNANCE.md`](THIRD-PARTY-AND-FEED-GOVERNANCE.md) | Cotality API, StreetEasy, syndication portals, data license rules | Backend, Ops |
+| [`UPDATES.md`](UPDATES.md) | Running changelog — REBNY, Cotality, FARE Act updates with dates | All |
 | [`AUTH-AND-API-SECURITY.md`](AUTH-AND-API-SECURITY.md) | Sprint 9 auth architecture — dual auth (Bearer + cookie), CORS, rate limiting, session management, cross-origin security | Backend, Security |
 
 ## Machine-Readable Enforcement
@@ -65,7 +67,7 @@
 | **RLS** | Core REBNY listing database | Authorized Participants only |
 | **IDX** | Reciprocal broker display on websites | Public (mallan.nyc search) |
 | **VOW** | Consumer-facing with extra data | Client portal (requires login) |
-| **Syndication** | Distribution to third-party portals | 3 Trestle opt-in portals |
+| **Syndication** | Distribution to third-party portals | 3 Cotality opt-in portals |
 
 ### Penalty Summary
 
@@ -85,7 +87,7 @@
 | Resource | Contact |
 |----------|---------|
 | REBNY RLS Support | rlssupport@rebny.com / 212-616-5270 |
-| Trestle/Cotality Support | trestlesupport@cotality.com |
+| Cotality Support | trestlesupport@cotality.com |
 | LMP (RealPlus) | Listing input to RLS (REBNY does not grant LMP to individual brokers) |
-| mallan.nyc IDX Display | Trestle IDX Plus WebAPI (Trestle-11371-20) — read-only |
+| mallan.nyc IDX Display | Cotality IDX Plus Web API (Trestle-11371-20) — read-only |
 | Direct Data License | rlssupport@rebny.com |

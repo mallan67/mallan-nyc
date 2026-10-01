@@ -61,7 +61,7 @@ describe('MACRO gate — Trace Record + blast radius + domains + fail-closed unk
     const { issues } = gate.macroGateIssues([
       'app/api/crm/x/route.ts',
       'tests/runtime/x.test.ts',
-      'docs/audits/corrections/U4-offer-transmit-ownership.md',
+      'docs/audits/corrections/U4.md',
     ]);
     expect(issues).toHaveLength(0);
   });

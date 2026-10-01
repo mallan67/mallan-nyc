@@ -160,7 +160,7 @@ export function evaluateMallanSyndicationEligibility(
   // unconditionally, BEFORE 1a/1b/1c/1d are evaluated. The
   // broker-approved manual-control verification flag (1d) does NOT
   // bypass this check — see Codex PR #162 review and invariant I.5
-  // in docs/architecture/MALLAN-EXCLUSIVES-SYNDICATION-PLAN-2026-05-18.md.
+  // in the header of this file.
   //
   // Rationale: if the system does not know what Mallan's office or
   // agent MLS IDs are, the verification flag is a single point of
