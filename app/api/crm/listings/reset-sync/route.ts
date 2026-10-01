@@ -1,5 +1,5 @@
 // POST /api/crm/listings/reset-sync
-// ONE-TIME USE: Delete all existing listings, then re-sync from Trestle.
+// ONE-TIME USE: Delete all existing listings, then re-sync from Cotality.
 // Broker-only. Searches by BOTH MLS ID and State License Number on both sides of deals.
 //
 // After use, this endpoint can be removed.
@@ -63,10 +63,10 @@ export async function POST(req: NextRequest) {
   log.push(`  Deleted ${delListings.count} listings`);
 
   // ══════════════════════════════════════════════════════════════
-  // STEP 2: Pull ALL listings from Trestle where agent appears
+  // STEP 2: Pull ALL listings from Cotality where agent appears
   // Search by: ListAgentMlsId, BuyerAgentMlsId, ListAgentStateLicense, BuyerAgentStateLicense
   // ══════════════════════════════════════════════════════════════
-  log.push("Step 2: Pulling from Trestle...");
+  log.push("Step 2: Pulling from Cotality...");
 
   // Build comprehensive agent identity filter
   const conditions: string[] = [];
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
   const errorDetails: string[] = [];
 
   try {
-    // PR-S.1c (2026-05-15): `expandMedia: true` was rejected by Trestle with
+    // PR-S.1c (2026-05-15): `expandMedia: true` was rejected by Cotality with
     // HTTP 400 in production. CRM reset-sync now pulls structured data only;
     // media is backfilled by the media-sync cron after upsert.
     // P1C1: hoisted so the fetch and the RC2 media patch below can never
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
     });
 
     totalFetched = result.totalFetched;
-    log.push(`  Trestle returned ${totalFetched} records`);
+    log.push(`  Cotality returned ${totalFetched} records`);
 
     for (const raw of result.records) {
       try {
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
           raw_data: mapped.raw_data as Record<string, unknown>,
           features: mapped.features as Record<string, unknown>,
           // #446: ExpirationDate is stripped from mapped.raw_data (PRIVATE_FIELDS); feed the
-          // original un-stripped Trestle record's ExpirationDate as the Expired fallback (not persisted).
+          // original un-stripped Cotality record's ExpirationDate as the Expired fallback (not persisted).
           expirationDateFallback: raw.ExpirationDate as string | undefined,
         });
         const terminalSinceUpdate = computeTerminalSincePatch({
@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
           raw_data: mapped.raw_data as Record<string, unknown>,
           features: mapped.features as Record<string, unknown>,
           // #446: ExpirationDate is stripped from mapped.raw_data (PRIVATE_FIELDS); feed the
-          // original un-stripped Trestle record's ExpirationDate as the Expired fallback (not persisted).
+          // original un-stripped Cotality record's ExpirationDate as the Expired fallback (not persisted).
           expirationDateFallback: raw.ExpirationDate as string | undefined,
         });
         await prisma.listing.upsert({
@@ -213,7 +213,7 @@ export async function POST(req: NextRequest) {
 
         // H1 Tier-1 dual-write — projection upsert via canonical builder.
         // Failure is non-fatal so the reset-sync loop continues across the
-        // full Trestle batch; ops:projection-backfill heals on next run.
+        // full Cotality batch; ops:projection-backfill heals on next run.
         try {
           await dualWriteProjectionForListingId(prisma, mapped.listing_id);
         } catch (projErr) {
@@ -234,8 +234,8 @@ export async function POST(req: NextRequest) {
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : "unknown";
-    log.push(`  Trestle fetch error: ${msg}`);
-    return NextResponse.json({ error: `Trestle fetch failed: ${msg}`, log }, { status: 502 });
+    log.push(`  Cotality fetch error: ${msg}`);
+    return NextResponse.json({ error: `Cotality fetch failed: ${msg}`, log }, { status: 502 });
   }
 
   // ══════════════════════════════════════════════════════════════

@@ -986,7 +986,7 @@ function ListingCard({
       {/* Expanded section: photos, comments */}
       {expanded && (
         <div className="border-t border-gray-100 px-4 py-4 space-y-4">
-          {/* Photos — plain <img> (Trestle proxy URLs aren't whitelisted for
+          {/* Photos — plain <img> (Cotality proxy URLs aren't whitelisted for
               next/image and tenant portal is gated behind portal auth). */}
           {listing.photos && listing.photos.length > 0 && (
             <div className="flex gap-2 overflow-x-auto pb-2">

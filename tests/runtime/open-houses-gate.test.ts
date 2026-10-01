@@ -105,19 +105,19 @@ describe('open-houses — Property unwrapped from the OData expand ARRAY (the ha
 });
 
 describe('open-houses card — times render in Eastern (was UTC on Vercel → 4PM instead of noon)', () => {
-  it('formatTrestleTime pins timeZone America/New_York', () => {
+  it('formatCotalityTime pins timeZone America/New_York', () => {
     expect(ROUTE).toMatch(/toLocaleTimeString\('en-US',\s*\{[^}]*timeZone:\s*'America\/New_York'/);
   });
 });
 
 describe('open-houses card — primary photo resolved via the CANONICAL media resolver', () => {
   it('uses resolveListingMedia (DOCUMENT/floor-plan aware + proxies), not a raw getValidPhotoMedia pick', () => {
-    expect(ROUTE).toMatch(/async function resolveTrestlePrimaryPhoto\(/);
+    expect(ROUTE).toMatch(/async function resolveCotalityPrimaryPhoto\(/);
     // canonical resolver handles /Media/Property/DOCUMENT-* reclassification + proxying (Codex)
     expect(ROUTE).toMatch(/resolveListingMedia\(media\)\.find\(\(m\) => m\.class === 'photo'/);
     // must NOT bypass it with the raw photo-list pick
     expect(ROUTE).not.toMatch(/getValidPhotoMedia\(media\)\[0\]/);
-    const used = ROUTE.match(/await resolveTrestlePrimaryPhoto\(r\.ListingKey, r\.ListingId\)/g) || [];
+    const used = ROUTE.match(/await resolveCotalityPrimaryPhoto\(r\.ListingKey, r\.ListingId\)/g) || [];
     expect(used.length).toBe(2); // $expand path + flat fallback
     // the hardcoded empty image must be gone from the Trestle DTOs
     expect(ROUTE).not.toMatch(/image: '', \/\/ Will be filled by media proxy/);

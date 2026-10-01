@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
 
   // 2. Purge audit logs older than 2 years (REBNY RLS retention floor = 2 years)
   // Prior behavior only COUNTED — fixed to actually delete per the 2-year compliance boundary.
-  // Trestle/IDX access logs (`trestle_access`, `trestle_data_access`) have a 12-month floor
+  // Cotality/IDX access logs (`trestle_access`, written by the public search route, and historical `trestle_data_access` rows from a retired writer) have a 12-month floor
   // but are safe to retain for 2 years under the broader audit policy.
   //
   // EXEMPTION — `email_unsubscribed` is NEVER purged: it is the DURABLE commercial-email

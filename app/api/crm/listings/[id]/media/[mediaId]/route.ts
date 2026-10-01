@@ -2,7 +2,7 @@
 //   DELETE → soft-delete a CRM media item by media_key (status='deleted').
 //   PATCH  → set-as-main: preferred_photo_yn=true on this item, false on siblings.
 //
-// CRM-owned media only: both verbs require a `crm:` media_key, so Trestle/Cotality
+// CRM-owned media only: both verbs require a `crm:` media_key, so Cotality
 // synced rows can never be modified through this CRM endpoint (guardrail #10).
 // Cotality/IDX Plus remains the source of truth for the media shape.
 
@@ -98,7 +98,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Media not found" }, { status: 404 });
   }
 
-  // P1C4: never bump MT on Trestle-synced rows (idx-sync cursor reads it);
+  // P1C4: never bump MT on Cotality-synced rows (idx-sync cursor reads it);
   // CRM-only exclusives keep the touch. See crmListingTouchData.
   const touch = crmListingTouchData(listing.last_synced_from_trestle);
   if (touch) {
@@ -180,7 +180,7 @@ export async function PATCH(
   // one.
   //
   // The clear is deliberately NAMESPACE-SCOPED. It previously cleared every
-  // active sibling including Trestle feed rows, but `preferred_photo_yn` on a
+  // active sibling including Cotality feed rows, but `preferred_photo_yn` on a
   // feed row is source-owned: media-sync rewrites it from `PreferredPhotoYN` on
   // every complete set (media-sync.ts:1263/1293) and scores a difference as a
   // MATERIAL change (media-sync.ts:975). So the wide clear mutated source
@@ -206,7 +206,7 @@ export async function PATCH(
     }),
   ]);
 
-  // P1C4: never bump MT on Trestle-synced rows (idx-sync cursor reads it);
+  // P1C4: never bump MT on Cotality-synced rows (idx-sync cursor reads it);
   // CRM-only exclusives keep the touch. See crmListingTouchData.
   const touch = crmListingTouchData(listing.last_synced_from_trestle);
   if (touch) {

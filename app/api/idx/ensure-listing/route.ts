@@ -1,5 +1,5 @@
 // POST /api/idx/ensure-listing
-// Ensures an IDX/Trestle listing exists in the local DB so that showings,
+// Ensures an IDX/Cotality listing exists in the local DB so that showings,
 // listing-sends, and other actions that require a Prisma Listing record work.
 //
 // If the listing already exists (by listing_id or mls_id), returns it.
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   const listingId = body.listing_id as string;
   if (!listingId || typeof listingId !== "string" || listingId.trim().length === 0) {
     return NextResponse.json(
-      { error: "listing_id is required (Trestle ListingId)" },
+      { error: "listing_id is required (Cotality ListingId)" },
       { status: 400 }
     );
   }
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // 2. Check by mls_id (Trestle ListingId may have been stored there)
+  // 2. Check by mls_id (Cotality ListingId may have been stored there)
   const byMlsId = await prisma.listing.findFirst({
     where: { mls_id: trimmedId },
     select: { id: true, listing_id: true },
@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
         // DB `status` column and this guard means the writer, the
         // data-retention cron, and ops:health cannot disagree on whether
         // the row is terminal. Reuses the C2 canonical TERMINAL_STATUSES
-        // set (lib/idx/trestle-mapper.ts is the source of truth).
+        // set (imported from lib/idx/trestle-mapper.ts).
         idx_display_yn: !TERMINAL_STATUSES.has(canonicalStatus),
         // Archive Eligibility Clock (#415/#446): seed terminal_since when this minimal
         // external record is created already-terminal (arbitrary body.status). This path
@@ -151,10 +151,10 @@ export async function POST(req: NextRequest) {
         media: (body.images as Prisma.InputJsonValue) ?? ([] as Prisma.InputJsonValue),
         features: {} as Prisma.InputJsonValue,
         compliance: {} as Prisma.InputJsonValue,
-        // TRESTLE CURSOR SAFETY. `getLastSyncTimestamp()` (lib/idx/sync.ts) is
+        // COTALITY SYNC-CURSOR SAFETY. `getLastSyncTimestamp()` (lib/idx/sync.ts) is
         //     MAX(modification_timestamp) WHERE last_synced_from_trestle IS NOT NULL
         // and feeds the OData filter `ModificationTimestamp gt SINCE`. PR-S.7
-        // added that filter so the cursor "selects ONLY Trestle-sync writers".
+        // added that filter so the cursor "selects ONLY Cotality-sync writers".
         //
         // This route is NOT one: it builds a local STUB from IDX search-result
         // data in the request body so showings and listing-sends have a Prisma
@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
         // new Date()` — a false claim, since nothing was synced — together with
         // a LOCAL-clock `modification_timestamp`. The stub therefore passed the
         // cursor filter carrying a local-NOW watermark: one call pushed the
-        // cursor past every genuine Trestle ModificationTimestamp, and the next
+        // cursor past every genuine Cotality ModificationTimestamp, and the next
         // incremental sync skipped real upstream changes until wall-clock time
         // caught up. Same hazard PR-S.7 documented, through a door it left open.
         //

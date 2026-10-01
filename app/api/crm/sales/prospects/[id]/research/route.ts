@@ -620,7 +620,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     }
   }
 
-  // ── Step 5c: Auto-populate initial comps from Trestle ──────────────────────
+  // ── Step 5c: Auto-populate initial comps from Cotality ──────────────────────
   // Only runs if pitch_data.comps is empty — never overwrites curated comps.
   // Non-blocking: research succeeds even if this step fails.
   const compsPitchUpdate: Record<string, unknown> = {};
@@ -631,7 +631,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       : [];
 
     if (existingComps.length === 0) {
-      const TRESTLE_URL = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+      const COTALITY_URL = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
       const COMP_SELECT = [
         "ListingId", "UnparsedAddress", "UnitNumber", "ClosePrice", "CloseDate",
         "BedroomsTotal", "BathroomsFull", "LivingArea", "BuildingName", "PropertySubType",
@@ -650,9 +650,9 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
       eighteenMonthsAgo.setMonth(eighteenMonthsAgo.getMonth() - 18);
       const cutoffDate = eighteenMonthsAgo.toISOString().split("T")[0];
 
-      const trestleToken = await getAccessToken();
+      const cotalityToken = await getAccessToken();
 
-      interface TrestleCompRecord {
+      interface CotalityCompRecord {
         ListingId?: string;
         UnparsedAddress?: string;
         UnitNumber?: string;
@@ -665,7 +665,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
         PropertySubType?: string;
       }
 
-      let compRecords: TrestleCompRecord[] = [];
+      let compRecords: CotalityCompRecord[] = [];
 
       // Query 1: Same building (if building name is known)
       if (resolvedBuildingName) {
@@ -681,9 +681,9 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
           $orderby: "CloseDate desc",
         });
         const buildingRes = await fetch(
-          `${TRESTLE_URL}/odata/Property?${buildingParams}`,
+          `${COTALITY_URL}/odata/Property?${buildingParams}`,
           {
-            headers: { Authorization: `Bearer ${trestleToken}`, Accept: "application/json" },
+            headers: { Authorization: `Bearer ${cotalityToken}`, Accept: "application/json" },
             signal: AbortSignal.timeout(10_000),
           },
         );
@@ -712,15 +712,15 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
           $orderby: "CloseDate desc",
         });
         const zipRes = await fetch(
-          `${TRESTLE_URL}/odata/Property?${zipParams}`,
+          `${COTALITY_URL}/odata/Property?${zipParams}`,
           {
-            headers: { Authorization: `Bearer ${trestleToken}`, Accept: "application/json" },
+            headers: { Authorization: `Bearer ${cotalityToken}`, Accept: "application/json" },
             signal: AbortSignal.timeout(10_000),
           },
         );
         if (zipRes.ok) {
           const zipData = await zipRes.json();
-          const zipRecords: TrestleCompRecord[] = zipData.value || [];
+          const zipRecords: CotalityCompRecord[] = zipData.value || [];
           // Merge, deduplicate by ListingId
           const seen = new Set(compRecords.map((r) => r.ListingId).filter(Boolean));
           for (const r of zipRecords) {

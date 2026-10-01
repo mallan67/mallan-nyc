@@ -122,10 +122,10 @@ describe('agent-listings endpoint is resilient to a Trestle failure', () => {
 
   it('isolates the Trestle branch with .catch so a throw cannot reject Promise.all', () => {
     // The Trestle fetch is wrapped so its rejection degrades to empty, never a 500.
-    expect(routeSrc).toMatch(/trestleFetch[\s\S]*?\.catch\(/);
+    expect(routeSrc).toMatch(/cotalityFetch[\s\S]*?\.catch\(/);
     expect(routeSrc).toMatch(/serving local DB exclusives only/i);
     // Promise.all consumes the guarded promise, not the raw fetch.
-    expect(routeSrc).toMatch(/Promise\.all\(\[\s*trestleFetch\s*,\s*fetchDbAgentListings/);
+    expect(routeSrc).toMatch(/Promise\.all\(\[\s*cotalityFetch\s*,\s*fetchDbAgentListings/);
   });
 
   it('local DB exclusives are still fetched independently of Trestle', () => {

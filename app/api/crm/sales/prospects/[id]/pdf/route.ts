@@ -18,12 +18,12 @@ export const maxDuration = 30;
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-// ── Trestle helper ──────────────────────────────────────────────────────
+// ── Cotality helper ──────────────────────────────────────────────────────
 import { getAccessToken } from "@/lib/idx/auth";
 
-const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+const COTALITY_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
 
-interface TrestleProperty {
+interface CotalityProperty {
   ListingId?: string;
   UnparsedAddress?: string;
   UnitNumber?: string;
@@ -41,15 +41,15 @@ interface TrestleProperty {
   PostalCode?: string;
 }
 
-async function queryTrestle(
+async function queryCotality(
   resource: string,
   filter: string,
   select: string,
   top = 10,
-): Promise<TrestleProperty[]> {
+): Promise<CotalityProperty[]> {
   try {
     const token = await getAccessToken();
-    const url = `${TRESTLE_API}/odata/${resource}?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=${top}&$orderby=ModificationTimestamp desc`;
+    const url = `${COTALITY_API}/odata/${resource}?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=${top}&$orderby=ModificationTimestamp desc`;
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(10000),
@@ -109,7 +109,7 @@ async function assemblePitchPacket(prospect: any, agentName: string): Promise<Re
   }
 
   const recentSales = buildingFilter
-    ? await queryTrestle("Property", buildingFilter, compFields, 10)
+    ? await queryCotality("Property", buildingFilter, compFields, 10)
     : [];
 
   const activeFields =
@@ -137,7 +137,7 @@ async function assemblePitchPacket(prospect: any, agentName: string): Promise<Re
   }
 
   const activeCompetition = competitionFilter
-    ? await queryTrestle("Property", competitionFilter, activeFields, 10)
+    ? await queryCotality("Property", competitionFilter, activeFields, 10)
     : [];
 
   const propertyIntel = {
@@ -396,7 +396,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     : "Your Agent";
 
   try {
-    // Assemble pitch packet data (reuses existing function — Trestle comps, pricing, financials)
+    // Assemble pitch packet data (reuses existing function — Cotality comps, pricing, financials)
     const packetData = await assemblePitchPacket(prospect, agentName);
 
     // Render the luxury HTML presentation

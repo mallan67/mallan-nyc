@@ -5,7 +5,7 @@ import type { Prisma } from '@prisma/client';
 import { getAccessToken } from '@/lib/idx/auth';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 
-const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
+const COTALITY_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
 /**
  * GET /api/market
@@ -177,9 +177,9 @@ export async function GET(request: Request) {
       { tags: [SEARCH_CACHE_TAG] },
     )();
 
-    // ── If DB has few results, supplement with live Trestle data ──
-    let trestleActive: Record<string, unknown>[] = [];
-    let trestleClosed: Record<string, unknown>[] = [];
+    // ── If DB has few results, supplement with live Cotality data ──
+    let cotalityActive: Record<string, unknown>[] = [];
+    let cotalityClosed: Record<string, unknown>[] = [];
 
     if (activeListings.length < 10) {
       try {
@@ -189,13 +189,13 @@ export async function GET(request: Request) {
         // matched 0 live rows, silently emptying every rental market stat (AGENTS.md §1 invariant 7).
         const propertyClass = isRental ? "PropertyType eq 'ResidentialLease'" : "PropertyType eq 'Residential'";
         const boroughFilter = borough ? ` and CityRegion eq '${borough.replace(/'/g, "''")}'` : '';
-        // $select fields verified against live Trestle $metadata (2026-04-19):
+        // $select fields verified against live Cotality $metadata (2026-04-19):
         // IDXEntireListingDisplayYN / OwnerOptOut / ParticipantOnlyYN do NOT
-        // exist on live Trestle — Owner Opt-Out / Participant Only are encoded
+        // exist on live Cotality — Owner Opt-Out / Participant Only are encoded
         // via the `Permission` enum and read by checkDistributionGates().
         const selectFields = 'ListPrice,LivingArea,DaysOnMarket,StandardStatus,ListOfficeName,CityRegion,PostalCode,ModificationTimestamp,OnMarketTimestamp,Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN';
 
-        // Active listings from Trestle
+        // Active listings from Cotality
         const activeParams = new URLSearchParams({
           $filter: `MlsStatus eq 'Active' and ${propertyClass}${boroughFilter}`,
           $select: selectFields,
@@ -203,17 +203,17 @@ export async function GET(request: Request) {
           $count: 'true',
         });
 
-        const activeRes = await fetch(`${TRESTLE_URL}/odata/Property?${activeParams}`, {
+        const activeRes = await fetch(`${COTALITY_URL}/odata/Property?${activeParams}`, {
           headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
           next: { revalidate: 1800 },
         });
 
         if (activeRes.ok) {
           const data = await activeRes.json();
-          trestleActive = data.value || [];
+          cotalityActive = data.value || [];
         }
 
-        // Closed listings from Trestle (within period)
+        // Closed listings from Cotality (within period)
         const periodStartISO = periodStart.toISOString().split('T')[0];
         const closedParams = new URLSearchParams({
           $filter: `(MlsStatus eq 'Closed' or StandardStatus eq 'Closed') and ${propertyClass} and CloseDate ge ${periodStartISO}${boroughFilter}`,
@@ -221,33 +221,33 @@ export async function GET(request: Request) {
           $top: '200',
         });
 
-        const closedRes = await fetch(`${TRESTLE_URL}/odata/Property?${closedParams}`, {
+        const closedRes = await fetch(`${COTALITY_URL}/odata/Property?${closedParams}`, {
           headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
           next: { revalidate: 1800 },
         });
 
         if (closedRes.ok) {
           const data = await closedRes.json();
-          trestleClosed = data.value || [];
+          cotalityClosed = data.value || [];
         }
       } catch (err) {
-        console.warn('[/api/market] Trestle fallback failed:', err instanceof Error ? err.message : err);
+        console.warn('[/api/market] Cotality fallback failed:', err instanceof Error ? err.message : err);
       }
 
       // Distribution gate check — filter out non-displayable listings
-      trestleActive = trestleActive.filter(r => checkDistributionGates(r).displayable);
-      trestleClosed = trestleClosed.filter(r => checkDistributionGates(r).displayable);
+      cotalityActive = cotalityActive.filter(r => checkDistributionGates(r).displayable);
+      cotalityClosed = cotalityClosed.filter(r => checkDistributionGates(r).displayable);
     }
 
-    // Merge DB + Trestle active data for stats
+    // Merge DB + Cotality active data for stats
     const allActivePrices = [
       ...activeListings.map(l => Number(l.list_price)),
-      ...trestleActive.map(r => Number(r.ListPrice || 0)),
+      ...cotalityActive.map(r => Number(r.ListPrice || 0)),
     ].filter(p => p > 0);
 
     const allActiveSqft = [
       ...activeListings.filter(l => l.living_area && Number(l.living_area) > 0).map(l => ({ price: Number(l.list_price), sqft: Number(l.living_area) })),
-      ...trestleActive.filter(r => r.LivingArea && Number(r.LivingArea) > 0).map(r => ({ price: Number(r.ListPrice || 0), sqft: Number(r.LivingArea) })),
+      ...cotalityActive.filter(r => r.LivingArea && Number(r.LivingArea) > 0).map(r => ({ price: Number(r.ListPrice || 0), sqft: Number(r.LivingArea) })),
     ];
 
     const allActiveDom = [
@@ -256,10 +256,10 @@ export async function GET(request: Request) {
         if (l.first_active_date) return Math.floor((now.getTime() - l.first_active_date.getTime()) / (1000 * 60 * 60 * 24));
         return Math.floor((now.getTime() - l.created_at.getTime()) / (1000 * 60 * 60 * 24));
       }),
-      ...trestleActive.map(r => Number(r.DaysOnMarket || 0)),
+      ...cotalityActive.map(r => Number(r.DaysOnMarket || 0)),
     ].filter(d => d >= 0 && d < 3650);
 
-    const totalActiveCount = dbActiveCount + trestleActive.length;
+    const totalActiveCount = dbActiveCount + cotalityActive.length;
 
     const activePrices = allActivePrices;
 
@@ -326,12 +326,12 @@ export async function GET(request: Request) {
       })
       .filter(p => p > 0);
 
-    const closedPricesTrestle = trestleClosed
+    const closedPricesCotality = cotalityClosed
       .map(r => Number(r.ClosePrice || r.ListPrice || 0))
       .filter(p => p > 0);
 
-    const closedPrices = [...closedPricesDb, ...closedPricesTrestle];
-    const totalClosedCount = dbClosedCount + trestleClosed.length;
+    const closedPrices = [...closedPricesDb, ...closedPricesCotality];
+    const totalClosedCount = dbClosedCount + cotalityClosed.length;
 
     // Sale-to-list ratio
     const saleToListRatiosDb = closedListings
@@ -344,7 +344,7 @@ export async function GET(request: Request) {
       })
       .filter((r): r is number => r !== null);
 
-    const saleToListRatiosTrestle = trestleClosed
+    const saleToListRatiosCotality = cotalityClosed
       .map(r => {
         const close = Number(r.ClosePrice || 0);
         const list = Number(r.ListPrice || 0);
@@ -353,9 +353,9 @@ export async function GET(request: Request) {
       })
       .filter((r): r is number => r !== null);
 
-    const saleToListRatios = [...saleToListRatiosDb, ...saleToListRatiosTrestle];
+    const saleToListRatios = [...saleToListRatiosDb, ...saleToListRatiosCotality];
 
-    // ── Neighborhood breakdown (merge DB + Trestle) ──
+    // ── Neighborhood breakdown (merge DB + Cotality) ──
     const neighborhoodMap = new Map<string, { count: number; totalPrice: number }>();
 
     // DB neighborhoods
@@ -381,8 +381,8 @@ export async function GET(request: Request) {
       });
     }
 
-    // Trestle neighborhoods
-    for (const r of trestleActive) {
+    // Cotality neighborhoods
+    for (const r of cotalityActive) {
       const nh = String(r.CityRegion || '').trim();
       if (!nh) continue;
       const existing = neighborhoodMap.get(nh) || { count: 0, totalPrice: 0 };
@@ -448,11 +448,11 @@ export async function GET(request: Request) {
           ? Math.round(activePricesPerSqft.reduce((a, b) => a + b, 0) / activePricesPerSqft.length)
           : null,
         medianDaysOnMarket: median(activeDom),
-        newListings: newListingsCount + trestleActive.filter(r => {
+        newListings: newListingsCount + cotalityActive.filter(r => {
           const mod = r.ModificationTimestamp || r.OnMarketTimestamp;
           return mod && new Date(String(mod)) >= periodStart;
         }).length,
-        underContract: underContractCount + trestleActive.filter(r => String(r.StandardStatus) === 'ActiveUnderContract').length,
+        underContract: underContractCount + cotalityActive.filter(r => String(r.StandardStatus) === 'ActiveUnderContract').length,
       },
       closed: {
         totalCount: totalClosedCount,

@@ -6,7 +6,7 @@ import { sanitizeOData } from '@/lib/sanitize';
 import { getAccessToken } from '@/lib/idx/auth';
 import { canonicalizeDirection, canonicalizeSuffix, canonicalizeStreetName } from '@/lib/address/nyc-address-normalizer';
 
-const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
+const COTALITY_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
@@ -108,7 +108,7 @@ function formatAddress(r: Record<string, unknown>): string {
   return `${num} ${dirPart}${name} ${suffix}`.replace(/\s+/g, ' ').trim();
 }
 
-interface TrestleRecord {
+interface CotalityRecord {
   [key: string]: unknown;
 }
 
@@ -754,7 +754,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ── 2. Supplement from Trestle if DB has <5 results ──
+    // ── 2. Supplement from Cotality if DB has <5 results ──
     if (buildings.length < 5 && parsed.streetNumber && (parsed.streetName || parsed.streetDirPrefix)) {
       try {
         const token = await getAccessToken();
@@ -776,7 +776,7 @@ export async function GET(request: NextRequest) {
           // 2026-05-29: REMOVED AttendanceType, NewDevelopmentYN, SponsorUnitYN,
           // RentingAllowedYN — none exist on the live Cotality Property entity
           // (verified against live $metadata). Their presence made
-          // Trestle reject the whole $select with HTTP 400 (no 4xx retry),
+          // Cotality reject the whole $select with HTTP 400 (no 4xx retry),
           // silently killing the Cotality building lookup. Concierge / on-site
           // manager are derived from BuildingFeatures (valid Multi enum); the
           // remaining flags have no valid Cotality equivalent and are left for
@@ -792,7 +792,7 @@ export async function GET(request: NextRequest) {
           // Parking / laundry / documents / pets — all verified in live
           // $metadata (2026-05-30). Surfaced for building-modal auto-fill.
           // Do NOT add a field here without a metadata check — an invalid
-          // $select makes Trestle reject the whole query with HTTP 400.
+          // $select makes Cotality reject the whole query with HTTP 400.
           'GarageYN', 'AttachedGarageYN', 'GarageSpaces',
           'OpenParkingSpaces', 'CoveredSpaces', 'ParkingFeatures',
           'LaundryFeatures', 'DocumentsAvailable', 'PetsAllowedYN',
@@ -829,7 +829,7 @@ export async function GET(request: NextRequest) {
           $top: '20',
         });
 
-        const res = await fetch(`${TRESTLE_URL}/odata/Property?${odataParams}`, {
+        const res = await fetch(`${COTALITY_URL}/odata/Property?${odataParams}`, {
           headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
           next: { revalidate: 3600 },
         });
@@ -838,7 +838,7 @@ export async function GET(request: NextRequest) {
 
         if (res.ok) {
           const data = await res.json();
-          const records: TrestleRecord[] = data.value || [];
+          const records: CotalityRecord[] = data.value || [];
           diag.cotality.resultCount = records.length;
           diag.cotality.firstThreeAddresses = records.slice(0, 3).map(formatAddress);
 
@@ -954,8 +954,8 @@ export async function GET(request: NextRequest) {
           diag.errorClass = 'cotality_non_200';
           diag.errorMessage = `Cotality returned HTTP ${res.status}`;
         }
-      } catch (trestleErr) {
-        const errMsg = trestleErr instanceof Error ? trestleErr.message : String(trestleErr);
+      } catch (cotalityErr) {
+        const errMsg = cotalityErr instanceof Error ? cotalityErr.message : String(cotalityErr);
         if (errMsg.includes('IDX Auth') || errMsg.includes('Missing IDX_CLIENT')) {
           diag.errorClass = 'token_failed';
           diag.errorMessage = 'Cotality token acquisition failed';
@@ -963,7 +963,7 @@ export async function GET(request: NextRequest) {
           diag.errorClass = diag.errorClass === 'none' ? 'unknown' : diag.errorClass;
           diag.errorMessage = 'Cotality request failed';
         }
-        console.warn('[/api/buildings/search] Trestle error:', trestleErr);
+        console.warn('[/api/buildings/search] Cotality error:', cotalityErr);
       }
     }
 
@@ -979,7 +979,7 @@ export async function GET(request: NextRequest) {
       if (diag.errorClass === 'cotality_non_200' || diag.errorClass === 'token_failed' || diag.errorClass === 'unknown') {
         errorHint = 'Building lookup temporarily unavailable.';
       } else {
-        errorHint = 'No Cotality/Trestle building match found.';
+        errorHint = 'No Cotality building match found.';
       }
     }
 

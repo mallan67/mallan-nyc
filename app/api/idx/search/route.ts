@@ -1,5 +1,5 @@
 // GET /api/idx/search
-// Direct passthrough search against Trestle/REBNY RLS (read-only).
+// Direct passthrough search against the Cotality IDX Plus feed (read-only).
 // Auth: agent or broker session cookie required.
 // Returns listings in CRM flat shape for the search UI.
 //
@@ -45,7 +45,7 @@ export const SEARCH_SELECT_FIELDS = [
   // Rooms & Size
   "BedroomsTotal", "BathroomsFull", "BathroomsHalf", "BathroomsTotalInteger",
   "LivingArea", "LotSizeArea", "YearBuilt", "RoomsTotal", "StoriesTotal",
-  // Building (BuildingKeyNumeric: Trestle 6.17 — groups listings by building)
+  // Building (building identity is TaxBlock + TaxLot per Master §0.2; BuildingKeyNumeric feeds the building upsert below)
   "BuildingName", "NumberOfUnitsTotal", "BuildingKeyNumeric",
   // Financial
   "AssociationFee", "AssociationFeeFrequency", "TaxAnnualAmount",
@@ -54,7 +54,7 @@ export const SEARCH_SELECT_FIELDS = [
   // mapper, which reads them Property-first (#352). Without them in this route-local
   // select, the mapper would map both to null even though the default
   // IDX_PLUS_SELECT_FIELDS already includes them. Do NOT $expand=CustomProperty for
-  // these — Trestle 400s on that expand; the Property fields are authoritative.
+  // these — Cotality 400s on that expand; the Property fields are authoritative.
   "DownPaymentAssistanceAmount", "DownPaymentAssistanceCount",
   // Agent/Office
   "ListAgentMlsId", "ListAgentFullName", "ListAgentEmail",
@@ -63,7 +63,7 @@ export const SEARCH_SELECT_FIELDS = [
   "PhotosCount", "VirtualTourURLBranded", "VirtualTourURLUnbranded",
   // Remarks
   "PublicRemarks",
-  // Display flags (IDX/VOW/Participant gates pre-filtered by Trestle on IDX Plus feed)
+  // Display flags (read by checkDistributionGates below — the provider cannot gate for Mallan, Master §0.4)
   "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
   // Rental + FARE Act fee transparency
   "PetsAllowed", "Furnished",
@@ -72,19 +72,19 @@ export const SEARCH_SELECT_FIELDS = [
   // These are returned so local filterListings() can match against them.
   "ListingAgreement", "LandLeaseYN", "CoolingYN", "GarageYN",
   "DirectionFaces", "View", "OwnerPays",
-  // PropertyCondition: NOT in IDX Plus CSV, prohibited for public IDX per REBNY — removed
-  // Concessions: does NOT exist on Trestle Property entity — removed
+  // PropertyCondition: prohibited for public IDX per REBNY — removed
+  // Concessions: not selected (declared on the live Cotality Property entity; add only after a live probe — Master §0.9)
   "ArchitecturalStyle", "StructureType", "BusinessType",
   "AccessibilityFeatures", "ExteriorFeatures", "BuildingFeatures",
   "LaundryFeatures", "SecurityFeatures", "PoolFeatures",
-  // BuildingRules: NOT on Trestle Property entity (400 error). Filtered client-side only.
+  // BuildingRules: NOT on Cotality Property entity (400 error). Filtered client-side only.
   "PetsAllowedYN", "AvailableLeaseType", "ExistingLeaseType",
   "ConstructionMaterials", "PriceChangeTimestamp",
-  // Detail panel fields (verified in Trestle metadata 2026-04-08)
+  // Detail panel fields (verified in Cotality metadata 2026-04-08)
   "PatioAndPorchFeatures",
-  "AssociationAmenities", // Contains: Elevators, Concierge, Doorman values (enum)
+  "AssociationAmenities", // live enum includes Elevators, Concierge (no Doorman value)
   "CurrentFinancing",     // Financing type (e.g., Conventional, FHA, VA)
-  // AttendanceType: NOT in Trestle metadata — REBNY lookup CSV only. Doorman info lives in AssociationAmenities.
+  // AttendanceType: NOT in the live Cotality metadata, and the live AssociationAmenities enum has no Doorman value — verify the doorman source before building a doorman filter.
 ];
 
 // ── In-memory cache ────────────────────────────────────────────────────
@@ -157,13 +157,13 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Fetch from Trestle (READ-ONLY GET)
+    // Fetch from Cotality (READ-ONLY GET)
     // Strategy: $expand=Media only for small result sets (≤200). For larger queries,
     // fetch properties without media and let the frontend lazy-load photos via
     // /api/media/batch + IntersectionObserver (photo-loader.js).
-    // Trestle tokens refresh every ~12 min; auth.ts handles this with a 5-min buffer.
+    // Token lifetime is the provider-returned expires_in; auth.ts refreshes 5 min early.
     //
-    // PR-S.1c (2026-05-15): Trestle CONSISTENTLY rejects `$expand=Media` with
+    // PR-S.1c (2026-05-15): Cotality CONSISTENTLY rejected `$expand=Media` with
     // HTTP 400. The previous `limit <= 200` conditional was a workaround that
     // production logs show does not work — even small searches 400 the same
     // way. All searches now lazy-load media via /api/media/batch.
@@ -183,8 +183,8 @@ export async function GET(req: NextRequest) {
     // PREVIOUSLY this route re-added Participant-Only + InternetEntireListingDisplayYN=false
     // records under the claim "CRM agent context — agents can see these in RLS." That
     // claim is invalid for mallan.nyc: we hold IDX Plus only (no RLS/LMP license).
-    // Trestle's IDX Plus feed already pre-filters Participant-Only records, so the
-    // bypass would only fire if Trestle leaked one — which is exactly the case
+    // Cotality's IDX Plus feed already pre-filters Participant-Only records, so the
+    // bypass would only fire if Cotality leaked one — which is exactly the case
     // where we must NOT show it. All 6 gates are now enforced uniformly.
     const displayable: Record<string, unknown>[] = [];
     const gateBlockedReasons: Record<string, number> = {};
@@ -214,10 +214,10 @@ export async function GET(req: NextRequest) {
     );
 
     // ── Batch-fetch photos for listings missing media ──
-    // When $expand=Media was used but some records came back empty (Trestle drops
+    // When $expand=Media was used but some records came back empty (Cotality drops
     // media on large-ish payloads), OR when $expand was disabled entirely,
     // identify which listings need photos so the frontend can lazy-load them.
-    // Trestle tokens refresh every ~12 min; getAccessToken() handles this.
+    // Token lifetime is the provider-returned expires_in; getAccessToken() handles refresh.
     const needsLazyLoad = !useInlineMedia;
     let mediaBackfilled = 0;
 
@@ -230,8 +230,8 @@ export async function GET(req: NextRequest) {
         try {
           const { getAccessToken: getToken } = await import("@/lib/idx/auth");
           const token = await getToken();
-          const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-          // Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
+          const COTALITY_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+          // Cotality guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
           // NOT ResourceRecordID (can duplicate). wid = SourceSystemKey = ListingKey = ResourceRecordKey.
           const keyToId = new Map<string, string>();
           const filterParts: string[] = [];
@@ -242,7 +242,7 @@ export async function GET(req: NextRequest) {
             const escaped = key.replace(/'/g, "''");
             filterParts.push(l.wid ? `ResourceRecordKey eq '${escaped}'` : `ResourceRecordID eq '${escaped}'`);
           }
-          // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
+          // MediaStatus filter: exclude tombstoned photos retained by Cotality as historical records.
           const mediaFilter = `(${filterParts.join(" or ")}) and (MediaCategory eq 'Photo' or MediaCategory eq null) and MediaStatus ne 'Deleted'`;
           const mediaParams = new URLSearchParams();
           mediaParams.set("$filter", mediaFilter);
@@ -253,7 +253,7 @@ export async function GET(req: NextRequest) {
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 8_000);
           const mediaRes = await fetch(
-            `${TRESTLE_API}/odata/Media?${mediaParams.toString()}`,
+            `${COTALITY_API}/odata/Media?${mediaParams.toString()}`,
             {
               headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
               signal: controller.signal,
@@ -296,7 +296,7 @@ export async function GET(req: NextRequest) {
     // SponsorUnitYN is REBNY-specific and lives inside
     // CustomProperty.CustomFields as a JSON string field, NOT a top-level
     // OData property. There is no way to express "WHERE SponsorUnitYN=true"
-    // in an OData $filter against the live Cotality/Trestle feed (the field doesn't exist as
+    // in an OData $filter against the live Cotality feed (the field doesn't exist as
     // a queryable property — only the containing JSON string does).
     //
     // The mapper at lib/search/crm-idx-mapper.ts parses CustomFields and
@@ -307,7 +307,7 @@ export async function GET(req: NextRequest) {
     // canonical source.
     //
     // Post-fetch filtering means total counts reflect the post-filter
-    // page size, not the unfiltered Trestle total. With limit=200 and a
+    // page size, not the unfiltered Cotality total. With limit=200 and a
     // small sponsor share (~5% historically in NYC), users may see fewer
     // results than they'd expect from a full-inventory sponsor query.
     // This is a known limitation; if scaling requires accurate totals
@@ -436,7 +436,7 @@ export async function GET(req: NextRequest) {
 
     // Handle specific error types
     if (message.includes("429") || message.includes("rate limit")) {
-      logger.complete("error", "Rate limited by Trestle");
+      logger.complete("error", "Rate limited by Cotality");
       return NextResponse.json(
         { error: "Search temporarily unavailable. Please try again shortly." },
         {

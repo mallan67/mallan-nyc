@@ -29,7 +29,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 // Mallan's own active listing ids/keys, for scoping the OpenHouse feed to Mallan only. Small set
-// (a handful). Returns empty on any error → the caller shows NO Trestle open houses (fail-closed to
+// (a handful). Returns empty on any error → the caller shows NO Cotality open houses (fail-closed to
 // "nothing" rather than leaking the city-wide feed).
 async function fetchMallanListingRefs(token: string, base: string): Promise<{ ids: string[]; keys: string[] }> {
   const officeFilter = MALLAN_OH_OFFICE_MLS_IDS.map((id) => `ListOfficeMlsId eq '${id}'`).join(' or ');
@@ -56,16 +56,16 @@ async function fetchMallanListingRefs(token: string, base: string): Promise<{ id
   return { ids, keys };
 }
 
-// Resolve the primary card photo for a Trestle open house. Mirrors the Featured/listings path:
-// fetch Trestle Media by ResourceRecordKey (= numeric ListingKey), then run it through the CANONICAL
+// Resolve the primary card photo for a Cotality open house. Mirrors the Featured/listings path:
+// fetch Cotality Media by ResourceRecordKey (= numeric ListingKey), then run it through the CANONICAL
 // resolver (resolveListingMedia) — NOT a raw getValidPhotoMedia pick. The canonical resolver
 // reclassifies `/Media/Property/DOCUMENT-*` rows (floor plans that fetchListingMedia defaults to
-// mediaType:'Photo'), sorts photos-first, and proxies Cotality/CoreLogic CDN URLs via
+// mediaType:'Photo'), sorts photos-first, and proxies provider CDN URLs via
 // /api/media/proxy (their CDN blocks cross-origin hotlinking). So a listing whose first/Preferred
 // media row is a DOCUMENT/floor-plan no longer becomes the card hero. (Codex 2026-06-23)
 // '' on any miss → the card shows the placeholder. listingKey is the NUMERIC Property.ListingKey
 // (NOT the RLS ListingId).
-async function resolveTrestlePrimaryPhoto(listingKey: unknown, listingId: unknown): Promise<string> {
+async function resolveCotalityPrimaryPhoto(listingKey: unknown, listingId: unknown): Promise<string> {
   try {
     const key = listingKey != null ? String(listingKey) : String(listingId ?? '');
     if (!key) return '';
@@ -113,31 +113,31 @@ interface OpenHouseDTO {
 
 export async function GET() {
   try {
-    const [trestleOH, localOH] = await Promise.all([
-      fetchTrestleOpenHouses(),
+    const [cotalityOH, localOH] = await Promise.all([
+      fetchCotalityOpenHouses(),
       fetchLocalOpenHouses(),
     ]);
 
-    // Dedupe: if same address + date + startTime exists in both, prefer the Trestle record — BUT
+    // Dedupe: if same address + date + startTime exists in both, prefer the Cotality record — BUT
     // preserve a 'By Appointment' designation, so a generic Public Cotality twin can never erase the
     // appointment label a local sale-form event carried for the same slot.
     const slotKey = (oh: OpenHouseDTO) => `${oh.address}|${oh.date}|${oh.startTime}`.toLowerCase();
-    const trestleBySlot = new Map<string, OpenHouseDTO>();
-    for (const oh of trestleOH) trestleBySlot.set(slotKey(oh), oh);
+    const cotalityBySlot = new Map<string, OpenHouseDTO>();
+    for (const oh of cotalityOH) cotalityBySlot.set(slotKey(oh), oh);
     const uniqueLocal = localOH.filter((oh) => {
-      const twin = trestleBySlot.get(slotKey(oh));
-      if (!twin) return true; // no Trestle duplicate → keep the local event
+      const twin = cotalityBySlot.get(slotKey(oh));
+      if (!twin) return true; // no Cotality duplicate → keep the local event
       if (oh.openHouseType === 'By Appointment' && twin.openHouseType !== 'By Appointment') {
         twin.openHouseType = 'By Appointment';
       }
-      return false; // deduped into the Trestle twin
+      return false; // deduped into the Cotality twin
     });
 
     // Filter out open houses with no meaningful property data
-    // (empty address, $0 price = Trestle records where Property expand failed)
+    // (empty address, $0 price = Cotality records where Property expand failed)
     const hasData = (oh: OpenHouseDTO) => oh.address.trim().length > 0 && oh.price > 0;
 
-    const allOpenHouses = [...trestleOH, ...uniqueLocal].filter(hasData).sort((a, b) => {
+    const allOpenHouses = [...cotalityOH, ...uniqueLocal].filter(hasData).sort((a, b) => {
       // Featured first, then by date
       if (a.featured && !b.featured) return -1;
       if (!a.featured && b.featured) return 1;
@@ -154,13 +154,13 @@ export async function GET() {
   }
 }
 
-async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
+async function fetchCotalityOpenHouses(): Promise<OpenHouseDTO[]> {
   try {
     const token = await getAccessToken();
     const base = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
     // Scope to MALLAN's own active listings — the open-houses page shows Mallan Real Estate's open
-    // houses only (Maya, 2026-06-23), not the city-wide feed. No Mallan listings → no Trestle OHs.
+    // houses only (Maya, 2026-06-23), not the city-wide feed. No Mallan listings → no Cotality OHs.
     const { ids: mallanIds } = await fetchMallanListingRefs(token, base);
     if (mallanIds.length === 0) return [];
     const listingScope = mallanIds.map((id) => `ListingId eq '${id.replace(/'/g, "''")}'`).join(' or ');
@@ -189,7 +189,7 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
     //   Permission, InternetEntireListingDisplayYN, InternetAddressDisplayYN
     //   StandardStatus + MlsStatus + CloseDate (for Closed-past-24h gate)
     // Removed dead fields previously in this list:
-    //   IDXEntireListingDisplayYN (no such field on Trestle schema)
+    //   IDXEntireListingDisplayYN (no such field on Cotality schema)
     //   ParticipantOnlyYN (never existed — superseded by Permission='Private')
     params.set('$expand', 'Property($select=ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,PropertySubType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListOfficeName,PublicRemarks,PhotosCount,Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN,StandardStatus,MlsStatus,CloseDate)');
 
@@ -198,9 +198,9 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
     });
 
     if (!res.ok) {
-      // Fallback: try without $expand (some Trestle setups don't support it on OpenHouse).
+      // Fallback: try without $expand (some Cotality setups don't support it on OpenHouse).
       // Pass the already-resolved Mallan listing ids so the fallback stays Mallan-scoped too.
-      return fetchTrestleOpenHousesFlat(mallanIds);
+      return fetchCotalityOpenHousesFlat(mallanIds);
     }
 
     const data = await res.json();
@@ -212,7 +212,7 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
       .map((r: Record<string, unknown>) => {
         // Property is a COLLECTION-valued navigation on OpenHouse, so $expand returns it as an
         // ARRAY (`[{…}]`), not a single object. Reading it as an object left every ListPrice/address
-        // undefined → price 0 → the hasData filter in GET() dropped EVERY Trestle open house (the
+        // undefined → price 0 → the hasData filter in GET() dropped EVERY Cotality open house (the
         // page showed nothing). Unwrap the first element. (Verified live against Cotality 2026-06-23.)
         const propRaw = r.Property;
         const prop = ((Array.isArray(propRaw) ? propRaw[0] : propRaw) || {}) as Record<string, unknown>;
@@ -226,7 +226,7 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
       })
       .filter((x: { gate: { displayable: boolean } }) => x.gate.displayable);
 
-    // Async map — each card resolves its primary Trestle photo (Mallan-only page → ≤ a handful).
+    // Async map — each card resolves its primary Cotality photo (Mallan-only page → ≤ a handful).
     return Promise.all(records.map(async (x: { r: Record<string, unknown>; prop: Record<string, unknown>; gate: { addressDisplayable: boolean } }) => {
       const { r, prop, gate } = x;
       // Address suppression — if the gate says the address isn't displayable,
@@ -239,8 +239,8 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
         ? `${fullStreet}${unit}`
         : `${((prop.City as string) || 'New York').replace('New York City', 'New York')} (Address Available on Request)`;
       const totalBaths = ((prop.BathroomsFull as number) || 0) + ((prop.BathroomsHalf as number) || 0) * 0.5;
-      // Primary card photo from Trestle Media (same mechanism as the Featured cards).
-      const image = await resolveTrestlePrimaryPhoto(r.ListingKey, r.ListingId);
+      // Primary card photo from Cotality Media (same mechanism as the Featured cards).
+      const image = await resolveCotalityPrimaryPhoto(r.ListingKey, r.ListingId);
 
       return {
         id: `trestle-${r.OpenHouseKey || r.ListingKey}`,
@@ -248,8 +248,8 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
         address: addressLine,
         neighborhood: ((prop.City as string) || 'New York').replace('New York City', 'New York'),
         date: (r.OpenHouseDate as string || '').split('T')[0],
-        startTime: formatTrestleTime(r.OpenHouseStartTime as string),
-        endTime: formatTrestleTime(r.OpenHouseEndTime as string),
+        startTime: formatCotalityTime(r.OpenHouseStartTime as string),
+        endTime: formatCotalityTime(r.OpenHouseEndTime as string),
         price: (prop.ListPrice as number) || 0,
         beds: (prop.BedroomsTotal as number) || 0,
         baths: totalBaths,
@@ -279,7 +279,7 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
       };
     }));
   } catch (err) {
-    console.error('[open-houses] Trestle fetch failed:', err instanceof Error ? err.message : err);
+    console.error('[open-houses] Cotality fetch failed:', err instanceof Error ? err.message : err);
     return [];
   }
 }
@@ -287,7 +287,7 @@ async function fetchTrestleOpenHouses(): Promise<OpenHouseDTO[]> {
 // Fallback: fetch OpenHouse without $expand, then batch-fetch Property data.
 // `mallanIds` are Mallan's own active ListingIds (resolved by the caller) — the feed stays
 // Mallan-scoped. Empty → nothing to show.
-async function fetchTrestleOpenHousesFlat(mallanIds: string[]): Promise<OpenHouseDTO[]> {
+async function fetchCotalityOpenHousesFlat(mallanIds: string[]): Promise<OpenHouseDTO[]> {
   try {
     if (mallanIds.length === 0) return [];
     const token = await getAccessToken();
@@ -297,7 +297,7 @@ async function fetchTrestleOpenHousesFlat(mallanIds: string[]): Promise<OpenHous
 
     const params = new URLSearchParams();
     // Public-only — Broker-only and Private events excluded (see rationale
-    // in fetchTrestleOpenHouses above). OpenHouseStatus eq 'Active' excludes
+    // in fetchCotalityOpenHouses above). OpenHouseStatus eq 'Active' excludes
     // cancelled/inactive open houses (P1, 2026-06-23 — see $expand path).
     // `(${listingScope})` keeps the fallback Mallan-scoped (Mallan-only open-houses page).
     params.set('$filter', `OpenHouseDate ge ${today} and OpenHouseType eq 'Public' and OpenHouseStatus eq 'Active' and (${listingScope})`);
@@ -324,7 +324,7 @@ async function fetchTrestleOpenHousesFlat(mallanIds: string[]): Promise<OpenHous
       propParams.set('$filter', `(${filterParts.join(' or ')})`);
       // Canonical permission-gate fields — same set used by the $expand path
       // and by the main IDX pipeline. Removed dead fields (IDXEntireListingDisplayYN,
-      // OwnerOptOut boolean, ParticipantOnlyYN — none exist on Trestle schema).
+      // OwnerOptOut boolean, ParticipantOnlyYN — none exist on Cotality schema).
       // Added Permission (source of opt-out + private), InternetAddressDisplayYN
       // (address suppression), StandardStatus/MlsStatus/CloseDate (terminal-status gate).
       propParams.set('$select', 'ListingKey,ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListOfficeName,PublicRemarks,Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN,StandardStatus,MlsStatus,CloseDate');
@@ -362,7 +362,7 @@ async function fetchTrestleOpenHousesFlat(mallanIds: string[]): Promise<OpenHous
         ? `${fullStreet}${unit}`
         : `${((prop.City as string) || 'New York').replace('New York City', 'New York')} (Address Available on Request)`;
       const totalBaths = ((prop.BathroomsFull as number) || 0) + ((prop.BathroomsHalf as number) || 0) * 0.5;
-      const image = await resolveTrestlePrimaryPhoto(r.ListingKey, r.ListingId);
+      const image = await resolveCotalityPrimaryPhoto(r.ListingKey, r.ListingId);
 
       return {
         id: `trestle-${r.OpenHouseKey || r.ListingKey}`,
@@ -370,8 +370,8 @@ async function fetchTrestleOpenHousesFlat(mallanIds: string[]): Promise<OpenHous
         address: addressLine,
         neighborhood: ((prop.City as string) || 'New York').replace('New York City', 'New York'),
         date: (r.OpenHouseDate as string || '').split('T')[0],
-        startTime: formatTrestleTime(r.OpenHouseStartTime as string),
-        endTime: formatTrestleTime(r.OpenHouseEndTime as string),
+        startTime: formatCotalityTime(r.OpenHouseStartTime as string),
+        endTime: formatCotalityTime(r.OpenHouseEndTime as string),
         price: (prop.ListPrice as number) || 0,
         beds: (prop.BedroomsTotal as number) || 0,
         baths: totalBaths,
@@ -522,7 +522,7 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
       // open house is shown-but-unlinkable (UCBA: ComingSoon has no showings).
       .filter(({ gate, l }) => gate.displayable && OPEN_HOUSE_ELIGIBLE_STATUSES.includes(l.status) && isMallanOwnedLocalListing(l))
       .map(({ s, l, gate }) => {
-      // Address is stored as JSON. CRM/local listings persist it in RESO PascalCase
+      // Address is stored as JSON. CRM/local listings persist it in Cotality PascalCase
       // (StreetNumber/StreetName/UnitNumber…); reading only camelCase produced an EMPTY street, which
       // the hasData filter in GET() then dropped — the SL-0007 P1 bug. pickAddressParts reads both
       // casings (canonical, shared with the banner path).
@@ -601,9 +601,9 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
   }
 }
 
-function formatTrestleTime(time: string | null | undefined): string {
+function formatCotalityTime(time: string | null | undefined): string {
   if (!time) return '';
-  // Trestle returns ISO time WITH an offset, e.g. "2026-06-28T12:00:00.000-04:00" (noon Eastern).
+  // Cotality returns ISO time WITH an offset, e.g. "2026-06-28T12:00:00.000-04:00" (noon Eastern).
   // We MUST format in America/New_York — without an explicit timeZone, toLocaleTimeString uses the
   // server's zone (UTC on Vercel), so noon-ET rendered as "4:00 PM". NYC open houses always display
   // in Eastern. (2026-06-23)

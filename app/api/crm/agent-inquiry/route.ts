@@ -19,7 +19,7 @@
 // the listing record displayed in the CRM.
 //
 // Body validation:
-//   listing_id          required (RLS ID — Trestle Property.ListingId)
+//   listing_id          required (RLS ID — Cotality Property.ListingId)
 //   listing_address     required
 //   agent_email         required (recipient listing agent's email)
 //   agent_name          required (recipient listing agent's display name)
@@ -155,7 +155,7 @@ function buildAgentInquiryHtml(opts: {
       '</div>',
       // REBNY/IDX attribution footer (UCBA Art. III §2(C))
       '<div style="margin-top:14px;padding:0 4px;font-family:Arial,sans-serif;font-size:11px;color:#6b7280;line-height:1.4;">',
-        'Listing data via REBNY RLS / IDX Plus (Cotality/Trestle). ',
+        'Listing data via REBNY RLS / IDX Plus (Cotality). ',
         `${BROKERAGE_NAME} is a participating broker. ${BROKERAGE_ADDRESS} · ${BROKERAGE_PHONE}.`,
       '</div>',
     '</div>',

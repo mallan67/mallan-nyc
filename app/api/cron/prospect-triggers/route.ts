@@ -154,7 +154,7 @@ export async function GET(req: NextRequest) {
     }
 
     // ──────────────────────────────────────────────────────────────
-    // Step 4: Trestle building activity detection (last 24 hours)
+    // Step 4: Cotality building activity detection (last 24 hours)
     // ──────────────────────────────────────────────────────────────
     try {
       const buildingRows = await prisma.sellerLead.findMany({
@@ -172,7 +172,7 @@ export async function GET(req: NextRequest) {
 
       if (buildingNames.length > 0) {
         const token = await getAccessToken();
-        const trestleBase =
+        const cotalityBase =
           process.env.TRESTLE_API_URL ||
           process.env.IDX_ENDPOINT ||
           "https://api.cotality.com/trestle";
@@ -188,7 +188,7 @@ export async function GET(req: NextRequest) {
             const select =
               "ListingId,StandardStatus,ListPrice,ClosePrice,StreetNumber,StreetName,UnitNumber";
 
-            const url = `${trestleBase}/odata/Property?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=50`;
+            const url = `${cotalityBase}/odata/Property?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=50`;
 
             const res = await fetch(url, {
               headers: { Authorization: `Bearer ${token}` },
@@ -198,7 +198,7 @@ export async function GET(req: NextRequest) {
 
             if (!res.ok) {
               console.warn(
-                `[prospect-triggers] Trestle ${res.status} for building "${buildingName}"`
+                `[prospect-triggers] Cotality ${res.status} for building "${buildingName}"`
               );
               continue;
             }
@@ -262,7 +262,7 @@ export async function GET(req: NextRequest) {
           } catch (buildingErr) {
             // Graceful: skip this building, continue to next
             console.warn(
-              `[prospect-triggers] Trestle error for building "${buildingName}":`,
+              `[prospect-triggers] Cotality error for building "${buildingName}":`,
               buildingErr instanceof Error
                 ? buildingErr.message
                 : String(buildingErr)
@@ -270,13 +270,13 @@ export async function GET(req: NextRequest) {
           }
         }
       }
-    } catch (trestleErr) {
-      // Graceful: if Trestle auth or overall call fails, don't block other steps
+    } catch (cotalityErr) {
+      // Graceful: if Cotality auth or overall call fails, don't block other steps
       console.warn(
-        "[prospect-triggers] Trestle building scan skipped:",
-        trestleErr instanceof Error
-          ? trestleErr.message
-          : String(trestleErr)
+        "[prospect-triggers] Cotality building scan skipped:",
+        cotalityErr instanceof Error
+          ? cotalityErr.message
+          : String(cotalityErr)
       );
     }
 

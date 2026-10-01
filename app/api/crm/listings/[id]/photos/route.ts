@@ -19,11 +19,11 @@
 //     creates the relational row.
 //
 // It also stamped `modification_timestamp: new Date()` on whatever row it
-// touched, INCLUDING Trestle-synced rows. `getLastSyncTimestamp()`
+// touched, INCLUDING Cotality-synced rows. `getLastSyncTimestamp()`
 // (lib/idx/sync.ts) is MAX(modification_timestamp) over rows with
 // `last_synced_from_trestle IS NOT NULL`, so one call against a synced listing
 // pushed the incremental cursor to local NOW and the next sync skipped every
-// genuine upstream change until real Trestle timestamps caught up. PR-S.7
+// genuine upstream change until real Cotality timestamps caught up. PR-S.7
 // closed the CRM-ONLY-row variant of this hazard; this route was the remaining
 // synced-row door.
 //
@@ -54,7 +54,7 @@ export async function POST(
     {
       error:
         `This endpoint is retired. It wrote directly to the Listing.media JSON, ` +
-        `bypassing listing_media, and could advance the Trestle sync cursor. ` +
+        `bypassing listing_media, and could advance the Cotality sync cursor. ` +
         `Use ${CANONICAL_UPLOAD_ROUTE} instead.`,
       code: "LEGACY_MEDIA_WRITER_RETIRED",
       canonical_route: CANONICAL_UPLOAD_ROUTE,

@@ -80,7 +80,7 @@ export default function ListingMediaGallery({
   const handleImageError = useCallback((idx: number) => {
     const attempts = retryCount[idx] || 0;
     if (attempts < 2) {
-      // Retry after a short delay — Trestle throttling is transient
+      // Retry after a short delay — Cotality throttling is transient
       setRetryCount(prev => ({ ...prev, [idx]: attempts + 1 }));
     } else {
       setFailed(prev => new Set(prev).add(idx));

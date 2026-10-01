@@ -616,7 +616,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     mortgagePayoff,
     netProceeds,
     buyerCount,
-    activeCompetitionCount: 0, // Only set from live Trestle data — don't misrepresent closed comps as active competition
+    activeCompetitionCount: 0, // Only set from live Cotality data — don't misrepresent closed comps as active competition
     attribution,
   });
 

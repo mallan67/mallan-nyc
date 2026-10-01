@@ -212,7 +212,7 @@ type MemberFn = (args: { oneCycleRunId: string }) => Promise<MemberRunResult>;
  *
  * The soft budget is a wall-clock CLASSIFICATION + chain-stop signal, not a
  * cancellation: a member that settles later than its budget is marked
- * `timed_out`. We do NOT claim to cancel it — the underlying Prisma / Trestle /
+ * `timed_out`. We do NOT claim to cancel it — the underlying Prisma / Cotality /
  * R2 work does not honor an AbortSignal we could thread through, so per the
  * contract we "stop the chain and await/settle the started work" instead. The
  * hard ceiling is the function `maxDuration` (Vercel kills at 300s), after which

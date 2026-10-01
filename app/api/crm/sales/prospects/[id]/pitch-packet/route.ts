@@ -5,7 +5,7 @@
  * Assembles 4 pillars: Property Intel, Pricing Strategy, Exposure Plan, Financial Picture.
  * Consumed by UI and PDF renderer (Task 5).
  *
- * Trestle queries are server-side only (MLS compliance).
+ * Cotality queries are server-side only (MLS compliance).
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -16,12 +16,12 @@ import { serializeBigInts } from "@/lib/api/serialize";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-// ── Trestle helper ──────────────────────────────────────────────────────
+// ── Cotality helper ──────────────────────────────────────────────────────
 import { getAccessToken } from "@/lib/idx/auth";
 
-const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+const COTALITY_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
 
-interface TrestleProperty {
+interface CotalityProperty {
   ListingId?: string;
   UnparsedAddress?: string;
   UnitNumber?: string;
@@ -39,15 +39,15 @@ interface TrestleProperty {
   PostalCode?: string;
 }
 
-async function queryTrestle(
+async function queryCotality(
   resource: string,
   filter: string,
   select: string,
   top = 10,
-): Promise<TrestleProperty[]> {
+): Promise<CotalityProperty[]> {
   try {
     const token = await getAccessToken();
-    const url = `${TRESTLE_API}/odata/${resource}?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=${top}&$orderby=ModificationTimestamp desc`;
+    const url = `${COTALITY_API}/odata/${resource}?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=${top}&$orderby=ModificationTimestamp desc`;
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(10000),
@@ -156,7 +156,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
   const compsSource: "curated" | "auto" = curatedComps.length > 0 ? "curated" : "auto";
 
-  // ── Recent sales: use curated comps if available, else query Trestle ──
+  // ── Recent sales: use curated comps if available, else query Cotality ──
   let recentSalesFormatted: Array<{
     address: string;
     unit: string | null;
@@ -183,7 +183,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       property_type: c.property_type ?? null,
     }));
   } else {
-    // FALLBACK — live Trestle query (backward compat)
+    // FALLBACK — live Cotality query (backward compat)
     const twelveMonthsAgo = new Date();
     twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
     const dateStr = twelveMonthsAgo.toISOString().split("T")[0];
@@ -201,11 +201,11 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       }
     }
 
-    const trestleSales = buildingFilter
-      ? await queryTrestle("Property", buildingFilter, compFields, 10)
+    const cotalitySales = buildingFilter
+      ? await queryCotality("Property", buildingFilter, compFields, 10)
       : [];
 
-    recentSalesFormatted = trestleSales.map((s) => ({
+    recentSalesFormatted = cotalitySales.map((s) => ({
       address: s.UnparsedAddress || "N/A",
       unit: s.UnitNumber || null,
       close_price: s.ClosePrice || null,
@@ -243,7 +243,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   }
 
   const activeCompetition = competitionFilter
-    ? await queryTrestle("Property", competitionFilter, activeFields, 10)
+    ? await queryCotality("Property", competitionFilter, activeFields, 10)
     : [];
 
   const propertyIntel = {
@@ -300,7 +300,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   const closedCount = recentSalesFormatted.length;
   const activeCount = activeCompetition.length;
 
-  // Compute price/sqft from comps (works for both curated and Trestle-sourced)
+  // Compute price/sqft from comps (works for both curated and Cotality-sourced)
   const compPpsf = recentSalesFormatted
     .filter((s) => s.close_price && s.sqft && s.sqft > 0)
     .map((s) => (s.close_price as number) / (s.sqft as number));
