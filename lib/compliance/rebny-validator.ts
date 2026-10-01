@@ -15,6 +15,7 @@
  */
 
 import rlsRulesData from './rls-rules.json';
+import prohibitedTermsJson from '../../data/compliance/prohibited-terms.json';
 
 // Types - matches actual rls-rules.json structure
 export interface RLSField {
@@ -73,7 +74,18 @@ export interface ListingData {
 
 // Load and normalize rules from JSON structure
 const rawFields = rlsRulesData.fields as RLSField[];
-const fairHousingProhibitedTerms = rlsRulesData.fairHousingProhibitedTerms;
+// Fair Housing term list: the canonical single source of truth is
+// data/compliance/prohibited-terms.json (tests/runtime/guardrails-prohibited-terms-single-source.test.ts
+// pins it after #460/#461, where a stale embedded copy here let discriminatory terms through).
+// rls-rules.json's own `fairHousingProhibitedTerms` array is that stale copy and is no longer read.
+// Derive from `categories` first, matching scripts/ci/guardrails.mjs's documented precedence: `flatList`
+// can omit a term `categories` has (the exact #461 failure mode); fall back to `flatList` only if
+// `categories` is absent.
+type ProhibitedTermsFile = { categories?: Record<string, { terms: string[] }>; flatList?: string[] };
+const prohibitedTermsData = prohibitedTermsJson as unknown as ProhibitedTermsFile;
+const fairHousingProhibitedTerms: string[] = prohibitedTermsData.categories
+  ? [...new Set(Object.values(prohibitedTermsData.categories).flatMap((c) => c.terms || []))]
+  : prohibitedTermsData.flatList || [];
 const nycBoroughs = rlsRulesData.nycBoroughs;
 
 // Convert raw JSON fields to normalized rules
