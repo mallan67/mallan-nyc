@@ -216,20 +216,14 @@ describe('form init wires Cotality neighborhood loader', () => {
 // exist on the live Cotality `Property` entity. An unknown field makes Trestle
 // reject the whole query with HTTP 400 (no 4xx retry), silently killing the
 // Cotality building lookup. This test fails if future code reintroduces a
-// phantom field. Source of truth: artifacts/metadata.xml.
+// phantom field. Source of truth: data/cotality-enums.live.json (live $metadata).
 // ──────────────────────────────────────────────────────────────────────────
 describe('buildings/search $select is metadata-valid (no phantom Cotality fields)', () => {
   const routeSrc = read('app/api/buildings/search/route.ts');
-  const metadata = read('artifacts/metadata.xml');
+  const live = JSON.parse(read('data/cotality-enums.live.json'));
 
-  // EDM property names on the Cotality Property entity (the `"` anchors away
-  // from PropertyRooms / PropertyUnitTypes / PropertyGreenVerification).
-  const propertyFields = (() => {
-    const block = (metadata.match(/<EntityType Name="Property"[\s\S]*?<\/EntityType>/) || [''])[0];
-    const names = new Set<string>();
-    for (const m of block.matchAll(/<Property Name="([^"]+)"/g)) names.add(m[1]);
-    return names;
-  })();
+  // Field names on the live Cotality Property entity.
+  const propertyFields = new Set<string>(Object.keys(live.entities.Property));
 
   // The route's OData $select array (const SELECT = [ '...', ... ].join(','))
   const selectFields = (() => {

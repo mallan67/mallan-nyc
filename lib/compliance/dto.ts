@@ -105,9 +105,8 @@ const IDX_SUPPRESSED_FIELDS = [
  * ExpirationDate which is hidden from all public display.
  *
  * Sources:
- *   - REBNY IDX Plus CSV: data/rebny-rls-property-fields.csv (902 fields, "IDX Plus" feed)
+ *   - Live Cotality field contract: data/cotality-enums.live.json (live $metadata; no IDX/VOW field annotations)
  *   - REBNY IDX/VOW Compliance Checklist (Dec 2021): no field-level VOW-only restrictions
- *   - Trestle metadata: artifacts/metadata.xml (no IDX/VOW field annotations)
  *   - NAR IDX Policy 7.58: sold data must be on IDX when publicly accessible (NYC has ACRIS)
  */
 const VOW_ENRICHED_FIELDS = [

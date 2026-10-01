@@ -7,8 +7,8 @@ import { mapRESOToInternal } from '../mapping';
  * SOLELY by the live field `InternetEntireListingDisplayYN`.
  *
  * `IDXEntireListingDisplayYN` does NOT exist on the live Cotality/Trestle feed
- * (verified via trestle:audit-server against live $metadata; 0 occurrences in
- * artifacts/metadata.xml). The reader previously fell back to it
+ * (verified via trestle:audit-server against live $metadata; absent from
+ * data/cotality-enums.live.json). The reader previously fell back to it
  * (`normalized.IDXEntireListingDisplayYN ?? normalized.InternetEntireListingDisplayYN`),
  * which is a phantom read. This locks the behavior:
  *   - the public DTO key `idxEntireListingDisplayYN` (legacy consumer contract)
@@ -75,12 +75,10 @@ describe('mapRESOToInternal — entire-listing display is driven only by Interne
   });
 
   it('live-parity: InternetEntireListingDisplayYN exists on live, IDXEntireListingDisplayYN does not', () => {
-    const xml = readFileSync(
-      resolve(__dirname, '../../../artifacts/metadata.xml'),
-      'utf-8'
-    );
-    const liveNames = new Set(
-      [...xml.matchAll(/Name="([A-Za-z0-9_]+)"/g)].map((m) => m[1])
+    // Every field name declared in live $metadata (committed as data/cotality-enums.live.json).
+    const live = JSON.parse(readFileSync(resolve(__dirname, '../../../data/cotality-enums.live.json'), 'utf-8'));
+    const liveNames = new Set<string>(
+      Object.values(live.entities as Record<string, Record<string, string>>).flatMap((e) => Object.keys(e)),
     );
     expect(liveNames.has('InternetEntireListingDisplayYN')).toBe(true);
     expect(liveNames.has('IDXEntireListingDisplayYN')).toBe(false);

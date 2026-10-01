@@ -240,7 +240,7 @@ function registerBuilding(
 /**
  * Real-Cotality parking / laundry / documents / pets fields surfaced for the
  * CRM building-modal auto-fill (Track 1). EVERY field below is verified present
- * in live $metadata (artifacts/metadata.xml, 2026-05-30):
+ * in live $metadata (data/cotality-enums.live.json; re-checked 2026-10-01):
  *   GarageYN, AttachedGarageYN, GarageSpaces, OpenParkingSpaces, CoveredSpaces,
  *   ParkingFeatures, LaundryFeatures, DocumentsAvailable, PetsAllowed,
  *   PetsAllowedYN.
@@ -775,7 +775,7 @@ export async function GET(request: NextRequest) {
           // upstream.
           // 2026-05-29: REMOVED AttendanceType, NewDevelopmentYN, SponsorUnitYN,
           // RentingAllowedYN — none exist on the live Cotality Property entity
-          // (verified against artifacts/metadata.xml). Their presence made
+          // (verified against live $metadata). Their presence made
           // Trestle reject the whole $select with HTTP 400 (no 4xx retry),
           // silently killing the Cotality building lookup. Concierge / on-site
           // manager are derived from BuildingFeatures (valid Multi enum); the

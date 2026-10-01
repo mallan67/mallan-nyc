@@ -1,7 +1,7 @@
 /// <reference types="jest" />
 /**
  * Track 1 — building auto-fill for the real-Cotality parking / laundry /
- * documents / pets fields. Authority: live $metadata (artifacts/metadata.xml).
+ * documents / pets fields. Authority: live $metadata (data/cotality-enums.live.json).
  *
  * Added (all verified in live metadata): GarageYN, AttachedGarageYN,
  * GarageSpaces, OpenParkingSpaces, CoveredSpaces, ParkingFeatures,
@@ -22,8 +22,9 @@ import { resolve } from 'path';
 
 const FORM = readFileSync(resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'), 'utf8');
 const ROUTE = readFileSync(resolve(__dirname, '../../app/api/buildings/search/route.ts'), 'utf8');
-const META = readFileSync(resolve(__dirname, '../../artifacts/metadata.xml'), 'utf8');
-const hasField = (f: string) => new RegExp(`Property Name="${f}"`).test(META);
+const LIVE: { entities: Record<string, Record<string, string>>; enums: Record<string, string[]> } =
+  JSON.parse(readFileSync(resolve(__dirname, '../../data/cotality-enums.live.json'), 'utf8'));
+const hasField = (f: string) => Object.values(LIVE.entities).some((e) => Object.prototype.hasOwnProperty.call(e, f));
 
 function extractFn(src: string, name: string): string {
   const sig = `function ${name}(`;

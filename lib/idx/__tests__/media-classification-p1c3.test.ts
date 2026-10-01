@@ -4,7 +4,7 @@
  *
  * Trestle's MediaCategory enum serializes the MEMBER NAME — 'FloorPlan',
  * 'UnbrandedVirtualTour', 'BrandedVirtualTour' (no spaces; verified against
- * artifacts/metadata.xml:11545-11605). The old with-space checks
+ * the live MediaCategory enum in data/cotality-enums.live.json). The old with-space checks
  * (`cat.includes('floor plan')`, `cat.includes('virtual tour')`) never
  * matched, so floorplans and virtual tours classified as 'Photo' and could
  * become the hero / leak onto agent cards.

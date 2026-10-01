@@ -169,7 +169,7 @@ There is no dedicated building database, address master, geocoding service, or p
 
 ## 3. The Address Model
 
-**Implementation:** Verified against `artifacts/metadata.xml` (live Trestle `$metadata`)
+**Implementation:** Verified against live `$metadata` (committed as `data/cotality-enums.live.json`)
 
 Cotality uses RESO-standard structured address fields. The address is decomposed, NOT stored as a single string.
 
@@ -1200,10 +1200,7 @@ The CRM building lookup route (`/api/buildings/search`) returns `{ buildings: []
 | `app/api/cron/idx-sync/route.ts` | Incremental sync cron |
 | `app/api/cron/media-sync/route.ts` | Media → R2 cron |
 | `docs/architecture/COTALITY-TRESTLE-OPERATIONAL-CONTRACT.md` | Operational contract |
-| `artifacts/metadata.xml` + `data/rebny-rls-property-fields.csv` | Live Cotality field catalog (from `api.cotality.com/trestle`) |
-| `data/rebny-rls-property-fields.csv` | 902 IDX Plus fields (CSV) |
-| `data/rebny-rls-property-lookup.csv` | 2,066 picklist values |
-| `artifacts/metadata.xml` | Live Trestle OData $metadata snapshot |
+| `data/cotality-enums.live.json` | Live Cotality entities, field types and enums (from `api.cotality.com/trestle` `$metadata`) |
 
 ---
 

@@ -6,7 +6,7 @@ import { B26_MEDIA } from "../trestle-mapper";
  * Live-parity guard for the B26 media field group.
  *
  * Every name in B26_MEDIA must correspond to a real field on a live Cotality/Trestle
- * resource (verified against the captured $metadata in artifacts/metadata.xml).
+ * resource (verified against the committed live contract data/cotality-enums.live.json).
  *
  * This catches PHANTOM media fields — names that look plausible (VideoURL,
  * FloorPlanURL, MatterportURL, InteractiveFloorPlanURL, *SocialMediaURL) but do
@@ -16,21 +16,24 @@ import { B26_MEDIA } from "../trestle-mapper";
  *     by MediaCategory (Photo / Floor Plan / Video / Virtual Tour).
  */
 describe("B26_MEDIA live-parity (no phantom Cotality media fields)", () => {
-  const xml = readFileSync(
-    resolve(__dirname, "../../../artifacts/metadata.xml"),
-    "utf-8"
+  // Every entity, field, enum and enum-member name in the committed live contract
+  // (generated from live $metadata by `npm run cotality:pull`).
+  const live = JSON.parse(
+    readFileSync(resolve(__dirname, "../../../data/cotality-enums.live.json"), "utf-8")
   );
-  // Every field/entity/nav name in the live $metadata snapshot.
-  const liveNames = new Set(
-    [...xml.matchAll(/Name="([A-Za-z0-9_]+)"/g)].map((m) => m[1])
-  );
+  const liveNames = new Set<string>([
+    ...Object.keys(live.entities),
+    ...Object.values(live.entities as Record<string, Record<string, string>>).flatMap((e) => Object.keys(e)),
+    ...Object.keys(live.enums),
+    ...Object.values(live.enums as Record<string, string[]>).flat(),
+  ]);
 
   // Names that are intentionally internal/derived and NOT live $metadata fields.
   // (Empty by design — all legitimate B26 entries resolve to a live name,
-  // including the `Media` navigation property and the Media-resource `MediaURL`.)
+  // including `Media` (also an entity name) and the Media-resource `MediaURL`.)
   const INTERNAL_ALLOWLIST = new Set<string>([]);
 
-  it("artifacts/metadata.xml parsed and non-empty", () => {
+  it("live Cotality contract parsed and non-empty", () => {
     expect(liveNames.size).toBeGreaterThan(500);
   });
 

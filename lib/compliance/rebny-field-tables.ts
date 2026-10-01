@@ -1,13 +1,12 @@
 /**
  * REBNY_FIELD_TABLES — Single Canonical Field Authority
  *
- * Source of truth: data/rebny-rls-property-fields.csv (902 IDX Plus fields)
- *                  data/rebny-rls-property-lookup.csv (2,066 picklist values)
+ * Source of truth: live Cotality $metadata (data/cotality-enums.live.json)
  *                  UCBA 2026 (January revision)
  *                  NAR Settlement (August 2024, effective August 2025)
  *
  * Every field name, alias, enum, conditional rule, persistence target,
- * display rule, and ID domain is verified against the authoritative RLS CSV.
+ * display rule, and ID domain must match the live Cotality contract.
  *
  * FIELD AUTHORITY ORDER (from MEMORY.md):
  *   1. UCBA governs everything
@@ -176,9 +175,8 @@ export const REBNY_FIELD_TABLES = {
   ] as const,
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // 3. ENUM VALUES — From data/rebny-rls-property-lookup.csv
-  //    Only compliance-critical enums included here. Full picklists available
-  //    in the lookup CSV for form dropdowns.
+  // 3. ENUM VALUES — compliance-critical enums only. Full live picklists are in
+  //    data/cotality-enums.live.json.
   // ═══════════════════════════════════════════════════════════════════════════
 
   enumValues: {

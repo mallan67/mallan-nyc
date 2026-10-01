@@ -657,7 +657,7 @@ Response headers: `Minute-Quota-Limit`, `Hour-Quota-Limit`, `Hour-Quota-ResetTim
 GET /odata/$metadata    → Full OData CSDL (all entities, fields, types, navigation properties)
 ```
 
-Local copy: `artifacts/metadata.xml` (32,351 lines, all 12 data + 5 system entities)
+Committed mirror: `data/cotality-enums.live.json` (every entity, field type and enum from live `$metadata`; regenerate with `npm run cotality:pull`, check drift with `npm run cotality:verify`)
 
 ### Data Flow: Trestle → mallan.nyc
 

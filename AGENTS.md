@@ -78,9 +78,9 @@ Changes reach `main` only through a pull request that passes the required `pr-ch
    For any field, enum/string, resource, attribution requirement, permission, mapping, search/filter/OData
    semantic, pagination rule, media relationship, or API behavior, verify against the authorized live
    Cotality/Trestle API **and the provider's current documentation**. Do not promote repo snapshots or old
-   agent prose into provider truth. `data/cotality-enums.live.json`, `artifacts/metadata.xml`, registries,
-   and CSVs are useful mirrors/evidence only. `npm run cotality:pull` / `npm run cotality:verify` may
-   refresh/check the enum mirror, but they do not replace live provider semantics. Do not embed dated enum
+   agent prose into provider truth. `data/cotality-enums.live.json` (the committed field and
+   enum mirror) is useful evidence only. `npm run cotality:pull` / `npm run cotality:verify` may
+   refresh/check the mirror, but they do not replace live provider semantics. Do not embed dated enum
    lists in this constitution; re-read the provider when the answer matters.
 
 ## 2. Non-negotiable holds (require explicit Maya approval)

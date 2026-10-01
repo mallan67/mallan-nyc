@@ -346,10 +346,8 @@ The data flow has three distinct layers. Conflating them is how compliance bugs 
 | RLS validator | `lib/compliance/rebny-validator.ts` | 10-section validator (CI-gateable) |
 | Field tables | `lib/compliance/rebny-field-tables.ts` | Authority table for required fields |
 | Compliance DTO sanitizer | `lib/compliance/dto.ts` | Public/portal/CRM tier sanitizer |
-| RLS field CSV | `data/rebny-rls-property-fields.csv` | 902+ REBNY IDX Plus fields. Replaced 2026-03-19. |
-| RLS lookup CSV | `data/rebny-rls-property-lookup.csv` | 2,066+ picklist values |
+| Cotality field and enum contract | `data/cotality-enums.live.json` | Generated from live `$metadata` by `npm run cotality:pull`; drift-checked by `npm run cotality:verify`. |
 | UCBA rules | `data/UCBA-2026-Requirements.md` | Extracted from PDF |
-| Trestle metadata snapshot | `artifacts/metadata.xml` | Full Trestle OData metadata |
 
 **Rules:**
 

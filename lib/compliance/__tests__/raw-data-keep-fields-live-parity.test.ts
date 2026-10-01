@@ -12,7 +12,7 @@ import {
  * Cotality/Trestle feed. Keeping a phantom is harmless for storage (the feed
  * never returns it) but it is a stale-truth landmine: future readers assume the
  * field is real, and `trestle:audit-server` flags it. The single source of field
- * truth is the live `$metadata` (captured in artifacts/metadata.xml); static
+ * truth is the live `$metadata` (committed as data/cotality-enums.live.json); static
  * snapshots/docs are not authoritative.
  *
  * Still phantom (kept out): MoveInCostsAmountTotal, FirstShowingDate — neither is
@@ -27,13 +27,17 @@ import {
  * scripts/audit-server-trestle-coverage.ts — the live-audit source of truth.
  */
 describe('RAW_DATA_KEEP_FIELDS live-parity (no phantom Cotality fields kept)', () => {
-  const xml = readFileSync(
-    resolve(__dirname, '../../../artifacts/metadata.xml'),
-    'utf-8'
+  // Every entity, field, enum and enum-member name in the committed live contract
+  // (generated from live $metadata by `npm run cotality:pull`).
+  const live = JSON.parse(
+    readFileSync(resolve(__dirname, '../../../data/cotality-enums.live.json'), 'utf-8')
   );
-  const liveNames = new Set(
-    [...xml.matchAll(/Name="([A-Za-z0-9_]+)"/g)].map((m) => m[1])
-  );
+  const liveNames = new Set<string>([
+    ...Object.keys(live.entities),
+    ...Object.values(live.entities as Record<string, Record<string, string>>).flatMap((e) => Object.keys(e)),
+    ...Object.keys(live.enums),
+    ...Object.values(live.enums as Record<string, string[]>).flat(),
+  ]);
 
   // Known phantoms / forbidden field names per the live server-coverage audit.
   // NOTE: MoveInCostsComments is NO LONGER here — it went live (Property field)
@@ -51,7 +55,7 @@ describe('RAW_DATA_KEEP_FIELDS live-parity (no phantom Cotality fields kept)', (
     'ResourceRecordID',
   ];
 
-  it('artifacts/metadata.xml parsed and non-empty', () => {
+  it('live Cotality contract parsed and non-empty', () => {
     expect(liveNames.size).toBeGreaterThan(500);
   });
 

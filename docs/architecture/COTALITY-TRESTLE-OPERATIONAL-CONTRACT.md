@@ -74,7 +74,7 @@ Not actively queried in current routes. Available at `/odata/Member` and `/odata
 
 ## 4. Address/building lookup contract
 
-### RESO structured address fields (from `artifacts/metadata.xml`)
+### Structured address fields (live `$metadata`)
 
 | Field | Type | Example | Purpose |
 |---|---|---|---|
