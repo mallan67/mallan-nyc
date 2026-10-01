@@ -838,6 +838,7 @@ attempt). See "Final adversarial sweep" for the independent check run against th
 - replace or remove the provider-rule dependencies of `lib/compliance/rebny-validator.ts` (it reads `lib/compliance/rls-rules.json` for its field-requirement table and NYC borough/county map, derived from the removed REBNY RLS CSV). Its third dependency, the Fair Housing prohibited-term list, was fixed ahead of this item at milestone 20 after the final adversarial sweep found it was running on `rls-rules.json`'s stale copy rather than the canonical list — that fix only repointed the one list; the field table and borough map are unchanged and still open;
 - remove the `data/listings.json` runtime fallback (`app/api/listings/[id]/route.ts`);
 - remove `public/crm/js/core/reso-field-map.js` and the `data-rls` provider bindings once their consumers are safely replaced. Those consumers are the frozen forms and the `index-built.html` bundle, so this waits until those tools are unfrozen for their Cotality conversion;
+- replace the old RLS geography artifacts (`data/rls/geo/neighborhood-aliases.json`, `data/rls/geo/coverage-report.json`, `data/rls/geo/rls-neighborhoods.v1.geojson`, `data/rls/neighborhoods.v1.json`) with Mallan's own geography. Live today: 5 scripts build them (`scripts/build-rls-aliases.js`, `scripts/build-rls-geo-derived.js`, `scripts/build-rls-geojson.js`, `scripts/fetch-rls-neighborhoods.js`) and `lib/search/crm-idx-filter.ts` reads them at runtime (frozen, public search);
 - complete Batch 1d: obsolete rule and compliance-copy cleanup;
 - fix two dangling citations to deleted files, held by the freeze: `lib/idx/trestle-mapper.ts` (×2) and `lib/media/crm-media.ts` (×1) each cite a provider CSV/XML path this convergence already deleted, for a fact that is still true live (re-verified against `data/cotality-enums.live.json`). `push-647.js` correctly refuses the edit today; fix when these files are unfrozen — see "Frozen during the current cleanup";
 - zero-reference proof for the old provider authority (step 6) — see "Legacy-reference census" above and "Final adversarial sweep" below for where that proof currently stands.
@@ -955,6 +956,39 @@ agent back to the old system or to an authority other than the Master plus this 
 This closes the adversarial check Maya required before the old-system cleanup is considered closed,
 with the findings above disposed of as shown — two fixed, two deferred to the already-tracked
 component-consolidation Open items, one frozen-list gap closed in tooling, three noted as no-risk.
+
+## Maya's checkpoint synthesis (2026-10-02)
+
+Reviewing milestones 1-20 and the adversarial sweep, Maya recorded the following as the current
+stage, confirmed against live evidence (`data/rls/geo/` is a real, untouched 4-file directory —
+`neighborhood-aliases.json`, `coverage-report.json`, `rls-neighborhoods.v1.geojson`,
+`data/rls/neighborhoods.v1.json` — with 5 scripts building it and `lib/search/crm-idx-filter.ts`
+reading it live):
+
+- Dead-code / stale-doc / obsolete-reference cleanup (milestones 1-20): **~85-90% complete.**
+- Core runtime/provider convergence (the structural duplication underneath the references): **~35-45%
+  complete** — the remaining items are harder architectural work, not bulk cleanup.
+- Weighted across the whole "clean old system before unfreezing the seven tools" phase: **~65-70%
+  complete.**
+
+The concrete remaining core work, in Maya's stated order:
+1. the three raw mappers (`lib/idx/trestle-mapper.ts`, `lib/idx/mapping.ts`,
+   `lib/search/crm-idx-mapper.ts`) become one;
+2. duplicate status logic becomes one (named instance: `lib/comps/fetch-comps.ts`'s `STATUS_MAP`);
+3. duplicate property/listing classification becomes one (named instance: `app/api/open-houses/route.ts`'s
+   local `mapPropertyType()`);
+4. `lib/compliance/rebny-validator.ts`'s remaining dependency on `rls-rules.json`'s old provider-derived
+   field table and borough/county map is replaced or removed (its third dependency, the Fair Housing
+   term list, was fixed at milestone 20);
+5. the `data/listings.json` runtime fallback (`app/api/listings/[id]/route.ts`) is removed;
+6. the frozen `public/crm/js/core/reso-field-map.js` is removed during the standalone-tool conversion
+   (not before — it is a `data-rls`-bound dependency of the frozen forms today);
+7. the old RLS geography artifacts (`data/rls/geo/**`, `data/rls/neighborhoods.v1.json`) are replaced
+   by Mallan's own geography;
+8. zero-reference proof for the old provider authority is completed.
+
+"Once those are gone, the repository will be much closer to the state Maya actually wants: not merely
+cleaner, but with the old technical system unable to reassert itself."
 
 Everything below this point in §11 is history.
 
