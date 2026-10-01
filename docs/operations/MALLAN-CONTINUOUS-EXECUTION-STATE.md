@@ -217,7 +217,7 @@ Current repo/provider state:
   the adapter pointed at an untracked `dist/index.js`. That was true before #632 and is not true
   at `005786e`.);
 - the adapter FAILS CLOSED. It throws `No local snapshot fallback is permitted` when a live fetch
-  fails, and contains no reference to `artifacts/metadata.xml`. (Corrected 2026-09-20: this
+  fails, and reads no repository snapshot. (Corrected 2026-09-20: this
   bullet previously described a snapshot fallback that has been removed. An agent acting on the
   old wording would reject a helper that is behaving correctly.);
 - the current runtime test proves configuration strings, not that a clean Git checkout can start the adapter and reach Cotality live;
@@ -597,7 +597,7 @@ It added no new gate. It also made `pr-check` read-only (`permissions: contents:
 - force-push and deletion of `main` are blocked;
 - Maya reviews and merges every pull request. Agents never merge, never enable auto-merge and never change branch protection or rulesets.
 
-**What the interim protection does not certify.** Convergence milestone 1 (§11) removed `rls:validate` and `validate:form-rls` from `pr-check` on the convergence branch, together with the files only they used: the RLS alias, form-binding, internal-only and overlay lists, and the tooling around them. Old provider authority that live code still reads stays until it is replaced in place on the convergence branch (§11). On that branch the RESO-to-RLS rename table (milestone 4), `artifacts/metadata.xml` and both REBNY RLS CSVs (milestone 8) are already gone. What remains, including the CSV-derived `lib/compliance/rls-rules.json` that the CRM listing gate reads and the RESO field map, is listed under §11 "Open". None of it is provider authority, correct or canonical, and nothing requires or protects it.
+**What the interim protection does not certify.** The convergence branch removes obsolete provider implementation component by component; each removal is recorded with its commit under §11 "Completed". Obsolete provider implementation that live code still reads stays until it is replaced in place. What remains, including the CSV-derived field list in `lib/compliance/rls-rules.json` that the CRM listing gate reads and the RESO field map, is listed under §11 "Open". None of that provider-derived material is provider authority, correct or canonical, and no rule or check requires or protects it; it stays only while live consumers, including the frozen tools and public search, still read it. The same file also carries the Fair Housing prohibited-terms list with which the CRM listing gate (`lib/compliance/rebny-validator.ts`) screens listing remarks; that screen is a current compliance control (Master §21.10) and must survive the replacement.
 
 Passing `pr-check` during the interim therefore does not certify provider correctness. `main` still contains obsolete provider implementation, which must be cleaned before permanent governance is designed. The architectural authority is unchanged (Master §21.2):
 

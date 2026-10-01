@@ -60,7 +60,7 @@ The prior plan's "make the projection the read source" is **re-gated**. None of 
 11. **Explicit capability validation** — unknown/unsupported/unpermitted criteria produce a typed `ContractDecision` (§1.5), never a silent drop. (The pure contract returns the decision; an API adapter later maps it to HTTP.)
 
 ### 1.4 Canonical Contract V2 — reserved dimensions (this fully specifies Decision 3's precondition and the A1 scope)
-The canonical contract (`lib/search/canonical/*`, #491) is extended with the **complete** dimension set below before any Lane A execution. These are pure, behavior-free type/enum reservations (see Appendix A for signatures); **A1 wires none of them to a runtime reader.**
+The canonical contract (#491, a TypeScript package that was never wired and was removed on 2026-10-01; Git history holds it) was to be extended with the **complete** dimension set below before any Lane A execution. These are pure, behavior-free type/enum reservations (see Appendix A for signatures); **A1 wires none of them to a runtime reader.**
 
 | Dimension | Values / shape | Capability |
 |---|---|---|
@@ -391,7 +391,7 @@ DEFERRED: i18n — only after A, B, C stable.
 
 ## Appendix A — Reserved A1 contract type signatures (logical; NOT implemented in this docs PR)
 
-> These are the exact reservations A1 will add to `lib/search/canonical`. They are pure types/enums + typed decisions — **no runtime reader, no HTTP, no Next.js, no Prisma**. Listed here for review only; this documentation PR implements none of them.
+> These are the exact reservations A1 was to add to the canonical contract package (removed unwired on 2026-10-01; Git history holds it). They are pure types/enums + typed decisions — **no runtime reader, no HTTP, no Next.js, no Prisma**. Listed here for review only; this documentation PR implements none of them.
 
 ```ts
 type SourceAuthority =

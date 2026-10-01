@@ -9,7 +9,7 @@
 - Explicit exclusion: **Do not modify or treat `Mallan-Integrated` as part of this work.**
 - This document is the single product/system plan. Audits, issue registries, PRs, technical notes, temporary ledgers and historical plans are evidence/reference only and may not become competing master plans.
 - Production mutation remains held unless Maya separately authorizes it. Documentation, read-only verification, tests and design work do not authorize migrations, environment changes, destructive data work, R2 cleanup or manual Production deployment.
-- Every listing/property/data statement used for implementation must be verified against the current authorized Cotality/RLS contract or another applicable authoritative source before it is treated as fact.
+- Every listing/property/data statement used for implementation must be verified against the current authorized Cotality contract or another applicable authoritative source before it is treated as fact.
 - Current REBNY/RLS/UCBA use/display rules, New York licensing/advertising requirements and the current Cotality implementation contract must be kept separate but reconciled. Cotality is the current provider implementation contract; it is not the brokerage business model.
 - Cotality/Trestle may use RESO vocabulary in its technical schema. **RESO terminology is provider-schema language only; RESO is not a separate Mallan business/compliance authority.** Mallan business requirements are framed through applicable New York law/DOS, REBNY/RLS/UCBA and the verified current provider contract.
 - This master is the **single integrated durable baseline**. It converges the durable business/architecture requirements previously split across PR #595, the later Cotality/provider Master variants and the September brokerage-completeness working Master. Mutable current-state facts remain in the Continuous Execution State. Residual historical recovery/reconciliation continues as evidence work, but it is not a permanent global blocker. If recovered evidence proves that a still-valid requirement is missing or conflicts with an active layer, restore it here and reopen only the affected dependency.
@@ -1740,6 +1740,8 @@ PRESENTATION ENRICHMENT / MEDIA
 
 `total`, `hasMore` and pagination must describe the same final eligible/deduplicated universe the Agent actually sees for that Search mode. A pre-filter/pre-dedupe source count may not be represented as the final result total.
 
+Search ordering must be deterministic. Every sort must have a stable, unique tie-break. "Newest" means the verified listing-market chronology, never provider record-modification time.
+
 ## 5.6.1 DOM has two governed clocks
 
 Mallan preserves two separate clocks where the verified provider/business contract supports them:
@@ -1830,6 +1832,8 @@ AGENT INTELLIGENCE
 A Client may have multiple Saved Searches. Buyer and Tenant Saved Searches remain separate.
 
 Each Saved Search retains the full normalized criteria, owner Agent, client/opportunity, alert settings/frequency, created/updated history and applicable client-send permissions.
+
+An alert or automatic send may be activated on a Saved Search only when the canonical Search engine can execute every saved criterion faithfully; otherwise activation is refused visibly and names those criteria, and criteria are never stored into an alert that silently never matches. Running a Saved Search whose criteria cannot be executed faithfully fails visibly. Criteria are never silently dropped, broadened or reinterpreted, and a change to the criteria vocabulary converts existing Saved Searches explicitly.
 
 Buyer Saved Search may evaluate eligible private supplemental/new-development opportunities in the Agent workspace, but an internal match is not automatically client-shareable.
 
@@ -2189,6 +2193,8 @@ Each axis is a cut of the same eligible market universe. An axis is never assemb
 Mallan may suggest comps but the Agent chooses the final comp set.
 
 For a **sale CMA, the final valuation comp set consists of verified Closed transactions**. Active, Pending/In Contract and Expired/Withdrawn/TOM market-history records may appear in clearly separated market-context sections, but they may not be silently counted as Closed valuation comps or blended into a closed-comp average/range as though their asking prices were transaction prices.
+
+Closed-comparable recency is measured on the verified close date — the Cotality `CloseDate` for a Cotality record, or the provenance-labeled close date of other authorized closed evidence under §6.5 — never on record-modification time. A closed comparable whose close date is missing, invalid or later than the CMA's as-of date is not an eligible closed comp.
 
 A professional comp table should show, where verified/applicable:
 
@@ -6731,7 +6737,7 @@ Agreements / Disclosures / Offering Plans, Schedule A
 Offers / Applications / Deal progression / Transactions
 Commissions / Referrals / Money
 Compliance / Fair Housing / Advertising / REBNY, RLS, UCBA
-Trestle, Cotality provider / Provider mapping
+Cotality provider / Provider mapping
 Public Web / SEO, AEO / Client Portals
 Brokerage View / Business Intelligence / Agent Intelligence / Client Intelligence
 Post-deal relationship / Repeat business
@@ -7528,7 +7534,7 @@ Work proceeds one stage at a time. Each stage has one branch, created from the c
 
 **After the retired controller (§27.15) the protection of `main` is INTERIM:** a pull request, the current required `pr-check`, no force-push and no deletion of `main`, and Maya's review and merge. Agents never merge, never enable auto-merge and never change branch protection or rulesets (§27.21).
 
-- **Passing `pr-check` during the interim does not certify provider correctness.** `main` still contains obsolete provider implementation, such as the REBNY RLS CSV field tables and the RESO mappings that live code still reads. It is not provider authority and must be cleaned before permanent governance is designed. Provider authority is the chain of §21.2: COTALITY RAW CONTRACT → VERIFIED MAPPING → MALLAN STORAGE → MALLAN BUSINESS RULE → PUBLIC/CRM CONSUMER.
+- **Passing `pr-check` during the interim does not certify provider correctness.** Obsolete provider implementation that live code still reads remains until it is replaced in place (Execution State §11 lists what remains). It is not provider authority and must be cleaned before permanent governance is designed. Provider authority is the chain of §21.2: COTALITY RAW CONTRACT → VERIFIED MAPPING → MALLAN STORAGE → MALLAN BUSINESS RULE → PUBLIC/CRM CONSUMER.
 - **No Search, CMA, forms, CRM, listing or other product development merges during the interim cleanup.**
 - The permanent required checks and their enforcement are designed only after `main` is cleaned and the live Cotality contract is verified (Execution State §11).
 
