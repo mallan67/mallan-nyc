@@ -332,7 +332,6 @@ The implementation roadmap in §12 is **proposal-only**. Each item requires a se
 - `memory/PLAN-LEGACY-JSON-DROP-2026-04-28.md` — the implementation plan that, when shipped, recovers ~115 MB on `listings` toward the storage budget target
 - `NEON.md` — operational discipline; this doc's policy supersedes any "Launch as steady-state" framing
 - `docs/architecture/PUBLIC-RECORDS-NEON-PROVISIONING-PLAN.md` §15 — public-records project's storage budget (also intentionally Free)
-- `docs/engineering/pr-verification-checklist.md` R0 — CLAUDE.md dependency-survey rule; the precedent for procedural-without-enforcement rules
 
 ---
 

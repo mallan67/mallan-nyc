@@ -57,7 +57,7 @@
 **Files enforcing these rules (17 total — deep-audited 2026-04-07):**
 - **Production (7):** `lib/idx/sync.ts`, `lib/idx/fetch.ts`, `lib/idx/card-fields.ts`, `app/api/media/batch/route.ts`, `app/api/agents/[slug]/listings/route.ts`, `app/api/idx/search/route.ts`, `scripts/import-closed-from-trestle.ts`
 - **Utility (3):** `scripts/rebuild-past-deals.js`, `scripts/fetch-real-photos.js`, `scripts/trestle-audit.js`
-- **Test/diagnostic (7):** `scripts/test-media-coverage.js`, `scripts/test-media-fix.js`, `scripts/test-photos.js`, `scripts/test-media-types.js`, `scripts/time-pipeline.js`, `scripts/test-media-public.js`, `scripts/test-media-cats.js`
+- **Test/diagnostic:** none remain (the seven diagnostic scripts once listed here have been removed).
 
 ---
 

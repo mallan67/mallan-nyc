@@ -249,7 +249,7 @@ The CRM search is a **separate** pipeline from public search. Different shell, d
 | Featured config GET API | `app/api/featured-config/route.ts` (GET) | Public, 5-min cache, returns config object |
 | Featured config PATCH API | `app/api/featured-config/route.ts` (PATCH) | Broker-only, upserts FeaturedConfig row |
 | Featured config Prisma model | `prisma/schema.prisma` `FeaturedConfig` (~line 1880) | `pinned_ids[]`, `filters{}`, `sort`, `display_limit`, `is_active`, `updated_by` |
-| Featured config defaults | `data/featured-config.json` | Static fallback if DB lookup fails. Read-only file. |
+| Featured config defaults | `app/api/featured-config/route.ts` `DEFAULT_CONFIG` | Served when no FeaturedConfig row exists. |
 | Public homepage component | `app/components/FeaturedListings.tsx` | Reads `/api/featured-config`, queries `/api/listings` with broker-set filters, applies pins |
 | Homepage embed | `app/page.tsx` | `<FeaturedListings />` |
 | `/exclusives` redirect | `vercel.json` `{ "source": "/exclusives", "destination": "/buy?exclusive=mallan" }` | Currently points at a URL whose filter is **not implemented** (known bug — see Section 12) |
