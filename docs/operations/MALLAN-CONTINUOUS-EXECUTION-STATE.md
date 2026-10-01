@@ -716,18 +716,29 @@ Do not create another status file because this one becomes inconvenient.
 
 Nothing is merged into `main` except the hotfix exception until step 7.
 
-## Convergence progress — PR #647 (checkpoint 2026-10-01)
+## Convergence progress — PR #647 (checkpoint 2026-10-02)
 
 | fact | value at this checkpoint |
 |---|---|
 | PR | #647, OPEN, DRAFT, unmerged; mergeable (`CLEAN`) |
 | base | `main` at `3656a42333f2be5e837015e0165387ea96fe99b6`, frozen |
-| head | `0e0cc29daff27ac5d4884236b4ded0123fed5f0a` (convergence milestone 8) |
-| commits | 13 Git commits representing 8 numbered convergence milestones |
+| head | `85f99a1bee8d39c3629b418c8c0ff7938908d969` (convergence milestone 20) |
+| commits | 25 Git commits representing 20 numbered convergence milestones |
 | CI on the head | all green: `pr-check` (the only required check), `build`, `validate`, `geo-validate`, `guardrails`, `target-platform-build`, `claude-review`, `release-truth`, Vercel, Vercel Preview Comments |
 | proof | `release-truth`: `PREVIEW_PROVEN` (PR checks + preview deployment green). Production is NOT proven |
 
-Read the live PR for the current head, commit count and checks; this documentation commit itself moves the head past `0e0cc29d`.
+Read the live PR for the current head, commit count and checks; this documentation commit itself moves the head past `85f99a1b`.
+
+Milestones 10-19 are a second kind of work: Maya's instruction (2026-10-01) that cleanup includes
+the old system's *references*, not only its files and runtime readers — "OLD TECHNICAL SYSTEM = 0 IN
+THE ACTIVE REPOSITORY," including comments, tests, docs, scripts, generated artifacts and Claude's own
+instruction/memory files, none of which get special protection for being Claude-authored. It ran as a
+whole-repository sweep: one read-only investigator per area, five independent contrarian challenges per
+proposal (dependency, business-capability, authority, compliance/security, frozen-tool), adjudication of
+every disputed item, then one coordinator applying only what survived — never more than one writer
+touching the branch at a time. See "Legacy-reference sweep — batches 10-19" below for what it covered,
+classified, and left open, and "Final adversarial sweep" for the closing check fresh agents ran against
+the result.
 
 ## Completed — convergence milestones 1–8
 
@@ -740,18 +751,96 @@ Read the live PR for the current head, commit count and checks; this documentati
 7. **`6fc97e16` — Batch 1b-1 RLS/RESO probe and registry cleanup.** The `scripts/reso/` probe kit and its nine `reso:*` npm scripts (`scripts/reso/route-catalog.js` stays), `scripts/status-snapshot.js`, `scripts/probe-trestle-fields.ts` with `trestle:probe`, unread RESO evidence artifacts, `data/RLS-FIELD-REGISTRY.md` (its one unique fact, the published quotas, moved to Master §0.8, labelled not re-verified live), `data/RLS-Syndication-Research.md`, and the stale CRM manifest tooling.
 8. **`0e0cc29d` — one live Cotality enum/field contract replaces `artifacts/metadata.xml` and both RLS CSVs** (its commit labels it Batch 1b-3). `data/cotality-enums.live.json` carries every entity with its fields and declared types, and every enum (17 entities, 183 enums, regenerated live 2026-10-01; 22 enums had drifted since the 2026-07-05 copy). It is a committed copy generated from live `$metadata` by `scripts/cotality/pull-enums.mjs` and drift-checked against live by `cotality:verify`; live Cotality remains the authority (§3). The 11 tests that read `artifacts/metadata.xml` were re-pointed to it with zero differences in the identifiers they check. `scripts/idx-validate.js` sections 6 and 39 were re-pointed from the RLS CSVs (both emit pass/info/warning only), and `tests/runtime/sale-form-canonical-enum-compliance.test.ts` now checks the frozen sale form against live Cotality, which exposed the `PetsAllowed` defect below. Removed: `artifacts/metadata.xml`, `data/rebny-rls-property-fields.csv`, `data/rebny-rls-property-lookup.csv`, `scripts/get-metadata.js`.
 
-**Batch 1b-2.** No separate Batch 1b-2 convergence commit exists in Git history. Where that work went is not recorded here unless evidence later proves it.
+**Batch 1b-2.** No separate Batch 1b-2 convergence commit exists in Git history. Where that work went is not recorded here unless evidence later proves it. (A draft for it existed in a prior session's scratchpad, unpushed; it is superseded by milestone 10 below, which carries its three durable invariants into the Master without the abandoned implementation.)
+
+9. **`d7214176` — Batch 1c: seven API routes that nothing calls removed.** A tokenless duplicate unsubscribe (`/api/search-alerts/unsubscribe`; any caller could disable alerts for any email, and it never set `Lead.last_unsubscribe_at`, issue BIZ-012 — `/api/unsubscribe` is the only path since), four dead CRM calculator server copies under `/api/crm/tools/`, and `/api/crm/automation/{adjust-tier,status}`. Route catalog 288 → 281.
+
+## Legacy-reference sweep — batches 10-19 (Maya's instruction, 2026-10-01)
+
+Scope: every tracked folder — app/**, lib/**, public/crm/** (non-frozen), tests/**, data/**,
+artifacts/**, compliance/**, scripts/**, .github/** and root config, docs/** (current and dated),
+and Claude's own files (`CLAUDE.md`, `AGENTS.md`, `memory/**`, `docs/superpowers/**`). Every legacy
+RLS/RESO/Trestle/CoreLogic/metadata.xml hit was classified into exactly one of four classes:
+`CURRENT_COMPLIANCE`, `LIVE_COTALITY_TRANSPORT_PROVENANCE`, `TEMPORARY_FROZEN_DEPENDENCY`, or
+`OBSOLETE`. 1,596 proposals were investigated; 1,555 survived five independent contrarian challenges
+and adjudication and were pushed (41 rejected — see below).
+
+10. **`98f8d99c`** — three Search invariants (deterministic ordering with a unique tie-break; a Saved
+    Search may not activate on criteria the canonical engine can't execute faithfully; closed-comp
+    recency on the verified Cotality `CloseDate`) added to Master §5.6/§5.8/§6.4, rewritten without the
+    abandoned implementation. The unwired `lib/search/canonical/` package (19 files + 2 tests) and one
+    dead audit doc removed. Master header/§24/§27.18 and this file's §3/§7 had stale RLS/Trestle
+    wording resolved by milestones 1-8 removed.
+11. **`edea8110`** — `CLAUDE.md`, `AGENTS.md` and five `memory/**` records cleaned of old-system
+    language. **Caught twice during review, not by the automated pipeline:** the first drafts folded
+    the standing **PR 5B** hold (`refactor/05-listing-search-projection`, the public reader swap from
+    `listings.idx_display_yn` to `listing_search_projection.idx_display_yn` — still not done) into a
+    pointer to this file's §7/§9/§11, which do not name it; both hold lists, and the
+    `memory/REFACTOR-2026-04-25.md` stub that is their only detailed record, now name it explicitly.
+    21 more stale files deleted; 7 rejected to protect two open compliance-audit records and a live
+    identifier a frozen route calls.
+12. **`a9abc517`** — comment/JSDoc/log-string rewrites across `lib/idx/`, `lib/compliance/`,
+    `lib/search/`; 2 dead files deleted.
+13. **`78953d02`** — compliance docs rewritten to live Cotality terms, correcting several errors the
+    old wording would have reintroduced: a FARE Act field under a name (`MoveInCostsAmountTotal`) the
+    live feed doesn't use; a false "PII Not Stored" claim; two fields wrongly marked displayable that
+    are HIDDEN/stripped elsewhere; a stale RESO Data Dictionary list presented as current; two scripts
+    silently dropped from a `ResourceRecordKey` enforcement list. 4 dead generated rule files deleted
+    (one is a duplicate status dictionary — relevant to the Open item below).
+14. **`1e852568`** — comment/JSDoc/log-string rewrites across `app/**`. Two of the rewritten routes
+    (`/api/idx/search`, `/api/buildings/search`) are called over the network by frozen CRM tools; their
+    response-shape code was diffed line by line before pushing — only local identifiers and log/error
+    text changed, no JSON field.
+15. **`29b2272c`** — 5 dead CRM JS duplicates deleted from non-frozen `public/crm/**`; remaining wording
+    rewritten.
+16. **`2d990b67`** — wording rewritten across `tests/**`; 5 stale standalone diagnostics deleted
+    (validating HTML files that no longer exist). Every rename touching a real production export keeps
+    that export's name in the test and renames only the test's own local mock/variable.
+17. **`69134727`** — wording rewritten across `scripts/**`; an 8-script one-off past-deals pipeline
+    deleted (zero live readers beyond each other).
+18. **`f0bef244`** — wording rewritten in `.github/**` and root config. One proposed deletion (a
+    scheduled live-audit workflow whose audit steps have never run) was rejected: GitHub's scheduler
+    still invokes the file daily, and the only repository record of the pending fix (provisioning its
+    secrets) lives in `memory/AUDITOR-LOG.md`.
+19. **`1b478289`** — wording rewritten across current and dated docs; 37 dated audits/reports/plans
+    with zero live readers deleted. Six rejections caught real risk: three deletions were blocked
+    because a frozen tool cites the targeted doc by name as its own rationale; two "RLS enforcement"
+    mislabels were live REBNY/UCBA write-path gates, not obsolete terminology.
+20. **`85f99a1b`** — a live Fair Housing compliance gap fixed, found by the final adversarial sweep
+    below, not by the sweep's own pipeline. `lib/compliance/rebny-validator.ts`'s `validateListing()`
+    — live in four CRM routes (listing create, listing update, the validate endpoint, the compliance
+    audit endpoint) — read its Fair Housing prohibited-term list from `rls-rules.json`'s stale,
+    35-entry embedded copy instead of the canonical `data/compliance/prohibited-terms.json` (116
+    entries) the rest of the codebase already consolidated to after a prior incident (#460/#461).
+    Sampled terms the stale copy missed and the canonical list has: "no cityfheps", "55+", "must pass
+    background check", "section 8 not accepted" — all source-of-income or age discrimination under
+    Fair Housing / NYC HRL. Fixed the same way the canonical consumers already do it
+    (`lib/compliance/rls-enforcement.ts`, `scripts/ci/guardrails.mjs`): derive the flat term array
+    from `categories`, falling back to `flatList` only if absent. The validator's other two
+    `rls-rules.json` reads (field table, NYC borough/county map) are untouched — that is the
+    already-tracked Open item below.
+
+**Legacy-reference census at this checkpoint** (scanner: RLS/RESO/Trestle/CoreLogic/metadata.xml
+patterns, whole tracked tree): before the sweep, 800 files / 13,798 matching lines. After milestone 19,
+631 files / 10,594 lines, of which 3,251 (7 files) are inside the seven frozen tools, 1,519 (117 files)
+are inside other frozen or protected paths, and 5,824 (507 files) are outside any freeze — each of
+those 507 files was read and classified by an investigator (census recorded in this sweep's own
+working files, not duplicated here); what remains in them is `CURRENT_COMPLIANCE`,
+`LIVE_COTALITY_TRANSPORT_PROVENANCE`, a rejection with a stated reason, or deferred to one of the
+component-level Open items below (a cross-file rename or consolidation this reference sweep did not
+attempt). See "Final adversarial sweep" for the independent check run against this claim.
 
 ## Open — remaining convergence work
 
 - converge the remaining raw mapper implementations into one (`lib/idx/trestle-mapper.ts`, `lib/idx/mapping.ts`, `lib/search/crm-idx-mapper.ts`);
-- converge duplicate status logic;
-- converge duplicate property/listing classification;
-- replace or remove the provider-rule dependencies of `lib/compliance/rebny-validator.ts` (it reads `lib/compliance/rls-rules.json`, derived from the removed REBNY RLS CSV);
+- converge duplicate status logic. The final adversarial sweep (below) named a concrete instance not previously on this list: `lib/comps/fetch-comps.ts` keeps its own `STATUS_MAP` translating CRM display names to live `StandardStatus` values, duplicating `lib/compliance/status.ts`'s `normalizeStatus()` against that module's own documented single-source rule. Live, reachable via `app/api/crm/sales/comps/route.ts`, not frozen. Today's default comp-search criteria happen to map correctly; the duplication is the drift risk, not a currently-wrong filter;
+- converge duplicate property/listing classification. The same sweep named a concrete instance: `app/api/open-houses/route.ts` imports the canonical `mapPropertyTypeToDisplay` (`lib/idx/public-dto.ts`) for one of its three data paths but defines and uses its own, less capable local `mapPropertyType()` (it never reads `PropertySubType`) for the other two, producing inconsistent property-type labels for the same listing within one API response;
+- replace or remove the provider-rule dependencies of `lib/compliance/rebny-validator.ts` (it reads `lib/compliance/rls-rules.json` for its field-requirement table and NYC borough/county map, derived from the removed REBNY RLS CSV). Its third dependency, the Fair Housing prohibited-term list, was fixed ahead of this item at milestone 20 after the final adversarial sweep found it was running on `rls-rules.json`'s stale copy rather than the canonical list — that fix only repointed the one list; the field table and borough map are unchanged and still open;
 - remove the `data/listings.json` runtime fallback (`app/api/listings/[id]/route.ts`);
 - remove `public/crm/js/core/reso-field-map.js` and the `data-rls` provider bindings once their consumers are safely replaced. Those consumers are the frozen forms and the `index-built.html` bundle, so this waits until those tools are unfrozen for their Cotality conversion;
 - complete Batch 1d: obsolete rule and compliance-copy cleanup;
-- zero-reference proof for the old provider authority (step 6).
+- fix two dangling citations to deleted files, held by the freeze: `lib/idx/trestle-mapper.ts` (×2) and `lib/media/crm-media.ts` (×1) each cite a provider CSV/XML path this convergence already deleted, for a fact that is still true live (re-verified against `data/cotality-enums.live.json`). `push-647.js` correctly refuses the edit today; fix when these files are unfrozen — see "Frozen during the current cleanup";
+- zero-reference proof for the old provider authority (step 6) — see "Legacy-reference census" above and "Final adversarial sweep" below for where that proof currently stands.
 
 ## Known held defect — Sale Redesign `PetsAllowed` (frozen tool)
 
@@ -763,15 +852,109 @@ Read the live PR for the current head, commit count and checks; this documentati
 
 ## Frozen during the current cleanup
 
-These are not modified by the cleanup:
+Maya (2026-10-01): all seven stand-alone tools below remain stand-alone; Search must be canonical,
+pulled live from the Cotality API. There are many existing versions of each; none is correct and none
+is from the live Cotality API. These are not modified by the cleanup — mutation is refused at the tool
+level (`tools/push-647.js`'s frozen list) as well as by convention:
 
-- Sale Redesign — `public/crm/SALE-FORM-REDESIGN.html`
-- Rental Redesign — `public/crm/RENTAL-FORM-REDESIGN.html`
-- Sales Tools — `public/crm/SALE-FORM-WITH-TOOLS.html`
-- Rental Tools — `public/crm/RENTAL-FORM-WITH-TOOLS.html`
-- Buyer Deal — `public/crm/BUYER-DEAL-FORM.html`
-- Tenant Deal — `public/crm/TENANT-DEAL-FORM.html`
-- `public/crm/index-built.html` and its Search/CMA bundle inputs
+1. **Sale Redesign** — `public/crm/SALE-FORM-REDESIGN.html`. Needs conversion to Cotality; a fixed
+   version exists but needs tweaking. The closest-to-correct starting point of all seven.
+2. **Rental Redesign** — `public/crm/RENTAL-FORM-REDESIGN.html`. Needs conversion; other versions
+   exist but none is fixed.
+3. **Sales Tools** — `public/crm/SALE-FORM-WITH-TOOLS.html`. Needs conversion.
+4. **Rental Tools** — `public/crm/RENTAL-FORM-WITH-TOOLS.html`. Needs conversion.
+5. **Tenant Deal** — `public/crm/TENANT-DEAL-FORM.html`. Mallan-created, for commission payment
+   representing tenants; connected as a tab in Rental Redesign.
+6. **Buyer Deal** — `public/crm/BUYER-DEAL-FORM.html`. Mallan-created, for commission payment
+   representing buyers; connected as a tab in Sale Redesign.
+7. **`public/crm/index-built.html`** and its Search/CMA bundle inputs. Needs conversion; it holds:
+   (A) Sales basic search, (B) Rental basic search, (C) Sales advanced search, (D) Rental advanced
+   search, (E) CMA, (F) Building search — all converted together as one unit, since none has its own
+   separate engine today. Search has fields Mallan created that are mostly commercial or private-
+   listing fields, not provider fields.
+
+**Public search is frozen too** (not one of the seven stand-alone tools, but the same freeze): `app/search/**`
+and the public-facing components, library modules and data files it depends on — `lib/idx/**`,
+`lib/search/**`, `lib/listings/**`, `lib/media/**`, `lib/geo/**`, `lib/buildings/**`,
+`data/*-neighborhoods.json`, `data/listings.json`, and the relevant `lib/compliance/**` display gates.
+The exact frozen set (all eight areas) is the JSON array `tools/push-647-frozen.json` in the
+`mallan-ops` workspace; `push-647.js` refuses any edit, deletion or write to a path on it.
+
+The final adversarial sweep (below) found three CRM-facing files that are hard runtime dependencies
+of two frozen tools (`index-built.html`, `BUYER-DEAL-FORM.html` both call `GET /api/idx/search`) but
+were missing from `tools/push-647-frozen.json` — `app/api/idx/search/route.ts`,
+`lib/search/crm-idx-filter.ts`, `lib/search/crm-idx-mapper.ts` — and `lib/search/crm-idx-mapper.ts`
+was simultaneously named in this file's own Open list as something the raw-mapper-unification work
+plans to change. Added to the frozen file list (tool-config fix only, no repository change) so that
+work does not silently touch a frozen tool's dependency.
+
+**Two more files are TEMPORARY FROZEN DEPENDENCY for a single stale comment each**, found by the same
+sweep: `lib/idx/trestle-mapper.ts` (×2) and `lib/media/crm-media.ts` (×1) each cite a provider
+CSV/XML path this convergence deleted, describing a fact that is still true live. See "Open" above.
+
+Current goal, in order: clean the underlying repository → old technical system = zero → no stale
+instruction capable of recreating it → adversarial proof → only then unfreeze and convert the seven
+stand-alone tools and public search to the live Cotality API.
+
+## Final adversarial sweep
+
+Per Maya's instruction (2026-10-01): after the legacy-reference sweep (milestones 10-19), six fresh
+agents that did not participate in it, with no assumption it succeeded, were run against head
+`1b478289` to try to prove it failed — one per angle: surviving provider authority; stale Trestle
+architecture / old provider snapshot still read; duplicate mapper/status/classification; duplicate
+Search executor / dead fallback / forgotten frozen dependency; current docs teaching deleted
+architecture / deleted paths still referenced; Claude instructions capable of resurrecting the old
+system. Each worked independently, read-only, citing file:line evidence for every claim, and was
+instructed to report "nothing found" honestly rather than manufacture a finding.
+
+**Confirmed and already closed (milestone 20, above):**
+- `lib/compliance/rebny-validator.ts` ran the live Fair Housing screen on a stale 35-term list instead
+  of the canonical 116-term `data/compliance/prohibited-terms.json` — fixed.
+
+**Confirmed, held by the freeze (recorded under "Frozen during the current cleanup" above):**
+- `lib/idx/trestle-mapper.ts` (×2) and `lib/media/crm-media.ts` (×1) cite deleted provider CSV/XML
+  paths for facts that are still true live; both files are frozen (public search), so `push-647.js`
+  refused the edit when attempted.
+
+**Confirmed, recorded as new detail under the existing "converge duplicate status logic" / "converge
+duplicate property/listing classification" Open items (above) rather than fixed — fixing either
+changes runtime behavior, which this reference-only sweep does not do:**
+- `app/api/open-houses/route.ts`'s local `mapPropertyType()` duplicates and diverges from the
+  canonical `mapPropertyTypeToDisplay` for two of its three data paths.
+- `lib/comps/fetch-comps.ts`'s local `STATUS_MAP` duplicates `lib/compliance/status.ts`'s
+  `normalizeStatus()`, against that module's own documented single-source rule.
+
+**Confirmed, fixed in the local push-647 tool config (no repository change):**
+- `app/api/idx/search/route.ts`, `lib/search/crm-idx-filter.ts`, `lib/search/crm-idx-mapper.ts` are
+  hard dependencies of two frozen tools and were missing from the frozen-file list; added.
+
+**Noted, judged low-risk, no action:**
+- `POST /api/crm/saved-searches/[id]/execute` exposes a live, reachable, state-mutating HTTP endpoint
+  for a DB-projection search engine with zero first-party callers (the saved-search UI re-runs
+  criteria through the live-Cotality `/api/idx/search` engine instead; the underlying engine itself is
+  not dead — `app/api/cron/search-alerts/route.ts` legitimately calls it for email alerting).
+- `scripts/validate-standalone.js` (`npm run validate:standalone`) is an untracked, older,
+  parallel schema-diff tool alongside the new `cotality:verify` live-enum pipeline. It reads a local
+  `trestle-metadata.xml` that is not committed anywhere in the tree, and its own error path demands a
+  fresh live download before use — it cannot present a stale snapshot as current truth, so it is not a
+  survivor of the `artifacts/metadata.xml` removal, just a second tool.
+- `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` cites `.claude/skills/rebny-compliance/SKILL.md` by
+  path and section number; no such file is tracked in this repository. This does not point at any
+  RLS/RESO/Trestle legacy material or an alternate authority (the cited skill, where it exists on an
+  operator's machine, is itself the `rebny-compliance` skill that points everything back to the Master
+  and live Cotality — same chain, different location), so it is not a resurrection risk; it is a
+  documentation-pointer mismatch a human can tidy or leave.
+
+**Everything else the six agents checked came back clean:** no second RESO/Cotality field or enum
+registry exists; no live code path reads a provider CSV/XML snapshot as field-truth authority; no
+RESO→RLS or RLS→Cotality rename table exists outside what is already tracked; no current (non-dated)
+documentation teaches a reader to use any deleted file/registry/command as if it still exists; no
+Claude-facing file (`CLAUDE.md`, `AGENTS.md`, `memory/**`, `docs/superpowers/**`) can direct a future
+agent back to the old system or to an authority other than the Master plus this file.
+
+This closes the adversarial check Maya required before the old-system cleanup is considered closed,
+with the findings above disposed of as shown — two fixed, two deferred to the already-tracked
+component-consolidation Open items, one frozen-list gap closed in tooling, three noted as no-risk.
 
 Everything below this point in §11 is history.
 
