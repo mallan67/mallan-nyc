@@ -1,5 +1,5 @@
 /**
- * Fetch comparable listings from Trestle for a seller's listing.
+ * Fetch comparable listings from the Cotality feed for a seller's listing.
  *
  * Two scopes:
  *   1. Building comps — same building (by BuildingName or address), matched by beds/baths/sqft/status
@@ -13,7 +13,7 @@ import { fetchFromTrestle } from "@/lib/idx/fetch";
 import { CARD_SELECT_FIELDS } from "@/lib/idx/card-fields";
 import type { CompCriteria, CompListing, CompResults, BuildingCompCriteria, AreaCompCriteria } from "./types";
 
-// Trestle status values mapped from our display names
+// Cotality status values mapped from our display names
 const STATUS_MAP: Record<string, string> = {
   "Active": "Active",
   "Under Contract": "ActiveUnderContract",

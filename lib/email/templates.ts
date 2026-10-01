@@ -783,7 +783,7 @@ export function genericCrmEmail(
  * Body content for Tier A is intentionally generic + safe — a brief
  * professional touch with a CTA to schedule a call. Trigger-specific
  * rich content (matched listings, market stats, rent-vs-buy widget)
- * is Tier B work that needs additional Trestle queries and a richer
+ * is Tier B work that needs additional Cotality queries and a richer
  * action_config schema.
  */
 export function lifecycleTriggerEmail(opts: {
@@ -873,7 +873,7 @@ export function lifecycleTriggerEmail(opts: {
 
 /**
  * Feed-reconcile abort alert — sent by app/api/cron/feed-reconcile when
- * the GHOST_ABORT_CAP fires (likely Trestle outage). Goes to brokers as
+ * the GHOST_ABORT_CAP fires (likely Cotality feed outage). Goes to brokers as
  * a transactional system notification. Body explicitly cites the count
  * and the cap so the operator can decide whether to investigate or wait.
  */
@@ -888,7 +888,7 @@ export function feedReconcileAbortEmail(opts: {
   return wrapEmail(`
     <div style="background:#fee2e2;border:1px solid #f87171;border-radius:8px;padding:14px 16px;margin:0 0 16px;">
       <p style="font-size:12px;font-weight:700;color:#991b1b;margin:0 0 4px;text-transform:uppercase;letter-spacing:1px;">Feed reconcile aborted</p>
-      <p style="font-size:14px;color:#7f1d1d;margin:0;">Trestle anomaly detected. No transitions made.</p>
+      <p style="font-size:14px;color:#7f1d1d;margin:0;">Cotality feed anomaly detected. No transitions made.</p>
     </div>
     <h1 style="font-size:22px;color:${BRAND_DARK};margin:0 0 16px;">Feed Reconcile Aborted — Manual Review Required</h1>
     <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
@@ -896,12 +896,12 @@ export function feedReconcileAbortEmail(opts: {
     </p>
     <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
       The daily feed-reconcile cron detected <strong>${opts.ghostCount}</strong> ghost listings
-      (Active in our DB but missing from the Trestle Active feed) — exceeding the safety cap of
+      (Active in our DB but missing from the Cotality Active feed) — exceeding the safety cap of
       <strong>${opts.cap}</strong>. The cron aborted before transitioning anything.
     </p>
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e5e7eb;margin:0 0 16px;">
       <tr>
-        <td style="padding:10px 16px;font-size:13px;color:#6b7280;background:#f9fafb;border-bottom:1px solid #e5e7eb;">Trestle Active count</td>
+        <td style="padding:10px 16px;font-size:13px;color:#6b7280;background:#f9fafb;border-bottom:1px solid #e5e7eb;">Cotality Active count</td>
         <td style="padding:10px 16px;font-size:13px;font-weight:600;color:${BRAND_DARK};text-align:right;background:#f9fafb;border-bottom:1px solid #e5e7eb;">${opts.trestleActiveCount.toLocaleString()}</td>
       </tr>
       <tr>
@@ -914,10 +914,9 @@ export function feedReconcileAbortEmail(opts: {
       </tr>
     </table>
     <p style="font-size:14px;color:#374151;line-height:1.6;margin:0 0 16px;">
-      A delta this large typically indicates a Trestle fetch failure (partial result) rather than an
-      actual mass-disappearance. The cron will retry on its next schedule. Investigate Trestle status,
-      or run <code style="background:#f3f4f6;padding:1px 4px;border-radius:3px;">scripts/feed-reconcile-dry-run</code>
-      to inspect the diff manually.
+      A delta this large typically indicates a Cotality fetch failure (partial result) rather than an
+      actual mass-disappearance. The cron will retry on its next schedule. Investigate Cotality feed status
+      and the ghost diff before the next run.
     </p>
     <p style="font-size:13px;color:#9ca3af;margin:16px 0 0;line-height:1.5;">
       This is an automated alert from the feed-reconcile cron. Reason code: <code>${escapeHtml(opts.abortReason)}</code>.

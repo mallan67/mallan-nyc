@@ -1,18 +1,18 @@
 // lib/idx/media-sync.ts
 //
-// Media sync service — Checkpoint 1 (cursor helpers only).
+// Media sync service — the incremental media lane of the Cotality feed.
 //
-// Master refactor PR 3 (memory/REFACTOR-2026-04-25.md). Per the bite-sized
-// commit plan, this file lands incrementally:
-//   Checkpoint 1 (this commit) — MediaSyncState cursor read/write helpers.
+// Sections keep the label of the checkpoint that introduced them; all six
+// are implemented in this file:
+//   Checkpoint 1 — MediaSyncState cursor read/write helpers.
 //   Checkpoint 2 — listing_media upsert path with idempotency.
 //   Checkpoint 3 — derived Listing column population (primary_photo_url etc).
 //   Checkpoint 4 — R2 upload + reuse behavior.
-//   Checkpoint 5 — cron route at app/api/cron/media-sync/route.ts.
+//   Checkpoint 5 — cron orchestration (`runMediaSync`, run by lib/idx/media-sync-member.ts).
 //   Checkpoint 6 — retry / partial-failure / concurrency guard.
 //
 // Why a two-tier cursor:
-//   Per Trestle's 2026-04-07 vendor guidance,
+//   Per Cotality's 2026-04-07 vendor guidance,
 //     - Property.PhotosChangeTimestamp is the high-level trigger that fires
 //       when ANY of a listing's media has changed.
 //     - Media.ModificationTimestamp / MediaModificationTimestamp is the per-row
@@ -86,7 +86,7 @@ export const RESOURCE_MEDIA = "Media" as const;
  * Two-tier cursor for the incremental media-sync cron.
  *
  * Both timestamps may be null — null means "no prior run" and the caller
- * should treat the cursor as the epoch (i.e. fetch everything Trestle has
+ * should treat the cursor as the epoch (i.e. fetch everything Cotality has
  * since the beginning of the feed for the first run, ideally bounded by a
  * sane caller-side window like "last 30 days").
  */
@@ -142,7 +142,7 @@ export async function getMediaSyncCursor(): Promise<MediaSyncCursor> {
 /**
  * Per-record candidate the cursor advancement reads from.
  *
- * Each record is one Trestle Property hit produced by the run. The
+ * Each record is one Cotality Property hit produced by the run. The
  * candidate fields may be Date, string, null, or undefined; invalid values
  * are ignored.
  */
@@ -162,7 +162,7 @@ export interface KeysetWatermark {
 /** Inputs for `advanceMediaSyncCursor`. */
 export interface AdvanceMediaSyncCursorOptions {
   /**
-   * Trestle records seen this run. Empty array is valid (no advancement
+   * Cotality records seen this run. Empty array is valid (no advancement
    * happens; only `last_run_at` and counters are touched). Still drives
    * `last_media_modified` (max). Drives `last_photos_change` ONLY on the
    * legacy path (when `watermark` is omitted).
@@ -306,7 +306,7 @@ export async function advanceMediaSyncCursor(
     if (pct && (batchPhotosChange === null || pct > batchPhotosChange)) {
       batchPhotosChange = pct;
     }
-    // Per Trestle: either ModificationTimestamp or MediaModificationTimestamp
+    // Per Cotality: either ModificationTimestamp or MediaModificationTimestamp
     // may carry the per-row change time depending on the feed shape we
     // happen to see. Take the max of whichever is present.
     const mt = parseDate(r.ModificationTimestamp);
@@ -482,11 +482,11 @@ function maxDate(a: Date | null, b: Date | null): Date | null {
 // ─── Checkpoint 2 — listing_media upsert path ───────────────────────────
 
 /**
- * Trestle Media row shape — accepts the OData JSON output from
+ * Cotality Media row shape — accepts the OData JSON output from
  * `GET /odata/Media?$filter=ResourceRecordKey eq '...'`.
  *
- * Field naming matches Trestle's PascalCase. All fields are optional/loose
- * because Trestle's response shapes vary slightly across queries.
+ * Field naming matches Cotality's PascalCase. All fields are optional/loose
+ * because Cotality's response shapes vary slightly across queries.
  */
 export interface UpsertListingMediaInput {
   MediaKey?: string | null;
@@ -496,13 +496,13 @@ export interface UpsertListingMediaInput {
   MediaCategory?: string | null;
   MediaClassification?: string | null;
   /**
-   * Trestle's row-level lifecycle status. `"Deleted"` rows arrive as
+   * Cotality's row-level lifecycle status. `"Deleted"` rows arrive as
    * tombstone signals — we mark a matching `listing_media` row as
    * `status='deleted'` rather than hard-deleting (audit trail).
    */
   MediaStatus?: string | null;
   /**
-   * REBNY/Cotality permission scope on the row. Trestle's IDX Plus license
+   * REBNY/Cotality permission scope on the row. The REBNY IDX Plus feed
    * pre-filters non-Public rows at the edge, but we defensively skip any row
    * whose `Permission` is set and not `'Public'` so a future feed-policy
    * change cannot leak restricted media into our cache.
@@ -527,7 +527,7 @@ export interface UpsertListingMediaOptions {
    * `media_key` is NOT in the input batch are tombstoned (`status='deleted'`).
    *
    * The caller MUST guarantee `mediaRows` represents the COMPLETE current
-   * Trestle media set for this listing. The cron route in Checkpoint 5 will
+   * Cotality media set for this listing. The cron route in Checkpoint 5 will
    * set this `true` after a per-listing Media fetch. Default `false`
    * because partial inputs would silently kill live rows otherwise.
    */
@@ -884,7 +884,7 @@ export function listingMediaRowUnchanged(
     existing.listing_id === listingId &&
     existing.resource_record_key === row.resourceRecordKey &&
     existing.resource_record_id === row.resourceRecordID &&
-    // media_url_original EXCLUDED (Phase 3): the signed Trestle MediaURL rotates
+    // media_url_original EXCLUDED (Phase 3): the signed Cotality MediaURL rotates
     // on every request, so it is never identity/material — comparing it caused
     // the 100%-write churn this guard now prevents. Suppression of a
     // material-unchanged row is additionally gated on delivery state at the
@@ -1004,13 +1004,13 @@ export function classifyMediaRowMismatch(
 }
 
 /**
- * Upsert a complete Trestle Media batch for a single listing.
+ * Upsert a complete Cotality Media batch for a single listing.
  *
  * Behavior per row:
  *   - No `MediaKey` ⟹ skipped (we cannot dedupe).
  *   - `MediaStatus === "Deleted"` ⟹ tombstone any matching active row by
  *     `media_key` (mark `status='deleted'`); never insert.
- *   - `Permission` set and not `"Public"` ⟹ skipped (defensive — Trestle's
+ *   - `Permission` set and not `"Public"` ⟹ skipped (defensive — the REBNY
  *     IDX Plus license pre-filters at the edge but we double-check).
  *   - No `MediaURL` ⟹ skipped (we have nothing to mirror).
  *   - Otherwise: upsert by `media_key`. Inserts seed `created_at`; updates
@@ -1333,11 +1333,11 @@ export async function upsertListingMedia(
       ...mapped.map((r) => r.mediaKey),
       ...explicitDeleteKeys,
     ]);
-    // Empty-input case: tombstone every active TRESTLE row for the listing.
+    // Empty-input case: tombstone every active feed row for the listing.
     // P1C2: BOTH branches exclude the `crm:` namespace — CRM-owned uploads are
-    // absent from every Trestle media set BY DESIGN (crm-media.ts:2-7), so
+    // absent from every Cotality media set BY DESIGN (crm-media.ts:2-7), so
     // "vanished from the complete set" can never mean "deleted at source" for
-    // them. Trestle never emits crm:-prefixed MediaKeys, so feed semantics
+    // them. Cotality never emits crm:-prefixed MediaKeys, so feed semantics
     // (incl. deleted-at-source removal) are unchanged for feed rows.
     const where =
       seenKeys.size === 0
@@ -1385,7 +1385,7 @@ export async function upsertListingMedia(
   };
 }
 
-/** Coerce Trestle's `Order` field (number | string | null) to a finite int, default 0. */
+/** Coerce Cotality's `Order` field (number | string | null) to a finite int, default 0. */
 function parseOrder(value: number | string | null | undefined): number {
   if (value == null) return 0;
   const n = Number(value);
@@ -1393,7 +1393,7 @@ function parseOrder(value: number | string | null | undefined): number {
   return Math.trunc(n);
 }
 
-/** Coerce Trestle's boolean-ish flags ('true' string, true, etc.) to a real boolean. */
+/** Coerce Cotality's boolean-ish flags ('true' string, true, etc.) to a real boolean. */
 function parseBool(value: boolean | string | null | undefined): boolean {
   if (value === true) return true;
   if (typeof value === "string") return value.toLowerCase() === "true";
@@ -1440,7 +1440,7 @@ export interface SummarySourceRow {
    * reader. Added 2026-08-07 (commit 7A).
    *
    * Without these the summary could only test `media_type === 'Photo'`, while
-   * the canonical resolver also weighs category, classification and the Trestle
+   * the canonical resolver also weighs category, classification and the Cotality
    * DOCUMENT-* URL shape. Because `classifyTrestleMediaCategory` defaults a
    * MISSING MediaCategory to Photo, a row could be STORED as Photo while being
    * CANONICALLY a FloorPlan — so `Listing.photo_count` reported 2 where the
@@ -1504,7 +1504,7 @@ export interface HeroPhotoCandidate {
  * DELEGATES to the canonical `classifyMediaItem` (commit 7A). It previously
  * tested only `String(r.media_type).toLowerCase() === 'photo'`, which the
  * canonical public reader does not — the reader also weighs MediaCategory,
- * MediaClassification and the Trestle DOCUMENT-* URL shape.
+ * MediaClassification and the Cotality DOCUMENT-* URL shape.
  *
  * That gap was real, not theoretical: `classifyTrestleMediaCategory` defaults a
  * MISSING MediaCategory to Photo, so a floor plan arriving with no category was
@@ -1658,7 +1658,7 @@ export interface StoredListingMediaSummary {
 
 /**
  * Provider DOMAINS whose media URLs carry a ROTATING signed query (the
- * Cotality/Trestle feed re-signs MediaURL on every request). ONLY these
+ * Cotality feed re-signs MediaURL on every request). ONLY these
  * providers get the query-insensitive identity compare below; every other
  * URL (R2, Mallan, third-party CDNs) is compared byte-exact because its
  * query string may be a real version/resource identifier.
@@ -1666,7 +1666,7 @@ export interface StoredListingMediaSummary {
  * HOSTNAME-scoped (Maya re-review 2026-07-21): detection parses the URL and
  * inspects `URL.hostname` ONLY — exact domain or dot-boundary subdomain,
  * NEVER a substring over the full URL. A stable URL whose path contains a
- * provider-looking token (".../trestle-building.jpg") or whose query
+ * provider-looking token (".../cotality-building.jpg") or whose query
  * smuggles a provider host ("?redirect=api.cotality.com"), and look-alike
  * hosts ("notcotality.com"), must all stay STABLE (exact compare).
  *
@@ -1719,7 +1719,7 @@ function summaryHeroUrlEqual(a: string | null, b: string | null): boolean {
  *   - `photos_change_timestamp` — instant compare (an actual source photo
  *     revision always writes).
  *   - `primary_photo_url` — provider-scoped (correction 7): ONLY when both
- *     sides are KNOWN rotating Cotality/Trestle feed URLs is the rotating
+ *     sides are KNOWN rotating Cotality feed URLs is the rotating
  *     signed query ignored (origin + pathname identity). Stable/non-feed
  *     URLs compare byte-exact. A true hero replacement changes the media
  *     path (and, when mirrored, `primary_photo_r2_key`) → always material.
@@ -1922,7 +1922,7 @@ export async function propagateMirroredHeroSummaries(
  * Per-row shape `mirrorMediaToR2()` operates on. This is a strict subset of
  * the `listing_media` schema — only the fields the function reads.
  *
- * The function NEVER writes `media_url_original`. The original Trestle URL
+ * The function NEVER writes `media_url_original`. The original Cotality URL
  * is the source of truth for re-fetching and must remain immutable here.
  */
 export interface MirrorMediaToR2Row {
@@ -1940,8 +1940,8 @@ export interface MirrorMediaToR2Row {
    *   upload/reuse. Incremented on every failure mode.
    * - On the 3rd consecutive **permanent** HTTP 4xx (`fetch_failed` with
    *   `error` matching `HTTP (404|410)`), Cp4 sets `status='deleted'` to
-   *   break the retry loop. See `memory/PR3-PRODUCTION-ROLLOUT-2026-05-09.md`
-   *   E8 probe — Trestle confirmed stale URLs return HTTP 404 with body
+   *   break the retry loop. The E8 production probe confirmed that stale
+   *   Cotality media URLs return HTTP 404 with body
    *   `{"code":"404","message":"ERROR - External media was not downloaded."}`.
    *   Other 4xx (401/403/408/425/429 etc.) are NOT tombstone-eligible —
    *   they're transient, system-wide, or ambiguous and cooldown alone is
@@ -2364,7 +2364,7 @@ export function measureBacklogInflow(
  * Phase 4: per-run mirror FAILURE budget. Once this many mirror attempts
  * have failed in one run, the remaining queue is NOT attempted (rows stay
  * untouched in the backlog and re-surface next run). Prevents a systemic
- * outage (Trestle/R2 down) from burning the whole Phase-3 budget on
+ * outage (Cotality/R2 down) from burning the whole Phase-3 budget on
  * failures while keeping per-row failures isolated and precisely counted.
  */
 export const R2_RUN_FAILURE_BUDGET = 10;
@@ -2445,7 +2445,7 @@ export function buildR2ParkedRecoveryWhere(
 /**
  * DI seam for `mirrorMediaToR2()`. All R2 / fetch / token surfaces are
  * injected so tests can stub them without ever touching the live R2
- * bucket, the live Trestle endpoint, or the live IDX OAuth token cache.
+ * bucket, the live Cotality endpoint, or the live IDX OAuth token cache.
  *
  * The Prisma `listingMedia.update` call is NOT injected — tests use
  * `jest.mock('@/lib/prisma')` (matching Checkpoints 1-3) and the real
@@ -2472,7 +2472,7 @@ export const defaultMirrorMediaToR2Deps: MirrorMediaToR2Deps = {
 /** Outcome reported back to the caller (the future cron route in Checkpoint 5). */
 export interface MirrorMediaToR2Result {
   /**
-   * `uploaded`  — fetched from Trestle and written to R2 this run.
+   * `uploaded`  — fetched from Cotality and written to R2 this run.
    * `reused`    — already in R2; no fetch, no upload.
    * `skipped`   — input row had no `media_url_original` (nothing to mirror).
    * `failed`    — R2 / fetch / upload error; DB row left untouched.
@@ -2486,7 +2486,7 @@ export interface MirrorMediaToR2Result {
   reason?:
     | "no_media_url_original"
     /**
-     * #575 fail-closed: the row has no stable Trestle `MediaKey` and no
+     * #575 fail-closed: the row has no stable Cotality `MediaKey` and no
      * existing `r2_key`, so no deterministic object key can be derived.
      * Skipped rather than keyed by `Order` (a presentation ordinal), which is
      * what produced duplicate R2 objects on every gallery reorder.
@@ -2503,7 +2503,7 @@ export interface MirrorMediaToR2Result {
 }
 
 /**
- * Mirror a single Trestle Media row to R2 if it isn't already there.
+ * Mirror a single Cotality Media row to R2 if it isn't already there.
  *
  * Boundary contract:
  *   - NEVER writes `media_url_original` (it is the immutable source).
@@ -2565,7 +2565,7 @@ export async function mirrorMediaToR2(
   // R2 key resolution: prefer existing (stable across retries), else derive.
   // `buildMediaR2Key` namespaces by canonical mediaType (Photo→photos/,
   // FloorPlan→floorplans/, Video→videos/, VirtualTour→virtualtours/) and
-  // addresses the object by the STABLE Trestle `MediaKey` (#575), NOT by
+  // addresses the object by the STABLE Cotality `MediaKey` (#575), NOT by
   // `Order` — a presentation ordinal the feed reassigns on every gallery
   // reorder, which produced one duplicate object per reorder.
   //
@@ -2606,13 +2606,13 @@ export async function mirrorMediaToR2(
     const isRecoveryAttempt = context.recoveryAttempt === true;
     // Tombstone-eligible only when the HTTP status proves the binary is
     // permanently unfetchable:
-    //   - 404 — E8-confirmed: Trestle CDN body
+    //   - 404 — E8-confirmed: Cotality CDN body
     //     `{"code":"404","message":"ERROR - External media was not downloaded."}`
     //   - 410 — RFC-correct "intentionally retired" response (defensive
     //     coverage; not yet observed but semantically equivalent to 404)
     // All other 4xx (401/403/408/425/429 in particular) are either
     // system-wide, transient, or ambiguous — cooldown alone is the right
-    // response. 429 is the most important to NOT tombstone given Trestle's
+    // response. 429 is the most important to NOT tombstone given Cotality's
     // documented 480/min media URL ceiling.
     const isPermanent4xx =
       result.reason === "fetch_failed" &&
@@ -2655,7 +2655,7 @@ export async function mirrorMediaToR2(
     // snapshot claimed. Tombstoning stays restricted to permanent 4xx
     // (404 / 410); 5xx, network, R2-side, token and every other 4xx error is
     // transient or ambiguous and only earns a cooldown. 429 in particular
-    // must never tombstone, given Trestle's 480/min media-URL ceiling.
+    // must never tombstone, given Cotality's 480/min media-URL ceiling.
     //
     // The WHERE carries the SAME eligibility the selection used
     // (`buildR2BacklogWhere`): `status = 'active'` AND the unmirrored
@@ -2793,7 +2793,7 @@ export async function mirrorMediaToR2(
     return { status: "reused", r2_key: key, media_url_cached: publicUrl };
   }
 
-  // Upload path: fetch from Trestle, then upload to R2.
+  // Upload path: fetch from Cotality, then upload to R2.
   let token: string;
   try {
     token = await deps.getAccessToken();
@@ -2875,22 +2875,22 @@ export async function mirrorMediaToR2(
 // ─── Checkpoint 5 — orchestration (cron-callable) ───────────────────────
 
 /**
- * Trestle Property row shape — strict subset of fields `runMediaSync()` reads.
+ * Cotality Property row shape — strict subset of fields `runMediaSync()` reads.
  *
- * Compliance gates use the canonical field names from
- * `lib/idx/trestle-mapper.ts:706-721`:
+ * Compliance gates use the canonical field names that
+ * `checkDistributionGates()` reads:
  *   - `Permission` enum (singular, preferred): values `'OwnerOptOut'` /
  *     `'Owner Opt-Out'` ⟹ owner opt-out gate (REBNY Gate 1); value `'Private'`
  *     ⟹ participant-only gate (REBNY Gate 2).
- *   - `Permissions` (plural) is a legacy variant some Trestle feeds still
- *     return — we accept either.
+ *   - `Permissions` (plural) is a legacy name absent from Property in live
+ *     `$metadata` (committed as data/cotality-enums.live.json); either is accepted.
  *   - `MlsStatus = 'OwnerOptOut'` is an alternate owner-opt-out signal.
  *   - `InternetEntireListingDisplayYN` is the master internet display gate
  *     (REBNY Gate 3); false ⟹ block.
  *
  * The shapes `OwnerOptOut: boolean` and `ParticipantOnly: boolean` do NOT
- * exist on Trestle (were never real Trestle fields — see
- * `lib/idx/trestle-mapper.ts:710-712`). Do not reintroduce them.
+ * exist in live Cotality `$metadata` (they were never real provider fields;
+ * committed capture: data/cotality-enums.live.json). Do not reintroduce them.
  */
 export interface TrestleProperty {
   ListingId?: string | null;
@@ -2910,7 +2910,7 @@ export interface TrestleProperty {
  * Defensive REBNY compliance gate at orchestrator level. Returns `true` when
  * the property must be skipped (no Media fetch, no upsert).
  *
- * Mirrors `checkDistributionGates()` in `lib/idx/trestle-mapper.ts:706-724`
+ * Mirrors the canonical `checkDistributionGates()`
  * for the gates that are cheap to evaluate per-listing without further joins:
  *   - REBNY Gate 1 (Owner Opt-Out): `Permission`/`Permissions` enum
  *     `'OwnerOptOut'` / `'Owner Opt-Out'` OR `MlsStatus === 'OwnerOptOut'`.
@@ -2920,7 +2920,7 @@ export interface TrestleProperty {
  * Per-row Permission filtering on the Media resource and `MediaStatus='Deleted'`
  * tombstoning are handled inside `upsertListingMedia()`.
  *
- * Trestle's IDX Plus license edge pre-filters most blocked rows; this is
+ * The REBNY IDX Plus feed pre-filters most blocked rows at the edge; this is
  * defense-in-depth so a future feed-policy change cannot leak.
  */
 export function isPropertyComplianceBlocked(property: TrestleProperty): boolean {
@@ -2936,7 +2936,7 @@ export function isPropertyComplianceBlocked(property: TrestleProperty): boolean 
   return ownerOptOut || participantOnly || internetDisplayBlocked;
 }
 
-/** Test-injectable Trestle fetchers. */
+/** Test-injectable Cotality fetchers. */
 export interface MediaSyncFetchDeps {
   /** Fetch one Property page using the RC1 keyset cursor. */
   fetchProperties: (cursor: PropertyQueryCursor, top: number) => Promise<TrestleProperty[]>;
@@ -2956,7 +2956,7 @@ export interface RunMediaSyncOptions {
   mediaPerListing?: number;
   /** First-run cursor fallback in days (default 30). */
   fallbackWindowDays?: number;
-  /** DI seam for Trestle Property + Media fetch. */
+  /** DI seam for Cotality Property + Media fetch. */
   fetchDeps?: MediaSyncFetchDeps;
   /** DI seam for the R2 mirror function (`mirrorMediaToR2()` deps). */
   mirrorDeps?: MirrorMediaToR2Deps;
@@ -3002,7 +3002,7 @@ export interface RunMediaSyncResult {
    *              if budget exhausted).
    * `partial` — at least one Phase 1 listing failed OR at least one Phase 3
    *              R2 row failed. Cursor advanced for ingested listings only.
-   * `error`   — Trestle Property fetch failed. Cursor NOT advanced. No
+   * `error`   — Cotality Property fetch failed. Cursor NOT advanced. No
    *              Phase 3 ran.
    */
   status: "ok" | "partial" | "error";
@@ -3085,7 +3085,7 @@ export interface RunMediaSyncResult {
   listings_processed: number;
   listings_skipped: number;
   /**
-   * RC5: Trestle Properties whose listing has NO local `listings` row
+   * RC5: Cotality Properties whose listing has NO local `listings` row
    * ("ghosts" — never imported, e.g. feed-reconcile orphan-create failing).
    * Counted within `listings_skipped` as resolved skips so the keyset
    * watermark advances past them instead of freezing the cursor.
@@ -3104,7 +3104,7 @@ export interface RunMediaSyncResult {
    * this run (non-hero photo of a displayable third-party listing, a
    * media_type outside the scope's approved set, or — defensively — media of
    * a non-admissible/unknown listing that slipped past the DB-side filter).
-   * Never mirrored; no Trestle fetch, no R2 write. Superset of
+   * Never mirrored; no Cotality fetch, no R2 write. Superset of
    * `mirror_rejected_policy_parked`.
    */
   mirror_rejected_policy: number;
@@ -3126,7 +3126,7 @@ export interface RunMediaSyncResult {
   mirror_rejected_policy_parked: number;
   /** LEGACY aggregate: R2 mirror successes (`r2_uploaded + r2_reused`) in Phase 3. */
   r2_mirrored: number;
-  /** R2-1 split of `r2_mirrored`: fetched from Trestle and uploaded to R2 this run. */
+  /** R2-1 split of `r2_mirrored`: fetched from Cotality and uploaded to R2 this run. */
   r2_uploaded: number;
   /** R2-1 split of `r2_mirrored`: object already existed in R2 — reused, no upload. */
   r2_reused: number;
@@ -3213,13 +3213,13 @@ export const DEFAULT_BUDGET_MS = 100_000;
 export const DEFAULT_PHASE1_RESERVE_MS = 55_000;
 export const DEFAULT_PHASE2_RESERVE_MS = 12_000;
 /**
- * R2 mirror concurrency for Phase 3. Matches the production-tested pattern
- * in `lib/idx/sync.ts:694` (`MAX_CONCURRENT = 5` inside `migrateMediaToR2`).
- * Trestle's published Media URL ceiling is 480/min ≈ 8/sec
+ * R2 mirror concurrency for Phase 3. Same concurrency-5 pattern as
+ * `migrateMediaToR2` in `lib/idx/sync.ts` (`MAX_CONCURRENT = 5`).
+ * Cotality's published Media URL ceiling is 480/min ≈ 8/sec
  * (published quota, Master section 0.8); concurrency-5 with sequential
- * batches sustains ~5/sec — comfortably within Trestle's bandwidth budget
- * and matches the proven-production `migrateMediaToR2` cron that has drained
- * 128K+ photos without incident.
+ * batches sustains ~5/sec — comfortably within Cotality's bandwidth budget.
+ * History only: the media-backfill cron that ran `migrateMediaToR2` was
+ * removed by PR #176 (2026-05-21); that function has had no caller since.
  */
 export const R2_MIRROR_CONCURRENCY = 5;
 
@@ -3232,18 +3232,18 @@ export const R2_MIRROR_CONCURRENCY = 5;
  *     with idempotent upsert keyed on `media_key`, this re-includes the
  *     boundary timestamp on each run so no listings sharing the cursor's
  *     timestamp are permanently skipped between firings (review comment 2).
- *   - `$orderby` adds `ListingKey asc` as a stable tie-breaker so Trestle
+ *   - `$orderby` adds `ListingKey asc` as a stable tie-breaker so Cotality
  *     paging produces a deterministic order within same-PCT clusters.
  *
  * Compliance fields:
  *   - `$select` includes `Permission` (singular) and `MlsStatus`, the canonical
- *     compliance fields per `lib/idx/trestle-mapper.ts:74` and the IDX Plus CSV.
+ *     compliance fields, both on Property in live `$metadata` (committed as data/cotality-enums.live.json).
  *   - `$select` deliberately does NOT include `Permissions` (plural). Although
  *     `isPropertyComplianceBlocked()` defensively reads `property.Permissions`
- *     for legacy-feed safety, the plural form does NOT exist as a Trestle IDX
- *     Plus Property field — including it in `$select` causes Trestle to return
+ *     for legacy-feed safety, the plural form does NOT exist as a Cotality
+ *     Property field — including it in `$select` causes Cotality to return
  *     HTTP 400 (verified in production 2026-05-09T07:00:25Z, first PR-3 firing).
- *     `Permission` (singular) is the only Trestle-valid form; the runtime
+ *     `Permission` (singular) is the only valid form; the runtime
  *     fallback to `property.Permissions` simply reads `undefined` on this feed,
  *     which is harmless.
  */
@@ -3278,7 +3278,7 @@ export function buildPropertyQuery(cursor: PropertyQueryCursor, top: number): UR
     timeClause = `(PhotosChangeTimestamp gt ${ts} or (PhotosChangeTimestamp eq ${ts} and ListingKey gt '${key}'))`;
   }
   params.set("$filter", `${timeClause} and ${statuses}`);
-  // `Permissions` (plural) is NOT a Trestle IDX Plus Property field — see the
+  // `Permissions` (plural) is NOT a Cotality Property field — see the
   // doc comment above. Do NOT add it back. `Permission` (singular) is canonical.
   params.set(
     "$select",
@@ -3294,9 +3294,9 @@ async function defaultFetchProperties(
   top: number,
 ): Promise<TrestleProperty[]> {
   const token = await defaultGetAccessToken();
-  const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+  const COTALITY_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
 
-  const url = `${TRESTLE_API}/odata/Property?${buildPropertyQuery(cursor, top).toString()}`;
+  const url = `${COTALITY_API}/odata/Property?${buildPropertyQuery(cursor, top).toString()}`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
   });
@@ -3343,7 +3343,7 @@ async function defaultFetchMediaPage(url: string): Promise<MediaPage> {
  * `tombstoneVanished: true` safe.
  */
 async function defaultFetchMedia(resourceRecordKey: string): Promise<UpsertListingMediaInput[]> {
-  const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+  const COTALITY_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
   const escaped = resourceRecordKey.replace(/'/g, "''");
   const params = new URLSearchParams();
   params.set("$filter", `ResourceRecordKey eq '${escaped}'`);
@@ -3355,7 +3355,7 @@ async function defaultFetchMedia(resourceRecordKey: string): Promise<UpsertListi
   // Per-page size; the rest of a high-photo listing is followed via @odata.nextLink.
   params.set("$top", String(DEFAULT_MEDIA_PAGE_SIZE));
 
-  const firstUrl = `${TRESTLE_API}/odata/Media?${params.toString()}`;
+  const firstUrl = `${COTALITY_API}/odata/Media?${params.toString()}`;
   // The shared follower is generic; this caller's rows are Media upsert inputs.
   const { rows, complete } = await paginateMedia<UpsertListingMediaInput>(
     firstUrl,
@@ -3400,9 +3400,9 @@ export const defaultFetchDeps: MediaSyncFetchDeps = {
  *   Phase 3 — R2 enrichment backlog (parallel-5):
  *     Queries `listing_media` rows where `r2_key IS NULL OR
  *     media_url_cached IS NULL` (oldest first). Processes them with
- *     `Promise.allSettled` and concurrency 5 — matching the proven-
- *     production pattern in `lib/idx/sync.ts:694-708` (`migrateMediaToR2`),
- *     and within Trestle's 480/min Media URL ceiling
+ *     `Promise.allSettled` and concurrency 5 — the same pattern as
+ *     `migrateMediaToR2` in `lib/idx/sync.ts` (uncalled since PR #176),
+ *     and within Cotality's 480/min Media URL ceiling
  *     (published quota, Master section 0.8). Stops when remaining
  *     time < `phase2ReserveMs`. R2 failures count in `r2_failed` (separate
  *     from source `rows_failed`); the row stays in the backlog for retry.
@@ -3703,7 +3703,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       // CANNOT be synced. Record it as ok:false so `pickKeysetWatermark` HALTS
       // here and the cursor never advances PAST unprocessed media — even if a
       // later listing in this ordered batch succeeds (Codex #377). A row with no
-      // ListingKey at all (Trestle ListingKey is non-nullable, so effectively
+      // ListingKey at all (Cotality ListingKey is non-nullable, so effectively
       // impossible) still halts via the empty-string key. It re-surfaces next run.
       listingsSkipped++;
       processed.push({ listingKey: listingKey ?? "", photosChangeTs: propTs, ok: false });
@@ -3899,13 +3899,13 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   }
 
   // ── PHASE 3: R2 enrichment backlog (parallel, concurrency = 5) ───────
-  // Pattern matches lib/idx/sync.ts:694-708 (migrateMediaToR2). Trestle's
+  // Same pattern as migrateMediaToR2 in lib/idx/sync.ts (uncalled since PR #176). Cotality's
   // 480/min Media URL ceiling allows 8/sec sustained; concurrency-5 peaks
   // ~5/sec → comfortably within bandwidth, regression-safe.
   //
   // Per-invocation attempt tracking (PR #97 Codex review fix):
   //   The backlog query selects rows where `r2_key IS NULL OR
-  //   media_url_cached IS NULL`. If a row's mirror fails (e.g., Trestle
+  //   media_url_cached IS NULL`. If a row's mirror fails (e.g., Cotality
   //   404 on media_url_original, R2 head/upload error), its DB state is
   //   unchanged — same row keeps matching the same query. Without
   //   tracking, a persistent bad row at the head of the queue would be
@@ -3921,11 +3921,11 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   // Cross-invocation cooldown (added 2026-05-10):
   //   The per-invocation Set above stops re-selection within ONE cron
   //   firing, but every subsequent firing's Set is fresh — meaning a row
-  //   whose Trestle URL is permanently 404 still gets retried 96×/day.
+  //   whose Cotality URL is permanently 404 still gets retried 96×/day.
   //   The cooldown filter (`r2_last_attempt_at IS NULL OR < NOW() - 6h`)
   //   throttles those retries to 4×/day. Cp4 sets `r2_last_attempt_at`
   //   on every failure path; success paths clear it back to NULL.
-  //   See `memory/PR3-PRODUCTION-ROLLOUT-2026-05-09.md` E8 probe.
+  //   The E8 production probe confirmed stale URLs return HTTP 404.
   // Phase 4 — BOUNDED drain. Selection: at most TWO bounded
   // CANDIDATE-SELECTION queries per run (one main backlog selection;
   // zero-or-one parked recovery selection). The pre-existing

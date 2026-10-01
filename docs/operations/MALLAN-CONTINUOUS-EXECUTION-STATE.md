@@ -750,7 +750,6 @@ Read the live PR for the current head, commit count and checks; this documentati
 - replace or remove the provider-rule dependencies of `lib/compliance/rebny-validator.ts` (it reads `lib/compliance/rls-rules.json`, derived from the removed REBNY RLS CSV);
 - remove the `data/listings.json` runtime fallback (`app/api/listings/[id]/route.ts`);
 - remove `public/crm/js/core/reso-field-map.js` and the `data-rls` provider bindings once their consumers are safely replaced. Those consumers are the frozen forms and the `index-built.html` bundle, so this waits until those tools are unfrozen for their Cotality conversion;
-- continue the file-by-file disposition of `lib/search/canonical`;
 - complete Batch 1d: obsolete rule and compliance-copy cleanup;
 - zero-reference proof for the old provider authority (step 6).
 

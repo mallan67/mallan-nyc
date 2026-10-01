@@ -8,7 +8,7 @@ Single-source-of-truth provisioning guide for the R2 bucket that backs mallan-ny
 
 ## 0. Reality check — what's already in place
 
-Before reading further, note: the R2 client wrapper and the Trestle→R2 cache flow already exist in this repo. `lib/images/r2.ts` and `lib/images/cache-listing-photos.ts` are in production. This runbook is about confirming the bucket + credentials + verification path so the *next* round of media work (PRs 3 and 4) starts green.
+Before reading further, note: the R2 client wrapper (`lib/images/r2.ts`) and the Cotality→R2 media mirror (`mirrorMediaToR2` in `lib/idx/media-sync.ts`, run in-process by the One Cycle media member `lib/idx/media-sync-member.ts`; R2 key and media-classification helpers in `lib/media/media-sync-service.ts`) already exist in this repo and are in production. This runbook is about confirming the bucket + credentials + verification path so the *next* round of media work (PRs 3 and 4) starts green.
 
 If `npm run ops:r2-health` already returns exit 0 against your environment, the rest of this doc is reference material.
 
@@ -225,7 +225,8 @@ Both PRs declare `npm run ops:r2-health` exit 0 in their Production Verification
 ## Cross-references
 
 - `lib/images/r2.ts` — S3 client wrapper (already in repo)
-- `lib/images/cache-listing-photos.ts` — Trestle→R2 caching during ISR (already in repo)
+- `lib/idx/media-sync.ts` — Cotality→R2 media mirror (`mirrorMediaToR2` / `runMediaSync`, run by the One Cycle media member; manual trigger `/api/cron/media-sync`)
+- `lib/media/media-sync-service.ts` — R2 key + media-classification helpers used by the mirror and by ingest
 - `scripts/ops-r2-health.ts` — health check script (this PR)
 - `memory/REFACTOR-2026-04-25.md` — master plan, PRs 3 & 4
 - Cloudflare R2 docs: https://developers.cloudflare.com/r2/

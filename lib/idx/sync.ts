@@ -1,6 +1,6 @@
 // lib/idx/sync.ts
-// Orchestrator for IDX/Trestle sync pipeline.
-// READ from Trestle, WRITE to local DB only. No data goes back to Trestle.
+// Orchestrator for the IDX (Cotality) sync pipeline.
+// READ from Cotality, WRITE to local DB only. No data goes back to Cotality.
 
 import prisma from "@/lib/prisma";
 import { fetchFromTrestle, buildIncrementalFilter, buildActiveFilter, buildAgentHistoricalFilter, PROPERTY_KEYSET_ORDERBY } from "./fetch";
@@ -114,15 +114,15 @@ export function mediaUpdatePatch(
 }
 
 /**
- * S1 (#445 Codex P1) — never overwrite `listings.compliance` on a Trestle UPDATE.
+ * S1 (#445 Codex P1) — never overwrite `listings.compliance` on a Cotality-sync UPDATE.
  *
- * The mapper no longer copies the redundant Trestle compliance JSON (it emits
- * `{}` — see trestle-mapper.ts), and the column is RETAINED for CRM/syndication-
+ * The mapper no longer copies the redundant provider compliance JSON (it emits
+ * `{}`), and the column is RETAINED for CRM/syndication-
  * authored keys (`validation_result`, approval keys) written directly by those
  * routes. Writing the mapper's `{}` on UPDATE would STOMP those authored keys
- * (and, before this change, the old Trestle copy stomped them too). So OMIT
+ * (and, before this change, the old provider copy stomped them too). So OMIT
  * `compliance` on UPDATE entirely — the existing DB value (authored or legacy)
- * is preserved. CREATE is unaffected: a new Trestle row has no authored
+ * is preserved. CREATE is unaffected: a new feed row has no authored
  * compliance and gets the schema default `{}` (or the mapper's `{}`).
  *
  * Mirrors `mediaUpdatePatch`: spread the result into the UPDATE object so the
@@ -246,7 +246,7 @@ export function archivedSafeMediaWhere(listingId: string): Prisma.ListingWhereIn
 }
 
 /**
- * Trestle raw record exposes Permission (singular) or legacy Permissions.
+ * Cotality raw records carry Permission (singular); legacy Permissions is read defensively.
  * Read whichever is present; null if neither.
  */
 function readTrestlePermissions(raw: Record<string, unknown>): string | null {
@@ -330,7 +330,7 @@ async function recordSyncDiagnostic(
   // buffer in-memory now (synchronous, no DB round-trip in the hot loop) and
   // flush a capped set + one summary at end of the run (flushSyncDiagnostics).
   // FAIL-SAFE: any action NOT on the allowlist is written through immediately
-  // below, full-retained — human / compliance / security / §2.05 / Trestle /
+  // below, full-retained — human / compliance / security / §2.05 / Cotality data-access /
   // portal audit events never reach this helper and are never deduped.
   if (SYNC_DIAGNOSTIC_DEDUPE_ACTIONS.has(action)) {
     bufferSyncDiagnostic(action, entity_type, entity_id, changes);
@@ -509,8 +509,8 @@ function recordPublicListingChange(
 }
 
 /**
- * Sync listings from Trestle to local Prisma DB.
- * 1. Fetch from Trestle (paginated)
+ * Sync listings from Cotality to local Prisma DB.
+ * 1. Fetch from Cotality (paginated)
  * 2. For each record: validate → check gates → map → upsert
  * 3. Log everything for audit
  */
@@ -595,7 +595,7 @@ export async function syncListings(
   console.log(`[IDX Sync] Starting sync with filter: ${filter}`);
 
   const maxRecords = options.maxRecords || 1000;
-  // PR-S.1c (2026-05-15): Trestle CONSISTENTLY rejects `$expand=Media` with
+  // PR-S.1c (2026-05-15): Cotality CONSISTENTLY rejects `$expand=Media` with
   // HTTP 400 regardless of result-set size. The previous conditional
   // (`maxRecords <= 200`) was a workaround for what was originally framed
   // as a "timeout for large batches" issue, but production logs show even
@@ -615,7 +615,7 @@ export async function syncListings(
     ...(incremental ? { orderby: PROPERTY_KEYSET_ORDERBY } : {}),
   });
 
-  console.log(`[IDX Sync] Fetched ${fetchResult.totalFetched} records from Trestle`);
+  console.log(`[IDX Sync] Fetched ${fetchResult.totalFetched} records from Cotality`);
 
   let upserted = 0;
   let skippedGates = 0;
@@ -814,8 +814,8 @@ export async function syncListings(
         raw_data: mapped.raw_data as Record<string, unknown>,
         features: mapped.features as Record<string, unknown>,
         // #446: ExpirationDate is in PRIVATE_FIELDS, so mapped.raw_data has it stripped.
-        // Feed the original un-stripped Trestle record's ExpirationDate as the Expired
-        // fallback (NOT persisted) so a Trestle Expired listing seeds terminal_since from
+        // Feed the original un-stripped Cotality record's ExpirationDate as the Expired
+        // fallback (NOT persisted) so a Cotality Expired listing seeds terminal_since from
         // its actual expiration date, not the sync wall-clock.
         expirationDateFallback: raw.ExpirationDate as string | undefined,
       });
@@ -825,8 +825,8 @@ export async function syncListings(
         raw_data: mapped.raw_data as Record<string, unknown>,
         features: mapped.features as Record<string, unknown>,
         // #446: ExpirationDate is in PRIVATE_FIELDS, so mapped.raw_data has it stripped.
-        // Feed the original un-stripped Trestle record's ExpirationDate as the Expired
-        // fallback (NOT persisted) so a Trestle Expired listing seeds terminal_since from
+        // Feed the original un-stripped Cotality record's ExpirationDate as the Expired
+        // fallback (NOT persisted) so a Cotality Expired listing seeds terminal_since from
         // its actual expiration date, not the sync wall-clock.
         expirationDateFallback: raw.ExpirationDate as string | undefined,
       });
@@ -1079,16 +1079,16 @@ export async function syncListings(
         neighborhood: mapped.neighborhood,
         city: mapped.city,
         postal_code: mapped.postal_code,
-        // Trestle-sourced rows are RLS-eligible by definition; the
+        // Cotality-sourced rows are RLS-eligible by definition; the
         // `commercial_sub_type` column is only used for our CRM-authored
-        // website-only commercial listings, never for Trestle data.
+        // website-only commercial listings, never for Cotality data.
         rls_eligible: true,
         commercial_sub_type: null,
         idx_display_yn: mapped.idx_display_yn,
         internet_entire_listing_display_yn: mapped.internet_entire_listing_display_yn,
         internet_address_display_yn: mapped.internet_address_display_yn,
         participant_only: mapped.participant_only,
-        // Trestle-sourced rows don't bind to one of our agents.
+        // Cotality-sourced rows don't bind to one of our agents.
         agent_id: null,
         modification_timestamp: mapped.modification_timestamp,
         address: mapped.address as Record<string, unknown>,
@@ -1218,13 +1218,13 @@ export async function syncListings(
 
   // ── Batch-fetch media for listings that didn't get inline media ──
   // When $expand=Media was disabled (large syncs), fetch photos separately
-  // and update DB records. Uses Trestle Media endpoint (separate quota: 18K req/hr).
+  // and update DB records. Uses the Cotality Media endpoint (separate quota: 18K req/hr).
   // Correction 1: gate on PROCESSED records (rows_checked — reached the write
   // decision), NOT on physical listing writes. A fully-suppressed batch must
   // still fetch + reconcile media; the media path has its own suppression.
   if (!useExpandMedia && listingCounters.rows_checked > 0) {
     try {
-      // Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
+      // Cotality guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
       // NOT ResourceRecordID (can duplicate). Property.ListingKey = Media.ResourceRecordKey.
       const listingsNeedMediaRaw = fetchResult.records
         .filter((r) => !Array.isArray(r.Media) || (r.Media as unknown[]).length === 0);
@@ -1246,9 +1246,9 @@ export async function syncListings(
         console.log(`[IDX Sync] Batch-fetching media for ${listingsNeedMedia.length} listings`);
         const { getAccessToken } = await import("./auth");
         const token = await getAccessToken();
-        const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-        // BATCH_SIZE = 15 keeps the Trestle OData URL under ~1,000 chars.
-        // 50 produced URLs of ~2,700 chars which Trestle rejects with 400
+        const COTALITY_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+        // BATCH_SIZE = 15 keeps the Cotality OData URL under ~1,000 chars.
+        // 50 produced URLs of ~2,700 chars which Cotality rejects with 400
         // Bad Request (verified 2026-04-24 against live feed). Diagnosed when
         // the media-backfill cron was returning 0 updates despite the cron
         // firing successfully — every batch silently 400'd.
@@ -1263,7 +1263,7 @@ export async function syncListings(
           if (batch.length === 0) continue;
 
           const idFilter = batch.map((key) => `ResourceRecordKey eq '${key.replace(/'/g, "''")}'`).join(" or ");
-          // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
+          // MediaStatus filter: exclude tombstoned photos retained by Cotality as historical records.
           const mediaFilter = `(${idFilter}) and MediaStatus ne 'Deleted'`;
           const mediaParams = new URLSearchParams();
           mediaParams.set("$filter", mediaFilter);
@@ -1280,7 +1280,7 @@ export async function syncListings(
             // means a requested key absent from the rows is NOT proven empty at
             // source, so this batch performs NO reconciliation at all. Fail closed.
             const { rows: mediaRows, complete } = await paginateMedia(
-              `${TRESTLE_API}/odata/Media?${mediaParams.toString()}`,
+              `${COTALITY_API}/odata/Media?${mediaParams.toString()}`,
               async (url: string) => {
                 const _mc = new AbortController();
                 const _mt = setTimeout(() => _mc.abort(), 15_000);
@@ -1320,12 +1320,12 @@ export async function syncListings(
               if (!mediaByListing.has(lid)) mediaByListing.set(lid, []);
               // Use shared classifier — replaces the broken
               // `cat.includes("floor plan")` (with space) check that
-              // mis-classified Trestle's actual "FloorPlan" enum value as
+              // mis-classified Cotality's actual "FloorPlan" enum value as
               // "Photo". See lib/media/media-sync-service.ts for the full
               // history of this bug.
               const mediaType = classifyTrestleMediaCategory(m.MediaCategory as string | null | undefined);
               const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
-              // Stable RESO identity for write suppression. `mediaArraysMateriallyEqual` prefers
+              // Stable MediaKey identity for write suppression. `mediaArraysMateriallyEqual` prefers
               // `mediaKey` when BOTH sides carry one and only then falls back to URL identity.
               // Cotality rotates a signed epoch + HMAC inside the URL *path* (not the query), so
               // `rotatingUrlIdentity` cannot neutralize it and the URL leg reports every photo as
@@ -1348,7 +1348,7 @@ export async function syncListings(
             // Update DB records — convert ResourceRecordKey back to listing_id via map.
             // Phase 3 (surface D): compare the stored legacy media JSON first and
             // SKIP the write when it is materially identical. Rotating signed
-            // Trestle URLs are NOT identity (mediaArraysMateriallyEqual); true
+            // Cotality URLs are NOT identity (mediaArraysMateriallyEqual); true
             // inserts/deletions/ordering/hero/delivery-state changes still write.
             // Per-row try/catch keeps one bad row from aborting the batch.
             for (const [key, media] of mediaByListing) {
@@ -1762,8 +1762,8 @@ export async function syncListings(
 /**
  * Backfill media for listings with empty media arrays.
  * Queries DB for listings with media='[]' or null, then batch-fetches
- * their photos from Trestle Media endpoint.
- * Called after sync or independently via cron/API.
+ * their photos from the Cotality Media endpoint.
+ * Uncalled legacy code: its only caller, the media-backfill cron, was removed by PR #176.
  */
 export async function backfillEmptyMedia(options?: { limit?: number }): Promise<{
   checked: number;
@@ -1777,24 +1777,24 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
 }> {
   const limit = options?.limit ?? 200;
   // Phase 3 (surface D): counters + suppression for the per-listing media
-  // write below. The PCT-drift eligibility rows (media present but Trestle's
-  // PhotosChangeTimestamp newer than our modification_timestamp) re-enter
-  // this SELECT on every cron pass; before this change each pass rewrote the
-  // full media JSON with freshly-signed (rotating) URLs even when nothing
-  // material changed.
+  // write below. The PCT-drift eligibility rows (media present but Cotality's
+  // PhotosChangeTimestamp newer than our modification_timestamp) used to
+  // re-enter this SELECT on every cron pass (branch removed in 7B-2B, below);
+  // before this change each pass rewrote the full media JSON with
+  // freshly-signed (rotating) URLs even when nothing material changed.
   const writeCounters = newWritePathCounters();
 
   // Find listings needing media backfill.
   //
   // Matches (eligibility expanded 2026-05-08 — Layer 2 of the
-  // PhotosChangeTimestamp gap fix; see Layer 0 audit results in
-  // memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md):
+  // PhotosChangeTimestamp gap fix; the Layer 0 audit that motivated it is
+  // in git history):
   //   - NULL media
   //   - empty array `[]`
   //   - empty object `{}`
   //   - ANY object-shaped media (legacy malformed rows where the mapper
   //     wrote a summary `{PhotosCount: N, ...}` instead of a photo array —
-  //     see trestle-mapper.ts line 690 comments for the root-cause story)
+  //     the root cause is recorded in git history)
   //   - empty-string edge case
   //   - non-empty media arrays with ZERO Photo entries (FloorPlan-only,
   //     Video-only, VirtualTour-only — pre-Fix-#1 these rendered the wrong
@@ -1870,13 +1870,13 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
   try {
     token = await getAccessToken();
   } catch {
-    console.error("[Media Backfill] Failed to get Trestle token");
+    console.error("[Media Backfill] Failed to get Cotality token");
     return { checked: listings.length, updated: 0, errors: 1, write_path: writeCounters, pages_revalidated: 0, revalidation_failures: 0 };
   }
 
-  const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-  // BATCH_SIZE = 15 keeps the Trestle OData URL under ~1,000 chars.
-  // 50 produced URLs of ~2,700 chars which Trestle rejects with 400
+  const COTALITY_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+  // BATCH_SIZE = 15 keeps the Cotality OData URL under ~1,000 chars.
+  // 50 produced URLs of ~2,700 chars which Cotality rejects with 400
   // Bad Request (verified 2026-04-24 against live feed).
   const BATCH_SIZE = 15;
   let updated = 0;
@@ -1894,7 +1894,7 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
 
   for (let i = 0; i < listings.length; i += BATCH_SIZE) {
     const batch = listings.slice(i, i + BATCH_SIZE);
-    // Trestle guidance: use ResourceRecordKey (always unique), not ResourceRecordID (can duplicate across MLOs).
+    // Cotality guidance: use ResourceRecordKey (always unique), not ResourceRecordID (can duplicate across MLOs).
     // mls_id = ListingKey = Media.ResourceRecordKey. Fall back to listing_id → ResourceRecordID if mls_id is null.
     const keyToId = new Map<string, string>();
     const filterParts: string[] = [];
@@ -1909,7 +1909,7 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
     }
     if (filterParts.length === 0) continue;
 
-    // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
+    // MediaStatus filter: exclude tombstoned photos retained by Cotality as historical records.
     const mediaFilter = `(${filterParts.join(" or ")}) and MediaStatus ne 'Deleted'`;
     const mediaParams = new URLSearchParams();
     mediaParams.set("$filter", mediaFilter);
@@ -1918,7 +1918,7 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
     mediaParams.set("$top", String(filterParts.length * 30));
 
     try {
-      const res = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
+      const res = await fetch(`${COTALITY_API}/odata/Media?${mediaParams.toString()}`, {
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       });
       if (!res.ok) {
@@ -1932,7 +1932,7 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
       // ResourceRecordID on every response row. Previously this code preferred
       // ResourceRecordKey and then ran `keyToId.get(key) || key` — which
       // silently failed when mls_id was null (we'd query by ResourceRecordID
-      // but Trestle's response had ResourceRecordKey as the preferred first
+      // but Cotality's response had ResourceRecordKey as the preferred first
       // key, so lookup returned undefined and we'd default to the numeric
       // ResourceRecordKey as listing_id — never matching any DB row).
       // Confirmed 2026-04-24: thousands of listings with mls_id=null were
@@ -2007,13 +2007,13 @@ export async function backfillEmptyMedia(options?: { limit?: number }): Promise<
 }
 
 /**
- * Migrate Trestle media URLs → R2 permanent URLs.
+ * Migrate Cotality media URLs → R2 permanent URLs.
  *
- * Finds DB listings whose media still points at Trestle (cotality.com / corelogic.com),
+ * Finds DB listings whose media still points at provider hosts (cotality.com / corelogic.com),
  * downloads each photo, uploads to R2, and updates the DB record.
  *
  * After migration, those photos load directly from R2 CDN — no more proxy round-trips.
- * Runs after backfillEmptyMedia in the media-backfill cron.
+ * Uncalled legacy code: its only caller, the media-backfill cron, was removed by PR #176.
  */
 export async function migrateMediaToR2(options?: { limit?: number }): Promise<{ checked: number; migrated: number; errors: number }> {
   const { hasR2Config } = await import("@/lib/images/r2");
@@ -2023,7 +2023,7 @@ export async function migrateMediaToR2(options?: { limit?: number }): Promise<{ 
 
   const limit = options?.limit ?? 50;
 
-  // Find listings with Trestle media URLs (not yet cached to R2)
+  // Find listings with Cotality media URLs (not yet cached to R2)
   const listings = await prisma.$queryRaw<{ id: bigint; listing_id: string; media: unknown }[]>`
     SELECT id, listing_id, media FROM "listings"
     WHERE media IS NOT NULL AND media::text != '[]' AND media::text != '{}'
@@ -2036,7 +2036,7 @@ export async function migrateMediaToR2(options?: { limit?: number }): Promise<{ 
     return { checked: 0, migrated: 0, errors: 0 };
   }
 
-  console.log(`[R2 Migration] Found ${listings.length} listings with Trestle media URLs`);
+  console.log(`[R2 Migration] Found ${listings.length} listings with Cotality media URLs`);
 
   const { getAccessToken } = await import("./auth");
   const { uploadToR2, existsInR2, getR2PublicUrl } = await import("@/lib/images/r2");
@@ -2045,11 +2045,11 @@ export async function migrateMediaToR2(options?: { limit?: number }): Promise<{ 
   try {
     token = await getAccessToken();
   } catch {
-    console.error("[R2 Migration] Failed to get Trestle token");
+    console.error("[R2 Migration] Failed to get Cotality token");
     return { checked: listings.length, migrated: 0, errors: 1 };
   }
 
-  const TRESTLE_HOSTS = ["cotality.com", "corelogic.com"];
+  const PROVIDER_MEDIA_HOSTS = ["cotality.com", "corelogic.com"];
   const MAX_CONCURRENT = 5;
   let migrated = 0;
   let errors = 0;
@@ -2061,15 +2061,15 @@ export async function migrateMediaToR2(options?: { limit?: number }): Promise<{ 
     let changed = false;
     const updatedMedia = [...mediaArr];
 
-    // Process photos in small batches to avoid overwhelming R2/Trestle
+    // Process photos in small batches to avoid overwhelming R2/Cotality
     for (let i = 0; i < updatedMedia.length; i += MAX_CONCURRENT) {
       const batch = updatedMedia.slice(i, i + MAX_CONCURRENT);
       await Promise.allSettled(batch.map(async (m, batchIdx) => {
         const rawUrl = String(m.url || m.MediaURL || "");
-        if (!rawUrl || !TRESTLE_HOSTS.some(h => rawUrl.includes(h))) return;
+        if (!rawUrl || !PROVIDER_MEDIA_HOSTS.some(h => rawUrl.includes(h))) return;
 
         // Classify mediaType through shared canonical classifier — handles
-        // both DB-shape (mediaType) and Trestle-shape (MediaCategory) inputs
+        // both DB-shape (mediaType) and Cotality-shape (MediaCategory) inputs
         // and recognises every "FloorPlan" variant the writer-side bug had
         // missed. Combined with buildMediaR2Key-style namespace routing:
         // Photo→photos/, FloorPlan→floorplans/, Video→videos/,
@@ -2093,7 +2093,7 @@ export async function migrateMediaToR2(options?: { limit?: number }): Promise<{ 
             return;
           }
 
-          // Download from Trestle
+          // Download from the provider media URL
           const controller = new AbortController();
           const tid = setTimeout(() => controller.abort(), 8_000);
           let resp: Response;
@@ -2115,7 +2115,7 @@ export async function migrateMediaToR2(options?: { limit?: number }): Promise<{ 
           updatedMedia[i + batchIdx] = { ...m, url: getR2PublicUrl(key), MediaURL: undefined };
           changed = true;
         } catch {
-          // Non-fatal — keep original Trestle URL for this photo
+          // Non-fatal — keep the original provider URL for this photo
         }
       }));
     }
@@ -2140,72 +2140,26 @@ export async function migrateMediaToR2(options?: { limit?: number }): Promise<{ 
 /**
  * Get the cursor timestamp for the next incremental sync.
  *
- * Returns MAX(Listing.modification_timestamp) — the row's Trestle
- * `ModificationTimestamp` (mapped in `trestle-mapper.ts:949-951`),
- * NOT `last_synced_from_trestle` (which is set to `new Date()` at
- * upsert time — local clock, not the Trestle row clock).
+ * Returns MAX(Listing.modification_timestamp) over feed-synced rows — the
+ * source row clock (Cotality `ModificationTimestamp`), never the local
+ * upsert clock. It seeds `getPropertyKeysetCursor()` when no keyset position
+ * is stored, and feeds `getSyncStats()`. A local-clock cursor would let a
+ * CAPPED run (500 records) jump to local NOW and permanently exclude the
+ * unprocessed older tail of the backlog; the source clock advances only as
+ * far as the newest record actually processed, so capped catch-up is
+ * lossless.
  *
- * Why this matters (2026-05-15 — Codex review of PR #138):
- *
- * The cron route passes this value as `since` to `syncListings`,
- * which builds a Trestle OData filter `ModificationTimestamp gt SINCE`.
- * If SINCE is the local clock at the last upsert, a CAPPED batch
- * (PR-S.5 capped scheduled runs at 500 records) silently advances
- * SINCE to local NOW after processing only 500 records, and any
- * records 501..N in the same backlog window — whose actual Trestle
- * `ModificationTimestamp` is older than NOW — are then EXCLUDED by
- * the next run's `MT gt SINCE` filter. Permanent data loss for the
- * unprocessed tail of every capped catch-up.
- *
- * Using `modification_timestamp` instead means the cursor advances
- * only as far as the newest Trestle MT we actually processed in
- * this run. The next run picks up from there — records with MTs
- * strictly between the previous cursor and that high-water mark
- * have been upserted; records with MTs above the high-water mark
- * remain visible to the next run. Lossless catch-up.
- *
- * Pre-existing field — no schema change. `Listing.modification_timestamp`
- * is populated on every upsert in this file (sync.ts:221) and on every
- * agent-history upsert (sync.ts:923) from `mapped.modification_timestamp`,
- * which `mapTrestleToPrisma` (trestle-mapper.ts:949-951) sets from
- * `raw.ModificationTimestamp` (the Trestle row clock).
- *
- * `last_synced_from_trestle` is retained on the Listing model and
- * still populated at upsert time on Trestle-sourced rows. It is now
- * ALSO used as the FILTER predicate to restrict the cursor query to
- * Trestle-synced rows only — see PR-S.7 follow-up below.
- *
- * PR-S.7 (2026-05-15 follow-up to PR-S.6):
- *
- * PR #140 (PR-S.6) switched the cursor from MAX(last_synced_from_trestle)
- * to MAX(modification_timestamp) to fix the Codex-identified local-clock
- * drift on capped runs. But that fix alone is incomplete: the Listing
- * table contains rows from MULTIPLE writers, not just the Trestle sync
- * path. Specifically, `app/api/crm/convert/route.ts:224` creates
- * CRM-only listings with `modification_timestamp: new Date()` and
- * leaves `last_synced_from_trestle` NULL (they were never synced from
- * Trestle — they're website-only listings). If any such row is the
- * newest by modification_timestamp, MAX(modification_timestamp) over
- * the full table picks up local NOW and the Trestle incremental
- * filter (MT gt SINCE) skips legitimate Trestle records.
- *
- * Fix: restrict the cursor query to rows where
- * `last_synced_from_trestle IS NOT NULL`. That filter selects ONLY
- * Trestle-sync writers (sync.ts:223 and sync.ts:925 both set
- * `last_synced_from_trestle: mapped.last_synced_from_trestle`, which
- * mapTrestleToPrisma always populates from `new Date()` at the time
- * of the Trestle fetch). CRM-only writers like
- * app/api/crm/convert/route.ts NEVER set the column, so their rows
- * are excluded from the MAX.
- *
- * The where clause IS valid here because `last_synced_from_trestle`
- * is `DateTime?` (nullable) at schema.prisma:546 — Prisma accepts
- * `{ not: null }` on nullable columns. `modification_timestamp` is
- * `DateTime` (non-nullable) at schema.prisma:550 — that's where a
- * `{ not: null }` filter would be a TypeScript error and is omitted.
+ * The query is restricted to feed-synced rows: the
+ * `last_synced_from_trestle` column is set only when a row is written from
+ * the feed. CRM-only rows (e.g. app/api/crm/convert/route.ts) set
+ * `modification_timestamp: new Date()` and leave that column NULL, so
+ * without the filter a newest CRM row would push the cursor to local NOW and
+ * skip legitimate feed records. The column is nullable, so Prisma accepts
+ * `{ not: null }` on it; `modification_timestamp` is non-nullable, so no
+ * such filter is applied to it.
  *
  * `findFirst` returns `null` when no row matches (e.g. a fresh DB
- * with no Trestle sync yet) — the caller handles that via `?? null`.
+ * with no feed sync yet) — the caller handles that via `?? null`.
  */
 export async function getLastSyncTimestamp(): Promise<Date | null> {
   const latest = await prisma.listing.findFirst({
@@ -2321,7 +2275,7 @@ export async function getPropertyKeysetCursor(): Promise<PropertyKeysetCursor> {
 // ═══════════════════════════════════════════════════════════
 
 export interface AgentHistorySyncOptions {
-  /** The agent's MLS ID or state license number to search Trestle by */
+  /** The agent's MLS ID or state license number to search Cotality by */
   agentMlsId: string;
   /** The agent's DB id (BigInt) — set on imported listings for roster matching */
   agentDbId: bigint;
@@ -2337,7 +2291,7 @@ export interface AgentHistorySyncResult extends SyncResult {
 }
 
 /**
- * Sync an agent's historical listings from Trestle.
+ * Sync an agent's historical listings from Cotality.
  * Pulls Closed, Expired, Hold (Temp Off), Withdrawn (Perm Off) by agent MLS ID.
  * Links imported listings to the agent's DB record via agent_id.
  */
@@ -2353,7 +2307,7 @@ export async function syncAgentHistory(
 
   const maxRecords = options.maxRecords || 2000;
   // PR-S.1c (2026-05-15): see `syncListings()` above — `$expand=Media` is
-  // consistently rejected by Trestle. Media is fetched separately.
+  // consistently rejected by Cotality. Media is fetched separately.
   const useExpandMedia = false;
 
   const fetchResult = await fetchFromTrestle({
@@ -2364,7 +2318,7 @@ export async function syncAgentHistory(
     orderby: "ModificationTimestamp desc",
   });
 
-  console.log(`[IDX Agent History] Fetched ${fetchResult.totalFetched} records from Trestle`);
+  console.log(`[IDX Agent History] Fetched ${fetchResult.totalFetched} records from Cotality`);
 
   let upserted = 0;
   let skippedGates = 0;
@@ -2431,8 +2385,8 @@ export async function syncAgentHistory(
         raw_data: mapped.raw_data as Record<string, unknown>,
         features: mapped.features as Record<string, unknown>,
         // #446: ExpirationDate is in PRIVATE_FIELDS, so mapped.raw_data has it stripped.
-        // Feed the original un-stripped Trestle record's ExpirationDate as the Expired
-        // fallback (NOT persisted) so a Trestle Expired listing seeds terminal_since from
+        // Feed the original un-stripped Cotality record's ExpirationDate as the Expired
+        // fallback (NOT persisted) so a Cotality Expired listing seeds terminal_since from
         // its actual expiration date, not the sync wall-clock.
         expirationDateFallback: raw.ExpirationDate as string | undefined,
       });
@@ -2442,8 +2396,8 @@ export async function syncAgentHistory(
         raw_data: mapped.raw_data as Record<string, unknown>,
         features: mapped.features as Record<string, unknown>,
         // #446: ExpirationDate is in PRIVATE_FIELDS, so mapped.raw_data has it stripped.
-        // Feed the original un-stripped Trestle record's ExpirationDate as the Expired
-        // fallback (NOT persisted) so a Trestle Expired listing seeds terminal_since from
+        // Feed the original un-stripped Cotality record's ExpirationDate as the Expired
+        // fallback (NOT persisted) so a Cotality Expired listing seeds terminal_since from
         // its actual expiration date, not the sync wall-clock.
         expirationDateFallback: raw.ExpirationDate as string | undefined,
       });
@@ -2572,9 +2526,9 @@ export async function syncAgentHistory(
         neighborhood: mapped.neighborhood,
         city: mapped.city,
         postal_code: mapped.postal_code,
-        // Trestle-sourced rows are RLS-eligible by definition; the
+        // Cotality-sourced rows are RLS-eligible by definition; the
         // `commercial_sub_type` column is only used for our CRM-authored
-        // website-only commercial listings, never for Trestle data.
+        // website-only commercial listings, never for Cotality data.
         rls_eligible: true,
         commercial_sub_type: null,
         idx_display_yn: mapped.idx_display_yn,
@@ -2634,7 +2588,7 @@ export async function syncAgentHistory(
   // not physical writes.
   if (!useExpandMedia && listingCounters.rows_checked > 0) {
     try {
-      // Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
+      // Cotality guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
       // NOT ResourceRecordID (can duplicate). Property.ListingKey = Media.ResourceRecordKey.
       const listingsNeedMediaRaw = fetchResult.records
         .filter((r) => !Array.isArray(r.Media) || (r.Media as unknown[]).length === 0);
@@ -2656,9 +2610,9 @@ export async function syncAgentHistory(
         console.log(`[IDX Agent History] Batch-fetching media for ${listingsNeedMedia.length} listings`);
         const { getAccessToken } = await import("./auth");
         const token = await getAccessToken();
-        const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-        // BATCH_SIZE = 15 keeps the Trestle OData URL under ~1,000 chars.
-        // 50 produced URLs of ~2,700 chars which Trestle rejects with 400
+        const COTALITY_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+        // BATCH_SIZE = 15 keeps the Cotality OData URL under ~1,000 chars.
+        // 50 produced URLs of ~2,700 chars which Cotality rejects with 400
         // Bad Request (verified 2026-04-24 against live feed). Diagnosed when
         // the media-backfill cron was returning 0 updates despite the cron
         // firing successfully — every batch silently 400'd.
@@ -2673,7 +2627,7 @@ export async function syncAgentHistory(
           if (batch.length === 0) continue;
 
           const idFilter = batch.map((key) => `ResourceRecordKey eq '${key.replace(/'/g, "''")}'`).join(" or ");
-          // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
+          // MediaStatus filter: exclude tombstoned photos retained by Cotality as historical records.
           const mediaFilter = `(${idFilter}) and MediaStatus ne 'Deleted'`;
           const mediaParams = new URLSearchParams();
           mediaParams.set("$filter", mediaFilter);
@@ -2697,7 +2651,7 @@ export async function syncAgentHistory(
             // persisted, and MediaKey cannot repair one because a short array differs in LENGTH and
             // is material regardless.
             const { rows: mediaRows, complete } = await paginateMedia(
-              `${TRESTLE_API}/odata/Media?${mediaParams.toString()}`,
+              `${COTALITY_API}/odata/Media?${mediaParams.toString()}`,
               async (url: string) => {
                 const _mc = new AbortController();
                 const _mt = setTimeout(() => _mc.abort(), 15_000);
@@ -2736,7 +2690,7 @@ export async function syncAgentHistory(
               // bug this replaces.
               const mediaType = classifyTrestleMediaCategory(m.MediaCategory as string | null | undefined);
               const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
-              // Same stable-identity fix as the syncListings batch above: supply the RESO MediaKey
+              // Same stable-identity fix as the syncListings batch above: supply the Cotality MediaKey
               // so the comparator's authoritative branch is reachable instead of the URL leg, which
               // Cotality's rotating path signature defeats on every cycle. Omitted when absent so an
               // unknown key degrades into the existing URL fallback.

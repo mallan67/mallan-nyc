@@ -28,7 +28,7 @@ import {
  *   • `POST /api/crm/saved-searches/[id]/execute` — serialized it into the JSON
  *     body, where no first-party caller reads it: `MallanAPI.savedSearches.execute`
  *     (public/crm/js/core/api-client.js:553) has ZERO call sites, and the CRM
- *     saved-search UI re-runs criteria through the live Trestle engine instead.
+ *     saved-search UI re-runs criteria through the live Cotality search engine instead.
  *
  * So the column was a pure read cost: a full `media` JSONB blob for up to 100
  * rows per request (`clampLimit`), on every alert-cron iteration and every

@@ -181,7 +181,7 @@ export function getUnsupportedProjectionCriteria(criteria: SearchCriteria): stri
 
 // ── Saved-search alert gate (P0-3) ──────────────────────────────────────
 //
-// Saved searches can be created from the CRM live-Trestle search (Engine A).
+// Saved searches can be created from the CRM live-Cotality search (Engine A).
 // Alerts replay through the Postgres projection (Engine B) at
 // app/api/cron/search-alerts/route.ts. Engine B's criteria vocabulary is a
 // strict subset of Engine A's — see PROJECTION_SUPPORTED_CRITERIA_KEYS

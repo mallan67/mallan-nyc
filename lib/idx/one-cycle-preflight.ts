@@ -27,7 +27,7 @@ const MAX_BACKLOG_INTERVAL_SECONDS = 24 * 60 * 60;
  * WHY THIS EXISTS. The seven fail-open branches below cover ERRORS. They do
  * not cover a probe that succeeds and is silently WRONG: a persistent false
  * "unchanged" would skip Neon forever, and REBNY UCBA Art. I §6 requires
- * Trestle status changes to propagate within 24h. This is the backstop.
+ * Cotality feed status changes to propagate within 24h. This is the backstop.
  *
  * WHY ONE HOUR — measured, not guessed. Over 7 days / 147 natural quiet runs
  * on this feed (2026-08-02):

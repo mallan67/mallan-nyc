@@ -15,7 +15,7 @@
  *   6. Derive confidence from signal count + recency
  *
  * The scorer is a pure function: same input + same `now` = same output.
- * No I/O, no DB, no Trestle calls.
+ * No I/O, no DB, no Cotality calls.
  */
 import { isSuppressed } from "@/lib/scanner/compliance/suppression";
 import type { SuppressionInput } from "@/lib/scanner/compliance/types";
@@ -127,7 +127,7 @@ function ruleOffMarketExpired(
     decay_factor: Math.round(decay * 100) / 100,
     contribution: Math.round(contribution * 100) / 100,
     detail,
-    source: most.mls_id ? `Trestle ${most.mls_id}` : "Trestle off-market",
+    source: most.mls_id ? `Cotality ${most.mls_id}` : "Cotality off-market",
     signal_date: most.off_market_since,
   }];
 }
@@ -184,7 +184,7 @@ function ruleOffMarketRelistBoost(
     decay_factor: 1.0,
     contribution: config.off_market_relist_boost.weight,
     detail: `Repeat off-market events: ${count} listings ended without a sale in 24 months`,
-    source: "Trestle aggregate",
+    source: "Cotality aggregate",
   }];
 }
 

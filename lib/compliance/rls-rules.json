@@ -1,8 +1,8 @@
 {
   "version": "2025-09-30-v4.0",
   "lastUpdated": "2026-03-19",
-  "source": "REBNY RLS Data Migration 2025_LMP — data/rebny-rls-property-fields.csv (902 IDX Plus fields across 7 resources)",
-  "note": "Generated from authoritative RLS CSV. BuyerAgentCommission/Type removed per NAR Settlement (Aug 2025). Field Authority: UCBA > RLS > RESO/IDX > Internal > Fail Closed.",
+  "source": "Legacy provider-derived field table; its CSV source was removed in convergence milestone 8. Not provider authority: live Cotality is (data/cotality-enums.live.json is its committed copy). Read only by lib/compliance/rebny-validator.ts until that dependency is replaced (docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md §11 Open).",
+  "note": "BuyerAgentCommission/Type removed per NAR Settlement (Aug 2025). Authority order: MALLAN-PLATFORM-MASTER-PLAN.md §0 and §21.",
   "totalFields": 1015,
   "fields": [
     {

@@ -1,12 +1,17 @@
 /**
- * REBNY RLS Compliance Validator
+ * CRM listing validator — validateListing()
  *
- * Validates listing data against:
- * - REBNY RLS Data Rules (2025_LMP migration)
- * - RESO standards via Trestle Web API
- * - NYC regulations (NY DOS advertising, Fair Housing Act)
+ * Validates CRM listing data against:
+ * - required/conditional field rules from the legacy provider-derived field table
+ *   imported below. It is not provider authority; replacing this dependency is open
+ *   convergence work (docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md §11 "Open");
+ * - PascalCase field-name and ISO 8601 date format checks;
+ * - NYC regulations (NY DOS advertising, Fair Housing Act).
  *
- * @see https://docs.google.com/spreadsheets/d/1OiO7SQcMrLE8yMOoePWtv-dtcf2nXc-1iBssRJaOhxQ
+ * The same JSON file also supplies the Fair Housing prohibited-term list and the NYC
+ * borough/county table used below. Replacing the dependency must not silently drop
+ * either check (data/compliance/prohibited-terms.json is the canonical Fair Housing
+ * term list).
  */
 
 import rlsRulesData from './rls-rules.json';
@@ -103,7 +108,8 @@ function normalizeFields(fields: RLSField[]): RLSRule[] {
 const rules = normalizeFields(rawFields);
 
 /**
- * Main validation function for REBNY RLS compliance
+ * Main CRM listing validation function: required/conditional fields, Fair Housing,
+ * NYC-specific rules and field format.
  */
 export function validateListing(listing: ListingData): ValidationResult {
   const errors: string[] = [];
@@ -204,10 +210,10 @@ export function validateListing(listing: ListingData): ValidationResult {
   }
   suggestions.push(...nycResult.suggestions);
 
-  // 4. RESO format validation
-  const resoResult = validateRESOFormat(listing);
-  if (!resoResult.valid) {
-    warnings.push(...resoResult.errors);
+  // 4. Field-name and date format validation
+  const formatResult = validateFieldFormat(listing);
+  if (!formatResult.valid) {
+    warnings.push(...formatResult.errors);
     resoCompliant = false;
   }
 
@@ -606,24 +612,24 @@ function validateNYCSpecific(listing: ListingData): {
 }
 
 /**
- * RESO format validation
+ * Field-name (PascalCase) and ISO 8601 date format validation
  */
-function validateRESOFormat(listing: ListingData): {
+function validateFieldFormat(listing: ListingData): {
   valid: boolean;
   errors: string[];
 } {
   const errors: string[] = [];
 
-  // Check for RESO-compliant field naming (PascalCase)
-  const nonResoFields = Object.keys(listing).filter((key) => {
-    // RESO fields should be PascalCase
+  // Check for PascalCase field naming (live Cotality field names are PascalCase)
+  const nonPascalCaseFields = Object.keys(listing).filter((key) => {
+    // Canonical fields are PascalCase
     return key !== key.charAt(0).toUpperCase() + key.slice(1) && !key.startsWith('_');
   });
 
-  if (nonResoFields.length > 0) {
+  if (nonPascalCaseFields.length > 0) {
     errors.push(
-      `[RESO] Non-standard field naming detected. RESO uses PascalCase. ` +
-        `Consider renaming: ${nonResoFields.slice(0, 5).join(', ')}${nonResoFields.length > 5 ? '...' : ''}`
+      `[FORMAT] Non-standard field naming detected. Canonical field names use PascalCase. ` +
+        `Consider renaming: ${nonPascalCaseFields.slice(0, 5).join(', ')}${nonPascalCaseFields.length > 5 ? '...' : ''}`
     );
   }
 
@@ -633,7 +639,7 @@ function validateRESOFormat(listing: ListingData): {
     const value = listing[field];
     if (value && typeof value === 'string') {
       if (!isValidDate(value)) {
-        errors.push(`[RESO] ${field}: Should be ISO 8601 date format (YYYY-MM-DD)`);
+        errors.push(`[FORMAT] ${field}: Should be ISO 8601 date format (YYYY-MM-DD)`);
       }
     }
   }
@@ -779,7 +785,7 @@ export function getRequiredFields(propertyType: string, commonInterest?: string)
 export function generatePublicRemarks(listing: ListingData): string {
   const parts: string[] = [];
 
-  // Property type and size - handle both RESO and internal format
+  // Property type and size - handle both PascalCase (Cotality) and internal camelCase format
   const propertyInfo = listing.propertyInfo as Record<string, unknown> | undefined;
   const beds = listing.BedroomsTotal || propertyInfo?.bedroomsTotal;
   const baths = listing.BathroomsTotal || propertyInfo?.bathroomsFull;

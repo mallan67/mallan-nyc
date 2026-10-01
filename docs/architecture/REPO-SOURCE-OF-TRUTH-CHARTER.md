@@ -301,7 +301,6 @@ The CRM search is a **separate** pipeline from public search. Different shell, d
 | **Shared resolver** (single source of truth for ordering) | `lib/media/listing-media-resolver.ts` | `classifyMediaItem`, `resolveListingMedia`, `pickPrimaryPhotoUrl`, `pickBestThumbnailUrl`, `proxyTrestleUrl` |
 | Media sync service | `lib/media/media-sync-service.ts` | R2 cache + Trestle proxy management. Used by cron + ingest. |
 | R2 client | `lib/media/r2-client.ts` | Cloudflare R2 SDK wrapper |
-| Cache helper | `lib/images/cache-listing-photos.ts` | (separate folder; pre-existing) |
 | R2 wrapper | `lib/images/r2.ts` | (separate folder; pre-existing) |
 | Media batch API | `app/api/media/batch/route.ts` | Auth-gated. Detail mode uses resolver post-fetch. |
 | Media proxy API | `app/api/media/proxy/route.ts` | Server-side Bearer auth fallback. Allowlists `cotality.com` + legacy CoreLogic hosts. |

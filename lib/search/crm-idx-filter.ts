@@ -2,7 +2,7 @@ import neighborhoodAliases from "@/data/rls/geo/neighborhood-aliases.json";
 
 /**
  * Expand a canonical neighborhood name into all SubdivisionName variants
- * found in the RLS feed. E.g. "Kips Bay" -> ["Kips Bay","KIPS",...].
+ * found in a Cotality feed snapshot (SubdivisionName, 2026-03-03). E.g. "Kips Bay" -> ["Kips Bay","KIPS",...].
  */
 export function expandCrmIdxNeighborhood(canonical: string): string[] {
   const aliases = (neighborhoodAliases as Record<string, unknown>).aliases as
@@ -97,7 +97,7 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
 
   const status = params.get("status");
   if (status === "*") {
-    // Intentionally no status filter; used by RLS tracker for total count.
+    // Intentionally no status filter; the CRM listing tracker (public/crm/js/init/init-tracker.js) uses it for the total count.
   } else if (status) {
     const statuses = status.split(",").map((value) => {
       const normalized = value.trim().replace(/\s+/g, "");
@@ -240,7 +240,7 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
   if (cbRaw) {
     try {
       const cbFilters: Record<string, string[]> = JSON.parse(cbRaw);
-      const trestleFieldMap: Record<string, string> = {
+      const crmCheckboxToCotalityField: Record<string, string> = {
         BuildingLaundryFeatures: "LaundryFeatures",
         BuildingSecurityFeatures: "SecurityFeatures",
         BuildingPoolFeatures: "PoolFeatures",
@@ -259,15 +259,15 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
       ]);
       for (const [htmlField, values] of Object.entries(cbFilters)) {
         if (!values || values.length === 0) continue;
-        const trestleField = trestleFieldMap[htmlField] || htmlField;
-        if (!odataSafe.has(trestleField)) continue;
-        if (trestleField.endsWith("YN")) {
+        const cotalityField = crmCheckboxToCotalityField[htmlField] || htmlField;
+        if (!odataSafe.has(cotalityField)) continue;
+        if (cotalityField.endsWith("YN")) {
           const wantTrue = values.includes("true") || values.includes("Yes");
-          parts.push(`${trestleField} eq ${wantTrue ? "true" : "false"}`);
+          parts.push(`${cotalityField} eq ${wantTrue ? "true" : "false"}`);
         } else if (values.length === 1) {
-          parts.push(`${trestleField} eq '${escapeOData(values[0])}'`);
+          parts.push(`${cotalityField} eq '${escapeOData(values[0])}'`);
         } else {
-          const orParts = values.map((value) => `${trestleField} eq '${escapeOData(value)}'`);
+          const orParts = values.map((value) => `${cotalityField} eq '${escapeOData(value)}'`);
           parts.push(`(${orParts.join(" or ")})`);
         }
       }
@@ -285,7 +285,7 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
   const listingId = params.get("listingId");
   if (listingId) {
     // Bug A13 (L2 patch) — accept comma-separated RLS IDs.
-    // Trestle/REBNY contract: Property.ListingId is the canonical RLS ID
+    // Live Cotality contract (Master §0 IDENTIFIER): Property.ListingId is the RLS ID
     // (e.g. RLS20078109). Single-value input remains the common case.
     // Comma-separated input lets agents look up multiple listings in one
     // shot — generates `(ListingId eq 'X' or ListingId eq 'Y')`.

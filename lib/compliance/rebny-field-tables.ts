@@ -1,34 +1,37 @@
 /**
- * REBNY_FIELD_TABLES — Single Canonical Field Authority
+ * REBNY_FIELD_TABLES — CRM listing-write field tables
  *
- * Source of truth: live Cotality $metadata (data/cotality-enums.live.json)
- *                  UCBA 2026 (January revision)
- *                  NAR Settlement (August 2024, effective August 2025)
+ * Read by the CRM listing write path (lib/compliance/normalizer.ts and the
+ * listing write-path enforcement gate). These tables are not provider authority.
+ * Field names, enums and permissions come from the live Cotality contract
+ * (data/cotality-enums.live.json is its committed copy); use and display
+ * obligations come from UCBA 2026 (January revision), REBNY rules and the
+ * NAR Settlement (August 2024, effective August 2025). The authority order is
+ * MALLAN-PLATFORM-MASTER-PLAN.md §0 and §21.
  *
- * Every field name, alias, enum, conditional rule, persistence target,
- * display rule, and ID domain must match the live Cotality contract.
- *
- * FIELD AUTHORITY ORDER (from MEMORY.md):
- *   1. UCBA governs everything
- *   2. REBNY RLS rules + fields
- *   3. RLS overrides RESO/IDX
- *   4. RESO/IDX fills gaps
- *   5. INTERNAL-ONLY otherwise
- *   6. Fail closed — any uncertainty defaults to NON-DISPLAY
+ * Every provider field name, alias target and enum value here must match the
+ * live Cotality contract. A key that is not a top-level live Cotality field is
+ * one of: an NYC fact the provider carries inside CustomProperty.CustomFields
+ * (e.g. SponsorUnitYN); a Mallan listing field (e.g. a commercial or
+ * private-listing field), which is Mallan's and never presented as provider
+ * data; or a legacy entry awaiting convergence
+ * (docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md §11 "Open"). Classify a
+ * key before removing it; absence from Cotality alone does not make it obsolete.
+ * Anything uncertain fails closed — it defaults to NON-DISPLAY.
  */
 
 export const REBNY_FIELD_TABLES = {
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // 1. REQUIRED FIELDS — Unconditionally required by RLS CSV ("Yes")
-  //    53 total from CSV. Split into agent-submitted vs system-generated.
+  // 1. REQUIRED FIELDS — unconditionally required when the RLS write-path gate runs
+  //    on an RLS-eligible listing (website-only listings, rls_eligible === false,
+  //    skip the gate). Split into agent-submitted vs system-generated.
   // ═══════════════════════════════════════════════════════════════════════════
 
   requiredFields: {
     /**
      * Agent-submitted: these MUST be present in the form payload.
      * Enforcement gate rejects if any are missing.
-     * 48 fields (53 total minus 5 system-generated).
      */
     agentSubmitted: [
       // Property identification
@@ -48,7 +51,7 @@ export const REBNY_FIELD_TABLES = {
       // Phantom fields cannot be mandatory (authority = live $metadata).
       'Concessions',
 
-      // Address (RLS canonical names — note CityRegion NOT Borough, UnParsedAddress NOT UnparsedAddress)
+      // Address (live Cotality names — CityRegion, not Borough; UnparsedAddress with a lowercase p)
       'StreetNumber',
       'StreetName',
       'City',
@@ -99,7 +102,7 @@ export const REBNY_FIELD_TABLES = {
       'RoomsTotal',
 
       // Distribution gates — IDXEntireListingDisplayYN and SyndicateYN do NOT
-      // exist on live Trestle (verified 2026-04-19). Use Internet-prefixed gates
+      // exist on live Cotality (verified 2026-04-19). Use Internet-prefixed gates
       // and SyndicateTo (multi-select).
       'InternetEntireListingDisplayYN',
       'InternetAddressDisplayYN',
@@ -137,7 +140,7 @@ export const REBNY_FIELD_TABLES = {
       StateOrProvince: { mustEqual: 'NY' },
       City: { mustEqual: 'NewYorkCity' },
       InternetEntireListingDisplayYN: { defaultTo: true, note: 'LMPs required to default True' },
-      // SyndicateYN was removed (does not exist on live Trestle 2026-04-19); use SyndicateTo (multi-select).
+      // SyndicateYN was removed (does not exist on live Cotality 2026-04-19); use SyndicateTo (multi-select).
       SyndicateTo: { defaultTo: 'AllOptedIn', note: 'LMPs default to opt-in to all approved vendors' },
       NewDevelopmentYN: { rejectWhen: { MlsStatus: 'ComingSoon', value: true }, note: 'Cannot be true on Coming Soon' },
       CityRegion: {
@@ -250,16 +253,16 @@ export const REBNY_FIELD_TABLES = {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // 4. ALIAS TO CANONICAL — Normalizes incoming payload field names to
-  //    RLS canonical names BEFORE validation or persistence.
-  //    Direction: alias → canonical (RLS MatrixFieldName from CSV)
+  //    canonical field names BEFORE validation or persistence.
+  //    Direction: alias → canonical (the live Cotality name where the field is live)
   // ═══════════════════════════════════════════════════════════════════════════
 
   aliasToCanonical: {
     // ── Address aliases ──
-    Borough: 'CityRegion',              // DB/display name → RLS canonical
+    Borough: 'CityRegion',              // DB/display name → Cotality CityRegion
     borough: 'CityRegion',              // camelCase form variant
     cityRegion: 'CityRegion',           // camelCase variant
-    Neighborhood: 'SubdivisionName',    // Common name → RLS canonical
+    Neighborhood: 'SubdivisionName',    // Common name → Cotality SubdivisionName
     neighborhood: 'SubdivisionName',    // camelCase variant
     UnParsedAddress: 'UnparsedAddress',  // A1: legacy capital-P → canonical Cotality UnparsedAddress (lowercase p, live $metadata)
     unparsedAddress: 'UnparsedAddress',
@@ -271,7 +274,7 @@ export const REBNY_FIELD_TABLES = {
     zip: 'PostalCode',
 
     // ── Numeric/unit aliases ──
-    Rooms: 'RoomsTotal',               // Short name → RLS canonical
+    Rooms: 'RoomsTotal',               // Short name → Cotality RoomsTotal
     rooms: 'RoomsTotal',
     beds: 'BedroomsTotal',
     fullBaths: 'BathroomsFull',
@@ -300,14 +303,14 @@ export const REBNY_FIELD_TABLES = {
     addressDisplayYN: 'InternetAddressDisplayYN',
     // idxDisplayYN / idxEntireListingDisplayYN / IDXEntireListingDisplayYN
     // were previously aliased to IDXEntireListingDisplayYN, which does NOT
-    // exist on live Trestle (verified 2026-04-19). Redirect ALL three forms
+    // exist on live Cotality (verified 2026-04-19). Redirect ALL three forms
     // (short, camelCase, PascalCase) to the canonical Internet-prefixed gate
     // so any legacy form payload still normalizes correctly.
     idxDisplayYN: 'InternetEntireListingDisplayYN',
     idxEntireListingDisplayYN: 'InternetEntireListingDisplayYN',
     IDXEntireListingDisplayYN: 'InternetEntireListingDisplayYN',
     internetDisplayYN: 'InternetEntireListingDisplayYN',
-    // participantOnlyYN no longer exists on live Trestle — it's encoded via
+    // participantOnlyYN no longer exists on live Cotality — it's encoded via
     // Permission='Private'. Form payloads still ship participantOnlyYN as a
     // boolean from legacy checkboxes; the alias keeps the routing intact, but
     // downstream gate code reads `Permission` directly.
@@ -330,7 +333,7 @@ export const REBNY_FIELD_TABLES = {
   } as const,
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // 5. VALUE ALIASES — Normalizes incoming field VALUES to RLS enum values.
+  // 5. VALUE ALIASES — Normalizes incoming field VALUES to canonical enum values.
   //    Form radios/selects may use display text or internal codes.
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -345,10 +348,13 @@ export const REBNY_FIELD_TABLES = {
       'OWNER_OPT_OUT': 'OwnerOptOut',
       'Participant Only': 'Private',
       'Participant Only Network': 'Private',
-      'ParticipantOnly': 'Private',          // Internal legacy name → RLS canonical
+      'ParticipantOnly': 'Private',          // Internal legacy name → Cotality Permission 'Private'
       'PARTICIPANT_ONLY': 'Private',
-      // NOTE: 'Public' is NOT a valid Permissions enum in RLS CSV.
-      // Absence of Permissions value = public listing (handled by defaultPublic in persistenceMap).
+      // NOTE: Absence of a Permission value = public listing (handled by defaultPublic in
+      // persistenceMap). The live Cotality Permission enum does carry 'Public' and has no
+      // 'OwnerOptOut' (data/cotality-enums.live.json). 'OwnerOptOut' is a Mallan value that
+      // drives the owner_opt_out display gate (UCBA Art. I §5(A)); it stays, failing closed,
+      // until a live field or value replaces it.
     },
     MlsStatus: {
       'Coming Soon': 'ComingSoon',
@@ -392,7 +398,7 @@ export const REBNY_FIELD_TABLES = {
   } as const,
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // 6. CONDITIONAL RULES — From RLS CSV Requirements/Rules column
+  // 6. CONDITIONAL RULES — field requirements that apply when a rule's conditions match.
   //    Each rule: when conditions match, these additional fields are required.
   //    85 conditional fields organized into logical rule groups.
   // ═══════════════════════════════════════════════════════════════════════════
@@ -885,8 +891,8 @@ export const REBNY_FIELD_TABLES = {
     },
 
     // ── MoveInCosts follow-up ──
-    // MOVEIN-001 was removed: MoveInCostsAmountTotal does NOT exist on live Trestle
-    // (verified 2026-04-19; CLAUDE.md notes "MoveInCosts is a picklist only"). The
+    // MOVEIN-001 was removed: MoveInCostsAmountTotal does NOT exist on live Cotality
+    // (data/cotality-enums.live.json; MoveInCosts is a multi-select picklist). The
     // FARE Act fee transparency surface is captured via CustomProperty.AdditionalFee*
     // fields and the MoveInCosts picklist itself.
 
@@ -967,7 +973,7 @@ export const REBNY_FIELD_TABLES = {
   persistenceMap: {
     // ── IDs (system-managed) ──
     SourceSystemKey: { raw: true },
-    RLSListingID: { raw: true },  // Application convention; CSV calls this ListingID
+    RLSListingID: { raw: true },  // Application convention, not a live Cotality field (the live RLS number is ListingId)
     ListingId: { raw: true },
     ListingKey: { raw: true },
 
@@ -1036,7 +1042,7 @@ export const REBNY_FIELD_TABLES = {
     },
 
     // ── Distribution gates → top-level boolean columns ──
-    // IDXEntireListingDisplayYN and SyndicateYN do NOT exist on live Trestle
+    // IDXEntireListingDisplayYN and SyndicateYN do NOT exist on live Cotality
     // (verified 2026-04-19). The legacy `idx_display_yn` DB column is left in
     // place for backwards compat but is no longer populated by submissions.
     InternetEntireListingDisplayYN: { db: 'internet_entire_listing_display_yn', raw: true },
@@ -1172,10 +1178,10 @@ export const REBNY_FIELD_TABLES = {
     hideWhenMlsStatus: ['Closed', 'Expired'] as const,
     suppressFromPublicSearch: ['Hold', 'Incomplete', 'Withdrawn', 'Canceled'] as const,
 
-    // IDX display gates — must be true for listing to appear on IDX. Live Trestle
+    // IDX display gates — must be true for listing to appear on IDX. Live Cotality
     // (verified 2026-04-19) consolidates the master display flag into
     // InternetEntireListingDisplayYN. The legacy IDXEntireListingDisplayYN does
-    // not exist on Trestle and was removed from this list.
+    // not exist on Cotality and was removed from this list.
     idxDisplayGates: [
       'InternetEntireListingDisplayYN',
       // 'ListOfficeIDXParticipationYN' — system-generated from REBNY membership, not in form payload

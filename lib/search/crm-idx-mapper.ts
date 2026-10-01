@@ -67,7 +67,7 @@ export function mapTrestleToCrmListing(
   // Photo-first media ordering — single source of truth in
   // lib/media/listing-media-resolver.ts. Replaces the prior
   // `isPrimary: i === 0` index-based assignment which would mark a FloorPlan
-  // as primary whenever Trestle returned floor-plan rows ahead of photo rows.
+  // as primary whenever Cotality returned floor-plan rows ahead of photo rows.
   const media = Array.isArray(raw.Media) ? raw.Media : [];
   const resolved = resolveListingMedia(media);
   const images = resolved.map(m => ({
@@ -97,7 +97,7 @@ export function mapTrestleToCrmListing(
   const dpaCount = dpaCountSrc != null && dpaCountSrc !== '' ? Number(dpaCountSrc) : null;
 
   // CustomFields is a REBNY-specific JSON string on CustomProperty that
-  // carries 41 NYC-specific flags (per CLAUDE.md). SponsorUnitYN is the
+  // carries NYC-specific flags as JSON (live CustomProperty.CustomFields). SponsorUnitYN is the
   // canonical source-of-truth for "Is this a sponsor sale?" — the prior
   // CRM rendering (grid-column-defs.js:63) showed a static '--' because
   // there was no source. Now we parse the JSON once and expose
@@ -172,9 +172,9 @@ export function mapTrestleToCrmListing(
   // for Coming Soon listings. The date must be specific. Previously
   // comingSoonDate was hard-coded to null in the return object, and
   // the badge renderer fell back to the vague string "until active
-  // date". Pull the actual date from Trestle:
+  // date". Pull the actual date from the Cotality record:
   //   ActivationDate    — REBNY's "showings begin" timestamp
-  //   OnMarketDate      — RESO standard fallback
+  //   OnMarketDate      — fallback (live Cotality field)
   // Format as ISO YYYY-MM-DD for downstream display.
   let comingSoonDate: string | null = null;
   if (status === "COMING_SOON") {

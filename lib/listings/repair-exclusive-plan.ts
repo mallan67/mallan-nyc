@@ -32,7 +32,7 @@ export interface RepairAgentIdentity {
   phone?: string | null;
 }
 
-/** Agent identity for an intentional reassignment — includes the Trestle MLS member id. */
+/** Agent identity for an intentional reassignment — includes the agent's MLS member id (ListAgentMlsId). */
 export interface ReassignAgentIdentity extends RepairAgentIdentity {
   trestle_mls_id?: string | null;
 }
