@@ -544,7 +544,7 @@ var SalesCRM = (function () {
         _renderCompsTab(el, data, listingId);
       })
       .catch(function () {
-        el.innerHTML = '<div class="p-6 text-center text-red-500"><i class="fas fa-exclamation-triangle mr-1"></i>Failed to load comps. Check that Trestle credentials are configured.</div>';
+        el.innerHTML = '<div class="p-6 text-center text-red-500"><i class="fas fa-exclamation-triangle mr-1"></i>Failed to load comps. Check that Cotality credentials are configured.</div>';
       });
   }
 
@@ -1367,7 +1367,7 @@ var SalesCRM = (function () {
 
   function _findNeighborSales() {
     CRM.toast('Searching for neighbor sales...', 'info');
-    // This would query Trestle for recent sales in the same building
+    // Looks up recent closed sales in the same building via /api/idx/search
     var cl = _s.ws.client;
     MallanAPI._fetch('/api/idx/search?address=' + encodeURIComponent(cl.property_address || '') + '&status=Closed&limit=10')
       .then(function (data) {
