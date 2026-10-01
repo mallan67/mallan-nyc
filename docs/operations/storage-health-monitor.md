@@ -91,7 +91,7 @@ unconfirmed).
 | Dimension | 🟢 Green | 🟡 Yellow | 🔴 Red |
 |---|---|---|---|
 | R2 coverage (active media w/ `r2_key`) | ≥ 98% | ≥ 90% | < 90% |
-| Proxy/Trestle fallback (active) | ≤ 2% | ≤ 10% | > 10% |
+| Proxy/Cotality fallback (active) | ≤ 2% | ≤ 10% | > 10% |
 | DB size (advisory) | < 1 GiB | < 4 GiB | ≥ 4 GiB |
 | Max dead-tuple % (churn tables) | ≤ 20% | ≤ 40% | > 40% |
 | Broken active media (no URL) | 0 | — | ≥ 1 |

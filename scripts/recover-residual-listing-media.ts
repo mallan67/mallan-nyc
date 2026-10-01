@@ -118,9 +118,9 @@ export const RECOVERY_CONFIRM_TOKEN = "RECOVER-RESIDUAL-MEDIA";
 /**
  * Max ListingIds per batched Property key-lookup request.
  *
- * 15 is not a tuning choice — it is the measured Trestle limit already
+ * 15 is not a tuning choice — it is the measured Cotality limit already
  * documented at lib/idx/sync.ts:1231: a batch of 50 produced ~2,700-char OData
- * URLs that Trestle rejects with 400, silently zeroing the media backfill for
+ * URLs that Cotality rejects with 400, silently zeroing the media backfill for
  * days (diagnosed 2026-04-24 against the live feed). 15 keeps the URL under
  * ~1,000 chars. With the 100-row run cap that is at most 7 requests.
  */
@@ -183,7 +183,7 @@ export function buildResidualCandidateWhere(): Prisma.ListingWhereInput {
     // demonstrably HAD photos; they are not genuinely photo-less rows).
     NOT: [{ media: { equals: [] } }, { media: { equals: {} } }],
     // Mallan-owned rows are out of scope: 0 of the 97 are Mallan-owned, and
-    // Mallan media is CRM-authored, never Trestle-authoritative.
+    // Mallan media is CRM-authored, never Cotality-authoritative.
     listing_id: { not: { startsWith: "SL-" } },
     AND: [{ listing_id: { not: { startsWith: "RL-" } } }, { rls_eligible: { not: false } }],
   };
@@ -192,7 +192,7 @@ export function buildResidualCandidateWhere(): Prisma.ListingWhereInput {
 /**
  * THE one rule for "is this value usable as a `Media.ResourceRecordKey`?".
  *
- * Trestle contract (lib/idx/fetch.ts:568): `Property.ListingKey =
+ * Cotality contract (Master §0.2/§0.7; lib/idx/fetch.ts:568): `Property.ListingKey =
  * Media.ResourceRecordKey`, and `ResourceRecordID` (= ListingId) is NOT unique
  * across MLOs. `defaultFetchMedia` filters on `ResourceRecordKey eq '<key>'`
  * (lib/idx/media-sync.ts:3352), so handing it a ListingId returns an EMPTY set
@@ -266,7 +266,7 @@ export function chunkListingIds(listingIds: string[], size: number): string[][] 
  * untouched rather than guessing.
  *
  * Chunking is the CALLER's job (so it is observable/testable); this function
- * refuses an over-long batch rather than silently emitting a URL Trestle 400s.
+ * refuses an over-long batch rather than silently emitting a URL Cotality 400s.
  */
 export async function defaultFetchListingKeys(
   listingIds: string[],

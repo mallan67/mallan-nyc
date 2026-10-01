@@ -628,7 +628,7 @@ export function assertWriteAuthorized(options: RecoveryOptions, env: RecoveryEnv
 // ── Per-row recovery ────────────────────────────────────────────────────────
 
 /**
- * Trestle exposes `Permission` (singular) or the legacy `Permissions`. Mirrors
+ * Cotality exposes `Permission` (singular); `Permissions` is a legacy fallback key. Mirrors
  * `readTrestlePermissions` at lib/idx/sync.ts:252, which is module-private. This
  * is a two-key field read, not a mapper — the mapping itself stays in
  * mapTrestleToPrisma.

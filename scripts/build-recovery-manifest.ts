@@ -389,7 +389,7 @@ export function providerExpectedIdxDisplay(provider: ProviderRow): boolean {
  * owner `mapTrestleToPrisma` uses. Only `rls_eligible` is read locally, and
  * only because it is genuinely local: no Cotality field maps to it,
  * `mapTrestleToPrisma` never emits it, it appears zero times in
- * `LISTING_SYNC_COMPARE_SELECT`, the Trestle path hard-codes the constant
+ * `LISTING_SYNC_COMPARE_SELECT`, the Cotality sync path hard-codes the constant
  * `true` (`lib/idx/sync.ts:1085`), and its only real writers are the CRM
  * routes classifying Mallan-authored website-only inventory. Provider state
  * cannot answer it, so local state is the authority — not a fallback.
@@ -812,7 +812,7 @@ function coerceProviderRow(raw: Record<string, unknown>): ProviderRow | null {
 /**
  * Chunk size for the reverse-set existence probe. Matches the Property lookup
  * in `scripts/recover-residual-listing-media.ts` — an `or`-joined ListingId
- * filter grows the URL linearly and Trestle rejects over-long query strings.
+ * filter grows the URL linearly and Cotality rejects over-long query strings.
  */
 export const EXISTENCE_PROBE_CHUNK_SIZE = 15;
 
@@ -1204,7 +1204,7 @@ async function main(): Promise<void> {
   // wall clock -- the very defect this PR removes.
   // `where: { last_synced_from_trestle: { not: null } }` is LOAD-BEARING, and
   // matches the canonical reader `getLastSyncTimestamp` (lib/idx/sync.ts:2198).
-  // Without it the MAX runs over rows that non-Trestle writers stamp with a
+  // Without it the MAX runs over rows that non-Cotality writers stamp with a
   // LOCAL WALL CLOCK — app/api/crm/convert, app/api/crm/listings[/id][/status],
   // app/api/idx/ensure-listing, app/api/cron/listing-expiration,
   // lib/media/crm-media — and those writers deliberately confine the stamp to

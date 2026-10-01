@@ -3,7 +3,7 @@
  * CI Compliance Check — runs on every PR
  *
  * Verifies:
- * 1. No client-side Trestle/IDX API calls
+ * 1. No client-side Cotality/IDX API calls
  * 2. No NEXT_PUBLIC_ env vars containing secrets
  * 3. toPublicDTO() used in public API endpoints
  * 4. checkDistributionGates() used in public API endpoints
@@ -97,14 +97,14 @@ function lineHits(filePath, pattern) {
 
 console.log('=== CI Compliance Check ===\n');
 
-// ── 1. No Trestle URLs in client components ──
-const TRESTLE_PATTERN = /api\.cotality\.com|api-trestle\.corelogic\.com|api-prod\.corelogic\.com/;
+// ── 1. No Cotality API URLs in client components ──
+const PROVIDER_API_PATTERN = /api\.cotality\.com|api-trestle\.corelogic\.com|api-prod\.corelogic\.com/;
 const componentFiles = findFiles(path.join(ROOT, 'app', 'components'), '.tsx');
-const clientTrestleCalls = componentFiles.filter(f => fileContains(f, TRESTLE_PATTERN));
-if (clientTrestleCalls.length === 0) {
-  pass('No Trestle URLs in client components');
+const clientProviderCalls = componentFiles.filter(f => fileContains(f, PROVIDER_API_PATTERN));
+if (clientProviderCalls.length === 0) {
+  pass('No Cotality API URLs in client components');
 } else {
-  fail('Trestle URLs found in client components', clientTrestleCalls.join(', '));
+  fail('Cotality API URLs found in client components', clientProviderCalls.join(', '));
 }
 
 // ── 2. No client components importing from lib/idx/ (except display-adapter which is safe) ──
@@ -194,17 +194,17 @@ for (const ep of emailEndpoints) {
   }
 }
 
-// ── 8. Distribution gates on Trestle fallback endpoints ──
-const trestleFallbackEndpoints = [
+// ── 8. Distribution gates on Cotality fallback endpoints ──
+const providerFallbackEndpoints = [
   path.join(ROOT, 'app', 'api', 'market', 'route.ts'),
-  // Building-Neon-wake (2026-07-23): the buildings Trestle-fallback assembly
+  // Building-Neon-wake (2026-07-23): the buildings Cotality-fallback assembly
   // (incl. checkDistributionGates) moved verbatim into the shared cached
   // module; the route is a thin shell over it. Gate enforcement lives here:
   path.join(ROOT, 'lib', 'buildings', 'public-building-data.ts'),
   path.join(ROOT, 'app', 'api', 'listings', 'building', 'route.ts'),
   path.join(ROOT, 'app', 'api', 'open-houses', 'route.ts'),
 ];
-for (const ep of trestleFallbackEndpoints) {
+for (const ep of providerFallbackEndpoints) {
   const rel = path.relative(ROOT, ep);
   if (fs.existsSync(ep)) {
     if (fileContains(ep, /checkDistributionGates/)) {
@@ -365,7 +365,7 @@ if (fs.existsSync(vercelJsonPath)) {
   //
   // Merely accepting the route name here would create exactly the loophole
   // this section exists to prevent: a preflight that always answers
-  // "unchanged" would silently stop propagating Trestle status changes while
+  // "unchanged" would silently stop propagating Cotality status changes while
   // CI stayed green. So the heartbeat CONTRACT is verified in source, and any
   // missing element fails the build.
   let preflightDriver = null;
@@ -423,7 +423,7 @@ if (fs.existsSync(vercelJsonPath)) {
       ? { label: 'one-cycle (drives idx-sync)', cron: oneCycleMatch[1] }
       : preflightDriver;
   if (!driver) {
-    fail('No idx-sync cron and no one-cycle orchestrator scheduled — Trestle status changes cannot propagate within REBNY 24h (UCBA Art. I §6)');
+    fail('No idx-sync cron and no one-cycle orchestrator scheduled — Cotality status changes cannot propagate within REBNY 24h (UCBA Art. I §6)');
   } else {
     const cron = driver.cron;
     // Valid cadences: */N minutes, every-N-hours (N<=24), OR daily-at-hour.
@@ -503,26 +503,26 @@ if (fs.existsSync(vercelJsonPath)) {
 }
 
 // ── 17. No MlsStatus in OData $filter strings (REBNY-level provider block) ──
-// Live Trestle returns HTTP 400 on $filter=MlsStatus eq 'X'. Must use StandardStatus.
+// Live Cotality returns HTTP 400 on $filter=MlsStatus eq 'X'. Must use StandardStatus.
 // Only scans app/api/**.
-const trestleFilterFiles = findFiles(path.join(ROOT, 'app/api'), '.ts');
-const mlsStatusFilterViolations = trestleFilterFiles.filter((f) => {
+const providerFilterFiles = findFiles(path.join(ROOT, 'app/api'), '.ts');
+const mlsStatusFilterViolations = providerFilterFiles.filter((f) => {
   const content = fs.readFileSync(f, 'utf8');
   // Match "MlsStatus eq " inside a string that also contains $filter or OData context
   return /["'`][^"'`]*\$filter[^"'`]*MlsStatus eq/.test(content)
       || /["'`][^"'`]*MlsStatus eq [^"'`]*["'`]\s*[,}]/.test(content);
 });
 if (mlsStatusFilterViolations.length === 0) {
-  pass('No MlsStatus in Trestle $filter (REBNY provider-level restriction respected)');
+  pass('No MlsStatus in Cotality $filter (REBNY provider-level restriction respected)');
 } else {
-  fail('MlsStatus used in Trestle $filter — REBNY returns HTTP 400. Replace with StandardStatus: ' + mlsStatusFilterViolations.map(f => path.relative(ROOT, f)).join(', '));
+  fail('MlsStatus used in Cotality $filter — REBNY returns HTTP 400. Replace with StandardStatus: ' + mlsStatusFilterViolations.map(f => path.relative(ROOT, f)).join(', '));
 }
 
-// ── 18. Gate function uses live Trestle field names (no dead field references) ──
+// ── 18. Gate function uses live Cotality field names (no dead field references) ──
 const mapperPath = path.join(ROOT, 'lib/idx/trestle-mapper.ts');
 if (fs.existsSync(mapperPath)) {
   const content = fs.readFileSync(mapperPath, 'utf8');
-  // Dead fields that don't exist on live Trestle — must not appear in runtime checks
+  // Dead fields that don't exist on live Cotality — must not appear in runtime checks
   const deadFields = [
     { pattern: /raw\.ParticipantOnlyYN/, name: 'ParticipantOnlyYN' },
     { pattern: /normalized\.ParticipantOnlyYN/, name: 'ParticipantOnlyYN (normalized)' },
@@ -533,9 +533,9 @@ if (fs.existsSync(mapperPath)) {
   ];
   const hits = deadFields.filter(({ pattern }) => pattern.test(content));
   if (hits.length === 0) {
-    pass('checkDistributionGates uses live Trestle field names (no dead-field references)');
+    pass('checkDistributionGates uses live Cotality field names (no dead-field references)');
   } else {
-    fail('Dead Trestle field references in trestle-mapper.ts gate logic: ' + hits.map(h => h.name).join(', '));
+    fail('Field references absent from live Cotality in trestle-mapper.ts gate logic: ' + hits.map(h => h.name).join(', '));
   }
   // Participant Only gate must be present via Permission === 'Private'
   if (/Permission === ['"]Private['"]|permissions === ['"]Private['"]/.test(content)) {
@@ -620,15 +620,15 @@ for (const rel of LEAD_FORMS_REQUIRING_NOTICE) {
 const openHousesPath = path.join(ROOT, 'app/api/open-houses/route.ts');
 if (fs.existsSync(openHousesPath)) {
   const content = fs.readFileSync(openHousesPath, 'utf8');
-  // The Trestle-facing path MUST NOT default to our brokerage name for third-party
+  // The Cotality-facing path MUST NOT default to our brokerage name for third-party
   // listings. The `agentName: (prop.ListOfficeName as string) || X` pattern is the
-  // Trestle branch; the local-DB path uses `s.listing.agent_info.ListOfficeName` or
+  // Cotality branch; the local-DB path uses `s.listing.agent_info.ListOfficeName` or
   // similar (our own listings — defaulting to our name is correct there).
-  const trestleMisattribution = /agentName:\s*\(prop\.ListOfficeName as string\)\s*\|\|\s*['"]Mallan Real Estate Inc\.['"]/.test(content);
-  if (trestleMisattribution) {
-    fail("Open-houses Trestle path falls back to 'Mallan Real Estate Inc.' — misattributes third-party listings (UCBA Art. III §2(C))");
+  const providerMisattribution = /agentName:\s*\(prop\.ListOfficeName as string\)\s*\|\|\s*['"]Mallan Real Estate Inc\.['"]/.test(content);
+  if (providerMisattribution) {
+    fail("Open-houses Cotality path falls back to 'Mallan Real Estate Inc.' — misattributes third-party listings (UCBA Art. III §2(C))");
   } else {
-    pass('Open-houses Trestle-path attribution does not misattribute third-party listings');
+    pass('Open-houses Cotality-path attribution does not misattribute third-party listings');
   }
   // Local DB path should not expose agent.full_name or agent.phone publicly
   if (/agentName:\s*s\.agent\?\.full_name/.test(content) || /agentPhone:\s*s\.agent\?\.phone/.test(content)) {

@@ -1,12 +1,12 @@
-// Pure, side-effect-free data + logic for the server-side Trestle field guard.
+// Pure, side-effect-free data + logic for the server-side Cotality field guard.
 //
 // Extracted from scripts/audit-server-trestle-coverage.ts so it is importable by
 // unit tests (the audit script self-executes a network IIFE + process.exit on
 // load and therefore cannot be imported directly). The audit imports these
 // symbols; runtime behavior is unchanged.
 
-// Common dead/renamed fields per CLAUDE.md "Fields That DO NOT EXIST on
-// Trestle - NEVER USE". If the audit finds any of these in scanned code, it
+// Common dead/renamed field names absent from the live Cotality contract
+// (live $metadata; snapshot: data/cotality-enums.live.json). If the audit finds any of these in scanned code, it
 // flags it. A snapshot live-parity test
 // (lib/idx/__tests__/forbidden-fields-live-parity.test.ts) asserts every entry is
 // phantom in the captured $metadata snapshot OR is a documented live-but-
@@ -24,7 +24,7 @@ export const FORBIDDEN_FIELDS: Record<string, string> = {
   // $metadata exposes both as Property fields. Live feed wins over the snapshot.)
   MoveInCostsAmountTotal: 'does not exist; MoveInCosts is a picklist only',
   FirstShowingDate: 'use ActivationDate',
-  PossessionDate: 'RESO field, Trestle ignores',
+  PossessionDate: 'not a live Cotality Property field',
   YearRenovated: 'does not exist',
   // Phantom media URL fields — they look plausible but no live resource exposes
   // them. The real model: Property carries VirtualTourURL* (tours/3D); the Media
@@ -43,18 +43,18 @@ export const FORBIDDEN_FIELDS: Record<string, string> = {
   ResourceRecordID: 'exists but NOT unique across MLOs — use ResourceRecordKey for Media joins',
 };
 
-// Forbidden fields that legitimately EXIST on live Trestle but are still banned
+// Forbidden fields that legitimately EXIST on live Cotality but are still banned
 // from use (documented vendor guidance). These must NOT trip the live-drift
 // guard — they are knowingly-live-but-forbidden, not vendor drift.
 //   - ResourceRecordID: exists but is not unique across MLOs; ResourceRecordKey
-//     is the join key (CLAUDE.md vendor-confirmed 2026-04-07).
+//     is the join key (vendor-confirmed 2026-04-07; live Cotality contract).
 export const FORBIDDEN_LIVE_ALLOWLIST: ReadonlySet<string> = new Set<string>([
   'ResourceRecordID',
 ]);
 
 /**
  * Live-drift guard. Returns the forbidden field names that have turned up in the
- * live Trestle $metadata SCHEMA and are NOT in the intentional allowlist — i.e. a
+ * live Cotality $metadata SCHEMA and are NOT in the intentional allowlist — i.e. a
  * phantom the vendor has since made real, which means the guard list (and the
  * code that avoids the field) needs reconciling with proof.
  *

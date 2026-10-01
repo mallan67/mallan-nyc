@@ -1,30 +1,30 @@
 // scripts/reconcile-ghosts.js
 //
 // Feed reconciliation — detects listings marked Active in our DB that are no
-// longer in the Trestle Active feed (ghosts), and transitions them to
+// longer in the Cotality Active feed (ghosts), and transitions them to
 // Withdrawn with a full audit trail.
 //
 // WHY:
 // Incremental sync via `ModificationTimestamp > watermark` detects changes but
-// NOT disappearances. When a listing is fully removed from the Trestle feed —
+// NOT disappearances. When a listing is fully removed from the Cotality feed —
 // post-listing Owner Opt-Out (Exhibit B), broker cancellation with history
 // deletion, aging out of retention — there's no modification event to pull.
 // Our DB keeps the last-known Active state forever, polluting public search
 // with ghost listings that no longer exist.
 //
 // ALGORITHM:
-//   1. Fetch Trestle's complete Active ListingId set (citywide, sale+rent)
+//   1. Fetch Cotality's complete Active ListingId set (citywide, sale+rent)
 //   2. Query our DB for all Active ListingIds
-//   3. Compute diff: in-our-DB-but-not-in-Trestle = ghosts
+//   3. Compute diff: in-our-DB-but-not-in-Cotality = ghosts
 //   4. Skip any ghost whose status is already terminal (defense in depth)
 //   5. Transition ghosts → Withdrawn, status_changed_at=NOW(), idx_display_yn=false
 //   6. Record each transition in audit_events for compliance trail
 //
 // SAFETY:
 //   - Cap on daily ghost count — if >2000 ghosts detected, abort and alert.
-//     That magnitude suggests a Trestle API failure (partial fetch) rather
+//     That magnitude suggests a Cotality API failure (partial fetch) rather
 //     than real removals.
-//   - Only operates on RLS-prefixed listing IDs (Trestle-sourced). Internal
+//   - Only operates on RLS-prefixed listing IDs (Cotality-sourced). Internal
 //     listings (SL-/RL-prefix from agent direct submission) are untouched.
 //   - All transitions logged to audit_events — REBNY RLS requires audit trail.
 //   - Idempotent — running twice is a no-op on already-Withdrawn listings.
@@ -43,18 +43,18 @@ const prisma = new PrismaClient();
 
 // Safety cap — if reconciliation finds more ghosts than this, abort.
 // Normal daily delta is single-digit to low-double-digit. A magnitude over
-// GHOST_ABORT_CAP suggests a Trestle API failure (partial fetch = false
+// GHOST_ABORT_CAP suggests a Cotality API failure (partial fetch = false
 // ghost signal) rather than real removals. Reject-close rather than
 // mass-transition a legitimate fetch error.
 const GHOST_ABORT_CAP = 2000;
 
-// Safety cap for orphans (listings in Trestle we've never synced). Higher
+// Safety cap for orphans (listings in Cotality we've never synced). Higher
 // than ghost cap because a one-shot catch-up after feature deployment may
 // legitimately process hundreds; steady state should be single digits.
 const ORPHAN_ABORT_CAP = 500;
 
 // How many ListingIds to include in a single OData OR-filter when fetching
-// orphans. Keeps URLs under 8KB and Trestle-request-size limits.
+// orphans. Keeps URLs under 8KB and Cotality-request-size limits.
 const ORPHAN_FETCH_BATCH = 20;
 
 // Terminal statuses we don't need to update (defense in depth)
@@ -65,8 +65,8 @@ const TERMINAL_STATUSES = new Set([
 
 const MODE = process.argv.find((a) => a.startsWith("--")) || "--verify-only";
 
-/** Get an OAuth2 bearer token for Trestle. */
-async function getTrestleToken() {
+/** Get an OAuth2 bearer token for Cotality. */
+async function getCotalityToken() {
   const clientId = process.env.IDX_CLIENT_ID || process.env.IDX_API_KEY;
   const clientSecret = process.env.IDX_CLIENT_SECRET || process.env.IDX_API_SECRET;
   if (!clientId || !clientSecret) {
@@ -86,13 +86,13 @@ async function getTrestleToken() {
   });
   const json = await r.json();
   if (!json.access_token) {
-    throw new Error(`Trestle auth failed: ${JSON.stringify(json)}`);
+    throw new Error(`Cotality auth failed: ${JSON.stringify(json)}`);
   }
   return json.access_token;
 }
 
-/** Fetch every Active ListingId from Trestle, paginated. */
-async function fetchTrestleActiveIds(token) {
+/** Fetch every Active ListingId from Cotality, paginated. */
+async function fetchCotalityActiveIds(token) {
   const base = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
   const filter = "StandardStatus eq 'Active'";
   const ids = new Set();
@@ -103,7 +103,7 @@ async function fetchTrestleActiveIds(token) {
     const url = `${base}/odata/Property?$filter=${encodeURIComponent(filter)}&$select=ListingId&$top=${pageSize}&$skip=${skip}`;
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) {
-      throw new Error(`Trestle fetch failed at skip=${skip}: ${res.status} ${await res.text().catch(() => "")}`);
+      throw new Error(`Cotality fetch failed at skip=${skip}: ${res.status} ${await res.text().catch(() => "")}`);
     }
     const page = await res.json();
     const rows = Array.isArray(page.value) ? page.value : [];
@@ -143,11 +143,11 @@ async function run() {
   console.log(`\n━━━ FEED RECONCILIATION (${MODE}) ━━━\n`);
   const t0 = Date.now();
 
-  // 1. Fetch Trestle Active set
-  console.log("Fetching Trestle Active ListingIds (citywide)...");
-  const token = await getTrestleToken();
-  const trestleIds = await fetchTrestleActiveIds(token);
-  console.log(`  Trestle Active: ${trestleIds.size} listings`);
+  // 1. Fetch Cotality Active set
+  console.log("Fetching Cotality Active ListingIds (citywide)...");
+  const token = await getCotalityToken();
+  const cotalityIds = await fetchCotalityActiveIds(token);
+  console.log(`  Cotality Active: ${cotalityIds.size} listings`);
 
   // 2. Our DB Active set (RLS-sourced only — skip internal agent submissions)
   console.log("Querying our DB for Active RLS listings...");
@@ -168,19 +168,19 @@ async function run() {
   console.log(`  Our DB Active (RLS-sourced): ${ourActive.length} listings`);
 
   // 3. Diff — bidirectional
-  const ghosts = ourActive.filter((r) => !trestleIds.has(r.listing_id));
-  console.log(`  Ghosts (in our DB, not in Trestle): ${ghosts.length}`);
+  const ghosts = ourActive.filter((r) => !cotalityIds.has(r.listing_id));
+  console.log(`  Ghosts (in our DB, not in Cotality): ${ghosts.length}`);
 
-  // ALSO find orphans — Trestle has ListingId we don't have at all.
+  // ALSO find orphans — Cotality has ListingId we don't have at all.
   // These are listings the incremental sync missed (pagination boundary,
-  // transient Trestle 5xx during fetch, or timing across run windows).
+  // transient Cotality 5xx during fetch, or timing across run windows).
   const ourAllRls = await prisma.listing.findMany({
     where: { listing_id: { startsWith: "RLS" } },
     select: { listing_id: true },
   });
   const ourAllIds = new Set(ourAllRls.map((r) => r.listing_id));
-  const orphans = [...trestleIds].filter((id) => !ourAllIds.has(id));
-  console.log(`  Orphans (in Trestle Active, not in our DB at all): ${orphans.length}`);
+  const orphans = [...cotalityIds].filter((id) => !ourAllIds.has(id));
+  console.log(`  Orphans (in Cotality Active, not in our DB at all): ${orphans.length}`);
 
   const { byBucket, toTransition } = await summarize(ghosts);
   console.log("\n── Ghosts by bucket ──");
@@ -192,7 +192,7 @@ async function run() {
   if (toTransition.length > GHOST_ABORT_CAP) {
     console.error(
       `\n❌ ABORT: ghost count ${toTransition.length} exceeds cap ${GHOST_ABORT_CAP}. ` +
-      `Likely Trestle fetch failure (partial result), not real removals.`,
+      `Likely Cotality fetch failure (partial result), not real removals.`,
     );
     await prisma.$disconnect();
     process.exit(2);
@@ -200,7 +200,7 @@ async function run() {
   if (orphans.length > ORPHAN_ABORT_CAP) {
     console.error(
       `\n❌ ABORT: orphan count ${orphans.length} exceeds cap ${ORPHAN_ABORT_CAP}. ` +
-      `Likely a Trestle feed reset or a bug in incremental sync — investigate ` +
+      `Likely a Cotality feed reset or a bug in incremental sync — investigate ` +
       `before mass-fetching.`,
     );
     await prisma.$disconnect();

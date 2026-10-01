@@ -50,7 +50,7 @@
 - Property.`ListingKeyNumeric` = Media.`ResourceRecordKeyNumeric` (numeric, always unique)
 - Property.`ListingId` = Media.`ResourceRecordID` (string, **NOT guaranteed unique across MLOs**)
 
-**Where these rules are enforced:** `lib/idx/sync.ts`, `lib/idx/media-sync.ts`, `lib/idx/fetch.ts`, `lib/idx/card-fields.ts`, `app/api/media/batch/route.ts`, `app/api/agents/[slug]/listings/route.ts`, `app/api/idx/search/route.ts`, and the agent past-deals scripts `scripts/import-closed-from-trestle.ts` and `scripts/rebuild-past-deals.js`. Re-check with `git grep ResourceRecordKey` before relying on this list.
+**Where these rules are enforced:** `lib/idx/sync.ts`, `lib/idx/media-sync.ts`, `lib/idx/fetch.ts`, `lib/idx/card-fields.ts`, `app/api/media/batch/route.ts`, `app/api/agents/[slug]/listings/route.ts`, `app/api/idx/search/route.ts`, and the agent past-deals script `scripts/import-closed-from-trestle.ts` (`scripts/rebuild-past-deals.js` was removed in the same batch). Re-check with `git grep ResourceRecordKey` before relying on this list.
 
 ---
 

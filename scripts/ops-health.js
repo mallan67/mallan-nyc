@@ -1,4 +1,4 @@
-// scripts/ops-health.js — unified operational health check for the Neon + Trestle stack.
+// scripts/ops-health.js — unified operational health check for the Neon + Cotality stack.
 //
 // Run on demand (or as a weekly cron) to see:
 //   - Storage: DB size, top tables, growth velocity, listings/listing_media dead-tuple ratio
@@ -6,7 +6,7 @@
 //   - Media sync (added 2026-05-22 per docs/incidents/2026-05-21-chronic-media-sync-root-cause.md):
 //       * media_sync_state cursor staleness (RC1 — boundary-cluster deadlock detector)
 //       * listing_media coverage of IDX-displayable + R2 cached coverage
-//       * Public image usability (first image: R2 / Trestle proxy / empty)
+//       * Public image usability (first image: R2 / Cotality proxy / empty)
 //       * R2 mirror progress 24h (RC3 — retry purgatory detector)
 //       * R2 retry backlog (rows with r2_attempts > 0)
 //   - Retention: archive queue, compliance gap
@@ -433,12 +433,12 @@ async function run() {
     // IDX-displayable listings. Codex P2 fix on PR #178 (b3ab86da):
     // the prior shape used `media::text LIKE '%r2.dev%'` which would
     // classify a listing as "R2" if ANY url in the array matched the
-    // R2 domain, even when the user-visible first image was Trestle/
+    // R2 domain, even when the user-visible first image was Cotality/
     // proxy. That hid fallback dependency during incident monitoring.
     //
     // New shape extracts `media->0` and reads its `url` / `MediaURL`
     // field (different writer code paths use different casing — the
-    // legacy idx-sync writes `{url, mediaType, order}`, raw Trestle
+    // legacy idx-sync writes `{url, mediaType, order}`, raw Cotality
     // batches sometimes write `{MediaURL, MediaCategory, ...}`).
     // COALESCE picks whichever the row actually has. Buckets are now
     // mutually exclusive and exhaustive across IDX-displayable rows.
@@ -491,8 +491,8 @@ async function run() {
     report.media_sync.first_image_empty = Number(imgRow.empty_media);
     report.media_sync.first_image_other = Number(imgRow.first_image_other);
     // Conservative lower bound on "no usable image": only the empty-media set
-    // is definitively unusable. Trestle-proxy URLs may still render via the
-    // proxy if Trestle hasn't rotated them; R2 URLs are stable.
+    // is definitively unusable. Cotality-proxy URLs may still render via the
+    // proxy if Cotality hasn't rotated them; R2 URLs are stable.
     // P1C5 (L11): the ALARM keys off no_image_any_layer — the real render-path
     // placeholder count (JSON empty AND no active listing_media row). The
     // legacy JSON-empty count stays reported (lower_bound semantics now: it is
@@ -756,7 +756,7 @@ function renderHuman(r) {
       if (ms.first_image_r2 !== undefined) {
         console.log(`  First image classification (media->0 ‘url’ / ‘MediaURL’ on IDX-displayable):`);
         console.log(`    R2 URL:           ${ms.first_image_r2}`);
-        console.log(`    Trestle/proxy:    ${ms.first_image_trestle_proxy}`);
+        console.log(`    Cotality/proxy:   ${ms.first_image_trestle_proxy}`);
         console.log(`    JSON-empty but TABLE-served: ${ms.first_image_table_served} (renders fine via listing_media — not alarmed)`);
         console.log(`    NO image any layer: ${ms.no_image_any_layer} (true placeholder count — drives the alarm)`);
         console.log(`    other URL host:   ${ms.first_image_other ?? 0}`);

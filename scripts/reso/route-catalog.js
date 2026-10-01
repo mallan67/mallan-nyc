@@ -9,7 +9,7 @@
  *   - artifacts/api-route-catalog.md (Markdown table — committable)
  *   - artifacts/api-route-catalog.json (programmatic shape)
  *
- * Read-only. Fast. No DB, no Trestle. Useful as a shareable artifact
+ * Read-only. Fast. No DB, no Cotality. Useful as a shareable artifact
  * + an input for future audit tools.
  *
  * Usage:

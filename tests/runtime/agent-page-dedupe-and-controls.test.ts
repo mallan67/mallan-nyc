@@ -77,8 +77,8 @@ describe('Task A — preferCrmExclusiveOverIdxDuplicate suppresses the IDX dupli
 
 describe('Task B — set-listing-primary-photo ops script only mutates CRM media (Codex review)', () => {
   const script = readFileSync(resolve(__dirname, '../../scripts/ops/set-listing-primary-photo.mjs'), 'utf8');
-  it('rejects mixed-media listings before any write (no mutating read-only Trestle/RLS rows)', () => {
-    expect(script).toMatch(/non-CRM \(Trestle\/RLS\) active photo/);
+  it('rejects mixed-media listings before any write (no mutating read-only Cotality-feed rows)', () => {
+    expect(script).toMatch(/non-CRM \(Cotality-feed\) active photo/);
     expect(script).toMatch(/refusing to renumber\/clear them/);
     // the guard runs before the $transaction write
     const guardIdx = script.indexOf('refusing to renumber');

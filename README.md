@@ -549,7 +549,7 @@ All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
 | **`Media.ModificationTimestamp`** | Source of truth for individual media row changes. Include in `$select` for change tracking. |
 | **`Property.PhotosChangeTimestamp`** | High-level trigger — fires when ANY media for a listing changes. Use to decide which listings need media re-fetch. |
 
-**All batch media queries in this codebase filter by `ResourceRecordKey` (with `ResourceRecordID` fallback only when `mls_id` is null). Enforced across 8 files: 7 production (`sync.ts`, `fetch.ts`, `card-fields.ts`, `media/batch/route.ts`, `agents/[slug]/listings/route.ts`, `idx/search/route.ts`, `import-closed-from-trestle.ts`) plus 1 utility script (`rebuild-past-deals.js`). Deep-audited 2026-04-07; debug-script clutter removed in 2026-04-27 cleanup.**
+**All batch media queries in this codebase filter by `ResourceRecordKey` (with `ResourceRecordID` fallback only when `mls_id` is null). Enforced across 7 production files (`sync.ts`, `fetch.ts`, `card-fields.ts`, `media/batch/route.ts`, `agents/[slug]/listings/route.ts`, `idx/search/route.ts`, `import-closed-from-trestle.ts`). Deep-audited 2026-04-07; debug-script clutter removed in 2026-04-27 cleanup.**
 
 ### Security
 

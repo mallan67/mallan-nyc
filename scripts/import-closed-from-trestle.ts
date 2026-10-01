@@ -1,9 +1,9 @@
 /**
- * Import closed listings from Trestle into the local DB.
+ * Import closed listings from Cotality into the local DB.
  *
  * Fetches ALL closed listings for Maya Allan (by name) + all agents
  * at MAllan Real Estate Inc (by office), deduplicates, and stores
- * with proper Trestle field mapping.
+ * with the canonical Cotality field mapping.
  *
  * Usage: npx tsx scripts/import-closed-from-trestle.ts
  *
@@ -22,9 +22,9 @@ import { deriveTerminalSince } from "../lib/listings/terminal-since";
 const prisma = new PrismaClient();
 
 // ═══════════════════════════════════════════════════════════
-// TRESTLE FIELD SELECTION
+// COTALITY FIELD SELECTION
 // All fields needed for a complete closed-listing record.
-// Uses REBNY RLS field names (Trestle canonical names).
+// Uses live Cotality Property field names.
 // ═══════════════════════════════════════════════════════════
 // Use only fields validated on the IDX Plus feed.
 // We import trestle-mapper's IDX_PLUS_SELECT_FIELDS and add back a few
@@ -38,7 +38,7 @@ const SELECT_FIELDS = [
   "CrossStreet", "Latitude", "Longitude",
   "BuildingName",
 
-  // B2: Classification — ListingKey needed for Media.ResourceRecordKey (Trestle guidance 2026-04-07)
+  // B2: Classification — ListingKey needed for Media.ResourceRecordKey (Cotality vendor guidance 2026-04-07)
   "ListingId", "ListingKey", "ListingKeyNumeric", "SourceSystemKey",
   "PropertyType", "PropertySubType", "CommonInterest",
   "OwnershipType", "StructureType",
@@ -122,12 +122,12 @@ async function main() {
   );
   const defaultAgent = agents.find((a) => a.email === "maya@mallan.nyc") || agents[0];
 
-  // ── Fetch from Trestle ──
+  // ── Fetch from Cotality ──
   // Two queries: by agent name (Maya Allan) + by office (catches all agents)
   const allRecords = new Map<string, Record<string, unknown>>();
 
   // Query 1: By agent name
-  await fetchTrestle(
+  await fetchCotality(
     token,
     TRESTLE_API,
     `ListAgentFullName eq 'Maya Allan' and StandardStatus eq 'Closed'`,
@@ -135,17 +135,17 @@ async function main() {
   );
 
   // Query 2: By office name (catches Leda, Julia, any future agents)
-  await fetchTrestle(
+  await fetchCotality(
     token,
     TRESTLE_API,
     `contains(ListOfficeName,'Mallan') and StandardStatus eq 'Closed'`,
     allRecords
   );
 
-  console.log(`\nTotal unique closed listings from Trestle: ${allRecords.size}`);
+  console.log(`\nTotal unique closed listings from Cotality: ${allRecords.size}`);
 
   // ── Fetch photos for all listings ──
-  // Trestle guidance (2026-04-07): use ResourceRecordKey (always unique), not ResourceRecordID.
+  // Cotality vendor guidance (2026-04-07): use ResourceRecordKey (always unique), not ResourceRecordID.
   // Build listingKey → listingId map for the photo fetch.
   console.log("Fetching photos...");
   const idToKeyMap = new Map<string, string>();
@@ -221,7 +221,7 @@ async function main() {
       else if (county.includes("bronx")) borough = "Bronx";
       else if (county.includes("richmond") || county.includes("staten")) borough = "Staten Island";
 
-      // ── Neighborhood from SubdivisionName (the REBNY RLS neighborhood field) ──
+      // ── Neighborhood from SubdivisionName (the live Cotality Property neighborhood field) ──
       // CityRegion = borough (Manhattan/Brooklyn/etc.), SubdivisionName = real neighborhood
       const neighborhood = r.SubdivisionName ? String(r.SubdivisionName).trim() : null;
 
@@ -237,7 +237,7 @@ async function main() {
       await prisma.listing.create({
         data: {
           listing_id: listingId,
-          mls_id: listingId, // Mark as Trestle-sourced
+          mls_id: listingId, // Mark as Cotality-sourced
           agent_id: agent.id,
           status: "Closed",
           listing_type: isRental ? "rent" : "sale",
@@ -253,7 +253,7 @@ async function main() {
           city,
           postal_code: postalCode,
           address: {
-            // All Trestle address components (for _resolveAddress in CRM JS)
+            // All Cotality address components (for _resolveAddress in CRM JS)
             street: street + (unitNumber ? `, #${unitNumber}` : ""),
             StreetNumber: streetNumber || null,
             StreetDirPrefix: streetDirPrefix || null,
@@ -387,9 +387,9 @@ async function main() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// Fetch listings from Trestle (with pagination)
+// Fetch listings from Cotality (with pagination)
 // ═══════════════════════════════════════════════════════════
-async function fetchTrestle(
+async function fetchCotality(
   token: string,
   apiUrl: string,
   filter: string,
@@ -414,7 +414,7 @@ async function fetchTrestle(
 
     if (!resp.ok) {
       const text = await resp.text();
-      console.error(`  Trestle API error: ${resp.status} ${text.substring(0, 200)}`);
+      console.error(`  Cotality API error: ${resp.status} ${text.substring(0, 200)}`);
       break;
     }
 
@@ -436,9 +436,9 @@ async function fetchTrestle(
 }
 
 // ═══════════════════════════════════════════════════════════
-// Fetch photos from Trestle Media endpoint
+// Fetch photos from Cotality Media endpoint
 // ═══════════════════════════════════════════════════════════
-// Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
+// Cotality vendor guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
 // NOT ResourceRecordID (can duplicate). idToKeyMap maps ListingId → ListingKey.
 async function fetchPhotos(
   token: string,

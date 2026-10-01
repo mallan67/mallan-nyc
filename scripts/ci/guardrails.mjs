@@ -422,8 +422,6 @@ const hostScanExcludes = [
   /\.next/,
   /\.git/,
   /archive\//,
-  /scripts\/trestle-deep-check/,
-  /audit-trestle-report/,
   /db-to-public-dto\.ts$/,
   /public-dto\.ts$/,
   /media\/proxy/,

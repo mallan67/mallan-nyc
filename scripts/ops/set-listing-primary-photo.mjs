@@ -2,7 +2,7 @@
 //
 // OPS: set a listing's PRIMARY (hero) photo and move it to a position, for ONE
 // listing. Operates only on CRM-managed media (media_key prefix "crm:") so it
-// never touches Trestle/RLS-synced rows. Writes the `listing_media` table:
+// never touches Cotality-feed rows. Writes the `listing_media` table:
 //   - preferred_photo_yn = true on the target (false on all other active rows)
 //   - order renumbered so the target sits at --position (1-based) among photos
 //
@@ -87,19 +87,19 @@ async function main() {
     process.exit(2);
   }
   if (!isCrmKey(target.media_key)) {
-    console.error(`\nERROR: target ${target.media_key} is NOT CRM-managed (must start "crm:"). Trestle/RLS media is read-only here.`);
+    console.error(`\nERROR: target ${target.media_key} is NOT CRM-managed (must start "crm:"). Cotality-feed media is read-only here.`);
     process.exit(2);
   }
 
   // Mixed-media guard (Codex review): the clear-preferred updateMany and the
   // renumber loop below touch EVERY active photo. On a listing that also has
-  // Trestle/RLS photo rows (media_key not "crm:"), that would mutate read-only
-  // RLS media. So refuse unless ALL active photos are CRM-managed. (CRM
+  // Cotality-feed photo rows (media_key not "crm:"), that would mutate read-only
+  // feed media. So refuse unless ALL active photos are CRM-managed. (CRM
   // exclusives are fully CRM media; mixed/IDX listings must use the CRM UI.)
   const nonCrm = photos.filter((p) => !isCrmKey(p.media_key));
   if (nonCrm.length > 0) {
     console.error(
-      `\nERROR: listing has ${nonCrm.length} non-CRM (Trestle/RLS) active photo(s) — refusing to renumber/clear them.\n` +
+      `\nERROR: listing has ${nonCrm.length} non-CRM (Cotality-feed) active photo(s) — refusing to renumber/clear them.\n` +
         `This script manages fully CRM-managed media only. Non-CRM keys: ${nonCrm.map((p) => p.media_key).join(", ")}`,
     );
     process.exit(2);

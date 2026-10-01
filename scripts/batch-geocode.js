@@ -5,7 +5,7 @@
  *   node scripts/batch-geocode.js
  *
  * Requires DATABASE_URL + IDX credentials in .env.local.
- * Fetches active IDX listings from Trestle, geocodes via Census,
+ * Fetches active IDX listings from Cotality, geocodes via Census,
  * and upserts results into geocode_cache. No time budget — runs all.
  *
  * Safe to run multiple times — skips already-cached addresses.
@@ -102,7 +102,7 @@ async function fetchAllListings() {
     });
 
     if (!res.ok) {
-      console.error(`Trestle API error: ${res.status} ${res.statusText}`);
+      console.error(`Cotality API error: ${res.status} ${res.statusText}`);
       break;
     }
 
@@ -120,8 +120,8 @@ async function fetchAllListings() {
 async function main() {
   console.log('=== Batch Geocode Pre-Seed ===\n');
 
-  // Step 1: Fetch all active listings from Trestle
-  console.log('Step 1: Fetching active listings from Trestle...');
+  // Step 1: Fetch all active listings from Cotality
+  console.log('Step 1: Fetching active listings from Cotality...');
   const listings = await fetchAllListings();
   console.log(`  Found ${listings.length} active listings\n`);
 
@@ -137,7 +137,7 @@ async function main() {
     const zip = (l.PostalCode || '').split('-')[0].trim();
     if (!num || !fullStreet || !zip) continue;
 
-    // Skip if Trestle already has coords
+    // Skip if Cotality already has coords
     if (l.Latitude && l.Longitude && l.Latitude !== 0 && l.Longitude !== 0) continue;
 
     const key = addressKey(num, fullStreet, zip);

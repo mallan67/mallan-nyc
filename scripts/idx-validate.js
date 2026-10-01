@@ -3,7 +3,7 @@
  * IDX Plus Compliance Validator v2 — npm run idx:validate
  *
  * Comprehensive end-to-end validator for mallan.nyc.
- * Validates: Trestle $select → mapper → DB → gates → DTO → frontend → CRM → API.
+ * Validates: Cotality $select → mapper → DB → gates → DTO → frontend → CRM → API.
  *
  * Exit codes: 0 = all PASS, 1 = any CRITICAL/FAIL
  *
@@ -15,14 +15,14 @@
  *
  * Exception annotations in source code:
  *   /* IDX-VALIDATE-IGNORE: reason * /     suppress a specific finding
- *   /* TRESTLE-PREFILTERED * /             field is pre-filtered by Trestle feed
+ *   /* TRESTLE-PREFILTERED * /             field is pre-filtered by the Cotality feed
  *   /* IDX-VALIDATE-OK: reason * /         explicitly mark as reviewed
  *
  * Sections (26 total):
  *   ── IDX Pipeline ──
  *    1. $select Field Completeness
  *    2. Distribution Gate → DB Column Mapping
- *    4. REQUIRED_RLS_FIELDS vs IDX Plus Availability
+ *    4. REQUIRED vs Property $select
  *    5. Prisma Listing ↔ Mapper Return Type
  *    6. Picklist / Value Canonicalization
  *   ── CRM & API ──
@@ -57,7 +57,7 @@
  *   28. Search Filter Integrity
  *   ── Frontend ──
  *   29. Interactive Element Wiring
- *   30. Trestle → Frontend Data Chain
+ *   30. Cotality → Frontend Data Chain
  *   31. Portal Auth Flow
  *   ── Platform ──
  *   32. Run History & Trends
@@ -65,7 +65,7 @@
  *   36. DOM ID Cross-Reference (JS → HTML)
  *   37. Search Flow Integrity
  *   38. onclick/onchange Function Existence
- *   39. data-field vs Trestle/RESO Validation
+ *   39. data-field vs Cotality Field Contract
  *   40. Duplicate HTML ID Detection
  */
 
@@ -278,7 +278,7 @@ function section2() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SECTION 4: REQUIRED_RLS_FIELDS vs IDX Plus Availability
+// SECTION 4: REQUIRED vs Property $select
 // ═══════════════════════════════════════════════════════════════════════════
 function section4() {
   const s = startSection(4, 'REQUIRED vs Property $select', 'IDX Pipeline');
@@ -367,7 +367,7 @@ function section6() {
   // Check SyndicateYN vs SyndicateTo mismatch
   if (enforcement) {
     if (/SyndicateYN/.test(enforcement) && !/SyndicateTo/.test(enforcement)) {
-      warning(s, 'SyndicateYN vs SyndicateTo', 'Enforcement uses SyndicateYN but Trestle sends SyndicateTo');
+      warning(s, 'SyndicateYN vs SyndicateTo', 'Enforcement uses SyndicateYN but Cotality sends SyndicateTo');
     }
   }
 }
@@ -913,17 +913,17 @@ function section23() {
   const auth = readFile('lib/idx/auth.ts');
 
   if (fetch) {
-    if (/AbortController|timeout|signal/.test(fetch)) pass(s, 'Trestle fetch: timeout/abort configured');
-    else warning(s, 'Trestle fetch: no timeout', 'Add AbortController timeout');
-    if (/retry|retries|attempt/i.test(fetch)) pass(s, 'Trestle fetch: retry logic');
-    else warning(s, 'Trestle fetch: no retry logic', 'Add retry with backoff for transient errors');
-    if (/429|rate.?limit|too.?many/i.test(fetch)) pass(s, 'Trestle fetch: 429 handling');
-    else warning(s, 'Trestle fetch: no 429 handling', 'Add backoff on rate limit responses');
+    if (/AbortController|timeout|signal/.test(fetch)) pass(s, 'Cotality fetch: timeout/abort configured');
+    else warning(s, 'Cotality fetch: no timeout', 'Add AbortController timeout');
+    if (/retry|retries|attempt/i.test(fetch)) pass(s, 'Cotality fetch: retry logic');
+    else warning(s, 'Cotality fetch: no retry logic', 'Add retry with backoff for transient errors');
+    if (/429|rate.?limit|too.?many/i.test(fetch)) pass(s, 'Cotality fetch: 429 handling');
+    else warning(s, 'Cotality fetch: no 429 handling', 'Add backoff on rate limit responses');
   } else warning(s, 'lib/idx/fetch.ts not found', '');
 
   if (auth) {
-    if (/refresh|token.*expir|reauth|getAccessToken/i.test(auth)) pass(s, 'Trestle auth: token refresh logic');
-    else warning(s, 'Trestle auth: no token refresh', 'Token may expire mid-sync');
+    if (/refresh|token.*expir|reauth|getAccessToken/i.test(auth)) pass(s, 'Cotality auth: token refresh logic');
+    else warning(s, 'Cotality auth: no token refresh', 'Token may expire mid-sync');
   }
 }
 
@@ -1267,11 +1267,11 @@ function section29() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SECTION 30: Trestle → Frontend Data Chain
+// SECTION 30: Cotality → Frontend Data Chain
 // Validates no field is lost or renamed incorrectly across the 5-step chain.
 // ═══════════════════════════════════════════════════════════════════════════
 function section30() {
-  const s = startSection(30, 'Trestle → Frontend Data Chain', 'Data Integrity');
+  const s = startSection(30, 'Cotality → Frontend Data Chain', 'Data Integrity');
 
   const mapper = readFile('lib/idx/trestle-mapper.ts');
   const dto = readFile('lib/idx/db-to-public-dto.ts') || readFile('lib/idx/public-dto.ts');
@@ -1280,29 +1280,29 @@ function section30() {
 
   // Critical fields that must survive the full chain
   const criticalFields = [
-    { trestle: 'ListPrice', prisma: 'list_price', dto: /listPrice|list_price/, frontend: /listPrice|list_price|price/ },
-    { trestle: 'BedroomsTotal', prisma: 'bedrooms_total', dto: /bedroomsTotal|bedrooms_total/, frontend: /bedroomsTotal|bedrooms|beds/ },
-    { trestle: 'BathroomsFull', prisma: 'bathrooms_full', dto: /bathroomsFull|bathrooms_full/, frontend: /bathroomsFull|bathrooms|baths/ },
-    { trestle: 'LivingArea', prisma: 'living_area', dto: /livingArea|living_area/, frontend: /livingArea|living_area|sqft/ },
-    { trestle: 'StandardStatus', prisma: 'status', dto: /status/, frontend: /status/ },
-    { trestle: 'PropertyType', prisma: 'property_type', dto: /propertyType|property_type/, frontend: /propertyType|property_type/ },
-    { trestle: 'PublicRemarks', prisma: 'features', dto: /publicRemarks|public_remarks/, frontend: /publicRemarks|description/ },
-    { trestle: 'ListOfficeName', prisma: 'agent_info', dto: /listOfficeName|list_office/, frontend: /listOfficeName|officeName/ },
+    { cotality: 'ListPrice', prisma: 'list_price', dto: /listPrice|list_price/, frontend: /listPrice|list_price|price/ },
+    { cotality: 'BedroomsTotal', prisma: 'bedrooms_total', dto: /bedroomsTotal|bedrooms_total/, frontend: /bedroomsTotal|bedrooms|beds/ },
+    { cotality: 'BathroomsFull', prisma: 'bathrooms_full', dto: /bathroomsFull|bathrooms_full/, frontend: /bathroomsFull|bathrooms|baths/ },
+    { cotality: 'LivingArea', prisma: 'living_area', dto: /livingArea|living_area/, frontend: /livingArea|living_area|sqft/ },
+    { cotality: 'StandardStatus', prisma: 'status', dto: /status/, frontend: /status/ },
+    { cotality: 'PropertyType', prisma: 'property_type', dto: /propertyType|property_type/, frontend: /propertyType|property_type/ },
+    { cotality: 'PublicRemarks', prisma: 'features', dto: /publicRemarks|public_remarks/, frontend: /publicRemarks|description/ },
+    { cotality: 'ListOfficeName', prisma: 'agent_info', dto: /listOfficeName|list_office/, frontend: /listOfficeName|officeName/ },
   ];
 
   for (const field of criticalFields) {
-    const inMapper = mapper.includes(field.trestle) || mapper.includes(field.prisma);
+    const inMapper = mapper.includes(field.cotality) || mapper.includes(field.prisma);
     const inDTO = field.dto.test(dto);
     const inFrontend = listingPage ? field.frontend.test(listingPage) : true;
 
     if (inMapper && inDTO && inFrontend) {
-      pass(s, `${field.trestle} → ${field.prisma} → DTO → frontend`);
+      pass(s, `${field.cotality} → ${field.prisma} → DTO → frontend`);
     } else {
       const gaps = [];
       if (!inMapper) gaps.push('mapper');
       if (!inDTO) gaps.push('DTO');
       if (!inFrontend) gaps.push('frontend');
-      warning(s, `${field.trestle}: gap in ${gaps.join(', ')}`,
+      warning(s, `${field.cotality}: gap in ${gaps.join(', ')}`,
         `Field may not reach the frontend. Check ${gaps.join(' → ')}`);
     }
   }
@@ -1687,8 +1687,8 @@ function section37() {
   }
 
   // 3. Status checkbox data-values match statusMap in _serverSearch
-  // statusMap maps CRM uppercase → RESO PascalCase. The code uses `statusMap[s] || s`
-  // so values already in RESO format (Active, ComingSoon, etc.) pass through correctly.
+  // statusMap maps CRM uppercase → Cotality StandardStatus (PascalCase). The code uses `statusMap[s] || s`
+  // so values already in Cotality StandardStatus form (Active, ComingSoon, etc.) pass through correctly.
   // Compound values like "Withdrawn,Canceled,Expired,Hold" are split by the server
   // (idx/search/route.ts: status.split(",")).
   const statusMapMatch = searchEngine.match(/statusMap\s*=\s*\{([^}]+)\}/);
@@ -1696,7 +1696,7 @@ function section37() {
     const mapKeys = (statusMapMatch[1].match(/'([^']+)'/g) || [])
       .filter((_, i) => i % 2 === 0) // odd indices are values
       .map(k => k.replace(/'/g, ''));
-    // Valid RESO StandardStatus values that pass through the `|| s` fallback correctly
+    // Cotality StandardStatus members (static copy of the live enum) that pass through the `|| s` fallback
     const resoStandardStatuses = new Set([
       'Active', 'ActiveUnderContract', 'Canceled', 'Closed', 'ComingSoon',
       'Delete', 'Expired', 'Hold', 'Incomplete', 'Pending', 'Withdrawn',
@@ -1710,17 +1710,17 @@ function section37() {
     const unmapped = statusCheckboxes.filter(v => {
       // In statusMap keys → mapped explicitly
       if (mapKeys.includes(v)) return false;
-      // Valid RESO value → passes through via || s fallback
+      // Valid Cotality StandardStatus value → passes through via || s fallback
       if (resoStandardStatuses.has(v)) return false;
-      // Compound value — check each part is valid RESO
+      // Compound value — check each part is a valid Cotality StandardStatus
       if (v.includes(',') && v.split(',').every(p => resoStandardStatuses.has(p.trim()))) return false;
       return true;
     });
     if (unmapped.length > 0) {
-      warning(s, `${unmapped.length} status checkbox values not in statusMap or RESO enum: ${unmapped.join(', ')}`,
-        'These statuses will be sent as-is to Trestle and may not match any RESO StandardStatus');
+      warning(s, `${unmapped.length} status checkbox values not in statusMap or the Cotality StandardStatus enum: ${unmapped.join(', ')}`,
+        'These statuses will be sent as-is to Cotality and may not match any Cotality StandardStatus');
     } else if (statusCheckboxes.length > 0) {
-      pass(s, `${statusCheckboxes.length} status checkbox values all mapped or valid RESO`);
+      pass(s, `${statusCheckboxes.length} status checkbox values all mapped or valid Cotality StandardStatus`);
     }
   }
 
@@ -1753,7 +1753,7 @@ function section37() {
       while ((m = selRegex.exec(html)) !== null) {
         if (!htmlSelectFields.includes(m[1])) htmlSelectFields.push(m[1]);
       }
-      // Fields used in HTML that the API doesn't request from Trestle
+      // Fields used in HTML that the API doesn't request from Cotality
       // (These would only work as client-side filters, not server-side OData)
       const notInApi = htmlSelectFields.filter(f =>
         !apiFields.has(f) && f !== 'MlsStatus' // MlsStatus handled specially
@@ -1875,12 +1875,12 @@ function section38() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SECTION 39: data-field vs Trestle/RESO Field Validation
+// SECTION 39: data-field vs Cotality Field Contract
 // Cross-references data-field="X" in HTML against the live Cotality field contract.
 // Catches invented field names that produce silent OData failures.
 // ═══════════════════════════════════════════════════════════════════════════
 function section39() {
-  const s = startSection(39, 'data-field vs Trestle/RESO Validation', 'Search');
+  const s = startSection(39, 'data-field vs Cotality Field Contract', 'Search');
 
   const html = readFile('public/crm/index-built.html');
   const liveFields = getCotalityFieldNames();
@@ -1888,10 +1888,10 @@ function section39() {
   if (!liveFields) { warning(s, 'Cannot read data/cotality-enums.live.json', ''); return; }
 
   // Every field name the licence serves, from the live Cotality contract.
-  const trestleFields = new Set(liveFields);
+  const acceptedFields = new Set(liveFields);
 
   // Search fields this check has always accepted, in addition to the contract.
-  const extraTrestleFields = [
+  const extraAcceptedFields = [
     'MlsStatus', 'StandardStatus', 'InternetEntireListingDisplayYN', 'InternetAddressDisplayYN',
     'InternetAutomatedValuationDisplayYN', 'InternetConsumerCommentYN',
     'ShowingInstructions', 'PropertyType', 'PropertySubType', 'CommonInterest',
@@ -1904,9 +1904,9 @@ function section39() {
     'LandLeaseYN', 'AvailableLeaseType', 'ExistingLeaseType', 'BusinessType',
     'SubdivisionName', 'CityRegion',
   ];
-  for (const f of extraTrestleFields) trestleFields.add(f);
+  for (const f of extraAcceptedFields) acceptedFields.add(f);
 
-  // Known local-only fields (not on Trestle — intentionally client-side only)
+  // Known local-only fields (not on Cotality — intentionally client-side only)
   const localOnlyFields = new Set([
     'OpenHouseOnly', 'GuarantorRequired', 'BoardApprovalRequired', 'PurchasingOptions',
     'SubLettingAllowed', 'LeaseType', 'LeaseTerm', 'LeaseTermOptions',
@@ -1940,7 +1940,7 @@ function section39() {
   const invented = [];
 
   for (const [field] of htmlFields) {
-    if (trestleFields.has(field)) {
+    if (acceptedFields.has(field)) {
       validCount++;
     } else if (localOnlyFields.has(field)) {
       localCount++;
@@ -1950,18 +1950,18 @@ function section39() {
     }
   }
 
-  pass(s, `${validCount} data-field values match Trestle/RESO fields`);
+  pass(s, `${validCount} data-field values match a live Cotality field or an accepted extra`);
   if (localCount > 0) {
     pass(s, `${localCount} data-field values are known local-only filters`);
   }
   if (inventedCount > 0) {
-    warning(s, `${inventedCount} data-field values NOT in Trestle or local-only list`,
+    warning(s, `${inventedCount} data-field values NOT in the live Cotality contract, accepted extras or local-only list`,
       `Fields: ${invented.join(', ')}. These may silently fail as OData filters. Add to localOnlyFields if intentional.`);
   } else {
-    pass(s, 'All data-field values accounted for (Trestle or local-only)');
+    pass(s, 'All data-field values accounted for (live Cotality, accepted extras or local-only)');
   }
 
-  pass(s, `Checked against ${trestleFields.size} Trestle fields + ${localOnlyFields.size} local-only`);
+  pass(s, `Checked against ${acceptedFields.size} accepted fields (live Cotality + extras) + ${localOnlyFields.size} local-only`);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2032,7 +2032,7 @@ function section40() {
 console.log('');
 console.log('═══════════════════════════════════════════════════════════');
 console.log('  IDX Plus Compliance Validator v3 — mallan.nyc');
-console.log('  REBNY RLS / UCBA 2026 / Trestle IDX Plus');
+console.log('  REBNY RLS / UCBA 2026 / Cotality IDX Plus');
 console.log('  Full-stack audit');
 console.log('═══════════════════════════════════════════════════════════');
 console.log('');
