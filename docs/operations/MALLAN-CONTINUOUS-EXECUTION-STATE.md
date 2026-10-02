@@ -597,7 +597,7 @@ It added no new gate. It also made `pr-check` read-only (`permissions: contents:
 - force-push and deletion of `main` are blocked;
 - Maya reviews and merges every pull request. Agents never merge, never enable auto-merge and never change branch protection or rulesets.
 
-**What the interim protection does not certify.** The convergence branch removes obsolete provider implementation component by component; each removal is recorded with its commit under §11 "Completed". Obsolete provider implementation that live code still reads stays until it is replaced in place. What remains, including the CSV-derived field list in `lib/compliance/rls-rules.json` that the CRM listing gate reads and the RESO field map, is listed under §11 "Open". None of that provider-derived material is provider authority, correct or canonical, and no rule or check requires or protects it; it stays only while live consumers, including the frozen tools and public search, still read it. The same file also carries the Fair Housing prohibited-terms list with which the CRM listing gate (`lib/compliance/rebny-validator.ts`) screens listing remarks; that screen is a current compliance control (Master §21.10) and must survive the replacement.
+**What the interim protection does not certify.** The convergence branch removes obsolete provider implementation component by component; each removal is recorded with its commit under §11 "Completed". Obsolete provider implementation that live code still reads stays until it is replaced in place. What remains, including the RESO field map (`public/crm/js/core/reso-field-map.js`), is listed under §11 "Open". None of that provider-derived material is provider authority, correct or canonical, and no rule or check requires or protects it; it stays only while live consumers, including the frozen tools and public search, still read it. The CRM listing gate's field-requirement table and Fair Housing prohibited-terms list (`lib/compliance/rebny-validator.ts`) now both read current, canonical sources (`lib/compliance/rebny-field-tables.ts` and `data/compliance/prohibited-terms.json` respectively, milestones 20-21); that screen is a current compliance control (Master §21.10).
 
 Passing `pr-check` during the interim therefore does not certify provider correctness. `main` still contains obsolete provider implementation, which must be cleaned before permanent governance is designed. The architectural authority is unchanged (Master §21.2):
 
@@ -819,6 +819,29 @@ and adjudication and were pushed (41 rejected — see below).
     from `categories`, falling back to `flatList` only if absent. The validator's other two
     `rls-rules.json` reads (field table, NYC borough/county map) are untouched — that is the
     already-tracked Open item below.
+21. **`a9289ab9`** — `lib/compliance/rebny-validator.ts`'s remaining `rls-rules.json`
+    dependency (the field-requirement table and NYC borough/county map; its third dependency, the
+    Fair Housing term list, was already fixed at milestone 20) replaced with
+    `lib/compliance/rebny-field-tables.ts` — the same live-Cotality-verified table
+    `lib/compliance/rls-enforcement.ts`'s write-path gate already reads. `conditionMatches()`
+    (previously private to `rls-enforcement.ts`) is now exported and reused instead of a second,
+    independent condition-string parser; the NYC borough/county/FIPS map (five boroughs) is now a
+    local constant, verified byte-for-byte against the deleted file before removal.
+    `lib/compliance/rls-rules.json` deleted (confirmed sole importer, `git grep` repo-wide); the
+    now-dangling `/rls-rules\.json$/` exclusion in `scripts/ci/guardrails.mjs`'s prohibited-term
+    scanner removed with it. `validateListing()` had zero existing tests; added coverage for
+    required fields, the Concessions conditional (verified against REBNY's own public Compliance
+    page / LMP.RLS Data Rules sheet — see below), NYC borough/TaxLot/county checks, and Fair Housing
+    screening. This closes the Open item "replace or remove the provider-rule dependencies of
+    `lib/compliance/rebny-validator.ts`" (item 4 of Maya's 2026-10-02 checkpoint list).
+
+    Two findings surfaced by this same investigation are deliberately NOT fixed here and are
+    recorded separately: a frozen-tool Concessions sale/rental display mismatch (see "Known held
+    defect" below) and the owner-opt-out derivation in `lib/idx/trestle-mapper.ts` being provably
+    inert against live Cotality (same section). Four additional, live-Cotality-confirmed but
+    currently-unmodeled Concessions sub-fields (`ConcessionsBuyerBrokerFee`,
+    `ConcessionsClosingCosts`, `ConcessionsOtherCosts`, `ConcessionsPropertyImprovementCosts`)
+    are added to Open below.
 
 **Legacy-reference census at this checkpoint** (scanner: RLS/RESO/Trestle/CoreLogic/metadata.xml
 patterns, whole tracked tree): before the sweep, 800 files / 13,798 matching lines. After milestone 19,
@@ -835,13 +858,13 @@ attempt). See "Final adversarial sweep" for the independent check run against th
 - converge the remaining raw mapper implementations into one (`lib/idx/trestle-mapper.ts`, `lib/idx/mapping.ts`, `lib/search/crm-idx-mapper.ts`);
 - converge duplicate status logic. The final adversarial sweep (below) named a concrete instance not previously on this list: `lib/comps/fetch-comps.ts` keeps its own `STATUS_MAP` translating CRM display names to live `StandardStatus` values, duplicating `lib/compliance/status.ts`'s `normalizeStatus()` against that module's own documented single-source rule. Live, reachable via `app/api/crm/sales/comps/route.ts`, not frozen. Today's default comp-search criteria happen to map correctly; the duplication is the drift risk, not a currently-wrong filter;
 - converge duplicate property/listing classification. The same sweep named a concrete instance: `app/api/open-houses/route.ts` imports the canonical `mapPropertyTypeToDisplay` (`lib/idx/public-dto.ts`) for one of its three data paths but defines and uses its own, less capable local `mapPropertyType()` (it never reads `PropertySubType`) for the other two, producing inconsistent property-type labels for the same listing within one API response;
-- replace or remove the provider-rule dependencies of `lib/compliance/rebny-validator.ts` (it reads `lib/compliance/rls-rules.json` for its field-requirement table and NYC borough/county map, derived from the removed REBNY RLS CSV). Its third dependency, the Fair Housing prohibited-term list, was fixed ahead of this item at milestone 20 after the final adversarial sweep found it was running on `rls-rules.json`'s stale copy rather than the canonical list — that fix only repointed the one list; the field table and borough map are unchanged and still open;
 - remove the `data/listings.json` runtime fallback (`app/api/listings/[id]/route.ts`);
 - remove `public/crm/js/core/reso-field-map.js` and the `data-rls` provider bindings once their consumers are safely replaced. Those consumers are the frozen forms and the `index-built.html` bundle, so this waits until those tools are unfrozen for their Cotality conversion;
 - replace the old RLS geography artifacts (`data/rls/geo/neighborhood-aliases.json`, `data/rls/geo/coverage-report.json`, `data/rls/geo/rls-neighborhoods.v1.geojson`, `data/rls/neighborhoods.v1.json`) with Mallan's own geography. Live today: 5 scripts build them (`scripts/build-rls-aliases.js`, `scripts/build-rls-geo-derived.js`, `scripts/build-rls-geojson.js`, `scripts/fetch-rls-neighborhoods.js`) and `lib/search/crm-idx-filter.ts` reads them at runtime (frozen, public search);
 - complete Batch 1d: obsolete rule and compliance-copy cleanup;
 - fix two dangling citations to deleted files, held by the freeze: `lib/idx/trestle-mapper.ts` (×2) and `lib/media/crm-media.ts` (×1) each cite a provider CSV/XML path this convergence already deleted, for a fact that is still true live (re-verified against `data/cotality-enums.live.json`). `push-647.js` correctly refuses the edit today; fix when these files are unfrozen — see "Frozen during the current cleanup";
 - zero-reference proof for the old provider authority (step 6) — see "Legacy-reference census" above and "Final adversarial sweep" below for where that proof currently stands.
+- model four Concessions sub-fields confirmed live on Cotality but currently unmodeled in `lib/compliance/rebny-field-tables.ts` (non-mandatory, closed-listing-only per REBNY's public LMP.RLS Data Rules sheet): `ConcessionsBuyerBrokerFee`, `ConcessionsClosingCosts`, `ConcessionsOtherCosts`, `ConcessionsPropertyImprovementCosts`.
 
 ## Known held defect — Sale Redesign `PetsAllowed` (frozen tool)
 
@@ -850,6 +873,49 @@ attempt). See "Final adversarial sweep" for the independent check run against th
 - Current contract protection (`tests/runtime/sale-form-canonical-enum-compliance.test.ts`, milestone 8) blocks introducing any new non-live value; the existing values stand.
 - The frozen form itself is not modified during this cleanup phase.
 - Correct it when the standalone Sale Redesign form is unfrozen for its Cotality conversion.
+
+## Known held defect — Concessions shown only for rentals (frozen tool)
+
+- REBNY's own public Compliance page (`rebny.com/compliance/`) links the LMP.RLS Data Rules sheet,
+  which defines `Concessions`/`ConcessionsAmount`/`ConcessionsComments` as applying to sale AND
+  lease listings, unconditionally for `Concessions` — confirmed by fetching that sheet directly
+  (Google Sheets `gviz` CSV export of its "Property" tab), not inferred from Mallan's own frontend.
+- `lib/compliance/rebny-field-tables.ts` already encodes this correctly (`Concessions` is in
+  `requiredFields.agentSubmitted` unconditionally; the `CONCESSIONS-001` conditional rule requires
+  `ConcessionsAmount`/`ConcessionsComments` when `Concessions='Yes'`, for any transaction type) —
+  no backend fix was needed, confirmed at milestone 21.
+- The defect is in the frozen frontend: `public/crm/js/search/search-engine.js` hides the
+  concessions section when `tab === 'sale'` and shows it only when `tab === 'rent'`;
+  `public/crm/js/search/field-dictionaries.js` defines `concessions`/`concessionsDetail` only
+  inside `rentalFieldDictionary.feesDeposits` — the sale field dictionary has no concession fields
+  at all. Both are frozen (`index-built.html` bundle inputs).
+- Not modified during this cleanup phase (frozen tool). Correct it when `index-built.html` is
+  unfrozen for its Cotality conversion.
+
+## Known held defect — owner opt-out derivation is inert against live Cotality (frozen tool)
+
+- `lib/idx/trestle-mapper.ts`'s `derivePermissionGates()` (frozen pending raw-mapper unification)
+  derives `ownerOptOut` from `Permission === 'OwnerOptOut' | 'Owner Opt-Out'` or
+  `MlsStatus === 'OwnerOptOut'`. Live Cotality's `Permission` enum (confirmed directly against
+  `$metadata` via `trestle_get_picklist`) has 18 values and no `OwnerOptOut`/`Owner Opt-Out`
+  member; `OwnerOptOut` does not exist as a field name on live Trestle at all (confirmed via
+  `trestle_validate_field`). This derivation cannot fire against the live feed as written — PROVEN.
+- This is not new: `docs/audits/listing-media-reader-ownership-2026-08-13.md` §21.3 already measured,
+  with a live `$count` query on 2026-08-14, that 591,131/591,131 (100%) of Property rows in Mallan's
+  feed have `Permission eq 'IDX'`, concluding the per-row REBNY gates (including owner-opt-out) are
+  defense-in-depth that is presently inert because REBNY's upstream pre-filter already withholds
+  non-IDX listings before they reach the feed — that finding was never applied back to the code
+  until now.
+- UNVERIFIED: what, if anything, represents true owner-opt-out status in Mallan's entitled Cotality
+  feed, and whether such listings can reach the feed at all. REBNY's own public pages
+  (rebny.com/rls-faqs, rebny.com/rls-update) and RESO's own public Data Dictionary both describe the
+  Owner Opt-Out business rule and its effect (total internet non-display) but neither names a
+  Cotality/Trestle technical field that represents it downstream. No replacement field is proposed —
+  none of the primary sources checked name one.
+- Not modified during this cleanup phase: the file is frozen (individually, and pending the
+  raw-mapper-unification work). A fix needs a narrowly-scoped exception for these exact lines, not a
+  blanket unfreeze, and should wait until the UNVERIFIED question above is resolved against
+  REBNY/Cotality directly rather than guessed.
 
 ## Frozen during the current cleanup
 
