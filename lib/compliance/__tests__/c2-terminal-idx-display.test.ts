@@ -19,7 +19,12 @@
  *   - Explicit `InternetEntireListingDisplayYN=false` still forces false
  *     regardless of status.
  *   - Permission='Private' (participant-only) still forces false.
- *   - Permission='OwnerOptOut' / 'Owner Opt-Out' still forces false.
+ *   - Owner Opt-Out (2026-10-02 Permission cutover): the pure mapper no
+ *     longer forces false on Permission='OwnerOptOut'/'Owner Opt-Out' --
+ *     there is no live Cotality signal for it (confirmed via
+ *     trestle_get_picklist). applyLocalOwnerOptOutGate forces it instead,
+ *     from the existing stored owner_opt_out row -- see the 'C2 — permission
+ *     overrides still force idx_display_yn=false' describe block below.
  *   - Regression: a closed row with all-true permissions cannot be
  *     re-flipped to true by the mapper's output.
  *

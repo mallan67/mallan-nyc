@@ -215,7 +215,9 @@ export interface LocalRow {
   sync_status: string | null;
   /** REBNY Gate 2 — Permission='Private'. Forces idx_display_yn=false. */
   participant_only: boolean;
-  /** REBNY Gate 1 — Permission='OwnerOptOut'. Forces idx_display_yn=false. */
+  /** REBNY Gate 1 — Mallan-local authority (CRM-set, never provider-derived
+   * -- Owner Opt-Out has no live Cotality signal; see derivePermissionGates's
+   * docstring). Forces idx_display_yn=false via expectedIdxDisplay above. */
   owner_opt_out: boolean;
   /** false = website-only / commercial. Forces idx_display_yn=false. */
   rls_eligible: boolean;
