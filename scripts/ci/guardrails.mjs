@@ -342,7 +342,6 @@ if (prohibitedTerms.length > 0) {
     /\.test\./,
     /\.spec\./,
     /prohibited-terms\.json$/,
-    /rls-rules\.json$/,
     /compliance\/audit\/route\.ts$/,   // compliance scanner contains patterns to DETECT prohibited terms
     /rls-enforcement\.ts$/,            // RLS enforcement scanner references terms to block them
   ];

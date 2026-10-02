@@ -787,7 +787,7 @@ export function assertRlsCompliantPayload(
 
 // ─── Condition Matcher (evaluates appliesWhen from conditional rules) ────
 
-function conditionMatches(
+export function conditionMatches(
   payload: Record<string, unknown>,
   conditions: Record<string, unknown>
 ): boolean {
