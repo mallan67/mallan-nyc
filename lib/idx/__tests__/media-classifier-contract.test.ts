@@ -24,14 +24,26 @@
  * when the function's current code demonstrably cannot produce the correct result for
  * that input (traced directly against source, not assumed), even though no bad row has
  * occurred yet. A bare disagreement between two old classifiers with no live row to
- * settle it either way stays LEGACY_UNVERIFIED. Only the FloorPlan+DOCUMENT case is
- * CONFIRMED CORRECT/INCORRECT against an actually-observed live pattern.
+ * settle it either way stays LEGACY_UNVERIFIED.
+ *
+ * Evidence-level correction (Maya, same day): every case below constructs a plain object
+ * reproducing a reported field combination and runs it through the real, unmodified
+ * classifier functions — this is LIVE_PATTERN_REPRODUCTION_AGAINST_REAL_CODE, proving "the
+ * real code returns X for exactly these fields." It is NOT live-row execution (feeding an
+ * actual captured Cotality row through the classifier) — no literally-captured row fixture
+ * exists yet for Photo+PHOTO, FloorPlan+DOCUMENT, or MediaCategory=null+PHOTO; see
+ * docs/audits/raw-mapper-media-contract-resolution-2026-10-02.md Section 5.2, an open item,
+ * not silently worked around. Also note: Document/Addendum/Other resolving to 'unknown' in
+ * classifyMediaItem is NOT automatically a defect — that function is a GALLERY DISPLAY
+ * projection with exactly 5 output classes (photo/floorplan/video/virtualTour/unknown) by
+ * design; those three categories are not gallery image content. See the doc's Section 3/4.3
+ * for the canonical-storage-vs-gallery-projection boundary this file respects.
  */
 import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
 import { classifyTrestleMediaCategory } from "@/lib/media/media-sync-service";
 
-describe("Media contract — observed live patterns (not synthetic)", () => {
-  it("[CONFIRMED CORRECT, observed live] MediaCategory='FloorPlan' + MediaClassification='DOCUMENT' + a DOCUMENT-Jpeg URL — the dominant real floor-plan pattern — classifies correctly as floorplan", () => {
+describe("Media contract — LIVE_PATTERN_REPRODUCTION_AGAINST_REAL_CODE (reported live field combinations, not a captured row fixture — see doc Section 5.2)", () => {
+  it("MediaCategory='FloorPlan' + MediaClassification='DOCUMENT' + a DOCUMENT-Jpeg URL — the dominant reported live floor-plan pattern — classifies correctly as floorplan", () => {
     const result = classifyMediaItem({
       MediaCategory: "FloorPlan",
       MediaClassification: "DOCUMENT",
@@ -41,7 +53,7 @@ describe("Media contract — observed live patterns (not synthetic)", () => {
     expect(classifyTrestleMediaCategory("FloorPlan")).toBe("FloorPlan");
   });
 
-  it("[CONFIRMED CORRECT, observed live] MediaCategory=null + MediaClassification='PHOTO' correctly falls back to photo", () => {
+  it("MediaCategory=null + MediaClassification='PHOTO' (the other reported live combination) correctly falls back to photo", () => {
     const result = classifyMediaItem({ MediaCategory: null, MediaClassification: "PHOTO" });
     expect(result).toBe("photo");
     expect(classifyTrestleMediaCategory(null)).toBe("Photo");
@@ -57,13 +69,13 @@ describe("Media contract — PROVEN_RESOURCE_GAP: classifyMediaItem has no real 
     expect(result).toBe("floorplan"); // demonstrates the gap: category should win and did not. Photo+DOCUMENT has not been observed live.
   });
 
-  it("[PROVEN_RESOURCE_GAP, unobserved combination + no dedicated output class] an explicit MediaCategory='Document' (valid RLS value, 0 rows today) has no correct representation at all — alone it is 'unknown', and a DOCUMENT-Jpeg URL turns it into 'floorplan' instead", () => {
-    expect(classifyMediaItem({ MediaCategory: "Document" })).toBe("unknown"); // no dedicated 'document' output class exists in the current MediaClass type.
+  it("MediaCategory='Document' alone (no URL) resolving to 'unknown' is NOT automatically a defect — classifyMediaItem is a gallery-display projection with no document class by design (see doc Section 3/4.3); but a DOCUMENT-Jpeg URL added on top wrongly overrides it to 'floorplan' — [PROVEN_RESOURCE_GAP] for that override specifically, unobserved live (Document-category rows: 0 today)", () => {
+    expect(classifyMediaItem({ MediaCategory: "Document" })).toBe("unknown"); // plausibly correct: 'not gallery image content', not asserted as wrong here.
     const withUrl = classifyMediaItem({
       MediaCategory: "Document",
       MediaURL: "https://cdn.example.com/Media/Property/DOCUMENT-Jpeg/abc123.jpg",
     });
-    expect(withUrl).toBe("floorplan"); // URL text overriding an explicit category — the same structural gap, not observed live (Document-category rows: 0 today).
+    expect(withUrl).toBe("floorplan"); // the actual gap: URL text overriding an explicit, already-resolved category into a DIFFERENT wrong class, not just 'unknown'.
   });
 
   it("[PROVEN_RESOURCE_GAP, unobserved combination] an explicit MediaCategory='Addendum' (valid RLS value, 0 rows today) is overridden to 'floorplan' by a blanket .pdf URL regex", () => {
