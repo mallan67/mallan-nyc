@@ -16,6 +16,24 @@ including that title-case and ALL-CAPS are distinct real members, not case varia
 `MediaType` (44 values, pure file format, also case-duplicated), `ImageOf` (92 values, room
 tagging), and `ResourceName` (5 values: Building, Contacts, Member, Office, Property).
 
+**CORRECTION (2026-10-02, same day):** Section 3's original classifier verdict was built
+from `$metadata`/synthetic test inputs only, not live row data. Maya independently queried
+live Cotality rows and found: for Mallan's RLS feed specifically, live `MediaCategory`
+population is `Photo`=1,487,153, `FloorPlan`=588,924, and
+`BrandedVirtualTour`/`UnbrandedVirtualTour`/`Video`/`Document`/`Addendum`/`Other`=0 rows
+today (zero population does not mean invalid — the live contract still supports them, and
+the classifier must handle them structurally). Critically: **all sampled `FloorPlan` rows
+carry `MediaClassification='DOCUMENT'` and a `MediaURL` containing `DOCUMENT-Jpeg`/
+`DOCUMENT-Pdf`** — Cotality itself uses `DOCUMENT` classification and `DOCUMENT`-prefixed
+URL naming for floor plans in this feed. This directly contradicts the original Section 3's
+framing that treated a `DOCUMENT`-URL/classification match as proof the item is "a generic
+document, not a floor plan" — that claim is now withdrawn. Section 3 below is rewritten
+against the corrected, live-row-verified priority model: **`MediaCategory` is primary**
+(exact semantic meaning, authoritative when present); **`MediaClassification` is
+secondary**, used only as a fallback when `MediaCategory` is null/missing (confirmed live:
+a `MediaCategory=null`, `MediaClassification='PHOTO'` row exists); **`MediaType` is file
+format only**, never a classification signal; **URL text is never primary authority**.
+
 ---
 
 ## 1. Media contract (field-by-field)
@@ -57,30 +75,82 @@ tagging), and `ResourceName` (5 values: Building, Contacts, Member, Office, Prop
 
 ---
 
-## 3. Classifier verdict
+## 3. Classifier verdict (CORRECTED against live row data, 2026-10-02)
 
-Three classifiers tested against 14 constructed cases spanning the real live enums, directly against PR #647 HEAD (`9a05ac6`):
+Three classifiers, directly against PR #647 HEAD (`9a05ac6`):
 
 - `classifyMediaItem` — `lib/media/listing-media-resolver.ts:120-165`
 - `classifyTrestleMediaCategory` — `lib/media/media-sync-service.ts:142-166`
 - `classifyMediaCategory` — `lib/search/crm-idx-mapper.ts:32-38` (dead)
 
-**Results: 6 PROVEN_DEFECT, 2 LEGACY_DISAGREEMENT, 6 ALL_AGREE_CORRECT.**
+**The real defect is structural, not semantic.** `classifyMediaItem` has a single flat
+`if` with OR'd conditions covering `MediaCategory`, `MediaClassification`, and `MediaURL`
+text at the SAME priority level — any one of them firing returns `'floorplan'`, regardless
+of whether a different, explicit, non-empty `MediaCategory` already answered the question.
+There is no actual tiering. This coincidentally produces the right answer for the single
+most important live case (`MediaCategory='FloorPlan'`, 588,924 rows) because
+`cat === 'floorplan'` happens to be one of the OR'd conditions — but it is wrong whenever a
+*different*, non-floorplan category is overridden by a lower-priority signal.
 
-The 6 PROVEN_DEFECTs, all traced to exact source lines:
-1. `MediaCategory='Document'` + a `.jpg` URL matching the Document-URL pattern → `classifyMediaItem` wrongly returns `'floorplan'` (line 150's `TRESTLE_DOCUMENT_URL_PATTERN`) — conflating Document with FloorPlan, the exact live anomaly Maya found.
-2. `MediaCategory='FloorPlan'` (real spelling) → the dead `crm-idx-mapper.ts` classifier wrongly returns `'Photo'` (line 34's space-dependent `.includes("floor plan")` can never match the real no-space value).
-3. `MediaCategory='BrandedVirtualTour'` → `classifyMediaItem` wrongly returns `'unknown'` (line 158 has no no-space `cat.includes('virtualtour')` check — **correction to the prior Property-contract doc's #12**: the fallthrough is `'unknown'`/displayed as `mediaType: 'Unknown'`, not silently `'Photo'` as previously stated).
-4. `MediaCategory='UnbrandedVirtualTour'` → same bug, same wrong `'unknown'` result.
-5. `MediaCategory='Photo'` + `MediaClassification='DOCUMENT'`, no URL → `classifyMediaItem` wrongly returns `'floorplan'` (line 144's `cls === 'document'` overrides a legitimate Photo category and conflates Document with FloorPlan a second, independent way).
-6. `MediaCategory='Addendum'` + a `.pdf` URL → `classifyMediaItem` wrongly returns `'floorplan'` again (line 148's blanket `/\.pdf(\?|$)/` regex — a third independent Document-vs-FloorPlan conflation path inside the same function).
+**Verified against the dominant live pattern (confirmed, not synthetic):**
+`MediaCategory='FloorPlan'` + `MediaClassification='DOCUMENT'` + a `DOCUMENT-Jpeg`/
+`DOCUMENT-Pdf` `MediaURL` (588,924 rows) → both `classifyMediaItem` and
+`classifyTrestleMediaCategory` correctly return `floorplan`/`FloorPlan` today. **No defect
+here.** Also verified: `MediaCategory=null` + `MediaClassification='PHOTO'` (confirmed live)
+→ both correctly return `photo`/`Photo` via their respective null/empty-category defaults.
+**No defect here either.**
 
-**Per-classifier Stage B verdict:**
-- **`classifyMediaItem` — KEEP, FIX.** Canonical and most-used (feeds `resolveListingMedia`, the public DTO, the CRM mapper, `batch/route.ts` detail mode). Defective in 5 of 6 proven cases via three independent conflation paths (lines 144, 148, 150) that all treat "document-like" as "floorplan," plus the virtual-tour gap (line 158). It also has the broadest signal surface (URL, description, `MediaClassification`) — fix the three branches, don't discard the function.
-- **`classifyTrestleMediaCategory` — KEEP as-is for its narrower, documented purpose.** Zero proven defects across all 14 cases; the only one that correctly classifies `FloorPlan` and both real virtual-tour values, precisely because it has no URL/description parameter and so cannot fall into the document-conflation trap. Its clean record partly reflects a narrower signal surface by design (R2-namespace routing only) — it silently defaults ~13 of 18 real `MediaCategory` values to `Photo`.
-- **`classifyMediaCategory` (crm-idx-mapper.ts) — DELETE.** Re-confirmed zero production callers (2 repo hits: its own definition, its own test). Broken against 3 of 14 cases via the identical space-dependent bug `media-sync-service.ts`'s own changelog already documents fixing elsewhere.
+**PROVEN_DEFECTs (reframed around the priority-tiering mechanism, not a blanket
+Document-vs-FloorPlan claim):**
+1. `MediaCategory='Photo'` + `MediaClassification='DOCUMENT'` → `classifyMediaItem` wrongly
+   returns `'floorplan'` (line 144's `cls === 'document'` check fires before the category is
+   ever consulted). `Photo` has 1,487,153 live rows and must never be overridden by a
+   secondary signal — the clearest-severity case, though the exact combination has not been
+   observed live.
+2. `MediaCategory='Document'` (valid live value, 0 population today — must still be
+   supported per Maya's instruction) + a `DOCUMENT-Jpeg` URL → `classifyMediaItem` wrongly
+   returns `'floorplan'` (line 150's `TRESTLE_DOCUMENT_URL_PATTERN`) instead of resolving
+   from the explicit category first. Unobserved live today (0 `Document`-category rows) — a
+   structural gap, not an observed production failure. Separately: `Document` category alone
+   with no URL resolves to `'unknown'` (no dedicated document bucket exists) — a smaller,
+   distinct gap.
+3. `MediaCategory='Addendum'` (valid live value, 0 population today) + a `.pdf` URL →
+   `classifyMediaItem` wrongly returns `'floorplan'` (line 148's blanket `/\.pdf(\?|$)/`
+   regex). Same reasoning as #2.
+4. `MediaCategory='BrandedVirtualTour'` (valid live value, 0 population today) →
+   `classifyMediaItem` wrongly falls through to `'unknown'` (line 158 has no no-space
+   `cat.includes('virtualtour')` check — confirming and refining the prior Property-contract
+   doc's #12: the fallthrough is `'unknown'`/`mediaType: 'Unknown'`, not a silent `'Photo'`
+   mislabel).
+5. `MediaCategory='UnbrandedVirtualTour'` (the other valid live value, 0 population today) —
+   same bug, same wrong `'unknown'` result.
+6. `MediaCategory='FloorPlan'` (real spelling) → the dead `crm-idx-mapper.ts` classifier
+   wrongly returns `'Photo'` (line 34's space-dependent `.includes("floor plan")` can never
+   match the real no-space value) — directly contradicted by the 588,924-row live pattern.
 
-**No single canonical classifier is recommended yet** — explicitly missing: a live population sample of how often `MediaCategory` and `MediaClassification` actually disagree on real rows; a product decision on whether defaulting ~13 document-adjacent categories to `Photo` is acceptable; whether `MediaClassification` should become a second input to whichever function survives; and a check of `resolveListingMediaFromRows`'s separate DB-row fallback (`r.media_category ?? r.media_type`), not exercised by any of the 14 cases.
+**LEGACY_DISAGREEMENT (0 live rows to check either side — not proven, not a defect):**
+`MediaCategory='Addendum'`/`'Other'` alone, no URL: `classifyMediaItem` returns `'unknown'`;
+`classifyTrestleMediaCategory` returns `'Photo'` (its documented default-everything-else
+behavior). Neither is contradicted by a live row because none exists yet for these
+categories alone.
+
+**Per-classifier Stage B verdict (unchanged in direction, now correctly grounded):**
+- **`classifyMediaItem` — KEEP, FIX.** Canonical/most-used. The fix is priority tiering
+  (resolve `MediaCategory` first and exactly; fall back to `MediaClassification` only when
+  category is null/missing; never let URL text override an explicit category), not a
+  "Document never means FloorPlan" rule — that rule is false against live data.
+- **`classifyTrestleMediaCategory` — KEEP as-is.** Zero proven defects against both the
+  synthetic matrix and the two confirmed live patterns; correctly handles the dominant case
+  precisely because it never sees `MediaClassification`/URL at all. Its narrower signal
+  surface is a documented design choice (R2-namespace routing only), not a bug.
+- **`classifyMediaCategory` (crm-idx-mapper.ts) — DELETE.** Dead (0 production callers) and
+  now directly contradicted by the live 588,924-row `FloorPlan` pattern (#6 above).
+
+**No single canonical classifier is recommended yet** — still missing: a live disagreement
+rate between `MediaCategory` and `MediaClassification` on real rows beyond the two confirmed
+patterns; a product decision on the Photo-default for `Addendum`/`Other`/other
+zero-population categories once they do appear; and a check of
+`resolveListingMediaFromRows`'s separate DB-row fallback (`r.media_category ?? r.media_type`), not exercised by any case here.
 
 ---
 
@@ -102,8 +172,12 @@ The 6 PROVEN_DEFECTs, all traced to exact source lines:
 ## 5. Correction to the Property-contract doc
 
 - **Confirms** PROVEN_DEFECT #12 (classifyMediaItem's missing virtual-tour check) but **corrects its stated consequence**: the real fallthrough is `'unknown'`/`mediaType: 'Unknown'`, not a silent mislabel as `'Photo'`. Production rows exhibiting this bug are findable by searching for `mediaType = 'Unknown'`, not misfiled `Photo` rows.
-- **Confirms** the dead `crm-idx-mapper.ts` classifier verdict (delete), now with exact failing cases (3, 4, 5 above) rather than a general description.
+- **Confirms** the dead `crm-idx-mapper.ts` classifier verdict (delete), now with exact failing cases (#4, #5, #6 in the corrected Section 3 above) rather than a general description.
 - **Corrects a premise**: the "PhotosCount/image-count heuristic" was never one of that document's 16 numbered PROVEN_DEFECTs — it appeared only in the LEGACY_UNVERIFIED population-question list. The three mappers ARE inconsistent here (`crm-idx-mapper.ts` heuristic-combines `Property.PhotosCount` with a Media-derived count; the other two just pass `PhotosCount` through), but whether that's wrong depends on `PhotosCount`'s live semantics (Photo-class only, or everything?), which remains unverified. Stays LEGACY_UNVERIFIED — not promoted to a defect on this evidence. Also note: `PhotosCount` is a **Property** field, not a Media field — this is a Property↔Media boundary question, not part of the Media contract itself.
+
+## 5a. Same-day self-correction: the original classifier verdict was built from `$metadata` and synthetic inputs, not live rows
+
+The first version of Section 3 (same day, earlier) asserted `MediaClassification='DOCUMENT'`/a `DOCUMENT`-URL pattern was proof an item was "a generic document, not a floor plan," and classified several cases as PROVEN_DEFECT on that basis. Maya queried live Cotality rows directly and found this backwards for the dominant real case: Cotality itself tags all 588,924 live `FloorPlan` rows with `MediaClassification='DOCUMENT'` and a `DOCUMENT-Jpeg`/`DOCUMENT-Pdf` URL. The withdrawn claim and the corrected priority model (`MediaCategory` primary, `MediaClassification` secondary/fallback-only, `MediaType` format-only, URL never authoritative) are recorded in the correction note after the Method section above; the full reworked Section 3 reflects it. This stands as the explicit instruction for the rest of this engagement: **verify every claimed defect against live Cotality row data, not merely `$metadata`, existing code, or synthetic test inputs** — a defect claim built only from the first two is provisional until checked against the third.
 
 ---
 
