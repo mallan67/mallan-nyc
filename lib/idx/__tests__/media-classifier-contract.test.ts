@@ -5,109 +5,103 @@
  * raw-mapper-characterization.test.ts per Maya's explicit instruction that Property
  * and Media are separate Cotality resources and must be verified separately.
  *
- * CORRECTED 2026-10-02 against live Cotality ROW data (not just $metadata): for
- * Mallan's RLS feed, live MediaCategory population is Photo=1,487,153,
- * FloorPlan=588,924, and BrandedVirtualTour/UnbrandedVirtualTour/Video/Document/
- * Addendum/Other=0 rows today (zero population does NOT mean invalid — the live
- * contract still supports them, and the classifier must handle them structurally).
- * Critically: ALL sampled FloorPlan rows carry MediaClassification='DOCUMENT' and a
- * MediaURL containing 'DOCUMENT-Jpeg'/'DOCUMENT-Pdf' — Cotality itself uses DOCUMENT
- * classification/URL-naming for floor plans in this feed. The correct priority model,
- * verified against live rows: MediaCategory is PRIMARY (exact semantic meaning,
- * authoritative when present); MediaClassification is SECONDARY (fallback only when
- * MediaCategory is null/missing — confirmed live: a MediaCategory=null,
- * MediaClassification='PHOTO' row exists); MediaType is file-format only, never a
- * classification signal; URL text is never primary authority.
+ * TWICE-CORRECTED 2026-10-02 against live Cotality ROW data. Scope note: of the 18
+ * GLOBAL MediaCategory enum members in $metadata, only 8 are associated with RLS (the
+ * feed Mallan actually reads): Addendum, BrandedVirtualTour, Document, FloorPlan,
+ * Other, Photo, UnbrandedVirtualTour, Video. Every case below uses only these 8.
  *
- * The real, corrected defect in classifyMediaItem is NOT "Document can never mean
- * FloorPlan" (that claim is contradicted by live data — see above) — it is that the
- * function has NO priority tiering at all: MediaCategory, MediaClassification, and
- * URL-pattern checks are OR'd together at the same level, so a lower-priority signal
- * (classification or URL) can override an explicit, different, non-empty
- * MediaCategory instead of MediaCategory being checked and resolved first. This file's
- * PROVEN_DEFECT cases below are reframed around that precise mechanism, not a blanket
- * claim about what DOCUMENT/FloorPlan "mean." The dominant live pattern
- * (MediaCategory='FloorPlan' + MediaClassification='DOCUMENT' + a DOCUMENT-Jpeg/Pdf
- * URL, 588,924 rows) is verified CORRECT today, by coincidence of check order (the
- * `cat === 'floorplan'` condition is itself one of the OR'd floorplan-branch checks,
- * so an explicit FloorPlan category resolves correctly regardless of the structural
- * flaw) — see the dedicated test below. Every "wrong" assertion in this file is
- * expected to flip when Stage B adds real priority tiering; this is the regression
- * harness for that fix, not a claim the current output is correct.
+ * Live-observed combinations (as of this check — population counts drift and are not
+ * durable facts; see docs/audits/raw-mapper-media-contract-resolution-2026-10-02.md):
+ * Photo+PHOTO, FloorPlan+DOCUMENT (the dominant real floor-plan pattern — every sampled
+ * FloorPlan row carries MediaClassification='DOCUMENT'), and MediaCategory=null+PHOTO.
+ * Addendum, BrandedVirtualTour, Document, Other, UnbrandedVirtualTour, Video currently
+ * have ZERO rows in Mallan's entitled feed — valid live RLS contract values, not
+ * invalid, just unobserved today.
+ *
+ * Classification discipline (Maya's correction, applied here): a synthetic
+ * category/classification combination that has NOT been observed live is NOT a
+ * PROVEN_DEFECT merely because it's constructed. It is labeled PROVEN_RESOURCE_GAP only
+ * when the function's current code demonstrably cannot produce the correct result for
+ * that input (traced directly against source, not assumed), even though no bad row has
+ * occurred yet. A bare disagreement between two old classifiers with no live row to
+ * settle it either way stays LEGACY_UNVERIFIED. Only the FloorPlan+DOCUMENT case is
+ * CONFIRMED CORRECT/INCORRECT against an actually-observed live pattern.
  */
 import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
 import { classifyTrestleMediaCategory } from "@/lib/media/media-sync-service";
 
-describe("Media contract — the dominant live pattern (588,924 FloorPlan rows) is correctly classified today", () => {
-  it("MediaCategory='FloorPlan' + MediaClassification='DOCUMENT' + a DOCUMENT-Jpeg URL (the verified live pattern) classifies correctly as floorplan, not document", () => {
+describe("Media contract — observed live patterns (not synthetic)", () => {
+  it("[CONFIRMED CORRECT, observed live] MediaCategory='FloorPlan' + MediaClassification='DOCUMENT' + a DOCUMENT-Jpeg URL — the dominant real floor-plan pattern — classifies correctly as floorplan", () => {
     const result = classifyMediaItem({
       MediaCategory: "FloorPlan",
       MediaClassification: "DOCUMENT",
       MediaURL: "https://cdn.example.com/Media/Property/DOCUMENT-Jpeg/abc123.jpg",
     });
-    expect(result).toBe("floorplan"); // CORRECT today — MediaCategory='floorplan' is itself one of the OR'd conditions, so this resolves right even though the function has no real priority tiering.
-    expect(classifyTrestleMediaCategory("FloorPlan")).toBe("FloorPlan"); // also correct — this function only ever sees MediaCategory.
+    expect(result).toBe("floorplan");
+    expect(classifyTrestleMediaCategory("FloorPlan")).toBe("FloorPlan");
   });
 
-  it("MediaCategory=null + MediaClassification='PHOTO' (the other verified live combination) correctly falls back to photo", () => {
+  it("[CONFIRMED CORRECT, observed live] MediaCategory=null + MediaClassification='PHOTO' correctly falls back to photo", () => {
     const result = classifyMediaItem({ MediaCategory: null, MediaClassification: "PHOTO" });
-    expect(result).toBe("photo"); // CORRECT — the cat === '' default-to-photo branch fires; MediaClassification is the right fallback signal per the corrected priority model, even though this function doesn't literally read `cls` to decide this particular case.
-    expect(classifyTrestleMediaCategory(null)).toBe("Photo"); // also correct — the `!category` null-guard.
+    expect(result).toBe("photo");
+    expect(classifyTrestleMediaCategory(null)).toBe("Photo");
   });
 });
 
-describe("Media contract — classifyMediaItem PROVEN_DEFECTs: no real priority tiering between MediaCategory, MediaClassification and URL text", () => {
-  it("[PROVEN_DEFECT] an explicit, non-floorplan MediaCategory='Photo' is wrongly overridden to 'floorplan' by MediaClassification alone — Photo has 1,487,153 live rows and must never be reclassified by a secondary signal", () => {
-    const wrong = classifyMediaItem({ MediaCategory: "Photo", MediaClassification: "DOCUMENT" });
-    expect(wrong).toBe("floorplan"); // WRONG — MediaCategory is explicit and authoritative here; a secondary signal must not override it. This is the clearest case: unlike the dominant FloorPlan+DOCUMENT pattern above, nothing in the live data suggests a real Photo row ever needs reclassifying away from Photo.
+describe("Media contract — PROVEN_RESOURCE_GAP: classifyMediaItem has no real priority tiering between MediaCategory, MediaClassification and URL text", () => {
+  // These combinations are NOT observed live today (0 population on the non-FloorPlan/Photo
+  // side) — they are valid structural test cases proving the current implementation is
+  // incomplete/unsafe for a valid live RLS category, not proof a bad row has occurred.
+  it("[PROVEN_RESOURCE_GAP, unobserved combination] an explicit MediaCategory='Photo' can be overridden to 'floorplan' by MediaClassification alone, with no priority given to the category", () => {
+    const result = classifyMediaItem({ MediaCategory: "Photo", MediaClassification: "DOCUMENT" });
+    expect(result).toBe("floorplan"); // demonstrates the gap: category should win and did not. Photo+DOCUMENT has not been observed live.
   });
 
-  it("[PROVEN_DEFECT] an explicit MediaCategory='Document' (valid live value, 0 population today — must still be supported per Maya's instruction) is overridden to 'floorplan' by a URL pattern instead of being resolved by category first", () => {
-    const wrong = classifyMediaItem({
+  it("[PROVEN_RESOURCE_GAP, unobserved combination + no dedicated output class] an explicit MediaCategory='Document' (valid RLS value, 0 rows today) has no correct representation at all — alone it is 'unknown', and a DOCUMENT-Jpeg URL turns it into 'floorplan' instead", () => {
+    expect(classifyMediaItem({ MediaCategory: "Document" })).toBe("unknown"); // no dedicated 'document' output class exists in the current MediaClass type.
+    const withUrl = classifyMediaItem({
       MediaCategory: "Document",
       MediaURL: "https://cdn.example.com/Media/Property/DOCUMENT-Jpeg/abc123.jpg",
     });
-    expect(wrong).toBe("floorplan"); // WRONG under the corrected priority model (category should resolve first, before any URL check runs), though this exact combination is unobserved live today (Document category currently has 0 rows) — a structural gap, not an observed production failure.
-    // Without the URL, an explicit Document category alone resolves to 'unknown' today (no dedicated document bucket exists) — a separate, smaller gap, not asserted as "wrong" here since no live row exists to say what the output should be instead.
-    expect(classifyMediaItem({ MediaCategory: "Document" })).toBe("unknown");
+    expect(withUrl).toBe("floorplan"); // URL text overriding an explicit category — the same structural gap, not observed live (Document-category rows: 0 today).
   });
 
-  it("[PROVEN_DEFECT] an explicit MediaCategory='Addendum' (valid live value, 0 population today) is overridden to 'floorplan' by a blanket .pdf URL regex instead of being resolved by category first", () => {
-    const wrong = classifyMediaItem({ MediaCategory: "Addendum", MediaURL: "https://cdn.example.com/docs/lease-addendum.pdf" });
-    expect(wrong).toBe("floorplan"); // WRONG under the corrected priority model, same reasoning as the Document case above — unobserved live today, structural gap.
+  it("[PROVEN_RESOURCE_GAP, unobserved combination] an explicit MediaCategory='Addendum' (valid RLS value, 0 rows today) is overridden to 'floorplan' by a blanket .pdf URL regex", () => {
+    const result = classifyMediaItem({ MediaCategory: "Addendum", MediaURL: "https://cdn.example.com/docs/lease-addendum.pdf" });
+    expect(result).toBe("floorplan"); // Addendum+.pdf has not been observed live; demonstrates the same unconditional-URL-override gap.
   });
 
-  it("[PROVEN_DEFECT] MediaCategory='BrandedVirtualTour' (valid live RLS value, 0 population today) falls through to 'unknown' instead of a virtual-tour class", () => {
-    const wrong = classifyMediaItem({ MediaCategory: "BrandedVirtualTour" });
-    expect(wrong).toBe("unknown"); // WRONG — real virtual tours would render/sort as mediaType 'Unknown' if/when population moves off zero.
-    expect(classifyTrestleMediaCategory("BrandedVirtualTour")).toBe("VirtualTour"); // correct baseline — has the no-space cat.includes('virtualtour') check classifyMediaItem lacks.
+  it("[PROVEN_RESOURCE_GAP] MediaCategory='BrandedVirtualTour' (valid RLS value, 0 rows today) has no path to a virtual-tour classification — falls through to 'unknown'", () => {
+    const result = classifyMediaItem({ MediaCategory: "BrandedVirtualTour" });
+    expect(result).toBe("unknown"); // the intended behavior is unambiguous (a virtual-tour category should not become 'unknown'); the gap is proven by direct trace even with 0 live rows.
+    expect(classifyTrestleMediaCategory("BrandedVirtualTour")).toBe("VirtualTour"); // this sibling function has the no-space check and does not share the gap.
   });
 
-  it("[PROVEN_DEFECT] MediaCategory='UnbrandedVirtualTour' (the other valid live RLS value, 0 population today) also falls through to 'unknown'", () => {
-    const wrong = classifyMediaItem({ MediaCategory: "UnbrandedVirtualTour" });
-    expect(wrong).toBe("unknown");
+  it("[PROVEN_RESOURCE_GAP] MediaCategory='UnbrandedVirtualTour' (the other valid RLS value, 0 rows today) has the same gap", () => {
+    const result = classifyMediaItem({ MediaCategory: "UnbrandedVirtualTour" });
+    expect(result).toBe("unknown");
     expect(classifyTrestleMediaCategory("UnbrandedVirtualTour")).toBe("VirtualTour");
   });
 });
 
-describe("Media contract — structural support for zero-population-but-valid live RLS MediaCategory values (Maya: zero rows today does not mean invalid)", () => {
-  it("MediaCategory='Video' (0 population today) is already classified correctly by both", () => {
+describe("Media contract — VALID_ZERO_POPULATION_CASE: classifyTrestleMediaCategory's Photo-default on zero-population RLS categories is UNVERIFIED, not confirmed correct", () => {
+  it("[VALID_ZERO_POPULATION_CASE, explicit branch exists] MediaCategory='Video' (valid RLS value, 0 rows today) has a dedicated branch in both functions, unlike Document/Addendum/Other", () => {
     expect(classifyMediaItem({ MediaCategory: "Video" })).toBe("video");
     expect(classifyTrestleMediaCategory("Video")).toBe("Video");
   });
 
-  it("[LEGACY_DISAGREEMENT, not proven either way — 0 live rows to check] MediaCategory='Addendum' alone (no URL) disagrees between classifiers: classifyMediaItem says 'unknown', classifyTrestleMediaCategory says 'Photo'", () => {
+  it("[LEGACY_UNVERIFIED — old-code disagreement only, no live row to settle it] MediaCategory='Addendum' alone silently defaults to Photo in classifyTrestleMediaCategory but 'unknown' in classifyMediaItem; neither is proven correct for this valid, zero-population RLS category", () => {
     expect(classifyMediaItem({ MediaCategory: "Addendum" })).toBe("unknown");
-    expect(classifyTrestleMediaCategory("Addendum")).toBe("Photo");
+    expect(classifyTrestleMediaCategory("Addendum")).toBe("Photo"); // silent Photo-default — not confirmed correct; zero population does not grant permission to assume this is fine.
   });
 
-  it("[LEGACY_DISAGREEMENT, not proven either way — 0 live rows to check] MediaCategory='Other' alone disagrees the same way", () => {
+  it("[LEGACY_UNVERIFIED — old-code disagreement only, no live row to settle it] MediaCategory='Other' alone has the same unresolved disagreement", () => {
     expect(classifyMediaItem({ MediaCategory: "Other" })).toBe("unknown");
     expect(classifyTrestleMediaCategory("Other")).toBe("Photo");
   });
 });
 
-describe("Media contract — baselines", () => {
+describe("Media contract — baselines (both categories have substantial live population)", () => {
   it("MediaCategory='FloorPlan' alone (no classification/URL) is correctly classified by both", () => {
     expect(classifyMediaItem({ MediaCategory: "FloorPlan" })).toBe("floorplan");
     expect(classifyTrestleMediaCategory("FloorPlan")).toBe("FloorPlan");
