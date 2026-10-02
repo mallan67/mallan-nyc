@@ -30,6 +30,7 @@ import { r2PublicUrlForKeyRead } from '@/lib/images/r2';
 import { excludeMallanRlsReturnCopies } from '@/lib/listings/mallan-source-identity';
 
 import { isActiveDisplayStatus, Status } from '@/lib/compliance/status';
+import { readCotalityStandardStatus } from '@/lib/cotality/property';
 import { lookupBBL, fetchAcrisSales, boroughFromPostalCode } from '@/lib/buildings/acris-building-sales';
 import { resolveVisibility } from '@/lib/search/visibility-contract';
 import { cachedPublicRead, buildingCacheTag, BUILDING_MANIFEST_TAG, manifestShardTag } from '@/lib/cache/public-cache';
@@ -927,15 +928,18 @@ async function buildBuildingPayload(
       (r) => checkDistributionGates(r as Record<string, unknown>).displayable
     );
 
-    // Separate records by status — isActiveDisplayStatus normalizes both
-    // canonical and legacy space-formatted status spellings.
+    // Separate records by status — StandardStatus ONLY (2026-10-02 Status
+    // cutover; Master Plan Section 0.6: StandardStatus and MlsStatus are
+    // independent RESO enums, neither derived from the other, never
+    // substituted). isActiveDisplayStatus normalizes canonical and legacy
+    // space-formatted status spellings.
     // For closed: only Closed/Sold (buildings history UI shows
     // completed transactions, not withdrawn/expired listings).
     const cotalityActive = allCotalityRecords.filter((r) =>
-      isActiveDisplayStatus(r.MlsStatus || r.StandardStatus || '')
+      isActiveDisplayStatus(readCotalityStandardStatus(r) ?? '')
     );
     const cotalityClosed = allCotalityRecords.filter((r) => {
-      const status = String(r.MlsStatus || r.StandardStatus || '');
+      const status = readCotalityStandardStatus(r) ?? '';
       return status === Status.CLOSED || status === Status.SOLD;
     });
 
@@ -975,7 +979,12 @@ async function buildBuildingPayload(
         unit: String(r.UnitNumber || ''),
         propertyType: unitDisplayType(r.CommonInterest as string | undefined, buildingInfo.commonInterest, r.OwnershipType as string | undefined, buildingInfo.ownershipType, listingType === 'rent', r.PropertySubType as string | null, String(r.PropertySubType || r.PropertyType || '')),
         office: String(r.ListOfficeName || ''),
-        status: String(r.StandardStatus || r.MlsStatus || 'Active'),
+        // Never MlsStatus, never a fabricated 'Active' (2026-10-02 Status
+        // cutover) -- unreachable in practice today (a record only reaches
+        // this line after already passing isActiveDisplayStatus on the same
+        // source value above), but 'Unknown' is the honest sentinel if that
+        // ever changes, matching lib/idx/trestle-mapper.ts::mapTrestleToPrisma.
+        status: readCotalityStandardStatus(r) ?? 'Unknown',
         listingType,
         photoUrl: getPhotoUrl(r),
       });
