@@ -6,15 +6,20 @@
  * derivePermissionGates, normalizeStandardStatus), lib/idx/mapping.ts (mapRESOToInternal),
  * lib/search/crm-idx-mapper.ts (mapTrestleToCrmListing).
  *
- * This file locks in CURRENT behavior, including current disagreements between the three
- * mappers, so Stage B's extraction can be verified against it (a test that changes meaning
- * from "pins the bug" to "pins the fix" is expected and correct; a test that goes from pass
- * to fail unexpectedly is a regression). It does not yet resolve every disagreement — only
- * the ones verified directly against the live code in this pass. Dimensions not covered here
- * (address composition, property-type-on-missing-input, exact date shape per mapper, the two
- * media classifiers in lib/media/listing-media-resolver.ts vs lib/media/media-sync-service.ts)
- * are deliberately deferred to a follow-up characterization pass rather than resolved from a
- * secondhand description.
+ * LEGACY OBSERVATION TESTS ONLY (Maya's correction, 2026-10-02): these pin CURRENT mapper
+ * behavior, including current disagreements, so Stage B's extraction can be diffed against
+ * it — but current behavior is NOT the target contract and these tests are NOT acceptance
+ * criteria. The only real baseline is the live Cotality Property contract, then
+ * MALLAN-PLATFORM-MASTER-PLAN.md §0, then an applicable REBNY rule. A field-by-field
+ * verification against that baseline (workflow wf_0986966a-a73,
+ * docs/audits/raw-mapper-property-contract-resolution-2026-10-02.md) found most of this
+ * file's observations are themselves LEGACY_UNVERIFIED (not proven correct, not proven
+ * wrong) rather than confirmed-correct targets — see per-test notes below. Only the two
+ * tests marked PROVEN_DEFECT are confirmed wrong against the live contract/Master/REBNY and
+ * ready to fix in Stage B; a test changing from "pins the bug" to "pins the fix" there is
+ * expected and correct. Dimensions not covered here (address composition, exact date shape
+ * per mapper, the two media classifiers) are deferred to that same audit doc, not resolved
+ * here.
  */
 import { mapTrestleToPrisma, computeGateColumns, checkDistributionGates, derivePermissionGates, normalizeStandardStatus } from "../trestle-mapper";
 import { mapRESOToInternal } from "../mapping";
@@ -24,7 +29,7 @@ function hoursAgoIso(hours: number): string {
   return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
 }
 
-describe("Stage A — normalizeStandardStatus (trestle-mapper.ts)", () => {
+describe("Stage A — normalizeStandardStatus (trestle-mapper.ts) [LEGACY_UNVERIFIED: live StandardStatus has zero null rows today per docs/audits/raw-mapper-property-contract-resolution-2026-10-02.md; this fallback arm is unreached, not proven correct or safe to remove]", () => {
   it("defaults non-string / empty input to 'Active'", () => {
     expect(normalizeStandardStatus(undefined)).toBe("Active");
     expect(normalizeStandardStatus(null)).toBe("Active");
@@ -43,7 +48,7 @@ describe("Stage A — normalizeStandardStatus (trestle-mapper.ts)", () => {
 });
 
 describe("Stage A — mapTrestleToPrisma status precedence and numeric null-vs-zero", () => {
-  it("StandardStatus takes precedence over MlsStatus, defaulting to Active if neither is present", () => {
+  it("[PROVEN_DEFECT, upgraded 2026-10-02] StandardStatus/MlsStatus fallback-substitution — Master Plan §0.6 states these are two independent enums and 'Never substitute one for the other'; this test pins the CURRENT violation (shared by all three mappers, not just this one), not a target to preserve", () => {
     expect(mapTrestleToPrisma({ ListingId: "1", StandardStatus: "Pending", MlsStatus: "Active" }).status).toBe("Pending");
     expect(mapTrestleToPrisma({ ListingId: "2", MlsStatus: "Pending" }).status).toBe("Pending");
     expect(mapTrestleToPrisma({ ListingId: "3" }).status).toBe("Active");
@@ -54,12 +59,12 @@ describe("Stage A — mapTrestleToPrisma status precedence and numeric null-vs-z
     expect(result.bedrooms_total).toBeNull();
   });
 
-  it("a missing ListPrice maps to the string \"0\" (Prisma Decimal precision), not null", () => {
+  it("[LEGACY_UNVERIFIED: live ListPrice has zero null rows today] a missing ListPrice maps to the string \"0\" (Prisma Decimal precision), not null — unreached fallback, not a proven-correct target", () => {
     const result = mapTrestleToPrisma({ ListingId: "1" });
     expect(result.list_price).toBe("0");
   });
 
-  it("ConcessionsAmount / ConcessionsComments / Concessions are preserved in `features` for ANY transaction type — not stripped or treated as rental-only", () => {
+  it("[LEGACY_UNVERIFIED: generic features-JSONB storage adequacy for an unconditionally-required REBNY field is unresolved] ConcessionsAmount / ConcessionsComments / Concessions are preserved in `features` for ANY transaction type — not stripped or treated as rental-only", () => {
     const result = mapTrestleToPrisma({
       ListingId: "1",
       PropertyType: "Residential",
@@ -131,8 +136,14 @@ describe("Stage A — CONFIRMED LIVE DEFECT: computeGateColumns vs checkDistribu
   });
 });
 
-describe("Stage A — CONFIRMED cross-mapper disagreement: status-field precedence", () => {
-  it("mapRESOToInternal (mapping.ts) is StandardStatus-first, same as mapTrestleToPrisma", () => {
+describe("Stage A — PROVEN_DEFECT (upgraded 2026-10-02): status-field substitution, all three mappers, not just one", () => {
+  // Master Plan §0.6: "StandardStatus and MlsStatus... Neither is derived from the other.
+  // Never substitute one for the other." All three mappers below violate this by falling
+  // back from one to the other. The two tests pin CURRENT (wrong) behavior for both
+  // directions of the violation — neither is the target; Stage B must stop substituting
+  // entirely (read StandardStatus for canonical status, MlsStatus separately only where a
+  // consumer specifically needs it), not simply "pick StandardStatus-first as the winner."
+  it("mapRESOToInternal (mapping.ts) substitutes MlsStatus when StandardStatus is present but reads StandardStatus first", () => {
     const listing = mapRESOToInternal({
       ListingKey: "1", ListingId: "1", StandardStatus: "Pending", MlsStatus: "Active",
       PropertyType: "Residential", ListPrice: 100000,
@@ -140,14 +151,15 @@ describe("Stage A — CONFIRMED cross-mapper disagreement: status-field preceden
     expect(listing?.standardStatus).toBe("Pending");
   });
 
-  it("mapTrestleToCrmListing (crm-idx-mapper.ts) is MlsStatus-FIRST — the opposite precedence, on the identical input shape", () => {
+  it("mapTrestleToCrmListing (crm-idx-mapper.ts) substitutes in the OPPOSITE direction (MlsStatus-first) on the identical input shape", () => {
     const listing = mapTrestleToCrmListing(
       { ListingKey: "1", ListingId: "1", StandardStatus: "Pending", MlsStatus: "Active", PropertyType: "Residential", ListPrice: 100000 },
       0
     );
     // Characterizes TODAY's behavior, which disagrees with the other two mappers on the
-    // identical input above (they return "Pending"). Not asserted here as correct — this is
-    // the confirmed disagreement Stage B must resolve to one precedence, not pick by majority.
+    // identical input above (they return "Pending"). Not asserted here as correct — both
+    // this test and the one above pin a Master-Plan-forbidden substitution pattern, not a
+    // disagreement to resolve by picking a winning direction.
     expect(listing.status).not.toBe("Pending");
   });
 });
