@@ -61,12 +61,12 @@ describe("Stage A — mapTrestleToPrisma status precedence and numeric null-vs-z
     expect(mapTrestleToPrisma({ ListingId: "4", StandardStatus: "Incomplete" }).status).toBe("Incomplete");
   });
 
-  it("[NEGATIVE TEST, persistence boundary] StandardStatus absent, MlsStatus present: throws rather than substituting MlsStatus or fabricating Active", () => {
-    expect(() => mapTrestleToPrisma({ ListingId: "2", MlsStatus: "Pending" })).toThrow(/StandardStatus missing/);
+  it("[NEGATIVE TEST, persistence boundary] StandardStatus absent, MlsStatus present: falls to the Unknown sentinel — never substitutes MlsStatus, never fabricates Active, and does not crash (mapTrestleToPrisma must stay robust on malformed/partial input per lib/compliance/__tests__/c2-terminal-idx-display.test.ts)", () => {
+    expect(mapTrestleToPrisma({ ListingId: "2", MlsStatus: "Pending" }).status).toBe("Unknown");
   });
 
-  it("[NEGATIVE TEST, persistence boundary] both StandardStatus and MlsStatus absent: throws rather than fabricating Active", () => {
-    expect(() => mapTrestleToPrisma({ ListingId: "3" })).toThrow(/StandardStatus missing/);
+  it("[NEGATIVE TEST, persistence boundary] both StandardStatus and MlsStatus absent: falls to the Unknown sentinel, never fabricates Active", () => {
+    expect(mapTrestleToPrisma({ ListingId: "3" }).status).toBe("Unknown");
   });
 
   it("a missing numeric field (BedroomsTotal) maps to null, NOT zero", () => {
