@@ -83,9 +83,11 @@ export const SUGGEST_SELECT_FIELDS = [
   // Identifiers
   'ListingId',
   'ListingKey',
-  // Distribution-gate inputs (see REBNY compliance §2 + gates.ts above)
+  // Distribution-gate inputs (see REBNY compliance §2 + gates.ts above).
+  // MlsStatus removed (2026-10-02 Status cutover): no gate reads it (see
+  // the gate-input audit comment above) and no other reader in this route
+  // needs it.
   'StandardStatus',
-  'MlsStatus',
   'Permission',
   'InternetEntireListingDisplayYN',
   'InternetAddressDisplayYN',

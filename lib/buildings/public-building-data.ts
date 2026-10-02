@@ -83,7 +83,10 @@ const BUILDING_SELECT = [
   // Core listing fields
   'ListingId', 'ListingKey', 'SourceSystemKey', 'ListPrice', 'ClosePrice',
   'BedroomsTotal', 'BathroomsFull', 'BathroomsHalf', 'LivingArea',
-  'UnitNumber', 'PropertySubType', 'PropertyType', 'StandardStatus', 'MlsStatus',
+  // MlsStatus removed (2026-10-02 Status cutover): the production reader
+  // below calls readCotalityStandardStatus() exclusively; no reader of
+  // MlsStatus remains anywhere in this file.
+  'UnitNumber', 'PropertySubType', 'PropertyType', 'StandardStatus',
   'ListOfficeName', 'CloseDate',
   // Building info
   'BuildingName', 'YearBuilt', 'StoriesTotal', 'NumberOfUnitsInCommunity',

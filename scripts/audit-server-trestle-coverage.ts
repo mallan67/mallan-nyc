@@ -79,13 +79,24 @@ const SCAN_PATHS = [
 // it is Mallan-local authority (lib/compliance/gates.ts::isOwnerOptOut reads
 // the DB-cached owner_opt_out column only).
 const MUST_EXIST_GATE_FIELDS = [
-  'Permission',                              // Owner Opt-Out / Participant Only encoding
+  'Permission',                              // Participant Only encoding (Permission
+                                              // has 'Private'). Owner Opt-Out has NO
+                                              // Cotality signal at all (2026-10-02
+                                              // Permission cutover) -- Mallan-local only.
   'InternetEntireListingDisplayYN',          // Master IDX display gate
   'InternetAddressDisplayYN',                // Address display gate
   'InternetAutomatedValuationDisplayYN',     // AVM display gate
   'InternetConsumerCommentYN',               // Consumer-comment gate
   'StandardStatus',                          // Status used in display logic
-  'MlsStatus',                               // RLS-side status
+];
+
+// NOT a display-gate input (MlsStatus is never consulted by any gate --
+// 2026-10-02 Status cutover, Master Plan Section 0.6) -- verified here only
+// because legitimate non-gate consumers still read it (the CRM Coming Soon
+// rules on the agent-submitted payload; the free-text mlsStatus search-
+// display field).
+const MUST_EXIST_SYSTEM_FIELDS = [
+  'MlsStatus',
 ];
 
 const MUST_EXIST_KEY_FIELDS = [
@@ -167,7 +178,7 @@ function listTsFiles(dir: string): string[] {
 }
 
 interface Finding {
-  kind: 'FORBIDDEN_REFERENCE' | 'MUST_EXIST_GATE_MISSING_FROM_LIVE' | 'MUST_EXIST_KEY_MISSING_FROM_LIVE' | 'STALE_REFERENCE' | 'LEGACY_GUARD' | 'FORBIDDEN_NOW_LIVE';
+  kind: 'FORBIDDEN_REFERENCE' | 'MUST_EXIST_GATE_MISSING_FROM_LIVE' | 'MUST_EXIST_KEY_MISSING_FROM_LIVE' | 'MUST_EXIST_SYSTEM_MISSING_FROM_LIVE' | 'STALE_REFERENCE' | 'LEGACY_GUARD' | 'FORBIDDEN_NOW_LIVE';
   file?: string;
   line?: number;
   field: string;
@@ -241,6 +252,15 @@ function isVendorBlessedFallback(field: string, content: string): boolean {
     const present = live.all.has(f);
     console.log(`  ${present ? '✓' : '✗'} ${f}${present ? '' : '   ← NOT FOUND ON LIVE'}`);
     if (!present) findings.push({ kind: 'MUST_EXIST_KEY_MISSING_FROM_LIVE', field: f });
+  }
+  console.log('');
+
+  // 2b. MUST_EXIST system fields (non-gate -- see MUST_EXIST_SYSTEM_FIELDS)
+  console.log('── Non-gate system fields (must exist on live) ─────────────────');
+  for (const f of MUST_EXIST_SYSTEM_FIELDS) {
+    const present = live.all.has(f);
+    console.log(`  ${present ? '✓' : '✗'} ${f}${present ? '' : '   ← NOT FOUND ON LIVE'}`);
+    if (!present) findings.push({ kind: 'MUST_EXIST_SYSTEM_MISSING_FROM_LIVE', field: f });
   }
   console.log('');
 

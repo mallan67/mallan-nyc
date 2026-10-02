@@ -206,7 +206,7 @@ Provider-schema vocabulary is not a separate authority, version or certification
 | **Backup** | `lib/compliance/rebny-validator.ts` (10-section validator); `data/cotality-enums.live.json` (live fields and picklists) |
 | **Validator** | `npm run crm:test` (172/172 smoke); CRM POST returns HTTP 422 on `!passed` (see `app/api/crm/listings/route.ts:191-207`) |
 | **When to read** | Any field added/removed/renamed on the sale or rental form; any picklist value change; any new mandatory-field rule; any new content-restriction scanner pattern |
-| **Fail-closed** | All 6 distribution gates evaluated at CRM-write time. Fair Housing scanner runs on all free-text fields. Sale form has 18 commercial sub-types + 5 ownership types with "mallan.nyc only" warning banner for commercial. Rental form must include all FARE Act fee fields. Currently 1 warning: rental form missing `ComingSoon` enum value in `MlsStatus` picklist (`docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` C1). |
+| **Fail-closed** | All 6 distribution gates evaluated at CRM-write time. Fair Housing scanner runs on all free-text fields. Sale form has 18 commercial sub-types + 5 ownership types with "mallan.nyc only" warning banner for commercial. Rental form must include all FARE Act fee fields. As of the 2026-05-20 audit (not reverified since -- treat as historical, not current state): rental form was missing the `ComingSoon` enum value in its `MlsStatus` picklist (`docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` C1). |
 
 ## 18. Mallan exclusives / syndication eligibility
 
