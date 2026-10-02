@@ -93,6 +93,13 @@ raw value is **not lost at the storage layer**. The architecture concern Maya ra
 narrower than "the raw category is permanently collapsed": it survives in the DB and in every
 query that selects it.
 
+**Gap confirmed by Section 5's three live rows:** `listing_media` has **no column for
+`ShortDescription`/`LongDescription` at all** — `media-sync.ts`'s canonical sync loop never
+selects either. This is not hypothetical: the one signal that could have resolved the
+conflicting third live row in Section 5 (`LongDescription='floor plan'`) was never even
+candidate for persistence in the first place. `MediaType` and `ImageOf` are likewise absent
+from canonical storage (Section 1).
+
 ---
 
 ## 3. DOWNSTREAM PROJECTIONS — and the boundary Maya's correction draws
@@ -182,30 +189,52 @@ scoped to `ResourceName='Property'`.**
 
 ---
 
-## 5. PROOF
+## 5. PROOF — closed with three exact captured live rows
 
-### 5.1 What the current tests actually prove — relabeled
+The prior revision flagged true live-row fixtures as an open item this session's tools
+cannot produce (`mcp__trestle-fields__*` queries `$metadata`/picklists only, not row data).
+**Maya supplied the exact rows directly, with `MediaKey`/`ResourceRecordKey` provenance.**
+`lib/idx/__tests__/media-classifier-contract.test.ts` now runs these three fixtures verbatim
+(field-for-field, except the opaque rotating tail of each real `MediaURL`, which is omitted —
+only the stable `/Media/Property/<PREFIX>-Jpeg/` path segment the classifier actually
+inspects is preserved; fabricating the tail would misrepresent the source).
 
-`lib/idx/__tests__/media-classifier-contract.test.ts`'s cases are **not** live-row execution
-tests. They construct plain objects reproducing a reported live field combination and run
-them through the real, unmodified classifier functions. This is useful and valid — it proves
-"the real code, given exactly these field values, returns X" — but it is not the same as
-executing against a literally captured Cotality row. Corrected label for these cases:
-**`LIVE_PATTERN_REPRODUCTION_AGAINST_REAL_CODE`**, not "confirmed correct, observed live" (the
-prior draft's wording, which overstated what the test itself proves).
+Required distinction per row: **PROVIDER ROW FACTS** (what Cotality sent) → **CURRENT CODE
+OUTPUT** (what the real functions return, provable by running them) → **VERIFIED SEMANTIC
+RESULT** (whether that output is actually correct — only provable when every signal on the
+row agrees).
 
-### 5.2 Open item: true live-row fixtures are still needed
+| MediaKey | Category | Classification | Type | Short/LongDescription | URL path | Current code output | Verified semantic result |
+|---|---|---|---|---|---|---|---|
+| `2005927277918` | `Photo` | `PHOTO` | `Jpeg` | —/"Photo 6" | `PHOTO-Jpeg` | `photo`/`Photo` | **CONFIRMED CORRECT** — every signal agrees |
+| `2005917243395` | `FloorPlan` | `DOCUMENT` | `Jpeg` | "FloorPlan"/— | `DOCUMENT-Jpeg` | `floorplan`/`FloorPlan` | **CONFIRMED CORRECT** — every signal agrees; the exact live proof that `DOCUMENT` classification does not mean "generic document" |
+| `2003600763305` | `null` | `PHOTO` | `Jpeg` | —/"floor plan" | `PHOTO-Jpeg` | `photo`/`Photo` | **OBSERVED_LIVE_PROVIDER_CONFLICT — UNVERIFIED.** `MediaClassification` and the URL path say photo; `LongDescription` literally says "floor plan." `classifyMediaItem` structurally never reads `LongDescription` (only `ShortDescription`), so it never even sees the conflict. No precedence between the two signals is invented here — that is a Cotality/REBNY semantics question (does free text override a classification field? is "floor plan" here a genuine description or a data-entry error on an unrelated field?) outside this verification's scope. |
 
-Maya's instruction was to add at least one **exact, captured** live Media-row fixture (with
-query evidence recorded) for each of: `Photo`+`PHOTO`, `FloorPlan`+`DOCUMENT`,
-`MediaCategory=null`+`PHOTO`. **This has not been done in this revision** — the tools
-available this session (`mcp__trestle-fields__*`) query live `$metadata`/picklists only; they
-do not return actual row data, and no other live-row-query capability is available in this
-context. Fabricating a "captured row" would violate the standard this entire engagement is
-built on. **This is recorded as an open item, not silently worked around**: a true row-level
-fixture requires either Maya supplying the exact JSON she already queried (with the query and
-timestamp noted), or a live-data-query tool becoming available. Until then, Section 5.1's
-pattern-reproduction tests are the strongest proof this document can offer.
+**Two further findings surface directly from these three real rows, recorded without
+proposing a fix:**
+
+- **`InternetEntireListingDisplayYN` genuinely diverges per Media row.** Row 1 (the
+  confirmed Photo) carries `InternetEntireListingDisplayYN: false` — this specific photo is
+  individually opted out of internet display — while rows 2 and 3 carry `true`. Section 1
+  already noted Media's own copy of this field is "never selected on Media anywhere" by any
+  current Mallan code and that "no relationship-proof exists for whether Media's copy ever
+  diverges from the parent Property's." These three rows are direct, live proof that it
+  **does** diverge, per-row, independent of the parent listing's own display status. Since
+  Mallan's display gates (`gates.ts`, `trestle-mapper.ts`) only ever read the Property-level
+  copy of this field, there is currently no code path that would suppress this specific photo
+  from display on the strength of its own, individually-set flag. Recorded as a
+  **PROVEN_RESOURCE_GAP** — not fixed here, and no precedence/fix is proposed.
+- **`LongDescription` (and `ShortDescription` on rows where it's null) is not persisted by
+  Mallan's canonical ingestion path at all.** Section 1's field table already noted
+  `ShortDescription`/`LongDescription` are selected by only a few display-time call sites and
+  never by `media-sync.ts`'s canonical sync pipeline. This row set sharpens that: the one
+  signal that could have resolved row 3's conflict (`LongDescription`) is not even in
+  `listing_media`'s canonical storage today. Per Maya's instruction, the fix is not to
+  silently add it with an invented precedence rule — the canonical layer should preserve it
+  (alongside `MediaCategory`, `MediaClassification`, `MediaType`, `ShortDescription`,
+  `ResourceName`, `MediaKey`, `ResourceRecordKey`, all independently) and let a downstream
+  projection act on verified rules once the Cotality/REBNY semantics of free-text description
+  fields are established.
 
 ---
 
@@ -228,6 +257,19 @@ pattern-reproduction tests are the strongest proof this document can offer.
    reproduction, not live execution, and flags the still-missing true live-row fixture as an
    open item rather than fabricating one (5); and splits OpenHouse/CustomProperty into their
    own separate resource-contract documents (no longer part of this file).
+4. **This (fourth) revision** closes the Section 5 open item: Maya supplied three exact
+   captured live rows with `MediaKey`/`ResourceRecordKey` provenance, now run verbatim in
+   `lib/idx/__tests__/media-classifier-contract.test.ts`. Two of the three have every signal
+   agreeing (`CONFIRMED CORRECT`). The third does not — `MediaClassification`/URL say photo,
+   `LongDescription` says "floor plan," and `classifyMediaItem` never reads
+   `LongDescription` at all — reclassified from "confirmed correct" to
+   `OBSERVED_LIVE_PROVIDER_CONFLICT`, semantic result left explicitly `UNVERIFIED`, with no
+   precedence rule invented to resolve it. Two further findings recorded directly from these
+   rows without proposing a fix: Media-level `InternetEntireListingDisplayYN` is proven to
+   diverge per-row (row 1's photo is individually opted out; Mallan's gates never read
+   Media's copy of this field); and `LongDescription`/`ShortDescription` are not persisted by
+   the canonical `listing_media` ingestion path at all, which is why the one signal that could
+   have resolved row 3's conflict was never even in Mallan's own storage.
 
 ---
 

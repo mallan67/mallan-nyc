@@ -5,58 +5,121 @@
  * raw-mapper-characterization.test.ts per Maya's explicit instruction that Property
  * and Media are separate Cotality resources and must be verified separately.
  *
- * TWICE-CORRECTED 2026-10-02 against live Cotality ROW data. Scope note: of the 18
+ * THRICE-CORRECTED 2026-10-02 against live Cotality ROW data. Scope note: of the 18
  * GLOBAL MediaCategory enum members in $metadata, only 8 are associated with RLS (the
  * feed Mallan actually reads): Addendum, BrandedVirtualTour, Document, FloorPlan,
  * Other, Photo, UnbrandedVirtualTour, Video. Every case below uses only these 8.
  *
- * Live-observed combinations (as of this check — population counts drift and are not
- * durable facts; see docs/audits/raw-mapper-media-contract-resolution-2026-10-02.md):
- * Photo+PHOTO, FloorPlan+DOCUMENT (the dominant real floor-plan pattern — every sampled
- * FloorPlan row carries MediaClassification='DOCUMENT'), and MediaCategory=null+PHOTO.
- * Addendum, BrandedVirtualTour, Document, Other, UnbrandedVirtualTour, Video currently
- * have ZERO rows in Mallan's entitled feed — valid live RLS contract values, not
- * invalid, just unobserved today.
+ * LIVE_ROW fixtures (this revision): Maya queried three exact live Media rows and
+ * supplied their full field sets with MediaKey/ResourceRecordKey provenance (not a
+ * reconstruction) — see docs/audits/raw-mapper-media-contract-resolution-2026-10-02.md
+ * Section 5 for the full captured-row record. The opaque, rotating tail of each row's
+ * real MediaURL is intentionally NOT reproduced here — only the stable
+ * `/Media/Property/<PREFIX>-Jpeg/` path segment the classifier actually inspects is
+ * preserved, since the tail carries no classification signal and fabricating one would
+ * misrepresent the source.
  *
- * Classification discipline (Maya's correction, applied here): a synthetic
- * category/classification combination that has NOT been observed live is NOT a
- * PROVEN_DEFECT merely because it's constructed. It is labeled PROVEN_RESOURCE_GAP only
- * when the function's current code demonstrably cannot produce the correct result for
- * that input (traced directly against source, not assumed), even though no bad row has
- * occurred yet. A bare disagreement between two old classifiers with no live row to
- * settle it either way stays LEGACY_UNVERIFIED.
+ * Required 3-column distinction per row (Maya's correction): PROVIDER ROW FACTS (what
+ * Cotality actually sent) → CURRENT CODE OUTPUT (what classifyMediaItem/
+ * classifyTrestleMediaCategory return today, provable by running the real code) →
+ * VERIFIED SEMANTIC RESULT (whether that output is actually correct — only provable when
+ * every signal on the row agrees; left explicitly UNVERIFIED when they don't). Rows 1 and
+ * 2 below have every signal agreeing and so earn CONFIRMED CORRECT. Row 3 does NOT: its
+ * MediaClassification/URL path say "photo" but its LongDescription says "floor plan" —
+ * classifyMediaItem structurally never reads LongDescription at all (only
+ * ShortDescription), so it never even sees that conflicting signal. Per Maya's explicit
+ * instruction, no precedence is invented for this conflict here — it is recorded as
+ * OBSERVED_LIVE_PROVIDER_CONFLICT, semantic result unresolved, not "confirmed correct."
  *
- * Evidence-level correction (Maya, same day): every case below constructs a plain object
- * reproducing a reported field combination and runs it through the real, unmodified
- * classifier functions — this is LIVE_PATTERN_REPRODUCTION_AGAINST_REAL_CODE, proving "the
- * real code returns X for exactly these fields." It is NOT live-row execution (feeding an
- * actual captured Cotality row through the classifier) — no literally-captured row fixture
- * exists yet for Photo+PHOTO, FloorPlan+DOCUMENT, or MediaCategory=null+PHOTO; see
- * docs/audits/raw-mapper-media-contract-resolution-2026-10-02.md Section 5.2, an open item,
- * not silently worked around. Also note: Document/Addendum/Other resolving to 'unknown' in
- * classifyMediaItem is NOT automatically a defect — that function is a GALLERY DISPLAY
- * projection with exactly 5 output classes (photo/floorplan/video/virtualTour/unknown) by
- * design; those three categories are not gallery image content. See the doc's Section 3/4.3
- * for the canonical-storage-vs-gallery-projection boundary this file respects.
+ * Classification discipline (unchanged): a synthetic category/classification combination
+ * that has NOT been observed live is NOT a PROVEN_DEFECT merely because it's constructed —
+ * only PROVEN_RESOURCE_GAP, and only when direct code tracing proves the gap. A bare
+ * disagreement between two old classifiers with no live row to settle it stays
+ * LEGACY_UNVERIFIED. Document/Addendum/Other resolving to 'unknown' in classifyMediaItem is
+ * NOT automatically a defect — that function is a GALLERY DISPLAY projection with exactly 5
+ * output classes (photo/floorplan/video/virtualTour/unknown) by design; those categories
+ * are not gallery image content. See the doc's Section 3/4.3 for that boundary.
  */
 import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
 import { classifyTrestleMediaCategory } from "@/lib/media/media-sync-service";
 
-describe("Media contract — LIVE_PATTERN_REPRODUCTION_AGAINST_REAL_CODE (reported live field combinations, not a captured row fixture — see doc Section 5.2)", () => {
-  it("MediaCategory='FloorPlan' + MediaClassification='DOCUMENT' + a DOCUMENT-Jpeg URL — the dominant reported live floor-plan pattern — classifies correctly as floorplan", () => {
-    const result = classifyMediaItem({
-      MediaCategory: "FloorPlan",
-      MediaClassification: "DOCUMENT",
-      MediaURL: "https://cdn.example.com/Media/Property/DOCUMENT-Jpeg/abc123.jpg",
-    });
-    expect(result).toBe("floorplan");
-    expect(classifyTrestleMediaCategory("FloorPlan")).toBe("FloorPlan");
+// Exact live rows, as supplied by Maya with MediaKey/ResourceRecordKey provenance.
+// MediaURL below preserves only the stable classification-relevant path prefix; the
+// opaque rotating tail of the real URL is intentionally omitted (see file header).
+const LIVE_ROW_PHOTO = {
+  MediaKey: "2005927277918",
+  ResourceName: "Property",
+  ResourceRecordKey: "1185755400",
+  MediaCategory: "Photo",
+  MediaClassification: "PHOTO",
+  MediaType: "Jpeg",
+  Order: 6,
+  ShortDescription: null,
+  LongDescription: "Photo 6",
+  MediaStatus: "Active",
+  InternetEntireListingDisplayYN: false,
+  MediaURL: "https://cdn.cotality.example/Media/Property/PHOTO-Jpeg/",
+};
+
+const LIVE_ROW_FLOORPLAN = {
+  MediaKey: "2005917243395",
+  ResourceName: "Property",
+  ResourceRecordKey: "1185008759",
+  MediaCategory: "FloorPlan",
+  MediaClassification: "DOCUMENT",
+  MediaType: "Jpeg",
+  Order: 2,
+  ShortDescription: "FloorPlan",
+  LongDescription: null,
+  MediaStatus: "Active",
+  InternetEntireListingDisplayYN: true,
+  MediaURL: "https://cdn.cotality.example/Media/Property/DOCUMENT-Jpeg/",
+};
+
+// The conflicting row: MediaCategory is null, MediaClassification and the URL path both
+// say "photo," but LongDescription says "floor plan" — a genuine, unresolved provider-side
+// signal conflict, not a code defect to fix by guessing a precedence rule.
+const LIVE_ROW_CONFLICTING = {
+  MediaKey: "2003600763305",
+  ResourceName: "Property",
+  ResourceRecordKey: "1091333591",
+  MediaCategory: null,
+  MediaClassification: "PHOTO",
+  MediaType: "Jpeg",
+  Order: 1,
+  ShortDescription: null,
+  LongDescription: "floor plan",
+  MediaStatus: "Active",
+  InternetEntireListingDisplayYN: true,
+  MediaURL: "https://cdn.cotality.example/Media/Property/PHOTO-Jpeg/",
+};
+
+describe("Media contract — LIVE_ROW fixtures (exact captured Cotality rows, MediaKey/ResourceRecordKey provenance in the fixture comments above)", () => {
+  it("[CONFIRMED CORRECT — every signal agrees] LIVE_ROW_PHOTO (MediaKey 2005927277918): MediaCategory/MediaClassification/URL path/LongDescription all say photo", () => {
+    expect(classifyMediaItem(LIVE_ROW_PHOTO)).toBe("photo");
+    expect(classifyTrestleMediaCategory(LIVE_ROW_PHOTO.MediaCategory)).toBe("Photo");
   });
 
-  it("MediaCategory=null + MediaClassification='PHOTO' (the other reported live combination) correctly falls back to photo", () => {
-    const result = classifyMediaItem({ MediaCategory: null, MediaClassification: "PHOTO" });
-    expect(result).toBe("photo");
-    expect(classifyTrestleMediaCategory(null)).toBe("Photo");
+  it("[CONFIRMED CORRECT — every signal agrees] LIVE_ROW_FLOORPLAN (MediaKey 2005917243395): MediaCategory/MediaClassification/ShortDescription/URL path all say floor plan — the exact live evidence that DOCUMENT classification does not mean 'generic document,' Cotality uses it for FloorPlan rows", () => {
+    expect(classifyMediaItem(LIVE_ROW_FLOORPLAN)).toBe("floorplan");
+    expect(classifyTrestleMediaCategory(LIVE_ROW_FLOORPLAN.MediaCategory)).toBe("FloorPlan");
+  });
+
+  it("[OBSERVED_LIVE_PROVIDER_CONFLICT — semantic result UNVERIFIED, not confirmed correct] LIVE_ROW_CONFLICTING (MediaKey 2003600763305): MediaCategory=null, MediaClassification='PHOTO', and the URL path all say photo, but LongDescription literally says 'floor plan' — classifyMediaItem never reads LongDescription at all, so it never even sees that conflicting signal", () => {
+    // PROVIDER ROW FACTS: see LIVE_ROW_CONFLICTING above — the row itself carries
+    // conflicting signals; this is not a reconstruction, Cotality sent exactly this.
+    expect(LIVE_ROW_CONFLICTING.LongDescription).toBe("floor plan");
+    expect(LIVE_ROW_CONFLICTING.MediaClassification).toBe("PHOTO");
+
+    // CURRENT CODE OUTPUT: provable by running the real, unmodified functions.
+    expect(classifyMediaItem(LIVE_ROW_CONFLICTING)).toBe("photo");
+    expect(classifyTrestleMediaCategory(LIVE_ROW_CONFLICTING.MediaCategory)).toBe("Photo");
+
+    // VERIFIED SEMANTIC RESULT: deliberately NOT asserted as "photo" here. The current
+    // code's output is provable; whether this item truly is a photo (vs. a floor plan
+    // mislabeled by whoever/whatever wrote "floor plan" into LongDescription) is not —
+    // no precedence between MediaClassification and LongDescription is invented by this
+    // test. See docs/audits/raw-mapper-media-contract-resolution-2026-10-02.md Section 5.
   });
 });
 
