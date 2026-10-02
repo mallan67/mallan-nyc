@@ -95,10 +95,14 @@ query that selects it.
 
 **Gap confirmed by Section 5's three live rows:** `listing_media` has **no column for
 `ShortDescription`/`LongDescription` at all** — `media-sync.ts`'s canonical sync loop never
-selects either. This is not hypothetical: the one signal that could have resolved the
-conflicting third live row in Section 5 (`LongDescription='floor plan'`) was never even
-candidate for persistence in the first place. `MediaType` and `ImageOf` are likewise absent
-from canonical storage (Section 1).
+selects either. This is proven as an omission, not as a missing fix: the third live row in
+Section 5 shows `LongDescription` carries a second provider signal (`'floor plan'`) that
+disagrees with `MediaClassification`/the URL path, and that signal was never even a
+candidate for persistence — but nothing establishes that persisting it would have resolved
+anything, since no rule says `LongDescription` outranks the other signals. `MediaType` and
+`ImageOf` are likewise absent from canonical storage (Section 1). See Section 5 for the full,
+corrected finding — do not add schema columns for these without a proven business
+requirement.
 
 ---
 
@@ -189,15 +193,17 @@ scoped to `ResourceName='Property'`.**
 
 ---
 
-## 5. PROOF — closed with three exact captured live rows
+## 5. PROOF — closed with three sanitized live-row-derived fixtures
 
 The prior revision flagged true live-row fixtures as an open item this session's tools
 cannot produce (`mcp__trestle-fields__*` queries `$metadata`/picklists only, not row data).
-**Maya supplied the exact rows directly, with `MediaKey`/`ResourceRecordKey` provenance.**
-`lib/idx/__tests__/media-classifier-contract.test.ts` now runs these three fixtures verbatim
-(field-for-field, except the opaque rotating tail of each real `MediaURL`, which is omitted —
-only the stable `/Media/Property/<PREFIX>-Jpeg/` path segment the classifier actually
-inspects is preserved; fabricating the tail would misrepresent the source).
+**Maya supplied three live rows directly, with `MediaKey`/`ResourceRecordKey` provenance.**
+`lib/idx/__tests__/media-classifier-contract.test.ts` now runs these three fixtures with
+every classification-relevant field reproduced exactly. **Correction: these are "sanitized
+live-row-derived fixtures," not "verbatim/exact" rows** — the real Cotality host and the
+opaque, rotating `MediaURL` tail were intentionally replaced; only the stable
+`/Media/Property/<PREFIX>-Jpeg/` path segment the classifier actually inspects is preserved,
+since fabricating the real tail would misrepresent the source.
 
 Required distinction per row: **PROVIDER ROW FACTS** (what Cotality sent) → **CURRENT CODE
 OUTPUT** (what the real functions return, provable by running them) → **VERIFIED SEMANTIC
@@ -208,33 +214,50 @@ row agrees).
 |---|---|---|---|---|---|---|---|
 | `2005927277918` | `Photo` | `PHOTO` | `Jpeg` | —/"Photo 6" | `PHOTO-Jpeg` | `photo`/`Photo` | **CONFIRMED CORRECT** — every signal agrees |
 | `2005917243395` | `FloorPlan` | `DOCUMENT` | `Jpeg` | "FloorPlan"/— | `DOCUMENT-Jpeg` | `floorplan`/`FloorPlan` | **CONFIRMED CORRECT** — every signal agrees; the exact live proof that `DOCUMENT` classification does not mean "generic document" |
-| `2003600763305` | `null` | `PHOTO` | `Jpeg` | —/"floor plan" | `PHOTO-Jpeg` | `photo`/`Photo` | **OBSERVED_LIVE_PROVIDER_CONFLICT — UNVERIFIED.** `MediaClassification` and the URL path say photo; `LongDescription` literally says "floor plan." `classifyMediaItem` structurally never reads `LongDescription` (only `ShortDescription`), so it never even sees the conflict. No precedence between the two signals is invented here — that is a Cotality/REBNY semantics question (does free text override a classification field? is "floor plan" here a genuine description or a data-entry error on an unrelated field?) outside this verification's scope. |
+| `2003600763305` | `null` | `PHOTO` | `Jpeg` | —/"floor plan" | `PHOTO-Jpeg` | `photo`/`Photo` | **OBSERVED_LIVE_PROVIDER_CONFLICT — UNVERIFIED.** `MediaClassification` and the URL path say photo; `LongDescription` literally says "floor plan." `classifyMediaItem` structurally never reads `LongDescription` (only `ShortDescription`), so it never even sees this signal. No precedence between `MediaClassification`/URL and `LongDescription` is established or invented here — this is a Cotality/REBNY semantics question (does free text ever outrank a classification field? is "floor plan" here a genuine description or a data-entry error on an unrelated field?) outside this verification's scope. |
 
-**Two further findings surface directly from these three real rows, recorded without
-proposing a fix:**
+**Two further findings, corrected (second pass) to match exactly what the live evidence
+proves — no fix proposed for either:**
 
-- **`InternetEntireListingDisplayYN` genuinely diverges per Media row.** Row 1 (the
-  confirmed Photo) carries `InternetEntireListingDisplayYN: false` — this specific photo is
-  individually opted out of internet display — while rows 2 and 3 carry `true`. Section 1
-  already noted Media's own copy of this field is "never selected on Media anywhere" by any
-  current Mallan code and that "no relationship-proof exists for whether Media's copy ever
-  diverges from the parent Property's." These three rows are direct, live proof that it
-  **does** diverge, per-row, independent of the parent listing's own display status. Since
-  Mallan's display gates (`gates.ts`, `trestle-mapper.ts`) only ever read the Property-level
-  copy of this field, there is currently no code path that would suppress this specific photo
-  from display on the strength of its own, individually-set flag. Recorded as a
-  **PROVEN_RESOURCE_GAP** — not fixed here, and no precedence/fix is proposed.
-- **`LongDescription` (and `ShortDescription` on rows where it's null) is not persisted by
-  Mallan's canonical ingestion path at all.** Section 1's field table already noted
-  `ShortDescription`/`LongDescription` are selected by only a few display-time call sites and
-  never by `media-sync.ts`'s canonical sync pipeline. This row set sharpens that: the one
-  signal that could have resolved row 3's conflict (`LongDescription`) is not even in
-  `listing_media`'s canonical storage today. Per Maya's instruction, the fix is not to
-  silently add it with an invented precedence rule — the canonical layer should preserve it
-  (alongside `MediaCategory`, `MediaClassification`, `MediaType`, `ShortDescription`,
-  `ResourceName`, `MediaKey`, `ResourceRecordKey`, all independently) and let a downstream
-  projection act on verified rules once the Cotality/REBNY semantics of free-text description
-  fields are established.
+- **Media-level `InternetEntireListingDisplayYN`: OBSERVED MEDIA-ROW COPY — semantics
+  unresolved, likely a listing-level value replicated onto each row, NOT a per-photo
+  opt-out.** Withdrawn: the first pass's claim that row 1's `false` meant "this specific
+  photo is individually opted out." Maya queried every Media row for all three captured
+  listings and found **zero intra-listing variance**: `1185755400` — 9/9 rows `false`;
+  `1185008759` — 3/3 rows `true`; `1091333591` — 20/20 rows `true`. A 100-row sample across
+  14 further `ResourceRecordKey`s found zero listings with mixed `true`/`false` values among
+  their own Media rows. This pattern — the field varies between listings but never within
+  one — is far more consistent with a listing-level value Cotality repeats onto every Media
+  row than with genuine per-asset permission. Current REBNY documentation also describes
+  this field as a listing-level visibility setting, not an individual-photo control. This
+  could not be directly confirmed against the parent `Property` value for these three
+  listings (they have since aged out of Mallan's current entitlement window). **Do not add a
+  media-level suppression rule without explicit provider confirmation** that this field is
+  ever set independently per asset.
+- **`ShortDescription`/`LongDescription`: PROVEN UNPERSISTED PROVIDER FIELDS — storage
+  requirement unverified.** Corrected: the first pass's framing of `LongDescription` as "the
+  one signal that could have resolved row 3's conflict" overstated what it proves — it does
+  **not** resolve the conflict, it is merely a second, equally-unverified provider signal
+  with no established precedence over `MediaClassification`/the URL path. What **is** proven
+  (confirmed directly against `prisma/schema.prisma` and the `media-sync.ts` sync writer):
+  `ShortDescription` and `LongDescription` are available on live Cotality Media and are not
+  preserved by `listing_media` at all — their omission is proven. Whether Mallan has an
+  actual downstream business requirement to persist them is **not** proven, and per this
+  engagement's architecture discipline against casual schema growth, **no schema column
+  should be added during this convergence batch without first proving that requirement and
+  exhausting existing storage options.**
+
+### 5.1 Recorded for Stage B, not fixed now (frozen schema file)
+
+`prisma/schema.prisma`'s comment on `listing_media.media_type` describes it as if it were
+literally Cotality/Trestle `MediaType` with values like `Photo`/`FloorPlan`/`Video`. This is
+incorrect against the live contract (Section 1): Cotality's `MediaType` is file format
+(`Jpeg`/`Pdf`/etc.); `listing_media.media_type` is a **derived Mallan projection**, produced
+by `classifyTrestleMediaCategory` from `MediaCategory`, not a copy of Cotality's `MediaType`
+field. The column itself may be fine; the comment teaches the wrong architecture. Not fixed
+in this revision — `prisma/schema.prisma` is on the hard-forbidden list enforced by both
+`push-647.js` and `push-647-mapper-exception.js` (database schema); any fix needs its own,
+separately-authorized schema-comment change, not this exception.
 
 ---
 
@@ -270,6 +293,29 @@ proposing a fix:**
    Media's copy of this field); and `LongDescription`/`ShortDescription` are not persisted by
    the canonical `listing_media` ingestion path at all, which is why the one signal that could
    have resolved row 3's conflict was never even in Mallan's own storage.
+5. **This (fifth, final) revision** corrects two overreaching claims from item 4 and renames
+   the fixtures: (a) "this specific photo is individually opted out" is withdrawn — Maya
+   queried every Media row for all three listings and found zero intra-listing variance
+   (9/9, 3/3, 20/20, plus a 100-row/14-listing sample with no mixed values anywhere), which
+   together with REBNY's own listing-level framing of this field is far more consistent with
+   a replicated listing-level value than a per-photo permission; reclassified to "OBSERVED
+   MEDIA-ROW COPY — semantics unresolved," with an explicit instruction not to build a
+   media-level suppression rule without provider confirmation; (b) "the one signal that could
+   have resolved row 3's conflict" is withdrawn — `LongDescription` does not resolve
+   anything, it is only a second unverified signal with no established precedence over
+   `MediaClassification`/the URL path; reclassified to "PROVEN UNPERSISTED PROVIDER FIELDS —
+   storage requirement unverified," with an explicit instruction not to add schema columns
+   without first proving a downstream business requirement. Also: the three fixtures are
+   renamed from "verbatim/exact captured rows" to **sanitized live-row-derived fixtures**,
+   since the real Cotality host and the opaque URL tail were intentionally replaced (only
+   classification-relevant fields are exact). Also recorded, not fixed (schema file is hard-
+   forbidden by this convergence's tooling): `prisma/schema.prisma`'s comment on
+   `listing_media.media_type` wrongly describes it as literal Cotality `MediaType`; it is a
+   derived Mallan projection, and live Cotality `MediaType` is file format only (5.1).
+
+**Per Maya's explicit instruction, this closes Stage A's Media verification. No further
+Media audit is planned; Stage B proceeds from the findings recorded in this document as of
+this revision.**
 
 ---
 

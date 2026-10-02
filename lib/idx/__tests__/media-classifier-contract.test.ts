@@ -10,14 +10,15 @@
  * feed Mallan actually reads): Addendum, BrandedVirtualTour, Document, FloorPlan,
  * Other, Photo, UnbrandedVirtualTour, Video. Every case below uses only these 8.
  *
- * LIVE_ROW fixtures (this revision): Maya queried three exact live Media rows and
- * supplied their full field sets with MediaKey/ResourceRecordKey provenance (not a
- * reconstruction) — see docs/audits/raw-mapper-media-contract-resolution-2026-10-02.md
- * Section 5 for the full captured-row record. The opaque, rotating tail of each row's
- * real MediaURL is intentionally NOT reproduced here — only the stable
- * `/Media/Property/<PREFIX>-Jpeg/` path segment the classifier actually inspects is
- * preserved, since the tail carries no classification signal and fabricating one would
- * misrepresent the source.
+ * SANITIZED LIVE-ROW-DERIVED fixtures (this revision; corrected wording — these are not
+ * "verbatim/exact" rows, since the real Cotality host and the opaque, rotating MediaURL
+ * tail were intentionally replaced): Maya queried three live Media rows and supplied their
+ * full field sets with MediaKey/ResourceRecordKey provenance — see
+ * docs/audits/raw-mapper-media-contract-resolution-2026-10-02.md Section 5 for the full
+ * record. Every classification-relevant field (MediaCategory, MediaClassification,
+ * MediaType, Short/LongDescription, the stable `/Media/Property/<PREFIX>-Jpeg/` URL path
+ * segment) is reproduced exactly; only the host and the non-classification-relevant URL
+ * tail are sanitized, since fabricating the real opaque tail would misrepresent the source.
  *
  * Required 3-column distinction per row (Maya's correction): PROVIDER ROW FACTS (what
  * Cotality actually sent) → CURRENT CODE OUTPUT (what classifyMediaItem/
@@ -27,9 +28,11 @@
  * 2 below have every signal agreeing and so earn CONFIRMED CORRECT. Row 3 does NOT: its
  * MediaClassification/URL path say "photo" but its LongDescription says "floor plan" —
  * classifyMediaItem structurally never reads LongDescription at all (only
- * ShortDescription), so it never even sees that conflicting signal. Per Maya's explicit
- * instruction, no precedence is invented for this conflict here — it is recorded as
- * OBSERVED_LIVE_PROVIDER_CONFLICT, semantic result unresolved, not "confirmed correct."
+ * ShortDescription), so it never even sees that signal. Per Maya's correction, this does
+ * NOT mean LongDescription resolves the conflict either — it is just another unverified
+ * provider signal, with no established rule for whether free text outranks
+ * MediaClassification/the URL path. Recorded as OBSERVED_LIVE_PROVIDER_CONFLICT, semantic
+ * result unresolved, not "confirmed correct" and not "resolved by LongDescription."
  *
  * Classification discipline (unchanged): a synthetic category/classification combination
  * that has NOT been observed live is NOT a PROVEN_DEFECT merely because it's constructed —
@@ -43,9 +46,10 @@
 import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
 import { classifyTrestleMediaCategory } from "@/lib/media/media-sync-service";
 
-// Exact live rows, as supplied by Maya with MediaKey/ResourceRecordKey provenance.
-// MediaURL below preserves only the stable classification-relevant path prefix; the
-// opaque rotating tail of the real URL is intentionally omitted (see file header).
+// Sanitized live-row-derived fixtures, as supplied by Maya with MediaKey/ResourceRecordKey
+// provenance. Every classification-relevant field is reproduced exactly; MediaURL below
+// preserves only the stable classification-relevant path prefix — the real host and the
+// opaque, rotating URL tail are intentionally sanitized (see file header).
 const LIVE_ROW_PHOTO = {
   MediaKey: "2005927277918",
   ResourceName: "Property",
@@ -94,7 +98,7 @@ const LIVE_ROW_CONFLICTING = {
   MediaURL: "https://cdn.cotality.example/Media/Property/PHOTO-Jpeg/",
 };
 
-describe("Media contract — LIVE_ROW fixtures (exact captured Cotality rows, MediaKey/ResourceRecordKey provenance in the fixture comments above)", () => {
+describe("Media contract — sanitized live-row-derived fixtures (MediaKey/ResourceRecordKey provenance in the fixture comments above)", () => {
   it("[CONFIRMED CORRECT — every signal agrees] LIVE_ROW_PHOTO (MediaKey 2005927277918): MediaCategory/MediaClassification/URL path/LongDescription all say photo", () => {
     expect(classifyMediaItem(LIVE_ROW_PHOTO)).toBe("photo");
     expect(classifyTrestleMediaCategory(LIVE_ROW_PHOTO.MediaCategory)).toBe("Photo");
