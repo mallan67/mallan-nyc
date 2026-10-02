@@ -1,4 +1,5 @@
 import { resolveListingMedia } from "@/lib/media/listing-media-resolver";
+import { getCanonicalStandardStatus } from "@/lib/idx/trestle-mapper";
 
 // REBNY IDX Plus pre-filter: REBNY/Cotality removes non-displayable rows from
 // the IDX Plus feed upstream, leaving InternetEntireListingDisplayYN and
@@ -133,6 +134,12 @@ export function mapTrestleToCrmListing(
   }
 
   const mlsStatus = String(raw.MlsStatus || raw.StandardStatus || "Active");
+  // Master Plan §0.6: StandardStatus and MlsStatus are independent enums and must never
+  // substitute for one another. canonicalStatus (not mlsStatus above) drives the
+  // user/compliance-facing `status` label below; `mlsStatus`'s own output-field value is
+  // intentionally left unchanged in this cutover (its downstream CRM consumers were not
+  // independently verified as part of this specific fix — see the Stage B1 cutover table).
+  const canonicalStatus = getCanonicalStandardStatus(raw);
   const statusMap: Record<string, string> = {
     Active: "ACTIVE",
     ComingSoon: "COMING_SOON",
@@ -165,7 +172,7 @@ export function mapTrestleToCrmListing(
   // sentinel and either suppress badges or show a neutral indicator.
   // (Was: `mlsStatus.toUpperCase()` which could produce "OFF MARKET",
   // "FUTURE", or any other vendor-specific string in the UI.)
-  const status = statusMap[mlsStatus] || "UNKNOWN";
+  const status = statusMap[canonicalStatus] || "UNKNOWN";
 
   // ── Coming Soon date (UCBA Art. I §16(C)) ──────────────────────────
   // UCBA requires "No Showings or Open House until [date]" disclosure

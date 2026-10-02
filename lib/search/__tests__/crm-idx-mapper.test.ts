@@ -125,7 +125,11 @@ describe("crm idx mapper", () => {
       BedroomsTotal: 2,
       BathroomsTotalInteger: 2.5,
       LivingArea: 1100,
-      MlsStatus: "ActiveUnderContract",
+      // Stage B cutover 1 (2026-10-02): StandardStatus, not MlsStatus, drives the
+      // canonical status per Master Plan §0.6. A real Cotality record always carries
+      // StandardStatus; this fixture previously set only MlsStatus, which was never a
+      // realistic input shape.
+      StandardStatus: "ActiveUnderContract",
       SubdivisionName: "Chelsea",
       CityRegion: "Manhattan",
       PostalCode: "10011",
@@ -204,16 +208,22 @@ describe("crm idx mapper", () => {
   // exposing the platform to UCBA fines. Tests below pin the
   // contract: any unmapped or off-market variant must NEVER produce
   // an "OFF MARKET" value in the rendered status field.
+  //
+  // Stage B cutover 1 (2026-10-02): fixtures below now set StandardStatus
+  // instead of MlsStatus — Master Plan §0.6 forbids substituting one for
+  // the other, and StandardStatus is what a real Cotality record always
+  // carries. The protective intent of every test below (never leak a raw
+  // or off-market-ish string into the displayed status) is unchanged.
   // ═══════════════════════════════════════════════════════════════════
 
   describe("status mapper — UCBA Art. I §5(D) compliance", () => {
     const offMarketVariants = ["Off Market", "Off-Market", "OffMarket", "off market"];
 
     for (const variant of offMarketVariants) {
-      it(`maps MlsStatus "${variant}" to WITHDRAWN, never to "OFF MARKET"`, () => {
+      it(`maps StandardStatus "${variant}" to WITHDRAWN, never to "OFF MARKET"`, () => {
         const listing = mapTrestleToCrmListing({
           ListingId: "X",
-          MlsStatus: variant,
+          StandardStatus: variant,
           InternetEntireListingDisplayYN: true,
           InternetAddressDisplayYN: true,
         }, 0);
@@ -230,7 +240,7 @@ describe("crm idx mapper", () => {
       // neutrally.
       const listing = mapTrestleToCrmListing({
         ListingId: "X",
-        MlsStatus: "SomeFutureStatusEnum",
+        StandardStatus: "SomeFutureStatusEnum",
         InternetEntireListingDisplayYN: true,
         InternetAddressDisplayYN: true,
       }, 0);
@@ -257,12 +267,35 @@ describe("crm idx mapper", () => {
       for (const [input, expected] of cases) {
         const listing = mapTrestleToCrmListing({
           ListingId: "X",
-          MlsStatus: input,
+          StandardStatus: input,
           InternetEntireListingDisplayYN: true,
           InternetAddressDisplayYN: true,
         }, 0);
         expect(listing.status).toBe(expected);
       }
+    });
+
+    it("[NEGATIVE TEST, Stage B cutover 1] MlsStatus is never consulted for the status label, even when it conflicts with StandardStatus", () => {
+      const listing = mapTrestleToCrmListing({
+        ListingId: "X",
+        StandardStatus: "Active",
+        MlsStatus: "Off Market", // deliberately conflicting — must NOT leak through.
+        InternetEntireListingDisplayYN: true,
+        InternetAddressDisplayYN: true,
+      }, 0);
+      expect(listing.status).toBe("ACTIVE");
+      expect(listing.status).not.toBe("WITHDRAWN");
+    });
+
+    it("[NEGATIVE TEST, Stage B cutover 1] StandardStatus absent, only MlsStatus present: falls to the Active default, does not substitute MlsStatus", () => {
+      const listing = mapTrestleToCrmListing({
+        ListingId: "X",
+        MlsStatus: "Pending",
+        InternetEntireListingDisplayYN: true,
+        InternetAddressDisplayYN: true,
+      }, 0);
+      expect(listing.status).toBe("ACTIVE");
+      expect(listing.status).not.toBe("PENDING");
     });
   });
 
@@ -274,13 +307,16 @@ describe("crm idx mapper", () => {
   // comingSoonDate was hard-coded null, so the badge renderer fell
   // back to a vague "until active date" string. Now populated from
   // Cotality ActivationDate (preferred) or OnMarketDate (fallback).
+  //
+  // Stage B cutover 1 (2026-10-02): fixtures below now set StandardStatus
+  // instead of MlsStatus, for the same reason as the compliance tests above.
   // ═══════════════════════════════════════════════════════════════════
 
   describe("comingSoonDate — UCBA Art. I §16(C)", () => {
     it("populates from raw.ActivationDate when status is Coming Soon", () => {
       const listing = mapTrestleToCrmListing({
         ListingId: "X",
-        MlsStatus: "Coming Soon",
+        StandardStatus: "Coming Soon",
         ActivationDate: "2026-06-15T00:00:00Z",
         OnMarketDate: "2026-06-10T00:00:00Z",
         InternetEntireListingDisplayYN: true,
@@ -293,7 +329,7 @@ describe("crm idx mapper", () => {
     it("falls back to raw.OnMarketDate when ActivationDate is missing", () => {
       const listing = mapTrestleToCrmListing({
         ListingId: "X",
-        MlsStatus: "ComingSoon",
+        StandardStatus: "ComingSoon",
         OnMarketDate: "2026-07-01",
         InternetEntireListingDisplayYN: true,
         InternetAddressDisplayYN: true,
@@ -307,7 +343,7 @@ describe("crm idx mapper", () => {
       // never invent a vague "until active date" string.
       const listing = mapTrestleToCrmListing({
         ListingId: "X",
-        MlsStatus: "Coming Soon",
+        StandardStatus: "Coming Soon",
         InternetEntireListingDisplayYN: true,
         InternetAddressDisplayYN: true,
       }, 0);
@@ -317,7 +353,7 @@ describe("crm idx mapper", () => {
     it("does NOT populate comingSoonDate for non-Coming-Soon statuses", () => {
       const listing = mapTrestleToCrmListing({
         ListingId: "X",
-        MlsStatus: "Active",
+        StandardStatus: "Active",
         ActivationDate: "2026-06-15T00:00:00Z",
         OnMarketDate: "2026-06-10T00:00:00Z",
         InternetEntireListingDisplayYN: true,

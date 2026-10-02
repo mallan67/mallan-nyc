@@ -571,6 +571,20 @@ export function normalizeStandardStatus(input: unknown): string {
   return trimmed;
 }
 
+/**
+ * The canonical listing status field, per Master Plan §0.6: "StandardStatus and MlsStatus
+ * exposed separate picklists and behaved as separate fields. Neither is derived from the
+ * other... Never substitute one for the other." Reads StandardStatus only — MlsStatus is
+ * never consulted here, in either direction. StandardStatus has zero null rows in live
+ * population (verified, docs/audits/raw-mapper-property-contract-resolution-2026-10-02.md);
+ * the "Active" fallback below is an unreached defensive guard for Prisma's non-null
+ * constraint, not verified business logic — if it ever fires in practice, treat that as a
+ * data-quality signal, not confirmation the fallback value is correct.
+ */
+export function getCanonicalStandardStatus(raw: Record<string, unknown>): string {
+  return String(raw.StandardStatus || "Active");
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // Phase A — Centralized display-gate computation
 // ───────────────────────────────────────────────────────────────────────────
@@ -856,7 +870,7 @@ export function mapTrestleToPrisma(raw: Record<string, unknown>): {
 } {
   const listingId = String(raw.ListingId || raw.ListingKey || "");
   const mlsId = raw.ListingKey ? String(raw.ListingKey) : null;
-  const status = String(raw.StandardStatus || raw.MlsStatus || "Active");
+  const status = getCanonicalStandardStatus(raw);
   const listingType = inferListingType(raw);
 
   // Explicit columns

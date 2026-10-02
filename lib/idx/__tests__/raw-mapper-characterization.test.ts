@@ -48,10 +48,18 @@ describe("Stage A — normalizeStandardStatus (trestle-mapper.ts) [LEGACY_UNVERI
 });
 
 describe("Stage A — mapTrestleToPrisma status precedence and numeric null-vs-zero", () => {
-  it("[PROVEN_DEFECT, upgraded 2026-10-02] StandardStatus/MlsStatus fallback-substitution — Master Plan §0.6 states these are two independent enums and 'Never substitute one for the other'; this test pins the CURRENT violation (shared by all three mappers, not just this one), not a target to preserve", () => {
+  it("[FIXED, Stage B cutover 1, 2026-10-02] StandardStatus/MlsStatus substitution removed per Master Plan §0.6 — StandardStatus drives status unconditionally; MlsStatus is never consulted, even as a fallback", () => {
     expect(mapTrestleToPrisma({ ListingId: "1", StandardStatus: "Pending", MlsStatus: "Active" }).status).toBe("Pending");
-    expect(mapTrestleToPrisma({ ListingId: "2", MlsStatus: "Pending" }).status).toBe("Pending");
+    // MlsStatus present, StandardStatus absent: no longer substitutes MlsStatus — falls to
+    // the unreached "Active" default instead (StandardStatus has zero null rows live; this
+    // default is a Prisma non-null guard, not verified business logic).
+    expect(mapTrestleToPrisma({ ListingId: "2", MlsStatus: "Pending" }).status).toBe("Active");
     expect(mapTrestleToPrisma({ ListingId: "3" }).status).toBe("Active");
+  });
+
+  it("[NEGATIVE TEST] StandardStatus and MlsStatus set to CONFLICTING values — status follows StandardStatus only, proving the substitution is actually gone, not just reordered", () => {
+    expect(mapTrestleToPrisma({ ListingId: "1", StandardStatus: "Closed", MlsStatus: "Active" }).status).toBe("Closed");
+    expect(mapTrestleToPrisma({ ListingId: "2", StandardStatus: "Active", MlsStatus: "Closed" }).status).toBe("Active");
   });
 
   it("a missing numeric field (BedroomsTotal) maps to null, NOT zero", () => {
@@ -136,14 +144,13 @@ describe("Stage A — CONFIRMED LIVE DEFECT: computeGateColumns vs checkDistribu
   });
 });
 
-describe("Stage A — PROVEN_DEFECT (upgraded 2026-10-02): status-field substitution, all three mappers, not just one", () => {
+describe("Stage A — [FIXED, Stage B cutover 1, 2026-10-02]: status-field substitution removed in all three mappers", () => {
   // Master Plan §0.6: "StandardStatus and MlsStatus... Neither is derived from the other.
-  // Never substitute one for the other." All three mappers below violate this by falling
-  // back from one to the other. The two tests pin CURRENT (wrong) behavior for both
-  // directions of the violation — neither is the target; Stage B must stop substituting
-  // entirely (read StandardStatus for canonical status, MlsStatus separately only where a
-  // consumer specifically needs it), not simply "pick StandardStatus-first as the winner."
-  it("mapRESOToInternal (mapping.ts) substitutes MlsStatus when StandardStatus is present but reads StandardStatus first", () => {
+  // Never substitute one for the other." All three mappers now call the single shared
+  // lib/idx/trestle-mapper.ts export getCanonicalStandardStatus(raw) for the
+  // status/standardStatus field that drives display/compliance decisions, instead of each
+  // independently choosing which raw field to trust.
+  it("mapRESOToInternal (mapping.ts) now matches mapTrestleToPrisma exactly — StandardStatus only, MlsStatus never consulted", () => {
     const listing = mapRESOToInternal({
       ListingKey: "1", ListingId: "1", StandardStatus: "Pending", MlsStatus: "Active",
       PropertyType: "Residential", ListPrice: 100000,
@@ -151,15 +158,23 @@ describe("Stage A — PROVEN_DEFECT (upgraded 2026-10-02): status-field substitu
     expect(listing?.standardStatus).toBe("Pending");
   });
 
-  it("mapTrestleToCrmListing (crm-idx-mapper.ts) substitutes in the OPPOSITE direction (MlsStatus-first) on the identical input shape", () => {
+  it("mapTrestleToCrmListing (crm-idx-mapper.ts) no longer substitutes in the opposite direction — status is driven by StandardStatus on the identical input shape", () => {
     const listing = mapTrestleToCrmListing(
       { ListingKey: "1", ListingId: "1", StandardStatus: "Pending", MlsStatus: "Active", PropertyType: "Residential", ListPrice: 100000 },
       0
     );
-    // Characterizes TODAY's behavior, which disagrees with the other two mappers on the
-    // identical input above (they return "Pending"). Not asserted here as correct — both
-    // this test and the one above pin a Master-Plan-forbidden substitution pattern, not a
-    // disagreement to resolve by picking a winning direction.
-    expect(listing.status).not.toBe("Pending");
+    // statusMap["Pending"] = "PENDING" — confirms canonicalStatus (StandardStatus-driven),
+    // not mlsStatus (still MlsStatus-first for crm-idx-mapper.ts's own, separately-scoped
+    // `mlsStatus` output field), drives the displayed status label.
+    expect(listing.status).toBe("PENDING");
+  });
+
+  it("[NEGATIVE TEST] mapTrestleToCrmListing with StandardStatus absent and only MlsStatus present no longer substitutes MlsStatus for the status label", () => {
+    const listing = mapTrestleToCrmListing(
+      { ListingKey: "1", ListingId: "1", MlsStatus: "Pending", PropertyType: "Residential", ListPrice: 100000 },
+      0
+    );
+    // canonicalStatus falls to the "Active" default (StandardStatus absent); statusMap["Active"] = "ACTIVE".
+    expect(listing.status).toBe("ACTIVE");
   });
 });

@@ -8,7 +8,7 @@
  */
 
 import type { IDXListing } from './types';
-import { REQUIRED_RLS_FIELDS } from './trestle-mapper';
+import { REQUIRED_RLS_FIELDS, getCanonicalStandardStatus } from './trestle-mapper';
 import { normalizeStreetCase } from './normalize-street-case';
 import { classifyTrestleMediaCategory } from '@/lib/media/media-sync-service';
 
@@ -291,7 +291,7 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     listingId,
     listingKeyNumeric,
     mlsId: String(raw.ListingKey || listingId),
-    standardStatus: String(raw.StandardStatus || raw.MlsStatus || 'Active') as IDXListing['standardStatus'],
+    standardStatus: getCanonicalStandardStatus(raw) as IDXListing['standardStatus'],
     listingType: isRental ? 'rent' : 'sale',
     address: addr,
     listPrice: Number(raw.ListPrice) || 0,
