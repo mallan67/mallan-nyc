@@ -287,14 +287,15 @@ describe("crm idx mapper", () => {
       expect(listing.status).not.toBe("WITHDRAWN");
     });
 
-    it("[NEGATIVE TEST, Stage B cutover 1] StandardStatus absent, only MlsStatus present: falls to the Active default, does not substitute MlsStatus", () => {
+    it("[NEGATIVE TEST, Stage B cutover 1 (corrected)] StandardStatus absent, only MlsStatus present: falls to UNKNOWN — never Active (not fabricated) and never Pending (not substituted)", () => {
       const listing = mapTrestleToCrmListing({
         ListingId: "X",
         MlsStatus: "Pending",
         InternetEntireListingDisplayYN: true,
         InternetAddressDisplayYN: true,
       }, 0);
-      expect(listing.status).toBe("ACTIVE");
+      expect(listing.status).toBe("UNKNOWN");
+      expect(listing.status).not.toBe("ACTIVE");
       expect(listing.status).not.toBe("PENDING");
     });
   });

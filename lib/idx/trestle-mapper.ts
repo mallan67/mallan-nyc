@@ -6,6 +6,7 @@ import { affirmPermission } from "@/lib/compliance/gates";
 import { slimRawData } from "@/lib/compliance/raw-data-keep-fields";
 import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
+import { readCotalityStandardStatus } from "@/lib/cotality/property";
 
 // ═══════════════════════════════════════════════════════════
 // PROPERTY $select. Every name is a field the live Cotality Property resource
@@ -571,20 +572,6 @@ export function normalizeStandardStatus(input: unknown): string {
   return trimmed;
 }
 
-/**
- * The canonical listing status field, per Master Plan §0.6: "StandardStatus and MlsStatus
- * exposed separate picklists and behaved as separate fields. Neither is derived from the
- * other... Never substitute one for the other." Reads StandardStatus only — MlsStatus is
- * never consulted here, in either direction. StandardStatus has zero null rows in live
- * population (verified, docs/audits/raw-mapper-property-contract-resolution-2026-10-02.md);
- * the "Active" fallback below is an unreached defensive guard for Prisma's non-null
- * constraint, not verified business logic — if it ever fires in practice, treat that as a
- * data-quality signal, not confirmation the fallback value is correct.
- */
-export function getCanonicalStandardStatus(raw: Record<string, unknown>): string {
-  return String(raw.StandardStatus || "Active");
-}
-
 // ───────────────────────────────────────────────────────────────────────────
 // Phase A — Centralized display-gate computation
 // ───────────────────────────────────────────────────────────────────────────
@@ -870,7 +857,21 @@ export function mapTrestleToPrisma(raw: Record<string, unknown>): {
 } {
   const listingId = String(raw.ListingId || raw.ListingKey || "");
   const mlsId = raw.ListingKey ? String(raw.ListingKey) : null;
-  const status = getCanonicalStandardStatus(raw);
+  const standardStatus = readCotalityStandardStatus(raw);
+  // Fail loud, never fabricate: StandardStatus is a required field (REQUIRED_RLS_FIELDS)
+  // and the sync pipeline's validateRequiredFields() gate should already have rejected any
+  // row missing it before mapTrestleToPrisma ever runs. Hitting this is a pipeline-ordering
+  // bug to fix at the call site, not a case to paper over with a fabricated "Active" status
+  // (Master Plan §0.6; StandardStatus has zero null rows in live population — see
+  // docs/audits/raw-mapper-property-contract-resolution-2026-10-02.md).
+  if (standardStatus === null) {
+    throw new Error(
+      `mapTrestleToPrisma: StandardStatus missing for ListingKey/Id="${listingId}". ` +
+      `StandardStatus must never be fabricated as "Active" or substituted with MlsStatus ` +
+      `(Master Plan §0.6). The caller should reject this row during required-field validation.`
+    );
+  }
+  const status = standardStatus;
   const listingType = inferListingType(raw);
 
   // Explicit columns

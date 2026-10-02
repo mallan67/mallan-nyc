@@ -1,5 +1,5 @@
 import { resolveListingMedia } from "@/lib/media/listing-media-resolver";
-import { getCanonicalStandardStatus } from "@/lib/idx/trestle-mapper";
+import { readCotalityStandardStatus } from "@/lib/cotality/property";
 
 // REBNY IDX Plus pre-filter: REBNY/Cotality removes non-displayable rows from
 // the IDX Plus feed upstream, leaving InternetEntireListingDisplayYN and
@@ -133,13 +133,16 @@ export function mapTrestleToCrmListing(
     else era = "Pre-War";
   }
 
-  const mlsStatus = String(raw.MlsStatus || raw.StandardStatus || "Active");
   // Master Plan §0.6: StandardStatus and MlsStatus are independent enums and must never
-  // substitute for one another. canonicalStatus (not mlsStatus above) drives the
-  // user/compliance-facing `status` label below; `mlsStatus`'s own output-field value is
-  // intentionally left unchanged in this cutover (its downstream CRM consumers were not
-  // independently verified as part of this specific fix — see the Stage B1 cutover table).
-  const canonicalStatus = getCanonicalStandardStatus(raw);
+  // substitute for one another, in either direction. canonicalStatus is the single raw
+  // Cotality value (or null if genuinely absent) that drives BOTH the mlsStatus output
+  // field below (kept under this name only because the frozen
+  // public/crm/js/search/search-engine.js reads `listing.mlsStatus` for free-text status
+  // search — traced as part of the Stage B1 cutover; it is tolerant of any reasonable
+  // status string, not a semantic read of Cotality's literal MlsStatus field) and the
+  // UCBA-safe statusMap lookup. Neither reads Cotality's actual MlsStatus field at all.
+  const canonicalStatus = readCotalityStandardStatus(raw);
+  const mlsStatus = canonicalStatus ?? "";
   const statusMap: Record<string, string> = {
     Active: "ACTIVE",
     ComingSoon: "COMING_SOON",
@@ -172,7 +175,7 @@ export function mapTrestleToCrmListing(
   // sentinel and either suppress badges or show a neutral indicator.
   // (Was: `mlsStatus.toUpperCase()` which could produce "OFF MARKET",
   // "FUTURE", or any other vendor-specific string in the UI.)
-  const status = statusMap[canonicalStatus] || "UNKNOWN";
+  const status = statusMap[canonicalStatus ?? ""] || "UNKNOWN";
 
   // ── Coming Soon date (UCBA Art. I §16(C)) ──────────────────────────
   // UCBA requires "No Showings or Open House until [date]" disclosure

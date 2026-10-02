@@ -48,18 +48,25 @@ describe("Stage A — normalizeStandardStatus (trestle-mapper.ts) [LEGACY_UNVERI
 });
 
 describe("Stage A — mapTrestleToPrisma status precedence and numeric null-vs-zero", () => {
-  it("[FIXED, Stage B cutover 1, 2026-10-02] StandardStatus/MlsStatus substitution removed per Master Plan §0.6 — StandardStatus drives status unconditionally; MlsStatus is never consulted, even as a fallback", () => {
+  it("[FIXED, Stage B cutover 1 (corrected), 2026-10-02] StandardStatus drives status exactly — MlsStatus is never consulted, even when it conflicts", () => {
     expect(mapTrestleToPrisma({ ListingId: "1", StandardStatus: "Pending", MlsStatus: "Active" }).status).toBe("Pending");
-    // MlsStatus present, StandardStatus absent: no longer substitutes MlsStatus — falls to
-    // the unreached "Active" default instead (StandardStatus has zero null rows live; this
-    // default is a Prisma non-null guard, not verified business logic).
-    expect(mapTrestleToPrisma({ ListingId: "2", MlsStatus: "Pending" }).status).toBe("Active");
-    expect(mapTrestleToPrisma({ ListingId: "3" }).status).toBe("Active");
+    expect(mapTrestleToPrisma({ ListingId: "2", StandardStatus: "Closed", MlsStatus: "Active" }).status).toBe("Closed");
+    expect(mapTrestleToPrisma({ ListingId: "3", StandardStatus: "Active", MlsStatus: "Closed" }).status).toBe("Active");
   });
 
-  it("[NEGATIVE TEST] StandardStatus and MlsStatus set to CONFLICTING values — status follows StandardStatus only, proving the substitution is actually gone, not just reordered", () => {
-    expect(mapTrestleToPrisma({ ListingId: "1", StandardStatus: "Closed", MlsStatus: "Active" }).status).toBe("Closed");
-    expect(mapTrestleToPrisma({ ListingId: "2", StandardStatus: "Active", MlsStatus: "Closed" }).status).toBe("Active");
+  it("preserves exact live Cotality spellings verbatim — ActiveUnderContract, Canceled, Delete, Incomplete are never rewritten", () => {
+    expect(mapTrestleToPrisma({ ListingId: "1", StandardStatus: "ActiveUnderContract", MlsStatus: "Active" }).status).toBe("ActiveUnderContract");
+    expect(mapTrestleToPrisma({ ListingId: "2", StandardStatus: "Canceled" }).status).toBe("Canceled");
+    expect(mapTrestleToPrisma({ ListingId: "3", StandardStatus: "Delete" }).status).toBe("Delete");
+    expect(mapTrestleToPrisma({ ListingId: "4", StandardStatus: "Incomplete" }).status).toBe("Incomplete");
+  });
+
+  it("[NEGATIVE TEST, persistence boundary] StandardStatus absent, MlsStatus present: throws rather than substituting MlsStatus or fabricating Active", () => {
+    expect(() => mapTrestleToPrisma({ ListingId: "2", MlsStatus: "Pending" })).toThrow(/StandardStatus missing/);
+  });
+
+  it("[NEGATIVE TEST, persistence boundary] both StandardStatus and MlsStatus absent: throws rather than fabricating Active", () => {
+    expect(() => mapTrestleToPrisma({ ListingId: "3" })).toThrow(/StandardStatus missing/);
   });
 
   it("a missing numeric field (BedroomsTotal) maps to null, NOT zero", () => {
@@ -144,13 +151,16 @@ describe("Stage A — CONFIRMED LIVE DEFECT: computeGateColumns vs checkDistribu
   });
 });
 
-describe("Stage A — [FIXED, Stage B cutover 1, 2026-10-02]: status-field substitution removed in all three mappers", () => {
+describe("Stage A — [FIXED, Stage B cutover 1 (corrected), 2026-10-02]: display projections fall to UNKNOWN, never a fabricated Active, in all three mappers", () => {
   // Master Plan §0.6: "StandardStatus and MlsStatus... Neither is derived from the other.
-  // Never substitute one for the other." All three mappers now call the single shared
-  // lib/idx/trestle-mapper.ts export getCanonicalStandardStatus(raw) for the
-  // status/standardStatus field that drives display/compliance decisions, instead of each
-  // independently choosing which raw field to trust.
-  it("mapRESOToInternal (mapping.ts) now matches mapTrestleToPrisma exactly — StandardStatus only, MlsStatus never consulted", () => {
+  // Never substitute one for the other." All three mappers now read the single shared
+  // lib/cotality/property.ts export readCotalityStandardStatus(raw) — the Cotality raw
+  // contract boundary, NOT any of the three legacy mapper files — for the field that
+  // drives display/compliance decisions. mapTrestleToPrisma (persistence) throws when it
+  // is absent (see the describe block above); mapRESOToInternal and
+  // mapTrestleToCrmListing (display projections) fall to an UNKNOWN sentinel instead —
+  // never "Active", which is a real, specific provider-asserted business state.
+  it("mapRESOToInternal (mapping.ts) now matches mapTrestleToPrisma's source exactly — StandardStatus only, MlsStatus never consulted", () => {
     const listing = mapRESOToInternal({
       ListingKey: "1", ListingId: "1", StandardStatus: "Pending", MlsStatus: "Active",
       PropertyType: "Residential", ListPrice: 100000,
@@ -158,23 +168,38 @@ describe("Stage A — [FIXED, Stage B cutover 1, 2026-10-02]: status-field subst
     expect(listing?.standardStatus).toBe("Pending");
   });
 
+  it("[NEGATIVE TEST] mapRESOToInternal with StandardStatus absent falls to UNKNOWN, never Active, even with MlsStatus present", () => {
+    const listing = mapRESOToInternal({
+      ListingKey: "1", ListingId: "1", MlsStatus: "Pending",
+      PropertyType: "Residential", ListPrice: 100000,
+    });
+    expect(listing?.standardStatus).toBe("UNKNOWN");
+  });
+
   it("mapTrestleToCrmListing (crm-idx-mapper.ts) no longer substitutes in the opposite direction — status is driven by StandardStatus on the identical input shape", () => {
     const listing = mapTrestleToCrmListing(
       { ListingKey: "1", ListingId: "1", StandardStatus: "Pending", MlsStatus: "Active", PropertyType: "Residential", ListPrice: 100000 },
       0
     );
-    // statusMap["Pending"] = "PENDING" — confirms canonicalStatus (StandardStatus-driven),
-    // not mlsStatus (still MlsStatus-first for crm-idx-mapper.ts's own, separately-scoped
-    // `mlsStatus` output field), drives the displayed status label.
     expect(listing.status).toBe("PENDING");
   });
 
-  it("[NEGATIVE TEST] mapTrestleToCrmListing with StandardStatus absent and only MlsStatus present no longer substitutes MlsStatus for the status label", () => {
+  it("[NEGATIVE TEST] mapTrestleToCrmListing with StandardStatus absent and only MlsStatus present falls to UNKNOWN — never Active, never Pending (no substitution, no fabrication)", () => {
     const listing = mapTrestleToCrmListing(
       { ListingKey: "1", ListingId: "1", MlsStatus: "Pending", PropertyType: "Residential", ListPrice: 100000 },
       0
     );
-    // canonicalStatus falls to the "Active" default (StandardStatus absent); statusMap["Active"] = "ACTIVE".
-    expect(listing.status).toBe("ACTIVE");
+    expect(listing.status).toBe("UNKNOWN");
+    expect(listing.status).not.toBe("ACTIVE");
+    expect(listing.status).not.toBe("PENDING");
+  });
+
+  it("[NEGATIVE TEST] mapTrestleToCrmListing with both StandardStatus and MlsStatus absent falls to UNKNOWN, never Active", () => {
+    const listing = mapTrestleToCrmListing(
+      { ListingKey: "1", ListingId: "1", PropertyType: "Residential", ListPrice: 100000 },
+      0
+    );
+    expect(listing.status).toBe("UNKNOWN");
+    expect(listing.status).not.toBe("ACTIVE");
   });
 });
