@@ -120,13 +120,13 @@ describe("computeGateColumns — status normalization reaches the guard", () => 
     expect(result.idx_display_yn).toBe(false);
   });
 
-  it("defaults null/undefined/non-string status to Active (displayable)", () => {
+  it("[Stage B1 status closure, 2026-10-02] non-string status is labeled Unknown, not a fabricated Active — downstream gate behavior (non-terminal, displayable) is unchanged", () => {
     for (const input of [null, undefined, 0, 1, {}, []] as unknown[]) {
       const result = computeGateColumns({
         status: input,
         internetEntireListingDisplayYN: true,
       });
-      expect(result.normalized_status).toBe("Active");
+      expect(result.normalized_status).toBe("Unknown");
       expect(result.is_terminal).toBe(false);
       expect(result.idx_display_yn).toBe(true);
     }

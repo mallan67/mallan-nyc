@@ -156,10 +156,11 @@ describe("Stage A — [FIXED, Stage B cutover 1 (corrected), 2026-10-02]: displa
   // Never substitute one for the other." All three mappers now read the single shared
   // lib/cotality/property.ts export readCotalityStandardStatus(raw) — the Cotality raw
   // contract boundary, NOT any of the three legacy mapper files — for the field that
-  // drives display/compliance decisions. mapTrestleToPrisma (persistence) throws when it
-  // is absent (see the describe block above); mapRESOToInternal and
-  // mapTrestleToCrmListing (display projections) fall to an UNKNOWN sentinel instead —
-  // never "Active", which is a real, specific provider-asserted business state.
+  // drives display/compliance decisions. mapTrestleToPrisma falls to an "Unknown"
+  // sentinel when it is absent (see the describe block above, corrected from an earlier
+  // throw — see lib/idx/trestle-mapper.ts's status-closure comment); mapRESOToInternal and
+  // mapTrestleToCrmListing (display projections) fall to an UNKNOWN sentinel too — never
+  // "Active", which is a real, specific provider-asserted business state.
   it("mapRESOToInternal (mapping.ts) now matches mapTrestleToPrisma's source exactly — StandardStatus only, MlsStatus never consulted", () => {
     const listing = mapRESOToInternal({
       ListingKey: "1", ListingId: "1", StandardStatus: "Pending", MlsStatus: "Active",

@@ -119,7 +119,10 @@ function readPermissionString(o: PermissionInput): string {
 }
 
 function readStatus(o: PermissionInput): StatusValue | null {
-  const raw = readFirst<unknown>(o, ["StandardStatus", "MlsStatus", "standardStatus", "status"]);
+  // Master Plan §0.6: StandardStatus and MlsStatus are independent RESO enums; MlsStatus
+  // must never substitute for StandardStatus. DB/internal sources (standardStatus, status)
+  // are preserved as fallbacks — only the raw-Cotality MlsStatus fallback is removed.
+  const raw = readFirst<unknown>(o, ["StandardStatus", "standardStatus", "status"]);
   if (typeof raw !== "string") return null;
   // Import on demand to avoid top-level cycle with status.ts
   // (status.ts has no imports from this module, so this is safe).

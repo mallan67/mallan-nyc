@@ -753,7 +753,16 @@ export function derivePermissionGates(raw: Record<string, unknown>): PermissionG
 export function computeGateColumns(
   input: ComputeGateColumnsInput,
 ): ComputeGateColumnsResult {
-  const normalized_status = normalizeStandardStatus(input.status);
+  // Master Plan §0.6 / Stage B1 status closure: normalizeStandardStatus(undefined) returns
+  // "Active" by that function's own general contract (relied on by many other callers —
+  // not changed here). Locally, for gate purposes only, a missing/non-string status must
+  // not be labeled "Active" — "Unknown" is not in TERMINAL_STATUSES either, so is_terminal
+  // and the downstream idx_display_yn computation are unchanged for this case; only the
+  // fabricated label itself is corrected (lib/idx/__tests__/compute-gate-columns.test.ts).
+  const normalized_status =
+    typeof input.status === "string" && input.status.trim()
+      ? normalizeStandardStatus(input.status)
+      : "Unknown";
   const is_terminal = TERMINAL_STATUSES.has(normalized_status);
 
   // IDX Plus pre-filter: null / undefined = REBNY upstream filter passed

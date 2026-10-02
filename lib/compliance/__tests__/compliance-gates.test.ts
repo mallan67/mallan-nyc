@@ -204,6 +204,11 @@ describe('checkDistributionGates', () => {
     );
     expect(result.displayable).toBe(true);
   });
+
+  it('[NEGATIVE TEST, Stage B1 status closure] StandardStatus absent, MlsStatus=ComingSoon: evaluateDisplayGate does not treat it as Coming Soon — gates.ts readStatus() no longer substitutes MlsStatus for StandardStatus (Master Plan §0.6)', () => {
+    const result = evaluateDisplayGate({ MlsStatus: 'ComingSoon', InternetEntireListingDisplayYN: true });
+    expect(result.comingSoon).toBe(false);
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
