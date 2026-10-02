@@ -79,7 +79,6 @@ describe("S1 — mapper stops writing the redundant compliance copy", () => {
     expect(r.internet_entire_listing_display_yn).toBe(true);
     expect(r.internet_address_display_yn).toBe(true);
     expect(r.participant_only).toBe(false);
-    expect(r.owner_opt_out).toBe(false);
     // Price/attribution typed fields intact.
     expect(Number(r.list_price)).toBe(1_000_000);
   });
@@ -90,9 +89,9 @@ describe("S1 — mapper stops writing the redundant compliance copy", () => {
     expect(r.compliance).toEqual({}); // still no compliance copy
   });
 
-  it("owner opt-out / participant gates still computed (independent of compliance JSON)", () => {
+  it("[Permission cutover 2026-10-02] participant gate still computed (independent of compliance JSON); owner_opt_out is no longer a mapper output at all — it has no live Cotality signal (Gate 1 is Mallan-local authority, see derivePermissionGates's docstring)", () => {
     const optOut = mapTrestleToPrisma(buildCotalityRow({ Permissions: "OwnerOptOut" }));
-    expect(optOut.owner_opt_out).toBe(true);
+    expect(optOut).not.toHaveProperty("owner_opt_out");
     const priv = mapTrestleToPrisma(buildCotalityRow({ Permissions: "Private" }));
     expect(priv.participant_only).toBe(true);
   });

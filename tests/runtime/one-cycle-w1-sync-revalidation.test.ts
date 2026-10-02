@@ -136,7 +136,6 @@ function dbRowFromRaw(raw: Record<string, unknown>): Record<string, unknown> {
     internet_entire_listing_display_yn: mapped.internet_entire_listing_display_yn,
     internet_address_display_yn: mapped.internet_address_display_yn,
     participant_only: mapped.participant_only,
-    owner_opt_out: mapped.owner_opt_out,
     address: JSON.parse(JSON.stringify(mapped.address)),
     features: JSON.parse(JSON.stringify(mapped.features)),
     raw_data: JSON.parse(JSON.stringify(mapped.raw_data)),
