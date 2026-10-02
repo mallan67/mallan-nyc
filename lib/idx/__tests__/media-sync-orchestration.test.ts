@@ -321,22 +321,23 @@ describe("runMediaSync — empty page", () => {
 // ─── Defensive compliance gates ──────────────────────────────────────────
 
 describe("runMediaSync — defensive compliance gates", () => {
-  it("skips owner_opt_out listings (Permission='OwnerOptOut') without fetching their Media", async () => {
+  it("[Permission cutover 2026-10-02] does NOT skip on Permission/MlsStatus='OwnerOptOut' any more — Gate 1 has no live Cotality signal and this orchestration layer has no DB row to consult for the real, Mallan-local owner_opt_out column (see lib/idx/media-sync.ts::isPropertyComplianceBlocked's docstring)", async () => {
     mockMediaSyncFindUnique.mockResolvedValue(null);
-    const fetchMedia = jest.fn();
+    mockListingMediaFindMany.mockResolvedValue([]);
+    const fetchMedia = jest.fn().mockResolvedValue([]);
     const fetchDeps = makeFetchDeps({
       fetchProperties: jest.fn().mockResolvedValueOnce([
         makeProperty({ Permission: "OwnerOptOut" }),
-        makeProperty({ ListingId: "RLS-OK", ListingKey: "K-OK" }),
+        makeProperty({ Permissions: "OwnerOptOut" }),
+        makeProperty({ Permission: "Owner Opt-Out" }),
+        makeProperty({ MlsStatus: "OwnerOptOut" }),
       ]),
       fetchMedia,
     });
 
     const result = await runMediaSync(makeOptions({ fetchDeps }));
-    expect(result.listings_skipped).toBe(1);
-    // Only the non-skipped listing's Media is fetched.
-    expect(fetchMedia).toHaveBeenCalledTimes(1);
-    expect((fetchMedia as jest.Mock).mock.calls[0][0]).toBe("K-OK");
+    expect(result.listings_skipped).toBe(0);
+    expect(fetchMedia).toHaveBeenCalledTimes(4);
   });
 
   it("skips participant_only listings (Permission='Private') without fetching their Media", async () => {
@@ -352,48 +353,6 @@ describe("runMediaSync — defensive compliance gates", () => {
     const result = await runMediaSync(makeOptions({ fetchDeps }));
     expect(result.listings_skipped).toBe(1);
     expect(result.listings_processed).toBe(0);
-    expect(fetchMedia).not.toHaveBeenCalled();
-  });
-
-  it("skips owner_opt_out via legacy plural Permissions enum without fetching Media", async () => {
-    mockMediaSyncFindUnique.mockResolvedValue(null);
-    const fetchMedia = jest.fn();
-    const fetchDeps = makeFetchDeps({
-      fetchProperties: jest.fn().mockResolvedValueOnce([
-        makeProperty({ Permissions: "OwnerOptOut" }),
-      ]),
-      fetchMedia,
-    });
-    const result = await runMediaSync(makeOptions({ fetchDeps }));
-    expect(result.listings_skipped).toBe(1);
-    expect(fetchMedia).not.toHaveBeenCalled();
-  });
-
-  it("skips owner_opt_out via 'Owner Opt-Out' alternate spelling", async () => {
-    mockMediaSyncFindUnique.mockResolvedValue(null);
-    const fetchMedia = jest.fn();
-    const fetchDeps = makeFetchDeps({
-      fetchProperties: jest.fn().mockResolvedValueOnce([
-        makeProperty({ Permission: "Owner Opt-Out" }),
-      ]),
-      fetchMedia,
-    });
-    const result = await runMediaSync(makeOptions({ fetchDeps }));
-    expect(result.listings_skipped).toBe(1);
-    expect(fetchMedia).not.toHaveBeenCalled();
-  });
-
-  it("skips owner_opt_out via MlsStatus='OwnerOptOut'", async () => {
-    mockMediaSyncFindUnique.mockResolvedValue(null);
-    const fetchMedia = jest.fn();
-    const fetchDeps = makeFetchDeps({
-      fetchProperties: jest.fn().mockResolvedValueOnce([
-        makeProperty({ MlsStatus: "OwnerOptOut" }),
-      ]),
-      fetchMedia,
-    });
-    const result = await runMediaSync(makeOptions({ fetchDeps }));
-    expect(result.listings_skipped).toBe(1);
     expect(fetchMedia).not.toHaveBeenCalled();
   });
 
@@ -958,24 +917,15 @@ describe("isPropertyComplianceBlocked", () => {
     expect(isPropertyComplianceBlocked(makeProperty())).toBe(false);
   });
 
-  it("returns true for Permission='OwnerOptOut'", () => {
-    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "OwnerOptOut" }))).toBe(true);
-  });
-
-  it("returns true for Permission='Owner Opt-Out' (alternate spelling)", () => {
-    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "Owner Opt-Out" }))).toBe(true);
-  });
-
-  it("returns true for Permissions='OwnerOptOut' (legacy plural)", () => {
-    expect(isPropertyComplianceBlocked(makeProperty({ Permissions: "OwnerOptOut" }))).toBe(true);
+  it("[Permission cutover 2026-10-02] no longer blocks on Permission/Permissions/MlsStatus='OwnerOptOut' or 'Owner Opt-Out' — Gate 1 has no live Cotality signal (confirmed via trestle_get_picklist)", () => {
+    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "OwnerOptOut" }))).toBe(false);
+    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "Owner Opt-Out" }))).toBe(false);
+    expect(isPropertyComplianceBlocked(makeProperty({ Permissions: "OwnerOptOut" }))).toBe(false);
+    expect(isPropertyComplianceBlocked(makeProperty({ MlsStatus: "OwnerOptOut" }))).toBe(false);
   });
 
   it("returns true for Permission='Private' (participant-only)", () => {
     expect(isPropertyComplianceBlocked(makeProperty({ Permission: "Private" }))).toBe(true);
-  });
-
-  it("returns true for MlsStatus='OwnerOptOut'", () => {
-    expect(isPropertyComplianceBlocked(makeProperty({ MlsStatus: "OwnerOptOut" }))).toBe(true);
   });
 
   it("returns true for InternetEntireListingDisplayYN === false", () => {

@@ -10,7 +10,7 @@
  * @module lib/compliance/__tests__/compliance-gates.test
  */
 
-import { checkDistributionGates, validateRequiredFields, mapTrestleToPrisma } from '@/lib/idx/trestle-mapper';
+import { checkDistributionGates, validateRequiredFields, mapTrestleToPrisma, applyLocalOwnerOptOutGate } from '@/lib/idx/trestle-mapper';
 import { toPublicDTO } from '@/lib/idx/public-dto';
 import { filterDisplayableDbListings } from '@/lib/idx/db-to-public-dto';
 import type { DbListing } from '@/lib/idx/db-to-public-dto';
@@ -149,9 +149,9 @@ describe('checkDistributionGates', () => {
   // See `lib/idx/trestle-mapper.ts:745-810` (checkDistributionGates) and
   // `compliance/IDX-VOW-DISPLAY-RULES.md:31,41` for authoritative mapping.
 
-  it('blocks owner opt-out listings (Permission = "OwnerOptOut")', () => {
+  it('[Permission cutover 2026-10-02] blocks owner opt-out listings via the local owner_opt_out column (Permission/MlsStatus have no live OwnerOptOut signal)', () => {
     const result = checkDistributionGates(
-      buildRawCotality({ Permission: 'OwnerOptOut' })
+      buildRawCotality({ owner_opt_out: true })
     );
     expect(result.displayable).toBe(false);
     expect(result.reason).toContain('Owner opted out');
@@ -1101,7 +1101,6 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
       );
       expect(mapped.idx_display_yn).toBe(true);
       expect(mapped.participant_only).toBe(false);
-      expect(mapped.owner_opt_out).toBe(false);
     });
 
     it('idx_display_yn is false when InternetEntireListingDisplayYN is explicitly false', () => {
@@ -1126,7 +1125,7 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
       expect(mapped.participant_only).toBe(true);
     });
 
-    it('idx_display_yn is false when Permission is OwnerOptOut — even with null entire/address', () => {
+    it('[Permission cutover 2026-10-02] Permission=OwnerOptOut no longer blocks the pure mapper output — it has no live Cotality signal and the mapper has no existing-row context to consult the real owner_opt_out column', () => {
       const mapped = mapTrestleToPrisma(
         buildRawCotality({
           InternetEntireListingDisplayYN: null,
@@ -1134,8 +1133,20 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
           Permission: 'OwnerOptOut',
         })
       );
-      expect(mapped.idx_display_yn).toBe(false);
-      expect(mapped.owner_opt_out).toBe(true);
+      expect(mapped.idx_display_yn).toBe(true);
+      expect(mapped).not.toHaveProperty('owner_opt_out');
+    });
+
+    it('[Permission cutover 2026-10-02] applyLocalOwnerOptOutGate is what actually blocks an owner-opted-out row on UPDATE', () => {
+      const mapped = mapTrestleToPrisma(
+        buildRawCotality({
+          InternetEntireListingDisplayYN: null,
+          InternetAddressDisplayYN: null,
+          Permission: 'OwnerOptOut',
+        })
+      );
+      expect(applyLocalOwnerOptOutGate(mapped.idx_display_yn, true)).toBe(false);
+      expect(applyLocalOwnerOptOutGate(mapped.idx_display_yn, false)).toBe(true);
     });
   });
 });
@@ -1192,11 +1203,11 @@ describe('checkDistributionGates — Cotality-live IDX Plus pre-filter semantics
     expect(result.reason).toContain('Internet display disabled');
   });
 
-  it('still blocks when Permission = OwnerOptOut, even with null entire-listing flag', () => {
+  it('[Permission cutover 2026-10-02] still blocks via local owner_opt_out, even with null entire-listing flag', () => {
     const result = checkDistributionGates(
       buildRawCotality({
         InternetEntireListingDisplayYN: null,
-        Permission: 'OwnerOptOut',
+        owner_opt_out: true,
       })
     );
     expect(result.displayable).toBe(false);
@@ -1276,11 +1287,11 @@ describe('evaluateDisplayGate — option flag preserves DB-row fail-closed defau
     expect(result.displayable).toBe(false);
   });
 
-  it('idxPlusPreFiltered: true: still blocks Permission=OwnerOptOut', () => {
+  it('[Permission cutover 2026-10-02] idxPlusPreFiltered: true: still blocks local owner_opt_out', () => {
     const result = evaluateDisplayGate(
       buildRawCotality({
         InternetEntireListingDisplayYN: null,
-        Permission: 'OwnerOptOut',
+        owner_opt_out: true,
       }),
       { idxPlusPreFiltered: true }
     );

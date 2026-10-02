@@ -61,6 +61,7 @@ jest.mock("@/lib/idx/trestle-mapper", () => ({
   normalizeStandardStatus: jest.requireActual("@/lib/idx/trestle-mapper").normalizeStandardStatus,
   validateHistoricalFields: jest.fn(() => ({ valid: true, missingFields: [] })),
   checkDistributionGates: jest.fn(() => ({ displayable: true, reason: null })),
+  applyLocalOwnerOptOutGate: jest.fn((idxDisplayYn: boolean) => idxDisplayYn),
   mapTrestleToPrisma: jest.fn(() => ({
     listing_id: "RLS20012345", mls_id: "RLS20012345", status: "Active", listing_type: "sale",
     property_type: "Residential", property_sub_type: "Condo", list_price: 1000000,

@@ -29,7 +29,7 @@
  * automatically expand the cron's effective scope via this same import.
  */
 
-import { mapTrestleToPrisma, TERMINAL_STATUSES } from '../../idx/trestle-mapper';
+import { mapTrestleToPrisma, TERMINAL_STATUSES, applyLocalOwnerOptOutGate } from '../../idx/trestle-mapper';
 
 const REQUIRED_MIN_FIELDS: Record<string, unknown> = {
   ListingId: 'RLS20000001',
@@ -165,7 +165,7 @@ describe('C2 — permission overrides still force idx_display_yn=false', () => {
   );
 
   it.each(['Active', 'ComingSoon', 'ActiveUnderContract'])(
-    '%s + Permission=OwnerOptOut → false',
+    '[Permission cutover 2026-10-02] %s + Permission=OwnerOptOut no longer blocks the pure mapper output — owner_opt_out has no live Cotality signal',
     (status) => {
       const raw = buildRaw({
         StandardStatus: status,
@@ -173,23 +173,20 @@ describe('C2 — permission overrides still force idx_display_yn=false', () => {
         Permission: 'OwnerOptOut',
       });
       const mapped = mapTrestleToPrisma(raw);
-      expect(mapped.idx_display_yn).toBe(false);
-      expect(mapped.owner_opt_out).toBe(true);
+      expect(mapped.idx_display_yn).toBe(true);
+      expect(mapped).not.toHaveProperty('owner_opt_out');
     },
   );
 
-  it.each(['Active', 'ComingSoon', 'ActiveUnderContract'])(
-    '%s + Permission="Owner Opt-Out" (display variant) → false',
-    (status) => {
-      const raw = buildRaw({
-        StandardStatus: status,
-        InternetEntireListingDisplayYN: true,
-        Permission: 'Owner Opt-Out',
-      });
-      const mapped = mapTrestleToPrisma(raw);
-      expect(mapped.idx_display_yn).toBe(false);
-    },
-  );
+  it('[Permission cutover 2026-10-02] applyLocalOwnerOptOutGate still forces idx_display_yn=false for an owner-opted-out row on UPDATE', () => {
+    const raw = buildRaw({
+      StandardStatus: 'Active',
+      InternetEntireListingDisplayYN: true,
+      Permission: 'OwnerOptOut',
+    });
+    const mapped = mapTrestleToPrisma(raw);
+    expect(applyLocalOwnerOptOutGate(mapped.idx_display_yn, true)).toBe(false);
+  });
 });
 
 describe('C2 — regression: a closed row cannot be re-flipped true by mapper output', () => {
