@@ -716,6 +716,47 @@ Do not create another status file because this one becomes inconvenient.
 
 Nothing is merged into `main` except the hotfix exception until step 7.
 
+## Authority separation rule (Maya, 2026-10-02)
+
+Three separate authorities govern this convergence. None substitutes for another — the
+"Known held defect" entries below exist because the old system collapsed this exact
+distinction.
+
+| Authority | Controls | Must NOT control |
+|---|---|---|
+| **REBNY RLS compliance rule** (UCBA, Mandatory Listing Info, current REBNY guidance) | Brokerage rules, mandatory listing information, dissemination, Owner Opt-Out, Participant Only, timing, fines | Cotality field names, API types, enum availability, queryability, resource structure |
+| **Live Cotality contract** (`$metadata`, Lookup/Field catalog, actual entitled rows) | Exact resources, fields, types, enums, relationships, filter/order permissions, actual delivered data | REBNY business/compliance interpretation |
+| **Mallan business rule** | Canonical storage, owner identity, CRM state, business workflows, audience-specific display | Inventing Cotality fields or replacing REBNY rules |
+
+**A REBNY concept becomes a Cotality mapping only when the live Cotality contract
+independently verifies the corresponding resource/field/value.** Owner Opt-Out and
+Participant Only are the worked example of both directions:
+
+- **Owner Opt-Out** — REBNY's UCBA names it as a real compliance state (not disseminated
+  through the RLS; no IDX/VOW/syndication/public; a signed form required; 2026 submission is
+  through the Exclusive Agent's LMP). Live Cotality's `Permission` (18 values) and `MlsStatus`
+  (26 values) enums have no `OwnerOptOut`/`Owner Opt-Out` member at all — the second authority
+  does NOT independently verify it. The correct chain is: REBNY names the rule → Mallan stores
+  `owner_opt_out` as canonical business/compliance state → Mallan blocks
+  public/IDX/VOW/marketing. It is never "REBNY names the rule → assume Cotality `Permission`
+  carries it." That assumption was exactly the bug fixed in the 2026-10-02 Permission cutover
+  (see "Known held defect — owner opt-out derivation" below, now RESOLVED).
+- **Participant Only** — REBNY's UCBA Definition (W) names it. Live Cotality's `Permission`
+  enum independently exposes `Private` for the same concept. Both authorities line up here, so
+  `Permission='Private' → participant_only=true` is a valid, verified mapping.
+
+Exact terminology from here forward — "RLS specification" is retired as ambiguous:
+- **"REBNY RLS compliance rule"** — UCBA, Mandatory Listing Info, current REBNY guidance.
+- **"live Cotality contract"** — resource/field/enum/type/query/data fact, verified live (never
+  assumed from an old file).
+- **"Mallan business rule"** — canonical behavior built from the two above.
+
+Historical files such as the now-deleted `data/rebny-rls-property-lookup.csv` (milestone 8),
+old `RLS-FIELD-REGISTRY`, and old Trestle/RLS mapper docs are evidence of a past claim, never
+a technical authority. Nothing in this convergence may cite one as proof that a Cotality
+field/value exists — only a live check (`trestle_get_picklist`, `trestle_lookup_field`,
+`trestle_validate_field`, or an actual entitled-row query) does that.
+
 ## Convergence progress — PR #647 (checkpoint 2026-10-02)
 
 | fact | value at this checkpoint |
@@ -892,30 +933,44 @@ attempt). See "Final adversarial sweep" for the independent check run against th
 - Not modified during this cleanup phase (frozen tool). Correct it when `index-built.html` is
   unfrozen for its Cotality conversion.
 
-## Known held defect — owner opt-out derivation is inert against live Cotality (frozen tool)
+## Known held defect — owner opt-out derivation inert against live Cotality — RESOLVED 2026-10-02
 
-- `lib/idx/trestle-mapper.ts`'s `derivePermissionGates()` (frozen pending raw-mapper unification)
-  derives `ownerOptOut` from `Permission === 'OwnerOptOut' | 'Owner Opt-Out'` or
-  `MlsStatus === 'OwnerOptOut'`. Live Cotality's `Permission` enum (confirmed directly against
-  `$metadata` via `trestle_get_picklist`) has 18 values and no `OwnerOptOut`/`Owner Opt-Out`
-  member; `OwnerOptOut` does not exist as a field name on live Trestle at all (confirmed via
-  `trestle_validate_field`). This derivation cannot fire against the live feed as written — PROVEN.
-- This is not new: `docs/audits/listing-media-reader-ownership-2026-08-13.md` §21.3 already measured,
-  with a live `$count` query on 2026-08-14, that 591,131/591,131 (100%) of Property rows in Mallan's
-  feed have `Permission eq 'IDX'`, concluding the per-row REBNY gates (including owner-opt-out) are
-  defense-in-depth that is presently inert because REBNY's upstream pre-filter already withholds
-  non-IDX listings before they reach the feed — that finding was never applied back to the code
-  until now.
-- UNVERIFIED: what, if anything, represents true owner-opt-out status in Mallan's entitled Cotality
-  feed, and whether such listings can reach the feed at all. REBNY's own public pages
-  (rebny.com/rls-faqs, rebny.com/rls-update) and RESO's own public Data Dictionary both describe the
-  Owner Opt-Out business rule and its effect (total internet non-display) but neither names a
-  Cotality/Trestle technical field that represents it downstream. No replacement field is proposed —
-  none of the primary sources checked name one.
-- Not modified during this cleanup phase: the file is frozen (individually, and pending the
-  raw-mapper-unification work). A fix needs a narrowly-scoped exception for these exact lines, not a
-  blanket unfreeze, and should wait until the UNVERIFIED question above is resolved against
-  REBNY/Cotality directly rather than guessed.
+**RESOLVED** via the narrowly-scoped mapper-exception tool (`tools/push-647-mapper-exception.js`),
+commits `7b6e901d`, `7a35e772`, `c9ade49a` on this branch. Per the "Authority separation rule"
+above: REBNY names Owner Opt-Out as a real compliance state, but live Cotality's `Permission` (18
+values) and `MlsStatus` (26 values) have no member for it — the UNVERIFIED question below is now
+answered: there is no Cotality field that represents it, by design (REBNY's 2026 process submits
+the signed form through the Exclusive Agent's LMP, upstream of the IDX Plus feed entirely — it
+blocks the listing from RLS itself, so it structurally cannot flow downstream as a `Permission`
+value). `owner_opt_out` is therefore Mallan-local authority, full stop, not a fallback.
+
+Changes: `lib/compliance/gates.ts::isOwnerOptOut`, `lib/idx/trestle-mapper.ts::derivePermissionGates`
+and `lib/idx/media-sync.ts::isPropertyComplianceBlocked` no longer attempt the dead value-match (
+`derivePermissionGates`'s `PermissionGates` return type no longer has an `ownerOptOut` field at
+all); `lib/compliance/rls-enforcement.ts` keeps its `Permission`-value check (a legitimate
+Mallan-internal CRM form sentinel on the agent-submitted payload) and drops only the `MlsStatus`
+arm. `Permission='Private'` (Participant Only, Gate 2) is untouched everywhere — it is independently
+verified live and was never the bug.
+
+Persistence boundary: the four real writers of `owner_opt_out` (`lib/idx/sync.ts` ×2,
+`app/api/crm/listings/reset-sync/route.ts`, `scripts/recover-stale-property-listings.ts`) now omit
+it from every UPDATE and apply the new `lib/idx/trestle-mapper.ts::applyLocalOwnerOptOutGate` to
+force `idx_display_yn=false` when the existing stored row already has `owner_opt_out=true` — so
+this cleanup does not let a Cotality resync silently clear a CRM-set opt-out. CREATE is unaffected
+(schema default `false`, nothing to preserve). `scripts/build-recovery-manifest.ts` now treats
+`owner_opt_out` as local authority rather than a second `derivePermissionGates` output.
+
+Original evidence preserved below for provenance.
+
+- `docs/audits/listing-media-reader-ownership-2026-08-13.md` §21.3 already measured, with a live
+  `$count` query on 2026-08-14, that 591,131/591,131 (100%) of Property rows in Mallan's feed have
+  `Permission eq 'IDX'` — the per-row REBNY gates (including owner-opt-out) were defense-in-depth
+  that was presently inert because REBNY's upstream pre-filter already withholds non-IDX listings
+  before they reach the feed. That finding sat unapplied until this fix.
+- Not modified: Permission's live-confirmed Multi-Enum (comma-separated) type means every exact-
+  equality check on it, including the surviving `Permission==='Private'`, is latently incorrect for
+  a combined value. Current `Private` population is reportedly 0, so it is not biting yet — flagged
+  as a separate, not-yet-authorized follow-up, not bundled into this fix.
 
 ## Frozen during the current cleanup
 
