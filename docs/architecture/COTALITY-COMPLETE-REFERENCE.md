@@ -509,7 +509,7 @@ Six gates control whether a listing is publicly displayable. Implemented in `lib
 
 | Gate | Field | Fail behavior | Semantics |
 |---|---|---|---|
-| **Gate 1: Owner Opt-Out** | `Permission = 'OwnerOptOut'` or `'Owner Opt-Out'` or `MlsStatus = 'OwnerOptOut'` | Fail closed | If owner opted out, listing is never displayed anywhere |
+| **Gate 1: Owner Opt-Out** | Mallan-local `owner_opt_out` column only (REBNY compliance rule, submitted via Exhibit B/LMP, upstream of the Cotality feed -- confirmed 2026-10-02 via `trestle_get_picklist`: Permission's 18 values and MlsStatus's 26 values have no OwnerOptOut member) | Fail closed | If owner opted out, listing is never displayed anywhere |
 | **Gate 2: Participant Only** | `Permission = 'Private'` | Fail closed | Only co-brokers see it; no public/IDX display |
 | **Gate 3: Internet Display** | `InternetEntireListingDisplayYN` | **IDX Plus pre-filter: null = displayable** | REBNY pre-filters non-displayable rows OUT of the feed. Null means "already gated in." Only explicit `false` blocks. |
 | **Gate 4: Address Display** | `InternetAddressDisplayYN` | **IDX Plus pre-filter: null = displayable** | Same pre-filter logic as Gate 3. When `false`, address must be suppressed but listing can still display. |
@@ -618,7 +618,7 @@ Every field has a distribution profile controlling who can see it. Implemented i
 |---|---|
 | `listing_id` | `ListingId` or `ListingKey` |
 | `mls_id` | `ListingKey` |
-| `status` | `StandardStatus` or `MlsStatus` |
+| `status` | `StandardStatus` only (never `MlsStatus` -- Master Plan Section 0.6, confirmed 2026-10-02) |
 | `listing_type` | Inferred from `PropertyType` |
 | `property_type` | `PropertyType` |
 | `property_sub_type` | `PropertySubType` |

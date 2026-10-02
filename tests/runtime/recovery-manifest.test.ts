@@ -76,7 +76,6 @@ function providerRow(overrides: Partial<ProviderRow> = {}): ProviderRow {
     PropertyType: "Residential",
     InternetEntireListingDisplayYN: null,
     Permission: "Public",
-    MlsStatus: "Active",
     ...overrides,
   };
 }
@@ -476,7 +475,7 @@ describe("display gate is derived from CURRENT provider Permission", () => {
     // (Gate 1 has no live Cotality signal). An ordinary provider row with no
     // special Permission still correctly produces no mismatch, because
     // expectedIdxDisplay reads owner_opt_out straight from `local`.
-    const provider = providerRow({ Permission: "Public", MlsStatus: "Active" });
+    const provider = providerRow({ Permission: "Public" });
     const gated = locallyGatedRow({ owner_opt_out: true });
 
     expect(expectedIdxDisplay(provider, gated)).toBe(false);
@@ -488,7 +487,7 @@ describe("display gate is derived from CURRENT provider Permission", () => {
     // emits it, it is absent from LISTING_SYNC_COMPARE_SELECT, and the Cotality
     // path hard-codes the constant true. The provider cannot answer it, so the
     // local value is the authority and must keep explaining a hidden row.
-    const provider = providerRow({ Permission: "Public", MlsStatus: "Active" });
+    const provider = providerRow({ Permission: "Public" });
     const websiteOnly = locallyGatedRow({ rls_eligible: false });
 
     expect(expectedIdxDisplay(provider, websiteOnly)).toBe(false);
@@ -526,11 +525,11 @@ describe("display gate is derived from CURRENT provider Permission", () => {
     expect(manifestOf([providerRow()], [localRow()]).diagnostics.staleLocalPermissionGates).toBe(0);
   });
 
-  it("selects Permission AND MlsStatus from the provider", () => {
-    // Without both fields on the wire the de-circularization is inert: the
+  it("[Permission cutover 2026-10-02] selects Permission from the provider (MlsStatus is no longer selected -- Owner Opt-Out has no Cotality signal)", () => {
+    // Without Permission on the wire the de-circularization is inert: the
     // evaluator would see undefined and fall back to gates-open for every row.
     expect(PROVIDER_SELECT_FIELDS).toContain("Permission");
-    expect(PROVIDER_SELECT_FIELDS).toContain("MlsStatus");
+    expect(PROVIDER_SELECT_FIELDS).not.toContain("MlsStatus");
   });
 });
 
@@ -954,11 +953,11 @@ describe("duplicate provider ListingIds", () => {
 });
 
 describe("provider select completeness", () => {
-  it("carries every field the classification reads", () => {
-    // Without both fields on the wire the de-circularization is inert: the
+  it("[Permission cutover 2026-10-02] carries every field the classification reads (MlsStatus is no longer one of them)", () => {
+    // Without Permission on the wire the de-circularization is inert: the
     // evaluator would see undefined and fall back to gates-open for every row.
     expect(PROVIDER_SELECT_FIELDS).toContain("Permission");
-    expect(PROVIDER_SELECT_FIELDS).toContain("MlsStatus");
+    expect(PROVIDER_SELECT_FIELDS).not.toContain("MlsStatus");
   });
 });
 

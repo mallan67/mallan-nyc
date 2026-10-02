@@ -96,13 +96,15 @@ export const PROVIDER_SELECT_FIELDS: readonly string[] = [
   "StandardStatus",
   "PropertyType",
   "InternetEntireListingDisplayYN",
-  // The two source fields behind the per-row REBNY gates. Selected 2026-08-13
-  // to break the display-gate reconciliation circularity: the gates must be
-  // re-derived from CURRENT provider state, never read back from the stored
-  // local columns they produced. `MlsStatus` is required as well — it carries
-  // the second arm of the owner-opt-out test in `derivePermissionGates`.
+  // The source field behind the one remaining per-row REBNY gate derived from
+  // the provider (Participant Only). Selected 2026-08-13 to break the
+  // display-gate reconciliation circularity: the gate must be re-derived from
+  // CURRENT provider state, never read back from the stored local columns it
+  // produced. `MlsStatus` is NOT selected (2026-10-02 Permission cutover):
+  // Owner Opt-Out has no Cotality signal at all and is Mallan-local authority
+  // (see derivePermissionGates's docstring) -- fetching MlsStatus here served
+  // no purpose once that was corrected.
   "Permission",
-  "MlsStatus",
 ];
 
 /**
@@ -180,10 +182,10 @@ export interface ProviderRow {
   StandardStatus: string | null;
   PropertyType: string | null;
   InternetEntireListingDisplayYN: boolean | null;
-  /** Multi-Enum. Source of BOTH per-row REBNY gates. */
+  /** Multi-Enum. Source of the Participant Only gate (`has 'Private'`). Owner
+   * Opt-Out has no Cotality field at all -- see derivePermissionGates's
+   * docstring -- so there is deliberately no MlsStatus field here either. */
   Permission: string | null;
-  /** Second arm of the owner-opt-out test. Not a display status. */
-  MlsStatus: string | null;
 }
 
 /**
@@ -492,9 +494,11 @@ export function displayGateMismatchExplainedByGate(
  *    not a mismatch. Comparing raw strings would manufacture work.
  *
  *  - `display_gate_mismatch` — fires ONLY when the disagreement is UNEXPLAINED.
- *    The expectation is computed by `expectedIdxDisplay`, which re-derives the
- *    REBNY gates from the row's CURRENT provider `Permission` / `MlsStatus` and
- *    folds in the genuinely-local `rls_eligible`. A row that canonical ingest
+ *    The expectation is computed by `expectedIdxDisplay`, which re-derives
+ *    participant_only from the row's CURRENT provider `Permission`, and folds
+ *    in owner_opt_out and the genuinely-local `rls_eligible` straight from the
+ *    stored row (neither has a Cotality signal -- see expectedIdxDisplay's own
+ *    docstring). A row that canonical ingest
  *    would gate off TODAY produces NO reason on this axis; a row gated off only
  *    by a STALE stored gate column now DOES produce one, which is the entire
  *    point of the 2026-08-13 de-circularization. Emitting it would be a false positive of
@@ -815,7 +819,6 @@ function coerceProviderRow(raw: Record<string, unknown>): ProviderRow | null {
     // the second interpretation this refactor exists to prevent. `nonEmpty`
     // only distinguishes absent from present — it makes no claim about value.
     Permission: nonEmpty(raw.Permission),
-    MlsStatus: nonEmpty(raw.MlsStatus),
   };
 }
 

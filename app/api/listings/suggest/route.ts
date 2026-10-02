@@ -57,9 +57,12 @@ function checkRateLimit(ip: string): boolean {
  * Gate-input audit (vs `lib/compliance/gates.ts` `evaluateDisplayGate`,
  * via `checkDistributionGates` wrapper in `lib/idx/trestle-mapper.ts`):
  *
- *   - `Permission`                       → `isOwnerOptOut`, `isParticipantOnly`
- *   - `StandardStatus`                   → `readStatus`, terminal-status gate
- *   - `MlsStatus`                        → `readStatus` + `OwnerOptOut` sentinel
+ *   - `Permission`                       → `isParticipantOnly` (Owner Opt-Out has no
+ *                                          live Cotality signal -- see
+ *                                          lib/compliance/gates.ts::isOwnerOptOut, which
+ *                                          reads only the DB-cached owner_opt_out column)
+ *   - `StandardStatus`                   → `readStatus`, terminal-status gate (MlsStatus is
+ *                                          never consulted by any gate -- Master Plan Section 0.6)
  *   - `InternetEntireListingDisplayYN`   → Gate 3 (entire-listing display)
  *   - `InternetAddressDisplayYN`         → Gate 4 (address display)
  *   - `CloseDate`                        → Gate 5 (closed past 24h) +

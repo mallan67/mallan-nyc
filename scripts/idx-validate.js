@@ -350,7 +350,7 @@ function section6() {
   const gateFields = {
     StandardStatus: ['Active', 'Closed', 'Expired', 'Pending', 'Coming Soon', 'Active Under Contract', 'Withdrawn', 'Canceled'],
     PropertyType: ['Residential', 'Commercial', 'Land', 'Residential Income'],
-    MlsStatus: ['Active', 'Closed', 'Expired', 'Pending', 'Coming Soon', 'Withdrawn', 'Canceled', 'OwnerOptOut'],
+    MlsStatus: ['Active', 'Closed', 'Expired', 'Pending', 'Coming Soon', 'Withdrawn', 'Canceled'],
   };
 
   for (const [field, expected] of Object.entries(gateFields)) {
@@ -358,7 +358,6 @@ function section6() {
       const liveValues = picklists[field];
       for (const val of expected) {
         if (liveValues.has(val)) pass(s, `${field}="${val}" in picklist`);
-        else if (field === 'MlsStatus' && val === 'OwnerOptOut') pass(s, `${field}="${val}" (Permissions-derived, not in picklist)`);
         else info(s, `${field}="${val}" NOT in live picklist`, 'Gate logic uses value not in the live Cotality picklist');
       }
     }

@@ -93,7 +93,7 @@ Provider-schema vocabulary is not a separate authority, version or certification
 | | |
 |---|---|
 | **Canonical** | `lib/compliance/gates.ts:isOwnerOptOut` |
-| **Backup** | `.claude/skills/rebny-compliance/SKILL.md` §2; `lib/idx/trestle-mapper.ts` (mapper-side derivation from `Permission` enum + legacy `MlsStatus="OwnerOptOut"`) |
+| **Backup** | `.claude/skills/rebny-compliance/SKILL.md` §0.3 (already documents this exact correction, dated 2026-09-25); `lib/idx/trestle-mapper.ts::derivePermissionGates` (Participant Only only) and `::applyLocalOwnerOptOutGate` (the persistence-boundary half) |
 | **Validator** | `lib/compliance/__tests__/compliance-gates.test.ts` (writer-side coercion tests) |
 | **When to read** | New Cotality gate field; any DTO sanitizer touching listing data |
 | **Fail-closed** | UCBA Art. I §5(A): signed Owner Opt-Out form within 48hrs of listing. NO public dissemination at any time. Use `affirmPermission()` semantics for the `owner_opt_out` cached boolean. |

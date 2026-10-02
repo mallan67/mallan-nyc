@@ -68,10 +68,16 @@ const SCAN_PATHS = [
 // of these is missing from live, we have a critical bug.
 //
 // NOTE: OwnerOptOutYN and ParticipantOnlyYN do NOT exist as separate booleans
-// on live Cotality (verified 2026-04-19 against $metadata). They are encoded via
-// the `Permission` enum on Property (values: "OwnerOptOut", "Private", "IDX",
-// "Public"). production code in lib/idx/trestle-mapper.ts:checkDistributionGates()
-// already reads payload.Permission and decodes accordingly.
+// on live Cotality (verified 2026-04-19 against $metadata, re-confirmed
+// 2026-10-02 via trestle_get_picklist: 18 real Permission values -- AgentOnly,
+// ComingSoon, CompSold, DownPaymentResourceNo, DownPaymentResourceYes,
+// FirmOnly, History, IDX, MemberInactive, Officeidxoptout, OfficeInactive,
+// OfficeOnly, OfficeSuspended, PhotoOptedOut, Private, Public, SyndicateOptOut,
+// VOW -- no "OwnerOptOut" member at all). `Permission='Private'` encodes
+// Participant Only (production code: lib/idx/trestle-mapper.ts
+// derivePermissionGates). Owner Opt-Out has no Cotality signal whatsoever --
+// it is Mallan-local authority (lib/compliance/gates.ts::isOwnerOptOut reads
+// the DB-cached owner_opt_out column only).
 const MUST_EXIST_GATE_FIELDS = [
   'Permission',                              // Owner Opt-Out / Participant Only encoding
   'InternetEntireListingDisplayYN',          // Master IDX display gate
