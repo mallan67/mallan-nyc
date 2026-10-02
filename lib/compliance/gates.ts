@@ -135,15 +135,18 @@ function readStatus(o: PermissionInput): StatusValue | null {
 
 /** Is this listing owner-opted-out (Gate 1)? */
 export function isOwnerOptOut(input: PermissionInput): boolean {
-  const p = readPermissionString(input);
-  // Permission values per compliance/IDX-VOW-DISPLAY-RULES.md:31
-  if (p === "OwnerOptOut" || p === "Owner Opt-Out") return true;
-  // Legacy MlsStatus sentinel
-  const mls = readFirst<unknown>(input, ["MlsStatus", "status"]);
-  if (mls === "OwnerOptOut") return true;
-  // DB-cached boolean (cron-populated)
-  if (affirmPermission(input.owner_opt_out)) return true;
-  return false;
+  // REBNY Gate 1 (Owner Opt-Out) is submitted via Exhibit B through the LMP
+  // workflow (compliance/IDX-VOW-DISPLAY-RULES.md Gate 1: "Form Required:
+  // Exhibit B -- submitted through LMP within 48 hours") and blocks the
+  // listing from RLS itself -- upstream of the Cotality IDX Plus feed Mallan
+  // consumes. Live Cotality's Permission (18 values) and MlsStatus (26
+  // values) enums carry no OwnerOptOut/"Owner Opt-Out" member at all
+  // (confirmed live via trestle_get_picklist, 2026-10-02 Permission
+  // cutover) -- there is no provider signal to read, ever, not just none
+  // observed yet. owner_opt_out is Mallan-local authority only: DB-cached
+  // (CRM-set; preserved across provider sync by
+  // lib/idx/trestle-mapper.ts::applyLocalOwnerOptOutGate).
+  return affirmPermission(input.owner_opt_out);
 }
 
 /** Is this listing Participant-Only (Gate 2)? Permission='Private'. */

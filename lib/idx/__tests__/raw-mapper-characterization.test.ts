@@ -21,7 +21,7 @@
  * per mapper, the two media classifiers) are deferred to that same audit doc, not resolved
  * here.
  */
-import { mapTrestleToPrisma, computeGateColumns, checkDistributionGates, derivePermissionGates, normalizeStandardStatus } from "../trestle-mapper";
+import { mapTrestleToPrisma, computeGateColumns, checkDistributionGates, derivePermissionGates, normalizeStandardStatus, applyLocalOwnerOptOutGate } from "../trestle-mapper";
 import { mapRESOToInternal } from "../mapping";
 import { mapTrestleToCrmListing } from "@/lib/search/crm-idx-mapper";
 
@@ -93,19 +93,22 @@ describe("Stage A — mapTrestleToPrisma status precedence and numeric null-vs-z
   });
 });
 
-describe("Stage A — derivePermissionGates (owner opt-out / participant-only)", () => {
+describe("Stage A — derivePermissionGates (participant-only) / owner-opt-out cutover (2026-10-02)", () => {
   it("participant-only fires on Permission === 'Private'", () => {
     expect(derivePermissionGates({ Permission: "Private" }).participantOnly).toBe(true);
     expect(derivePermissionGates({ Permission: "IDX" }).participantOnly).toBe(false);
   });
 
-  it("owner-opt-out: current derivation checks for a literal 'OwnerOptOut'/'Owner Opt-Out' value that does not exist on live Cotality's Permission enum (PROVEN unreachable; see docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md 'Known held defect')", () => {
-    // Characterizes that the code PATH exists and is well-formed, not that it is reachable
-    // against live data. Do not treat a passing/failing value here as proof either way about
-    // live reachability — that question is already answered elsewhere and is out of scope for
-    // this mapper-convergence batch (no replacement field is proposed).
-    expect(derivePermissionGates({ Permission: "OwnerOptOut" }).ownerOptOut).toBe(true);
-    expect(derivePermissionGates({ Permission: "IDX" }).ownerOptOut).toBe(false);
+  it("[FIXED, Permission cutover 2026-10-02] derivePermissionGates no longer returns an ownerOptOut field at all — Gate 1 (Owner Opt-Out) has no live Cotality signal (confirmed via trestle_get_picklist: neither Permission's 18 values nor MlsStatus's 26 values contain OwnerOptOut/'Owner Opt-Out') and is Mallan-local authority only (lib/compliance/gates.ts::isOwnerOptOut reads the DB-cached owner_opt_out column)", () => {
+    expect(derivePermissionGates({ Permission: "OwnerOptOut" })).not.toHaveProperty("ownerOptOut");
+    expect(derivePermissionGates({ Permission: "IDX" })).not.toHaveProperty("ownerOptOut");
+  });
+
+  it("[Permission cutover 2026-10-02] applyLocalOwnerOptOutGate preserves a locally-set owner_opt_out across a provider UPDATE, and lets a fresh CREATE (no existing row) through unchanged", () => {
+    expect(applyLocalOwnerOptOutGate(true, true)).toBe(false);
+    expect(applyLocalOwnerOptOutGate(true, false)).toBe(true);
+    expect(applyLocalOwnerOptOutGate(true, null)).toBe(true);
+    expect(applyLocalOwnerOptOutGate(true, undefined)).toBe(true);
   });
 });
 

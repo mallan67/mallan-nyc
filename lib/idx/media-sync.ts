@@ -2879,12 +2879,12 @@ export async function mirrorMediaToR2(
  *
  * Compliance gates use the canonical field names that
  * `checkDistributionGates()` reads:
- *   - `Permission` enum (singular, preferred): values `'OwnerOptOut'` /
- *     `'Owner Opt-Out'` ⟹ owner opt-out gate (REBNY Gate 1); value `'Private'`
- *     ⟹ participant-only gate (REBNY Gate 2).
+ *   - `Permission` enum (singular, preferred): value `'Private'` ⟹
+ *     participant-only gate (REBNY Gate 2).
  *   - `Permissions` (plural) is a legacy name absent from Property in live
  *     `$metadata` (committed as data/cotality-enums.live.json); either is accepted.
- *   - `MlsStatus = 'OwnerOptOut'` is an alternate owner-opt-out signal.
+ *   - Owner Opt-Out (REBNY Gate 1) has NO live signal here — see
+ *     `isPropertyComplianceBlocked`'s docstring below.
  *   - `InternetEntireListingDisplayYN` is the master internet display gate
  *     (REBNY Gate 3); false ⟹ block.
  *
@@ -2912,10 +2912,17 @@ export interface TrestleProperty {
  *
  * Mirrors the canonical `checkDistributionGates()`
  * for the gates that are cheap to evaluate per-listing without further joins:
- *   - REBNY Gate 1 (Owner Opt-Out): `Permission`/`Permissions` enum
- *     `'OwnerOptOut'` / `'Owner Opt-Out'` OR `MlsStatus === 'OwnerOptOut'`.
  *   - REBNY Gate 2 (Participant Only): `Permission`/`Permissions` enum `'Private'`.
  *   - REBNY Gate 3 (Internet Display): `InternetEntireListingDisplayYN === false`.
+ *
+ * REBNY Gate 1 (Owner Opt-Out) is NOT checked here (2026-10-02 Permission
+ * cutover) — it has no live Cotality signal (see
+ * lib/idx/trestle-mapper.ts::derivePermissionGates's docstring) and this
+ * function runs during fetch/orchestration, before any existing DB row is
+ * available to consult for the real, Mallan-local owner_opt_out column. Gate
+ * 1 is submitted via Exhibit B through the LMP workflow
+ * (compliance/IDX-VOW-DISPLAY-RULES.md Gate 1) and blocks the listing from
+ * RLS itself, so it never reaches this feed in the first place.
  *
  * Per-row Permission filtering on the Media resource and `MediaStatus='Deleted'`
  * tombstoning are handled inside `upsertListingMedia()`.
@@ -2927,13 +2934,9 @@ export function isPropertyComplianceBlocked(property: TrestleProperty): boolean 
   const permission =
     (typeof property.Permission === "string" ? property.Permission : "") ||
     (typeof property.Permissions === "string" ? property.Permissions : "");
-  const ownerOptOut =
-    permission === "OwnerOptOut" ||
-    permission === "Owner Opt-Out" ||
-    String(property.MlsStatus || "") === "OwnerOptOut";
   const participantOnly = permission === "Private";
   const internetDisplayBlocked = property.InternetEntireListingDisplayYN === false;
-  return ownerOptOut || participantOnly || internetDisplayBlocked;
+  return participantOnly || internetDisplayBlocked;
 }
 
 /** Test-injectable Cotality fetchers. */

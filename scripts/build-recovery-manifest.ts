@@ -384,25 +384,35 @@ export function providerExpectedIdxDisplay(provider: ProviderRow): boolean {
  * for this row RIGHT NOW.
  *
  * Every source-derived input comes from the CURRENT provider record — status,
- * entire-listing flag, and the two per-row REBNY gates re-derived from live
- * `Permission` / `MlsStatus` through `derivePermissionGates`, the same single
- * owner `mapTrestleToPrisma` uses. Only `rls_eligible` is read locally, and
- * only because it is genuinely local: no Cotality field maps to it,
- * `mapTrestleToPrisma` never emits it, it appears zero times in
- * `LISTING_SYNC_COMPARE_SELECT`, the Cotality sync path hard-codes the constant
- * `true` (`lib/idx/sync.ts:1085`), and its only real writers are the CRM
- * routes classifying Mallan-authored website-only inventory. Provider state
- * cannot answer it, so local state is the authority — not a fallback.
+ * entire-listing flag, and the one per-row REBNY gate re-derived from live
+ * `Permission` through `derivePermissionGates`, the same single owner
+ * `mapTrestleToPrisma` uses. `rls_eligible` and (2026-10-02 Permission
+ * cutover) `owner_opt_out` are both read locally, and only because they are
+ * genuinely local: no Cotality field maps to either, `mapTrestleToPrisma`
+ * never emits owner_opt_out at all any more, and `rls_eligible` appears zero
+ * times in `LISTING_SYNC_COMPARE_SELECT` while the Cotality sync path hard-
+ * codes the constant `true` (`lib/idx/sync.ts:1085`). Provider state cannot
+ * answer either, so local state is the authority — not a fallback.
  *
  * WHY THIS IS NOT THE OLD VERSION. Until 2026-08-13 this fed the STORED local
- * `participant_only` / `owner_opt_out` into the evaluator. Those columns are
- * outputs of `derivePermissionGates`, so stored state was vouching for stored
- * state. The concrete failure: a listing whose Permission goes 'Private' →
- * 'Public' at the source keeps `participant_only=true` locally until something
- * refreshes it; that stale `true` "explained" its stale `idx_display_yn=false`,
- * the row earned no reason, and the generator whose job is to schedule that
- * refresh excluded it — permanently. Re-deriving from the provider inverts it:
- * the row now reports `display_gate_mismatch` and gets repaired.
+ * `participant_only` / `owner_opt_out` into the evaluator. Those columns were
+ * BOTH outputs of `derivePermissionGates` at the time, so stored state was
+ * vouching for stored state. The concrete failure: a listing whose Permission
+ * goes 'Private' → 'Public' at the source keeps `participant_only=true`
+ * locally until something refreshes it; that stale `true` "explained" its
+ * stale `idx_display_yn=false`, the row earned no reason, and the generator
+ * whose job is to schedule that refresh excluded it — permanently. Re-
+ * deriving `participant_only` from the provider inverts it: the row now
+ * reports `display_gate_mismatch` and gets repaired.
+ *
+ * 2026-10-02 Permission cutover: `owner_opt_out` is carved OUT of the above.
+ * It is no longer a `derivePermissionGates` output at all — Gate 1 (Owner
+ * Opt-Out) has no live Cotality signal (confirmed via trestle_get_picklist;
+ * see `derivePermissionGates`'s docstring) and is Mallan-local authority,
+ * full stop. Reading `local.owner_opt_out` here is NOT a reintroduction of
+ * the pre-2026-08-13 circularity: that bug was stored state vouching for a
+ * PROVIDER-DERIVED column, and there is no provider derivation for
+ * owner_opt_out to vouch for in the first place.
  *
  * Delegating to `computeGateColumns` keeps this file holding no second opinion
  * about gate semantics — null IELD = REBNY pre-filter passed = displayable,
@@ -411,24 +421,28 @@ export function providerExpectedIdxDisplay(provider: ProviderRow): boolean {
 export function expectedIdxDisplay(provider: ProviderRow, local: LocalRow): boolean {
   const gates = derivePermissionGates({
     Permission: provider.Permission,
-    MlsStatus: provider.MlsStatus,
   });
   return computeGateColumns({
     status: provider.StandardStatus,
     internetEntireListingDisplayYN: provider.InternetEntireListingDisplayYN,
     participantOnly: gates.participantOnly,
-    ownerOptOut: gates.ownerOptOut,
+    // Mallan-local authority — see the docstring above.
+    ownerOptOut: local.owner_opt_out,
     // Local by proof, not by convenience — see the docstring.
     rls_eligible: local.rls_eligible,
   }).idx_display_yn;
 }
 
 /**
- * True when the STORED source-derived gate columns disagree with what the
- * CURRENT provider record derives. Pure diagnostic — see
+ * True when the STORED `participant_only` disagrees with what the CURRENT
+ * provider record derives. Pure diagnostic — see
  * `ManifestDiagnostics.staleLocalPermissionGates`. Emits NO reason: this
  * function exists to MEASURE the drift the old circular classifier consumed,
  * never to act on it.
+ *
+ * owner_opt_out is NOT compared here (2026-10-02 Permission cutover): it is
+ * Mallan-local authority (see expectedIdxDisplay's docstring), so it can
+ * never be "stale" relative to a provider that has no opinion about it.
  */
 export function localPermissionGatesAreStale(
   provider: ProviderRow,
@@ -436,12 +450,8 @@ export function localPermissionGatesAreStale(
 ): boolean {
   const gates = derivePermissionGates({
     Permission: provider.Permission,
-    MlsStatus: provider.MlsStatus,
   });
-  return (
-    gates.participantOnly !== local.participant_only ||
-    gates.ownerOptOut !== local.owner_opt_out
-  );
+  return gates.participantOnly !== local.participant_only;
 }
 
 /**

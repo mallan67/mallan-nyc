@@ -101,6 +101,7 @@ import {
   mapTrestleToPrisma,
   checkDistributionGates,
   validateRequiredFields,
+  applyLocalOwnerOptOutGate,
 } from "@/lib/idx/trestle-mapper";
 import {
   shouldSkipNewTerminalListing,
@@ -761,11 +762,15 @@ export async function recoverOneListing(
     neighborhood: mapped.neighborhood,
     city: mapped.city,
     postal_code: mapped.postal_code,
-    idx_display_yn: mapped.idx_display_yn,
+    // Gate 1 (Owner Opt-Out) has no provider signal (2026-10-02 Permission
+    // cutover) — apply the EXISTING stored owner_opt_out on top of the
+    // provider-derived idx_display_yn so a locally-set opt-out survives this
+    // UPDATE. owner_opt_out itself is omitted below: there is nothing
+    // provider-derived to write, and the DB value is left untouched.
+    idx_display_yn: applyLocalOwnerOptOutGate(mapped.idx_display_yn, existing?.owner_opt_out),
     internet_entire_listing_display_yn: mapped.internet_entire_listing_display_yn,
     internet_address_display_yn: mapped.internet_address_display_yn,
     participant_only: mapped.participant_only,
-    owner_opt_out: mapped.owner_opt_out,
     address: mapped.address as Prisma.InputJsonValue,
     features: mapped.features as Prisma.InputJsonValue,
     // `false` — this path never expands Media, so writing mapped.media ([]) would

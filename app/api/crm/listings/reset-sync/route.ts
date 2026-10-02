@@ -11,7 +11,7 @@ import { hasCredentials } from "@/lib/idx/auth";
 import { fetchFromTrestle } from "@/lib/idx/fetch";
 import { mediaUpdatePatch, complianceUpdatePatch } from "@/lib/idx/sync";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
-import { mapTrestleToPrisma, checkDistributionGates, validateHistoricalFields } from "@/lib/idx/trestle-mapper";
+import { mapTrestleToPrisma, checkDistributionGates, validateHistoricalFields, applyLocalOwnerOptOutGate } from "@/lib/idx/trestle-mapper";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import type { Prisma } from "@prisma/client";
@@ -134,7 +134,10 @@ export async function POST(req: NextRequest) {
         // existing status so a re-synced row flipping into/out of terminal is captured.
         const existingForClock = await prisma.listing.findUnique({
           where: { listing_id: mapped.listing_id },
-          select: { status: true },
+          // Widened (2026-10-02 Permission cutover) to supply the existing
+          // owner_opt_out value for applyLocalOwnerOptOutGate below, instead
+          // of issuing a second query.
+          select: { status: true, owner_opt_out: true },
         });
         const terminalSinceCreate = computeTerminalSincePatch({
           previousStatus: undefined,
@@ -185,11 +188,16 @@ export async function POST(req: NextRequest) {
             neighborhood: mapped.neighborhood,
             city: mapped.city,
             postal_code: mapped.postal_code,
-            idx_display_yn: mapped.idx_display_yn,
+            // Gate 1 (Owner Opt-Out) has no provider signal (2026-10-02
+            // Permission cutover) — apply the EXISTING stored owner_opt_out
+            // on top of the provider-derived idx_display_yn so a locally-set
+            // opt-out survives this UPDATE. owner_opt_out itself is omitted
+            // below: there is nothing provider-derived to write, and the DB
+            // value is left untouched.
+            idx_display_yn: applyLocalOwnerOptOutGate(mapped.idx_display_yn, existingForClock?.owner_opt_out),
             internet_entire_listing_display_yn: mapped.internet_entire_listing_display_yn,
             internet_address_display_yn: mapped.internet_address_display_yn,
             participant_only: mapped.participant_only,
-            owner_opt_out: mapped.owner_opt_out,
             address: mapped.address as Prisma.InputJsonValue,
             features: mapped.features as Prisma.InputJsonValue,
             // P1C1 (RC2 semantics): media was NOT fetched (EXPAND_MEDIA=false →

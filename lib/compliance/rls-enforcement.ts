@@ -399,11 +399,19 @@ export function assertRlsCompliantPayload(
     }
   }
 
-  // Owner Opt-Out / Participant Only blocks all display
+  // Owner Opt-Out / Participant Only blocks all display. `perm` here is the
+  // AGENT-SUBMITTED CRM Permission/Permissions field (this payload is the
+  // route handler's agent-submitted body — app/api/crm/listings/route.ts,
+  // [id]/route.ts, [id]/status/route.ts — never a raw Cotality sync record),
+  // so 'OwnerOptOut'/'Owner Opt-Out' is a legitimate Mallan-internal CRM
+  // sentinel, not a claim about live Cotality data. The MlsStatus arm this
+  // used to OR in WAS a false Cotality-value claim (live MlsStatus has no
+  // OwnerOptOut member — confirmed via trestle_get_picklist, 2026-10-02
+  // Permission cutover) and is removed; MlsStatus is never agent-settable to
+  // this sentinel either.
   const permRaw = payload.Permission ?? payload.Permissions; // A2: canonical + legacy
   const perm = typeof permRaw === "string" ? permRaw : "";
   if (
-    payload.MlsStatus === "OwnerOptOut" ||
     perm === "OwnerOptOut" ||
     perm === "Owner Opt-Out" ||
     perm === "Private"

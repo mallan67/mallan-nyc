@@ -638,7 +638,9 @@ export interface ComputeGateColumnsInput {
   internetConsumerCommentYN?: unknown;
   /** Already-derived from `Permission='Private'`. Pass `true` to block. */
   participantOnly?: unknown;
-  /** Already-derived from `Permission='OwnerOptOut'` etc. Pass `true` to block. */
+  /** Mallan-local authority (DB `owner_opt_out` column) — never provider-
+   * derived (2026-10-02 Permission cutover; see derivePermissionGates's
+   * docstring). Pass `true` to block. */
   ownerOptOut?: unknown;
   /**
    * RLS eligibility flag (`listings.rls_eligible` column). Commercial /
@@ -691,8 +693,9 @@ export interface PermissionGates {
   permissions: string;
   /** REBNY Gate 2 — Permission='Private'. */
   participantOnly: boolean;
-  /** REBNY Gate 1 — Owner Opt-Out. */
-  ownerOptOut: boolean;
+  // REBNY Gate 1 (Owner Opt-Out) is deliberately NOT a field here — it is
+  // Mallan-local authority (the DB owner_opt_out column), never a Cotality
+  // Property signal. See derivePermissionGates's docstring.
 }
 
 /**
@@ -714,12 +717,19 @@ export interface PermissionGates {
  * "explain" its stale `idx_display_yn=false` and it would never be repaired.
  * The manifest now calls THIS function on the CURRENT provider record instead.
  *
- * Note `ownerOptOut` also consults `MlsStatus`, so a caller must supply both
- * fields to reproduce ingest's decision; supplying only `Permission` silently
- * loses the `MlsStatus='OwnerOptOut'` arm.
+ * Gate 1 (Owner Opt-Out) is deliberately NOT returned here (2026-10-02
+ * Permission cutover). It is submitted via Exhibit B through the LMP
+ * workflow (compliance/IDX-VOW-DISPLAY-RULES.md Gate 1) and blocks the
+ * listing from RLS itself — upstream of the Cotality feed entirely. Live
+ * Cotality's Permission (18 values) and MlsStatus (26 values) enums carry no
+ * OwnerOptOut/"Owner Opt-Out" member (confirmed live via
+ * trestle_get_picklist); the prior `ownerOptOut` arms here could never match
+ * a real row. owner_opt_out is Mallan-local authority — see
+ * `lib/compliance/gates.ts::isOwnerOptOut` (reads the DB-cached column) and
+ * `applyLocalOwnerOptOutGate` below (preserves it across a provider UPDATE).
  *
  * @param raw Trestle Property record — reads `Permission` (legacy alias
- *            `Permissions`) and `MlsStatus`. Any other key is ignored.
+ *            `Permissions`). Any other key is ignored.
  */
 export function derivePermissionGates(raw: Record<string, unknown>): PermissionGates {
   // REBNY Gate 2 — "Participant Only" = Permissions enum value 'Private' per
@@ -731,12 +741,30 @@ export function derivePermissionGates(raw: Record<string, unknown>): PermissionG
         ? raw.Permissions
         : '';
   const participantOnly = permissions === 'Private';
-  // REBNY Gate 1 — Owner Opt-Out via Permission enum (compliance/IDX-VOW-DISPLAY-RULES.md:31).
-  const ownerOptOut =
-    permissions === 'OwnerOptOut' ||
-    permissions === 'Owner Opt-Out' ||
-    String(raw.MlsStatus || '') === 'OwnerOptOut';
-  return { permissions, participantOnly, ownerOptOut };
+  return { permissions, participantOnly };
+}
+
+/**
+ * Owner Opt-Out (REBNY Gate 1) is Mallan-local authority, never provider-
+ * derived (see derivePermissionGates's docstring) — so a provider UPDATE
+ * must not silently re-open display for a row the local `owner_opt_out`
+ * column already blocks. `mapTrestleToPrisma` computes `idx_display_yn`
+ * assuming no owner-opt-out signal (there is none to give it); a caller
+ * writing an UPDATE applies the CURRENTLY STORED `owner_opt_out` on top of
+ * that before persisting.
+ *
+ * @param idxDisplayYn The provider-derived `idx_display_yn` `mapTrestleToPrisma`
+ *   computed for this write.
+ * @param existingOwnerOptOut The CURRENTLY STORED `owner_opt_out` for this
+ *   listing_id. `undefined`/`null` for a row that does not exist yet (a
+ *   CREATE) — there is nothing to preserve and the schema default `false` is
+ *   correct.
+ */
+export function applyLocalOwnerOptOutGate(
+  idxDisplayYn: boolean,
+  existingOwnerOptOut: boolean | null | undefined,
+): boolean {
+  return existingOwnerOptOut === true ? false : idxDisplayYn;
 }
 
 /**
@@ -843,7 +871,6 @@ export function mapTrestleToPrisma(raw: Record<string, unknown>): {
   internet_automated_valuation_display_yn: boolean;
   internet_consumer_comment_yn: boolean;
   participant_only: boolean;
-  owner_opt_out: boolean;
   address: Record<string, unknown>;
   features: Record<string, unknown>;
   media: unknown;
@@ -952,7 +979,12 @@ export function mapTrestleToPrisma(raw: Record<string, unknown>): {
   // "Participant Only," not from a real Trestle schema field.)
   // Trestle IDX Plus feed appears to pre-filter 'Private' listings, but we enforce
   // the gate independently for defense-in-depth and REBNY audit compliance.
-  const { participantOnly, ownerOptOut } = derivePermissionGates(raw);
+  // Owner Opt-Out (Gate 1) has no provider signal — see
+  // derivePermissionGates's docstring. computeGateColumns below is called
+  // with ownerOptOut: false (this pure mapper has no existing-row context);
+  // a caller writing an UPDATE must apply applyLocalOwnerOptOutGate to the
+  // result to preserve a locally-set opt-out.
+  const { participantOnly } = derivePermissionGates(raw);
   // Phase A (2026-05-20) — delegate the 5-column gate computation to the
   // canonical `computeGateColumns` helper above. Was an inline calculation;
   // moved to a shared helper so the W1/W2/W3 writer surfaces identified by
@@ -974,7 +1006,7 @@ export function mapTrestleToPrisma(raw: Record<string, unknown>): {
     internetAutomatedValuationDisplayYN: raw.InternetAutomatedValuationDisplayYN,
     internetConsumerCommentYN: raw.InternetConsumerCommentYN,
     participantOnly,
-    ownerOptOut,
+    ownerOptOut: false,
   });
 
   // JSONB columns — pick fields by category
@@ -1089,7 +1121,6 @@ export function mapTrestleToPrisma(raw: Record<string, unknown>): {
     internet_automated_valuation_display_yn: gateColumns.internet_automated_valuation_display_yn,
     internet_consumer_comment_yn: gateColumns.internet_consumer_comment_yn,
     participant_only: participantOnly,
-    owner_opt_out: ownerOptOut,
     address,
     features,
     media,

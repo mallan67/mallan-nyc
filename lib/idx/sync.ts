@@ -5,7 +5,7 @@
 import prisma from "@/lib/prisma";
 import { fetchFromTrestle, buildIncrementalFilter, buildActiveFilter, buildAgentHistoricalFilter, PROPERTY_KEYSET_ORDERBY } from "./fetch";
 import { advanceCursor, type CursorRow } from "./cursor/keyset-cursor";
-import { mapTrestleToPrisma, checkDistributionGates, validateRequiredFields, validateHistoricalFields } from "./trestle-mapper";
+import { mapTrestleToPrisma, checkDistributionGates, validateRequiredFields, validateHistoricalFields, applyLocalOwnerOptOutGate } from "./trestle-mapper";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { logIDXAccess, createAuditEntry } from "./logger";
 // SHARED OData media page-follower — the SAME completeness contract
@@ -887,11 +887,16 @@ export async function syncListings(
         neighborhood: mapped.neighborhood,
         city: mapped.city,
         postal_code: mapped.postal_code,
-        idx_display_yn: mapped.idx_display_yn,
+        // Gate 1 (Owner Opt-Out) has no provider signal (2026-10-02 Permission
+        // cutover) — apply the EXISTING stored owner_opt_out on top of the
+        // provider-derived idx_display_yn so a locally-set opt-out survives
+        // this UPDATE. owner_opt_out itself is omitted below: there is
+        // nothing provider-derived to write, and the DB value is left
+        // untouched.
+        idx_display_yn: applyLocalOwnerOptOutGate(mapped.idx_display_yn, existing?.owner_opt_out),
         internet_entire_listing_display_yn: mapped.internet_entire_listing_display_yn,
         internet_address_display_yn: mapped.internet_address_display_yn,
         participant_only: mapped.participant_only,
-        owner_opt_out: mapped.owner_opt_out,
         address: mapped.address as Prisma.InputJsonValue,
         features: mapped.features as Prisma.InputJsonValue,
         ...mediaUpdatePatch(mapped.media, useExpandMedia),
@@ -2420,11 +2425,16 @@ export async function syncAgentHistory(
         neighborhood: mapped.neighborhood,
         city: mapped.city,
         postal_code: mapped.postal_code,
-        idx_display_yn: mapped.idx_display_yn,
+        // Gate 1 (Owner Opt-Out) has no provider signal (2026-10-02 Permission
+        // cutover) — apply the EXISTING stored owner_opt_out on top of the
+        // provider-derived idx_display_yn so a locally-set opt-out survives
+        // this UPDATE. owner_opt_out itself is omitted below: there is
+        // nothing provider-derived to write, and the DB value is left
+        // untouched.
+        idx_display_yn: applyLocalOwnerOptOutGate(mapped.idx_display_yn, existingForClock?.owner_opt_out),
         internet_entire_listing_display_yn: mapped.internet_entire_listing_display_yn,
         internet_address_display_yn: mapped.internet_address_display_yn,
         participant_only: mapped.participant_only,
-        owner_opt_out: mapped.owner_opt_out,
         address: mapped.address as Prisma.InputJsonValue,
         features: mapped.features as Prisma.InputJsonValue,
         ...mediaUpdatePatch(mapped.media, useExpandMedia),

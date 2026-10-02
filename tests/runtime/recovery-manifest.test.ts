@@ -292,10 +292,10 @@ describe("display_gate_mismatch", () => {
     ).toEqual([]);
   });
 
-  it("does NOT fire when a CURRENT provider owner-opt-out explains the hidden row", () => {
+  it("[Permission cutover 2026-10-02] does NOT fire when LOCAL owner_opt_out explains the hidden row (not a provider signal — Gate 1 has none)", () => {
     expect(
       classifyProviderRow(
-        providerRow({ MlsStatus: "OwnerOptOut" }),
+        providerRow(),
         locallyGatedRow({ owner_opt_out: true }),
       ),
     ).toEqual([]);
@@ -366,11 +366,11 @@ describe("display_gate_mismatch", () => {
       InternetEntireListingDisplayYN: false,
     });
     const underDisplayed = providerRow({ ListingId: "RLS-UNDER", ListingKey: "K-UNDER" });
-    // Explained by a CURRENT provider gate — the local column merely agrees.
+    // Explained by LOCAL owner_opt_out — Gate 1 has no provider signal
+    // (2026-10-02 Permission cutover), so an ordinary provider row is enough.
     const explained = providerRow({
       ListingId: "RLS-EXPL",
       ListingKey: "K-EXPL",
-      MlsStatus: "OwnerOptOut",
     });
 
     const manifest = manifestOf(
@@ -429,6 +429,16 @@ describe("display_gate_mismatch", () => {
 // STORED `participant_only` / `owner_opt_out` into the gate evaluator. Those
 // columns are OUTPUTS of `derivePermissionGates`, so stored state vouched for
 // stored state and a source-side Permission change could never be detected.
+//
+// 2026-10-02 Permission cutover: `owner_opt_out` is carved OUT of this suite.
+// It is no longer an output of `derivePermissionGates` at all (Gate 1 has no
+// live Cotality signal — see derivePermissionGates's docstring) and is now
+// Mallan-local authority, read straight from `local.owner_opt_out`. Reading
+// local state for it is NOT a reintroduction of the pre-2026-08-13
+// circularity: that bug was stored state vouching for a PROVIDER-DERIVED
+// column; here there is no provider derivation to vouch for in the first
+// place. Only `participant_only` remains provider-derived and is what this
+// suite tests.
 
 describe("display gate is derived from CURRENT provider Permission", () => {
   it("FIRES when Permission went Private -> Public and the local gate is stale", () => {
@@ -461,10 +471,12 @@ describe("display gate is derived from CURRENT provider Permission", () => {
     expect(manifestOf([provider], [gated]).entries).toHaveLength(0);
   });
 
-  it("honours the MlsStatus arm of owner-opt-out, not just Permission", () => {
-    // `derivePermissionGates` reads BOTH fields. Selecting only Permission
-    // would silently drop this arm and manufacture a false mismatch.
-    const provider = providerRow({ Permission: "Public", MlsStatus: "OwnerOptOut" });
+  it("[Permission cutover 2026-10-02] owner-opt-out is LOCAL authority — an ordinary provider Permission/MlsStatus never explains it, only local.owner_opt_out does", () => {
+    // derivePermissionGates no longer has an ownerOptOut/MlsStatus arm at all
+    // (Gate 1 has no live Cotality signal). An ordinary provider row with no
+    // special Permission still correctly produces no mismatch, because
+    // expectedIdxDisplay reads owner_opt_out straight from `local`.
+    const provider = providerRow({ Permission: "Public", MlsStatus: "Active" });
     const gated = locallyGatedRow({ owner_opt_out: true });
 
     expect(expectedIdxDisplay(provider, gated)).toBe(false);
