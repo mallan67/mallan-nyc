@@ -2937,7 +2937,7 @@ export function isPropertyComplianceBlocked(property: TrestleProperty): boolean 
   // Participant Only = Permission MEMBER 'Private' (2026-10-02 Permission Multi-
   // Enum cutover). Permission (singular) only -- Permissions (plural) does not
   // exist on live Property at all.
-  const participantOnly = hasCotalityListingPermission(property, "Private");
+  const participantOnly = hasCotalityListingPermission(property as Record<string, unknown>, "Private");
   const internetDisplayBlocked = property.InternetEntireListingDisplayYN === false;
   return participantOnly || internetDisplayBlocked;
 }
