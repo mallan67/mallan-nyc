@@ -92,7 +92,7 @@ describe("S1 — mapper stops writing the redundant compliance copy", () => {
   it("[Permission cutover 2026-10-02] participant gate still computed (independent of compliance JSON); owner_opt_out is no longer a mapper output at all — it has no live Cotality signal (Gate 1 is Mallan-local authority, see derivePermissionGates's docstring)", () => {
     const optOut = mapTrestleToPrisma(buildCotalityRow({ Permissions: "OwnerOptOut" }));
     expect(optOut).not.toHaveProperty("owner_opt_out");
-    const priv = mapTrestleToPrisma(buildCotalityRow({ Permissions: "Private" }));
+    const priv = mapTrestleToPrisma(buildCotalityRow({ Permission: "Private" }));
     expect(priv.participant_only).toBe(true);
   });
 });

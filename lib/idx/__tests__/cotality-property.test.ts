@@ -10,7 +10,7 @@
  *     "IDX,SyndicateOptOut,OfficeInactive".
  *   - Property.Permissions (plural) does not exist on live Cotality at all.
  */
-import { readCotalityListingPermissions, hasCotalityListingPermission } from '../property';
+import { readCotalityListingPermissions, hasCotalityListingPermission } from '../../cotality/property';
 
 describe('readCotalityListingPermissions', () => {
   it('splits a single member', () => {
