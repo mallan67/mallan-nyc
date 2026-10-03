@@ -24,10 +24,12 @@ import { SUGGEST_SELECT_FIELDS } from '@/app/api/listings/suggest/route';
 describe('SUGGEST_SELECT_FIELDS · gate-input field coverage (PR-S.1d)', () => {
   // Every raw Cotality field name accessed by `evaluateDisplayGate` and its
   // helpers in `lib/compliance/gates.ts`. Keep in sync with the gate file.
+  // MlsStatus removed (2026-10-02 Status cutover): evaluateDisplayGate's
+  // readStatus() stopped reading it in Stage B1 -- it is Mallan-local
+  // authority, never a gate input (see gates.ts::readStatus's own comment).
   const GATE_REQUIRED_FIELDS = [
     'Permission',
     'StandardStatus',
-    'MlsStatus',
     'InternetEntireListingDisplayYN',
     'InternetAddressDisplayYN',
     'CloseDate',
