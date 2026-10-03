@@ -537,11 +537,13 @@ if (fs.existsSync(mapperPath)) {
   } else {
     fail('Field references absent from live Cotality in trestle-mapper.ts gate logic: ' + hits.map(h => h.name).join(', '));
   }
-  // Participant Only gate must be present via Permission === 'Private'
-  if (/Permission === ['"]Private['"]|permissions === ['"]Private['"]/.test(content)) {
-    pass('Gate 2 (Participant Only) checks Permission === "Private" per compliance/IDX-VOW-DISPLAY-RULES.md:41');
+  // Participant Only gate must be present via an exact-member check against the
+  // live Permission Multi-Enum (2026-10-02 Permission Multi-Enum cutover --
+  // whole-string equality silently misses every combined row like "IDX,Private").
+  if (/hasCotalityListingPermission\s*\([^)]*,\s*['"]Private['"]\s*\)/.test(content)) {
+    pass('Gate 2 (Participant Only) checks for the exact Private member per compliance/IDX-VOW-DISPLAY-RULES.md:41');
   } else {
-    fail('Gate 2 (Participant Only) missing — must check Permission === "Private" per REBNY RLS');
+    fail('Gate 2 (Participant Only) missing — must check for the exact Private member (hasCotalityListingPermission) per REBNY RLS');
   }
 
   // ── 18a. IDX Plus pre-filter semantics on writer-side display gates ──

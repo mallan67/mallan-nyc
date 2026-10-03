@@ -6,7 +6,7 @@ import { affirmPermission } from "@/lib/compliance/gates";
 import { slimRawData } from "@/lib/compliance/raw-data-keep-fields";
 import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
-import { readCotalityStandardStatus } from "@/lib/cotality/property";
+import { readCotalityStandardStatus, hasCotalityListingPermission } from "@/lib/cotality/property";
 
 // ═══════════════════════════════════════════════════════════
 // PROPERTY $select. Every name is a field the live Cotality Property resource
@@ -691,7 +691,8 @@ export interface ComputeGateColumnsResult {
 export interface PermissionGates {
   /** The raw Permission string as read, `''` when absent/non-string. */
   permissions: string;
-  /** REBNY Gate 2 — Permission='Private'. */
+  /** REBNY Gate 2 — Permission MEMBER 'Private' (Permission is a comma-separated
+   * Multi-Enum, IsFlags=true -- 2026-10-02 Permission Multi-Enum cutover). */
   participantOnly: boolean;
   // REBNY Gate 1 (Owner Opt-Out) is deliberately NOT a field here — it is
   // Mallan-local authority (the DB owner_opt_out column), never a Cotality
@@ -732,15 +733,16 @@ export interface PermissionGates {
  *            `Permissions`). Any other key is ignored.
  */
 export function derivePermissionGates(raw: Record<string, unknown>): PermissionGates {
-  // REBNY Gate 2 — "Participant Only" = Permissions enum value 'Private' per
-  // UCBA 2026 H4 / Definitions (W) and data/rebny-rls-property-lookup.csv:1643.
-  const permissions =
-    typeof raw.Permission === 'string'
-      ? raw.Permission
-      : typeof raw.Permissions === 'string'
-        ? raw.Permissions
-        : '';
-  const participantOnly = permissions === 'Private';
+  // REBNY Gate 2 — Participant Only = Permission MEMBER 'Private' per UCBA 2026 H4 /
+  // Definitions (W). Live Permission is a comma-separated Multi-Enum, IsFlags=true
+  // (confirmed live via trestle_lookup_field) -- live rows serialize combinations
+  // like "IDX,SyndicateOptOut"; whole-string equality only matched a row with
+  // Private as its SOLE flag, silently missing every combined row (2026-10-02
+  // Permission Multi-Enum cutover). Permission (singular) only -- Permissions
+  // (plural) does not exist on live Property at all; it is never a raw-Cotality
+  // fallback here.
+  const permissions = typeof raw.Permission === 'string' ? raw.Permission : '';
+  const participantOnly = hasCotalityListingPermission(raw, 'Private');
   return { permissions, participantOnly };
 }
 

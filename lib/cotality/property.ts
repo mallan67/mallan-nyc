@@ -38,3 +38,51 @@ export function readCotalityStandardStatus(raw: Record<string, unknown>): string
   const text = String(value).trim();
   return text ? text : null;
 }
+
+/**
+ * The live Property.Permission value, exactly as Cotality sent it — split into its
+ * individual flag members. Nothing else.
+ *
+ * Permission's live type is `Cotality.DataStandard.RESO.DD.Enums.Multi.ListingPermission`
+ * — a comma-separated Multi-Enum, `IsFlags="true"` (confirmed live via
+ * trestle_lookup_field, 2026-10-02 Permission Multi-Enum cutover). Live rows already
+ * serialize combinations: "IDX,OfficeInactive", "IDX,SyndicateOptOut",
+ * "IDX,SyndicateOptOut,OfficeInactive". Exact equality against the whole string
+ * (`Permission === 'Private'`) is therefore structurally wrong for this field type — it
+ * only matches a row where Private is the SOLE flag set, silently missing every row where
+ * Private is combined with anything else. Use `hasCotalityListingPermission` below for the
+ * correct exact-member check; never substring-match (`'Private'` must not match a
+ * hypothetical future value containing it as a substring) and never re-derive this by hand
+ * at a call site.
+ *
+ * Reads `Permission` (singular) ONLY. `Permissions` (plural) does not exist on live
+ * Property at all (confirmed via trestle_validate_field) — it is never a raw-Cotality
+ * fallback here. A plural `Permissions` key appearing in application data is legitimately
+ * Mallan CRM/form-internal (lib/compliance/normalizer.ts, lib/compliance/
+ * rls-enforcement.ts's agent-submitted payload) — a completely separate layer this
+ * function must not read.
+ *
+ * Returns an empty array when the field is absent/empty — callers decide how to treat "no
+ * members" (never invented, never defaulted to a member being present).
+ *
+ * Current RLS-associated Lookup (narrower than the 18-value global enum — do not blend the
+ * two scopes): IDX, OfficeInactive, Private, Public, SyndicateOptOut.
+ */
+export function readCotalityListingPermissions(raw: Record<string, unknown>): readonly string[] {
+  const value = raw.Permission;
+  if (value == null) return [];
+  return String(value)
+    .split(',')
+    .map((member) => member.trim())
+    .filter((member) => member.length > 0);
+}
+
+/**
+ * Exact-member check against the live Permission Multi-Enum — `permissions contains
+ * 'Private'`, never `Permission === 'Private'` and never a substring match. See
+ * `readCotalityListingPermissions`'s docstring for why exact equality is wrong for this
+ * field type.
+ */
+export function hasCotalityListingPermission(raw: Record<string, unknown>, member: string): boolean {
+  return readCotalityListingPermissions(raw).includes(member);
+}

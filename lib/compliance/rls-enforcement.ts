@@ -411,10 +411,19 @@ export function assertRlsCompliantPayload(
   // this sentinel either.
   const permRaw = payload.Permission ?? payload.Permissions; // A2: canonical + legacy
   const perm = typeof permRaw === "string" ? permRaw : "";
+  // On the PATCH path `merged` carries over existingRaw's stored Permission, which
+  // CAN be a raw, live-Cotality-sourced multi-value string -- live Permission is a
+  // comma-separated Multi-Enum (IsFlags=true), so 'Private' must be matched as an
+  // exact member, never by whole-string equality (2026-10-02 Permission Multi-Enum
+  // cutover; see lib/cotality/property.ts::hasCotalityListingPermission's docstring).
+  // The OwnerOptOut arms stay whole-string equality -- OwnerOptOut has zero overlap
+  // with any real Cotality Permission value and remains a legitimate Mallan-internal
+  // CRM sentinel on the agent-submitted payload, never a raw Cotality claim.
+  const permMembers = perm.split(",").map((member) => member.trim());
   if (
     perm === "OwnerOptOut" ||
     perm === "Owner Opt-Out" ||
-    perm === "Private"
+    permMembers.includes("Private")
   ) {
     // Check boolean display flags. InternetEntireListingDisplayYN is the canonical
     // gate on live Cotality (verified 2026-04-19). IDXEntireListingDisplayYN does

@@ -122,3 +122,25 @@ describe('mapRESOToInternal — IDX Plus pre-filter parity (C1)', () => {
     expect(result!.idxEntireListingDisplayYN).toBe(true);
   });
 });
+
+describe('mapRESOToInternal — participantOnlyYN is an exact Permission MEMBER match (2026-10-02 Permission Multi-Enum cutover)', () => {
+  it('Permission="Private" -> participantOnlyYN true', () => {
+    const result = mapRESOToInternal({ ...BASE_RAW, Permission: 'Private' });
+    expect(result!.participantOnlyYN).toBe(true);
+  });
+
+  it('Permission="IDX,Private" (combined live row) -> participantOnlyYN true, not missed by whole-string equality', () => {
+    const result = mapRESOToInternal({ ...BASE_RAW, Permission: 'IDX,Private' });
+    expect(result!.participantOnlyYN).toBe(true);
+  });
+
+  it('Permission="IDX" -> participantOnlyYN false', () => {
+    const result = mapRESOToInternal({ ...BASE_RAW, Permission: 'IDX' });
+    expect(result!.participantOnlyYN).toBe(false);
+  });
+
+  it('Permission="PrivateSomething" -> participantOnlyYN false (exact member, never substring)', () => {
+    const result = mapRESOToInternal({ ...BASE_RAW, Permission: 'PrivateSomething' });
+    expect(result!.participantOnlyYN).toBe(false);
+  });
+});

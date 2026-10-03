@@ -61,6 +61,7 @@ import {
   uploadToR2 as defaultUploadToR2,
 } from "@/lib/images/r2";
 import { getAccessToken as defaultGetAccessToken } from "./auth";
+import { hasCotalityListingPermission } from "@/lib/cotality/property";
 import { CRM_MEDIA_KEY_PREFIX, isCrmMediaKey } from "@/lib/media/crm-media";
 // R2-1 mirror-admission policy — canonical helpers ONLY (no local re-derivation):
 //   - Ownership: `isMallanExclusiveListing` (SL-/RL- listing_id prefix OR
@@ -2879,10 +2880,11 @@ export async function mirrorMediaToR2(
  *
  * Compliance gates use the canonical field names that
  * `checkDistributionGates()` reads:
- *   - `Permission` enum (singular, preferred): value `'Private'` ⟹
- *     participant-only gate (REBNY Gate 2).
- *   - `Permissions` (plural) is a legacy name absent from Property in live
- *     `$metadata` (committed as data/cotality-enums.live.json); either is accepted.
+ *   - `Permission` (singular; Permissions plural does not exist on live Property
+ *     at all) MEMBER `'Private'` ⟹ participant-only gate (REBNY Gate 2). Permission
+ *     is a comma-separated Multi-Enum, IsFlags=true (2026-10-02 Permission Multi-
+ *     Enum cutover) -- live rows serialize combinations like "IDX,SyndicateOptOut";
+ *     see hasCotalityListingPermission in lib/cotality/property.ts.
  *   - Owner Opt-Out (REBNY Gate 1) has NO live signal here — see
  *     `isPropertyComplianceBlocked`'s docstring below.
  *   - `InternetEntireListingDisplayYN` is the master internet display gate
@@ -2912,7 +2914,8 @@ export interface TrestleProperty {
  *
  * Mirrors the canonical `checkDistributionGates()`
  * for the gates that are cheap to evaluate per-listing without further joins:
- *   - REBNY Gate 2 (Participant Only): `Permission`/`Permissions` enum `'Private'`.
+ *   - REBNY Gate 2 (Participant Only): `Permission` MEMBER `'Private'` (Multi-Enum,
+ *     see lib/cotality/property.ts::hasCotalityListingPermission's docstring).
  *   - REBNY Gate 3 (Internet Display): `InternetEntireListingDisplayYN === false`.
  *
  * REBNY Gate 1 (Owner Opt-Out) is NOT checked here (2026-10-02 Permission
@@ -2931,10 +2934,10 @@ export interface TrestleProperty {
  * defense-in-depth so a future feed-policy change cannot leak.
  */
 export function isPropertyComplianceBlocked(property: TrestleProperty): boolean {
-  const permission =
-    (typeof property.Permission === "string" ? property.Permission : "") ||
-    (typeof property.Permissions === "string" ? property.Permissions : "");
-  const participantOnly = permission === "Private";
+  // Participant Only = Permission MEMBER 'Private' (2026-10-02 Permission Multi-
+  // Enum cutover). Permission (singular) only -- Permissions (plural) does not
+  // exist on live Property at all.
+  const participantOnly = hasCotalityListingPermission(property, "Private");
   const internetDisplayBlocked = property.InternetEntireListingDisplayYN === false;
   return participantOnly || internetDisplayBlocked;
 }

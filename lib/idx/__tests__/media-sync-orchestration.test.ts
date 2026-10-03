@@ -928,6 +928,23 @@ describe("isPropertyComplianceBlocked", () => {
     expect(isPropertyComplianceBlocked(makeProperty({ Permission: "Private" }))).toBe(true);
   });
 
+  it("[Permission Multi-Enum cutover 2026-10-02] returns true for a combined live row (Permission='IDX,Private') -- exact member match, not whole-string equality", () => {
+    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "IDX,Private" }))).toBe(true);
+    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "Private,IDX" }))).toBe(true);
+  });
+
+  it("[Permission Multi-Enum cutover 2026-10-02] returns false for Permission='IDX,SyndicateOptOut' (a different live combination, no Private member)", () => {
+    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "IDX,SyndicateOptOut" }))).toBe(false);
+  });
+
+  it("[Permission Multi-Enum cutover 2026-10-02] does NOT block on a substring match (Permission='PrivateSomething')", () => {
+    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "PrivateSomething" }))).toBe(false);
+  });
+
+  it("[Permission Multi-Enum cutover 2026-10-02] raw Permissions='Private' (plural, no singular Permission) is NOT accepted as Cotality truth", () => {
+    expect(isPropertyComplianceBlocked(makeProperty({ Permissions: "Private" }))).toBe(false);
+  });
+
   it("returns true for InternetEntireListingDisplayYN === false", () => {
     expect(isPropertyComplianceBlocked(makeProperty({ InternetEntireListingDisplayYN: false }))).toBe(true);
   });

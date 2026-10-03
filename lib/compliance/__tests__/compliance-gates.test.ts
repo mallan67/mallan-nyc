@@ -165,6 +165,21 @@ describe('checkDistributionGates', () => {
     expect(result.reason).toContain('Participant-only');
   });
 
+  it('[Permission Multi-Enum cutover 2026-10-02] blocks a combined-row Participant Only (Permission = "IDX,Private") -- exact member match, not whole-string equality', () => {
+    const result = checkDistributionGates(
+      buildRawCotality({ Permission: 'IDX,Private' })
+    );
+    expect(result.displayable).toBe(false);
+    expect(result.reason).toContain('Participant-only');
+  });
+
+  it('[Permission Multi-Enum cutover 2026-10-02] does NOT block on a substring match (Permission = "PrivateSomething")', () => {
+    const result = checkDistributionGates(
+      buildRawCotality({ Permission: 'PrivateSomething', StandardStatus: 'Active' })
+    );
+    expect(result.displayable).toBe(true);
+  });
+
   it('blocks when internet display is disabled (InternetEntireListingDisplayYN = false)', () => {
     const result = checkDistributionGates(
       buildRawCotality({ InternetEntireListingDisplayYN: false })

@@ -152,7 +152,14 @@ export function isOwnerOptOut(input: PermissionInput): boolean {
 /** Is this listing Participant-Only (Gate 2)? Permission='Private'. */
 export function isParticipantOnly(input: PermissionInput): boolean {
   const p = readPermissionString(input);
-  if (p === "Private") return true;
+  // Live Cotality Permission is a comma-separated Multi-Enum, IsFlags=true --
+  // whole-string equality only matched a row with 'Private' as its SOLE flag,
+  // silently missing every combined row like "IDX,Private" (2026-10-02 Permission
+  // Multi-Enum cutover; see lib/cotality/property.ts::hasCotalityListingPermission's
+  // docstring). Exact member match, never substring -- `p` may be a raw multi-value
+  // Cotality string or an already-single-valued DB/DTO string; membership-matching a
+  // single value is identical to equality, so this is safe for every caller shape.
+  if (p.split(",").map((member) => member.trim()).includes("Private")) return true;
   if (affirmPermission(input.participant_only)) return true;
   return false;
 }

@@ -94,9 +94,17 @@ describe("Stage A — mapTrestleToPrisma status precedence and numeric null-vs-z
 });
 
 describe("Stage A — derivePermissionGates (participant-only) / owner-opt-out cutover (2026-10-02)", () => {
-  it("participant-only fires on Permission === 'Private'", () => {
+  it("[Permission Multi-Enum cutover 2026-10-02] participant-only is an exact MEMBER match, not whole-string equality", () => {
     expect(derivePermissionGates({ Permission: "Private" }).participantOnly).toBe(true);
+    expect(derivePermissionGates({ Permission: "IDX,Private" }).participantOnly).toBe(true);
+    expect(derivePermissionGates({ Permission: "Private,IDX" }).participantOnly).toBe(true);
+    expect(derivePermissionGates({ Permission: " IDX , Private " }).participantOnly).toBe(true);
     expect(derivePermissionGates({ Permission: "IDX" }).participantOnly).toBe(false);
+    expect(derivePermissionGates({ Permission: "IDX,SyndicateOptOut" }).participantOnly).toBe(false);
+    expect(derivePermissionGates({ Permission: "OfficeInactive" }).participantOnly).toBe(false);
+    expect(derivePermissionGates({ Permission: "PrivateSomething" }).participantOnly).toBe(false);
+    expect(derivePermissionGates({}).participantOnly).toBe(false);
+    expect(derivePermissionGates({ Permissions: "Private" }).participantOnly).toBe(false);
   });
 
   it("[FIXED, Permission cutover 2026-10-02] derivePermissionGates no longer returns an ownerOptOut field at all — Gate 1 (Owner Opt-Out) has no live Cotality signal (confirmed via trestle_get_picklist: neither Permission's 18 values nor MlsStatus's 26 values contain OwnerOptOut/'Owner Opt-Out') and is Mallan-local authority only (lib/compliance/gates.ts::isOwnerOptOut reads the DB-cached owner_opt_out column)", () => {

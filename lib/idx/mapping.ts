@@ -9,7 +9,7 @@
 
 import type { IDXListing } from './types';
 import { REQUIRED_RLS_FIELDS } from './trestle-mapper';
-import { readCotalityStandardStatus } from '@/lib/cotality/property';
+import { readCotalityStandardStatus, hasCotalityListingPermission } from '@/lib/cotality/property';
 import { normalizeStreetCase } from './normalize-street-case';
 import { classifyTrestleMediaCategory } from '@/lib/media/media-sync-service';
 
@@ -373,9 +373,13 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
       raw.InternetEntireListingDisplayYN !== false,
     internetEntireListingDisplayYN: raw.InternetEntireListingDisplayYN !== false,
     internetAddressDisplayYN: raw.InternetAddressDisplayYN !== false,
+    // Permission MEMBER 'Private' (Multi-Enum, IsFlags=true -- 2026-10-02
+    // Permission Multi-Enum cutover; see lib/cotality/property.ts::
+    // hasCotalityListingPermission's docstring). raw.ParticipantOnlyYN is a
+    // separate, pre-existing question (not a real Cotality field -- untouched here).
     participantOnlyYN:
       raw.ParticipantOnlyYN === true ||
-      raw.Permission === 'Private',
+      hasCotalityListingPermission(raw, 'Private'),
     // Building & property details
     buildingName: raw.BuildingName ? String(raw.BuildingName) : undefined,
     storiesTotal: raw.StoriesTotal != null ? Number(raw.StoriesTotal) : undefined,
