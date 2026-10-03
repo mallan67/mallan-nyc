@@ -473,3 +473,31 @@ describe("crm idx mapper", () => {
     });
   });
 });
+
+describe("crm idx mapper — PropertySubType raw contract (2026-10-02 cutover)", () => {
+  it("preserves a live null PropertySubType as null, never a fabricated empty string", () => {
+    const l = mapTrestleToCrmListing({
+      ListingId: "X",
+      InternetEntireListingDisplayYN: true,
+      InternetAddressDisplayYN: true,
+      PropertySubType: null,
+    }, 0);
+    expect(l.propertySubType).toBeNull();
+  });
+
+  it("preserves live enum values unchanged", () => {
+    const l = mapTrestleToCrmListing({
+      ListingId: "X",
+      InternetEntireListingDisplayYN: true,
+      InternetAddressDisplayYN: true,
+      PropertySubType: "SingleFamilyResidence",
+    }, 0);
+    expect(l.propertySubType).toBe("SingleFamilyResidence");
+  });
+
+  it("[CHARACTERIZATION, MALLAN_BUSINESS_RULE_UNRESOLVED] mapDisplayPropertyType returns SingleFamilyResidence verbatim -- the dead 'single family'/'house' branch never matches it, and no Mallan label has been authorized to replace it", () => {
+    expect(mapDisplayPropertyType({ PropertySubType: "SingleFamilyResidence" })).toBe(
+      "SingleFamilyResidence",
+    );
+  });
+});

@@ -1,5 +1,5 @@
 import { resolveListingMedia } from "@/lib/media/listing-media-resolver";
-import { readCotalityStandardStatus } from "@/lib/cotality/property";
+import { readCotalityStandardStatus, readCotalityPropertySubType } from "@/lib/cotality/property";
 
 // REBNY IDX Plus pre-filter: REBNY/Cotality removes non-displayable rows from
 // the IDX Plus feed upstream, leaving InternetEntireListingDisplayYN and
@@ -23,6 +23,16 @@ export function mapDisplayPropertyType(raw: Record<string, unknown>): string {
   if (sub.includes("condop")) return "Condop";
   if (sub.includes("townhouse")) return "Townhouse";
   if (sub.includes("loft")) return "Loft";
+  // PROVEN_DEAD_BRANCH (PropertySubType cutover, 2026-10-02): live Cotality's single-family
+  // value is "SingleFamilyResidence" (no space, no "house" substring) -- this condition can
+  // never match it. MALLAN_BUSINESS_RULE_UNRESOLVED: the correct Mallan display label for
+  // SingleFamilyResidence is not proven. The repo has conflicting vocabularies ("Single
+  // Family" with a space is the established label in app/api/listings/route.ts's
+  // subTypeMap and lib/search/public-listing-db.ts; this branch's own intent suggests
+  // "House"; lib/listings/similar-listing-ranking.ts folds it into a townhouse/whole-
+  // building class). Not resolved here -- the raw value falls through to the verbatim
+  // return below, unchanged. See readCotalityPropertySubType in lib/cotality/property.ts
+  // for the raw-contract boundary.
   if (sub.includes("single family") || sub.includes("house")) return "House";
   if (sub.includes("multi")) return "Multi-Family";
   if (sub === "apartment") return "Residential";
@@ -215,7 +225,7 @@ export function mapTrestleToCrmListing(
     mlsStatus,
     ownership: String(raw.CommonInterest || raw.OwnershipType || ""),
     propertyType: mapDisplayPropertyType(raw),
-    propertySubType: String(raw.PropertySubType || ""),
+    propertySubType: readCotalityPropertySubType(raw),
     neighborhood: String(raw.SubdivisionName || ""),
     borough: String(raw.CityRegion || raw.CountyOrParish || "Manhattan"),
     zip: String(raw.PostalCode || ""),

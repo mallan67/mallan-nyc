@@ -10,7 +10,7 @@
  *     "IDX,SyndicateOptOut,OfficeInactive".
  *   - Property.Permissions (plural) does not exist on live Cotality at all.
  */
-import { readCotalityListingPermissions, hasCotalityListingPermission } from '../../cotality/property';
+import { readCotalityListingPermissions, hasCotalityListingPermission, readCotalityPropertySubType } from '../../cotality/property';
 
 describe('readCotalityListingPermissions', () => {
   it('splits a single member', () => {
@@ -84,5 +84,33 @@ describe('hasCotalityListingPermission', () => {
 
   it('raw Permissions="Private" (plural, no singular Permission) → NOT accepted as Cotality truth', () => {
     expect(hasCotalityListingPermission({ Permissions: 'Private' }, 'Private')).toBe(false);
+  });
+});
+
+describe('readCotalityPropertySubType', () => {
+  it('passes through live RLS-associated values verbatim', () => {
+    expect(readCotalityPropertySubType({ PropertySubType: 'Apartment' })).toBe('Apartment');
+    expect(readCotalityPropertySubType({ PropertySubType: 'SingleFamilyResidence' })).toBe(
+      'SingleFamilyResidence',
+    );
+    expect(readCotalityPropertySubType({ PropertySubType: 'MultiFamily' })).toBe('MultiFamily');
+    expect(readCotalityPropertySubType({ PropertySubType: 'Office' })).toBe('Office');
+    expect(readCotalityPropertySubType({ PropertySubType: 'Retail' })).toBe('Retail');
+  });
+
+  it('null PropertySubType → null, never fabricated (21 current live rows)', () => {
+    expect(readCotalityPropertySubType({ PropertySubType: null })).toBeNull();
+  });
+
+  it('missing PropertySubType → null', () => {
+    expect(readCotalityPropertySubType({})).toBeNull();
+  });
+
+  it('does not substitute PropertyType when PropertySubType is absent', () => {
+    expect(readCotalityPropertySubType({ PropertyType: 'Residential' })).toBeNull();
+  });
+
+  it('PropertySubTypeAdditional alone does not populate PropertySubType -- separate Multi-Enum field', () => {
+    expect(readCotalityPropertySubType({ PropertySubTypeAdditional: 'Garage,Basement' })).toBeNull();
   });
 });

@@ -6,7 +6,7 @@ import { affirmPermission } from "@/lib/compliance/gates";
 import { slimRawData } from "@/lib/compliance/raw-data-keep-fields";
 import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
-import { readCotalityStandardStatus, hasCotalityListingPermission } from "@/lib/cotality/property";
+import { readCotalityStandardStatus, hasCotalityListingPermission, readCotalityPropertySubType } from "@/lib/cotality/property";
 
 // ═══════════════════════════════════════════════════════════
 // PROPERTY $select. Every name is a field the live Cotality Property resource
@@ -1111,7 +1111,7 @@ export function mapTrestleToPrisma(raw: Record<string, unknown>): {
     status,
     listing_type: listingType,
     property_type: raw.PropertyType ? String(raw.PropertyType) : null,
-    property_sub_type: raw.PropertySubType ? String(raw.PropertySubType) : null,
+    property_sub_type: readCotalityPropertySubType(raw),
     list_price: listPrice,
     bedrooms_total: bedroomsTotal,
     bathrooms_full: bathroomsFull,

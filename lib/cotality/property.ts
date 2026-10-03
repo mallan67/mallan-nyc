@@ -86,3 +86,32 @@ export function readCotalityListingPermissions(raw: Record<string, unknown>): re
 export function hasCotalityListingPermission(raw: Record<string, unknown>, member: string): boolean {
   return readCotalityListingPermissions(raw).includes(member);
 }
+
+/**
+ * The live Property.PropertySubType value, exactly as Cotality sent it. Nothing else.
+ *
+ * PropertySubType's live type is a plain single-value Enum (NOT a Multi-Enum) — confirmed
+ * via trestle_lookup_field/trestle_validate_field, 2026-10-02 PropertySubType cutover.
+ * PropertySubTypeAdditional is a genuinely separate Multi-Enum field; this function must
+ * never read it, and must never substitute PropertyType when PropertySubType is absent —
+ * those are three distinct fields with three distinct contracts.
+ *
+ * Current RLS-associated Lookup (narrower than the full global enum — do not blend the two
+ * scopes): Apartment, Duplex, Loft, MixedUse, MultiFamily, Office, Retail,
+ * SingleFamilyResidence, Townhouse, Triplex. Live population (2026-10-02, a moving count,
+ * not a constant) includes 21 null rows and 0 current Townhouse rows — both are real
+ * provider states, not evidence of a broken field.
+ *
+ * Returns the raw value verbatim — never lowercased, never translated to a Mallan display
+ * label. Mallan display/business-rule mapping is a separate, later concern; see the
+ * MALLAN_BUSINESS_RULE_UNRESOLVED notes at this function's call sites (lib/search/
+ * crm-idx-mapper.ts's mapDisplayPropertyType, lib/idx/public-dto.ts's
+ * mapPropertyTypeToDisplay) for why SingleFamilyResidence's display label is not decided
+ * here.
+ */
+export function readCotalityPropertySubType(raw: Record<string, unknown>): string | null {
+  const value = raw.PropertySubType;
+  if (value == null) return null;
+  const text = String(value).trim();
+  return text ? text : null;
+}
