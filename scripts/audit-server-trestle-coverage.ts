@@ -69,13 +69,17 @@ const SCAN_PATHS = [
 //
 // NOTE: OwnerOptOutYN and ParticipantOnlyYN do NOT exist as separate booleans
 // on live Cotality (verified 2026-04-19 against $metadata, re-confirmed
-// 2026-10-02 via trestle_get_picklist: 18 real Permission values -- AgentOnly,
-// ComingSoon, CompSold, DownPaymentResourceNo, DownPaymentResourceYes,
-// FirmOnly, History, IDX, MemberInactive, Officeidxoptout, OfficeInactive,
-// OfficeOnly, OfficeSuspended, PhotoOptedOut, Private, Public, SyndicateOptOut,
-// VOW -- no "OwnerOptOut" member at all). `Permission='Private'` encodes
-// Participant Only (production code: lib/idx/trestle-mapper.ts
-// derivePermissionGates). Owner Opt-Out has no Cotality signal whatsoever --
+// 2026-10-02 via trestle_get_picklist: the GLOBAL Cotality ListingPermission
+// enum has 18 real values -- AgentOnly, ComingSoon, CompSold,
+// DownPaymentResourceNo, DownPaymentResourceYes, FirmOnly, History, IDX,
+// MemberInactive, Officeidxoptout, OfficeInactive, OfficeOnly,
+// OfficeSuspended, PhotoOptedOut, Private, Public, SyndicateOptOut, VOW -- no
+// "OwnerOptOut" member at all). Do not confuse this with the narrower,
+// current RLS-associated ListingPermission lookup (re-verified 2026-10-03:
+// IDX, OfficeInactive, Private, Public, SyndicateOptOut -- 5 values); the two
+// scopes must never be blended. `Permission='Private'` encodes Participant
+// Only (production code: lib/idx/trestle-mapper.ts derivePermissionGates).
+// Owner Opt-Out has no Cotality signal whatsoever (true in either scope) --
 // it is Mallan-local authority (lib/compliance/gates.ts::isOwnerOptOut reads
 // the DB-cached owner_opt_out column only).
 const MUST_EXIST_GATE_FIELDS = [

@@ -327,8 +327,10 @@ async function fetchCotalityOpenHousesFlat(mallanIds: string[]): Promise<OpenHou
       // Canonical permission-gate fields — same set used by the $expand path
       // and by the main IDX pipeline. Removed dead fields (IDXEntireListingDisplayYN,
       // OwnerOptOut boolean, ParticipantOnlyYN — none exist on Cotality schema).
-      // Added Permission (source of opt-out + private), InternetAddressDisplayYN
-      // (address suppression), StandardStatus/CloseDate (terminal-status gate).
+      // Added Permission (Cotality's source for Participant Only -- Permission='Private'
+      // only; Owner Opt-Out has no Cotality signal at all and is Mallan-local authority,
+      // see lib/compliance/gates.ts::isOwnerOptOut), InternetAddressDisplayYN (address
+      // suppression), StandardStatus/CloseDate (terminal-status gate).
       // MlsStatus removed (2026-10-03 Status residue cutover): evaluateDisplayGate's
       // readStatus() reads StandardStatus only -- MlsStatus was fetched but never consumed.
       propParams.set('$select', 'ListingKey,ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListOfficeName,PublicRemarks,Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN,StandardStatus,CloseDate');

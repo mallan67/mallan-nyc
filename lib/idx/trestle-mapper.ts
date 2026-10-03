@@ -724,11 +724,13 @@ export interface PermissionGates {
  * Gate 1 (Owner Opt-Out) is deliberately NOT returned here (2026-10-02
  * Permission cutover). It is submitted via Exhibit B through the LMP
  * workflow (compliance/IDX-VOW-DISPLAY-RULES.md Gate 1) and blocks the
- * listing from RLS itself — upstream of the Cotality feed entirely. Live
- * Cotality's Permission (18 values) and MlsStatus (26 values) enums carry no
- * OwnerOptOut/"Owner Opt-Out" member (confirmed live via
- * trestle_get_picklist); the prior `ownerOptOut` arms here could never match
- * a real row. owner_opt_out is Mallan-local authority — see
+ * listing from RLS itself — upstream of the Cotality feed entirely. The
+ * GLOBAL Cotality Permission enum (18 values) and MlsStatus enum (26 values)
+ * carry no OwnerOptOut/"Owner Opt-Out" member at all (confirmed live via
+ * trestle_get_picklist) -- the narrower, current RLS-associated Permission
+ * lookup (IDX, OfficeInactive, Private, Public, SyndicateOptOut) obviously
+ * doesn't either; the prior `ownerOptOut` arms here could never match a real
+ * row in either scope. owner_opt_out is Mallan-local authority — see
  * `lib/compliance/gates.ts::isOwnerOptOut` (reads the DB-cached column) and
  * `applyLocalOwnerOptOutGate` below (preserves it across a provider UPDATE).
  *
