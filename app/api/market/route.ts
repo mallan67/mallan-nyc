@@ -189,10 +189,12 @@ export async function GET(request: Request) {
         // matched 0 live rows, silently emptying every rental market stat (AGENTS.md §1 invariant 7).
         const propertyClass = isRental ? "PropertyType eq 'ResidentialLease'" : "PropertyType eq 'Residential'";
         const boroughFilter = borough ? ` and CityRegion eq '${borough.replace(/'/g, "''")}'` : '';
-        // $select fields verified against live Cotality $metadata (2026-04-19):
+        // $select fields verified against live Cotality $metadata (2026-04-19;
+        // corrected 2026-10-02 Permission Multi-Enum cutover):
         // IDXEntireListingDisplayYN / OwnerOptOut / ParticipantOnlyYN do NOT
-        // exist on live Cotality — Owner Opt-Out / Participant Only are encoded
-        // via the `Permission` enum and read by checkDistributionGates().
+        // exist on live Cotality — Participant Only is encoded via the
+        // `Permission` Multi-Enum and read by checkDistributionGates(). Owner
+        // Opt-Out has NO Cotality signal at all -- it is Mallan-local authority.
         const selectFields = 'ListPrice,LivingArea,DaysOnMarket,StandardStatus,ListOfficeName,CityRegion,PostalCode,ModificationTimestamp,OnMarketTimestamp,Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN';
 
         // Active listings from Cotality
