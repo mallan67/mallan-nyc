@@ -629,14 +629,14 @@ export function assertWriteAuthorized(options: RecoveryOptions, env: RecoveryEnv
 // ── Per-row recovery ────────────────────────────────────────────────────────
 
 /**
- * Cotality exposes `Permission` (singular); `Permissions` is a legacy fallback key. Mirrors
- * `readTrestlePermissions` at lib/idx/sync.ts:252, which is module-private. This
- * is a two-key field read, not a mapper — the mapping itself stays in
- * mapTrestleToPrisma.
+ * Cotality exposes `Permission` (singular) only -- `Permissions` (plural) does not
+ * exist on live Property at all (confirmed via trestle_validate_field, 2026-10-02
+ * Permission Multi-Enum cutover). Mirrors `readTrestlePermissions` at
+ * lib/idx/sync.ts:252, which is module-private. This is a single-key field read,
+ * not a mapper — the mapping itself stays in mapTrestleToPrisma.
  */
 function readTrestlePermissions(raw: Record<string, unknown>): string | null {
   if (typeof raw.Permission === "string") return raw.Permission;
-  if (typeof raw.Permissions === "string") return raw.Permissions;
   return null;
 }
 

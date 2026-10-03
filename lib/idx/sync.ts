@@ -246,12 +246,13 @@ export function archivedSafeMediaWhere(listingId: string): Prisma.ListingWhereIn
 }
 
 /**
- * Cotality raw records carry Permission (singular); legacy Permissions is read defensively.
- * Read whichever is present; null if neither.
+ * Cotality raw records carry Permission (singular) only -- Permissions (plural)
+ * does not exist on live Property at all (confirmed via trestle_validate_field,
+ * 2026-10-02 Permission Multi-Enum cutover). Returns the raw string unsplit; callers
+ * needing a member check use lib/cotality/property.ts::hasCotalityListingPermission.
  */
 function readTrestlePermissions(raw: Record<string, unknown>): string | null {
   if (typeof raw.Permission === "string") return raw.Permission;
-  if (typeof raw.Permissions === "string") return raw.Permissions;
   return null;
 }
 
