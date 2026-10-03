@@ -78,7 +78,13 @@ export function affirmPermission(v: unknown): boolean {
  * (camelCase fields) — the helper normalizes.
  */
 export interface PermissionInput {
-  // Trestle PascalCase
+  // Trestle PascalCase. NOTE (2026-10-02 Permission Multi-Enum cutover):
+  // `Permissions` (plural) does NOT exist on live Cotality Property at all --
+  // kept here only as MALLAN INTERNAL BUSINESS/COMPATIBILITY STATE. This
+  // helper is an intentional multi-layer normalizer over raw provider
+  // objects, DB rows, DTOs, AND Mallan CRM/form aliases (readPermissionString
+  // reads whichever key is present) -- never treat a `Permissions` hit here
+  // as a claim about live Cotality data.
   Permission?: unknown;
   Permissions?: unknown;
   StandardStatus?: unknown;

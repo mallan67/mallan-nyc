@@ -2901,9 +2901,11 @@ export interface TrestleProperty {
   PhotosChangeTimestamp?: string | null;
   ModificationTimestamp?: string | null;
   StandardStatus?: string | null;
+  // Permissions (plural) and MlsStatus removed (2026-10-02 Permission Multi-
+  // Enum cutover): Permissions does not exist on live Property at all, and
+  // this module has zero remaining readers of MlsStatus (confirmed via a
+  // full-file grep) -- neither is fetched or read here any more.
   Permission?: string | null;
-  Permissions?: string | null;
-  MlsStatus?: string | null;
   InternetEntireListingDisplayYN?: boolean | null;
   InternetAddressDisplayYN?: boolean | null;
 }
@@ -3242,16 +3244,19 @@ export const R2_MIRROR_CONCURRENCY = 5;
  *     paging produces a deterministic order within same-PCT clusters.
  *
  * Compliance fields:
- *   - `$select` includes `Permission` (singular) and `MlsStatus`, the canonical
- *     compliance fields, both on Property in live `$metadata` (committed as data/cotality-enums.live.json).
- *   - `$select` deliberately does NOT include `Permissions` (plural). Although
- *     `isPropertyComplianceBlocked()` defensively reads `property.Permissions`
- *     for legacy-feed safety, the plural form does NOT exist as a Cotality
- *     Property field — including it in `$select` causes Cotality to return
- *     HTTP 400 (verified in production 2026-05-09T07:00:25Z, first PR-3 firing).
- *     `Permission` (singular) is the only valid form; the runtime
- *     fallback to `property.Permissions` simply reads `undefined` on this feed,
- *     which is harmless.
+ *   - `$select` includes `Permission` (singular), the canonical compliance
+ *     field, live on Property in `$metadata` (committed as
+ *     data/cotality-enums.live.json). `isPropertyComplianceBlocked()` reads
+ *     it via `hasCotalityListingPermission` (exact Multi-Enum member match,
+ *     2026-10-02 Permission Multi-Enum cutover).
+ *   - `$select` deliberately does NOT include `Permissions` (plural) — it
+ *     does NOT exist as a Cotality Property field; including it causes
+ *     Cotality to return HTTP 400 (verified in production
+ *     2026-05-09T07:00:25Z, first PR-3 firing). `isPropertyComplianceBlocked`
+ *     no longer reads `property.Permissions` at all (the prior "defensive
+ *     legacy-feed" fallback was removed in the Permission Multi-Enum cutover).
+ *   - `$select` no longer includes `MlsStatus` (2026-10-02 Status/Permission
+ *     closure): this module has zero remaining readers of it.
  */
 export interface PropertyQueryCursor {
   /** Watermark timestamp — `null` ⇒ first run, fall back to `fallbackSince`. */
@@ -3284,11 +3289,12 @@ export function buildPropertyQuery(cursor: PropertyQueryCursor, top: number): UR
     timeClause = `(PhotosChangeTimestamp gt ${ts} or (PhotosChangeTimestamp eq ${ts} and ListingKey gt '${key}'))`;
   }
   params.set("$filter", `${timeClause} and ${statuses}`);
-  // `Permissions` (plural) is NOT a Cotality Property field — see the
-  // doc comment above. Do NOT add it back. `Permission` (singular) is canonical.
+  // `Permissions` (plural) is NOT a Cotality Property field — see the doc
+  // comment above. Do NOT add it back. `Permission` (singular) is canonical.
+  // `MlsStatus` removed (2026-10-02 Status/Permission closure) — zero readers.
   params.set(
     "$select",
-    "ListingId,ListingKey,ListingKeyNumeric,PhotosChangeTimestamp,ModificationTimestamp,StandardStatus,Permission,MlsStatus,InternetEntireListingDisplayYN,InternetAddressDisplayYN",
+    "ListingId,ListingKey,ListingKeyNumeric,PhotosChangeTimestamp,ModificationTimestamp,StandardStatus,Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN",
   );
   params.set("$orderby", "PhotosChangeTimestamp asc,ListingKey asc");
   params.set("$top", String(top));

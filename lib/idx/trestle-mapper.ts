@@ -53,7 +53,7 @@ const B3_LISTING_AGREEMENT = [
   "OriginalEntryTimestamp", "ListingService", "MlsStatus",
   "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
   "SyndicationRemarks",
-  "Permission", // Owner opt-out detection — required by checkDistributionGates() (singular, not "Permissions")
+  "Permission", // Participant Only detection (Permission Multi-Enum member 'Private') — required by checkDistributionGates() (singular; "Permissions" does not exist on live Property)
 ];
 
 // B4: Status & Dates
@@ -80,10 +80,13 @@ const B5_PRICING = [
 ];
 
 // B6: Display Flags / Distribution
-// Live-Trestle truth (verified 2026-04-19 against $metadata):
+// Live-Trestle truth (verified 2026-04-19 against $metadata; corrected 2026-10-02
+// Permission Multi-Enum cutover):
 //   - IDX*/VOW*/IDXParticipationYN/ParticipantOnlyYN do NOT exist as separate
-//     fields. Owner Opt-Out / Participant Only are encoded via the `Permission`
-//     enum on the Property resource (handled in checkDistributionGates).
+//     fields. Participant Only is encoded via the `Permission` Multi-Enum on
+//     the Property resource (handled in checkDistributionGates). Owner
+//     Opt-Out has NO Cotality signal at all -- it is Mallan-local authority
+//     (lib/compliance/gates.ts::isOwnerOptOut reads the DB-cached column).
 //   - InternetEntireListingDisplayYN/InternetAddressDisplayYN are listed in
 //     B3_LISTING_AGREEMENT (master gate + address gate).
 const B6_DISPLAY_FLAGS = [
@@ -729,8 +732,9 @@ export interface PermissionGates {
  * `lib/compliance/gates.ts::isOwnerOptOut` (reads the DB-cached column) and
  * `applyLocalOwnerOptOutGate` below (preserves it across a provider UPDATE).
  *
- * @param raw Trestle Property record — reads `Permission` (legacy alias
- *            `Permissions`). Any other key is ignored.
+ * @param raw Trestle Property record — reads `Permission` (singular) only.
+ *            `Permissions` (plural) does not exist on live Property at all
+ *            and is never read here. Any other key is ignored.
  */
 export function derivePermissionGates(raw: Record<string, unknown>): PermissionGates {
   // REBNY Gate 2 — Participant Only = Permission MEMBER 'Private' per UCBA 2026 H4 /
@@ -974,7 +978,7 @@ export function mapTrestleToPrisma(raw: Record<string, unknown>): {
   // MLS, or another non-REBNY MLS (per the parked external-inventory spec
   // Phase 2-A), the policy layer will be different and this null-handling
   // logic must be re-evaluated for that feed independently.
-  // REBNY Gate 2 — "Participant Only" = Permissions enum value 'Private' per
+  // REBNY Gate 2 — "Participant Only" = Permission MEMBER 'Private' per
   // UCBA 2026 H4 / Definitions (W) and data/rebny-rls-property-lookup.csv:1643.
   // (The legacy field name ParticipantOnlyYN was never a Trestle field — it was
   // transcribed from UCBA's English-language Definition (W) describing

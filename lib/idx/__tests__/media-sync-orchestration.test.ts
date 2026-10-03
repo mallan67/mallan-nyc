@@ -321,23 +321,21 @@ describe("runMediaSync — empty page", () => {
 // ─── Defensive compliance gates ──────────────────────────────────────────
 
 describe("runMediaSync — defensive compliance gates", () => {
-  it("[Permission cutover 2026-10-02] does NOT skip on Permission/MlsStatus='OwnerOptOut' any more — Gate 1 has no live Cotality signal and this orchestration layer has no DB row to consult for the real, Mallan-local owner_opt_out column (see lib/idx/media-sync.ts::isPropertyComplianceBlocked's docstring)", async () => {
+  it("[Permission/Status closure 2026-10-02] does NOT skip on Permission='OwnerOptOut' any more — Gate 1 has no live Cotality signal (Permissions plural and MlsStatus are no longer even expressible on TrestleProperty — both removed from the type entirely, a stronger proof than a runtime check)", async () => {
     mockMediaSyncFindUnique.mockResolvedValue(null);
     mockListingMediaFindMany.mockResolvedValue([]);
     const fetchMedia = jest.fn().mockResolvedValue([]);
     const fetchDeps = makeFetchDeps({
       fetchProperties: jest.fn().mockResolvedValueOnce([
         makeProperty({ Permission: "OwnerOptOut" }),
-        makeProperty({ Permissions: "OwnerOptOut" }),
         makeProperty({ Permission: "Owner Opt-Out" }),
-        makeProperty({ MlsStatus: "OwnerOptOut" }),
       ]),
       fetchMedia,
     });
 
     const result = await runMediaSync(makeOptions({ fetchDeps }));
     expect(result.listings_skipped).toBe(0);
-    expect(fetchMedia).toHaveBeenCalledTimes(4);
+    expect(fetchMedia).toHaveBeenCalledTimes(2);
   });
 
   it("skips participant_only listings (Permission='Private') without fetching their Media", async () => {
@@ -867,16 +865,22 @@ describe("buildPropertyQuery", () => {
   // (ts set, key null) for the $select/$orderby/$top shape tests.
   const transition = { lastPhotosChange: TS, lastListingKey: null, fallbackSince: TS };
 
-  it("$select includes the canonical Cotality compliance fields Permission (singular) and MlsStatus", () => {
+  it("$select includes the canonical Cotality compliance field Permission (singular)", () => {
     const params = buildPropertyQuery(transition, 50);
     const select = params.get("$select") || "";
     const fields = select.split(",");
     expect(fields).toContain("Permission");
-    expect(fields).toContain("MlsStatus");
     expect(fields).toContain("InternetEntireListingDisplayYN");
     // Sanity — ListingKey + PhotosChangeTimestamp still selected.
     expect(fields).toContain("ListingKey");
     expect(fields).toContain("PhotosChangeTimestamp");
+  });
+
+  it("[Status/Permission closure 2026-10-02] $select does NOT include MlsStatus — zero remaining readers in this module", () => {
+    const params = buildPropertyQuery(transition, 50);
+    const select = params.get("$select") || "";
+    const fields = select.split(",");
+    expect(fields).not.toContain("MlsStatus");
   });
 
   it("$select does NOT include Permissions (plural) — Cotality returns HTTP 400 for that field", () => {
@@ -917,11 +921,9 @@ describe("isPropertyComplianceBlocked", () => {
     expect(isPropertyComplianceBlocked(makeProperty())).toBe(false);
   });
 
-  it("[Permission cutover 2026-10-02] no longer blocks on Permission/Permissions/MlsStatus='OwnerOptOut' or 'Owner Opt-Out' — Gate 1 has no live Cotality signal (confirmed via trestle_get_picklist)", () => {
+  it("[Permission/Status closure 2026-10-02] no longer blocks on Permission='OwnerOptOut' or 'Owner Opt-Out' — Gate 1 has no live Cotality signal (Permissions plural and MlsStatus are no longer even expressible on TrestleProperty — both removed from the type entirely)", () => {
     expect(isPropertyComplianceBlocked(makeProperty({ Permission: "OwnerOptOut" }))).toBe(false);
     expect(isPropertyComplianceBlocked(makeProperty({ Permission: "Owner Opt-Out" }))).toBe(false);
-    expect(isPropertyComplianceBlocked(makeProperty({ Permissions: "OwnerOptOut" }))).toBe(false);
-    expect(isPropertyComplianceBlocked(makeProperty({ MlsStatus: "OwnerOptOut" }))).toBe(false);
   });
 
   it("returns true for Permission='Private' (participant-only)", () => {
