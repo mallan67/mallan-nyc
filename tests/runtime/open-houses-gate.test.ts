@@ -179,6 +179,16 @@ describe('open-houses — By Appointment designation surfaces (public API + /ope
 
 describe('open-houses — live Property reads do not fetch unused MlsStatus (2026-10-03 Status residue cutover)', () => {
   it('neither the $expand path nor the flat fallback $select requests MlsStatus (evaluateDisplayGate reads StandardStatus only)', () => {
-    expect(ROUTE).not.toMatch(/MlsStatus/);
+    // Check the actual OData field-list values, not the whole file's comment text -- the
+    // surrounding comments legitimately mention "MlsStatus" by name to document why it
+    // was removed (same convention as crm-idx-mapper.ts's surviving StandardStatus/
+    // MlsStatus comments).
+    const expandSelects = ROUTE.match(/\$select=[^)]*\)/g) || [];
+    const flatSelects = ROUTE.match(/\$select',\s*'[^']*'/g) || [];
+    expect(expandSelects.length).toBeGreaterThan(0);
+    expect(flatSelects.length).toBeGreaterThan(0);
+    for (const s of [...expandSelects, ...flatSelects]) {
+      expect(s).not.toMatch(/MlsStatus/);
+    }
   });
 });

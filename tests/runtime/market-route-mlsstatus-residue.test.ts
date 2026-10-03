@@ -18,8 +18,15 @@ import { resolve } from 'path';
 const ROUTE = readFileSync(resolve(__dirname, '../../app/api/market/route.ts'), 'utf8');
 
 describe('api/market — live Cotality filters use StandardStatus only (MlsStatus HTTP 400)', () => {
-  it('contains no "MlsStatus eq" filter clause anywhere in the route', () => {
-    expect(ROUTE).not.toMatch(/MlsStatus eq/);
+  it('contains no "MlsStatus eq" filter clause in a live $filter value', () => {
+    // Check the actual $filter template-literal values the route sends to Cotality, not
+    // the whole file's comment text -- the surrounding comment legitimately quotes
+    // "MlsStatus eq 'Active'" to document the live HTTP 400 proof this cutover fixed.
+    const filters = ROUTE.match(/\$filter: `[^`]*`/g) || [];
+    expect(filters.length).toBeGreaterThan(0);
+    for (const f of filters) {
+      expect(f).not.toMatch(/MlsStatus/);
+    }
   });
 
   it('the active live fallback filter matches the DB activeWhere population (Active, ComingSoon, ActiveUnderContract)', () => {
