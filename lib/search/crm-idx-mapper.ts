@@ -23,17 +23,11 @@ export function mapDisplayPropertyType(raw: Record<string, unknown>): string {
   if (sub.includes("condop")) return "Condop";
   if (sub.includes("townhouse")) return "Townhouse";
   if (sub.includes("loft")) return "Loft";
-  // PROVEN_DEAD_BRANCH (PropertySubType cutover, 2026-10-02): live Cotality's single-family
-  // value is "SingleFamilyResidence" (no space, no "house" substring) -- this condition can
-  // never match it. MALLAN_BUSINESS_RULE_UNRESOLVED: the correct Mallan display label for
-  // SingleFamilyResidence is not proven. The repo has conflicting vocabularies ("Single
-  // Family" with a space is the established label in app/api/listings/route.ts's
-  // subTypeMap and lib/search/public-listing-db.ts; this branch's own intent suggests
-  // "House"; lib/listings/similar-listing-ranking.ts folds it into a townhouse/whole-
-  // building class). Not resolved here -- the raw value falls through to the verbatim
-  // return below, unchanged. See readCotalityPropertySubType in lib/cotality/property.ts
-  // for the raw-contract boundary.
-  if (sub.includes("single family") || sub.includes("house")) return "House";
+  // SingleFamilyResidence has no dedicated case here -- MALLAN_BUSINESS_RULE_UNRESOLVED
+  // (see readCotalityPropertySubType's docstring in lib/cotality/property.ts). Falls
+  // through to the verbatim raw-value return below. A prior branch here
+  // (sub.includes("single family") || sub.includes("house")) was proven dead against the
+  // live spelling "SingleFamilyResidence" and was deleted, not retained, 2026-10-03.
   if (sub.includes("multi")) return "Multi-Family";
   if (sub === "apartment") return "Residential";
   if (sub) return String(raw.PropertySubType);
@@ -168,11 +162,12 @@ export function mapTrestleToCrmListing(
     Canceled: "CANCELLED",
     Cancelled: "CANCELLED",
     // ── UCBA Art. I §5(D) — "Off-Market" labeling is prohibited.
-    // Some MLS feeds (or stale data sources) may emit "Off Market" /
-    // "Off-Market" / "OffMarket" in MlsStatus. Map all variants to
-    // "WITHDRAWN", the closest UCBA-compliant canonical status.
-    // Without this mapping, the prior `mlsStatus.toUpperCase()`
-    // fallback would produce "OFF MARKET" — a literal violation.
+    // Some data sources may emit "Off Market" / "Off-Market" / "OffMarket" as the
+    // canonicalStatus value (sourced from StandardStatus via readCotalityStandardStatus
+    // above -- never from Cotality's actual MlsStatus field; 2026-10-03 Status residue
+    // cutover). Map all variants to "WITHDRAWN", the closest UCBA-compliant canonical
+    // status. Without this mapping, the prior `mlsStatus.toUpperCase()` fallback would
+    // produce "OFF MARKET" — a literal violation.
     "Off Market": "WITHDRAWN",
     "Off-Market": "WITHDRAWN",
     OffMarket: "WITHDRAWN",

@@ -34,8 +34,11 @@ export const SEARCH_SELECT_FIELDS = [
   // Classification
   "ListingId", "SourceSystemKey", "PropertyType", "PropertySubType",
   "CommonInterest", "OwnershipType", "NewConstructionYN",
-  // Status & Dates
-  "StandardStatus", "MlsStatus", "ModificationTimestamp",
+  // Status & Dates. MlsStatus intentionally not fetched (2026-10-03 Status residue
+  // cutover): cannot be used for filtering/ordering on live Cotality (RLS-suppressed,
+  // confirmed HTTP 400), and lib/search/crm-idx-mapper.ts's mapTrestleToCrmListing never
+  // reads it -- canonicalStatus comes from StandardStatus only.
+  "StandardStatus", "ModificationTimestamp",
   "ListingContractDate",
   "OnMarketDate", "CloseDate", "ClosePrice", "ActivationDate",
   "DaysOnMarket", "CumulativeDaysOnMarket",

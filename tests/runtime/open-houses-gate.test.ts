@@ -176,3 +176,9 @@ describe('open-houses — By Appointment designation surfaces (public API + /ope
     expect(SIDEBAR).toMatch(/<OpenHouseRSVP/); // RSVP button retained
   });
 });
+
+describe('open-houses — live Property reads do not fetch unused MlsStatus (2026-10-03 Status residue cutover)', () => {
+  it('neither the $expand path nor the flat fallback $select requests MlsStatus (evaluateDisplayGate reads StandardStatus only)', () => {
+    expect(ROUTE).not.toMatch(/MlsStatus/);
+  });
+});

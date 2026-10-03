@@ -197,9 +197,16 @@ export async function GET(request: Request) {
         // Opt-Out has NO Cotality signal at all -- it is Mallan-local authority.
         const selectFields = 'ListPrice,LivingArea,DaysOnMarket,StandardStatus,ListOfficeName,CityRegion,PostalCode,ModificationTimestamp,OnMarketTimestamp,Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN';
 
-        // Active listings from Cotality
+        // Active listings from Cotality. StandardStatus only -- live re-verification
+        // (2026-10-03 Status residue cutover) proved both `MlsStatus eq 'Active'` and
+        // `MlsStatus eq 'Closed'` return HTTP 400 ("field MlsStatus cannot be used for
+        // filtering or ordering queries"); RLS suppresses MlsStatus for filtering/ordering.
+        // The three-status OR matches the DB-side activeWhere population above (Active,
+        // ComingSoon, ActiveUnderContract), not Active alone -- the prior Active-only
+        // filter made the ActiveUnderContract count below a logical impossibility (that
+        // status could never appear in a fetch result that excluded it).
         const activeParams = new URLSearchParams({
-          $filter: `MlsStatus eq 'Active' and ${propertyClass}${boroughFilter}`,
+          $filter: `(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract') and ${propertyClass}${boroughFilter}`,
           $select: selectFields,
           $top: '200',
           $count: 'true',
@@ -213,12 +220,17 @@ export async function GET(request: Request) {
         if (activeRes.ok) {
           const data = await activeRes.json();
           cotalityActive = data.value || [];
+        } else {
+          console.warn(
+            `[/api/market] Cotality active fallback failed: HTTP ${activeRes.status} ${activeRes.statusText}`,
+          );
         }
 
-        // Closed listings from Cotality (within period)
+        // Closed listings from Cotality (within period). StandardStatus only -- see the
+        // active-fetch comment above for the live-verified MlsStatus HTTP 400 proof.
         const periodStartISO = periodStart.toISOString().split('T')[0];
         const closedParams = new URLSearchParams({
-          $filter: `(MlsStatus eq 'Closed' or StandardStatus eq 'Closed') and ${propertyClass} and CloseDate ge ${periodStartISO}${boroughFilter}`,
+          $filter: `StandardStatus eq 'Closed' and ${propertyClass} and CloseDate ge ${periodStartISO}${boroughFilter}`,
           $select: `${selectFields},ClosePrice,CloseDate`,
           $top: '200',
         });
@@ -231,6 +243,10 @@ export async function GET(request: Request) {
         if (closedRes.ok) {
           const data = await closedRes.json();
           cotalityClosed = data.value || [];
+        } else {
+          console.warn(
+            `[/api/market] Cotality closed fallback failed: HTTP ${closedRes.status} ${closedRes.statusText}`,
+          );
         }
       } catch (err) {
         console.warn('[/api/market] Cotality fallback failed:', err instanceof Error ? err.message : err);

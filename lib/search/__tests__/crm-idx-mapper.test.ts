@@ -495,7 +495,7 @@ describe("crm idx mapper — PropertySubType raw contract (2026-10-02 cutover)",
     expect(l.propertySubType).toBe("SingleFamilyResidence");
   });
 
-  it("[CHARACTERIZATION, MALLAN_BUSINESS_RULE_UNRESOLVED] mapDisplayPropertyType returns SingleFamilyResidence verbatim -- the dead 'single family'/'house' branch never matches it, and no Mallan label has been authorized to replace it", () => {
+  it("[MALLAN_BUSINESS_RULE_UNRESOLVED] mapDisplayPropertyType returns SingleFamilyResidence verbatim -- the dead 'single family'/'house' branch was deleted (2026-10-03 Status residue cutover) without changing this output; no Mallan label has been authorized to replace it", () => {
     expect(mapDisplayPropertyType({ PropertySubType: "SingleFamilyResidence" })).toBe(
       "SingleFamilyResidence",
     );

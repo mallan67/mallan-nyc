@@ -187,11 +187,13 @@ async function fetchCotalityOpenHouses(): Promise<OpenHouseDTO[]> {
     //
     // Permission-gate fields — match the main IDX pipeline's canonical set:
     //   Permission, InternetEntireListingDisplayYN, InternetAddressDisplayYN
-    //   StandardStatus + MlsStatus + CloseDate (for Closed-past-24h gate)
+    //   StandardStatus + CloseDate (for Closed-past-24h gate)
     // Removed dead fields previously in this list:
     //   IDXEntireListingDisplayYN (no such field on Cotality schema)
     //   ParticipantOnlyYN (never existed — superseded by Permission='Private')
-    params.set('$expand', 'Property($select=ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,PropertySubType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListOfficeName,PublicRemarks,PhotosCount,Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN,StandardStatus,MlsStatus,CloseDate)');
+    //   MlsStatus (2026-10-03 Status residue cutover: evaluateDisplayGate's readStatus()
+    //   reads StandardStatus only -- MlsStatus was fetched here but never consumed)
+    params.set('$expand', 'Property($select=ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,PropertySubType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListOfficeName,PublicRemarks,PhotosCount,Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN,StandardStatus,CloseDate)');
 
     const res = await fetch(`${base}/odata/OpenHouse?${params}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
@@ -326,8 +328,10 @@ async function fetchCotalityOpenHousesFlat(mallanIds: string[]): Promise<OpenHou
       // and by the main IDX pipeline. Removed dead fields (IDXEntireListingDisplayYN,
       // OwnerOptOut boolean, ParticipantOnlyYN — none exist on Cotality schema).
       // Added Permission (source of opt-out + private), InternetAddressDisplayYN
-      // (address suppression), StandardStatus/MlsStatus/CloseDate (terminal-status gate).
-      propParams.set('$select', 'ListingKey,ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListOfficeName,PublicRemarks,Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN,StandardStatus,MlsStatus,CloseDate');
+      // (address suppression), StandardStatus/CloseDate (terminal-status gate).
+      // MlsStatus removed (2026-10-03 Status residue cutover): evaluateDisplayGate's
+      // readStatus() reads StandardStatus only -- MlsStatus was fetched but never consumed.
+      propParams.set('$select', 'ListingKey,ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListOfficeName,PublicRemarks,Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN,StandardStatus,CloseDate');
       propParams.set('$top', String(listingKeys.length));
 
       const propRes = await fetch(`${base}/odata/Property?${propParams}`, {
