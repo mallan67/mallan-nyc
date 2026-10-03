@@ -155,8 +155,6 @@ function makeProperty(overrides: Partial<TrestleProperty> = {}): TrestleProperty
     ModificationTimestamp: "2026-05-08T11:30:00Z",
     StandardStatus: "Active",
     Permission: null,
-    Permissions: null,
-    MlsStatus: "Active",
     InternetEntireListingDisplayYN: true,
     InternetAddressDisplayYN: true,
     ...overrides,
@@ -943,9 +941,6 @@ describe("isPropertyComplianceBlocked", () => {
     expect(isPropertyComplianceBlocked(makeProperty({ Permission: "PrivateSomething" }))).toBe(false);
   });
 
-  it("[Permission Multi-Enum cutover 2026-10-02] raw Permissions='Private' (plural, no singular Permission) is NOT accepted as Cotality truth", () => {
-    expect(isPropertyComplianceBlocked(makeProperty({ Permissions: "Private" }))).toBe(false);
-  });
 
   it("returns true for InternetEntireListingDisplayYN === false", () => {
     expect(isPropertyComplianceBlocked(makeProperty({ InternetEntireListingDisplayYN: false }))).toBe(true);

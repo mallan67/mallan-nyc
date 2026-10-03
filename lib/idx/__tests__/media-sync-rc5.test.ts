@@ -90,8 +90,6 @@ function ghostProperty(): TrestleProperty {
     ModificationTimestamp: GHOST_TS,
     StandardStatus: "Active",
     Permission: null,
-    Permissions: null,
-    MlsStatus: "Active",
     InternetEntireListingDisplayYN: true,
     InternetAddressDisplayYN: true,
   };
