@@ -115,3 +115,30 @@ export function readCotalityPropertySubType(raw: Record<string, unknown>): strin
   const text = String(value).trim();
   return text ? text : null;
 }
+
+/**
+ * The live Property.CommonInterest value, exactly as Cotality sent it. Nothing else.
+ *
+ * CommonInterest is the RLS-associated field for Mallan's ownership/ownership-type
+ * display concept — confirmed live, 2026-10-03 CommonInterest cutover. OwnershipType is a
+ * genuinely SEPARATE Property field: its Field catalog entry is not RLS-associated, and
+ * the current accessible RLS population has 0 non-null OwnershipType rows. This function
+ * must never read OwnershipType as a fallback, and must never substitute PropertyType or
+ * PropertySubType.
+ *
+ * Current RLS-associated Lookup (narrower than the full global enum — do not blend the two
+ * scopes): CommunityApartment, Condominium, Condop, None, RentalBuilding, StockCooperative.
+ * Live population (2026-10-03, a moving count, not a constant) includes roughly 156,334
+ * null rows and 0 current CommunityApartment rows — both are real provider states, not
+ * evidence of a broken field.
+ *
+ * Returns the raw value verbatim — never translated to a Mallan display label (e.g.
+ * "Condo"/"Co-op" — see public/crm/js/core/reso-field-map.js's ownershipLabel() and
+ * lib/search/crm-idx-mapper.ts's mapDisplayPropertyType for that separate, later concern).
+ */
+export function readCotalityCommonInterest(raw: Record<string, unknown>): string | null {
+  const value = raw.CommonInterest;
+  if (value == null) return null;
+  const text = String(value).trim();
+  return text ? text : null;
+}

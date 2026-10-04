@@ -1,5 +1,5 @@
 import { resolveListingMedia } from "@/lib/media/listing-media-resolver";
-import { readCotalityStandardStatus, readCotalityPropertySubType } from "@/lib/cotality/property";
+import { readCotalityStandardStatus, readCotalityPropertySubType, readCotalityCommonInterest } from "@/lib/cotality/property";
 
 // REBNY IDX Plus pre-filter: REBNY/Cotality removes non-displayable rows from
 // the IDX Plus feed upstream, leaving InternetEntireListingDisplayYN and
@@ -218,7 +218,7 @@ export function mapTrestleToCrmListing(
     intSqft: raw.LivingArea != null ? Number(raw.LivingArea) : null,
     status,
     mlsStatus,
-    ownership: String(raw.CommonInterest || raw.OwnershipType || ""),
+    ownership: readCotalityCommonInterest(raw),
     propertyType: mapDisplayPropertyType(raw),
     propertySubType: readCotalityPropertySubType(raw),
     neighborhood: String(raw.SubdivisionName || ""),

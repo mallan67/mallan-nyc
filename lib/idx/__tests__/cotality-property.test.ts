@@ -10,7 +10,7 @@
  *     "IDX,SyndicateOptOut,OfficeInactive".
  *   - Property.Permissions (plural) does not exist on live Cotality at all.
  */
-import { readCotalityListingPermissions, hasCotalityListingPermission, readCotalityPropertySubType } from '../../cotality/property';
+import { readCotalityListingPermissions, hasCotalityListingPermission, readCotalityPropertySubType, readCotalityCommonInterest } from '../../cotality/property';
 
 describe('readCotalityListingPermissions', () => {
   it('splits a single member', () => {
@@ -112,5 +112,35 @@ describe('readCotalityPropertySubType', () => {
 
   it('PropertySubTypeAdditional alone does not populate PropertySubType -- separate Multi-Enum field', () => {
     expect(readCotalityPropertySubType({ PropertySubTypeAdditional: 'Garage,Basement' })).toBeNull();
+  });
+});
+
+describe('readCotalityCommonInterest', () => {
+  it('passes through live RLS-associated values verbatim', () => {
+    expect(readCotalityCommonInterest({ CommonInterest: 'Condominium' })).toBe('Condominium');
+    expect(readCotalityCommonInterest({ CommonInterest: 'StockCooperative' })).toBe('StockCooperative');
+    expect(readCotalityCommonInterest({ CommonInterest: 'Condop' })).toBe('Condop');
+    expect(readCotalityCommonInterest({ CommonInterest: 'RentalBuilding' })).toBe('RentalBuilding');
+    expect(readCotalityCommonInterest({ CommonInterest: 'None' })).toBe('None');
+  });
+
+  it('supports CommunityApartment despite its current zero live population', () => {
+    expect(readCotalityCommonInterest({ CommonInterest: 'CommunityApartment' })).toBe('CommunityApartment');
+  });
+
+  it('null CommonInterest → null, never fabricated (~156,334 current live null rows)', () => {
+    expect(readCotalityCommonInterest({ CommonInterest: null })).toBeNull();
+  });
+
+  it('missing CommonInterest → null', () => {
+    expect(readCotalityCommonInterest({})).toBeNull();
+  });
+
+  it('does not read OwnershipType as a fallback -- it is a separate, non-RLS-associated field with 0 current accessible rows', () => {
+    expect(readCotalityCommonInterest({ OwnershipType: 'Condominium' })).toBeNull();
+  });
+
+  it('does not substitute PropertyType or PropertySubType when CommonInterest is absent', () => {
+    expect(readCotalityCommonInterest({ PropertyType: 'Residential', PropertySubType: 'Condominium' })).toBeNull();
   });
 });

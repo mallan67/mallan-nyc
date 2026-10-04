@@ -501,3 +501,36 @@ describe("crm idx mapper — PropertySubType raw contract (2026-10-02 cutover)",
     );
   });
 });
+
+describe("crm idx mapper — ownership raw contract (2026-10-03 CommonInterest cutover)", () => {
+  it("preserves a live null CommonInterest as null, never a fabricated empty string", () => {
+    const l = mapTrestleToCrmListing({
+      ListingId: "X",
+      InternetEntireListingDisplayYN: true,
+      InternetAddressDisplayYN: true,
+      CommonInterest: null,
+    }, 0);
+    expect(l.ownership).toBeNull();
+  });
+
+  it("preserves live enum values unchanged", () => {
+    const l = mapTrestleToCrmListing({
+      ListingId: "X",
+      InternetEntireListingDisplayYN: true,
+      InternetAddressDisplayYN: true,
+      CommonInterest: "StockCooperative",
+    }, 0);
+    expect(l.ownership).toBe("StockCooperative");
+  });
+
+  it("does not fall back to OwnershipType -- it is a separate, non-RLS-associated field with 0 current accessible rows", () => {
+    const l = mapTrestleToCrmListing({
+      ListingId: "X",
+      InternetEntireListingDisplayYN: true,
+      InternetAddressDisplayYN: true,
+      CommonInterest: null,
+      OwnershipType: "Condominium",
+    }, 0);
+    expect(l.ownership).toBeNull();
+  });
+});

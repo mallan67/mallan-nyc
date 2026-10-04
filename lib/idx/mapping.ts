@@ -9,7 +9,7 @@
 
 import type { IDXListing } from './types';
 import { REQUIRED_RLS_FIELDS } from './trestle-mapper';
-import { readCotalityStandardStatus, hasCotalityListingPermission, readCotalityPropertySubType } from '@/lib/cotality/property';
+import { readCotalityStandardStatus, hasCotalityListingPermission, readCotalityPropertySubType, readCotalityCommonInterest } from '@/lib/cotality/property';
 import { normalizeStreetCase } from './normalize-street-case';
 import { classifyTrestleMediaCategory } from '@/lib/media/media-sync-service';
 
@@ -300,7 +300,7 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     closePrice: raw.ClosePrice != null ? Number(raw.ClosePrice) : null,
     propertyType,
     propertySubType: readCotalityPropertySubType(raw),
-    commonInterest: raw.CommonInterest ? String(raw.CommonInterest) : undefined,
+    commonInterest: readCotalityCommonInterest(raw) ?? undefined,
     ownershipType: raw.OwnershipType ? String(raw.OwnershipType) : undefined,
     bedroomsTotal: Number(raw.BedroomsTotal) || 0,
     bathroomsFull: Number(raw.BathroomsFull) || 0,
