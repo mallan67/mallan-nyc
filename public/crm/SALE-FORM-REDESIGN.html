@@ -773,11 +773,11 @@ body { font-family: Manrope, sans-serif; }
                 <div class="section-body">
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <div class="lg:col-span-2">
-                            <label class="field-label mb-2">Property Type <span class="text-red-500">*</span></label>
+                            <label class="field-label mb-2">Listing Classification <span class="text-red-500">*</span></label>
                             <!-- Residential -->
                             <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Residential</p>
                             <div class="grid grid-cols-3 gap-1.5 mb-3">
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="salePropertyType" value="Condo" class="w-4 h-4" checked onchange="applySalesFieldRules()" data-rls-field="PropertyType"> Condo</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="salePropertyType" value="Condo" class="w-4 h-4" checked onchange="applySalesFieldRules()"> Condo</label>
                                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="salePropertyType" value="Coop" class="w-4 h-4" onchange="applySalesFieldRules()"> Co-op</label>
                                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="salePropertyType" value="Condop" class="w-4 h-4" onchange="applySalesFieldRules()"> Condop</label>
                                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="salePropertyType" value="SingleFamilyTownhouse" class="w-4 h-4" onchange="applySalesFieldRules()"> Single Family TH</label>
@@ -860,20 +860,17 @@ body { font-family: Manrope, sans-serif; }
                         </select>
                     </div>
 
-                    <!-- RLS: CommonInterest — REQUIRED, Single-Select Picklist (8 values) -->
+                    <!-- REBNY RLS Ownership Type — raw Cotality field key: CommonInterest -->
                     <div class="mt-4 pt-3 border-t">
-                        <label class="field-label mb-2">Ownership Structure (CommonInterest) <span class="text-red-500">*</span></label>
-                        <p class="text-[10px] text-gray-500 mb-2">RLS Field: CommonInterest — Auto-set from property type, or override manually.</p>
+                        <label class="field-label mb-2">Ownership Type <span class="text-red-500">*</span></label>
+                        <p class="text-[10px] text-gray-500 mb-2">Provider field: CommonInterest · Current REBNY RLS entry values.</p>
                         <select id="saleCommonInterest" class="field-input" onchange="onSaleCommonInterestChange()" data-rls-field="CommonInterest">
                             <option value="">Select...</option>
-                            <option value="Condominium">Condominium</option>
-                            <option value="StockCooperative">Stock Cooperative (Co-op)</option>
+                            <option value="Condominium">Condo</option>
+                            <option value="StockCooperative">Co-op</option>
                             <option value="Condop">Condop</option>
-                            <option value="CommunityApartment">Community Apartment</option>
-                            <option value="PlannedDevelopment">Planned Development</option>
-                            <option value="None">None (Fee Simple / Townhouse)</option>
                             <option value="RentalBuilding">Rental Building</option>
-                            <option value="Timeshare">Timeshare</option>
+                            <option value="None">None</option>
                         </select>
                     </div>
                 </div>
@@ -5035,20 +5032,17 @@ function toggleSaleAuctionFields() {
 let buildingDatabase = [];
 let _buildingSearchTimeout = null;
 
-// Map RESO CommonInterest enum values to sale form salePropertyType radio values.
-// Cotality ref: docs/architecture/COTALITY-COMPLETE-REFERENCE.md §5, §11
-// Verified against Cotality $metadata: CommonInterest enum at artifacts/metadata.xml:7489
+// Raw Cotality CommonInterest → Mallan form display classification.
+// Do not infer from PropertyType/PropertySubType here: this helper only translates exact raw values.
 function _commonInterestToFormType(ci) {
     if (!ci) return '';
     var map = {
         'Condominium': 'Condo',
         'StockCooperative': 'Coop',
         'Condop': 'Condop',
-        'Condo': 'Condo',
-        'Co-op': 'Coop',
-        'Coop': 'Coop',
+        'RentalBuilding': 'RentalBuilding'
     };
-    return map[ci] || ci;
+    return map[ci] || '';
 }
 
 // Fetch buildings from API by address query
@@ -5074,7 +5068,7 @@ async function fetchBuildingsFromAPI(query) {
             showToast(hint, 'warning');
         }
         return buildings.map(function(b) {
-            var ci = b.common_interest || b.property_type || '';
+            var ci = b.common_interest == null ? '' : b.common_interest;
             var formType = _commonInterestToFormType(ci);
             var rawAddr = b.address || b.street_address || '';
             var bldgName = b.name || b.building_name || '';
@@ -7419,11 +7413,20 @@ function collectSaleFormData() {
     // See _deriveSaleYNFields (Codex #280 follow-up).
     _deriveSaleYNFields(data);
 
-    // Map CRM property type to RLS fields via getResoPropertyFields()
+    // Map the Mallan listing classification to provider fields. The explicit Ownership Type
+    // control wins; raw CommonInterest is never populated from another provider field.
     var resoFields = getResoPropertyFields(data.salePropertyType || '');
     data.PropertyType = resoFields.PropertyType || 'Residential';
     data.PropertySubType = resoFields.PropertySubType || '';
-    data.CommonInterest = resoFields.CommonInterest || data.saleCommonInterest || '';
+    var ownershipEl = document.getElementById('saleCommonInterest');
+    if (ownershipEl && ownershipEl.dataset.preserveNull === 'true' && !ownershipEl.value) {
+        data.CommonInterest = null;
+    } else if (ownershipEl && ownershipEl.dataset.explicit === 'true') {
+        data.CommonInterest = ownershipEl.value || null;
+    } else {
+        data.CommonInterest = resoFields.CommonInterest || (ownershipEl ? ownershipEl.value : '') || '';
+    }
+    delete data.saleCommonInterest;
 
     // Map CRM status to RLS MlsStatus
     data.MlsStatus = (typeof getResoMlsStatus === 'function') ? getResoMlsStatus(data.saleStatus || '') : (data.saleStatus || '');
@@ -9322,7 +9325,6 @@ var SALE_FIELD_MAP = [
 
   // ── Selects not yet mapped ──
   { rls: 'saleStructureType', form: 'saleStructureType', type: 'text', src: 'raw' },
-  { rls: 'saleCommonInterest', form: 'saleCommonInterest', type: 'text', src: 'raw', fallbackRls: 'CommonInterest' },
 
   // ── Financial additional ──
   { rls: 'saleConcessionAmount', form: 'saleConcessionAmount', type: 'number', src: 'raw' },
@@ -9828,6 +9830,31 @@ function _populateSaleFormFromApi(listing) {
             setVal(f.form, val);
         }
     });
+
+    // Restore the exact raw provider ownership reference separately. null stays null.
+    // A provider value outside today's REBNY entry picker remains visible as historical data.
+    var saleOwnershipEl = document.getElementById('saleCommonInterest');
+    if (saleOwnershipEl) {
+        delete saleOwnershipEl.dataset.explicit;
+        delete saleOwnershipEl.dataset.preserveNull;
+        delete saleOwnershipEl.dataset.autoDerived;
+        if (raw.CommonInterest === undefined || raw.CommonInterest === null) {
+            saleOwnershipEl.value = '';
+            saleOwnershipEl.dataset.preserveNull = 'true';
+        } else {
+            var rawOwnership = String(raw.CommonInterest);
+            var existingOwnershipOption = Array.from(saleOwnershipEl.options).some(function(opt) { return opt.value === rawOwnership; });
+            if (!existingOwnershipOption) {
+                var historicalOwnershipOption = document.createElement('option');
+                historicalOwnershipOption.value = rawOwnership;
+                historicalOwnershipOption.textContent = rawOwnership + ' (historical provider value)';
+                historicalOwnershipOption.dataset.historicalProviderValue = 'true';
+                saleOwnershipEl.appendChild(historicalOwnershipOption);
+            }
+            saleOwnershipEl.value = rawOwnership;
+            saleOwnershipEl.dataset.explicit = 'true';
+        }
+    }
 
     // ── Neighborhood select — dynamic-option restore (2026-05-29 hotfix) ──
     // The generic SALE_FIELD_MAP setVal above silently no-ops when the saved
@@ -10953,10 +10980,13 @@ function getSaleBuildingLaundryFeatures() {
     return vals.join(',');
 }
 
-// CommonInterest: auto-sync from property type mapping (RLS picklist values)
+// Raw Cotality field key: CommonInterest. New listings may be prefilled from Mallan's
+// classification choice. A saved or user-selected raw value is explicit and cannot be
+// overwritten by later field-rule cascades.
 function syncSaleCommonInterest(propertyType, commercialOwnership) {
     var el = document.getElementById('saleCommonInterest');
     if (!el) return;
+    if (el.dataset.explicit === 'true' || el.dataset.preserveNull === 'true') return;
     var map = {
         'Condo': 'Condominium', 'Coop': 'StockCooperative', 'Condop': 'Condop',
         'SingleFamilyTownhouse': 'None', 'MultiFamilyTownhouse': 'None',
@@ -10966,12 +10996,16 @@ function syncSaleCommonInterest(propertyType, commercialOwnership) {
     };
     if (map[propertyType]) {
         el.value = map[propertyType];
+        el.dataset.autoDerived = 'true';
     }
 }
 
-// Manual override handler for CommonInterest dropdown
 function onSaleCommonInterestChange() {
-    // Allow manual override — no further action needed
+    var el = document.getElementById('saleCommonInterest');
+    if (!el) return;
+    el.dataset.explicit = 'true';
+    delete el.dataset.preserveNull;
+    delete el.dataset.autoDerived;
 }
 
 // ── Conditional Enforcement Rules (RLS compliance) ───────────────────────

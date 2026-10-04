@@ -690,20 +690,17 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                                 <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalBuildingStatus" value="NewConversion" class="w-4 h-4"> New Conversion</label>
                             </div>
                         </div>
-                        <!-- RLS: CommonInterest — REQUIRED, Single-Select Picklist (8 values) -->
+                        <!-- REBNY RLS Ownership Type — raw Cotality field key: CommonInterest -->
                         <div>
-                            <label class="field-label mb-2">Ownership Structure <span class="text-red-500">*</span></label>
-                            <p class="text-[10px] text-gray-500 mb-2">RLS: CommonInterest</p>
+                            <label class="field-label mb-2">Ownership Type <span class="text-red-500">*</span></label>
+                            <p class="text-[10px] text-gray-500 mb-2">Provider field: CommonInterest · Current REBNY RLS entry values.</p>
                             <select id="rentalCommonInterest" class="field-input" data-rls-field="CommonInterest">
                                 <option value="">Select...</option>
-                                <option value="Condominium">Condominium</option>
-                                <option value="StockCooperative">Stock Cooperative (Co-op)</option>
+                                <option value="Condominium">Condo</option>
+                                <option value="StockCooperative">Co-op</option>
                                 <option value="Condop">Condop</option>
-                                <option value="CommunityApartment">Community Apartment</option>
-                                <option value="PlannedDevelopment">Planned Development</option>
-                                <option value="None">None (Fee Simple)</option>
                                 <option value="RentalBuilding" selected>Rental Building</option>
-                                <option value="Timeshare">Timeshare</option>
+                                <option value="None">None</option>
                             </select>
                         </div>
                     </div>

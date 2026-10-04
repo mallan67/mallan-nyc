@@ -632,10 +632,10 @@ body { font-family: Manrope, sans-serif; }
                 <div class="section-body">
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <div class="lg:col-span-2">
-                            <label class="field-label mb-2">Property Type <span class="text-red-500">*</span></label>
+                            <label class="field-label mb-2">Listing Classification <span class="text-red-500">*</span></label>
                             <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Residential</p>
                             <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 mb-3">
-                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="Condo" class="w-4 h-4" onchange="applyRentalFieldRules()" data-rls-field="PropertyType"> Condo</label>
+                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="Condo" class="w-4 h-4" onchange="applyRentalFieldRules()"> Condo</label>
                                 <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="Coop" class="w-4 h-4" onchange="applyRentalFieldRules()"> Co-op</label>
                                 <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="Condop" class="w-4 h-4" onchange="applyRentalFieldRules()"> Condop</label>
                                 <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="SingleFamilyTownhouse" class="w-4 h-4" onchange="applyRentalFieldRules()"> Single Family TH</label>
@@ -702,20 +702,17 @@ body { font-family: Manrope, sans-serif; }
                             </select>
                         </div>
 
-                        <!-- RLS: CommonInterest — REQUIRED, Single-Select Picklist (8 values) -->
+                        <!-- REBNY RLS Ownership Type — raw Cotality field key: CommonInterest -->
                         <div class="mt-4 pt-3 border-t">
-                            <label class="field-label mb-2">Ownership Structure (CommonInterest) <span class="text-red-500">*</span></label>
-                            <p class="text-[10px] text-gray-500 mb-2">RLS Field: CommonInterest — Auto-set from property type, or override manually.</p>
+                            <label class="field-label mb-2">Ownership Type <span class="text-red-500">*</span></label>
+                            <p class="text-[10px] text-gray-500 mb-2">Provider field: CommonInterest · Current REBNY RLS entry values.</p>
                             <select id="rentalCommonInterest" class="field-input" onchange="onRentalCommonInterestChange()" data-rls-field="CommonInterest">
                                 <option value="">Select...</option>
-                                <option value="Condominium">Condominium</option>
-                                <option value="StockCooperative">Stock Cooperative (Co-op)</option>
+                                <option value="Condominium">Condo</option>
+                                <option value="StockCooperative">Co-op</option>
                                 <option value="Condop">Condop</option>
-                                <option value="CommunityApartment">Community Apartment</option>
-                                <option value="PlannedDevelopment">Planned Development</option>
-                                <option value="None">None (Fee Simple / Townhouse)</option>
                                 <option value="RentalBuilding" selected>Rental Building</option>
-                                <option value="Timeshare">Timeshare</option>
+                                <option value="None">None</option>
                             </select>
                         </div>
                     </div>
@@ -3632,17 +3629,6 @@ body { font-family: Manrope, sans-serif; }
                                 <label class="field-label">Total Parking Spaces</label>
                                 <input type="number" id="bldgParkingSpaces" placeholder="50" class="field-input" data-rls-field="OpenParkingSpaces">
                             </div>
-                            <div>
-                                <label class="field-label">Ownership Type</label>
-                                <select id="rentalOwnershipType" class="field-input" data-rls-field="OwnershipType">
-                                    <option value="">Select</option>
-                                    <option value="Condo">Condo</option>
-                                    <option value="Co-op">Co-op</option>
-                                    <option value="Condop">Condop</option>
-                                    <option value="RentalBuilding">Rental Building</option>
-                                </select>
-                                <p class="text-[10px] text-gray-400 mt-1">RLS: OwnershipType</p>
-                            </div>
                         </div>
                     </div>
 
@@ -4330,6 +4316,30 @@ function toggleFormSection(el) {
 let buildingDatabase = [];
 let _buildingSearchTimeout = null;
 
+// Exact raw provider values only. If CommonInterest is None/absent, use only an
+// unambiguous PropertySubType; never substitute PropertyType for either field.
+function _rentalRawClassificationToFormType(commonInterest, propertySubType) {
+    var byOwnership = {
+        Condominium: 'Condo',
+        StockCooperative: 'Coop',
+        Condop: 'Condop',
+        RentalBuilding: 'RentalBuilding'
+    };
+    if (byOwnership[commonInterest]) return byOwnership[commonInterest];
+
+    var bySubType = {
+        SingleFamilyResidence: 'SingleFamily',
+        MultiFamily: 'MultiFamily',
+        MixedUse: 'MixedUse',
+        Loft: 'Loft',
+        Duplex: 'Duplex',
+        Triplex: 'Triplex',
+        Office: 'Office',
+        Retail: 'Retail'
+    };
+    return bySubType[propertySubType] || '';
+}
+
 // Fetch buildings from API by address query
 async function fetchBuildingsFromAPI(query) {
     if (!query || query.length < 3) return [];
@@ -4344,7 +4354,7 @@ async function fetchBuildingsFromAPI(query) {
                 borough: b.borough || b.city_region || '',
                 zip: b.zip || b.postal_code || '',
                 neighborhood: b.neighborhood || b.subdivision_name || '',
-                type: b.common_interest || b.property_type || '',
+                type: _rentalRawClassificationToFormType(b.common_interest || '', b.property_sub_type || ''),
                 model: b.common_interest || '',
                 structureType: b.structure_type || '',
                 yearBuilt: b.year_built || null,
@@ -5667,11 +5677,20 @@ function collectRentalFormData() {
         }
     });
 
-    // Map CRM property type to RLS fields via getResoPropertyFields()
+    // Map the Mallan listing classification to provider fields. The explicit Ownership Type
+    // control wins; raw CommonInterest is never populated from another provider field.
     var resoFields = getResoPropertyFields(data.rentalPropertyType || '');
     data.PropertyType = resoFields.PropertyType || 'ResidentialLease';
     data.PropertySubType = resoFields.PropertySubType || '';
-    data.CommonInterest = resoFields.CommonInterest || data.rentalCommonInterest || '';
+    var ownershipEl = document.getElementById('rentalCommonInterest');
+    if (ownershipEl && ownershipEl.dataset.preserveNull === 'true' && !ownershipEl.value) {
+        data.CommonInterest = null;
+    } else if (ownershipEl && ownershipEl.dataset.explicit === 'true') {
+        data.CommonInterest = ownershipEl.value || null;
+    } else {
+        data.CommonInterest = resoFields.CommonInterest || (ownershipEl ? ownershipEl.value : '') || '';
+    }
+    delete data.rentalCommonInterest;
 
     // Map CRM status to RLS MlsStatus
     data.MlsStatus = (typeof getResoRentalMlsStatus === 'function') ? getResoRentalMlsStatus(data.rentalStatus || '') : (data.rentalStatus || '');
@@ -6918,8 +6937,39 @@ function _populateRentalFormFromApi(listing) {
     setVal('rentalZipCode', addr.PostalCode || raw.PostalCode || listing.zip_code || '');
     setVal('rentalNeighborhood', listing.neighborhood || raw.MLSAreaMajor || '');
 
-    // Property type
-    setRadio('rentalPropertyType', raw.PropertySubType || listing.property_sub_type || '');
+    // Restore Mallan's listing classification from independent raw provider dimensions.
+    // Never pass a raw PropertySubType directly into Mallan radio values.
+    document.querySelectorAll('input[name="rentalPropertyType"]').forEach(function(r) { r.checked = false; });
+    var restoredRentalType = _rentalRawClassificationToFormType(
+        raw.CommonInterest || '',
+        raw.PropertySubType || listing.property_sub_type || ''
+    );
+    if (restoredRentalType) setRadio('rentalPropertyType', restoredRentalType);
+
+    // Restore exact raw provider ownership reference. null stays null. A provider value
+    // outside today's REBNY entry picker remains visible as historical data.
+    var rentalOwnershipEl = document.getElementById('rentalCommonInterest');
+    if (rentalOwnershipEl) {
+        delete rentalOwnershipEl.dataset.explicit;
+        delete rentalOwnershipEl.dataset.preserveNull;
+        delete rentalOwnershipEl.dataset.autoDerived;
+        if (raw.CommonInterest === undefined || raw.CommonInterest === null) {
+            rentalOwnershipEl.value = '';
+            rentalOwnershipEl.dataset.preserveNull = 'true';
+        } else {
+            var rawOwnership = String(raw.CommonInterest);
+            var existingOwnershipOption = Array.from(rentalOwnershipEl.options).some(function(opt) { return opt.value === rawOwnership; });
+            if (!existingOwnershipOption) {
+                var historicalOwnershipOption = document.createElement('option');
+                historicalOwnershipOption.value = rawOwnership;
+                historicalOwnershipOption.textContent = rawOwnership + ' (historical provider value)';
+                historicalOwnershipOption.dataset.historicalProviderValue = 'true';
+                rentalOwnershipEl.appendChild(historicalOwnershipOption);
+            }
+            rentalOwnershipEl.value = rawOwnership;
+            rentalOwnershipEl.dataset.explicit = 'true';
+        }
+    }
 
     // Price (rent). A3: real save control is rentalMonthlyRent (collectRentalFormData
     // reads val('rentalMonthlyRent')); the old rentalListPrice id does not exist.
@@ -7305,10 +7355,12 @@ function getRentalBuildingLaundryFeatures() {
     return vals.join(',');
 }
 
-// CommonInterest: auto-sync from property type
+// Raw Cotality field key: CommonInterest. New listings may be prefilled from Mallan's
+// classification choice; saved/user-selected raw values are explicit and cannot be overwritten.
 function syncRentalCommonInterest(propertyType) {
     var el = document.getElementById('rentalCommonInterest');
     if (!el) return;
+    if (el.dataset.explicit === 'true' || el.dataset.preserveNull === 'true') return;
     var map = {
         'Condo': 'Condominium', 'Coop': 'StockCooperative', 'Condop': 'Condop',
         'RentalBuilding': 'RentalBuilding',
@@ -7316,10 +7368,19 @@ function syncRentalCommonInterest(propertyType) {
         'SingleFamily': 'None', 'MultiFamily': 'None', 'MixedUse': 'None',
         'Loft': 'None', 'Duplex': 'None', 'Triplex': 'None', 'Quadruplex': 'None'
     };
-    if (map[propertyType]) el.value = map[propertyType];
+    if (map[propertyType]) {
+        el.value = map[propertyType];
+        el.dataset.autoDerived = 'true';
+    }
 }
 
-function onRentalCommonInterestChange() { /* manual override allowed */ }
+function onRentalCommonInterestChange() {
+    var el = document.getElementById('rentalCommonInterest');
+    if (!el) return;
+    el.dataset.explicit = 'true';
+    delete el.dataset.preserveNull;
+    delete el.dataset.autoDerived;
+}
 
 // ── Conditional Enforcement Rules (RLS compliance) ───────────────────────
 

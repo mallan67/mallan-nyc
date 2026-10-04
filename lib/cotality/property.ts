@@ -119,22 +119,19 @@ export function readCotalityPropertySubType(raw: Record<string, unknown>): strin
 /**
  * The live Property.CommonInterest value, exactly as Cotality sent it. Nothing else.
  *
- * CommonInterest is the RLS-associated field for Mallan's ownership/ownership-type
- * display concept — confirmed live, 2026-10-03 CommonInterest cutover. OwnershipType is a
- * genuinely SEPARATE Property field: its Field catalog entry is not RLS-associated, and
- * the current accessible RLS population has 0 non-null OwnershipType rows. This function
- * must never read OwnershipType as a fallback, and must never substitute PropertyType or
- * PropertySubType.
+ * `CommonInterest` is only the raw Cotality field key at this boundary. Do not use the
+ * field name itself as a Mallan property-classification concept.
  *
- * Current RLS-associated Lookup (narrower than the full global enum — do not blend the two
- * scopes): CommunityApartment, Condominium, Condop, None, RentalBuilding, StockCooperative.
- * Live population (2026-10-03, a moving count, not a constant) includes roughly 156,334
- * null rows and 0 current CommunityApartment rows — both are real provider states, not
- * evidence of a broken field.
+ * Current REBNY RLS listing-entry rules use this raw field for the ownership-type choice:
+ * Condominium, StockCooperative, Condop, RentalBuilding, or None. The broader live Cotality
+ * Lookup catalog can expose additional raw values; reads preserve whatever Cotality actually
+ * sends, while current RLS add/edit choices are enforced later by the REBNY/Mallan form rule.
  *
- * Returns the raw value verbatim — never translated to a Mallan display label (e.g.
- * "Condo"/"Co-op" — see public/crm/js/core/reso-field-map.js's ownershipLabel() and
- * lib/search/crm-idx-mapper.ts's mapDisplayPropertyType for that separate, later concern).
+ * OwnershipType is a separate Property field and is never a fallback. Never substitute
+ * PropertyType or PropertySubType. null means absent provider data; "None" is a literal
+ * provider value. They are not interchangeable.
+ *
+ * Returns the raw value verbatim — never translated to a Mallan display label.
  */
 export function readCotalityCommonInterest(raw: Record<string, unknown>): string | null {
   const value = raw.CommonInterest;
