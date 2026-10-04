@@ -102,8 +102,18 @@ describe('save/reload ownership preservation', () => {
     expect(files.rental).toContain("historicalOwnershipOption.dataset.historicalProviderValue = 'true'");
   });
 
-  it('field-rule cascades cannot overwrite saved or explicit ownership values', () => {
-    expect(files.sale).toContain("el.dataset.explicit === 'true' || el.dataset.preserveNull === 'true'");
-    expect(files.rental).toContain("el.dataset.explicit === 'true' || el.dataset.preserveNull === 'true'");
+  it('ownership is never auto-derived from Mallan classification or another provider field', () => {
+    expect(files.sale).not.toContain('syncSaleCommonInterest');
+    expect(files.rental).not.toContain('syncRentalCommonInterest');
+    const saleMap = files.sale.slice(files.sale.indexOf('function getResoPropertyFields'), files.sale.indexOf('\n}', files.sale.indexOf('function getResoPropertyFields')) + 2);
+    const rentalMap = files.rental.slice(files.rental.indexOf('function getResoPropertyFields'), files.rental.indexOf('\n}', files.rental.indexOf('function getResoPropertyFields')) + 2);
+    expect(saleMap).not.toContain('CommonInterest');
+    expect(rentalMap).not.toContain('CommonInterest');
+  });
+
+  it('current listing entry requires an explicit ownership choice', () => {
+    expect(selectBlock(files.sale, 'saleCommonInterest')).toContain('required');
+    expect(selectBlock(files.rental, 'rentalCommonInterest')).toContain('required');
+    expect(selectBlock(files.rental, 'rentalCommonInterest')).not.toContain('selected>Rental Building');
   });
 });

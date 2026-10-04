@@ -864,7 +864,7 @@ body { font-family: Manrope, sans-serif; }
                     <div class="mt-4 pt-3 border-t">
                         <label class="field-label mb-2">Ownership Type <span class="text-red-500">*</span></label>
                         <p class="text-[10px] text-gray-500 mb-2">Provider field: CommonInterest · Current REBNY RLS entry values.</p>
-                        <select id="saleCommonInterest" class="field-input" onchange="onSaleCommonInterestChange()" data-rls-field="CommonInterest">
+                        <select id="saleCommonInterest" class="field-input" onchange="onSaleCommonInterestChange()" data-rls-field="CommonInterest" required>
                             <option value="">Select...</option>
                             <option value="Condominium">Condo</option>
                             <option value="StockCooperative">Co-op</option>
@@ -7259,8 +7259,8 @@ function applySalesFieldRules() {
         tab3Mobile.style.pointerEvents = skipTab3 ? 'none' : '';
     }
 
-    // RLS: Auto-sync CommonInterest from property type mapping
-    syncSaleCommonInterest(propertyType, commercialOwnership);
+    // Raw ownership is an independent required provider field. Do not derive it from
+    // Mallan classification or another provider field.
 
     // RLS: Auto-derive StructureType from property type (if not already set by IDX)
     autoDeriveSaleStructureType();
@@ -7419,13 +7419,7 @@ function collectSaleFormData() {
     data.PropertyType = resoFields.PropertyType || 'Residential';
     data.PropertySubType = resoFields.PropertySubType || '';
     var ownershipEl = document.getElementById('saleCommonInterest');
-    if (ownershipEl && ownershipEl.dataset.preserveNull === 'true' && !ownershipEl.value) {
-        data.CommonInterest = null;
-    } else if (ownershipEl && ownershipEl.dataset.explicit === 'true') {
-        data.CommonInterest = ownershipEl.value || null;
-    } else {
-        data.CommonInterest = resoFields.CommonInterest || (ownershipEl ? ownershipEl.value : '') || '';
-    }
+    data.CommonInterest = ownershipEl ? (ownershipEl.value || null) : null;
     delete data.saleCommonInterest;
 
     // Map CRM status to RLS MlsStatus
@@ -8388,6 +8382,7 @@ const SALE_REQUIRED_FIELDS = [
     { id: 'saleUpdatingAgent', label: 'Updating Agent', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
     { id: 'saleCoBrokeAgreementType', label: 'CoBroke Agreement Type', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
     { name: 'salePropertyType', label: 'Property Type', type: 'radio', tab: 1, section: 'Listing Information/Essentials' },
+    { id: 'saleCommonInterest', label: 'Ownership Type', type: 'select', tab: 1, section: 'Listing Information/Essentials' },
     { name: 'saleBuildingStatus', label: 'Building Status', type: 'radio', tab: 1, section: 'Listing Information/Essentials' },
     { id: 'saleDateListed', label: 'Date Listed', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
     { id: 'saleExclusiveStart', label: 'Exclusive Start Date', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
@@ -8594,35 +8589,31 @@ function getResoMlsStatus(crmStatus) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// RESO 3-FIELD PROPERTY TYPE MAPPING
-// Maps CRM property type radio values to RESO standard
+// PropertyType / PropertySubType mapping.
+// CommonInterest is deliberately NOT derived here; ownership is an independent raw provider field.
 // ═══════════════════════════════════════════════════════════
 
-function getResoPropertyFields(crmValue, formType) {
-    const officeRetailOwnership = formType
-        ? document.querySelector('input[name="' + formType + 'OfficeRetailOwnership"]:checked')?.value
-        : null;
-
+function getResoPropertyFields(crmValue) {
     const MAP = {
-        'Condo':                    { PropertyType: 'Residential', CommonInterest: 'Condominium',  PropertySubType: 'Apartment' },
-        'Coop':                     { PropertyType: 'Residential', CommonInterest: 'StockCooperative',  PropertySubType: 'Apartment' },
-        'Condop':                   { PropertyType: 'Residential', CommonInterest: 'Condop',       PropertySubType: 'Apartment' },
-        'SingleFamilyTownhouse':    { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'SingleFamilyTownhouse' },
-        'MultiFamilyTownhouse':     { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'MultiFamilyTownhouse' },
-        'SingleFamily':             { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'SingleFamilyResidence' },
-        'MultiFamily':              { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'MultiFamily' },
-        'MixedUse':                 { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'MixedUse' },
-        'Loft':                     { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'Loft' },
-        'Duplex':                   { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'Duplex' },
-        'Triplex':                  { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'Triplex' },
-        'Quadruplex':               { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'Quadruplex' },
-        'Office':                   { PropertyType: 'Residential', CommonInterest: getBuildingTypeMapping(officeRetailOwnership), PropertySubType: 'Office' },
-        'Retail':                   { PropertyType: 'Residential', CommonInterest: getBuildingTypeMapping(officeRetailOwnership), PropertySubType: 'Retail' },
-        'Land':                     { PropertyType: 'Residential',  CommonInterest: 'None',         PropertySubType: 'UnimprovedLand' },
-        'DeededParking':            { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'DeededParking' },
-        'Commercial':               { PropertyType: 'Commercial',  CommonInterest: 'None',         PropertySubType: '' },
+        'Condo':                    { PropertyType: 'Residential', PropertySubType: 'Apartment' },
+        'Coop':                     { PropertyType: 'Residential', PropertySubType: 'Apartment' },
+        'Condop':                   { PropertyType: 'Residential', PropertySubType: 'Apartment' },
+        'SingleFamilyTownhouse':    { PropertyType: 'Residential', PropertySubType: 'SingleFamilyTownhouse' },
+        'MultiFamilyTownhouse':     { PropertyType: 'Residential', PropertySubType: 'MultiFamilyTownhouse' },
+        'SingleFamily':             { PropertyType: 'Residential', PropertySubType: 'SingleFamilyResidence' },
+        'MultiFamily':              { PropertyType: 'Residential', PropertySubType: 'MultiFamily' },
+        'MixedUse':                 { PropertyType: 'Residential', PropertySubType: 'MixedUse' },
+        'Loft':                     { PropertyType: 'Residential', PropertySubType: 'Loft' },
+        'Duplex':                   { PropertyType: 'Residential', PropertySubType: 'Duplex' },
+        'Triplex':                  { PropertyType: 'Residential', PropertySubType: 'Triplex' },
+        'Quadruplex':               { PropertyType: 'Residential', PropertySubType: 'Quadruplex' },
+        'Office':                   { PropertyType: 'Residential', PropertySubType: 'Office' },
+        'Retail':                   { PropertyType: 'Residential', PropertySubType: 'Retail' },
+        'Land':                     { PropertyType: 'Residential', PropertySubType: 'UnimprovedLand' },
+        'DeededParking':            { PropertyType: 'Residential', PropertySubType: 'DeededParking' },
+        'Commercial':               { PropertyType: 'Commercial', PropertySubType: '' },
     };
-    return MAP[crmValue] || { PropertyType: 'Residential', CommonInterest: 'None', PropertySubType: '' };
+    return MAP[crmValue] || { PropertyType: 'Residential', PropertySubType: '' };
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -10980,32 +10971,14 @@ function getSaleBuildingLaundryFeatures() {
     return vals.join(',');
 }
 
-// Raw Cotality field key: CommonInterest. New listings may be prefilled from Mallan's
-// classification choice. A saved or user-selected raw value is explicit and cannot be
-// overwritten by later field-rule cascades.
-function syncSaleCommonInterest(propertyType, commercialOwnership) {
-    var el = document.getElementById('saleCommonInterest');
-    if (!el) return;
-    if (el.dataset.explicit === 'true' || el.dataset.preserveNull === 'true') return;
-    var map = {
-        'Condo': 'Condominium', 'Coop': 'StockCooperative', 'Condop': 'Condop',
-        'SingleFamilyTownhouse': 'None', 'MultiFamilyTownhouse': 'None',
-        'SingleFamily': 'None', 'MultiFamily': 'None', 'MixedUse': 'None',
-        'Loft': 'None', 'Duplex': 'None', 'Triplex': 'None', 'Quadruplex': 'None',
-        'Land': 'None', 'DeededParking': 'None'
-    };
-    if (map[propertyType]) {
-        el.value = map[propertyType];
-        el.dataset.autoDerived = 'true';
-    }
-}
-
+// Raw Cotality field key: CommonInterest. This is an independent required RLS field.
+// The handler records only that the agent changed the provider choice. It never derives
+// a value from Mallan classification, PropertyType, PropertySubType, or OwnershipType.
 function onSaleCommonInterestChange() {
     var el = document.getElementById('saleCommonInterest');
     if (!el) return;
     el.dataset.explicit = 'true';
     delete el.dataset.preserveNull;
-    delete el.dataset.autoDerived;
 }
 
 // ── Conditional Enforcement Rules (RLS compliance) ───────────────────────
