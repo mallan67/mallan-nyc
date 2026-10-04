@@ -1219,8 +1219,8 @@
             // Property Details card
             d += '<div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px" class="pkg-no-break">' +
                 '<h3 style="font-weight:700;color:#111827;margin:0 0 12px;font-size:15px"><i class="fas fa-home" style="color:#C4A052;margin-right:8px"></i>Property Details</h3>' +
-                detRow('Type', ownershipLabel(first.ownership)||'\u2014') +
-                detRow('Ownership', ownershipLabel(first.ownership)||'\u2014') +
+                detRow('Property Subtype', first.propertySubType||'\u2014') +
+                detRow('Ownership Type', ownershipLabel(first.ownership)||'\u2014') +
                 detRow('Building', first.era||'\u2014') +
                 detRow('Total Rooms', first.rooms||'\u2014') +
                 detRow('Exposures', first.exposures||'\u2014');
@@ -1347,7 +1347,8 @@
             compRows.push(['Bedrooms', function(l){ return '<td style="' + compTdS + '">' + (l.beds||'\u2014') + '</td>'; }, true]);
             compRows.push(['Bathrooms', function(l){ return '<td style="' + compTdS + '">' + (l.baths||'\u2014') + '</td>'; }, true]);
             compRows.push(['SqFt', function(l){ return '<td style="' + compTdS + '">' + (l.intSqft?l.intSqft.toLocaleString():'\u2014') + '</td>'; }, true]);
-            compRows.push(['Type', function(l){ return '<td style="' + compTdS + '">' + (ownershipLabel(l.ownership)||'\u2014') + '</td>'; }, true]);
+            compRows.push(['Property Subtype', function(l){ return '<td style="' + compTdS + '">' + (l.propertySubType||'\u2014') + '</td>'; }, true]);
+            compRows.push(['Ownership Type', function(l){ return '<td style="' + compTdS + '">' + (ownershipLabel(l.ownership)||'\u2014') + '</td>'; }, true]);
             compRows.push(['Era', function(l){ return '<td style="' + compTdS + '">' + (l.era||'\u2014') + '</td>'; }, true]);
             compRows.push(['Monthly', function(l){ return '<td style="' + compTdS + '">' + (l.totalMonthly?fmtCurrency(l.totalMonthly):'\u2014') + '</td>'; }, true]);
             compRows.push(['Floor', function(l){ return '<td style="' + compTdS + '">' + (l.floor||'\u2014') + '</td>'; }, true]);
@@ -1391,7 +1392,8 @@
             listings.forEach(function(l, idx) {
                 var isRental = l.listingCategory === 'rental';
                 var mlsId = l.lid || l.wid || '';
-                var ownerType = ownershipLabel(l.ownership) || l.propertySubType || '';
+                var ownerType = ownershipLabel(l.ownership) || '';
+                var propertySubType = l.propertySubType || '';
 
                 // ── Page 1: Listing fact sheet ──
                 fs += '<div class="pkg-per-listing">';
@@ -1417,7 +1419,9 @@
                 fs += '</div>';
                 fs += '<div style="text-align:right">' +
                     '<p style="font-size:20px;font-weight:700;color:#111;margin:0">' + fmtPrice(l) + '</p>' +
-                    '<p style="font-size:11px;color:#555;margin:2px 0 0">' + (l.status || 'Active') + ' / ' + ownerType + (mlsId ? ' / #' + mlsId : '') + '</p></div></div>';
+                    '<p style="font-size:11px;color:#555;margin:2px 0 0">' +
+                    [l.status || 'Active', ownerType, propertySubType, mlsId ? '#' + mlsId : ''].filter(Boolean).join(' / ') +
+                    '</p></div></div>';
                 fs += '<hr style="border:none;border-top:1px solid #bbb;margin:0 0 12px">';
 
                 // Body: photos + description + details table
@@ -2084,7 +2088,7 @@
 
                 // Extra details row
                 var extras = [];
-                if (l.ownership) extras.push(l.ownership === 'StockCooperative' ? 'Co-op' : l.ownership);
+                if (l.ownership) extras.push(ownershipLabel(l.ownership));
                 if (l.era) extras.push(l.era);
                 if (l.dom !== undefined) extras.push(l.dom + ' DOM');
                 if (l.floor) extras.push('Floor ' + l.floor);
@@ -2562,7 +2566,8 @@
             // ── Property + Financial Details ──
             html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px">';
             html += '<div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px"><h3 style="font-weight:700;color:#111827;margin:0 0 12px;font-size:15px">Property Details</h3>' +
-                dr('Type', (typeof ownershipLabel === 'function' ? ownershipLabel(l.ownership) : l.ownership) || '\u2014') +
+                dr('Property Subtype', l.propertySubType || '\u2014') +
+                dr('Ownership Type', (typeof ownershipLabel === 'function' ? ownershipLabel(l.ownership) : l.ownership) || '\u2014') +
                 dr('Building', l.era||'\u2014') +
                 dr('Total Rooms', l.rooms||'\u2014') +
                 dr('Exposures', l.exposures||'\u2014');

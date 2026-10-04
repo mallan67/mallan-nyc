@@ -249,7 +249,7 @@
                 borough: c.borough || undefined,
                 zip: c.zip || undefined,
                 status: c.statuses && c.statuses.length > 0 ? c.statuses : undefined,
-                property_type: c.ownership && c.ownership.length > 0 ? c.ownership : undefined,
+                ownership: c.ownership && c.ownership.length > 0 ? c.ownership : undefined,
                 address: c.address || undefined,
                 listing_id: c.rlsId || undefined,
                 // Building-specific
@@ -393,14 +393,23 @@
                 });
             }
 
-            // Restore ownership checkboxes
-            if (criteria.property_type && Array.isArray(criteria.property_type) && criteria.property_type.length > 0) {
-                var ownerForm = document.getElementById(tab === 'rent' ? 'searchBasicModeRental' : 'searchBasicMode');
-                if (ownerForm) {
+            // Restore ownership checkboxes from the canonical ownership criterion.
+            // Legacy compatibility is bounded: older CRM saves incorrectly used property_type
+            // for ownership. Restore those values only when they match a real CommonInterest
+            // control; true PropertyType values are never reinterpreted.
+            var ownerForm = document.getElementById(tab === 'rent' ? 'searchBasicModeRental' : 'searchBasicMode');
+            if (ownerForm) {
+                var ownershipValues = Array.isArray(criteria.ownership) ? criteria.ownership : [];
+                if (ownershipValues.length === 0 && Array.isArray(criteria.property_type)) {
+                    ownershipValues = criteria.property_type.filter(function(value) {
+                        return !!ownerForm.querySelector('[data-field="CommonInterest"][data-value="' + value + '"], [data-field="CommonInterest"][value="' + value + '"]');
+                    });
+                }
+                if (ownershipValues.length > 0) {
                     ownerForm.querySelectorAll('[data-field="CommonInterest"]').forEach(function(cb) { cb.checked = false; });
-                    criteria.property_type.forEach(function(pt) {
-                        var cb = ownerForm.querySelector('[data-field="CommonInterest"][data-value="' + pt + '"]');
-                        if (!cb) cb = ownerForm.querySelector('[data-field="CommonInterest"][value="' + pt + '"]');
+                    ownershipValues.forEach(function(value) {
+                        var cb = ownerForm.querySelector('[data-field="CommonInterest"][data-value="' + value + '"]');
+                        if (!cb) cb = ownerForm.querySelector('[data-field="CommonInterest"][value="' + value + '"]');
                         if (cb) cb.checked = true;
                     });
                 }

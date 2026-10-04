@@ -1516,10 +1516,12 @@
                     if (listing.intSqft > criteria.sqftMax) return false;
                 }
 
-                // Ownership filter — exact match (not indexOf, to prevent Condo matching Condop)
+                // Ownership filter — exact raw provider match. null is not the enum value None.
                 if (criteria.ownership && criteria.ownership.length > 0) {
+                    if (listing.ownership === null || listing.ownership === undefined || listing.ownership === '') return false;
+                    var rawOwnership = String(listing.ownership).toLowerCase();
                     var match = criteria.ownership.some(function(o) {
-                        return listing.ownership.toLowerCase() === o.toLowerCase();
+                        return rawOwnership === String(o).toLowerCase();
                     });
                     if (!match) return false;
                 }
