@@ -347,12 +347,12 @@ body { font-family: Manrope, sans-serif; }
                         <p class="text-xs font-medium text-gray-700" id="tenantStatusChangeTimestamp">--</p>
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
-                        <p class="text-[10px] text-gray-500 uppercase">RESO MlsStatus</p>
-                        <p class="text-xs font-medium text-blue-700" id="tenantResoMlsStatus">--</p>
+                        <p class="text-[10px] text-gray-500 uppercase">Cotality StandardStatus</p>
+                        <p class="text-xs font-medium text-blue-700" id="tenantCotalityStatus">--</p>
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">Deal Source</p>
-                        <p class="text-xs font-medium text-gray-700">IDX/RLS</p>
+                        <p class="text-xs font-medium text-gray-700" id="tenantDealSourceDisplay">Manual</p>
                     </div>
                 </div>
             </div>
@@ -425,25 +425,19 @@ body { font-family: Manrope, sans-serif; }
     <div id="tenantSubTabContent2_1" class="tenant-sub-tab">
         <div id="tenantPropertyIdxBanner" class="hidden warning-banner bg-green-50 border border-green-200 text-green-800 mb-4">
             <i class="fas fa-database text-green-500 mt-0.5"></i>
-            <div class="text-xs"><p class="font-semibold">Data Source: IDX/RLS</p><p>Property details auto-populated from the listing.</p></div>
+            <div class="text-xs"><p class="font-semibold">Data Source: Cotality</p><p>Property details auto-populated from the authenticated Cotality search result. Manual/off-provider deals remain editable.</p></div>
         </div>
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-home"></i> Property Type & Unit</div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div><label class="field-label">Property Type</label>
-                    <select id="tenantPropertyType" class="field-input">
-                        <option value="">-- Select --</option>
-                        <option value="Condo">Condo</option>
-                        <option value="Coop">Co-op</option>
-                        <option value="Condop">Condop</option>
-                        <option value="RentalBuilding">Rental Building</option>
-                        <option value="SingleFamilyTownhouse">Single Family TH</option>
-                        <option value="MultiFamilyTownhouse">Multi-Family TH</option>
-                        <option value="SingleFamily">Single Family</option>
-                        <option value="MultiFamily">Multi-Family</option>
-                        <option value="MixedUse">Mixed Use</option>
-                        <option value="Loft">Loft</option>
-                    </select>
+                <div>
+                    <label class="field-label">Property Subtype</label>
+                    <input type="text" id="tenantPropertySubType" class="field-input" data-cotality-field="PropertySubType" placeholder="Auto-populated from Cotality">
+                </div>
+                <div>
+                    <label class="field-label">Ownership Type</label>
+                    <input type="text" id="tenantOwnershipType" class="field-input" placeholder="Auto-populated from Cotality">
+                    <p class="text-[10px] text-gray-400 mt-1">Broker-facing label for the raw provider ownership reference.</p>
                 </div>
                 <div><label class="field-label">Bedrooms</label><input type="number" id="tenantBedrooms" placeholder="0" min="0" class="field-input"></div>
                 <div><label class="field-label">Full Bathrooms</label><input type="number" id="tenantFullBaths" placeholder="0" min="0" class="field-input"></div>
@@ -933,84 +927,185 @@ function showTenantSubTab(mainTab, subTab) {
 
 // ═══════ IDX LISTING SEARCH ═══════
 var rentalListingDatabase = [];
+var tenantListingSearchTimer = null;
+var tenantListingSearchSeq = 0;
 
-function searchListingForTenantDeal(query) {
-    var results = document.getElementById('tenantListingSearchResults');
-    if (!results) return;
-    if (query.length < 3) { results.classList.add('hidden'); return; }
-    var q = query.toLowerCase();
-    var matches = rentalListingDatabase.filter(function(l) {
-        return l.address.toLowerCase().includes(q) || l.buildingName.toLowerCase().includes(q) || (l.unit && l.unit.toLowerCase().includes(q)) || (l.address + ' ' + l.unit).toLowerCase().includes(q);
+function tenantOwnershipLabel(raw) {
+    var map = { Condominium: 'Condo', StockCooperative: 'Co-op', Condop: 'Condop', RentalBuilding: 'Rental Building', None: 'None' };
+    return map[raw] || raw || '';
+}
+
+function escapeTenantDealHtml(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function(ch) {
+        return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[ch];
     });
-    if (matches.length === 0) {
-        results.innerHTML = '<div class="p-3 text-sm text-gray-500"><i class="fas fa-exclamation-circle mr-1 text-amber-500"></i> No IDX/RLS matches. Enter details manually.</div>';
+}
+
+function normalizeTenantCotalityListing(l) {
+    return {
+        rlsId: String(l.lid || l.id || ''),
+        webId: String(l.wid || ''),
+        address: String(l.address || ''),
+        unit: String(l.unit || ''),
+        borough: String(l.borough || ''),
+        zip: String(l.zip || ''),
+        neighborhood: String(l.neighborhood || ''),
+        standardStatus: String(l.status || l.mlsStatus || ''),
+        listingAgent: String(l.agentName || ''),
+        listingBrokerage: String(l.company || ''),
+        listingAgentPhone: String(l.agentPhone || ''),
+        listingAgentEmail: String(l.agentEmail || ''),
+        rent: Number(l.price) || 0,
+        ownership: l.ownership == null ? null : String(l.ownership),
+        propertySubType: String(l.propertySubType || ''),
+        bed: Number(l.beds) || 0,
+        fullBath: Number(l.fullBaths) || 0,
+        halfBath: Number(l.halfBaths) || 0,
+        sqft: l.intSqft == null ? null : Number(l.intSqft),
+        rooms: Number(l.rooms) || 0,
+        exposure: String(l.DirectionFaces || ''),
+        buildingName: String(l.buildingName || ''),
+        yearBuilt: l.yearBuilt == null ? null : Number(l.yearBuilt),
+        description: String(l.description || ''),
+        images: Array.isArray(l.images) ? l.images : []
+    };
+}
+
+function renderTenantListingMatches(results) {
+    if (!rentalListingDatabase.length) {
+        results.innerHTML = '<div class="p-3 text-sm text-gray-500"><i class="fas fa-exclamation-circle mr-1 text-amber-500"></i> No Cotality matches. Enter details manually.</div>';
         results.classList.remove('hidden');
         document.getElementById('tenantManualEntryBanner').classList.remove('hidden');
         document.getElementById('tenantIdxMatchBanner').classList.add('hidden');
         return;
     }
-    results.innerHTML = matches.map(function(l) {
-        return '<div class="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 transition" onclick="selectListingForTenantDeal(\'' + l.rlsId + '\')">' +
-            '<div class="flex justify-between items-center"><div><p class="font-semibold text-sm text-gray-800">' + l.address + (l.unit ? ', ' + l.unit : '') + '</p>' +
-            '<p class="text-xs text-gray-500">' + l.buildingName + ' | ' + l.neighborhood + ' | $' + l.rent.toLocaleString() + '/mo</p></div>' +
-            '<div class="text-right"><span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-teal-100 text-teal-700">' + l.type + '</span>' +
-            '<p class="text-[10px] text-gray-400 mt-1">' + l.rlsId + '</p></div></div></div>';
+    results.innerHTML = rentalListingDatabase.map(function(l, index) {
+        var classification = tenantOwnershipLabel(l.ownership);
+        if (!classification || classification === 'None') classification = l.propertySubType || classification;
+        return '<button type="button" class="w-full p-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 transition text-left" onclick="selectListingForTenantDeal(' + index + ')">' +
+            '<div class="flex justify-between items-center"><div><p class="font-semibold text-sm text-gray-800">' + escapeTenantDealHtml(l.address) + (l.unit ? ', ' + escapeTenantDealHtml(l.unit) : '') + '</p>' +
+            '<p class="text-xs text-gray-500">' + escapeTenantDealHtml(l.buildingName) + ' | ' + escapeTenantDealHtml(l.neighborhood) + ' | $' + l.rent.toLocaleString() + '/mo</p></div>' +
+            '<div class="text-right"><span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-teal-100 text-teal-700">' + escapeTenantDealHtml(classification) + '</span>' +
+            '<p class="text-[10px] text-gray-400 mt-1">' + escapeTenantDealHtml(l.rlsId) + '</p></div></div></button>';
     }).join('');
     results.classList.remove('hidden');
 }
 
-function searchByRlsIdTenant(query) {
-    if (query.length < 3) return;
-    var q = query.toUpperCase();
-    var match = rentalListingDatabase.find(function(l) { return l.rlsId.toUpperCase() === q || l.webId.toUpperCase() === q; });
-    if (match) selectListingForTenantDeal(match.rlsId);
+function searchListingForTenantDeal(query) {
+    var results = document.getElementById('tenantListingSearchResults');
+    if (!results) return;
+    clearTimeout(tenantListingSearchTimer);
+    var trimmed = String(query || '').trim();
+    if (trimmed.length < 3) {
+        results.classList.add('hidden');
+        rentalListingDatabase = [];
+        return;
+    }
+    if (typeof MallanAPI === 'undefined' || !MallanAPI.idx || typeof MallanAPI.idx.search !== 'function') {
+        results.innerHTML = '<div class="p-3 text-sm text-red-600">Cotality search is unavailable. Reload the CRM and try again.</div>';
+        results.classList.remove('hidden');
+        return;
+    }
+    var seq = ++tenantListingSearchSeq;
+    results.innerHTML = '<div class="p-3 text-sm text-gray-500">Searching Cotality…</div>';
+    results.classList.remove('hidden');
+    tenantListingSearchTimer = setTimeout(function() {
+        MallanAPI.idx.search({ type: 'rental', address: trimmed, limit: 20 }).then(function(data) {
+            if (seq !== tenantListingSearchSeq) return;
+            rentalListingDatabase = Array.isArray(data && data.listings) ? data.listings.map(normalizeTenantCotalityListing) : [];
+            renderTenantListingMatches(results);
+        }).catch(function(err) {
+            if (seq !== tenantListingSearchSeq) return;
+            rentalListingDatabase = [];
+            console.error('[TenantDeal] Cotality search failed:', err);
+            results.innerHTML = '<div class="p-3 text-sm text-red-600">Cotality search failed. No provider data was loaded.</div>';
+            results.classList.remove('hidden');
+        });
+    }, 250);
 }
 
-function selectListingForTenantDeal(rlsId) {
-    var listing = rentalListingDatabase.find(function(l) { return l.rlsId === rlsId; });
-    if (!listing) return;
-    var setVal = function(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; };
+function searchByRlsIdTenant(query) {
+    var trimmed = String(query || '').trim();
+    if (trimmed.length < 3) return;
+    if (typeof MallanAPI === 'undefined' || !MallanAPI.idx || typeof MallanAPI.idx.search !== 'function') return;
+    var seq = ++tenantListingSearchSeq;
+    MallanAPI.idx.search({ type: 'rental', listingId: trimmed, limit: 20 }).then(function(data) {
+        if (seq !== tenantListingSearchSeq) return;
+        rentalListingDatabase = Array.isArray(data && data.listings) ? data.listings.map(normalizeTenantCotalityListing) : [];
+        if (rentalListingDatabase.length) selectListingForTenantDeal(0);
+    }).catch(function(err) {
+        console.error('[TenantDeal] Cotality listing-id search failed:', err);
+    });
+}
 
-    setVal('tenantStreetAddress', listing.address); setVal('tenantUnitNumber', listing.unit);
-    setVal('tenantBorough', listing.borough); setVal('tenantZipCode', listing.zip);
-    setVal('tenantNeighborhood', listing.neighborhood); setVal('tenantRlsId', listing.rlsId); setVal('tenantWebId', listing.webId);
-    setVal('tenantListingAgentName', listing.listingAgent); setVal('tenantListingBrokerageName', listing.listingBrokerage);
-    setVal('tenantListingAgentPhone', listing.listingAgentPhone); setVal('tenantListingAgentEmail', listing.listingAgentEmail);
-    setVal('tenantListingAgentMlsId', listing.listingAgentMlsId);
+function selectListingForTenantDeal(index) {
+    var listing = rentalListingDatabase[Number(index)];
+    if (!listing) return;
+    var setVal = function(id, val) {
+        var el = document.getElementById(id);
+        if (el) el.value = val == null ? '' : val;
+    };
+
+    setVal('tenantStreetAddress', listing.address);
+    setVal('tenantUnitNumber', listing.unit);
+    setVal('tenantBorough', listing.borough);
+    setVal('tenantZipCode', listing.zip);
+    setVal('tenantNeighborhood', listing.neighborhood);
+    setVal('tenantRlsId', listing.rlsId);
+    setVal('tenantWebId', listing.webId);
+    setVal('tenantListingAgentName', listing.listingAgent);
+    setVal('tenantListingBrokerageName', listing.listingBrokerage);
+    setVal('tenantListingAgentPhone', listing.listingAgentPhone);
+    setVal('tenantListingAgentEmail', listing.listingAgentEmail);
+    setVal('tenantListingAgentMlsId', '');
     setVal('tenantListRent', listing.rent);
 
-    var typeSel = document.getElementById('tenantPropertyType');
-    if (typeSel) { for (var i = 0; i < typeSel.options.length; i++) { if (typeSel.options[i].value === listing.type) { typeSel.selectedIndex = i; break; } } }
-    setVal('tenantBedrooms', listing.bed); setVal('tenantFullBaths', listing.fullBath); setVal('tenantHalfBaths', listing.halfBath);
-    setVal('tenantLivingArea', listing.sqft); setVal('tenantBuildingName', listing.buildingName);
-    setVal('tenantYearBuilt', listing.yearBuilt); setVal('tenantTotalFloors', listing.floors); setVal('tenantTotalUnits', listing.units);
+    setVal('tenantPropertySubType', listing.propertySubType);
+    var ownershipEl = document.getElementById('tenantOwnershipType');
+    if (ownershipEl) {
+        ownershipEl.value = tenantOwnershipLabel(listing.ownership);
+        ownershipEl.dataset.providerValue = listing.ownership == null ? '' : listing.ownership;
+    }
+    setVal('tenantBedrooms', listing.bed);
+    setVal('tenantFullBaths', listing.fullBath);
+    setVal('tenantHalfBaths', listing.halfBath);
+    setVal('tenantLivingArea', listing.sqft);
+    setVal('tenantTotalRooms', listing.rooms);
+    setVal('tenantExposure', listing.exposure);
+    setVal('tenantFloor', '');
+    setVal('tenantBuildingName', listing.buildingName);
+    setVal('tenantYearBuilt', listing.yearBuilt);
+    setVal('tenantTotalFloors', '');
+    setVal('tenantTotalUnits', '');
     setVal('tenantDescription', listing.description);
-
-    var featureMap = { 'Doorman':'tenantFeatDoorman','Elevator':'tenantFeatElevator','Gym':'tenantFeatGym','Pool':'tenantFeatPool','Laundry':'tenantFeatLaundry','Parking':'tenantFeatParking','Concierge':'tenantFeatConcierge' };
-    if (listing.features) listing.features.forEach(function(f) { var el = document.getElementById(featureMap[f]); if (el) el.checked = true; });
 
     document.getElementById('tenantIdxMatchBanner').classList.remove('hidden');
     document.getElementById('tenantManualEntryBanner').classList.add('hidden');
-    document.getElementById('tenantIdxSource').textContent = 'REBNY RLS via Trestle';
+    document.getElementById('tenantIdxSource').textContent = 'Cotality';
     document.getElementById('tenantListingBrokerage').textContent = listing.listingBrokerage;
     document.getElementById('tenantPropertyIdxBanner').classList.remove('hidden');
+    document.getElementById('tenantCotalityStatus').textContent = listing.standardStatus || '--';
+    document.getElementById('tenantDealSourceDisplay').textContent = 'Cotality';
     document.getElementById('tenantPhotoCourtesy').textContent = listing.listingBrokerage;
 
-    // Load photos
     var grid = document.getElementById('tenantPhotoGrid');
     if (grid) {
-        var html = '';
-        for (var i = 1; i <= (listing.photos || 6); i++) {
-            html += '<div class="photo-card"><div class="bg-gray-200 flex items-center justify-center" style="height:140px;"><div class="text-center"><i class="fas fa-image text-gray-400 text-2xl"></i><p class="text-[10px] text-gray-400 mt-1">Photo ' + i + '</p></div></div>' +
-                '<div class="caption"><p class="font-medium text-gray-700">' + listing.address + (listing.unit ? ' #' + listing.unit : '') + '</p><p class="text-[10px] text-gray-500 mt-0.5">Courtesy of <strong>' + listing.listingBrokerage + '</strong></p></div></div>';
+        var images = Array.isArray(listing.images) ? listing.images.filter(function(img) { return img && img.url; }) : [];
+        if (!images.length) {
+            grid.innerHTML = '<div class="col-span-full p-4 text-sm text-gray-500 border rounded-lg bg-gray-50">No inline Cotality media URLs were returned for this search result. No mock photos are shown.</div>';
+        } else {
+            grid.innerHTML = images.map(function(img) {
+                return '<div class="photo-card"><img src="' + escapeTenantDealHtml(img.url) + '" alt="" class="w-full object-cover" style="height:140px;">' +
+                    '<div class="caption"><p class="font-medium text-gray-700">' + escapeTenantDealHtml(listing.address) + (listing.unit ? ' #' + escapeTenantDealHtml(listing.unit) : '') + '</p>' +
+                    '<p class="text-[10px] text-gray-500 mt-0.5">Courtesy of <strong>' + escapeTenantDealHtml(listing.listingBrokerage) + '</strong></p></div></div>';
+            }).join('');
         }
-        grid.innerHTML = html;
     }
 
     document.getElementById('tenantListingSearchResults').classList.add('hidden');
     document.getElementById('tenantListingSearch').value = listing.address + (listing.unit ? ', ' + listing.unit : '');
     updateTenantHeaderBar();
-    showToast('Listing data loaded from IDX/RLS');
+    showToast('Listing data loaded from Cotality');
 }
 
 function updateTenantHeaderBar() {
@@ -1023,18 +1118,9 @@ function updateTenantHeaderBar() {
 }
 
 // ═══════ STATUS ═══════
-var TENANT_CRM_TO_RESO = {
-    'Draft': 'Incomplete', 'Searching': 'Active', 'Showing': 'Active',
-    'AppOut': 'Pending', 'AppAccepted': 'Pending', 'AppRejected': 'Active',
-    'LeaseOut': 'Pending', 'LeaseSigned': 'Pending', 'BoardApproved': 'Pending',
-    'Rented': 'Closed', 'RentedThruUs': 'Closed',
-    'Withdrawn': 'Withdrawn', 'Cancelled': 'Canceled', 'DealFellThrough': 'Canceled'
-};
-
 function updateTenantStatusFields() {
     var status = (document.getElementById('tenantDealStatus') || {}).value || 'Draft';
     document.getElementById('tenantStatusChangeTimestamp').textContent = new Date().toLocaleString();
-    document.getElementById('tenantResoMlsStatus').textContent = TENANT_CRM_TO_RESO[status] || '--';
 
     var isClosed = (status === 'Rented' || status === 'RentedThruUs');
     document.getElementById('tenantFinalRentField').style.display = isClosed ? '' : 'none';
@@ -1065,7 +1151,7 @@ function updateTenantStatusFields() {
             'AppAccepted': { bg:'bg-orange-100', text:'text-orange-800', border:'border-orange-300', icon:'fa-check', label:'APP ACCEPTED' },
             'LeaseSigned': { bg:'bg-purple-100', text:'text-purple-800', border:'border-purple-300', icon:'fa-file-signature', label:'LEASE SIGNED' },
             'Rented': { bg:'bg-green-100', text:'text-green-800', border:'border-green-300', icon:'fa-check-circle', label:'RENTED' },
-            'RentedThruUs': { bg:'bg-green-100', text:'text-green-800', border:'border-green-300', icon:'fa-check-circle', label:'RENTED THRU US' },
+            'RentedThruUs': { bg:'bg-green-100', text:'text-green-800', border:'border-green-300', icon:'fa-check-circle', label:'RENTED THRU US' }
         };
         var b = badgeMap[status] || badgeMap['Draft'];
         badge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ' + b.bg + ' ' + b.text + ' border ' + b.border;
@@ -1078,7 +1164,8 @@ function updateTenantPreview() {
     var val = function(id) { var el = document.getElementById(id); return el ? (el.value || el.textContent || '') : ''; };
     var fmt = function(n) { return n ? '$' + parseFloat(n).toLocaleString() + '/mo' : '--'; };
     document.getElementById('prevTenantAddress').textContent = (val('tenantStreetAddress') || '--') + (val('tenantUnitNumber') ? ', ' + val('tenantUnitNumber') : '');
-    document.getElementById('prevTenantPropertyType').textContent = val('tenantPropertyType') || '--';
+    var providerClass = [val('tenantOwnershipType'), val('tenantPropertySubType')].filter(function(v) { return v && v !== 'None'; }).join(' · ');
+    document.getElementById('prevTenantPropertyType').textContent = providerClass || val('tenantOwnershipType') || '--';
     var bed = val('tenantBedrooms'), bath = val('tenantFullBaths'), sqft = val('tenantLivingArea');
     document.getElementById('prevTenantBedBath').textContent = (bed || '--') + ' BD / ' + (bath || '--') + ' BA | ' + (sqft ? sqft + ' sq ft' : '--');
     document.getElementById('prevTenantClient').textContent = val('tenantClientName') || '--';
