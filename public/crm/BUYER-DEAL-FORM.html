@@ -443,8 +443,9 @@ body { font-family: Manrope, sans-serif; }
                     <input type="number" id="buyerOfferPrice" placeholder="$0" class="field-input">
                 </div>
                 <div id="buyerSoldPriceField" style="display:none;">
-                    <label class="field-label">Sale Price <span class="text-red-500">*</span></label>
-                    <input type="number" id="buyerSoldPrice" placeholder="$0" class="field-input">
+                    <label class="field-label">Close Price / Sale Price <span class="text-red-500">*</span></label>
+                    <input type="number" id="buyerSoldPrice" placeholder="$0" class="field-input" data-cotality-field="ClosePrice">
+                    <p class="text-[10px] text-gray-400 mt-1">Cotality ClosePrice when the deal closes.</p>
                 </div>
                 <div>
                     <label class="field-label">Maint/CC</label>
@@ -465,12 +466,12 @@ body { font-family: Manrope, sans-serif; }
                     <input type="date" id="buyerOfferDate" class="field-input">
                 </div>
                 <div>
-                    <label class="field-label">Contract Date</label>
-                    <input type="date" id="buyerContractDate" class="field-input">
+                    <label class="field-label">Contract Signed Date</label>
+                    <input type="date" id="buyerContractDate" class="field-input" data-cotality-field="PurchaseContractDate">
                 </div>
                 <div id="buyerCloseDateField" style="display:none;">
                     <label class="field-label">Close Date <span class="text-red-500">*</span></label>
-                    <input type="date" id="buyerCloseDate" class="field-input">
+                    <input type="date" id="buyerCloseDate" class="field-input" data-cotality-field="CloseDate">
                 </div>
             </div>
         </div>
@@ -1620,6 +1621,7 @@ function submitBuyerCommissionRequest() {
     var buyerName = (document.getElementById('commBuyerName') || {}).value;
     var payMethod = document.querySelector('input[name="commBuyerPayMethod"]:checked');
     var closingDate = (document.getElementById('commBuyerClosingDate') || {}).value;
+    var contractDate = (document.getElementById('buyerContractDate') || {}).value;
 
     if (!price || !totalPct || !buyerName || !payMethod || !closingDate) {
         alert('Please fill in all required fields:\n- Sale Price\n- Total Commission %\n- Buyer Name\n- Payment Method\n- Closing Date');
@@ -1654,6 +1656,8 @@ function submitBuyerCommissionRequest() {
 
     // Persist to API
     if (typeof MallanAPI !== 'undefined' && MallanAPI.deals) {
+        var contractSignedIso = contractDate ? new Date(contractDate + 'T00:00:00').toISOString() : null;
+        var contractClosedIso = closingDate ? new Date(closingDate + 'T00:00:00').toISOString() : null;
         MallanAPI.deals.create({
             representation_code: 'buyer',
             property_address: propertyAddress,
@@ -1663,7 +1667,8 @@ function submitBuyerCommissionRequest() {
             agent_fee_usd: agentFee,
             company_fee_usd: companyFee,
             gross_commission_usd: grossAmt,
-            contract_signed: closingDate || null
+            contract_signed: contractSignedIso,
+            contract_closed: contractClosedIso
         }).then(function(data) {
             requestData.dbId = data.id;
             sessionStorage.setItem('buyerCommRequest', JSON.stringify(requestData));
@@ -1942,6 +1947,7 @@ function submitBuyerDeal() {
     }
 
     var contractDate = val('buyerContractDate');
+    var closeDate = val('buyerCloseDate');
 
     var payload = {
         representation_code: 'buyer',
@@ -1955,6 +1961,10 @@ function submitBuyerDeal() {
     if (grossUsd !== null && grossUsd >= 0) payload.gross_commission_usd = grossUsd;
     if (contractDate) {
         try { payload.contract_signed = new Date(contractDate + 'T00:00:00').toISOString(); }
+        catch (e) { /* ignore unparseable date */ }
+    }
+    if (closeDate) {
+        try { payload.contract_closed = new Date(closeDate + 'T00:00:00').toISOString(); }
         catch (e) { /* ignore unparseable date */ }
     }
 

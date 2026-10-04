@@ -360,13 +360,15 @@ body { font-family: Manrope, sans-serif; }
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                 <div><label class="field-label">Listed Rent</label><input type="number" id="tenantListRent" placeholder="$0/mo" class="field-input" readonly><p class="text-[10px] text-gray-400 mt-1">From listing</p></div>
                 <div><label class="field-label">Offered Rent</label><input type="number" id="tenantOfferRent" placeholder="$0/mo" class="field-input"></div>
-                <div id="tenantFinalRentField" style="display:none;"><label class="field-label">Final Monthly Rent <span class="text-red-500">*</span></label><input type="number" id="tenantFinalRent" placeholder="$0/mo" class="field-input"></div>
+                <div id="tenantFinalRentField" style="display:none;"><label class="field-label">Close Price / Final Monthly Rent <span class="text-red-500">*</span></label><input type="number" id="tenantFinalRent" placeholder="$0/mo" class="field-input" data-cotality-field="ClosePrice"><p class="text-[10px] text-gray-400 mt-1">Cotality ClosePrice for a closed lease is the agreed monthly rent.</p></div>
                 <div><label class="field-label">Lease Term (Months)</label><input type="number" id="tenantLeaseTerm" placeholder="12" min="1" class="field-input"></div>
             </div>
             <h5 class="text-xs font-bold text-gray-600 uppercase tracking-wide mb-3 border-b pb-2">Key Dates</h5>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div><label class="field-label">First Showing Date</label><input type="date" id="tenantFirstShowingDate" class="field-input"></div>
                 <div><label class="field-label">Application Date</label><input type="date" id="tenantAppDate" class="field-input"></div>
+                <div id="tenantContractDateField" style="display:none;"><label class="field-label">Contract Signed Date</label><input type="date" id="tenantContractDate" class="field-input" data-cotality-field="PurchaseContractDate"></div>
+                <div id="tenantCloseDateField" style="display:none;"><label class="field-label">Close Date <span class="text-red-500">*</span></label><input type="date" id="tenantCloseDate" class="field-input" data-cotality-field="CloseDate"></div>
                 <div id="tenantLeaseStartField" style="display:none;"><label class="field-label">Lease Start Date <span class="text-red-500">*</span></label><input type="date" id="tenantLeaseStartDate" class="field-input"></div>
                 <div id="tenantLeaseEndField" style="display:none;"><label class="field-label">Lease End Date</label><input type="date" id="tenantLeaseEndDate" class="field-input"></div>
             </div>
@@ -1036,6 +1038,8 @@ function updateTenantStatusFields() {
 
     var isClosed = (status === 'Rented' || status === 'RentedThruUs');
     document.getElementById('tenantFinalRentField').style.display = isClosed ? '' : 'none';
+    document.getElementById('tenantContractDateField').style.display = isClosed || status === 'LeaseSigned' ? '' : 'none';
+    document.getElementById('tenantCloseDateField').style.display = isClosed ? '' : 'none';
     document.getElementById('tenantLeaseStartField').style.display = isClosed || status === 'LeaseSigned' ? '' : 'none';
     document.getElementById('tenantLeaseEndField').style.display = isClosed || status === 'LeaseSigned' ? '' : 'none';
 
@@ -1165,9 +1169,11 @@ function submitTenantCommissionRequest() {
     var tenantName = (document.getElementById('commTenantName') || {}).value;
     var payMethod = document.querySelector('input[name="commTenantPayMethod"]:checked');
     var leaseStart = (document.getElementById('commTenantLeaseStart') || {}).value;
+    var contractDate = (document.getElementById('tenantContractDate') || {}).value;
+    var closeDate = (document.getElementById('tenantCloseDate') || {}).value;
 
-    if (!rent || !commValue || !tenantName || !payMethod || !leaseStart) {
-        alert('Please fill in all required fields:\n- Final Monthly Rent\n- Commission Amount\n- Tenant Name\n- Payment Method\n- Lease Start Date');
+    if (!rent || !commValue || !tenantName || !payMethod || !leaseStart || !contractDate || !closeDate) {
+        alert('Please fill in all required fields:\n- Final Monthly Rent\n- Commission Amount\n- Tenant Name\n- Payment Method\n- Contract Signed Date\n- Close Date\n- Lease Start Date');
         return;
     }
 
@@ -1203,16 +1209,19 @@ function submitTenantCommissionRequest() {
 
     // Persist to API
     if (typeof MallanAPI !== 'undefined' && MallanAPI.deals) {
+        var contractSignedIso = new Date(contractDate + 'T00:00:00').toISOString();
+        var contractClosedIso = new Date(closeDate + 'T00:00:00').toISOString();
         MallanAPI.deals.create({
             representation_code: 'tenant',
             property_address: propertyAddress,
-            price_usd: parsedRent * 12,
+            price_usd: parsedRent,
             commission_rate_percent: commRatePct,
             split_percent: agentSplitPct,
             agent_fee_usd: agentFee,
             company_fee_usd: companyFee,
             gross_commission_usd: grossAmt,
-            contract_signed: leaseStart || null
+            contract_signed: contractSignedIso,
+            contract_closed: contractClosedIso
         }).then(function(data) {
             requestData.dbId = data.id;
             sessionStorage.setItem('tenantCommRequest', JSON.stringify(requestData));
@@ -1448,20 +1457,25 @@ function submitTenantDeal() {
         companyFeeUsd = ourSideAmt - agentFeeUsd;
     }
 
-    var leaseStart = val('tenantLeaseStartDate');
+    var contractDate = val('tenantContractDate');
+    var closeDate = val('tenantCloseDate');
 
     var payload = {
         representation_code: 'tenant',
         property_address: propertyAddress
     };
-    if (annualRentUsd !== null && annualRentUsd > 0) payload.price_usd = annualRentUsd;
+    if (monthlyRent !== null && monthlyRent > 0) payload.price_usd = monthlyRent;
     if (commRatePct !== null && commRatePct >= 0 && commRatePct <= 100) payload.commission_rate_percent = commRatePct;
     if (agentSplitPct !== null) payload.split_percent = agentSplitPct;
     if (agentFeeUsd !== null && agentFeeUsd >= 0) payload.agent_fee_usd = agentFeeUsd;
     if (companyFeeUsd !== null && companyFeeUsd >= 0) payload.company_fee_usd = companyFeeUsd;
     if (grossUsd !== null && grossUsd >= 0) payload.gross_commission_usd = grossUsd;
-    if (leaseStart) {
-        try { payload.contract_signed = new Date(leaseStart + 'T00:00:00').toISOString(); }
+    if (contractDate) {
+        try { payload.contract_signed = new Date(contractDate + 'T00:00:00').toISOString(); }
+        catch (e) { /* ignore unparseable date */ }
+    }
+    if (closeDate) {
+        try { payload.contract_closed = new Date(closeDate + 'T00:00:00').toISOString(); }
         catch (e) { /* ignore unparseable date */ }
     }
 

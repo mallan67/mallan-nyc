@@ -66,6 +66,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (data.contract_signed !== undefined) {
     update.contract_signed = data.contract_signed ? new Date(data.contract_signed) : null;
   }
+  if (data.contract_closed !== undefined) {
+    update.contract_closed = data.contract_closed ? new Date(data.contract_closed) : null;
+  }
 
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
