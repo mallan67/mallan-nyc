@@ -91,7 +91,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         // stores `ComingSoon` (no space). Sitemap excluded every Coming
         // Soon listing as a result. Fixed here.
         status: { in: [...ACTIVE_DISPLAY_VALUES] },
-        // MALLAN RLS RETURN-COPY SUPPRESSION — CHARTER Section 1A.
+        // MALLAN RLS RETURN-COPY SUPPRESSION — Master §4.4.
         //
         // Mallan's own listing returns through Cotality as an `RLS*` row.
         // Without this the sitemap emitted a SECOND canonical URL for the same
@@ -112,7 +112,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
 
     // Public-surface dedupe (2026-05-28): when a Mallan CRM exclusive
-    // (SL-/RL-) and a Trestle-synced IDX duplicate exist for the same
+    // (SL-/RL-) and a Cotality-synced IDX duplicate exist for the same
     // physical unit, emit only the CRM canonical URL. Avoids
     // duplicate-content SEO penalty for our own listings. See
     // lib/listings/dedupe-crm-vs-idx.ts.

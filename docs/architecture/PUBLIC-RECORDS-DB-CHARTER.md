@@ -6,13 +6,13 @@
 **Companion charter:** `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md`
 **Compliance source of truth:** `CLAUDE.md` and `compliance/README.md` (entry point to the tracked `compliance/` directory)
 **Companion design (separate repo):** `mallan-marketing-plans/2026-05-14-public-records-intelligence-design.md`
-**Hold record this charter does NOT release:** `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`
+**Supplemental-inventory authority this charter does NOT change:** Master §4.5; current holds are recorded in `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` (the 2026-04-30 hold record is retired; Git history)
 
 ---
 
 ## Purpose
 
-This charter governs every aspect of how Mallan Real Estate Inc. ingests, stores, queries, and surfaces NYC + NY State public-records property data inside the mallan-nyc CRM. It defines the architectural and compliance guardrails. It exists because public-records data — Schedule A from NY AG offering plans, ACRIS deeds, DOB CO/TCO, HPD/DOB violations, DOF tax/apportionment, NY DOS corporate filings, 421-a/J-51 abatements — is regulatorily distinct from REBNY/Trestle/RLS data, and commingling the two creates real risk to both Mallan's Trestle IDX Plus license (Trestle-11371-20) and to NY DOS §175.25 advertising compliance.
+This charter governs every aspect of how Mallan Real Estate Inc. ingests, stores, queries, and surfaces NYC + NY State public-records property data inside the mallan-nyc CRM. It defines the architectural and compliance guardrails. It exists because public-records data — Schedule A from NY AG offering plans, ACRIS deeds, DOB CO/TCO, HPD/DOB violations, DOF tax/apportionment, NY DOS corporate filings, 421-a/J-51 abatements — is regulatorily distinct from REBNY/Cotality/RLS data, and commingling the two creates real risk to both Mallan's Cotality IDX Plus license (Trestle-11371-20) and to NY DOS §175.25 advertising compliance.
 
 The charter is binding on all future PRs that touch any system bridging RLS/IDX data and public-records data. The charter does not, by itself, approve implementation. Implementation requires a separate spec, an attorney/compliance review, and Maya's explicit go-ahead.
 
@@ -32,7 +32,7 @@ Public-records data lives in a **separate Neon Postgres project**, distinct from
 
 ### 1.3 — Public-records data is not IDX/RLS inventory
 
-Public-records data is **not** sourced from the REBNY RLS feed, not licensed under Trestle IDX Plus (Trestle-11371-20), and is not subject to REBNY UCBA 2026 listing display rules. It is sourced from NY State and NYC government public records. It does not represent listings.
+Public-records data is **not** sourced from the REBNY RLS feed, not licensed under the Cotality IDX Plus license (Trestle-11371-20), and is not subject to REBNY UCBA 2026 listing display rules. It is sourced from NY State and NYC government public records. It does not represent listings.
 
 ### 1.4 — Public-records records are not active listings
 
@@ -58,11 +58,11 @@ Public-records data may be returned **only** through `sanitizeForCRM` (a new or 
 
 The public-records Neon project is non-negotiable. Putting public-records data in a new schema within the existing mallan-nyc Neon project, or in a separate database within the same Neon project, **does not satisfy this charter.** The isolation must be at the Neon project level.
 
-### 1.10 — No persistent commingling with Trestle/RLS records
+### 1.10 — No persistent commingling with Cotality/RLS records
 
-No row in any `public_records_*` table may contain fields sourced from Trestle/RLS. No row in any mallan-nyc Prisma model (Listing, Agent, Lead, Deal, ListingMedia, etc.) may contain fields sourced from the public-records database. The two data domains live in two databases and never share rows.
+No row in any `public_records_*` table may contain fields sourced from Cotality/RLS. No row in any mallan-nyc Prisma model (Listing, Agent, Lead, Deal, ListingMedia, etc.) may contain fields sourced from the public-records database. The two data domains live in two databases and never share rows.
 
-### 1.11 — Joins to RLS/Trestle data happen only at read time in CRM routes
+### 1.11 — Joins to RLS/Cotality data happen only at read time in CRM routes
 
 When a CRM API route under `app/api/crm/buildings/`, `app/api/crm/units/`, or `app/api/crm/sponsors/` needs to display both public-records data and matching RLS listing data, the join is performed **in TypeScript at request time**, not in SQL and not in a persistent view. The merged result exists only in the response object returned to the agent's browser. Neither database persists the merged data.
 
@@ -234,7 +234,7 @@ The implementation plan must produce unit tests in mallan-nyc CI that:
 - Feed it a synthetic record with a known public-records-shaped field set
 - Assert that the sanitizer emits no field whose name begins with `public_records_` and no field whose `source_type` is `public_record`
 
-These tests must run in the standard `npm run ci` chain alongside `ucba:audit`, `rls:validate`, `compliance-check`, `idx:validate`, and `crm:test`.
+These tests must run in the standard `npm run ci` chain alongside `ucba:audit`, `compliance-check`, `idx:validate`, and `crm:test`.
 
 ---
 
@@ -284,11 +284,11 @@ This charter does not modify the source-of-truth charter. The public-records dat
 
 ### 7.2 — Relationship to tracked project compliance docs
 
-This charter operates within the rules in `CLAUDE.md` and the tracked `compliance/` directory (entry point: `compliance/README.md`, with topic-specific files including `compliance/UCBA-2026.md`, `compliance/IDX-VOW-DISPLAY-RULES.md`, `compliance/NYC-NYS-REQUIREMENTS.md`, `compliance/THIRD-PARTY-AND-FEED-GOVERNANCE.md`; field/compliance truth lives in `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` (field authority order in §0; RLS validation = `npm run rls:validate`) + `data/UCBA-2026-Requirements.md` + the live `api.cotality.com/trestle` feed). Where this charter is stricter (e.g., extending the "Off-Market" prohibition to internal code identifiers), the stricter rule wins.
+This charter operates within `MALLAN-PLATFORM-MASTER-PLAN.md` (the sole product/system authority, with current execution state in `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md`), `CLAUDE.md` and the tracked `compliance/` directory (entry point: `compliance/README.md`, with topic-specific files including `compliance/UCBA-2026.md`, `compliance/IDX-VOW-DISPLAY-RULES.md`, `compliance/NYC-NYS-REQUIREMENTS.md`, `compliance/THIRD-PARTY-AND-FEED-GOVERNANCE.md`). Provider field truth comes from the live Cotality API (`api.cotality.com/trestle`; Master §0.1); compliance obligations are indexed in `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` and `data/UCBA-2026-Requirements.md`. Where this charter is stricter (e.g., extending the "Off-Market" prohibition to internal code identifiers), the stricter rule wins.
 
 ### 7.3 — Relationship to the external-inventory hold
 
-This charter does **not** release the hold documented in `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`. The external-inventory spec remains parked. Public-records intelligence is a distinct workstream and its sequencing under Article 1.19 is independent of the external-inventory release conditions.
+This charter does **not** authorize supplemental / external-inventory implementation; that is governed by Master §4.5 and the current Execution State holds. The 2026-04-30 external-inventory spec and hold record are retired (Git history). Public-records intelligence is a distinct workstream and its sequencing under Article 1.19 is independent of the external-inventory release conditions.
 
 ### 7.4 — Relationship to in-flight design work
 
@@ -302,7 +302,7 @@ This charter may be amended only by a PR that:
 1. Modifies this file (`docs/architecture/PUBLIC-RECORDS-DB-CHARTER.md`) directly,
 2. Records the amendment date and rationale in an "Amendment History" appendix below,
 3. Carries Maya Allan's explicit approval as the licensed broker of record,
-4. Is reviewed against the tracked project compliance docs (`CLAUDE.md` and the `compliance/` directory, entry point `compliance/README.md`) for any regression on UCBA, §175.25, or Trestle isolation rules.
+4. Is reviewed against the tracked project compliance docs (`CLAUDE.md` and the `compliance/` directory, entry point `compliance/README.md`) for any regression on UCBA, §175.25, or Cotality isolation rules.
 
 Implementation PRs that conflict with this charter must either be rejected or paired with an amendment PR that lands first.
 
@@ -373,7 +373,7 @@ This geography article does **not** alter any of the internal-only, no-public-ex
 - Article 1.7 (never via sanitizeForPublic or sanitizeForVOW) — unchanged
 - Article 1.15 (forbidden labels: off-market, exclusive, available, hidden inventory, shadow inventory, pre-market, coming soon) — unchanged
 - Article 4 (DTO surface rules) — unchanged
-- Article 10 (no persistent commingling with Trestle/RLS) — unchanged
+- Article 10 (no persistent commingling with Cotality/RLS) — unchanged
 
 The geography expansion is a scope addition, not a posture change. Brooklyn buildings are ingested under exactly the same internal-only, non-listing, audit-logged constraints as Manhattan buildings.
 
@@ -398,13 +398,13 @@ _None yet. This is the initial charter._
 
 | Topic | Path |
 |---|---|
-| REBNY UCBA + Trestle + Fair Housing + Advertising compliance | `CLAUDE.md` (root) + `compliance/README.md` (entry point to `compliance/` directory: `UCBA-2026.md`, `IDX-VOW-DISPLAY-RULES.md`, `NYC-NYS-REQUIREMENTS.md`, `THIRD-PARTY-AND-FEED-GOVERNANCE.md`) + `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` (field authority order in §0) + `data/UCBA-2026-Requirements.md` |
+| REBNY UCBA + Cotality + Fair Housing + Advertising compliance | `CLAUDE.md` (root) + `compliance/README.md` (entry point to `compliance/` directory: `UCBA-2026.md`, `IDX-VOW-DISPLAY-RULES.md`, `NYC-NYS-REQUIREMENTS.md`, `THIRD-PARTY-AND-FEED-GOVERNANCE.md`) + `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` (field authority order in §0) + `data/UCBA-2026-Requirements.md` |
 | Source-of-truth charter (architecture) | `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` |
 | Companion design (cross-repo) | `mallan-marketing-plans/2026-05-14-public-records-intelligence-design.md` |
 | Phase B 13-scanner system (extended to 15) | `mallan-marketing-plans/2026-05-12-townhouse-hunter-completion-plan.md` |
 | Phase A compliance pipeline | `mallan-marketing-plans/2026-05-12-mallan-marketing-phase-a-plan.md` |
 | Active follow-up (master plan + holds) | `CLAUDE.md` top block + `memory/REFACTOR-2026-04-25.md` |
-| External-inventory hold (NOT released by this charter) | `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md` |
+| Supplemental-inventory authority (not changed by this charter) | Master §4.5; current holds: Execution State |
 | Neon / Prisma / migration discipline | `NEON.md` |
 
 ---

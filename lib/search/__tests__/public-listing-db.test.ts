@@ -92,7 +92,7 @@ describe("buildPublicListingDbSearch", () => {
 
   it("restricts exclusive=mallan to TRUE Mallan exclusives (SL-/RL- or website-only), never agent_id", () => {
     // Requirement: the homepage exclusives feed must be provably Mallan-only.
-    // syncAgentHistory stamps agent_id onto THIRD-PARTY (buyer-side) Trestle rows
+    // syncAgentHistory stamps agent_id onto THIRD-PARTY (buyer-side) Cotality rows
     // (lib/idx/fetch.ts:427 matches BuyerAgentMlsId), so agent_id != null is unsafe.
     const { where } = buildPublicListingDbSearch(
       new URLSearchParams("type=sale&exclusive=mallan"),
@@ -198,7 +198,7 @@ describe("applyPublicListingPostFilters", () => {
     expect(condoOnly.map((l) => l.id)).toEqual(["a"]);
   });
 
-  it("filters by yearBuilt pre-war and post-war using the same threshold as Trestle", () => {
+  it("filters by yearBuilt pre-war and post-war using the same threshold as the Cotality-direct filter", () => {
     const preWar = applyPublicListingPostFilters(
       listings,
       featuresById,

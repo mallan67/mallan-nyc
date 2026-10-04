@@ -6201,9 +6201,9 @@ var Workspace = (function () {
       html += platformRow('Redfin', 'auto', 'REBNY data license (automatic)', 'fa-map-marker-alt');
       html += platformRow('Homes.com', 'auto', 'REBNY data license (automatic)', 'fa-home');
       html += platformRow('RentHop', 'auto', 'REBNY data license (automatic)', 'fa-key');
-      html += platformRow('openigloo', idxDisplay ? 'active' : 'inactive', 'Trestle IDX opt-in', 'fa-plug');
-      html += platformRow('Samaki.com', idxDisplay ? 'active' : 'inactive', 'Trestle IDX opt-in', 'fa-plug');
-      html += platformRow('TBI Listings', idxDisplay ? 'active' : 'inactive', 'Trestle IDX opt-in', 'fa-plug');
+      html += platformRow('openigloo', idxDisplay ? 'active' : 'inactive', 'IDX opt-in', 'fa-plug');
+      html += platformRow('Samaki.com', idxDisplay ? 'active' : 'inactive', 'IDX opt-in', 'fa-plug');
+      html += platformRow('TBI Listings', idxDisplay ? 'active' : 'inactive', 'IDX opt-in', 'fa-plug');
     } else {
       html += platformRow('mallan.nyc', 'active', 'Website-only listing', 'fa-globe');
       html += '<p class="text-xs text-gray-400 py-2">This is a website-only listing (rls_eligible: false). Not distributed to REBNY RLS or IDX feeds.</p>';

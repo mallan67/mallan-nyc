@@ -61,7 +61,6 @@ This reverts the retention cron to its broken state (will not flag closed listin
 
 - [ ] Phase 0 has been deployed and the keepalive is at `*/15` (verify on Vercel cron dashboard)
 - [ ] `npm run ucba:audit` passes
-- [ ] `npm run rls:validate` passes
 - [ ] `npm run crm:test` passes
 - [ ] `node --env-file=.env.local scripts/phase1-run.js --verify-only` captures pre-state
 - [ ] Run scheduled for low-traffic window (3–5 AM ET)

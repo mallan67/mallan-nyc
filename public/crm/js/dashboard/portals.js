@@ -260,7 +260,12 @@ var Portals = (function () {
       : (l.address || l.UnparsedAddress || 'Address not available');
     var price = l.ListPrice || l.price || l.list_price;
     var reaction = l.reaction || null;
-    var status = (l.status || l.MlsStatus || 'active').toLowerCase();
+    // l.status is schema-guaranteed non-empty (Listing.status is a non-
+    // nullable Prisma column, passed through verbatim by the DTO sanitizers
+    // behind /api/portal/listings) -- MlsStatus is a raw Cotality field name
+    // this frontend has no reason to read, and never a valid substitute
+    // (Master Plan Section 0.6). Traced 2026-10-02.
+    var status = String(l.status).toLowerCase();
 
     var statusColors = { active: '#3B82F6', pending: '#F59E0B', contract: '#8B5CF6' };
     var statusColor = statusColors[status] || '#6B7280';
@@ -648,7 +653,12 @@ var Portals = (function () {
       listings.forEach(function (l, idx) {
         var address = l.address || l.UnparsedAddress || 'Your Listing';
         var price = l.ListPrice || l.price || l.list_price;
-        var status = l.status || l.MlsStatus || 'Active';
+        // l.status is schema-guaranteed non-empty (Listing.status is a non-
+        // nullable Prisma column, passed through verbatim by the DTO
+        // sanitizers behind /api/portal/listings) -- MlsStatus is a raw
+        // Cotality field name this frontend has no reason to read, and never
+        // a valid substitute (Master Plan Section 0.6). Traced 2026-10-02.
+        var status = l.status;
         var photo = _getPhoto(l);
         var dom = l.cumulative_dom || l.days_on_market || 0;
 

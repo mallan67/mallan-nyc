@@ -4,7 +4,7 @@
  *
  * Codex #413 P2: the create branch spreads `...mapped`, but the UPDATE branch in
  * reset-sync enumerates fields, so before this fix the 8 typed agent columns would
- * NOT persist on update. This test mocks Trestle + Prisma (NOT the real
+ * NOT persist on update. This test mocks Cotality + Prisma (NOT the real
  * `typedAgentColumnsFromJson` seam) and asserts the captured UPDATE payload carries
  * all 8 typed columns, each derived from the mapper's `agent_info` JSON.
  *
@@ -61,6 +61,7 @@ jest.mock("@/lib/idx/trestle-mapper", () => ({
   normalizeStandardStatus: jest.requireActual("@/lib/idx/trestle-mapper").normalizeStandardStatus,
   validateHistoricalFields: jest.fn(() => ({ valid: true, missingFields: [] })),
   checkDistributionGates: jest.fn(() => ({ displayable: true, reason: null })),
+  applyLocalOwnerOptOutGate: jest.fn((idxDisplayYn: boolean) => idxDisplayYn),
   mapTrestleToPrisma: jest.fn(() => ({
     listing_id: "RLS20012345", mls_id: "RLS20012345", status: "Active", listing_type: "sale",
     property_type: "Residential", property_sub_type: "Condo", list_price: 1000000,

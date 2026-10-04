@@ -3,7 +3,7 @@
 > **Status: DESIGN ONLY — NOT AUTHORIZED FOR IMPLEMENTATION.**
 > Dated 2026-07-10. Extends and *corrects* the prior "Mallan Search & Intelligence — Architecture Analysis + Design Plan" (Backend-Search analysis, main @ `2a06e0a0`/#492).
 > This document changes **no** application code, Prisma schema, migration, Vercel config, or production data. All entity/field names below are **reserved logical names**, not a migration.
-> Implementation of any supplemental / external-inventory capability remains **HELD** (`memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`); syndication remains **HELD**. Nothing here releases a hold.
+> Supplemental / external-inventory implementation is governed by Master §4.5 and is not authorized by this addendum; syndication remains **HELD**. Current holds are recorded in the Execution State; nothing here releases a hold.
 
 ### Revision history
 - **Rev 1** (2026-07-10) — initial addendum.
@@ -18,7 +18,7 @@
 - **Fail-closed** on unknown/unsupported criteria, unresolved audience, missing license, or unverified evidence.
 - **Compliance-first** (§D of CLAUDE.md): RLS/IDX Plus display rules, FARE Act (rentals), Fair Housing scanning on any displayed text, NY DOS §175.25 attribution, NY SHIELD/retention. Supplemental inventory is **private (broker/agent only) and is never surfaced through the public IDX display path**, so it does not enter the REBNY IDX display gate — but it is still subject to Fair Housing / advertising / licensing review before any rendering.
 - **Licensing before ingestion.** No external source is ingested or persisted until a `SourceLicenseProfile` with completed legal/ToS review authorizes the specific use. This document does **not** assert that any StreetEasy/Zillow/partner ingestion is currently permitted.
-- **Cotality field existence ≠ permission.** The presence of a field in the Cotality/Trestle feed does **not** imply the right to display it publicly, use it in a report, or export it. Display/report/export/comp rights come **only** from `SourcePermissionCapabilities` (§1.4, Appendix A), never from feed availability.
+- **Cotality field existence ≠ permission.** The presence of a field in the Cotality feed does **not** imply the right to display it publicly, use it in a report, or export it. Display/report/export/comp rights come **only** from `SourcePermissionCapabilities` (§1.4, Appendix A), never from feed availability.
 
 ### 0.1 Factual authorities (source of truth) vs. derived index
 
@@ -60,7 +60,7 @@ The prior plan's "make the projection the read source" is **re-gated**. None of 
 11. **Explicit capability validation** — unknown/unsupported/unpermitted criteria produce a typed `ContractDecision` (§1.5), never a silent drop. (The pure contract returns the decision; an API adapter later maps it to HTTP.)
 
 ### 1.4 Canonical Contract V2 — reserved dimensions (this fully specifies Decision 3's precondition and the A1 scope)
-The canonical contract (`lib/search/canonical/*`, #491) is extended with the **complete** dimension set below before any Lane A execution. These are pure, behavior-free type/enum reservations (see Appendix A for signatures); **A1 wires none of them to a runtime reader.**
+The canonical contract (#491, a TypeScript package that was never wired and was removed on 2026-10-01; Git history holds it) was to be extended with the **complete** dimension set below before any Lane A execution. These are pure, behavior-free type/enum reservations (see Appendix A for signatures); **A1 wires none of them to a runtime reader.**
 
 | Dimension | Values / shape | Capability |
 |---|---|---|
@@ -380,7 +380,7 @@ DEFERRED: i18n — only after A, B, C stable.
 4. **Internationalization is deferred** until search, supplemental inventory, comps, and factual reports are stable.
 
 ## 11. Compliance & holds register
-- **External-inventory implementation HELD** (`memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`); this addendum is design only and does not release it.
+- **External-inventory implementation** is governed by Master §4.5 and the current Execution State holds; this addendum is design only and authorizes nothing.
 - **Syndication / partner export HELD** — supplemental inventory is private/internal and is **not** syndicated or publicly displayed.
 - **Licensing/ToS**: no supplemental ingestion or persistence without an approved `SourceLicenseProfile` whose `SourcePermissionCapabilities` permit the specific use (G2). Cotality field availability never implies display/report/export permission.
 - **Fair Housing / advertising / FARE**: any displayed supplemental text/media passes the existing Fair Housing scanner and (for rentals) FARE fields before broker-facing render.
@@ -391,7 +391,7 @@ DEFERRED: i18n — only after A, B, C stable.
 
 ## Appendix A — Reserved A1 contract type signatures (logical; NOT implemented in this docs PR)
 
-> These are the exact reservations A1 will add to `lib/search/canonical`. They are pure types/enums + typed decisions — **no runtime reader, no HTTP, no Next.js, no Prisma**. Listed here for review only; this documentation PR implements none of them.
+> These are the exact reservations A1 was to add to the canonical contract package (removed unwired on 2026-10-01; Git history holds it). They are pure types/enums + typed decisions — **no runtime reader, no HTTP, no Next.js, no Prisma**. Listed here for review only; this documentation PR implements none of them.
 
 ```ts
 type SourceAuthority =

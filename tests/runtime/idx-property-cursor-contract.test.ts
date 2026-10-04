@@ -53,14 +53,14 @@ jest.mock("@/lib/prisma", () => ({
   },
 }));
 
-const mockFetchFromTrestle = jest.fn();
+const mockFetchFromCotality = jest.fn();
 jest.mock("@/lib/idx/fetch", () => {
   const actual = jest.requireActual("@/lib/idx/fetch");
   return {
     __esModule: true,
     ...actual,
     // REAL buildIncrementalFilter / buildActiveFilter / PROPERTY_KEYSET_ORDERBY.
-    fetchFromTrestle: (args: unknown) => mockFetchFromTrestle(args),
+    fetchFromTrestle: (args: unknown) => mockFetchFromCotality(args),
   };
 });
 
@@ -74,7 +74,7 @@ import { syncListings, getPropertyKeysetCursor } from "@/lib/idx/sync";
 const DB_MAX_MT = "2026-08-01T12:00:00.000Z";
 
 /**
- * Trestle Property record that survives the real mapper + distribution gates.
+ * Cotality Property record that survives the real mapper + distribution gates.
  * Field-for-field the fixture used by phase3-write-suppression-sync.test.ts, so
  * the two suites cannot disagree about what a processable record looks like.
  */
@@ -139,7 +139,7 @@ describe("Property cursor ownership — only the unscoped incremental traversal 
   const since = new Date(DB_MAX_MT);
 
   it("an UNSCOPED incremental run DOES advance the cursor (baseline)", async () => {
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromCotality.mockResolvedValue({
       records: [rawRecord()],
       totalFetched: 1,
     });
@@ -156,7 +156,7 @@ describe("Property cursor ownership — only the unscoped incremental traversal 
     // A sale-only traversal never fetches a single rental. Its last contiguous
     // success is a position in the SALE subset; writing it to the shared cursor
     // would silently declare every rental at that timestamp done.
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromCotality.mockResolvedValue({
       records: [rawRecord()],
       totalFetched: 1,
     });
@@ -174,7 +174,7 @@ describe("Property cursor ownership — only the unscoped incremental traversal 
   });
 
   it("a RENT-scoped run must NOT advance the cursor", async () => {
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromCotality.mockResolvedValue({
       records: [rawRecord({ PropertyType: "ResidentialLease" })],
       totalFetched: 1,
     });
@@ -189,7 +189,7 @@ describe("Property cursor ownership — only the unscoped incremental traversal 
   it("a FULL sync must NOT advance the incremental cursor", async () => {
     // fullSync uses buildActiveFilter: actives only, no MT bound at all. Its
     // records say nothing about incremental position.
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromCotality.mockResolvedValue({
       records: [rawRecord()],
       totalFetched: 1,
     });
@@ -202,7 +202,7 @@ describe("Property cursor ownership — only the unscoped incremental traversal 
   });
 
   it("a capped forceFull-style run (fullSync + small cap) still must NOT advance it", async () => {
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromCotality.mockResolvedValue({
       records: [rawRecord(), rawRecord({ ListingKey: "KEY2", ListingId: "RLS100002" })],
       totalFetched: 2,
     });
@@ -218,29 +218,29 @@ describe("Property cursor ownership — only the unscoped incremental traversal 
 
 describe("Property incremental traversal — ASC ordering and filter shape", () => {
   it("an incremental run requests ASCENDING (MT, ListingKey) ordering", async () => {
-    mockFetchFromTrestle.mockResolvedValue({ records: [], totalFetched: 0 });
+    mockFetchFromCotality.mockResolvedValue({ records: [], totalFetched: 0 });
 
     await syncListings({ since: new Date(DB_MAX_MT), maxRecords: 500 });
 
-    const fetchArgs = mockFetchFromTrestle.mock.calls[0][0] as { orderby?: string };
+    const fetchArgs = mockFetchFromCotality.mock.calls[0][0] as { orderby?: string };
     expect(fetchArgs.orderby).toBe("ModificationTimestamp asc,ListingKey asc");
   });
 
   it("a full sync does NOT force the keyset ordering (no resume position to protect)", async () => {
-    mockFetchFromTrestle.mockResolvedValue({ records: [], totalFetched: 0 });
+    mockFetchFromCotality.mockResolvedValue({ records: [], totalFetched: 0 });
 
     await syncListings({ fullSync: true, maxRecords: 500 });
 
-    const fetchArgs = mockFetchFromTrestle.mock.calls[0][0] as { orderby?: string };
+    const fetchArgs = mockFetchFromCotality.mock.calls[0][0] as { orderby?: string };
     expect(fetchArgs.orderby).toBeUndefined();
   });
 
   it("the incremental filter never references PhotosChangeTimestamp", async () => {
-    mockFetchFromTrestle.mockResolvedValue({ records: [], totalFetched: 0 });
+    mockFetchFromCotality.mockResolvedValue({ records: [], totalFetched: 0 });
 
     await syncListings({ since: new Date(DB_MAX_MT), maxRecords: 500 });
 
-    const fetchArgs = mockFetchFromTrestle.mock.calls[0][0] as { filter: string };
+    const fetchArgs = mockFetchFromCotality.mock.calls[0][0] as { filter: string };
     expect(fetchArgs.filter).not.toContain("PhotosChangeTimestamp");
   });
 });
@@ -254,11 +254,11 @@ describe("cold transition — bootstrapping with no tie-breaker must REPLAY the 
     //   The provider ALSO has KEY_B and KEY_C at exactly T, never processed here.
     //   With `MT gt T` those two are excluded forever — the cursor has moved past
     //   a timestamp it only partially consumed.
-    mockFetchFromTrestle.mockResolvedValue({ records: [], totalFetched: 0 });
+    mockFetchFromCotality.mockResolvedValue({ records: [], totalFetched: 0 });
 
     await syncListings({ since: new Date(DB_MAX_MT), sinceListingKey: null, maxRecords: 500 });
 
-    const fetchArgs = mockFetchFromTrestle.mock.calls[0][0] as { filter: string };
+    const fetchArgs = mockFetchFromCotality.mock.calls[0][0] as { filter: string };
     expect(fetchArgs.filter).toContain(`ModificationTimestamp ge ${DB_MAX_MT}`);
     expect(fetchArgs.filter).not.toContain(`ModificationTimestamp gt ${DB_MAX_MT}`);
   });
@@ -270,7 +270,7 @@ describe("cold transition — bootstrapping with no tie-breaker must REPLAY the 
       rawRecord({ ListingKey: "KEY_B", ListingId: "RLS100002" }),
       rawRecord({ ListingKey: "KEY_C", ListingId: "RLS100003" }),
     ];
-    mockFetchFromTrestle.mockResolvedValue({ records: provider, totalFetched: 3 });
+    mockFetchFromCotality.mockResolvedValue({ records: provider, totalFetched: 3 });
     // Only KEY_A/RLS100001 exists locally; the other two are unknown -> created.
     mockFindUnique.mockImplementation(async (args: { where: { listing_id: string } }) =>
       args.where.listing_id === "RLS100001" ? null : null,
@@ -299,7 +299,7 @@ describe("cold transition — bootstrapping with no tie-breaker must REPLAY the 
   });
 
   it("once a tie-breaker exists the boundary becomes STRICT (no perpetual replay)", async () => {
-    mockFetchFromTrestle.mockResolvedValue({ records: [], totalFetched: 0 });
+    mockFetchFromCotality.mockResolvedValue({ records: [], totalFetched: 0 });
 
     await syncListings({
       since: new Date(DB_MAX_MT),
@@ -307,7 +307,7 @@ describe("cold transition — bootstrapping with no tie-breaker must REPLAY the 
       maxRecords: 500,
     });
 
-    const fetchArgs = mockFetchFromTrestle.mock.calls[0][0] as { filter: string };
+    const fetchArgs = mockFetchFromCotality.mock.calls[0][0] as { filter: string };
     expect(fetchArgs.filter).toBe(
       `(ModificationTimestamp gt ${DB_MAX_MT} or (ModificationTimestamp eq ${DB_MAX_MT} and ListingKey gt 'KEY_C'))`,
     );
@@ -377,7 +377,7 @@ describe("failure handling must BLOCK the cursor, never rewrite its position", (
     const T = "2026-08-01T12:00:00.000Z";
     const A = rawRecord({ ListingKey: "KEY_A", ListingId: "RLS100001", ModificationTimestamp: T });
     const B = rawRecord({ ListingKey: "KEY_B", ListingId: "RLS100002", ModificationTimestamp: T });
-    mockFetchFromTrestle.mockResolvedValue({ records: [A, B], totalFetched: 2 });
+    mockFetchFromCotality.mockResolvedValue({ records: [A, B], totalFetched: 2 });
     mockFindUnique.mockImplementation(async (args: { where: { listing_id: string } }) => {
       if (args.where.listing_id === "RLS100002") throw new Error("connection reset");
       return null;
@@ -403,7 +403,7 @@ describe("failure handling must BLOCK the cursor, never rewrite its position", (
       ListingId: "RLS100002",
       ModificationTimestamp: "not-a-timestamp",
     });
-    mockFetchFromTrestle.mockResolvedValue({ records: [good, bad], totalFetched: 2 });
+    mockFetchFromCotality.mockResolvedValue({ records: [good, bad], totalFetched: 2 });
     mockFindUnique.mockImplementation(async (args: { where: { listing_id: string } }) => {
       if (args.where.listing_id === "RLS100002") throw new Error("boom");
       return null;
@@ -430,7 +430,7 @@ describe("deliberately-skipped records must still advance the cursor", () => {
       rawRecord({ ListingKey: "KEY_X", ListingId: "RLS900001", StandardStatus: "Closed" }),
       rawRecord({ ListingKey: "KEY_Y", ListingId: "RLS900002", StandardStatus: "Closed" }),
     ];
-    mockFetchFromTrestle.mockResolvedValue({ records: closed, totalFetched: 2 });
+    mockFetchFromCotality.mockResolvedValue({ records: closed, totalFetched: 2 });
     mockFindUnique.mockResolvedValue(null); // never-tracked => new + terminal => skipped
 
     const result = await syncListings({ since: new Date(DB_MAX_MT), maxRecords: 500 });
@@ -448,7 +448,7 @@ describe("deliberately-skipped records must still advance the cursor", () => {
     // The milder form: without this, the cursor advances only to the last
     // non-skipped row, so a page of 500 with one processable record at the head
     // moves the cursor by exactly one record per cycle.
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromCotality.mockResolvedValue({
       records: [
         rawRecord({ ListingKey: "KEY_A", ListingId: "RLS900010" }),
         rawRecord({ ListingKey: "KEY_B", ListingId: "RLS900011", StandardStatus: "Closed" }),
@@ -470,15 +470,14 @@ describe("ListingKey is requested from the provider", () => {
   it("IDX_PLUS_SELECT_FIELDS includes ListingKey", () => {
     // Without it `raw.ListingKey` is undefined on every record, every row is
     // unpositionable, keysetFrozen latches on, and the cursor can never advance.
-    // SourceSystemKey is NOT a substitute: RESO_TO_RLS_RENAMES maps it to
-    // ListingKey defensively, but this feed sends ListingKey directly and leaves
-    // SourceSystemKey null (verified live 2026-08-13).
+    // SourceSystemKey is NOT a substitute: it is never identity (Master §0.2),
+    // and this feed leaves it null (verified live 2026-08-13).
     const { IDX_PLUS_SELECT_FIELDS } = require("@/lib/idx/trestle-mapper");
     expect(IDX_PLUS_SELECT_FIELDS).toContain("ListingKey");
   });
 
   it("a record carrying ListingKey yields a positionable cursor row", async () => {
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromCotality.mockResolvedValue({
       records: [rawRecord({ ListingKey: "KEY_REAL" })],
       totalFetched: 1,
     });
@@ -489,7 +488,7 @@ describe("ListingKey is requested from the provider", () => {
   it("a record with NO ListingKey freezes the cursor rather than inventing one", async () => {
     const noKey = rawRecord();
     delete (noKey as Record<string, unknown>).ListingKey;
-    mockFetchFromTrestle.mockResolvedValue({ records: [noKey], totalFetched: 1 });
+    mockFetchFromCotality.mockResolvedValue({ records: [noKey], totalFetched: 1 });
 
     await syncListings({ since: new Date(DB_MAX_MT), maxRecords: 500 });
 
@@ -513,7 +512,7 @@ describe("required-field skip must not stall the cursor either", () => {
     delete (bad as Record<string, unknown>).ListPrice;
     delete (bad as Record<string, unknown>).StandardStatus;
     delete (bad as Record<string, unknown>).PropertyType;
-    mockFetchFromTrestle.mockResolvedValue({ records: [bad], totalFetched: 1 });
+    mockFetchFromCotality.mockResolvedValue({ records: [bad], totalFetched: 1 });
 
     const result = await syncListings({ since: new Date(DB_MAX_MT), maxRecords: 500 });
 
@@ -528,7 +527,7 @@ describe("required-field skip must not stall the cursor either", () => {
 describe("empty run", () => {
   it("writes run telemetry but claims NO position", async () => {
     // An empty batch must not invent a position — and must not freeze either.
-    mockFetchFromTrestle.mockResolvedValue({ records: [], totalFetched: 0 });
+    mockFetchFromCotality.mockResolvedValue({ records: [], totalFetched: 0 });
 
     await syncListings({ since: new Date(DB_MAX_MT), maxRecords: 500 });
 
@@ -549,7 +548,7 @@ describe("same-timestamp cluster larger than the page cap", () => {
     const cluster = ["K01", "K02", "K03", "K04", "K05"].map((k, i) =>
       rawRecord({ ListingKey: k, ListingId: `RLS9002${i}`, ModificationTimestamp: T }),
     );
-    mockFetchFromTrestle.mockResolvedValue({ records: cluster, totalFetched: cluster.length });
+    mockFetchFromCotality.mockResolvedValue({ records: cluster, totalFetched: cluster.length });
 
     await syncListings({ since: new Date(DB_MAX_MT), maxRecords: 500 });
 

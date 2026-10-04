@@ -7,20 +7,19 @@
 > and next action. It is status and history only: it authorizes no branch name, file path, implementation
 > scope or mutation envelope, and no check reads authorization from it. It may not redefine the Master.
 
-**Checkpoint:** 2026-09-29 — Maya decided to retire the old execution wall: the branch restriction, the State modes and path envelopes, the controller's authorization cycle and `authority-root` (§7). #646 removes only that wall and adds no new gate. **PENDING:** Maya temporarily removes `authority-root` from `Protect main` so #646 can merge; the protection is then INTERIM (§7). Until then the live required checks are `pr-check` and `authority-root`. The sequence after that is §11.
+**Checkpoint:** 2026-10-01 — the Cotality convergence is ACTIVE on draft PR #647 (`recovery/cotality-main-convergence` → `main`), DRAFT and unmerged. At this checkpoint the PR holds 13 Git commits representing 8 numbered convergence milestones; all current CI is green; preview proof exists and production proof does not (§11). **`main` is FROZEN at `3656a423`** — #646 MERGED (`3656a42333f2be5e837015e0165387ea96fe99b6`) retired the old execution wall; the live required check is `pr-check` only, and protection is INTERIM (§7). The only exception is a hotfix: if Production breaks or blocks the business, a minimal, reviewed fix may go to `main` with Maya's approval, and is then merged into the convergence branch. All cleanup and the Cotality migration happen on the convergence branch, which becomes the new `main` once the old system is zero (§11).
 **Repository:** `mallan67/mallan-nyc` only  
 **Canonical branch:** `main`  
-**Main at this checkpoint:** `005786e71818ef13f555111de67e3d6248412987` — the PR #632 merge
-commit, which is the commit this checkpoint describes. **This is not a claim about the current
-tip of `main` and must never be read as one.** Updating this file necessarily advances `main`
-past whatever SHA it records, so a literal current-main field here self-stales the moment it
-merges. §1 already forbids persisting mutable fingerprints for exactly this reason. **Read the
-live tip from GitHub.**  
-**Active governance convergence PR:** none. PR #632 MERGED 2026-09-20T17:53:22Z as `005786e71818ef13f555111de67e3d6248412987`  
-**Checkpoint source head:** `fb100d6a12f572d78aaac0ec152c4cc57ac6ce74` (final #632 head; all checks green, zero unresolved review threads). Current head must always be read live from GitHub  
+**Main at this checkpoint:** `3656a42333f2be5e837015e0165387ea96fe99b6` — the #646 merge
+commit; `main` is frozen there during the convergence (§11). **This is not a claim about the
+current tip of `main` and must never be read as one.** A literal current-tip field here
+self-stales the moment the branch it describes moves. §1 already forbids persisting mutable
+fingerprints for exactly this reason. **Read the live tip from GitHub.**  
+**Active convergence PR:** #647, `recovery/cotality-main-convergence` → `main`, DRAFT, unmerged; Maya merges it once the old system is zero (§11). HISTORY: PR #632 MERGED 2026-09-20T17:53:22Z as `005786e71818ef13f555111de67e3d6248412987`  
+**Checkpoint source head:** `0e0cc29daff27ac5d4884236b4ded0123fed5f0a` (#647 head at convergence milestone 8; all current checks green on it). The documentation commit that records this checkpoint moves the head past it; read the current head live from GitHub  
 **Authorized work surface:** GitHub repository + explicitly authorized provider connections only; Desktop/worktrees/scratch copies are not execution authority  
 **PR #595:** authority provenance / historical governance source; CLOSED 2026-09-20T17:54:35Z as superseded by #632, unmerged. Its lineage is in `main` history through #632  
-**Governance activation:** `authority-root` has been a required status check on the `Protect main` ruleset `19435006` since 2026-09-22, bound to the GitHub Actions integration `15368`; the live required checks are `pr-check` and `authority-root` (verified 2026-09-29). #646 retires it; Maya temporarily removes it from the ruleset so #646 can merge (§11). Read the live ruleset for the current required set.
+**Governance activation:** HISTORY. `authority-root` was a required status check on the `Protect main` ruleset `19435006` from 2026-09-22 until Maya removed it on 2026-09-29 (ruleset updated 17:17 -04:00); #646, merged as `3656a423`, retired it. The live required check is `pr-check` only (verified 2026-09-29). Read the live ruleset for the current required set.
 
 ---
 
@@ -141,13 +140,14 @@ No historical #595 support file becomes a competing authority merely because it 
 ## Main
 
 **This section records checkpoint data, not the live tip.** Read the current tip from GitHub.
-No SHA written into this file can be the live tip, because merging this file moves `main` past
-whatever it records.
+No SHA written here is guaranteed to be the live tip: the convergence head moves with every commit,
+including the one that records this file, and `main` moves when a hotfix or the convergence PR merges.
 
-The commit this checkpoint describes is `005786e71818ef13f555111de67e3d6248412987`, which merged
-PR #632, the integrated Master + execution control convergence. The commit before it,
-`bba9d8d6c92bb3bfe95b9f4b90da69534650c276`, merged PR #631 (Database Authority Safety Packet 1).
-Both are history; neither is a claim about where `main` points now.
+At this checkpoint (2026-10-01) `main` is frozen at `3656a42333f2be5e837015e0165387ea96fe99b6`,
+which merged #646 (§7); the convergence work is on draft PR #647 (§11). Earlier,
+`005786e71818ef13f555111de67e3d6248412987` merged PR #632, the integrated Master + execution
+control convergence, and `bba9d8d6c92bb3bfe95b9f4b90da69534650c276` merged PR #631 (Database
+Authority Safety Packet 1). These are history; none is a claim about where `main` points now.
 
 ## PR #631 — CLOSED
 
@@ -186,7 +186,7 @@ PR #632 was the **one-time bootstrap exception**, granted because `main` did not
 the Master or the Execution State. **That exception is now CLOSED.** It was guarded on the
 ABSENCE of both files rather than on a PR number, and `main` now carries both, so the branch
 is unreachable for every pull request including #632 itself. Two tests in
-`tests/runtime/mallan-execution-control.test.ts` assert that property from the post-merge side.
+`tests/runtime/mallan-execution-control.test.ts` asserted that property until #646 deleted the controller and that test (§7).
 
 ## Branch estate
 
@@ -217,7 +217,7 @@ Current repo/provider state:
   the adapter pointed at an untracked `dist/index.js`. That was true before #632 and is not true
   at `005786e`.);
 - the adapter FAILS CLOSED. It throws `No local snapshot fallback is permitted` when a live fetch
-  fails, and contains no reference to `artifacts/metadata.xml`. (Corrected 2026-09-20: this
+  fails, and reads no repository snapshot. (Corrected 2026-09-20: this
   bullet previously described a snapshot fallback that has been removed. An agent acting on the
   old wording would reject a helper that is behaving correctly.);
 - the current runtime test proves configuration strings, not that a clean Git checkout can start the adapter and reach Cotality live;
@@ -540,7 +540,7 @@ Permanent platform issues are defined **only** in `docs/PLATFORM-ISSUE-REGISTRY.
 
 PR-review findings that are corrected inside the active packet remain review evidence in the PR thread/history rather than becoming parallel issue IDs. Historical observations that may inform later work must be promoted into the Platform Issue Registry before they are treated as actionable platform defects.
 
-The dependency-ordered recovery sequence for the current convergence program is §5.1 (Phases A–H). It is execution sequencing, not a second issue registry.
+The dependency-ordered recovery sequence for the former (2026-09-20) governance convergence program was §5.1 (Phases A–H). The current Cotality convergence sequence is §11 steps 5–6. It is execution sequencing, not a second issue registry.
 
 # 6. Mandatory closure model
 
@@ -584,20 +584,20 @@ Maya decided on 2026-09-29 to retire the old execution wall:
 
 It kept unsafe changes out of `main`, but it also kept correct changes out: from 2026-09-18 to 2026-09-26 all thirteen merges to `main` (#632–#644) were governance updates and none changed the product. Its history is in Git.
 
-#646 removes only that wall:
+#646 (merged 2026-09-29 as `3656a42333f2be5e837015e0165387ea96fe99b6`) removed only that wall:
 - `scripts/ci/mallan-execution-control.mjs` and its test;
 - `.github/workflows/authority-root.yml` and `.github/workflows/branch-authority.yml`;
 - the controller steps in `pr-check`.
 
-It adds no new gate. It also makes `pr-check` read-only (`permissions: contents: read`, checkout with `persist-credentials: false`), so pull-request code never receives repository write credentials.
+It added no new gate. It also made `pr-check` read-only (`permissions: contents: read`, checkout with `persist-credentials: false`), so pull-request code never receives repository write credentials.
 
 **The protection after #646 is INTERIM:**
 - every change arrives through a pull request;
-- the required `pr-check` runs as it does today;
+- `pr-check` is the only required check (Maya removed `authority-root` on 2026-09-29);
 - force-push and deletion of `main` are blocked;
 - Maya reviews and merges every pull request. Agents never merge, never enable auto-merge and never change branch protection or rulesets.
 
-**What the interim protection does not certify.** `pr-check` still runs `rls:validate` and `validate:form-rls`. They are validators of the retired provider authority: the REBNY RLS CSVs, the RESO field map and a RESO-to-RLS rename table. They are not provider authority and are not correct or canonical. They remain only until the first cleanup pull request removes them together with their old provider readers, writers and source files, and nothing requires or protects them.
+**What the interim protection does not certify.** The convergence branch removes obsolete provider implementation component by component; each removal is recorded with its commit under §11 "Completed". Obsolete provider implementation that live code still reads stays until it is replaced in place. What remains, including the RESO field map (`public/crm/js/core/reso-field-map.js`), is listed under §11 "Open". None of that provider-derived material is provider authority, correct or canonical, and no rule or check requires or protects it; it stays only while live consumers, including the frozen tools and public search, still read it. The CRM listing gate's field-requirement table and Fair Housing prohibited-terms list (`lib/compliance/rebny-validator.ts`) now both read current, canonical sources (`lib/compliance/rebny-field-tables.ts` and `data/compliance/prohibited-terms.json` respectively, milestones 20-21); that screen is a current compliance control (Master §21.10).
 
 Passing `pr-check` during the interim therefore does not certify provider correctness. `main` still contains obsolete provider implementation, which must be cleaned before permanent governance is designed. The architectural authority is unchanged (Master §21.2):
 
@@ -620,7 +620,7 @@ COTALITY RAW CONTRACT → VERIFIED MAPPING → MALLAN STORAGE → MALLAN BUSINES
 
 # 8.1 Human / agent identity boundary
 
-GitHub's `Protect main` ruleset (`19435006`) requires a pull request and the `pr-check` and `authority-root` status checks, and blocks non-fast-forward pushes and deletion of `main`. It requires 0 approving reviews, requires review threads to be resolved, and has no bypass actors (verified live 2026-09-29). `authority-root` runs the retired controller, which refuses #646 by design, so Maya temporarily removes it from the required checks for #646 to merge (§11, step 2). The protection is then INTERIM (§7): pull request + current `pr-check` + Maya's review. The permanent required-check set is designed only after `main` is cleaned (§11, step 8). Read the live ruleset for the current required set.
+GitHub's `Protect main` ruleset (`19435006`) requires a pull request and the `pr-check` status check (strict, branch up to date). It blocks non-fast-forward pushes and deletion of `main`, requires 0 approving reviews, requires review threads to be resolved, and has no bypass actors. This was verified live on 2026-09-29, after Maya removed `authority-root` at 17:17 -04:00 and #646 merged. The protection is INTERIM (§7), and `main` is frozen at `3656a423` during the convergence (§11). The permanent required-check set is designed only after the corrected system is the new `main` (§11). Read the live ruleset for the current required set.
 
 If an AI agent operates through Maya's own GitHub identity, GitHub cannot distinguish a change made by Maya from one made by the agent, and repository CI cannot prove which of them opened a pull request.
 
@@ -692,18 +692,426 @@ Do not create another status file because this one becomes inconvenient.
 
 # 11. Current exact stop point
 
-**2026-09-29 — stop point.** The actual sequence, one step at a time. Nothing in steps 4–8 is implemented by #646.
+**2026-10-01 — stop point.** The Cotality convergence is ACTIVE. The sequence (set 2026-09-29):
 
-1. #646 removes only the old execution wall (§7).
-2. Maya temporarily removes `authority-root` from `Protect main` so #646 can merge.
-3. Protection is explicitly INTERIM: pull request + current `pr-check` + Maya's review (§7).
-4. Clean current `main`. The first cleanup pull request removes `rls:validate` and `validate:form-rls` together with their old provider readers, writers and source files.
-5. Remove the old provider authority and duplicate/parallel systems.
-6. Verify the live Cotality contract.
-7. Build the single Cotality mapping from the cleaned `main`.
-8. Only after the corrected source exists, design and build the permanent `pr-check`, the provider-contract check, `pr-safety` and the final `Protect main` required-check set.
+1. DONE — #646 merged 2026-09-29 as `3656a42333f2be5e837015e0165387ea96fe99b6`; the old execution wall is retired (§7).
+2. DONE — Maya removed `authority-root` from `Protect main` (2026-09-29, 17:17 -04:00); the live required check is `pr-check` only.
+3. IN FORCE — protection is INTERIM: pull request + `pr-check` + Maya's review (§7). `main` is FROZEN at `3656a423`. The only exception is a hotfix: a minimal, reviewed fix that goes to `main` with Maya's approval when Production breaks or blocks the business, and is then merged into the convergence branch.
+4. ACTIVE — the convergence branch `recovery/cotality-main-convergence`, created from `3656a423`, with one draft pull request to `main`: #647. Convergence milestones 1–8 are complete ("Convergence progress" below). Milestone 1 removed the old provider authority that no live code read, including `rls:validate`, `validate:form-rls` and the files only they used; later milestones replace live consumers in place under step 5.
+5. Replace the old system component by component, in the existing code, never beside it:
+   1. identify the next old or wrong component;
+   2. verify the exact live Cotality contract that component needs;
+   3. replace the old implementation in the existing canonical path. No new parallel module, no side-by-side copy, no second mapping;
+   4. remove the old mapping, reader, writer and fallback;
+   5. prove every affected consumer still works;
+   6. move to the next component.
+6. Repeat until the old system is zero:
+   - no reader of the REBNY provider CSVs or RESO maps;
+   - no RESO→RLS translation;
+   - no RLS bindings used as provider truth;
+   - no static provider fallback;
+   - no duplicate status maps and no duplicate raw mappers.
+7. Merge the corrected system as the new `main` (Maya merges the convergence pull request).
+8. Only after that, design the permanent required checks.
 
-No Search, CMA, forms, CRM, listing or other product development merges during the interim cleanup. Everything below this entry is history.
+Nothing is merged into `main` except the hotfix exception until step 7.
+
+## Authority separation rule (Maya, 2026-10-02)
+
+Three separate authorities govern this convergence. None substitutes for another — the
+"Known held defect" entries below exist because the old system collapsed this exact
+distinction.
+
+| Authority | Controls | Must NOT control |
+|---|---|---|
+| **REBNY RLS compliance rule** (UCBA, Mandatory Listing Info, current REBNY guidance) | Brokerage rules, mandatory listing information, dissemination, Owner Opt-Out, Participant Only, timing, fines | Cotality field names, API types, enum availability, queryability, resource structure |
+| **Live Cotality contract** (`$metadata`, Lookup/Field catalog, actual entitled rows) | Exact resources, fields, types, enums, relationships, filter/order permissions, actual delivered data | REBNY business/compliance interpretation |
+| **Mallan business rule** | Canonical storage, owner identity, CRM state, business workflows, audience-specific display | Inventing Cotality fields or replacing REBNY rules |
+
+**A REBNY concept becomes a Cotality mapping only when the live Cotality contract
+independently verifies the corresponding resource/field/value.** Owner Opt-Out and
+Participant Only are the worked example of both directions:
+
+- **Owner Opt-Out** — REBNY's UCBA names it as a real compliance state (not disseminated
+  through the RLS; no IDX/VOW/syndication/public; a signed form required; 2026 submission is
+  through the Exclusive Agent's LMP). Live Cotality's `Permission` (18 values) and `MlsStatus`
+  (26 values) enums have no `OwnerOptOut`/`Owner Opt-Out` member at all — the second authority
+  does NOT independently verify it. The correct chain is: REBNY names the rule → Mallan stores
+  `owner_opt_out` as canonical business/compliance state → Mallan blocks
+  public/IDX/VOW/marketing. It is never "REBNY names the rule → assume Cotality `Permission`
+  carries it." That assumption was exactly the bug fixed in the 2026-10-02 Permission cutover
+  (see "Known held defect — owner opt-out derivation" below, now RESOLVED).
+- **Participant Only** — REBNY's UCBA Definition (W) names it. Live Cotality's `Permission`
+  enum independently exposes `Private` for the same concept. Both authorities line up here, so
+  `Permission='Private' → participant_only=true` is a valid, verified mapping.
+
+Exact terminology from here forward — "RLS specification" is retired as ambiguous:
+- **"REBNY RLS compliance rule"** — UCBA, Mandatory Listing Info, current REBNY guidance.
+- **"live Cotality contract"** — resource/field/enum/type/query/data fact, verified live (never
+  assumed from an old file).
+- **"Mallan business rule"** — canonical behavior built from the two above.
+
+Historical files such as the now-deleted `data/rebny-rls-property-lookup.csv` (milestone 8),
+old `RLS-FIELD-REGISTRY`, and old Trestle/RLS mapper docs are evidence of a past claim, never
+a technical authority. Nothing in this convergence may cite one as proof that a Cotality
+field/value exists — only a live check (`trestle_get_picklist`, `trestle_lookup_field`,
+`trestle_validate_field`, or an actual entitled-row query) does that.
+
+## Convergence progress — PR #647 (checkpoint 2026-10-02)
+
+| fact | value at this checkpoint |
+|---|---|
+| PR | #647, OPEN, DRAFT, unmerged; mergeable (`CLEAN`) |
+| base | `main` at `3656a42333f2be5e837015e0165387ea96fe99b6`, frozen |
+| head | `85f99a1bee8d39c3629b418c8c0ff7938908d969` (convergence milestone 20) |
+| commits | 25 Git commits representing 20 numbered convergence milestones |
+| CI on the head | all green: `pr-check` (the only required check), `build`, `validate`, `geo-validate`, `guardrails`, `target-platform-build`, `claude-review`, `release-truth`, Vercel, Vercel Preview Comments |
+| proof | `release-truth`: `PREVIEW_PROVEN` (PR checks + preview deployment green). Production is NOT proven |
+
+Read the live PR for the current head, commit count and checks; this documentation commit itself moves the head past `85f99a1b`.
+
+Milestones 10-19 are a second kind of work: Maya's instruction (2026-10-01) that cleanup includes
+the old system's *references*, not only its files and runtime readers — "OLD TECHNICAL SYSTEM = 0 IN
+THE ACTIVE REPOSITORY," including comments, tests, docs, scripts, generated artifacts and Claude's own
+instruction/memory files, none of which get special protection for being Claude-authored. It ran as a
+whole-repository sweep: one read-only investigator per area, five independent contrarian challenges per
+proposal (dependency, business-capability, authority, compliance/security, frozen-tool), adjudication of
+every disputed item, then one coordinator applying only what survived — never more than one writer
+touching the branch at a time. See "Legacy-reference sweep — batches 10-19" below for what it covered,
+classified, and left open, and "Final adversarial sweep" for the closing check fresh agents ran against
+the result.
+
+## Completed — convergence milestones 1–8
+
+1. **`47a144c6` — dead old provider authority removed.** 60 files that nothing live read: the retired `rls:validate` and `validate:form-rls` validators with their `pr-check` steps; the RLS alias, form-binding, internal-only and overlay lists and their tooling; the REBNY field registries (`FIELD_REGISTRY`, `SEARCH_CONTROL_MAP`, `MASTER_REGISTRY`) and their generators; the Trestle dictionary snapshot; `compliance/fields.json`, `compliance/lookups.json`, `reso-rls-renames.json`; the CSV sync tools; `reso:drift` and `reso:schema-audit`; dead duplicate code and orphan probe scripts. 15 files that pointed at them were edited.
+2. **`bb90a20c` — execution sequence corrected to replace-in-place.** This section's steps 5–6; the earlier seam/shadow wording is gone.
+3. **`ef3f07b3` — Property `$select` reduced to live Cotality-supported fields** (component 1). In `lib/idx/trestle-mapper.ts`, 72 names from the REBNY RLS field list that are not fields of the live Property resource, plus `ListTeamMlsId` and `BuyerTeamMlsId` (live, never requested), left the category arrays; `IDX_PLUS_EXCLUDED_FIELDS` and the duplicate `ALL_RLS_FIELDS` were deleted, leaving one list, `IDX_PLUS_SELECT_FIELDS`. Cotality still receives the same 339 fields. `idx-validate` section 3 and its only input, `config/idx/property-field-coverage-policy.json`, were deleted.
+4. **`57127e51` — RESO→RLS rename layer removed** (part of component 2). `RESO_TO_RLS_RENAMES` (19 entries, none a valid mapping under the live contract) and `normalizeRenames()` in `lib/idx/trestle-mapper.ts`, the two rename loops in `lib/idx/mapping.ts`, and idx-validate's rename count. No output change.
+5. **Cotality MCP in the Vercel runtime with a bounded live resource query** — the milestone began at `9993e1b8` and includes its follow-up commits through `53c58d97` (six Git commits). `9993e1b8` added the read-only contract MCP endpoint `/api/mcp/cotality`, which uses the existing Vercel IDX credentials through `lib/idx/auth.ts`; `3216810e` added a preview-only live self-test and `ff7f229e` removed it after the live proof; `4d25acf3` exposed the bounded live resource query and `b7703d0c` fixed its tool definition (a missing closing brace); `53c58d97` pins its boundary in `tests/runtime/cotality-vercel-mcp.test.ts`. No environment mutation, schema change, provider write or production deployment.
+6. **`3f362ede` — Batch 1a dead-system cleanup.** Files with no importer, script, workflow, test or page: dead CI (`baseline-verify.yml`, `dispatch-check.yml`, the geocode workflow and its inputs), the orphan `app/HomeClient.tsx`, one-off scripts (including one carrying a raw production database URL and one that printed password hashes), the fabricated `data/open-houses.json` and the unread `data/featured-config.json`, dead code (`lib/commission.ts`, a copy of the public listing gate, the `backend/` FastAPI stub, `docker-compose.yml`), CRM files no page loads, and obsolete docs.
+7. **`6fc97e16` — Batch 1b-1 RLS/RESO probe and registry cleanup.** The `scripts/reso/` probe kit and its nine `reso:*` npm scripts (`scripts/reso/route-catalog.js` stays), `scripts/status-snapshot.js`, `scripts/probe-trestle-fields.ts` with `trestle:probe`, unread RESO evidence artifacts, `data/RLS-FIELD-REGISTRY.md` (its one unique fact, the published quotas, moved to Master §0.8, labelled not re-verified live), `data/RLS-Syndication-Research.md`, and the stale CRM manifest tooling.
+8. **`0e0cc29d` — one live Cotality enum/field contract replaces `artifacts/metadata.xml` and both RLS CSVs** (its commit labels it Batch 1b-3). `data/cotality-enums.live.json` carries every entity with its fields and declared types, and every enum (17 entities, 183 enums, regenerated live 2026-10-01; 22 enums had drifted since the 2026-07-05 copy). It is a committed copy generated from live `$metadata` by `scripts/cotality/pull-enums.mjs` and drift-checked against live by `cotality:verify`; live Cotality remains the authority (§3). The 11 tests that read `artifacts/metadata.xml` were re-pointed to it with zero differences in the identifiers they check. `scripts/idx-validate.js` sections 6 and 39 were re-pointed from the RLS CSVs (both emit pass/info/warning only), and `tests/runtime/sale-form-canonical-enum-compliance.test.ts` now checks the frozen sale form against live Cotality, which exposed the `PetsAllowed` defect below. Removed: `artifacts/metadata.xml`, `data/rebny-rls-property-fields.csv`, `data/rebny-rls-property-lookup.csv`, `scripts/get-metadata.js`.
+
+**Batch 1b-2.** No separate Batch 1b-2 convergence commit exists in Git history. Where that work went is not recorded here unless evidence later proves it. (A draft for it existed in a prior session's scratchpad, unpushed; it is superseded by milestone 10 below, which carries its three durable invariants into the Master without the abandoned implementation.)
+
+9. **`d7214176` — Batch 1c: seven API routes that nothing calls removed.** A tokenless duplicate unsubscribe (`/api/search-alerts/unsubscribe`; any caller could disable alerts for any email, and it never set `Lead.last_unsubscribe_at`, issue BIZ-012 — `/api/unsubscribe` is the only path since), four dead CRM calculator server copies under `/api/crm/tools/`, and `/api/crm/automation/{adjust-tier,status}`. Route catalog 288 → 281.
+
+## Legacy-reference sweep — batches 10-19 (Maya's instruction, 2026-10-01)
+
+Scope: every tracked folder — app/**, lib/**, public/crm/** (non-frozen), tests/**, data/**,
+artifacts/**, compliance/**, scripts/**, .github/** and root config, docs/** (current and dated),
+and Claude's own files (`CLAUDE.md`, `AGENTS.md`, `memory/**`, `docs/superpowers/**`). Every legacy
+RLS/RESO/Trestle/CoreLogic/metadata.xml hit was classified into exactly one of four classes:
+`CURRENT_COMPLIANCE`, `LIVE_COTALITY_TRANSPORT_PROVENANCE`, `TEMPORARY_FROZEN_DEPENDENCY`, or
+`OBSOLETE`. 1,596 proposals were investigated; 1,555 survived five independent contrarian challenges
+and adjudication and were pushed (41 rejected — see below).
+
+10. **`98f8d99c`** — three Search invariants (deterministic ordering with a unique tie-break; a Saved
+    Search may not activate on criteria the canonical engine can't execute faithfully; closed-comp
+    recency on the verified Cotality `CloseDate`) added to Master §5.6/§5.8/§6.4, rewritten without the
+    abandoned implementation. The unwired `lib/search/canonical/` package (19 files + 2 tests) and one
+    dead audit doc removed. Master header/§24/§27.18 and this file's §3/§7 had stale RLS/Trestle
+    wording resolved by milestones 1-8 removed.
+11. **`edea8110`** — `CLAUDE.md`, `AGENTS.md` and five `memory/**` records cleaned of old-system
+    language. **Caught twice during review, not by the automated pipeline:** the first drafts folded
+    the standing **PR 5B** hold (`refactor/05-listing-search-projection`, the public reader swap from
+    `listings.idx_display_yn` to `listing_search_projection.idx_display_yn` — still not done) into a
+    pointer to this file's §7/§9/§11, which do not name it; both hold lists, and the
+    `memory/REFACTOR-2026-04-25.md` stub that is their only detailed record, now name it explicitly.
+    21 more stale files deleted; 7 rejected to protect two open compliance-audit records and a live
+    identifier a frozen route calls.
+12. **`a9abc517`** — comment/JSDoc/log-string rewrites across `lib/idx/`, `lib/compliance/`,
+    `lib/search/`; 2 dead files deleted.
+13. **`78953d02`** — compliance docs rewritten to live Cotality terms, correcting several errors the
+    old wording would have reintroduced: a FARE Act field under a name (`MoveInCostsAmountTotal`) the
+    live feed doesn't use; a false "PII Not Stored" claim; two fields wrongly marked displayable that
+    are HIDDEN/stripped elsewhere; a stale RESO Data Dictionary list presented as current; two scripts
+    silently dropped from a `ResourceRecordKey` enforcement list. 4 dead generated rule files deleted
+    (one is a duplicate status dictionary — relevant to the Open item below).
+14. **`1e852568`** — comment/JSDoc/log-string rewrites across `app/**`. Two of the rewritten routes
+    (`/api/idx/search`, `/api/buildings/search`) are called over the network by frozen CRM tools; their
+    response-shape code was diffed line by line before pushing — only local identifiers and log/error
+    text changed, no JSON field.
+15. **`29b2272c`** — 5 dead CRM JS duplicates deleted from non-frozen `public/crm/**`; remaining wording
+    rewritten.
+16. **`2d990b67`** — wording rewritten across `tests/**`; 5 stale standalone diagnostics deleted
+    (validating HTML files that no longer exist). Every rename touching a real production export keeps
+    that export's name in the test and renames only the test's own local mock/variable.
+17. **`69134727`** — wording rewritten across `scripts/**`; an 8-script one-off past-deals pipeline
+    deleted (zero live readers beyond each other).
+18. **`f0bef244`** — wording rewritten in `.github/**` and root config. One proposed deletion (a
+    scheduled live-audit workflow whose audit steps have never run) was rejected: GitHub's scheduler
+    still invokes the file daily, and the only repository record of the pending fix (provisioning its
+    secrets) lives in `memory/AUDITOR-LOG.md`.
+19. **`1b478289`** — wording rewritten across current and dated docs; 37 dated audits/reports/plans
+    with zero live readers deleted. Six rejections caught real risk: three deletions were blocked
+    because a frozen tool cites the targeted doc by name as its own rationale; two "RLS enforcement"
+    mislabels were live REBNY/UCBA write-path gates, not obsolete terminology.
+20. **`85f99a1b`** — a live Fair Housing compliance gap fixed, found by the final adversarial sweep
+    below, not by the sweep's own pipeline. `lib/compliance/rebny-validator.ts`'s `validateListing()`
+    — live in four CRM routes (listing create, listing update, the validate endpoint, the compliance
+    audit endpoint) — read its Fair Housing prohibited-term list from `rls-rules.json`'s stale,
+    35-entry embedded copy instead of the canonical `data/compliance/prohibited-terms.json` (116
+    entries) the rest of the codebase already consolidated to after a prior incident (#460/#461).
+    Sampled terms the stale copy missed and the canonical list has: "no cityfheps", "55+", "must pass
+    background check", "section 8 not accepted" — all source-of-income or age discrimination under
+    Fair Housing / NYC HRL. Fixed the same way the canonical consumers already do it
+    (`lib/compliance/rls-enforcement.ts`, `scripts/ci/guardrails.mjs`): derive the flat term array
+    from `categories`, falling back to `flatList` only if absent. The validator's other two
+    `rls-rules.json` reads (field table, NYC borough/county map) are untouched — that is the
+    already-tracked Open item below.
+21. **`a9289ab9`** — `lib/compliance/rebny-validator.ts`'s remaining `rls-rules.json`
+    dependency (the field-requirement table and NYC borough/county map; its third dependency, the
+    Fair Housing term list, was already fixed at milestone 20) replaced with
+    `lib/compliance/rebny-field-tables.ts` — the same live-Cotality-verified table
+    `lib/compliance/rls-enforcement.ts`'s write-path gate already reads. `conditionMatches()`
+    (previously private to `rls-enforcement.ts`) is now exported and reused instead of a second,
+    independent condition-string parser; the NYC borough/county/FIPS map (five boroughs) is now a
+    local constant, verified byte-for-byte against the deleted file before removal.
+    `lib/compliance/rls-rules.json` deleted (confirmed sole importer, `git grep` repo-wide); the
+    now-dangling `/rls-rules\.json$/` exclusion in `scripts/ci/guardrails.mjs`'s prohibited-term
+    scanner removed with it. `validateListing()` had zero existing tests; added coverage for
+    required fields, the Concessions conditional (verified against REBNY's own public Compliance
+    page / LMP.RLS Data Rules sheet — see below), NYC borough/TaxLot/county checks, and Fair Housing
+    screening. This closes the Open item "replace or remove the provider-rule dependencies of
+    `lib/compliance/rebny-validator.ts`" (item 4 of Maya's 2026-10-02 checkpoint list).
+
+    Two findings surfaced by this same investigation are deliberately NOT fixed here and are
+    recorded separately: a frozen-tool Concessions sale/rental display mismatch (see "Known held
+    defect" below) and the owner-opt-out derivation in `lib/idx/trestle-mapper.ts` being provably
+    inert against live Cotality (same section). Four additional, live-Cotality-confirmed but
+    currently-unmodeled Concessions sub-fields (`ConcessionsBuyerBrokerFee`,
+    `ConcessionsClosingCosts`, `ConcessionsOtherCosts`, `ConcessionsPropertyImprovementCosts`)
+    are added to Open below.
+
+**Legacy-reference census at this checkpoint** (scanner: RLS/RESO/Trestle/CoreLogic/metadata.xml
+patterns, whole tracked tree): before the sweep, 800 files / 13,798 matching lines. After milestone 19,
+631 files / 10,594 lines, of which 3,251 (7 files) are inside the seven frozen tools, 1,519 (117 files)
+are inside other frozen or protected paths, and 5,824 (507 files) are outside any freeze — each of
+those 507 files was read and classified by an investigator (census recorded in this sweep's own
+working files, not duplicated here); what remains in them is `CURRENT_COMPLIANCE`,
+`LIVE_COTALITY_TRANSPORT_PROVENANCE`, a rejection with a stated reason, or deferred to one of the
+component-level Open items below (a cross-file rename or consolidation this reference sweep did not
+attempt). See "Final adversarial sweep" for the independent check run against this claim.
+
+## Open — remaining convergence work
+
+- converge the remaining raw mapper implementations into one (`lib/idx/trestle-mapper.ts`, `lib/idx/mapping.ts`, `lib/search/crm-idx-mapper.ts`). Stage A (behavioral characterization, `tools/push-647-mapper-exception.js`) is in progress: `lib/idx/__tests__/raw-mapper-characterization.test.ts` pins current (legacy, not-yet-target) behavior, and `docs/audits/raw-mapper-property-contract-resolution-2026-10-02.md` resolves every field against the live Cotality contract and Master Plan Section 0 first -- 16 PROVEN_DEFECTs confirmed, including that Master Plan Section 0.2 already decides building identity (`TaxBlock`+`TaxLot`, not `BuildingKeyNumeric`, which `lib/buildings/upsert.ts` currently keys on) and Section 0.6 forbids the `StandardStatus`/`MlsStatus` fallback-substitution all three mappers currently do; borough/geography derivation is routed to the existing geography Open item below instead of resolved inside the raw mapper. A separate, dedicated pass (Media is a different Cotality resource from Property and must not be flattened into one mapper shape or inferred from Property fields) produced `docs/audits/raw-mapper-media-contract-resolution-2026-10-02.md`, twice self-corrected the same day against live Cotality ROW data (not just `$metadata`/code/synthetic inputs) after Maya caught the first two drafts over-claiming: the dominant live floor-plan pattern is `MediaCategory='FloorPlan'` + `MediaClassification='DOCUMENT'`, so a `DOCUMENT` match does NOT prove something is a generic document; and `classifyMediaItem` is a gallery-display projection (5 classes by design: photo/floorplan/video/virtualTour/unknown) kept separate from Mallan's canonical storage, which already preserves raw `MediaCategory`/`MediaClassification` verbatim in `listing_media.media_category`/`.media_classification` -- so `Document`/`Addendum`/`Other` resolving to `'unknown'` there is not automatically a defect. Confirmed gaps use a 4-way taxonomy (PROVEN_LIVE_FAILURE / PROVEN_DEAD_CODE_CONTRACT_MISMATCH / PROVEN_RESOURCE_GAP / VALID_ZERO_POPULATION_CASE / LEGACY_UNVERIFIED): `classifyMediaItem` has no real priority tiering between `MediaCategory`/`MediaClassification`/URL text, and is missing the no-space virtual-tour check (a real gap within its own 5-class scope) that its sibling `classifyTrestleMediaCategory` already has; zero of ~12 current Media call sites filter on `ResourceName`, and that resource is confirmed to actually contain 62 `Building`-attached rows today (not theoretical); the dead `crm-idx-mapper.ts` classifier is a dead-code contract mismatch, not a live failure (zero production callers). No single canonical classifier is recommended -- a stated Mallan product decision is still needed for each zero-population RLS category. A true captured-live-row fixture (vs. field-combination reproduction against real code) remains an open item pending either a live-row-query capability or Maya supplying the exact JSON. OpenHouse and CustomProperty findings were split into their own separate resource-contract documents (`docs/audits/raw-mapper-openhouse-contract-resolution-2026-10-02.md`, `docs/audits/raw-mapper-customproperty-contract-resolution-2026-10-02.md`), each finding confirmed live (2 OpenHouse PROVEN_RESOURCE_GAPs: a public-search filter omitting `OpenHouseType='Public'` entirely, and a separate filter missing 2 of 3 real public enum values; CustomProperty's `$expand` is never enabled in production). Also found, outside this PR's scope since `main` is frozen: `main`'s current `trestle-mapper.ts` has independently grown the identical flat-`pick()` AdditionalFee bug already flagged in `mapping.ts`;
+- converge duplicate status logic. The final adversarial sweep (below) named a concrete instance not previously on this list: `lib/comps/fetch-comps.ts` keeps its own `STATUS_MAP` translating CRM display names to live `StandardStatus` values, duplicating `lib/compliance/status.ts`'s `normalizeStatus()` against that module's own documented single-source rule. Live, reachable via `app/api/crm/sales/comps/route.ts`, not frozen. Today's default comp-search criteria happen to map correctly; the duplication is the drift risk, not a currently-wrong filter;
+- converge duplicate property/listing classification. The same sweep named a concrete instance: `app/api/open-houses/route.ts` imports the canonical `mapPropertyTypeToDisplay` (`lib/idx/public-dto.ts`) for one of its three data paths but defines and uses its own, less capable local `mapPropertyType()` (it never reads `PropertySubType`) for the other two, producing inconsistent property-type labels for the same listing within one API response;
+- remove the `data/listings.json` runtime fallback (`app/api/listings/[id]/route.ts`);
+- remove `public/crm/js/core/reso-field-map.js` and the `data-rls` provider bindings once their consumers are safely replaced. Those consumers are the frozen forms and the `index-built.html` bundle, so this waits until those tools are unfrozen for their Cotality conversion;
+- replace the old RLS geography artifacts (`data/rls/geo/neighborhood-aliases.json`, `data/rls/geo/coverage-report.json`, `data/rls/geo/rls-neighborhoods.v1.geojson`, `data/rls/neighborhoods.v1.json`) with Mallan's own geography. Live today: 5 scripts build them (`scripts/build-rls-aliases.js`, `scripts/build-rls-geo-derived.js`, `scripts/build-rls-geojson.js`, `scripts/fetch-rls-neighborhoods.js`) and `lib/search/crm-idx-filter.ts` reads them at runtime (frozen, public search);
+- complete Batch 1d: obsolete rule and compliance-copy cleanup;
+- fix two dangling citations to deleted files, held by the freeze: `lib/idx/trestle-mapper.ts` (×2) and `lib/media/crm-media.ts` (×1) each cite a provider CSV/XML path this convergence already deleted, for a fact that is still true live (re-verified against `data/cotality-enums.live.json`). `push-647.js` correctly refuses the edit today; fix when these files are unfrozen — see "Frozen during the current cleanup";
+- zero-reference proof for the old provider authority (step 6) — see "Legacy-reference census" above and "Final adversarial sweep" below for where that proof currently stands.
+- model four Concessions sub-fields confirmed live on Cotality but currently unmodeled in `lib/compliance/rebny-field-tables.ts` (non-mandatory, closed-listing-only per REBNY's public LMP.RLS Data Rules sheet): `ConcessionsBuyerBrokerFee`, `ConcessionsClosingCosts`, `ConcessionsOtherCosts`, `ConcessionsPropertyImprovementCosts`.
+
+## Known held defect — Sale Redesign `PetsAllowed` (frozen tool)
+
+- The Sale Redesign form currently writes `UnitYes` (and `UnitCatsOK`, `UnitDogsOK`, …) into `PetsAllowed`.
+- Live Cotality serves `Yes` (and `CatsOk`, `DogsOk`, …).
+- Current contract protection (`tests/runtime/sale-form-canonical-enum-compliance.test.ts`, milestone 8) blocks introducing any new non-live value; the existing values stand.
+- The frozen form itself is not modified during this cleanup phase.
+- Correct it when the standalone Sale Redesign form is unfrozen for its Cotality conversion.
+
+## Known held defect — Concessions shown only for rentals (frozen tool)
+
+- REBNY's own public Compliance page (`rebny.com/compliance/`) links the LMP.RLS Data Rules sheet,
+  which defines `Concessions`/`ConcessionsAmount`/`ConcessionsComments` as applying to sale AND
+  lease listings, unconditionally for `Concessions` — confirmed by fetching that sheet directly
+  (Google Sheets `gviz` CSV export of its "Property" tab), not inferred from Mallan's own frontend.
+- `lib/compliance/rebny-field-tables.ts` already encodes this correctly (`Concessions` is in
+  `requiredFields.agentSubmitted` unconditionally; the `CONCESSIONS-001` conditional rule requires
+  `ConcessionsAmount`/`ConcessionsComments` when `Concessions='Yes'`, for any transaction type) —
+  no backend fix was needed, confirmed at milestone 21.
+- The defect is in the frozen frontend: `public/crm/js/search/search-engine.js` hides the
+  concessions section when `tab === 'sale'` and shows it only when `tab === 'rent'`;
+  `public/crm/js/search/field-dictionaries.js` defines `concessions`/`concessionsDetail` only
+  inside `rentalFieldDictionary.feesDeposits` — the sale field dictionary has no concession fields
+  at all. Both are frozen (`index-built.html` bundle inputs).
+- Not modified during this cleanup phase (frozen tool). Correct it when `index-built.html` is
+  unfrozen for its Cotality conversion.
+
+## Known held defect — owner opt-out derivation inert against live Cotality — RESOLVED 2026-10-02
+
+**RESOLVED** via the narrowly-scoped mapper-exception tool (`tools/push-647-mapper-exception.js`),
+commits `7b6e901d`, `7a35e772`, `c9ade49a` on this branch. Per the "Authority separation rule"
+above: REBNY names Owner Opt-Out as a real compliance state, but live Cotality's `Permission` (18
+values) and `MlsStatus` (26 values) have no member for it — the UNVERIFIED question below is now
+answered: there is no Cotality field that represents it, by design (REBNY's 2026 process submits
+the signed form through the Exclusive Agent's LMP, upstream of the IDX Plus feed entirely — it
+blocks the listing from RLS itself, so it structurally cannot flow downstream as a `Permission`
+value). `owner_opt_out` is therefore Mallan-local authority, full stop, not a fallback.
+
+Changes: `lib/compliance/gates.ts::isOwnerOptOut`, `lib/idx/trestle-mapper.ts::derivePermissionGates`
+and `lib/idx/media-sync.ts::isPropertyComplianceBlocked` no longer attempt the dead value-match (
+`derivePermissionGates`'s `PermissionGates` return type no longer has an `ownerOptOut` field at
+all); `lib/compliance/rls-enforcement.ts` keeps its `Permission`-value check (a legitimate
+Mallan-internal CRM form sentinel on the agent-submitted payload) and drops only the `MlsStatus`
+arm. `Permission='Private'` (Participant Only, Gate 2) is untouched everywhere — it is independently
+verified live and was never the bug.
+
+Persistence boundary: the four real writers of `owner_opt_out` (`lib/idx/sync.ts` ×2,
+`app/api/crm/listings/reset-sync/route.ts`, `scripts/recover-stale-property-listings.ts`) now omit
+it from every UPDATE and apply the new `lib/idx/trestle-mapper.ts::applyLocalOwnerOptOutGate` to
+force `idx_display_yn=false` when the existing stored row already has `owner_opt_out=true` — so
+this cleanup does not let a Cotality resync silently clear a CRM-set opt-out. CREATE is unaffected
+(schema default `false`, nothing to preserve). `scripts/build-recovery-manifest.ts` now treats
+`owner_opt_out` as local authority rather than a second `derivePermissionGates` output.
+
+Original evidence preserved below for provenance.
+
+- `docs/audits/listing-media-reader-ownership-2026-08-13.md` §21.3 already measured, with a live
+  `$count` query on 2026-08-14, that 591,131/591,131 (100%) of Property rows in Mallan's feed have
+  `Permission eq 'IDX'` — the per-row REBNY gates (including owner-opt-out) were defense-in-depth
+  that was presently inert because REBNY's upstream pre-filter already withholds non-IDX listings
+  before they reach the feed. That finding sat unapplied until this fix.
+- Not modified: Permission's live-confirmed Multi-Enum (comma-separated) type means every exact-
+  equality check on it, including the surviving `Permission==='Private'`, is latently incorrect for
+  a combined value. Current `Private` population is reportedly 0, so it is not biting yet — flagged
+  as a separate, not-yet-authorized follow-up, not bundled into this fix.
+
+## Frozen during the current cleanup
+
+Maya (2026-10-01): all seven stand-alone tools below remain stand-alone; Search must be canonical,
+pulled live from the Cotality API. There are many existing versions of each; none is correct and none
+is from the live Cotality API. These are not modified by the cleanup — mutation is refused at the tool
+level (`tools/push-647.js`'s frozen list) as well as by convention:
+
+1. **Sale Redesign** — `public/crm/SALE-FORM-REDESIGN.html`. Needs conversion to Cotality; a fixed
+   version exists but needs tweaking. The closest-to-correct starting point of all seven.
+2. **Rental Redesign** — `public/crm/RENTAL-FORM-REDESIGN.html`. Needs conversion; other versions
+   exist but none is fixed.
+3. **Sales Tools** — `public/crm/SALE-FORM-WITH-TOOLS.html`. Needs conversion.
+4. **Rental Tools** — `public/crm/RENTAL-FORM-WITH-TOOLS.html`. Needs conversion.
+5. **Tenant Deal** — `public/crm/TENANT-DEAL-FORM.html`. Mallan-created, for commission payment
+   representing tenants; connected as a tab in Rental Redesign.
+6. **Buyer Deal** — `public/crm/BUYER-DEAL-FORM.html`. Mallan-created, for commission payment
+   representing buyers; connected as a tab in Sale Redesign.
+7. **`public/crm/index-built.html`** and its Search/CMA bundle inputs. Needs conversion; it holds:
+   (A) Sales basic search, (B) Rental basic search, (C) Sales advanced search, (D) Rental advanced
+   search, (E) CMA, (F) Building search — all converted together as one unit, since none has its own
+   separate engine today. Search has fields Mallan created that are mostly commercial or private-
+   listing fields, not provider fields.
+
+**Public search is frozen too** (not one of the seven stand-alone tools, but the same freeze): `app/search/**`
+and the public-facing components, library modules and data files it depends on — `lib/idx/**`,
+`lib/search/**`, `lib/listings/**`, `lib/media/**`, `lib/geo/**`, `lib/buildings/**`,
+`data/*-neighborhoods.json`, `data/listings.json`, and the relevant `lib/compliance/**` display gates.
+The exact frozen set (all eight areas) is the JSON array `tools/push-647-frozen.json` in the
+`mallan-ops` workspace; `push-647.js` refuses any edit, deletion or write to a path on it.
+
+The final adversarial sweep (below) found three CRM-facing files that are hard runtime dependencies
+of two frozen tools (`index-built.html`, `BUYER-DEAL-FORM.html` both call `GET /api/idx/search`) but
+were missing from `tools/push-647-frozen.json` — `app/api/idx/search/route.ts`,
+`lib/search/crm-idx-filter.ts`, `lib/search/crm-idx-mapper.ts` — and `lib/search/crm-idx-mapper.ts`
+was simultaneously named in this file's own Open list as something the raw-mapper-unification work
+plans to change. Added to the frozen file list (tool-config fix only, no repository change) so that
+work does not silently touch a frozen tool's dependency.
+
+**Two more files are TEMPORARY FROZEN DEPENDENCY for a single stale comment each**, found by the same
+sweep: `lib/idx/trestle-mapper.ts` (×2) and `lib/media/crm-media.ts` (×1) each cite a provider
+CSV/XML path this convergence deleted, describing a fact that is still true live. See "Open" above.
+
+Current goal, in order: clean the underlying repository → old technical system = zero → no stale
+instruction capable of recreating it → adversarial proof → only then unfreeze and convert the seven
+stand-alone tools and public search to the live Cotality API.
+
+## Final adversarial sweep
+
+Per Maya's instruction (2026-10-01): after the legacy-reference sweep (milestones 10-19), six fresh
+agents that did not participate in it, with no assumption it succeeded, were run against head
+`1b478289` to try to prove it failed — one per angle: surviving provider authority; stale Trestle
+architecture / old provider snapshot still read; duplicate mapper/status/classification; duplicate
+Search executor / dead fallback / forgotten frozen dependency; current docs teaching deleted
+architecture / deleted paths still referenced; Claude instructions capable of resurrecting the old
+system. Each worked independently, read-only, citing file:line evidence for every claim, and was
+instructed to report "nothing found" honestly rather than manufacture a finding.
+
+**Confirmed and already closed (milestone 20, above):**
+- `lib/compliance/rebny-validator.ts` ran the live Fair Housing screen on a stale 35-term list instead
+  of the canonical 116-term `data/compliance/prohibited-terms.json` — fixed.
+
+**Confirmed, held by the freeze (recorded under "Frozen during the current cleanup" above):**
+- `lib/idx/trestle-mapper.ts` (×2) and `lib/media/crm-media.ts` (×1) cite deleted provider CSV/XML
+  paths for facts that are still true live; both files are frozen (public search), so `push-647.js`
+  refused the edit when attempted.
+
+**Confirmed, recorded as new detail under the existing "converge duplicate status logic" / "converge
+duplicate property/listing classification" Open items (above) rather than fixed — fixing either
+changes runtime behavior, which this reference-only sweep does not do:**
+- `app/api/open-houses/route.ts`'s local `mapPropertyType()` duplicates and diverges from the
+  canonical `mapPropertyTypeToDisplay` for two of its three data paths.
+- `lib/comps/fetch-comps.ts`'s local `STATUS_MAP` duplicates `lib/compliance/status.ts`'s
+  `normalizeStatus()`, against that module's own documented single-source rule.
+
+**Confirmed, fixed in the local push-647 tool config (no repository change):**
+- `app/api/idx/search/route.ts`, `lib/search/crm-idx-filter.ts`, `lib/search/crm-idx-mapper.ts` are
+  hard dependencies of two frozen tools and were missing from the frozen-file list; added.
+
+**Noted, judged low-risk, no action:**
+- `POST /api/crm/saved-searches/[id]/execute` exposes a live, reachable, state-mutating HTTP endpoint
+  for a DB-projection search engine with zero first-party callers (the saved-search UI re-runs
+  criteria through the live-Cotality `/api/idx/search` engine instead; the underlying engine itself is
+  not dead — `app/api/cron/search-alerts/route.ts` legitimately calls it for email alerting).
+- `scripts/validate-standalone.js` (`npm run validate:standalone`) is an untracked, older,
+  parallel schema-diff tool alongside the new `cotality:verify` live-enum pipeline. It reads a local
+  `trestle-metadata.xml` that is not committed anywhere in the tree, and its own error path demands a
+  fresh live download before use — it cannot present a stale snapshot as current truth, so it is not a
+  survivor of the `artifacts/metadata.xml` removal, just a second tool.
+- `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` cites `.claude/skills/rebny-compliance/SKILL.md` by
+  path and section number; no such file is tracked in this repository. This does not point at any
+  RLS/RESO/Trestle legacy material or an alternate authority (the cited skill, where it exists on an
+  operator's machine, is itself the `rebny-compliance` skill that points everything back to the Master
+  and live Cotality — same chain, different location), so it is not a resurrection risk; it is a
+  documentation-pointer mismatch a human can tidy or leave.
+
+**Everything else the six agents checked came back clean:** no second RESO/Cotality field or enum
+registry exists; no live code path reads a provider CSV/XML snapshot as field-truth authority; no
+RESO→RLS or RLS→Cotality rename table exists outside what is already tracked; no current (non-dated)
+documentation teaches a reader to use any deleted file/registry/command as if it still exists; no
+Claude-facing file (`CLAUDE.md`, `AGENTS.md`, `memory/**`, `docs/superpowers/**`) can direct a future
+agent back to the old system or to an authority other than the Master plus this file.
+
+This closes the adversarial check Maya required before the old-system cleanup is considered closed,
+with the findings above disposed of as shown — two fixed, two deferred to the already-tracked
+component-consolidation Open items, one frozen-list gap closed in tooling, three noted as no-risk.
+
+## Maya's checkpoint synthesis (2026-10-02)
+
+Reviewing milestones 1-20 and the adversarial sweep, Maya recorded the following as the current
+stage, confirmed against live evidence (`data/rls/geo/` is a real, untouched 4-file directory —
+`neighborhood-aliases.json`, `coverage-report.json`, `rls-neighborhoods.v1.geojson`,
+`data/rls/neighborhoods.v1.json` — with 5 scripts building it and `lib/search/crm-idx-filter.ts`
+reading it live):
+
+- Dead-code / stale-doc / obsolete-reference cleanup (milestones 1-20): **~85-90% complete.**
+- Core runtime/provider convergence (the structural duplication underneath the references): **~35-45%
+  complete** — the remaining items are harder architectural work, not bulk cleanup.
+- Weighted across the whole "clean old system before unfreezing the seven tools" phase: **~65-70%
+  complete.**
+
+The concrete remaining core work, in Maya's stated order:
+1. the three raw mappers (`lib/idx/trestle-mapper.ts`, `lib/idx/mapping.ts`,
+   `lib/search/crm-idx-mapper.ts`) become one;
+2. duplicate status logic becomes one (named instance: `lib/comps/fetch-comps.ts`'s `STATUS_MAP`);
+3. duplicate property/listing classification becomes one (named instance: `app/api/open-houses/route.ts`'s
+   local `mapPropertyType()`);
+4. `lib/compliance/rebny-validator.ts`'s remaining dependency on `rls-rules.json`'s old provider-derived
+   field table and borough/county map is replaced or removed (its third dependency, the Fair Housing
+   term list, was fixed at milestone 20);
+5. the `data/listings.json` runtime fallback (`app/api/listings/[id]/route.ts`) is removed;
+6. the frozen `public/crm/js/core/reso-field-map.js` is removed during the standalone-tool conversion
+   (not before — it is a `data-rls`-bound dependency of the frozen forms today);
+7. the old RLS geography artifacts (`data/rls/geo/**`, `data/rls/neighborhoods.v1.json`) are replaced
+   by Mallan's own geography;
+8. zero-reference proof for the old provider authority is completed.
+
+"Once those are gone, the repository will be much closer to the state Maya actually wants: not merely
+cleaner, but with the old technical system unable to reassert itself."
+
+Everything below this point in §11 is history.
 
 **HISTORY (superseded 2026-09-29): `mode: control-update` (2026-09-25); no packet is active and no Master amendment is authorized. The ledger row 19 packet
 `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` (a bounded, base-authorized Master-amendment path with negative tests) is COMPLETE: #642
@@ -891,7 +1299,7 @@ occurrences, re-read 2026-09-22). The two files disagree on the protocol.
 
 **Correction 2026-09-22 — the OPS-026 reservation is WITHDRAWN.** It was recorded here as
 unused because it was absent from the registry on `main`. That check was too narrow:
-`docs/operations/site-audit-handoff-2026-07-01.md` records `OPS-026` as an issue that was
+the dated 2026-07-01 site-audit handoff (retired in the #647 cleanup; Git history) records `OPS-026` as an issue that was
 *withdrawn* in the 2026-07-01 registry consolidation. A withdrawn ID is still a used ID, and
 reusing it would conflate two unrelated issues in every search and closure record. The
 one-way-door defect therefore carries no registry ID until a separately authorized

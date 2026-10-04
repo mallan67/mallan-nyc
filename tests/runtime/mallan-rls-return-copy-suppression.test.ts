@@ -141,7 +141,7 @@ describe('suppression is inside the public query — before count/skip/take', ()
   });
 });
 
-describe('live Trestle clause — provider null semantics are not guessed', () => {
+describe('live Cotality clause — provider null semantics are not guessed', () => {
   it('keeps null-office rows visible via an explicit OR, not a bare ne', () => {
     const clause = trestleExcludeMallanReturnCopiesClause();
     expect(clause).not.toBeNull();

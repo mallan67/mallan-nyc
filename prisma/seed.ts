@@ -7,7 +7,7 @@
  * Creates:
  *   - Maya Allan (broker) + Leda Gorgone + Julia Djaafar (agents)
  *
- * NOTE: Listings come ONLY from Trestle/IDX sync or CRM form submissions.
+ * NOTE: Listings come ONLY from Cotality/IDX sync or CRM form submissions.
  *       Deals come ONLY from agent deal form submissions.
  *       No fake/test listings or deals are seeded.
  */
@@ -233,7 +233,7 @@ async function main() {
   // NO FAKE LISTINGS OR DEALS
   // ═══════════════════════════════════════════════════════════
   // Listings come ONLY from:
-  //   1. Trestle/IDX sync (cron every 4h)
+  //   1. Cotality/IDX sync (one-cycle cron)
   //   2. Agent submissions via SALE-FORM-REDESIGN / RENTAL-FORM-REDESIGN
   //   3. CRM listing POST via dashboard
   //
@@ -249,7 +249,7 @@ async function main() {
 
   console.log("\nSeed complete!");
   console.log("  Agents: " + agentCount);
-  console.log("  (Listings and deals are NOT seeded — they come from Trestle sync and CRM submissions only)");
+  console.log("  (Listings and deals are NOT seeded — they come from Cotality sync and CRM submissions only)");
 }
 
 main()

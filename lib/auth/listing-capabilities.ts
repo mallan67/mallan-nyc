@@ -68,7 +68,7 @@ export interface CapabilityListing extends MallanSourceIdentityRow {
    */
   agent_id?: bigint | number | null;
   /**
-   * Non-null exactly on rows the Trestle sync has written. Used for the
+   * Non-null exactly on rows the Cotality sync has written. Used for the
    * cursor-safety decision below; see `isTrestleCursorBearing`.
    */
   last_synced_from_trestle?: Date | null;
@@ -89,7 +89,7 @@ export interface ListingCapabilities {
    * variant: a SYNCED row passes the `IS NOT NULL` filter, so a CRM writer
    * setting `modification_timestamp: new Date()` pushes the cursor to local NOW
    * and the next incremental run skips every genuine upstream change until real
-   * Trestle timestamps catch up. Callers must not bump the watermark on a
+   * Cotality timestamps catch up. Callers must not bump the watermark on a
    * cursor-bearing row.
    */
   isTrestleCursorBearing: boolean;

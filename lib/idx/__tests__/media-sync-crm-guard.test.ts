@@ -1,17 +1,17 @@
 /**
  * P1C2 — crm: namespace guard on tombstoneVanished (behavioral RED→GREEN).
  *
- * CRM-owned media rows live in the same `listing_media` table as Trestle feed
+ * CRM-owned media rows live in the same `listing_media` table as Cotality feed
  * rows, in the `crm:` media_key namespace that `lib/media/crm-media.ts:2-7`
- * promises the Trestle sync never prunes. Before P1C2, `tombstoneVanished`
- * tombstoned "every active row absent from the complete Trestle set" with NO
- * crm: exclusion — and CRM rows are absent from every Trestle set BY DESIGN,
+ * promises the Cotality sync never prunes. Before P1C2, `tombstoneVanished`
+ * tombstoned "every active row absent from the complete Cotality set" with NO
+ * crm: exclusion — and CRM rows are absent from every Cotality set BY DESIGN,
  * so the first complete sync of a listing deleted the agent's uploads.
  *
  * Under test:
  *   1. non-empty complete set → the vanished-row updateMany excludes crm: keys.
  *   2. empty complete set (tombstone-everything branch) → same exclusion.
- *   3. explicit MediaStatus='Deleted' branch unchanged (IN-list of Trestle
+ *   3. explicit MediaStatus='Deleted' branch unchanged (IN-list of Cotality
  *      keys — inherently crm:-safe; regression guard on the where shape).
  *
  * Mock-prisma call-shape assertions, same pattern as media-sync-upsert.test.ts.
@@ -85,7 +85,7 @@ describe("P1C2 — tombstoneVanished must never tombstone crm: rows", () => {
       media_key?: { notIn?: string[] };
     };
     expect(where.NOT?.media_key?.startsWith).toBe(CRM_MEDIA_KEY_PREFIX);
-    // Trestle vanished-key semantics preserved alongside the guard.
+    // Cotality vanished-key semantics preserved alongside the guard.
     expect(where.media_key?.notIn).toEqual(["MK-1"]);
   });
 

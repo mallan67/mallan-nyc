@@ -47,7 +47,7 @@ describe('classifyMediaItem', () => {
     expect(classifyMediaItem({ MediaCategory: 'VirtualTour' })).toBe('virtualTour');
   });
 
-  it('defaults missing MediaCategory to photo (Trestle convention — bare Media rows are photos)', () => {
+  it('defaults missing MediaCategory to photo (Cotality convention — bare Media rows are photos)', () => {
     expect(classifyMediaItem({ MediaURL: 'https://example.com/img.jpg' })).toBe('photo');
   });
 
@@ -61,16 +61,16 @@ describe('classifyMediaItem', () => {
     expect(classifyMediaItem({ mediaType: 'FloorPlan', url: 'x' })).toBe('floorplan');
   });
 
-  // ── B1 fix (2026-05-08): Trestle DOCUMENT-* URL convention ──
-  // Trestle stores FloorPlan documents under /Media/Property/DOCUMENT-Gif/,
+  // ── B1 fix (2026-05-08): Cotality DOCUMENT-* URL convention ──
+  // Cotality stores FloorPlan documents under /Media/Property/DOCUMENT-Gif/,
   // DOCUMENT-Jpeg/, DOCUMENT-Pdf/, DOCUMENT-Png/ paths (vs. PHOTO-Jpeg/ for
   // actual photos). The diagnostic on 2026-05-08 found 243 active listings
   // rendering a FloorPlan as hero because the stored mediaType was empty/Photo
-  // (Trestle sometimes ships FloorPlan media with `MediaCategory: null`) and
-  // the resolver defaulted-to-Photo. The URL itself is the signal Trestle gives
+  // (Cotality sometimes ships FloorPlan media with `MediaCategory: null`) and
+  // the resolver defaulted-to-Photo. The URL itself is the signal Cotality gives
   // us; the classifier now checks it explicitly.
 
-  it('classifies DOCUMENT-Gif Trestle URL as floorplan (URL takes precedence over empty category)', () => {
+  it('classifies DOCUMENT-Gif Cotality URL as floorplan (URL takes precedence over empty category)', () => {
     expect(
       classifyMediaItem({
         MediaURL:
@@ -79,7 +79,7 @@ describe('classifyMediaItem', () => {
     ).toBe('floorplan');
   });
 
-  it('classifies DOCUMENT-Jpeg Trestle URL as floorplan', () => {
+  it('classifies DOCUMENT-Jpeg Cotality URL as floorplan', () => {
     expect(
       classifyMediaItem({
         MediaURL:
@@ -88,7 +88,7 @@ describe('classifyMediaItem', () => {
     ).toBe('floorplan');
   });
 
-  it('classifies DOCUMENT-Pdf Trestle URL as floorplan', () => {
+  it('classifies DOCUMENT-Pdf Cotality URL as floorplan', () => {
     expect(
       classifyMediaItem({
         MediaURL:
@@ -97,7 +97,7 @@ describe('classifyMediaItem', () => {
     ).toBe('floorplan');
   });
 
-  it('classifies DOCUMENT-Png Trestle URL as floorplan', () => {
+  it('classifies DOCUMENT-Png Cotality URL as floorplan', () => {
     expect(
       classifyMediaItem({
         MediaURL:
@@ -108,7 +108,7 @@ describe('classifyMediaItem', () => {
 
   it('URL takes precedence over mediaType when DOCUMENT- URL is paired with mediaType="Photo"', () => {
     // The B1 production scenario: stored row has mediaType="Photo" but URL
-    // is a Trestle DOCUMENT-Gif (FloorPlan). URL is the source-of-truth signal.
+    // is a Cotality DOCUMENT-Gif (FloorPlan). URL is the source-of-truth signal.
     expect(
       classifyMediaItem({
         mediaType: 'Photo',
@@ -117,7 +117,7 @@ describe('classifyMediaItem', () => {
     ).toBe('floorplan');
   });
 
-  it('classifies PHOTO-Jpeg Trestle URL as photo (regression guard)', () => {
+  it('classifies PHOTO-Jpeg Cotality URL as photo (regression guard)', () => {
     expect(
       classifyMediaItem({
         MediaURL:
@@ -143,8 +143,8 @@ describe('classifyMediaItem', () => {
     ).toBe('floorplan');
   });
 
-  it('does not match arbitrary URLs containing the word "DOCUMENT" outside the Trestle path shape', () => {
-    // Defensive: the Trestle DOCUMENT pattern must be anchored to
+  it('does not match arbitrary URLs containing the word "DOCUMENT" outside the Cotality path shape', () => {
+    // Defensive: the Cotality DOCUMENT pattern must be anchored to
     // /Media/Property/DOCUMENT-{ext}/ so a benign URL with "document" in the
     // path doesn't get misclassified. (Fixture updated 2026-06-06 / PR-Hero:
     // the prior `…/documents/floorplan.jpg` now correctly classifies as
@@ -256,7 +256,7 @@ describe('resolveListingMedia — photo-first ordering', () => {
     expect(sorted[0].preferred).toBe(true);
   });
 
-  it('proxies Trestle hosts but leaves R2/CDN URLs alone', () => {
+  it('proxies Cotality hosts but leaves R2/CDN URLs alone', () => {
     const sorted = resolveListingMedia([
       { MediaURL: 'https://api.cotality.com/trestle/Media/Property/x.jpg', MediaCategory: 'Photo' },
       { MediaURL: 'https://pub-xyz.r2.dev/photos/x.jpg', MediaCategory: 'Photo' },

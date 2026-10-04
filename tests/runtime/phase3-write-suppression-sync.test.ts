@@ -6,7 +6,7 @@
  * upserts BOTH the `listings` row AND the `listing_search_projection` row for
  * every fetched record — even when nothing material changed — and the batch
  * media path rewrites the legacy `listings.media` JSON with freshly-signed
- * (rotating) Trestle URLs on every pass. On Neon this is pure write churn.
+ * (rotating) Cotality URLs on every pass. On Neon this is pure write churn.
  *
  * Contract proven here:
  *   1. Unchanged IDX batch → ZERO listing upserts and ZERO projection upserts
@@ -57,10 +57,10 @@ jest.mock("@/lib/prisma", () => ({
   },
 }));
 
-const mockFetchFromTrestle = jest.fn();
+const mockFetchFromCotality = jest.fn();
 jest.mock("@/lib/idx/fetch", () => ({
   __esModule: true,
-  fetchFromTrestle: (args: unknown) => mockFetchFromTrestle(args),
+  fetchFromTrestle: (args: unknown) => mockFetchFromCotality(args),
   buildIncrementalFilter: () => "mock-incremental-filter",
   buildActiveFilter: () => "mock-active-filter",
   buildAgentHistoricalFilter: () => "mock-agent-filter",
@@ -145,7 +145,6 @@ function dbRowFromRaw(raw: Record<string, unknown>): Record<string, unknown> {
     internet_entire_listing_display_yn: mapped.internet_entire_listing_display_yn,
     internet_address_display_yn: mapped.internet_address_display_yn,
     participant_only: mapped.participant_only,
-    owner_opt_out: mapped.owner_opt_out,
     address: JSON.parse(JSON.stringify(mapped.address)),
     features: JSON.parse(JSON.stringify(mapped.features)),
     raw_data: JSON.parse(JSON.stringify(mapped.raw_data)),
@@ -250,7 +249,7 @@ describe("syncListings — unchanged IDX batch produces ZERO listing/projection 
       mediaByListingId: new Map(),
     };
     wireMocks(state);
-    mockFetchFromTrestle.mockResolvedValue({ records: [rawA, rawB], totalFetched: 2 });
+    mockFetchFromCotality.mockResolvedValue({ records: [rawA, rawB], totalFetched: 2 });
 
     const result = await syncListings({ fullSync: true, maxRecords: 10 });
 
@@ -308,7 +307,7 @@ describe("syncListings — one true change updates exactly that listing and proj
       mediaByListingId: new Map(),
     };
     wireMocks(state);
-    mockFetchFromTrestle.mockResolvedValue({ records: [rawA, rawBNew], totalFetched: 2 });
+    mockFetchFromCotality.mockResolvedValue({ records: [rawA, rawBNew], totalFetched: 2 });
 
     const result = await syncListings({ since: new Date("2026-07-01T00:00:00Z") });
 
@@ -337,7 +336,7 @@ describe("syncListings — brand-new listing still inserts", () => {
       mediaByListingId: new Map(),
     };
     wireMocks(state);
-    mockFetchFromTrestle.mockResolvedValue({ records: [rawA], totalFetched: 1 });
+    mockFetchFromCotality.mockResolvedValue({ records: [rawA], totalFetched: 1 });
 
     const result = await syncListings({ fullSync: true });
 
@@ -388,7 +387,7 @@ describe("syncListings — batch media path suppresses rotation-only rewrites", 
       ]),
     };
     wireMocks(state);
-    mockFetchFromTrestle.mockResolvedValue({ records: [rawANew, rawB], totalFetched: 2 });
+    mockFetchFromCotality.mockResolvedValue({ records: [rawANew, rawB], totalFetched: 2 });
 
     mockMediaEndpoint([
       [
@@ -430,7 +429,7 @@ describe("syncListings — failures stay isolated and are never counted as succe
       if (args.where.listing_id === "RLS100001") throw new Error("connection reset");
       return state.listings.get(args.where.listing_id) ?? null;
     });
-    mockFetchFromTrestle.mockResolvedValue({ records: [rawA, rawB], totalFetched: 2 });
+    mockFetchFromCotality.mockResolvedValue({ records: [rawA, rawB], totalFetched: 2 });
 
     const result = await syncListings({ fullSync: true });
 
@@ -480,7 +479,7 @@ describe("syncListings — batch media gate is decoupled from physical listing w
       ]),
     };
     wireMocks(state);
-    mockFetchFromTrestle.mockResolvedValue({ records: [rawA, rawB], totalFetched: 2 });
+    mockFetchFromCotality.mockResolvedValue({ records: [rawA, rawB], totalFetched: 2 });
     mockMediaEndpoint([
       [
         { ResourceRecordKey: "KEY100001", MediaURL: "https://api.cotality.com/trestle/Media/a0.jpg?sig=NEW", MediaCategory: "Photo", Order: 0, PreferredPhotoYN: true },
@@ -523,7 +522,7 @@ describe("syncListings — $expand=Media rotation inside raw_data alone -> ZERO 
       mediaByListingId: new Map(),
     };
     wireMocks(state);
-    mockFetchFromTrestle.mockResolvedValue({ records: [rawNew], totalFetched: 1 });
+    mockFetchFromCotality.mockResolvedValue({ records: [rawNew], totalFetched: 1 });
 
     const result = await syncListings({ fullSync: true });
 
@@ -548,7 +547,7 @@ describe("syncListings — $expand=Media rotation inside raw_data alone -> ZERO 
       mediaByListingId: new Map(),
     };
     wireMocks(state);
-    mockFetchFromTrestle.mockResolvedValue({ records: [replaced], totalFetched: 1 });
+    mockFetchFromCotality.mockResolvedValue({ records: [replaced], totalFetched: 1 });
 
     const result = await syncListings({ fullSync: true });
     expect(mockUpsert).toHaveBeenCalledTimes(1);
@@ -576,7 +575,7 @@ describe("syncListings — watermark never advances past a failed record", () =>
       if (args.where.listing_id === "RLS100002") throw new Error("connection reset");
       return state.listings.get(args.where.listing_id) ?? null;
     });
-    mockFetchFromTrestle.mockResolvedValue({ records: [rawA, rawB, rawC], totalFetched: 3 });
+    mockFetchFromCotality.mockResolvedValue({ records: [rawA, rawB, rawC], totalFetched: 3 });
 
     const result = await syncListings({ since: new Date("2026-06-30T00:00:00Z") });
 
@@ -616,7 +615,7 @@ describe("syncListings — watermark never advances past a failed record", () =>
       mediaByListingId: new Map(),
     };
     wireMocks(state);
-    mockFetchFromTrestle.mockResolvedValue({ records: [rawA], totalFetched: 1 });
+    mockFetchFromCotality.mockResolvedValue({ records: [rawA], totalFetched: 1 });
 
     // Must be the UNSCOPED INCREMENTAL traversal. This previously passed
     // `{ fullSync: true }`, which now deliberately cannot move the cursor: a

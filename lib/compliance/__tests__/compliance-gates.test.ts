@@ -10,7 +10,7 @@
  * @module lib/compliance/__tests__/compliance-gates.test
  */
 
-import { checkDistributionGates, validateRequiredFields, mapTrestleToPrisma } from '@/lib/idx/trestle-mapper';
+import { checkDistributionGates, validateRequiredFields, mapTrestleToPrisma, applyLocalOwnerOptOutGate } from '@/lib/idx/trestle-mapper';
 import { toPublicDTO } from '@/lib/idx/public-dto';
 import { filterDisplayableDbListings } from '@/lib/idx/db-to-public-dto';
 import type { DbListing } from '@/lib/idx/db-to-public-dto';
@@ -82,8 +82,8 @@ function buildMockListing(overrides: Partial<IDXListing> = {}): IDXListing {
   };
 }
 
-/** Build a raw Trestle record for distribution gate / validation tests. */
-function buildRawTrestle(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+/** Build a raw Cotality record for distribution gate / validation tests. */
+function buildRawCotality(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     ListingId: 'TEST-123',
     PropertyType: 'Residential',
@@ -107,7 +107,7 @@ function buildRawTrestle(overrides: Record<string, unknown> = {}): Record<string
     ModificationTimestamp: '2026-03-01T00:00:00Z',
     InternetEntireListingDisplayYN: true,
     InternetAddressDisplayYN: true,
-    // Permission enum (live Trestle 2026-04-19) replaces the legacy
+    // Permission enum (live Cotality 2026-04-19) replaces the legacy
     // ParticipantOnlyYN / IDXParticipationYN / IDXEntireListingDisplayYN booleans.
     Permission: 'IDX',
     PublicRemarks: 'Beautiful apartment',
@@ -139,9 +139,9 @@ function buildRawTrestle(overrides: Record<string, unknown> = {}): Record<string
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('checkDistributionGates', () => {
-  // NOTE: Dead-field tests removed to match Trestle reality —
+  // NOTE: Dead-field tests removed to match Cotality reality —
   //   `IDXEntireListingDisplayYN`, `ParticipantOnlyYN`, `IDXParticipationYN`
-  // do NOT exist on the Trestle $metadata schema (verified live 2026-04-19).
+  // do NOT exist on the Cotality $metadata schema (verified live 2026-04-19).
   // They were transcribed from the REBNY English-language checklist, not the
   // OData schema. The live schema uses:
   //   - `Permission` enum (values: OwnerOptOut, Private, ...) — see Gates 1 & 2
@@ -149,9 +149,9 @@ describe('checkDistributionGates', () => {
   // See `lib/idx/trestle-mapper.ts:745-810` (checkDistributionGates) and
   // `compliance/IDX-VOW-DISPLAY-RULES.md:31,41` for authoritative mapping.
 
-  it('blocks owner opt-out listings (Permission = "OwnerOptOut")', () => {
+  it('[Permission cutover 2026-10-02] blocks owner opt-out listings via the local owner_opt_out column (Permission/MlsStatus have no live OwnerOptOut signal)', () => {
     const result = checkDistributionGates(
-      buildRawTrestle({ Permission: 'OwnerOptOut' })
+      buildRawCotality({ owner_opt_out: true })
     );
     expect(result.displayable).toBe(false);
     expect(result.reason).toContain('Owner opted out');
@@ -159,31 +159,46 @@ describe('checkDistributionGates', () => {
 
   it('blocks participant-only listings (Permission = "Private")', () => {
     const result = checkDistributionGates(
-      buildRawTrestle({ Permission: 'Private' })
+      buildRawCotality({ Permission: 'Private' })
     );
     expect(result.displayable).toBe(false);
     expect(result.reason).toContain('Participant-only');
   });
 
+  it('[Permission Multi-Enum cutover 2026-10-02] blocks a combined-row Participant Only (Permission = "IDX,Private") -- exact member match, not whole-string equality', () => {
+    const result = checkDistributionGates(
+      buildRawCotality({ Permission: 'IDX,Private' })
+    );
+    expect(result.displayable).toBe(false);
+    expect(result.reason).toContain('Participant-only');
+  });
+
+  it('[Permission Multi-Enum cutover 2026-10-02] does NOT block on a substring match (Permission = "PrivateSomething")', () => {
+    const result = checkDistributionGates(
+      buildRawCotality({ Permission: 'PrivateSomething', StandardStatus: 'Active' })
+    );
+    expect(result.displayable).toBe(true);
+  });
+
   it('blocks when internet display is disabled (InternetEntireListingDisplayYN = false)', () => {
     const result = checkDistributionGates(
-      buildRawTrestle({ InternetEntireListingDisplayYN: false })
+      buildRawCotality({ InternetEntireListingDisplayYN: false })
     );
     expect(result.displayable).toBe(false);
     expect(result.reason).toContain('Internet display disabled');
   });
 
   it('passes active listing with all gates open', () => {
-    const result = checkDistributionGates(buildRawTrestle());
+    const result = checkDistributionGates(buildRawCotality());
     expect(result.displayable).toBe(true);
     expect(result.reason).toBeUndefined();
   });
 
   it('passes Coming Soon listings (flagged, not blocked)', () => {
-    // Trestle sends StandardStatus as 'ComingSoon' (canonical, no space).
+    // Cotality sends StandardStatus as 'ComingSoon' (canonical, no space).
     // normalizeStatus accepts the spaced form too for defensive parsing.
     const result = checkDistributionGates(
-      buildRawTrestle({ StandardStatus: 'ComingSoon' })
+      buildRawCotality({ StandardStatus: 'ComingSoon' })
     );
     expect(result.displayable).toBe(true);
   });
@@ -191,7 +206,7 @@ describe('checkDistributionGates', () => {
   it('blocks closed listing > 24 hours old', () => {
     const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
     const result = checkDistributionGates(
-      buildRawTrestle({ StandardStatus: 'Closed', CloseDate: twoDaysAgo })
+      buildRawCotality({ StandardStatus: 'Closed', CloseDate: twoDaysAgo })
     );
     expect(result.displayable).toBe(false);
     expect(result.reason).toContain('Closed listing > 24 hours');
@@ -200,9 +215,14 @@ describe('checkDistributionGates', () => {
   it('passes closed listing < 24 hours old', () => {
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     const result = checkDistributionGates(
-      buildRawTrestle({ StandardStatus: 'Closed', CloseDate: twoHoursAgo })
+      buildRawCotality({ StandardStatus: 'Closed', CloseDate: twoHoursAgo })
     );
     expect(result.displayable).toBe(true);
+  });
+
+  it('[NEGATIVE TEST, Stage B1 status closure] StandardStatus absent, MlsStatus=ComingSoon: evaluateDisplayGate does not treat it as Coming Soon — gates.ts readStatus() no longer substitutes MlsStatus for StandardStatus (Master Plan §0.6)', () => {
+    const result = evaluateDisplayGate({ MlsStatus: 'ComingSoon', InternetEntireListingDisplayYN: true });
+    expect(result.comingSoon).toBe(false);
   });
 });
 
@@ -266,7 +286,7 @@ describe('toPublicDTO', () => {
     expect(json).not.toContain('Seller desperate');
   });
 
-  it('proxies Trestle media URLs through /api/media/proxy', () => {
+  it('proxies Cotality media URLs through /api/media/proxy', () => {
     const listing = buildMockListing({
       media: [
         { url: 'https://api.cotality.com/trestle/media/photo1.jpg', mediaType: 'Photo', order: 0 },
@@ -275,16 +295,16 @@ describe('toPublicDTO', () => {
     });
     const dto = toPublicDTO(listing);
 
-    // Trestle URL should be proxied
+    // Cotality media URL should be proxied
     expect(dto.media[0].url).toContain('/api/media/proxy');
     expect(dto.media[0].url).toContain(encodeURIComponent('https://api.cotality.com/trestle/media/photo1.jpg'));
 
-    // Non-Trestle URL should pass through unchanged
+    // Non-Cotality URL should pass through unchanged
     expect(dto.media[1].url).toBe('https://cdn.example.com/photo2.jpg');
   });
 
   it('sets comingSoon flag in _displayCompliance for Coming Soon listings', () => {
-    // Canonical value — the DB stores 'ComingSoon' (no space) per RESO.
+    // Canonical value — the DB stores 'ComingSoon' (no space) per the live Cotality StandardStatus enum.
     // This was previously 'Coming Soon' which never fired the badge branch
     // because public-dto compared against the wrong format.
     const listing = buildMockListing({ standardStatus: 'ComingSoon' });
@@ -316,13 +336,13 @@ describe('toPublicDTO', () => {
 
 describe('validateRequiredFields', () => {
   it('passes a complete record', () => {
-    const result = validateRequiredFields(buildRawTrestle());
+    const result = validateRequiredFields(buildRawCotality());
     expect(result.valid).toBe(true);
     expect(result.missingFields).toHaveLength(0);
   });
 
   it('fails when ListingId is missing', () => {
-    const raw = buildRawTrestle();
+    const raw = buildRawCotality();
     delete raw.ListingId;
     const result = validateRequiredFields(raw);
 
@@ -331,7 +351,7 @@ describe('validateRequiredFields', () => {
   });
 
   it('fails when ListPrice is missing', () => {
-    const raw = buildRawTrestle();
+    const raw = buildRawCotality();
     delete raw.ListPrice;
     const result = validateRequiredFields(raw);
 
@@ -340,7 +360,7 @@ describe('validateRequiredFields', () => {
   });
 
   it('reports all missing fields, not just the first', () => {
-    const raw = buildRawTrestle();
+    const raw = buildRawCotality();
     delete raw.ListingId;
     delete raw.ListPrice;
     delete raw.PropertyType;
@@ -407,7 +427,7 @@ describe('assertRlsCompliantPayload', () => {
       BedroomsTotal: 2,
       RoomsTotal: 6,
       // Distribution gates — IDXEntireListingDisplayYN and SyndicateYN removed
-      // (do not exist on live Trestle, verified 2026-04-19). SyndicateTo is the
+      // (do not exist on live Cotality, verified 2026-04-19). SyndicateTo is the
       // multi-select picker that replaces the legacy SyndicateYN boolean.
       InternetEntireListingDisplayYN: true,
       InternetAddressDisplayYN: true,
@@ -726,7 +746,7 @@ describe('escapeHtml', () => {
 // 6. FAIL-CLOSED PERMISSION HELPERS
 //    Added by PR 1 of master refactor (memory/REFACTOR-2026-04-25.md).
 //    Locks in fail-closed behavior at every public-display call site so a
-//    null/undefined permission flag from Trestle or our DB never produces a
+//    null/undefined permission flag from Cotality or our DB never produces a
 //    displayable result. UCBA Art. III §2(C) requires this direction.
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -861,7 +881,7 @@ describe('mapTrestleToPrisma — fail-closed on missing AVM/consumer-comment fla
     expect(result.internet_consumer_comment_yn).toBe(true);
   });
 
-  it('treats string "true" as true (defensive against Trestle string-bool quirk)', () => {
+  it('treats string "true" as true (defensive against Cotality string-bool quirk)', () => {
     const result = mapTrestleToPrisma(buildMinimalRaw({
       InternetAutomatedValuationDisplayYN: 'true',
       InternetConsumerCommentYN: 'TRUE',
@@ -960,7 +980,7 @@ describe('toPublicDTO suppressAddress — fail-closed on null permission', () =>
 // 6. WRITER-SIDE GATE COERCION (mapTrestleToPrisma) — IDX Plus pre-filter
 // ═══════════════════════════════════════════════════════════════════════════
 //
-// IDX Plus convention (verified 2026-04-30 against live Trestle metadata + DB):
+// IDX Plus convention (verified 2026-04-30 against live Cotality metadata + DB):
 //   InternetEntireListingDisplayYN / InternetAddressDisplayYN return null for
 //   the majority of records and are NOT OData-filterable (provider returns
 //   400 "Results from 'RLS' has been suppressed (provider Level)"). REBNY/
@@ -978,13 +998,13 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
   describe('InternetEntireListingDisplayYN / InternetAddressDisplayYN — IDX Plus pre-filtered', () => {
     it('treats null InternetEntireListingDisplayYN as displayable (REBNY/Cotality pre-filter)', () => {
       const mapped = mapTrestleToPrisma(
-        buildRawTrestle({ InternetEntireListingDisplayYN: null })
+        buildRawCotality({ InternetEntireListingDisplayYN: null })
       );
       expect(mapped.internet_entire_listing_display_yn).toBe(true);
     });
 
     it('treats undefined InternetEntireListingDisplayYN as displayable', () => {
-      const raw = buildRawTrestle();
+      const raw = buildRawCotality();
       delete raw.InternetEntireListingDisplayYN;
       const mapped = mapTrestleToPrisma(raw);
       expect(mapped.internet_entire_listing_display_yn).toBe(true);
@@ -992,13 +1012,13 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
 
     it('treats null InternetAddressDisplayYN as displayable', () => {
       const mapped = mapTrestleToPrisma(
-        buildRawTrestle({ InternetAddressDisplayYN: null })
+        buildRawCotality({ InternetAddressDisplayYN: null })
       );
       expect(mapped.internet_address_display_yn).toBe(true);
     });
 
     it('treats undefined InternetAddressDisplayYN as displayable', () => {
-      const raw = buildRawTrestle();
+      const raw = buildRawCotality();
       delete raw.InternetAddressDisplayYN;
       const mapped = mapTrestleToPrisma(raw);
       expect(mapped.internet_address_display_yn).toBe(true);
@@ -1006,28 +1026,28 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
 
     it('honors explicit false on InternetEntireListingDisplayYN', () => {
       const mapped = mapTrestleToPrisma(
-        buildRawTrestle({ InternetEntireListingDisplayYN: false })
+        buildRawCotality({ InternetEntireListingDisplayYN: false })
       );
       expect(mapped.internet_entire_listing_display_yn).toBe(false);
     });
 
     it('honors explicit false on InternetAddressDisplayYN', () => {
       const mapped = mapTrestleToPrisma(
-        buildRawTrestle({ InternetAddressDisplayYN: false })
+        buildRawCotality({ InternetAddressDisplayYN: false })
       );
       expect(mapped.internet_address_display_yn).toBe(false);
     });
 
     it('honors explicit true on InternetEntireListingDisplayYN', () => {
       const mapped = mapTrestleToPrisma(
-        buildRawTrestle({ InternetEntireListingDisplayYN: true })
+        buildRawCotality({ InternetEntireListingDisplayYN: true })
       );
       expect(mapped.internet_entire_listing_display_yn).toBe(true);
     });
 
     it('honors explicit true on InternetAddressDisplayYN', () => {
       const mapped = mapTrestleToPrisma(
-        buildRawTrestle({ InternetAddressDisplayYN: true })
+        buildRawCotality({ InternetAddressDisplayYN: true })
       );
       expect(mapped.internet_address_display_yn).toBe(true);
     });
@@ -1036,13 +1056,13 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
   describe('InternetAutomatedValuationDisplayYN / InternetConsumerCommentYN — per-row opt-out, fail-closed', () => {
     it('treats null InternetAutomatedValuationDisplayYN as NOT displayable (fail-closed)', () => {
       const mapped = mapTrestleToPrisma(
-        buildRawTrestle({ InternetAutomatedValuationDisplayYN: null })
+        buildRawCotality({ InternetAutomatedValuationDisplayYN: null })
       );
       expect(mapped.internet_automated_valuation_display_yn).toBe(false);
     });
 
     it('treats undefined InternetAutomatedValuationDisplayYN as NOT displayable', () => {
-      const raw = buildRawTrestle();
+      const raw = buildRawCotality();
       delete raw.InternetAutomatedValuationDisplayYN;
       const mapped = mapTrestleToPrisma(raw);
       expect(mapped.internet_automated_valuation_display_yn).toBe(false);
@@ -1050,13 +1070,13 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
 
     it('treats null InternetConsumerCommentYN as NOT displayable (fail-closed)', () => {
       const mapped = mapTrestleToPrisma(
-        buildRawTrestle({ InternetConsumerCommentYN: null })
+        buildRawCotality({ InternetConsumerCommentYN: null })
       );
       expect(mapped.internet_consumer_comment_yn).toBe(false);
     });
 
     it('treats undefined InternetConsumerCommentYN as NOT displayable', () => {
-      const raw = buildRawTrestle();
+      const raw = buildRawCotality();
       delete raw.InternetConsumerCommentYN;
       const mapped = mapTrestleToPrisma(raw);
       expect(mapped.internet_consumer_comment_yn).toBe(false);
@@ -1064,7 +1084,7 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
 
     it('honors explicit true on AVM and consumer-comment', () => {
       const mapped = mapTrestleToPrisma(
-        buildRawTrestle({
+        buildRawCotality({
           InternetAutomatedValuationDisplayYN: true,
           InternetConsumerCommentYN: true,
         })
@@ -1075,7 +1095,7 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
 
     it('honors explicit false on AVM and consumer-comment', () => {
       const mapped = mapTrestleToPrisma(
-        buildRawTrestle({
+        buildRawCotality({
           InternetAutomatedValuationDisplayYN: false,
           InternetConsumerCommentYN: false,
         })
@@ -1088,7 +1108,7 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
   describe('idx_display_yn derivation — null entire/address with no upstream block', () => {
     it('idx_display_yn is true when entire/address are null and Permission is IDX', () => {
       const mapped = mapTrestleToPrisma(
-        buildRawTrestle({
+        buildRawCotality({
           InternetEntireListingDisplayYN: null,
           InternetAddressDisplayYN: null,
           Permission: 'IDX',
@@ -1096,12 +1116,11 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
       );
       expect(mapped.idx_display_yn).toBe(true);
       expect(mapped.participant_only).toBe(false);
-      expect(mapped.owner_opt_out).toBe(false);
     });
 
     it('idx_display_yn is false when InternetEntireListingDisplayYN is explicitly false', () => {
       const mapped = mapTrestleToPrisma(
-        buildRawTrestle({
+        buildRawCotality({
           InternetEntireListingDisplayYN: false,
           Permission: 'IDX',
         })
@@ -1111,7 +1130,7 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
 
     it('idx_display_yn is false when Permission is Private (participant-only) — even with null entire/address', () => {
       const mapped = mapTrestleToPrisma(
-        buildRawTrestle({
+        buildRawCotality({
           InternetEntireListingDisplayYN: null,
           InternetAddressDisplayYN: null,
           Permission: 'Private',
@@ -1121,16 +1140,28 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
       expect(mapped.participant_only).toBe(true);
     });
 
-    it('idx_display_yn is false when Permission is OwnerOptOut — even with null entire/address', () => {
+    it('[Permission cutover 2026-10-02] Permission=OwnerOptOut no longer blocks the pure mapper output — it has no live Cotality signal and the mapper has no existing-row context to consult the real owner_opt_out column', () => {
       const mapped = mapTrestleToPrisma(
-        buildRawTrestle({
+        buildRawCotality({
           InternetEntireListingDisplayYN: null,
           InternetAddressDisplayYN: null,
           Permission: 'OwnerOptOut',
         })
       );
-      expect(mapped.idx_display_yn).toBe(false);
-      expect(mapped.owner_opt_out).toBe(true);
+      expect(mapped.idx_display_yn).toBe(true);
+      expect(mapped).not.toHaveProperty('owner_opt_out');
+    });
+
+    it('[Permission cutover 2026-10-02] applyLocalOwnerOptOutGate is what actually blocks an owner-opted-out row on UPDATE', () => {
+      const mapped = mapTrestleToPrisma(
+        buildRawCotality({
+          InternetEntireListingDisplayYN: null,
+          InternetAddressDisplayYN: null,
+          Permission: 'OwnerOptOut',
+        })
+      );
+      expect(applyLocalOwnerOptOutGate(mapped.idx_display_yn, true)).toBe(false);
+      expect(applyLocalOwnerOptOutGate(mapped.idx_display_yn, false)).toBe(true);
     });
   });
 });
@@ -1148,7 +1179,7 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
 //      - AVM / ConsumerComment / owner_opt_out / participant_only / closed-24h
 //        all unchanged (per-row signals, not pre-filtered)
 //
-//    Trestle-live records pass through `checkDistributionGates()` which
+//    Cotality-live records pass through `checkDistributionGates()` which
 //    forwards `idxPlusPreFiltered: true` to `evaluateDisplayGate()`. DB-row
 //    callers (db-to-public-dto, sitemap, listing-access-decision) keep the
 //    default fail-closed semantics — covered by the
@@ -1156,17 +1187,17 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
 //    block above.
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('checkDistributionGates — Trestle-live IDX Plus pre-filter semantics', () => {
+describe('checkDistributionGates — Cotality-live IDX Plus pre-filter semantics', () => {
   it('passes when InternetEntireListingDisplayYN is null (REBNY/Cotality pre-filter)', () => {
     const result = checkDistributionGates(
-      buildRawTrestle({ InternetEntireListingDisplayYN: null })
+      buildRawCotality({ InternetEntireListingDisplayYN: null })
     );
     expect(result.displayable).toBe(true);
     expect(result.reason).toBeUndefined();
   });
 
   it('passes when InternetEntireListingDisplayYN is undefined (key absent)', () => {
-    const raw = buildRawTrestle();
+    const raw = buildRawCotality();
     delete raw.InternetEntireListingDisplayYN;
     const result = checkDistributionGates(raw);
     expect(result.displayable).toBe(true);
@@ -1174,24 +1205,24 @@ describe('checkDistributionGates — Trestle-live IDX Plus pre-filter semantics'
 
   it('passes when InternetAddressDisplayYN is null (sub-gate IDX Plus pre-filter)', () => {
     const result = checkDistributionGates(
-      buildRawTrestle({ InternetAddressDisplayYN: null })
+      buildRawCotality({ InternetAddressDisplayYN: null })
     );
     expect(result.displayable).toBe(true);
   });
 
   it('still blocks when InternetEntireListingDisplayYN is explicitly false', () => {
     const result = checkDistributionGates(
-      buildRawTrestle({ InternetEntireListingDisplayYN: false })
+      buildRawCotality({ InternetEntireListingDisplayYN: false })
     );
     expect(result.displayable).toBe(false);
     expect(result.reason).toContain('Internet display disabled');
   });
 
-  it('still blocks when Permission = OwnerOptOut, even with null entire-listing flag', () => {
+  it('[Permission cutover 2026-10-02] still blocks via local owner_opt_out, even with null entire-listing flag', () => {
     const result = checkDistributionGates(
-      buildRawTrestle({
+      buildRawCotality({
         InternetEntireListingDisplayYN: null,
-        Permission: 'OwnerOptOut',
+        owner_opt_out: true,
       })
     );
     expect(result.displayable).toBe(false);
@@ -1200,7 +1231,7 @@ describe('checkDistributionGates — Trestle-live IDX Plus pre-filter semantics'
 
   it('still blocks when Permission = Private (participant-only), even with null entire-listing flag', () => {
     const result = checkDistributionGates(
-      buildRawTrestle({
+      buildRawCotality({
         InternetEntireListingDisplayYN: null,
         Permission: 'Private',
       })
@@ -1212,7 +1243,7 @@ describe('checkDistributionGates — Trestle-live IDX Plus pre-filter semantics'
   it('still blocks closed listings > 24 hours, even with null entire-listing flag', () => {
     const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
     const result = checkDistributionGates(
-      buildRawTrestle({
+      buildRawCotality({
         InternetEntireListingDisplayYN: null,
         StandardStatus: 'Closed',
         CloseDate: twoDaysAgo,
@@ -1231,7 +1262,7 @@ describe('evaluateDisplayGate — option flag preserves DB-row fail-closed defau
   // filterDisplayableDbListings tests.
 
   it('default (no options): blocks when InternetEntireListingDisplayYN is null', () => {
-    const result = evaluateDisplayGate(buildRawTrestle({
+    const result = evaluateDisplayGate(buildRawCotality({
       InternetEntireListingDisplayYN: null,
     }));
     expect(result.displayable).toBe(false);
@@ -1240,7 +1271,7 @@ describe('evaluateDisplayGate — option flag preserves DB-row fail-closed defau
 
   it('idxPlusPreFiltered: false (explicit): blocks when InternetEntireListingDisplayYN is null', () => {
     const result = evaluateDisplayGate(
-      buildRawTrestle({ InternetEntireListingDisplayYN: null }),
+      buildRawCotality({ InternetEntireListingDisplayYN: null }),
       { idxPlusPreFiltered: false }
     );
     expect(result.displayable).toBe(false);
@@ -1248,7 +1279,7 @@ describe('evaluateDisplayGate — option flag preserves DB-row fail-closed defau
 
   it('idxPlusPreFiltered: true: passes when InternetEntireListingDisplayYN is null', () => {
     const result = evaluateDisplayGate(
-      buildRawTrestle({ InternetEntireListingDisplayYN: null }),
+      buildRawCotality({ InternetEntireListingDisplayYN: null }),
       { idxPlusPreFiltered: true }
     );
     expect(result.displayable).toBe(true);
@@ -1256,7 +1287,7 @@ describe('evaluateDisplayGate — option flag preserves DB-row fail-closed defau
 
   it('idxPlusPreFiltered: true: passes when InternetAddressDisplayYN is null', () => {
     const result = evaluateDisplayGate(
-      buildRawTrestle({ InternetAddressDisplayYN: null }),
+      buildRawCotality({ InternetAddressDisplayYN: null }),
       { idxPlusPreFiltered: true }
     );
     expect(result.displayable).toBe(true);
@@ -1265,17 +1296,17 @@ describe('evaluateDisplayGate — option flag preserves DB-row fail-closed defau
 
   it('idxPlusPreFiltered: true: still blocks explicit InternetEntireListingDisplayYN=false', () => {
     const result = evaluateDisplayGate(
-      buildRawTrestle({ InternetEntireListingDisplayYN: false }),
+      buildRawCotality({ InternetEntireListingDisplayYN: false }),
       { idxPlusPreFiltered: true }
     );
     expect(result.displayable).toBe(false);
   });
 
-  it('idxPlusPreFiltered: true: still blocks Permission=OwnerOptOut', () => {
+  it('[Permission cutover 2026-10-02] idxPlusPreFiltered: true: still blocks local owner_opt_out', () => {
     const result = evaluateDisplayGate(
-      buildRawTrestle({
+      buildRawCotality({
         InternetEntireListingDisplayYN: null,
-        Permission: 'OwnerOptOut',
+        owner_opt_out: true,
       }),
       { idxPlusPreFiltered: true }
     );
@@ -1284,7 +1315,7 @@ describe('evaluateDisplayGate — option flag preserves DB-row fail-closed defau
 
   it('idxPlusPreFiltered: true: still blocks Permission=Private', () => {
     const result = evaluateDisplayGate(
-      buildRawTrestle({
+      buildRawCotality({
         InternetEntireListingDisplayYN: null,
         Permission: 'Private',
       }),

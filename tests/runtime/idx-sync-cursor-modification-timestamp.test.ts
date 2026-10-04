@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 /**
- * PR-S.6 (2026-05-15) — idx-sync cursor uses Trestle ModificationTimestamp.
+ * PR-S.6 (2026-05-15) — idx-sync cursor uses Cotality ModificationTimestamp.
  *
  * Background (proof chain, latest first):
  *
@@ -12,7 +12,7 @@
  *      `getLastSyncTimestamp()` was ordering by + returning
  *      `last_synced_from_trestle`, which is set to `new Date()`
  *      (local clock) at upsert (trestle-mapper.ts:1002), NOT the
- *      row's Trestle `ModificationTimestamp`. A capped batch
+ *      row's Cotality `ModificationTimestamp`. A capped batch
  *      advances the cursor to local NOW after only 500 records,
  *      and records 501..N — whose actual MT is older than NOW —
  *      are then EXCLUDED from the next run's `MT gt SINCE` filter.
@@ -142,14 +142,14 @@ describe('getLastSyncTimestamp · cursor uses modification_timestamp (PR-S.6)', 
     });
   });
 
-  describe('PR-S.7 — restricts cursor to Trestle-synced rows only', () => {
+  describe('PR-S.7 — restricts cursor to Cotality-synced rows only', () => {
     it("filters by `where: { last_synced_from_trestle: { not: null } }`", () => {
       // Without this filter the MAX(modification_timestamp) could pick
       // up a CRM-only listing's local-clock modification_timestamp
       // (e.g. app/api/crm/convert/route.ts:224 sets
       // `modification_timestamp: new Date()` and leaves
       // `last_synced_from_trestle` NULL). With the filter, only
-      // Trestle-sync writers (sync.ts:223, sync.ts:925, both setting
+      // Cotality-sync writers (sync.ts:223, sync.ts:925, both setting
       // `last_synced_from_trestle: mapped.last_synced_from_trestle`)
       // contribute to the MAX.
       expect(functionBody).toMatch(
@@ -159,7 +159,7 @@ describe('getLastSyncTimestamp · cursor uses modification_timestamp (PR-S.6)', 
 
     it("uses last_synced_from_trestle ONLY in the where clause, never in orderBy/select/return", () => {
       // The cursor VALUE must still be modification_timestamp (the
-      // Trestle row clock from raw.ModificationTimestamp, mapped at
+      // Cotality row clock from raw.ModificationTimestamp, mapped at
       // trestle-mapper.ts:949-951). last_synced_from_trestle is local
       // sync clock — using it for ordering/return would re-introduce
       // the local-clock-drift bug Codex identified on PR #138.
@@ -227,7 +227,7 @@ describe('getLastSyncTimestamp · cursor uses modification_timestamp (PR-S.6)', 
       // depends on this writer NEVER setting
       // last_synced_from_trestle on CRM-created rows; if a future
       // change accidentally adds the column write, those rows would
-      // start feeding the Trestle cursor (data loss class).
+      // start feeding the Cotality cursor (data loss class).
       const crmConvertPath = path.resolve(__dirname, '../../app/api/crm/convert/route.ts');
       const crmConvertSource = readFileSync(crmConvertPath, 'utf8');
       expect(crmConvertSource).toMatch(/modification_timestamp\s*:\s*new\s+Date\(\)/);
@@ -242,7 +242,7 @@ describe('getLastSyncTimestamp · cursor uses modification_timestamp (PR-S.6)', 
   describe('non-cursor write path preserved', () => {
     it("last_synced_from_trestle is still written on listing upsert (sync.ts:223)", () => {
       // The column stays on the model as a useful "when did we last
-      // touch this row from Trestle" audit signal — it just isn't
+      // touch this row from Cotality" audit signal — it just isn't
       // used as a sync cursor. Pin that the write didn't get removed
       // accidentally by this PR.
       expect(syncSource).toMatch(

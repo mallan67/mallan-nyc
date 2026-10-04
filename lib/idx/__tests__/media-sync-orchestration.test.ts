@@ -10,7 +10,7 @@
  *   - skip rules for owner_opt_out / participant_only / missing keys
  *   - hard caps (listingsPerRun, mediaPerListing)
  *
- * No live R2, no live Trestle, no live DB.
+ * No live R2, no live Cotality, no live DB.
  */
 
 import type {
@@ -155,8 +155,6 @@ function makeProperty(overrides: Partial<TrestleProperty> = {}): TrestleProperty
     ModificationTimestamp: "2026-05-08T11:30:00Z",
     StandardStatus: "Active",
     Permission: null,
-    Permissions: null,
-    MlsStatus: "Active",
     InternetEntireListingDisplayYN: true,
     InternetAddressDisplayYN: true,
     ...overrides,
@@ -321,22 +319,21 @@ describe("runMediaSync — empty page", () => {
 // ─── Defensive compliance gates ──────────────────────────────────────────
 
 describe("runMediaSync — defensive compliance gates", () => {
-  it("skips owner_opt_out listings (Permission='OwnerOptOut') without fetching their Media", async () => {
+  it("[Permission/Status closure 2026-10-02] does NOT skip on Permission='OwnerOptOut' any more — Gate 1 has no live Cotality signal (Permissions plural and MlsStatus are no longer even expressible on TrestleProperty — both removed from the type entirely, a stronger proof than a runtime check)", async () => {
     mockMediaSyncFindUnique.mockResolvedValue(null);
-    const fetchMedia = jest.fn();
+    mockListingMediaFindMany.mockResolvedValue([]);
+    const fetchMedia = jest.fn().mockResolvedValue([]);
     const fetchDeps = makeFetchDeps({
       fetchProperties: jest.fn().mockResolvedValueOnce([
         makeProperty({ Permission: "OwnerOptOut" }),
-        makeProperty({ ListingId: "RLS-OK", ListingKey: "K-OK" }),
+        makeProperty({ Permission: "Owner Opt-Out" }),
       ]),
       fetchMedia,
     });
 
     const result = await runMediaSync(makeOptions({ fetchDeps }));
-    expect(result.listings_skipped).toBe(1);
-    // Only the non-skipped listing's Media is fetched.
-    expect(fetchMedia).toHaveBeenCalledTimes(1);
-    expect((fetchMedia as jest.Mock).mock.calls[0][0]).toBe("K-OK");
+    expect(result.listings_skipped).toBe(0);
+    expect(fetchMedia).toHaveBeenCalledTimes(2);
   });
 
   it("skips participant_only listings (Permission='Private') without fetching their Media", async () => {
@@ -352,48 +349,6 @@ describe("runMediaSync — defensive compliance gates", () => {
     const result = await runMediaSync(makeOptions({ fetchDeps }));
     expect(result.listings_skipped).toBe(1);
     expect(result.listings_processed).toBe(0);
-    expect(fetchMedia).not.toHaveBeenCalled();
-  });
-
-  it("skips owner_opt_out via legacy plural Permissions enum without fetching Media", async () => {
-    mockMediaSyncFindUnique.mockResolvedValue(null);
-    const fetchMedia = jest.fn();
-    const fetchDeps = makeFetchDeps({
-      fetchProperties: jest.fn().mockResolvedValueOnce([
-        makeProperty({ Permissions: "OwnerOptOut" }),
-      ]),
-      fetchMedia,
-    });
-    const result = await runMediaSync(makeOptions({ fetchDeps }));
-    expect(result.listings_skipped).toBe(1);
-    expect(fetchMedia).not.toHaveBeenCalled();
-  });
-
-  it("skips owner_opt_out via 'Owner Opt-Out' alternate spelling", async () => {
-    mockMediaSyncFindUnique.mockResolvedValue(null);
-    const fetchMedia = jest.fn();
-    const fetchDeps = makeFetchDeps({
-      fetchProperties: jest.fn().mockResolvedValueOnce([
-        makeProperty({ Permission: "Owner Opt-Out" }),
-      ]),
-      fetchMedia,
-    });
-    const result = await runMediaSync(makeOptions({ fetchDeps }));
-    expect(result.listings_skipped).toBe(1);
-    expect(fetchMedia).not.toHaveBeenCalled();
-  });
-
-  it("skips owner_opt_out via MlsStatus='OwnerOptOut'", async () => {
-    mockMediaSyncFindUnique.mockResolvedValue(null);
-    const fetchMedia = jest.fn();
-    const fetchDeps = makeFetchDeps({
-      fetchProperties: jest.fn().mockResolvedValueOnce([
-        makeProperty({ MlsStatus: "OwnerOptOut" }),
-      ]),
-      fetchMedia,
-    });
-    const result = await runMediaSync(makeOptions({ fetchDeps }));
-    expect(result.listings_skipped).toBe(1);
     expect(fetchMedia).not.toHaveBeenCalled();
   });
 
@@ -511,7 +466,7 @@ describe("runMediaSync — per-listing failure isolation", () => {
     // New phased semantics:
     //   - Phase 1 source ingest succeeds for the listing → rows_failed stays 0
     //   - Phase 2 cursor advances for the listing
-    //   - Phase 3 R2 mirror fails (Trestle returns 500) → r2_failed=1
+    //   - Phase 3 R2 mirror fails (Cotality returns 500) → r2_failed=1
     //   - status='partial' because r2_failed > 0
     //   - The listing's cursor advance is NOT undone — it stays in cursorRecords.
     mockMediaSyncFindUnique.mockResolvedValue(null);
@@ -789,7 +744,7 @@ describe("runMediaSync — tombstoneVanished is TRUE on a complete paginated fet
       fetchProperties: jest.fn().mockResolvedValueOnce([
         makeProperty({ ListingId: "RLS-A", ListingKey: "K-A" }),
       ]),
-      // Mixed batch: MK-A active + MK-X is an explicit Trestle delete.
+      // Mixed batch: MK-A active + MK-X is an explicit Cotality delete.
       fetchMedia: jest.fn().mockResolvedValueOnce([
         makeMediaInput({ MediaKey: "MK-A" }),
         makeMediaInput({ MediaKey: "MK-X", MediaStatus: "Deleted" }),
@@ -908,19 +863,25 @@ describe("buildPropertyQuery", () => {
   // (ts set, key null) for the $select/$orderby/$top shape tests.
   const transition = { lastPhotosChange: TS, lastListingKey: null, fallbackSince: TS };
 
-  it("$select includes the canonical Trestle compliance fields Permission (singular) and MlsStatus", () => {
+  it("$select includes the canonical Cotality compliance field Permission (singular)", () => {
     const params = buildPropertyQuery(transition, 50);
     const select = params.get("$select") || "";
     const fields = select.split(",");
     expect(fields).toContain("Permission");
-    expect(fields).toContain("MlsStatus");
     expect(fields).toContain("InternetEntireListingDisplayYN");
     // Sanity — ListingKey + PhotosChangeTimestamp still selected.
     expect(fields).toContain("ListingKey");
     expect(fields).toContain("PhotosChangeTimestamp");
   });
 
-  it("$select does NOT include Permissions (plural) — Trestle returns HTTP 400 for that field", () => {
+  it("[Status/Permission closure 2026-10-02] $select does NOT include MlsStatus — zero remaining readers in this module", () => {
+    const params = buildPropertyQuery(transition, 50);
+    const select = params.get("$select") || "";
+    const fields = select.split(",");
+    expect(fields).not.toContain("MlsStatus");
+  });
+
+  it("$select does NOT include Permissions (plural) — Cotality returns HTTP 400 for that field", () => {
     // Regression guard for the 2026-05-09T07:00:25Z first-firing failure.
     const params = buildPropertyQuery(transition, 50);
     const select = params.get("$select") || "";
@@ -958,25 +919,28 @@ describe("isPropertyComplianceBlocked", () => {
     expect(isPropertyComplianceBlocked(makeProperty())).toBe(false);
   });
 
-  it("returns true for Permission='OwnerOptOut'", () => {
-    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "OwnerOptOut" }))).toBe(true);
-  });
-
-  it("returns true for Permission='Owner Opt-Out' (alternate spelling)", () => {
-    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "Owner Opt-Out" }))).toBe(true);
-  });
-
-  it("returns true for Permissions='OwnerOptOut' (legacy plural)", () => {
-    expect(isPropertyComplianceBlocked(makeProperty({ Permissions: "OwnerOptOut" }))).toBe(true);
+  it("[Permission/Status closure 2026-10-02] no longer blocks on Permission='OwnerOptOut' or 'Owner Opt-Out' — Gate 1 has no live Cotality signal (Permissions plural and MlsStatus are no longer even expressible on TrestleProperty — both removed from the type entirely)", () => {
+    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "OwnerOptOut" }))).toBe(false);
+    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "Owner Opt-Out" }))).toBe(false);
   });
 
   it("returns true for Permission='Private' (participant-only)", () => {
     expect(isPropertyComplianceBlocked(makeProperty({ Permission: "Private" }))).toBe(true);
   });
 
-  it("returns true for MlsStatus='OwnerOptOut'", () => {
-    expect(isPropertyComplianceBlocked(makeProperty({ MlsStatus: "OwnerOptOut" }))).toBe(true);
+  it("[Permission Multi-Enum cutover 2026-10-02] returns true for a combined live row (Permission='IDX,Private') -- exact member match, not whole-string equality", () => {
+    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "IDX,Private" }))).toBe(true);
+    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "Private,IDX" }))).toBe(true);
   });
+
+  it("[Permission Multi-Enum cutover 2026-10-02] returns false for Permission='IDX,SyndicateOptOut' (a different live combination, no Private member)", () => {
+    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "IDX,SyndicateOptOut" }))).toBe(false);
+  });
+
+  it("[Permission Multi-Enum cutover 2026-10-02] does NOT block on a substring match (Permission='PrivateSomething')", () => {
+    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "PrivateSomething" }))).toBe(false);
+  });
+
 
   it("returns true for InternetEntireListingDisplayYN === false", () => {
     expect(isPropertyComplianceBlocked(makeProperty({ InternetEntireListingDisplayYN: false }))).toBe(true);
@@ -1536,7 +1500,7 @@ describe("runMediaSync — Phase 3 failed-row isolation (Phase 4 bounded drain)"
 
 // ─── Phase 3 cross-invocation cooldown (added 2026-05-10) ────────────────
 //
-// Stale Trestle URLs (HTTP 404 forever) used to be retried 96×/day. Cooldown
+// Stale Cotality URLs (HTTP 404 forever) used to be retried 96×/day. Cooldown
 // throttles them to 4×/day by adding a `r2_last_attempt_at >= NOW() - 6h`
 // filter to the Phase 3 backlog query.
 

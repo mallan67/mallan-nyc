@@ -10,7 +10,7 @@
  * so null/undefined meant ADDRESS-VISIBLE. For a DB row that is fail-OPEN:
  * `lib/compliance/gates.ts:166-171` states DB-row callers leave
  * `idxPlusPreFiltered` at the default `false`, so a null flag must fail CLOSED.
- * (`idxPlusPreFiltered` is ONLY for raw Trestle records on the live
+ * (`idxPlusPreFiltered` is ONLY for raw Cotality records on the live
  * `/api/idx/search` path.)
  *
  * Worse, `ListingForUrl` carried neither `rls_eligible` nor

@@ -4,7 +4,7 @@
  * though Cotality had a live Public open house for #4D (ListingId RLS20099289, 2026-06-28).
  *
  * Root causes:
- *  - Trestle feed path gated with evaluateDisplayGate(prop) WITHOUT idxPlusPreFiltered, so the
+ *  - Cotality feed path gated with evaluateDisplayGate(prop) WITHOUT idxPlusPreFiltered, so the
  *    REBNY-pre-filtered null InternetEntireListingDisplayYN failed CLOSED and every feed open
  *    house was dropped (the 2026-04-30 incident shape).
  *  - Local path didn't select/honor rls_eligible, so a website-only Mallan exclusive's open house
@@ -18,7 +18,7 @@ const ROUTE = readFileSync(resolve(__dirname, '../../app/api/open-houses/route.t
 const CARD = readFileSync(resolve(__dirname, '../../app/components/OpenHousesList.tsx'), 'utf8');
 const SIDEBAR = readFileSync(resolve(__dirname, '../../app/components/ListingOpenHouseRSVP.tsx'), 'utf8');
 
-describe('open-houses — Trestle feed gate uses REBNY fail-OPEN (idxPlusPreFiltered)', () => {
+describe('open-houses — Cotality feed gate uses REBNY fail-OPEN (idxPlusPreFiltered)', () => {
   it('null InternetEntireListingDisplayYN is DISPLAYABLE under idxPlusPreFiltered (REBNY pre-filter)', () => {
     const g = evaluateDisplayGate(
       { StandardStatus: 'Active', InternetEntireListingDisplayYN: null },
@@ -40,7 +40,7 @@ describe('open-houses — Trestle feed gate uses REBNY fail-OPEN (idxPlusPreFilt
     expect(g.displayable).toBe(false);
   });
 
-  it('both Trestle gate call sites pass { idxPlusPreFiltered: true }', () => {
+  it('both Cotality gate call sites pass { idxPlusPreFiltered: true }', () => {
     const calls = ROUTE.match(/evaluateDisplayGate\(\s*prop[^)]*idxPlusPreFiltered:\s*true/g) || [];
     expect(calls.length).toBe(2);
     // and there is no remaining un-flagged evaluateDisplayGate(prop) on the feed path
@@ -56,7 +56,7 @@ describe('open-houses — local path honors website-only (rls_eligible=false) by
 });
 
 describe('open-houses — only ACTIVE Cotality open houses display (P1)', () => {
-  it('both Trestle feed filters require OpenHouseStatus eq Active (no cancelled OH)', () => {
+  it('both Cotality feed filters require OpenHouseStatus eq Active (no cancelled OH)', () => {
     const actives = ROUTE.match(/OpenHouseType eq 'Public' and OpenHouseStatus eq 'Active'/g) || [];
     expect(actives.length).toBe(2); // $expand path + flat fallback path
   });
@@ -82,7 +82,7 @@ describe('open-houses — page is scoped to MALLAN only (Cotality feed by office
     expect(ROUTE).not.toMatch(/import[\s\S]*?from\s*['"]@\/lib\/syndication/);
   });
 
-  it('resolves Mallan listing ids and scopes BOTH Trestle filters to them (no city-wide feed)', () => {
+  it('resolves Mallan listing ids and scopes BOTH Cotality filters to them (no city-wide feed)', () => {
     expect(ROUTE).toMatch(/fetchMallanListingRefs\(/);
     expect(ROUTE).toMatch(/if \(mallanIds\.length === 0\) return \[\]/);
     const scoped = ROUTE.match(/and \(\$\{listingScope\}\)/g) || [];
@@ -105,21 +105,21 @@ describe('open-houses — Property unwrapped from the OData expand ARRAY (the ha
 });
 
 describe('open-houses card — times render in Eastern (was UTC on Vercel → 4PM instead of noon)', () => {
-  it('formatTrestleTime pins timeZone America/New_York', () => {
+  it('formatCotalityTime pins timeZone America/New_York', () => {
     expect(ROUTE).toMatch(/toLocaleTimeString\('en-US',\s*\{[^}]*timeZone:\s*'America\/New_York'/);
   });
 });
 
 describe('open-houses card — primary photo resolved via the CANONICAL media resolver', () => {
   it('uses resolveListingMedia (DOCUMENT/floor-plan aware + proxies), not a raw getValidPhotoMedia pick', () => {
-    expect(ROUTE).toMatch(/async function resolveTrestlePrimaryPhoto\(/);
+    expect(ROUTE).toMatch(/async function resolveCotalityPrimaryPhoto\(/);
     // canonical resolver handles /Media/Property/DOCUMENT-* reclassification + proxying (Codex)
     expect(ROUTE).toMatch(/resolveListingMedia\(media\)\.find\(\(m\) => m\.class === 'photo'/);
     // must NOT bypass it with the raw photo-list pick
     expect(ROUTE).not.toMatch(/getValidPhotoMedia\(media\)\[0\]/);
-    const used = ROUTE.match(/await resolveTrestlePrimaryPhoto\(r\.ListingKey, r\.ListingId\)/g) || [];
+    const used = ROUTE.match(/await resolveCotalityPrimaryPhoto\(r\.ListingKey, r\.ListingId\)/g) || [];
     expect(used.length).toBe(2); // $expand path + flat fallback
-    // the hardcoded empty image must be gone from the Trestle DTOs
+    // the hardcoded empty image must be gone from the Cotality DTOs
     expect(ROUTE).not.toMatch(/image: '', \/\/ Will be filled by media proxy/);
   });
 });
@@ -153,7 +153,7 @@ describe('open-houses card — photo loads via native <img> (next/image optimize
 });
 
 describe('open-houses — By Appointment designation surfaces (public API + /open-houses card + sidebar)', () => {
-  it('API selects the Cotality appointment signal AppointmentRequiredYN (both Trestle paths)', () => {
+  it('API selects the Cotality appointment signal AppointmentRequiredYN (both feed paths)', () => {
     const sel = ROUTE.match(/AppointmentRequiredYN/g) || [];
     expect(sel.length).toBeGreaterThanOrEqual(2); // $expand $select + flat $select (+ DTO derivations)
   });
@@ -162,7 +162,7 @@ describe('open-houses — By Appointment designation surfaces (public API + /ope
     expect(derived.length).toBe(3); // $expand, flat, local
     expect(ROUTE).toMatch(/import\s*\{[\s\S]*?resolvePublicOpenHouseType[\s\S]*?\}\s*from\s*['"]@\/lib\/open-houses\/upcoming-open-houses['"]/);
   });
-  it('dedupe preserves By Appointment (a Public Trestle twin cannot erase it)', () => {
+  it('dedupe preserves By Appointment (a Public Cotality twin cannot erase it)', () => {
     expect(ROUTE).toMatch(/oh\.openHouseType === 'By Appointment' && twin\.openHouseType !== 'By Appointment'/);
     expect(ROUTE).toMatch(/twin\.openHouseType = 'By Appointment'/);
   });
@@ -174,5 +174,21 @@ describe('open-houses — By Appointment designation surfaces (public API + /ope
   it('listing-detail sidebar appends "· By Appointment" to the existing time line (RSVP unchanged)', () => {
     expect(SIDEBAR).toMatch(/oh\.openHouseType === 'By Appointment' \? `\$\{timeStr\} · By Appointment` : timeStr/);
     expect(SIDEBAR).toMatch(/<OpenHouseRSVP/); // RSVP button retained
+  });
+});
+
+describe('open-houses — live Property reads do not fetch unused MlsStatus (2026-10-03 Status residue cutover)', () => {
+  it('neither the $expand path nor the flat fallback $select requests MlsStatus (evaluateDisplayGate reads StandardStatus only)', () => {
+    // Check the actual OData field-list values, not the whole file's comment text -- the
+    // surrounding comments legitimately mention "MlsStatus" by name to document why it
+    // was removed (same convention as crm-idx-mapper.ts's surviving StandardStatus/
+    // MlsStatus comments).
+    const expandSelects = ROUTE.match(/\$select=[^)]*\)/g) || [];
+    const flatSelects = ROUTE.match(/\$select',\s*'[^']*'/g) || [];
+    expect(expandSelects.length).toBeGreaterThan(0);
+    expect(flatSelects.length).toBeGreaterThan(0);
+    for (const s of [...expandSelects, ...flatSelects]) {
+      expect(s).not.toMatch(/MlsStatus/);
+    }
   });
 });

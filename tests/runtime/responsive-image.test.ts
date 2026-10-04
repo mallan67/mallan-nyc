@@ -31,12 +31,12 @@ import {
 
 // The only two media hosts observed across 120 production listings.
 const R2 = 'https://pub-c05d6bb7575841e88a1f634081aaf714.r2.dev/listings/SL-0004/hero.webp';
-const TRESTLE = 'https://api.cotality.com/trestle/Media/1234.jpg';
+const COTALITY_MEDIA = 'https://api.cotality.com/trestle/Media/1234.jpg';
 
 describe('isOptimizableSource — EXACT host trust, no wildcards', () => {
   it('accepts exactly the two hosts observed in production', () => {
     expect(isOptimizableSource(R2)).toBe(true);
-    expect(isOptimizableSource(TRESTLE)).toBe(true);
+    expect(isOptimizableSource(COTALITY_MEDIA)).toBe(true);
     expect(OPTIMIZER_TRUSTED_HOSTS).toHaveLength(2);
   });
 
@@ -212,16 +212,16 @@ describe('unwrapProxiedMediaUrl — the path every real card photo takes', () =>
   // Measured on the preview 2026-07-31: 612 of 612 sampled card photos
   // were `/api/media/proxy?url=…`, zero were direct R2. Without this
   // unwrap the whole sizing change applies to nothing.
-  const PROXIED = `/api/media/proxy?url=${encodeURIComponent(TRESTLE)}`;
+  const PROXIED = `/api/media/proxy?url=${encodeURIComponent(COTALITY_MEDIA)}`;
 
   it('extracts the inner absolute URL from a proxied photo', () => {
-    expect(unwrapProxiedMediaUrl(PROXIED)).toBe(TRESTLE);
+    expect(unwrapProxiedMediaUrl(PROXIED)).toBe(COTALITY_MEDIA);
   });
 
   it('makes a proxied photo optimizable end-to-end', () => {
     const { src, srcSet } = buildImageSources(PROXIED);
     expect(srcSet).toBeDefined();
-    expect(src).toContain(encodeURIComponent(TRESTLE));
+    expect(src).toContain(encodeURIComponent(COTALITY_MEDIA));
     expect(src).not.toContain('media%2Fproxy');
   });
 

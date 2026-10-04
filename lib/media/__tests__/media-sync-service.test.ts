@@ -35,7 +35,7 @@ describe("media sync service", () => {
   });
 
   // ══ #575 — Order is presentation, MediaKey is identity ══════════════════
-  // Trestle reassigns `Order` whenever a gallery is reordered. Keying on it
+  // Cotality reassigns `Order` whenever a gallery is reordered. Keying on it
   // meant an UNCHANGED asset got a new key after a reorder, so identical bytes
   // were re-uploaded under a new name and the old object was orphaned — one
   // duplicate per reorder, forever.
@@ -146,7 +146,7 @@ describe("media sync service", () => {
       expect(result.copied).toBe(0);
 
       // FAIL-CLOSED means NO WORK, not merely "no upload". A MediaKey-less item
-      // must not reach R2 or Trestle at all: no HEAD probe against a guessed
+      // must not reach R2 or Cotality at all: no HEAD probe against a guessed
       // key, no token minted, no media fetched, no object written. Counters
       // alone would still pass if the code probed R2 with an Order-derived key
       // and merely declined to upload — these four pin that it does not.
@@ -259,7 +259,7 @@ describe("media sync service", () => {
       expect(existsInR2).toHaveBeenCalledWith("photos/R123456/1.jpg");
     });
 
-    it("getMediaKey reads both Trestle and DB spellings, else null", () => {
+    it("getMediaKey reads both Cotality and DB spellings, else null", () => {
       expect(getMediaKey({ MediaKey: "MK-1" })).toBe("MK-1");
       expect(getMediaKey({ media_key: "MK-2" })).toBe("MK-2");
       expect(getMediaKey({ MediaKey: "  MK-3  " })).toBe("MK-3");
@@ -272,7 +272,7 @@ describe("media sync service", () => {
   });
 
   // ── classifyTrestleMediaCategory — fixes the floor-plan-as-photo bug ──
-  // Trestle's actual MediaCategory enum value is "FloorPlan" (no space).
+  // Cotality's actual MediaCategory enum value is "FloorPlan" (no space).
   // The previous string check `cat.includes("floor plan")` (with space) on
   // a lowercased "floorplan" returned false, causing every FloorPlan media
   // item to be mis-classified as "Photo". The mis-classified items then
@@ -282,7 +282,7 @@ describe("media sync service", () => {
   // `lib/media/listing-media-resolver.ts:classifyMediaItem` heuristics on
   // the writer side.
   describe("classifyTrestleMediaCategory", () => {
-    it('returns "FloorPlan" for the actual Trestle enum value "FloorPlan" (no space)', () => {
+    it('returns "FloorPlan" for the actual Cotality enum value "FloorPlan" (no space)', () => {
       expect(classifyTrestleMediaCategory("FloorPlan")).toBe("FloorPlan");
     });
 
@@ -318,7 +318,7 @@ describe("media sync service", () => {
       expect(classifyTrestleMediaCategory("")).toBe("Photo");
     });
 
-    it('treats any non-recognised string as "Photo" (Trestle default convention)', () => {
+    it('treats any non-recognised string as "Photo" (Cotality default convention)', () => {
       expect(classifyTrestleMediaCategory("Unknown")).toBe("Photo");
       expect(classifyTrestleMediaCategory("Other")).toBe("Photo");
     });

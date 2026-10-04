@@ -51,7 +51,7 @@
         };
         
         // ═══════════════════════════════════════════════════════════
-        // CRM → RESO MlsStatus MAPPING
+        // CRM → Cotality MlsStatus MAPPING
         // ═══════════════════════════════════════════════════════════
         
         var CRM_TO_RESO_STATUS = {
@@ -233,7 +233,7 @@
         }
         
         // ═══════════════════════════════════════════════════════════
-        // DATE CROSS-VALIDATION (REBNY / Trestle Requirements)
+        // DATE CROSS-VALIDATION (REBNY Requirements)
         // ═══════════════════════════════════════════════════════════
         
         function validateDates() {

@@ -1,51 +1,47 @@
 # Third-Party & Feed Governance
 
-> **Feed:** REBNY RLS via Trestle (Cotality) | **LMP:** RealPlus (listing input to RLS) | **IDX Display:** Trestle IDX Plus WebAPI (read-only on mallan.nyc)
+> **Feed:** REBNY RLS via the Cotality API | **LMP:** RealPlus (listing input to RLS) | **IDX Display:** Cotality IDX Plus Web API (read-only on mallan.nyc)
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 
 ---
 
-> ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
-> 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+> ### AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
+> 1. **NY law/DOS, Fair Housing and REBNY rules (UCBA 2026, REBNY Listing Service)** govern use, display and conduct. 2. **The live Cotality API** is the only authority for provider fields, values and picklists (`data/cotality-enums.live.json` is its committed copy).
+> 3. **Mallan business rules** govern how verified facts are used; Mallan-created fields (mostly commercial and private-listing fields) are Mallan facts, never presented as provider data, and can restrict but never override a law/REBNY/provider display restriction (Master §0.2, §4, §21.1). 4. **Fail closed = NON-DISPLAY.** Plan: `MALLAN-PLATFORM-MASTER-PLAN.md`; state: `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md`.
 
 ---
 
-## 1. Trestle / Cotality (Primary Feed Provider)
+## 1. Cotality (Primary Feed Provider)
 
 ### Connection Details
 
 | Parameter | Value |
 |-----------|-------|
-| Provider | Cotality (formerly CoreLogic, rebranded Mar 2025) |
-| Platform | Trestle |
+| Provider | Cotality |
+| Platform | Cotality Web API (OData) |
 | Data API | `api.cotality.com/trestle/odata/` |
 | Auth endpoint | `api.cotality.com/trestle/oidc/connect/token` |
 | Support | trestlesupport@cotality.com |
-| Documentation | trestle-documentation.corelogic.com (may migrate) |
+| Documentation | Current Cotality provider documentation (confirm the URL with Cotality support) |
 | Protocol | RESO Web API (OData) |
 | Authentication | OAuth 2.0 (client credentials) |
 
-### API Migration (Deadline: March 31, 2026)
+### Base URL and Authentication
 
-- Old URL (DEPRECATED): `api-trestle.corelogic.com` / `api-prod.corelogic.com`
-- New URL (REQUIRED): `api.cotality.com/trestle/`
-- **Hard deadline: March 31, 2026** — old URLs will cease functioning after this date
-- Media/photo URLs: Old URLs work through 2026 warranty period, but new development must use `api.cotality.com/trestle/media/...`
-- **Extra quota boost** available on new endpoint — contact Cotality to enable
-- Authentication: Same OAuth2 flow — no credential changes required
-- Store API base URL as environment variable (`TRESTLE_API_URL=https://api.cotality.com/trestle`) — never hardcode
-- **v3.3 enforcement:** CI deployment fails if `api-trestle.corelogic.com` or `api-prod.corelogic.com` detected in codebase. Go-Live gate #21 requires 0 deprecated URLs + successful live API call. See Master Audit Report Section AR.
+- Base URL: `api.cotality.com/trestle/`
+- Store the base URL as an environment variable (`TRESTLE_API_URL=https://api.cotality.com/trestle`) — never hardcode. Runtime OAuth: `lib/idx/auth.ts` (Master §0.1).
+- Media/photo URLs use `api.cotality.com/trestle/media/...`.
+- The provider host migration (deadline March 31, 2026) is complete. The retired provider hosts are blocked in code by `scripts/ci/guardrails.mjs`. They remain only as a temporary frozen public-search dependency: the media proxy allowlist (`lib/media/proxy-url-policy.ts`) and the frozen listing routes still accept them for legacy photo URLs through the 2026 warranty period, until the public-search Cotality conversion removes them.
 
-### ⚠️ TRESTLE MEDIA API RULES — VENDOR-CONFIRMED (2026-04-07)
+### ⚠️ COTALITY MEDIA API RULES — VENDOR-CONFIRMED (2026-04-07)
 
-> **Source:** Direct feedback from CoreLogic/Trestle (Cotality) support.
+> **Source:** Direct feedback from Cotality support.
 > **Classification:** MANDATORY — these rules govern all Media resource queries in the codebase.
 
 | # | Rule | Rationale | Enforcement |
 |---|------|-----------|-------------|
 | 1 | **Use `ResourceRecordKey` (or `ResourceRecordKeyNumeric`), NOT `ResourceRecordID`** | `ResourceRecordID` can be duplicated across MLOs (Multiple Listing Organizations). `ResourceRecordKey`/`Numeric` are always unique. Using `ResourceRecordID` risks returning wrong media for a listing. | All batch Media OData queries filter by `ResourceRecordKey`. DB column `mls_id` (Listing model) stores `ListingKey` = `ResourceRecordKey`. Fallback to `ResourceRecordID` only when `mls_id` is null. |
-| 2 | **`Media/All` endpoint is DEPRECATED** | Trestle is removing `Media/All`. | Query `/odata/Media` with explicit `$filter`. No `Media/All` usage exists in codebase (verified). |
+| 2 | **`Media/All` endpoint is DEPRECATED** | Cotality is removing `Media/All`. | Query `/odata/Media` with explicit `$filter`. No `Media/All` usage exists in codebase (verified). |
 | 3 | **Use `Media.ModificationTimestamp` for individual media changes** | Source of truth for when a specific photo/floorplan was added, modified, or removed. | Included in `$expand=Media($select=...,ModificationTimestamp,ResourceRecordKey)` and batch `$select`. |
 | 4 | **Use `Property.PhotosChangeTimestamp` as media change trigger** | High-level signal on the Property resource — modified when ANY media for that listing changes. Cheaper than querying Media for every listing. | Included in `CARD_SELECT_FIELDS` (`card-fields.ts`). Available for backfill optimization. |
 
@@ -54,24 +50,7 @@
 - Property.`ListingKeyNumeric` = Media.`ResourceRecordKeyNumeric` (numeric, always unique)
 - Property.`ListingId` = Media.`ResourceRecordID` (string, **NOT guaranteed unique across MLOs**)
 
-**Files enforcing these rules (17 total — deep-audited 2026-04-07):**
-- **Production (7):** `lib/idx/sync.ts`, `lib/idx/fetch.ts`, `lib/idx/card-fields.ts`, `app/api/media/batch/route.ts`, `app/api/agents/[slug]/listings/route.ts`, `app/api/idx/search/route.ts`, `scripts/import-closed-from-trestle.ts`
-- **Utility (3):** `scripts/rebuild-past-deals.js`, `scripts/fetch-real-photos.js`, `scripts/trestle-audit.js`
-- **Test/diagnostic (7):** `scripts/test-media-coverage.js`, `scripts/test-media-fix.js`, `scripts/test-photos.js`, `scripts/test-media-types.js`, `scripts/time-pipeline.js`, `scripts/test-media-public.js`, `scripts/test-media-cats.js`
-
----
-
-### Field/value renames in the live feed
-
-These field/value names are what the live `api.cotality.com/trestle` feed returns:
-
-| Change | Detail |
-|--------|--------|
-| PropertySubType rename | "Quadraplex" → "Four Or More Units" |
-| Interior features relocated | "Intercom" → OtherEquipment, "Office" → RoomType |
-| Lookup corrections | "Lightning" → "Lighting", "Cathedral Ceilings" → "Cathedral Ceiling(s)" |
-| New fields | CoBuyerAgent*, CoListAgent*, BackOnMarketTimestamp, ExpirationDate |
-| CurrentPrice | Separated from ListPrice (new field) |
+**Where these rules are enforced:** `lib/idx/sync.ts`, `lib/idx/media-sync.ts`, `lib/idx/fetch.ts`, `lib/idx/card-fields.ts`, `app/api/media/batch/route.ts`, `app/api/agents/[slug]/listings/route.ts`, `app/api/idx/search/route.ts`, and the agent past-deals script `scripts/import-closed-from-trestle.ts` (`scripts/rebuild-past-deals.js` was removed in the same batch). Re-check with `git grep ResourceRecordKey` before relying on this list.
 
 ---
 
@@ -82,7 +61,7 @@ These field/value names are what the live `api.cotality.com/trestle` feed return
 - mallan.nyc uses IDX Plus feed for: **(1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting**
 - mallan.nyc does NOT submit listings to the RLS and is NOT an LMP
 - RealPlus is the LMP (listing input to RLS). REBNY does not grant LMP licenses to individual brokers.
-- mallan.nyc reads listings via Trestle IDX Plus WebAPI (Trestle-11371-20) — **IDX-released fields and IDX-eligible inventory only (not full-market search)**
+- mallan.nyc reads listings via the Cotality IDX Plus Web API (licence Trestle-11371-20) — **IDX-released fields and IDX-eligible inventory only (not full-market search)**
 - All client communication (emails, portals, CRM) runs through mallan.nyc directly — client data never passes through RealPlus or third parties
 - Agents use RealPlus for full RLS inventory search and listing submission
 
@@ -90,7 +69,7 @@ These field/value names are what the live `api.cotality.com/trestle` feed return
 
 | Feature | Description |
 |---------|-------------|
-| Listing entry | Full form with all 902 IDX Plus fields |
+| Listing entry | Sale and rental listing forms (Sale Redesign, Rental Redesign; provider fields to be verified against the live Cotality API in their Cotality conversion) |
 | Photo management | Upload, sort, manage listing photos |
 | Distribution controls | IDX, Syndication, Permissions toggles |
 | Status management | Status changes with date tracking |
@@ -99,7 +78,7 @@ These field/value names are what the live `api.cotality.com/trestle` feed return
 
 ### Contact
 
-- Via Trestle/Cotality support (trestlesupport@cotality.com)
+- Via Cotality support (trestlesupport@cotality.com)
 - For REBNY fee field enablement: contact REBNY RLS Support
 
 ---
@@ -124,9 +103,9 @@ These field/value names are what the live `api.cotality.com/trestle` feed return
 
 ---
 
-## 4. Syndication Portals (via Trestle)
+## 4. Syndication Portals (via Cotality)
 
-### Active Trestle Opt-In Portals
+### Active Cotality Opt-In Portals
 
 | Portal | Cost | Status | Notes |
 |--------|------|--------|-------|
@@ -134,8 +113,8 @@ These field/value names are what the live `api.cotality.com/trestle` feed return
 | Samaki.com | Free | **Opted IN** | NYC focused |
 | TBI Listings | Free | **Opted IN** | NYC focused |
 
-- 19 SyndicateTo values exist in Trestle, but only 3 are active for REBNY
-- Principal Broker selects vendors via Trestle portal
+- The live `SyndicateTo` enum lists the provider's portal values (`data/cotality-enums.live.json`); only 3 portals are active for REBNY
+- Principal Broker selects vendors via the Cotality vendor portal
 - All 3 are opted IN for Mallan Real Estate
 
 ### Syndication Control
@@ -185,11 +164,11 @@ REBNY confirmed (Michaela Parker, mparker@rebny.com, 2026-03-27) that the IDX Pl
 
 ### Direct Data License (Future Option)
 
-A direct data license (like Compass) would upgrade from IDX Plus to full RLS read access through the same Trestle API. This would add PrivateRemarks, ShowingInstructions, and non-IDX-eligible listings to the CRM. Not currently needed for authorized CRM use, but would eliminate the need for RealPlus for agent search.
+A direct data license (like Compass) would upgrade from IDX Plus to full RLS read access through the same Cotality API. This would add PrivateRemarks, ShowingInstructions, and non-IDX-eligible listings to the CRM. Not currently needed for authorized CRM use, but would eliminate the need for RealPlus for agent search.
 
 ### Connect NYC (Separate Product)
 
-Connect NYC is a separate REBNY building database product (1M+ buildings). It does NOT replace the Trestle IDX Plus WebAPI. They are independent services.
+Connect NYC is a separate REBNY building database product (1M+ buildings). It does NOT replace the Cotality IDX Plus Web API. They are independent services.
 
 ---
 
@@ -231,7 +210,7 @@ Per UCBA Art. III and Art. VIII:
 |----------|--------|
 | Server-side only access | Security |
 | Attribution on all displays | H1, F6 |
-| Update timestamps | RESO IDX Rules |
+| Update timestamps | IDX display practice — source not yet verified (no UCBA 2026 citation) |
 | Respect all 6 distribution gates | Gates 1-6 |
 | Respect address suppression | H10, InternetAddressDisplayYN |
 | Statistical data disclaimer | H8 |
@@ -258,6 +237,6 @@ Per UCBA Art. III and Art. VIII:
 |--------|---------|------------|
 | Vercel | Hosting | SOC 2, GDPR |
 | Cloudflare R2 | Image storage | SOC 2, ISO 27001 |
-| Cotality/Trestle | RLS data feed | RESO certified, REBNY authorized |
+| Cotality | RLS data feed (IDX Plus Web API) | REBNY authorized |
 | mallan.nyc | IDX Plus: public display + internal CRM + reporting (NOT an LMP — does not submit to RLS). IDX-eligible inventory only, not full-market. | REBNY authorized (confirmed 2026-03-27) |
 | PostgreSQL (managed) | Database | Per provider (e.g., Supabase, Neon) |

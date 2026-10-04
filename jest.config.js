@@ -38,8 +38,6 @@ module.exports = {
     // lib/middleware (ts-jest) — rate-limiter bucket separation (unsubscribe GET
     // vs POST quotas so scanner GET traffic can't drain the POST unsubscribe quota).
     '<rootDir>/lib/middleware/jest.config.js',
-    // lib/rls-validator tests (ts-jest) — commented out: config missing
-    // '<rootDir>/lib/rls-validator/jest.config.js',
     // ── Configs wired in 2026-08-07 after a full jest-config audit ──────────
     // CI runs ONLY `npx jest --ci --forceExit` (.github/workflows/pr-check.yml:135),
     // i.e. root Jest. Any per-directory jest.config.js absent from THIS list is

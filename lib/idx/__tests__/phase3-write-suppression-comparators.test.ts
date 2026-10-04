@@ -8,8 +8,8 @@
  * Material identity rules proven here:
  *   - `last_synced_from_trestle` (local fetch wall-clock) is NEVER material.
  *   - Prisma-managed `updated_at`/`created_at` are NEVER material.
- *   - `modification_timestamp` (the Trestle source-revision clock) IS material.
- *   - Rotating Trestle/Cotality signed MediaURLs are NEVER material identity
+ *   - `modification_timestamp` (the Cotality source-revision clock) IS material.
+ *   - Rotating Cotality signed MediaURLs are NEVER material identity
  *     (same lesson as PR #547's media-row comparator — do not duplicate that
  *     comparator; this one covers the LEGACY `listings.media` JSON batch path).
  *   - Unknown/unverifiable fields FAIL CLOSED → treated as changed → write.
@@ -216,27 +216,27 @@ describe("listingUpdateMateriallyUnchanged — listings upsert identity", () => 
     expect(LISTING_NON_MATERIAL_UPDATE_FIELDS.has("last_synced_from_trestle")).toBe(true);
     expect(LISTING_NON_MATERIAL_UPDATE_FIELDS.has("updated_at")).toBe(true);
     expect(LISTING_NON_MATERIAL_UPDATE_FIELDS.has("created_at")).toBe(true);
-    // The Trestle source-revision clock is MATERIAL — never excluded.
+    // The Cotality source-revision clock is MATERIAL — never excluded.
     expect(LISTING_NON_MATERIAL_UPDATE_FIELDS.has("modification_timestamp")).toBe(false);
   });
 });
 
 describe("mediaArraysMateriallyEqual — legacy listings.media batch identity", () => {
   // Same asset, same provider origin+path — only the signed query rotates.
-  const trestleA = (n: number) =>
+  const cotalityA = (n: number) =>
     `https://api.cotality.com/trestle/Media/x/${n}.jpg?sig=AAAA`;
-  const trestleB = (n: number) =>
+  const cotalityB = (n: number) =>
     `https://api.cotality.com/trestle/Media/x/${n}.jpg?sig=BBBB-rotated`;
   const r2 = (n: number) => `https://media.mallan.nyc/photos/L1/${n}.jpg`;
 
   it("same count/type/order + same provider origin/path with ROTATED signature → EQUAL (only the signature is non-identity)", () => {
     const stored = [
-      { url: trestleA(0), mediaType: "Photo", order: -1 },
-      { url: trestleA(1), mediaType: "Photo", order: 1 },
+      { url: cotalityA(0), mediaType: "Photo", order: -1 },
+      { url: cotalityA(1), mediaType: "Photo", order: 1 },
     ];
     const next = [
-      { url: trestleB(0), mediaType: "Photo", order: -1 },
-      { url: trestleB(1), mediaType: "Photo", order: 1 },
+      { url: cotalityB(0), mediaType: "Photo", order: -1 },
+      { url: cotalityB(1), mediaType: "Photo", order: 1 },
     ];
     expect(mediaArraysMateriallyEqual(stored, next)).toBe(true);
   });
@@ -260,70 +260,70 @@ describe("mediaArraysMateriallyEqual — legacy listings.media batch identity", 
   });
 
   it("stable MediaKey wins when BOTH sides carry it: same key + rotated URL → EQUAL; different key → CHANGED", () => {
-    const storedSame = [{ url: trestleA(0), mediaKey: "MK-1", mediaType: "Photo", order: 0 }];
-    const nextSame = [{ url: trestleB(0), mediaKey: "MK-1", mediaType: "Photo", order: 0 }];
+    const storedSame = [{ url: cotalityA(0), mediaKey: "MK-1", mediaType: "Photo", order: 0 }];
+    const nextSame = [{ url: cotalityB(0), mediaKey: "MK-1", mediaType: "Photo", order: 0 }];
     expect(mediaArraysMateriallyEqual(storedSame, nextSame)).toBe(true);
 
-    const storedDiff = [{ url: trestleA(0), mediaKey: "MK-1", mediaType: "Photo", order: 0 }];
-    const nextDiff = [{ url: trestleA(0), mediaKey: "MK-2", mediaType: "Photo", order: 0 }];
+    const storedDiff = [{ url: cotalityA(0), mediaKey: "MK-1", mediaType: "Photo", order: 0 }];
+    const nextDiff = [{ url: cotalityA(0), mediaKey: "MK-2", mediaType: "Photo", order: 0 }];
     expect(mediaArraysMateriallyEqual(storedDiff, nextDiff)).toBe(false);
   });
 
   it("true insert (count grows) → NOT equal", () => {
-    const stored = [{ url: trestleA(0), mediaType: "Photo", order: 0 }];
+    const stored = [{ url: cotalityA(0), mediaType: "Photo", order: 0 }];
     const next = [
-      { url: trestleB(0), mediaType: "Photo", order: 0 },
-      { url: trestleB(1), mediaType: "Photo", order: 1 },
+      { url: cotalityB(0), mediaType: "Photo", order: 0 },
+      { url: cotalityB(1), mediaType: "Photo", order: 1 },
     ];
     expect(mediaArraysMateriallyEqual(stored, next)).toBe(false);
   });
 
   it("deletion (count shrinks) → NOT equal", () => {
     const stored = [
-      { url: trestleA(0), mediaType: "Photo", order: 0 },
-      { url: trestleA(1), mediaType: "Photo", order: 1 },
+      { url: cotalityA(0), mediaType: "Photo", order: 0 },
+      { url: cotalityA(1), mediaType: "Photo", order: 1 },
     ];
-    const next = [{ url: trestleB(0), mediaType: "Photo", order: 0 }];
+    const next = [{ url: cotalityB(0), mediaType: "Photo", order: 0 }];
     expect(mediaArraysMateriallyEqual(stored, next)).toBe(false);
   });
 
   it("ordering change → NOT equal", () => {
     const stored = [
-      { url: trestleA(0), mediaType: "Photo", order: 0 },
-      { url: trestleA(1), mediaType: "Photo", order: 1 },
+      { url: cotalityA(0), mediaType: "Photo", order: 0 },
+      { url: cotalityA(1), mediaType: "Photo", order: 1 },
     ];
     const next = [
-      { url: trestleB(0), mediaType: "Photo", order: 1 },
-      { url: trestleB(1), mediaType: "Photo", order: 0 },
+      { url: cotalityB(0), mediaType: "Photo", order: 1 },
+      { url: cotalityB(1), mediaType: "Photo", order: 0 },
     ];
     expect(mediaArraysMateriallyEqual(stored, next)).toBe(false);
   });
 
   it("hero change (preferred order -1 moves) → NOT equal", () => {
     const stored = [
-      { url: trestleA(0), mediaType: "Photo", order: -1 },
-      { url: trestleA(1), mediaType: "Photo", order: 1 },
+      { url: cotalityA(0), mediaType: "Photo", order: -1 },
+      { url: cotalityA(1), mediaType: "Photo", order: 1 },
     ];
     const next = [
-      { url: trestleB(0), mediaType: "Photo", order: 0 },
-      { url: trestleB(1), mediaType: "Photo", order: -1 },
+      { url: cotalityB(0), mediaType: "Photo", order: 0 },
+      { url: cotalityB(1), mediaType: "Photo", order: -1 },
     ];
     expect(mediaArraysMateriallyEqual(stored, next)).toBe(false);
   });
 
   it("media_type change (Photo → FloorPlan) → NOT equal", () => {
-    const stored = [{ url: trestleA(0), mediaType: "Photo", order: 0 }];
-    const next = [{ url: trestleB(0), mediaType: "FloorPlan", order: 0 }];
+    const stored = [{ url: cotalityA(0), mediaType: "Photo", order: 0 }];
+    const next = [{ url: cotalityB(0), mediaType: "FloorPlan", order: 0 }];
     expect(mediaArraysMateriallyEqual(stored, next)).toBe(false);
   });
 
-  it("delivery-state change (stored R2 URL vs incoming Trestle URL) → NOT equal", () => {
+  it("delivery-state change (stored R2 URL vs incoming Cotality URL) → NOT equal", () => {
     const stored = [{ url: r2(0), mediaType: "Photo", order: 0 }];
-    const next = [{ url: trestleB(0), mediaType: "Photo", order: 0 }];
+    const next = [{ url: cotalityB(0), mediaType: "Photo", order: 0 }];
     expect(mediaArraysMateriallyEqual(stored, next)).toBe(false);
   });
 
-  it("stable non-Trestle URLs compare exactly", () => {
+  it("stable non-Cotality URLs compare exactly", () => {
     const stored = [{ url: r2(0), mediaType: "Photo", order: 0 }];
     expect(
       mediaArraysMateriallyEqual(stored, [{ url: r2(0), mediaType: "Photo", order: 0 }]),
@@ -334,7 +334,7 @@ describe("mediaArraysMateriallyEqual — legacy listings.media batch identity", 
   });
 
   it("fail-closed: stored media not an array / malformed rows → NOT equal (write proceeds)", () => {
-    const next = [{ url: trestleB(0), mediaType: "Photo", order: 0 }];
+    const next = [{ url: cotalityB(0), mediaType: "Photo", order: 0 }];
     expect(mediaArraysMateriallyEqual(null, next)).toBe(false);
     expect(mediaArraysMateriallyEqual({ PhotosCount: 3 }, next)).toBe(false);
     expect(mediaArraysMateriallyEqual(["not-an-object"], next)).toBe(false);

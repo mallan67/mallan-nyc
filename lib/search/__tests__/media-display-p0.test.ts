@@ -131,11 +131,11 @@ describe("Media Display P0", () => {
     expect(countPhotoMedia(media)).toBe(1);
   });
 
-  // ── B1 fix (2026-05-08): Trestle DOCUMENT-* URL goes through resolver →
+  // ── B1 fix (2026-05-08): Cotality DOCUMENT-* URL goes through resolver →
   // gets reclassified as FloorPlan → card helpers correctly exclude it ──
 
   it("countPhotoMedia excludes a DOCUMENT-Gif URL after going through resolveListingMedia (mediaType reclassified)", () => {
-    // Production scenario: DB row has mediaType="Photo" but URL is Trestle's
+    // Production scenario: DB row has mediaType="Photo" but URL is Cotality's
     // DOCUMENT-Gif (FloorPlan). resolveListingMedia re-classifies via URL.
     const resolved = resolveListingMedia([
       {

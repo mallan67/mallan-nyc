@@ -8,7 +8,8 @@
  */
 
 import type { IDXListing } from './types';
-import { RESO_TO_RLS_RENAMES, ALL_RLS_FIELDS, REQUIRED_RLS_FIELDS } from './trestle-mapper';
+import { REQUIRED_RLS_FIELDS } from './trestle-mapper';
+import { readCotalityStandardStatus, hasCotalityListingPermission, readCotalityPropertySubType, readCotalityCommonInterest } from '@/lib/cotality/property';
 import { normalizeStreetCase } from './normalize-street-case';
 import { classifyTrestleMediaCategory } from '@/lib/media/media-sync-service';
 
@@ -253,79 +254,70 @@ export const FIELD_MAP: Record<string, string> = {
 };
 
 /**
- * Map raw RESO/Trestle response to internal IDXListing type.
- * Handles RESO-to-RLS renames and field normalization.
+ * Map a raw Cotality Property record to the internal IDXListing type.
  */
 export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | null {
-  // Apply renames
-  const normalized = { ...raw };
-  for (const [rlsName, canonicalName] of Object.entries(RESO_TO_RLS_RENAMES)) {
-    if (rlsName in normalized && !(canonicalName in normalized)) {
-      normalized[canonicalName] = normalized[rlsName];
-    }
-  }
-
-  const listingId = String(normalized.ListingId || normalized.ListingKey || '');
+  const listingId = String(raw.ListingId || raw.ListingKey || '');
   if (!listingId) return null;
-  const listingKeyNumeric = normalized.ListingKeyNumeric ? Number(normalized.ListingKeyNumeric) : undefined;
+  const listingKeyNumeric = raw.ListingKeyNumeric ? Number(raw.ListingKeyNumeric) : undefined;
 
   // Compose full street name from RESO address components:
   // StreetDirPrefix (e.g. "East") + StreetName (e.g. "83rd") + StreetSuffix (e.g. "Street") + StreetDirSuffix
   const streetNameParts = [
-    normalized.StreetDirPrefix,
-    normalized.StreetName,
-    normalized.StreetSuffix,
-    normalized.StreetDirSuffix,
+    raw.StreetDirPrefix,
+    raw.StreetName,
+    raw.StreetSuffix,
+    raw.StreetDirSuffix,
   ].filter(Boolean).map(String);
   const fullStreetName = normalizeStreetCase(streetNameParts.join(' ') || '');
 
   const addr = {
-    streetNumber: String(normalized.StreetNumber || ''),
+    streetNumber: String(raw.StreetNumber || ''),
     streetName: fullStreetName,
-    unitNumber: normalized.UnitNumber ? String(normalized.UnitNumber) : null,
-    city: String(normalized.City || ''),
-    cityRegion: normalized.SubdivisionName ? String(normalized.SubdivisionName) :
-      (normalized.CityRegion ? String(normalized.CityRegion) : undefined),
-    stateOrProvince: String(normalized.StateOrProvince || 'NY'),
-    postalCode: String(normalized.PostalCode || ''),
-    county: String(normalized.CountyOrParish || ''),
-    latitude: normalized.Latitude != null ? Number(normalized.Latitude) : undefined,
-    longitude: normalized.Longitude != null ? Number(normalized.Longitude) : undefined,
+    unitNumber: raw.UnitNumber ? String(raw.UnitNumber) : null,
+    city: String(raw.City || ''),
+    cityRegion: raw.SubdivisionName ? String(raw.SubdivisionName) :
+      (raw.CityRegion ? String(raw.CityRegion) : undefined),
+    stateOrProvince: String(raw.StateOrProvince || 'NY'),
+    postalCode: String(raw.PostalCode || ''),
+    county: String(raw.CountyOrParish || ''),
+    latitude: raw.Latitude != null ? Number(raw.Latitude) : undefined,
+    longitude: raw.Longitude != null ? Number(raw.Longitude) : undefined,
   };
 
-  const propertyType = String(normalized.PropertyType || '');
+  const propertyType = String(raw.PropertyType || '');
   const isRental = propertyType.toLowerCase().includes('lease');
 
   return {
     listingId,
     listingKeyNumeric,
-    mlsId: String(normalized.ListingKey || listingId),
-    standardStatus: String(normalized.StandardStatus || normalized.MlsStatus || 'Active') as IDXListing['standardStatus'],
+    mlsId: String(raw.ListingKey || listingId),
+    standardStatus: (readCotalityStandardStatus(raw) ?? 'UNKNOWN') as IDXListing['standardStatus'],
     listingType: isRental ? 'rent' : 'sale',
     address: addr,
-    listPrice: Number(normalized.ListPrice) || 0,
-    originalListPrice: Number(normalized.OriginalListPrice || normalized.ListPrice) || 0,
-    closePrice: normalized.ClosePrice != null ? Number(normalized.ClosePrice) : null,
+    listPrice: Number(raw.ListPrice) || 0,
+    originalListPrice: Number(raw.OriginalListPrice || raw.ListPrice) || 0,
+    closePrice: raw.ClosePrice != null ? Number(raw.ClosePrice) : null,
     propertyType,
-    propertySubType: normalized.PropertySubType ? String(normalized.PropertySubType) : null,
-    commonInterest: normalized.CommonInterest ? String(normalized.CommonInterest) : undefined,
-    ownershipType: normalized.OwnershipType ? String(normalized.OwnershipType) : undefined,
-    bedroomsTotal: Number(normalized.BedroomsTotal) || 0,
-    bathroomsFull: Number(normalized.BathroomsFull) || 0,
-    bathroomsHalf: Number(normalized.BathroomsHalf) || 0,
-    bathroomsTotal: normalized.BathroomsTotalInteger != null
-      ? Number(normalized.BathroomsTotalInteger)
-      : (Number(normalized.BathroomsFull) || 0) + (Number(normalized.BathroomsHalf) || 0) * 0.5,
-    livingArea: normalized.LivingArea != null ? Number(normalized.LivingArea) : null,
-    lotSizeArea: normalized.LotSizeArea != null ? Number(normalized.LotSizeArea) : null,
-    yearBuilt: normalized.YearBuilt != null ? Number(normalized.YearBuilt) : null,
-    listingContractDate: String(normalized.ListingContractDate || ''),
-    modificationTimestamp: String(normalized.ModificationTimestamp || new Date().toISOString()),
-    listAgentMlsId: String(normalized.ListAgentMlsId || normalized.ListAgentKey || ''),
-    listAgentFullName: String(normalized.ListAgentFullName || ''),
-    listOfficeMlsId: String(normalized.ListOfficeMlsId || normalized.ListOfficeKey || ''),
-    listOfficeName: String(normalized.ListOfficeName || ''),
-    media: Array.isArray(normalized.Media) ? normalized.Media.map((m: unknown, i: number) => {
+    propertySubType: readCotalityPropertySubType(raw),
+    commonInterest: readCotalityCommonInterest(raw) ?? undefined,
+    ownershipType: raw.OwnershipType ? String(raw.OwnershipType) : undefined,
+    bedroomsTotal: Number(raw.BedroomsTotal) || 0,
+    bathroomsFull: Number(raw.BathroomsFull) || 0,
+    bathroomsHalf: Number(raw.BathroomsHalf) || 0,
+    bathroomsTotal: raw.BathroomsTotalInteger != null
+      ? Number(raw.BathroomsTotalInteger)
+      : (Number(raw.BathroomsFull) || 0) + (Number(raw.BathroomsHalf) || 0) * 0.5,
+    livingArea: raw.LivingArea != null ? Number(raw.LivingArea) : null,
+    lotSizeArea: raw.LotSizeArea != null ? Number(raw.LotSizeArea) : null,
+    yearBuilt: raw.YearBuilt != null ? Number(raw.YearBuilt) : null,
+    listingContractDate: String(raw.ListingContractDate || ''),
+    modificationTimestamp: String(raw.ModificationTimestamp || new Date().toISOString()),
+    listAgentMlsId: String(raw.ListAgentMlsId || raw.ListAgentKey || ''),
+    listAgentFullName: String(raw.ListAgentFullName || ''),
+    listOfficeMlsId: String(raw.ListOfficeMlsId || raw.ListOfficeKey || ''),
+    listOfficeName: String(raw.ListOfficeName || ''),
+    media: Array.isArray(raw.Media) ? raw.Media.map((m: unknown, i: number) => {
       const item = m as Record<string, unknown>;
       // RESO DD: MediaCategory = content type (Photo, Floor Plan, Video)
       //          MediaType = file format (jpeg, png, gif) — NOT content type
@@ -353,7 +345,7 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
       return rankDiff !== 0 ? rankDiff : a.order - b.order;
     }) : [],
     // Remarks — public only (private remarks NEVER mapped to IDXListing)
-    publicRemarks: normalized.PublicRemarks ? String(normalized.PublicRemarks) : undefined,
+    publicRemarks: raw.PublicRemarks ? String(raw.PublicRemarks) : undefined,
     // Distribution gate flags — IDX Plus pre-filter convention (`!== false`).
     //
     // C1 fix (2026-05-13): mapRESOToInternal is called exclusively on raw
@@ -378,67 +370,71 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     // New code should still use evaluateDisplayGate() from lib/compliance/
     // gates.ts; for raw Trestle records, pass `{ idxPlusPreFiltered: true }`.
     idxEntireListingDisplayYN:
-      normalized.InternetEntireListingDisplayYN !== false,
-    internetEntireListingDisplayYN: normalized.InternetEntireListingDisplayYN !== false,
-    internetAddressDisplayYN: normalized.InternetAddressDisplayYN !== false,
+      raw.InternetEntireListingDisplayYN !== false,
+    internetEntireListingDisplayYN: raw.InternetEntireListingDisplayYN !== false,
+    internetAddressDisplayYN: raw.InternetAddressDisplayYN !== false,
+    // Permission MEMBER 'Private' (Multi-Enum, IsFlags=true -- 2026-10-02
+    // Permission Multi-Enum cutover; see lib/cotality/property.ts::
+    // hasCotalityListingPermission's docstring). raw.ParticipantOnlyYN is a
+    // separate, pre-existing question (not a real Cotality field -- untouched here).
     participantOnlyYN:
-      normalized.ParticipantOnlyYN === true ||
-      normalized.Permission === 'Private',
+      raw.ParticipantOnlyYN === true ||
+      hasCotalityListingPermission(raw, 'Private'),
     // Building & property details
-    buildingName: normalized.BuildingName ? String(normalized.BuildingName) : undefined,
-    storiesTotal: normalized.StoriesTotal != null ? Number(normalized.StoriesTotal) : undefined,
-    roomsTotal: normalized.RoomsTotal != null ? Number(normalized.RoomsTotal) : undefined,
-    architecturalStyle: normalized.ArchitecturalStyle ? String(normalized.ArchitecturalStyle) : undefined,
-    constructionMaterials: normalized.ConstructionMaterials ? String(normalized.ConstructionMaterials) : undefined,
-    heating: normalized.Heating ? String(normalized.Heating) : undefined,
-    cooling: normalized.Cooling ? String(normalized.Cooling) : undefined,
-    flooring: normalized.Flooring ? String(normalized.Flooring) : undefined,
+    buildingName: raw.BuildingName ? String(raw.BuildingName) : undefined,
+    storiesTotal: raw.StoriesTotal != null ? Number(raw.StoriesTotal) : undefined,
+    roomsTotal: raw.RoomsTotal != null ? Number(raw.RoomsTotal) : undefined,
+    architecturalStyle: raw.ArchitecturalStyle ? String(raw.ArchitecturalStyle) : undefined,
+    constructionMaterials: raw.ConstructionMaterials ? String(raw.ConstructionMaterials) : undefined,
+    heating: raw.Heating ? String(raw.Heating) : undefined,
+    cooling: raw.Cooling ? String(raw.Cooling) : undefined,
+    flooring: raw.Flooring ? String(raw.Flooring) : undefined,
     // Amenities
-    interiorFeatures: normalized.InteriorFeatures ? String(normalized.InteriorFeatures) : undefined,
-    buildingFeatures: normalized.BuildingFeatures ? String(normalized.BuildingFeatures) : undefined,
-    exteriorFeatures: normalized.ExteriorFeatures ? String(normalized.ExteriorFeatures) : undefined,
-    appliances: normalized.Appliances ? String(normalized.Appliances) : undefined,
-    laundryFeatures: normalized.LaundryFeatures ? String(normalized.LaundryFeatures) : undefined,
-    securityFeatures: normalized.SecurityFeatures ? String(normalized.SecurityFeatures) : undefined,
-    attendanceType: normalized.AttendanceType ? String(normalized.AttendanceType) : undefined,
-    communityFeatures: normalized.CommunityFeatures ? String(normalized.CommunityFeatures) : undefined,
-    associationAmenities: normalized.AssociationAmenities ? String(normalized.AssociationAmenities) : undefined,
-    parkingFeatures: normalized.ParkingFeatures ? String(normalized.ParkingFeatures) : undefined,
-    poolFeatures: normalized.PoolFeatures ? String(normalized.PoolFeatures) : undefined,
-    spaFeatures: normalized.SpaFeatures ? String(normalized.SpaFeatures) : undefined,
-    parkingTotal: normalized.ParkingTotal != null ? Number(normalized.ParkingTotal) : undefined,
-    garageSpaces: normalized.GarageSpaces != null ? Number(normalized.GarageSpaces) : undefined,
+    interiorFeatures: raw.InteriorFeatures ? String(raw.InteriorFeatures) : undefined,
+    buildingFeatures: raw.BuildingFeatures ? String(raw.BuildingFeatures) : undefined,
+    exteriorFeatures: raw.ExteriorFeatures ? String(raw.ExteriorFeatures) : undefined,
+    appliances: raw.Appliances ? String(raw.Appliances) : undefined,
+    laundryFeatures: raw.LaundryFeatures ? String(raw.LaundryFeatures) : undefined,
+    securityFeatures: raw.SecurityFeatures ? String(raw.SecurityFeatures) : undefined,
+    attendanceType: raw.AttendanceType ? String(raw.AttendanceType) : undefined,
+    communityFeatures: raw.CommunityFeatures ? String(raw.CommunityFeatures) : undefined,
+    associationAmenities: raw.AssociationAmenities ? String(raw.AssociationAmenities) : undefined,
+    parkingFeatures: raw.ParkingFeatures ? String(raw.ParkingFeatures) : undefined,
+    poolFeatures: raw.PoolFeatures ? String(raw.PoolFeatures) : undefined,
+    spaFeatures: raw.SpaFeatures ? String(raw.SpaFeatures) : undefined,
+    parkingTotal: raw.ParkingTotal != null ? Number(raw.ParkingTotal) : undefined,
+    garageSpaces: raw.GarageSpaces != null ? Number(raw.GarageSpaces) : undefined,
     // Financial
-    associationFee: normalized.AssociationFee != null ? Number(normalized.AssociationFee) : undefined,
-    associationFeeFrequency: normalized.AssociationFeeFrequency ? String(normalized.AssociationFeeFrequency) : undefined,
-    taxAnnualAmount: normalized.TaxAnnualAmount != null ? Number(normalized.TaxAnnualAmount) : undefined,
-    taxYear: normalized.TaxYear != null ? Number(normalized.TaxYear) : undefined,
+    associationFee: raw.AssociationFee != null ? Number(raw.AssociationFee) : undefined,
+    associationFeeFrequency: raw.AssociationFeeFrequency ? String(raw.AssociationFeeFrequency) : undefined,
+    taxAnnualAmount: raw.TaxAnnualAmount != null ? Number(raw.TaxAnnualAmount) : undefined,
+    taxYear: raw.TaxYear != null ? Number(raw.TaxYear) : undefined,
     // Dates
-    onMarketDate: normalized.OnMarketDate ? String(normalized.OnMarketDate) : undefined,
-    activationDate: normalized.ActivationDate ? String(normalized.ActivationDate) : undefined,
-    availabilityDate: normalized.AvailabilityDate ? String(normalized.AvailabilityDate) : undefined,
-    closeDate: normalized.CloseDate ? String(normalized.CloseDate) : undefined,
+    onMarketDate: raw.OnMarketDate ? String(raw.OnMarketDate) : undefined,
+    activationDate: raw.ActivationDate ? String(raw.ActivationDate) : undefined,
+    availabilityDate: raw.AvailabilityDate ? String(raw.AvailabilityDate) : undefined,
+    closeDate: raw.CloseDate ? String(raw.CloseDate) : undefined,
     // Photos & virtual tours
-    photosCount: normalized.PhotosCount != null ? Number(normalized.PhotosCount) : undefined,
-    virtualTourURLBranded: normalized.VirtualTourURLBranded ? String(normalized.VirtualTourURLBranded) : undefined,
-    virtualTourURLUnbranded: normalized.VirtualTourURLUnbranded ? String(normalized.VirtualTourURLUnbranded) : undefined,
+    photosCount: raw.PhotosCount != null ? Number(raw.PhotosCount) : undefined,
+    virtualTourURLBranded: raw.VirtualTourURLBranded ? String(raw.VirtualTourURLBranded) : undefined,
+    virtualTourURLUnbranded: raw.VirtualTourURLUnbranded ? String(raw.VirtualTourURLUnbranded) : undefined,
     // Rental-specific
-    leaseAmount: normalized.LeaseAmount != null ? Number(normalized.LeaseAmount) : undefined,
-    leaseAmountFrequency: normalized.LeaseAmountFrequency ? String(normalized.LeaseAmountFrequency) : undefined,
-    petsAllowed: normalized.PetsAllowed ? String(normalized.PetsAllowed) : undefined,
-    furnished: normalized.Furnished ? String(normalized.Furnished) : undefined,
+    leaseAmount: raw.LeaseAmount != null ? Number(raw.LeaseAmount) : undefined,
+    leaseAmountFrequency: raw.LeaseAmountFrequency ? String(raw.LeaseAmountFrequency) : undefined,
+    petsAllowed: raw.PetsAllowed ? String(raw.PetsAllowed) : undefined,
+    furnished: raw.Furnished ? String(raw.Furnished) : undefined,
     // Days on Market
-    daysOnMarket: normalized.DaysOnMarket != null ? Number(normalized.DaysOnMarket) : undefined,
-    cumulativeDaysOnMarket: normalized.CumulativeDaysOnMarket != null ? Number(normalized.CumulativeDaysOnMarket) : undefined,
+    daysOnMarket: raw.DaysOnMarket != null ? Number(raw.DaysOnMarket) : undefined,
+    cumulativeDaysOnMarket: raw.CumulativeDaysOnMarket != null ? Number(raw.CumulativeDaysOnMarket) : undefined,
     // FARE Act fee fields
-    moveInCosts: normalized.MoveInCosts ? String(normalized.MoveInCosts) : undefined,
-    ongoingFees: normalized.OngoingFees ? String(normalized.OngoingFees) : undefined,
-    tenantPays: normalized.TenantPays ? String(normalized.TenantPays) : undefined,
-    tenantPaysDescription: normalized.TenantPaysDescription ? String(normalized.TenantPaysDescription) : undefined,
-    additionalFeeYN: normalized.AdditionalFeeYN === true || normalized.AdditionalFeeYN === 'true' ? true : undefined,
-    additionalFee: normalized.AdditionalFee != null ? Number(normalized.AdditionalFee) : undefined,
-    additionalFeeDescription: normalized.AdditionalFeeDescription ? String(normalized.AdditionalFeeDescription) : undefined,
-    feeFrequency: normalized.FeeFrequency ? String(normalized.FeeFrequency) : undefined,
+    moveInCosts: raw.MoveInCosts ? String(raw.MoveInCosts) : undefined,
+    ongoingFees: raw.OngoingFees ? String(raw.OngoingFees) : undefined,
+    tenantPays: raw.TenantPays ? String(raw.TenantPays) : undefined,
+    tenantPaysDescription: raw.TenantPaysDescription ? String(raw.TenantPaysDescription) : undefined,
+    additionalFeeYN: raw.AdditionalFeeYN === true || raw.AdditionalFeeYN === 'true' ? true : undefined,
+    additionalFee: raw.AdditionalFee != null ? Number(raw.AdditionalFee) : undefined,
+    additionalFeeDescription: raw.AdditionalFeeDescription ? String(raw.AdditionalFeeDescription) : undefined,
+    feeFrequency: raw.FeeFrequency ? String(raw.FeeFrequency) : undefined,
     _source: 'idx',
     _lastFetched: new Date().toISOString(),
     _displayCompliance: {
@@ -456,15 +452,7 @@ export function validateRESOResponse(raw: Record<string, unknown>): {
   valid: boolean;
   missingFields: string[];
 } {
-  // Apply renames first
-  const normalized = { ...raw };
-  for (const [rlsName, canonicalName] of Object.entries(RESO_TO_RLS_RENAMES)) {
-    if (rlsName in normalized && !(canonicalName in normalized)) {
-      normalized[canonicalName] = normalized[rlsName];
-    }
-  }
-
-  const missingFields = REQUIRED_RLS_FIELDS.filter(field => !(field in normalized));
+  const missingFields = REQUIRED_RLS_FIELDS.filter(field => !(field in raw));
 
   return {
     valid: missingFields.length === 0,
@@ -508,4 +496,4 @@ export function generateAttributionText(timestamp: Date = new Date()): string {
 }
 
 // Re-export for convenience
-export { ALL_RLS_FIELDS, REQUIRED_RLS_FIELDS, RESO_TO_RLS_RENAMES };
+export { REQUIRED_RLS_FIELDS };

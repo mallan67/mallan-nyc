@@ -17,19 +17,18 @@
  * an "incurable UCBA penalty".
  *
  * The fix is NOT to change `generateListingSlug` globally — raw pre-filtered
- * Trestle records legitimately use the other convention. The fix is to make ONE
+ * Cotality records legitimately use the other convention. The fix is to make ONE
  * decision here and feed it to BOTH the address fields and the slug input.
  *
- * NULL SEMANTICS ARE ALREADY SETTLED IN-REPO — `lib/compliance/gates.ts:166-171`:
- *
- *   "Use `idxPlusPreFiltered: true` ONLY for raw Trestle records on the live
- *    `/api/idx/search` path ... DB-row callers (db-to-public-dto, sitemap,
- *    listing-access-decision) leave the default `false` so any drift from the
- *    recovered `internet_entire_listing_display_yn=true` baseline still
- *    fails-closed defensively."
+ * NULL SEMANTICS ARE ALREADY SETTLED IN-REPO — `lib/compliance/gates.ts:166-171`
+ * (`GateOptions.idxPlusPreFiltered`): the pre-filter convention is ONLY for raw
+ * Cotality records on the live `/api/idx/search` path. DB-row callers
+ * (db-to-public-dto, sitemap, listing-access-decision) leave the default `false`
+ * so any drift from the recovered `internet_entire_listing_display_yn=true`
+ * baseline still fails closed defensively.
  *
  * So for a DB row, null/undefined => NOT displayable. This module is for DB
- * rows only; raw Trestle records are governed by `checkDistributionGates`.
+ * rows only; raw Cotality records are governed by `checkDistributionGates`.
  *
  * THE RULE
  * --------

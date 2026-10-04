@@ -3,11 +3,11 @@
  * InHouse listing gate tests — PR-Exclusive.1.
  *
  * Proves:
- *   1. InHouse still permits Trestle building lookup (not suppressed)
+ *   1. InHouse still permits Cotality building lookup (not suppressed)
  *   2. InHouse forces all 4 distribution gates OFF in form serialization
  *   3. InHouse → rls_eligible=false in backend eligibility classification
  *   4. Website-only (rls_eligible=false) listings pass filterDisplayableDbListings
- *   5. Ambiguous/different Trestle match requires confirmation for InHouse
+ *   5. Ambiguous/different Cotality match requires confirmation for InHouse
  *   6. Non-InHouse listing types preserve existing lookup behavior
  *   7. Switching to InHouse clears stale IDX match state
  */
@@ -17,9 +17,9 @@ const path = require('path');
 const FORM_PATH = path.resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html');
 const formHtml = fs.readFileSync(FORM_PATH, 'utf8');
 
-// ─── 1. InHouse still permits Trestle building lookup ───────────────────────
+// ─── 1. InHouse still permits Cotality building lookup ───────────────────────
 
-describe('Form — InHouse permits Trestle building lookup', () => {
+describe('Form — InHouse permits Cotality building lookup', () => {
   it('searchBuildingForListing does NOT have InHouse early-return', () => {
     const fnMatch = formHtml.match(/function searchBuildingForListing\(query, prefix\)\s*\{([\s\S]{0,600}?)\n\s*\/\/ Debounce/);
     expect(fnMatch).not.toBeNull();
@@ -133,7 +133,7 @@ describe('filterDisplayableDbListings — website-only bypass', () => {
   });
 });
 
-// ─── 5. Ambiguous Trestle match requires confirmation for InHouse ───────────
+// ─── 5. Ambiguous Cotality match requires confirmation for InHouse ───────────
 
 describe('Form — InHouse address mismatch confirmation', () => {
   it('selectBuildingFromIDX checks _isInHouseListingType before address overwrite', () => {
@@ -146,7 +146,7 @@ describe('Form — InHouse address mismatch confirmation', () => {
     expect(body).toContain('confirm(');
   });
 
-  it('confirmation dialog mentions both typed and Trestle canonical addresses', () => {
+  it('confirmation dialog mentions both typed and provider canonical addresses', () => {
     const fnMatch = formHtml.match(/function selectBuildingFromIDX[\s\S]*?confirm\(([\s\S]*?)\)/);
     expect(fnMatch).not.toBeNull();
     const confirmBody = fnMatch![1];
@@ -199,7 +199,7 @@ describe('Form — Banner text uses building reference, not IDX distribution', (
   });
 });
 
-// ─── 9. RESO address parser — parseAddressQuery ─────────────────────────────
+// ─── 9. Address parser — parseAddressQuery ──────────────────────────────────
 
 describe('Building search — Cotality OData pattern alignment', () => {
   const routeCode = fs.readFileSync(
@@ -219,15 +219,15 @@ describe('Building search — Cotality OData pattern alignment', () => {
     expect(routeCode).toMatch(/south.*'S'/i);
   });
 
-  it('Trestle OData uses startswith(StreetNumber,...) not strict eq', () => {
+  it('Cotality OData uses startswith(StreetNumber,...) not strict eq', () => {
     expect(routeCode).toContain("startswith(StreetNumber,");
   });
 
-  it('Trestle OData uses contains(tolower(StreetName),...) for case-insensitive search', () => {
+  it('Cotality OData uses contains(tolower(StreetName),...) for case-insensitive search', () => {
     expect(routeCode).toContain("contains(tolower(StreetName),");
   });
 
-  it('Trestle OData uses StreetDirPrefix eq for enum comparison', () => {
+  it('Cotality OData uses StreetDirPrefix eq for enum comparison', () => {
     expect(routeCode).toContain("StreetDirPrefix eq");
   });
 
@@ -254,7 +254,7 @@ describe('Building search — Cotality OData pattern alignment', () => {
     expect(routeCode).toContain("LOWER(address->>'StreetName')");
   });
 
-  it('Trestle fallback fires when streetNumber + streetDirPrefix (no streetName)', () => {
+  it('Cotality fallback fires when streetNumber + streetDirPrefix (no streetName)', () => {
     expect(routeCode).toContain("parsed.streetName || parsed.streetDirPrefix");
   });
 });

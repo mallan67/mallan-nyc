@@ -12,7 +12,7 @@
 // === The 8 invariants (from the v2 plan §C.0) ===
 //
 //  I.1  Manual listings are NOT automatically eligible.
-//  I.2  Trestle listings are NOT automatically excluded.
+//  I.2  Cotality-feed listings are NOT automatically excluded.
 //  I.3  `source` alone never proves Mallan control.
 //  I.4  Free-text brokerage / agent name matching is NEVER sufficient.
 //  I.5  If MALLAN_OFFICE_MLS_IDS AND mallanAgentMlsIds are both empty,
@@ -35,7 +35,7 @@ export interface ListingForEligibility {
   source?: string | null;
   /** Diagnostic only — NEVER used to drive the eligibility decision. */
   agent_id?: bigint | number | null;
-  /** RESO StandardStatus — "Active" / "ComingSoon" / terminal values */
+  /** Stored Listing.status — "Active" / "ComingSoon" / terminal values */
   status?: string | null;
   /** Free-text — used only for diagnostics in Layer 1d's reason logging */
   list_office_name?: string | null;
@@ -48,7 +48,7 @@ export interface ListingForEligibility {
   list_agent_mls_id?: string | null;
   co_list_office_mls_id?: string | null;
   co_list_agent_mls_id?: string | null;
-  /** Listing-side Trestle identifiers — the canonical signal (JSON fallback) */
+  /** Listing-side MLS identifiers (office/agent MLS ids) — the canonical signal (JSON fallback) */
   agent_info?: unknown;
   /** Distribution gates (REBNY) */
   idx_display_yn?: boolean | null;
@@ -160,7 +160,7 @@ export function evaluateMallanSyndicationEligibility(
   // unconditionally, BEFORE 1a/1b/1c/1d are evaluated. The
   // broker-approved manual-control verification flag (1d) does NOT
   // bypass this check — see Codex PR #162 review and invariant I.5
-  // in docs/architecture/MALLAN-EXCLUSIVES-SYNDICATION-PLAN-2026-05-18.md.
+  // in the header of this file.
   //
   // Rationale: if the system does not know what Mallan's office or
   // agent MLS IDs are, the verification flag is a single point of
@@ -218,7 +218,7 @@ export function evaluateMallanSyndicationEligibility(
       }
     }
     // ── 1d — Broker-approved manual-control verification flag ──
-    // The ONLY path that passes when no canonical Trestle IDs match
+    // The ONLY path that passes when no canonical MLS IDs match
     // on the row. Pre-requisite enforced ABOVE by 1.PRE: at least one
     // canonical-identity config set must be non-empty for this branch
     // to be reachable at all.
@@ -245,7 +245,7 @@ export function evaluateMallanSyndicationEligibility(
   }
 
   // ── 1e — Ambiguity / conflicts catch-all ──
-  // If a Trestle agent ID matched Mallan but the office is another
+  // If a listing-side agent MLS ID matched Mallan but the office is another
   // brokerage, record the ambiguity even if 1a/1b/1c/1d already
   // failed. Diagnostic / audit aid. Skipped when identity-config is
   // empty (1.PRE already blocked).

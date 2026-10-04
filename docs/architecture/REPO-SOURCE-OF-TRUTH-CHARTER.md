@@ -2,7 +2,7 @@
 
 **Version:** 1.0 · **Created:** 2026-05-01 · **Status:** ACTIVE — mandatory
 
-This charter is the architecture rulebook for mallan-nyc. **Every AI/Codex/Claude session and every human contributor must read this before creating, renaming, moving, or editing files in any of the domains it covers** (Public Search, CRM Search, Featured/Exclusives, Neighborhoods, Media, IDX/Trestle).
+This charter is the architecture rulebook for mallan-nyc. **Every AI/Codex/Claude session and every human contributor must read this before creating, renaming, moving, or editing files in any of the domains it covers** (Public Search, CRM Search, Featured/Exclusives, Neighborhoods, Media, IDX/Cotality). It is subordinate to `MALLAN-PLATFORM-MASTER-PLAN.md` (the sole product/system authority) and `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` (current execution state); where they differ, the Master wins and this charter is corrected.
 
 The repo has accumulated multiple files with similar names. AI tools have repeatedly invented new files (`search-v2.ts`, `featured-new.tsx`, `location-stuff.json`, `crm-search-final.js`) instead of using the correct existing source files. The charter exists to make those mistakes detectable and refusable.
 
@@ -41,11 +41,11 @@ These rules apply to every commit. Violations should fail review.
 Mallan forms -> Mallan backend/Neon -> Mallan CRM + public website   LOCAL, canonical
 
 Mallan information -> RealPlus -> REBNY RLS          OUTSIDE THIS SYSTEM, MANUAL
-REBNY RLS -> Cotality/Trestle -> IDX Plus API -> Mallan ingestion    INBOUND, read-only
+REBNY RLS -> Cotality -> IDX Plus API -> Mallan ingestion    INBOUND, read-only
 ```
 
 Mallan **creates and amends its listings locally** and **never writes back** to
-Cotality/Trestle/RLS. The RealPlus/RLS submission happens outside this
+Cotality/RLS. The RealPlus/RLS submission happens outside this
 application and is **not** automated here.
 
 Wording matters: a Mallan listing is **not** "submitted to REBNY RLS via
@@ -118,7 +118,7 @@ Applies to `/api/listings`, `/api/listings/suggest`, listing detail,
 `/api/agents/[slug]/listings`, Featured, Exclusives, similar listings, building
 listings/units, sitemap, canonical/SEO URLs, open-house surfaces, campaigns and
 listing-send public URLs, reports exposing public listing links, and any
-live-Trestle public fallback.
+live-Cotality public fallback.
 
 `preferCrmExclusiveOverIdxDuplicate()` (`lib/listings/dedupe-crm-vs-idx.ts`) is
 the correct existing direction — keep local, suppress the IDX twin, delete
@@ -140,11 +140,11 @@ Use these exact terms in code, comments, commit messages, and documentation:
 | Canonical term | Use for |
 |---|---|
 | **Public Search** | The user-facing search at `/search` (public website, DB-backed) |
-| **CRM Search** | The agent-facing search at `/crm/search` (Trestle-live, auth-required) |
+| **CRM Search** | The agent-facing search at `/crm/search` (Cotality-live, auth-required) |
 | **Featured Properties** | Broker-curated merchandising shown on the public homepage |
 | **Exclusives** | Listings the broker has explicitly marked or pinned via the FeaturedConfig system |
 | **Neighborhoods** | NYC neighborhood data — names, slugs, ZIPs, boroughs |
-| **Buildings** | Trestle building-key aggregation (Trestle 6.17) |
+| **Buildings** | Building aggregation; building identity per Master §0.2 (`TaxBlock` + `TaxLot`, cross-checked with `BuildingName` and street address) |
 | **CMA** | Comparative market analysis / comps |
 | **Media Resolver** | The shared photo-first ordering helper at `lib/media/listing-media-resolver.ts` |
 | **Listing DTO** | The public-safe output of `lib/idx/public-dto.ts` |
@@ -182,7 +182,7 @@ If you find a real reason to introduce a new name, follow Section 11 first.
 | Public listing detail API | `app/api/listings/[id]/route.ts` | `GET /api/listings/[id]`. |
 | Public autocomplete API | `app/api/listings/suggest/route.ts` | Autocomplete suggestions. |
 | Public similar/comps API | `app/api/listings/similar/route.ts` | Comps by neighborhood + property type. |
-| Public building agg API | `app/api/listings/building/route.ts` | Trestle 6.17 building grouping. |
+| Public building agg API | `app/api/listings/building/route.ts` | Active units + closed-sale history for one street address (`lib/buildings/building-address-filter.ts`), with ACRIS deed fallback. |
 | Public DTO | `lib/idx/public-dto.ts` | `IDXListing → PublicListingDTO`. Strips PII, suppresses address per gates. |
 | DB → public DTO | `lib/idx/db-to-public-dto.ts` | DB row → public DTO. |
 | Public search query builder | `lib/search/listing-search-projection.ts` | Public DB SELECT + post-filters. |
@@ -194,7 +194,7 @@ If you find a real reason to introduce a new name, follow Section 11 first.
 - `lib/search/criteria-to-prisma.ts` — URL → Prisma WHERE
 - `lib/search/listing-search-projection.ts` — DB SELECT shape + amenity filtering
 - `lib/search/public-listing-db.ts` — DB-side post-filters (zip, amenity narrowing)
-- `lib/search/public-listing-trestle.ts` — Trestle OData `$filter` builder
+- `lib/search/public-listing-trestle.ts` — Cotality OData `$filter` builder
 - `lib/search/listing-access-decision.ts` — Gate decisions for per-listing access
 - `lib/search/natural-language-parser.ts` — Parses "2 bed UES" → filters
 - `lib/search/core.ts` — Orchestrator
@@ -227,14 +227,14 @@ The CRM search is a **separate** pipeline from public search. Different shell, d
 | CRM map | `public/crm/js/render/results-map.js` | Map markers in CRM |
 | CRM API client | `public/crm/js/core/api-client.js` | All MallanAPI.* methods |
 | CRM placeholder SVG | `public/crm/js/core/reso-field-map.js:173` | "No Photo Available" SVG data URI |
-| CRM search backend | `app/api/idx/search/route.ts` | `GET /api/idx/search` — Trestle-live, broker auth |
-| CRM filter builder | `lib/search/crm-idx-filter.ts` | Trestle OData filter from URL params |
-| CRM mapper | `lib/search/crm-idx-mapper.ts` | Trestle record → CRM flat shape |
+| CRM search backend | `app/api/idx/search/route.ts` | `GET /api/idx/search` — Cotality-live, broker auth |
+| CRM filter builder | `lib/search/crm-idx-filter.ts` | Cotality OData filter from URL params |
+| CRM mapper | `lib/search/crm-idx-mapper.ts` | Cotality record → CRM flat shape |
 | CRM gates | `lib/compliance/gates.ts` | The 6 distribution gates (`evaluateDisplayGate`, `checkDistributionGates`) |
-| Trestle HTTP client | `lib/idx/fetch.ts` | Pulls from Cotality/Trestle API |
-| Trestle OAuth | `lib/idx/auth.ts` | Bearer token refresh, 8h TTL |
+| Cotality HTTP client | `lib/idx/fetch.ts` | Pulls from the Cotality API |
+| Cotality OAuth | `lib/idx/auth.ts` | Bearer token refresh using the provider-returned `expires_in` |
 | CRM media batch endpoint | `app/api/media/batch/route.ts` | Bulk photo backfill (auth-gated) |
-| Trestle field arrays + mapper | `lib/idx/trestle-mapper.ts` | `ALL_RLS_FIELDS`, `RESO_TO_RLS_RENAMES`, `mapTrestleToPrisma`, `checkDistributionGates` wrapper |
+| Property field arrays + mapper | `lib/idx/trestle-mapper.ts` | `IDX_PLUS_SELECT_FIELDS`, `mapTrestleToPrisma`, `checkDistributionGates` wrapper |
 
 **Hard rule:** never hand-edit `public/crm/index-built.html`. Edit source files (`public/crm/{index.html, html/, css/, js/}`) and run `npm run crm:build`. CI will run `crm:check-build` and fail if the bundle drifts.
 
@@ -249,17 +249,17 @@ The CRM search is a **separate** pipeline from public search. Different shell, d
 | Featured config GET API | `app/api/featured-config/route.ts` (GET) | Public, 5-min cache, returns config object |
 | Featured config PATCH API | `app/api/featured-config/route.ts` (PATCH) | Broker-only, upserts FeaturedConfig row |
 | Featured config Prisma model | `prisma/schema.prisma` `FeaturedConfig` (~line 1880) | `pinned_ids[]`, `filters{}`, `sort`, `display_limit`, `is_active`, `updated_by` |
-| Featured config defaults | `data/featured-config.json` | Static fallback if DB lookup fails. Read-only file. |
+| Featured config defaults | `app/api/featured-config/route.ts` `DEFAULT_CONFIG` | Served when no FeaturedConfig row exists. |
 | Public homepage component | `app/components/FeaturedListings.tsx` | Reads `/api/featured-config`, queries `/api/listings` with broker-set filters, applies pins |
 | Homepage embed | `app/page.tsx` | `<FeaturedListings />` |
 | `/exclusives` redirect | `vercel.json` `{ "source": "/exclusives", "destination": "/buy?exclusive=mallan" }` | Currently points at a URL whose filter is **not implemented** (known bug — see Section 12) |
 
 **Rules:**
 
-1. Featured Properties means **broker-curated merchandising**, not "all of Trestle filtered by something."
-2. Exclusives means **listings the broker has marked exclusive**, not "anything Trestle returned."
+1. Featured Properties means **broker-curated merchandising**, not "all of the Cotality feed filtered by something."
+2. Exclusives means **listings the broker has marked exclusive**, not "anything Cotality returned."
 3. `/buy?exclusive=mallan` must NOT silently return the full feed. The filter must be implemented or the redirect changed.
-4. The DTO must NOT default `listOfficeName` to `"Mallan Real Estate Inc."` when Trestle's office field is missing — that creates false attribution and is a UCBA Art. III §2(C) compliance concern.
+4. The DTO must NOT default `listOfficeName` to `"Mallan Real Estate Inc."` when the Cotality office field is missing — that creates false attribution and is a UCBA Art. III §2(C) compliance concern.
 5. Do **not** create `FeaturedPropertiesV2`, `FeaturedCollection`, `MerchandisingConfig`, or any new merchandising model unless a written design + schema migration has been approved.
 6. Use the existing `FeaturedConfig` model. Until a future approved migration adds collections, multiple "boards" are not a thing.
 
@@ -277,9 +277,9 @@ The CRM search is a **separate** pipeline from public search. Different shell, d
 | Staten Island data | `data/staten-island-neighborhoods.json` (43 KB) | Same shape |
 | ZIP → neighborhood (TS) | `lib/geo/nyc-zip-neighborhoods.ts` (777 lines, 220+ ZIPs) | Used by listings filter |
 | ZIP filter helper | `lib/geo/neighborhood-zips.ts` | `lookupNeighborhoodZips()` — used by `/api/listings/route.ts:37` |
-| Geocoding fallback | `lib/geo/geocode.ts` | ZIP centroid for null Trestle lat/lng |
-| CRM Trestle alias map | `public/geo/neighborhood-aliases.json` (24 KB) | Inlined into CRM search shell. SubdivisionName variant → canonical name. |
-| RLS Trestle neighborhood values | `data/rls/neighborhoods.v1.json` (99 KB) | 4,744 lines. Referenced by CRM frontend modules. |
+| Geocoding fallback | `lib/geo/geocode.ts` | ZIP centroid for null Cotality lat/lng |
+| CRM neighborhood alias map (temporary frozen dependency) | `public/geo/neighborhood-aliases.json` (24 KB) | Inlined into CRM search shell. SubdivisionName variant → canonical name. Fetched by the frozen `public/crm/index-built.html` and its bundle inputs (`data-loader.js`, `search-engine.js`, `neighborhood-map.js`); the `data/rls/geo/` copy is imported by `lib/search/crm-idx-filter.ts`. Removed at the CRM search Cotality conversion (geography migration deferred). |
+| RLS neighborhood values (temporary frozen dependency) | `data/rls/neighborhoods.v1.json` (99 KB) | 4,744 lines. Source list for the CRM geo assets (`scripts/build-rls-aliases.js`, `scripts/build-rls-geojson.js`) consumed by the frozen CRM search. Removed at the CRM search Cotality conversion (geography migration deferred). |
 | Public selector | `app/components/NeighborhoodSelector.tsx` | Manhattan hardcoded inline (`MANHATTAN_GROUPS`); other boroughs via `loadNeighborhoods(slug)` |
 | Legacy / dead | `data/neighborhoods.json` (header says "DO NOT USE") | **Header is misleading — file IS imported by `lib/neighborhoods/boroughs.ts` and `lib/geo/neighborhood-zips.ts`. PROTECTED.** Do not archive. |
 | Template residue | `src/data/geography/neighborhoods.json`, `boroughs.json` | Next.js template residue. Verify before touching. |
@@ -299,12 +299,11 @@ The CRM search is a **separate** pipeline from public search. Different shell, d
 | Layer | Canonical file | Notes |
 |---|---|---|
 | **Shared resolver** (single source of truth for ordering) | `lib/media/listing-media-resolver.ts` | `classifyMediaItem`, `resolveListingMedia`, `pickPrimaryPhotoUrl`, `pickBestThumbnailUrl`, `proxyTrestleUrl` |
-| Media sync service | `lib/media/media-sync-service.ts` | R2 cache + Trestle proxy management. Used by cron + ingest. |
+| Media sync service | `lib/media/media-sync-service.ts` | R2 cache + Cotality proxy management. Used by cron + ingest. |
 | R2 client | `lib/media/r2-client.ts` | Cloudflare R2 SDK wrapper |
-| Cache helper | `lib/images/cache-listing-photos.ts` | (separate folder; pre-existing) |
 | R2 wrapper | `lib/images/r2.ts` | (separate folder; pre-existing) |
 | Media batch API | `app/api/media/batch/route.ts` | Auth-gated. Detail mode uses resolver post-fetch. |
-| Media proxy API | `app/api/media/proxy/route.ts` | Server-side Bearer auth fallback. Allowlists `cotality.com` + legacy CoreLogic hosts. |
+| Media proxy API | `app/api/media/proxy/route.ts` | Server-side Bearer auth fallback. Allowlists `api.cotality.com` plus the retired pre-2026-03-31 provider hosts still present in stored media URLs (compatibility code pending removal). |
 | Public IDX image wrapper | `app/components/IDXImage.tsx` | Native `<img>` with aspect-ratio container |
 | Public listing gallery | `app/components/ListingMediaGallery.tsx` | Detail-page hero gallery |
 | CRM photo loader | `public/crm/js/render/photo-loader.js` | Lazy-load via batch API |
@@ -320,45 +319,41 @@ The CRM search is a **separate** pipeline from public search. Different shell, d
 
 ---
 
-## Section 8 — IDX / Trestle / REBNY Source-of-Truth
+## Section 8 — Cotality provider data and REBNY rules
 
-The data flow has three distinct layers. Conflating them is how compliance bugs creep in.
+Provider data and REBNY rules are separate authority layers (Master §0.1.1). Conflating them is how compliance bugs creep in.
 
 | Layer | What it is |
 |---|---|
-| **REBNY** | The MLS/RLS organization, data owner, and policy layer. Sets distribution rules (UCBA, IDX Plus pre-filter convention, attribution requirements). |
-| **Cotality / Trestle** | The API platform that implements + serves the data. Bearer auth, OData, Media expansion. |
-| **RESO** | The certification / data-standard framework. Defines field names, DD versions, the Property entity type. |
+| **REBNY** | The RLS operator, data owner, and policy layer. Sets distribution rules (UCBA, IDX Plus pre-filter convention, attribution requirements). |
+| **Cotality** | The provider API that implements and serves the data (Bearer auth, OData, media). Its live `$metadata` is the field, type and enum authority (Master §0.1–§0.2). |
 
 **Source-of-truth files:**
 
 | Layer | Canonical file | Notes |
 |---|---|---|
-| Trestle field arrays | `lib/idx/trestle-mapper.ts` exports `ALL_RLS_FIELDS`, `RESO_TO_RLS_RENAMES`, `IDX_PLUS_SELECT_FIELDS`, `REQUIRED_RLS_FIELDS` | Single source of truth for field names |
-| Trestle → Prisma mapper | `lib/idx/trestle-mapper.ts` `mapTrestleToPrisma()` | Writer-side: Trestle → DB |
-| Distribution gate wrapper (Trestle records) | `lib/idx/trestle-mapper.ts` `checkDistributionGates()` | Passes `idxPlusPreFiltered: true` to evaluateDisplayGate |
+| Property field arrays | `lib/idx/trestle-mapper.ts` exports `IDX_PLUS_SELECT_FIELDS` (the Property `$select`), `REQUIRED_RLS_FIELDS` | Field names come from the live Cotality contract (Master §0.2) |
+| Cotality → Prisma mapper | `lib/idx/trestle-mapper.ts` `mapTrestleToPrisma()` | Writer-side: Cotality → DB |
+| Distribution gate wrapper (Cotality records) | `lib/idx/trestle-mapper.ts` `checkDistributionGates()` | Passes `idxPlusPreFiltered: true` to evaluateDisplayGate |
 | IDX sync orchestrator | `lib/idx/sync.ts` | Cron-run sync. **Do not touch IDX sync without explicit authorization.** |
-| Trestle HTTP fetch | `lib/idx/fetch.ts` | OData query builder, $expand=Media handling |
-| Trestle auth | `lib/idx/auth.ts` | OAuth client-credentials, 8h token TTL, 5-min refresh buffer |
+| Cotality HTTP fetch | `lib/idx/fetch.ts` | OData query builder, $expand=Media handling |
+| Cotality auth | `lib/idx/auth.ts` | OAuth client-credentials; token lifetime from the provider-returned `expires_in`; 5-min refresh buffer |
 | Card-fields select | `lib/idx/card-fields.ts` | Includes PhotosChangeTimestamp |
-| Distribution gates (reader) | `lib/compliance/gates.ts` | `evaluateDisplayGate`, `isInternetEntireListingDisplayable`, `isAddressDisplayable`. Has `idxPlusPreFiltered` option for Trestle-live records. |
-| Compliance status | `lib/compliance/status.ts` | RESO status normalization |
+| Distribution gates (reader) | `lib/compliance/gates.ts` | `evaluateDisplayGate`, `isInternetEntireListingDisplayable`, `isAddressDisplayable`. Has `idxPlusPreFiltered` option for Cotality-live records. |
+| Compliance status | `lib/compliance/status.ts` | `StandardStatus` normalization |
 | RLS validator | `lib/compliance/rebny-validator.ts` | 10-section validator (CI-gateable) |
 | Field tables | `lib/compliance/rebny-field-tables.ts` | Authority table for required fields |
 | Compliance DTO sanitizer | `lib/compliance/dto.ts` | Public/portal/CRM tier sanitizer |
-| RLS field CSV | `data/rebny-rls-property-fields.csv` | 902+ REBNY IDX Plus fields. Replaced 2026-03-19. |
-| RLS lookup CSV | `data/rebny-rls-property-lookup.csv` | 2,066+ picklist values |
-| RLS field registry doc | `data/RLS-FIELD-REGISTRY.md` | Human-readable registry |
+| Cotality field and enum contract | `data/cotality-enums.live.json` | Generated from live `$metadata` by `npm run cotality:pull`; drift-checked by `npm run cotality:verify`. |
 | UCBA rules | `data/UCBA-2026-Requirements.md` | Extracted from PDF |
-| Trestle metadata snapshot | `artifacts/metadata.xml` | Full Trestle OData metadata |
 
 **Rules:**
 
-1. **REBNY ≠ Trestle ≠ RESO.** When writing comments or commit messages, name the layer being affected.
-2. **Runtime payload behavior must be verified per feed.** Do not assume generic RESO behavior equals this REBNY IDX Plus feed. Example: REBNY pre-filters non-displayable rows out of IDX Plus, leaving `InternetEntireListingDisplayYN` null on survivors. Other Cotality/Trestle deployments serving non-REBNY MLSes do not necessarily share that convention.
+1. **REBNY ≠ Cotality.** When writing comments or commit messages, name the layer being affected.
+2. **Runtime payload behavior must be verified per feed.** Do not assume behavior seen on another feed or in a published data standard equals this REBNY IDX Plus feed. Example: REBNY pre-filters non-displayable rows out of IDX Plus, leaving `InternetEntireListingDisplayYN` null on survivors. Other Cotality deployments serving non-REBNY MLSes do not necessarily share that convention.
 3. **AVM and ConsumerComment are per-row opt-out flags** populated at the row level (~97% true / ~3% false). They are NOT pre-filtered. They remain fail-closed.
 4. **`InternetEntireListingDisplayYN` and `InternetAddressDisplayYN` are pre-filtered.** Null = displayable on this feed. Explicit false still blocks.
-5. Compliance changes must run `npm run ucba:audit`, `npm run rls:validate`, `npm run idx:validate`, and `npm run compliance-check`. All must pass.
+5. Compliance changes must run `npm run ucba:audit`, `npm run idx:validate`, and `npm run compliance-check`. All must pass.
 6. **Do not touch `lib/idx/sync.ts`** without explicit authorization. It is the writer; bugs here corrupt DB rows.
 
 ---
@@ -372,10 +367,6 @@ The following files are **generated**. Do not hand-edit:
 | `public/crm/index-built.html` | `node public/crm/build.js` | After any change to `public/crm/{index.html, html/, css/, js/}`. CI fails if drifted. |
 | `public/crm/data/validator-results.json` | `npm run idx:validate` | Daily / on demand. Consumed by CRM System Health dashboard. |
 | `.idx-validate/run-history.local.json` | `npm run idx:validate` | Validator run history (local-only, gitignored). |
-| `data/MASTER_REGISTRY.json` | `node scripts/generate-master-registry.js` | When schema/CSV changes. |
-| `data/FIELD_REGISTRY.json` | (generator script in scripts/) | When schema/CSV changes. |
-| `artifacts/reso-drift/latest.json` | `npm run reso:drift` | Regularly. |
-| `artifacts/schema-audit.json` | `npm run reso:schema-audit` | On demand. |
 
 **Rules:**
 
@@ -442,9 +433,9 @@ These rules apply to active incident triage. Do not bundle unrelated cleanup wit
 1. **Search must work before redesign.** Public search must return correct results, and CRM search must return correct results, before any UI redesign or new view modes.
 2. **Media primary-image selection must work before PR 4.** PR 4 is the master-plan media batch rewrite; rewriting URLs while primary-image selection is wrong propagates the wrong photos. Resolver landed in `9bf04448` (2026-05-01).
 3. **PR 4 remains BLOCKED** unless explicitly released. Master plan PR 4 (Media batch rewrite) is held behind Media PR 3 observation window.
-4. **Featured / Exclusives false attribution must be fixed before building new merchandising features.** The default of `listOfficeName: 'Mallan Real Estate Inc.'` for missing Trestle office (currently in `lib/idx/db-to-public-dto.ts:315`) is a UCBA Art. III §2(C) attribution problem and must be addressed before the system gets layered on with new collections / boards.
+4. **Featured / Exclusives false attribution must be fixed before building new merchandising features.** The default of `listOfficeName: 'Mallan Real Estate Inc.'` for a missing Cotality office (currently in `lib/idx/db-to-public-dto.ts:315`) is a UCBA Art. III §2(C) attribution problem and must be addressed before the system gets layered on with new collections / boards.
 5. **`/buy?exclusive=mallan` must filter for real,** not silently return the full feed. Implementation candidates:
-   - **Option A (DB-backed):** Filter by `listing.list_office_name === 'Mallan Real Estate Inc.'` (literal Trestle office name).
+   - **Option A (DB-backed):** Filter by `listing.list_office_name === 'Mallan Real Estate Inc.'` (literal Cotality office name).
    - **Option B (FeaturedConfig-backed):** Filter by `listing.id IN (FeaturedConfig.pinnedListingIds)` so the URL maps directly to the broker-pinned set.
    - Either is valid. Option B aligns with broker control.
 6. **Do not bundle unrelated cleanup with incident fixes.** Cleanup commits are separate, classified per Section 10.
@@ -482,10 +473,9 @@ If you are an AI/Codex/Claude session reading this charter:
 |---|---|
 | `CLAUDE.md` (top of repo) | Per-session AI rules. Points here at the top. |
 | `NEON.md` (top of repo) | DB / Prisma / migration discipline. Read before any schema change. |
-| `MASTER-PROJECT-TREE-v3.3.md` | Codebase reference. Larger and older than this charter; treat as background context, not authoritative. |
-| `data/RLS-FIELD-REGISTRY.md` | Trestle field registry. Authoritative for field names. |
+| `MALLAN-PLATFORM-MASTER-PLAN.md` | Sole product/system authority. This charter is subordinate to it. |
+| `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` | Current execution state. |
 | `data/UCBA-2026-Requirements.md` | UCBA rules. Authoritative for compliance. |
-| `.claude/skills/rebny-compliance/SKILL.md` | REBNY compliance gate. Read at session start. |
 
 ---
 

@@ -1,7 +1,7 @@
 /**
  * GET /api/crm/sales/comps?listing_id=X
  *
- * Fetch building + area comps for a listing from Trestle.
+ * Fetch building + area comps for a listing from Cotality.
  * Uses the listing's comp_criteria (agent-adjustable) or auto-generates defaults.
  * Requires agent/broker auth.
  */

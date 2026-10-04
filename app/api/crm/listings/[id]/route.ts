@@ -110,7 +110,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // WRITE: this handler mutates source-derived columns (property_type,
   // list_price, bedrooms_total, borough, the display gates) AND stamps
   // `modification_timestamp: new Date()`. On a synced row that is both a local
-  // divergence the next sync silently overwrites AND a poisoned Trestle cursor
+  // divergence the next sync silently overwrites AND a poisoned Cotality cursor
   // (getLastSyncTimestamp takes MAX(modification_timestamp) over rows with
   // last_synced_from_trestle NOT NULL). Only Mallan-authored local rows are
   // manageable here — for every role, broker included.
@@ -202,7 +202,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // FARE Act fee-disclosure gate (NYC LL 119/2024) — rentals becoming display-ready
   // (Active / ComingSoon). Covers the edit-save publish path. Applies to CRM rental
   // exclusives too. Gate on DISPLAY-READY status (not !isDraft): the CRM form saves
-  // drafts as RESO MlsStatus "Incomplete", which is non-Draft but NOT display-ready,
+  // drafts with the CRM draft marker MlsStatus "Incomplete", which is non-Draft but NOT display-ready,
   // so a draft save must never be gated (Codex #348).
   //
   // Unchanged from its #350 baseline: this gate reads `effectiveStatus`
@@ -258,7 +258,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   else if (body.SubdivisionName !== undefined) update.neighborhood = String(body.SubdivisionName);
   if (body.City !== undefined) update.city = String(body.City);
   if (body.PostalCode !== undefined) update.postal_code = String(body.PostalCode);
-  // Distribution gates — all use canonical RESO/RLS field names (YN suffix).
+  // Distribution gates (YN-suffixed flags). InternetEntireListingDisplayYN and
+  // InternetAddressDisplayYN are live Cotality Property fields; the IDX-display
+  // control below is Mallan-internal (there is no Cotality IDX-display field).
   //
   // 2026-04-28 fail-closed correction: previous pattern was `body.X !== false`
   // which coerced null/string-"false"/garbage to true (fail-OPEN). Use
@@ -285,7 +287,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     // pre-amend guard treated that as non-terminal and let display through.
     // After normalization the guard sees the canonical "Closed" and refuses.
     // Reuses the C2 canonical TERMINAL_STATUSES set so writer and cron stay
-    // aligned (lib/idx/trestle-mapper.ts is the source of truth).
+    // aligned (imported from lib/idx/trestle-mapper.ts).
     //
     // Phase A Codex fix (2026-05-20): also AND-in `effectiveRlsEligible` so a
     // commercial / website-only listing (`rls_eligible=false`) cannot have
@@ -344,7 +346,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         : null;
   }
   // ParticipantOnly + OwnerOptOut: derive from Permissions enum (same as POST route),
-  // or accept the canonical RESO field names ParticipantOnlyYN / OwnerOptOutYN as fallback.
+  // or accept the legacy ParticipantOnlyYN / OwnerOptOutYN body keys as fallback (not live Cotality fields).
   const permValue = body.Permission ?? body.Permissions; // A2: accept canonical Permission + legacy Permissions
   if (permValue !== undefined) {
     const permBools = derivePermissionBooleans(permValue);
@@ -364,7 +366,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // ListAgentKey were never persisted post-Phase-C).
   const existingAgentInfo: Record<string, unknown> = {};
 
-  // Address bucket key allowlist. Includes both canonical RESO names AND the
+  // Address bucket key allowlist. Includes both the stored address keys (Cotality
+  // address fields plus Mallan's Borough/Neighborhood) AND the
   // CRM-form alias keys (CityRegion/SubdivisionName/CountyOrParish/PostalCity)
   // that collectSaleFormData emits. Before adding the aliases, those four
   // fields landed only in raw_data on PATCH — the structured address bucket
@@ -376,7 +379,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     "City", "StateOrProvince", "PostalCode", "Borough",
     "Neighborhood", "BuildingName", "UnparsedAddress",
     // Alias keys the CRM sale form emits via collectSaleFormData (these are
-    // the same fields under different RESO/REBNY names — see
+    // the same fields under different Cotality/REBNY names — see
     // lib/compliance/normalizer.ts aliasToCanonical).
     "CityRegion", "SubdivisionName", "CountyOrParish", "PostalCity",
   ];
@@ -385,8 +388,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     if (body[k] !== undefined) updatedAddress[k] = body[k];
   }
   // UnparsedAddress case normalization: the CRM sale form's
-  // collectSaleFormData emits `UnParsedAddress` (capital P, the spelling on
-  // Trestle's $metadata for OData $orderby), while existing Trestle-mapped
+  // collectSaleFormData emits `UnParsedAddress` (capital P; the live Cotality
+  // $metadata spells it `UnparsedAddress`), while existing Cotality-mapped
   // rows and most internal callers use `UnparsedAddress` (lowercase p). Accept
   // either casing and store under the lowercase-p canonical so the public-DTO
   // builders + slug + address validator (which all read `UnparsedAddress`)
@@ -521,7 +524,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // `idx_display_yn` (via IDXEntireListingDisplayYN guard above),
   // `rls_eligible`, status, and other projection-mirrored columns; without
   // this dual-write the projection would lag until the next idx-sync run
-  // (Trestle path only) or the data-retention cron (terminal rows only).
+  // (Cotality path only) or the data-retention cron (terminal rows only).
   //
   // See docs/idx/post-reconciliation-tightening-audit-2026-05-20.md W3 for
   // the gap analysis. Failure logged to AuditEvent + does NOT block the

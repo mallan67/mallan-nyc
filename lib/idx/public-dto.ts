@@ -35,6 +35,13 @@ export function mapPropertyTypeToDisplay(commonInterest?: string, propertySubTyp
     if (sub.includes('co-op') || sub.includes('coop') || sub.includes('stock cooperative')) return 'Co-op';
     if (sub.includes('condop')) return 'Condop';
     if (sub.includes('townhouse')) return 'Townhouse';
+    // PROVEN_DEAD_BRANCH (PropertySubType cutover, 2026-10-02): live Cotality's single-family
+    // value is "SingleFamilyResidence" (no space, no "house" substring) -- this condition can
+    // never match it. MALLAN_BUSINESS_RULE_UNRESOLVED: the correct Mallan display label for
+    // SingleFamilyResidence is not proven -- see the identical note on the sibling dead
+    // branch in lib/search/crm-idx-mapper.ts's mapDisplayPropertyType for the conflicting
+    // vocabularies already in the repo. Not resolved here; the raw value still falls
+    // through to `return propertySubType` below, unchanged.
     if (sub.includes('single family') || sub.includes('house')) return 'House';
     if (sub.includes('multi') || sub.includes('multi-family')) return 'Multi-Family';
     if (sub.includes('loft')) return 'Loft';

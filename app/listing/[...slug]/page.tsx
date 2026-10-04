@@ -37,10 +37,10 @@ import type { BoroughSlug } from '@/lib/types/neighborhood';
 import SubwayBadge from '@/app/components/neighborhoods/SubwayBadge';
 // NOTE (compute repair PR #511): the public listing page renders ONLY from the
 // synchronized Neon copy (listing + listing_media). It must NEVER call the live
-// Cotality/Trestle feed (OAuth, Property, Media) during an ordinary page request —
+// Cotality feed (OAuth, Property, Media) during an ordinary page request —
 // that live dependency is what forced the route dynamic (no-store, cache MISS on
 // every request). Live Cotality calls live in the sync jobs and operational tools,
-// not here. See `docs/audits/compute-reduction-plan-2026-07-06.md`.
+// not here.
 import type { PublicListingDTO } from '@/lib/idx/public-dto';
 import { isMlsIdSlug, extractMlsIdFromSlug, extractListingIdFromSlug, parseAddressSlug, buildListingSlugFromDbRow } from '@/lib/listing-slug';
 import { buildingHref } from '@/lib/buildings/slug';
@@ -118,7 +118,7 @@ export async function generateStaticParams(): Promise<{ slug: string[] }[]> {
  * second, independent implementation.
  *
  * THE DEFECT THIS REPLACES: the previous local version tested the WHOLE string
- * for `cotality.com` / `corelogic.com`. But `resolveDbListingMedia` has ALREADY
+ * for a provider media hostname. But `resolveDbListingMedia` has ALREADY
  * proxied every relational Cotality row, so the hostname is still present inside
  * the encoded `url=` parameter of an already-proxied relative URL. It matched,
  * and wrapped a second time:
@@ -143,12 +143,12 @@ interface LastSaleInfo {
   closePrice: number;
   closeDate: string;
   sqft: number;
-  source: 'trestle' | 'acris';
+  source: 'cotality' | 'acris';
 }
 
-// Last-sale enrichment (fetchLastUnitSale via live Trestle + fetchLastSaleFromACRIS
+// Last-sale enrichment (fetchLastUnitSale via live Cotality + fetchLastSaleFromACRIS
 // via NYC ACRIS) was REMOVED in the compute repair (PR #511). On the DB-only render
-// path it produced no public output anyway: the Trestle result is blocked for the
+// path it produced no public output anyway: the Cotality result is blocked for the
 // public audience by resolveVisibility, and the ACRIS lookup requires tax block/lot
 // that the synchronized DB row does not carry (fetchFromDB returns tax=null). The
 // `LastSaleInfo` type is retained because the render still types `lastUnitSale`,
@@ -166,7 +166,7 @@ type Props = {
 // lib/listing-canonical-url.ts. `resolveLookupKey` is the inverse of
 // `buildCanonicalListingPath`: it collapses the catch-all `[...slug]` segments
 // back into a single lookup key and restores the stored uppercase casing of the
-// trailing listing id (the canonical URL lowercases it, but Trestle/Prisma
+// trailing listing id (the canonical URL lowercases it, but Cotality/Prisma
 // lookups are case-sensitive — the 2026-06-02 sitewide P0 fix).
 import { buildCanonicalListingPath, resolveLookupKey, isBareListingIdSegment } from '@/lib/listing-canonical-url';
 
@@ -183,14 +183,14 @@ function countyToBorough(county: string): string {
   return COUNTY_TO_BOROUGH[county.toLowerCase()] || county;
 }
 
-/** Extra fields from Trestle raw record (not in PublicListingDTO) */
-interface TrestleExtraFields {
+/** Extra fields from Cotality raw record (not in PublicListingDTO) */
+interface CotalityExtraFields {
   taxBlock: string | null;
   taxLot: string | null;
 }
 
-// rawToDTO (raw Trestle record → PublicListingDTO) was REMOVED in the compute
-// repair (PR #511): it was only used by the live Trestle-direct fallback, which no
+// rawToDTO (raw Cotality record → PublicListingDTO) was REMOVED in the compute
+// repair (PR #511): it was only used by the live Cotality-direct fallback, which no
 // longer exists. The DB path (fetchFromDB) builds the DTO directly from the
 // synchronized Neon row, including the FARE move-in fee disclosure via resolveMoveInFees.
 
@@ -216,13 +216,13 @@ type ListingFetchResult = ListingFetchListing | ListingFetchRedirect;
 interface ListingFetchListing {
   kind: 'listing';
   listing: PublicListingDTO;
-  tax: TrestleExtraFields;
+  tax: CotalityExtraFields;
   rawStreetName?: string;
 }
 
 /**
  * The requested row is a Mallan RLS return-copy with exactly one proven local
- * physical-unit twin (CHARTER Section 1A), so the canonical URL is the LOCAL
+ * physical-unit twin (Master §4.4), so the canonical URL is the LOCAL
  * listing's.
  *
  * Carried as DATA rather than by calling a redirect inside `fetchFromDB` on
@@ -249,7 +249,7 @@ interface ListingFetchRedirect {
 }
 
 /**
- * DB-first lookup: check Prisma DB for listing before hitting Trestle.
+ * DB-first lookup: check Prisma DB for listing before hitting Cotality.
  * Converts DB record to PublicListingDTO. Returns null if not found.
  */
 // PR 4 reader swap: pull the relational `listing_media` rows alongside every
@@ -283,7 +283,7 @@ const LISTING_MEDIA_INCLUDE = {
       order: true,
       preferred_photo_yn: true,
       status: true,
-      media_key: true, // needed to tell CRM-owned rows (crm: prefix) from Trestle rows
+      media_key: true, // needed to tell CRM-owned rows (crm: prefix) from Cotality rows
     },
   },
   // ALL-STATUS existence signal. A Prisma aggregate subquery inside the SAME
@@ -440,7 +440,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       return null;
     }
 
-    // MALLAN RLS RETURN-COPY CANONICALIZATION (CHARTER Section 1A).
+    // MALLAN RLS RETURN-COPY CANONICALIZATION (Master §4.4).
     //
     // Public suppression keeps the returned Cotality twin out of search,
     // sitemap, agent pages, comps, autocomplete and the building manifest — but
@@ -502,7 +502,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     const features = (dbListing.features as Record<string, unknown>) || {};
     // PR 4 reader swap: prefer the relational `listing_media` rows fetched
     // alongside this listing. When present, R2-cached URLs are used
-    // directly (faster, no Trestle proxy). When absent (un-synced row or
+    // directly (faster, no Cotality proxy). When absent (un-synced row or
     // mid-sync race), fall back to the legacy `Listing.media` JSON so no
     // detail page renders blank. Both paths flow through the same
     // classify→sort pipeline in `listing-media-resolver`.
@@ -596,7 +596,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     });
     // S1 (#415): PublicRemarks now reads features → raw_data. The DB `compliance`
     // column's PublicRemarks is 100% redundant with raw_data (S1 probe:
-    // only_in_compliance = 0; raw_data is a superset), and the redundant Trestle
+    // only_in_compliance = 0; raw_data is a superset), and the redundant Cotality
     // `compliance` copy is being retired (the mapper now writes `{}`). Do NOT read
     // the compliance column for render. (CRM/syndication-authored compliance keys
     // are unrelated to render and are written directly by those routes.)
@@ -666,8 +666,8 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
  * Fetch a single listing for the public page — DB-ONLY (compute repair, PR #511).
  *
  * The listing is served EXCLUSIVELY from the synchronized Neon copy (Prisma), via
- * fetchFromDB. There is deliberately NO live Cotality/Trestle fallback: the former
- * Trestle-direct fetch and the /api/listings/:id proxy fallback were removed because
+ * fetchFromDB. There is deliberately NO live Cotality fallback: the former
+ * Cotality-direct fetch and the /api/listings/:id proxy fallback were removed because
  * ANY live-feed call reachable from the render path forces the route dynamic
  * (Cache-Control: no-store, X-Vercel-Cache: MISS on every request), which kept Neon
  * ~98% active. IDX sync (page revalidate=300) keeps the DB fresh; a listing absent
@@ -847,8 +847,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-/** Format raw Trestle values: "CentralAir" → "Central Air", "InUnit" → "In-Unit" */
-function formatTrestleValue(val: string): string {
+/** Format raw Cotality values: "CentralAir" → "Central Air", "InUnit" → "In-Unit" */
+function formatCotalityValue(val: string): string {
   return val
     .replace(/([a-z])([A-Z])/g, '$1 $2')   // camelCase → separate words
     .replace(/^In\s/, 'In-')                // "In Unit" → "In-Unit"
@@ -859,15 +859,15 @@ function formatTrestleValue(val: string): string {
     .trim();
 }
 
-/** Split comma-separated Trestle field into RAW trimmed tokens (no formatting) */
+/** Split comma-separated Cotality field into RAW trimmed tokens (no formatting) */
 function splitRaw(raw: string): string[] {
   return raw.split(',').map(v => v.trim()).filter(v => v.length > 0);
 }
 
-/** Split comma-separated Trestle field into cleaned values */
-function parseTrestleList(raw: string): string[] {
+/** Split comma-separated Cotality field into cleaned values */
+function parseCotalityList(raw: string): string[] {
   return raw.split(',')
-    .map(v => formatTrestleValue(v.trim()))
+    .map(v => formatCotalityValue(v.trim()))
     .filter(v => v.length > 0 && v.toLowerCase() !== 'none' && v.toLowerCase() !== 'other');
 }
 
@@ -905,7 +905,7 @@ export default async function ListingPage({ params }: Props) {
   //
   // `permanentRedirect` (308), NOT `redirect` (307). An earlier comment claimed
   // redirect() was already 308; it is not — outside Server Actions Next issues
-  // 307 Temporary. Under CHARTER Section 1A the return-copy is NEVER the public
+  // 307 Temporary. Under Master §4.4 the return-copy is NEVER the public
   // canonical URL once exactly one local twin is proven, so the correct signal
   // to crawlers is permanent.
   if (result.kind === 'redirect') {
@@ -967,8 +967,8 @@ export default async function ListingPage({ params }: Props) {
     : `${listing.address.streetNumber} ${listing.address.streetName}`.trim() + (listing.address.unitNumber ? `, #${listing.address.unitNumber}` : '');
 
   // Supplementary GEOCODE only (compute repair, PR #511). The former last-sale
-  // enrichment (live Trestle `fetchLastUnitSale` + NYC `fetchLastSaleFromACRIS`) was
-  // removed: on the DB-only render path it produced no public output (Trestle blocked
+  // enrichment (live Cotality `fetchLastUnitSale` + NYC `fetchLastSaleFromACRIS`) was
+  // removed: on the DB-only render path it produced no public output (Cotality blocked
   // for the public audience; ACRIS needs tax block/lot the DB row does not carry).
   // Geocoding stays because lib/geo/geocode uses a CACHED fetch (next:{revalidate}),
   // so it does not reintroduce a live-feed dependency or force the route dynamic.
@@ -1001,14 +1001,14 @@ export default async function ListingPage({ params }: Props) {
       listing.address.latitude = centroid[0];
       listing.address.longitude = centroid[1];
     }
-    // No hardcoded fallback. Trestle does NOT provide lat/lng — geocoding is our
+    // No hardcoded fallback. Cotality does NOT provide lat/lng — geocoding is our
     // responsibility. If both geocode and ZIP centroid fail, lat/lng stay null and
     // map/transit/schools sections gracefully hide for that listing. Showing wrong
     // coordinates (e.g., Midtown for a Queens listing) is worse than showing nothing.
   }
 
   // ── Building amenities ── STRICT WHITELIST
-  // Only approved amenities are displayed. Trestle raw value → display label.
+  // Only approved amenities are displayed. Cotality raw value → display label.
   const APPROVED_AMENITIES: Record<string, string> = {
     // Lobby & Services
     SecurityGuard: 'Doorman',
@@ -1063,8 +1063,8 @@ export default async function ListingPage({ params }: Props) {
 
   const amenitySet = new Set<string>();
 
-  // Scan all Trestle feature sources but ONLY add whitelisted values
-  // Use splitRaw (not parseTrestleList) so keys match the raw CamelCase whitelist
+  // Scan all Cotality feature sources but ONLY add whitelisted values
+  // Use splitRaw (not parseCotalityList) so keys match the raw CamelCase whitelist
   const rawBuildingFeatures = listing.buildingFeatures ? splitRaw(listing.buildingFeatures) : [];
   const rawAssocAmenities = listing.associationAmenities ? splitRaw(listing.associationAmenities) : [];
   const rawCommunity = listing.communityFeatures ? splitRaw(listing.communityFeatures) : [];
@@ -1076,20 +1076,20 @@ export default async function ListingPage({ params }: Props) {
   }
 
   // Pool — any pool feature → "Pool"
-  const rawPool = listing.poolFeatures ? parseTrestleList(listing.poolFeatures) : [];
+  const rawPool = listing.poolFeatures ? parseCotalityList(listing.poolFeatures) : [];
   if (rawPool.length > 0) amenitySet.add('Pool');
 
   // Spa — any spa feature → "Spa Room"
-  const rawSpa = listing.spaFeatures ? parseTrestleList(listing.spaFeatures) : [];
+  const rawSpa = listing.spaFeatures ? parseCotalityList(listing.spaFeatures) : [];
   if (rawSpa.length > 0) amenitySet.add('Spa Room');
 
   // Laundry — building-level only → "Laundry Room"
-  const rawLaundry = listing.laundryFeatures ? parseTrestleList(listing.laundryFeatures) : [];
+  const rawLaundry = listing.laundryFeatures ? parseCotalityList(listing.laundryFeatures) : [];
   const buildingLaundryValues = new Set(['CommonArea', 'CommonOnFloor', 'LaundryRoom', 'BuildingInside', 'BuildingMultipleLocations']);
   if (rawLaundry.some(v => buildingLaundryValues.has(v))) amenitySet.add('Laundry Room');
 
   // Parking — garage → "Parking Garage"
-  const parkingList = listing.parkingFeatures ? parseTrestleList(listing.parkingFeatures) : [];
+  const parkingList = listing.parkingFeatures ? parseCotalityList(listing.parkingFeatures) : [];
   const hasGarage = parkingList.some(v => v === 'Garage');
   if (hasGarage) amenitySet.add('Parking Garage');
 
@@ -1144,14 +1144,14 @@ export default async function ListingPage({ params }: Props) {
   const unitFeatures: string[] = [];
   if (listing.interiorFeatures) {
     for (const raw of splitRaw(listing.interiorFeatures)) {
-      if (!INTERIOR_EXCLUDE_RAW.has(raw)) unitFeatures.push(formatTrestleValue(raw));
+      if (!INTERIOR_EXCLUDE_RAW.has(raw)) unitFeatures.push(formatCotalityValue(raw));
     }
   }
   // Unit-level exterior features — exclude building-level
   const EXTERIOR_BUILDING_RAW = new Set(['BuildingBalcony', 'BuildingCourtyard', 'BuildingGarden', 'BuildingRoofDeck', 'BuildingStorage', 'Storage', 'None']);
   if (listing.exteriorFeatures) {
     for (const raw of splitRaw(listing.exteriorFeatures)) {
-      if (!EXTERIOR_BUILDING_RAW.has(raw)) unitFeatures.push(formatTrestleValue(raw));
+      if (!EXTERIOR_BUILDING_RAW.has(raw)) unitFeatures.push(formatCotalityValue(raw));
     }
   }
 
@@ -1159,9 +1159,9 @@ export default async function ListingPage({ params }: Props) {
   const unitDetails: { label: string; value: string }[] = [];
   // Only unit-level laundry (In Unit, Washer Hookup) — NOT building-level
   const unitLaundryRaw = rawLaundry.filter(v => !buildingLaundryValues.has(v) && v !== 'None' && v !== 'BuildingNone' && v !== 'BuildingOther' && v !== 'SeeRemarks');
-  if (unitLaundryRaw.length > 0) unitDetails.push({ label: 'Laundry', value: unitLaundryRaw.map(v => formatTrestleValue(v)).join(', ') });
-  if (listing.heating) unitDetails.push({ label: 'Heating', value: parseTrestleList(listing.heating).join(', ') });
-  if (listing.cooling) unitDetails.push({ label: 'Cooling', value: parseTrestleList(listing.cooling).join(', ') });
+  if (unitLaundryRaw.length > 0) unitDetails.push({ label: 'Laundry', value: unitLaundryRaw.map(v => formatCotalityValue(v)).join(', ') });
+  if (listing.heating) unitDetails.push({ label: 'Heating', value: parseCotalityList(listing.heating).join(', ') });
+  if (listing.cooling) unitDetails.push({ label: 'Cooling', value: parseCotalityList(listing.cooling).join(', ') });
 
   // ── Appliances — key appliances buyers care about ──
   const APPLIANCE_SHOW = new Set([
@@ -1170,10 +1170,10 @@ export default async function ListingPage({ params }: Props) {
     'wine cooler', 'wine refrigerator', 'ice maker',
   ]);
   const appliancesList: string[] = listing.appliances
-    ? parseTrestleList(listing.appliances).filter(a => APPLIANCE_SHOW.has(a.toLowerCase()))
+    ? parseCotalityList(listing.appliances).filter(a => APPLIANCE_SHOW.has(a.toLowerCase()))
     : [];
   // Pet policy — format raw values like "CatsOK,DogsOK" → "Cats Ok, Dogs Ok"
-  const rawPetValues = listing.petsAllowedDetail ? parseTrestleList(listing.petsAllowedDetail) : [];
+  const rawPetValues = listing.petsAllowedDetail ? parseCotalityList(listing.petsAllowedDetail) : [];
   const petPolicy = rawPetValues
     .map(v => {
       // Convert "Cats OK" / "Dogs OK" → "Cats Ok" / "Dogs Ok"

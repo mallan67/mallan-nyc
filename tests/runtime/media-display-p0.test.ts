@@ -2,14 +2,14 @@
 /**
  * CRM media P0 — Cotality-shaped listing_media for CRM exclusives.
  *
- * Covers the P0 contract (docs/crm/sales-form-media-p0-implementation-plan-2026-05-29.md):
+ * Covers the P0 contract (2026-05-29 CRM media P0 plan, retired to git history):
  *  - upload writes Cotality-shaped rows (media_key/media_type/media_category/order/preferred)
  *  - content-dedup via stable media_key
  *  - hero = preferred_photo_yn photo (not first upload)
  *  - reorder uses listing_media.order
  *  - floor plan never becomes hero
  *  - delete soft-deletes (status='deleted') and deleted media does not resolve
- *  - Trestle rows untouched (CRM endpoints reject non-`crm:` keys; importer only mints crm: keys)
+ *  - Cotality feed rows untouched (CRM endpoints reject non-`crm:` keys; importer only mints crm: keys)
  *  - migration dry-run maps JSON → planned rows WITHOUT writing
  */
 import { readFileSync } from 'node:fs';
@@ -55,7 +55,7 @@ describe('crm media_key — stable, unique, content-dedup', () => {
     expect(crmMediaKey('SL-0004', 'a'.repeat(64))).not.toBe(crmMediaKey('SL-0005', 'a'.repeat(64)));
     expect(crmMediaKey('SL-0004', 'a'.repeat(64))).not.toBe(crmMediaKey('SL-0004', 'b'.repeat(64)));
   });
-  it('lives in the crm: namespace (so Trestle keys never collide)', () => {
+  it('lives in the crm: namespace (so Cotality keys never collide)', () => {
     expect(isCrmMediaKey(crmMediaKey('SL-0004', 'a'.repeat(64)))).toBe(true);
     expect(isCrmMediaKey('RLS20093870-1')).toBe(false);
     expect(isCrmMediaKey(null)).toBe(false);
@@ -76,8 +76,8 @@ describe('crm media type/category classification', () => {
   it('category mirrors Cotality MediaCategory: FloorPlan→FloorPlan, Photo→Photo, Video→Video', () => {
     // Cotality $metadata MediaCategory has a dedicated `FloorPlan` member (value 6) —
     // floor plans MUST mirror it, not collapse to `Document` (that is the separate
-    // MediaClassification member). See artifacts/metadata.xml:11276-11357 and the
-    // Trestle sync, which stores raw `FloorPlan` for synced floor plans.
+    // MediaClassification member). See MediaCategory in data/cotality-enums.live.json and the
+    // Cotality sync, which stores raw `FloorPlan` for synced floor plans.
     expect(crmMediaCategory('FloorPlan')).toBe('FloorPlan');
     expect(crmMediaCategory('Photo')).toBe('Photo');
     expect(crmMediaCategory('Video')).toBe('Video');
@@ -341,8 +341,8 @@ describe('CRM media P0 — Codex follow-up hotfix', () => {
     expect(uploadRoute).toMatch(/status:\s*409/);
   });
 
-  // ── Trestle/RLS rows remain untouched ──
-  it('delete + set-main remain CRM-key-guarded (Trestle/RLS rows never modified here)', () => {
+  // ── Cotality/RLS rows remain untouched ──
+  it('delete + set-main remain CRM-key-guarded (Cotality/RLS rows never modified here)', () => {
     expect(mediaIdRoute).toMatch(/isCrmMediaKey\(mediaKey\)/);
   });
 
@@ -355,14 +355,14 @@ describe('CRM media P0 — Codex follow-up hotfix', () => {
 // ════════════════════════════════════════════════════════════════════════════
 // Post-#281 hotfix — the SECOND resurrection path (Codex): when all CRM
 // listing_media rows are soft-deleted, the detail page's old photoCount===0 branch
-// called fetchListingMedia(listing_id) and live Trestle/Cotality photos could
+// called fetchListingMedia(listing_id) and live Cotality photos could
 // reappear. shouldFetchTrestleMediaFallback was the gate that suppressed it for CRM
-// exclusives. NOTE: PR #511 (DB-only render) removed the live-Trestle media fallback
+// exclusives. NOTE: PR #511 (DB-only render) removed the live-Cotality media fallback
 // from the detail page ENTIRELY — there is no live fetch to resurrect anything now.
 // The resolver-gate unit tests below stay (they lock shouldFetchTrestleMediaFallback's
 // behavior for any caller); the page-wiring test asserts the stronger new invariant.
 // ════════════════════════════════════════════════════════════════════════════
-describe('CRM media — no Trestle fallback after CRM rows deleted (post-#281 hotfix)', () => {
+describe('CRM media — no Cotality fallback after CRM rows deleted (post-#281 hotfix)', () => {
   const detailPage = read('app/listing/[...slug]/page.tsx');
   const crmRow = (over: Record<string, unknown> = {}) => ({
     media_key: 'crm:SL-0004:abc', media_url_original: 'https://r2.dev/a.webp',
@@ -370,26 +370,26 @@ describe('CRM media — no Trestle fallback after CRM rows deleted (post-#281 ho
     media_category: 'Photo', media_classification: null, order: 0,
     preferred_photo_yn: false, status: 'active', ...over,
   });
-  const trestleRow = (over: Record<string, unknown> = {}) =>
+  const feedRow = (over: Record<string, unknown> = {}) =>
     crmRow({ media_key: 'RLS20093870-1', ...over });
 
-  // CRM-exclusive context (Mallan-owned media): no Trestle mls_id, SL- id.
+  // CRM-exclusive context (Mallan-owned media): no Cotality mls_id, SL- id.
   const CRM_CTX = { mlsId: null, listingId: 'SL-0004' };
 
   // 1. Only soft-deleted CRM rows on a CRM exclusive → resolver [] AND suppressed.
-  it('only soft-deleted CRM rows (CRM exclusive) → resolver [] and Trestle fallback suppressed', () => {
+  it('only soft-deleted CRM rows (CRM exclusive) → resolver [] and Cotality fallback suppressed', () => {
     const rows = [crmRow({ status: 'deleted' }), crmRow({ media_key: 'crm:SL-0004:def', status: 'deleted', order: 1 })];
     expect(resolveListingMediaFromRows(rows as unknown as ListingMediaTableRow[])).toEqual([]);
     expect(shouldFetchTrestleMediaFallback(rows, /*photoCount*/ 0, CRM_CTX)).toBe(false);
   });
 
   // 2. Active CRM rows → photoCount>0 → no fallback.
-  it('active CRM rows → no Trestle fallback (photoCount>0)', () => {
+  it('active CRM rows → no Cotality fallback (photoCount>0)', () => {
     expect(shouldFetchTrestleMediaFallback([crmRow()], /*photoCount*/ 3, CRM_CTX)).toBe(false);
   });
 
   // 3. No listing_media rows at all → fallback still allowed (un-synced / pure IDX).
-  it('no listing_media rows → Trestle fallback remains allowed', () => {
+  it('no listing_media rows → Cotality fallback remains allowed', () => {
     expect(shouldFetchTrestleMediaFallback([], 0, CRM_CTX)).toBe(true);
   });
 
@@ -399,17 +399,17 @@ describe('CRM media — no Trestle fallback after CRM rows deleted (post-#281 ho
     expect(shouldFetchTrestleMediaFallback(rows, 0, CRM_CTX)).toBe(false);
   });
 
-  // 5. Trestle/IDX listing (non-crm rows), no photos resolved → fallback unaffected.
-  it('Trestle/IDX listing (non-crm rows) with 0 photos → fallback still allowed (no regression)', () => {
-    expect(shouldFetchTrestleMediaFallback([trestleRow({ media_type: 'FloorPlan' })], 0, { mlsId: 'RLS20093870', listingId: 'RLS20093870' })).toBe(true);
+  // 5. Cotality/IDX listing (non-crm rows), no photos resolved → fallback unaffected.
+  it('Cotality/IDX listing (non-crm rows) with 0 photos → fallback still allowed (no regression)', () => {
+    expect(shouldFetchTrestleMediaFallback([feedRow({ media_type: 'FloorPlan' })], 0, { mlsId: 'RLS20093870', listingId: 'RLS20093870' })).toBe(true);
   });
 
-  it('Trestle/IDX listing with NO rows + 0 photos → fallback allowed', () => {
+  it('Cotality/IDX listing with NO rows + 0 photos → fallback allowed', () => {
     expect(shouldFetchTrestleMediaFallback([], 0, { mlsId: 'RLS20093870', listingId: 'RLS20093870' })).toBe(true);
   });
 
-  // ── Wiring: detail page performs NO live Trestle media fetch/fallback at all ──
-  it('detail page performs NO live Trestle media fetch or fallback gate (DB-only render, PR #511)', () => {
+  // ── Wiring: detail page performs NO live Cotality media fetch/fallback at all ──
+  it('detail page performs NO live Cotality media fetch or fallback gate (DB-only render, PR #511)', () => {
     // Strip comments so the assertion tests CODE, not the note explaining the removal.
     const code = detailPage
       .replace(/\/\*[\s\S]*?\*\//g, '')
@@ -424,16 +424,16 @@ describe('CRM media — no Trestle fallback after CRM rows deleted (post-#281 ho
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-// Post-#282 hotfix — mixed IDX/CRM fallback. CRM rows on a Trestle-synced
+// Post-#282 hotfix — mixed IDX/CRM fallback. CRM rows on a Cotality-synced
 // IDX/RLS listing are SUPPLEMENTAL (e.g. an agent-added floor plan/video) and
-// must NOT suppress the live Trestle photo fallback. Only a CRM-CREATED
+// must NOT suppress the live Cotality photo fallback. Only a CRM-CREATED
 // (Mallan-exclusive) listing treats its CRM rows as authoritative. (Codex.)
 // ════════════════════════════════════════════════════════════════════════════
 describe('CRM media — mixed IDX vs CRM-exclusive fallback (post-#282)', () => {
   const crmRow = (over: Record<string, unknown> = {}) => ({ media_key: 'crm:x:abc', media_type: 'Photo', status: 'active', ...over });
   const CRM_EXCLUSIVE = { mlsId: null, listingId: 'SL-0004' };           // Mallan exclusive
   const CRM_EXCLUSIVE_RLS_ELIGIBLE = { mlsId: null, listingId: 'RL-0007' }; // CRM-created, RL- id
-  const IDX_RLS = { mlsId: 'RLS20093870', listingId: 'RLS20093870' };    // Trestle-synced
+  const IDX_RLS = { mlsId: 'RLS20093870', listingId: 'RLS20093870' };    // Cotality-synced
 
   // 1. CRM-exclusive, only deleted crm: rows → suppressed.
   it('1 — CRM-exclusive with only deleted crm: rows → fallback suppressed', () => {
@@ -446,18 +446,18 @@ describe('CRM media — mixed IDX vs CRM-exclusive fallback (post-#282)', () => 
   });
 
   // 3. THE FIX — IDX/RLS listing + only a supplemental crm: floor plan, 0 photos → fallback ALLOWED.
-  it('3 — IDX/RLS listing with only a supplemental crm: floorplan and 0 photos → Trestle fallback ALLOWED', () => {
+  it('3 — IDX/RLS listing with only a supplemental crm: floorplan and 0 photos → Cotality fallback ALLOWED', () => {
     const rows = [crmRow({ media_key: 'crm:RLS20093870:fp', media_type: 'FloorPlan', status: 'active' })];
     expect(shouldFetchTrestleMediaFallback(rows, /*photoCount*/ 0, IDX_RLS)).toBe(true);
   });
 
   // 4. IDX/RLS listing, no rows, 0 photos → fallback allowed.
-  it('4 — IDX/RLS listing with no rows and 0 photos → Trestle fallback allowed', () => {
+  it('4 — IDX/RLS listing with no rows and 0 photos → Cotality fallback allowed', () => {
     expect(shouldFetchTrestleMediaFallback([], 0, IDX_RLS)).toBe(true);
   });
 
-  // 5. IDX/RLS listing with active Trestle (non-crm) rows → existing behavior (photoCount>0 → no fallback).
-  it('5 — IDX/RLS listing with active Trestle photo rows → no fallback (uses rows)', () => {
+  // 5. IDX/RLS listing with active Cotality (non-crm) rows → existing behavior (photoCount>0 → no fallback).
+  it('5 — IDX/RLS listing with active Cotality photo rows → no fallback (uses rows)', () => {
     expect(shouldFetchTrestleMediaFallback([crmRow({ media_key: 'RLS20093870-1' })], 4, IDX_RLS)).toBe(false);
   });
 
@@ -509,7 +509,7 @@ describe('media quality — hero for main, card for thumbnail', () => {
     expect(out[0].thumbUrl).toBe(`${R2}/999-card.webp`);
   });
 
-  it('non-variant URL (Trestle/legacy .jpg): url and thumbUrl both fall back to the stored URL — no regression', () => {
+  it('non-variant URL (Cotality/legacy .jpg): url and thumbUrl both fall back to the stored URL — no regression', () => {
     const out = resolveListingMediaFromRows([
       row({ media_url_cached: 'https://cdn/legacy/13.jpg', media_url_original: 'https://cdn/legacy/13.jpg' }),
     ]);

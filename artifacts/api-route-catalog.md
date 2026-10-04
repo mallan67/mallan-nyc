@@ -5,12 +5,12 @@
 
 ## Stats
 
-- **Total routes**: 288
+- **Total routes**: 281
 - **By auth class**:
-  - `public`: 36
+  - `public`: 35
   - `broker`: 24
   - `public (auth)`: 17
-  - `agent/broker`: 145
+  - `agent/broker`: 139
   - `agent/broker (path)`: 2
   - `cron`: 24
   - `portal`: 25
@@ -66,8 +66,6 @@
 | `/api/crm/agents/sync-profiles` | POST | broker | — | audit-event | `app/api/crm/agents/sync-profiles/route.ts` |
 | `/api/crm/alerts` | GET,POST | agent/broker | — | audit-event | `app/api/crm/alerts/route.ts` |
 | `/api/crm/audit-log` | GET | agent/broker | — | — | `app/api/crm/audit-log/route.ts` |
-| `/api/crm/automation/adjust-tier` | POST | agent/broker | — | audit-event | `app/api/crm/automation/adjust-tier/route.ts` |
-| `/api/crm/automation/status` | GET | agent/broker | — | — | `app/api/crm/automation/status/route.ts` |
 | `/api/crm/buildings/[id]` | GET,PATCH | agent/broker | — | audit-event | `app/api/crm/buildings/[id]/route.ts` |
 | `/api/crm/buildings` | GET | agent/broker | — | — | `app/api/crm/buildings/route.ts` |
 | `/api/crm/campaigns` | GET,POST,PUT,DELETE | agent/broker | — | audit-event | `app/api/crm/campaigns/route.ts` |
@@ -200,10 +198,6 @@
 | `/api/crm/syndication/refresh` | POST | broker | — | audit-event | `app/api/crm/syndication/refresh/route.ts` |
 | `/api/crm/tasks/[id]` | PATCH | agent/broker | — | audit-event | `app/api/crm/tasks/[id]/route.ts` |
 | `/api/crm/tasks` | GET,POST | agent/broker | — | audit-event | `app/api/crm/tasks/route.ts` |
-| `/api/crm/tools/1031-timeline` | GET | agent/broker | — | — | `app/api/crm/tools/1031-timeline/route.ts` |
-| `/api/crm/tools/cap-rate` | GET | agent/broker | — | — | `app/api/crm/tools/cap-rate/route.ts` |
-| `/api/crm/tools/cash-on-cash` | GET | agent/broker | — | — | `app/api/crm/tools/cash-on-cash/route.ts` |
-| `/api/crm/tools/rental-yield` | GET | agent/broker | — | — | `app/api/crm/tools/rental-yield/route.ts` |
 | `/api/crm/unassigned-leads` | GET | broker | — | — | `app/api/crm/unassigned-leads/route.ts` |
 | `/api/crm/validator/run` | POST | broker | — | audit-event | `app/api/crm/validator/run/route.ts` |
 | `/api/cron/agent-metrics` | GET | cron | — | audit-event | `app/api/cron/agent-metrics/route.ts` |
@@ -303,7 +297,6 @@
 | `/api/release-identity` | GET | public | — | — | `app/api/release-identity/route.ts` |
 | `/api/schools/nearby` | GET | public | — | — | `app/api/schools/nearby/route.ts` |
 | `/api/search-alerts` | POST | public | — | audit-event,consent-capture | `app/api/search-alerts/route.ts` |
-| `/api/search-alerts/unsubscribe` | POST | public | — | audit-event | `app/api/search-alerts/unsubscribe/route.ts` |
 | `/api/settings/company` | GET,POST | broker | — | audit-event | `app/api/settings/company/route.ts` |
 | `/api/sign-up` | POST | public | — | consent-capture | `app/api/sign-up/route.ts` |
 | `/api/tracking/listing-view` | POST | cron | — | — | `app/api/tracking/listing-view/route.ts` |

@@ -456,7 +456,7 @@
             "lib/idx/db-to-public-dto.ts"
           ],
           "verifyPattern": "owner_opt_out|OwnerOptOut|Owner Opt-Out",
-          "verifyDescription": "Check triple-layer block: enforcement gate + Trestle mapper + DB filter",
+          "verifyDescription": "Check triple-layer block: enforcement gate + feed mapper + DB filter",
           "validation_v2": {
             "validation_mode": "workflow",
             "ci_policy": "must_pass",
@@ -637,7 +637,7 @@
             "lib/idx/trestle-mapper.ts"
           ],
           "verifyPattern": "idx_display_yn.*false|Closed.*24",
-          "verifyDescription": "Check cron job sets idx_display_yn=false for closed >24h AND Trestle mapper blocks at query time",
+          "verifyDescription": "Check cron job sets idx_display_yn=false for closed >24h AND feed mapper blocks at query time",
           "validation_v2": {
             "validation_mode": "workflow",
             "ci_policy": "must_pass",
@@ -664,7 +664,7 @@
               "schema": "status_changed_at|idx_display_yn"
             },
             "expected_aggregate": "PASS",
-            "notes": "REBNY §2.05: closed listings removed/hidden within 24h. Cron + Trestle mapper both enforce."
+            "notes": "REBNY §2.05: closed listings removed/hidden within 24h. Cron + feed mapper both enforce."
           }
         },
         {
@@ -1075,7 +1075,7 @@
             "app/listing/[id]/page.tsx",
             "app/components/SearchListingCard.tsx"
           ],
-          "verifyPattern": "Listing [Cc]ourtesy|listOfficeName|RLS.*listOfficeName",
+          "verifyPattern": "Listing [Cc]ourtesy|listOfficeName",
           "verifyDescription": "Check attribution text appears on listing detail page AND search cards",
           "validation_v2": {
             "validation_mode": "workflow",
@@ -1125,7 +1125,7 @@
               ]
             },
             "surface_patterns": {
-              "gate": "validate|REQUIRED_RLS_FIELDS",
+              "gate": "validate",
               "data": "REBNY_FIELD_TABLES|enumValues"
             },
             "expected_aggregate": "PASS"
@@ -1252,7 +1252,7 @@
             "lib/idx/db-to-public-dto.ts"
           ],
           "verifyPattern": "owner_opt_out.*false|ownerOptOut|Owner.*opted.*out",
-          "verifyDescription": "Check owner opt-out filtering at ALL layers: Trestle gate, DB query, portal DTO, detail page",
+          "verifyDescription": "Check owner opt-out filtering at ALL layers: feed gate, DB query, portal DTO, detail page",
           "validation_v2": {
             "validation_mode": "workflow",
             "ci_policy": "must_pass",
@@ -1293,7 +1293,7 @@
             "app/api/listings/route.ts"
           ],
           "verifyPattern": "participant_only.*false|ParticipantOnlyYN",
-          "verifyDescription": "Check participant-only filtering at Trestle gate, DB query, and portal DTO",
+          "verifyDescription": "Check participant-only filtering at feed gate, DB query, and portal DTO",
           "validation_v2": {
             "validation_mode": "workflow",
             "ci_policy": "must_pass",
@@ -1511,7 +1511,7 @@
           "id": "GATE-3",
           "name": "IDX Display",
           "ucbaRef": "Art. III, Sec. 2(C)",
-          "requirement": "InternetEntireListingDisplayYN=False → excluded from IDX websites (no separate IDXEntireListingDisplayYN on Trestle)",
+          "requirement": "InternetEntireListingDisplayYN=False → excluded from IDX websites (no separate IDXEntireListingDisplayYN in the live Cotality schema)",
           "verdict": "PASS",
           "verifyFiles": [
             "lib/idx/trestle-mapper.ts",
@@ -1519,7 +1519,7 @@
             "lib/idx/db-to-public-dto.ts"
           ],
           "verifyPattern": "idx_display_yn|IDXEntireListingDisplayYN|InternetEntireListingDisplayYN",
-          "verifyDescription": "Check idx_display_yn filtering at Trestle gate, DB queries, and DTO. Internal code uses IDXEntireListingDisplayYN; Trestle field is InternetEntireListingDisplayYN.",
+          "verifyDescription": "Check idx_display_yn filtering at feed gate, DB queries, and DTO. Internal code uses IDXEntireListingDisplayYN; Cotality field is InternetEntireListingDisplayYN.",
           "validation_v2": {
             "validation_mode": "workflow",
             "ci_policy": "must_pass",
@@ -1559,7 +1559,7 @@
             "lib/compliance/rls-enforcement.ts"
           ],
           "verifyPattern": "SyndicateYN|SyndicateTo",
-          "verifyDescription": "Check syndication enforcement on write path. Internal code uses SyndicateYN; Trestle field is SyndicateTo.",
+          "verifyDescription": "Check syndication enforcement on write path. Internal code uses SyndicateYN; Cotality field is SyndicateTo.",
           "validation_v2": {
             "validation_mode": "workflow",
             "ci_policy": "must_pass",
@@ -1632,7 +1632,7 @@
             "lib/idx/trestle-mapper.ts"
           ],
           "verifyPattern": "Closed.*24|idx_display_yn.*false",
-          "verifyDescription": "Check cron + Trestle gate enforce 24hr removal",
+          "verifyDescription": "Check cron + feed gate enforce 24hr removal",
           "validation_v2": {
             "validation_mode": "workflow",
             "ci_policy": "must_pass",

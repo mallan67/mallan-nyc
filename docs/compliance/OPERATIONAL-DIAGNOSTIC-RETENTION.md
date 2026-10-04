@@ -15,7 +15,7 @@ They may be retained for **30 days** and then deleted in bounded, resumable batc
 
 All other `AuditEvent` rows keep the existing two-year retention rule unless a longer-lived canonical record owns the requirement. In particular, this decision does not shorten retention for:
 
-- REBNY/RLS or Cotality/Trestle access evidence;
+- REBNY/RLS or Cotality access evidence;
 - listing-display, status, gate, attribution, or broker-decision evidence;
 - lead consent, email suppression, or unsubscribe evidence;
 - CRM mutations, offers, deals, commissions, documents, or transaction records;

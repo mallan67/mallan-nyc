@@ -1,18 +1,18 @@
-// GET /api/media/proxy?url=<trestle-media-url>
-// Server-side proxy for Trestle media URLs that require Bearer auth.
+// GET /api/media/proxy?url=<cotality-media-url>
+// Server-side proxy for Cotality media URLs that require Bearer auth.
 // The browser <img> tag cannot send auth headers, so we proxy through here.
 //
 // SECURITY:
-// - Only proxies URLs from allowed Trestle/Cotality domains
+// - Only proxies URLs whose exact host is in ALLOWED_MEDIA_HOSTS (lib/media/proxy-url-policy.ts; still includes two legacy provider media hosts)
 // - Adds Bearer token server-side (never exposed to client)
 // - Caches responses for 7 days (CDN + browser)
-// - Concurrency-limited to avoid Trestle throttling
+// - Concurrency-limited to avoid Cotality throttling
 
 import { NextRequest, NextResponse } from "next/server";
 import { ALLOWED_MEDIA_HOSTS, isAllowedMediaUrl } from "@/lib/media/proxy-url-policy";
 import { getAccessToken } from "@/lib/idx/auth";
 
-// Allow proxying from Trestle/Cotality media domains
+// Allow proxying from Cotality media domains
 // Old CoreLogic hosts deprecated — deadline April 30, 2026
 // Old media URLs still work through 2026 warranty per Cotality email
 // Canonical policy lives in lib/media/proxy-url-policy.ts so every consumer —
@@ -23,7 +23,7 @@ import { getAccessToken } from "@/lib/idx/auth";
 const ALLOWED_HOSTS = ALLOWED_MEDIA_HOSTS;
 const isAllowedUrl = isAllowedMediaUrl;
 
-// Semaphore: limit concurrent outbound requests to Trestle.
+// Semaphore: limit concurrent outbound requests to Cotality.
 // Prevents connection pool exhaustion that causes alternating photo failures.
 const MAX_CONCURRENT = 30;
 let inFlight = 0;
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
   try {
     const token = await getAccessToken();
 
-    // 10s timeout — prevents hanging when Trestle is slow. Without this,
+    // 10s timeout — prevents hanging when Cotality is slow. Without this,
     // a single slow image blocks the proxy slot (semaphore) for up to 300s.
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10_000);
@@ -92,7 +92,7 @@ export async function GET(req: NextRequest) {
     const contentType = response.headers.get("content-type") || "image/jpeg";
 
     // CRITICAL: Only cache responses that are actually images.
-    // Trestle sometimes returns HTML error pages as 200 (WAF, rate limit, maintenance).
+    // Cotality sometimes returns HTML error pages as 200 (WAF, rate limit, maintenance).
     // Caching non-image 200s poisons the CDN for 7 days, breaking photos persistently.
     const isImage = contentType.startsWith("image/");
     if (!isImage) {

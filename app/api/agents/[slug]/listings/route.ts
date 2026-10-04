@@ -20,7 +20,7 @@ import type { IDXListing } from '@/lib/idx/types';
  * Returns an agent's listings grouped by category:
  * - activeSales, activeRentals, closedSales, closedRentals
  *
- * Sources: Trestle IDX (by ListAgentFullName) + local DB exclusives (by agent_id)
+ * Sources: Cotality IDX (by ListAgentFullName) + local DB exclusives (by agent_id)
  */
 export async function GET(
   request: Request,
@@ -48,52 +48,52 @@ export async function GET(
     const agentName = agent.full_name || `${agent.first_name} ${agent.last_name}`;
     const useIDX = process.env.IDX_ENABLED === 'true';
 
-    // Fetch from both sources in parallel. Trestle is a SUPPLEMENT — its
+    // Fetch from both sources in parallel. Cotality is a SUPPLEMENT — its
     // failure (bad/rotated creds, API down, preview env without IDX configured)
     // must NEVER take down the agent page. Without this guard a rejected
-    // Trestle promise rejects the whole Promise.all and the outer catch returns
+    // Cotality promise rejects the whole Promise.all and the outer catch returns
     // a 500, silently dropping the agent's local Mallan exclusives (matched by
-    // agent_id). Isolate the Trestle branch so a throw degrades to "DB only".
-    const trestleFetch: Promise<{ active: PublicListingDTO[]; closed: PublicListingDTO[] }> = (
+    // agent_id). Isolate the Cotality branch so a throw degrades to "DB only".
+    const cotalityFetch: Promise<{ active: PublicListingDTO[]; closed: PublicListingDTO[] }> = (
       useIDX
-        ? fetchTrestleAgentListings(agentName, agent.trestle_mls_id)
+        ? fetchCotalityAgentListings(agentName, agent.trestle_mls_id)
         : Promise.resolve({ active: [], closed: [] })
     ).catch((err) => {
       console.warn(
-        '[agents/listings] Trestle fetch failed; serving local DB exclusives only:',
+        '[agents/listings] Cotality fetch failed; serving local DB exclusives only:',
         err instanceof Error ? err.message : err,
       );
       return { active: [], closed: [] };
     });
-    const [trestleResults, dbResults] = await Promise.all([
-      trestleFetch,
+    const [cotalityResults, dbResults] = await Promise.all([
+      cotalityFetch,
       fetchDbAgentListings(agent.id),
     ]);
 
-    // Merge and deduplicate. The LOCAL Mallan row is canonical (CHARTER
-    // Section 1A) — preferCrmExclusiveOverIdxDuplicate below keeps the CRM
+    // Merge and deduplicate. The LOCAL Mallan row is canonical (Master
+    // §4.4) — preferCrmExclusiveOverIdxDuplicate below keeps the CRM
     // SL-/RL- row and suppresses the IDX twin. The id-based filter here only
     // drops EXACT duplicate ids across the two branches; it is not a precedence
     // rule (SL-xxxx and RLSxxxx never share an id).
-    const trestleActiveIds = new Set(trestleResults.active.map((l) => l.id));
-    const trestleClosedIds = new Set(trestleResults.closed.map((l) => l.id));
+    const cotalityActiveIds = new Set(cotalityResults.active.map((l) => l.id));
+    const cotalityClosedIds = new Set(cotalityResults.closed.map((l) => l.id));
 
-    const dbActiveNew = dbResults.active.filter((l) => !trestleActiveIds.has(l.id));
-    const dbClosedNew = dbResults.closed.filter((l) => !trestleClosedIds.has(l.id));
+    const dbActiveNew = dbResults.active.filter((l) => !cotalityActiveIds.has(l.id));
+    const dbClosedNew = dbResults.closed.filter((l) => !cotalityClosedIds.has(l.id));
 
     // Cross-source dedupe (2026-05-28): after merging the DB branch (CRM
-    // exclusives, matched by agent_id) and the Trestle branch (matched by
+    // exclusives, matched by agent_id) and the Cotality branch (matched by
     // ListAgentMlsId), collapse same-physical-unit duplicates, preferring the
-    // CRM SL-/RL- row over the Trestle/IDX copy. The per-branch dedupe inside
-    // fetchDbAgentListings only sees DB rows; the Trestle copy (e.g.
-    // RLS20093870) arrives via the Trestle branch, so the cross-source
+    // CRM SL-/RL- row over the Cotality/IDX copy. The per-branch dedupe inside
+    // fetchDbAgentListings only sees DB rows; the Cotality copy (e.g.
+    // RLS20093870) arrives via the Cotality branch, so the cross-source
     // suppression MUST happen here, after the merge.
-    const allActive = preferCrmExclusiveOverIdxDuplicate([...dbActiveNew, ...trestleResults.active]);
-    const allClosed = preferCrmExclusiveOverIdxDuplicate([...dbClosedNew, ...trestleResults.closed]);
+    const allActive = preferCrmExclusiveOverIdxDuplicate([...dbActiveNew, ...cotalityResults.active]);
+    const allClosed = preferCrmExclusiveOverIdxDuplicate([...dbClosedNew, ...cotalityResults.closed]);
 
     // Attach the upcoming PUBLIC open house to each ACTIVE card (agent-page "Open House" banner).
     // Mallan-scoped index, matched by listing id OR normalized address (twin-safe). Best-effort — a
-    // Trestle hiccup never blocks the agent response. Closed listings get no upcoming open house.
+    // Cotality hiccup never blocks the agent response. Closed listings get no upcoming open house.
     try {
       const ohIndex = await getOpenHouseIndex();
       if (ohIndex.size > 0) {
@@ -134,21 +134,21 @@ export async function GET(
 }
 
 /**
- * Fetch agent's listings from Trestle IDX by ListAgentFullName.
+ * Fetch agent's listings from Cotality IDX by ListAgentFullName.
  * Returns active and closed listings separately.
  */
-async function fetchTrestleAgentListings(agentName: string, trestleMlsId?: string | null): Promise<{
+async function fetchCotalityAgentListings(agentName: string, cotalityMlsId?: string | null): Promise<{
   active: PublicListingDTO[];
   closed: PublicListingDTO[];
 }> {
   try {
     const safeName = agentName.replace(/'/g, "''");
     // Cotality-authoritative agent matching (2026-05-28): match by the agent's
-    // REBNY/Trestle MLS member id (ListAgentMlsId = Agent.trestle_mls_id) when
+    // REBNY/Cotality MLS member id (ListAgentMlsId = Agent.trestle_mls_id) when
     // we have it — stable across the "MAllan" vs "Maya Allan" source-spelling
     // variance, and required by REBNY syndication invariant I.4 (full-name
     // matching is fallback ONLY, never primary when a stronger id exists).
-    const mlsId = (trestleMlsId || '').trim();
+    const mlsId = (cotalityMlsId || '').trim();
     const agentMatch = mlsId
       ? `ListAgentMlsId eq '${mlsId.replace(/'/g, "''")}'`
       : `ListAgentFullName eq '${safeName}'`;
@@ -191,7 +191,7 @@ async function fetchTrestleAgentListings(agentName: string, trestleMlsId?: strin
       closed: closedMapped.map(toPublicDTO),
     };
   } catch (err) {
-    console.warn('[agent-listings] Trestle fetch failed:', err instanceof Error ? err.message : err);
+    console.warn('[agent-listings] Cotality fetch failed:', err instanceof Error ? err.message : err);
     return { active: [], closed: [] };
   }
 }
@@ -211,7 +211,7 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
         // matches. It selects which listings appear on this agent's page; it
         // confers no authority and must never be read as Mallan ownership.
         agent_id: agentId,
-        // MALLAN RLS RETURN-COPY SUPPRESSION — CHARTER Section 1A.
+        // MALLAN RLS RETURN-COPY SUPPRESSION — Master §4.4.
         //
         // Applied INSIDE the query, before `take: 100`. The post-retrieval
         // physical-unit dedupe below is a SECOND DEFENSE only: it can pair a
@@ -289,7 +289,7 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
         // where rls_eligible IS evaluated) correctly showed them. (2026-05-28)
         rls_eligible: true,
         // NOTE: deliberately do NOT select agent_id / owner_client_id here.
-        // syncAgentHistory writes agent_id onto Trestle-synced (third-party IDX)
+        // syncAgentHistory writes agent_id onto Cotality-synced (third-party IDX)
         // rows, so passing agent_id to classifyDbListing would mislabel those as
         // Mallan exclusives and DROP the required RLS courtesy/disclaimer (UCBA
         // Art. III §2(C)). Genuine Mallan exclusives are identified by the SL-/RL-
@@ -314,10 +314,10 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
     const activeStatuses = ['Active', 'ComingSoon', 'ActiveUnderContract'];
     const closedStatuses = ['Closed', 'Sold', 'Rented'];
 
-    // Public-surface dedupe (2026-05-28): drop Trestle-synced IDX duplicates
+    // Public-surface dedupe (2026-05-28): drop Cotality-synced IDX duplicates
     // of Mallan CRM exclusives (SL-/RL-) on this agent's listings page. The
     // agent listings query above can return both the CRM row AND the IDX
-    // duplicate because Trestle sync copies the agent's ListAgentMlsId onto
+    // duplicate because Cotality sync copies the agent's ListAgentMlsId onto
     // the synced row. Without this dedupe, the wrong row (typically the
     // IDX duplicate with "RLS · Listing Courtesy of …" attribution) wins
     // on /agents/{slug}. See lib/listings/dedupe-crm-vs-idx.ts.
@@ -352,8 +352,8 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
 }
 
 /**
- * Batch fetch primary photos from Trestle Media endpoint for listings missing media.
- * Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
+ * Batch fetch primary photos from Cotality Media endpoint for listings missing media.
+ * Cotality guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
  * NOT ResourceRecordID (can duplicate). IDXListing.mlsId = ListingKey = ResourceRecordKey.
  */
 async function batchFetchPhotos(listings: IDXListing[]) {
@@ -362,7 +362,7 @@ async function batchFetchPhotos(listings: IDXListing[]) {
 
   try {
     const token = await getAccessToken();
-    const TRESTLE_API = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || 'https://api.cotality.com/trestle';
+    const COTALITY_API = process.env.TRESTLE_API_URL || process.env.IDX_ENDPOINT || 'https://api.cotality.com/trestle';
     // Use mlsId (= ListingKey = ResourceRecordKey) for unique media lookups
     const keyToListing = new Map<string, IDXListing>();
     const filterParts: string[] = [];
@@ -372,7 +372,7 @@ async function batchFetchPhotos(listings: IDXListing[]) {
       const escaped = key.replace(/'/g, "''");
       filterParts.push(l.mlsId ? `ResourceRecordKey eq '${escaped}'` : `ResourceRecordID eq '${escaped}'`);
     }
-    // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
+    // MediaStatus filter: exclude tombstoned photos retained by Cotality as historical records.
     const mediaFilter = `(${filterParts.join(' or ')}) and Order le 3 and MediaStatus ne 'Deleted'`;
     const mediaParams = new URLSearchParams();
     mediaParams.set('$filter', mediaFilter);
@@ -384,16 +384,16 @@ async function batchFetchPhotos(listings: IDXListing[]) {
     // floorplans/tours and starve later-sorted Photos. x10 bounds the worst
     // realistic mix while staying a single page. A server-side
     // `MediaCategory eq 'Photo'` $filter would be cleaner but enum
-    // filterability on this feed is UNPROVEN (Class B per CLAUDE.md §J —
-    // pending live probe Q3); do not add it without that proof.
-    // Codex #393: clamp to Trestle's documented max $top of 500
-    // (docs/architecture/COTALITY-COMPLETE-REFERENCE.md:348-350) — an
+    // filterability on this feed is UNPROVEN (probe it live per Master §0.9
+    // before relying on it); do not add it without that proof.
+    // Codex #393: conservative $top clamp of 500 (Master §0.8 records $top
+    // to 5000 as supported; raise only after a live probe) — an
     // over-limit request can be rejected, and this function's fail-soft
     // `return` would then leave EVERY listing in the batch on placeholders.
     // At the route's 100-listing ceiling the clamp still yields x5 headroom.
     mediaParams.set('$top', String(Math.min(needsPhotos.length * 10, 500)));
 
-    const resp = await fetch(`${TRESTLE_API}/odata/Media?${mediaParams.toString()}`, {
+    const resp = await fetch(`${COTALITY_API}/odata/Media?${mediaParams.toString()}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     });
 

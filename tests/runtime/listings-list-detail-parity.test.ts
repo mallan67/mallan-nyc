@@ -3,7 +3,7 @@
  *
  * The bug: a single listing on `/api/listings` (DB-first list) returned a
  * full street + unit address and `_source: "exclusive"`, while the same
- * listing on `/api/listings/:id` (Trestle live detail) returned
+ * listing on `/api/listings/:id` (Cotality live detail) returned
  * `streetName: "Address Undisclosed"` and `_source: "idx"`. The list path
  * also hard-coded `disclaimerRequired: false` on every row, masking the
  * REBNY RLS disclaimer requirement for 10,484 third-party listings.
@@ -39,15 +39,15 @@ import {
  * divergence untestable: when both fields carry the same value the two DTO
  * builders appear to agree on `mlsId` when in production they do not.
  *
- * Live Cotality/Trestle returns a NUMERIC `ListingKey`. Observed 2026-08-06 on
- * the bbc559bd preview — which serves live Trestle precisely because it has no
+ * Live Cotality returns a NUMERIC `ListingKey`. Observed 2026-08-06 on
+ * the bbc559bd preview — which serves live Cotality precisely because it has no
  * DATABASE_URL, so its response is unmediated provider shape:
  *     id: "RLS20059088"   mlsId: "1146011469"
  * The same numeric shape appears in production media proxy URLs (media key
  * `1178013994`), consistent with canon §8: `Property.ListingKey =
  * Media.ResourceRecordKey`.
  */
-const TRESTLE_RAW_BASE: Record<string, unknown> = {
+const COTALITY_RAW_BASE: Record<string, unknown> = {
   ListingId: 'RLS20059088',
   ListingKey: '1146011469', // numeric provider key — NOT the RLS ListingId
   StandardStatus: 'Active',
@@ -119,13 +119,13 @@ const DB_ROW_BASE: DbListing = {
 
 describe('list/detail DTO parity for the same logical listing (C1)', () => {
   it('null InternetAddressDisplayYN upstream → both paths show full address', () => {
-    // Detail path: raw Trestle → IDXListing → DTO.
-    const trestleRaw = {
-      ...TRESTLE_RAW_BASE,
+    // Detail path: raw Cotality → IDXListing → DTO.
+    const cotalityRaw = {
+      ...COTALITY_RAW_BASE,
       InternetEntireListingDisplayYN: null,
       InternetAddressDisplayYN: null,
     };
-    const idxListing = mapRESOToInternal(trestleRaw);
+    const idxListing = mapRESOToInternal(cotalityRaw);
     expect(idxListing).not.toBeNull();
     const detailDto = toPublicDTO(idxListing!);
 
@@ -146,12 +146,12 @@ describe('list/detail DTO parity for the same logical listing (C1)', () => {
   it('explicit false InternetAddressDisplayYN suppresses on the detail path', () => {
     // Detail path: when REBNY/Cotality marks a row with an explicit per-row
     // opt-out, the address text MUST come back as "Address Undisclosed".
-    const trestleRaw = {
-      ...TRESTLE_RAW_BASE,
+    const cotalityRaw = {
+      ...COTALITY_RAW_BASE,
       InternetEntireListingDisplayYN: true,
       InternetAddressDisplayYN: false,
     };
-    const idxListing = mapRESOToInternal(trestleRaw);
+    const idxListing = mapRESOToInternal(cotalityRaw);
     const detailDto = toPublicDTO(idxListing!);
     expect(detailDto.address.streetName).toBe('Address Undisclosed');
     expect(detailDto.address.unitNumber).toBeNull();
@@ -170,14 +170,14 @@ describe('list/detail DTO parity for the same logical listing (C1)', () => {
   });
 
   it('detail path also flags disclaimerRequired = true for third-party rows', () => {
-    // Trestle-live path already used `disclaimerRequired: true` (mapping.ts).
+    // Cotality-live path already used `disclaimerRequired: true` (mapping.ts).
     // The parity assertion here is symmetric — both paths agree.
-    const trestleRaw = {
-      ...TRESTLE_RAW_BASE,
+    const cotalityRaw = {
+      ...COTALITY_RAW_BASE,
       InternetEntireListingDisplayYN: true,
       InternetAddressDisplayYN: true,
     };
-    const idxListing = mapRESOToInternal(trestleRaw);
+    const idxListing = mapRESOToInternal(cotalityRaw);
     const detailDto = toPublicDTO(idxListing!);
     expect(detailDto._displayCompliance.disclaimerRequired).toBe(true);
   });
@@ -199,20 +199,20 @@ describe('list/detail DTO parity for the same logical listing (C1)', () => {
  *
  * WHICH VALUE IS PUBLICLY CANONICAL IS NOT DECIDED HERE. Doing so requires the
  * live Property shape for ListingId / ListingKey / ListingKeyNumeric /
- * SourceSystemKey, which needs Trestle credentials not available in this
+ * SourceSystemKey, which needs Cotality credentials not available in this
  * environment. Per the fail-closed rule these tests PIN AND DOCUMENT current
  * behaviour so the divergence is visible and cannot regress silently; they do
  * not normalize it away.
  */
 describe('public identity semantics across source paths', () => {
-  const trestleRaw = {
-    ...TRESTLE_RAW_BASE,
+  const cotalityRaw = {
+    ...COTALITY_RAW_BASE,
     InternetEntireListingDisplayYN: true,
     InternetAddressDisplayYN: true,
   };
 
   it('public `id` AGREES across both paths — this is the stable public identity', () => {
-    const detailDto = toPublicDTO(mapRESOToInternal(trestleRaw)!);
+    const detailDto = toPublicDTO(mapRESOToInternal(cotalityRaw)!);
     const listDto = dbListingToPublicDTO(DB_ROW_BASE);
     expect(detailDto.id).toBe('RLS20059088');
     expect(listDto.id).toBe('RLS20059088');
@@ -220,10 +220,10 @@ describe('public identity semantics across source paths', () => {
   });
 
   it('DOCUMENTED DIVERGENCE: `mlsId` does NOT agree across paths', () => {
-    const detailDto = toPublicDTO(mapRESOToInternal(trestleRaw)!);
+    const detailDto = toPublicDTO(mapRESOToInternal(cotalityRaw)!);
     const listDto = dbListingToPublicDTO(DB_ROW_BASE);
 
-    // Trestle path publishes the numeric provider ListingKey.
+    // Cotality path publishes the numeric provider ListingKey.
     expect(detailDto.mlsId).toBe('1146011469');
     // DB path publishes listing_id — the RLS id, not the provider key.
     expect(listDto.mlsId).toBe('RLS20059088');
@@ -402,10 +402,10 @@ describe('third-party listings are never attributed to Mallan', () => {
     expect(listDto._displayCompliance.attributionText).not.toMatch(FORBIDDEN);
   });
 
-  it('Trestle path: attribution never claims Mallan for a Compass listing', () => {
+  it('Cotality path: attribution never claims Mallan for a Compass listing', () => {
     const detailDto = toPublicDTO(
       mapRESOToInternal({
-        ...TRESTLE_RAW_BASE,
+        ...COTALITY_RAW_BASE,
         InternetEntireListingDisplayYN: true,
         InternetAddressDisplayYN: true,
       })!,

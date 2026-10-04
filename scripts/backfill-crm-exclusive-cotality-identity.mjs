@@ -29,6 +29,6 @@ console.error(
     "Do NOT use it for attribution repair. Use the typed-first tools instead:\n" +
     "  scripts/ops/repair-exclusive-agent-assignment.mjs  (blank-only fill)\n" +
     "  scripts/ops/set-exclusive-listing-agent.mjs         (reassign)\n" +
-    "See docs/superpowers/plans/2026-06-21-agent-info-phase-c-stop-json-writes.md",
+    "History: agent_info Phase C (#420) and Phase D (#427, #441) are in Git history.",
 );
 process.exit(2);

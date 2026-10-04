@@ -546,7 +546,7 @@ var PitchPacket = (function () {
   }
 
   function _generate(id) {
-    CRM.toast('Refreshing pitch data from Trestle...', 'info');
+    CRM.toast('Refreshing pitch data from Cotality...', 'info');
 
     MallanAPI._fetch('/api/crm/sales/prospects/' + id + '/pitch-packet')
       .then(function (data) {

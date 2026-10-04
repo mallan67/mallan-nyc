@@ -1,12 +1,12 @@
-// scripts/ops-health.js — unified operational health check for the Neon + Trestle stack.
+// scripts/ops-health.js — unified operational health check for the Neon + Cotality stack.
 //
 // Run on demand (or as a weekly cron) to see:
 //   - Storage: DB size, top tables, growth velocity, listings/listing_media dead-tuple ratio
 //   - Sync: last run status, error rate, watermark age (Property cron)
-//   - Media sync (added 2026-05-22 per docs/incidents/2026-05-21-chronic-media-sync-root-cause.md):
+//   - Media sync (added 2026-05-22 after the 2026-05-21 media-sync incident):
 //       * media_sync_state cursor staleness (RC1 — boundary-cluster deadlock detector)
 //       * listing_media coverage of IDX-displayable + R2 cached coverage
-//       * Public image usability (first image: R2 / Trestle proxy / empty)
+//       * Public image usability (first image: R2 / Cotality proxy / empty)
 //       * R2 mirror progress 24h (RC3 — retry purgatory detector)
 //       * R2 retry backlog (rows with r2_attempts > 0)
 //   - Retention: archive queue, compliance gap
@@ -18,8 +18,7 @@
 //   indefinitely. This script does NOT probe that integration (it is read-only
 //   against Neon only), but operators should be aware that `gh pr checks`
 //   reporting "Vercel: pending" forever is a documented chronic drift, not
-//   an actual build failure. See docs/incidents/2026-05-21-chronic-media-sync-root-cause.md
-//   §RC8 + Path B for the diagnostic chain and the recommended Vercel-side fix.
+//   an actual build failure (2026-05-21 incident §RC8; the record is in git history).
 //
 // SEPARATE-INCIDENT clarification (Maya, 2026-05-22):
 //   The Vercel/Neon preview-branch stale integration and the media-cron
@@ -324,7 +323,7 @@ async function run() {
   // ─── Media Sync Health (added 2026-05-22) ────────────────────────
   // Read-only checks against `media_sync_state`, `listing_media`, `listings`,
   // and `audit_events`. Catches the chronic patterns documented in
-  // docs/incidents/2026-05-21-chronic-media-sync-root-cause.md:
+  // the 2026-05-21 media-sync incident (record retired to git history):
   //   RC1 — Phase 1 boundary-cluster cursor deadlock
   //   RC3 — Phase 3 R2 mirror retry purgatory
   //   RC4 — Storage bloat (dead-tuple, see Storage extension below)
@@ -357,7 +356,7 @@ async function run() {
         report.issues.push({
           level: 'critical',
           category: 'media-sync',
-          msg: `media-sync cursor (last_photos_change) is ${cursorAgeH.toFixed(1)}h stale (> ${THRESHOLDS.media_cursor_freeze_hours}h) — likely Phase 1 boundary-cluster deadlock; see docs/incidents/2026-05-21-chronic-media-sync-root-cause.md RC1`,
+          msg: `media-sync cursor (last_photos_change) is ${cursorAgeH.toFixed(1)}h stale (> ${THRESHOLDS.media_cursor_freeze_hours}h) — likely Phase 1 boundary-cluster deadlock (2026-05-21 incident class RC1)`,
         });
       } else if (cursorAgeH !== null && cursorAgeH > THRESHOLDS.media_cursor_stale_hours) {
         report.issues.push({
@@ -433,12 +432,12 @@ async function run() {
     // IDX-displayable listings. Codex P2 fix on PR #178 (b3ab86da):
     // the prior shape used `media::text LIKE '%r2.dev%'` which would
     // classify a listing as "R2" if ANY url in the array matched the
-    // R2 domain, even when the user-visible first image was Trestle/
+    // R2 domain, even when the user-visible first image was Cotality/
     // proxy. That hid fallback dependency during incident monitoring.
     //
     // New shape extracts `media->0` and reads its `url` / `MediaURL`
     // field (different writer code paths use different casing — the
-    // legacy idx-sync writes `{url, mediaType, order}`, raw Trestle
+    // legacy idx-sync writes `{url, mediaType, order}`, raw Cotality
     // batches sometimes write `{MediaURL, MediaCategory, ...}`).
     // COALESCE picks whichever the row actually has. Buckets are now
     // mutually exclusive and exhaustive across IDX-displayable rows.
@@ -491,8 +490,8 @@ async function run() {
     report.media_sync.first_image_empty = Number(imgRow.empty_media);
     report.media_sync.first_image_other = Number(imgRow.first_image_other);
     // Conservative lower bound on "no usable image": only the empty-media set
-    // is definitively unusable. Trestle-proxy URLs may still render via the
-    // proxy if Trestle hasn't rotated them; R2 URLs are stable.
+    // is definitively unusable. Cotality-proxy URLs may still render via the
+    // proxy if Cotality hasn't rotated them; R2 URLs are stable.
     // P1C5 (L11): the ALARM keys off no_image_any_layer — the real render-path
     // placeholder count (JSON empty AND no active listing_media row). The
     // legacy JSON-empty count stays reported (lower_bound semantics now: it is
@@ -615,7 +614,7 @@ async function run() {
       report.issues.push({
         level: 'critical',
         category: 'storage',
-        msg: `listings table dead-tuple ratio ${listingsHealth.dead_pct}% (critical >= ${THRESHOLDS.listings_dead_tuple_critical_pct}%) — VACUUM FULL needed; see docs/incidents/2026-05-21-chronic-media-sync-root-cause.md RC4`,
+        msg: `listings table dead-tuple ratio ${listingsHealth.dead_pct}% (critical >= ${THRESHOLDS.listings_dead_tuple_critical_pct}%) — VACUUM FULL needed (2026-05-21 incident class RC4)`,
       });
     } else if (listingsHealth && Number(listingsHealth.dead_pct) >= THRESHOLDS.listings_dead_tuple_warn_pct) {
       report.issues.push({
@@ -756,7 +755,7 @@ function renderHuman(r) {
       if (ms.first_image_r2 !== undefined) {
         console.log(`  First image classification (media->0 ‘url’ / ‘MediaURL’ on IDX-displayable):`);
         console.log(`    R2 URL:           ${ms.first_image_r2}`);
-        console.log(`    Trestle/proxy:    ${ms.first_image_trestle_proxy}`);
+        console.log(`    Cotality/proxy:   ${ms.first_image_trestle_proxy}`);
         console.log(`    JSON-empty but TABLE-served: ${ms.first_image_table_served} (renders fine via listing_media — not alarmed)`);
         console.log(`    NO image any layer: ${ms.no_image_any_layer} (true placeholder count — drives the alarm)`);
         console.log(`    other URL host:   ${ms.first_image_other ?? 0}`);

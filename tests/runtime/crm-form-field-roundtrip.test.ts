@@ -2,7 +2,7 @@
 /**
  * CRM form save/load field parity (2026-05-27).
  *
- * Verifies that SALE_FIELD_MAP covers every RLS field that
+ * Verifies that SALE_FIELD_MAP covers every capital-letter provider-field key that
  * collectSaleFormData() produces, and that _populateSaleFormFromApi
  * uses the data-driven FIELD_MAP approach.
  */
@@ -22,12 +22,12 @@ describe('CRM form save/load field parity', () => {
     expect(entries.length).toBeGreaterThanOrEqual(80);
   });
 
-  test('every RLS field in collectSaleFormData has a FIELD_MAP entry', () => {
+  test('every capital-letter provider-field key in collectSaleFormData has a FIELD_MAP entry', () => {
     const collectBlock = formSource.match(/function collectSaleFormData\(\)([\s\S]*?)^function /m);
     expect(collectBlock).not.toBeNull();
-    const rlsAssignments = collectBlock![1].match(/data\.([A-Z][A-Za-z]+)\s*=/g) || [];
-    const rlsFields = rlsAssignments.map(a => a.replace('data.', '').replace(' =', '').trim());
-    const uniqueRls = [...new Set(rlsFields)].filter(f =>
+    const providerAssignments = collectBlock![1].match(/data\.([A-Z][A-Za-z]+)\s*=/g) || [];
+    const providerFields = providerAssignments.map(a => a.replace('data.', '').replace(' =', '').trim());
+    const uniqueProviderKeys = [...new Set(providerFields)].filter(f =>
       !['listing_type', 'type', 'status', 'saleListingType', 'inHouseVisibility', 'Permission', 'Permissions',
         'IDXEntireListingDisplayYN', 'SyndicateYN', 'BathroomsTotal',
         'PropertyType', 'PropertySubType', 'CommonInterest', 'MlsStatus',
@@ -49,20 +49,20 @@ describe('CRM form save/load field parity', () => {
         // SALE_CHECKBOX_ARRAY_MAP entry (form-key sibling), same as Heating/Cooling.
         'View',
         // Note: 'Flooring' was previously in this skip-list because the
-        // form was writing data.Flooring as a canonical RESO array.
+        // form was writing data.Flooring as a canonical Cotality array.
         // Codex PR #270 review caught that "Herringbone" (a visible
         // Flooring option) is not in REBNY's Flooring enum — writing it
         // to canonical would emit a non-compliant value. Flooring is
         // now persisted as Mallan internal (data.saleFlooring), so it
-        // no longer appears in collect as a capital-letter RLS key.
-        // Canonical RESO writes from form radios / single-id booleans.
+        // no longer appears in collect as a capital-letter provider key.
+        // Canonical Cotality writes from form radios / single-id booleans.
         // saleInternetAVMDisplayYN radio → InternetAutomatedValuationDisplayYN
         // canonical (per-row opt-out, fail-CLOSED). Same for ConsumerComment.
         // Both restored via SALE_RADIO_MAP / SALE_FIELD_MAP fallbackRls keys.
         'InternetAutomatedValuationDisplayYN', 'InternetConsumerCommentYN',
       ].includes(f)
     );
-    for (const field of uniqueRls) {
+    for (const field of uniqueProviderKeys) {
       expect(formSource).toContain("rls: '" + field + "'");
     }
   });

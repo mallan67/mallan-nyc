@@ -287,7 +287,7 @@ export async function POST(req: NextRequest) {
   // ── Email-card hero: canonical composition, never raw `media[0]` ──────────
   //
   // This previously read `listing.media[0].url || .MediaURL` straight off the
-  // legacy JSON. Trestle interleaves Photos, FloorPlans and documents in
+  // legacy JSON. Cotality interleaves Photos, FloorPlans and documents in
   // arbitrary provider order, and ~2,000 legacy first-position items are floor
   // plans/documents carrying an EMPTY MediaCategory
   // (lib/media/listing-media-resolver.ts:134-141) — so a client could receive an

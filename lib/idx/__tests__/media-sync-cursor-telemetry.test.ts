@@ -14,7 +14,7 @@
  *      it is deliberately NOT fixed in this observability-only PR.
  *
  * Mirrors the prisma-mock pattern used by media-sync-watermark.test.ts — no live
- * DB, no live Trestle.
+ * DB, no live Cotality.
  */
 
 import {
@@ -122,7 +122,7 @@ describe("instrumentation is behavior-preserving", () => {
 describe("50-row same-millisecond cluster", () => {
   it("advances last_listing_key to the cluster's max key (drains the boundary cluster)", async () => {
     // 50 listings, all PCT = T (same millisecond), keys strictly ascending and
-    // ALL greater than the frozen key. `-00:00` = the exact Trestle serialization.
+    // ALL greater than the frozen key. `-00:00` = the exact Cotality serialization.
     const keys = Array.from({ length: 50 }, (_, i) => String(1146035204 + i * 1000));
     const processed: ProcessedListing[] = keys.map((k) => ({
       listingKey: k,

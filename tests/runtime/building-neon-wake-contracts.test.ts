@@ -1,7 +1,7 @@
 /**
  * Building-Neon-wake source contracts (building-only PR, 2026-07-23).
  *
- *   1. /api/buildings is a THIN pure-read shell — no prisma, no Trestle, no
+ *   1. /api/buildings is a THIN pure-read shell — no prisma, no Cotality fetch, no
  *      writes; ALL assembly lives in the shared cached module.
  *   2. The building page + generateMetadata consume the SAME accessor
  *      directly — the page→internal-HTTP hop is gone.
@@ -15,7 +15,7 @@ const ROOT = path.resolve(__dirname, "../..");
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
 describe("thin pure-read building route + direct page accessor", () => {
-  it("the API route contains no prisma, no Trestle, no upsert — only the shared accessor", () => {
+  it("the API route contains no prisma, no Cotality fetch, no upsert — only the shared accessor", () => {
     const route = read("app/api/buildings/route.ts");
     expect(route).toContain("getBuildingDataCached");
     expect(route).not.toMatch(/\bprisma\b/);
@@ -124,7 +124,7 @@ describe("writer invalidation contract — every building-visible writer names i
   it("feed-reconcile: ghost withdrawal AND orphan recovery both invalidate the building", () => {
     const src = read("app/api/cron/feed-reconcile/route.ts");
     expect(src).toContain("...buildingAndManifestInvalidationTags(g.address)");
-    expect(src).toContain("...buildingAndManifestInvalidationTags(raw)"); // full Trestle record — atoms top-level
+    expect(src).toContain("...buildingAndManifestInvalidationTags(raw)"); // full Cotality record — atoms top-level
     expect(src).toContain("address: true, // Building-Neon-wake"); // ghosts select carries the address
   });
 

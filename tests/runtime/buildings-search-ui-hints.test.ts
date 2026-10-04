@@ -61,13 +61,13 @@ describe('error hints are distinct per error class', () => {
 
   it('401 hint differs from empty-result hint', () => {
     const hint401 = 'Session expired. Please log in again.';
-    const hintEmpty = 'No Cotality/Trestle building match found.';
+    const hintEmpty = 'No Cotality building match found.';
     expect(hint401).not.toBe(hintEmpty);
   });
 
   it('non-OK hint differs from empty-result hint', () => {
     const hintNonOk = 'Building lookup temporarily unavailable.';
-    const hintEmpty = 'No Cotality/Trestle building match found.';
+    const hintEmpty = 'No Cotality building match found.';
     expect(hintNonOk).not.toBe(hintEmpty);
   });
 });

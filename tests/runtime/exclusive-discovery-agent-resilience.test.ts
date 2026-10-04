@@ -10,7 +10,7 @@
  *    RLS rows only). Proven on production (SL-0004 → count 1); locked here.
  *  - filterDisplayableDbListings bypasses the IDX gate for website-only rows but
  *    STILL enforces it for third-party IDX rows.
- *  - The agent-listings endpoint must NOT hard-fail when the Trestle branch
+ *  - The agent-listings endpoint must NOT hard-fail when the Cotality branch
  *    throws — it degrades to local CRM exclusives (the bug that 500'd the
  *    preview agent page).
  */
@@ -45,7 +45,7 @@ describe('exclusive=mallan query includes Active website-only Mallan exclusives'
 
   it('restricts to TRUE Mallan exclusives (SL-/RL-/website-only), NOT agent_id, and sale type', () => {
     // Updated 2026-06-23: agent_id is unsafe (syncAgentHistory stamps it onto
-    // third-party buyer-side Trestle rows). Identity is the CRM SL-/RL- prefix OR
+    // third-party buyer-side Cotality rows). Identity is the CRM SL-/RL- prefix OR
     // rls_eligible=false (PR #308). The website-only OR branch (below) is the
     // separate DISPLAY gate and is unaffected.
     expect(where.agent_id).toBeUndefined();
@@ -114,21 +114,21 @@ describe('filterDisplayableDbListings — website-only bypass, third-party still
   });
 });
 
-describe('agent-listings endpoint is resilient to a Trestle failure', () => {
+describe('agent-listings endpoint is resilient to a Cotality failure', () => {
   const routeSrc = readFileSync(
     resolve(__dirname, '../../app/api/agents/[slug]/listings/route.ts'),
     'utf8',
   );
 
-  it('isolates the Trestle branch with .catch so a throw cannot reject Promise.all', () => {
-    // The Trestle fetch is wrapped so its rejection degrades to empty, never a 500.
-    expect(routeSrc).toMatch(/trestleFetch[\s\S]*?\.catch\(/);
+  it('isolates the Cotality branch with .catch so a throw cannot reject Promise.all', () => {
+    // The Cotality fetch is wrapped so its rejection degrades to empty, never a 500.
+    expect(routeSrc).toMatch(/cotalityFetch[\s\S]*?\.catch\(/);
     expect(routeSrc).toMatch(/serving local DB exclusives only/i);
     // Promise.all consumes the guarded promise, not the raw fetch.
-    expect(routeSrc).toMatch(/Promise\.all\(\[\s*trestleFetch\s*,\s*fetchDbAgentListings/);
+    expect(routeSrc).toMatch(/Promise\.all\(\[\s*cotalityFetch\s*,\s*fetchDbAgentListings/);
   });
 
-  it('local DB exclusives are still fetched independently of Trestle', () => {
+  it('local DB exclusives are still fetched independently of Cotality', () => {
     expect(routeSrc).toMatch(/fetchDbAgentListings\(agent\.id\)/);
   });
 });

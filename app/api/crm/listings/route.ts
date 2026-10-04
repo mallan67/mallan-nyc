@@ -37,16 +37,16 @@ export async function GET(req: NextRequest) {
 
   // Build where clause with ownership enforcement.
   // CRM My Listings shows: (1) CRM-created listings (no mls_id — SL-/RL- prefix),
-  // and (2) closed/terminal Trestle-synced deals. Active/Pending Trestle listings
+  // and (2) closed/terminal Cotality-synced deals. Active/Pending Cotality listings
   // are managed via REBNY RLS directly, not through the CRM.
-  const TRESTLE_CLOSED = ["Closed", "Sold", "Leased", "Rented"];
+  const FEED_CLOSED = ["Closed", "Sold", "Leased", "Rented"];
   const CRM_HIDDEN = ["Withdrawn", "Cancelled"];
   const crmCreated = { mls_id: null, listing_id: { startsWith: "SL-" }, status: { notIn: CRM_HIDDEN } };
   const crmCreatedRental = { mls_id: null, listing_id: { startsWith: "RL-" }, status: { notIn: CRM_HIDDEN } };
-  const trestleClosed = { mls_id: { not: null }, status: { in: TRESTLE_CLOSED } };
+  const feedClosed = { mls_id: { not: null }, status: { in: FEED_CLOSED } };
 
   const where: Record<string, unknown> = {
-    OR: [crmCreated, crmCreatedRental, trestleClosed],
+    OR: [crmCreated, crmCreatedRental, feedClosed],
   };
 
   // Ownership: agent sees only their own, broker sees all
@@ -499,7 +499,7 @@ export async function POST(req: NextRequest) {
         // if a future refactor allows the create status to come from the
         // request body, the SAME guard (normalize → check TERMINAL_STATUSES)
         // prevents a terminal listing from being born with
-        // idx_display_yn=true. Single source of truth:
+        // idx_display_yn=true. Status helpers:
         // lib/idx/trestle-mapper.ts exports TERMINAL_STATUSES +
         // normalizeStandardStatus.
         idx_display_yn:
@@ -575,7 +575,7 @@ export async function POST(req: NextRequest) {
   // docs/idx/post-reconciliation-tightening-audit-2026-05-20.md: before this
   // change, CRM POST only wrote `listings`; the projection row was created
   // lazily by the next `lib/idx/sync.ts` run — but that path only writes
-  // Trestle-sourced rows. Mallan exclusives could exist for hours / days
+  // Cotality-sourced rows. Mallan exclusives could exist for hours / days
   // with NO projection row until `npm run ops:projection-backfill` ran.
   // After PR 5B reader swap, that gap = Mallan exclusive invisible on
   // /search and any other projection-backed surface.

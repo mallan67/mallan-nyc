@@ -30,10 +30,10 @@ interface FeaturedListing {
   id: string;
   mlsId: string;
   /**
-   * Raw RLS/Trestle key or internal SL-/RL- prefix. On the public DTO `id`
+   * Raw RLS/Cotality key or internal SL-/RL- prefix. On the public DTO `id`
    * already carries listing_id for DB rows, but the field is surfaced
    * explicitly so a broker can pin by ANY of id / mlsId / listing_id and the
-   * match still resolves. Optional — Trestle-direct rows may omit it.
+   * match still resolves. Optional — Cotality-direct rows may omit it.
    */
   listing_id?: string;
   slug: string;

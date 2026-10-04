@@ -83,7 +83,7 @@ beforeEach(() => {
   mockUpdateMany.mockReset();
 });
 
-// Helper — build a Trestle-shape Media row.
+// Helper — build a Cotality-shape Media row.
 function makeRow(overrides: Partial<UpsertListingMediaInput> = {}): UpsertListingMediaInput {
   return {
     MediaKey: overrides.MediaKey ?? "MK-1",
@@ -134,7 +134,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
     expect(result.skippedInvalid).toBe(0);
   });
 
-  it("accepts Permission=null (Trestle's IDX Plus license-edge default — already filtered upstream)", async () => {
+  it("accepts Permission=null (Cotality's IDX Plus license-edge default — already filtered upstream)", async () => {
     mockFindUnique.mockResolvedValueOnce(null);
     mockCreate.mockResolvedValueOnce(undefined);
     const result = await upsertListingMedia("RLS20012345", [
@@ -302,7 +302,7 @@ describe("upsertListingMedia — Checkpoint 2", () => {
         status: "active",
         media_key: { notIn: ["MK-1"] },
         // P1C2: crm:-namespace rows are CRM-owned and absent from every
-        // Trestle set by design — never "vanished at source".
+        // Cotality set by design — never "vanished at source".
         NOT: { media_key: { startsWith: "crm:" } },
       },
       data: { status: "deleted" },

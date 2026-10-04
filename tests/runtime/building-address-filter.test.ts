@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 /**
- * Canonical building-address → Trestle OData filter.
+ * Canonical building-address → Cotality OData filter.
  * Locks the Cotality-accurate behavior: UPPERCASE core (contains() is
  * case-sensitive), leading-direction handling, and the empty-core guard.
  */
@@ -10,7 +10,7 @@ import {
 } from '@/lib/buildings/building-address-filter';
 
 describe('parseBuildingAddress', () => {
-  it('uppercases the core (Trestle stores StreetName UPPERCASE; contains() is case-sensitive)', () => {
+  it('uppercases the core (Cotality stores StreetName UPPERCASE; contains() is case-sensitive)', () => {
     // The bug this fixes: raw "Park" never matched "PARK AVENUE".
     for (const name of ['Park Avenue', 'PARK AVENUE', 'park avenue']) {
       expect(parseBuildingAddress('432', name, '10022').coreStreetNameUpper).toBe('PARK');

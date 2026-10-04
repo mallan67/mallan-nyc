@@ -46,7 +46,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   // Association level, deliberately NOT local-only. `comp_criteria` is
-  // Mallan-authored internal analysis: the Trestle mapper never writes it, so
+  // Mallan-authored internal analysis: the Cotality feed mapper never writes it, so
   // it is not a source-derived field, and neither comps writer stamps
   // `modification_timestamp`, so it cannot poison the incremental cursor.
   // Running comps against a third-party row is legitimate CMA work.

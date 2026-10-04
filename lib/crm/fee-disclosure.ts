@@ -1,6 +1,6 @@
 // FARE Act (NYC LL 119/2024) rental fee-disclosure gate.
 //
-// REBNY/Trestle notice: rental fees must be clearly disclosed wherever rental
+// REBNY/Cotality notice: rental fees must be clearly disclosed wherever rental
 // listing details are displayed. This is the pure, side-effect-free rule used by
 // the backend publish paths (status route + edit-save PATCH). The CALLER decides
 // WHEN to apply it — only when a rental listing becomes display-ready (publish /
@@ -26,7 +26,7 @@ export interface FeeDisclosureResult {
  * Display-ready = the listing is (or is becoming) publicly displayed: Active or
  * ComingSoon. Draft / Incomplete / terminal / withdrawn are NOT display-ready.
  *
- * The CRM rental form maps its "Draft" UI to RESO MlsStatus "Incomplete" on save,
+ * The CRM rental form maps its "Draft" UI to MlsStatus "Incomplete" on save,
  * so a draft save must be treated as non-display-ready — otherwise the FARE gate
  * would 422 a normal draft save (Codex #348). Input is normalized first so
  * "incomplete"/"Active"/etc. fold to canonical form.
@@ -53,7 +53,7 @@ function positiveAmount(v: unknown): boolean {
 
 /**
  * Evaluate FARE Act fee disclosure for a rental listing's data (raw_data /
- * merged form payload — PascalCase Trestle field names). Returns ok:false with a
+ * merged form payload — PascalCase Cotality field names). Returns ok:false with a
  * human-readable reason when a fee is flagged but no clear detail is present.
  */
 export function checkFeeDisclosure(

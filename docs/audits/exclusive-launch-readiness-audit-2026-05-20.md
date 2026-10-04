@@ -26,7 +26,7 @@
 | **Compliance gate (REBNY UCBA / IDX Plus / §2.05 / Fair Housing / NY DOS attribution)** | ✓ PASS | 46/46 UCBA, 0 regressions; 1278/0 IDX validator; 93/93 compliance-check; Footer attribution everywhere; Fair Housing scanner clean across `app/**/*.tsx`; CRM write paths fail-closed via `assertRlsCompliantPayload`. |
 | **Backend / API / data path** | ✓ PASS | Listing-create → public reader → contact form → Lead → AuditEvent chain complete. DB-first reader still uses `listings` directly (PR 5B held), so new exclusive surfaces immediately on Active. |
 | **Frontend visual + UX (mobile 390 + desktop 1440)** | ✗ **FAIL** | Listing detail page horizontally overflows on every mobile device (scrollX = 1266 px masked only by `body { overflow-x: hidden }`); no 44×44 contact CTA above the fold on mobile; intent-routed contact form is not implemented on main. ~~FARE Act disclosure does not render on actual production rental listings.~~ → FARE rendering confirmed working 2026-05-21 (PR-A4 verification). |
-| **Performance / Core Web Vitals** | ⚠️ NEEDS IMPROVEMENT | Featured cards don't preload first row → mobile LCP hit; cold-cache first visit on new exclusive can hit 10s Trestle fallback. Two pre-launch rituals required. |
+| **Performance / Core Web Vitals** | ⚠️ NEEDS IMPROVEMENT | Featured cards don't preload first row → mobile LCP hit; cold-cache first visit on new exclusive can hit 10s live-Cotality fallback. Two pre-launch rituals required. |
 | **Compliance — FARE Act on rendered rental detail** | ✓ PASS (corrected 2026-05-21) | ~~Live probe shows the LL 119/2024 disclosure not rendered.~~ **CORRECTION:** 15-rental live probe on 2026-05-21 confirmed disclosure renders on every rental tested (including the auditor's exact listing). Regression-pin test at `tests/runtime/listing-fare-act-disclosure.test.ts`. |
 | **Syndication (release of new exclusive)** | ✓ SAFE | `MALLAN_OFFICE_MLS_IDS=[]` + Layer 1.PRE empty-config-guard blocks every row at PR #162 + #163 invariant I.5/I.6. No `/api/exports/*` route exists. |
 | **SEO / AEO** | ✓ PASS (with 2 trims worth a follow-up) | Sitemap fresh (10,573 listing URLs, lastmod T-11min); JSON-LD RealEstateListing + Agent + BreadcrumbList present; OG + Twitter cards on listing detail. Homepage missing `og:image` + `og:type`. `llms.txt` is generic-brand only (no exclusive surfacing). |
@@ -52,7 +52,7 @@
 ### Class B — should fix before PR 5B reader swap
 | ID | Finding | Source |
 |---|---|---|
-| B1 | Merge PR #165 (Phase A) — closes W1/W2/W3 writer-path projection dual-write + adds CI pin. Documented byte-identical to prior code for real Trestle inputs; one-sided defensive improvement on lowercased status. | tristle + general-purpose agents |
+| B1 | Merge PR #165 (Phase A) — closes W1/W2/W3 writer-path projection dual-write + adds CI pin. Documented byte-identical to prior code for real Cotality feed inputs; one-sided defensive improvement on lowercased status. | tristle + general-purpose agents |
 | B2 | `/api/inquiries` does not call `createNotification` for the listing's owning agent — currently emails brokerage mailbox only. For multi-agent exclusives the listing agent gets no per-listing in-app ping. `app/api/inquiries/route.ts:145-198`. | general-purpose agent |
 | B3 | Hero PNG re-encode — `public/images/hero.jpg` is actually a PNG (Content-Disposition shows `filename="hero.png"`), shipping 703 KB raw; WebP transcode works (162 KB) but source could be a 90-quality JPEG ~200–250 KB. | vercel:performance-optimizer |
 | B4 | IDXImage white-border canvas detector is statically imported into every card surface even when `autoCropWhiteBorder=false`. Dynamic-import inside `handleLoad` saves ~3–6 KB gzip per public surface. `app/components/IDXImage.tsx:1-7`. | vercel:performance-optimizer |
@@ -69,7 +69,7 @@
 ### Class C — safe post-launch improvement
 | ID | Finding | Source |
 |---|---|---|
-| C1 | `RENTAL-FORM-REDESIGN.html` missing `ComingSoon` `<option>` in `MlsStatus` picklist — 1 RLS validator WARNING. | tristle |
+| C1 | `RENTAL-FORM-REDESIGN.html` missing `ComingSoon` `<option>` in `MlsStatus` picklist — 1 picklist-validator WARNING (that validator has since been removed). | tristle |
 | C2 | H2 deploy/cron race — no post-deploy gate-fail-rate diff alarm (architectural). Documented in `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md:169-173`. | tristle |
 | C3 | H3 cron heartbeat observability patchy — `idx_sync` ~71/24h vs expected 120; no unconditional heartbeat row. | tristle |
 | C4 | M1 — investigate empty `saved_searches` table. | tristle |
@@ -156,7 +156,7 @@
 | Severity | Finding | Files | Regulation |
 |---|---|---|---|
 | A | **FARE Act disclosure missing on rendered rental detail** (A4) | `app/listing/[id]/page.tsx:1546-1555` (code present but conditional not firing) | **NYC LL 119/2024 §20-699.21 / §20-699.22 — $1,800 / $2,000 per violation** |
-| B | RLS validator warning: `RENTAL-FORM-REDESIGN.html` missing `ComingSoon` enum (C1) | `public/crm/RENTAL-FORM-REDESIGN.html` | UCBA Art. I §16 picklist conformance |
+| B | Picklist-validator warning (validator since removed): `RENTAL-FORM-REDESIGN.html` missing `ComingSoon` enum (C1) | `public/crm/RENTAL-FORM-REDESIGN.html` | UCBA Art. I §16 picklist conformance |
 | ✓ | All other REBNY / UCBA / Fair Housing / NY DOS §175.25 / TCPA / CAN-SPAM checks PASS | see Section E | n/a |
 
 **Important contradiction surfaced during the audit:** the source-grep tristle agent reported FARE Act wired at `app/listing/[id]/page.tsx:1546-1555` (✓ found in source). The frontend-auditor verified the disclosure is **NOT rendered on the live rental listing URL `https://mallan.nyc/listing/815-5th-avenue-apt-duplex-...rls20091223`**. The live-page evidence is ground truth; the source-grep check (used by `npm run compliance-check`) does not verify actual rendering. This is a real Class-A legal exposure for the launch.
@@ -190,7 +190,7 @@
 1. **The new exclusive will exercise W3.** A Mallan exclusive is CRM-authored via `app/api/crm/listings/route.ts` POST — pre-Phase-A, that POST writes `listings` but not the projection. Today this is masked because the public reader (`/api/listings`) still reads `listings` directly. The risk is asymmetric: if anyone touches projection-reader scaffolding between now and the exclusive's lifecycle ending, the one listing that matters most this week becomes invisible.
 2. **W1 + W2 close other lifecycle paths** (status PATCH to terminal; auto-expiry) that the exclusive will eventually hit.
 3. **CI is comprehensive on PR #165:** 1933/1933 runtime tests, UCBA 46/0, IDX validator 1280/0 critical, compliance-check 93/0. No schema change. No cron-config change. No env change.
-4. **Semantic equivalence verified by the tristle agent**: helper at `lib/idx/trestle-mapper.ts:722-870` is byte-identical to prior inline computation for real Trestle inputs. The one documented behavior delta (lowercased `"closed"` → blocked at writer) is a one-sided defensive improvement and is locked by a test update at `lib/compliance/__tests__/c2-terminal-idx-display.test.ts:258-289`.
+4. **Semantic equivalence verified by the tristle agent**: helper at `lib/idx/trestle-mapper.ts:722-870` is byte-identical to prior inline computation for real Cotality feed inputs. The one documented behavior delta (lowercased `"closed"` → blocked at writer) is a one-sided defensive improvement and is locked by a test update at `lib/compliance/__tests__/c2-terminal-idx-display.test.ts:258-289`.
 5. **Risk of merging:** ≈ 0.
 6. **Risk of not merging before launch:** small but asymmetric — the only listing where a future projection-reader-swap regression would be most visible IS the one we're promoting.
 
@@ -241,8 +241,7 @@ All findings cite file:line or live URL evidence. The audit doc is a synthesis o
 - `docs/idx/post-reconciliation-tightening-audit-2026-05-20.md` — W1/W2/W3 origin and Phase A scope rationale
 - `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` — H1 / H2 / H3 architectural debt and the original incident
 - `memory/REFACTOR-2026-04-25.md` — master plan; PR 5 still NOT_STARTED
-- `docs/backend-crm-current-gap-audit-2026-05-18.md` — Class-A backend items (some already shipped via PR #146)
-- `docs/architecture/MALLAN-EXCLUSIVES-SYNDICATION-PLAN-2026-05-18.md` — syndication invariants I.1–I.8
+- `lib/syndication/eligibility.ts` header — syndication invariants I.1–I.8
 - `lib/idx/trestle-mapper.ts:722-870` — Phase A `computeGateColumns` helper (PR #165)
 - `lib/syndication/eligibility.ts:146-163` — Layer 1.PRE empty-config-guard (PR #163)
 - `app/listing/[id]/page.tsx:1192` — A1 grid blow-out site

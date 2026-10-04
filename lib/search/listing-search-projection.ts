@@ -541,7 +541,7 @@ export function projectionRowMateriallyEqual(
 
 /**
  * Projection columns that carry SOURCE PROVENANCE only — no public search
- * surface reads them as content. `modified_at` mirrors the Trestle
+ * surface reads them as content. `modified_at` mirrors the Cotality
  * ModificationTimestamp; its consumers (verified 2026-07-24) are the
  * search-alerts `modifiedSince` filter and `modified_at desc` recency
  * ordering (lib/search/core.ts, lib/search/criteria-to-prisma.ts) — both of

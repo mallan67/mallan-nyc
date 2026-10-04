@@ -21,7 +21,7 @@
  *    still fails-closed defensively."
  *
  * So for DB rows: null/undefined => NOT displayable. No Cotality lookup needed.
- * Raw pre-filtered Trestle records keep their own convention and are NOT
+ * Raw pre-filtered Cotality records keep their own convention and are NOT
  * governed by this module.
  *
  * THE RULE

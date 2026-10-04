@@ -1,26 +1,26 @@
 #!/usr/bin/env tsx
-// Comprehensive server-side Trestle field-name audit.
+// Comprehensive server-side Cotality field-name audit.
 //
 // Scans every TypeScript file in lib/idx/, lib/compliance/, app/api/listings/,
 // app/api/idx/, app/api/listings/, and a few other key paths. Extracts
-// every CamelCase token that LOOKS like a Trestle field name (≥8 chars,
+// every CamelCase token that LOOKS like a Cotality field name (≥8 chars,
 // starts uppercase, recognized fragment) and cross-checks against live
-// Trestle metadata.
+// Cotality metadata.
 //
 // Categories reported per finding:
 //
 //   STALE_REFERENCE  — code uses a field name that doesn't exist on any
-//                       live Trestle resource (rename or removal needed)
+//                       live Cotality resource (rename or removal needed)
 //   GATE_FIELD       — recognized REBNY distribution gate field; verifies
-//                       it's spelled correctly per Trestle ($metadata vs
+//                       it's spelled correctly per Cotality ($metadata vs
 //                       common typos like IDXEntireListing vs Internet)
 //   KEY_FIELD        — listing/media key field; verifies ListingKey vs
 //                       ListingId vs ResourceRecordKey are used per
-//                       vendor guidance (CLAUDE.md "Trestle Media API
-//                       Rules — Vendor-Confirmed 2026-04-07")
+//                       the live Cotality contract (Media joins on
+//                       ResourceRecordKey; MALLAN-PLATFORM-MASTER-PLAN.md)
 //   ATTRIBUTION      — REBNY attribution text reference; verifies the
 //                       label still matches RLS rules
-//   PII_MASK         — DTO masking for sensitive Trestle fields; verifies
+//   PII_MASK         — DTO masking for sensitive Cotality fields; verifies
 //                       the masked-out field name is current
 //
 // Read-only. No code mutations.
@@ -61,25 +61,46 @@ const SCAN_PATHS = [
   'app/api/agents',
   'app/api/open-houses',
   'app/api/market',
-  'app/api/cron', // ALL crons — sweep for stale Trestle field refs
+  'app/api/cron', // ALL crons — sweep for stale Cotality field refs
 ];
 
-// Fields that MUST exist on live Trestle (we use these everywhere). If any
+// Fields that MUST exist on live Cotality (we use these everywhere). If any
 // of these is missing from live, we have a critical bug.
 //
 // NOTE: OwnerOptOutYN and ParticipantOnlyYN do NOT exist as separate booleans
-// on live Trestle (verified 2026-04-19 against $metadata). They are encoded via
-// the `Permission` enum on Property (values: "OwnerOptOut", "Private", "IDX",
-// "Public"). production code in lib/idx/trestle-mapper.ts:checkDistributionGates()
-// already reads payload.Permission and decodes accordingly.
+// on live Cotality (verified 2026-04-19 against $metadata, re-confirmed
+// 2026-10-02 via trestle_get_picklist: the GLOBAL Cotality ListingPermission
+// enum has 18 real values -- AgentOnly, ComingSoon, CompSold,
+// DownPaymentResourceNo, DownPaymentResourceYes, FirmOnly, History, IDX,
+// MemberInactive, Officeidxoptout, OfficeInactive, OfficeOnly,
+// OfficeSuspended, PhotoOptedOut, Private, Public, SyndicateOptOut, VOW -- no
+// "OwnerOptOut" member at all). Do not confuse this with the narrower,
+// current RLS-associated ListingPermission lookup (re-verified 2026-10-03:
+// IDX, OfficeInactive, Private, Public, SyndicateOptOut -- 5 values); the two
+// scopes must never be blended. `Permission='Private'` encodes Participant
+// Only (production code: lib/idx/trestle-mapper.ts derivePermissionGates).
+// Owner Opt-Out has no Cotality signal whatsoever (true in either scope) --
+// it is Mallan-local authority (lib/compliance/gates.ts::isOwnerOptOut reads
+// the DB-cached owner_opt_out column only).
 const MUST_EXIST_GATE_FIELDS = [
-  'Permission',                              // Owner Opt-Out / Participant Only encoding
+  'Permission',                              // Participant Only encoding (Permission
+                                              // has 'Private'). Owner Opt-Out has NO
+                                              // Cotality signal at all (2026-10-02
+                                              // Permission cutover) -- Mallan-local only.
   'InternetEntireListingDisplayYN',          // Master IDX display gate
   'InternetAddressDisplayYN',                // Address display gate
   'InternetAutomatedValuationDisplayYN',     // AVM display gate
   'InternetConsumerCommentYN',               // Consumer-comment gate
   'StandardStatus',                          // Status used in display logic
-  'MlsStatus',                               // RLS-side status
+];
+
+// NOT a display-gate input (MlsStatus is never consulted by any gate --
+// 2026-10-02 Status cutover, Master Plan Section 0.6) -- verified here only
+// because legitimate non-gate consumers still read it (the CRM Coming Soon
+// rules on the agent-submitted payload; the free-text mlsStatus search-
+// display field).
+const MUST_EXIST_SYSTEM_FIELDS = [
+  'MlsStatus',
 ];
 
 const MUST_EXIST_KEY_FIELDS = [
@@ -91,8 +112,8 @@ const MUST_EXIST_KEY_FIELDS = [
 // Forbidden field list + the live-drift guard live in a pure, importable module
 // (this script self-executes a network IIFE + process.exit, so its internals are
 // not unit-testable in place). The audit consumes the exact same data below.
-//   - FORBIDDEN_FIELDS: dead/renamed fields per CLAUDE.md "Fields That DO NOT
-//     EXIST on Trestle - NEVER USE". Flagged if found in scanned code.
+//   - FORBIDDEN_FIELDS: dead/renamed field names absent from the live Cotality
+//     $metadata (snapshot: data/cotality-enums.live.json). Flagged if found in scanned code.
 //   - detectForbiddenNowLive: catches a phantom the vendor has since made real.
 
 async function getToken(): Promise<string> {
@@ -161,7 +182,7 @@ function listTsFiles(dir: string): string[] {
 }
 
 interface Finding {
-  kind: 'FORBIDDEN_REFERENCE' | 'MUST_EXIST_GATE_MISSING_FROM_LIVE' | 'MUST_EXIST_KEY_MISSING_FROM_LIVE' | 'STALE_REFERENCE' | 'LEGACY_GUARD' | 'FORBIDDEN_NOW_LIVE';
+  kind: 'FORBIDDEN_REFERENCE' | 'MUST_EXIST_GATE_MISSING_FROM_LIVE' | 'MUST_EXIST_KEY_MISSING_FROM_LIVE' | 'MUST_EXIST_SYSTEM_MISSING_FROM_LIVE' | 'STALE_REFERENCE' | 'LEGACY_GUARD' | 'FORBIDDEN_NOW_LIVE';
   file?: string;
   line?: number;
   field: string;
@@ -213,14 +234,14 @@ function isVendorBlessedFallback(field: string, content: string): boolean {
 }
 
 (async () => {
-  console.log('Pulling live Trestle metadata...');
+  console.log('Pulling live Cotality metadata...');
   const live = await getAllLiveFields();
   console.log(`  ✓ live: ${live.all.size} unique fields across ${live.byResource.size} resources + ${live.customFieldKeys.size} CustomFields keys`);
   console.log('');
 
   const findings: Finding[] = [];
 
-  // 1. MUST_EXIST gates: every gate field must be on live Trestle
+  // 1. MUST_EXIST gates: every gate field must be on live Cotality
   console.log('── REBNY Distribution Gate fields (must exist on live) ────────');
   for (const f of MUST_EXIST_GATE_FIELDS) {
     const present = live.all.has(f);
@@ -235,6 +256,15 @@ function isVendorBlessedFallback(field: string, content: string): boolean {
     const present = live.all.has(f);
     console.log(`  ${present ? '✓' : '✗'} ${f}${present ? '' : '   ← NOT FOUND ON LIVE'}`);
     if (!present) findings.push({ kind: 'MUST_EXIST_KEY_MISSING_FROM_LIVE', field: f });
+  }
+  console.log('');
+
+  // 2b. MUST_EXIST system fields (non-gate -- see MUST_EXIST_SYSTEM_FIELDS)
+  console.log('── Non-gate system fields (must exist on live) ─────────────────');
+  for (const f of MUST_EXIST_SYSTEM_FIELDS) {
+    const present = live.all.has(f);
+    console.log(`  ${present ? '✓' : '✗'} ${f}${present ? '' : '   ← NOT FOUND ON LIVE'}`);
+    if (!present) findings.push({ kind: 'MUST_EXIST_SYSTEM_MISSING_FROM_LIVE', field: f });
   }
   console.log('');
 
@@ -280,8 +310,8 @@ function isVendorBlessedFallback(field: string, content: string): boolean {
 
   // 4. Live-drift guard — a forbidden field that has turned up in the live
   //    $metadata SCHEMA (vendor added/renamed it), excluding the documented
-  //    intentional allowlist. This is the guard the daily trestle-live-audit.yml
-  //    needs: the snapshot unit test cannot see fresh vendor drift.
+  //    intentional allowlist. This catches fresh vendor drift that the
+  //    snapshot unit test cannot see.
   //
   //    Basis = the deterministic schema (union of byResource field Names), NOT
   //    live.all. live.all also folds in CustomFields keys harvested from sampled

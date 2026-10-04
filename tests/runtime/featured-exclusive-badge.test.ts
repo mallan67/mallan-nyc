@@ -142,8 +142,8 @@ describe('6. Pinned Mallan exclusive — appears ONCE, single (exclusive) badge'
   });
 });
 
-describe('dedupe. CRM exclusive collapses its RLS/IDX twin (same address+unit)', () => {
-  it('keeps the SL- exclusive, drops the RLS twin; no listing twice', () => {
+describe('dedupe. CRM exclusive collapses its Cotality/IDX twin (same address+unit)', () => {
+  it('keeps the SL- exclusive, drops the Cotality twin; no listing twice', () => {
     const out = orderFeaturedListings(
       [{ id: 'SL-1', _source: 'exclusive', address: addr('5A') }],
       [{ id: 'RLS-twin', _source: 'db+idx', address: addr('5A') }],

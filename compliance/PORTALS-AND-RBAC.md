@@ -5,9 +5,9 @@
 
 ---
 
-> ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
-> 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+> ### AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
+> 1. **NY law/DOS, Fair Housing and REBNY rules (UCBA 2026, REBNY Listing Service)** govern use, display and conduct. 2. **The live Cotality API** is the only authority for provider fields, values and picklists (`data/cotality-enums.live.json` is its committed copy).
+> 3. **Mallan business rules** govern how verified facts are used; Mallan-created fields (mostly commercial and private-listing fields) are Mallan facts, never presented as provider data, and can restrict but never override a law/REBNY/provider display restriction (Master §0.2, §4, §21.1). 4. **Fail closed = NON-DISPLAY.** Plan: `MALLAN-PLATFORM-MASTER-PLAN.md`; state: `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md`.
 
 ---
 
@@ -56,8 +56,8 @@
 | RLS submission | Submit own listings |
 | Distribution gates | Set on own listings |
 | Own performance | Read |
-| PrivateRemarks (all listings) | Read (AGT distribution) |
-| ShowingInstructions (all listings) | Read (AGT distribution) |
+| PrivateRemarks (all listings) | Read (agent-only field) |
+| ShowingInstructions (all listings) | Read (agent-only field) |
 | PropertyCondition (all listings) | Read (with disclaimer) |
 | ExpirationDate | Own listings only |
 | Participant Only listings | Read (RLS Participant view) |

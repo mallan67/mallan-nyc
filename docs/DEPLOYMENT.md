@@ -5,7 +5,7 @@
 This document describes the deployment pipeline for `mallan-nyc`, a production Next.js + Prisma + Vercel system for a New York–licensed real estate brokerage.
 
 **Hard constraints:**
-- RESO standards compliance
+- Cotality provider contract (source terms; field truth from the live API)
 - REBNY RLS display rules
 - NY State real estate advertising law
 - Fair Housing Act compliance
@@ -114,7 +114,6 @@ These MUST NOT be removed or weakened:
 - Footer: REBNY RLS attribution (required by REBNY)
 - Footer: IDX compliance statement
 - `lib/compliance/rebny-validator.ts` validates listing data
-- `lib/compliance/rls-rules.json` contains field rules
 
 ### NY State Advertising
 - License number displayed in footer

@@ -40,8 +40,8 @@ jest.mock('@/lib/prisma', () => ({
   },
 }));
 
-// No live Cotality in tests. The open-houses Trestle branch short-circuits on an
-// empty Mallan ref set; the similar route's Trestle fallback is never reached
+// No live Cotality in tests. The open-houses Cotality branch short-circuits on an
+// empty Mallan ref set; the similar route's Cotality fallback is never reached
 // because the DB branch always yields >= 3 ranked comps here.
 jest.mock('@/lib/idx/auth', () => ({ getAccessToken: jest.fn(async () => 'test-token') }));
 jest.mock('@/lib/idx/fetch', () => ({ fetchListingMedia: jest.fn(async () => [] as unknown[]) }));

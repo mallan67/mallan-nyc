@@ -20,7 +20,7 @@
  *
  *   app-liveness  the runtime is serving HTTP at all
  *   db-readiness  Neon is reachable and answering
- *   provider      the Cotality/Trestle feed is current
+ *   provider      the Cotality feed is current
  *   media-proxy   listing imagery is actually being delivered
  *   r2-mirror     durable mirroring is keeping up
  *

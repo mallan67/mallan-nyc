@@ -9,7 +9,7 @@
 //      and handles status === Closed/Expired with CloseDate > 24h-old.
 //   2. Every public listing API route calls one of the gate functions:
 //        - filterDisplayableDbListings (db reads)
-//        - checkDistributionGates (Trestle reads)
+//        - checkDistributionGates (Cotality reads)
 //        - evaluateDisplayGate (canonical)
 //   3. The IDX-sync cron runs frequently enough to propagate Closed status.
 //
@@ -147,7 +147,7 @@ if (fs.existsSync(vercelJson)) {
       file: 'vercel.json',
       kind: 'CRON_FREQUENCY',
       detail:
-        'No idx-sync cron and no one-cycle orchestrator found — Trestle status changes will not propagate to DB',
+        'No idx-sync cron and no one-cycle orchestrator found — Cotality status changes will not propagate to DB',
     });
   } else {
     // Schedule must run at least every 30 minutes for closed-status freshness.

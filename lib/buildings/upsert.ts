@@ -14,11 +14,11 @@ import prisma from '@/lib/prisma';
 // Types
 // ---------------------------------------------------------------------------
 
-/** A single Trestle property record (full or partial). */
+/** A single Cotality property record (full or partial). */
 export type TrestleRecord = Record<string, unknown>;
 
-/** A Trestle Media object as returned in the Media array. */
-interface TrestleMedia {
+/** A Cotality Media object as returned in the Media array. */
+interface CotalityMedia {
   MediaCategory?: string;
   MediaURL?: string;
   [key: string]: unknown;
@@ -67,7 +67,7 @@ function firstBool(...values: unknown[]): boolean | undefined {
 }
 
 /**
- * Convert a Trestle CommonInterest value to NYC ownership terminology.
+ * Convert a Cotality CommonInterest value to NYC ownership terminology.
  * StockCooperative → Co-op, Condominium → Condo, Condop → Condop.
  */
 function mapOwnershipType(commonInterest: unknown): string | undefined {
@@ -90,7 +90,7 @@ function toStringArray(value: unknown): string[] {
     return value.filter((v) => typeof v === 'string' && v.trim() !== '') as string[];
   }
   if (typeof value === 'string' && value.trim() !== '') {
-    // Trestle sometimes uses pipe-delimited values
+    // Cotality sometimes uses pipe-delimited values
     return value.split('|').map((s) => s.trim()).filter(Boolean);
   }
   return [];
@@ -128,12 +128,12 @@ function richestBool(records: TrestleRecord[], field: string): boolean | undefin
 }
 
 /**
- * Extract the floor plan URL from a Trestle Media array.
+ * Extract the floor plan URL from a Cotality Media array.
  * Returns a proxied URL or undefined.
  */
 function extractFloorPlanUrl(media: unknown): string | undefined {
   if (!Array.isArray(media)) return undefined;
-  const item = (media as TrestleMedia[]).find(
+  const item = (media as CotalityMedia[]).find(
     (m) =>
       typeof m.MediaCategory === 'string' &&
       m.MediaCategory.toLowerCase() === 'floorplan' &&
@@ -167,7 +167,7 @@ function mergeGreenFeaturesFromRecords(records: TrestleRecord[]): string[] {
 // ---------------------------------------------------------------------------
 
 /**
- * Upsert a Building row and its BuildingUnit rows from a set of Trestle records.
+ * Upsert a Building row and its BuildingUnit rows from a set of Cotality records.
  *
  * Scans ALL records to find the richest data for each field (first non-empty wins).
  * Manual-only fields (management_company, super_name, etc.) are never overwritten.
@@ -297,7 +297,7 @@ export async function upsertBuildingFromRecords(
       },
       update: {
         // On update: never overwrite manual-only fields.
-        // Only update Trestle-sourced fields (everything in cleanData except manual fields).
+        // Only update Cotality-sourced fields (everything in cleanData except manual fields).
         ...cleanData,
       },
     });

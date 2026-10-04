@@ -99,7 +99,7 @@ describe("canEnableAlertForCriteria — P0-3 alert gate", () => {
       expect(decision.unsupported).toContain("keyword");
     });
 
-    it("flags Trestle-only fields not mirrored on the projection", () => {
+    it("flags Cotality-only fields not mirrored on the projection", () => {
       const decision = canEnableAlertForCriteria({
         listing_type: "sale",
         management_company: "O'Brien Realty",

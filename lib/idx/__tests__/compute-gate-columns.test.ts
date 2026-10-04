@@ -120,13 +120,13 @@ describe("computeGateColumns — status normalization reaches the guard", () => 
     expect(result.idx_display_yn).toBe(false);
   });
 
-  it("defaults null/undefined/non-string status to Active (displayable)", () => {
+  it("[Stage B1 status closure, 2026-10-02] non-string status is labeled Unknown, not a fabricated Active — downstream gate behavior (non-terminal, displayable) is unchanged", () => {
     for (const input of [null, undefined, 0, 1, {}, []] as unknown[]) {
       const result = computeGateColumns({
         status: input,
         internetEntireListingDisplayYN: true,
       });
-      expect(result.normalized_status).toBe("Active");
+      expect(result.normalized_status).toBe("Unknown");
       expect(result.is_terminal).toBe(false);
       expect(result.idx_display_yn).toBe(true);
     }
@@ -217,7 +217,7 @@ describe("computeGateColumns — per-row opt-out flags (fail-closed via affirmPe
     expect(result.internet_automated_valuation_display_yn).toBe(true);
   });
 
-  it("treats string 'true' AVM as allowed (Trestle OData boolean-as-string)", () => {
+  it("treats string 'true' AVM as allowed (Cotality OData boolean-as-string)", () => {
     const result = computeGateColumns({
       status: "Active",
       internetAutomatedValuationDisplayYN: "true",
@@ -399,8 +399,8 @@ describe("computeGateColumns — rls_eligible first-class gate (Codex PR #165 re
     }
   });
 
-  it("undefined / null / missing rls_eligible defaults to true (preserves Trestle-mapper behavior)", () => {
-    // The mapper does NOT pass rls_eligible; Trestle-sourced rows are always
+  it("undefined / null / missing rls_eligible defaults to true (preserves Cotality raw-mapper behavior)", () => {
+    // The mapper does NOT pass rls_eligible; Cotality-sourced rows are always
     // REBNY-eligible. Default-to-true keeps that path byte-equivalent.
     for (const input of [undefined, null] as unknown[]) {
       const result = computeGateColumns({

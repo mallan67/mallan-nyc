@@ -125,7 +125,7 @@ export async function GET(
 
   // No rows ever imported → READ-ONLY legacy-JSON preview (no DB write).
   //
-  // PROVENANCE GATE. This JSON is NOT uniformly CRM media: the Trestle sync
+  // PROVENANCE GATE. This JSON is NOT uniformly CRM media: the Cotality sync
   // writes Cotality image URLs into `Listing.media` on every upsert
   // (lib/idx/sync.ts:821, plus the media backfills). Minting a `crm:` key for
   // every item — as this route used to — advertised a feed photo as a CRM

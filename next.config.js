@@ -45,12 +45,11 @@ const nextConfig = {
   // tests/runtime/responsive-image.test.ts now enforces agreement in both
   // directions.
   //
-  // remotePatterns is EXACT-HOST only. The previous `*.r2.dev` and
-  // `*.trestle.com` wildcards admitted every public Cloudflare R2 bucket
-  // on the internet and any trestle.com subdomain — both are shared
-  // suffixes, not Mallan namespaces. Live measurement across 120
-  // production listings found exactly two media hosts in use, and zero
-  // trestle.com URLs anywhere in the code or the feed.
+  // remotePatterns is EXACT-HOST only. A wildcard on a shared suffix
+  // (for example `*.r2.dev`, which admits every public Cloudflare R2
+  // bucket on the internet) is not a Mallan namespace and must not be
+  // added. Live measurement across 120 production listings found exactly
+  // two media hosts in use.
   //
   // `images.mallan.nyc` was dropped: configured but non-resolving
   // (verified), and referenced only in comments and test fixtures.

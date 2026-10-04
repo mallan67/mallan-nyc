@@ -314,7 +314,7 @@ describe("telemetry persists with the route's OWN claim run_id on success AND er
       const t = require("@/lib/idx/cotality-telemetry");
       t.recordRetry();
       t.recordTokenRefresh();
-      throw new Error("Trestle exploded");
+      throw new Error("Cotality exploded");
     });
     const res = await idxGET(req({ forged: true, runId: "attacker-run" }));
     expect(res.status).toBe(500);

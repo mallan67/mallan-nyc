@@ -78,7 +78,13 @@ export function affirmPermission(v: unknown): boolean {
  * (camelCase fields) — the helper normalizes.
  */
 export interface PermissionInput {
-  // Trestle PascalCase
+  // Trestle PascalCase. NOTE (2026-10-02 Permission Multi-Enum cutover):
+  // `Permissions` (plural) does NOT exist on live Cotality Property at all --
+  // kept here only as MALLAN INTERNAL BUSINESS/COMPATIBILITY STATE. This
+  // helper is an intentional multi-layer normalizer over raw provider
+  // objects, DB rows, DTOs, AND Mallan CRM/form aliases (readPermissionString
+  // reads whichever key is present) -- never treat a `Permissions` hit here
+  // as a claim about live Cotality data.
   Permission?: unknown;
   Permissions?: unknown;
   StandardStatus?: unknown;
@@ -119,7 +125,10 @@ function readPermissionString(o: PermissionInput): string {
 }
 
 function readStatus(o: PermissionInput): StatusValue | null {
-  const raw = readFirst<unknown>(o, ["StandardStatus", "MlsStatus", "standardStatus", "status"]);
+  // Master Plan §0.6: StandardStatus and MlsStatus are independent RESO enums; MlsStatus
+  // must never substitute for StandardStatus. DB/internal sources (standardStatus, status)
+  // are preserved as fallbacks — only the raw-Cotality MlsStatus fallback is removed.
+  const raw = readFirst<unknown>(o, ["StandardStatus", "standardStatus", "status"]);
   if (typeof raw !== "string") return null;
   // Import on demand to avoid top-level cycle with status.ts
   // (status.ts has no imports from this module, so this is safe).
@@ -132,21 +141,33 @@ function readStatus(o: PermissionInput): StatusValue | null {
 
 /** Is this listing owner-opted-out (Gate 1)? */
 export function isOwnerOptOut(input: PermissionInput): boolean {
-  const p = readPermissionString(input);
-  // Permission values per compliance/IDX-VOW-DISPLAY-RULES.md:31
-  if (p === "OwnerOptOut" || p === "Owner Opt-Out") return true;
-  // Legacy MlsStatus sentinel
-  const mls = readFirst<unknown>(input, ["MlsStatus", "status"]);
-  if (mls === "OwnerOptOut") return true;
-  // DB-cached boolean (cron-populated)
-  if (affirmPermission(input.owner_opt_out)) return true;
-  return false;
+  // REBNY Gate 1 (Owner Opt-Out) is submitted via Exhibit B through the LMP
+  // workflow (compliance/IDX-VOW-DISPLAY-RULES.md Gate 1: "Form Required:
+  // Exhibit B -- submitted through LMP within 48 hours") and blocks the
+  // listing from RLS itself -- upstream of the Cotality IDX Plus feed Mallan
+  // consumes. The GLOBAL Cotality Permission enum (18 values) and MlsStatus
+  // enum (26 values) carry no OwnerOptOut/"Owner Opt-Out" member at all
+  // (confirmed live via trestle_get_picklist, 2026-10-02 Permission cutover)
+  // -- the narrower, current RLS-associated Permission lookup (IDX,
+  // OfficeInactive, Private, Public, SyndicateOptOut) obviously doesn't
+  // either; there is no provider signal to read, ever, not just none
+  // observed yet. owner_opt_out is Mallan-local authority only: DB-cached
+  // (CRM-set; preserved across provider sync by
+  // lib/idx/trestle-mapper.ts::applyLocalOwnerOptOutGate).
+  return affirmPermission(input.owner_opt_out);
 }
 
 /** Is this listing Participant-Only (Gate 2)? Permission='Private'. */
 export function isParticipantOnly(input: PermissionInput): boolean {
   const p = readPermissionString(input);
-  if (p === "Private") return true;
+  // Live Cotality Permission is a comma-separated Multi-Enum, IsFlags=true --
+  // whole-string equality only matched a row with 'Private' as its SOLE flag,
+  // silently missing every combined row like "IDX,Private" (2026-10-02 Permission
+  // Multi-Enum cutover; see lib/cotality/property.ts::hasCotalityListingPermission's
+  // docstring). Exact member match, never substring -- `p` may be a raw multi-value
+  // Cotality string or an already-single-valued DB/DTO string; membership-matching a
+  // single value is identical to equality, so this is safe for every caller shape.
+  if (p.split(",").map((member) => member.trim()).includes("Private")) return true;
   if (affirmPermission(input.participant_only)) return true;
   return false;
 }

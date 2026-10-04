@@ -50,7 +50,7 @@ connects to whatever `DATABASE_URL` points at — the canonical production DB is
 | 7 | Rows with `media_url_cached` | `count(*) FILTER (…)` |
 | 8 | Rows missing R2 key (total + active) | `count(*) FILTER (…)` |
 | 9 | `primary_photo_r2_key` coverage | `listings` — **informational** (column is unused by public readers; readers use `listing_media` directly) |
-| 10 | Rows the frontend would proxy from Trestle | active + `media_url_cached IS NULL` + `media_url_original IS NOT NULL`; plus "broken" = no URL at all |
+| 10 | Rows the frontend would proxy from Cotality | active + `media_url_cached IS NULL` + `media_url_original IS NOT NULL`; plus "broken" = no URL at all |
 | 11 | `listings` raw_data toast size | catalog toast size (default) or `sum(pg_column_size(raw_data))` under `--deep` |
 | 12 | `audit_events` size + count + date range | `count`, `min/max(created_at)`, size from table catalog |
 | 13 | Terminal/closed listing media | join on `listings.status = ANY(TERMINAL_STATUSES)`; counts media rows + how many still hold an R2 object (active vs tombstoned) |
@@ -91,7 +91,7 @@ unconfirmed).
 | Dimension | 🟢 Green | 🟡 Yellow | 🔴 Red |
 |---|---|---|---|
 | R2 coverage (active media w/ `r2_key`) | ≥ 98% | ≥ 90% | < 90% |
-| Proxy/Trestle fallback (active) | ≤ 2% | ≤ 10% | > 10% |
+| Proxy/Cotality fallback (active) | ≤ 2% | ≤ 10% | > 10% |
 | DB size (advisory) | < 1 GiB | < 4 GiB | ≥ 4 GiB |
 | Max dead-tuple % (churn tables) | ≤ 20% | ≤ 40% | > 40% |
 | Broken active media (no URL) | 0 | — | ≥ 1 |
