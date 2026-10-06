@@ -33,7 +33,7 @@ describe("Phase C — both forms hydrate the saved listing agent typed-first (Ma
   });
 
   it("the reader tries the typed column, then agent_info, then raw_data", () => {
-    expect(defaults).toContain("(typed && listing[typed]) || info[key] || raw[key]");
+    expect(defaults).toContain("(typed && str(listing[typed])) || str(info[key]) || str(raw[key])");
   });
 
   it("both forms hand the saved listing to the module", () => {

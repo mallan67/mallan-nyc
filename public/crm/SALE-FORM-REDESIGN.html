@@ -5874,6 +5874,8 @@ function updateListingHeaderBar(prefix) {
 // REBNY AGENTS DATABASE
 // ══════════════════════════════════════════════════════
 var rebnyAgents = { 'mallan': [] };  // Loaded from API
+// The listing agent (js/forms/agent-defaults.js registers them here), apart from rebnyAgents: the buyer's and the tenant's agent dropdowns do not offer the listing agent
+var rebnyListingAgents = { 'mallan': [] };
 
 // REBNY Company names mapping - Comprehensive list
 var rebnyCompanyNames = { 'mallan': 'Mallan Real Estate Inc.' };  // Loaded from API
@@ -5914,9 +5916,9 @@ function renderCompanyList(listEl, filter) {
     }
 }
 
-function renderAgentList(listEl, companyKey, filter) {
+function renderAgentList(listEl, companyKey, filter, source) {
     listEl.innerHTML = '';
-    const agents = rebnyAgents[companyKey] || [];
+    const agents = (source || rebnyAgents)[companyKey] || [];
     const q = (filter || '').toLowerCase();
     let count = 0;
     agents.forEach(agent => {
@@ -5954,7 +5956,7 @@ function initSearchableDropdown(cfg) {
     searchInput.addEventListener('focus', function() {
         wrapper.classList.add('open');
         if (cfg.type === 'company') renderCompanyList(listEl, searchInput.value);
-        if (cfg.type === 'agent') renderAgentList(listEl, hiddenInput.dataset.company || '', searchInput.value);
+        if (cfg.type === 'agent') renderAgentList(listEl, hiddenInput.dataset.company || '', searchInput.value, cfg.agents);
     });
     searchInput.addEventListener('click', function() {
         wrapper.classList.add('open');
@@ -5964,7 +5966,7 @@ function initSearchableDropdown(cfg) {
     searchInput.addEventListener('input', function() {
         wrapper.classList.add('open');
         if (cfg.type === 'company') renderCompanyList(listEl, searchInput.value);
-        if (cfg.type === 'agent') renderAgentList(listEl, hiddenInput.dataset.company || '', searchInput.value);
+        if (cfg.type === 'agent') renderAgentList(listEl, hiddenInput.dataset.company || '', searchInput.value, cfg.agents);
     });
 
     // Select item on click
@@ -6021,7 +6023,7 @@ function populateRebnyCompanyDropdowns() {
             agentHidden.value = '';
             agentHidden.dataset.company = key;
             const agentList = document.getElementById('listingAgentList');
-            renderAgentList(agentList, key, '');
+            renderAgentList(agentList, key, '', rebnyListingAgents);
             // Clear agent info
             const infoEl = document.getElementById('saleListingAgentInfo');
             if (infoEl) infoEl.style.display = 'none';
@@ -6035,15 +6037,16 @@ function populateRebnyCompanyDropdowns() {
         hiddenId: 'saleListingAgent',
         listId: 'listingAgentList',
         type: 'agent',
+        agents: rebnyListingAgents,
         onSelect: function(data) {
             const companyKey = document.getElementById('saleListingCompany').value;
             const companyName = rebnyCompanyNames[companyKey] || companyKey;
-            document.getElementById('saleListingAgentId').textContent = data.mlsId || data.id;
+            document.getElementById('saleListingAgentId').textContent = data.mlsId || '--';
             document.getElementById('saleListingAgentPhone').textContent = data.phone;
             document.getElementById('saleListingAgentEmail').textContent = data.email;
             document.getElementById('saleListingAgentLicense').textContent = data.license;
             document.getElementById('saleListingAgentInfo').style.display = 'block';
-            updateSaleAgentTable('listing', data.mlsId || data.id, data.name, companyName, data.phone, data.email);
+            updateSaleAgentTable('listing', data.mlsId || '--', data.name, companyName, data.phone, data.email);
         }
     });
 
@@ -6096,7 +6099,7 @@ function populateRebnyCompanyDropdowns() {
     listingAgentSearch.disabled = false;
     listingAgentSearch.placeholder = 'Search agent...';
     document.getElementById('saleListingAgent').dataset.company = 'mallan';
-    renderAgentList(document.getElementById('listingAgentList'), 'mallan', '');
+    renderAgentList(document.getElementById('listingAgentList'), 'mallan', '', rebnyListingAgents);
 }
 
 // Legacy wrappers for co-list agent (still uses <select>)
@@ -8034,14 +8037,48 @@ async function manualSaveDraft() {
                 recoveryDiv.className = 'fixed bottom-4 right-4 bg-white border border-green-300 rounded-xl shadow-xl p-4 z-50 max-w-sm';
                 document.body.appendChild(recoveryDiv);
             }
-            recoveryDiv.innerHTML = '<div class="flex items-start gap-3">' +
-                '<i class="fas fa-check-circle text-green-500 text-lg mt-0.5"></i>' +
-                '<div><p class="font-semibold text-gray-900 text-sm">Draft Saved: ' + listingId + '</p>' +
-                '<p class="text-xs text-gray-500 mt-1">Edit URL: <a href="' + editUrl + '" class="text-blue-600 underline">' + editUrl + '</a></p>' +
-                '<div class="flex gap-2 mt-2">' +
-                '<button onclick="document.getElementById(\'saleDraftRecovery\').remove()" class="px-3 py-1 bg-gray-100 text-gray-700 rounded text-xs font-medium hover:bg-gray-200">Dismiss</button>' +
-                '<button onclick="navigator.clipboard.writeText(\'' + editUrl + '\');showToast(\'Edit link copied\',\'success\')" class="px-3 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium hover:bg-blue-100"><i class="fas fa-copy mr-1"></i>Copy Link</button>' +
-                '</div></div></div>';
+            // Built with DOM calls: the edit URL carries the ?id= the page was opened with, which is whatever the link said (encodeURIComponent leaves ' ( ) as they are).
+            var recoveryRow = document.createElement('div');
+            recoveryRow.className = 'flex items-start gap-3';
+            var recoveryIcon = document.createElement('i');
+            recoveryIcon.className = 'fas fa-check-circle text-green-500 text-lg mt-0.5';
+            recoveryRow.appendChild(recoveryIcon);
+            var recoveryBody = document.createElement('div');
+            var recoveryTitle = document.createElement('p');
+            recoveryTitle.className = 'font-semibold text-gray-900 text-sm';
+            recoveryTitle.textContent = 'Draft Saved: ' + listingId;
+            recoveryBody.appendChild(recoveryTitle);
+            var recoveryUrl = document.createElement('p');
+            recoveryUrl.className = 'text-xs text-gray-500 mt-1';
+            recoveryUrl.appendChild(document.createTextNode('Edit URL: '));
+            var recoveryLink = document.createElement('a');
+            recoveryLink.href = editUrl;
+            recoveryLink.className = 'text-blue-600 underline';
+            recoveryLink.textContent = editUrl;
+            recoveryUrl.appendChild(recoveryLink);
+            recoveryBody.appendChild(recoveryUrl);
+            var recoveryButtons = document.createElement('div');
+            recoveryButtons.className = 'flex gap-2 mt-2';
+            var dismissButton = document.createElement('button');
+            dismissButton.className = 'px-3 py-1 bg-gray-100 text-gray-700 rounded text-xs font-medium hover:bg-gray-200';
+            dismissButton.textContent = 'Dismiss';
+            dismissButton.addEventListener('click', function() { recoveryDiv.remove(); });
+            var copyButton = document.createElement('button');
+            copyButton.className = 'px-3 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium hover:bg-blue-100';
+            var copyIcon = document.createElement('i');
+            copyIcon.className = 'fas fa-copy mr-1';
+            copyButton.appendChild(copyIcon);
+            copyButton.appendChild(document.createTextNode('Copy Link'));
+            copyButton.addEventListener('click', function() {
+                if (navigator.clipboard) navigator.clipboard.writeText(editUrl);
+                showToast('Edit link copied', 'success');
+            });
+            recoveryButtons.appendChild(dismissButton);
+            recoveryButtons.appendChild(copyButton);
+            recoveryBody.appendChild(recoveryButtons);
+            recoveryRow.appendChild(recoveryBody);
+            recoveryDiv.textContent = '';
+            recoveryDiv.appendChild(recoveryRow);
             setTimeout(function() { var el = document.getElementById('saleDraftRecovery'); if (el) el.remove(); }, 15000);
         } catch (err) {
             showToast('Save failed: ' + err.message, 'error');
@@ -8813,8 +8850,7 @@ function _checkSaleEditMode() {
     _saleEditMode = true;
     _saleEditDbId = id;
     _saleEditLoad = 'loading';
-    // a signed-in user whose session arrived first is nobody's listing agent until the saved listing says who is
-    if (typeof MallanAgentDefaults !== 'undefined') MallanAgentDefaults.beginEdit('sale');
+    // (js/forms/agent-defaults.js reads ?id= itself: a signed-in user whose session arrived first is nobody's listing agent until the saved listing says who is)
 
     // Show loading indicator
     showToast('Loading listing...', 'info');
@@ -10491,8 +10527,8 @@ function populateSaleCommissionFields() {
     var sqft = val('saleLivingArea');
     set('commSaleSqFt', sqft ? sqft + ' sq ft' : '–');
 
-    // Listing Agent
-    var agentName = (document.getElementById('headerAgentName') || {}).textContent || '';
+    // Listing Agent: the agent the listing carries (js/forms/agent-defaults.js). That is the signed-in user only on a listing that is theirs: a broker can open another agent's.
+    var agentName = typeof MallanAgentDefaults !== 'undefined' ? MallanAgentDefaults.identity('sale').ListAgentFullName : '';
     set('commSaleListingAgent', agentName || '–');
 
     // Trigger calculation

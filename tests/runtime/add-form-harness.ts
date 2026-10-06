@@ -36,6 +36,7 @@ export type AddFormOpts = {
   directoryError?: string;                           // make every directory lookup fail with this message
   memberDelays?: Record<string, number>;             // ms before the directory answers for an MLS ID (a slow answer arriving late)
   modules?: string[];                                // page modules to load, in order (default: every module the forms load)
+  moduleSources?: Record<string, (source: string) => string>;   // rewrite a module's source before it runs (a copy cached from an older deploy)
   storage?: Record<string, string>;                  // localStorage entries present when the page starts (a saved browser draft)
   settle?: number;                                   // ms to let page init finish
 };
@@ -99,8 +100,8 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
       const context = { authenticated: !!user, role: 'agent', portalRole: 'agent', user };
       w.MallanAPI = {
         isReady: true,
-        // the real client fires onReady with the session user once init() has succeeded, and never for an anonymous session
-        onReady: (cb: (u: unknown) => void) => { if (user) { if (o.readySync) cb(user); else setTimeout(() => cb(user), o.readyDelay ?? 5); } },
+        // the real client fires onReady with the session user once init() has resolved (at once when it already has), and with null when the session is anonymous
+        onReady: (cb: (u: unknown) => void) => { if (o.readySync && user) cb(user); else setTimeout(() => cb(user), o.readyDelay ?? 5); },
         getContext: () => context,
         init: () => Promise.resolve({ authenticated: !!user, user }),
         listings: {
@@ -123,7 +124,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
         },
       };
       if (o.noListingsApi) delete w.MallanAPI.listings;
-      for (const name of o.modules ?? PAGE_MODULES) w.eval(read(`public/crm/js/forms/${name}.js`));
+      for (const name of o.modules ?? PAGE_MODULES) w.eval((o.moduleSources?.[name] ?? ((s: string) => s))(read(`public/crm/js/forms/${name}.js`)));
     },
   });
   await sleep(o.settle ?? 1200);
