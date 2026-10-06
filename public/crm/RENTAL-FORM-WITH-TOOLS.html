@@ -127,7 +127,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
 </style>
 <!-- API Client — identity from session token, no PII in URLs -->
 <script src="js/core/api-client.js"></script>
-<script src="js/forms/viewer-hydration.js"></script>
+<script src="js/forms/listing-hydration.js"></script>
 <script>
 (function() {
     var origin = window.location.origin;
@@ -482,7 +482,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 </div>
                 <div class="mt-2">
                     <label class="flex items-center gap-2 cursor-pointer text-sm">
-                        <input type="checkbox" class="w-4 h-4"> Agreement on File
+                        <input type="checkbox" id="rentalAgreementOnFile" class="w-4 h-4"> Agreement on File
                     </label>
                 </div>
             </div>
@@ -959,13 +959,6 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <div class="flex gap-4">
                         <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalGuarantors" value="Yes" class="w-4 h-4" data-rls-field="GuarantorsAcceptedYN"> Yes</label>
                         <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalGuarantors" value="No" class="w-4 h-4"> No</label>
-                    </div>
-                </div>
-                <div>
-                    <label class="field-label mb-2">Furnished</label>
-                    <div class="flex gap-4">
-                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalFurnished" value="Yes" class="w-4 h-4"> Yes</label>
-                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalFurnished" value="No" class="w-4 h-4"> No</label>
                     </div>
                 </div>
                 <!-- RLS: PetsAllowed — REQUIRED, Multi-Select Picklist (7 values) — Unit-level -->
@@ -1824,6 +1817,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
         <div>
             <label class="field-label">Furnished</label>
             <select id="rentalFurnished" class="field-input" onchange="toggleFurnishedFields()" data-rls-field="Furnished">
+                <option value="">Select...</option>
                 <option value="Unfurnished">Unfurnished</option>
                 <option value="Furnished">Furnished</option>
                 <option value="Partially">Partially Furnished</option>
@@ -4398,7 +4392,7 @@ function viewerBuildListing(apiData, id) {
     return {
         listingId: apiData.listing_id || id,
         status: apiData.status || '',
-        address: MallanViewerHydration.streetLine(apiData),
+        address: MallanListingHydration.streetLine(apiData),
         unit: addr.UnitNumber || '',
         city: apiData.city || '',
         zipCode: apiData.postal_code || '',
@@ -4571,7 +4565,7 @@ function loadRentalListingData(listingId) {
 
     // Entry-form defaults are not listing facts: clear them, then set only what the record carries.
     viewerClearEntryDefaults();
-    MallanViewerHydration.hydrate('rental', d._raw);
+    MallanListingHydration.hydrate('rental', d._raw);
 
     // Status and tiles: the stored status verbatim (never derived or defaulted); days on market from the typed columns, else the record's own key.
     var rawData = (d._raw && d._raw.raw_data) || {};
@@ -6691,15 +6685,8 @@ function calculateRentalTHFinancials() {
 // CONDITIONAL FIELD TOGGLES
 // ══════════════════════════════════════════════════════
 function toggleFurnishedFields() {
-    // Check both the select dropdown (Tab 2) and radios (Tab 1)
     const sel = document.getElementById('rentalFurnished');
-    let value = '';
-    if (sel && sel.tagName === 'SELECT') {
-        value = sel.value;
-    } else {
-        const radios = document.querySelectorAll('input[name="rentalFurnished"]');
-        radios.forEach(r => { if (r.checked) value = r.value; });
-    }
+    const value = sel ? sel.value : '';
     const section = document.getElementById('rentalFurnishedDetails');
     if (section) {
         section.style.display = (value === 'Furnished' || value === 'Partially') ? 'block' : 'none';
@@ -6941,8 +6928,8 @@ function updateRentalPreview() {
     setText('rentalPreviewSiteDetailDOM', ((document.getElementById('rentalDaysOnMarket') || {}).textContent || '--'));
 
     // Furnished
-    const furnished = document.querySelector('input[name="rentalFurnished"]:checked');
-    setText('rentalPreviewSiteDetailFurnished', furnished ? furnished.value : '--');
+    const furnishedSel = document.getElementById('rentalFurnished');
+    setText('rentalPreviewSiteDetailFurnished', furnishedSel && furnishedSel.value ? furnishedSel.options[furnishedSel.selectedIndex].text : '--');
 
     // Building amenities pills
     const amenityNames = ['bldgDoorman', 'bldgElevator', 'bldgGym', 'bldgPool', 'bldgRoofDeck', 'bldgLaundry', 'bldgParking', 'bldgBikeRoom', 'bldgStorage', 'bldgConcierge', 'bldgPlayroom', 'bldgCourtyard', 'bldgGarden', 'bldgLobbyAttendant'];
@@ -6976,7 +6963,7 @@ function renderRentalViewer() {
         // type is unknown is not shown as one, so they run only when the record named a type.
         if (typeof applyRentalFieldRules === 'function' && document.querySelector('input[name="rentalPropertyType"]:checked')) applyRentalFieldRules();
         // The field rules may reset a control (they do on the Add form); the stored record has the last word.
-        MallanViewerHydration.hydrate('rental', VIEWER_LISTINGS[VIEWER_LISTING_ID]._raw);
+        MallanListingHydration.hydrate('rental', VIEWER_LISTINGS[VIEWER_LISTING_ID]._raw);
         convertRentalFormToViewer();
         viewerHideWriteControls();
         patchGetRentalFormValue();

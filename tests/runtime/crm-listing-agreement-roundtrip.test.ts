@@ -38,6 +38,8 @@ async function boot(form: string): Promise<{ window: any; errors: string[] }> {
       window.fetch = async () => ({ ok: true, status: 200, json: async () => ({}), text: async () => '' });
       window.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} };
       window.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
+      // the Rental edit load puts a stored listing back through js/forms/listing-hydration.js, which the page loads with a <script src>; jsdom does not fetch it
+      window.eval(readFileSync(resolve(__dirname, '../../public/crm/js/forms/listing-hydration.js'), 'utf8'));
       const context = { authenticated: true, role: 'agent', portalRole: 'agent' };
       window.MallanAPI = {
         onReady: (cb: () => void) => setTimeout(cb, 5),

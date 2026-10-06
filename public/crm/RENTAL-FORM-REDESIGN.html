@@ -89,6 +89,7 @@ body { font-family: Manrope, sans-serif; }
 <script src="js/forms/directory-picker.js"></script>
 <script src="js/forms/colist-section.js"></script>
 <script src="js/forms/agent-defaults.js"></script>
+<script src="js/forms/listing-hydration.js"></script>
 <script>
 // ── Auth gate (defense-in-depth — middleware is primary) ──
 // NOTE: session_token is httpOnly — JS cannot read it via document.cookie.
@@ -474,7 +475,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div class="mt-2">
                     <label class="flex items-center gap-2 cursor-pointer text-sm">
-                        <input type="checkbox" class="w-4 h-4"> Agreement on File
+                        <input type="checkbox" id="rentalAgreementOnFile" class="w-4 h-4"> Agreement on File
                     </label>
                 </div>
             </div>
@@ -974,13 +975,6 @@ body { font-family: Manrope, sans-serif; }
                     <div class="flex gap-4">
                         <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalGuarantors" value="Yes" class="w-4 h-4" data-rls-field="GuarantorsAcceptedYN"> Yes</label>
                         <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalGuarantors" value="No" class="w-4 h-4"> No</label>
-                    </div>
-                </div>
-                <div>
-                    <label class="field-label mb-2">Furnished</label>
-                    <div class="flex gap-4">
-                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalFurnished" value="Yes" class="w-4 h-4"> Yes</label>
-                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalFurnished" value="No" class="w-4 h-4"> No</label>
                     </div>
                 </div>
                 <div>
@@ -1855,6 +1849,7 @@ body { font-family: Manrope, sans-serif; }
         <div>
             <label class="field-label">Furnished</label>
             <select id="rentalFurnished" class="field-input" onchange="toggleFurnishedFields()" data-rls-field="Furnished">
+                <option value="">Select...</option>
                 <option value="Unfurnished">Unfurnished</option>
                 <option value="Furnished">Furnished</option>
                 <option value="Partially">Partially Furnished</option>
@@ -5194,285 +5189,6 @@ function validateAndNextRentalTab(currentTab, nextTab) {
 }
 
 // ══════════════════════════════════════════════════════
-// DATA COLLECTION — Legacy structured serializer (SUPERSEDED)
-// The authoritative collectRentalFormData() is defined below (~line 5585)
-// with generic DOM iteration + explicit RLS field mappings.
-// This version is kept as _collectRentalFormDataLegacy for reference.
-// ══════════════════════════════════════════════════════
-function _collectRentalFormDataLegacy() {
-    const val = (id) => { const el = document.getElementById(id); return el ? el.value : ''; };
-    const checked = (id) => { const el = document.getElementById(id); return el ? el.checked : false; };
-    const radioVal = (name) => { const el = document.querySelector('input[name="' + name + '"]:checked'); return el ? el.value : ''; };
-    const checkedValues = (name) => {
-        const items = [];
-        document.querySelectorAll('input[name="' + name + '"]:checked').forEach(cb => items.push(cb.value || cb.parentElement?.textContent?.trim() || ''));
-        return items;
-    };
-
-    return {
-        // ── Tab 1: Listing Info ──
-        // Classification
-        propertyType: radioVal('rentalPropertyType'),
-        structureType: val('rentalStructureType'),
-        commercialOwnership: radioVal('rentalCommercialOwnership'),
-        officeRetailOwnership: radioVal('rentalOfficeRetailOwnership'),
-
-        // Address — parse into RLS components before collecting
-        streetAddress: (function() { parseRentalAddress(); updateRentalAddressDerived(); return val('rentalStreetAddress'); })(),
-        unitNumber: val('rentalUnitNumber'),
-        borough: val('rentalBorough'),
-        zipCode: val('rentalZipCode'),
-        neighborhoodFromAddress: val('rentalNeighborhoodFromAddress'),
-        // RLS Address Fields
-        unparsedAddress: val('rentalUnparsedAddress'),
-        streetNumber: val('rentalStreetNumber'),
-        streetDirPrefix: val('rentalStreetDirPrefix'),
-        streetName: val('rentalStreetName'),
-        streetSuffix: val('rentalStreetSuffix'),
-        city: val('rentalCity') || 'New York',
-        cityRegion: val('rentalBorough'),
-        countyOrParish: val('rentalCountyOrParish'),
-        stateOrProvince: val('rentalStateOrProvince') || 'NY',
-        postalCity: val('rentalPostalCity'),
-
-        // Listing Details
-        listingType: radioVal('rentalListingType'),
-        status: val('rentalStatus'),
-        createDate: val('rentalCreateDate'),
-        lastUpdatedDate: val('rentalLastUpdatedDate'),
-
-        // Pricing
-        monthlyRent: val('rentalMonthlyRent'),
-        netEffectiveRent: val('rentalNetEffectiveRent'),
-        securityDeposit: val('rentalSecurityDeposit'),
-        rentedPrice: val('rentalRentedPrice'),
-
-        // Building Requirements
-        boardApproval: checked('rentalBoardApproval'),
-        boardInterview: checked('rentalBoardInterview'),
-        meetAndGreet: checked('rentalMeetAndGreet'),
-        boardApplication: checked('rentalBoardApplication'),
-        firstRefusal: checked('rentalFirstRefusal'),
-        subleaseAllowed: checked('rentalSubleaseAllowed'),
-        petsAllowed: val('rentalPetsAllowed'),
-
-        // Dates
-        dateListed: val('rentalDateListed'),
-        availableDate: val('rentalAvailableDate'),
-        exclusiveStart: val('rentalExclusiveStart'),
-        exclusiveExpires: val('rentalExclusiveExpires'),
-        firstCoBroke: val('rentalFirstCoBroke'),
-        offMarketDate: val('rentalOffMarketDate'),
-        rentedDate: val('rentalRentedDate'),
-
-        // Concessions
-        concessions: val('rentalConcessions'),
-        concessionAmount: val('rentalConcessionAmount'),
-        ownerPays: checked('rentalOwnerPays'),
-        freeRent: checked('rentalFreeRent'),
-        ownerPaysFreeRent: checked('rentalOwnerPaysFreeRent'),
-        freeRentMonths: val('rentalFreeRentMonths'),
-        concessionRemarks: val('rentalConcessionRemarks'),
-
-        // Lease Terms
-        leaseTerm: val('rentalLeaseTerm'),
-        leaseType: val('rentalLeaseType'),
-        minLease: val('rentalMinLease'),
-        maxLease: val('rentalMaxLease'),
-
-        // Commission
-        commissionType: val('rentalCommissionType'),
-        commissionAmount: val('rentalCommissionAmount'),
-        commNegotiabilityAck: checked('rentalCommNegotiabilityAck'),
-
-        // Description
-        listingUrl: val('rentalListingUrl'),
-        webDisplayAddress: val('rentalWebDisplayAddress'),
-        webHeadline: val('rentalWebHeadline'),
-        description: val('rentalDescription'),
-        agentRemarks: val('rentalAgentRemarks'),
-        showingInstructions: val('rentalShowingInstructions'),
-        fairHousingAck: checked('rentalFairHousingAck'),
-
-        // FARE Act
-        fareActLandlordPays: radioVal('rentalFareActLandlordPays'),
-
-        // Display Permissions (RLS/RESO/IDX Internet fields)
-        internetEntireListingDisplayYN: checked('rentalInternetEntireListingDisplayYN'),
-        internetAddressDisplayYN: checked('rentalInternetAddressDisplayYN'),
-        internetConsumerCommentYN: checked('rentalInternetConsumerCommentYN'),
-        internetAVMDisplayYN: radioVal('rentalInternetAVMDisplayYN'),
-        vowOptOutYN: checked('rentalVOWOptOutYN'),
-        distVOW: checked('rentalDist_VOW'),
-        syndicateYN: checked('rentalSyndicateYN'),
-
-        // Team (RLS/RESO/IDX: ListTeamName, ListTeamMlsId)
-        listTeamName: val('rentalListTeamName'),
-        listTeamMlsId: val('rentalListTeamMlsId'),
-
-        // Logged-in Agent (auto-populated)
-        updatingAgentId: val('rentalUpdatingAgent'),
-        updatingAgentName: val('rentalUpdatingAgentName'),
-        updatingAgentPhone: val('rentalUpdatingAgentPhone'),
-        updatingAgentEmail: val('rentalUpdatingAgentEmail'),
-        updatingAgentLicense: val('rentalUpdatingAgentLicense'),
-        updatingAgentCompanyKey: val('rentalUpdatingAgentCompanyKey'),
-        updatingAgentCompanyName: val('rentalUpdatingAgentCompanyName'),
-
-        // Contacts
-        listingCompany: val('rentalListingCompany'),
-        listingAgent: val('rentalListingAgent'),
-        tenantCompany: val('rentalTenantCompany'),
-        tenantAgent: val('rentalTenantAgent'),
-        buyerAgentRLSParticipantYN: checked('rentalBuyerAgentRLSParticipantYN'),
-        ownerName: val('rentalOwnerName'),
-        ownerPhone: val('rentalOwnerPhone'),
-        ownerEmail: val('rentalOwnerEmail'),
-        ownerContactMethod: val('rentalOwnerContactMethod'),
-        superName: val('rentalSuperName'),
-        superPhone: val('rentalSuperPhone'),
-
-        // ── Tab 2: Unit Info ──
-        city: val('rentalCity'),
-        state: val('rentalState'),
-        zip: val('rentalZip'),
-        neighborhood: val('rentalNeighborhood'),
-        bedrooms: val('rentalBedrooms'),
-        fullBathrooms: val('rentalFullBathrooms'),
-        halfBathrooms: val('rentalHalfBathrooms'),
-        totalRooms: val('rentalTotalRooms'),
-        sqFt: val('rentalSqFt'),
-        floor: val('rentalFloor'),
-        line: val('rentalLine'),
-        unitType: val('rentalUnitType'),
-        condition: val('rentalCondition'),
-        furnished: val('rentalFurnished'),
-        furnishedRent: val('rentalFurnishedRent'),
-        furnishedMinMonths: val('rentalFurnishedMinMonths'),
-        furnishedMaxMonths: val('rentalFurnishedMaxMonths'),
-
-        // Exposure & Views
-        exposures: checkedValues('rentalExposure'),
-        views: checkedValues('rentalViews'),
-
-        // Kitchen
-        kitchenType: val('rentalKitchenType'),
-        kitchenFeatures: {
-            dishwasher: checked('rentalDishwasher'),
-            graniteCounters: checked('rentalGraniteCounters'),
-            stainlessAppl: checked('rentalStainlessAppl'),
-            microwave: checked('rentalMicrowave'),
-            gasStove: checked('rentalGasStove'),
-        },
-
-        // Additional Rooms
-        additionalRooms: {
-            livingRoom: checked('rentalLivingRoom'),
-            formalLiving: checked('rentalFormalLiving'),
-            greatRoom: checked('rentalGreatRoom'),
-            diningRoom: checked('rentalDiningRoom'),
-            formalDining: checked('rentalFormalDining'),
-            diningArea: checked('rentalDiningArea'),
-            breakfastNook: checked('rentalBreakfastNook'),
-            den: checked('rentalDen'),
-            homeOffice: checked('rentalHomeOffice'),
-            library: checked('rentalLibrary'),
-            maidsRoom: checked('rentalMaidsRoom'),
-            nursery: checked('rentalNursery'),
-            recRoom: checked('rentalRecRoom'),
-            mediaRoom: checked('rentalMediaRoom'),
-            sunroom: checked('rentalSunroom'),
-            walkInCloset: checked('rentalWalkInCloset'),
-            storageRoom: checked('rentalStorageRoom'),
-            laundryRoom: checked('rentalLaundryRoom'),
-            mudroom: checked('rentalMudroom'),
-        },
-
-        // Unit Features
-        unitFeatures: {
-            washerDryer: checked('rentalWasherDryer'),
-            centralAC: checked('rentalCentralAC'),
-            hardwood: checked('rentalHardwood'),
-            highCeilings: checked('rentalHighCeilings'),
-            fireplace: checked('rentalFireplace'),
-            exposedBrick: checked('rentalExposedBrick'),
-            prewar: checked('rentalPrewar'),
-            smartHome: checked('rentalSmartHome'),
-        },
-
-        // Outdoor Space
-        outdoorSpace: {
-            balcony: checked('rentalBalcony'),
-            terrace: checked('rentalTerrace'),
-            patio: checked('rentalPatio'),
-            privateRoof: checked('rentalPrivateRoof'),
-            privateGarden: checked('rentalPrivateGarden'),
-            backyard: checked('rentalBackyard'),
-        },
-
-        // Building Amenities (from unit features tab)
-        buildingAmenities: {
-            doorman: checked('rentalDoorman'),
-            elevator: checked('rentalElevator'),
-            gym: checked('rentalGym'),
-            buildingLaundryFeatures: getRentalBuildingLaundryFeatures(),
-            bikeRoom: checked('rentalBikeRoom'),
-            storage: checked('rentalStorage'),
-            roofDeck: checked('rentalRoofDeck'),
-            liveInSuper: checked('rentalLiveInSuper'),
-            parking: checked('rentalParking'),
-            pool: checked('rentalPool'),
-            concierge: checked('rentalConcierge'),
-            valet: checked('rentalValet'),
-        },
-
-        // ── Tab 3: Townhouse/Building ──
-        thStories: val('rentalTHStories'),
-        thUnitsTotal: val('rentalTHUnitsTotal'),
-        thProfUnits: val('rentalTHProfUnits'),
-        thRetailUnits: val('rentalTHRetailUnits'),
-        thNumBuildings: val('rentalTHNumBuildings'),
-        thVacantUnits: val('rentalTHVacantUnits'),
-        thCommercialYN: val('rentalTHCommercialYN'),
-        thDevStatus: val('rentalTHDevStatus'),
-        thLotSize: val('rentalTHLotSize'),
-        thLotSizeUnits: val('rentalTHLotSizeUnits'),
-        thLotDimensions: val('rentalTHLotDimensions'),
-        thLotSizeSource: val('rentalTHLotSizeSource'),
-        thLandmark: val('rentalTHLandmark'),
-        thLotFeatures: val('rentalTHLotFeatures'),
-        thBuildingArea: val('rentalTHBuildingArea'),
-        thBuildingAreaUnits: val('rentalTHBuildingAreaUnits'),
-        thGrossSqFt: val('rentalTHGrossSqFt'),
-        thNetSqFt: val('rentalTHNetSqFt'),
-        thFoundationArea: val('rentalTHFoundationArea'),
-        thFoundation: val('rentalTHFoundation'),
-        thBasementYN: val('rentalTHBasementYN'),
-        thLevels: val('rentalTHLevels'),
-        thZoning: val('rentalTHZoning'),
-        thOverFAR: val('rentalTHOverFAR'),
-        thUnderFAR: val('rentalTHUnderFAR'),
-        thLandLeaseYN: val('rentalTHLandLeaseYN'),
-        thLandLeaseAmt: val('rentalTHLandLeaseAmt'),
-
-        // ── Tab 4: Distribution ──
-        idxEntireListingDisplayYN: checked('rentalIDXEntireListingDisplayYN'),
-        sendToAll: checked('rentalSendToAll'),
-        dist_IDX: checked('rentalDist_IDX'),
-        dist_Listhub: checked('rentalDist_Listhub'),
-        dist_NYMLS: checked('rentalDist_NYMLS'),
-        dist_Realtor: checked('rentalDist_Realtor'),
-        dist_RPX: checked('rentalDist_RPX'),
-        dist_WWW: checked('rentalDist_WWW'),
-        dist_RLS: checked('rentalDist_RLS'),
-
-        // ── Metadata ──
-        _savedAt: new Date().toISOString(),
-        _formVersion: 'rental-redesign-v1',
-    };
-}
-
-// ══════════════════════════════════════════════════════
 // SAVE DRAFT — localStorage persistence
 // ══════════════════════════════════════════════════════
 function saveRentalDraft() {
@@ -5497,7 +5213,7 @@ function saveRentalDraft() {
 
     // New, unsaved listing (no DB id yet) — a browser draft is safe here.
     try {
-        localStorage.setItem('rentalListingDraft', JSON.stringify(data));
+        localStorage.setItem('rentalListingDraft', JSON.stringify(Object.assign({ _savedAt: new Date().toISOString() }, data)));
         showToast('Draft saved successfully', 'success');
     } catch (e) {
         showToast('Failed to save draft: ' + e.message, 'error');
@@ -5527,70 +5243,18 @@ function loadRentalDraft() {
     try {
         var saved = localStorage.getItem('rentalListingDraft');
         if (!saved) return false;
-        var data = JSON.parse(saved);
-        var setVal = function(id, val) { var el = document.getElementById(id); if (el && val) el.value = val; };
-        var setChecked = function(id, val) { var el = document.getElementById(id); if (el) el.checked = !!val; };
+        var draft = JSON.parse(saved);
+        if (!draft || typeof draft !== 'object') return false;
 
-        // Restore key fields
-        setVal('rentalStreetAddress', data.streetAddress);
-        setVal('rentalUnitNumber', data.unitNumber);
-        setVal('rentalBorough', data.borough);
-        setVal('rentalZipCode', data.zipCode);
-        setVal('rentalMonthlyRent', data.monthlyRent);
-        setVal('rentalNetEffectiveRent', data.netEffectiveRent);
-        setVal('rentalSecurityDeposit', data.securityDeposit);
-        setVal('rentalStatus', data.status);
-        setVal('rentalDescription', data.description);
-        setVal('rentalAgentRemarks', data.agentRemarks);
-        setVal('rentalShowingInstructions', data.showingInstructions);
-        setVal('rentalWebHeadline', data.webHeadline);
-        setVal('rentalDateListed', data.dateListed);
-        setVal('rentalAvailableDate', data.availableDate);
-        setVal('rentalExclusiveStart', data.exclusiveStart);
-        setVal('rentalExclusiveExpires', data.exclusiveExpires);
-        setVal('rentalCity', data.city);
-        setVal('rentalZip', data.zip);
-        setVal('rentalNeighborhood', data.neighborhood);
-        setVal('rentalBedrooms', data.bedrooms);
-        setVal('rentalFullBathrooms', data.fullBathrooms);
-        setVal('rentalHalfBathrooms', data.halfBathrooms);
-        setVal('rentalTotalRooms', data.totalRooms);
-        setVal('rentalSqFt', data.sqFt);
-        setVal('rentalFloor', data.floor);
-        setVal('rentalKitchenType', data.kitchenType);
-        setVal('rentalCondition', data.condition);
-        setVal('rentalLeaseTerm', data.leaseTerm);
-        setVal('rentalLeaseType', data.leaseType);
-        setVal('rentalPetsAllowed', data.petsAllowed);
-        setVal('rentalConcessions', data.concessions);
-
-        setChecked('rentalFairHousingAck', data.fairHousingAck);
-        setChecked('rentalCommNegotiabilityAck', data.commNegotiabilityAck);
-        setChecked('rentalOwnerPays', data.ownerPays);
-        setChecked('rentalFreeRent', data.freeRent);
-        setChecked('rentalIDXEntireListingDisplayYN', data.idxEntireListingDisplayYN);
-
-        // Team
-        setVal('rentalListTeamName', data.listTeamName);
-        setVal('rentalListTeamMlsId', data.listTeamMlsId);
-
-        // FARE Act
-        if (data.fareActLandlordPays) {
-            var fareRadio = document.querySelector('input[name="rentalFareActLandlordPays"][value="' + data.fareActLandlordPays + '"]');
-            if (fareRadio) { fareRadio.checked = true; handleFareActChange(data.fareActLandlordPays); }
-        }
-
-        // Restore property type radio
-        if (data.propertyType) {
-            var radio = document.querySelector('input[name="rentalPropertyType"][value="' + data.propertyType + '"]');
-            if (radio) { radio.checked = true; applyRentalFieldRules(); }
-        }
-
-        updateListingHeaderBar('rental');
-        updateRentalStatusFields();
-        showToast('Draft restored from ' + new Date(data._savedAt).toLocaleString(), 'success');
+        // A draft is what collectRentalFormData() produced: every control under its id or name, plus the provider keys derived from them, so it goes back
+        // through the same restore as a saved listing. (It used to be read through the keys of an older serializer that nothing writes any more, so a
+        // restored draft was empty.)
+        if (!_restoreRentalControls({ raw_data: draft })) return false;
+        showToast('Draft restored' + (draft._savedAt ? ' from ' + new Date(draft._savedAt).toLocaleString() : ''), 'success');
         return true;
     } catch (e) {
+        console.warn('[RentalForm] draft not restored: ' + (e && e.message ? e.message : e));
+        showToast('The saved draft could not be restored: ' + (e && e.message ? e.message : e), 'error');
         return false;
     }
 }
@@ -5682,8 +5346,6 @@ function collectRentalFormData() {
     data.PublicRemarks = data.rentalDescription || '';
     data.PrivateRemarks = data.rentalAgentRemarks || '';
     data.ShowingInstructions = data.rentalShowingInstructions || '';
-    data.YearBuilt = parseInt(data.bldgYearBuilt || '0') || null;
-    data.NewDevelopmentYN = data.bldgNewDevelopment === true || data.bldgNewDevelopment === 'true';
 
     // ListingAgreement — INDEPENDENT from Permissions per RLS rules.
     // OwnerOptOut/ParticipantOnly set Permissions, NOT ListingAgreement.
@@ -5759,8 +5421,12 @@ function collectRentalFormData() {
     data.NumberOfUnitsTotal = parseInt(data.bldgTotalUnits || '0') || null;
     data.CrossStreet = data.bldgCrossStreet1 || '';
     data.TaxBlock = data.bldgTaxBlock || '';
-    data.BuildingTaxLot = data.bldgTaxLot || '';
+    // Cotality's field is TaxLot (BuildingTaxLot is not a Cotality field; the Sale form already submits TaxLot)
+    data.TaxLot = data.bldgTaxLot || '';
     data.AssociationName = data.bldgAssociationName || '';
+    // Read AFTER the building modal is swept above: they used to be read before it, which left YearBuilt empty and NewDevelopmentYN false on every save.
+    data.YearBuilt = parseInt(data.bldgYearBuilt || '0') || null;
+    data.NewDevelopmentYN = data.bldgNewDevelopment === true || data.bldgNewDevelopment === 'true';
 
     // Collect multi-value checkbox fields as arrays
     data.PetsAllowed = [];
@@ -5778,6 +5444,30 @@ function collectRentalFormData() {
     // BuildingLaundryFeatures — multi-value checkbox array
     data.BuildingLaundryFeatures = [];
     document.querySelectorAll('input[name="rentalBuildingLaundryFeatures"]:checked').forEach(function(cb) { data.BuildingLaundryFeatures.push(cb.value); });
+    // The other checkbox groups share a name and have no id, so the sweep above kept ONE boolean per group (the last box) and the values the agent chose were
+    // lost. Heating and Cooling are live Cotality Property fields; the rest are the form's own and are saved under the group's name.
+    var _rentalGroup = function(name) {
+        var values = [];
+        document.querySelectorAll('input[type="checkbox"][name="' + name + '"]:checked').forEach(function(cb) { values.push(cb.value); });
+        return values;
+    };
+    delete data.rentalHeating;
+    delete data.rentalCooling;
+    data.Heating = _rentalGroup('rentalHeating');
+    data.Cooling = _rentalGroup('rentalCooling');
+    ['rentalCommSubtype', 'rentalBusinessType', 'rentalTHDocsAvailable', 'bldgHeating', 'bldgCooling', 'bldgDocsAvailable'].forEach(function(name) {
+        data[name] = _rentalGroup(name);
+    });
+    // Canonical Cotality HeatingYN / CoolingYN, only when the agent resolved them (a Yes / No answer, or details chosen without one): a never-answered field is not
+    // asserted false, and the payload is never "details without a Y/N".
+    [['rentalHeatingYN', 'HeatingYN', 'Heating'], ['rentalCoolingYN', 'CoolingYN', 'Cooling']].forEach(function(g) {
+        var answered = document.querySelector('input[name="' + g[0] + '"]:checked');
+        var resolved = answered ? answered.value : (data[g[2]].length ? 'Yes' : '');
+        if (resolved === 'Yes') data[g[1]] = true;
+        else if (resolved === 'No') data[g[1]] = false;
+    });
+    // Furnished is a live Cotality enum (Furnished / Negotiable / Partially / Unfurnished): the Furnished select is its control.
+    if (data.rentalFurnished) data.Furnished = data.rentalFurnished;
     // OwnerPays — single checkbox (id-based, no name attribute)
     var ownerPaysEl = document.getElementById('rentalOwnerPays');
     data.OwnerPays = (ownerPaysEl && ownerPaysEl.checked) ? ['Yes'] : [];
@@ -6572,15 +6262,8 @@ function calculateRentalTHFinancials() {
 // CONDITIONAL FIELD TOGGLES
 // ══════════════════════════════════════════════════════
 function toggleFurnishedFields() {
-    // Check both the select dropdown (Tab 2) and radios (Tab 1)
     const sel = document.getElementById('rentalFurnished');
-    let value = '';
-    if (sel && sel.tagName === 'SELECT') {
-        value = sel.value;
-    } else {
-        const radios = document.querySelectorAll('input[name="rentalFurnished"]');
-        radios.forEach(r => { if (r.checked) value = r.value; });
-    }
+    const value = sel ? sel.value : '';
     const section = document.getElementById('rentalFurnishedDetails');
     if (section) {
         section.style.display = (value === 'Furnished' || value === 'Partially') ? 'block' : 'none';
@@ -6827,8 +6510,8 @@ function updateRentalPreview() {
     }
 
     // Furnished
-    const furnished = document.querySelector('input[name="rentalFurnished"]:checked');
-    setText('rentalPreviewSiteDetailFurnished', furnished ? furnished.value : '--');
+    const furnishedSel = document.getElementById('rentalFurnished');
+    setText('rentalPreviewSiteDetailFurnished', furnishedSel && furnishedSel.value ? furnishedSel.options[furnishedSel.selectedIndex].text : '--');
 
     // Building amenities pills
     const amenityNames = ['bldgDoorman', 'bldgElevator', 'bldgGym', 'bldgPool', 'bldgRoofDeck', 'bldgParking', 'bldgBikeRoom', 'bldgStorage', 'bldgConcierge', 'bldgPlayroom', 'bldgCourtyard', 'bldgGarden', 'bldgLobbyAttendant'];
@@ -6897,55 +6580,72 @@ function _checkRentalEditMode() {
 function _populateRentalFormFromApi(listing) {
     var raw = listing.raw_data || {};
     var addr = listing.address || {};
-    var features = listing.features || {};
+
+    _restoreRentalControls(listing);
 
     function setVal(id, val) {
         var el = document.getElementById(id);
         if (!el || val === undefined || val === null) return;
         el.value = String(val);
-        el.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
-    function setRadio(name, val) {
-        if (!val) return;
-        var radio = document.querySelector('input[name="' + name + '"][value="' + val + '"]');
-        if (radio) {
-            radio.checked = true;
-            radio.dispatchEvent(new Event('change', { bubbles: true }));
-        }
+    // Address atoms (hidden controls) the hydration module has no table row for: the CANONICAL address bucket first, then raw_data, so an E / W / N / S street
+    // direction survives. (The unit, city, borough, zip and area have table rows in the module; the street line the agent sees is composed from the atoms there.)
+    setVal('rentalUnparsedAddress', addr.UnparsedAddress || raw.UnparsedAddress);
+    setVal('rentalStreetNumber', addr.StreetNumber || raw.StreetNumber);
+    setVal('rentalStreetDirPrefix', addr.StreetDirPrefix || raw.StreetDirPrefix);
+    setVal('rentalStreetName', addr.StreetName || raw.StreetName);
+    setVal('rentalStreetSuffix', addr.StreetSuffix || raw.StreetSuffix);
+    setVal('rentalCountyOrParish', addr.CountyOrParish || raw.CountyOrParish);
+    setVal('rentalStateOrProvince', addr.StateOrProvince || raw.StateOrProvince);
+    setVal('rentalPostalCity', addr.PostalCity || raw.PostalCity);
+
+    // Listing agent: the saved agent goes back into the hidden identity inputs and the Contacts tab (js/forms/agent-defaults.js).
+    // A saved identity is never replaced by the signed-in agent's; the session fills only what the listing lacks (see MallanAgentDefaults.apply).
+    if (typeof MallanAgentDefaults !== 'undefined') MallanAgentDefaults.hydrate('rental', listing, { updateTable: updateRentalAgentTable });
+}
+
+// The family a status belongs to, whichever vocabulary names it: a workflow step the agent picks (Draft ... PermOffMarket), a Cotality MlsStatus, or the status the
+// record stores (the status route writes Mallan's own: Draft, Sold, Cancelled ...).
+var _RENTAL_STATUS_FAMILY = {
+    Draft: 'draft', Future: 'draft', Incomplete: 'draft',
+    Active: 'active', BackOnMarket: 'active',
+    Pending: 'pending', AppOut: 'pending', AppThruUs: 'pending', AppAccepted: 'pending', AppAcceptedThruUs: 'pending', LeaseOut: 'pending',
+    LeaseOutThruUs: 'pending', LeaseSigned: 'pending', LeaseSignedThruUs: 'pending', BoardApproved: 'pending', ActiveUnderContract: 'pending',
+    Closed: 'closed', Rented: 'closed', RentedThruUs: 'closed', Sold: 'closed', Leased: 'closed',
+    Withdrawn: 'withdrawn', PermOffMarket: 'withdrawn',
+    Canceled: 'canceled', Cancelled: 'canceled',
+    Hold: 'hold', TempOffMarket: 'hold',
+    Expired: 'expired'
+};
+// The workflow step that stands for a family when the step the agent saved no longer agrees with the record (pending has several steps, so it has none).
+var _RENTAL_STEP_FOR_FAMILY = { draft: 'Draft', active: 'Active', closed: 'Rented', withdrawn: 'Withdrawn', canceled: 'Cancelled', hold: 'TempOffMarket', expired: 'Expired' };
+
+// Puts a stored listing back into the form's controls. A saved listing and a browser draft go through the same code: a draft is what collectRentalFormData()
+// produced, so it carries the same control keys and provider keys. No change event is dispatched while values go back in; the handlers that depend on a
+// control's state run once at the end, so a cascade cannot overwrite a value that has not been restored yet.
+function _restoreRentalControls(listing) {
+    var raw = listing.raw_data || {};
+
+    // Co-listing agents: live Cotality CoListAgent{,2,3}* hydrated into the structured component (js/forms/colist-section.js).
+    var _rcHydrate = _rentalCoList();
+    if (_rcHydrate) _rcHydrate.hydrate(raw, listing);
+
+    if (typeof MallanListingHydration === 'undefined') {
+        console.warn('[RentalForm] js/forms/listing-hydration.js not loaded — the stored listing was not put back into the form');
+        showToast('Could not load all of the stored listing into the form. Please reload the page.', 'error');
+        return false;
     }
 
-    function setChecked(id, val) {
-        var el = document.getElementById(id);
-        if (el) el.checked = !!val;
+    // Classification: what the agent chose (the saved control state) wins; a listing that carries none (a synced one) is classified from its independent
+    // provider dimensions. A raw PropertySubType is never passed straight into a Mallan radio value.
+    var typeRadios = document.querySelectorAll('input[name="rentalPropertyType"]');
+    var savedType = '';
+    typeRadios.forEach(function(r) { if (r.value === raw.rentalPropertyType) savedType = r.value; });
+    if (!savedType) {
+        savedType = _rentalRawClassificationToFormType(raw.CommonInterest || '', raw.PropertySubType || listing.property_sub_type || '');
     }
-
-    // Status
-    setVal('rentalStatus', listing.status || raw.StandardStatus || 'Active');
-
-    // Address
-    setVal('rentalUnparsedAddress', addr.UnparsedAddress || raw.UnparsedAddress || '');
-    setVal('rentalStreetNumber', addr.StreetNumber || raw.StreetNumber || '');
-    setVal('rentalStreetDirPrefix', addr.StreetDirPrefix || raw.StreetDirPrefix || '');
-    setVal('rentalStreetName', addr.StreetName || raw.StreetName || '');
-    setVal('rentalStreetSuffix', addr.StreetSuffix || raw.StreetSuffix || '');
-    setVal('rentalUnitNumber', addr.UnitNumber || raw.UnitNumber || '');
-    setVal('rentalCity', addr.City || raw.City || 'New York');
-    setVal('rentalBorough', addr.CityRegion || raw.CityRegion || listing.borough || '');
-    setVal('rentalCountyOrParish', addr.CountyOrParish || raw.CountyOrParish || '');
-    setVal('rentalStateOrProvince', addr.StateOrProvince || raw.StateOrProvince || 'NY');
-    setVal('rentalPostalCity', addr.PostalCity || raw.PostalCity || '');
-    setVal('rentalZipCode', addr.PostalCode || raw.PostalCode || listing.zip_code || '');
-    setVal('rentalNeighborhood', listing.neighborhood || raw.MLSAreaMajor || '');
-
-    // Restore Mallan's listing classification from independent raw provider dimensions.
-    // Never pass a raw PropertySubType directly into Mallan radio values.
-    document.querySelectorAll('input[name="rentalPropertyType"]').forEach(function(r) { r.checked = false; });
-    var restoredRentalType = _rentalRawClassificationToFormType(
-        raw.CommonInterest || '',
-        raw.PropertySubType || listing.property_sub_type || ''
-    );
-    if (restoredRentalType) setRadio('rentalPropertyType', restoredRentalType);
+    typeRadios.forEach(function(r) { r.checked = (r.value === savedType); });
 
     // Restore exact raw provider ownership reference. null stays null. A provider value
     // outside today's REBNY entry picker remains visible as historical data.
@@ -6972,94 +6672,39 @@ function _populateRentalFormFromApi(listing) {
         }
     }
 
-    // Price (rent). A3: real save control is rentalMonthlyRent (collectRentalFormData
-    // reads val('rentalMonthlyRent')); the old rentalListPrice id does not exist.
-    setVal('rentalMonthlyRent', listing.list_price || raw.ListPrice || '');
+    // Every other control: provider and typed keys first (price, beds, baths, size, dates, the distribution gates, the checkbox groups), then the control keys the
+    // form saved (js/forms/listing-hydration.js, 'edit' mode: the same area collectRentalFormData sweeps).
+    MallanListingHydration.hydrate('rental', listing, { mode: 'edit' });
 
-    // Unit details. A3: baths/size/rooms renamed to the real save-read controls
-    // (rentalFullBathrooms / rentalHalfBathrooms / rentalSqFt / rentalTotalRooms).
-    setVal('rentalBedrooms', listing.bedrooms_total || raw.BedroomsTotal || '');
-    setVal('rentalFullBathrooms', listing.bathrooms_full || raw.BathroomsFull || '');
-    setVal('rentalHalfBathrooms', listing.bathrooms_half || raw.BathroomsHalf || '');
-    setVal('rentalSqFt', listing.living_area || raw.LivingArea || '');
-    setVal('rentalTotalRooms', features.Rooms || raw.RoomsTotal || '');
+    // Status: the status the RECORD stores (the typed column: the server and the status route both keep it current; a create always starts as Draft and transitions go
+    // through the status route) is the truth. The workflow step the agent chose is shown only while it is in the same family as that status.
+    var statusEl = document.getElementById('rentalStatus');
+    var family = _RENTAL_STATUS_FAMILY[listing.status || ''];
+    if (statusEl && family) {
+        var step = raw.rentalStatus;
+        if (!(step && _RENTAL_STATUS_FAMILY[step] === family)) step = _RENTAL_STEP_FOR_FAMILY[family] || '';
+        statusEl.value = step;   // no step: pending has several workflow steps and the saved one disagrees, so the agent chooses
+    }
 
-    // Description
-    setVal('rentalDescription', raw.PublicRemarks || '');
-    setVal('rentalAgentRemarks', raw.PrivateRemarks || '');
-    setVal('rentalShowingInstructions', raw.ShowingInstructions || '');
-
-    // Listing agreement
-    // Legacy: this form once stored the non-live agreement value "CoExclusive"; live Cotality uses CoExclusiveAgency.
-    setRadio('rentalListingType', raw.ListingAgreement === 'CoExclusive' ? 'CoExclusiveAgency' : (raw.ListingAgreement || ''));
-
-    // Agent info — Phase C: TYPED columns are the source of truth (agent_info JSON is
-    // frozen/empty post-Phase-C). Hydrate typed-first, then agent_info, then raw_data.
-    if (typeof MallanAgentDefaults !== 'undefined') MallanAgentDefaults.hydrate('rental', listing, { updateTable: updateRentalAgentTable });
-
-    // Co-listing agents: live Cotality CoListAgent{,2,3}* hydrated into the structured component (js/forms/colist-section.js).
-    var _rcHydrate = _rentalCoList();
-    if (_rcHydrate) _rcHydrate.hydrate(raw, listing);
-
-    // Distribution flags. A3: real save controls are rentalIDXEntireListingDisplayYN /
-    // rentalInternetEntireListingDisplayYN / rentalInternetAddressDisplayYN (collectRentalFormData
-    // reads checked('rental…DisplayYN')). The old rentalIdx/Internet…YN ids did not exist —
-    // editing+saving an existing rental could otherwise flip these compliance display gates.
-    setChecked('rentalIDXEntireListingDisplayYN', listing.idx_display_yn !== false);
-    setChecked('rentalInternetEntireListingDisplayYN', listing.internet_entire_listing_display_yn !== false);
-    setChecked('rentalInternetAddressDisplayYN', listing.internet_address_display_yn !== false);
-
-    // Dates. A3: expiration's real save control is rentalExclusiveExpires (val('rentalExclusiveExpires')).
-    if (listing.listing_contract_date) setVal('rentalExclusiveExpires', listing.listing_contract_date.split('T')[0]);
-    if (raw.FirstShowingDate) setVal('rentalFirstShowingDate', raw.FirstShowingDate.split('T')[0]);
-    if (raw.AvailabilityDate) setVal('rentalAvailableDate', raw.AvailabilityDate.split('T')[0]);
-
-    // FARE Act fields
-    setVal('rentalTenantPays', raw.TenantPays || '');
-    setVal('rentalTenantPaysDescription', raw.TenantPaysDescription || '');
-    setVal('rentalOngoingFees', raw.OngoingFees || '');
-    setVal('rentalFeeFrequency', raw.FeeFrequency || '');
-    setVal('rentalMoveInCosts', raw.MoveInCosts || '');
-    // Legacy fallback: rentals saved before 2026-06-04 stored the amount under
-    // the (phantom) MoveInCostsAmountTotal key in raw_data. Read the live field
-    // first, fall back to the legacy key so existing listings keep their value
-    // and migrate forward to MoveInCostsAmount on next save.
-    // Read-time legacy fallback (canonical wins): MoveInCostsAmount → AdditionalFee
-    // → MoveInCostsAmountTotal; MoveInCostsComments → AdditionalFeeDescription.
-    // Save path still writes ONLY MoveInCostsAmount / MoveInCostsComments.
-    // Explicit blank check (null/undefined/'') — NOT truthiness — so a canonical 0
-    // wins over a stale legacy AdditionalFee/MoveInCostsAmountTotal (Codex #346).
-    var _miBlank = function (v) { return v === null || v === undefined || v === ''; };
-    setVal('rentalMoveInCostsAmount',
-      !_miBlank(raw.MoveInCostsAmount) ? raw.MoveInCostsAmount
-      : !_miBlank(raw.AdditionalFee) ? raw.AdditionalFee
-      : !_miBlank(raw.MoveInCostsAmountTotal) ? raw.MoveInCostsAmountTotal
-      : '');
-    setVal('rentalMoveInCostsComments',
-      !_miBlank(raw.MoveInCostsComments) ? raw.MoveInCostsComments
-      : !_miBlank(raw.AdditionalFeeDescription) ? raw.AdditionalFeeDescription
-      : '');
-    setChecked('rentalAdditionalFeeYN', raw.AdditionalFeeYN === true || raw.AdditionalFeeYN === 'true');
-    setVal('rentalAdditionalFee', raw.AdditionalFee || '');
-    setVal('rentalAdditionalFeeDescription', raw.AdditionalFeeDescription || '');
-    setVal('rentalAdditionalFeeFrequency', raw.AdditionalFeeFrequency || '');
-
-    // Features — A3: appliances/interior/heating/cooling/laundry/pets are collected for SAVE via
-    // checkbox GROUPS (name="rentalHeatingYN"/"rentalCoolingYN"/"rentalPetsAllowed", individual
-    // amenity checkboxes), NOT single text controls — the old setVal('rental{Appliances,
-    // InteriorFeatures,Heating,Cooling,Laundry,Pets}') targets do not exist (phantom writes removed).
-    // rentalParking IS a real control, so it stays. Pre-checking those groups from saved values on
-    // edit is a tracked follow-up (A3-followup), not a phantom setVal.
-    if (raw.ParkingFeatures) setVal('rentalParking', raw.ParkingFeatures);
-
-    // Building — A3: building name/year/units/stories have no editable single control in REDESIGN
-    // (building data comes from the building association via rentalBuildingSearch / saveRentalBuilding;
-    // collectRentalFormData reads no rentalBuilding{Name,Units,Stories}/rentalYearBuilt). The old
-    // setVals were phantom writes — removed. Building-association hydration on edit is a tracked
-    // follow-up (A3-followup).
-
-    // Trigger field rules
+    // What depends on a control's state: field visibility, status fields, listing type notice, conditional sections.
     if (typeof applyRentalFieldRules === 'function') applyRentalFieldRules();
+    updateRentalStatusFields();
+    var listingTypeRadio = document.querySelector('input[name="rentalListingType"]:checked');
+    if (listingTypeRadio) handleRentalListingTypeChange(listingTypeRadio.value);
+    toggleFurnishedFields();
+    toggleRentalLandLeaseFields();
+    toggleRentalHeating();
+    toggleRentalCooling();
+    enforceRentalPetsConditional();
+    var fareRadio = document.querySelector('input[name="rentalFareActLandlordPays"]:checked');
+    if (fareRadio && fareRadio.value === 'no') handleFareActChange('no');
+    ['rentalTHBasementYN', 'bldgTaxAbatementYN'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    if (typeof updateRentalCharCount === 'function') updateRentalCharCount();
+    updateListingHeaderBar('rental');
+    return true;
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -7097,11 +6742,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Init REBNY searchable dropdowns
     populateRebnyCompanyDropdowns();
-
-    // Wire furnished toggle
-    document.querySelectorAll('input[name="rentalFurnished"]').forEach(r => {
-        r.addEventListener('change', toggleFurnishedFields);
-    });
 
     // Wire land lease toggle
     document.querySelectorAll('input[name="rentalLandLease"]').forEach(r => {

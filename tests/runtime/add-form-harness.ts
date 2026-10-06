@@ -3,9 +3,14 @@
  * Boots the real Add / Edit listing forms (SALE-FORM-REDESIGN.html, RENTAL-FORM-REDESIGN.html) in jsdom with a stubbed MallanAPI and the page
  * modules the forms load (public/crm/js/forms/*.js), so a test drives the page the way an agent's browser does: the session user arrives from
  * /api/auth/me, the live Cotality Member directory answers lookups, and in edit mode listings.get returns the stored listing.
+ *
+ * It also fills every control of a form with a distinctive value (fillForm), stores a payload the way the real create route does (storedListing:
+ * the real normalizer and persistence code) and reads a control back (controlState), so a test can prove create -> save -> reload -> edit -> save.
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { normalizePayload, buildPersistenceRecord } from '@/lib/compliance/normalizer';
+import { typedAgentColumnsFromJson } from '@/lib/listings/agent-info-typed-columns';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { JSDOM, VirtualConsole } = require('jsdom');
@@ -44,7 +49,7 @@ export const SESSION_USER = {
 export const SESSION_MEMBER: DirectoryMember = {
   key: '4455667', mlsId: '39361', fullName: 'Sender Agent', status: 'Active', officeKey: '5671398', officeMlsId: '7041', officeName: 'Cotality Office Name',
 };
-export const PAGE_MODULES = ['directory-picker', 'colist-section', 'agent-defaults'];
+export const PAGE_MODULES = ['directory-picker', 'colist-section', 'agent-defaults', 'listing-hydration'];
 
 const read = (p: string) => readFileSync(resolve(__dirname, '../..', p), 'utf8');
 
@@ -108,3 +113,101 @@ export const txt = (d: Document, id: string): string => d.getElementById(id)?.te
 export const cotalityStatus = (d: Document, prefix: string): string => txt(d, `${prefix}AgentCotalityStatus`);
 /** Wait until the Cotality check has said what it found (it starts with "Checking ..."). */
 export const checked = (d: Document, prefix: string) => until(() => { const s = cotalityStatus(d, prefix); return s !== '' && !/^Checking/.test(s); });
+
+// ── filling a form in, saving it the way the real route does, and reading a control back ──────────────────────────────────────────────────────────────────
+export type Entered = { key: string; kind: 'value' | 'radio' | 'check' | 'group'; expected: string | boolean | string[] };
+
+// Not filled in. The agent module owns the two agent pickers (the session agent is the listing agent); the street line is read by the form (parseRentalAddress /
+// parseSaleAddress) from a real address a test types; the status is the record's (a create always starts as Draft, transitions go through the status route); and the
+// Office / Retail and Commercial sub-selectors only mean something for those classifications, so a form with another classification clears them (a test sets them
+// together with their classification).
+const NOT_ENTERED = /^(sale|rental)(ListingAgentSearch|ListingCompanySearch|StreetAddress|Status|OfficeRetailOwnership|CommercialOwnership)$/;
+// "None of these" values switch the rest of their group off when the agent picks them; they are left unchecked so the group is coherent.
+const EXCLUSIVE = /^(None|BuildingNo|UnitNo)$/;
+// Choices that switch other controls off (opt-out listing types, tenant-pays, a commercial classification): the first option is neutral.
+const FIRST_OF = /ListingType$|FareAct|PropertyType$/;
+
+/**
+ * Fills every writable control in the form's saved area (the main container its save sweeps, the building modal, the media modal) with a distinctive value and
+ * returns what was entered. A text control that feeds a numeric provider field gets a number (the forms parse those with parseInt / parseFloat, so a word would
+ * be zeroed): `numeric` names them.
+ */
+export function fillForm(d: Document, prefix: 'sale' | 'rental', numeric: Set<string>): Entered[] {
+  const out: Entered[] = [];
+  const radios = new Set<string>();
+  const groups = new Map<string, string[]>();
+  const zones = [d.querySelector('.flex-1'), d.getElementById(`${prefix}BuildingModal`), d.getElementById(`${prefix}MediaModal`)].filter(Boolean) as Element[];
+  let n = 0;
+  for (const zone of zones) {
+    zone.querySelectorAll('input, select, textarea').forEach((el: any) => {
+      const type = (el.getAttribute('type') || '').toLowerCase();
+      if (['hidden', 'button', 'submit', 'reset', 'file', 'image'].includes(type) || el.disabled || el.readOnly) return;
+      const key = el.id || el.name;
+      if (!key || NOT_ENTERED.test(key)) return;
+      n += 1;
+      if (el.tagName === 'SELECT') {
+        const options = [...el.options].filter((o: any) => o.value !== '' && !o.disabled);
+        if (!options.length) return;
+        const choice = options[options.length - 1].value;
+        el.value = choice;
+        out.push({ key, kind: 'value', expected: choice });
+      } else if (type === 'radio') {
+        if (radios.has(el.name)) return;
+        radios.add(el.name);
+        const group = [...d.querySelectorAll(`input[type="radio"][name="${el.name}"]`)] as HTMLInputElement[];
+        const pick = FIRST_OF.test(el.name) ? group[0] : group[group.length - 1];
+        group.forEach((r) => { r.checked = r === pick; });
+        // the collector keys a radio by its id when it has one, by its name otherwise
+        out.push({ key: pick.id || pick.name, kind: 'radio', expected: pick.value });
+      } else if (type === 'checkbox') {
+        if (EXCLUSIVE.test(el.value)) return;
+        el.checked = true;
+        if (el.id) out.push({ key, kind: 'check', expected: true });
+        else groups.set(el.name, [...(groups.get(el.name) ?? []), el.value]);
+      } else {
+        const v = type === 'number' || numeric.has(key) ? String(100 + n) : type === 'date' ? '2026-03-15' : type === 'datetime-local' ? '2026-03-15T10:30' : type === 'time' ? '10:30'
+          : type === 'email' ? `a${n}@example.test` : type === 'url' ? `https://example.test/${n}` : type === 'tel' ? '212-555-0100' : `T${n}`;
+        el.value = v;
+        if (el.value === v) out.push({ key, kind: 'value', expected: v });
+      }
+    });
+  }
+  groups.forEach((values, key) => out.push({ key, kind: 'group', expected: [...values].sort() }));
+  return out;
+}
+
+/** What the real create route stores for a form payload (normalizer -> persistence record -> row), as the real GET returns it. */
+export function storedListing(payload: Record<string, unknown>, listingType: 'sale' | 'rent'): Record<string, unknown> {
+  const { normalized } = normalizePayload(payload);
+  const rec = buildPersistenceRecord(normalized);
+  const top = { ...(rec.topLevel as Record<string, unknown>) };
+  for (const k of ['list_price', 'living_area']) if (top[k] !== undefined && top[k] !== null) top[k] = String(top[k]);
+  return {
+    // a create always starts as Draft (the route ignores the status in the body); transitions go through the status route
+    id: '1', listing_id: listingType === 'sale' ? 'SL-0001' : 'RL-0001', listing_type: listingType,
+    ...top, status: 'Draft', ...typedAgentColumnsFromJson(rec.agentInfo),
+    address: rec.address, features: rec.features, raw_data: rec.raw_data, agent_info: {}, media: [],
+    created_at: '2026-03-01T00:00:00.000Z', updated_at: '2026-03-02T00:00:00.000Z',
+  };
+}
+
+/** What a control of the form shows now (null: the form has no such control). */
+export function controlState(d: Document, e: Entered): string | boolean | string[] | null {
+  if (e.kind === 'value') {
+    const el = d.getElementById(e.key) ?? (d.getElementsByName(e.key)[0] as HTMLElement | undefined);
+    return el ? (el as HTMLInputElement).value : null;
+  }
+  if (e.kind === 'check') {
+    const el = d.getElementById(e.key) as HTMLInputElement | null;
+    return el ? el.checked : null;
+  }
+  if (e.kind === 'group') {
+    const boxes = [...d.querySelectorAll(`input[type="checkbox"][name="${e.key}"]`)] as HTMLInputElement[];
+    return boxes.length ? boxes.filter((c) => c.checked).map((c) => c.value).sort() : null;
+  }
+  const byId = d.getElementById(e.key) as HTMLInputElement | null;
+  const set = byId ? (byId.name ? ([...d.querySelectorAll(`input[type="radio"][name="${byId.name}"]`)] as HTMLInputElement[]) : [byId]) : ([...d.getElementsByName(e.key)] as HTMLInputElement[]);
+  if (!set.length) return null;
+  const on = set.find((r) => r.checked);
+  return on ? on.value : '';
+}

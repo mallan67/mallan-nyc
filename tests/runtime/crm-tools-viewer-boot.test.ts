@@ -217,7 +217,7 @@ describe.each(VIEWERS)('$file viewer', (v) => {
   it('loads the api client and then the viewer hydration module, in that order', () => {
     const html = readFileSync(resolve(__dirname, `../../public/crm/${v.file}.html`), 'utf8');
     const api = html.indexOf('<script src="js/core/api-client.js"></script>');
-    const hydration = html.indexOf('<script src="js/forms/viewer-hydration.js"></script>');
+    const hydration = html.indexOf('<script src="js/forms/listing-hydration.js"></script>');
     expect(api).toBeGreaterThan(-1);
     expect(hydration).toBeGreaterThan(api);
     expect(html.indexOf('var VIEWER_LISTINGS')).toBeGreaterThan(hydration);

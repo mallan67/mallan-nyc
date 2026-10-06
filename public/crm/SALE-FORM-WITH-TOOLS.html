@@ -131,7 +131,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
 </style>
 <!-- API Client — identity from session token, no PII in URLs -->
 <script src="js/core/api-client.js"></script>
-<script src="js/forms/viewer-hydration.js"></script>
+<script src="js/forms/listing-hydration.js"></script>
 <script>
 (function() {
     var origin = window.location.origin;
@@ -4981,7 +4981,7 @@ function viewerBuildListing(apiData, id) {
     return {
         listingId: apiData.listing_id || id,
         status: apiData.status || '',
-        address: MallanViewerHydration.streetLine(apiData),
+        address: MallanListingHydration.streetLine(apiData),
         unit: addr.UnitNumber || '',
         city: apiData.city || '',
         zipCode: apiData.postal_code || '',
@@ -5165,7 +5165,7 @@ function loadSaleListingData(listingId) {
 
     // Entry-form defaults are not listing facts: clear them, then set only what the record carries.
     viewerClearEntryDefaults();
-    MallanViewerHydration.hydrate('sale', d._raw);
+    MallanListingHydration.hydrate('sale', d._raw);
 
     // Status and tiles: the stored status verbatim (never derived or defaulted); days on market from the typed columns, else the record's own key.
     var rawData = (d._raw && d._raw.raw_data) || {};
@@ -6701,7 +6701,7 @@ function renderSaleViewer() {
         // type is unknown is not shown as one, so they run only when the record named a type.
         if (typeof applySalesFieldRules === 'function' && document.querySelector('input[name="salePropertyType"]:checked')) applySalesFieldRules();
         // The field rules may reset a control (they do on the Add form); the stored record has the last word.
-        MallanViewerHydration.hydrate('sale', VIEWER_LISTINGS[VIEWER_LISTING_ID]._raw);
+        MallanListingHydration.hydrate('sale', VIEWER_LISTINGS[VIEWER_LISTING_ID]._raw);
         convertSaleFormToViewer();
         viewerHideWriteControls();
         patchGetSaleFormValue();

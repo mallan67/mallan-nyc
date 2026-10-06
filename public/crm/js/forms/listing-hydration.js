@@ -1,20 +1,23 @@
-// Read-only hydration for the two Tools viewers (SALE-FORM-WITH-TOOLS.html, RENTAL-FORM-WITH-TOOLS.html).
+// Hydration of a stored listing into the Sale / Rental form controls. The read-only Tools viewers (SALE-FORM-WITH-TOOLS.html, RENTAL-FORM-WITH-TOOLS.html) show
+// the whole record with it, and the Rental Add / Edit form (RENTAL-FORM-REDESIGN.html) loads a saved listing with it (mode: 'edit').
 //
-// The Tools pages are forks of the Add/Edit forms: about 95% of their controls carry the same ids. A stored listing therefore already
-// says what each control shows, in two ways, and the viewer reads both:
+// The Tools pages are forks of the Add/Edit forms: about 95% of their controls carry the same ids. A stored listing therefore already says what each control
+// shows, in two ways, and this module reads both:
 //
-//  1. Provider / typed keys (ListPrice, BedroomsTotal, StreetName, ..., the typed list_price / bedrooms_total columns, the address and
-//     features JSON): the Sale tables below are VERBATIM copies of the Sale form's own save <-> load tables (SALE_FIELD_MAP and its
-//     siblings). tests/runtime/crm-tools-viewer-hydration.test.ts fails if a copy drifts from the form. The Rental form has no such
-//     tables (its edit hydration is a hand-written list that misses most controls); its tables here are the inverse of what
-//     collectRentalFormData derives.
-//  2. Control keys: both forms save by sweeping every control into the listing's raw_data under `field.id || field.name`, so the stored
-//     listing already holds each control's state under that key. Anything the tables did not set is restored from there.
+//  1. Provider / typed keys (ListPrice, BedroomsTotal, StreetName, ..., the typed list_price / bedrooms_total columns, the address and features JSON): the Sale
+//     tables below are VERBATIM copies of the Sale form's own save <-> load tables (SALE_FIELD_MAP and its siblings). tests/runtime/crm-tools-viewer-hydration.test.ts
+//     fails if a copy drifts from the form. The Rental form has no tables of its own: the Rental tables here are the inverse of what collectRentalFormData derives.
+//  2. Control keys: both forms save by sweeping every control into the listing's raw_data under `field.id || field.name`, so the stored listing already holds each
+//     control's state under that key. Anything the tables did not set is restored from there.
 //
-// A value the record does not carry stays blank (the page clears every entry-form default first: see viewerClearEntryDefaults), and a
-// provider value that no option on the page offers is shown as text beside the group instead of being dropped.
+// mode 'view' (the default, the Tools viewers): a value the record does not carry stays blank (the page clears every entry-form default first: see
+// viewerClearEntryDefaults), a provider value that no option on the page offers is shown as text beside the group instead of being dropped, and the page's
+// classification, agent panel, co-listing list and 'Other stored fields' card are filled from the record.
+// mode 'edit' (the Add / Edit form): values only. The form keeps its own classification, ownership reference, agent and co-listing sections, runs its own field
+// rules and change handlers after the load, and hidden controls (the address atoms, the tenant-agent picker) are restored from the control keys too, over the
+// same area its save sweeps.
 //
-// Display only: nothing here writes to the CRM, and every value is written as text, never parsed as markup.
+// Nothing here writes to the CRM, and every value is written as text, never parsed as markup.
 (function (global) {
   'use strict';
 
@@ -443,6 +446,7 @@
     { rls: 'SecurityDeposit', form: 'rentalSecurityDeposit', type: 'number', src: 'raw' },
     { rls: 'EntryLevel', form: 'rentalFloor', type: 'text', src: 'raw' },
     { rls: 'Concessions', form: 'rentalConcessions', type: 'text', src: 'raw' },
+    { rls: 'Furnished', form: 'rentalFurnished', type: 'text', src: 'raw' },
     // Address (the street line is composed separately)
     { rls: 'UnitNumber', form: 'rentalUnitNumber', type: 'text', src: 'addr' },
     { rls: 'City', form: 'rentalCity', type: 'text', src: 'addr' },
@@ -482,7 +486,7 @@
     { rls: 'ElevatorsTotal', form: 'bldgNumElevators', type: 'number', src: 'raw' },
     { rls: 'CrossStreet', form: 'bldgCrossStreet1', type: 'text', src: 'raw' },
     { rls: 'TaxBlock', form: 'bldgTaxBlock', type: 'text', src: 'raw' },
-    { rls: 'BuildingTaxLot', form: 'bldgTaxLot', type: 'text', src: 'raw' },
+    { rls: 'TaxLot', form: 'bldgTaxLot', type: 'text', src: 'raw', fallbackRls: 'BuildingTaxLot' },   // Cotality's field is TaxLot; older rows saved BuildingTaxLot
     { rls: 'AssociationName', form: 'bldgAssociationName', type: 'text', src: 'raw' },
     { rls: 'TaxAbatementComments', form: 'bldgTaxAbatementComments', type: 'text', src: 'raw' },
     { rls: 'NewDevelopmentYN', form: 'bldgNewDevelopment', type: 'bool', src: 'raw' },
@@ -518,6 +522,15 @@
     { rls: 'BuildingPetsAllowed', name: 'rentalBuildingPetsAllowed' },
     { rls: 'AttendanceType', name: 'rentalAttendanceType' },
     { rls: 'BuildingLaundryFeatures', name: 'rentalBuildingLaundryFeatures' },
+    // Heating and Cooling are live Cotality Property fields; the other groups are the form's own (saved under the group's name)
+    { rls: 'Heating', name: 'rentalHeating' },
+    { rls: 'Cooling', name: 'rentalCooling' },
+    { rls: 'rentalCommSubtype', name: 'rentalCommSubtype' },
+    { rls: 'rentalBusinessType', name: 'rentalBusinessType' },
+    { rls: 'rentalTHDocsAvailable', name: 'rentalTHDocsAvailable' },
+    { rls: 'bldgHeating', name: 'bldgHeating' },
+    { rls: 'bldgCooling', name: 'bldgCooling' },
+    { rls: 'bldgDocsAvailable', name: 'bldgDocsAvailable' },
   ];
 
   var CONFIG = {
@@ -529,6 +542,7 @@
     rental: {
       prefix: 'rental',
       zones: ['rentalMainTab1', 'rentalMainTab2', 'rentalMainTab3', 'rentalMainTab4', 'rentalBuildingModal'],
+      editZones: ['rentalBuildingModal', 'rentalMediaModal'],   // plus the form's main area (the container its save sweeps)
       fields: RENTAL_FIELD_MAP, radios: RENTAL_RADIO_MAP, arrays: RENTAL_CHECKBOX_ARRAY_MAP,
     },
   };
@@ -717,22 +731,27 @@
   }
 
   // Control-keyed pass: the exact inverse of the forms' own collectors (key = field.id || field.name, radios write only when checked,
-  // single checkboxes write true / false). Controls the tables already set are left alone.
-  function controlKeyedPass(cfg, raw, touched) {
-    cfg.zones.forEach(function (zoneId) {
-      var zone = byId(zoneId);
+  // single checkboxes write true / false). Controls the tables already set are left alone. In 'edit' mode it covers the whole area the form's save sweeps
+  // (its main container, the building modal and the media modal) and restores hidden controls too (the address atoms, the tenant-agent picker), except the
+  // signed-in agent's identity, which the agent module owns.
+  function passZones(cfg, edit) {
+    if (!edit) return cfg.zones.map(byId);
+    return [document.querySelector('.flex-1')].concat((cfg.editZones || []).map(byId));
+  }
+  function controlKeyedPass(cfg, raw, touched, edit) {
+    passZones(cfg, edit).forEach(function (zone) {
       if (!zone) return;
-      var radioDone = {};
       zone.querySelectorAll('input, select, textarea').forEach(function (el) {
         var type = (el.getAttribute('type') || '').toLowerCase();
-        if (type === 'hidden' || type === 'button' || type === 'submit' || type === 'reset' || type === 'file' || type === 'image') return;
+        if (type === 'button' || type === 'submit' || type === 'reset' || type === 'file' || type === 'image') return;
+        if (type === 'hidden' && !(edit && el.id && el.id.indexOf(cfg.prefix + 'UpdatingAgent') !== 0)) return;
         var key = el.id || el.name;
         if (!key) return;
         if (type === 'radio') {
           if (touched[el.name] || touched[key]) return;
           var stored = raw[key];
           if (isBlank(stored) || !isPrimitive(stored)) return;
-          if (String(stored) === el.value) { el.checked = true; radioDone[el.name] = true; }
+          if (String(stored) === el.value) el.checked = true;
           return;
         }
         if (touched[key] || (el.name && touched[el.name])) return;
@@ -903,17 +922,18 @@
     return rows;
   }
 
-  // ── Entry point ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-  function hydrate(kind, listing) {
+  // ── Entry point ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  // opts.mode: 'view' (default) or 'edit' (see the header). Safe to run again: it drops what a previous run added.
+  function hydrate(kind, listing, opts) {
     var cfg = CONFIG[kind];
-    if (!cfg) throw new Error('MallanViewerHydration: unknown kind ' + kind);
+    if (!cfg) throw new Error('MallanListingHydration: unknown kind ' + kind);
+    var edit = !!(opts && opts.mode === 'edit');
     listing = asObject(listing);
     var raw = asObject(listing.raw_data);
     var addr = asObject(listing.address);
     var features = asObject(listing.features);
     var agentInfo = asObject(listing.agent_info);
     var touched = {};
-    // Safe to run again (the page runs it a second time after its own field rules): drop what a previous run added.
     document.querySelectorAll('.viewer-extra-value').forEach(function (e) { if (e.parentNode) e.parentNode.removeChild(e); });
 
     cfg.fields.forEach(function (f) {
@@ -926,30 +946,35 @@
     if (kind === 'sale') applySyndication(raw, touched);
     applyBuildingFeatures(kind, raw);
 
-    // Ownership (the exact provider reference) and Mallan's own classification, from independent raw dimensions.
-    var own = byId(cfg.prefix + 'CommonInterest');
-    if (own && !isBlank(raw.CommonInterest)) { setValue(own, raw.CommonInterest); touched[cfg.prefix + 'CommonInterest'] = true; }
-    var classRadio = cfg.prefix + 'PropertyType';
-    var checkedType = document.querySelector('input[type="radio"][name="' + classRadio + '"]:checked');
-    if (!checkedType) {
-      var guess = kind === 'sale' ? classifySale(raw, listing) : classifyRental(raw, listing);
-      if (guess) { setRadioGroup(classRadio, guess, 'PropertyType'); touched[classRadio] = true; }
+    if (!edit) {
+      // Ownership (the exact provider reference) and Mallan's own classification, from independent raw dimensions.
+      var own = byId(cfg.prefix + 'CommonInterest');
+      if (own && !isBlank(raw.CommonInterest)) { setValue(own, raw.CommonInterest); touched[cfg.prefix + 'CommonInterest'] = true; }
+      var classRadio = cfg.prefix + 'PropertyType';
+      var checkedType = document.querySelector('input[type="radio"][name="' + classRadio + '"]:checked');
+      if (!checkedType) {
+        var guess = kind === 'sale' ? classifySale(raw, listing) : classifyRental(raw, listing);
+        if (guess) { setRadioGroup(classRadio, guess, 'PropertyType'); touched[classRadio] = true; }
+      }
     }
 
-    controlKeyedPass(cfg, raw, touched);
+    controlKeyedPass(cfg, raw, touched, edit);
 
     var street = byId(cfg.prefix + 'StreetAddress');
     var line = streetLine(addr, raw);
     if (street && line) street.value = line;
     var hood = byId(cfg.prefix === 'sale' ? 'saleBldgNeighborhood' : 'rentalNeighborhood');
-    if (hood && hood.selectedIndex < 0 && !isBlank(listing.neighborhood)) setValue(hood, listing.neighborhood);
+    var area = !isBlank(listing.neighborhood) ? listing.neighborhood : raw.MLSAreaMajor;   // MLSAreaMajor: the provider's area when no neighborhood column is filled
+    if (hood && (hood.selectedIndex < 0 || hood.value === '') && isPrimitive(area) && !isBlank(area)) setValue(hood, area);
 
-    applyAgentPanel(cfg.prefix, listing, raw, agentInfo);
-    renderCoList(cfg.prefix === 'sale' ? 'saleCoListAgentsContainer' : 'rentalCoListAgents', listing, raw);
-    renderUnplaced(cfg, listing, raw, addr, features, agentInfo);
+    if (!edit) {
+      applyAgentPanel(cfg.prefix, listing, raw, agentInfo);
+      renderCoList(cfg.prefix === 'sale' ? 'saleCoListAgentsContainer' : 'rentalCoListAgents', listing, raw);
+      renderUnplaced(cfg, listing, raw, addr, features, agentInfo);
+    }
   }
 
-  global.MallanViewerHydration = {
+  global.MallanListingHydration = {
     hydrate: hydrate,
     coListRows: coListRows,
     streetLine: function (listing) { listing = asObject(listing); return streetLine(asObject(listing.address), asObject(listing.raw_data)); },

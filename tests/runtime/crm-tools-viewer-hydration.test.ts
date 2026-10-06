@@ -3,7 +3,7 @@
  * The Tools viewers show the whole stored listing.
  *
  * Before: the viewers hydrated 70 controls from a 14-key object and 33 of those target ids do not exist on the page, so most of a stored
- * listing never appeared. They now read the record two ways (public/crm/js/forms/viewer-hydration.js):
+ * listing never appeared. They now read the record two ways (public/crm/js/forms/listing-hydration.js):
  *   1. provider / typed keys, through tables that are VERBATIM copies of the Sale form's own save <-> load tables (and, for the Rental form,
  *      the inverse of what its collector derives);
  *   2. control keys: both forms save by sweeping every control into raw_data under `field.id || field.name`, so what the agent entered in
@@ -22,7 +22,7 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { normalizePayload, buildPersistenceRecord } from '@/lib/compliance/normalizer';
 import { typedAgentColumnsFromJson } from '@/lib/listings/agent-info-typed-columns';
-import { bootViewer, field, rendered, until, sleep, VIEWER_HYDRATION, type ViewerFile } from './tools-viewer-harness';
+import { bootViewer, field, rendered, until, sleep, LISTING_HYDRATION, type ViewerFile } from './tools-viewer-harness';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { JSDOM, VirtualConsole } = require('jsdom');
@@ -31,8 +31,8 @@ jest.setTimeout(120000);
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const page = (name: string) => readFileSync(resolve(__dirname, `../../public/crm/${name}.html`), 'utf8').replace(/\r\n/g, '\n');
 const win: any = {};
-new Function('window', VIEWER_HYDRATION)(win);
-const TABLES = win.MallanViewerHydration.tables;
+new Function('window', LISTING_HYDRATION)(win);
+const TABLES = win.MallanListingHydration.tables;
 
 // ── 1. The Sale table copies are the form's own tables ───────────────────────────────────────────────────────────────────────────────
 function extractTable(src: string, name: string): string {
@@ -234,8 +234,8 @@ describe.each(['SALE-FORM-WITH-TOOLS', 'RENTAL-FORM-WITH-TOOLS'] as ViewerFile[]
       const snapshot = () => ({ extras: b.d.querySelectorAll('.viewer-extra-value').length, cards: b.d.querySelectorAll('#viewerStoredElsewhere').length, lines: lines(), price: field(b.d, sale ? 'salePrice' : 'rentalMonthlyRent')?.value });
       const before = snapshot();
       expect(before.cards).toBe(1);
-      b.w.MallanViewerHydration.hydrate(sale ? 'sale' : 'rental', JSON.parse(JSON.stringify(listing)));
-      b.w.MallanViewerHydration.hydrate(sale ? 'sale' : 'rental', JSON.parse(JSON.stringify(listing)));
+      b.w.MallanListingHydration.hydrate(sale ? 'sale' : 'rental', JSON.parse(JSON.stringify(listing)));
+      b.w.MallanListingHydration.hydrate(sale ? 'sale' : 'rental', JSON.parse(JSON.stringify(listing)));
       expect(snapshot()).toEqual(before);
     } finally {
       b.close();
@@ -467,23 +467,9 @@ const ABSENT_ON_VIEWER: Record<'sale' | 'rental', string[]> = {
   rental: ['value:rentalPostalCity', 'value:rentalStructureType', 'value:rentalFirstShowingDate', 'value:rentalCityDisplay'],
 };
 
-const RENTAL_ARRAYS_NOT_SAVED =
-  'collectRentalFormData derives an array only for PetsAllowed, BuildingPetsAllowed, BuildingFeatures, AttendanceType and BuildingLaundryFeatures; every other ' +
-  'checkbox group is saved as one boolean under its name (the last box), so the values the agent chose are not stored';
 const KNOWN_LOST: Record<'sale' | 'rental', Record<string, string>> = {
   sale: {},
-  rental: {
-    rentalFurnished: 'the Add form has two controls with this key (a Yes/No radio group and the Furnished select); the save keeps one value per key, so the radio entry is overwritten',
-    bldgNewDevelopment: 'collectRentalFormData derives NewDevelopmentYN (and YearBuilt) before it sweeps the building modal, so the checkbox never reaches the provider field',
-    rentalCommSubtype: RENTAL_ARRAYS_NOT_SAVED,
-    rentalBusinessType: RENTAL_ARRAYS_NOT_SAVED,
-    rentalHeating: RENTAL_ARRAYS_NOT_SAVED,
-    rentalCooling: RENTAL_ARRAYS_NOT_SAVED,
-    rentalTHDocsAvailable: RENTAL_ARRAYS_NOT_SAVED,
-    bldgHeating: RENTAL_ARRAYS_NOT_SAVED,
-    bldgCooling: RENTAL_ARRAYS_NOT_SAVED,
-    bldgDocsAvailable: RENTAL_ARRAYS_NOT_SAVED,
-  },
+  rental: {},   // the Rental save gaps (checkbox groups saved as one boolean, YearBuilt / NewDevelopmentYN read before the building modal, two controls keyed rentalFurnished) are fixed
 };
 
 describe.each([

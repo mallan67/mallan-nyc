@@ -1,7 +1,7 @@
 /// <reference types="jest" />
 /**
  * Shared harness for the Tools viewer tests: boots SALE-FORM-WITH-TOOLS / RENTAL-FORM-WITH-TOOLS in jsdom with the REAL api-client and the
- * REAL viewer-hydration module (the page's two <script src> files, which jsdom does not fetch) and a routed fetch for /api/auth/me and
+ * REAL listing-hydration module (the page's two <script src> files, which jsdom does not fetch) and a routed fetch for /api/auth/me and
  * /api/crm/listings/:id, so the real onReady / init / listings.get semantics decide the order of events.
  */
 import { readFileSync } from 'fs';
@@ -12,7 +12,7 @@ const { JSDOM, VirtualConsole } = require('jsdom');
 
 const read = (p: string) => readFileSync(resolve(__dirname, '../..', p), 'utf8');
 export const API_CLIENT = read('public/crm/js/core/api-client.js');
-export const VIEWER_HYDRATION = read('public/crm/js/forms/viewer-hydration.js');
+export const LISTING_HYDRATION = read('public/crm/js/forms/listing-hydration.js');
 
 export type Mode = 'ok' | 'missing' | 'anon' | 'never';
 export type ViewerFile = 'SALE-FORM-WITH-TOOLS' | 'RENTAL-FORM-WITH-TOOLS';
@@ -78,7 +78,7 @@ export function bootViewer(file: ViewerFile, o: ViewerOpts = {}): Booted {
       };
       // The page's own <script src> files are not fetched by jsdom: run the real files first, in the order the page lists them.
       w.eval(API_CLIENT);
-      w.eval(VIEWER_HYDRATION);
+      w.eval(LISTING_HYDRATION);
     },
   });
   return { w: dom.window, d: dom.window.document, errors, requests, close: () => dom.window.close() };
