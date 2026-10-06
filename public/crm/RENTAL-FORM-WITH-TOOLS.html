@@ -115,6 +115,9 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
 .skeleton-loading textarea.field-input { background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%); background-size: 200% 100%; animation: skeleton-pulse 1.5s ease-in-out infinite; color: transparent !important; border-color: #e5e7eb !important; min-height: 36px; border-radius: 8px; }
 .skeleton-loading .radio-card { background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%); background-size: 200% 100%; animation: skeleton-pulse 1.5s ease-in-out infinite; }
 @keyframes skeleton-pulse { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+/* While the listing loads nothing of the page may show: an entry-form default (a DRAFT badge, "[Enter Address]", a checked radio) is not a fact. */
+body.skeleton-loading { visibility: hidden; }
+body.skeleton-loading::before { visibility: visible; content: 'Loading listing...'; position: fixed; top: 40%; left: 0; right: 0; text-align: center; font: 600 14px Manrope, sans-serif; color: #6b7280; }
 /* No-listing placeholder */
 .no-listing-placeholder { display: flex; align-items: center; justify-content: center; min-height: 80vh; font-family: Manrope, sans-serif; }
 .no-listing-placeholder .card { text-align: center; max-width: 400px; padding: 40px; }
@@ -124,6 +127,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
 </style>
 <!-- API Client — identity from session token, no PII in URLs -->
 <script src="js/core/api-client.js"></script>
+<script src="js/forms/viewer-hydration.js"></script>
 <script>
 (function() {
     var origin = window.location.origin;
@@ -133,7 +137,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
 })();
 </script>
 </head>
-<body class="bg-gray-50 min-h-screen" data-rls-viewer="true">
+<body class="bg-gray-50 min-h-screen skeleton-loading" data-rls-viewer="true">
 
 <!-- HEADER BAR -->
 <header class="bg-white border-b shadow-sm px-6 py-3 flex items-center justify-between sticky top-0 z-50">
@@ -567,7 +571,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">Cumulative DOM</p>
-                        <p class="text-sm font-bold text-gray-800" id="rentalCumulativeDaysOnMarket">0</p>
+                        <p class="text-sm font-bold text-gray-800" id="rentalCumulativeDaysOnMarket">--</p>
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">Status Changed</p>
@@ -2814,7 +2818,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         <div class="bg-white p-6">
             <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
                 <div>
-                    <p class="text-2xl sm:text-3xl font-bold text-gray-900" id="rentalPreviewSitePrice">$0/mo</p>
+                    <p class="text-2xl sm:text-3xl font-bold text-gray-900" id="rentalPreviewSitePrice">--</p>
                     <p class="text-lg text-gray-700 mt-1" id="rentalPreviewSiteAddress">Address</p>
                     <p class="text-gray-500 text-sm" id="rentalPreviewSiteNeighborhood">Neighborhood, Borough, NY</p>
                 </div>
@@ -2842,7 +2846,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                             <div class="flex justify-between py-1.5 border-b"><span class="text-gray-500">Available</span><span class="font-medium" id="rentalPreviewSiteDetailAvail">--</span></div>
                             <div class="flex justify-between py-1.5 border-b"><span class="text-gray-500">Property Type</span><span class="font-medium" id="rentalPreviewSiteDetailType">--</span></div>
                             <div class="flex justify-between py-1.5 border-b"><span class="text-gray-500">Exposure</span><span class="font-medium" id="rentalPreviewSiteDetailExposure">--</span></div>
-                            <div class="flex justify-between py-1.5 border-b"><span class="text-gray-500">Days on Market</span><span class="font-medium" id="rentalPreviewSiteDetailDOM">0</span></div>
+                            <div class="flex justify-between py-1.5 border-b"><span class="text-gray-500">Days on Market</span><span class="font-medium" id="rentalPreviewSiteDetailDOM">--</span></div>
                             <div class="flex justify-between py-1.5 border-b"><span class="text-gray-500">Furnished</span><span class="font-medium" id="rentalPreviewSiteDetailFurnished">--</span></div>
                         </div>
                     </div>
@@ -3690,12 +3694,29 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="None" class="w-4 h-4 rental-attendance-cb"> None</label>
                         </div>
                     </div>
+
+                    <div class="form-card">
+                        <div class="form-card-header"><i class="fas fa-user-shield"></i> Lobby Attendant</div>
+                        <p class="text-[10px] text-gray-500 mb-3">RLS Field: LobbyAttendant — Specify lobby attendant coverage type.</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="field-label">Lobby Attendant</label>
+                                <select id="rentalLobbyAttendant" class="field-input" data-rls-ignore="true" data-removed-field="LobbyAttendant">
+                                    <option value="">Select</option>
+                                    <option value="FullTime">Full Time</option>
+                                    <option value="PartTime">Part Time</option>
+                                    <option value="Virtual">Virtual</option>
+                                    <option value="None">None</option>
+                                </select>
+                                <p class="text-[10px] text-gray-400 mt-1">RLS: LobbyAttendant</p>
+                            </div>
+                        </div>
+                    </div>
                     <!-- Building Amenities (non-AttendanceType) -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-building"></i> Building Amenities</div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgElevator" class="w-4 h-4" data-rls-field="BuildingFeatures"> Elevator</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgLaundry" class="w-4 h-4" data-rls-field="LaundryFeatures"> Laundry Room</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgGym" class="w-4 h-4" data-rls-field="BuildingFeatures"> Gym/Fitness Center</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgPool" class="w-4 h-4" data-rls-field="BuildingFeatures"> Pool</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgRoofDeck" class="w-4 h-4" data-rls-field="BuildingFeatures"> Roof Deck</label>
@@ -3714,6 +3735,36 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgOnSiteManager" class="w-4 h-4" data-rls-field="BuildingFeatures"> On-Site Manager</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgWheelchairAccess" class="w-4 h-4" data-rls-field="BuildingFeatures"> Wheelchair Access</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgSpa" class="w-4 h-4" data-rls-field="BuildingFeatures"> Spa</label>
+                        </div>
+                    </div>
+
+                    <div class="form-card">
+                        <div class="form-card-header"><i class="fas fa-tshirt"></i> Building Laundry Features <span class="text-red-500">*</span></div>
+                        <p class="text-[10px] text-gray-500 mb-2">RLS: BuildingLaundryFeatures — Select all that apply. "None" deselects all others.</p>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="InUnit" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)" data-rls-ignore="true"> In Unit</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="WasherDryerInstallAllowed" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> W/D Install Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="WasherHookup" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Washer Hookup</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="ElectricDryerHookup" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Electric Dryer Hookup</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="GasDryerHookup" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Gas Dryer Hookup</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="CommonArea" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Common Area</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="OnCommonFloor" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> On Common Floor</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="InBasement" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> In Basement</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="CoinOperated" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Coin Operated</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="LaundryDropOffService" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Drop-Off Service</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="DryCleaningService" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Dry Cleaning Service</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="Inside" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Inside</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="InHall" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> In Hall</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="InGarage" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> In Garage</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="InCarport" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> In Carport</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="Outside" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Outside</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="MainLevel" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Main Level</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="UpperLevel" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Upper Level</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="LowerLevel" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Lower Level</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="MultipleLocations" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Multiple Locations</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="SeeRemarks" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> See Remarks</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="Other" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Other</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="None" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> None</label>
                         </div>
                     </div>
 
@@ -4347,7 +4398,7 @@ function viewerBuildListing(apiData, id) {
     return {
         listingId: apiData.listing_id || id,
         status: apiData.status || '',
-        address: ((addr.StreetNumber || '') + ' ' + (addr.StreetName || '')).trim(),
+        address: MallanViewerHydration.streetLine(apiData),
         unit: addr.UnitNumber || '',
         city: apiData.city || '',
         zipCode: apiData.postal_code || '',
@@ -4363,6 +4414,9 @@ function viewerBuildListing(apiData, id) {
         listingAgentName: apiData.list_agent_full_name || (apiData.agent_info || {}).ListAgentFullName || '',
         listingCompany: apiData.list_office_name || (apiData.agent_info || {}).ListOfficeName || '',
         photos: Array.isArray(apiData.media) ? apiData.media.map(function(m) { return m.url || ''; }) : [],
+        lastUpdated: viewerDateTimeText(apiData.updated_at),
+        createDate: viewerDateOnly(apiData.created_at),
+        lastUpdatedDate: viewerDateOnly(apiData.updated_at),
         _raw: apiData,
     };
 }
@@ -4372,7 +4426,7 @@ function viewerFetchListing(id) {
         return Promise.reject(new Error('The CRM data service is unavailable.'));
     }
     return MallanAPI.listings.get(id).then(function(apiData) {
-        if (!apiData || typeof apiData !== 'object' || Array.isArray(apiData)) {
+        if (!apiData || typeof apiData !== 'object' || Array.isArray(apiData) || (apiData.listing_id === undefined && apiData.id === undefined)) {
             throw new Error('The CRM returned no data for this listing.');
         }
         VIEWER_LISTINGS[id] = viewerBuildListing(apiData, id);
@@ -4401,7 +4455,7 @@ window.addEventListener('message', function(event) {
     if (event.origin !== window.location.origin) return;
     if (!event.data || event.data.type !== 'loadListing') return;
     var id = event.data.listingId;
-    if (!id || VIEWER_LISTING_ID === id) return;
+    if (!id || String(VIEWER_LISTING_ID) === String(id)) return;
     window.location.search = '?id=' + encodeURIComponent(String(id));
 });
 
@@ -4431,6 +4485,27 @@ function viewerSetCheck(id, val) {
     el.checked = !!val;
 }
 
+// ── Viewer Helper: stored timestamps ──
+function viewerDateOnly(v) { var m = /^(\d{4}-\d{2}-\d{2})/.exec(String(v || '')); return m ? m[1] : ''; }
+function viewerDateTimeText(v) { if (!v) return ''; var t = new Date(v); return isNaN(t.getTime()) ? '' : t.toLocaleString(); }
+
+// ── Viewer Helper: what a control currently says ──
+// A select with nothing selected says nothing: its textContent is every option label, which must never be read as its value.
+function viewerReadValue(el) {
+    if (!el) return '';
+    if (el.tagName === 'SELECT') return el.value || '';
+    return el.value || el.textContent || '';
+}
+
+// ── Viewer Helper: a read-only viewer has no controls that add, save or remove ──
+function viewerHideWriteControls() {
+    var writers = [
+        '[onclick*="addRentalCoListAgent"]', '[onclick*="removeRentalCoListAgent"]', '[onclick*="useRentalExclusiveAgentContact"]',
+        '[onclick*="addRentalOpenHouse"]', '[onclick*="saveRentalOpenHouse"]', '[onclick*="cancelRentalOpenHouse"]'
+    ];
+    document.querySelectorAll(writers.join(', ')).forEach(function(b) { b.classList.add('viewer-hidden'); });
+}
+
 // ── Viewer Helper: entry-form defaults are not listing facts ──
 // A pre-checked radio, a pre-selected option, a pre-ticked box or prefilled text (a default status, a default city, default
 // distribution ticks) is a data-entry convenience. Clear them in the listing tabs and the building modal before hydrating, so a
@@ -4444,7 +4519,7 @@ function viewerClearEntryDefaults() {
             if (!el.id && !el.name) return;
             var t = (el.getAttribute('type') || '').toLowerCase();
             if (el.tagName === 'SELECT') el.selectedIndex = -1;
-            else if (t === 'checkbox') { el.checked = false; el.indeterminate = (zoneId === 'rentalMainTab4'); }
+            else if (t === 'checkbox') { el.checked = false; el.indeterminate = (zoneId === 'rentalMainTab4' || !!el.id); }
             else if (t === 'radio') el.checked = false;
             else if (t === 'hidden' || t === 'button' || t === 'submit' || t === 'reset' || t === 'file' || t === 'image') return;
             else el.value = '';
@@ -4496,158 +4571,31 @@ function loadRentalListingData(listingId) {
 
     // Entry-form defaults are not listing facts: clear them, then set only what the record carries.
     viewerClearEntryDefaults();
+    MallanViewerHydration.hydrate('rental', d._raw);
 
+    // Status and tiles: the stored status verbatim (never derived or defaulted); days on market from the typed columns, else the record's own key.
+    var rawData = (d._raw && d._raw.raw_data) || {};
+    var firstKnown = function(a, b) { return (a !== null && a !== undefined && a !== '') ? a : b; };
+    var domValue = firstKnown(d._raw && d._raw.days_on_market, rawData.DaysOnMarket);
     viewerSetVal('rentalStatus', d.status);
-    // Tiles: the stored status verbatim (never derived or defaulted); days on market only when the record carries them.
-    var tileRaw = (d._raw && d._raw.raw_data) || {};
     viewerSetVal('rentalResoMlsStatus', d.status ? d.status : '--');
-    viewerSetVal('rentalDaysOnMarket', (tileRaw.DaysOnMarket === null || tileRaw.DaysOnMarket === undefined) ? '--' : tileRaw.DaysOnMarket);
-    viewerSetRadio('rentalListingType', d.listingType);
+    viewerSetVal('rentalDaysOnMarket', (domValue === null || domValue === undefined) ? '--' : domValue);
+    var cdomValue = firstKnown(d._raw && d._raw.cumulative_days_on_market, rawData.CumulativeDaysOnMarket);
+    viewerSetVal('rentalCumulativeDaysOnMarket', (cdomValue === null || cdomValue === undefined) ? '--' : cdomValue);
+    viewerSetVal('rentalStatusChangeTimestamp', viewerDateTimeText(d._raw && d._raw.status_changed_at) || '--');
 
-    viewerSetVal('rentalAddress', d.address);
-    viewerSetVal('rentalUnit', d.unit);
-    viewerSetVal('rentalCity', d.city);
-    viewerSetVal('rentalState', d.state);
-    viewerSetVal('rentalZipCode', d.zipCode);
-    viewerSetVal('rentalBorough', d.borough);
-    viewerSetVal('rentalNeighborhood', d.neighborhood);
-    viewerSetVal('rentalCrossStreet', d.crossStreet);
-
-    viewerSetRadio('rentalPropertyType', d.propertyType);
-
-    viewerSetVal('rentalMonthlyRent', d.monthlyRent);
-    viewerSetVal('rentalSecurityDeposit', d.securityDeposit);
-    viewerSetVal('rentalLeaseTerm', d.leaseTerm);
-    viewerSetVal('rentalAvailableDate', d.availableDate);
-    viewerSetVal('rentalSqFt', d.sqft);
-
-    viewerSetVal('rentalBedrooms', d.bedrooms);
-    viewerSetVal('rentalBathrooms', d.bathrooms);
-    viewerSetVal('rentalBathroomsFull', d.bathroomsFull);
-    viewerSetVal('rentalBathroomsTotal', d.bathroomsTotal);
-    viewerSetVal('rentalBedroomsTotal', d.bedroomsTotal);
-    viewerSetVal('rentalRoomsTotal', d.roomsTotal);
-
-    // Property Sub-Type
-    viewerSetVal('rentalPropertySubType', d.propertySubType);
-
-    viewerSetVal('rentalYearBuilt', d.yearBuilt);
-    viewerSetVal('rentalTotalUnits', d.totalUnits);
-    viewerSetVal('rentalStories', d.stories);
-    viewerSetVal('rentalFloor', d.floor);
     // Trestle 6.17: BuildingKeyNumeric (system-assigned building grouping ID)
-    var bldgKey = d.buildingKey || d.BuildingKeyNumeric || (d._raw && d._raw.raw_data && d._raw.raw_data.BuildingKeyNumeric) || null;
+    var bldgKey = d.buildingKey || d.BuildingKeyNumeric || rawData.BuildingKeyNumeric || null;
     if (bldgKey) { viewerSetVal('rentalPreviewBldgKey', bldgKey); }
-    viewerSetVal('rentalElevatorsTotal', d.elevatorsTotal);
-    viewerSetCheck('rentalGarageYN', d.garageYN);
-    viewerSetCheck('rentalNewConstructionYN', d.newConstructionYN);
-    viewerSetCheck('rentalNewDevelopmentYN', d.newDevelopmentYN);
-    viewerSetVal('rentalLaundryFeatures', d.laundryFeatures);
 
-    // RLS: CommonInterest
-    viewerSetVal('rentalCommonInterest', d.CommonInterest);
-
-    // RLS: AttendanceType (multi-value)
-    var atGroup = document.getElementById('rentalAttendanceTypeGroup');
-    if (atGroup && d.AttendanceType) {
-        d.AttendanceType.forEach(function(v) {
-            var cb = atGroup.querySelector('input[value="' + v + '"]');
-            if (cb) cb.checked = true;
-        });
-    }
-
-    // RLS: PetsAllowed (unit-level)
-    var paGroup = document.getElementById('rentalPetsAllowedGroup');
-    if (paGroup && d.PetsAllowed) {
-        d.PetsAllowed.forEach(function(v) {
-            var cb = paGroup.querySelector('input[value="' + v + '"]');
-            if (cb) cb.checked = true;
-        });
-    }
-
-    // RLS: BuildingPetsAllowed
-    var bpaGroup = document.getElementById('rentalBuildingPetsAllowedGroup');
-    if (bpaGroup && d.BuildingPetsAllowed) {
-        d.BuildingPetsAllowed.forEach(function(v) {
-            var cb = bpaGroup.querySelector('input[value="' + v + '"]');
-            if (cb) cb.checked = true;
-        });
-    }
-
-    viewerSetVal('rentalDescription', d.description);
-
+    // Listing agent: the name from the typed-first object; the contact panel is hydrated from the record above.
     viewerSetVal('rentalListingAgentSearch', d.listingAgentName);
-    viewerSetVal('rentalListingAgentId', d.listingAgentId);
-    viewerSetVal('rentalListingAgentPhone', d.listingAgentPhone);
-    viewerSetVal('rentalListingAgentEmail', d.listingAgentEmail);
-    viewerSetVal('rentalListingAgentLicense', d.listingAgentLicense);
-    var agentInfoEl = document.getElementById('rentalListingAgentInfo');
-    if (agentInfoEl) agentInfoEl.style.display = '';
 
-    // Agreement & Compliance
-    viewerSetVal('rentalCoBrokeAgreement', d.coBrokeAgreement);
-    viewerSetVal('rentalListingAgreement', d.listingAgreement);
-
+    // Stored timestamps
     viewerSetVal('rentalCreateDate', d.createDate);
-    viewerSetVal('rentalLastUpdatedDate', d.lastUpdated);
-    viewerSetVal('rentalOnMarketDate', d.onMarketDate);
-    viewerSetVal('rentalExpirationDate', d.expirationDate);
+    viewerSetVal('rentalLastUpdatedDate', d.lastUpdatedDate);
 
-    // Address components
-    viewerSetVal('rentalStreetNumber', d.streetNumber);
-    viewerSetVal('rentalStreetName', d.streetName);
-    viewerSetVal('rentalCountyOrParish', d.countyOrParish);
-    viewerSetVal('rentalPostalCity', d.postalCity);
-    viewerSetVal('rentalCityRegion', d.cityRegion);
-
-    // Display permissions
-    viewerSetCheck('rentalInternetEntireListingDisplayYN', d.internetEntireListingDisplayYN);
-    viewerSetCheck('rentalInternetAddressDisplayYN', d.internetAddressDisplayYN);
-
-    // Agent MLS ID
-    viewerSetVal('rentalListAgentMlsId', d.listAgentMlsId);
-
-    viewerSetCheck('rentalVOWOptOutYN', d.vowOptOut);
-    viewerSetCheck('rentalSyndicateYN', d.syndicateYN);
-    viewerSetCheck('rentalIDXEntireListingDisplayYN', d.idxDisplay);
-    viewerSetCheck('rentalDist_IDX', d.distIDX);
-    viewerSetCheck('rentalDist_VOW', d.internetDisplayYN);
-    viewerSetCheck('rentalDist_Listhub', d.distListhub);
-    viewerSetCheck('rentalDist_NYMLS', d.distNYMLS);
-    viewerSetCheck('rentalDist_Realtor', d.distRealtor);
-    viewerSetCheck('rentalDist_RPX', d.distRPX);
-    viewerSetCheck('rentalDist_WWW', d.distWWW);
-    viewerSetCheck('rentalDist_RLS', d.distRLS);
-
-    viewerSetVal('rentalShowingInstructions', d.showingInstructions);
-    viewerSetVal('rentalBrokerRemarks', d.brokerRemarks);
-
-    // FARE Act (NYC LL 119/2024) fee disclosure fields
-    viewerSetVal('rentalMoveInCosts', d.MoveInCosts);
-    // Legacy fallback (pre-2026-06-04 listings stored the amount under MoveInCostsAmountTotal)
-    // Read-time legacy fallback (canonical wins): MoveInCostsAmount → AdditionalFee
-    // → MoveInCostsAmountTotal; MoveInCostsComments → AdditionalFeeDescription.
-    // Explicit blank check (null/undefined/'') — NOT truthiness — so a canonical 0
-    // wins over a stale legacy AdditionalFee/MoveInCostsAmountTotal (Codex #346).
-    var _miBlankV = function (v) { return v === null || v === undefined || v === ''; };
-    viewerSetVal('rentalMoveInCostsAmount',
-      !_miBlankV(d.MoveInCostsAmount) ? d.MoveInCostsAmount
-      : !_miBlankV(d.AdditionalFee) ? d.AdditionalFee
-      : !_miBlankV(d.MoveInCostsAmountTotal) ? d.MoveInCostsAmountTotal
-      : undefined);
-    viewerSetVal('rentalMoveInCostsComments',
-      !_miBlankV(d.MoveInCostsComments) ? d.MoveInCostsComments
-      : !_miBlankV(d.AdditionalFeeDescription) ? d.AdditionalFeeDescription
-      : undefined);
-    viewerSetVal('rentalOngoingFees', d.OngoingFees);
-    viewerSetVal('rentalFeeFrequency', d.FeeFrequency);
-    viewerSetVal('rentalTenantPays', d.TenantPays);
-    viewerSetVal('rentalTenantPaysDescription', d.TenantPaysDescription);
-    viewerSetVal('rentalAdditionalFeeYN', d.AdditionalFeeYN);
-    viewerSetVal('rentalAdditionalFee', d.AdditionalFee);
-    viewerSetVal('rentalAdditionalFeeDescription', d.AdditionalFeeDescription);
-    viewerSetVal('rentalAdditionalFeeFrequency', d.AdditionalFeeFrequency);
-
+    // Header display bar
     viewerSetVal('rentalAddressDisplay', d.address + (d.unit ? ' #' + d.unit : ''));
     viewerSetVal('rentalUnitDisplay', d.unit || '--');
     viewerSetVal('rentalListingIdDisplay', d.listingId);
@@ -4776,6 +4724,8 @@ function convertRentalDistributionToDisplay() {
         var state = cb.indeterminate ? 'unknown' : (cb.checked ? 'yes' : 'no');
         var badge = document.createElement('span');
         badge.className = state === 'yes' ? 'dist-gate-yes' : (state === 'no' ? 'dist-gate-no' : 'dist-gate-unknown');
+        badge.setAttribute('data-for', cb.id || cb.name || '');
+        badge.setAttribute('data-state', state);
         var icon = document.createElement('i');
         icon.className = 'fas ' + (state === 'yes' ? 'fa-check-circle' : (state === 'no' ? 'fa-times-circle' : 'fa-question-circle'));
         icon.style.fontSize = '11px';
@@ -5926,7 +5876,7 @@ window.alert = function(msg) { showToast(String(msg)); };
 // AGENT INFO SHEET — Print / Email professional agent card
 // ═══════════════════════════════════════════════════════════
 function generateAgentInfoSheet() {
-    var gv = function(id) { var el = document.getElementById(id); return el ? (el.value || el.textContent || '').trim() : ''; };
+    var gv = function(id) { var el = document.getElementById(id); return el ? viewerReadValue(el).trim() : ''; };
     var agentName = gv('rentalUpdatingAgentName') || gv('rentalListingAgentId') || '--';
     var agentPhone = gv('rentalUpdatingAgentPhone') || gv('rentalListingAgentPhone') || '--';
     var agentEmail = gv('rentalUpdatingAgentEmail') || gv('rentalListingAgentEmail') || '--';
@@ -6847,19 +6797,19 @@ function updateRentalPreview() {
     // Card 1: Listing Essentials
     var agentNameVal = val('rentalUpdatingAgentName', '--');
     var agentLicenseVal = val('rentalUpdatingAgentLicense', '--');
-    var companyNameVal = val('rentalUpdatingAgentCompanyName', 'Mallan Real Estate Inc.');
+    var companyNameVal = val('rentalListingCompanySearch', '--');
     setText('rentalPreviewAgent', agentNameVal);
-    setText('previewAgentName', agentNameVal);
-    setText('rentalPreviewSiteAgentName', agentNameVal);
+    setText('previewAgentName', val('rentalListingAgentSearch', '--'));
+    setText('rentalPreviewSiteAgentName', val('rentalListingAgentSearch', '--'));
     setText('rentalPreviewSiteAgentLicense', agentLicenseVal);
     setText('rentalPreviewSiteCompanyName', companyNameVal);
     var listingTypeRadio = document.querySelector('input[name="rentalListingType"]:checked');
     var ltMap = { ExclusiveRightToLease: 'Exclusive Right to Lease', ExclusiveAgency: 'Exclusive Agency', ExclusiveRightWithException: 'Exclusive w/ Exception', CoExclusiveAgency: 'Co-Exclusive', InHouse: 'In-House', 'RLS-Owner-OptOut': 'Owner Opt-Out', 'RLS-Participant': 'Participant Only' };
-    setText('rentalPreviewListingType', ltMap[listingTypeRadio ? listingTypeRadio.value : 'ExclusiveRightToLease'] || 'Exclusive Right to Lease');
+    setText('rentalPreviewListingType', listingTypeRadio ? (ltMap[listingTypeRadio.value] || listingTypeRadio.value) : '--');
     const status = document.getElementById('rentalStatus');
-    setText('rentalPreviewStatus', status ? status.value : 'Draft');
+    setText('rentalPreviewStatus', status && status.value ? status.value : '--');
     setText('rentalPreviewPropType', propType || '--');
-    setText('rentalPreviewCRMPrice', priceVal > 0 ? '$' + priceVal.toLocaleString() + '/mo' : '$0/mo');
+    setText('rentalPreviewCRMPrice', priceVal > 0 ? '$' + priceVal.toLocaleString() + '/mo' : '--');
     const deposit = document.getElementById('rentalSecurityDeposit');
     setText('rentalPreviewDeposit', deposit && deposit.value ? '$' + Number(deposit.value).toLocaleString() : '--');
     setText('rentalPreviewCRMAvail', availDate && availDate.value ? availDate.value : '--');
@@ -6961,8 +6911,8 @@ function updateRentalPreview() {
     // ═══════════════════════════════════════
     // PUBLIC PAGE PREVIEW (mallan.nyc)
     // ═══════════════════════════════════════
-    setText('rentalPreviewSitePrice', priceVal > 0 ? '$' + priceVal.toLocaleString() + '/mo' : '$0/mo');
-    setText('rentalPreviewSiteAddress', fullAddr !== '--' ? fullAddr : 'Address');
+    setText('rentalPreviewSitePrice', priceVal > 0 ? '$' + priceVal.toLocaleString() + '/mo' : '--');
+    setText('rentalPreviewSiteAddress', fullAddr !== '--' ? fullAddr : '--');
 
     const hood = val('rentalNeighborhood', '');
     const boro = borough ? borough.value : '';
@@ -6988,12 +6938,7 @@ function updateRentalPreview() {
     setText('rentalPreviewSiteDetailExposure', exposures.length ? exposures.join(', ') : '--');
 
     // Days on Market
-    const createDate = document.getElementById('rentalCreateDate');
-    if (createDate && createDate.value) {
-        const diffMs = Date.now() - new Date(createDate.value).getTime();
-        const dom = Math.max(0, Math.floor(diffMs / 86400000));
-        setText('rentalPreviewSiteDetailDOM', dom.toString());
-    }
+    setText('rentalPreviewSiteDetailDOM', ((document.getElementById('rentalDaysOnMarket') || {}).textContent || '--'));
 
     // Furnished
     const furnished = document.querySelector('input[name="rentalFurnished"]:checked');
@@ -7027,8 +6972,13 @@ function renderRentalViewer() {
         var listingData = loadRentalListingData(VIEWER_LISTING_ID);
         if (!listingData) { showRentalFailClosed(VIEWER_LISTING_ID); return; }
         showRentalMainTab(1);
-        if (typeof applyRentalFieldRules === 'function') applyRentalFieldRules();
+        // The field rules fall back to a default type (Condo on a sale, Rental Building on a rental) when none is chosen: a listing whose
+        // type is unknown is not shown as one, so they run only when the record named a type.
+        if (typeof applyRentalFieldRules === 'function' && document.querySelector('input[name="rentalPropertyType"]:checked')) applyRentalFieldRules();
+        // The field rules may reset a control (they do on the Add form); the stored record has the last word.
+        MallanViewerHydration.hydrate('rental', VIEWER_LISTINGS[VIEWER_LISTING_ID]._raw);
         convertRentalFormToViewer();
+        viewerHideWriteControls();
         patchGetRentalFormValue();
         updateRentalHeaderForViewer(listingData);
         removeRentalNavigationButtons();
@@ -7051,6 +7001,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // If no listing ID provided, show placeholder
     if (!VIEWER_LISTING_ID) {
+        document.body.classList.remove('skeleton-loading');
         document.body.innerHTML = '<div class="no-listing-placeholder"><div class="card">' +
             '<i class="fas fa-search"></i>' +
             '<h2>No Listing Selected</h2>' +
@@ -7064,8 +7015,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     neutralizeRentalFormSystems();
 
-    // Identity (server role) first, then the listing, then render. Any failure, or no answer within 30 seconds, ends on the
-    // fail-closed screen.
+    // Identity (server role) first, then the listing, then render. A signed-out visitor, or an identity service that cannot be reached
+    // (the api client reports both as not authenticated), goes to the login page; a listing failure, or no answer within 30 seconds, ends
+    // on the fail-closed screen.
     var finished = false;
     var guard = setTimeout(function() {
         if (finished) return;
@@ -7100,7 +7052,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // COMMISSION REQUEST — Auto-populate & Calculate
 // ══════════════════════════════════════════════════════
 function populateRentalCommissionFields() {
-    var val = function(id) { var el = document.getElementById(id); return el ? (el.value || el.textContent || '') : ''; };
+    var val = function(id) { var el = document.getElementById(id); return el ? viewerReadValue(el) : ''; };
     var set = function(id, v) { var el = document.getElementById(id); if (el) el.value = v; };
     var selText = function(id) {
         var el = document.getElementById(id);
@@ -7272,7 +7224,7 @@ function toggleAllRentalPrintSections(on) {
 
 function getRentalFormValue(id) {
     var el = document.getElementById(id);
-    return el ? (el.value || el.textContent || '').trim() : '';
+    return el ? viewerReadValue(el).trim() : '';
 }
 
 function getRentalRadioValue(name) {

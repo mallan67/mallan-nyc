@@ -119,6 +119,9 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
 .skeleton-loading textarea.field-input { background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%); background-size: 200% 100%; animation: skeleton-pulse 1.5s ease-in-out infinite; color: transparent !important; border-color: #e5e7eb !important; min-height: 36px; border-radius: 8px; }
 .skeleton-loading .radio-card { background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%); background-size: 200% 100%; animation: skeleton-pulse 1.5s ease-in-out infinite; }
 @keyframes skeleton-pulse { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+/* While the listing loads nothing of the page may show: an entry-form default (a DRAFT badge, "[Enter Address]", a checked radio) is not a fact. */
+body.skeleton-loading { visibility: hidden; }
+body.skeleton-loading::before { visibility: visible; content: 'Loading listing...'; position: fixed; top: 40%; left: 0; right: 0; text-align: center; font: 600 14px Manrope, sans-serif; color: #6b7280; }
 /* No-listing placeholder */
 .no-listing-placeholder { display: flex; align-items: center; justify-content: center; min-height: 80vh; font-family: Manrope, sans-serif; }
 .no-listing-placeholder .card { text-align: center; max-width: 400px; padding: 40px; }
@@ -128,6 +131,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
 </style>
 <!-- API Client — identity from session token, no PII in URLs -->
 <script src="js/core/api-client.js"></script>
+<script src="js/forms/viewer-hydration.js"></script>
 <script>
 (function() {
     var origin = window.location.origin;
@@ -137,7 +141,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
 })();
 </script>
 </head>
-<body class="bg-gray-50 min-h-screen" data-rls-viewer="true">
+<body class="bg-gray-50 min-h-screen skeleton-loading" data-rls-viewer="true">
 
 <!-- ═══════════════════════════════════════════════════════════ -->
 <!-- HEADER BAR                                                 -->
@@ -1088,7 +1092,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3 mb-3">
                 <div id="saleBoardApprovalField" class="flex items-center gap-3">
                     <span class="text-sm font-medium text-gray-700 whitespace-nowrap">Board Approval</span>
-                    <label class="flex items-center gap-1 cursor-pointer text-sm"><input type="radio" name="saleBoardApproval" value="Yes" class="w-4 h-4" data-rls-field="BuildingFeatures"> Yes</label>
+                    <label class="flex items-center gap-1 cursor-pointer text-sm"><input type="radio" name="saleBoardApproval" value="Yes" class="w-4 h-4" data-rls-ignore="true"> Yes</label>
                     <label class="flex items-center gap-1 cursor-pointer text-sm"><input type="radio" name="saleBoardApproval" value="No" class="w-4 h-4"> No</label>
                 </div>
                 <div id="saleBoardInterviewField" class="flex items-center gap-3">
@@ -1722,6 +1726,25 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
             </div>
         </div>
 
+        <div class="form-card">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="field-label">Property Condition</label>
+                    <select id="saleCondition" class="field-input" data-rls-field="PropertyCondition">
+                        <option value="">Select Condition</option>
+                        <option value="Excellent">Excellent</option>
+                        <option value="Fixer">Fixer</option>
+                        <option value="Good">Good</option>
+                        <option value="Fair">Fair</option>
+                        <option value="Poor">Poor</option>
+                        <option value="UnderConstruction">Under Construction</option>
+                        <option value="NewConstruction">New Construction</option>
+                        <option value="Updated">Updated/Remodeled</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
         <!-- Square Footage & Dimensions -->
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-ruler-combined"></i> Square Footage & Dimensions</div>
@@ -1796,13 +1819,13 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
             <div id="saleResidentialSection2">
                 <label class="field-label mb-2">Residential Type</label>
                 <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Alcove Studio</label>
-                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Floor Thru</label>
-                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Garden</label>
-                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Loft</label>
-                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Maisonette</label>
-                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Penthouse</label>
-                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Private Floor</label>
+                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleResidentialType" value="AlcoveStudio" class="w-4 h-4" data-rls-ignore="true"> Alcove Studio</label>
+                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleResidentialType" value="FloorThru" class="w-4 h-4" data-rls-ignore="true"> Floor Thru</label>
+                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleResidentialType" value="Garden" class="w-4 h-4" data-rls-ignore="true"> Garden</label>
+                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleResidentialType" value="Loft" class="w-4 h-4" data-rls-ignore="true"> Loft</label>
+                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleResidentialType" value="Maisonette" class="w-4 h-4" data-rls-ignore="true"> Maisonette</label>
+                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleResidentialType" value="Penthouse" class="w-4 h-4" data-rls-ignore="true"> Penthouse</label>
+                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleResidentialType" value="PrivateFloor" class="w-4 h-4" data-rls-ignore="true"> Private Floor</label>
                 </div>
             </div>
 
@@ -1875,18 +1898,18 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                 <div class="mb-5">
                     <label class="field-label mb-2">Commercial Features</label>
                     <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Drive-In Access</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Loading Dock</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Freight Elevator</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Signage Rights</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Corner Location</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Street Level</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Below Grade</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Vented</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Three Phase Power</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Heavy Power</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Open Floor Plan</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Build to Suit</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleCommercialFeatures" value="DriveInAccess" class="w-4 h-4" data-rls-ignore="true"> Drive-In Access</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleCommercialFeatures" value="LoadingDock" class="w-4 h-4" data-rls-ignore="true"> Loading Dock</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleCommercialFeatures" value="FreightElevator" class="w-4 h-4" data-rls-ignore="true"> Freight Elevator</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleCommercialFeatures" value="SignageRights" class="w-4 h-4" data-rls-ignore="true"> Signage Rights</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleCommercialFeatures" value="CornerLocation" class="w-4 h-4" data-rls-ignore="true"> Corner Location</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleCommercialFeatures" value="StreetLevel" class="w-4 h-4" data-rls-ignore="true"> Street Level</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleCommercialFeatures" value="BelowGrade" class="w-4 h-4" data-rls-ignore="true"> Below Grade</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleCommercialFeatures" value="Vented" class="w-4 h-4" data-rls-ignore="true"> Vented</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleCommercialFeatures" value="ThreePhasePower" class="w-4 h-4" data-rls-ignore="true"> Three Phase Power</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleCommercialFeatures" value="HeavyPower" class="w-4 h-4" data-rls-ignore="true"> Heavy Power</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleCommercialFeatures" value="OpenFloorPlan" class="w-4 h-4" data-rls-ignore="true"> Open Floor Plan</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleCommercialFeatures" value="BuildToSuit" class="w-4 h-4" data-rls-ignore="true"> Build to Suit</label>
                     </div>
                 </div>
 
@@ -1946,17 +1969,17 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-tree"></i> Private Outdoor Space</div>
             <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Balcony</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Deck</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Garden</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Green House</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Juliet Balcony</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Patio</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Private Roof Access</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Roof Deck</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Roof Rights</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Terrace</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Wrap Terrace</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePrivateOutdoorSpace" value="Balcony" class="w-4 h-4" data-rls-ignore="true"> Balcony</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePrivateOutdoorSpace" value="Deck" class="w-4 h-4" data-rls-ignore="true"> Deck</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePrivateOutdoorSpace" value="Garden" class="w-4 h-4" data-rls-ignore="true"> Garden</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePrivateOutdoorSpace" value="GreenHouse" class="w-4 h-4" data-rls-ignore="true"> Green House</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePrivateOutdoorSpace" value="JulietBalcony" class="w-4 h-4" data-rls-ignore="true"> Juliet Balcony</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePrivateOutdoorSpace" value="Patio" class="w-4 h-4" data-rls-ignore="true"> Patio</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePrivateOutdoorSpace" value="PrivateRoofAccess" class="w-4 h-4" data-rls-ignore="true"> Private Roof Access</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePrivateOutdoorSpace" value="RoofDeck" class="w-4 h-4" data-rls-ignore="true"> Roof Deck</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePrivateOutdoorSpace" value="RoofRights" class="w-4 h-4" data-rls-ignore="true"> Roof Rights</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePrivateOutdoorSpace" value="Terrace" class="w-4 h-4" data-rls-ignore="true"> Terrace</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePrivateOutdoorSpace" value="WrapTerrace" class="w-4 h-4" data-rls-ignore="true"> Wrap Terrace</label>
             </div>
         </div>
 
@@ -1983,14 +2006,14 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-compass"></i> Exposure</div>
             <div class="grid grid-cols-4 sm:grid-cols-8 gap-3">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> North</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> South</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> East</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> West</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Northeast</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Northwest</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Southeast</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Southwest</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleExposure" value="North" class="w-4 h-4" data-rls-ignore="true"> North</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleExposure" value="South" class="w-4 h-4" data-rls-ignore="true"> South</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleExposure" value="East" class="w-4 h-4" data-rls-ignore="true"> East</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleExposure" value="West" class="w-4 h-4" data-rls-ignore="true"> West</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleExposure" value="Northeast" class="w-4 h-4" data-rls-ignore="true"> Northeast</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleExposure" value="Northwest" class="w-4 h-4" data-rls-ignore="true"> Northwest</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleExposure" value="Southeast" class="w-4 h-4" data-rls-ignore="true"> Southeast</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleExposure" value="Southwest" class="w-4 h-4" data-rls-ignore="true"> Southwest</label>
             </div>
         </div>
 
@@ -2003,22 +2026,22 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                     <input type="radio" name="saleHasViews" value="Yes" class="w-4 h-4" data-rls-field="ViewYN"> Yes
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleHasViews" value="No" class="w-4 h-4" checked> No
+                    <input type="radio" name="saleHasViews" value="No" class="w-4 h-4"> No
                 </label>
             </div>
             <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Bridges</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> City</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> City Lights</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Downtown</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Garden</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Panoramic</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Park</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> River</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Sea/Ocean</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Rooftops/Sky</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Skyline</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Streets</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="Bridges" class="w-4 h-4" data-rls-ignore="true"> Bridges</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="City" class="w-4 h-4" data-rls-ignore="true"> City</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="CityLights" class="w-4 h-4" data-rls-ignore="true"> City Lights</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="Downtown" class="w-4 h-4" data-rls-ignore="true"> Downtown</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="Garden" class="w-4 h-4" data-rls-ignore="true"> Garden</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="Panoramic" class="w-4 h-4" data-rls-ignore="true"> Panoramic</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="Park" class="w-4 h-4" data-rls-ignore="true"> Park</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="River" class="w-4 h-4" data-rls-ignore="true"> River</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="SeaOcean" class="w-4 h-4" data-rls-ignore="true"> Sea/Ocean</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="RooftopsSky" class="w-4 h-4" data-rls-ignore="true"> Rooftops/Sky</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="Skyline" class="w-4 h-4" data-rls-ignore="true"> Skyline</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="Streets" class="w-4 h-4" data-rls-ignore="true"> Streets</label>
             </div>
         </div>
 
@@ -2058,21 +2081,21 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-door-open"></i> Additional Rooms</div>
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Den/Office</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Dressing Room</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Exercise Room</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Family Room</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Foyer</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Great Room</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Laundry Room</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Library</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Living Room</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Loft Space</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Media Room</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Playroom</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Safe Room</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Sleeping Loft</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Sun Room</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAdditionalRooms" value="DenOffice" class="w-4 h-4" data-rls-ignore="true"> Den/Office</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAdditionalRooms" value="DressingRoom" class="w-4 h-4" data-rls-ignore="true"> Dressing Room</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAdditionalRooms" value="ExerciseRoom" class="w-4 h-4" data-rls-ignore="true"> Exercise Room</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAdditionalRooms" value="FamilyRoom" class="w-4 h-4" data-rls-ignore="true"> Family Room</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAdditionalRooms" value="Foyer" class="w-4 h-4" data-rls-ignore="true"> Foyer</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAdditionalRooms" value="GreatRoom" class="w-4 h-4" data-rls-ignore="true"> Great Room</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAdditionalRooms" value="LaundryRoom" class="w-4 h-4" data-rls-ignore="true"> Laundry Room</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAdditionalRooms" value="Library" class="w-4 h-4" data-rls-ignore="true"> Library</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAdditionalRooms" value="LivingRoom" class="w-4 h-4" data-rls-ignore="true"> Living Room</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAdditionalRooms" value="LoftSpace" class="w-4 h-4" data-rls-ignore="true"> Loft Space</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAdditionalRooms" value="MediaRoom" class="w-4 h-4" data-rls-ignore="true"> Media Room</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAdditionalRooms" value="Playroom" class="w-4 h-4" data-rls-ignore="true"> Playroom</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAdditionalRooms" value="SafeRoom" class="w-4 h-4" data-rls-ignore="true"> Safe Room</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAdditionalRooms" value="SleepingLoft" class="w-4 h-4" data-rls-ignore="true"> Sleeping Loft</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAdditionalRooms" value="SunRoom" class="w-4 h-4" data-rls-ignore="true"> Sun Room</label>
             </div>
         </div>
 
@@ -2080,15 +2103,15 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-utensils"></i> Kitchen Type</div>
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Eat In</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Galley</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Open</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Pass Through</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Pullman</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Second Kitchen</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Separate</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Traditional</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Windowed</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleKitchenType" value="EatIn" class="w-4 h-4"> Eat In</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleKitchenType" value="Galley" class="w-4 h-4"> Galley</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleKitchenType" value="Open" class="w-4 h-4"> Open</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleKitchenType" value="PassThrough" class="w-4 h-4"> Pass Through</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleKitchenType" value="Pullman" class="w-4 h-4"> Pullman</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleKitchenType" value="SecondKitchen" class="w-4 h-4"> Second Kitchen</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleKitchenType" value="Separate" class="w-4 h-4"> Separate</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleKitchenType" value="Traditional" class="w-4 h-4"> Traditional</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleKitchenType" value="Windowed" class="w-4 h-4"> Windowed</label>
             </div>
         </div>
 
@@ -2096,13 +2119,13 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-blender"></i> Kitchen Features</div>
             <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Center Island</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Chef's</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Dishwasher</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Modern Kitchen</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> New Appliances</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Pantry</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Window</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleKitchenFeatures" value="CenterIsland" class="w-4 h-4" data-rls-ignore="true"> Center Island</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleKitchenFeatures" value="ChefS" class="w-4 h-4" data-rls-ignore="true"> Chef's</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleKitchenFeatures" value="Dishwasher" class="w-4 h-4" data-rls-ignore="true"> Dishwasher</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleKitchenFeatures" value="ModernKitchen" class="w-4 h-4" data-rls-ignore="true"> Modern Kitchen</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleKitchenFeatures" value="NewAppliances" class="w-4 h-4" data-rls-ignore="true"> New Appliances</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleKitchenFeatures" value="Pantry" class="w-4 h-4" data-rls-ignore="true"> Pantry</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleKitchenFeatures" value="Window" class="w-4 h-4" data-rls-ignore="true"> Window</label>
             </div>
         </div>
 
@@ -2110,12 +2133,12 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-wine-glass"></i> Dining</div>
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Dining Alcove</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Dining Area</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Dining in Foyer</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Dining in Living Room</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Dining L</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Formal Dining Room</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleDining" value="DiningAlcove" class="w-4 h-4" data-rls-ignore="true"> Dining Alcove</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleDining" value="DiningArea" class="w-4 h-4" data-rls-ignore="true"> Dining Area</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleDining" value="DiningInFoyer" class="w-4 h-4" data-rls-ignore="true"> Dining in Foyer</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleDining" value="DiningInLivingRoom" class="w-4 h-4" data-rls-ignore="true"> Dining in Living Room</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleDining" value="DiningL" class="w-4 h-4" data-rls-ignore="true"> Dining L</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleDining" value="FormalDiningRoom" class="w-4 h-4" data-rls-ignore="true"> Formal Dining Room</label>
             </div>
         </div>
 
@@ -2123,13 +2146,13 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-bath"></i> Bathroom Features</div>
             <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Bidet(s)</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Jacuzzi(s)</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Marble</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> En Suite(s)</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Sauna(s)</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Stall Shower(s)</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Window</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBathroomFeatures" value="Bidet" class="w-4 h-4" data-rls-ignore="true"> Bidet(s)</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBathroomFeatures" value="Jacuzzi" class="w-4 h-4" data-rls-ignore="true"> Jacuzzi(s)</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBathroomFeatures" value="Marble" class="w-4 h-4" data-rls-ignore="true"> Marble</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBathroomFeatures" value="EnSuite" class="w-4 h-4" data-rls-ignore="true"> En Suite(s)</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBathroomFeatures" value="Sauna" class="w-4 h-4" data-rls-ignore="true"> Sauna(s)</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBathroomFeatures" value="StallShower" class="w-4 h-4" data-rls-ignore="true"> Stall Shower(s)</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBathroomFeatures" value="Window" class="w-4 h-4" data-rls-ignore="true"> Window</label>
             </div>
         </div>
 
@@ -2154,9 +2177,9 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-gem"></i> Feature Details</div>
             <div class="flex flex-wrap gap-6">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Exposed Brick</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Original Detail</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Pre-War Charm</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleFeatureDetails" value="ExposedBrick" class="w-4 h-4" data-rls-ignore="true"> Exposed Brick</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleFeatureDetails" value="OriginalDetail" class="w-4 h-4" data-rls-ignore="true"> Original Detail</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleFeatureDetails" value="PreWarCharm" class="w-4 h-4" data-rls-ignore="true"> Pre-War Charm</label>
             </div>
         </div>
 
@@ -2164,26 +2187,26 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-window-maximize"></i> Windows</div>
             <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Aluminum Frames</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Bay Windows</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Blinds</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Display Windows</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Double Pane</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Drapes</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Energy Star</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Garden Windows</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Insulated</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Low Emissivity</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> New Windows</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Noise Reduction</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Oversized</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Screens</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Skylights</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Solar Screens</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Tinted</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Triple Pane</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Window Coverings</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Wood Frames</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleWindows" value="AluminumFrames" class="w-4 h-4" data-rls-ignore="true"> Aluminum Frames</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleWindows" value="BayWindows" class="w-4 h-4" data-rls-ignore="true"> Bay Windows</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleWindows" value="Blinds" class="w-4 h-4" data-rls-ignore="true"> Blinds</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleWindows" value="DisplayWindows" class="w-4 h-4" data-rls-ignore="true"> Display Windows</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleWindows" value="DoublePane" class="w-4 h-4" data-rls-ignore="true"> Double Pane</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleWindows" value="Drapes" class="w-4 h-4" data-rls-ignore="true"> Drapes</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleWindows" value="EnergyStar" class="w-4 h-4" data-rls-ignore="true"> Energy Star</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleWindows" value="GardenWindows" class="w-4 h-4" data-rls-ignore="true"> Garden Windows</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleWindows" value="Insulated" class="w-4 h-4" data-rls-ignore="true"> Insulated</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleWindows" value="LowEmissivity" class="w-4 h-4" data-rls-ignore="true"> Low Emissivity</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleWindows" value="NewWindows" class="w-4 h-4" data-rls-ignore="true"> New Windows</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleWindows" value="NoiseReduction" class="w-4 h-4" data-rls-ignore="true"> Noise Reduction</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleWindows" value="Oversized" class="w-4 h-4" data-rls-ignore="true"> Oversized</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleWindows" value="Screens" class="w-4 h-4" data-rls-ignore="true"> Screens</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleWindows" value="Skylights" class="w-4 h-4" data-rls-ignore="true"> Skylights</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleWindows" value="SolarScreens" class="w-4 h-4" data-rls-ignore="true"> Solar Screens</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleWindows" value="Tinted" class="w-4 h-4" data-rls-ignore="true"> Tinted</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleWindows" value="TriplePane" class="w-4 h-4" data-rls-ignore="true"> Triple Pane</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleWindows" value="WindowCoverings" class="w-4 h-4" data-rls-ignore="true"> Window Coverings</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleWindows" value="WoodFrames" class="w-4 h-4" data-rls-ignore="true"> Wood Frames</label>
             </div>
         </div>
 
@@ -2191,8 +2214,8 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-arrows-up-down"></i> Ceilings</div>
             <div class="flex gap-6">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Beamed Ceilings</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> High Ceilings</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleCeilings" value="BeamedCeilings" class="w-4 h-4" data-rls-ignore="true"> Beamed Ceilings</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleCeilings" value="HighCeilings" class="w-4 h-4" data-rls-ignore="true"> High Ceilings</label>
             </div>
         </div>
 
@@ -2200,11 +2223,11 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-square"></i> Flooring</div>
             <div class="flex flex-wrap gap-6">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Concrete</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Hardwood</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Herringbone</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Marble</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Parquet</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleFlooring" value="Concrete" class="w-4 h-4" data-rls-ignore="true"> Concrete</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleFlooring" value="Hardwood" class="w-4 h-4" data-rls-ignore="true"> Hardwood</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleFlooring" value="Herringbone" class="w-4 h-4" data-rls-ignore="true"> Herringbone</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleFlooring" value="Marble" class="w-4 h-4" data-rls-ignore="true"> Marble</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleFlooring" value="Parquet" class="w-4 h-4" data-rls-ignore="true"> Parquet</label>
             </div>
         </div>
 
@@ -2212,11 +2235,11 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-box"></i> Storage</div>
             <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Great Closet Space</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Murphy Bed</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Storage Loft</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Storage Space</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Walk In Closets</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleStorage" value="GreatClosetSpace" class="w-4 h-4"> Great Closet Space</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleStorage" value="MurphyBed" class="w-4 h-4"> Murphy Bed</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleStorage" value="StorageLoft" class="w-4 h-4"> Storage Loft</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleStorage" value="StorageSpace" class="w-4 h-4"> Storage Space</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleStorage" value="WalkInClosets" class="w-4 h-4"> Walk In Closets</label>
             </div>
         </div>
 
@@ -2233,19 +2256,19 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                 </label>
             </div>
             <div class="flex gap-6 mb-3">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Washer/Dryer Hookups</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Washer/Dryer in Unit</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleWasherDryerHookups" id="saleWasherDryerHookups" class="w-4 h-4" data-rls-ignore="true"> Washer/Dryer Hookups</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleWasherDryerInUnit" id="saleWasherDryerInUnit" class="w-4 h-4" data-rls-ignore="true"> Washer/Dryer in Unit</label>
             </div>
             <div>
                 <label class="text-xs text-gray-600 block mb-2">Washer/Dryer Brand</label>
                 <div class="flex gap-4 flex-wrap">
-                    <label class="flex items-center gap-2 cursor-pointer text-xs"><input type="checkbox" class="w-3 h-3"> Bosch</label>
-                    <label class="flex items-center gap-2 cursor-pointer text-xs"><input type="checkbox" class="w-3 h-3"> Gaggenau</label>
-                    <label class="flex items-center gap-2 cursor-pointer text-xs"><input type="checkbox" class="w-3 h-3"> LG</label>
-                    <label class="flex items-center gap-2 cursor-pointer text-xs"><input type="checkbox" class="w-3 h-3"> Maytag</label>
-                    <label class="flex items-center gap-2 cursor-pointer text-xs"><input type="checkbox" class="w-3 h-3"> Miele</label>
-                    <label class="flex items-center gap-2 cursor-pointer text-xs"><input type="checkbox" class="w-3 h-3"> Whirlpool</label>
-                    <label class="flex items-center gap-2 cursor-pointer text-xs"><input type="checkbox" class="w-3 h-3"> Other</label>
+                    <label class="flex items-center gap-2 cursor-pointer text-xs"><input type="checkbox" name="saleWasherDryerBrand" value="Bosch" class="w-3 h-3" data-rls-ignore="true"> Bosch</label>
+                    <label class="flex items-center gap-2 cursor-pointer text-xs"><input type="checkbox" name="saleWasherDryerBrand" value="Gaggenau" class="w-3 h-3" data-rls-ignore="true"> Gaggenau</label>
+                    <label class="flex items-center gap-2 cursor-pointer text-xs"><input type="checkbox" name="saleWasherDryerBrand" value="LG" class="w-3 h-3" data-rls-ignore="true"> LG</label>
+                    <label class="flex items-center gap-2 cursor-pointer text-xs"><input type="checkbox" name="saleWasherDryerBrand" value="Maytag" class="w-3 h-3" data-rls-ignore="true"> Maytag</label>
+                    <label class="flex items-center gap-2 cursor-pointer text-xs"><input type="checkbox" name="saleWasherDryerBrand" value="Miele" class="w-3 h-3" data-rls-ignore="true"> Miele</label>
+                    <label class="flex items-center gap-2 cursor-pointer text-xs"><input type="checkbox" name="saleWasherDryerBrand" value="Whirlpool" class="w-3 h-3" data-rls-ignore="true"> Whirlpool</label>
+                    <label class="flex items-center gap-2 cursor-pointer text-xs"><input type="checkbox" name="saleWasherDryerBrand" value="Other" class="w-3 h-3" data-rls-ignore="true"> Other</label>
                 </div>
             </div>
         </div>
@@ -2373,9 +2396,9 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-wind"></i> Fresh Air System</div>
             <div class="flex flex-wrap gap-6">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> VRF System</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Purification & Humidification System</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Vented from Outside</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleFreshAirSystem" value="VRFSystem" class="w-4 h-4" data-rls-ignore="true"> VRF System</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleFreshAirSystem" value="PurificationHumidificationSystem" class="w-4 h-4" data-rls-ignore="true"> Purification & Humidification System</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleFreshAirSystem" value="VentedFromOutside" class="w-4 h-4" data-rls-ignore="true"> Vented from Outside</label>
             </div>
         </div>
 
@@ -2383,9 +2406,9 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-fan"></i> HVAC</div>
             <div class="flex flex-wrap gap-6">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> 4 Pipe Fan</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Vertical Heat Pump</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" class="w-4 h-4"> Split System</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleHvacSystem" value="4PipeFan" class="w-4 h-4" data-rls-ignore="true"> 4 Pipe Fan</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleHvacSystem" value="VerticalHeatPump" class="w-4 h-4" data-rls-ignore="true"> Vertical Heat Pump</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleHvacSystem" value="SplitSystem" class="w-4 h-4" data-rls-ignore="true"> Split System</label>
             </div>
         </div>
 
@@ -3299,7 +3322,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                 <!-- Price + Address -->
                 <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
                     <div>
-                        <p class="text-2xl sm:text-3xl font-bold text-gray-900" id="salePreviewSitePrice">$0</p>
+                        <p class="text-2xl sm:text-3xl font-bold text-gray-900" id="salePreviewSitePrice">--</p>
                         <p class="text-lg text-gray-700 mt-1" id="salePreviewSiteAddress">Address</p>
                         <p class="text-gray-500 text-sm" id="salePreviewSiteNeighborhood">Neighborhood, Borough, NY</p>
                     </div>
@@ -3346,7 +3369,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                                 <div class="flex justify-between py-1.5 border-b"><span class="text-gray-500">Floor</span><span class="font-medium" id="salePreviewSiteDetailFloor">--</span></div>
                                 <div class="flex justify-between py-1.5 border-b"><span class="text-gray-500">Exposure</span><span class="font-medium" id="salePreviewSiteDetailExposure">--</span></div>
                                 <div class="flex justify-between py-1.5 border-b"><span class="text-gray-500">Views</span><span class="font-medium" id="salePreviewSiteDetailViews">--</span></div>
-                                <div class="flex justify-between py-1.5 border-b"><span class="text-gray-500">Days on Market</span><span class="font-medium" id="salePreviewSiteDetailDOM">0</span></div>
+                                <div class="flex justify-between py-1.5 border-b"><span class="text-gray-500">Days on Market</span><span class="font-medium" id="salePreviewSiteDetailDOM">--</span></div>
                             </div>
                         </div>
 
@@ -3486,7 +3509,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         </div>
         <div class="bg-gray-50 rounded-lg p-8 text-center">
             <i class="fas fa-inbox text-3xl text-gray-300 mb-3"></i>
-            <p class="text-gray-500 italic">No results found for this Listing.</p>
+            <p class="text-gray-500 italic">Listing history is not shown in this viewer.</p>
         </div>
     </div>
 
@@ -4217,7 +4240,6 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                         <div class="form-card-header"><i class="fas fa-building"></i> Building Amenities</div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgElevator" class="w-4 h-4" data-rls-field="BuildingFeatures"> Elevator</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgLaundry" class="w-4 h-4" data-rls-field="LaundryFeatures"> Laundry Room</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgGym" class="w-4 h-4" data-rls-field="BuildingFeatures"> Gym/Fitness Center</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgPool" class="w-4 h-4" data-rls-field="BuildingFeatures"> Pool</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgRoofDeck" class="w-4 h-4" data-rls-field="BuildingFeatures"> Roof Deck</label>
@@ -4236,6 +4258,36 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgOnSiteManager" class="w-4 h-4" data-rls-field="BuildingFeatures"> On-Site Manager</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgWheelchairAccess" class="w-4 h-4" data-rls-field="BuildingFeatures"> Wheelchair Access</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgSpa" class="w-4 h-4" data-rls-field="BuildingFeatures"> Spa</label>
+                        </div>
+                    </div>
+
+                    <div class="form-card">
+                        <div class="form-card-header"><i class="fas fa-tshirt"></i> Building Laundry Features <span class="text-red-500">*</span></div>
+                        <p class="text-[10px] text-gray-500 mb-2">Mallan Building Profile — internal building laundry policy (not in Cotality; not submitted to RLS/IDX). Select all that apply. "None" deselects all others.</p>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="InUnit" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)" data-rls-ignore="true"> In Unit</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="WasherDryerInstallAllowed" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> W/D Install Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="WasherHookup" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> Washer Hookup</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="ElectricDryerHookup" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> Electric Dryer Hookup</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="GasDryerHookup" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> Gas Dryer Hookup</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="CommonArea" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> Common Area</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="OnCommonFloor" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> On Common Floor</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="InBasement" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> In Basement</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="CoinOperated" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> Coin Operated</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="LaundryDropOffService" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> Drop-Off Service</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="DryCleaningService" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> Dry Cleaning Service</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="Inside" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> Inside</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="InHall" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> In Hall</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="InGarage" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> In Garage</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="InCarport" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> In Carport</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="Outside" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> Outside</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="MainLevel" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> Main Level</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="UpperLevel" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> Upper Level</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="LowerLevel" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> Lower Level</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="MultipleLocations" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> Multiple Locations</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="SeeRemarks" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> See Remarks</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="Other" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> Other</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingLaundryFeatures" value="None" class="w-4 h-4 sale-laundry-cb" onchange="handleSaleLaundryChange(this)"> None</label>
                         </div>
                     </div>
 
@@ -4501,10 +4553,10 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgWasherDryerAllowed" class="w-4 h-4" data-rls-field="LaundryFeatures"> Washer/Dryer Allowed</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgPiedATerre" class="w-4 h-4" data-rls-ignore="true"> Pied-a-Terre Allowed</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgParentsAllowed" class="w-4 h-4" data-rls-field="BuildingFeatures"> Parents Buying Allowed</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgCoBuyersAllowed" class="w-4 h-4" data-rls-field="BuildingFeatures"> Co-Buyers Allowed</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgCorpOwnAllowed" class="w-4 h-4" data-rls-field="BuildingFeatures"> Corp/LLC Purchase Allowed</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgGiftsAllowed" class="w-4 h-4" data-rls-field="BuildingFeatures"> Gifts Allowed for Down Payment</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgParentsAllowed" class="w-4 h-4" data-rls-ignore="true"> Parents Buying Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgCoBuyersAllowed" class="w-4 h-4" data-rls-ignore="true"> Co-Buyers Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgCorpOwnAllowed" class="w-4 h-4" data-rls-ignore="true"> Corp/LLC Purchase Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgGiftsAllowed" class="w-4 h-4" data-rls-ignore="true"> Gifts Allowed for Down Payment</label>
                         </div>
                     </div>
 
@@ -4572,7 +4624,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-users"></i> Board Process</div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgBoardApproval" class="w-4 h-4" data-rls-field="BuildingFeatures"> Board Approval Required</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgBoardApproval" class="w-4 h-4" data-rls-ignore="true"> Board Approval Required</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgBoardInterview" class="w-4 h-4" data-rls-ignore="true"> Board Interview Required</label>
                         </div>
                     </div>
@@ -4809,7 +4861,7 @@ window.alert = function(msg) { showToast(String(msg)); };
 // AGENT INFO SHEET — Print / Email professional agent card
 // ═══════════════════════════════════════════════════════════
 function generateAgentInfoSheet() {
-    var gv = function(id) { var el = document.getElementById(id); return el ? (el.value || el.textContent || '').trim() : ''; };
+    var gv = function(id) { var el = document.getElementById(id); return el ? viewerReadValue(el).trim() : ''; };
     var agentName = gv('saleUpdatingAgentName') || gv('saleListingAgentId') || '--';
     var agentPhone = gv('saleUpdatingAgentPhone') || gv('saleListingAgentPhone') || '--';
     var agentEmail = gv('saleUpdatingAgentEmail') || gv('saleListingAgentEmail') || '--';
@@ -4929,7 +4981,7 @@ function viewerBuildListing(apiData, id) {
     return {
         listingId: apiData.listing_id || id,
         status: apiData.status || '',
-        address: ((addr.StreetNumber || '') + ' ' + (addr.StreetName || '')).trim(),
+        address: MallanViewerHydration.streetLine(apiData),
         unit: addr.UnitNumber || '',
         city: apiData.city || '',
         zipCode: apiData.postal_code || '',
@@ -4945,6 +4997,9 @@ function viewerBuildListing(apiData, id) {
         listingAgentName: apiData.list_agent_full_name || (apiData.agent_info || {}).ListAgentFullName || '',
         listingCompany: apiData.list_office_name || (apiData.agent_info || {}).ListOfficeName || '',
         photos: Array.isArray(apiData.media) ? apiData.media.map(function(m) { return m.url || ''; }) : [],
+        lastUpdated: viewerDateTimeText(apiData.updated_at),
+        createDate: viewerDateOnly(apiData.created_at),
+        lastUpdatedDate: viewerDateOnly(apiData.updated_at),
         _raw: apiData,
     };
 }
@@ -4954,7 +5009,7 @@ function viewerFetchListing(id) {
         return Promise.reject(new Error('The CRM data service is unavailable.'));
     }
     return MallanAPI.listings.get(id).then(function(apiData) {
-        if (!apiData || typeof apiData !== 'object' || Array.isArray(apiData)) {
+        if (!apiData || typeof apiData !== 'object' || Array.isArray(apiData) || (apiData.listing_id === undefined && apiData.id === undefined)) {
             throw new Error('The CRM returned no data for this listing.');
         }
         VIEWER_LISTINGS[id] = viewerBuildListing(apiData, id);
@@ -4983,7 +5038,7 @@ window.addEventListener('message', function(event) {
     if (event.origin !== window.location.origin) return;
     if (!event.data || event.data.type !== 'loadListing') return;
     var id = event.data.listingId;
-    if (!id || VIEWER_LISTING_ID === id) return;
+    if (!id || String(VIEWER_LISTING_ID) === String(id)) return;
     window.location.search = '?id=' + encodeURIComponent(String(id));
 });
 
@@ -5013,6 +5068,28 @@ function viewerSetCheck(id, val) {
     el.checked = !!val;
 }
 
+// ── Viewer Helper: stored timestamps ──
+function viewerDateOnly(v) { var m = /^(\d{4}-\d{2}-\d{2})/.exec(String(v || '')); return m ? m[1] : ''; }
+function viewerDateTimeText(v) { if (!v) return ''; var t = new Date(v); return isNaN(t.getTime()) ? '' : t.toLocaleString(); }
+
+// ── Viewer Helper: what a control currently says ──
+// A select with nothing selected says nothing: its textContent is every option label, which must never be read as its value.
+function viewerReadValue(el) {
+    if (!el) return '';
+    if (el.tagName === 'SELECT') return el.value || '';
+    return el.value || el.textContent || '';
+}
+
+// ── Viewer Helper: a read-only viewer has no controls that add, save or remove ──
+function viewerHideWriteControls() {
+    var writers = [
+        '[onclick*="addSaleCoListAgent"]', '[onclick*="removeSaleCoListAgent"]', '[onclick*="useSaleExclusiveAgentContact"]',
+        '[onclick*="addSaleOpenHouse"]', '[onclick*="saveSaleOpenHouse"]', '[onclick*="cancelSaleOpenHouse"]',
+        '[onclick*="printOpenHouseSignIn(\'sale\')"]'
+    ];
+    document.querySelectorAll(writers.join(', ')).forEach(function(b) { b.classList.add('viewer-hidden'); });
+}
+
 // ── Viewer Helper: entry-form defaults are not listing facts ──
 // A pre-checked radio, a pre-selected option, a pre-ticked box or prefilled text (a default status, a default city, default
 // distribution ticks) is a data-entry convenience. Clear them in the listing tabs and the building modal before hydrating, so a
@@ -5026,7 +5103,7 @@ function viewerClearEntryDefaults() {
             if (!el.id && !el.name) return;
             var t = (el.getAttribute('type') || '').toLowerCase();
             if (el.tagName === 'SELECT') el.selectedIndex = -1;
-            else if (t === 'checkbox') { el.checked = false; el.indeterminate = (zoneId === 'saleMainTab4'); }
+            else if (t === 'checkbox') { el.checked = false; el.indeterminate = (zoneId === 'saleMainTab4' || !!el.id); }
             else if (t === 'radio') el.checked = false;
             else if (t === 'hidden' || t === 'button' || t === 'submit' || t === 'reset' || t === 'file' || t === 'image') return;
             else el.value = '';
@@ -5088,145 +5165,29 @@ function loadSaleListingData(listingId) {
 
     // Entry-form defaults are not listing facts: clear them, then set only what the record carries.
     viewerClearEntryDefaults();
+    MallanViewerHydration.hydrate('sale', d._raw);
 
-    // Status & Listing Type
+    // Status and tiles: the stored status verbatim (never derived or defaulted); days on market from the typed columns, else the record's own key.
+    var rawData = (d._raw && d._raw.raw_data) || {};
+    var firstKnown = function(a, b) { return (a !== null && a !== undefined && a !== '') ? a : b; };
+    var domValue = firstKnown(d._raw && d._raw.days_on_market, rawData.DaysOnMarket);
     viewerSetVal('saleStatus', d.status);
-    // Tiles: the stored status verbatim (never derived or defaulted); days on market only when the record carries them.
-    var tileRaw = (d._raw && d._raw.raw_data) || {};
     viewerSetVal('saleResoMlsStatus', d.status ? d.status : '--');
-    viewerSetVal('saleDaysOnMarket', (tileRaw.DaysOnMarket === null || tileRaw.DaysOnMarket === undefined) ? '--' : tileRaw.DaysOnMarket);
-    viewerSetVal('saleCumulativeDaysOnMarket', (tileRaw.CumulativeDaysOnMarket === null || tileRaw.CumulativeDaysOnMarket === undefined) ? '--' : tileRaw.CumulativeDaysOnMarket);
-    viewerSetRadio('saleListingType', d.listingType);
+    viewerSetVal('saleDaysOnMarket', (domValue === null || domValue === undefined) ? '--' : domValue);
+    var cdomValue = firstKnown(d._raw && d._raw.cumulative_days_on_market, rawData.CumulativeDaysOnMarket);
+    viewerSetVal('saleCumulativeDaysOnMarket', (cdomValue === null || cdomValue === undefined) ? '--' : cdomValue);
+    viewerSetVal('saleStatusChangeTimestamp', viewerDateTimeText(d._raw && d._raw.status_changed_at) || '--');
 
-    // Address
-    viewerSetVal('saleAddress', d.address);
-    viewerSetVal('saleUnit', d.unit);
-    viewerSetVal('saleCity', d.city);
-    viewerSetVal('saleState', d.state);
-    viewerSetVal('saleZipCode', d.zipCode);
-    viewerSetVal('saleBorough', d.borough);
-    viewerSetVal('saleNeighborhood', d.neighborhood);
-    viewerSetVal('saleCrossStreet', d.crossStreet);
-
-    // Property Type
-    viewerSetRadio('salePropertyType', d.propertyType);
-
-    // Pricing
-    viewerSetVal('salePrice', d.listPrice);
-    viewerSetVal('saleMaintCC', d.maintCC);
-    viewerSetVal('saleRETaxes', d.reTaxes);
-    viewerSetVal('saleTotalMonthly', d.totalMonthly);
-    viewerSetVal('saleSqFt', d.sqft);
-    viewerSetVal('salePricePerSqFt', d.pricePerSqft);
-
-    // Rooms
-    viewerSetVal('saleBedrooms', d.bedrooms);
-    viewerSetVal('saleBathrooms', d.bathrooms);
-    viewerSetVal('saleHalfBaths', d.halfBaths);
-    viewerSetVal('saleBathroomsFull', d.bathroomsFull);
-    viewerSetVal('saleBathroomsTotal', d.bathroomsTotal);
-    viewerSetVal('saleBedroomsTotal', d.bedroomsTotal);
-    viewerSetVal('saleRoomsTotal', d.roomsTotal);
-
-    // Property Sub-Type
-    viewerSetVal('salePropertySubType', d.propertySubType);
-
-    // Building
-    viewerSetVal('saleYearBuilt', d.yearBuilt);
-    viewerSetVal('saleTotalUnits', d.totalUnits);
-    viewerSetVal('saleStories', d.stories);
-    viewerSetVal('saleFloor', d.floor);
     // Trestle 6.17: BuildingKeyNumeric (system-assigned building grouping ID)
-    var bldgKey = d.buildingKey || d.BuildingKeyNumeric || (d._raw && d._raw.raw_data && d._raw.raw_data.BuildingKeyNumeric) || null;
+    var bldgKey = d.buildingKey || d.BuildingKeyNumeric || rawData.BuildingKeyNumeric || null;
     if (bldgKey) { viewerSetVal('salePreviewBldgKey', bldgKey); }
-    viewerSetVal('saleElevatorsTotal', d.elevatorsTotal);
-    viewerSetCheck('saleGarageYN', d.garageYN);
-    viewerSetCheck('saleNewConstructionYN', d.newConstructionYN);
-    viewerSetCheck('saleNewDevelopmentYN', d.newDevelopmentYN);
-    viewerSetVal('saleLaundryFeatures', d.laundryFeatures);
 
-    // RLS: CommonInterest
-    viewerSetVal('saleCommonInterest', d.CommonInterest);
-
-    // RLS: AttendanceType (multi-value badges)
-    var atGroup = document.getElementById('saleAttendanceTypeGroup');
-    if (atGroup && d.AttendanceType) {
-        d.AttendanceType.forEach(function(v) {
-            var cb = atGroup.querySelector('input[value="' + v + '"]');
-            if (cb) cb.checked = true;
-        });
-    }
-
-    // RLS: PetsAllowed (unit-level badges)
-    var paGroup = document.getElementById('salePetsAllowedGroup');
-    if (paGroup && d.PetsAllowed) {
-        d.PetsAllowed.forEach(function(v) {
-            var cb = paGroup.querySelector('input[value="' + v + '"]');
-            if (cb) cb.checked = true;
-        });
-    }
-
-    // RLS: BuildingPetsAllowed
-    var bpaGroup = document.getElementById('saleBuildingPetsAllowedGroup');
-    if (bpaGroup && d.BuildingPetsAllowed) {
-        d.BuildingPetsAllowed.forEach(function(v) {
-            var cb = bpaGroup.querySelector('input[value="' + v + '"]');
-            if (cb) cb.checked = true;
-        });
-    }
-
-    // Description
-    viewerSetVal('saleDescription', d.description);
-
-    // Listing Agent
+    // Listing agent: the name from the typed-first object; the contact panel is hydrated from the record above.
     viewerSetVal('saleListingAgentSearch', d.listingAgentName);
-    viewerSetVal('saleListingAgentId', d.listingAgentId);
-    viewerSetVal('saleListingAgentPhone', d.listingAgentPhone);
-    viewerSetVal('saleListingAgentEmail', d.listingAgentEmail);
-    viewerSetVal('saleListingAgentLicense', d.listingAgentLicense);
-    var agentInfoEl = document.getElementById('saleListingAgentInfo');
-    if (agentInfoEl) agentInfoEl.style.display = '';
 
-    // Agreement & Compliance
-    viewerSetVal('saleCoBrokeAgreement', d.coBrokeAgreement);
-    viewerSetVal('saleConcessions', d.concessions);
-    viewerSetVal('saleListingAgreement', d.listingAgreement);
-
-    // Dates
+    // Stored timestamps
     viewerSetVal('saleCreateDate', d.createDate);
-    viewerSetVal('saleLastUpdatedDate', d.lastUpdated);
-    viewerSetVal('saleOnMarketDate', d.onMarketDate);
-    viewerSetVal('saleExpirationDate', d.expirationDate);
-
-    // Address components
-    viewerSetVal('saleStreetNumber', d.streetNumber);
-    viewerSetVal('saleStreetName', d.streetName);
-    viewerSetVal('saleCountyOrParish', d.countyOrParish);
-    viewerSetVal('salePostalCity', d.postalCity);
-    viewerSetVal('saleCityRegion', d.cityRegion);
-
-    // Display permissions
-    viewerSetCheck('saleInternetEntireListingDisplayYN', d.internetEntireListingDisplayYN);
-    viewerSetCheck('saleInternetAddressDisplayYN', d.internetAddressDisplayYN);
-
-    // Agent MLS ID
-    viewerSetVal('saleListAgentMlsId', d.listAgentMlsId);
-
-    // Distribution
-    viewerSetCheck('saleVOWOptOutYN', d.vowOptOut);
-    viewerSetCheck('saleSyndicateYN', d.syndicateYN);
-    viewerSetCheck('saleDist_IDX', d.distIDX);
-    viewerSetCheck('saleDist_VOW', d.internetDisplayYN);
-    viewerSetCheck('saleDist_Listhub', d.distListhub);
-    viewerSetCheck('saleDist_NYMLS', d.distNYMLS);
-    viewerSetCheck('saleDist_Realtor', d.distRealtor);
-    viewerSetCheck('saleDist_RPX', d.distRPX);
-    viewerSetCheck('saleDist_WWW', d.distWWW);
-    viewerSetCheck('saleDist_RLS', d.distRLS);
-
-    // Showing Instructions & Broker Remarks
-    viewerSetVal('saleShowingInstructions', d.showingInstructions);
-    viewerSetVal('saleBrokerRemarks', d.brokerRemarks);
+    viewerSetVal('saleLastUpdatedDate', d.lastUpdatedDate);
 
     // Header display bar
     viewerSetVal('saleAddressDisplay', d.address + (d.unit ? ' #' + d.unit : ''));
@@ -5369,6 +5330,8 @@ function convertSaleDistributionToDisplay() {
         var state = cb.indeterminate ? 'unknown' : (cb.checked ? 'yes' : 'no');
         var badge = document.createElement('span');
         badge.className = state === 'yes' ? 'dist-gate-yes' : (state === 'no' ? 'dist-gate-no' : 'dist-gate-unknown');
+        badge.setAttribute('data-for', cb.id || cb.name || '');
+        badge.setAttribute('data-state', state);
         var icon = document.createElement('i');
         icon.className = 'fas ' + (state === 'yes' ? 'fa-check-circle' : (state === 'no' ? 'fa-times-circle' : 'fa-question-circle'));
         icon.style.fontSize = '11px';
@@ -6540,12 +6503,12 @@ function updateSalePreview() {
     // Card 1: Essentials
     var agentNameVal = val('saleUpdatingAgentName', '--');
     setText('salePreviewAgent', agentNameVal);
-    setText('salePreviewSiteAgentName', agentNameVal);
+    setText('salePreviewSiteAgentName', val('saleListingAgentSearch', '--'));
     var ltRadio = document.querySelector('input[name="saleListingType"]:checked');
     var ltMap = { ExclusiveRightToSell: 'Exclusive Right to Sell', ExclusiveAgency: 'Exclusive Agency', ExclusiveRightWithException: 'Exclusive w/ Exception', CoExclusiveAgency: 'Co-Exclusive', InHouse: 'In-House', OwnerOptOut: 'Owner Opt-Out', ParticipantOnly: 'Participant Only' };
     setText('salePreviewListingType', ltRadio ? (ltMap[ltRadio.value] || ltRadio.value) : '--');
     const status = document.getElementById('saleStatus');
-    setText('salePreviewStatus', status ? status.options[status.selectedIndex]?.text || 'Draft' : 'Draft');
+    setText('salePreviewStatus', status && status.selectedIndex >= 0 ? status.options[status.selectedIndex].text : '--');
     const propType = checked('salePropertyType');
     setText('salePreviewPropType', propType || '--');
     setText('salePreviewPrice', fmtPrice(val('salePrice')));
@@ -6571,7 +6534,7 @@ function updateSalePreview() {
 
     // Card 3: Unit Info
     const floors = checked('saleNumFloors');
-    setText('salePreviewFloors', floors || 'Single');
+    setText('salePreviewFloors', floors || '--');
     setText('salePreviewRooms', val('saleTotalRooms'));
     setText('salePreviewBeds', val('saleBedrooms'));
     setText('salePreviewBaths', val('saleFullBaths'));
@@ -6586,7 +6549,7 @@ function updateSalePreview() {
         distChecked.push(cb.value || cb.nextElementSibling?.textContent?.trim() || cb.parentElement?.textContent?.trim());
     });
     setText('salePreviewDistro', distChecked.length ? distChecked.slice(0, 4).join(', ') + (distChecked.length > 4 ? ' +' + (distChecked.length - 4) + ' more' : '') : '--');
-    setText('salePreviewPhotos', '0 uploaded');
+    setText('salePreviewPhotos', getListingPhotoUrls('sale').length + ' photos');
     setText('salePreviewVideo', val('saleVideoUrl', 'None') !== 'None' ? 'Yes' : 'None');
     setText('salePreviewTour', val('saleMatterportUrl', 'None') !== 'None' ? 'Yes' : 'None');
 
@@ -6633,12 +6596,12 @@ function updateSalePreview() {
 
     // ── Public Page Preview ──
     const price = parseFloat(val('salePrice')) || 0;
-    setText('salePreviewSitePrice', price > 0 ? '$' + price.toLocaleString() : '$0');
+    setText('salePreviewSitePrice', price > 0 ? '$' + price.toLocaleString() : '--');
 
     const fullAddr = [];
     if (st !== '--') fullAddr.push(st);
     if (un !== '--') fullAddr.push(', Unit ' + un);
-    setText('salePreviewSiteAddress', fullAddr.length ? fullAddr.join('') : 'Address');
+    setText('salePreviewSiteAddress', fullAddr.length ? fullAddr.join('') : '--');
 
     const hood = val('saleNeighborhood', '');
     const boro = val('saleBorough', '');
@@ -6672,7 +6635,7 @@ function updateSalePreview() {
     setText('salePreviewSiteDetailType', propType || '--');
     setText('salePreviewSiteDetailFloor', val('saleFloorInBuilding'));
     setText('salePreviewSiteDetailYear', val('saleBldgYearBuilt'));
-    setText('salePreviewSiteDetailDOM', val('saleDaysOnMarket', '0'));
+    setText('salePreviewSiteDetailDOM', ((document.getElementById('saleDaysOnMarket') || {}).textContent || '--'));
 
     // Exposure
     const exposures = [];
@@ -6734,8 +6697,13 @@ function renderSaleViewer() {
         var listingData = loadSaleListingData(VIEWER_LISTING_ID);
         if (!listingData) { showSaleFailClosed(VIEWER_LISTING_ID); return; }
         showSaleMainTab(1);
-        if (typeof applySalesFieldRules === 'function') applySalesFieldRules();
+        // The field rules fall back to a default type (Condo on a sale, Rental Building on a rental) when none is chosen: a listing whose
+        // type is unknown is not shown as one, so they run only when the record named a type.
+        if (typeof applySalesFieldRules === 'function' && document.querySelector('input[name="salePropertyType"]:checked')) applySalesFieldRules();
+        // The field rules may reset a control (they do on the Add form); the stored record has the last word.
+        MallanViewerHydration.hydrate('sale', VIEWER_LISTINGS[VIEWER_LISTING_ID]._raw);
         convertSaleFormToViewer();
+        viewerHideWriteControls();
         patchGetSaleFormValue();
         updateSaleHeaderForViewer(listingData);
         removeSaleNavigationButtons();
@@ -6758,6 +6726,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // If no listing ID provided, show placeholder
     if (!VIEWER_LISTING_ID) {
+        document.body.classList.remove('skeleton-loading');
         document.body.innerHTML = '<div class="no-listing-placeholder"><div class="card">' +
             '<i class="fas fa-search"></i>' +
             '<h2>No Listing Selected</h2>' +
@@ -6771,8 +6740,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     neutralizeSaleFormSystems();
 
-    // Identity (server role) first, then the listing, then render. Any failure, or no answer within 30 seconds, ends on the
-    // fail-closed screen.
+    // Identity (server role) first, then the listing, then render. A signed-out visitor, or an identity service that cannot be reached
+    // (the api client reports both as not authenticated), goes to the login page; a listing failure, or no answer within 30 seconds, ends
+    // on the fail-closed screen.
     var finished = false;
     var guard = setTimeout(function() {
         if (finished) return;
@@ -6807,7 +6777,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // COMMISSION REQUEST — Auto-populate & Calculate
 // ══════════════════════════════════════════════════════
 function populateSaleCommissionFields() {
-    var val = function(id) { var el = document.getElementById(id); return el ? (el.value || el.textContent || '') : ''; };
+    var val = function(id) { var el = document.getElementById(id); return el ? viewerReadValue(el) : ''; };
     var set = function(id, v) { var el = document.getElementById(id); if (el) el.value = v; };
     var selText = function(id) {
         var el = document.getElementById(id);
@@ -6976,7 +6946,7 @@ function toggleAllSalePrintSections(on) {
 
 function getSaleFormValue(id) {
     var el = document.getElementById(id);
-    return el ? (el.value || el.textContent || '').trim() : '';
+    return el ? viewerReadValue(el).trim() : '';
 }
 
 function getSaleRadioValue(name) {
