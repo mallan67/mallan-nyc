@@ -1058,7 +1058,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label">Availability Comments</label>
-                    <input type="text" placeholder="Enter availability comments" class="field-input">
+                    <input id="saleAvailabilityComments" type="text" placeholder="Enter availability comments" class="field-input">
                 </div>
             </div>
             <!-- Status-conditional dates -->
@@ -1154,7 +1154,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label">Flip Tax Type</label>
-                    <select class="field-input">
+                    <select id="saleFlipTaxType" class="field-input">
                         <option value="">Select Type</option>
                         <option value="Percentage">Percentage</option>
                         <option value="FixedAmount">Fixed Amount</option>
@@ -1163,7 +1163,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label">Paid By</label>
-                    <select class="field-input">
+                    <select id="saleFlipTaxPaidBy" class="field-input">
                         <option value="">Select...</option>
                         <option value="Seller">Seller</option>
                         <option value="Buyer">Buyer</option>
@@ -1177,7 +1177,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
             </div>
             <label class="field-label">Flip Tax Remarks</label>
-            <textarea rows="2" placeholder="Additional flip tax information..." class="field-input"></textarea>
+            <textarea id="saleFlipTaxRemarks" rows="2" placeholder="Additional flip tax information..." class="field-input"></textarea>
         </div>
 
         <!-- Building Requirements -->
@@ -1299,7 +1299,7 @@ body { font-family: Manrope, sans-serif; }
                         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleBuyerAgentPays" value="BuyerPays" class="w-4 h-4" data-rls-ignore="true"> Buyer Pays</label>
                     </div>
                     <label class="field-label">Commission Comments</label>
-                    <textarea rows="2" placeholder="Commission details..." class="field-input"></textarea>
+                    <textarea id="saleCommissionComments" rows="2" placeholder="Commission details..." class="field-input"></textarea>
                 </div>
             </div>
         </div>
@@ -1816,11 +1816,11 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label">Staff Bedrooms</label>
-                    <input type="number" placeholder="0" class="field-input">
+                    <input id="saleStaffBedrooms" type="number" placeholder="0" class="field-input">
                 </div>
                 <div>
                     <label class="field-label">Staff Bathrooms</label>
-                    <input type="number" placeholder="0" class="field-input">
+                    <input id="saleStaffBathrooms" type="number" placeholder="0" class="field-input">
                 </div>
             </div>
         </div>
@@ -1859,7 +1859,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label">Ceiling Height</label>
-                    <input type="text" placeholder="e.g., 9 ft" class="field-input">
+                    <input id="saleCeilingHeight" type="text" placeholder="e.g., 9 ft" class="field-input">
                 </div>
             </div>
         </div>
@@ -1899,7 +1899,7 @@ body { font-family: Manrope, sans-serif; }
             </div>
             <div class="max-w-xs">
                 <label class="field-label">Number of Garage Spaces</label>
-                <input type="text" placeholder="Number of garage spaces" class="field-input">
+                <input id="saleGarageSpacesCount" type="text" placeholder="Number of garage spaces" class="field-input">
             </div>
         </div>
 
@@ -1937,15 +1937,15 @@ body { font-family: Manrope, sans-serif; }
                     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                         <div>
                             <label class="text-xs text-gray-600 block mb-1">Lot Size (SqFt)</label>
-                            <input type="number" placeholder="0" class="field-input">
+                            <input id="saleCommercialLotSize" type="number" placeholder="0" class="field-input">
                         </div>
                         <div>
                             <label class="text-xs text-gray-600 block mb-1">Building Size (SqFt)</label>
-                            <input type="number" placeholder="0" class="field-input">
+                            <input id="saleCommercialBuildingSize" type="number" placeholder="0" class="field-input">
                         </div>
                         <div>
                             <label class="text-xs text-gray-600 block mb-1">Zoning</label>
-                            <select class="field-input">
+                            <select id="saleCommercialZoning" class="field-input">
                                 <option value="">Select Zoning</option>
                                 <option value="C1">C1 - Local Commercial</option>
                                 <option value="C2">C2 - Local Commercial</option>
@@ -1961,35 +1961,35 @@ body { font-family: Manrope, sans-serif; }
                         </div>
                         <div>
                             <label class="text-xs text-gray-600 block mb-1">FAR (Floor Area Ratio)</label>
-                            <input type="number" step="0.01" placeholder="0.00" class="field-input">
+                            <input id="saleCommercialFAR" type="number" step="0.01" placeholder="0.00" class="field-input">
                         </div>
                         <div>
                             <label class="text-xs text-gray-600 block mb-1">Air Rights (SqFt)</label>
-                            <input type="number" placeholder="0" class="field-input">
+                            <input id="saleCommercialAirRights" type="number" placeholder="0" class="field-input">
                         </div>
                         <div>
                             <label class="text-xs text-gray-600 block mb-1">Ceiling Height (ft)</label>
-                            <input type="number" step="0.5" placeholder="0" class="field-input">
+                            <input id="saleCommercialCeilingHeightFt" type="number" step="0.5" placeholder="0" class="field-input">
                         </div>
                         <div>
                             <label class="text-xs text-gray-600 block mb-1">Frontage (ft)</label>
-                            <input type="number" placeholder="0" class="field-input">
+                            <input id="saleCommercialFrontageFt" type="number" placeholder="0" class="field-input">
                         </div>
                         <div>
                             <label class="text-xs text-gray-600 block mb-1">Cap Rate (%)</label>
-                            <input type="number" step="0.01" placeholder="0.00" class="field-input">
+                            <input id="saleCommercialCapRate" type="number" step="0.01" placeholder="0.00" class="field-input">
                         </div>
                         <div>
                             <label class="text-xs text-gray-600 block mb-1">Net Operating Income (NOI)</label>
-                            <input type="number" placeholder="$0" class="field-input">
+                            <input id="saleCommercialNOI" type="number" placeholder="$0" class="field-input">
                         </div>
                         <div>
                             <label class="text-xs text-gray-600 block mb-1">Number of Units (Total)</label>
-                            <input type="number" placeholder="0" class="field-input">
+                            <input id="saleCommercialUnitsTotal" type="number" placeholder="0" class="field-input">
                         </div>
                         <div>
                             <label class="text-xs text-gray-600 block mb-1">Number of Retail Units</label>
-                            <input type="number" placeholder="0" class="field-input">
+                            <input id="saleCommercialRetailUnits" type="number" placeholder="0" class="field-input">
                         </div>
                     </div>
                 </div>
@@ -2019,7 +2019,7 @@ body { font-family: Manrope, sans-serif; }
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                         <div>
                             <label class="text-xs text-gray-600 block mb-1">Lease Type</label>
-                            <select class="field-input">
+                            <select id="saleCommercialLeaseType" class="field-input">
                                 <option value="">Select Type</option>
                                 <option value="NNN">NNN (Triple Net)</option>
                                 <option value="NN">NN (Double Net)</option>
@@ -2031,16 +2031,16 @@ body { font-family: Manrope, sans-serif; }
                         </div>
                         <div>
                             <label class="text-xs text-gray-600 block mb-1">Minimum Lease Term</label>
-                            <input type="text" placeholder="e.g., 5 years" class="field-input">
+                            <input id="saleCommercialMinLeaseTerm" type="text" placeholder="e.g., 5 years" class="field-input">
                         </div>
                         <div>
                             <label class="text-xs text-gray-600 block mb-1">Current Tenant</label>
-                            <input type="text" placeholder="Tenant name" class="field-input">
+                            <input id="saleCommercialCurrentTenant" type="text" placeholder="Tenant name" class="field-input">
                         </div>
                         <div>
                             <label class="text-xs text-gray-600 block mb-1">Lease Expiration</label>
                             <div class="relative">
-                                <input type="date" class="field-input">
+                                <input id="saleCommercialLeaseExpiration" type="date" class="field-input">
                                 <i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
                             </div>
                         </div>
@@ -2530,15 +2530,15 @@ body { font-family: Manrope, sans-serif; }
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                     <label class="text-xs text-gray-600 block mb-1">Decorative Fireplaces</label>
-                    <input type="number" placeholder="0" class="field-input">
+                    <input id="saleDecorativeFireplaces" type="number" placeholder="0" class="field-input">
                 </div>
                 <div>
                     <label class="text-xs text-gray-600 block mb-1">Gas Fireplaces</label>
-                    <input type="number" placeholder="0" class="field-input">
+                    <input id="saleGasFireplaces" type="number" placeholder="0" class="field-input">
                 </div>
                 <div>
                     <label class="text-xs text-gray-600 block mb-1">Woodburning Fireplaces</label>
-                    <input type="number" placeholder="0" class="field-input">
+                    <input id="saleWoodburningFireplaces" type="number" placeholder="0" class="field-input">
                 </div>
             </div>
         </div>
@@ -2546,7 +2546,7 @@ body { font-family: Manrope, sans-serif; }
         <!-- Feature Description -->
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-pencil"></i> Feature Description</div>
-            <textarea rows="4" placeholder="Describe any additional features, changes, or special characteristics of the unit..."
+            <textarea id="saleFeatureDescription" rows="4" placeholder="Describe any additional features, changes, or special characteristics of the unit..."
                       class="field-input"></textarea>
             <button class="mt-3 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition">
                 <i class="fas fa-save mr-1"></i> Save Feature / Changes / Sort Order
@@ -2767,7 +2767,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div id="saleTHBasementType" style="display:none;">
                     <label class="field-label">Basement Type</label>
-                    <select class="field-input">
+                    <select id="saleTHBasementKind" class="field-input">
                         <option value="">Select</option>
                         <option value="Finished">Finished</option>
                         <option value="PartiallyFinished">Partially Finished</option>
@@ -7239,6 +7239,14 @@ function toggleSaleRequiredFields() {
  * Collect all sale form fields into a flat object with RESO field names.
  * Used by both submit and auto-save.
  */
+// A yes / no a select or checkbox holds, for the provider's boolean fields: true for Yes, false for No, and nothing at all for a question nobody answered (an
+// unanswered field is not asserted false). The selects hold "Yes" / "No"; comparing them with true / 'true' made every answer false.
+function _answerOrUndefined(v) {
+    if (v === true || v === 'true' || v === 'Yes') return true;
+    if (v === false || v === 'false' || v === 'No') return false;
+    return undefined;
+}
+
 function collectSaleFormData() {
     var data = { listing_type: 'sale' };
     // `add-sales-listing` was the legacy shell container — doesn't exist in
@@ -7620,7 +7628,8 @@ function collectSaleFormData() {
     // ElevatorsTotal is NOT in live Cotality $metadata (phantom — verified
     // 2026-05-30). Keep internal (saleBldgNumElevators via the building-modal
     // sweep); do not emit canonical. (Track 1.)
-    data.GarageYN = data.saleTHGarageYN === true || data.saleTHGarageYN === 'true' || data.saleTHGarageYN === 'Yes';
+    var _GarageYN = _answerOrUndefined(data.saleTHGarageYN);
+    if (_GarageYN !== undefined) data.GarageYN = _GarageYN;
     data.OnMarketDate = data.saleDateListed || '';
     data.ExpirationDate = data.saleExclusiveExpires || '';
     data.ListingContractDate = data.saleExclusiveStart || '';
@@ -7681,14 +7690,16 @@ function collectSaleFormData() {
     data.GarageSpaces = parseInt(data.saleTHGarageSpaces || '0') || null;
     data.ParkingTotal = parseInt(data.saleTHParkingTotal || '0') || null;
     data.FoundationArea = parseFloat(data.saleTHFoundationArea || '0') || 0;
-    data.BasementYN = data.saleTHBasementYN === true || data.saleTHBasementYN === 'true';
+    var _BasementYN = _answerOrUndefined(data.saleTHBasementYN);
+    if (_BasementYN !== undefined) data.BasementYN = _BasementYN;
     data.LotSizeArea = parseFloat(data.saleTHLotSize || '0') || 0;
 
     // Building fields
     // YearRenovated phantom emit removed (Cotality-clean 2026-05-30): not in live
     // $metadata. Value persists as internal saleBldgYearRenovated (SALE_FIELD_MAP, legacy fallback).
     data.SponsorUnitYN = data.saleBldgSponsorUnits === true || data.saleBldgSponsorUnits === 'true';
-    data.TaxAbatementYN = data.saleBldgTaxAbatementYN === true || data.saleBldgTaxAbatementYN === 'true';
+    var _TaxAbatementYN = _answerOrUndefined(data.saleBldgTaxAbatementYN);
+    if (_TaxAbatementYN !== undefined) data.TaxAbatementYN = _TaxAbatementYN;
     data.TaxAbatementComments = data.saleBldgTaxAbatementComments || '';
     // RentingAllowedYN phantom emit removed (Cotality-clean 2026-05-30): not in live
     // $metadata. Value persists as internal saleBldgSublettingAllowed (SALE_FIELD_MAP, legacy fallback).

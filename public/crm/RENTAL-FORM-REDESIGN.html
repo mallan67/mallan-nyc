@@ -867,11 +867,11 @@ body { font-family: Manrope, sans-serif; }
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                         <div>
                             <label class="field-label">Usable Sq Ft</label>
-                            <input type="number" placeholder="0" class="field-input">
+                            <input id="rentalUsableSqFt" type="number" placeholder="0" class="field-input">
                         </div>
                         <div>
                             <label class="field-label">Lease Type</label>
-                            <select class="field-input">
+                            <select id="rentalCommercialLeaseType" class="field-input">
                                 <option value="">Select...</option>
                                 <option value="Gross">Gross</option>
                                 <option value="Net">Net</option>
@@ -883,7 +883,7 @@ body { font-family: Manrope, sans-serif; }
                         </div>
                         <div>
                             <label class="field-label">Zoning</label>
-                            <select class="field-input">
+                            <select id="rentalCommercialZoning" class="field-input">
                                 <option value="">Select Zoning</option>
                                 <option value="C1">C1 - Local Commercial</option>
                                 <option value="C2">C2 - Local Commercial</option>
@@ -900,19 +900,19 @@ body { font-family: Manrope, sans-serif; }
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                         <div>
                             <label class="field-label">Ceiling Height (ft)</label>
-                            <input type="number" step="0.5" placeholder="0" class="field-input">
+                            <input id="rentalCeilingHeightFt" type="number" step="0.5" placeholder="0" class="field-input">
                         </div>
                         <div>
                             <label class="field-label">Frontage (ft)</label>
-                            <input type="number" placeholder="0" class="field-input">
+                            <input id="rentalFrontageFt" type="number" placeholder="0" class="field-input">
                         </div>
                         <div>
                             <label class="field-label">Min Lease Term</label>
-                            <input type="text" placeholder="e.g., 5 years" class="field-input">
+                            <input id="rentalCommercialMinLeaseTerm" type="text" placeholder="e.g., 5 years" class="field-input">
                         </div>
                         <div>
                             <label class="field-label">Lease Expiration</label>
-                            <input type="date" class="field-input">
+                            <input id="rentalCommercialLeaseExpiration" type="date" class="field-input">
                         </div>
                     </div>
                 </div>
@@ -2296,13 +2296,13 @@ body { font-family: Manrope, sans-serif; }
         </div>
         <div>
             <label class="field-label">Basement</label>
-            <select id="rentalTHBasementYN" class="field-input" onchange="document.getElementById('rentalTHBasementType').style.display=this.value==='true'?'block':'none'" data-rls-field="BasementYN">
+            <select id="rentalTHBasementYN" class="field-input" onchange="document.getElementById('rentalTHBasementType').style.display=this.value==='Yes'?'block':'none'" data-rls-field="BasementYN">
                 <option value="">Select</option><option value="Yes">Yes</option><option value="No">No</option>
             </select>
         </div>
         <div id="rentalTHBasementType" style="display:none;">
             <label class="field-label">Basement Type</label>
-            <select class="field-input">
+            <select id="rentalTHBasementKind" class="field-input">
                 <option value="">Select</option><option value="Finished">Finished</option><option value="PartiallyFinished">Partially Finished</option>
                 <option value="Unfinished">Unfinished</option><option value="CrawlSpace">Crawl Space</option><option value="DirtFloor">Dirt Floor</option><option value="ExteriorEntry">Exterior Entry</option>
             </select>
@@ -5282,6 +5282,14 @@ function showToast(message, type) {
 // Override native alert → toast
 window.alert = function(msg) { showToast(String(msg)); };
 
+// A yes / no a select or checkbox holds, for the provider's boolean fields: true for Yes, false for No, and nothing at all for a question nobody answered (an
+// unanswered field is not asserted false). The selects hold "Yes" / "No"; comparing them with true / 'true' made every answer false.
+function _answerOrUndefined(v) {
+    if (v === true || v === 'true' || v === 'Yes') return true;
+    if (v === false || v === 'false' || v === 'No') return false;
+    return undefined;
+}
+
 /**
  * Collect all rental form fields into a flat object with RESO field names.
  * Used by both submit and auto-save.
@@ -5468,6 +5476,18 @@ function collectRentalFormData() {
     });
     // Furnished is a live Cotality enum (Furnished / Negotiable / Partially / Unfurnished): the Furnished select is its control.
     if (data.rentalFurnished) data.Furnished = data.rentalFurnished;
+    // Rental deal fees: the rows the agent filled in (fee type, description, cost), saved as a list. A row left blank is not data. The rows are added and removed with
+    // the table's buttons, so they have no ids (the sweep above skips them); saving the list is what lets them come back.
+    data.rentalDealFees = [];
+    document.querySelectorAll('#rentalFeesTableBody tr').forEach(function(tr) {
+        var feeType = tr.querySelector('select');
+        var feeDescription = tr.querySelector('input[type="text"]');
+        var feeCost = tr.querySelector('input[type="number"]');
+        var description = feeDescription ? feeDescription.value.trim() : '';
+        var cost = feeCost ? feeCost.value.trim() : '';
+        if (!description && !cost) return;
+        data.rentalDealFees.push({ type: feeType ? feeType.value : '', description: description, cost: cost });
+    });
     // OwnerPays — single checkbox (id-based, no name attribute)
     var ownerPaysEl = document.getElementById('rentalOwnerPays');
     data.OwnerPays = (ownerPaysEl && ownerPaysEl.checked) ? ['Yes'] : [];
@@ -5478,7 +5498,8 @@ function collectRentalFormData() {
     data.RoomsTotal = parseInt(data.rentalTotalRooms || '0') || null;
     data.Concessions = data.rentalConcessions || '';
     data.ElevatorsTotal = parseInt(data.bldgNumElevators || '0') || null;
-    data.GarageYN = data.rentalTHGarageYN === true || data.rentalTHGarageYN === 'true' || data.rentalTHGarageYN === 'Yes';
+    var _GarageYN = _answerOrUndefined(data.rentalTHGarageYN);
+    if (_GarageYN !== undefined) data.GarageYN = _GarageYN;
     data.OnMarketDate = data.rentalDateListed || '';
     data.ExpirationDate = data.rentalExclusiveExpires || '';
     data.ListingContractDate = data.rentalExclusiveStart || '';
@@ -5522,14 +5543,17 @@ function collectRentalFormData() {
     data.GarageSpaces = parseInt(data.rentalTHGarageSpaces || '0') || null;
     data.ParkingTotal = parseInt(data.rentalTHParkingTotal || '0') || null;
     data.FoundationArea = parseFloat(data.rentalTHFoundationArea || '0') || 0;
-    data.BasementYN = data.rentalTHBasementYN === true || data.rentalTHBasementYN === 'true';
+    var _BasementYN = _answerOrUndefined(data.rentalTHBasementYN);
+    if (_BasementYN !== undefined) data.BasementYN = _BasementYN;
     data.LotSizeArea = parseFloat(data.rentalTHLotSize || '0') || 0;
 
     // Building fields
     data.YearRenovated = parseInt(data.bldgYearRenovated || '0') || null;
-    data.TaxAbatementYN = data.bldgTaxAbatementYN === true || data.bldgTaxAbatementYN === 'true';
+    var _TaxAbatementYN = _answerOrUndefined(data.bldgTaxAbatementYN);
+    if (_TaxAbatementYN !== undefined) data.TaxAbatementYN = _TaxAbatementYN;
     data.TaxAbatementComments = data.bldgTaxAbatementComments || '';
-    data.RentingAllowedYN = data.bldgSublettingAllowed === true || data.bldgSublettingAllowed === 'true';
+    var _RentingAllowedYN = _answerOrUndefined(data.bldgSublettingAllowed);
+    if (_RentingAllowedYN !== undefined) data.RentingAllowedYN = _RentingAllowedYN;
 
     // Media fields
     data.VirtualTourURLUnbranded = data.rentalVirtualTourUnbranded || '';

@@ -851,11 +851,11 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                         <div>
                             <label class="field-label">Usable Sq Ft</label>
-                            <input type="number" placeholder="0" class="field-input">
+                            <input id="rentalUsableSqFt" type="number" placeholder="0" class="field-input">
                         </div>
                         <div>
                             <label class="field-label">Lease Type</label>
-                            <select class="field-input">
+                            <select id="rentalCommercialLeaseType" class="field-input">
                                 <option value="">Select...</option>
                                 <option value="Gross">Gross</option>
                                 <option value="Net">Net</option>
@@ -867,7 +867,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         </div>
                         <div>
                             <label class="field-label">Zoning</label>
-                            <select class="field-input">
+                            <select id="rentalCommercialZoning" class="field-input">
                                 <option value="">Select Zoning</option>
                                 <option value="C1">C1 - Local Commercial</option>
                                 <option value="C2">C2 - Local Commercial</option>
@@ -884,19 +884,19 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                         <div>
                             <label class="field-label">Ceiling Height (ft)</label>
-                            <input type="number" step="0.5" placeholder="0" class="field-input">
+                            <input id="rentalCeilingHeightFt" type="number" step="0.5" placeholder="0" class="field-input">
                         </div>
                         <div>
                             <label class="field-label">Frontage (ft)</label>
-                            <input type="number" placeholder="0" class="field-input">
+                            <input id="rentalFrontageFt" type="number" placeholder="0" class="field-input">
                         </div>
                         <div>
                             <label class="field-label">Min Lease Term</label>
-                            <input type="text" placeholder="e.g., 5 years" class="field-input">
+                            <input id="rentalCommercialMinLeaseTerm" type="text" placeholder="e.g., 5 years" class="field-input">
                         </div>
                         <div>
                             <label class="field-label">Lease Expiration</label>
-                            <input type="date" class="field-input">
+                            <input id="rentalCommercialLeaseExpiration" type="date" class="field-input">
                         </div>
                     </div>
                 </div>
@@ -2270,13 +2270,13 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
         </div>
         <div>
             <label class="field-label">Basement</label>
-            <select id="rentalTHBasementYN" class="field-input" onchange="document.getElementById('rentalTHBasementType').style.display=this.value==='true'?'block':'none'" data-rls-field="BasementYN">
+            <select id="rentalTHBasementYN" class="field-input" onchange="document.getElementById('rentalTHBasementType').style.display=this.value==='Yes'?'block':'none'" data-rls-field="BasementYN">
                 <option value="">Select</option><option value="Yes">Yes</option><option value="No">No</option>
             </select>
         </div>
         <div id="rentalTHBasementType" style="display:none;">
             <label class="field-label">Basement Type</label>
-            <select class="field-input">
+            <select id="rentalTHBasementKind" class="field-input">
                 <option value="">Select</option><option value="Finished">Finished</option><option value="PartiallyFinished">Partially Finished</option>
                 <option value="Unfinished">Unfinished</option><option value="CrawlSpace">Crawl Space</option><option value="DirtFloor">Dirt Floor</option><option value="ExteriorEntry">Exterior Entry</option>
             </select>
@@ -4495,7 +4495,8 @@ function viewerReadValue(el) {
 function viewerHideWriteControls() {
     var writers = [
         '[onclick*="addRentalCoListAgent"]', '[onclick*="removeRentalCoListAgent"]', '[onclick*="useRentalExclusiveAgentContact"]',
-        '[onclick*="addRentalOpenHouse"]', '[onclick*="saveRentalOpenHouse"]', '[onclick*="cancelRentalOpenHouse"]'
+        '[onclick*="addRentalOpenHouse"]', '[onclick*="saveRentalOpenHouse"]', '[onclick*="cancelRentalOpenHouse"]',
+        '[onclick*="addRentalFeeRow"]', '#rentalFeesTableBody button'
     ];
     document.querySelectorAll(writers.join(', ')).forEach(function(b) { b.classList.add('viewer-hidden'); });
 }

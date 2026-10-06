@@ -769,6 +769,30 @@
     });
   }
 
+  // Rental deal fees: a dynamic table (fee type, description, cost) that the form saves as a list under rentalDealFees. The saved rows replace the table's rows,
+  // built from a copy of its first row (so the markup, the options and the delete button are the page's own); a list with nothing in it leaves the table as it is.
+  // A viewer has no use for the delete button, so a viewer's rows lose it.
+  function applyDealFees(raw, edit) {
+    var body = byId('rentalFeesTableBody');
+    var fees = raw.rentalDealFees;
+    if (!body || !Array.isArray(fees) || !fees.length) return;
+    var model = body.querySelector('tr');
+    if (!model) return;
+    var rows = fees.filter(isObject).map(function (fee) {
+      var tr = model.cloneNode(true);
+      var type = tr.querySelector('select');
+      var description = tr.querySelector('input[type="text"]');
+      var cost = tr.querySelector('input[type="number"]');
+      if (type) setValue(type, fee.type);
+      if (description) description.value = isBlank(fee.description) ? '' : String(fee.description);
+      if (cost) cost.value = isBlank(fee.cost) ? '' : String(fee.cost);
+      if (!edit) tr.querySelectorAll('button').forEach(function (b) { b.classList.add('viewer-hidden'); });
+      return tr;
+    });
+    while (body.firstChild) body.removeChild(body.firstChild);
+    rows.forEach(function (tr) { body.appendChild(tr); });
+  }
+
   // ── Classification (Mallan's own property-type radio) from independent raw provider dimensions ──────────────────────────────────
   function classifyRental(raw, listing) {
     var byOwnership = { Condominium: 'Condo', StockCooperative: 'Coop', Condop: 'Condop', RentalBuilding: 'RentalBuilding' };
@@ -945,6 +969,7 @@
     applyArrays(cfg.arrays, raw, touched);
     if (kind === 'sale') applySyndication(raw, touched);
     applyBuildingFeatures(kind, raw);
+    if (kind === 'rental') applyDealFees(raw, edit);
 
     if (!edit) {
       // Ownership (the exact provider reference) and Mallan's own classification, from independent raw dimensions.
