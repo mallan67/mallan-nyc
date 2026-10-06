@@ -127,18 +127,22 @@ describe('identity capture — /api/auth/me exposes trestle_mls_id; form stamps 
     expect(me).toMatch(/trestle_mls_id:\s*true/);
     expect(me).toMatch(/mlsId:\s*agent\.trestle_mls_id/);
   });
-  it('form collect maps ListAgentMlsId from the Cotality mls id, NOT the internal Agent.id', () => {
-    expect(form).toMatch(/data\.ListAgentMlsId\s*=\s*data\.saleUpdatingAgentMlsId/);
+  const defaults = read('public/crm/js/forms/agent-defaults.js');
+  // The save used to read hidden inputs that sit outside the area it sweeps, so ListAgentMlsId was always blank. crm-agent-defaults.test.ts drives the page
+  // and proves the payload; these pin the wiring it depends on.
+  it('form collect takes the agent identity from MallanAgentDefaults.identity, whose ListAgentMlsId is the Cotality mls id, NOT the internal Agent.id', () => {
+    expect(form).toMatch(/MallanAgentDefaults\.identity\('sale'\)/);
+    expect(defaults).toMatch(/ListAgentMlsId: read\(prefix, 'mlsId'\)/);
+    expect(defaults).not.toMatch(/ListAgentMlsId: read\(prefix, 'id'\)/);
     expect(form).not.toMatch(/data\.ListAgentMlsId\s*=\s*data\.saleUpdatingAgent\b\s*\|\|/);
   });
-  it('form persists the hidden saleUpdatingAgentMlsId field from the session', () => {
+  it('form persists the hidden saleUpdatingAgentMlsId field from the session mlsId', () => {
     expect(form).toMatch(/id="saleUpdatingAgentMlsId"/);
-    expect(form).toMatch(/setVal\('saleUpdatingAgentMlsId',\s*u\.mlsId\)/);
+    expect(defaults).toMatch(/\['id', 'name', 'phone', 'email', 'license', 'mlsId', 'companyKey', 'companyName'\]\.forEach\(function \(part\) \{ write\(prefix, part, user\[part\], editing\); \}\)/);
   });
-  it('CRM-owned office name is canonical; the company-key slug is no longer written into ListOfficeKey', () => {
-    expect(form).toMatch(/data\.ListOfficeName\s*=\s*data\.saleUpdatingAgentCompanyName\s*\|\|\s*'Mallan Real Estate Inc\.'/);
-    // The prior bug wrote the "mallan" company-key slug into ListOfficeKey.
+  it('the company-key slug is never written into ListOfficeKey: only a digit string (a Cotality OfficeKey) is submitted', () => {
     expect(form).not.toMatch(/data\.ListOfficeKey\s*=\s*data\.saleUpdatingAgentCompanyKey/);
+    expect(defaults).toMatch(/if \(isCotalityId\(officeKey\)\) out\.ListOfficeKey = officeKey;/);
   });
 });
 

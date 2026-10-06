@@ -111,7 +111,9 @@
     { rls: 'ListAgentEmail', form: 'saleUpdatingAgentEmail', type: 'text', src: 'agentInfo', agentKey: 'ListAgentEmail', typedKey: 'list_agent_email' },
     { rls: 'ListAgentDirectPhone', form: 'saleUpdatingAgentPhone', type: 'text', src: 'agentInfo', agentKey: 'ListAgentDirectPhone', typedKey: 'list_agent_direct_phone' },
     { rls: 'ListOfficeName', form: 'saleUpdatingAgentCompanyName', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeName', typedKey: 'list_office_name' },
-    { rls: 'ListOfficeKey', form: 'saleUpdatingAgentCompanyKey', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeKey' },
+    { rls: 'ListAgentKey', form: 'saleUpdatingAgentKey', type: 'text', src: 'agentInfo', agentKey: 'ListAgentKey' },
+    { rls: 'ListOfficeKey', form: 'saleUpdatingAgentOfficeKey', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeKey' }, // the Cotality OfficeKey; the company slug lives in saleUpdatingAgentCompanyKey and is never a provider key
+    { rls: 'ListOfficeMlsId', form: 'saleUpdatingAgentOfficeMlsId', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeMlsId', typedKey: 'list_office_mls_id' },
 
     // ── Team ──
     { rls: 'ListTeamName', form: 'saleListTeamName', type: 'text', src: 'raw' },

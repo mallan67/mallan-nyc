@@ -16,20 +16,33 @@ import { join } from "path";
 const sale = readFileSync(join(process.cwd(), "public", "crm", "SALE-FORM-REDESIGN.html"), "utf8");
 const rental = readFileSync(join(process.cwd(), "public", "crm", "RENTAL-FORM-REDESIGN.html"), "utf8");
 
-describe("Phase C — SALE form hydrates agent fields typed-first", () => {
+const defaults = readFileSync(join(process.cwd(), "public", "crm", "js", "forms", "agent-defaults.js"), "utf8");
+
+describe("Phase C — both forms hydrate the saved listing agent typed-first (MallanAgentDefaults.hydrate)", () => {
+  // The hydration lives in public/crm/js/forms/agent-defaults.js, which both forms call. crm-agent-defaults.test.ts boots the real pages with typed
+  // columns that differ from agent_info and raw_data and requires the typed value; this pins the structure.
   it.each([
     ["list_agent_mls_id", "ListAgentMlsId"],
     ["list_agent_full_name", "ListAgentFullName"],
     ["list_agent_direct_phone", "ListAgentDirectPhone"],
     ["list_agent_email", "ListAgentEmail"],
     ["list_office_name", "ListOfficeName"],
+    ["list_office_mls_id", "ListOfficeMlsId"],
   ])("reads listing.%s before agentInfo.%s", (typedCol, jsonKey) => {
-    expect(sale).toContain(`listing.${typedCol} || agentInfo.${jsonKey}`);
+    expect(defaults).toContain(`pick('${typedCol}', '${jsonKey}')`);
   });
 
-  it("hasSavedAgent gate also considers the typed columns (post-Phase-C exclusive recognized)", () => {
-    expect(sale).toMatch(/hasSavedAgent\s*=\s*!!\(listing\.list_agent_mls_id \|\| listing\.list_agent_full_name/);
+  it("the reader tries the typed column, then agent_info, then raw_data", () => {
+    expect(defaults).toContain("(typed && listing[typed]) || info[key] || raw[key]");
   });
+
+  it("both forms hand the saved listing to the module", () => {
+    expect(sale).toContain("MallanAgentDefaults.hydrate('sale', listing");
+    expect(rental).toContain("MallanAgentDefaults.hydrate('rental', listing");
+  });
+});
+
+describe("Phase C — SALE form hydrates the hidden agent fields typed-first", () => {
 
   // Second hydration path: the SALE_FIELD_MAP generic loader for the hidden saleUpdatingAgent*
   // fields (which feed the save). Each agent entry must carry a typedKey and the loader must
@@ -54,18 +67,8 @@ describe("Phase C — SALE form hydrates agent fields typed-first", () => {
   // `saleUpdatingAgent` (else a no-op edit re-sends the editor's session MLS id). (Codex #420.)
   it("ListAgentMlsId hydrates saleUpdatingAgentMlsId (the submitted field), not saleUpdatingAgent", () => {
     expect(sale).toContain("{ rls: 'ListAgentMlsId', form: 'saleUpdatingAgentMlsId', type: 'text', src: 'agentInfo', agentKey: 'ListAgentMlsId', typedKey: 'list_agent_mls_id' }");
-    // and collectSaleFormData submits ListAgentMlsId from that same field
-    expect(sale).toMatch(/data\.ListAgentMlsId\s*=\s*data\.saleUpdatingAgentMlsId/);
-  });
-});
-
-describe("Phase C — RENTAL form hydrates agent fields typed-first", () => {
-  it.each([
-    ["list_agent_full_name", "ListAgentFullName"],
-    ["list_office_name", "ListOfficeName"],
-    ["list_agent_direct_phone", "ListAgentDirectPhone"],
-    ["list_agent_email", "ListAgentEmail"],
-  ])("reads listing.%s before agentInfo.%s", (typedCol, jsonKey) => {
-    expect(rental).toContain(`listing.${typedCol} || agentInfo.${jsonKey}`);
+    // and the save submits ListAgentMlsId from that same field, through the module that reads the hidden inputs by id (they sit outside the swept area)
+    expect(sale).toContain("MallanAgentDefaults.identity('sale')");
+    expect(defaults).toContain("ListAgentMlsId: read(prefix, 'mlsId')");
   });
 });

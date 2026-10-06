@@ -69,7 +69,7 @@ const has = (doc: Document, key: string) => !!doc.getElementById(key) || doc.get
 // (tested below), and this list shrinks as the cards are brought over.
 const SALE_NOT_ON_VIEWER = [
   'saleStreetNumber', 'saleStreetName', 'saleStreetSuffix', 'saleStreetDirPrefix', 'saleCity', 'saleStateOrProvince', 'salePostalCity', 'saleCountyOrParish',
-  'saleUnparsedAddress', 'saleUpdatingAgentMlsId', 'saleStructureType', 'saleExclusiveCommissionType', 'saleAuctionType', 'saleAuctionTermsUrl',
+  'saleUnparsedAddress', 'saleUpdatingAgentMlsId', 'saleUpdatingAgentKey', 'saleUpdatingAgentOfficeKey', 'saleUpdatingAgentOfficeMlsId', 'saleStructureType', 'saleExclusiveCommissionType', 'saleAuctionType', 'saleAuctionTermsUrl',
   'saleAlsoAvailableForRent', 'saleSendToRls', 'saleSendToWebsite', 'saleBuyerAgentPays',
 ];
 const RENTAL_NOT_ON_VIEWER: string[] = ['rentalFirstShowingDate'];

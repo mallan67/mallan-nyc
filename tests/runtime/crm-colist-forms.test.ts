@@ -89,9 +89,9 @@ async function boot(form: string, handler: (path: string) => unknown = (p) => di
           return out;
         },
       };
-      // jsdom does not fetch external scripts: load the two shared scripts the page references (their tags are asserted separately below),
+      // jsdom does not fetch external scripts: load the shared scripts the page references (their tags are asserted separately below),
       // before any page script runs, in the order the page lists them.
-      for (const file of ['directory-picker', 'colist-section']) w.eval(readFileSync(resolve(__dirname, `../../public/crm/js/forms/${file}.js`), 'utf8'));
+      for (const file of ['directory-picker', 'colist-section', 'agent-defaults']) w.eval(readFileSync(resolve(__dirname, `../../public/crm/js/forms/${file}.js`), 'utf8'));
     },
   });
   await sleep(1000);

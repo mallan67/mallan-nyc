@@ -105,6 +105,7 @@ body { font-family: Manrope, sans-serif; }
 <script src="js/core/api-client.js"></script>
 <script src="js/forms/directory-picker.js"></script>
 <script src="js/forms/colist-section.js"></script>
+<script src="js/forms/agent-defaults.js"></script>
 <script>
 // ── Auth gate (defense-in-depth — middleware is primary) ──
 // NOTE: session_token is httpOnly — JS cannot read it via document.cookie.
@@ -151,6 +152,9 @@ body { font-family: Manrope, sans-serif; }
 <input type="hidden" id="saleUpdatingAgentEmail" value="" data-rls-ignore="true">
 <input type="hidden" id="saleUpdatingAgentLicense" value="" data-rls-ignore="true">
 <input type="hidden" id="saleUpdatingAgentMlsId" value="" data-rls-ignore="true">
+<input type="hidden" id="saleUpdatingAgentKey" value="" data-rls-ignore="true">
+<input type="hidden" id="saleUpdatingAgentOfficeKey" value="" data-rls-ignore="true">
+<input type="hidden" id="saleUpdatingAgentOfficeMlsId" value="" data-rls-ignore="true">
 <input type="hidden" id="saleUpdatingAgentCompanyKey" value="" data-rls-ignore="true">
 <input type="hidden" id="saleUpdatingAgentCompanyName" value="" data-rls-ignore="true">
 
@@ -365,6 +369,7 @@ body { font-family: Manrope, sans-serif; }
                     <label class="field-label">Listing Agent</label>
                     <input type="text" id="saleUpdatingAgentDisplay" value="" class="field-input" readonly data-rls-ignore="true">
                     <p class="text-[10px] text-gray-400 mt-1">Auto-assigned to logged-in agent</p>
+                    <p id="saleAgentCotalityStatus" class="text-[11px] mt-1 text-gray-500" role="status" aria-live="polite"></p>
                 </div>
                 <div>
                     <label class="field-label">Create Date</label>
@@ -4836,95 +4841,20 @@ body { font-family: Manrope, sans-serif; }
 // NO URL PARAMETERS. NO PII IN URLS.
 // ══════════════════════════════════════════════════════
 function initLoggedInAgent() {
-    // Uses MallanAPI.onReady() instead of a redundant MallanAPI.init() call.
-    // The auth gate in <head> already called init(); onReady() fires
-    // synchronously if already resolved, or queues for when it does.
-    // This eliminates the duplicate /api/auth/me fetch and the race condition
-    // where _populateSaleFormFromApi() and initLoggedInAgent() competed
-    // to set Contacts tab fields in edit mode.
+    // The signed-in agent is the listing agent of a new listing. js/forms/agent-defaults.js owns the hidden identity inputs, the Contacts tab and the
+    // Cotality check. MallanAPI.onReady() fires with the session user once the auth gate's init() has resolved (immediately if it already has), so
+    // there is no second /api/auth/me fetch and no race with the edit-mode load.
     function _applyAgentData(u) {
-        if (!u) {
-            console.warn('[SaleForm] Not authenticated — agent fields left blank');
+        if (typeof MallanAgentDefaults === 'undefined') {
+            console.warn('[SaleForm] Agent defaults module not loaded — agent fields left blank');
             showToast('Could not load agent profile. Please verify Listing Agent manually.', 'warning');
             return;
         }
-
-        // ── 1. Hidden payload fields (always, even in edit mode) ──
-        var setVal = function(id, val) { var el = document.getElementById(id); if (el && val) el.value = val; };
-        setVal('saleUpdatingAgent', u.id);
-        setVal('saleUpdatingAgentName', u.name);
-        setVal('saleUpdatingAgentPhone', u.phone);
-        setVal('saleUpdatingAgentEmail', u.email);
-        setVal('saleUpdatingAgentLicense', u.license);
-        setVal('saleUpdatingAgentMlsId', u.mlsId); // Cotality ListAgentMlsId (Agent.trestle_mls_id) — NOT the internal id
-        setVal('saleUpdatingAgentCompanyKey', u.companyKey);
-        setVal('saleUpdatingAgentCompanyName', u.companyName);
-
-        // ── 2. Header bar (always) ──
-        var headerName = document.getElementById('headerAgentName');
-        var headerCompany = document.getElementById('headerCompanyName');
-        if (headerName && u.name) headerName.textContent = u.name;
-        if (headerCompany && u.companyName) headerCompany.textContent = u.companyName;
-
-        // ── 3. Agent & Dates display on Essentials tab (always) ──
-        var agentDisplay = document.getElementById('saleUpdatingAgentDisplay');
-        if (agentDisplay && u.id && u.name) {
-            agentDisplay.value = u.id + ' | ' + u.name;
-        }
-
-        // ── 4. Contacts tab ──
-        // For NEW listings: always populate with logged-in agent.
-        // For EDIT mode: populate ONLY if the saved listing's agent fields are
-        // empty (the server enforces agent_id === auth.userId, so the logged-in
-        // agent IS the listing's owner — auto-fill is safe and required).
-        var inEditMode = (typeof _saleEditMode !== 'undefined' && _saleEditMode);
-        if (inEditMode) {
-            var existingAgent = document.getElementById('saleListingAgent');
-            if (existingAgent && existingAgent.value) return; // saved data exists, don't overwrite
-        }
-
-        // Company dropdown (hidden value + search display)
-        var listingCompanyEl = document.getElementById('saleListingCompany');
-        if (listingCompanyEl && u.companyKey) {
-            listingCompanyEl.value = u.companyKey;
-            var companySearchEl = document.getElementById('saleListingCompanySearch');
-            if (companySearchEl && u.companyName) {
-                companySearchEl.value = u.companyName;
-            }
-        }
-
-        // Agent dropdown (hidden value + search display + dataset.company)
-        var listingAgentEl = document.getElementById('saleListingAgent');
-        if (listingAgentEl && u.id) {
-            listingAgentEl.value = u.id;
-            listingAgentEl.dataset.company = u.companyKey || 'mallan';
-
-            var agentSearchEl = document.getElementById('saleListingAgentSearch');
-            if (agentSearchEl) {
-                agentSearchEl.value = u.name || '';
-                agentSearchEl.disabled = false;
-            }
-
-            // Show agent contact info panel
-            var infoPanel = document.getElementById('saleListingAgentInfo');
-            if (infoPanel) {
-                infoPanel.style.display = 'block';
-                var idEl = document.getElementById('saleListingAgentId');
-                if (idEl) idEl.textContent = u.id;
-                var phoneEl = document.getElementById('saleListingAgentPhone');
-                if (phoneEl) phoneEl.textContent = u.phone || '--';
-                var emailEl = document.getElementById('saleListingAgentEmail');
-                if (emailEl) emailEl.textContent = u.email || '--';
-                var licenseEl = document.getElementById('saleListingAgentLicense');
-                if (licenseEl) licenseEl.textContent = u.license || '--';
-            }
-
-            // Populate agent contacts summary table
-            if (typeof updateSaleAgentTable === 'function') {
-                var cName = u.companyName || 'Mallan Real Estate Inc.';
-                updateSaleAgentTable('listing', u.id, u.name, cName, u.phone || '--', u.email || '--');
-            }
-        }
+        MallanAgentDefaults.apply('sale', u, {
+            editMode: function() { return typeof _saleEditMode !== 'undefined' && _saleEditMode; },
+            updateTable: updateSaleAgentTable,
+            toast: showToast
+        });
     }
 
     if (typeof MallanAPI !== 'undefined' && typeof MallanAPI.onReady === 'function') {
@@ -6196,28 +6126,45 @@ function populateSaleAgentInfo(type) {
 
 function updateSaleAgentTable(type, agentId, name, company, phone, email) {
     const tableBody = document.getElementById('saleAgentContactsTable');
+    if (!tableBody) return;
     const existingRow = tableBody.querySelector('tr[data-type="' + type + '"]');
     const placeholder = document.getElementById('saleAgentContactsPlaceholder');
-
     if (placeholder) placeholder.remove();
 
     const badgeClass = type === 'listing' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700';
     const label = type === 'listing' ? 'Listing Agent' : 'Buyer Agent';
 
-    const rowHTML = '<tr data-type="' + type + '">' +
-        '<td class="border px-3 py-2"><span class="px-2 py-0.5 ' + badgeClass + ' rounded text-xs">' + label + '</span></td>' +
-        '<td class="border px-3 py-2">' + agentId + '</td>' +
-        '<td class="border px-3 py-2 font-medium">' + name + '</td>' +
-        '<td class="border px-3 py-2">' + company + '</td>' +
-        '<td class="border px-3 py-2">' + phone + '</td>' +
-        '<td class="border px-3 py-2">' + email + '</td>' +
-        '<td class="border px-3 py-2"><button class="text-blue-600 hover:text-blue-800 text-xs" aria-label="Edit"><i class="fas fa-edit"></i></button></td>' +
-        '</tr>';
+    // Built with DOM calls: agent, company and contact text is never interpreted as markup.
+    const row = document.createElement('tr');
+    row.setAttribute('data-type', type);
+    const cell = function(text, className) {
+        const td = document.createElement('td');
+        td.className = 'border px-3 py-2' + (className ? ' ' + className : '');
+        td.textContent = text === undefined || text === null ? '' : String(text);
+        row.appendChild(td);
+        return td;
+    };
+    const badge = document.createElement('span');
+    badge.className = 'px-2 py-0.5 ' + badgeClass + ' rounded text-xs';
+    badge.textContent = label;
+    cell('').appendChild(badge);
+    cell(agentId);
+    cell(name, 'font-medium');
+    cell(company);
+    cell(phone);
+    cell(email);
+    const edit = document.createElement('button');
+    edit.className = 'text-blue-600 hover:text-blue-800 text-xs';
+    edit.setAttribute('aria-label', 'Edit');
+    const icon = document.createElement('i');
+    icon.className = 'fas fa-edit';
+    edit.appendChild(icon);
+    cell('').appendChild(edit);
 
     if (existingRow) {
-        existingRow.outerHTML = rowHTML;
+        existingRow.replaceWith(row);
     } else {
-        tableBody.insertAdjacentHTML('beforeend', rowHTML);
+        tableBody.appendChild(row);
     }
 }
 
@@ -7449,29 +7396,16 @@ function collectSaleFormData() {
     // (left undefined when the form value is empty/null — read-side gate's
     // affirmPermission() treats undefined/null as fail-closed.)
 
-    // Agent identity from session (hidden fields populated by initLoggedInAgent)
-    // Cotality-authoritative agent identity (2026-05-28). ListAgentMlsId MUST
-    // be the REBNY/Trestle MLS member id (Agent.trestle_mls_id), surfaced by
-    // /api/auth/me as `mlsId` → hidden saleUpdatingAgentMlsId. The prior code
-    // wrote the INTERNAL Agent.id (saleUpdatingAgent) here, which is NOT a
-    // Cotality identifier and left CRM exclusives un-matchable by ListAgentMlsId.
-    data.ListAgentMlsId = data.saleUpdatingAgentMlsId || '';
-    data.ListAgentFullName = data.saleUpdatingAgentName || '';
-    data.ListAgentEmail = data.saleUpdatingAgentEmail || '';
-    data.ListAgentDirectPhone = data.saleUpdatingAgentPhone || '';
-    // CRM-owned Mallan rows use the canonical office NAME. Office MLS id/key are
-    // intentionally left blank until verified from a trusted canonical source
-    // (REBNY/Cotality/RealPlus) — never the "mallan" slug, never the REBNY
-    // "MAllan" typo. (Maya decision, 2026-05-28.)
-    data.ListOfficeName = data.saleUpdatingAgentCompanyName || 'Mallan Real Estate Inc.';
+    // Agent identity: js/forms/agent-defaults.js owns the hidden saleUpdatingAgent* inputs, which sit OUTSIDE the area swept above, so they are read by id
+    // there. ListAgentMlsId is the Cotality MLS ID (Agent.trestle_mls_id) and never the internal Agent.id; ListAgentKey, ListOfficeKey and ListOfficeMlsId are
+    // sent only when the live Cotality Member directory returned them (the company slug "mallan" is not a Cotality office key and is never sent as one).
+    if (typeof MallanAgentDefaults !== 'undefined') {
+        var _identity = MallanAgentDefaults.identity('sale');
+        Object.keys(_identity).forEach(function(k) { data[k] = _identity[k]; });
+    }
     // Co-listing agents and offices: live Cotality CoListAgent{,2,3}* and CoListOffice{,2}*, apart from the primary ListAgent*/ListOffice* above.
     var _scSection = _saleCoList();
     if (_scSection) _scSection.collect(data);
-    // ListOfficeKey / ListOfficeMlsId are intentionally NOT written here: the
-    // form has no verified Cotality office id/key (only the "mallan" company-key
-    // slug, which must NEVER be persisted as an office key). They stay blank
-    // until verified from a trusted canonical source — the prior code wrote the
-    // slug into ListOfficeKey, which this removal stops. (Maya decision, 2026-05-28.)
 
     // Collect building modal fields (outside main container)
     var bldgModal = document.getElementById('saleBuildingModal');
@@ -9170,7 +9104,9 @@ var SALE_FIELD_MAP = [
   { rls: 'ListAgentEmail', form: 'saleUpdatingAgentEmail', type: 'text', src: 'agentInfo', agentKey: 'ListAgentEmail', typedKey: 'list_agent_email' },
   { rls: 'ListAgentDirectPhone', form: 'saleUpdatingAgentPhone', type: 'text', src: 'agentInfo', agentKey: 'ListAgentDirectPhone', typedKey: 'list_agent_direct_phone' },
   { rls: 'ListOfficeName', form: 'saleUpdatingAgentCompanyName', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeName', typedKey: 'list_office_name' },
-  { rls: 'ListOfficeKey', form: 'saleUpdatingAgentCompanyKey', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeKey' },
+  { rls: 'ListAgentKey', form: 'saleUpdatingAgentKey', type: 'text', src: 'agentInfo', agentKey: 'ListAgentKey' },
+  { rls: 'ListOfficeKey', form: 'saleUpdatingAgentOfficeKey', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeKey' }, // the Cotality OfficeKey; the company slug lives in saleUpdatingAgentCompanyKey and is never a provider key
+  { rls: 'ListOfficeMlsId', form: 'saleUpdatingAgentOfficeMlsId', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeMlsId', typedKey: 'list_office_mls_id' },
 
   // ── Team ──
   { rls: 'ListTeamName', form: 'saleListTeamName', type: 'text', src: 'raw' },
@@ -9893,56 +9829,13 @@ function _populateSaleFormFromApi(listing) {
     // both sources are populated. (Track 1 fix, 2026-05-30.)
     _syncSaleBuildingAddressFields();
 
-    // ── Agent contact panel + company/agent search display ──
-    // Use saved listing agent identity as a whole if present; session only when absent entirely.
-    // Phase C: the promoted TYPED columns are the source of truth (agent_info JSON is
-    // frozen/empty post-Phase-C). Hydrate typed-first, then agent_info, then raw_data.
-    var hasSavedAgent = !!(listing.list_agent_mls_id || listing.list_agent_full_name || agentInfo.ListAgentMlsId || raw.ListAgentMlsId);
-    var _agentId, _agentName, _agentPhone, _agentEmail, companyKey, _companyName;
-    if (hasSavedAgent) {
-        _agentId = listing.list_agent_mls_id || agentInfo.ListAgentMlsId || raw.ListAgentMlsId || '';
-        _agentName = listing.list_agent_full_name || agentInfo.ListAgentFullName || raw.ListAgentFullName || '';
-        _agentPhone = listing.list_agent_direct_phone || agentInfo.ListAgentDirectPhone || raw.ListAgentDirectPhone || '--';
-        _agentEmail = listing.list_agent_email || agentInfo.ListAgentEmail || raw.ListAgentEmail || '--';
-        // ListOfficeKey is NOT a promoted typed column — agent_info / raw_data fallback only.
-        companyKey = agentInfo.ListOfficeKey || raw.ListOfficeKey || 'mallan';
-        _companyName = listing.list_office_name || agentInfo.ListOfficeName || raw.ListOfficeName || 'Mallan Real Estate Inc.';
-    } else {
-        _agentId = document.getElementById('saleUpdatingAgent')?.value || '';
-        _agentName = document.getElementById('saleUpdatingAgentName')?.value || '';
-        _agentPhone = document.getElementById('saleUpdatingAgentPhone')?.value || '--';
-        _agentEmail = document.getElementById('saleUpdatingAgentEmail')?.value || '--';
-        companyKey = document.getElementById('saleUpdatingAgentCompanyKey')?.value || 'mallan';
-        _companyName = document.getElementById('saleUpdatingAgentCompanyName')?.value || 'Mallan Real Estate Inc.';
-    }
-    var companySearch = document.getElementById('saleListingCompanySearch');
-    if (companySearch) companySearch.value = _companyName;
-    var agentHiddenEl = document.getElementById('saleListingAgent');
-    if (agentHiddenEl) {
-        agentHiddenEl.value = _agentId;
-        agentHiddenEl.dataset.company = companyKey;
-    }
-    setVal('saleListingCompany', companyKey);
-    var agentSearchEl = document.getElementById('saleListingAgentSearch');
-    if (agentSearchEl) { agentSearchEl.value = _agentName; agentSearchEl.disabled = false; }
-    var agentPanel = document.getElementById('saleListingAgentInfo');
-    if (agentPanel) {
-        agentPanel.style.display = 'block';
-        var el;
-        el = document.getElementById('saleListingAgentId'); if (el) el.textContent = _agentId || '--';
-        el = document.getElementById('saleListingAgentPhone'); if (el) el.textContent = _agentPhone;
-        el = document.getElementById('saleListingAgentEmail'); if (el) el.textContent = _agentEmail;
-        el = document.getElementById('saleListingAgentLicense'); if (el) el.textContent = '--';
-    }
+    // ── Agent: the saved listing agent goes back into the hidden identity inputs and the Contacts tab (js/forms/agent-defaults.js) ──
+    // A saved identity is never replaced by the signed-in agent's; the session fills only what the listing lacks (see MallanAgentDefaults.apply).
+    if (typeof MallanAgentDefaults !== 'undefined') MallanAgentDefaults.hydrate('sale', listing, { updateTable: updateSaleAgentTable });
 
     // ── Co-listing agents (live Cotality CoListAgent{,2,3}*; stored apart from the primary agent above) ──
     var _scHydrate = _saleCoList();
     if (_scHydrate) _scHydrate.hydrate(raw, listing);
-
-    // Populate agent contacts summary table for edit mode
-    if (typeof updateSaleAgentTable === 'function' && _agentId) {
-        updateSaleAgentTable('listing', _agentId, _agentName, _companyName, _agentPhone, _agentEmail);
-    }
 
     // ── Auction ──
     var auctionYn = (listing.auction_yn === true) || (raw.auction_yn === true);

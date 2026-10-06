@@ -88,6 +88,7 @@ body { font-family: Manrope, sans-serif; }
 <script src="js/core/api-client.js"></script>
 <script src="js/forms/directory-picker.js"></script>
 <script src="js/forms/colist-section.js"></script>
+<script src="js/forms/agent-defaults.js"></script>
 <script>
 // ── Auth gate (defense-in-depth — middleware is primary) ──
 // NOTE: session_token is httpOnly — JS cannot read it via document.cookie.
@@ -131,6 +132,10 @@ body { font-family: Manrope, sans-serif; }
 <input type="hidden" id="rentalUpdatingAgentPhone" value="" data-rls-ignore="true">
 <input type="hidden" id="rentalUpdatingAgentEmail" value="" data-rls-ignore="true">
 <input type="hidden" id="rentalUpdatingAgentLicense" value="" data-rls-ignore="true">
+<input type="hidden" id="rentalUpdatingAgentMlsId" value="" data-rls-ignore="true">
+<input type="hidden" id="rentalUpdatingAgentKey" value="" data-rls-ignore="true">
+<input type="hidden" id="rentalUpdatingAgentOfficeKey" value="" data-rls-ignore="true">
+<input type="hidden" id="rentalUpdatingAgentOfficeMlsId" value="" data-rls-ignore="true">
 <input type="hidden" id="rentalUpdatingAgentCompanyKey" value="" data-rls-ignore="true">
 <input type="hidden" id="rentalUpdatingAgentCompanyName" value="" data-rls-ignore="true">
 
@@ -339,6 +344,7 @@ body { font-family: Manrope, sans-serif; }
                     <label class="field-label">Listing Agent</label>
                     <input type="text" id="rentalUpdatingAgentDisplay" value="" class="field-input" readonly data-rls-ignore="true">
                     <p class="text-[10px] text-gray-400 mt-1">Auto-assigned to logged-in agent</p>
+                    <p id="rentalAgentCotalityStatus" class="text-[11px] mt-1 text-gray-500" role="status" aria-live="polite"></p>
                 </div>
                 <div>
                     <label class="field-label">Create Date</label>
@@ -5029,71 +5035,32 @@ function validateStatusChange(prefix) {
 // NO URL PARAMETERS. NO PII IN URLS.
 // ══════════════════════════════════════════════════════
 function initLoggedInAgent() {
-    function populate(u) {
-        var setVal = function(id, val) { var el = document.getElementById(id); if (el && val) el.value = val; };
-        setVal('rentalUpdatingAgent', u.id);
-        setVal('rentalUpdatingAgentName', u.name);
-        setVal('rentalUpdatingAgentPhone', u.phone);
-        setVal('rentalUpdatingAgentEmail', u.email);
-        setVal('rentalUpdatingAgentLicense', u.license);
-        setVal('rentalUpdatingAgentCompanyKey', u.companyKey);
-        setVal('rentalUpdatingAgentCompanyName', u.companyName);
-        var headerName = document.getElementById('headerAgentName');
-        var headerCompany = document.getElementById('headerCompanyName');
-        if (headerName && u.name) headerName.textContent = u.name;
-        if (headerCompany && u.companyName) headerCompany.textContent = u.companyName;
+    // The signed-in agent is the listing agent of a new listing. js/forms/agent-defaults.js owns the hidden identity inputs, the Contacts tab and the
+    // Cotality check. MallanAPI.onReady() fires with the session user once the auth gate's init() has resolved (immediately if it already has), so
+    // there is no second /api/auth/me fetch and no race with the edit-mode load.
+    function _applyAgentData(u) {
+        if (typeof MallanAgentDefaults === 'undefined') {
+            console.warn('[RentalForm] Agent defaults module not loaded — agent fields left blank');
+            showToast('Could not load agent profile. Please verify Listing Agent manually.', 'warning');
+            return;
+        }
+        MallanAgentDefaults.apply('rental', u, {
+            editMode: function() { return typeof _rentalEditMode !== 'undefined' && _rentalEditMode; },
+            updateTable: updateRentalAgentTable,
+            toast: showToast
+        });
     }
 
-    if (typeof MallanAPI !== 'undefined') {
+    if (typeof MallanAPI !== 'undefined' && typeof MallanAPI.onReady === 'function') {
+        MallanAPI.onReady(_applyAgentData);
+    } else if (typeof MallanAPI !== 'undefined') {
+        // Fallback: onReady not available — use init()
         MallanAPI.init().then(function(data) {
-            if (data.authenticated && data.user) {
-                populate(data.user);
-                var agentDisplay = document.getElementById('rentalUpdatingAgentDisplay');
-                if (agentDisplay && data.user.id && data.user.name) {
-                    agentDisplay.value = data.user.id + ' | ' + data.user.name;
-                }
-            } else {
-                console.warn('[RentalForm] Not authenticated — agent fields left blank');
-            }
+            _applyAgentData(data && data.user ? data.user : null);
         });
     } else {
         console.warn('[RentalForm] MallanAPI not loaded — agent fields left blank');
-    }
-
-    // Pre-select the agent's company in the Listing Agent dropdown (Tab 1.3)
-    // companyKey / companyName / agentId were referenced below but never declared in this function or at script
-    // scope, so initLoggedInAgent() threw a ReferenceError as the first call of the DOMContentLoaded handler and
-    // aborted page init (edit-mode load, draft load, company dropdowns, field rules). The session user is applied
-    // asynchronously in populate() above; this pre-select block has no synchronous source, so it stays inert.
-    var companyKey = '', companyName = '', agentId = '';
-    var listingCompanyHidden = document.getElementById('rentalListingCompany');
-    var listingCompanySearch = document.getElementById('rentalListingCompanySearch');
-    if (listingCompanyHidden && companyKey) listingCompanyHidden.value = companyKey;
-    if (listingCompanySearch && companyName) listingCompanySearch.value = companyName;
-
-    // Enable agent search for that company
-    var listingAgentSearch = document.getElementById('rentalListingAgentSearch');
-    if (listingAgentSearch) {
-        listingAgentSearch.disabled = false;
-        listingAgentSearch.placeholder = 'Search agent...';
-    }
-
-    // If agent data in rebnyAgents, auto-select the agent
-    if (companyKey && rebnyAgents[companyKey]) {
-        var match = rebnyAgents[companyKey].find(function(a) { return a.id === agentId; });
-        if (match) {
-            var agentHidden = document.getElementById('rentalListingAgent');
-            if (agentHidden) agentHidden.value = agentId;
-            if (listingAgentSearch) listingAgentSearch.value = match.name;
-            // Show agent info card
-            var el = function(id) { return document.getElementById(id); };
-            if (el('rentalListingAgentId')) el('rentalListingAgentId').textContent = match.id;
-            if (el('rentalListingAgentPhone')) el('rentalListingAgentPhone').textContent = match.phone;
-            if (el('rentalListingAgentEmail')) el('rentalListingAgentEmail').textContent = match.email;
-            if (el('rentalListingAgentLicense')) el('rentalListingAgentLicense').textContent = match.license;
-            var infoCard = el('rentalListingAgentInfo');
-            if (infoCard) infoCard.style.display = 'block';
-        }
+        showToast('Could not load agent profile. Please verify Listing Agent manually.', 'warning');
     }
 }
 
@@ -5751,13 +5718,13 @@ function collectRentalFormData() {
         data.SyndicateYN = data.rentalSyndicateYN !== false;
     }
 
-    // Agent identity from session
-    data.ListAgentMlsId = data.rentalUpdatingAgent || '';
-    data.ListAgentFullName = data.rentalUpdatingAgentName || '';
-    data.ListAgentEmail = data.rentalUpdatingAgentEmail || '';
-    data.ListAgentDirectPhone = data.rentalUpdatingAgentPhone || '';
-    data.ListOfficeName = data.rentalUpdatingAgentCompanyName || '';
-    data.ListOfficeKey = data.rentalUpdatingAgentCompanyKey || '';
+    // Agent identity: js/forms/agent-defaults.js owns the hidden rentalUpdatingAgent* inputs, which sit OUTSIDE the area swept above, so they are read by id
+    // there. ListAgentMlsId is the Cotality MLS ID (Agent.trestle_mls_id) and never the internal Agent.id; ListAgentKey, ListOfficeKey and ListOfficeMlsId are
+    // sent only when the live Cotality Member directory returned them (the company slug "mallan" is not a Cotality office key and is never sent as one).
+    if (typeof MallanAgentDefaults !== 'undefined') {
+        var _identity = MallanAgentDefaults.identity('rental');
+        Object.keys(_identity).forEach(function(k) { data[k] = _identity[k]; });
+    }
     // Co-listing agents and offices: live Cotality CoListAgent{,2,3}* and CoListOffice{,2}*, apart from the primary ListAgent*/ListOffice* above.
     var _rcSection = _rentalCoList();
     if (_rcSection) _rcSection.collect(data);
@@ -6474,20 +6441,37 @@ function updateRentalAgentTable(type, agentId, name, company, phone, email) {
     const badgeClass = type === 'listing' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700';
     const label = type === 'listing' ? 'Listing Agent' : (type === 'tenant' ? "Tenant's Agent" : 'Co-List #' + type.split('-')[1]);
 
-    const rowHTML = '<tr data-type="' + type + '">' +
-        '<td class="border px-3 py-2"><span class="px-2 py-0.5 ' + badgeClass + ' rounded text-xs">' + label + '</span></td>' +
-        '<td class="border px-3 py-2">' + agentId + '</td>' +
-        '<td class="border px-3 py-2 font-medium">' + name + '</td>' +
-        '<td class="border px-3 py-2">' + company + '</td>' +
-        '<td class="border px-3 py-2">' + phone + '</td>' +
-        '<td class="border px-3 py-2">' + email + '</td>' +
-        '<td class="border px-3 py-2"><button class="text-blue-600 hover:text-blue-800 text-xs" aria-label="Edit"><i class="fas fa-edit"></i></button></td>' +
-        '</tr>';
+    // Built with DOM calls: agent, company and contact text is never interpreted as markup.
+    const row = document.createElement('tr');
+    row.setAttribute('data-type', type);
+    const cell = function(text, className) {
+        const td = document.createElement('td');
+        td.className = 'border px-3 py-2' + (className ? ' ' + className : '');
+        td.textContent = text === undefined || text === null ? '' : String(text);
+        row.appendChild(td);
+        return td;
+    };
+    const badge = document.createElement('span');
+    badge.className = 'px-2 py-0.5 ' + badgeClass + ' rounded text-xs';
+    badge.textContent = label;
+    cell('').appendChild(badge);
+    cell(agentId);
+    cell(name, 'font-medium');
+    cell(company);
+    cell(phone);
+    cell(email);
+    const edit = document.createElement('button');
+    edit.className = 'text-blue-600 hover:text-blue-800 text-xs';
+    edit.setAttribute('aria-label', 'Edit');
+    const icon = document.createElement('i');
+    icon.className = 'fas fa-edit';
+    edit.appendChild(icon);
+    cell('').appendChild(edit);
 
     if (existingRow) {
-        existingRow.outerHTML = rowHTML;
+        existingRow.replaceWith(row);
     } else {
-        tableBody.insertAdjacentHTML('beforeend', rowHTML);
+        tableBody.appendChild(row);
     }
 }
 
@@ -7011,11 +6995,7 @@ function _populateRentalFormFromApi(listing) {
 
     // Agent info — Phase C: TYPED columns are the source of truth (agent_info JSON is
     // frozen/empty post-Phase-C). Hydrate typed-first, then agent_info, then raw_data.
-    var agentInfo = listing.agent_info || {};
-    setVal('rentalListingAgent', listing.list_agent_full_name || agentInfo.ListAgentFullName || raw.ListAgentFullName || '');
-    setVal('rentalListingCompany', listing.list_office_name || agentInfo.ListOfficeName || raw.ListOfficeName || '');
-    setVal('rentalListingAgentPhone', listing.list_agent_direct_phone || agentInfo.ListAgentDirectPhone || raw.ListAgentDirectPhone || '');
-    setVal('rentalListingAgentEmail', listing.list_agent_email || agentInfo.ListAgentEmail || raw.ListAgentEmail || '');
+    if (typeof MallanAgentDefaults !== 'undefined') MallanAgentDefaults.hydrate('rental', listing, { updateTable: updateRentalAgentTable });
 
     // Co-listing agents: live Cotality CoListAgent{,2,3}* hydrated into the structured component (js/forms/colist-section.js).
     var _rcHydrate = _rentalCoList();
