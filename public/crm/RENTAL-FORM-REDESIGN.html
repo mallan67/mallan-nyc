@@ -377,8 +377,8 @@ body { font-family: Manrope, sans-serif; }
                         <span class="text-[9px] text-gray-400">(ExclusiveRightWithException)</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer text-sm">
-                        <input type="radio" name="rentalListingType" value="CoExclusive" class="w-4 h-4" onchange="handleRentalListingTypeChange(this.value)"> Co-Exclusive
-                        <span class="text-[9px] text-gray-400">(CoExclusive)</span>
+                        <input type="radio" name="rentalListingType" value="CoExclusiveAgency" class="w-4 h-4" onchange="handleRentalListingTypeChange(this.value)"> Co-Exclusive
+                        <span class="text-[9px] text-gray-400">(CoExclusiveAgency)</span>
                     </label>
                     <!-- Non-RLS / Permission-based -->
                     <div class="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5">
@@ -421,9 +421,9 @@ body { font-family: Manrope, sans-serif; }
                                 <p class="text-purple-700 text-xs mt-1"><i class="fas fa-file-contract mr-1"></i>RLS eligible. Document the exceptions in the listing agreement.</p>
                             </div>
                             <div class="border-l-4 border-teal-500 pl-3">
-                                <p class="font-bold text-gray-900">Co-Exclusive <span class="text-[10px] text-gray-400 font-normal">(CoExclusive)</span></p>
-                                <p class="text-gray-600 mt-1"><strong>Two brokers share the exclusive right.</strong> Either broker can lease the property. Commission is owed regardless of who finds the tenant. Co-brokering terms must be in writing.</p>
-                                <p class="text-teal-700 text-xs mt-1"><i class="fas fa-handshake mr-1"></i>RLS eligible. Both firms named on listing.</p>
+                                <p class="font-bold text-gray-900">Co-Exclusive <span class="text-[10px] text-gray-400 font-normal">(CoExclusiveAgency)</span></p>
+                                <p class="text-gray-600 mt-1"><strong>Two listing agents share the exclusive right.</strong> Either listing agent can lease the property. Commission is owed regardless of who finds the tenant. Co-brokering terms must be in writing.</p>
+                                <p class="text-teal-700 text-xs mt-1"><i class="fas fa-handshake mr-1"></i>RLS eligible. Both listing agents and their offices are named on the listing.</p>
                             </div>
                             <hr class="border-gray-200">
                             <div class="border-l-4 border-blue-400 pl-3 bg-blue-50 py-2 pr-2 rounded-r">
@@ -6681,7 +6681,7 @@ function updateRentalPreview() {
     setText('rentalPreviewSiteAgentLicense', agentLicenseVal);
     setText('rentalPreviewSiteCompanyName', companyNameVal);
     var listingTypeRadio = document.querySelector('input[name="rentalListingType"]:checked');
-    var ltMap = { ExclusiveRightToLease: 'Exclusive Right to Lease', ExclusiveAgency: 'Exclusive Agency', ExclusiveRightWithException: 'Exclusive w/ Exception', CoExclusive: 'Co-Exclusive', InHouse: 'In-House', 'RLS-Owner-OptOut': 'Owner Opt-Out', 'RLS-Participant': 'Participant Only' };
+    var ltMap = { ExclusiveRightToLease: 'Exclusive Right to Lease', ExclusiveAgency: 'Exclusive Agency', ExclusiveRightWithException: 'Exclusive w/ Exception', CoExclusiveAgency: 'Co-Exclusive', InHouse: 'In-House', 'RLS-Owner-OptOut': 'Owner Opt-Out', 'RLS-Participant': 'Participant Only' };
     setText('rentalPreviewListingType', ltMap[listingTypeRadio ? listingTypeRadio.value : 'ExclusiveRightToLease'] || 'Exclusive Right to Lease');
     const status = document.getElementById('rentalStatus');
     setText('rentalPreviewStatus', status ? status.value : 'Draft');
@@ -6986,7 +6986,8 @@ function _populateRentalFormFromApi(listing) {
     setVal('rentalShowingInstructions', raw.ShowingInstructions || '');
 
     // Listing agreement
-    setRadio('rentalListingType', raw.ListingAgreement || '');
+    // Legacy: this form once stored the non-live agreement value "CoExclusive"; live Cotality uses CoExclusiveAgency.
+    setRadio('rentalListingType', raw.ListingAgreement === 'CoExclusive' ? 'CoExclusiveAgency' : (raw.ListingAgreement || ''));
 
     // Agent info — Phase C: TYPED columns are the source of truth (agent_info JSON is
     // frozen/empty post-Phase-C). Hydrate typed-first, then agent_info, then raw_data.

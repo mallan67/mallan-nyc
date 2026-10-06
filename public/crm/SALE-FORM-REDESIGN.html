@@ -411,8 +411,8 @@ body { font-family: Manrope, sans-serif; }
                             <span class="text-[9px] text-gray-400">(ExclusiveRightWithException)</span>
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer text-sm">
-                            <input type="radio" name="saleListingType" value="CoExclusive" class="w-4 h-4" onchange="handleSaleListingTypeChange(this.value)"> Co-Exclusive
-                            <span class="text-[9px] text-gray-400">(CoExclusive)</span>
+                            <input type="radio" name="saleListingType" value="CoExclusiveAgency" class="w-4 h-4" onchange="handleSaleListingTypeChange(this.value)"> Co-Exclusive
+                            <span class="text-[9px] text-gray-400">(CoExclusiveAgency)</span>
                         </label>
                         <!-- Non-RLS / Permission-based -->
                         <div class="flex flex-col gap-1.5 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
@@ -461,9 +461,9 @@ body { font-family: Manrope, sans-serif; }
                                     <p class="text-purple-700 text-xs mt-1"><i class="fas fa-file-contract mr-1"></i>RLS eligible. Document the exceptions in the listing agreement.</p>
                                 </div>
                                 <div class="border-l-4 border-teal-500 pl-3">
-                                    <p class="font-bold text-gray-900">Co-Exclusive <span class="text-[10px] text-gray-400 font-normal">(CoExclusive)</span></p>
-                                    <p class="text-gray-600 mt-1"><strong>Two brokers share the exclusive right.</strong> Either broker can sell the property. Commission is owed regardless of who finds the buyer. The co-brokering terms must be in writing.</p>
-                                    <p class="text-teal-700 text-xs mt-1"><i class="fas fa-handshake mr-1"></i>RLS eligible. Both firms named on listing.</p>
+                                    <p class="font-bold text-gray-900">Co-Exclusive <span class="text-[10px] text-gray-400 font-normal">(CoExclusiveAgency)</span></p>
+                                    <p class="text-gray-600 mt-1"><strong>Two listing agents share the exclusive right.</strong> Either listing agent can sell the property. Commission is owed regardless of who finds the buyer. The co-brokering terms must be in writing.</p>
+                                    <p class="text-teal-700 text-xs mt-1"><i class="fas fa-handshake mr-1"></i>RLS eligible. Both listing agents and their offices are named on the listing.</p>
                                 </div>
                                 <hr class="border-gray-200">
                                 <div class="border-l-4 border-gray-400 pl-3 bg-gray-50 py-2 pr-2 rounded-r">
@@ -5845,7 +5845,7 @@ function enforceSaleInternetDisplayRule() {
 
     // Permissions=Null (standard exclusive listings) → MUST be True
     var isNullPermission = !permValue || permValue === '' ||
-        ['ExclusiveRightToSell', 'ExclusiveAgency', 'ExclusiveRightWithException', 'CoExclusive'].includes(permValue);
+        ['ExclusiveRightToSell', 'ExclusiveAgency', 'ExclusiveRightWithException', 'CoExclusiveAgency'].includes(permValue);
 
     var container = internetCheckbox.closest('.border');
     if (isNullPermission) {
@@ -8914,7 +8914,7 @@ function updateSalePreview() {
     setText('salePreviewAgent', agentNameVal);
     setText('salePreviewSiteAgentName', agentNameVal);
     var ltRadio = document.querySelector('input[name="saleListingType"]:checked');
-    var ltMap = { ExclusiveRightToSell: 'Exclusive Right to Sell', ExclusiveAgency: 'Exclusive Agency', ExclusiveRightWithException: 'Exclusive w/ Exception', CoExclusive: 'Co-Exclusive', InHouse: 'In-House', OwnerOptOut: 'Owner Opt-Out', ParticipantOnly: 'Participant Only' };
+    var ltMap = { ExclusiveRightToSell: 'Exclusive Right to Sell', ExclusiveAgency: 'Exclusive Agency', ExclusiveRightWithException: 'Exclusive w/ Exception', CoExclusiveAgency: 'Co-Exclusive', InHouse: 'In-House', OwnerOptOut: 'Owner Opt-Out', ParticipantOnly: 'Participant Only' };
     setText('salePreviewListingType', ltRadio ? (ltMap[ltRadio.value] || ltRadio.value) : '--');
     const status = document.getElementById('saleStatus');
     setText('salePreviewStatus', status ? status.options[status.selectedIndex]?.text || 'Draft' : 'Draft');
@@ -9878,6 +9878,8 @@ function _populateSaleFormFromApi(listing) {
             val = raw[r.fallback];
         }
         if (val === undefined || val === null) return;
+        // Legacy: this form once stored the non-live agreement value "CoExclusive"; live Cotality uses CoExclusiveAgency.
+        if (r.name === 'saleListingType' && val === 'CoExclusive') val = 'CoExclusiveAgency';
         if (r.valueMap) {
             var mapped = r.valueMap[val] !== undefined
                 ? r.valueMap[val]

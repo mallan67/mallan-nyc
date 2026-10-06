@@ -193,7 +193,7 @@ export const REBNY_FIELD_TABLES = {
     ] as const,
     ListingAgreement: [
       'ExclusiveRightToSell', 'ExclusiveAgency', 'ExclusiveRightToLease',
-      'CoExclusive', 'ExclusiveRightWithException',
+      'CoExclusiveAgency', 'ExclusiveRightWithException',
     ] as const,
     CommonInterest: [
       'CommunityApartment', 'Condominium', 'Condop', 'None',
@@ -380,8 +380,10 @@ export const REBNY_FIELD_TABLES = {
       'Exclusive Right To Sell': 'ExclusiveRightToSell',
       'Exclusive Agency': 'ExclusiveAgency',
       'Exclusive Right To Lease': 'ExclusiveRightToLease',
-      'Co-Exclusive': 'CoExclusive',
-      'Co Exclusive': 'CoExclusive',
+      'Co-Exclusive': 'CoExclusiveAgency',
+      'Co Exclusive': 'CoExclusiveAgency',
+      // Legacy INPUT alias only: Mallan once stored this non-live value; normalize it to the live Cotality enum member.
+      'CoExclusive': 'CoExclusiveAgency',
       'Exclusive Right With Exception': 'ExclusiveRightWithException',
     },
     CoBrokeAgreement: {

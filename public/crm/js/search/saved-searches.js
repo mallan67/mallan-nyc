@@ -497,7 +497,7 @@
                             // First clear existing checks for this field
                             cbScope.querySelectorAll('input[data-field="' + field + '"]').forEach(function(cb) { cb.checked = false; });
                             values.forEach(function(v) {
-                                var cb = cbScope.querySelector('input[data-field="' + field + '"][data-value="' + String(v).replace(/"/g, '\\"') + '"]');
+                                var cb = cbScope.querySelector('input[data-field="' + field + '"][data-value="' + String(field === 'ListingAgreement' && v === 'CoExclusive' ? 'CoExclusiveAgency' : v).replace(/"/g, '\\"') + '"]');
                                 if (cb && !cb.disabled) cb.checked = true;
                             });
                         });

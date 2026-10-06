@@ -257,8 +257,10 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
         "View", "AccessibilityFeatures", "ExteriorFeatures",
         "BuildingFeatures", "LaundryFeatures", "SecurityFeatures",
       ]);
-      for (const [htmlField, values] of Object.entries(cbFilters)) {
-        if (!values || values.length === 0) continue;
+      for (const [htmlField, rawValues] of Object.entries(cbFilters)) {
+        if (!rawValues || rawValues.length === 0) continue;
+        // Legacy: saved searches stored the non-live agreement value "CoExclusive"; live Cotality uses CoExclusiveAgency.
+        const values = htmlField === "ListingAgreement" ? rawValues.map((v) => (v === "CoExclusive" ? "CoExclusiveAgency" : v)) : rawValues;
         const cotalityField = crmCheckboxToCotalityField[htmlField] || htmlField;
         if (!odataSafe.has(cotalityField)) continue;
         if (cotalityField.endsWith("YN")) {
