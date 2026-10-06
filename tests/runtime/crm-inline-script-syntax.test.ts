@@ -9,8 +9,7 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { Script } from 'vm';
 
-// Add SALE-FORM-WITH-TOOLS and RENTAL-FORM-WITH-TOOLS here when their package fix lands.
-const FORMS = ['SALE-FORM-REDESIGN', 'RENTAL-FORM-REDESIGN', 'BUYER-DEAL-FORM', 'TENANT-DEAL-FORM'];
+const FORMS = ['SALE-FORM-REDESIGN', 'RENTAL-FORM-REDESIGN', 'SALE-FORM-WITH-TOOLS', 'RENTAL-FORM-WITH-TOOLS', 'BUYER-DEAL-FORM', 'TENANT-DEAL-FORM'];
 
 function inlineScripts(html: string): { line: number; body: string }[] {
   const out: { line: number; body: string }[] = [];

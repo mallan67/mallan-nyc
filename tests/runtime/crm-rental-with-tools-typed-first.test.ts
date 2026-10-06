@@ -35,12 +35,14 @@ describe("Item A/B — viewer object populates the RENDERED keys typed-first", (
     expect(withTools).toContain("viewerSetVal('rentalListingAgentSearch', d.listingAgentName)");
   });
 
-  it("object sets listingAgentName typed-first in BOTH viewer blocks", () => {
+  it("object sets listingAgentName typed-first in the one viewer builder", () => {
     const m =
       withTools.match(
         /listingAgentName: apiData\.list_agent_full_name \|\| \(apiData\.agent_info \|\| \{\}\)\.ListAgentFullName \|\| ''/g,
       ) || [];
-    expect(m.length).toBe(2);
+    // The fetch and the opener's postMessage used to build this object twice; the viewer builds it once (viewerBuildListing).
+    expect(m.length).toBe(1);
+    expect((withTools.match(/function viewerBuildListing\(/g) || []).length).toBe(1);
   });
 
   // Regression guard for Codex #423: the prior patch wrote the UNUSED `listingAgent` key,
@@ -50,13 +52,15 @@ describe("Item A/B — viewer object populates the RENDERED keys typed-first", (
     expect(withTools).not.toMatch(/listingAgent:\s*\(apiData\.agent_info/);
   });
 
-  it("company hydrates typed-first via the rendered d.listingCompany key (both blocks)", () => {
+  it("company hydrates typed-first via the rendered d.listingCompany key (the one viewer builder)", () => {
     expect(withTools).toContain("courtesyCompany.textContent = d.listingCompany");
     const m =
       withTools.match(
         /listingCompany: apiData\.list_office_name \|\| \(apiData\.agent_info \|\| \{\}\)\.ListOfficeName \|\| ''/g,
       ) || [];
-    expect(m.length).toBe(2);
+    // The fetch and the opener's postMessage used to build this object twice; the viewer builds it once (viewerBuildListing).
+    expect(m.length).toBe(1);
+    expect((withTools.match(/function viewerBuildListing\(/g) || []).length).toBe(1);
   });
 
   it("no rendered agent/company key is agent_info-first", () => {

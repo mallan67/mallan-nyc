@@ -8,7 +8,7 @@
  * initLoggedInAgent() threw on its first line (it read companyKey / companyName / agentId, which were never
  * declared), and the Buyer / Tenant auth gates did not parse at all.
  *
- * Add SALE-FORM-WITH-TOOLS and RENTAL-FORM-WITH-TOOLS when their package fix lands.
+ * The Sale and Rental Tools viewers boot in crm-tools-viewer-boot.test.ts (they need the real api-client and a routed fetch).
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';

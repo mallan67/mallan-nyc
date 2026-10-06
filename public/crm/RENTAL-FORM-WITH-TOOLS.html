@@ -103,6 +103,7 @@ body.viewer-mode .validation-panel { display: none !important; }
 body.viewer-mode .autosave-indicator { display: none !important; }
 body.viewer-mode .dist-gate-yes { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
 body.viewer-mode .dist-gate-no { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+body.viewer-mode .dist-gate-unknown { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; background: #f3f4f6; color: #4b5563; border: 1px solid #d1d5db; }
 /* Fix #3: Selects stay as <select disabled> — no DOM replacement */
 body.viewer-mode select.field-input { pointer-events: none; appearance: none; -webkit-appearance: none; -moz-appearance: none; border-color: transparent; background: transparent; color: #374151; }
 /* Buyer/tenant agent masking: content replaced by JS with "Mallan Team" card — no CSS hide needed */
@@ -562,7 +563,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">Days on Market</p>
-                        <p class="text-sm font-bold text-gray-800" id="rentalDaysOnMarket">0</p>
+                        <p class="text-sm font-bold text-gray-800" id="rentalDaysOnMarket">--</p>
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">Cumulative DOM</p>
@@ -574,7 +575,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">RESO MlsStatus</p>
-                        <p class="text-xs font-medium text-blue-700" id="rentalResoMlsStatus">Draft</p>
+                        <p class="text-xs font-medium text-blue-700" id="rentalResoMlsStatus">--</p>
                     </div>
                 </div>
                 <!-- Validation Panel -->
@@ -4336,111 +4337,155 @@ var VIEWER_ROLE = VIEWER_VALID_ROLES.indexOf(VIEWER_ROLE_RAW) >= 0 ? VIEWER_ROLE
 var VIEWER_MODE = true; // Always viewer — this file has no form mode
 var _isLocal = (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
 
-// ── Try API fetch first, fall back to cached data ──
-if (VIEWER_MODE && typeof MallanAPI !== 'undefined') {
-    MallanAPI.onReady(function() {
-        // Override URL param with server-validated role (prevents ?role=broker bypass)
-        try {
-            var ctx = MallanAPI.getContext ? MallanAPI.getContext() : null;
-            if (ctx && ctx.authenticated) {
-                var serverRole = (ctx.portalRole || ctx.role || 'tenant').toLowerCase();
-                VIEWER_ROLE = VIEWER_VALID_ROLES.indexOf(serverRole) >= 0 ? serverRole : 'tenant';
-                if (typeof applyRentalRoleMasking === 'function') applyRentalRoleMasking();
-            }
-        } catch(e) { /* fail closed — keep tenant default */ }
-        MallanAPI.listings.get(VIEWER_LISTING_ID).then(function(apiData) {
-            VIEWER_LISTINGS[VIEWER_LISTING_ID] = {
-                listingId: apiData.listing_id || VIEWER_LISTING_ID,
-                status: apiData.status || 'Active',
-                address: ((apiData.address || {}).StreetNumber || '') + ' ' + ((apiData.address || {}).StreetName || ''),
-                unit: (apiData.address || {}).UnitNumber || '',
-                city: apiData.city || 'New York',
-                state: 'NY',
-                zipCode: apiData.postal_code || '',
-                borough: apiData.borough || 'Manhattan',
-                neighborhood: apiData.neighborhood || '',
-                propertyType: apiData.property_type || 'Residential',
-                monthlyRent: apiData.list_price,
-                sqft: apiData.living_area,
-                bedrooms: apiData.bedrooms_total,
-                fullBaths: apiData.bathrooms_full,
-                halfBaths: apiData.bathrooms_half,
-                description: (apiData.features || {}).PublicRemarks || '',
-                listingAgentName: apiData.list_agent_full_name || (apiData.agent_info || {}).ListAgentFullName || '',
-                listingCompany: apiData.list_office_name || (apiData.agent_info || {}).ListOfficeName || '',
-                photos: Array.isArray(apiData.media) ? apiData.media.map(function(m) { return m.url || ''; }) : [],
-                _raw: apiData,
-            };
-            if (typeof loadRentalListingData === 'function') loadRentalListingData(VIEWER_LISTING_ID);
-            console.log('[Viewer] Loaded rental listing from API:', VIEWER_LISTING_ID);
-        }).catch(function(err) {
-            console.warn('[Viewer] API fetch failed, using cached data:', err.message);
-        });
+// ── Listing store + loader ──
+// The viewer shows what the API returned for the requested id and nothing else: a value the record does not carry stays
+// empty (no default status, city, borough or state). Rendering waits for this request to settle (see the boot below).
+var VIEWER_LISTINGS = {};
+
+function viewerBuildListing(apiData, id) {
+    var addr = apiData.address || {};
+    return {
+        listingId: apiData.listing_id || id,
+        status: apiData.status || '',
+        address: ((addr.StreetNumber || '') + ' ' + (addr.StreetName || '')).trim(),
+        unit: addr.UnitNumber || '',
+        city: apiData.city || '',
+        zipCode: apiData.postal_code || '',
+        borough: apiData.borough || '',
+        neighborhood: apiData.neighborhood || '',
+        propertyType: apiData.property_type || '',
+        monthlyRent: apiData.list_price,
+        sqft: apiData.living_area,
+        bedrooms: apiData.bedrooms_total,
+        fullBaths: apiData.bathrooms_full,
+        halfBaths: apiData.bathrooms_half,
+        description: (apiData.features || {}).PublicRemarks || '',
+        listingAgentName: apiData.list_agent_full_name || (apiData.agent_info || {}).ListAgentFullName || '',
+        listingCompany: apiData.list_office_name || (apiData.agent_info || {}).ListOfficeName || '',
+        photos: Array.isArray(apiData.media) ? apiData.media.map(function(m) { return m.url || ''; }) : [],
+        _raw: apiData,
+    };
+}
+
+function viewerFetchListing(id) {
+    if (typeof MallanAPI === 'undefined' || !MallanAPI.listings) {
+        return Promise.reject(new Error('The CRM data service is unavailable.'));
+    }
+    return MallanAPI.listings.get(id).then(function(apiData) {
+        if (!apiData || typeof apiData !== 'object' || Array.isArray(apiData)) {
+            throw new Error('The CRM returned no data for this listing.');
+        }
+        VIEWER_LISTINGS[id] = viewerBuildListing(apiData, id);
+        return VIEWER_LISTINGS[id];
     });
 }
 
-// ── PostMessage listener — CRM opener can send listing ID after open ──
+// The role comes from the server-validated session, never from the URL (a ?role=broker hint cannot unmask anything), and
+// anything unknown falls back to the most restrictive role.
+function viewerApplyServerRole() {
+    VIEWER_ROLE = 'tenant';
+    try {
+        var ctx = MallanAPI.getContext ? MallanAPI.getContext() : null;
+        if (ctx && ctx.authenticated) {
+            var serverRole = String(ctx.portalRole || ctx.role || 'tenant').toLowerCase();
+            VIEWER_ROLE = VIEWER_VALID_ROLES.indexOf(serverRole) >= 0 ? serverRole : 'tenant';
+        }
+    } catch(e) { /* fail closed — keep the restrictive default */ }
+}
+
+// ── PostMessage listener — the CRM opener can send a different listing ID after open ──
+// A different listing is a different page state (selected cards, distribution badges, masked cards), so the viewer
+// reloads on the new id instead of re-hydrating the old page.
 window.addEventListener('message', function(event) {
     // Only accept messages from our own origin
     if (event.origin !== window.location.origin) return;
     if (!event.data || event.data.type !== 'loadListing') return;
     var id = event.data.listingId;
     if (!id || VIEWER_LISTING_ID === id) return;
-    VIEWER_LISTING_ID = id;
-    if (typeof MallanAPI !== 'undefined' && MallanAPI.listings) {
-        MallanAPI.listings.get(id).then(function(apiData) {
-            VIEWER_LISTINGS[id] = {
-                listingId: apiData.listing_id || id,
-                status: apiData.status || 'Active',
-                address: ((apiData.address || {}).StreetNumber || '') + ' ' + ((apiData.address || {}).StreetName || ''),
-                unit: (apiData.address || {}).UnitNumber || '',
-                city: apiData.city || 'New York', state: 'NY',
-                zipCode: apiData.postal_code || '', borough: apiData.borough || 'Manhattan',
-                neighborhood: apiData.neighborhood || '', propertyType: apiData.property_type || 'Residential',
-                monthlyRent: apiData.list_price, sqft: apiData.living_area,
-                bedrooms: apiData.bedrooms_total, fullBaths: apiData.bathrooms_full, halfBaths: apiData.bathrooms_half,
-                description: (apiData.features || {}).PublicRemarks || '',
-                listingAgentName: apiData.list_agent_full_name || (apiData.agent_info || {}).ListAgentFullName || '',
-                listingCompany: apiData.list_office_name || (apiData.agent_info || {}).ListOfficeName || '',
-                photos: Array.isArray(apiData.media) ? apiData.media.map(function(m) { return m.url || ''; }) : [],
-                _raw: apiData,
-            };
-            if (typeof loadRentalListingData === 'function') loadRentalListingData(id);
-        }).catch(function(err) { console.warn('[Viewer] postMessage API fetch failed:', err.message); });
-    }
+    window.location.search = '?id=' + encodeURIComponent(String(id));
 });
 
-// ── Listing data store (populated from API) ──
-var VIEWER_LISTINGS = {};
-
-// ── Viewer Helpers ──
+// ── Viewer Helper: Set field value ──
 function viewerSetVal(id, val) {
     var el = document.getElementById(id);
     if (!el) return;
-    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.value = val || '';
+    // 0 is a value (a studio has 0 bedrooms); only null / undefined mean the record does not carry the field.
+    var s = (val === null || val === undefined) ? '' : String(val);
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.value = s;
     else if (el.tagName === 'SELECT') {
-        el.value = val || '';
-        if (!el.value && val) { var opt = document.createElement('option'); opt.value = val; opt.textContent = val; el.appendChild(opt); el.value = val; }
+        el.value = s;
+        if (s !== '' && el.value !== s) { var opt = document.createElement('option'); opt.value = s; opt.textContent = s; el.appendChild(opt); el.value = s; }
     }
-    else el.textContent = val || '';
+    else el.textContent = s;
 }
 function viewerSetRadio(name, val) {
-    document.querySelectorAll('input[name="' + name + '"]').forEach(function(r) { r.checked = (r.value === val); });
+    var s = (val === null || val === undefined) ? '' : String(val);
+    document.querySelectorAll('input[name="' + name + '"]').forEach(function(r) { r.checked = (s !== '' && r.value === s); });
 }
 function viewerSetCheck(id, val) {
     var el = document.getElementById(id);
-    if (el) el.checked = !!val;
+    if (!el) return;
+    // A flag the record does not carry is unknown, not "No".
+    if (val === null || val === undefined) { el.checked = false; el.indeterminate = true; return; }
+    el.indeterminate = false;
+    el.checked = !!val;
 }
 
-// ── Fail-closed blank view for invalid listing ──
+// ── Viewer Helper: entry-form defaults are not listing facts ──
+// A pre-checked radio, a pre-selected option, a pre-ticked box or prefilled text (a default status, a default city, default
+// distribution ticks) is a data-entry convenience. Clear them in the listing tabs and the building modal before hydrating, so a
+// field the listing does not carry shows blank / unknown instead of a default. Controls with neither an id nor a name are table
+// scaffolds that cannot be hydrated by key and are left alone.
+function viewerClearEntryDefaults() {
+    ['rentalMainTab1', 'rentalMainTab2', 'rentalMainTab3', 'rentalMainTab4', 'rentalBuildingModal'].forEach(function(zoneId) {
+        var zone = document.getElementById(zoneId);
+        if (!zone) return;
+        zone.querySelectorAll('input, select, textarea').forEach(function(el) {
+            if (!el.id && !el.name) return;
+            var t = (el.getAttribute('type') || '').toLowerCase();
+            if (el.tagName === 'SELECT') el.selectedIndex = -1;
+            else if (t === 'checkbox') { el.checked = false; el.indeterminate = (zoneId === 'rentalMainTab4'); }
+            else if (t === 'radio') el.checked = false;
+            else if (t === 'hidden' || t === 'button' || t === 'submit' || t === 'reset' || t === 'file' || t === 'image') return;
+            else el.value = '';
+        });
+    });
+    ['rentalInternetEntireListingDisplayYN', 'rentalInternetAddressDisplayYN', 'rentalIDXEntireListingDisplayYN'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) { el.checked = false; el.indeterminate = true; }
+    });
+}
+
+// ── Fail-closed blank view for a listing that cannot be shown ──
+// The id comes from the URL, so it is written as text and never parsed as markup.
 function showRentalFailClosed(listingId) {
-    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f9fafb;font-family:Manrope,sans-serif;">' +
-        '<div style="text-align:center;max-width:400px;padding:40px;">' +
-        '<i class="fas fa-eye-slash" style="font-size:48px;color:#d1d5db;margin-bottom:16px;display:block;"></i>' +
-        '<h2 style="font-size:18px;font-weight:700;color:#374151;margin-bottom:8px;">Listing Not Available</h2>' +
-        '<p style="font-size:14px;color:#6b7280;margin-bottom:20px;">The listing <strong>' + (listingId || '(none)') + '</strong> could not be found or is not available for display.</p>' +
-        '<button onclick="window.close();if(!window.closed)history.back();" style="padding:8px 24px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Back to CRM</button>' +
-        '</div></div>';
+    document.body.classList.remove('skeleton-loading');
+    document.body.textContent = '';
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f9fafb;font-family:Manrope,sans-serif;';
+    var box = document.createElement('div');
+    box.style.cssText = 'text-align:center;max-width:400px;padding:40px;';
+    var icon = document.createElement('i');
+    icon.className = 'fas fa-eye-slash';
+    icon.style.cssText = 'font-size:48px;color:#d1d5db;margin-bottom:16px;display:block;';
+    var title = document.createElement('h2');
+    title.style.cssText = 'font-size:18px;font-weight:700;color:#374151;margin-bottom:8px;';
+    title.textContent = 'Listing Not Available';
+    var note = document.createElement('p');
+    note.style.cssText = 'font-size:14px;color:#6b7280;margin-bottom:20px;';
+    var strong = document.createElement('strong');
+    strong.textContent = listingId || '(none)';
+    note.appendChild(document.createTextNode('The listing '));
+    note.appendChild(strong);
+    note.appendChild(document.createTextNode(' could not be loaded. It may not exist, you may not have access to it, or the connection may have failed.'));
+    var back = document.createElement('button');
+    back.type = 'button';
+    back.style.cssText = 'padding:8px 24px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;';
+    back.textContent = 'Back to CRM';
+    back.addEventListener('click', function() { window.close(); if (!window.closed) history.back(); });
+    box.appendChild(icon); box.appendChild(title); box.appendChild(note); box.appendChild(back);
+    wrap.appendChild(box);
+    document.body.appendChild(wrap);
 }
 
 // ── Load rental listing data ──
@@ -4449,7 +4494,14 @@ function loadRentalListingData(listingId) {
     // Fix #4/#9: Fail closed — invalid ID → blank blocked view, not partial render
     if (!d) { showRentalFailClosed(listingId); return null; }
 
+    // Entry-form defaults are not listing facts: clear them, then set only what the record carries.
+    viewerClearEntryDefaults();
+
     viewerSetVal('rentalStatus', d.status);
+    // Tiles: the stored status verbatim (never derived or defaulted); days on market only when the record carries them.
+    var tileRaw = (d._raw && d._raw.raw_data) || {};
+    viewerSetVal('rentalResoMlsStatus', d.status ? d.status : '--');
+    viewerSetVal('rentalDaysOnMarket', (tileRaw.DaysOnMarket === null || tileRaw.DaysOnMarket === undefined) ? '--' : tileRaw.DaysOnMarket);
     viewerSetRadio('rentalListingType', d.listingType);
 
     viewerSetVal('rentalAddress', d.address);
@@ -4485,7 +4537,7 @@ function loadRentalListingData(listingId) {
     viewerSetVal('rentalFloor', d.floor);
     // Trestle 6.17: BuildingKeyNumeric (system-assigned building grouping ID)
     var bldgKey = d.buildingKey || d.BuildingKeyNumeric || (d._raw && d._raw.raw_data && d._raw.raw_data.BuildingKeyNumeric) || null;
-    if (bldgKey) { setText('rentalPreviewBldgKey', bldgKey); }
+    if (bldgKey) { viewerSetVal('rentalPreviewBldgKey', bldgKey); }
     viewerSetVal('rentalElevatorsTotal', d.elevatorsTotal);
     viewerSetCheck('rentalGarageYN', d.garageYN);
     viewerSetCheck('rentalNewConstructionYN', d.newConstructionYN);
@@ -4559,7 +4611,7 @@ function loadRentalListingData(listingId) {
     viewerSetCheck('rentalSyndicateYN', d.syndicateYN);
     viewerSetCheck('rentalIDXEntireListingDisplayYN', d.idxDisplay);
     viewerSetCheck('rentalDist_IDX', d.distIDX);
-    viewerSetCheck('rentalDist_VOW', d.internetDisplayYN !== false);
+    viewerSetCheck('rentalDist_VOW', d.internetDisplayYN);
     viewerSetCheck('rentalDist_Listhub', d.distListhub);
     viewerSetCheck('rentalDist_NYMLS', d.distNYMLS);
     viewerSetCheck('rentalDist_Realtor', d.distRealtor);
@@ -4615,10 +4667,11 @@ function loadRentalListingData(listingId) {
 // ── Convert form to viewer ──
 function convertRentalFormToViewer() {
     var skipSelectors = ['#rentalPrintModal', '#rentalEmailModal', '#rentalBuildingModal', '#rentalMediaModal', '#rentalFinancialCalcModal'];
+    // The skip zones are resolved once, not once per control.
+    var skipZones = skipSelectors.map(function(sel) { return document.querySelector(sel); }).filter(Boolean);
     function isInsideSkipZone(el) {
-        for (var i = 0; i < skipSelectors.length; i++) {
-            var zone = document.querySelector(skipSelectors[i]);
-            if (zone && zone.contains(el)) return true;
+        for (var i = 0; i < skipZones.length; i++) {
+            if (skipZones[i].contains(el)) return true;
         }
         if (el.id === 'rentalCommuteAddress') return true;
         return false;
@@ -4680,7 +4733,12 @@ function updateRentalHeaderForViewer(listingData) {
         };
         var sc = statusColors[listingData.status] || 'bg-gray-100 text-gray-600 border-gray-300';
         draftBadge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ' + sc;
-        draftBadge.innerHTML = '<i class="fas fa-circle" style="font-size:6px;"></i> ' + (listingData.status || 'Unknown').replace(/([A-Z])/g, ' $1').trim();
+        draftBadge.textContent = '';
+        var statusDot = document.createElement('i');
+        statusDot.className = 'fas fa-circle';
+        statusDot.style.fontSize = '6px';
+        draftBadge.appendChild(statusDot);
+        draftBadge.appendChild(document.createTextNode(' ' + String(listingData.status || 'Unknown').split(/(?=[A-Z])/).join(' ').trim()));
     }
 
     // Sticky bar buttons already set to viewer tools in HTML
@@ -4714,10 +4772,15 @@ function convertRentalDistributionToDisplay() {
         var label = cb.closest('label');
         if (!label) return;
         var text = label.textContent.trim();
-        var isChecked = cb.checked;
+        // Three states: a flag the record sets, a flag the record clears, and a flag the record does not carry (unknown).
+        var state = cb.indeterminate ? 'unknown' : (cb.checked ? 'yes' : 'no');
         var badge = document.createElement('span');
-        badge.className = isChecked ? 'dist-gate-yes' : 'dist-gate-no';
-        badge.innerHTML = '<i class="fas ' + (isChecked ? 'fa-check-circle' : 'fa-times-circle') + '" style="font-size:11px;"></i> ' + text;
+        badge.className = state === 'yes' ? 'dist-gate-yes' : (state === 'no' ? 'dist-gate-no' : 'dist-gate-unknown');
+        var icon = document.createElement('i');
+        icon.className = 'fas ' + (state === 'yes' ? 'fa-check-circle' : (state === 'no' ? 'fa-times-circle' : 'fa-question-circle'));
+        icon.style.fontSize = '11px';
+        badge.appendChild(icon);
+        badge.appendChild(document.createTextNode(' ' + text));
         label.parentNode.replaceChild(badge, label);
     });
 }
@@ -5399,7 +5462,7 @@ const CRM_TO_RESO_RENTAL_STATUS = {
 };
 
 function getResoRentalMlsStatus(crmStatus) {
-    return CRM_TO_RESO_RENTAL_STATUS[crmStatus] || 'Active';
+    return CRM_TO_RESO_RENTAL_STATUS[crmStatus] || '--';
 }
 
 function validateStatusChange(prefix) {
@@ -5426,56 +5489,28 @@ function initLoggedInAgent() {
         if (headerCompany && u.companyName) headerCompany.textContent = u.companyName;
     }
 
+    // Handle 401 events from API calls
+    window.addEventListener('mallan:auth:unauthorized', function() {
+        window.location.href = '/crm/login.html';
+    });
+
     if (typeof MallanAPI !== 'undefined') {
-        MallanAPI.init().then(function(data) {
+        // Resolves with the /api/auth/me result so the boot waits for the server-validated identity and role.
+        return MallanAPI.init().then(function(data) {
             if (data.authenticated && data.user) {
                 populate(data.user);
                 var agentDisplay = document.getElementById('rentalUpdatingAgentDisplay');
                 if (agentDisplay && data.user.id && data.user.name) {
                     agentDisplay.value = data.user.id + ' | ' + data.user.name;
                 }
-            } else {
-                // Not authenticated — redirect to login
-                window.location.href = '/crm/login.html;
-                return;
+                return data;
             }
+            // Not authenticated — redirect to login
+            window.location.href = '/crm/login.html';
+            return null;
         });
     }
-    // Handle 401 events from API calls
-    window.addEventListener('mallan:auth:unauthorized', function() {
-        window.location.href = '/crm/login.html;
-    });
-
-    // Pre-select the agent's company in the Listing Agent dropdown (Tab 1.3)
-    var listingCompanyHidden = document.getElementById('rentalListingCompany');
-    var listingCompanySearch = document.getElementById('rentalListingCompanySearch');
-    if (listingCompanyHidden && companyKey) listingCompanyHidden.value = companyKey;
-    if (listingCompanySearch && companyName) listingCompanySearch.value = companyName;
-
-    // Enable agent search for that company
-    var listingAgentSearch = document.getElementById('rentalListingAgentSearch');
-    if (listingAgentSearch) {
-        listingAgentSearch.disabled = false;
-        listingAgentSearch.placeholder = 'Search agent...';
-    }
-
-    // If agent data in rebnyAgents, auto-select the agent
-    if (companyKey && rebnyAgents[companyKey]) {
-        var match = rebnyAgents[companyKey].find(function(a) { return a.id === agentId; });
-        if (match) {
-            var agentHidden = document.getElementById('rentalListingAgent');
-            if (agentHidden) agentHidden.value = agentId;
-            if (listingAgentSearch) listingAgentSearch.value = match.name;
-            // Show agent info card
-            var el = function(id) { return document.getElementById(id); };
-            if (el('rentalListingAgentId')) el('rentalListingAgentId').textContent = match.id;
-            if (el('rentalListingAgentPhone')) el('rentalListingAgentPhone').textContent = match.phone;
-            if (el('rentalListingAgentEmail')) el('rentalListingAgentEmail').textContent = match.email;
-            if (el('rentalListingAgentLicense')) el('rentalListingAgentLicense').textContent = match.license;
-            var infoCard = el('rentalListingAgentInfo');
-            if (infoCard) infoCard.style.display = 'block';
-        }
-    }
+    return null;
 }
 
 // ══════════════════════════════════════════════════════
@@ -5977,7 +6012,7 @@ function generateAgentInfoSheet() {
         '</div>' +
         '<script>function emailAgentSheet(){var s="Agent Info Sheet - "+document.querySelector(".agent-card h2").textContent;' +
         'var b="Please find the attached agent info sheet for "+s+".";' +
-        'window.location.href="mailto:?subject="+encodeURIComponent(s)+"&body="+encodeURIComponent(b);}</script>' +
+        'window.location.href="mailto:?subject="+encodeURIComponent(s)+"&body="+encodeURIComponent(b);}<\/script>' +
         '</body></html>';
 
     var win = window.open('', '_blank');
@@ -6986,6 +7021,31 @@ function updateRentalPreview() {
 // ══════════════════════════════════════════════════════
 // INIT — Viewer-only boot sequence (no form mode)
 // ══════════════════════════════════════════════════════
+// Renders the loaded listing. Any failure ends on the fail-closed screen: nothing is shown from a partial render.
+function renderRentalViewer() {
+    try {
+        var listingData = loadRentalListingData(VIEWER_LISTING_ID);
+        if (!listingData) { showRentalFailClosed(VIEWER_LISTING_ID); return; }
+        showRentalMainTab(1);
+        if (typeof applyRentalFieldRules === 'function') applyRentalFieldRules();
+        convertRentalFormToViewer();
+        patchGetRentalFormValue();
+        updateRentalHeaderForViewer(listingData);
+        removeRentalNavigationButtons();
+        convertRentalDistributionToDisplay();
+        applyRentalRoleMasking();
+        document.body.classList.remove('skeleton-loading');
+        setTimeout(function() {
+            if (typeof updateRentalPreview === 'function') updateRentalPreview();
+            if (typeof updateRentalTransit === 'function') updateRentalTransit();
+        }, 200);
+        console.log('[RentalViewer] Initialized. Listing:', VIEWER_LISTING_ID, 'Role:', VIEWER_ROLE);
+    } catch (e) {
+        console.error('[RentalViewer] render failed:', e && e.message);
+        showRentalFailClosed(VIEWER_LISTING_ID);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     document.body.classList.add('viewer-mode');
 
@@ -6999,37 +7059,41 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
-    // Show skeleton loading while data loads
+    // Skeleton placeholders until the listing is in: entry-form defaults are never shown as listing data.
     document.body.classList.add('skeleton-loading');
 
     neutralizeRentalFormSystems();
-    initLoggedInAgent();
 
-    var listingData = loadRentalListingData(VIEWER_LISTING_ID);
+    // Identity (server role) first, then the listing, then render. Any failure, or no answer within 30 seconds, ends on the
+    // fail-closed screen.
+    var finished = false;
+    var guard = setTimeout(function() {
+        if (finished) return;
+        finished = true;
+        showRentalFailClosed(VIEWER_LISTING_ID);
+    }, 30000);
+    var finish = function() { finished = true; clearTimeout(guard); };
 
-    // Remove skeleton after data loads (or timeout)
-    var removeSkeleton = function() { document.body.classList.remove('skeleton-loading'); };
-    if (listingData) {
-        removeSkeleton();
-    } else {
-        setTimeout(removeSkeleton, 3000);
-    }
+    var session = null;
+    try { session = initLoggedInAgent(); } catch (e) { console.error('[RentalViewer] identity lookup failed:', e && e.message); }
+    if (!session) { finish(); showRentalFailClosed(VIEWER_LISTING_ID); return; }
 
-    showRentalMainTab(1);
-    if (typeof applyRentalFieldRules === 'function') applyRentalFieldRules();
-    convertRentalFormToViewer();
-    patchGetRentalFormValue();
-    updateRentalHeaderForViewer(listingData);
-    removeRentalNavigationButtons();
-    convertRentalDistributionToDisplay();
-    applyRentalRoleMasking();
-
-    setTimeout(function() {
-        if (typeof updateRentalPreview === 'function') updateRentalPreview();
-        if (typeof updateRentalTransit === 'function') updateRentalTransit();
-    }, 200);
-
-    console.log('[RentalViewer] Initialized. Listing:', VIEWER_LISTING_ID, 'Role:', VIEWER_ROLE);
+    session.then(function(data) {
+        if (finished) return null;
+        // Not signed in: initLoggedInAgent is already redirecting to the login page.
+        if (!data || !data.authenticated) { finish(); return null; }
+        viewerApplyServerRole();
+        return viewerFetchListing(VIEWER_LISTING_ID).then(function() {
+            if (finished) return;
+            finish();
+            renderRentalViewer();
+        });
+    }).catch(function(err) {
+        if (finished) return;
+        finish();
+        console.warn('[RentalViewer] listing request failed:', err && err.message);
+        showRentalFailClosed(VIEWER_LISTING_ID);
+    });
 });
 
 // ══════════════════════════════════════════════════════
