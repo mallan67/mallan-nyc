@@ -5036,11 +5036,10 @@ function initLoggedInAgent() {
     function _applyAgentData(u) {
         if (typeof MallanAgentDefaults === 'undefined') {
             console.warn('[RentalForm] Agent defaults module not loaded — agent fields left blank');
-            showToast('Could not load agent profile. Please verify Listing Agent manually.', 'warning');
+            showToast('The agent module did not load, so this listing will not carry your Cotality agent identity. Reload the page before saving.', 'warning');
             return;
         }
         MallanAgentDefaults.apply('rental', u, {
-            editMode: function() { return typeof _rentalEditMode !== 'undefined' && _rentalEditMode; },
             updateTable: updateRentalAgentTable,
             toast: showToast
         });
@@ -5192,6 +5191,7 @@ function validateAndNextRentalTab(currentTab, nextTab) {
 // SAVE DRAFT — localStorage persistence
 // ══════════════════════════════════════════════════════
 function saveRentalDraft() {
+    if (_rentalSaveBlocked()) return;
     var data = collectRentalFormData();
 
     // S-DB-008 phantom-draft guard (parity with the sales form's
@@ -5275,7 +5275,10 @@ function showToast(message, type) {
         toast.style.background = '#d97706';
     }
     var icon = type === 'error' ? 'fa-exclamation-circle' : type === 'warning' ? 'fa-exclamation-triangle' : 'fa-check-circle';
-    toast.innerHTML = '<i class="fas ' + icon + ' mr-2"></i> ' + message;
+    var iconEl = document.createElement('i');
+    iconEl.className = 'fas ' + icon + ' mr-2';
+    toast.appendChild(iconEl);
+    toast.appendChild(document.createTextNode(' ' + message));
     document.body.appendChild(toast);
     setTimeout(function() { toast.remove(); }, 3000);
 }
@@ -5581,6 +5584,7 @@ function collectRentalFormData() {
 }
 
 function submitRentalListing() {
+    if (_rentalSaveBlocked()) return;
     // Validate all tabs with required fields (tabs 1-4)
     var allValid = true;
     for (var t = 1; t <= 4; t++) {
@@ -5952,7 +5956,10 @@ function renderCompanyList(listEl, filter) {
         count++;
     });
     if (count === 0) {
-        listEl.innerHTML = '<div class="dd-empty">No companies match "' + (filter||'') + '"</div>';
+        const empty = document.createElement('div');
+        empty.className = 'dd-empty';
+        empty.textContent = 'No companies match "' + (filter || '') + '"';
+        listEl.appendChild(empty);
     }
 }
 
@@ -5966,6 +5973,7 @@ function renderAgentList(listEl, companyKey, filter) {
         const item = document.createElement('div');
         item.className = 'dd-item';
         item.dataset.id = agent.id;
+        item.dataset.mlsId = agent.mlsId || '';
         item.dataset.name = agent.name;
         item.dataset.phone = agent.phone;
         item.dataset.email = agent.email;
@@ -6054,6 +6062,8 @@ function populateRebnyCompanyDropdowns() {
         onSelect: function(key) {
             const agentSearch = document.getElementById('rentalListingAgentSearch');
             const agentHidden = document.getElementById('rentalListingAgent');
+            // the company the listing agent already belongs to: picking it again must not drop the agent
+            if (agentHidden.value && agentHidden.dataset.company === key) return;
             agentSearch.disabled = false;
             agentSearch.placeholder = 'Search agent...';
             agentSearch.value = '';
@@ -6075,12 +6085,12 @@ function populateRebnyCompanyDropdowns() {
         onSelect: function(data) {
             const companyKey = document.getElementById('rentalListingCompany').value;
             const companyName = rebnyCompanyNames[companyKey] || companyKey;
-            document.getElementById('rentalListingAgentId').textContent = data.id;
+            document.getElementById('rentalListingAgentId').textContent = data.mlsId || data.id;
             document.getElementById('rentalListingAgentPhone').textContent = data.phone;
             document.getElementById('rentalListingAgentEmail').textContent = data.email;
             document.getElementById('rentalListingAgentLicense').textContent = data.license;
             document.getElementById('rentalListingAgentInfo').style.display = 'block';
-            updateRentalAgentTable('listing', data.id, data.name, companyName, data.phone, data.email);
+            updateRentalAgentTable('listing', data.mlsId || data.id, data.name, companyName, data.phone, data.email);
         }
     });
 
@@ -6565,6 +6575,17 @@ function updateRentalPreview() {
 var _rentalEditMode = false;
 var _rentalEditDbId = null;
 var _rentalEditListingId = null;
+// 'loading' from the moment the page is opened with ?id= until that listing has been restored into the form, 'failed' when it could not be, '' for a new listing.
+// Until it is 'loaded' the form holds nothing of the listing, and every save writes the WHOLE form: it would replace the saved listing with a blank one.
+var _rentalEditLoad = '';
+
+function _rentalSaveBlocked() {
+    if (_rentalEditLoad !== 'loading' && _rentalEditLoad !== 'failed') return false;
+    showToast(_rentalEditLoad === 'loading'
+        ? 'This listing is still loading, so nothing was saved: saving now would replace it with a blank form.'
+        : 'This listing did not load, so nothing was saved: saving now would replace it with a blank form. Reload the page to try again.', 'error');
+    return true;
+}
 
 function _checkRentalEditMode() {
     var params = new URLSearchParams(window.location.search);
@@ -6573,10 +6594,14 @@ function _checkRentalEditMode() {
 
     _rentalEditMode = true;
     _rentalEditDbId = id;
+    _rentalEditLoad = 'loading';
+    // a signed-in user whose session arrived first is nobody's listing agent until the saved listing says who is
+    if (typeof MallanAgentDefaults !== 'undefined') MallanAgentDefaults.beginEdit('rental');
 
     showToast('Loading listing...', 'info');
 
     if (typeof MallanAPI === 'undefined' || !MallanAPI.listings) {
+        _rentalEditLoad = 'failed';
         showToast('API not available — cannot load listing', 'error');
         return;
     }
@@ -6584,6 +6609,7 @@ function _checkRentalEditMode() {
     MallanAPI.listings.get(id).then(function(listing) {
         _rentalEditListingId = listing.listing_id || listing.id;
         _populateRentalFormFromApi(listing);
+        _rentalEditLoad = 'loaded';
         showToast('Listing loaded: ' + (_rentalEditListingId || id), 'success');
 
         var idDisplay = document.getElementById('rentalListingIdDisplay');
@@ -6597,6 +6623,7 @@ function _checkRentalEditMode() {
             btn.textContent = btn.textContent.replace(/Submit|Create/gi, 'Update');
         });
     }).catch(function(err) {
+        if (_rentalEditLoad !== 'loaded') _rentalEditLoad = 'failed';
         showToast('Failed to load listing: ' + err.message, 'error');
     });
 }

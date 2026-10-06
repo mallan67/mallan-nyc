@@ -138,7 +138,8 @@ describe('identity capture — /api/auth/me exposes trestle_mls_id; form stamps 
   });
   it('form persists the hidden saleUpdatingAgentMlsId field from the session mlsId', () => {
     expect(form).toMatch(/id="saleUpdatingAgentMlsId"/);
-    expect(defaults).toMatch(/\['id', 'name', 'phone', 'email', 'license', 'mlsId', 'companyKey', 'companyName'\]\.forEach\(function \(part\) \{ write\(prefix, part, user\[part\], editing\); \}\)/);
+    expect(defaults).toMatch(/mlsId: str\(u\.mlsId\)/);
+    expect(defaults).toMatch(/PARTS\.forEach\(function \(part\) \{ write\(prefix, part, parts\[part\]\); \}\)/);
   });
   it('the company-key slug is never written into ListOfficeKey: only a digit string (a Cotality OfficeKey) is submitted', () => {
     expect(form).not.toMatch(/data\.ListOfficeKey\s*=\s*data\.saleUpdatingAgentCompanyKey/);

@@ -4847,11 +4847,10 @@ function initLoggedInAgent() {
     function _applyAgentData(u) {
         if (typeof MallanAgentDefaults === 'undefined') {
             console.warn('[SaleForm] Agent defaults module not loaded — agent fields left blank');
-            showToast('Could not load agent profile. Please verify Listing Agent manually.', 'warning');
+            showToast('The agent module did not load, so this listing will not carry your Cotality agent identity. Reload the page before saving.', 'warning');
             return;
         }
         MallanAgentDefaults.apply('sale', u, {
-            editMode: function() { return typeof _saleEditMode !== 'undefined' && _saleEditMode; },
             updateTable: updateSaleAgentTable,
             toast: showToast
         });
@@ -5927,7 +5926,10 @@ function renderCompanyList(listEl, filter) {
         count++;
     });
     if (count === 0) {
-        listEl.innerHTML = '<div class="dd-empty">No companies match "' + (filter||'') + '"</div>';
+        const empty = document.createElement('div');
+        empty.className = 'dd-empty';
+        empty.textContent = 'No companies match "' + (filter || '') + '"';
+        listEl.appendChild(empty);
     }
 }
 
@@ -5941,6 +5943,7 @@ function renderAgentList(listEl, companyKey, filter) {
         const item = document.createElement('div');
         item.className = 'dd-item';
         item.dataset.id = agent.id;
+        item.dataset.mlsId = agent.mlsId || '';
         item.dataset.name = agent.name;
         item.dataset.phone = agent.phone;
         item.dataset.email = agent.email;
@@ -6029,6 +6032,8 @@ function populateRebnyCompanyDropdowns() {
             // Enable agent dropdown & populate
             const agentSearch = document.getElementById('saleListingAgentSearch');
             const agentHidden = document.getElementById('saleListingAgent');
+            // the company the listing agent already belongs to: picking it again must not drop the agent
+            if (agentHidden.value && agentHidden.dataset.company === key) return;
             agentSearch.disabled = false;
             agentSearch.placeholder = 'Search agent...';
             agentSearch.value = '';
@@ -6052,12 +6057,12 @@ function populateRebnyCompanyDropdowns() {
         onSelect: function(data) {
             const companyKey = document.getElementById('saleListingCompany').value;
             const companyName = rebnyCompanyNames[companyKey] || companyKey;
-            document.getElementById('saleListingAgentId').textContent = data.id;
+            document.getElementById('saleListingAgentId').textContent = data.mlsId || data.id;
             document.getElementById('saleListingAgentPhone').textContent = data.phone;
             document.getElementById('saleListingAgentEmail').textContent = data.email;
             document.getElementById('saleListingAgentLicense').textContent = data.license;
             document.getElementById('saleListingAgentInfo').style.display = 'block';
-            updateSaleAgentTable('listing', data.id, data.name, companyName, data.phone, data.email);
+            updateSaleAgentTable('listing', data.mlsId || data.id, data.name, companyName, data.phone, data.email);
         }
     });
 
@@ -7756,6 +7761,7 @@ function collectSaleFormData() {
 }
 
 function submitSalesListing() {
+    if (_saleSaveBlocked()) return;
     if (typeof activateSaleValidation === 'function') activateSaleValidation();
 
     // Step 1: Validate ALL tabs with HTML required fields
@@ -8115,6 +8121,7 @@ function performAutoSave() {
 }
 
 async function manualSaveDraft() {
+    if (_saleSaveBlocked()) return;
     // Capture the current autosave timer so we only cancel this one, not a newer one
     var preFlightTimer = autoSaveTimer;
     // Step 1: Save/create listing via API
@@ -8955,6 +8962,17 @@ function updateSalePreview() {
 var _saleEditMode = false;
 var _saleEditDbId = null;
 var _saleEditListingId = null;
+// 'loading' from the moment the page is opened with ?id= until that listing has been restored into the form, 'failed' when it could not be, '' for a new listing.
+// Until it is 'loaded' the form holds nothing of the listing, and every save writes the WHOLE form: it would replace the saved listing with a blank one.
+var _saleEditLoad = '';
+
+function _saleSaveBlocked() {
+    if (_saleEditLoad !== 'loading' && _saleEditLoad !== 'failed') return false;
+    showToast(_saleEditLoad === 'loading'
+        ? 'This listing is still loading, so nothing was saved: saving now would replace it with a blank form.'
+        : 'This listing did not load, so nothing was saved: saving now would replace it with a blank form. Reload the page to try again.', 'error');
+    return true;
+}
 
 function _checkSaleEditMode() {
     var params = new URLSearchParams(window.location.search);
@@ -8963,11 +8981,15 @@ function _checkSaleEditMode() {
 
     _saleEditMode = true;
     _saleEditDbId = id;
+    _saleEditLoad = 'loading';
+    // a signed-in user whose session arrived first is nobody's listing agent until the saved listing says who is
+    if (typeof MallanAgentDefaults !== 'undefined') MallanAgentDefaults.beginEdit('sale');
 
     // Show loading indicator
     showToast('Loading listing...', 'info');
 
     if (typeof MallanAPI === 'undefined' || !MallanAPI.listings) {
+        _saleEditLoad = 'failed';
         showToast('API not available — cannot load listing', 'error');
         return;
     }
@@ -8995,6 +9017,7 @@ function _checkSaleEditMode() {
             // Always release the lock, even if any step above threw.
             window._salePopulateInProgress = false;
         }
+        _saleEditLoad = 'loaded';
         // Enable autosave AFTER lock is released, in a microtask, and clear
         // any timer that change handlers may have scheduled during populate.
         Promise.resolve().then(function() {
@@ -9015,6 +9038,7 @@ function _checkSaleEditMode() {
             btn.textContent = btn.textContent.replace(/Submit|Create/gi, 'Update');
         });
     }).catch(function(err) {
+        if (_saleEditLoad !== 'loaded') _saleEditLoad = 'failed';
         showToast('Failed to load listing: ' + err.message, 'error');
     });
 }

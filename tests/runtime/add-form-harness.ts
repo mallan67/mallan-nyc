@@ -23,7 +23,10 @@ export type AddFormOpts = {
   listing?: Record<string, unknown>;                 // what MallanAPI.listings.get returns
   user?: Record<string, unknown> | null;             // the session user (/api/auth/me `user`); null = no session
   readyDelay?: number;                               // ms before MallanAPI.onReady fires with the user
+  readySync?: boolean;                               // fire MallanAPI.onReady's callback at once, inside the call (the auth gate had already resolved)
   getDelay?: number;                                 // ms before MallanAPI.listings.get resolves
+  getError?: string;                                 // make MallanAPI.listings.get fail with this message (the listing could not be loaded)
+  noListingsApi?: boolean;                           // a MallanAPI without listings (no way to load or save a listing)
   members?: Record<string, DirectoryMember | null>;  // live Member directory answers, by MLS ID
   directoryError?: string;                           // make every directory lookup fail with this message
   memberDelays?: Record<string, number>;             // ms before the directory answers for an MLS ID (a slow answer arriving late)
@@ -79,11 +82,11 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
       w.MallanAPI = {
         isReady: true,
         // the real client fires onReady with the session user once init() has succeeded, and never for an anonymous session
-        onReady: (cb: (u: unknown) => void) => { if (user) setTimeout(() => cb(user), o.readyDelay ?? 5); },
+        onReady: (cb: (u: unknown) => void) => { if (user) { if (o.readySync) cb(user); else setTimeout(() => cb(user), o.readyDelay ?? 5); } },
         getContext: () => context,
         init: () => Promise.resolve({ authenticated: !!user, user }),
         listings: {
-          get: async () => { await sleep(o.getDelay ?? 10); return o.listing ?? {}; },
+          get: async () => { await sleep(o.getDelay ?? 10); if (o.getError) throw new Error(o.getError); return o.listing ?? {}; },
           create: async (payload: Record<string, unknown>) => { saved.push(payload); return { id: '1', listing_id: 'L-1', status: 'Draft' }; },
           update: async (_id: string, payload: Record<string, unknown>) => { saved.push(payload); return {}; },
           updateStatus: async () => ({}),
@@ -101,6 +104,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
           return {};
         },
       };
+      if (o.noListingsApi) delete w.MallanAPI.listings;
       for (const name of o.modules ?? PAGE_MODULES) w.eval(read(`public/crm/js/forms/${name}.js`));
     },
   });
@@ -185,6 +189,8 @@ export function storedListing(payload: Record<string, unknown>, listingType: 'sa
   return {
     // a create always starts as Draft (the route ignores the status in the body); transitions go through the status route
     id: '1', listing_id: listingType === 'sale' ? 'SL-0001' : 'RL-0001', listing_type: listingType,
+    // the create route records the signed-in user as the listing's agent (agent_id: auth.userId), and the GET returns it as a string
+    agent_id: String(SESSION_USER.id),
     ...top, status: 'Draft', ...typedAgentColumnsFromJson(rec.agentInfo),
     address: rec.address, features: rec.features, raw_data: rec.raw_data, agent_info: {}, media: [],
     created_at: '2026-03-01T00:00:00.000Z', updated_at: '2026-03-02T00:00:00.000Z',

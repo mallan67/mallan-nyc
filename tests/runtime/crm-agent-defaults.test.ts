@@ -149,6 +149,28 @@ describe.each(FORMS)('%s: what the agent profile or Cotality cannot supply is le
     } finally { f.close(); }
   });
 
+  it('an office key that is not a Cotality key (digits) is never submitted, wherever it came from', async () => {
+    const f = await bootAddForm(form, { members: { '39361': { ...SESSION_MEMBER, officeKey: 'mallan' } } });
+    try {
+      await checked(f.d, prefix);
+      const p = payloadOf(f, collector);
+      expect(p).not.toHaveProperty('ListOfficeKey');
+      expect(p.ListAgentKey).toBe('4455667');                              // the rest of what the directory said is still used
+    } finally { f.close(); }
+  });
+
+  it('what the directory returns is shown as text, never as markup', async () => {
+    const hostile = '<img src=x onerror="window.__pwned=1">';
+    const f = await bootAddForm(form, { members: { '39361': { ...SESSION_MEMBER, fullName: hostile } } });
+    try {
+      await checked(f.d, prefix);
+      const status = f.d.getElementById(`${prefix}AgentCotalityStatus`) as HTMLElement;
+      expect(status.querySelector('img')).toBeNull();
+      expect(status.textContent).toContain(hostile);
+      expect((f.w as any).__pwned).toBeUndefined();
+    } finally { f.close(); }
+  });
+
   it('an inactive Cotality member is flagged, not hidden', async () => {
     const f = await bootAddForm(form, { members: { '39361': { ...SESSION_MEMBER, status: 'Inactive' } } });
     try {
@@ -226,9 +248,9 @@ describe.each(FORMS)('%s: editing a saved listing', (form, prefix, collector) =>
     } finally { f.close(); }
   });
 
-  it('fills an MLS ID a saved listing lacks from the session (every listing saved before this fix has none), and drops the old company slug', async () => {
+  it('fills an MLS ID a saved listing lacks from the session when the signed-in agent OWNS the listing (every listing saved before this fix has none), and drops the old company slug', async () => {
     const legacy = {
-      ...SAVED, list_agent_mls_id: null, list_office_mls_id: null,
+      ...SAVED, agent_id: 'AG-9', list_agent_full_name: 'Sender Agent', list_agent_mls_id: null, list_office_mls_id: null,
       agent_info: { ListOfficeKey: 'mallan' }, raw_data: { ListOfficeKey: 'mallan' },
     };
     const f = await bootAddForm(form, { search: '?id=1', listing: legacy, settle: 1500 });
@@ -236,8 +258,8 @@ describe.each(FORMS)('%s: editing a saved listing', (form, prefix, collector) =>
       await checked(f.d, prefix);
       await sleep(300);
       const p = payloadOf(f, collector);
-      expect(p.ListAgentMlsId).toBe('39361');                              // from the session, which the server also requires to own the listing
-      expect(p.ListAgentFullName).toBe('Saved Agent');                     // what the listing already says stays
+      expect(p.ListAgentMlsId).toBe('39361');                              // from the session: the listing is the signed-in agent's own
+      expect(p.ListAgentFullName).toBe('Sender Agent');
       expect(p.ListOfficeKey).toBe('5671398');                             // the live Cotality office key replaces the old slug
       expect(p.ListOfficeKey).not.toBe('mallan');
     } finally { f.close(); }
@@ -258,12 +280,403 @@ describe.each(FORMS)('%s: editing a saved listing', (form, prefix, collector) =>
     } finally { f.close(); }
   });
 
-  it('never submits the old company slug as an office key, even when Cotality cannot be reached', async () => {
+  it('a saved MLS ID with no saved Cotality keys gets the keys of THAT agent, not the signed-in agent\'s', async () => {
+    const noKeys = { ...SAVED, agent_info: {}, raw_data: {} };
+    const f = await bootAddForm(form, { search: '?id=1', listing: noKeys, members: { '39361': SESSION_MEMBER, '11111': SAVED_MEMBER }, settle: 1500 });
+    try {
+      await checked(f.d, prefix);
+      expect(payloadOf(f, collector)).toMatchObject({ ListAgentMlsId: '11111', ListAgentKey: '777', ListOfficeKey: '888', ListOfficeMlsId: '2222' });
+      expect(f.fetched.filter((p) => p.includes('mlsId=39361'))).toEqual([]);     // the session agent's record was never needed
+    } finally { f.close(); }
+  });
+
+  it('a directory member whose name is not the listing agent\'s is reported and attaches no key (an MLS ID typed against the wrong person)', async () => {
+    const f = await bootAddForm(form, {
+      search: '?id=1', listing: { ...SAVED, agent_info: {}, raw_data: {} }, settle: 1500,
+      members: { '11111': { ...SAVED_MEMBER, fullName: 'Someone Else', key: '999', officeKey: '998', officeMlsId: '997' } },
+    });
+    try {
+      await checked(f.d, prefix);
+      expect(cotalityStatus(f.d, prefix)).toBe('MLS ID 11111 belongs to Someone Else in Cotality, not to Saved Agent, so no Cotality key was attached.');
+      const p = payloadOf(f, collector);
+      expect(p.ListAgentMlsId).toBe('11111');
+      for (const k of ['ListAgentKey', 'ListOfficeKey']) expect(p).not.toHaveProperty(k);
+      expect(p.ListOfficeMlsId).toBe('2222');                              // the office the listing was saved with is the listing's own, not the directory's
+    } finally { f.close(); }
+  });
+
+  it.each([
+    ['Mike Smith', 'Michael Smith', true],        // the same family name and first initial: one person
+    ['Mike Smith', 'Mike Jones', false],          // another family name
+    ['Dara Smith', 'Paeder Smith', false],        // the same family name, another first name
+    ['Smith', 'Michael Smith', true],             // a one-word name matches on that word
+    ['Smith', 'Michael Jones', false],
+    ['', 'Michael Smith', true],                  // an MLS ID and no name: nothing contradicts the directory
+  ])('the listing names %j, Cotality has %j for that MLS ID: keys attached = %s', async (listed, member, attaches) => {
+    const f = await bootAddForm(form, {
+      search: '?id=1', listing: { ...SAVED, list_agent_full_name: listed || null, agent_info: {}, raw_data: {} }, settle: 1200,
+      members: { '11111': { ...SAVED_MEMBER, fullName: member } },
+    });
+    try {
+      await checked(f.d, prefix);
+      const p = payloadOf(f, collector);
+      if (attaches) expect(p).toMatchObject({ ListAgentKey: '777', ListOfficeKey: '888' });
+      else for (const k of ['ListAgentKey', 'ListOfficeKey']) expect(p).not.toHaveProperty(k);
+    } finally { f.close(); }
+  });
+
+  it('a saved Cotality key and office are kept when the directory answers with others: the listing keeps what it was saved with', async () => {
+    const f = await bootAddForm(form, {
+      search: '?id=1', listing: SAVED, settle: 1200,
+      members: { '11111': { ...SAVED_MEMBER, key: '999', officeKey: '998', officeMlsId: '997' } },
+    });
+    try {
+      await checked(f.d, prefix);
+      expect(payloadOf(f, collector)).toMatchObject({ ListAgentKey: '777', ListOfficeKey: '888', ListOfficeMlsId: '2222' });
+    } finally { f.close(); }
+  });
+
+  it('an MLS ID that is not a Cotality MLS ID (digits only) is not looked up and is said so', async () => {
+    const f = await bootAddForm(form, { search: '?id=1', listing: { ...SAVED, list_agent_mls_id: 'AB-12', agent_info: {}, raw_data: {} }, settle: 1500 });
+    try {
+      await checked(f.d, prefix);
+      expect(cotalityStatus(f.d, prefix)).toBe('MLS ID "AB-12" is not a Cotality MLS ID (digits only), so it was not checked.');
+      expect(f.fetched.filter((p) => p.includes('/directory/'))).toEqual([]);
+      expect(payloadOf(f, collector)).not.toHaveProperty('ListAgentKey');
+    } finally { f.close(); }
+  });
+
+  it('never submits the old company slug as an office key, even when Cotality cannot be reached: the saved slug is cleared instead', async () => {
     const legacy = { ...SAVED, agent_info: { ListOfficeKey: 'mallan' }, raw_data: { ListOfficeKey: 'mallan' } };
     const f = await bootAddForm(form, { search: '?id=1', listing: legacy, directoryError: 'down', settle: 1500 });
     try {
       await sleep(400);
-      expect(payloadOf(f, collector)).not.toHaveProperty('ListOfficeKey');
+      const p = payloadOf(f, collector);
+      expect(p.ListOfficeKey).toBe('');                                    // an explicit blank replaces the stored slug (the save merges, so omitting it would keep it)
+      expect(p.ListOfficeKey).not.toBe('mallan');
+    } finally { f.close(); }
+  });
+});
+
+// ── A broker may edit any listing. Opening somebody else's listing must not make the broker its listing agent. ───────────────────────────────────────────────
+// (every listing saved before this fix has no MLS ID, no Cotality keys and an old company slug, so it is also the shape of the listings a broker meets first)
+describe.each(FORMS)('%s: a broker who edits another agent\'s listing never becomes its listing agent', (form, prefix, collector) => {
+  const OTHERS = { ...SAVED, agent_id: '77', list_agent_mls_id: null, list_office_mls_id: null, agent_info: {}, raw_data: {} };
+  const NOT_THE_BROKER = ['Sender Agent', '39361', 'sender@example.test', '212-555-0199', 'L-123'];
+  const everythingShown = (f: BootedForm) => [
+    ...[...f.d.querySelectorAll(`#${prefix}AgentContactsTable td`)].map((c) => c.textContent),
+    txt(f.d, `${prefix}ListingAgentId`), txt(f.d, `${prefix}ListingAgentPhone`), txt(f.d, `${prefix}ListingAgentEmail`), txt(f.d, `${prefix}ListingAgentLicense`),
+    val(f.d, `${prefix}ListingAgentSearch`), val(f.d, `${prefix}UpdatingAgentDisplay`), val(f.d, `${prefix}UpdatingAgentName`), val(f.d, `${prefix}UpdatingAgentMlsId`),
+  ].join(' | ');
+
+  it.each([
+    ['the session user arrives first', { readyDelay: 5, getDelay: 400 }],
+    ['the listing arrives first', { readyDelay: 600, getDelay: 10 }],
+    ['both arrive together', { readyDelay: 100, getDelay: 100 }],
+  ])('shows and submits only what the listing carries, and no session identity, when %s', async (_name, timing) => {
+    const f = await bootAddForm(form, { search: '?id=1', listing: OTHERS, settle: 1800, ...timing });
+    try {
+      await checked(f.d, prefix);
+      await sleep(300);
+      expect([...new Set(f.errors)]).toEqual([]);
+      const p = payloadOf(f, collector);
+      expect(p).toMatchObject({ ListAgentFullName: 'Saved Agent', ListAgentEmail: 'saved@example.test', ListAgentDirectPhone: '212-555-0111', ListOfficeName: 'Saved Office Inc.' });
+      expect(p.ListAgentMlsId).toBe('');                                   // the listing has none, and the broker's is not its agent's
+      for (const k of ['ListAgentKey', 'ListOfficeKey', 'ListOfficeMlsId']) expect(p).not.toHaveProperty(k);
+      const shown = everythingShown(f);
+      for (const mine of NOT_THE_BROKER) expect(shown).not.toContain(mine);
+      expect(cotalityStatus(f.d, prefix)).toBe('This listing has no Cotality MLS ID for its agent, so it cannot be matched to that agent in Cotality.');
+      expect(f.fetched.filter((x) => x.includes('/directory/'))).toEqual([]);   // nothing to look up for anybody
+      expect(txt(f.d, 'headerAgentName')).toBe('Sender Agent');            // the header is the signed-in user's, and only the header
+    } finally { f.close(); }
+  });
+
+  it('a listing that carries no office name does not get the broker\'s company', async () => {
+    const f = await bootAddForm(form, { search: '?id=1', listing: { ...OTHERS, list_office_name: null }, settle: 1500 });
+    try {
+      await checked(f.d, prefix);
+      expect(payloadOf(f, collector).ListOfficeName).toBe('');
+      expect(val(f.d, `${prefix}ListingCompanySearch`)).not.toBe('Mallan Real Estate Inc.');
+    } finally { f.close(); }
+  });
+
+  it('a listing the broker owns but that names another agent is not filled in from the broker either', async () => {
+    const f = await bootAddForm(form, { search: '?id=1', listing: { ...OTHERS, agent_id: 'AG-9', list_agent_full_name: 'Pat Jones' }, settle: 1500 });
+    try {
+      await checked(f.d, prefix);
+      expect(payloadOf(f, collector).ListAgentMlsId).toBe('');
+      expect(everythingShown(f)).not.toContain('39361');
+      expect(cotalityStatus(f.d, prefix)).toMatch(/^This listing has no Cotality MLS ID for its agent/);
+    } finally { f.close(); }
+  });
+});
+
+describe.each(FORMS)('%s: the agent whose listing it is gets what the listing lacks from their profile, in either order', (form, prefix, collector) => {
+  const OWN = {
+    ...SAVED, agent_id: 'AG-9', list_agent_full_name: null, list_agent_mls_id: null, list_agent_email: null, list_agent_direct_phone: null, list_office_name: null,
+    list_office_mls_id: null, agent_info: {}, raw_data: {},
+  };
+  it.each([
+    ['the session user arrives first', { readyDelay: 5, getDelay: 400 }],
+    ['the listing arrives first', { readyDelay: 600, getDelay: 10 }],
+  ])('a listing with no agent at all becomes the owner\'s own when %s', async (_name, timing) => {
+    const f = await bootAddForm(form, { search: '?id=1', listing: OWN, settle: 1800, ...timing });
+    try {
+      await checked(f.d, prefix);
+      await sleep(300);
+      expect(payloadOf(f, collector)).toMatchObject({
+        ListAgentMlsId: '39361', ListAgentKey: '4455667', ListAgentFullName: 'Sender Agent', ListAgentEmail: 'sender@example.test', ListAgentDirectPhone: '212-555-0199',
+        ListOfficeName: 'Mallan Real Estate Inc.', ListOfficeKey: '5671398', ListOfficeMlsId: '7041',
+      });
+      expect(txt(f.d, `${prefix}ListingAgentLicense`)).toBe('L-123');
+      expect(tableRows(f, prefix)).toHaveLength(1);
+    } finally { f.close(); }
+  });
+
+  it('an MLS ID the listing already carries is kept even when it is not the owner\'s profile MLS ID: the profile fills only what the listing lacks', async () => {
+    const f = await bootAddForm(form, {
+      search: '?id=1', listing: { ...OWN, list_agent_full_name: 'Sender Agent', list_agent_mls_id: '11111' }, settle: 1500,
+      members: { '11111': { ...SAVED_MEMBER, fullName: 'Sender Agent' } },
+    });
+    try {
+      await checked(f.d, prefix);
+      expect(payloadOf(f, collector)).toMatchObject({ ListAgentMlsId: '11111', ListAgentKey: '777' });
+      expect(txt(f.d, `${prefix}ListingAgentId`)).toBe('11111');
+    } finally { f.close(); }
+  });
+
+  it('a saved name that is the owner written another way keeps the saved spelling, and takes the MLS ID the listing lacks from the owner', async () => {
+    const f = await bootAddForm(form, { search: '?id=1', listing: { ...OWN, list_agent_full_name: 'S. Agent' }, settle: 1500 });
+    try {
+      await checked(f.d, prefix);
+      const p = payloadOf(f, collector);
+      expect(p.ListAgentFullName).toBe('S. Agent');
+      expect(p.ListAgentMlsId).toBe('39361');
+      expect(val(f.d, `${prefix}ListingAgentSearch`)).toBe('S. Agent');
+    } finally { f.close(); }
+  });
+
+  it('a saved name that is a different person from the owner keeps the saved name and borrows nothing of the owner\'s', async () => {
+    const f = await bootAddForm(form, { search: '?id=1', listing: { ...OWN, list_agent_full_name: 'Mike Jones' }, settle: 1500 });
+    try {
+      await checked(f.d, prefix);
+      const p = payloadOf(f, collector);
+      expect(p.ListAgentFullName).toBe('Mike Jones');
+      expect(p.ListAgentMlsId).toBe('');
+      expect(p.ListAgentEmail).toBe('');
+      expect(p.ListAgentDirectPhone).toBe('');
+      expect(txt(f.d, `${prefix}ListingAgentLicense`)).toBe('--');
+    } finally { f.close(); }
+  });
+});
+
+// ── Opening a listing to edit: the signed-in user is nobody's agent until the listing says so ───────────────────────────────────────────────────────────
+describe.each(FORMS)('%s: while a saved listing is still loading', (form, prefix, collector) => {
+  it('shows and submits no agent at all (the session user is not displayed as the agent of a listing that may be somebody else\'s)', async () => {
+    const f = await bootAddForm(form, { search: '?id=1', listing: { ...SAVED, agent_id: '77' }, readyDelay: 5, getDelay: 1500, settle: 700 });
+    try {
+      expect(val(f.d, `${prefix}UpdatingAgentDisplay`)).toBe('');
+      expect(val(f.d, `${prefix}ListingAgent`)).toBe('');
+      expect(val(f.d, `${prefix}ListingAgentSearch`)).toBe('');
+      expect((f.d.getElementById(`${prefix}ListingAgentInfo`) as HTMLElement).style.display).not.toBe('block');
+      expect(tableRows(f, prefix).map((r) => r.id)).toEqual([`${prefix}AgentContactsPlaceholder`]);
+      const p = payloadOf(f, collector);
+      expect(p.ListAgentMlsId).toBe('');
+      expect(p.ListAgentFullName).toBe('');
+      expect(f.fetched.filter((x) => x.includes('/directory/'))).toEqual([]);
+      expect(cotalityStatus(f.d, prefix)).toBe('');
+      await sleep(1000);                                                    // the listing arrives (the page must still be open when it does)
+      await checked(f.d, prefix);
+      expect(val(f.d, `${prefix}UpdatingAgentDisplay`)).toBe('Saved Agent · MLS ID 11111');
+    } finally { f.close(); }
+  });
+
+  it('the header is still the signed-in user\'s', async () => {
+    const f = await bootAddForm(form, { search: '?id=1', listing: SAVED, readyDelay: 5, getDelay: 1500, settle: 700 });
+    try {
+      expect(txt(f.d, 'headerAgentName')).toBe('Sender Agent');
+      expect(txt(f.d, 'headerCompanyName')).toBe('Mallan Real Estate Inc.');
+      await sleep(1000);
+      expect(txt(f.d, 'headerAgentName')).toBe('Sender Agent');            // and still, once the listing has arrived
+    } finally { f.close(); }
+  });
+
+  // MallanAPI.onReady calls back at once when the auth gate has already resolved, which is BEFORE the page has looked at ?id=: the session user is applied as the
+  // agent of what still looks like a new listing, then the page learns it is editing.
+  it('is not fooled by a session that was ready before the page knew it was editing: the saved agent wins, and the session agent\'s late answer changes nothing', async () => {
+    const f = await bootAddForm(form, {
+      search: '?id=1', listing: { ...SAVED, agent_info: {}, raw_data: {} }, readySync: true, getDelay: 100, settle: 1500,
+      members: { '39361': SESSION_MEMBER, '11111': SAVED_MEMBER }, memberDelays: { '39361': 300 },
+    });
+    try {
+      await checked(f.d, prefix);
+      await sleep(400);                                    // the session agent's own (slow) answer has arrived by now
+      expect(payloadOf(f, collector)).toMatchObject({ ListAgentFullName: 'Saved Agent', ListAgentMlsId: '11111', ListAgentKey: '777', ListOfficeKey: '888', ListOfficeMlsId: '2222' });
+      expect(cotalityStatus(f.d, prefix)).toMatch(/^Cotality agent: Saved Agent \(MLS ID 11111\)/);
+    } finally { f.close(); }
+  });
+
+  it('a listing that never loads leaves no agent shown or submitted, even though the session was ready first', async () => {
+    const f = await bootAddForm(form, { search: '?id=1', readySync: true, getError: 'down', memberDelays: { '39361': 200 }, settle: 1200 });
+    try {
+      expect(val(f.d, `${prefix}UpdatingAgentDisplay`)).toBe('');
+      expect(val(f.d, `${prefix}ListingAgent`)).toBe('');
+      expect(cotalityStatus(f.d, prefix)).toBe('');
+      const p = payloadOf(f, collector);
+      expect(p.ListAgentMlsId).toBe('');
+      for (const k of ['ListAgentKey', 'ListOfficeKey', 'ListOfficeMlsId']) expect(p).not.toHaveProperty(k);   // the session agent's late answer attached nothing
+    } finally { f.close(); }
+  });
+});
+
+// ── The agent dropdown can pick the listing agent again, and picking the company again does not drop the agent ────────────────────────────────────────────
+describe.each(FORMS)('%s: the Contacts tab stays usable', (form, prefix) => {
+  const pick = (f: BootedForm, listId: string, selector: string) => {
+    const item = f.d.querySelector(`#${listId} ${selector}`) as HTMLElement | null;
+    expect(item).not.toBeNull();
+    item!.dispatchEvent(new f.w.MouseEvent('click', { bubbles: true }));
+  };
+
+  it('lists the listing agent in the agent dropdown, and picking them again shows their Cotality MLS ID', async () => {
+    const f = await bootAddForm(form);
+    try {
+      await checked(f.d, prefix);
+      await f.w.MallanAgentDefaults.apply(prefix, SESSION_USER, {});          // the user arriving again must not list the agent twice
+      (f.d.getElementById(`${prefix}ListingAgentSearch`) as HTMLInputElement).value = '';
+      f.d.getElementById(`${prefix}ListingAgentSearch`)!.dispatchEvent(new f.w.Event('focus'));
+      expect([...f.d.querySelectorAll('#listingAgentList .dd-item')].map((i) => i.textContent)).toEqual(['Sender Agent  (Lic #L-123)']);
+      pick(f, 'listingAgentList', '.dd-item');
+      expect(val(f.d, `${prefix}ListingAgent`)).toBe('AG-9');
+      expect(txt(f.d, `${prefix}ListingAgentId`)).toBe('39361');          // the Cotality MLS ID, as when the form opened
+      expect(tableRows(f, prefix)).toHaveLength(1);
+      expect([...tableRows(f, prefix)[0].children].slice(1, 3).map((c) => c.textContent)).toEqual(['39361', 'Sender Agent']);
+    } finally { f.close(); }
+  });
+
+  it('the agent box is usable whenever an agent is shown in it', async () => {
+    const f = await bootAddForm(form);
+    try {
+      await checked(f.d, prefix);
+      const search = f.d.getElementById(`${prefix}ListingAgentSearch`) as HTMLInputElement;
+      search.disabled = true;                                              // the page starts it disabled until a company is picked
+      await f.w.MallanAgentDefaults.apply(prefix, SESSION_USER, {});
+      expect(search.disabled).toBe(false);
+    } finally { f.close(); }
+  });
+
+  it('picking the same company again keeps the agent', async () => {
+    const f = await bootAddForm(form);
+    try {
+      await checked(f.d, prefix);
+      f.d.getElementById(`${prefix}ListingCompanySearch`)!.dispatchEvent(new f.w.Event('focus'));
+      pick(f, 'listingCompanyList', '.dd-item[data-key="mallan"]');
+      expect(val(f.d, `${prefix}ListingAgent`)).toBe('AG-9');
+      expect(val(f.d, `${prefix}ListingAgentSearch`)).toBe('Sender Agent');
+      expect((f.d.getElementById(`${prefix}ListingAgentInfo`) as HTMLElement).style.display).toBe('block');
+    } finally { f.close(); }
+  });
+
+  it('renders text that matches no company as text, not markup (the company name in the search box can come from the agent profile)', async () => {
+    const hostile = '<img src=x onerror="window.__pwned=1">';
+    const f = await bootAddForm(form, { user: { ...SESSION_USER, companyName: hostile } });
+    try {
+      await checked(f.d, prefix);
+      expect(val(f.d, `${prefix}ListingCompanySearch`)).toBe(hostile);
+      f.d.getElementById(`${prefix}ListingCompanySearch`)!.dispatchEvent(new f.w.Event('focus'));
+      const list = f.d.getElementById('listingCompanyList') as HTMLElement;
+      expect(list.querySelector('img')).toBeNull();
+      expect(list.querySelector('.dd-empty')?.textContent).toBe(`No companies match "${hostile}"`);
+      expect((f.w as any).__pwned).toBeUndefined();
+    } finally { f.close(); }
+  });
+});
+
+// ── A listing that did not load must not be saved over: the form holds nothing of it ────────────────────────────────────────────────────────────────────
+// Opened with ?id=, the form is blank until the saved listing has been restored into it. Every save writes the WHOLE form, so a save before that (or after the
+// listing failed to load) would replace the saved listing with a blank form.
+const SAVERS: [AddForm, string[]][] = [
+  ['SALE-FORM-REDESIGN', ['manualSaveDraft', 'submitSalesListing']],
+  ['RENTAL-FORM-REDESIGN', ['saveRentalDraft', 'submitRentalListing']],
+];
+const TOAST = '.toast-notification, body > div[style*="99999"]';          // the Rental page's toast has a class, the Sale page's is styled inline
+const toasts = (f: BootedForm) => [...f.d.querySelectorAll(TOAST)].map((t) => t.textContent ?? '');
+const DID_NOT_LOAD = /did not load/;
+const STILL_LOADING = /still loading/;
+
+describe.each(SAVERS)('%s: saving is refused while the listing named by ?id= has not loaded', (form, savers) => {
+  // Every entry point must say why it did nothing: an empty form fails validation on its own, so "wrote nothing" would prove nothing about the guard.
+  const refusedBy = async (f: BootedForm, name: string, why: RegExp) => {
+    const other = why === STILL_LOADING ? DID_NOT_LOAD : STILL_LOADING;
+    const count = (re: RegExp) => toasts(f).filter((t) => re.test(t)).length;
+    const [before, beforeOther, written] = [count(why), count(other), f.saved.length];
+    await f.w[name]();
+    await sleep(150);
+    expect(count(why)).toBe(before + 1);                  // it said the right thing, once
+    expect(count(other)).toBe(beforeOther);
+    expect(f.saved.length).toBe(written);
+  };
+
+  it('writes nothing, and says why, when the listing could not be loaded', async () => {
+    const f = await bootAddForm(form, { search: '?id=1', getError: 'network down', settle: 800 });
+    try {
+      for (const name of savers) await refusedBy(f, name, DID_NOT_LOAD);
+      expect(f.w.localStorage.getItem('rentalListingDraft')).toBeNull();
+      expect(f.w.localStorage.getItem('mallan_draft_sale')).toBeNull();
+    } finally { f.close(); }
+  });
+
+  it('writes nothing, and says why, when there is no API to load the listing from', async () => {
+    const f = await bootAddForm(form, { search: '?id=1', noListingsApi: true, settle: 800 });
+    try {
+      for (const name of savers) await refusedBy(f, name, DID_NOT_LOAD);
+    } finally { f.close(); }
+  });
+
+  it('writes nothing, and says why, while the listing is still loading; then saves once it has loaded', async () => {
+    const f = await bootAddForm(form, { search: '?id=1', listing: SAVED, getDelay: 2000, settle: 600 });
+    try {
+      for (const name of savers) await refusedBy(f, name, STILL_LOADING);
+      await sleep(1800);
+      await f.w[savers[0]]();
+      await sleep(150);
+      expect(f.saved.length).toBe(1);
+      expect(f.saved[0]).toMatchObject({ ListAgentMlsId: '11111', ListAgentFullName: 'Saved Agent' });   // and what it saved is the listing, not a blank form
+    } finally { f.close(); }
+  });
+
+  it('saves a new listing, which has nothing to load', async () => {
+    const f = await bootAddForm(form, { settle: 800 });
+    try {
+      await f.w[savers[0]]();
+      await sleep(150);
+      // a new Sale listing is created through the API; a new Rental listing is kept as a browser draft until it is submitted
+      expect(f.saved.length + (f.w.localStorage.getItem('rentalListingDraft') ? 1 : 0)).toBe(1);
+    } finally { f.close(); }
+  });
+});
+
+describe('Rental: a toast shows its message as text, not markup (a listing id comes from the URL and the server)', () => {
+  it('a load error that carries markup', async () => {
+    const hostile = '<img src=x onerror="window.__pwned=1">';
+    const f = await bootAddForm('RENTAL-FORM-REDESIGN', { search: '?id=1', getError: hostile, settle: 900 });
+    try {
+      const failed = [...f.d.querySelectorAll('.toast-notification')].find((t) => /Failed to load listing/.test(t.textContent ?? ''));
+      expect(failed).toBeDefined();
+      expect(failed!.querySelector('img')).toBeNull();
+      expect(failed!.textContent).toContain(hostile);
+      expect((f.w as any).__pwned).toBeUndefined();
+    } finally { f.close(); }
+  });
+});
+
+describe.each(FORMS)('%s: the agent module is missing', (form, prefix) => {
+  it('says what that means: the identity will not be submitted', async () => {
+    const f = await bootAddForm(form, { modules: ['directory-picker', 'colist-section'] });
+    try {
+      const shown = toasts(f);
+      expect(shown.some((t) => /agent module did not load/.test(t) && /Cotality agent identity/.test(t))).toBe(true);
+      expect(shown.some((t) => /Could not load agent profile/.test(t))).toBe(false);   // the profile loaded; the script did not
+      expect(val(f.d, `${prefix}ListingAgent`)).toBe('');
     } finally { f.close(); }
   });
 });
