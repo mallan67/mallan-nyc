@@ -27,6 +27,11 @@ export type AddFormOpts = {
   getDelay?: number;                                 // ms before MallanAPI.listings.get resolves
   getError?: string;                                 // make MallanAPI.listings.get fail with this message (the listing could not be loaded)
   noListingsApi?: boolean;                           // a MallanAPI without listings (no way to load or save a listing)
+  buildings?: Record<string, unknown>[] | ((query: string) => Record<string, unknown>[]);   // what GET /api/buildings/search answers (the building index)
+  buildingsStatus?: number;                          // the HTTP status it answers with (default 200)
+  buildingsHint?: string;                            // the _errorHint it carries
+  buildingsDelay?: number;                           // ms before it answers
+  neighborhoods?: Record<string, string[]>;          // what GET /api/crm/neighborhoods/cotality answers (borough -> neighborhoods)
   members?: Record<string, DirectoryMember | null>;  // live Member directory answers, by MLS ID
   directoryError?: string;                           // make every directory lookup fail with this message
   memberDelays?: Record<string, number>;             // ms before the directory answers for an MLS ID (a slow answer arriving late)
@@ -34,7 +39,7 @@ export type AddFormOpts = {
   storage?: Record<string, string>;                  // localStorage entries present when the page starts (a saved browser draft)
   settle?: number;                                   // ms to let page init finish
 };
-export type BootedForm = { w: any; d: Document; errors: string[]; fetched: string[]; saved: Record<string, unknown>[]; close: () => void };
+export type BootedForm = { w: any; d: Document; errors: string[]; fetched: string[]; searched: string[]; saved: Record<string, unknown>[]; close: () => void };
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function until(cond: () => boolean, ms = 8000): Promise<void> {
@@ -52,7 +57,7 @@ export const SESSION_USER = {
 export const SESSION_MEMBER: DirectoryMember = {
   key: '4455667', mlsId: '39361', fullName: 'Sender Agent', status: 'Active', officeKey: '5671398', officeMlsId: '7041', officeName: 'Cotality Office Name',
 };
-export const PAGE_MODULES = ['directory-picker', 'colist-section', 'agent-defaults', 'listing-hydration', 'fair-housing'];
+export const PAGE_MODULES = ['directory-picker', 'colist-section', 'agent-defaults', 'listing-hydration', 'fair-housing', 'building-lookup'];
 
 const read = (p: string) => readFileSync(resolve(__dirname, '../..', p), 'utf8');
 
@@ -61,6 +66,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
   const errors: string[] = [];
   const fetched: string[] = [];
   const saved: Record<string, unknown>[] = [];
+  const searched: string[] = [];                       // the queries sent to /api/buildings/search
   const virtualConsole = new VirtualConsole();
   virtualConsole.on('jsdomError', (e: any) => errors.push(String(e?.detail?.message ?? e?.message)));
   const user = o.user === undefined ? SESSION_USER : o.user;
@@ -74,7 +80,19 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
       w.tailwind = { config: {} };
       w.alert = () => undefined; w.confirm = () => true; w.scrollTo = () => undefined; w.print = () => undefined;
       w.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} });
-      w.fetch = async () => ({ ok: true, status: 200, json: async () => ({}), text: async () => '' });
+      w.fetch = async (url: string) => {
+        const u = String(url);
+        if (u.startsWith('/api/buildings/search')) {
+          if (o.buildingsDelay) await sleep(o.buildingsDelay);
+          const q = decodeURIComponent((u.split('q=')[1] ?? '').split('&')[0]);
+          searched.push(q);
+          const status = o.buildingsStatus ?? 200;
+          const rows = typeof o.buildings === 'function' ? o.buildings(q) : (o.buildings ?? []);
+          return { ok: status < 400, status, json: async () => ({ buildings: rows, ...(o.buildingsHint ? { _errorHint: o.buildingsHint } : {}) }), text: async () => '' };
+        }
+        if (u.startsWith('/api/crm/neighborhoods/cotality')) return { ok: true, status: 200, json: async () => ({ boroughs: o.neighborhoods ?? {} }), text: async () => '' };
+        return { ok: true, status: 200, json: async () => ({}), text: async () => '' };
+      };
       w.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} };
       w.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
       for (const [k, v] of Object.entries(o.storage ?? {})) w.localStorage.setItem(k, v);
@@ -109,7 +127,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
     },
   });
   await sleep(o.settle ?? 1200);
-  return { w: dom.window, d: dom.window.document, errors, fetched, saved, close: () => dom.window.close() };
+  return { w: dom.window, d: dom.window.document, errors, fetched, searched, saved, close: () => dom.window.close() };
 }
 
 export const val = (d: Document, id: string): string => ((d.getElementById(id) as HTMLInputElement | null)?.value) ?? '';

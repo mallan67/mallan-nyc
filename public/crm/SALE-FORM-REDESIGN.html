@@ -107,6 +107,7 @@ body { font-family: Manrope, sans-serif; }
 <script src="js/forms/colist-section.js"></script>
 <script src="js/forms/agent-defaults.js"></script>
 <script src="js/forms/fair-housing.js"></script>
+<script src="js/forms/building-lookup.js"></script>
 <script>
 // ── Auth gate (defense-in-depth — middleware is primary) ──
 // NOTE: session_token is httpOnly — JS cannot read it via document.cookie.
@@ -5048,36 +5049,17 @@ function searchBuildingForListing(query, prefix) {
     // Debounce API calls
     clearTimeout(_buildingSearchTimeout);
     _buildingSearchTimeout = setTimeout(async function() {
-        results.innerHTML = '<div class="p-3 text-sm text-gray-400">Searching...</div>';
-        results.classList.remove('hidden');
+        MallanBuildingLookup.message(results, 'Searching...');
 
         var matches = await fetchBuildingsFromAPI(query);
         buildingDatabase = matches; // Cache results for selectBuildingFromIDX
 
         if (matches.length === 0) {
-            results.innerHTML = '<div class="p-3 text-sm text-gray-500">No matches found. Enter address manually.</div>';
+            MallanBuildingLookup.message(results, 'No matches found. Enter address manually.');
             return;
         }
 
-        results.innerHTML = matches.map(function(b) {
-            var escapedAddr = b.address.replace(/'/g, "\\'");
-            var details = [b.neighborhood, b.borough].filter(Boolean).join(', ');
-            var buildingFacts = [
-                b.totalFloors ? b.totalFloors + ' stories' : '',
-                b.yearBuilt ? 'built ' + b.yearBuilt : '',
-            ].filter(Boolean).join(' · ');
-            var subtitle = [b.name, details, buildingFacts].filter(Boolean).join(' — ');
-            return '<div class="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 transition" onclick="selectBuildingFromIDX(\'' + prefix + '\', \'' + escapedAddr + '\')">' +
-                '<div class="flex justify-between items-center"><div>' +
-                '<p class="font-semibold text-sm text-gray-800">' + b.address + '</p>' +
-                '<p class="text-xs text-gray-500">' + subtitle + '</p>' +
-                '</div><span class="px-2 py-0.5 text-[10px] font-bold rounded-full ' +
-                (b.model === 'Coop' ? 'bg-purple-100 text-purple-700' :
-                 b.model === 'Condo' ? 'bg-blue-100 text-blue-700' :
-                 b.model === 'Condop' ? 'bg-indigo-100 text-indigo-700' :
-                 'bg-green-100 text-green-700') +
-                '">' + b.model + '</span></div></div>';
-        }).join('');
+        MallanBuildingLookup.renderResults(results, matches, function(b) { selectBuildingFromIDX(prefix, b.address); });
     }, 300);
 }
 
@@ -5123,7 +5105,7 @@ function selectBuildingFromIDX(prefix, address) {
                 document.getElementById(prefix + 'BuildingSearchResults').classList.add('hidden');
                 document.getElementById(prefix + 'BuildingSearch').value = '';
                 populateBuildingFromIDX(prefix, building);
-                updateListingHeaderBar(prefix);
+                updateListingHeaderBar(prefix); _holdBuilding(prefix, building);
                 return;
             }
         }
@@ -5154,7 +5136,7 @@ function selectBuildingFromIDX(prefix, address) {
     document.getElementById(prefix + 'BuildingSearch').value = building.address;
 
     // 5. Update listing header
-    updateListingHeaderBar(prefix);
+    updateListingHeaderBar(prefix); _holdBuilding(prefix, building);
 
     // 6. Populate building modal fields based on model
     populateBuildingFromIDX(prefix, building);
@@ -5564,10 +5546,12 @@ function autoDeriveSaleStructureType() {
     if (map[propType]) stEl.value = map[propType];
 }
 
-// Address field onblur — auto-populate from building data (local cache then API)
+// Address field onblur — resolve the building for an address the agent typed (local cache, then API). One building, or exactly one whose address IS the typed address,
+// is applied; several are offered; none says so. An address the form filled in (a saved listing, a draft) is not looked up.
 function saleAddressBlurLookup() {
     const addr = document.getElementById('saleStreetAddress')?.value?.trim();
-    if (!addr || addr.length < 5) { parseSaleAddress(); return; }
+    if (!addr || addr.length < 5 || !MallanBuildingLookup.typed('sale')) { parseSaleAddress(); return; }
+    MallanBuildingLookup.resolved('sale');
     const localMatch = buildingDatabase.find(b => b.address.toLowerCase() === addr.toLowerCase());
     if (localMatch) {
         selectBuildingFromIDX('sale', localMatch.address);
@@ -5576,31 +5560,26 @@ function saleAddressBlurLookup() {
     }
     // No local match — call API, then show candidates in the existing results UI
     fetchBuildingsFromAPI(addr).then(function(matches) {
+        if ((document.getElementById('saleStreetAddress')?.value || '').trim() !== addr) return;   // the agent has changed the address since: that answer is for another
+        var results = document.getElementById('saleBuildingSearchResults');
         if (!matches || matches.length === 0) {
-            var stale = document.getElementById('saleBuildingSearchResults');
-            if (stale) {
-                stale.innerHTML = '<div class="p-3 text-sm text-gray-500">No building match found — enter building details manually.</div>';
-                stale.classList.remove('hidden');
-            }
+            if (results) MallanBuildingLookup.message(results, 'No building match found — enter building details manually.');
             parseSaleAddress();
             return;
         }
         buildingDatabase = matches;
-        var results = document.getElementById('saleBuildingSearchResults');
-        if (results && matches.length === 1) {
-            selectBuildingFromIDX('sale', matches[0].address);
-        } else if (results && matches.length > 1) {
-            results.innerHTML = matches.map(function(b) {
-                var escapedAddr = b.address.replace(/'/g, "\\'");
-                return '<div class="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 transition" onclick="selectBuildingFromIDX(\'sale\', \'' + escapedAddr + '\')">' +
-                    '<p class="font-semibold text-sm text-gray-800">' + b.address + '</p>' +
-                    '<p class="text-xs text-gray-500">' + b.name + ' | ' + b.neighborhood + ', ' + b.borough + '</p></div>';
-            }).join('');
-            results.classList.remove('hidden');
+        var pick = matches.length === 1 ? matches[0] : MallanBuildingLookup.exactMatch(matches, addr);
+        if (results && pick) {
+            selectBuildingFromIDX('sale', pick.address);
+        } else if (results) {
+            MallanBuildingLookup.renderResults(results, matches, function(b) { selectBuildingFromIDX('sale', b.address); });
         }
         parseSaleAddress();
     }).catch(function() { parseSaleAddress(); });
 }
+
+// The building was applied: hold the property type its Cotality record names, and count the address as looked up.
+function _holdBuilding(prefix, building) { MallanBuildingLookup.lock(prefix, building); MallanBuildingLookup.resolved(prefix); }
 
 // ══════════════════════════════════════════════════════
 // RLS ADDRESS FIELD DERIVATION
@@ -5672,6 +5651,7 @@ function _isInHouseListingType(prefix) {
 
 function _clearIdxMatchState(prefix) {
     clearTimeout(_buildingSearchTimeout);
+    MallanBuildingLookup.unlock(prefix);
     var banner = document.getElementById(prefix + 'IdxMatchBanner');
     if (banner) banner.classList.add('hidden');
     var results = document.getElementById(prefix + 'BuildingSearchResults');
@@ -6695,15 +6675,7 @@ async function searchBuildingByAddress(query, prefix) {
     if (query.length < 3) { results.classList.add('hidden'); return; }
 
     const renderMatches = function(list) {
-        results.innerHTML = list.map(b => '<div class="p-3 hover:bg-amber-50 cursor-pointer border-b last:border-0 transition" onclick="selectBuildingForModal(\'' + prefix + '\', \'' + b.address.replace(/'/g, "\\'") + '\')">' +
-            '<div class="flex justify-between items-center"><div>' +
-            '<p class="font-semibold text-sm text-gray-800">' + b.address + '</p>' +
-            '<p class="text-xs text-gray-500">' + b.name + ' | ' + b.neighborhood + ', ' + b.borough + '</p>' +
-            '</div><span class="px-2 py-0.5 text-[10px] font-bold rounded-full ' +
-            (b.model === 'Coop' ? 'bg-purple-100 text-purple-700' : b.model === 'Condo' ? 'bg-blue-100 text-blue-700' : b.model === 'Condop' ? 'bg-indigo-100 text-indigo-700' : 'bg-green-100 text-green-700') +
-            '">' + b.model + '</span></div></div>'
-        ).join('');
-        results.classList.remove('hidden');
+        MallanBuildingLookup.renderResults(results, list, function(b) { selectBuildingForModal(prefix, b.address); });
     };
 
     // 1. Try the in-memory cache first (populated by the main-address lookup).
@@ -6716,8 +6688,7 @@ async function searchBuildingByAddress(query, prefix) {
     //    the main-address lookup returned nothing. The Building tab is an
     //    INDEPENDENT fallback: query the API so it works on its own.
     if (matches.length === 0) {
-        results.innerHTML = '<div class="p-3 text-sm text-gray-400">Searching…</div>';
-        results.classList.remove('hidden');
+        MallanBuildingLookup.message(results, 'Searching...');
         const apiMatches = await fetchBuildingsFromAPI(query);
         if (apiMatches && apiMatches.length > 0) {
             buildingDatabase = apiMatches;
@@ -6726,8 +6697,7 @@ async function searchBuildingByAddress(query, prefix) {
     }
 
     if (matches.length === 0) {
-        results.innerHTML = '<div class="p-3 text-sm text-gray-500">No building match found. Enter building details manually.</div>';
-        results.classList.remove('hidden');
+        MallanBuildingLookup.message(results, 'No building match found. Enter building details manually.');
         return;
     }
     renderMatches(matches);
@@ -6750,6 +6720,7 @@ function selectBuildingForModal(prefix, address) {
         typeRadio.checked = true;
         if (typeof applySalesFieldRules === 'function') applySalesFieldRules();
     }
+    MallanBuildingLookup.lock(prefix, building);
     // Hide results + reflect the chosen address in the search box.
     const results = document.getElementById(prefix + 'BldgSearchResults');
     if (results) results.classList.add('hidden');
@@ -10348,6 +10319,7 @@ function setMainPhoto(listingId, mediaKey) {
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize logged-in agent from URL params
     initLoggedInAgent();
+    if (typeof MallanBuildingLookup !== 'undefined') MallanBuildingLookup.watch('sale');
 
     // Load Cotality-sourced neighborhoods into the building dropdown.
     // Source of truth: /api/crm/neighborhoods/cotality. Static <optgroup>

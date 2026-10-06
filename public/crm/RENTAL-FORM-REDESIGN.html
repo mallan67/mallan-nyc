@@ -90,6 +90,7 @@ body { font-family: Manrope, sans-serif; }
 <script src="js/forms/colist-section.js"></script>
 <script src="js/forms/agent-defaults.js"></script>
 <script src="js/forms/fair-housing.js"></script>
+<script src="js/forms/building-lookup.js"></script>
 <script src="js/forms/listing-hydration.js"></script>
 <script>
 // ── Auth gate (defense-in-depth — middleware is primary) ──
@@ -4344,38 +4345,55 @@ function _rentalRawClassificationToFormType(commonInterest, propertySubType) {
     return bySubType[propertySubType] || '';
 }
 
-// Fetch buildings from API by address query
+// Fetch buildings from API by address query. This is the Sale form's lookup: every field the API returned is kept (the building's tax block / lot, association, amenities,
+// pet and laundry policy, ... are read from the full object when a building is chosen), the API's hint is shown when it has one, and only the display fields and the
+// form's classification are added. The classification is read from the building's Cotality CommonInterest; a building that has none is classified from its sub-type.
 async function fetchBuildingsFromAPI(query) {
     if (!query || query.length < 3) return [];
     try {
         var resp = await fetch('/api/buildings/search?q=' + encodeURIComponent(query), { credentials: 'same-origin' });
-        if (!resp.ok) return [];
-        var results = await resp.json();
-        return (results.buildings || results || []).map(function(b) {
-            return {
-                address: b.address || b.street_address || '',
-                name: b.name || b.building_name || '',
+        // Read body for all responses — backend returns _errorHint on errors
+        var body;
+        try { body = await resp.json(); } catch (_) { body = {}; }
+        var hint = body._errorHint || null;
+
+        if (resp.status === 401) {
+            showToast(hint || 'Session expired. Please log in again.', 'error');
+            return [];
+        }
+        if (!resp.ok) {
+            showToast(hint || 'Building lookup temporarily unavailable.', 'warning');
+            return [];
+        }
+        var buildings = body.buildings || (Array.isArray(body) ? body : []);
+        if (buildings.length === 0 && hint) {
+            showToast(hint, 'warning');
+        }
+        return buildings.map(function(b) {
+            var ci = b.common_interest == null ? '' : b.common_interest;
+            var formType = _rentalRawClassificationToFormType(b.common_interest || '', b.property_sub_type || '');
+            var rawAddr = b.address || b.street_address || '';
+            var bldgName = b.name || b.building_name || '';
+            var streetNum = rawAddr.match(/^\d+/);
+            var displayAddr = (bldgName && streetNum && bldgName.indexOf(streetNum[0]) !== -1) ? bldgName : rawAddr;
+            return Object.assign({}, b, {
+                address: displayAddr,
+                name: bldgName,
                 borough: b.borough || b.city_region || '',
                 zip: b.zip || b.postal_code || '',
                 neighborhood: b.neighborhood || b.subdivision_name || '',
-                type: _rentalRawClassificationToFormType(b.common_interest || '', b.property_sub_type || ''),
-                model: b.common_interest || '',
+                type: formType,
+                model: formType || ci,
+                commonInterestRaw: ci,
                 structureType: b.structure_type || '',
                 yearBuilt: b.year_built || null,
                 totalFloors: b.stories_total || null,
                 totalUnits: b.units_total || null,
-                doorman: b.doorman || false,
-                elevator: b.elevator || false,
-                gym: b.gym || false,
-                pool: b.pool || false,
-                laundry: b.laundry || false,
-                parking: b.parking || false,
-                concierge: b.concierge || false,
-                spa: b.spa || false,
-            };
+            });
         });
     } catch (e) {
         console.warn('[Building Search] API error:', e.message);
+        showToast('Building lookup temporarily unavailable.', 'warning');
         return [];
     }
 }
@@ -4388,47 +4406,41 @@ function searchBuildingForListing(query, prefix) {
     // Debounce API calls
     clearTimeout(_buildingSearchTimeout);
     _buildingSearchTimeout = setTimeout(async function() {
-        results.innerHTML = '<div class="p-3 text-sm text-gray-400">Searching...</div>';
-        results.classList.remove('hidden');
+        MallanBuildingLookup.message(results, 'Searching...');
 
         var matches = await fetchBuildingsFromAPI(query);
         buildingDatabase = matches; // Cache results for selectBuildingFromIDX
 
         if (matches.length === 0) {
-            results.innerHTML = '<div class="p-3 text-sm text-gray-500">No matches found. Enter address manually.</div>';
+            MallanBuildingLookup.message(results, 'No matches found. Enter address manually.');
             return;
         }
 
-        results.innerHTML = matches.map(function(b) {
-            var escapedAddr = b.address.replace(/'/g, "\\'");
-            return '<div class="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 transition" onclick="selectBuildingFromIDX(\'' + prefix + '\', \'' + escapedAddr + '\')">' +
-                '<div class="flex justify-between items-center"><div>' +
-                '<p class="font-semibold text-sm text-gray-800">' + b.address + '</p>' +
-                '<p class="text-xs text-gray-500">' + b.name + ' | ' + b.neighborhood + ', ' + b.borough + '</p>' +
-                '</div><span class="px-2 py-0.5 text-[10px] font-bold rounded-full ' +
-                (b.model === 'Coop' || b.model === 'StockCooperative' ? 'bg-purple-100 text-purple-700' :
-                 b.model === 'Condo' || b.model === 'Condominium' ? 'bg-blue-100 text-blue-700' :
-                 b.model === 'Condop' ? 'bg-indigo-100 text-indigo-700' :
-                 'bg-green-100 text-green-700') +
-                '">' + b.model + '</span></div></div>';
-        }).join('');
+        MallanBuildingLookup.renderResults(results, matches, function(b) { selectBuildingFromIDX(prefix, b.address); });
     }, 300);
 }
 
+// Building selection — the building's address, area, property type and facts, from the building's Cotality record. Same as the Sale form.
 function selectBuildingFromIDX(prefix, address) {
     const building = buildingDatabase.find(b => b.address === address);
     if (!building) return;
     const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+
+    // 1. Populate address fields (overwrite with the building's canonical address) and the RLS address atoms derived from them
     setVal(prefix + 'StreetAddress', building.address);
     setVal(prefix + 'Borough', building.borough);
     setVal(prefix + 'ZipCode', building.zip);
     setVal(prefix + 'NeighborhoodFromAddress', building.neighborhood);
+    parseRentalAddress();
+    updateRentalAddressDerived();
 
-    // Auto-detect property type from IDX
+    // 2. Auto-detect property type, and hold it while the building's Cotality record names it (the agent's Override releases it)
     const typeRadio = document.querySelector(`input[name="${prefix}PropertyType"][value="${building.type}"]`);
     if (typeRadio) { typeRadio.checked = true; applyRentalFieldRules(); }
+    MallanBuildingLookup.lock(prefix, building);
+    MallanBuildingLookup.resolved(prefix);
 
-    // Show IDX match banner
+    // 3. Show the match banner
     const banner = document.getElementById(prefix + 'IdxMatchBanner');
     if (banner) {
         banner.classList.remove('hidden');
@@ -4436,40 +4448,444 @@ function selectBuildingFromIDX(prefix, address) {
         document.getElementById(prefix + 'IdxDetectedBuilding').textContent = building.name;
     }
 
-    // Auto-set StructureType from IDX building data
-    if (building.structureType) {
-        const stEl = document.getElementById(prefix + 'StructureType');
-        if (stEl) stEl.value = building.structureType;
-    }
-
+    // 4. Hide search results
     document.getElementById(prefix + 'BuildingSearchResults').classList.add('hidden');
     document.getElementById(prefix + 'BuildingSearch').value = building.address;
+
+    // 5. Update listing header
     updateListingHeaderBar(prefix);
+
+    // 6. Populate the building modal's fields
     populateBuildingFromIDX(prefix, building);
 }
 
 function populateBuildingFromIDX(prefix, building) {
-    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-    setVal(prefix + 'BldgStreetAddress', building.address);
-    setVal(prefix + 'BldgName', building.name);
-    setVal(prefix + 'BldgBorough', building.borough);
-    setVal(prefix + 'BldgZip', building.zip);
-    setVal(prefix + 'BldgYearBuilt', building.yearBuilt);
-    setVal(prefix + 'BldgTotalFloors', building.totalFloors);
-    setVal(prefix + 'BldgTotalUnits', building.totalUnits);
-    const checkIf = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
-    checkIf(prefix + 'BldgDoorman', building.doorman);
-    checkIf(prefix + 'BldgElevator', building.elevator);
-    checkIf(prefix + 'BldgGym', building.gym);
-    checkIf(prefix + 'BldgPool', building.pool);
-    // BuildingLaundryFeatures: auto-set from IDX building data
-    if (building.laundry) {
-        var lCb = document.querySelector('.rental-laundry-cb[value="CommonArea"]');
+    // Cotality is the source of truth for building data. This function must
+    // populate EVERY building-modal field that Cotality (or the DB cache of
+    // Cotality) provides. If a field is not set here, the agent has to
+    // retype data that already exists upstream — which is the bug Maya
+    // hit when neighborhood / borough / building stats stayed empty.
+    //
+    // Field naming note: the buildings/search API returns snake_case
+    // (year_built, stories_total, units_total) AND camelCase (yearBuilt,
+    // streetNumber) — `pick` accepts both with fallback so this function
+    // works regardless of caller shape.
+    const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el && val !== null && val !== undefined && val !== '') el.value = val;
+    };
+    const setIfPresent = (id, val) => {
+        if (val === null || val === undefined || val === '') return;
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+    };
+    const checkIf = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.checked = !!val;
+    };
+    const pick = (snake, camel) => {
+        const a = building[snake];
+        const b = building[camel];
+        if (a !== null && a !== undefined && a !== '') return a;
+        if (b !== null && b !== undefined && b !== '') return b;
+        return null;
+    };
+    // Split a Cotality Multi-enum value into REAL members, dropping empties and
+    // the no-value sentinels "None" / "BuildingNone". Cotality uses both as
+    // explicit no-values (e.g. LaundryFeatures has None AND BuildingNone), so a
+    // multi of only those must NOT count as a real selection. (Codex #297.)
+    const multiMembers = (val) => String(val == null ? '' : val)
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => { const l = s.toLowerCase(); return s && l !== 'none' && l !== 'buildingnone'; });
+
+    // ── 1. Address atoms (NEVER drop StreetDirPrefix) ─────────────────
+    setVal('bldgStreetAddress', building.address);
+    setVal('bldgName', building.name);
+    setVal('bldgBorough', building.borough);
+    setVal('bldgCity', pick('city', 'city') || 'New York');
+    setVal('bldgState', pick('state', 'state') || 'NY');
+    setVal('bldgZip', building.zip);
+    // BldgNeighborhood — THE bug Maya hit. Set the dropdown value if it
+    // exists as an option; otherwise add the value dynamically so the
+    // selection is preserved (Cotality is source of truth — if it has
+    // "Turtle Bay" and our dropdown doesn't, we add Turtle Bay).
+    const neighborhoodValue = pick('neighborhood', 'subdivisionName');
+    if (neighborhoodValue) {
+        const nEl = document.getElementById('bldgNeighborhood');
+        if (nEl && nEl.tagName === 'SELECT') {
+            // Try to find existing option (case-insensitive normalize)
+            const normalized = String(neighborhoodValue).trim();
+            const compactValue = normalized.replace(/[^a-zA-Z0-9]/g, '');
+            let matched = null;
+            for (const opt of nEl.options) {
+                if (opt.value === normalized) { matched = opt; break; }
+                if (opt.value === compactValue) { matched = opt; break; }
+                if (opt.text.toLowerCase() === normalized.toLowerCase()) { matched = opt; break; }
+            }
+            if (matched) {
+                nEl.value = matched.value;
+            } else {
+                // Cotality-only neighborhood — add under correct borough optgroup if possible.
+                const boroughVal = String(building.borough || '').toLowerCase();
+                const boroughLabel = boroughVal.includes('manhattan') || boroughVal === 'new york'
+                    ? 'Manhattan'
+                    : boroughVal.includes('brooklyn') || boroughVal === 'kings' ? 'Brooklyn'
+                    : boroughVal.includes('queens') ? 'Queens'
+                    : boroughVal.includes('bronx') ? 'Bronx'
+                    : boroughVal.includes('staten') || boroughVal === 'richmond' ? 'Staten Island'
+                    : '';
+                let targetGroup = null;
+                for (const child of nEl.children) {
+                    if (child.tagName === 'OPTGROUP' && (child.label || '').toLowerCase().indexOf(boroughLabel.toLowerCase()) >= 0) {
+                        targetGroup = child;
+                        break;
+                    }
+                }
+                const newOpt = document.createElement('option');
+                newOpt.value = compactValue || normalized;
+                newOpt.text = normalized;
+                newOpt.dataset.cotalityAdded = 'true';
+                (targetGroup || nEl).appendChild(newOpt);
+                nEl.value = newOpt.value;
+            }
+        } else if (nEl) {
+            nEl.value = neighborhoodValue;
+        }
+    }
+
+    // ── 2. Cross streets ─────────────────────────────────────────────
+    const crossStreet = pick('cross_street', 'crossStreet');
+    if (crossStreet) setVal('bldgCrossStreet1', crossStreet);
+
+    // ── 3. Year / size ───────────────────────────────────────────────
+    setIfPresent('bldgYearBuilt', pick('year_built', 'yearBuilt'));
+    setIfPresent('bldgYearRenovated', pick('year_renovated', 'yearRenovated'));
+    setIfPresent('bldgTotalFloors', pick('stories_total', 'storiesTotal'));
+    setIfPresent('bldgTotalUnits', pick('units_total', 'unitsTotal'));
+    setIfPresent('bldgResidentialUnits', pick('units_total', 'unitsTotal'));
+
+    // ── 4. Type + ownership ──────────────────────────────────────────
+    const stVal = pick('structure_type', 'structureType');
+    if (stVal) {
+        const stEl = document.getElementById(prefix + 'StructureType');
+        if (stEl) stEl.value = stVal;
+        setVal('bldgType', stVal);
+    }
+    checkIf('bldgNewConstruction', pick('new_construction_yn', 'newConstructionYN'));
+    checkIf('bldgNewDevelopment', pick('new_development_yn', 'newDevelopmentYN'));
+    checkIf('bldgSponsorUnits', pick('sponsor_unit_yn', 'sponsorUnitYN'));
+
+    // ── 5. Tax + association ─────────────────────────────────────────
+    setIfPresent('bldgTaxBlock', pick('tax_block', 'taxBlock'));
+    setIfPresent('bldgTaxLot', pick('tax_lot', 'taxLot'));
+    setIfPresent('bldgAnnualTaxes', pick('tax_annual_amount', 'taxAnnualAmount'));
+    setIfPresent('bldgAssociationName', pick('association_name', 'associationName'));
+    // The Rental form has no association-fee control, so the building's AssociationFee is not filled here.
+
+    // ── 6. Subletting / pet / Wd policy ──────────────────────────────
+    checkIf('bldgSublettingAllowed', pick('renting_allowed_yn', 'rentingAllowedYN'));
+    // "Washer/Dryer Allowed" is the IN-UNIT W/D install/hookup policy — NOT mere
+    // laundry availability. Only LaundryFeatures members that actually imply
+    // in-unit W/D (install-allowed / hookups / in-unit units) flip it; building/
+    // shared members (CommonArea, CoinOperated, InBasement, …) must NOT. (Codex #297)
+    var _wdAllowMembers = ['WasherDryerInstallAllowed', 'BuildingWasherDryerInstallAllowed',
+        'WasherHookup', 'DryerHookup', 'ElectricDryerHookup', 'GasDryerHookup', 'PropaneDryerHookup',
+        'InUnit', 'EnSuiteLaundry', 'Stacked'];
+    var _wdAllowed = multiMembers(pick('laundry_features', 'laundryFeatures'))
+        .some(function (m) { return _wdAllowMembers.indexOf(m) !== -1; });
+    checkIf('bldgWasherDryerAllowed', pick('washer_dryer_allowed', 'washerDryerAllowed') || _wdAllowed);
+
+    // ── 7. Amenity checkboxes (every BuildingFeatures-derived flag) ─
+    checkIf('bldgDoorman', building.doorman);
+    checkIf('bldgElevator', building.elevator);
+    checkIf('bldgGym', building.gym);
+    checkIf('bldgPool', building.pool);
+    checkIf('bldgParking', building.parking || pick('garage_yn', 'garageYN') || pick('attached_garage_yn', 'attachedGarageYN')); // GarageYN/AttachedGarageYN real Cotality (Track 1)
+    checkIf('bldgConcierge', building.concierge);
+    checkIf('bldgSpa', pick('spa', 'spa'));
+    checkIf('bldgRoofDeck', pick('roof_deck', 'roofDeck'));
+    checkIf('bldgStorage', pick('storage', 'storage'));
+    checkIf('bldgBikeRoom', pick('bike_room', 'bikeRoom'));
+    checkIf('bldgPackageRoom', pick('package_room', 'packageRoom'));
+    checkIf('bldgLounge', pick('lounge', 'lounge'));
+    checkIf('bldgPlayroom', pick('playroom', 'playroom'));
+    checkIf('bldgBusinessCenter', pick('business_center', 'businessCenter'));
+    checkIf('bldgConferenceRoom', pick('conference_room', 'conferenceRoom'));
+    checkIf('bldgColdStorage', pick('cold_storage', 'coldStorage'));
+    checkIf('bldgCourtyard', pick('courtyard', 'courtyard'));
+    checkIf('bldgValet', pick('valet', 'valet'));
+    checkIf('bldgWheelchairAccess', pick('wheelchair_access', 'wheelchairAccess'));
+    checkIf('bldgLiveInSuper', pick('live_in_super', 'liveInSuper'));
+    checkIf('bldgOnSiteManager', pick('on_site_manager', 'onSiteManager'));
+
+    // ── 7b. Mallan Building Profile — SAVED policy/contact fields (bucket B) ──
+    // These are NOT Cotality facts. They are internal Mallan/REBNY building-profile
+    // values the server has merged across EVERY listing that shares this building
+    // identity (a value is taken from the first listing that has it). The building
+    // object carries them under the contract keys building_mgmt_company,
+    // building_super_name, … (see /api/buildings/search). Fill suggestion-only:
+    // ONLY when the form field is blank/unchecked, so a manually typed value
+    // ALWAYS wins and a building lookup never overwrites the agent's entries. The
+    // same resolver is shared across condo/townhouse/rental — co-op-only fields
+    // (financing/down/DTI/board) simply stay blank when the building has no value.
+    var setBldgProfileIfBlank = function (id, val) {
+        if (val === null || val === undefined || String(val).trim() === '') return;
+        var el = document.getElementById(id);
+        if (!el) return;
+        if ((el.value || '').trim() !== '') return; // manual entry wins
+        el.value = val;
+    };
+    var checkBldgProfileIfUnset = function (id, val) {
+        if (val === null || val === undefined) return;
+        var el = document.getElementById(id);
+        if (!el) return;
+        if (el.checked) return; // manual check wins — never clear it
+        el.checked = !!val;
+    };
+    // Management company
+    setBldgProfileIfBlank('bldgMgmtCompany', building.building_mgmt_company);
+    setBldgProfileIfBlank('bldgMgmtPhone', building.building_mgmt_phone);
+    setBldgProfileIfBlank('bldgMgmtEmail', building.building_mgmt_email);
+    setBldgProfileIfBlank('bldgMgmtAddress', building.building_mgmt_address);
+    // Building staff — superintendent + resident manager
+    setBldgProfileIfBlank('bldgSuperName', building.building_super_name);
+    setBldgProfileIfBlank('bldgSuperPhone', building.building_super_phone);
+    setBldgProfileIfBlank('bldgSuperEmail', building.building_super_email);
+    setBldgProfileIfBlank('bldgManagerName', building.building_resident_manager_name);
+    setBldgProfileIfBlank('bldgManagerPhone', building.building_resident_manager_phone);
+    setBldgProfileIfBlank('bldgManagerEmail', building.building_resident_manager_email);
+    // Board contacts (co-op/condo)
+    setBldgProfileIfBlank('bldgBoardPresident', building.building_board_president);
+    setBldgProfileIfBlank('bldgBoardEmail', building.building_board_email);
+    // Purchase policy (co-op-relevant; blank when absent)
+    setBldgProfileIfBlank('bldgMaxFinancing', building.building_max_financing);
+    setBldgProfileIfBlank('bldgMinDownPayment', building.building_min_down);
+    setBldgProfileIfBlank('bldgDTIRatio', building.building_dti);
+    setBldgProfileIfBlank('bldgPostCloseLiquidity', building.building_post_close_liquidity);
+    // Board process — checkboxes (only set when currently unchecked)
+    checkBldgProfileIfUnset('bldgBoardApproval', building.building_board_approval);
+    checkBldgProfileIfUnset('bldgBoardInterview', building.building_board_interview);
+    // Subletting policy (select + fee + max years). building_sublet_allowed maps to
+    // the form's Yes/No/Limited/BoardApproval select; building_sublet_policy is a
+    // free-form alternative the server may send — prefer the explicit select value.
+    setBldgProfileIfBlank('bldgSublettingAllowed', building.building_sublet_allowed || building.building_sublet_policy);
+    setBldgProfileIfBlank('bldgSubletFee', building.building_sublet_fee);
+    setBldgProfileIfBlank('bldgMaxSubletYears', building.building_sublet_max_years);
+
+    // Legacy crude fallback: a generic laundry flag → CommonArea. ONLY when the
+    // precise Cotality building_laundry policy (resolved from LaundryFeatures
+    // Building* members below) is absent — otherwise it would pre-check the group
+    // and cause the precise fill to skip, silently dropping BuildingCoinOperated/
+    // BuildingInBasement/etc. (Codex #301).
+    if (building.laundry && !(Array.isArray(building.building_laundry) && building.building_laundry.length)) {
+        const lCb = document.querySelector('.rental-laundry-cb[value="CommonArea"]');
         if (lCb) lCb.checked = true;
     }
-    checkIf(prefix + 'BldgParking', building.parking);
-    checkIf(prefix + 'BldgConcierge', building.concierge);
-    checkIf(prefix + 'BldgSpa', building.spa);
+
+    // ── 8. Parking spaces — OpenParkingSpaces / GarageSpaces / CoveredSpaces
+    //    (all real Cotality, Track 1). Only-when-empty so an agent value is
+    //    never overwritten — Maya can always override on the form. ──
+    const _parkSpaces = pick('open_parking_spaces', 'openParkingSpaces')
+        || pick('garage_spaces', 'garageSpaces')
+        || pick('covered_spaces', 'coveredSpaces');
+    const _parkEl = document.getElementById('bldgParkingSpaces');
+    if (_parkEl && !(_parkEl.value || '').trim() && _parkSpaces !== null && _parkSpaces !== undefined && _parkSpaces !== '') {
+        _parkEl.value = _parkSpaces;
+    }
+
+    // ── 9. Multi-enum checkbox groups — SUGGESTION ONLY, override-safe ──
+    // Fill a checkbox group from a Cotality Multi value ONLY when the agent has
+    // not selected anything in it yet. A lookup never overwrites the agent's
+    // choices, and (per Maya) every value stays fully editable afterwards — so
+    // if Cotality rules change, the agent can always override.
+    const fillGroupIfEmpty = (groupName, cotalityMulti, mapValue) => {
+        const cbs = document.querySelectorAll('input[name="' + groupName + '"]');
+        if (!cbs.length || !cotalityMulti) return;
+        let anyChecked = false;
+        cbs.forEach(function (cb) { if (cb.checked) anyChecked = true; });
+        if (anyChecked) return; // agent already chose — do NOT override
+        // multiMembers drops empties + the "None" sentinel, so a "None"-only
+        // Cotality value selects nothing. (Codex #297)
+        const members = multiMembers(cotalityMulti).map(mapValue).filter(Boolean);
+        if (!members.length) return;
+        cbs.forEach(function (cb) { if (members.indexOf(cb.value) !== -1) cb.checked = true; });
+    };
+
+    // Documents Available — real Cotality DocumentsAvailable (Multi); the form's
+    // checkbox values mirror the Cotality members 1:1.
+    fillGroupIfEmpty('bldgDocsAvailable', pick('documents_available', 'documentsAvailable'), function (m) { return m; });
+
+    // Pets — UNIT-level Cotality PetsAllowed (NOT building-wide authority): a
+    // building lookup only SUGGESTS the unit pet policy, applied when the agent
+    // left it empty. EXPLICIT Cotality→form map (no guessing): live $metadata
+    // members use "Ok" casing (CatsOk/DogsOk) while the form checkboxes use
+    // "OK" (UnitCatsOK/UnitDogsOK), so a naive 'Unit'+member would silently
+    // miss. Members the form has no checkbox for (BirdsOk, Building*, …) map to
+    // '' and are ignored. PetsAllowedYN true/false → Yes/No. (Codex #297.)
+    const PET_COTALITY_TO_FORM = {
+        Yes: 'UnitYes', No: 'UnitNo',
+        CatsOk: 'UnitCatsOK', DogsOk: 'UnitDogsOK',
+        BreedRestrictions: 'UnitBreedRestrictions',
+        SizeLimit: 'UnitSizeLimit', NumberLimit: 'UnitNumberLimit',
+    };
+    const mapPet = function (m) { return PET_COTALITY_TO_FORM[m] || ''; };
+    const _petsMulti = pick('pets_allowed', 'petsAllowed');
+    if (_petsMulti) {
+        fillGroupIfEmpty('rentalPetsAllowed', _petsMulti, mapPet);
+    } else {
+        const _petsYN = pick('pets_allowed_yn', 'petsAllowedYN');
+        if (_petsYN === true || _petsYN === false) {
+            fillGroupIfEmpty('rentalPetsAllowed', _petsYN === true ? 'Yes' : 'No', mapPet);
+        }
+    }
+
+    // ── Building-level policies from the Cotality building union ──
+    // building_pets / building_laundry are already resolved server-side from the
+    // Building*-prefixed members of PetsAllowed / LaundryFeatures (NOT the unit
+    // values) and mapped to the form's building-policy checkbox values. Fill
+    // suggestion-only (only when the group is empty) so a manual Mallan Building
+    // Profile selection is never overwritten. Unit-level pets/laundry above are
+    // kept separate from these building-level policies. (Building union, 2026-05-31.)
+    var _bldgPets = Array.isArray(building.building_pets) ? building.building_pets.join(',') : '';
+    if (_bldgPets) fillGroupIfEmpty('rentalBuildingPetsAllowed', _bldgPets, function (m) { return m; });
+    var _bldgLaundry = Array.isArray(building.building_laundry) ? building.building_laundry.join(',') : '';
+    if (_bldgLaundry) fillGroupIfEmpty('rentalBuildingLaundryFeatures', _bldgLaundry, function (m) { return m; });
+
+    // NOTE: this function intentionally does NOT touch UnitNumber/Apt fields.
+    // Per Maya's spec: building selection must preserve user-entered unit.
+
+    // Address-atom reconciliation: when Cotality has no vanity name it returns
+    // the street address as `building.name` — keep that out of Building Name,
+    // backfill the modal Street Address, and mirror the neighborhood label into
+    // the main form. (Track 1 fix, 2026-05-30.)
+    _syncRentalBuildingAddressFields();
+}
+
+/**
+ * Keep the building-modal address atoms and the main-form Neighborhood mirror
+ * consistent, and never let a bare street address masquerade as a Building Name.
+ *
+ * Repairs three CONFIRMED live defects on /crm/sale-listing (Track 1, 2026-05-30,
+ * reproduced by Maya in incognito on SL-0004 / 333 East 46th Street):
+ *
+ *   (1) Building Name showed the street address. When a Cotality/DB building has
+ *       no vanity name, `b.name` (→ building.name) IS the street address (see
+ *       fetchBuildingsFromAPI: `bldgName = b.name || b.building_name`), and
+ *       populateBuildingFromIDX copied it straight into #bldgName. On save,
+ *       `data.BuildingName = saleBldgName` persisted the address-as-name; on
+ *       edit-load SALE_FIELD_MAP restored it back into Building Name. A value
+ *       equal to the street address is the address, not a name → clear it so
+ *       Building Name only ever holds a real building/property name.
+ *
+ *   (2) Building-modal Street Address (#bldgStreetAddress) was blank on
+ *       edit-load — it has NO SALE_FIELD_MAP restore entry. The building is at
+ *       the property's street address, so mirror UnparsedAddress / the main
+ *       Street Address into it when the agent hasn't typed a distinct one.
+ *
+ *   (3) Main-form Neighborhood (#rentalNeighborhoodFromAddress, readonly) was
+ *       NEVER written by any code path — it sat on its "Auto-populated"
+ *       placeholder forever. Mirror the resolved SubdivisionName label from the
+ *       building-modal neighborhood select.
+ *
+ * Idempotent + non-destructive: only fills empty targets and only clears a
+ * Building Name that exactly equals the street address (case-insensitive), so a
+ * legitimately-typed vanity name is never touched.
+ */
+function _syncRentalBuildingAddressFields() {
+    var nameEl = document.getElementById('bldgName');
+    var bldgStreetEl = document.getElementById('bldgStreetAddress');
+    var mainStreetEl = document.getElementById('rentalStreetAddress');
+    var mainStreet = mainStreetEl ? (mainStreetEl.value || '').trim() : '';
+
+    // (2) Street Address — fill the building-modal street address from the
+    //     property's address when the modal field is empty (UnparsedAddress src).
+    if (bldgStreetEl && !(bldgStreetEl.value || '').trim() && mainStreet) {
+        bldgStreetEl.value = mainStreet;
+    }
+    var bldgStreet = bldgStreetEl ? (bldgStreetEl.value || '').trim() : mainStreet;
+
+    // (1) Building Name — a value equal to the street address is the address,
+    //     not a name. Clear it (Building Name = real name / property name only).
+    if (nameEl) {
+        var nm = (nameEl.value || '').trim();
+        var isAddressNotName = nm && (
+            (bldgStreet && nm.toLowerCase() === bldgStreet.toLowerCase()) ||
+            (mainStreet && nm.toLowerCase() === mainStreet.toLowerCase())
+        );
+        if (isAddressNotName) nameEl.value = '';
+    }
+
+    // (3) Main Neighborhood mirror — reflect the resolved SubdivisionName label
+    //     (building-modal neighborhood select) into the readonly main field.
+    var hoodSel = document.getElementById('bldgNeighborhood');
+    var mainHood = document.getElementById('rentalNeighborhoodFromAddress');
+    if (hoodSel && mainHood && hoodSel.value) {
+        var opt = hoodSel.options ? hoodSel.options[hoodSel.selectedIndex] : null;
+        var label = (opt && opt.text) ? opt.text : hoodSel.value;
+        if (label && label !== 'Select Neighborhood') mainHood.value = label;
+    }
+}
+
+/**
+ * Load Cotality-sourced neighborhoods grouped by NYC borough into the
+ * BldgNeighborhood dropdown. Replaces the static hardcoded list so that:
+ *   - Turtle Bay, Kips Bay, NoMad, Yorkville, etc. appear automatically
+ *     when Cotality has them
+ *   - All 5 boroughs are populated (Manhattan, Brooklyn, Queens, Bronx, Staten Island)
+ *   - When a building selection returns a SubdivisionName the dropdown
+ *     already has, populateBuildingFromIDX can set it. When it doesn't,
+ *     populateBuildingFromIDX adds it dynamically.
+ *
+ * Falls back gracefully to the existing static <optgroup> options when
+ * the endpoint is unreachable or returns 0 neighborhoods (network down,
+ * first-deploy state, etc.). The static dropdown is never wiped — we
+ * only ADD options, never remove the built-in fallback.
+ */
+async function loadCotalityNeighborhoodsIntoDropdown() {
+    const select = document.getElementById('bldgNeighborhood');
+    if (!select || select.tagName !== 'SELECT') return;
+    try {
+        const resp = await fetch('/api/crm/neighborhoods/cotality', { credentials: 'same-origin' });
+        if (!resp.ok) return; // keep static fallback options
+        const data = await resp.json();
+        if (!data || !data.boroughs) return;
+        const boroughs = data.boroughs;
+        // Build a set of existing option values so we don't add duplicates.
+        const existingValues = new Set();
+        for (const opt of select.options) existingValues.add(opt.value);
+        const boroughOrder = ['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'Staten Island'];
+        for (const boroughName of boroughOrder) {
+            const list = boroughs[boroughName];
+            if (!Array.isArray(list) || list.length === 0) continue;
+            // Find or create the optgroup for this borough
+            let group = null;
+            for (const child of select.children) {
+                if (child.tagName === 'OPTGROUP' && (child.label || '').indexOf(boroughName) >= 0) {
+                    group = child;
+                    break;
+                }
+            }
+            if (!group) {
+                group = document.createElement('optgroup');
+                group.label = '── ' + boroughName + ' ──';
+                select.appendChild(group);
+            }
+            for (const name of list) {
+                const compactValue = String(name).replace(/[^a-zA-Z0-9]/g, '');
+                if (existingValues.has(compactValue) || existingValues.has(name)) continue;
+                const opt = document.createElement('option');
+                opt.value = compactValue || name;
+                opt.text = name;
+                opt.dataset.cotalitySourced = 'true';
+                group.appendChild(opt);
+                existingValues.add(opt.value);
+            }
+        }
+    } catch (err) {
+        // Network error / 5xx — keep static fallback options
+        console.warn('[neighborhoods] Cotality dropdown load failed, using static fallback:', err);
+    }
 }
 
 // Auto-derive StructureType from PropertyType when no IDX match
@@ -4486,13 +4902,36 @@ function autoDeriveRentalStructureType() {
     if (map[propType]) stEl.value = map[propType];
 }
 
-// Address field onblur — exact-match auto-populate from IDX
+// Address field onblur — resolve the building for an address the agent typed (the cache first, then the building index). One building, or exactly one whose address IS
+// the typed address, is applied; several are offered; none says so. An address the form filled in (a saved listing, a draft) is not looked up.
 function rentalAddressBlurLookup() {
     const addr = document.getElementById('rentalStreetAddress')?.value?.trim();
-    if (!addr || addr.length < 5) return;
-    const match = buildingDatabase.find(b => b.address.toLowerCase() === addr.toLowerCase());
-    if (match) selectBuildingFromIDX('rental', match.address);
-    parseRentalAddress();
+    if (!addr || addr.length < 5 || !MallanBuildingLookup.typed('rental')) { parseRentalAddress(); return; }
+    MallanBuildingLookup.resolved('rental');
+    const localMatch = buildingDatabase.find(b => b.address.toLowerCase() === addr.toLowerCase());
+    if (localMatch) {
+        selectBuildingFromIDX('rental', localMatch.address);
+        parseRentalAddress();
+        return;
+    }
+    // No local match — call the API, then show candidates in the existing results UI
+    fetchBuildingsFromAPI(addr).then(function(matches) {
+        if ((document.getElementById('rentalStreetAddress')?.value || '').trim() !== addr) return;   // the agent has changed the address since: that answer is for another
+        var results = document.getElementById('rentalBuildingSearchResults');
+        if (!matches || matches.length === 0) {
+            if (results) MallanBuildingLookup.message(results, 'No building match found — enter building details manually.');
+            parseRentalAddress();
+            return;
+        }
+        buildingDatabase = matches;
+        var pick = matches.length === 1 ? matches[0] : MallanBuildingLookup.exactMatch(matches, addr);
+        if (results && pick) {
+            selectBuildingFromIDX('rental', pick.address);
+        } else if (results) {
+            MallanBuildingLookup.renderResults(results, matches, function(b) { selectBuildingFromIDX('rental', b.address); });
+        }
+        parseRentalAddress();
+    }).catch(function() { parseRentalAddress(); });
 }
 
 // ══════════════════════════════════════════════════════
@@ -4540,8 +4979,9 @@ function parseRentalAddress() {
     document.getElementById('rentalStreetSuffix').value = streetSuffix;
 }
 
-// Building Modal search — targets bldg* IDs directly
-function searchBuildingModal(query) {
+// Building Modal search — the same lookup as the Property Address search: the cache first, then the building index (so the Building tab works on its own)
+let _buildingModalSearchTimer = null;
+async function searchBuildingModal(query) {
     const results = document.getElementById('bldgSearchResults');
     if (!results) return;
     if (query.length < 3) { results.classList.add('hidden'); return; }
@@ -4549,60 +4989,37 @@ function searchBuildingModal(query) {
         b.address.toLowerCase().includes(query.toLowerCase()) ||
         b.name.toLowerCase().includes(query.toLowerCase())
     );
-    if (matches.length === 0) {
-        results.innerHTML = '<div class="p-3 text-sm text-gray-500">No matches found. Enter address manually.</div>';
-        results.classList.remove('hidden');
+    clearTimeout(_buildingModalSearchTimer);
+    if (matches.length > 0) {
+        MallanBuildingLookup.renderResults(results, matches, function(b) { selectBuildingForModal(b.address); });
         return;
     }
-    results.innerHTML = matches.map(b => `
-        <div class="p-3 hover:bg-amber-50 cursor-pointer border-b last:border-0 transition"
-             onclick="selectBuildingForModal('${b.address}')">
-            <div class="flex justify-between items-center">
-                <div>
-                    <p class="font-semibold text-sm text-gray-800">${b.address}</p>
-                    <p class="text-xs text-gray-500">${b.name} | ${b.neighborhood}, ${b.borough}</p>
-                </div>
-                <span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${
-                    b.model === 'Coop' ? 'bg-purple-100 text-purple-700' :
-                    b.model === 'Condo' ? 'bg-blue-100 text-blue-700' :
-                    b.model === 'Condop' ? 'bg-indigo-100 text-indigo-700' :
-                    'bg-green-100 text-green-700'
-                }">${b.model}</span>
-            </div>
-        </div>
-    `).join('');
-    results.classList.remove('hidden');
+    MallanBuildingLookup.message(results, 'Searching...');
+    _buildingModalSearchTimer = setTimeout(async function() {
+        const apiMatches = await fetchBuildingsFromAPI(query);
+        if (!apiMatches || apiMatches.length === 0) {
+            MallanBuildingLookup.message(results, 'No building match found. Enter building details manually.');
+            return;
+        }
+        buildingDatabase = apiMatches;
+        MallanBuildingLookup.renderResults(results, apiMatches, function(b) { selectBuildingForModal(b.address); });
+    }, 300);
 }
 
 function selectBuildingForModal(address) {
     const building = buildingDatabase.find(b => b.address === address);
     if (!building) return;
-    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-    const checkIf = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
-    // Location fields
-    setVal('bldgStreetAddress', building.address);
-    setVal('bldgName', building.name);
-    setVal('bldgBorough', building.borough);
-    setVal('bldgZip', building.zip);
-    setVal('bldgYearBuilt', building.yearBuilt);
-    setVal('bldgTotalFloors', building.totalFloors);
-    setVal('bldgTotalUnits', building.totalUnits);
-    // Amenities
-    checkIf('bldgDoorman', building.doorman);
-    checkIf('bldgElevator', building.elevator);
-    checkIf('bldgGym', building.gym);
-    checkIf('bldgPool', building.pool);
-    // BuildingLaundryFeatures: auto-set from IDX building data (modal)
-    if (building.laundry) {
-        var lCb3 = document.querySelector('.rental-laundry-cb[value="CommonArea"]');
-        if (lCb3) lCb3.checked = true;
-    }
-    checkIf('bldgParking', building.parking);
-    checkIf('bldgConcierge', building.concierge);
-    checkIf('bldgSpa', building.spa);
+    // The full building field set, exactly what the main-address lookup fills (the unit number is never touched)
+    populateBuildingFromIDX('rental', building);
+    // Building type (Condo / Co-op / Condop / ...) from the match
+    const typeRadio = document.querySelector('input[name="rentalPropertyType"][value="' + building.type + '"]');
+    if (typeRadio) { typeRadio.checked = true; applyRentalFieldRules(); }
+    MallanBuildingLookup.lock('rental', building);
     // Close search results and update input
-    document.getElementById('bldgSearchResults').classList.add('hidden');
-    document.getElementById('bldgAddressSearch').value = building.address;
+    const results = document.getElementById('bldgSearchResults');
+    if (results) results.classList.add('hidden');
+    const searchEl = document.getElementById('bldgAddressSearch');
+    if (searchEl) searchEl.value = building.address;
 }
 
 // ══════════════════════════════════════════════════════
@@ -4984,7 +5401,11 @@ function closeRentalBuildingInfo(event) {
     document.body.style.overflow = '';
 }
 function saveRentalBuilding() {
-    // Placeholder — collect building data for submission
+    // Reflect the building-modal address atoms into the main form (street + neighborhood mirror) and strip any address-as-name
+    _syncRentalBuildingAddressFields();
+    if (typeof showToast === 'function') {
+        showToast('Building information applied to listing.', 'success');
+    }
 }
 
 // ══════════════════════════════════════════════════════
@@ -6666,6 +7087,8 @@ function _restoreRentalControls(listing) {
 document.addEventListener('DOMContentLoaded', function() {
     // ── Initialize logged-in agent from session cookie via MallanAPI ──
     initLoggedInAgent();
+    if (typeof MallanBuildingLookup !== 'undefined') MallanBuildingLookup.watch('rental');
+    loadCotalityNeighborhoodsIntoDropdown();
 
     // Set today's date
     const today = new Date().toISOString().split('T')[0];

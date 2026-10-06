@@ -164,16 +164,21 @@ describe('Backend Cotality query includes borough fields', () => {
 // ── 7. Candidate display shows building facts ──
 
 describe('Candidate display shows building facts', () => {
+  // The candidates are written by public/crm/js/forms/building-lookup.js (with DOM calls); the form's search hands it the matches.
+  const lookupSource = readFileSync(resolve(__dirname, '../../public/crm/js/forms/building-lookup.js'), 'utf8');
+  const fnStart = formHtml.indexOf('function searchBuildingForListing');
+  const fnBody = formHtml.slice(fnStart, fnStart + 2000);
+
+  it('the form renders its candidates through the shared list', () => {
+    expect(fnBody).toContain('MallanBuildingLookup.renderResults(results, matches');
+  });
+
   it('shows stories count in candidate', () => {
-    const fnStart = formHtml.indexOf('function searchBuildingForListing');
-    const fnBody = formHtml.slice(fnStart, fnStart + 2000);
-    expect(fnBody).toContain("stories");
+    expect(lookupSource).toContain("' stories'");
   });
 
   it('shows year built in candidate', () => {
-    const fnStart = formHtml.indexOf('function searchBuildingForListing');
-    const fnBody = formHtml.slice(fnStart, fnStart + 2000);
-    expect(fnBody).toContain("built");
+    expect(lookupSource).toContain("'built '");
   });
 });
 
