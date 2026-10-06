@@ -42,6 +42,27 @@ export function classifyMediaCategory(media: Record<string, unknown>): string {
   return "Photo";
 }
 
+// Co-list side (live Property CoListAgent{,2,3}* and CoListOffice{,2}*). Kept separate from the primary ListAgent*/ListOffice*
+// fields and never merged with them. The office relation is derived ONLY from the two office MLS IDs: same / different / unknown
+// (a blank id). It says nothing about whether two offices belong to one firm; several Office records can share a main office.
+function coListSlots(raw: Record<string, unknown>, kind: "Agent" | "Office", slots: number[]) {
+  return slots
+    .map((slot) => {
+      const prefix = `CoList${kind}${slot === 1 ? "" : slot}`;
+      return {
+        slot,
+        mlsId: String(raw[`${prefix}MlsId`] || ""),
+        name: String(raw[kind === "Agent" ? `${prefix}FullName` : `${prefix}Name`] || ""),
+      };
+    })
+    .filter((entry) => entry.mlsId || entry.name);
+}
+
+function officeRelation(primaryMlsId: string, otherMlsId: string): "same" | "different" | "unknown" {
+  if (!primaryMlsId || !otherMlsId) return "unknown";
+  return primaryMlsId === otherMlsId ? "same" : "different";
+}
+
 export function mapTrestleToCrmListing(
   raw: Record<string, unknown>,
   index: number,
@@ -243,6 +264,14 @@ export function mapTrestleToCrmListing(
     agentName: String(raw.ListAgentFullName || ""),
     agentEmail: String(raw.ListAgentEmail || ""),
     agentPhone: String(raw.ListAgentDirectPhone || ""),
+    listAgentMlsId: String(raw.ListAgentMlsId || ""),
+    listOfficeMlsId: String(raw.ListOfficeMlsId || ""),
+    coListingAgentName: String(raw.CoListAgentFullName || ""),
+    coListAgents: coListSlots(raw, "Agent", [1, 2, 3]),
+    coListOffices: coListSlots(raw, "Office", [1, 2]).map((office) => ({
+      ...office,
+      relation: officeRelation(String(raw.ListOfficeMlsId || ""), office.mlsId),
+    })),
     priceChange,
     originalPrice: originalPrice > 0 && originalPrice !== price ? originalPrice : null,
     photoCount,

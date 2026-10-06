@@ -62,6 +62,9 @@ export const SEARCH_SELECT_FIELDS = [
   // Agent/Office
   "ListAgentMlsId", "ListAgentFullName", "ListAgentEmail",
   "ListAgentDirectPhone", "ListOfficeMlsId", "ListOfficeName",
+  // Co-list side: live Property fields, names and MLS IDs only (no contact fields). Kept apart from the primary List* fields above.
+  "CoListAgentMlsId", "CoListAgentFullName", "CoListAgent2MlsId", "CoListAgent2FullName", "CoListAgent3MlsId", "CoListAgent3FullName",
+  "CoListOfficeMlsId", "CoListOfficeName", "CoListOffice2MlsId", "CoListOffice2Name",
   // Media (Media array needs $expand, not $select — use PhotosCount for now)
   "PhotosCount", "VirtualTourURLBranded", "VirtualTourURLUnbranded",
   // Remarks

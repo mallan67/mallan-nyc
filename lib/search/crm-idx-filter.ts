@@ -35,6 +35,58 @@ function stripStreetSuffix(value: string): string {
     .trim();
 }
 
+// Agent / office search. The primary side (ListAgent*, ListOffice*) and the co-list side (CoListAgent{,2,3}*, CoListOffice{,2}*)
+// are separate filters and are never merged; "anyAgent" is a convenience that spans both and does not replace either.
+// Every id/name field below filters without error on live Cotality Property (verified 2026-10-06, api.cotality.com/trestle/odata).
+// A token of digits is an exact MLS ID; anything else is a name match (every word must appear, case-insensitive).
+const AGENT_PRIMARY_IDS = ["ListAgentMlsId"];
+const AGENT_PRIMARY_NAMES = ["ListAgentFullName"];
+const AGENT_COLIST_IDS = ["CoListAgentMlsId", "CoListAgent2MlsId", "CoListAgent3MlsId"];
+const AGENT_COLIST_NAMES = ["CoListAgentFullName", "CoListAgent2FullName", "CoListAgent3FullName"];
+
+export const CRM_AGENT_OFFICE_FILTERS: Record<string, { ids: string[]; names: string[] }> = {
+  listAgent: { ids: AGENT_PRIMARY_IDS, names: AGENT_PRIMARY_NAMES },
+  coListAgent: { ids: AGENT_COLIST_IDS, names: AGENT_COLIST_NAMES },
+  anyAgent: { ids: [...AGENT_PRIMARY_IDS, ...AGENT_COLIST_IDS], names: [...AGENT_PRIMARY_NAMES, ...AGENT_COLIST_NAMES] },
+  listOffice: { ids: ["ListOfficeMlsId"], names: ["ListOfficeName"] },
+  coListOffice: { ids: ["CoListOfficeMlsId", "CoListOffice2MlsId"], names: ["CoListOfficeName", "CoListOffice2Name"] },
+};
+
+const AGENT_OFFICE_MAX_TOKENS = 5;
+const AGENT_OFFICE_MAX_WORDS = 4;
+
+function joinOr(terms: string[]): string {
+  return terms.length === 1 ? terms[0] : `(${terms.join(" or ")})`;
+}
+
+function agentOfficeClause(spec: { ids: string[]; names: string[] }, token: string): string {
+  if (/^\d{1,12}$/.test(token)) {
+    return joinOr(spec.ids.map((field) => `${field} eq '${token}'`));
+  }
+  const words = token.split(/\s+/).filter(Boolean).slice(0, AGENT_OFFICE_MAX_WORDS);
+  return joinOr(
+    spec.names.map((field) => {
+      const matches = words.map((word) => `contains(${field},'${escapeOData(word)}')`);
+      return matches.length === 1 ? matches[0] : `(${matches.join(" and ")})`;
+    }),
+  );
+}
+
+export function buildAgentOfficeFilterParts(params: URLSearchParams): string[] {
+  const parts: string[] = [];
+  for (const [param, spec] of Object.entries(CRM_AGENT_OFFICE_FILTERS)) {
+    const tokens = (params.get(param) || "")
+      .split(",")
+      .map((token) => token.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 80))
+      .filter(Boolean)
+      .slice(0, AGENT_OFFICE_MAX_TOKENS);
+    const clauses = tokens.map((token) => agentOfficeClause(spec, token));
+    if (clauses.length === 1) parts.push(clauses[0]);
+    else if (clauses.length > 1) parts.push(`(${clauses.join(" or ")})`);
+  }
+  return parts;
+}
+
 export function buildCrmIdxODataFilter(params: URLSearchParams): string {
   const parts: string[] = [];
 
@@ -213,6 +265,8 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
 
   const mgmtCompany = params.get("managementCompany");
   if (mgmtCompany) parts.push(`contains(ListOfficeName,'${escapeOData(mgmtCompany)}')`);
+
+  parts.push(...buildAgentOfficeFilterParts(params));
 
   const subType = params.get("propertySubType");
   if (subType) {
