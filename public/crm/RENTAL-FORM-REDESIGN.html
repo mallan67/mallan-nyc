@@ -5059,6 +5059,11 @@ function initLoggedInAgent() {
     }
 
     // Pre-select the agent's company in the Listing Agent dropdown (Tab 1.3)
+    // companyKey / companyName / agentId were referenced below but never declared in this function or at script
+    // scope, so initLoggedInAgent() threw a ReferenceError as the first call of the DOMContentLoaded handler and
+    // aborted page init (edit-mode load, draft load, company dropdowns, field rules). The session user is applied
+    // asynchronously in populate() above; this pre-select block has no synchronous source, so it stays inert.
+    var companyKey = '', companyName = '', agentId = '';
     var listingCompanyHidden = document.getElementById('rentalListingCompany');
     var listingCompanySearch = document.getElementById('rentalListingCompanySearch');
     if (listingCompanyHidden && companyKey) listingCompanyHidden.value = companyKey;
