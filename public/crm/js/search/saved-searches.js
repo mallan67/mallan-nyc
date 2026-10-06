@@ -208,6 +208,7 @@
                 parts.push(c.neighborhoods.length === 1 ? c.neighborhoods[0] : c.neighborhoods.length + ' neighborhoods');
             }
             if (c.sqftMin) parts.push(c.sqftMin + '+ sqft');
+            if (c.agentOffice) parts.push('agent/office filter');
 
             summary.innerHTML = parts.length > 0
                 ? '<p class="text-xs text-blue-700"><i class="fas fa-search mr-1"></i> <strong>Criteria:</strong> ' + escapeHtml(parts.join(' | ')) + '</p>'
@@ -283,6 +284,8 @@
                 // BuildingFeatures/etc. set. Stored as a JSON string to
                 // preserve the inner shape unchanged across save/load.
                 checkbox_filters: c.checkboxFilters ? JSON.stringify(c.checkboxFilters) : undefined,
+                // Agent / office pickers: the entries the search used ({id|text, label} per filter); restored with no network call.
+                agent_office: c.agentOffice || undefined,
             };
             return out;
         }
@@ -420,6 +423,9 @@
             // the active input ID per tab/mode (mirrors search-engine.js
             // collectSearchCriteria input ID resolution exactly).
 
+            // Agent / office filters live in the advanced form: show it so the restored filter is visible and applied.
+            if (criteria.agent_office && typeof toggleSearchMode === 'function') toggleSearchMode('advanced');
+
             // Detect advanced mode for ID prefix selection
             var _isAdv = (function () {
                 var advMode = document.getElementById('searchAdvancedMode');
@@ -437,6 +443,9 @@
                 var mgmtEl = document.getElementById(_isAdv ? 'adv-management' : 'searchManagementCompany');
                 if (mgmtEl) mgmtEl.value = criteria.management_company;
             }
+
+            // Agent / office pickers
+            if (criteria.agent_office && window.AgentOfficeSearch) window.AgentOfficeSearch.setState(criteria.agent_office);
 
             // Unit number (mirrors collectSearchCriteria adv vs basic)
             if (criteria.unit) {
@@ -497,7 +506,7 @@
                             // First clear existing checks for this field
                             cbScope.querySelectorAll('input[data-field="' + field + '"]').forEach(function(cb) { cb.checked = false; });
                             values.forEach(function(v) {
-                                var cb = cbScope.querySelector('input[data-field="' + field + '"][data-value="' + String(field === 'ListingAgreement' && v === 'CoExclusive' ? 'CoExclusiveAgency' : v).replace(/"/g, '\\"') + '"]');
+                                var cb = cbScope.querySelector('input[data-field="' + field + '"][data-value="' + String(_legacyCriterionValue(field, v)).replace(/"/g, '\\"') + '"]');
                                 if (cb && !cb.disabled) cb.checked = true;
                             });
                         });
@@ -511,6 +520,14 @@
         }
 
         /** Helper: set a <select> value, trying exact match then closest */
+        // Saved searches written before the live-Cotality cutover stored values Cotality does not have; map them to the live members.
+        var _LEGACY_DIRECTION_FACES = { N: 'North', S: 'South', E: 'East', W: 'West', NE: 'Northeast', NW: 'Northwest', SE: 'Southeast', SW: 'Southwest' };
+        function _legacyCriterionValue(field, v) {
+            if (field === 'ListingAgreement' && v === 'CoExclusive') return 'CoExclusiveAgency';
+            if (field === 'DirectionFaces' && _LEGACY_DIRECTION_FACES[v]) return _LEGACY_DIRECTION_FACES[v];
+            return v;
+        }
+
         function _setSelectValue(elementId, value) {
             if (value == null) return;
             var el = document.getElementById(elementId);

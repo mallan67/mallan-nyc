@@ -4239,7 +4239,7 @@
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Listing Type</p>
                                     <div class="space-y-1 text-xs">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="ExclusiveRightToSell,ExclusiveRightToLease"> Exclusive</label>
+                                        <label class="flex items-center gap-2 cursor-pointer" title="Every exclusive agreement Cotality defines: Exclusive Right To Sell, Exclusive Right To Lease, Exclusive Right With Exception, Exclusive Agency"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="ExclusiveAgency,ExclusiveRightToLease,ExclusiveRightToSell,ExclusiveRightWithException"> Exclusive</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListOfficeMlsId" data-value="OwnOffice"> In-House <span class="text-[9px] text-blue-600 font-medium">(Company)</span></label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="ExclusiveAgency"> Exclusive Agency</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="ExclusiveRightWithException"> Exclusive w/ Exception</label>
@@ -5011,7 +5011,7 @@
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Views</p>
                                     <div class="grid grid-cols-2 gap-1.5 text-sm">
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="View" data-value="City,CityLights,Skyline,Downtown"> City/Skyline</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="View" data-value="Park,ParkGreenbelt"> Park</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="View" data-value="ParkGreenbelt"> Park</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="View" data-value="Water,River,Bay,Lake,Canal"> Water/River</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="View" data-value="Bridges"> Bridge</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="View" data-value="Garden"> Garden</label>
@@ -5024,14 +5024,14 @@
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Exposure</p>
                                     <div class="grid grid-cols-2 gap-1.5 text-sm">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="N"> North</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="S"> South</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="E"> East</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="W"> West</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="NE"> NE</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="NW"> NW</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="SE"> SE</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="SW"> SW</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="North"> North</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="South"> South</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="East"> East</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="West"> West</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="Northeast"> NE</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="Northwest"> NW</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="Southeast"> SE</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="Southwest"> SW</label>
                                     </div>
                                 </div>
                                 <!-- Floor Number -->
@@ -5526,24 +5526,82 @@
                             <h3 class="font-semibold">Brokerage / Broker / Agent / Team / Management / Landlord</h3>
                         </div>
                         <div class="section-content collapsed">
-                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                                <!-- Agent Search -->
+                            <!-- Agent / Office search: five separate filters over LIVE Cotality Property fields, plus Listing Agreement.
+                                 Primary and co-list sides are never merged. "Agent Involved Anywhere" spans both and replaces neither.
+                                 Pickers are wired by js/search/agent-office-picker.js (live Cotality Member/Office directory). -->
+                            <div id="agentOfficeSearch" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                                <!-- Listing Agreement: every value Cotality delivers (Add/Edit forms offer fewer) -->
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
-                                    <p class="font-semibold text-gray-700 mb-2 text-xs">Listing Agent</p>
-                                    <input type="text" placeholder="Agent name or MLS ID" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2" id="searchListAgent">
-                                    <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" class="w-3 h-3"> Include Co-List Agents</label>
+                                    <p class="font-semibold text-gray-700 mb-2 text-xs">Listing Agreement</p>
+                                    <div class="space-y-1 text-xs">
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="ExclusiveRightToSell"> Exclusive Right To Sell</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="ExclusiveRightToLease"> Exclusive Right To Lease</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="ExclusiveRightWithException"> Exclusive Right With Exception</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="ExclusiveAgency"> Exclusive Agency</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="CoExclusiveAgency"> Co-Exclusive Agency</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="Open"> Open</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="Net"> Net</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="Probate"> Probate</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="NonExclusiveAgency"> Non-Exclusive Agency</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="PropertyManagement"> Property Management</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="SellerReserved"> Seller Reserved</label>
+                                    </div>
+                                    <p class="text-[10px] text-gray-400 mt-2">Every agreement value Cotality delivers. The agreement says nothing about whether the co-listing agents share an office.</p>
                                 </div>
+                                <!-- Primary Listing Agent -->
+                                <div class="bg-white p-3 rounded-lg border border-gray-100 relative" data-agent-picker="listAgent">
+                                    <p class="font-semibold text-gray-700 mb-2 text-xs">Primary Listing Agent</p>
+                                    <input type="text" autocomplete="off" placeholder="Agent name or MLS ID" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-1" id="searchListAgent" data-picker-input aria-label="Primary listing agent">
+                                    <div class="hidden absolute left-3 right-3 z-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto" data-picker-results></div>
+                                    <div class="flex flex-wrap mt-1" data-picker-chosen></div>
+                                    <p class="text-[10px] text-amber-700" data-picker-hint></p>
+                                    <p class="text-[10px] text-gray-400">The listing's first listing agent only.</p>
+                                </div>
+                                <!-- Co-Listing Agent -->
+                                <div class="bg-white p-3 rounded-lg border border-gray-100 relative" data-agent-picker="coListAgent">
+                                    <p class="font-semibold text-gray-700 mb-2 text-xs">Co-Listing Agent</p>
+                                    <input type="text" autocomplete="off" placeholder="Agent name or MLS ID" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-1" id="searchCoListAgent" data-picker-input aria-label="Co-listing agent">
+                                    <div class="hidden absolute left-3 right-3 z-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto" data-picker-results></div>
+                                    <div class="flex flex-wrap mt-1" data-picker-chosen></div>
+                                    <p class="text-[10px] text-amber-700" data-picker-hint></p>
+                                    <p class="text-[10px] text-gray-400">Any of the three co-listing agent slots.</p>
+                                </div>
+                                <!-- Agent Involved Anywhere -->
+                                <div class="bg-white p-3 rounded-lg border border-gray-100 relative" data-agent-picker="anyAgent">
+                                    <p class="font-semibold text-gray-700 mb-2 text-xs">Agent Involved Anywhere</p>
+                                    <input type="text" autocomplete="off" placeholder="Agent name or MLS ID" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-1" id="searchAnyAgent" data-picker-input aria-label="Agent involved anywhere on the listing">
+                                    <div class="hidden absolute left-3 right-3 z-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto" data-picker-results></div>
+                                    <div class="flex flex-wrap mt-1" data-picker-chosen></div>
+                                    <p class="text-[10px] text-amber-700" data-picker-hint></p>
+                                    <p class="text-[10px] text-gray-400">Primary agent or any co-listing agent. Does not replace the two filters above.</p>
+                                </div>
+                                <!-- Primary Listing Office -->
+                                <div class="bg-white p-3 rounded-lg border border-gray-100 relative" data-agent-picker="listOffice">
+                                    <p class="font-semibold text-gray-700 mb-2 text-xs">Primary Listing Office</p>
+                                    <input type="text" autocomplete="off" placeholder="Firm or office name, or office MLS ID" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-1" id="searchListOffice" data-picker-input aria-label="Primary listing office">
+                                    <div class="hidden absolute left-3 right-3 z-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto" data-picker-results></div>
+                                    <div class="flex flex-wrap mt-1" data-picker-chosen></div>
+                                    <p class="text-[10px] text-amber-700" data-picker-hint></p>
+                                    <p class="text-[10px] text-gray-400">The listing's main office. A firm can have several offices: pick &ldquo;all offices whose name contains&rdquo; to match them all.</p>
+                                </div>
+                                <!-- Co-Listing Office -->
+                                <div class="bg-white p-3 rounded-lg border border-gray-100 relative" data-agent-picker="coListOffice">
+                                    <p class="font-semibold text-gray-700 mb-2 text-xs">Co-Listing Office</p>
+                                    <input type="text" autocomplete="off" placeholder="Firm or office name, or office MLS ID" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-1" id="searchCoListOffice" data-picker-input aria-label="Co-listing office">
+                                    <div class="hidden absolute left-3 right-3 z-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto" data-picker-results></div>
+                                    <div class="flex flex-wrap mt-1" data-picker-chosen></div>
+                                    <p class="text-[10px] text-amber-700" data-picker-hint></p>
+                                    <p class="text-[10px] text-gray-400">Either co-listing office slot.</p>
+                                </div>
+                            </div>
+                            <!-- Not connected to a Cotality filter: disabled by js/init/init-disable-dead-controls.js (no control may silently do nothing). -->
+                            <div id="agentSearchUnsupported">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                                 <!-- Broker Search -->
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Broker</p>
                                     <input type="text" placeholder="Broker name or license #" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2" id="searchBroker">
                                     <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" class="w-3 h-3"> RLS Participant Only</label>
-                                </div>
-                                <!-- Company/Office Search -->
-                                <div class="bg-white p-3 rounded-lg border border-gray-100">
-                                    <p class="font-semibold text-gray-700 mb-2 text-xs">Company / Office</p>
-                                    <input type="text" placeholder="Company name or Office MLS ID" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2" id="searchListOffice">
-                                    <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" class="w-3 h-3"> IDX Participating Only</label>
                                 </div>
                                 <!-- Team Search -->
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
@@ -5573,8 +5631,9 @@
                                     <input type="text" placeholder="Owner or landlord name" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2" id="searchOwner">
                                 </div>
                             </div>
+                            </div>
                             <!-- Quick Filters -->
-                            <div class="bg-white p-3 rounded-lg border border-gray-100">
+                            <div id="agentQuickFiltersUnsupported" class="bg-white p-3 rounded-lg border border-gray-100">
                                 <p class="font-semibold text-gray-700 mb-2 text-xs">Quick Filters</p>
                                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-sm">
                                     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> My Listings Only</label>

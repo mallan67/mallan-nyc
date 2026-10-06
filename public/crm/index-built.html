@@ -7513,7 +7513,7 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Listing Type</p>
                                     <div class="space-y-1 text-xs">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="ExclusiveRightToSell,ExclusiveRightToLease"> Exclusive</label>
+                                        <label class="flex items-center gap-2 cursor-pointer" title="Every exclusive agreement Cotality defines: Exclusive Right To Sell, Exclusive Right To Lease, Exclusive Right With Exception, Exclusive Agency"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="ExclusiveAgency,ExclusiveRightToLease,ExclusiveRightToSell,ExclusiveRightWithException"> Exclusive</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListOfficeMlsId" data-value="OwnOffice"> In-House <span class="text-[9px] text-blue-600 font-medium">(Company)</span></label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="ExclusiveAgency"> Exclusive Agency</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="ExclusiveRightWithException"> Exclusive w/ Exception</label>
@@ -8285,7 +8285,7 @@ function toggleSection(header) {
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Views</p>
                                     <div class="grid grid-cols-2 gap-1.5 text-sm">
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="View" data-value="City,CityLights,Skyline,Downtown"> City/Skyline</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="View" data-value="Park,ParkGreenbelt"> Park</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="View" data-value="ParkGreenbelt"> Park</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="View" data-value="Water,River,Bay,Lake,Canal"> Water/River</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="View" data-value="Bridges"> Bridge</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="View" data-value="Garden"> Garden</label>
@@ -8298,14 +8298,14 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Exposure</p>
                                     <div class="grid grid-cols-2 gap-1.5 text-sm">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="N"> North</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="S"> South</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="E"> East</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="W"> West</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="NE"> NE</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="NW"> NW</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="SE"> SE</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="SW"> SW</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="North"> North</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="South"> South</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="East"> East</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="West"> West</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="Northeast"> NE</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="Northwest"> NW</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="Southeast"> SE</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="Southwest"> SW</label>
                                     </div>
                                 </div>
                                 <!-- Floor Number -->
@@ -8800,24 +8800,82 @@ function toggleSection(header) {
                             <h3 class="font-semibold">Brokerage / Broker / Agent / Team / Management / Landlord</h3>
                         </div>
                         <div class="section-content collapsed">
-                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                                <!-- Agent Search -->
+                            <!-- Agent / Office search: five separate filters over LIVE Cotality Property fields, plus Listing Agreement.
+                                 Primary and co-list sides are never merged. "Agent Involved Anywhere" spans both and replaces neither.
+                                 Pickers are wired by js/search/agent-office-picker.js (live Cotality Member/Office directory). -->
+                            <div id="agentOfficeSearch" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                                <!-- Listing Agreement: every value Cotality delivers (Add/Edit forms offer fewer) -->
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
-                                    <p class="font-semibold text-gray-700 mb-2 text-xs">Listing Agent</p>
-                                    <input type="text" placeholder="Agent name or MLS ID" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2" id="searchListAgent">
-                                    <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" class="w-3 h-3"> Include Co-List Agents</label>
+                                    <p class="font-semibold text-gray-700 mb-2 text-xs">Listing Agreement</p>
+                                    <div class="space-y-1 text-xs">
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="ExclusiveRightToSell"> Exclusive Right To Sell</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="ExclusiveRightToLease"> Exclusive Right To Lease</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="ExclusiveRightWithException"> Exclusive Right With Exception</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="ExclusiveAgency"> Exclusive Agency</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="CoExclusiveAgency"> Co-Exclusive Agency</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="Open"> Open</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="Net"> Net</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="Probate"> Probate</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="NonExclusiveAgency"> Non-Exclusive Agency</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="PropertyManagement"> Property Management</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="SellerReserved"> Seller Reserved</label>
+                                    </div>
+                                    <p class="text-[10px] text-gray-400 mt-2">Every agreement value Cotality delivers. The agreement says nothing about whether the co-listing agents share an office.</p>
                                 </div>
+                                <!-- Primary Listing Agent -->
+                                <div class="bg-white p-3 rounded-lg border border-gray-100 relative" data-agent-picker="listAgent">
+                                    <p class="font-semibold text-gray-700 mb-2 text-xs">Primary Listing Agent</p>
+                                    <input type="text" autocomplete="off" placeholder="Agent name or MLS ID" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-1" id="searchListAgent" data-picker-input aria-label="Primary listing agent">
+                                    <div class="hidden absolute left-3 right-3 z-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto" data-picker-results></div>
+                                    <div class="flex flex-wrap mt-1" data-picker-chosen></div>
+                                    <p class="text-[10px] text-amber-700" data-picker-hint></p>
+                                    <p class="text-[10px] text-gray-400">The listing's first listing agent only.</p>
+                                </div>
+                                <!-- Co-Listing Agent -->
+                                <div class="bg-white p-3 rounded-lg border border-gray-100 relative" data-agent-picker="coListAgent">
+                                    <p class="font-semibold text-gray-700 mb-2 text-xs">Co-Listing Agent</p>
+                                    <input type="text" autocomplete="off" placeholder="Agent name or MLS ID" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-1" id="searchCoListAgent" data-picker-input aria-label="Co-listing agent">
+                                    <div class="hidden absolute left-3 right-3 z-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto" data-picker-results></div>
+                                    <div class="flex flex-wrap mt-1" data-picker-chosen></div>
+                                    <p class="text-[10px] text-amber-700" data-picker-hint></p>
+                                    <p class="text-[10px] text-gray-400">Any of the three co-listing agent slots.</p>
+                                </div>
+                                <!-- Agent Involved Anywhere -->
+                                <div class="bg-white p-3 rounded-lg border border-gray-100 relative" data-agent-picker="anyAgent">
+                                    <p class="font-semibold text-gray-700 mb-2 text-xs">Agent Involved Anywhere</p>
+                                    <input type="text" autocomplete="off" placeholder="Agent name or MLS ID" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-1" id="searchAnyAgent" data-picker-input aria-label="Agent involved anywhere on the listing">
+                                    <div class="hidden absolute left-3 right-3 z-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto" data-picker-results></div>
+                                    <div class="flex flex-wrap mt-1" data-picker-chosen></div>
+                                    <p class="text-[10px] text-amber-700" data-picker-hint></p>
+                                    <p class="text-[10px] text-gray-400">Primary agent or any co-listing agent. Does not replace the two filters above.</p>
+                                </div>
+                                <!-- Primary Listing Office -->
+                                <div class="bg-white p-3 rounded-lg border border-gray-100 relative" data-agent-picker="listOffice">
+                                    <p class="font-semibold text-gray-700 mb-2 text-xs">Primary Listing Office</p>
+                                    <input type="text" autocomplete="off" placeholder="Firm or office name, or office MLS ID" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-1" id="searchListOffice" data-picker-input aria-label="Primary listing office">
+                                    <div class="hidden absolute left-3 right-3 z-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto" data-picker-results></div>
+                                    <div class="flex flex-wrap mt-1" data-picker-chosen></div>
+                                    <p class="text-[10px] text-amber-700" data-picker-hint></p>
+                                    <p class="text-[10px] text-gray-400">The listing's main office. A firm can have several offices: pick &ldquo;all offices whose name contains&rdquo; to match them all.</p>
+                                </div>
+                                <!-- Co-Listing Office -->
+                                <div class="bg-white p-3 rounded-lg border border-gray-100 relative" data-agent-picker="coListOffice">
+                                    <p class="font-semibold text-gray-700 mb-2 text-xs">Co-Listing Office</p>
+                                    <input type="text" autocomplete="off" placeholder="Firm or office name, or office MLS ID" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-1" id="searchCoListOffice" data-picker-input aria-label="Co-listing office">
+                                    <div class="hidden absolute left-3 right-3 z-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto" data-picker-results></div>
+                                    <div class="flex flex-wrap mt-1" data-picker-chosen></div>
+                                    <p class="text-[10px] text-amber-700" data-picker-hint></p>
+                                    <p class="text-[10px] text-gray-400">Either co-listing office slot.</p>
+                                </div>
+                            </div>
+                            <!-- Not connected to a Cotality filter: disabled by js/init/init-disable-dead-controls.js (no control may silently do nothing). -->
+                            <div id="agentSearchUnsupported">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                                 <!-- Broker Search -->
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Broker</p>
                                     <input type="text" placeholder="Broker name or license #" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2" id="searchBroker">
                                     <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" class="w-3 h-3"> RLS Participant Only</label>
-                                </div>
-                                <!-- Company/Office Search -->
-                                <div class="bg-white p-3 rounded-lg border border-gray-100">
-                                    <p class="font-semibold text-gray-700 mb-2 text-xs">Company / Office</p>
-                                    <input type="text" placeholder="Company name or Office MLS ID" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2" id="searchListOffice">
-                                    <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" class="w-3 h-3"> IDX Participating Only</label>
                                 </div>
                                 <!-- Team Search -->
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
@@ -8847,8 +8905,9 @@ function toggleSection(header) {
                                     <input type="text" placeholder="Owner or landlord name" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2" id="searchOwner">
                                 </div>
                             </div>
+                            </div>
                             <!-- Quick Filters -->
-                            <div class="bg-white p-3 rounded-lg border border-gray-100">
+                            <div id="agentQuickFiltersUnsupported" class="bg-white p-3 rounded-lg border border-gray-100">
                                 <p class="font-semibold text-gray-700 mb-2 text-xs">Quick Filters</p>
                                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-sm">
                                     <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> My Listings Only</label>
@@ -12982,29 +13041,51 @@ function toggleSection(header) {
 <div id="searchListingTypeInfoModal" style="display:none;" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true" aria-labelledby="listingTypeInfoTitle">
     <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[85vh] overflow-y-auto">
         <div class="sticky top-0 bg-white border-b px-5 py-3 flex items-center justify-between rounded-t-xl">
-            <h3 id="listingTypeInfoTitle" class="font-bold text-gray-900"><i class="fas fa-tag mr-2 text-blue-500"></i>Listing Type Guide</h3>
+            <h3 id="listingTypeInfoTitle" class="font-bold text-gray-900"><i class="fas fa-tag mr-2 text-blue-500"></i>Listing Agreement Guide</h3>
             <button type="button" onclick="document.getElementById('searchListingTypeInfoModal').style.display='none'" class="text-gray-400 hover:text-gray-700 text-xl leading-none" aria-label="Close dialog">&times;</button>
         </div>
         <div class="p-5 space-y-4 text-sm">
+            <div class="border-l-4 border-blue-500 pl-3 bg-blue-50 py-2 pr-2 rounded-r">
+                <p class="font-bold text-gray-900">Exclusive <span class="text-[10px] text-gray-400 font-normal">(search box)</span></p>
+                <p class="text-gray-600 mt-1">Selects every exclusive agreement Cotality defines: Exclusive Right To Sell, Exclusive Right To Lease, Exclusive Right With Exception and Exclusive Agency. Cotality has no single value called &ldquo;Exclusive&rdquo;.</p>
+            </div>
             <div class="border-l-4 border-blue-500 pl-3">
-                <p class="font-bold text-gray-900">Exclusive Right to Sell / Lease <span class="text-[10px] text-gray-400 font-normal">(ExclusiveRightToSell / ExclusiveRightToLease)</span></p>
-                <p class="text-gray-600 mt-1">The broker earns commission <strong>no matter who sells/leases the property</strong> — even if the owner finds the buyer/tenant themselves. Most common and most protective listing agreement.</p>
-                <p class="text-green-700 text-xs mt-1"><i class="fas fa-check-circle mr-1"></i>Full RLS distribution. Full commission protection.</p>
+                <p class="font-bold text-gray-900">Exclusive Right To Sell <span class="text-[10px] text-gray-400 font-normal">(ExclusiveRightToSell)</span></p>
+                <p class="text-gray-600 mt-1">A contract giving the Broker the right to collect commission if the property is sold by anyone, including the owning, during the term of the agreement.</p>
+            </div>
+            <div class="border-l-4 border-blue-500 pl-3">
+                <p class="font-bold text-gray-900">Exclusive Right To Lease <span class="text-[10px] text-gray-400 font-normal">(ExclusiveRightToLease)</span></p>
+                <p class="text-gray-600 mt-1">A contract giving the Broker the right to collect commission if the property is leased by anyone, including the owning, during the term of the agreement.</p>
+            </div>
+            <div class="border-l-4 border-purple-500 pl-3">
+                <p class="font-bold text-gray-900">Exclusive Right With Exception <span class="text-[10px] text-gray-400 font-normal">(ExclusiveRightWithException)</span></p>
+                <p class="text-gray-600 mt-1">A contract giving the Broker the right to collect commission if the property is sold by anyone, including the owner, during the term of the agreement unless some specified exceptions to the agreement occur.</p>
             </div>
             <div class="border-l-4 border-amber-500 pl-3">
                 <p class="font-bold text-gray-900">Exclusive Agency <span class="text-[10px] text-gray-400 font-normal">(ExclusiveAgency)</span></p>
-                <p class="text-gray-600 mt-1">One broker is the exclusive agent, <strong>but if the owner sells/leases themselves (no broker involved), they do NOT owe commission.</strong></p>
-                <p class="text-amber-700 text-xs mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>RLS eligible, but less commission protection for the agent.</p>
-            </div>
-            <div class="border-l-4 border-purple-500 pl-3">
-                <p class="font-bold text-gray-900">Exclusive Right w/ Exception <span class="text-[10px] text-gray-400 font-normal">(ExclusiveRightWithException)</span></p>
-                <p class="text-gray-600 mt-1">Same as Exclusive Right, <strong>except for specific named exceptions</strong> listed in the agreement. Commission owed on all other transactions.</p>
-                <p class="text-purple-700 text-xs mt-1"><i class="fas fa-file-contract mr-1"></i>RLS eligible. Exceptions documented in listing agreement.</p>
+                <p class="text-gray-600 mt-1">A contract giving one Brokerage Firm, for a specified time, the right to sell/lease the property and also allowing the owner, acting alone, to sell/lease the property without paying commission.</p>
             </div>
             <div class="border-l-4 border-teal-500 pl-3">
-                <p class="font-bold text-gray-900">Co-Exclusive <span class="text-[10px] text-gray-400 font-normal">(CoExclusiveAgency)</span></p>
-                <p class="text-gray-600 mt-1"><strong>Two listing agents share the exclusive right.</strong> Either can sell/lease. Commission owed regardless of who finds the buyer/tenant.</p>
-                <p class="text-teal-700 text-xs mt-1"><i class="fas fa-handshake mr-1"></i>RLS eligible. Both listing agents and their offices are named on the listing.</p>
+                <p class="font-bold text-gray-900">Co-Exclusive Agency <span class="text-[10px] text-gray-400 font-normal">(CoExclusiveAgency)</span></p>
+                <p class="text-gray-600 mt-1">Cotality defines it only by name: &ldquo;Co-Exclusive Agency&rdquo;. The primary listing agent and the co-listing agent are separate fields on the listing; they can be in the same office, the same company or different companies, so the agreement says nothing about their offices.</p>
+            </div>
+            <hr class="border-gray-200">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Other Cotality values (Agent Search)</p>
+            <div class="border-l-4 border-gray-300 pl-3">
+                <p class="font-bold text-gray-900">Open <span class="text-[10px] text-gray-400 font-normal">(Open)</span></p>
+                <p class="text-gray-600 mt-1">Often used for commercial property, a listing given to any number of Brokers without liability to compensate any except the one who first secures a buyer who is ready, willing and able to meet the terms of the listing and secures the seller's acceptance. The seller may, acting alone, sell the property without paying commission.</p>
+            </div>
+            <div class="border-l-4 border-gray-300 pl-3">
+                <p class="font-bold text-gray-900">Probate <span class="text-[10px] text-gray-400 font-normal">(Probate)</span></p>
+                <p class="text-gray-600 mt-1">An Exclusive Right To Sell listing agreement that also resides under authority of the local probate code.</p>
+            </div>
+            <div class="border-l-4 border-gray-300 pl-3">
+                <p class="font-bold text-gray-900">Net <span class="text-[10px] text-gray-400 font-normal">(Net)</span></p>
+                <p class="text-gray-600 mt-1">A listing in which the broker's commission is the excess of the sale price over an agreed-upon (net0 price to the seller; illegal in some states because it can create a conflict of interest for the broker.</p>
+            </div>
+            <div class="border-l-4 border-gray-300 pl-3">
+                <p class="font-bold text-gray-900">Non-Exclusive Agency, Property Management, Seller Reserved</p>
+                <p class="text-gray-600 mt-1">Cotality defines each of these only by its name.</p>
             </div>
             <hr class="border-gray-200">
             <div class="border-l-4 border-blue-400 pl-3 bg-blue-50 py-2 pr-2 rounded-r">
@@ -13023,7 +13104,7 @@ function toggleSection(header) {
             </div>
         </div>
         <div class="border-t px-5 py-3 bg-gray-50 rounded-b-xl">
-            <p class="text-[10px] text-gray-500"><i class="fas fa-info-circle mr-1"></i>Per UCBA: Only exclusive listings are eligible for RLS. <strong>ListingAgreement</strong> maps to RESO standard. In-House uses office ID filter. Owner Opt-Out/Participant Only use Permissions fields.</p>
+            <p class="text-[10px] text-gray-500"><i class="fas fa-info-circle mr-1"></i>Agreement definitions are quoted from Cotality's live Lookup catalog for Property.ListingAgreement. In-House uses office ID filter. Owner Opt-Out/Participant Only use Permissions fields.</p>
         </div>
     </div>
 </div>
@@ -13821,6 +13902,18 @@ var MallanAPI = (function () {
       if (params.minUnits) qs.push('minUnits=' + params.minUnits);
       if (params.maxUnits) qs.push('maxUnits=' + params.maxUnits);
       if (params.buildingName) qs.push('buildingName=' + encodeURIComponent(params.buildingName));
+      // Filters lib/search/crm-idx-filter.ts supports and the Search page collects. They were collected and logged but never sent, so the
+      // checkbox filters, management company, unit and contract dates only narrowed the first rows the server returned. `keyword` is
+      // deliberately NOT forwarded: live Cotality cannot evaluate contains(PublicRemarks, ...) within the request timeout (it aborts).
+      if (params.unit) qs.push('unit=' + encodeURIComponent(params.unit));
+      if (params.managementCompany) qs.push('managementCompany=' + encodeURIComponent(params.managementCompany));
+      if (params.contractDateFrom) qs.push('contractDateFrom=' + encodeURIComponent(params.contractDateFrom));
+      if (params.contractDateTo) qs.push('contractDateTo=' + encodeURIComponent(params.contractDateTo));
+      if (params.checkboxFilters) qs.push('checkboxFilters=' + encodeURIComponent(params.checkboxFilters));
+      // Agent / office filters (primary and co-list sides are separate): each value is a comma-separated list of MLS IDs and/or typed names.
+      ['listAgent', 'coListAgent', 'anyAgent', 'listOffice', 'coListOffice'].forEach(function (key) {
+        if (params[key]) qs.push(key + '=' + encodeURIComponent(params[key]));
+      });
       if (params.sort) qs.push('sort=' + encodeURIComponent(params.sort));
       if (params.limit) qs.push('limit=' + params.limit);
       if (params.skip) qs.push('skip=' + params.skip);
@@ -16471,7 +16564,9 @@ function manageShowToast(msg) {
                 // local pre-render would briefly show a narrower, false result.
                 var hasLocalData = typeof listings !== 'undefined' && listings && listings.length > 0;
                 var hasServerIgnoredCriteria = _hasServerIgnoredCriteria(activeSearchCriteria);
-                var localResults = (hasLocalData && !hasServerIgnoredCriteria)
+                // Agent / office filters can only be evaluated by Cotality; a local pre-render could not apply them and would show a broader, false set.
+                var hasServerOnlyCriteria = Boolean(activeSearchCriteria.listAgent || activeSearchCriteria.coListAgent || activeSearchCriteria.anyAgent || activeSearchCriteria.listOffice || activeSearchCriteria.coListOffice);
+                var localResults = (hasLocalData && !hasServerIgnoredCriteria && !hasServerOnlyCriteria)
                     ? filterListings(listings, activeSearchCriteria)
                     : [];
 
@@ -16573,6 +16668,7 @@ function manageShowToast(msg) {
             if (criteria.sqftMin) params.minSqft = criteria.sqftMin;
             if (criteria.sqftMax) params.maxSqft = criteria.sqftMax;
             if (criteria.managementCompany) params.managementCompany = criteria.managementCompany;
+            ['listAgent', 'coListAgent', 'anyAgent', 'listOffice', 'coListOffice'].forEach(function(k) { if (criteria[k]) params[k] = criteria[k]; });
             if (criteria.dateFrom) params.dateFrom = criteria.dateFrom;
             if (criteria.dateTo) params.dateTo = criteria.dateTo;
             if (criteria.dateActivityType) params.dateType = criteria.dateActivityType;
@@ -17268,6 +17364,14 @@ function manageShowToast(msg) {
                 criteria.managementCompany = mgmtEl.value.trim();
             }
 
+            // Agent / office pickers (advanced mode): primary and co-list sides are separate filters over live Cotality fields.
+            if (_isAdvanced && window.AgentOfficeSearch) {
+                var _aoTokens = window.AgentOfficeSearch.collect();
+                Object.keys(_aoTokens).forEach(function(k) { criteria[k] = _aoTokens[k]; });
+                var _aoState = window.AgentOfficeSearch.getState();
+                if (Object.keys(_aoState).length > 0) criteria.agentOffice = _aoState;
+            }
+
             // Building Financing % (MaximumFinancingPercent on CRM, BuyerFinancing on Trestle)
             var finMinId = currentSearchTab === 'rent' ? 'rentalBuildingFinancingMin' :
                            currentSearchTab === 'building' ? 'buildingFinancingMin' : 'saleBuildingFinancingMin';
@@ -17498,6 +17602,7 @@ function manageShowToast(msg) {
             if (advRentalActive) advRentalActive.checked = true;
             // Clear neighborhood tags and internal selection state
             if (typeof clearAllNeighborhoods === 'function') clearAllNeighborhoods();
+            if (window.AgentOfficeSearch) window.AgentOfficeSearch.clear();
 
             // Hide custom price input rows
             var saleCustomRow = document.getElementById('saleCustomPriceRow');
@@ -17545,6 +17650,7 @@ function manageShowToast(msg) {
             form.querySelectorAll('.drp-wrapper[data-from]').forEach(function(w) {
                 if (w.getAttribute('data-from')) count++;
             });
+            if (window.AgentOfficeSearch) count += window.AgentOfficeSearch.chosenCount();
             var el = document.getElementById('activeFilterCount');
             if (el) el.textContent = count === 0 ? 'No filters' : count + ' filter' + (count > 1 ? 's' : '') + ' applied';
         }
@@ -17992,10 +18098,15 @@ function manageShowToast(msg) {
                         // (e.g. "FullTimeDoorman,VirtualDoorman") or single values
                         var _listStr = String(_listVal).toLowerCase();
                         var _matched = false;
-                        for (var _vi = 0; _vi < _vals.length; _vi++) {
-                            if (_listStr.indexOf(_vals[_vi].toLowerCase()) !== -1) {
-                                _matched = true;
-                                break;
+                        for (var _vi = 0; _vi < _vals.length && !_matched; _vi++) {
+                            // A checkbox can carry several comma-joined values (the "Exclusive" box does): any one of them matches.
+                            // ListingAgreement is a single-valued enum, so it is compared exactly ("exclusiveagency" is a substring of
+                            // "coexclusiveagency"); the other fields keep their substring match.
+                            var _alts = String(_vals[_vi]).toLowerCase().split(',');
+                            for (var _ai = 0; _ai < _alts.length; _ai++) {
+                                var _alt = _alts[_ai].trim();
+                                if (!_alt) continue;
+                                if (_fk === 'ListingAgreement' ? _listStr === _alt : _listStr.indexOf(_alt) !== -1) { _matched = true; break; }
                             }
                         }
                         if (!_matched) return false;
@@ -19174,6 +19285,311 @@ function manageShowToast(msg) {
             });
         })();
 
+
+</script>
+<script>
+// ═══ js/search/agent-office-picker.js ═══
+// ═══════════════════════════════════════════════════════════════════════════════
+// AGENT / OFFICE SEARCH PICKERS (CRM Search)
+//
+// Five separate filters over LIVE Cotality Property fields. The primary and co-list sides are never merged:
+//   listAgent     Primary Listing Agent     ListAgentMlsId / ListAgentFullName
+//   coListAgent   Co-Listing Agent          CoListAgent, CoListAgent2, CoListAgent3  (MlsId / FullName)
+//   anyAgent      Agent Involved Anywhere   primary + every co-list slot; a convenience that replaces neither
+//   listOffice    Primary Listing Office    ListOfficeMlsId / ListOfficeName
+//   coListOffice  Co-Listing Office         CoListOffice, CoListOffice2  (MlsId / Name)
+//
+// Picking a person or office from the live Cotality directory (GET /api/crm/directory/members|offices, agent/broker auth)
+// stores the MLS ID, which is exact. Typed text that is not picked is sent as a name match; that is lossy, because the same
+// person's name is written differently across listings, so the list says so. Office names match every office whose name
+// contains the text, which is how a firm with several office records is searched.
+// All text is rendered with textContent; directory data is never interpreted as HTML.
+// ═══════════════════════════════════════════════════════════════════════════════
+(function (global) {
+    'use strict';
+
+    var FIELDS = ['listAgent', 'coListAgent', 'anyAgent', 'listOffice', 'coListOffice'];
+    var KIND = { listAgent: 'agent', coListAgent: 'agent', anyAgent: 'agent', listOffice: 'office', coListOffice: 'office' };
+    var MAX_CHOSEN = 5;      // the server accepts at most five tokens per filter
+    var MIN_TEXT = 2;
+    var DEBOUNCE_MS = 250;
+    var RESULT_LIMIT = 10;
+
+    var pickers = {};
+
+    function make(tag, className, text) {
+        var node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text != null) node.textContent = text;
+        return node;
+    }
+
+    function isId(text) { return /^\d{1,12}$/.test(text); }
+    function cleanText(text) { return String(text || '').replace(/[,\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim(); }
+
+    function tokenOf(entry) { return entry.id != null && entry.id !== '' ? String(entry.id) : String(entry.text || ''); }
+
+    function endpoint(field, text) {
+        var kind = KIND[field];
+        var params = [];
+        if (isId(text)) params.push('mlsId=' + encodeURIComponent(text));
+        else params.push('name=' + encodeURIComponent(text));
+        params.push('includeInactive=1', 'limit=' + RESULT_LIMIT);
+        return '/api/crm/directory/' + (kind === 'agent' ? 'members' : 'offices') + '?' + params.join('&');
+    }
+
+    function renderChips(picker) {
+        var box = picker.chipsEl;
+        while (box.firstChild) box.removeChild(box.firstChild);
+        picker.chosen.forEach(function (entry, index) {
+            var chip = make('span', 'inline-flex items-center gap-1 bg-blue-50 border border-blue-200 text-blue-800 rounded px-2 py-0.5 text-xs mr-1 mb-1');
+            chip.setAttribute('data-picker-chip', tokenOf(entry));
+            chip.appendChild(make('span', '', entry.label || tokenOf(entry)));
+            var remove = make('button', 'text-blue-500 hover:text-blue-800 leading-none', '×');
+            remove.type = 'button';
+            remove.setAttribute('aria-label', 'Remove ' + (entry.label || tokenOf(entry)));
+            remove.addEventListener('click', function () {
+                picker.chosen.splice(index, 1);
+                renderChips(picker);
+                notifyChange(picker);
+            });
+            chip.appendChild(remove);
+            box.appendChild(chip);
+        });
+    }
+
+    function notifyChange(picker) {
+        if (typeof global.updateFilterCount === 'function') global.updateFilterCount();
+        try { picker.root.dispatchEvent(new CustomEvent('agent-office:change', { bubbles: true, detail: { field: picker.field } })); } catch (e) { /* old browsers */ }
+    }
+
+    function closeList(picker) {
+        picker.results.classList.add('hidden');
+        picker.input.setAttribute('aria-expanded', 'false');
+        picker.active = -1;
+        picker.options = [];
+        while (picker.results.firstChild) picker.results.removeChild(picker.results.firstChild);
+    }
+
+    function choose(picker, entry) {
+        var token = tokenOf(entry);
+        if (!token) return;
+        var exists = picker.chosen.some(function (c) { return tokenOf(c) === token; });
+        if (!exists) {
+            if (picker.chosen.length >= MAX_CHOSEN) {
+                picker.hint.textContent = 'At most ' + MAX_CHOSEN + ' per filter.';
+                return;
+            }
+            picker.chosen.push(entry);
+            renderChips(picker);
+        }
+        picker.input.value = '';
+        picker.hint.textContent = '';
+        closeList(picker);
+        notifyChange(picker);
+    }
+
+    function setActive(picker, index) {
+        picker.active = index;
+        picker.options.forEach(function (node, i) {
+            var on = i === index;
+            node.classList.toggle('bg-blue-50', on);
+            node.setAttribute('aria-selected', on ? 'true' : 'false');
+            if (on) picker.input.setAttribute('aria-activedescendant', node.id);
+        });
+    }
+
+    function addOption(picker, entry, primary, secondary) {
+        var node = make('div', 'px-2 py-1 cursor-pointer text-xs border-b border-gray-100 last:border-0 hover:bg-blue-50');
+        node.id = 'aop-' + picker.field + '-' + picker.options.length;
+        node.setAttribute('role', 'option');
+        node.setAttribute('aria-selected', 'false');
+        node.appendChild(make('div', 'font-medium text-gray-800', primary));
+        if (secondary) node.appendChild(make('div', 'text-gray-500', secondary));
+        // mousedown (not click) so the input does not blur and close the list first
+        node.addEventListener('mousedown', function (event) { event.preventDefault(); choose(picker, entry); });
+        picker.results.appendChild(node);
+        picker.options.push(node);
+    }
+
+    function textOption(picker, text) {
+        var kind = KIND[picker.field];
+        if (isId(text)) {
+            addOption(picker, { id: text, label: (kind === 'agent' ? 'Agent MLS ' : 'Office MLS ') + text }, 'Use MLS ID ' + text, 'Exact match');
+        } else if (kind === 'office') {
+            addOption(picker, { text: text, label: 'name contains “' + text + '”' }, 'All offices whose name contains “' + text + '”', 'Matches every office record of a firm');
+        } else {
+            addOption(picker, { text: text, label: 'name “' + text + '”' }, 'Match “' + text + '” as typed text', 'Less exact: names are written differently across listings. Pick a person below for an exact match.');
+        }
+    }
+
+    function showResults(picker, text, rows, failed) {
+        while (picker.results.firstChild) picker.results.removeChild(picker.results.firstChild);
+        picker.options = [];
+        textOption(picker, text);
+        if (failed) {
+            picker.results.appendChild(make('div', 'px-2 py-1 text-xs text-amber-700', 'Directory unavailable. The typed text above will still be searched.'));
+        } else if (!rows.length) {
+            picker.results.appendChild(make('div', 'px-2 py-1 text-xs text-gray-500', 'No match in the Cotality directory.'));
+        }
+        var kind = KIND[picker.field];
+        rows.forEach(function (row) {
+            if (kind === 'agent') {
+                var where = row.officeName ? row.officeName : (row.officeMlsId ? 'Office ' + row.officeMlsId : '');
+                var inactive = row.status && row.status !== 'Active' ? ' · ' + row.status : '';
+                addOption(picker, { id: row.mlsId, label: row.fullName || ('Agent MLS ' + row.mlsId) }, row.fullName || ('Agent MLS ' + row.mlsId),
+                    (where ? where + ' · ' : '') + 'MLS ' + row.mlsId + inactive);
+            } else {
+                var branch = row.mainOfficeMlsId && row.mainOfficeMlsId !== row.mlsId ? ' · branch of office ' + row.mainOfficeMlsId : '';
+                var state = row.status && row.status !== 'Active' ? ' · ' + row.status : '';
+                addOption(picker, { id: row.mlsId, label: row.name || ('Office MLS ' + row.mlsId) }, row.name || ('Office MLS ' + row.mlsId),
+                    'Office MLS ' + row.mlsId + branch + state);
+            }
+        });
+        picker.results.classList.remove('hidden');
+        picker.input.setAttribute('aria-expanded', 'true');
+        setActive(picker, 0);
+    }
+
+    function lookup(picker) {
+        var text = cleanText(picker.input.value);
+        if (!isId(text) && text.length < MIN_TEXT) { closeList(picker); return; }
+        var mine = ++picker.seq;
+        var api = global.MallanAPI;
+        if (!api || typeof api._fetch !== 'function') { showResults(picker, text, [], true); return; }
+        api._fetch(endpoint(picker.field, text)).then(function (body) {
+            if (mine !== picker.seq) return; // a newer keystroke superseded this lookup
+            var rows = KIND[picker.field] === 'agent' ? (body && body.members) : (body && body.offices);
+            showResults(picker, text, Array.isArray(rows) ? rows : [], false);
+        }).catch(function () {
+            if (mine !== picker.seq) return;
+            showResults(picker, text, [], true);
+        });
+    }
+
+    function wire(root) {
+        var field = root.getAttribute('data-agent-picker');
+        if (FIELDS.indexOf(field) === -1 || root.getAttribute('data-picker-ready') === 'true') return;
+        var input = root.querySelector('[data-picker-input]');
+        var results = root.querySelector('[data-picker-results]');
+        var chipsEl = root.querySelector('[data-picker-chosen]');
+        var hint = root.querySelector('[data-picker-hint]');
+        if (!input || !results || !chipsEl || !hint) return;
+        var picker = { field: field, root: root, input: input, results: results, chipsEl: chipsEl, hint: hint, chosen: [], options: [], active: -1, seq: 0, timer: null };
+        pickers[field] = picker;
+        root.setAttribute('data-picker-ready', 'true');
+        input.setAttribute('role', 'combobox');
+        input.setAttribute('aria-autocomplete', 'list');
+        input.setAttribute('aria-expanded', 'false');
+        results.setAttribute('role', 'listbox');
+
+        input.addEventListener('input', function () {
+            picker.hint.textContent = '';
+            clearTimeout(picker.timer);
+            picker.timer = setTimeout(function () { lookup(picker); }, DEBOUNCE_MS);
+        });
+        input.addEventListener('keydown', function (event) {
+            var open = !results.classList.contains('hidden') && picker.options.length > 0;
+            if (event.key === 'ArrowDown' && open) { event.preventDefault(); setActive(picker, Math.min(picker.options.length - 1, picker.active + 1)); }
+            else if (event.key === 'ArrowUp' && open) { event.preventDefault(); setActive(picker, Math.max(0, picker.active - 1)); }
+            else if (event.key === 'Escape' && open) { event.preventDefault(); event.stopPropagation(); closeList(picker); }
+            else if (event.key === 'Enter' && open) {
+                // Selecting an option must not also run the search (the page runs Search on Enter).
+                event.preventDefault(); event.stopPropagation();
+                picker.options[Math.max(0, picker.active)].dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+            } else if (event.key === 'Backspace' && !input.value && picker.chosen.length) {
+                picker.chosen.pop(); renderChips(picker); notifyChange(picker);
+            }
+        });
+        input.addEventListener('blur', function () { setTimeout(function () { closeList(picker); }, 120); });
+    }
+
+    function init() {
+        FIELDS.forEach(function (field) {
+            var root = document.querySelector('[data-agent-picker="' + field + '"]');
+            if (root) wire(root);
+        });
+    }
+
+    // The entries a filter will actually search: the chosen chips plus any typed text that was not picked.
+    function entriesOf(picker) {
+        var entries = picker.chosen.slice();
+        var typed = cleanText(picker.input.value);
+        if (typed && (isId(typed) || typed.length >= MIN_TEXT) && !entries.some(function (e) { return tokenOf(e) === typed; })) {
+            entries.push(isId(typed)
+                ? { id: typed, label: (KIND[picker.field] === 'agent' ? 'Agent MLS ' : 'Office MLS ') + typed }
+                : { text: typed, label: 'name “' + typed + '”' });
+        }
+        return entries.slice(0, MAX_CHOSEN);
+    }
+
+    // collect(): { listAgent: '39361,Maya Allan', ... } for every filter that has something to search.
+    function collect() {
+        var out = {};
+        FIELDS.forEach(function (field) {
+            var picker = pickers[field];
+            if (!picker) return;
+            var tokens = entriesOf(picker).map(tokenOf).filter(Boolean);
+            if (tokens.length) out[field] = tokens.join(',');
+        });
+        return out;
+    }
+
+    // getState()/setState(): the same entries ({id|text, label}) the search used; saved searches store and restore them with no
+    // network call, so a reloaded search shows exactly what ran.
+    function getState() {
+        var out = {};
+        FIELDS.forEach(function (field) {
+            var picker = pickers[field];
+            if (!picker) return;
+            var entries = entriesOf(picker);
+            if (entries.length) out[field] = entries.map(function (c) { return { id: c.id, text: c.text, label: c.label }; });
+        });
+        return out;
+    }
+
+    function setState(state) {
+        clear();
+        if (!state || typeof state !== 'object') return;
+        FIELDS.forEach(function (field) {
+            var picker = pickers[field];
+            var list = state[field];
+            if (!picker || !Array.isArray(list)) return;
+            picker.chosen = list.filter(function (c) { return c && (c.id || c.text); }).slice(0, MAX_CHOSEN).map(function (c) {
+                return { id: c.id != null ? String(c.id) : undefined, text: c.text != null ? String(c.text) : undefined, label: c.label ? String(c.label) : (c.id != null ? String(c.id) : String(c.text)) };
+            });
+            renderChips(picker);
+        });
+        if (typeof global.updateFilterCount === 'function') global.updateFilterCount();
+    }
+
+    function clear() {
+        FIELDS.forEach(function (field) {
+            var picker = pickers[field];
+            if (!picker) return;
+            clearTimeout(picker.timer);
+            picker.seq++;
+            picker.chosen = [];
+            picker.input.value = '';
+            picker.hint.textContent = '';
+            renderChips(picker);
+            closeList(picker);
+        });
+    }
+
+    // Filters holding picked chips. Typed text is already counted by the form's own text-input count, so it is not counted twice.
+    function chosenCount() {
+        var count = 0;
+        FIELDS.forEach(function (field) { if (pickers[field] && pickers[field].chosen.length) count++; });
+        return count;
+    }
+
+    global.AgentOfficeSearch = { init: init, collect: collect, getState: getState, setState: setState, clear: clear, chosenCount: chosenCount, FIELDS: FIELDS.slice() };
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+    global.addEventListener('mallan:data:ready', init);
+})(window);
 
 </script>
 <script>
@@ -23112,6 +23528,7 @@ function parseBudgetValue(td) {
                 parts.push(c.neighborhoods.length === 1 ? c.neighborhoods[0] : c.neighborhoods.length + ' neighborhoods');
             }
             if (c.sqftMin) parts.push(c.sqftMin + '+ sqft');
+            if (c.agentOffice) parts.push('agent/office filter');
 
             summary.innerHTML = parts.length > 0
                 ? '<p class="text-xs text-blue-700"><i class="fas fa-search mr-1"></i> <strong>Criteria:</strong> ' + escapeHtml(parts.join(' | ')) + '</p>'
@@ -23187,6 +23604,8 @@ function parseBudgetValue(td) {
                 // BuildingFeatures/etc. set. Stored as a JSON string to
                 // preserve the inner shape unchanged across save/load.
                 checkbox_filters: c.checkboxFilters ? JSON.stringify(c.checkboxFilters) : undefined,
+                // Agent / office pickers: the entries the search used ({id|text, label} per filter); restored with no network call.
+                agent_office: c.agentOffice || undefined,
             };
             return out;
         }
@@ -23324,6 +23743,9 @@ function parseBudgetValue(td) {
             // the active input ID per tab/mode (mirrors search-engine.js
             // collectSearchCriteria input ID resolution exactly).
 
+            // Agent / office filters live in the advanced form: show it so the restored filter is visible and applied.
+            if (criteria.agent_office && typeof toggleSearchMode === 'function') toggleSearchMode('advanced');
+
             // Detect advanced mode for ID prefix selection
             var _isAdv = (function () {
                 var advMode = document.getElementById('searchAdvancedMode');
@@ -23341,6 +23763,9 @@ function parseBudgetValue(td) {
                 var mgmtEl = document.getElementById(_isAdv ? 'adv-management' : 'searchManagementCompany');
                 if (mgmtEl) mgmtEl.value = criteria.management_company;
             }
+
+            // Agent / office pickers
+            if (criteria.agent_office && window.AgentOfficeSearch) window.AgentOfficeSearch.setState(criteria.agent_office);
 
             // Unit number (mirrors collectSearchCriteria adv vs basic)
             if (criteria.unit) {
@@ -23401,7 +23826,7 @@ function parseBudgetValue(td) {
                             // First clear existing checks for this field
                             cbScope.querySelectorAll('input[data-field="' + field + '"]').forEach(function(cb) { cb.checked = false; });
                             values.forEach(function(v) {
-                                var cb = cbScope.querySelector('input[data-field="' + field + '"][data-value="' + String(field === 'ListingAgreement' && v === 'CoExclusive' ? 'CoExclusiveAgency' : v).replace(/"/g, '\\"') + '"]');
+                                var cb = cbScope.querySelector('input[data-field="' + field + '"][data-value="' + String(_legacyCriterionValue(field, v)).replace(/"/g, '\\"') + '"]');
                                 if (cb && !cb.disabled) cb.checked = true;
                             });
                         });
@@ -23415,6 +23840,14 @@ function parseBudgetValue(td) {
         }
 
         /** Helper: set a <select> value, trying exact match then closest */
+        // Saved searches written before the live-Cotality cutover stored values Cotality does not have; map them to the live members.
+        var _LEGACY_DIRECTION_FACES = { N: 'North', S: 'South', E: 'East', W: 'West', NE: 'Northeast', NW: 'Northwest', SE: 'Southeast', SW: 'Southwest' };
+        function _legacyCriterionValue(field, v) {
+            if (field === 'ListingAgreement' && v === 'CoExclusive') return 'CoExclusiveAgency';
+            if (field === 'DirectionFaces' && _LEGACY_DIRECTION_FACES[v]) return _LEGACY_DIRECTION_FACES[v];
+            return v;
+        }
+
         function _setSelectValue(elementId, value) {
             if (value == null) return;
             var el = document.getElementById(elementId);
@@ -33775,6 +34208,25 @@ function emailCurrentCalc() {
                 // the BATCH 2 dead-pattern test at
                 // lib/search/__tests__/crm-idx-filter.test.ts.
                 'input[data-sub-status]',
+
+                // ── Values that are not members of the live Cotality enumeration ──
+                // Checking one makes Cotality answer HTTP 400 ("The string 'X' is not a valid enumeration type"), which fails the whole search once the
+                // API client forwards checkboxFilters. Verified live 2026-10-06. Re-enable a control only after mapping it to a live member
+                // (the live members are in data/cotality-enums.live.json); tests/runtime/crm-search-real-page.test.ts enforces this.
+                'input[data-field="AccessibilityFeatures"][data-value="WheelchairAccessible"]',
+                'input[data-field="StructureType"][data-value="Loft"]',
+                'input[data-field="StructureType"][data-value="WalkUp"]',
+                'input[data-field="ArchitecturalStyle"][data-value="Brownstone"]',
+                'input[data-field="ExteriorFeatures"][data-value="RoofDeck"]',
+                'input[data-field="ExteriorFeatures"][data-value="Terrace"]',
+                'input[data-field="LaundryFeatures"][data-value="Common"]',
+                'input[data-field="BuildingFeatures"][data-value="Fitness"]',
+                'input[data-field="BuildingFeatures"][data-value="BikeRoom"]',
+                'input[data-field="BusinessType"][data-value="FlexibleSpace"]',
+                'input[data-field="BusinessType"][data-value="Investment"]',
+                // BuildingPetsAllowed maps to PetsAllowedYN, which live Cotality leaves empty (0 rows for true and for false); the pet data is in
+                // PetsAllowed (live members such as BuildingYes, BuildingCatsOk, BuildingDogsOk, BuildingNo).
+                'input[data-field="BuildingPetsAllowed"]',
             ];
 
             // ── P1: Container-level dead controls ──────────────────────
@@ -33830,6 +34282,9 @@ function emailCurrentCalc() {
                 // Use class selector for all four-per-side preset buttons.
                 { selector: '.oh-preset[data-oh="saleOpenHouse"]', reason: 'Open House date range not supported by the search backend.' },
                 { selector: '.oh-preset[data-oh="rentalOpenHouse"]', reason: 'Open House date range not supported by the search backend.' },
+                // Agent Search controls with no Cotality filter behind them (the working ones are the agent/office filters above).
+                { selector: '#agentSearchUnsupported', reason: 'Not connected to a Cotality filter. Use the agent and office filters above.' },
+                { selector: '#agentQuickFiltersUnsupported', reason: 'Not connected to a Cotality filter yet.' },
             ];
 
             function disableDeadControls() {

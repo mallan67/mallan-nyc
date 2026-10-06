@@ -203,7 +203,9 @@
                 // local pre-render would briefly show a narrower, false result.
                 var hasLocalData = typeof listings !== 'undefined' && listings && listings.length > 0;
                 var hasServerIgnoredCriteria = _hasServerIgnoredCriteria(activeSearchCriteria);
-                var localResults = (hasLocalData && !hasServerIgnoredCriteria)
+                // Agent / office filters can only be evaluated by Cotality; a local pre-render could not apply them and would show a broader, false set.
+                var hasServerOnlyCriteria = Boolean(activeSearchCriteria.listAgent || activeSearchCriteria.coListAgent || activeSearchCriteria.anyAgent || activeSearchCriteria.listOffice || activeSearchCriteria.coListOffice);
+                var localResults = (hasLocalData && !hasServerIgnoredCriteria && !hasServerOnlyCriteria)
                     ? filterListings(listings, activeSearchCriteria)
                     : [];
 
@@ -305,6 +307,7 @@
             if (criteria.sqftMin) params.minSqft = criteria.sqftMin;
             if (criteria.sqftMax) params.maxSqft = criteria.sqftMax;
             if (criteria.managementCompany) params.managementCompany = criteria.managementCompany;
+            ['listAgent', 'coListAgent', 'anyAgent', 'listOffice', 'coListOffice'].forEach(function(k) { if (criteria[k]) params[k] = criteria[k]; });
             if (criteria.dateFrom) params.dateFrom = criteria.dateFrom;
             if (criteria.dateTo) params.dateTo = criteria.dateTo;
             if (criteria.dateActivityType) params.dateType = criteria.dateActivityType;
@@ -1000,6 +1003,14 @@
                 criteria.managementCompany = mgmtEl.value.trim();
             }
 
+            // Agent / office pickers (advanced mode): primary and co-list sides are separate filters over live Cotality fields.
+            if (_isAdvanced && window.AgentOfficeSearch) {
+                var _aoTokens = window.AgentOfficeSearch.collect();
+                Object.keys(_aoTokens).forEach(function(k) { criteria[k] = _aoTokens[k]; });
+                var _aoState = window.AgentOfficeSearch.getState();
+                if (Object.keys(_aoState).length > 0) criteria.agentOffice = _aoState;
+            }
+
             // Building Financing % (MaximumFinancingPercent on CRM, BuyerFinancing on Trestle)
             var finMinId = currentSearchTab === 'rent' ? 'rentalBuildingFinancingMin' :
                            currentSearchTab === 'building' ? 'buildingFinancingMin' : 'saleBuildingFinancingMin';
@@ -1230,6 +1241,7 @@
             if (advRentalActive) advRentalActive.checked = true;
             // Clear neighborhood tags and internal selection state
             if (typeof clearAllNeighborhoods === 'function') clearAllNeighborhoods();
+            if (window.AgentOfficeSearch) window.AgentOfficeSearch.clear();
 
             // Hide custom price input rows
             var saleCustomRow = document.getElementById('saleCustomPriceRow');
@@ -1277,6 +1289,7 @@
             form.querySelectorAll('.drp-wrapper[data-from]').forEach(function(w) {
                 if (w.getAttribute('data-from')) count++;
             });
+            if (window.AgentOfficeSearch) count += window.AgentOfficeSearch.chosenCount();
             var el = document.getElementById('activeFilterCount');
             if (el) el.textContent = count === 0 ? 'No filters' : count + ' filter' + (count > 1 ? 's' : '') + ' applied';
         }
@@ -1724,10 +1737,15 @@
                         // (e.g. "FullTimeDoorman,VirtualDoorman") or single values
                         var _listStr = String(_listVal).toLowerCase();
                         var _matched = false;
-                        for (var _vi = 0; _vi < _vals.length; _vi++) {
-                            if (_listStr.indexOf(_vals[_vi].toLowerCase()) !== -1) {
-                                _matched = true;
-                                break;
+                        for (var _vi = 0; _vi < _vals.length && !_matched; _vi++) {
+                            // A checkbox can carry several comma-joined values (the "Exclusive" box does): any one of them matches.
+                            // ListingAgreement is a single-valued enum, so it is compared exactly ("exclusiveagency" is a substring of
+                            // "coexclusiveagency"); the other fields keep their substring match.
+                            var _alts = String(_vals[_vi]).toLowerCase().split(',');
+                            for (var _ai = 0; _ai < _alts.length; _ai++) {
+                                var _alt = _alts[_ai].trim();
+                                if (!_alt) continue;
+                                if (_fk === 'ListingAgreement' ? _listStr === _alt : _listStr.indexOf(_alt) !== -1) { _matched = true; break; }
                             }
                         }
                         if (!_matched) return false;

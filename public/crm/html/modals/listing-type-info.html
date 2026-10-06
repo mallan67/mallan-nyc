@@ -2,29 +2,51 @@
 <div id="searchListingTypeInfoModal" style="display:none;" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true" aria-labelledby="listingTypeInfoTitle">
     <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[85vh] overflow-y-auto">
         <div class="sticky top-0 bg-white border-b px-5 py-3 flex items-center justify-between rounded-t-xl">
-            <h3 id="listingTypeInfoTitle" class="font-bold text-gray-900"><i class="fas fa-tag mr-2 text-blue-500"></i>Listing Type Guide</h3>
+            <h3 id="listingTypeInfoTitle" class="font-bold text-gray-900"><i class="fas fa-tag mr-2 text-blue-500"></i>Listing Agreement Guide</h3>
             <button type="button" onclick="document.getElementById('searchListingTypeInfoModal').style.display='none'" class="text-gray-400 hover:text-gray-700 text-xl leading-none" aria-label="Close dialog">&times;</button>
         </div>
         <div class="p-5 space-y-4 text-sm">
+            <div class="border-l-4 border-blue-500 pl-3 bg-blue-50 py-2 pr-2 rounded-r">
+                <p class="font-bold text-gray-900">Exclusive <span class="text-[10px] text-gray-400 font-normal">(search box)</span></p>
+                <p class="text-gray-600 mt-1">Selects every exclusive agreement Cotality defines: Exclusive Right To Sell, Exclusive Right To Lease, Exclusive Right With Exception and Exclusive Agency. Cotality has no single value called &ldquo;Exclusive&rdquo;.</p>
+            </div>
             <div class="border-l-4 border-blue-500 pl-3">
-                <p class="font-bold text-gray-900">Exclusive Right to Sell / Lease <span class="text-[10px] text-gray-400 font-normal">(ExclusiveRightToSell / ExclusiveRightToLease)</span></p>
-                <p class="text-gray-600 mt-1">The broker earns commission <strong>no matter who sells/leases the property</strong> — even if the owner finds the buyer/tenant themselves. Most common and most protective listing agreement.</p>
-                <p class="text-green-700 text-xs mt-1"><i class="fas fa-check-circle mr-1"></i>Full RLS distribution. Full commission protection.</p>
+                <p class="font-bold text-gray-900">Exclusive Right To Sell <span class="text-[10px] text-gray-400 font-normal">(ExclusiveRightToSell)</span></p>
+                <p class="text-gray-600 mt-1">A contract giving the Broker the right to collect commission if the property is sold by anyone, including the owning, during the term of the agreement.</p>
+            </div>
+            <div class="border-l-4 border-blue-500 pl-3">
+                <p class="font-bold text-gray-900">Exclusive Right To Lease <span class="text-[10px] text-gray-400 font-normal">(ExclusiveRightToLease)</span></p>
+                <p class="text-gray-600 mt-1">A contract giving the Broker the right to collect commission if the property is leased by anyone, including the owning, during the term of the agreement.</p>
+            </div>
+            <div class="border-l-4 border-purple-500 pl-3">
+                <p class="font-bold text-gray-900">Exclusive Right With Exception <span class="text-[10px] text-gray-400 font-normal">(ExclusiveRightWithException)</span></p>
+                <p class="text-gray-600 mt-1">A contract giving the Broker the right to collect commission if the property is sold by anyone, including the owner, during the term of the agreement unless some specified exceptions to the agreement occur.</p>
             </div>
             <div class="border-l-4 border-amber-500 pl-3">
                 <p class="font-bold text-gray-900">Exclusive Agency <span class="text-[10px] text-gray-400 font-normal">(ExclusiveAgency)</span></p>
-                <p class="text-gray-600 mt-1">One broker is the exclusive agent, <strong>but if the owner sells/leases themselves (no broker involved), they do NOT owe commission.</strong></p>
-                <p class="text-amber-700 text-xs mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>RLS eligible, but less commission protection for the agent.</p>
-            </div>
-            <div class="border-l-4 border-purple-500 pl-3">
-                <p class="font-bold text-gray-900">Exclusive Right w/ Exception <span class="text-[10px] text-gray-400 font-normal">(ExclusiveRightWithException)</span></p>
-                <p class="text-gray-600 mt-1">Same as Exclusive Right, <strong>except for specific named exceptions</strong> listed in the agreement. Commission owed on all other transactions.</p>
-                <p class="text-purple-700 text-xs mt-1"><i class="fas fa-file-contract mr-1"></i>RLS eligible. Exceptions documented in listing agreement.</p>
+                <p class="text-gray-600 mt-1">A contract giving one Brokerage Firm, for a specified time, the right to sell/lease the property and also allowing the owner, acting alone, to sell/lease the property without paying commission.</p>
             </div>
             <div class="border-l-4 border-teal-500 pl-3">
-                <p class="font-bold text-gray-900">Co-Exclusive <span class="text-[10px] text-gray-400 font-normal">(CoExclusiveAgency)</span></p>
-                <p class="text-gray-600 mt-1"><strong>Two listing agents share the exclusive right.</strong> Either can sell/lease. Commission owed regardless of who finds the buyer/tenant.</p>
-                <p class="text-teal-700 text-xs mt-1"><i class="fas fa-handshake mr-1"></i>RLS eligible. Both listing agents and their offices are named on the listing.</p>
+                <p class="font-bold text-gray-900">Co-Exclusive Agency <span class="text-[10px] text-gray-400 font-normal">(CoExclusiveAgency)</span></p>
+                <p class="text-gray-600 mt-1">Cotality defines it only by name: &ldquo;Co-Exclusive Agency&rdquo;. The primary listing agent and the co-listing agent are separate fields on the listing; they can be in the same office, the same company or different companies, so the agreement says nothing about their offices.</p>
+            </div>
+            <hr class="border-gray-200">
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Other Cotality values (Agent Search)</p>
+            <div class="border-l-4 border-gray-300 pl-3">
+                <p class="font-bold text-gray-900">Open <span class="text-[10px] text-gray-400 font-normal">(Open)</span></p>
+                <p class="text-gray-600 mt-1">Often used for commercial property, a listing given to any number of Brokers without liability to compensate any except the one who first secures a buyer who is ready, willing and able to meet the terms of the listing and secures the seller's acceptance. The seller may, acting alone, sell the property without paying commission.</p>
+            </div>
+            <div class="border-l-4 border-gray-300 pl-3">
+                <p class="font-bold text-gray-900">Probate <span class="text-[10px] text-gray-400 font-normal">(Probate)</span></p>
+                <p class="text-gray-600 mt-1">An Exclusive Right To Sell listing agreement that also resides under authority of the local probate code.</p>
+            </div>
+            <div class="border-l-4 border-gray-300 pl-3">
+                <p class="font-bold text-gray-900">Net <span class="text-[10px] text-gray-400 font-normal">(Net)</span></p>
+                <p class="text-gray-600 mt-1">A listing in which the broker's commission is the excess of the sale price over an agreed-upon (net0 price to the seller; illegal in some states because it can create a conflict of interest for the broker.</p>
+            </div>
+            <div class="border-l-4 border-gray-300 pl-3">
+                <p class="font-bold text-gray-900">Non-Exclusive Agency, Property Management, Seller Reserved</p>
+                <p class="text-gray-600 mt-1">Cotality defines each of these only by its name.</p>
             </div>
             <hr class="border-gray-200">
             <div class="border-l-4 border-blue-400 pl-3 bg-blue-50 py-2 pr-2 rounded-r">
@@ -43,7 +65,7 @@
             </div>
         </div>
         <div class="border-t px-5 py-3 bg-gray-50 rounded-b-xl">
-            <p class="text-[10px] text-gray-500"><i class="fas fa-info-circle mr-1"></i>Per UCBA: Only exclusive listings are eligible for RLS. <strong>ListingAgreement</strong> maps to RESO standard. In-House uses office ID filter. Owner Opt-Out/Participant Only use Permissions fields.</p>
+            <p class="text-[10px] text-gray-500"><i class="fas fa-info-circle mr-1"></i>Agreement definitions are quoted from Cotality's live Lookup catalog for Property.ListingAgreement. In-House uses office ID filter. Owner Opt-Out/Participant Only use Permissions fields.</p>
         </div>
     </div>
 </div>

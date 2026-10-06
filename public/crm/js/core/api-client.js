@@ -655,6 +655,18 @@ var MallanAPI = (function () {
       if (params.minUnits) qs.push('minUnits=' + params.minUnits);
       if (params.maxUnits) qs.push('maxUnits=' + params.maxUnits);
       if (params.buildingName) qs.push('buildingName=' + encodeURIComponent(params.buildingName));
+      // Filters lib/search/crm-idx-filter.ts supports and the Search page collects. They were collected and logged but never sent, so the
+      // checkbox filters, management company, unit and contract dates only narrowed the first rows the server returned. `keyword` is
+      // deliberately NOT forwarded: live Cotality cannot evaluate contains(PublicRemarks, ...) within the request timeout (it aborts).
+      if (params.unit) qs.push('unit=' + encodeURIComponent(params.unit));
+      if (params.managementCompany) qs.push('managementCompany=' + encodeURIComponent(params.managementCompany));
+      if (params.contractDateFrom) qs.push('contractDateFrom=' + encodeURIComponent(params.contractDateFrom));
+      if (params.contractDateTo) qs.push('contractDateTo=' + encodeURIComponent(params.contractDateTo));
+      if (params.checkboxFilters) qs.push('checkboxFilters=' + encodeURIComponent(params.checkboxFilters));
+      // Agent / office filters (primary and co-list sides are separate): each value is a comma-separated list of MLS IDs and/or typed names.
+      ['listAgent', 'coListAgent', 'anyAgent', 'listOffice', 'coListOffice'].forEach(function (key) {
+        if (params[key]) qs.push(key + '=' + encodeURIComponent(params[key]));
+      });
       if (params.sort) qs.push('sort=' + encodeURIComponent(params.sort));
       if (params.limit) qs.push('limit=' + params.limit);
       if (params.skip) qs.push('skip=' + params.skip);

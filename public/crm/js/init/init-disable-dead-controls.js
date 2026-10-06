@@ -115,6 +115,25 @@
                 // the BATCH 2 dead-pattern test at
                 // lib/search/__tests__/crm-idx-filter.test.ts.
                 'input[data-sub-status]',
+
+                // ── Values that are not members of the live Cotality enumeration ──
+                // Checking one makes Cotality answer HTTP 400 ("The string 'X' is not a valid enumeration type"), which fails the whole search once the
+                // API client forwards checkboxFilters. Verified live 2026-10-06. Re-enable a control only after mapping it to a live member
+                // (the live members are in data/cotality-enums.live.json); tests/runtime/crm-search-real-page.test.ts enforces this.
+                'input[data-field="AccessibilityFeatures"][data-value="WheelchairAccessible"]',
+                'input[data-field="StructureType"][data-value="Loft"]',
+                'input[data-field="StructureType"][data-value="WalkUp"]',
+                'input[data-field="ArchitecturalStyle"][data-value="Brownstone"]',
+                'input[data-field="ExteriorFeatures"][data-value="RoofDeck"]',
+                'input[data-field="ExteriorFeatures"][data-value="Terrace"]',
+                'input[data-field="LaundryFeatures"][data-value="Common"]',
+                'input[data-field="BuildingFeatures"][data-value="Fitness"]',
+                'input[data-field="BuildingFeatures"][data-value="BikeRoom"]',
+                'input[data-field="BusinessType"][data-value="FlexibleSpace"]',
+                'input[data-field="BusinessType"][data-value="Investment"]',
+                // BuildingPetsAllowed maps to PetsAllowedYN, which live Cotality leaves empty (0 rows for true and for false); the pet data is in
+                // PetsAllowed (live members such as BuildingYes, BuildingCatsOk, BuildingDogsOk, BuildingNo).
+                'input[data-field="BuildingPetsAllowed"]',
             ];
 
             // ── P1: Container-level dead controls ──────────────────────
@@ -170,6 +189,9 @@
                 // Use class selector for all four-per-side preset buttons.
                 { selector: '.oh-preset[data-oh="saleOpenHouse"]', reason: 'Open House date range not supported by the search backend.' },
                 { selector: '.oh-preset[data-oh="rentalOpenHouse"]', reason: 'Open House date range not supported by the search backend.' },
+                // Agent Search controls with no Cotality filter behind them (the working ones are the agent/office filters above).
+                { selector: '#agentSearchUnsupported', reason: 'Not connected to a Cotality filter. Use the agent and office filters above.' },
+                { selector: '#agentQuickFiltersUnsupported', reason: 'Not connected to a Cotality filter yet.' },
             ];
 
             function disableDeadControls() {

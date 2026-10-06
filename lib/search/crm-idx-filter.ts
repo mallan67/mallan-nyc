@@ -87,6 +87,19 @@ export function buildAgentOfficeFilterParts(params: URLSearchParams): string[] {
   return parts;
 }
 
+// Legacy input aliases, mapped to the live Cotality enumeration members (live $metadata, 2026-10-06). Saved searches written before the cutover
+// stored the non-live ListingAgreement value "CoExclusive" (live: CoExclusiveAgency) and DirectionFaces as N/S/E/W/NE/NW/SE/SW
+// (live: North, South, East, West, Northeast, Northwest, Southeast, Southwest). Cotality answers HTTP 400 to any other string.
+const LEGACY_DIRECTION_FACES: Record<string, string> = {
+  N: "North", S: "South", E: "East", W: "West", NE: "Northeast", NW: "Northwest", SE: "Southeast", SW: "Southwest",
+};
+
+function legacyCriterionValue(field: string, value: string): string {
+  if (field === "ListingAgreement" && value === "CoExclusive") return "CoExclusiveAgency";
+  if (field === "DirectionFaces" && LEGACY_DIRECTION_FACES[value]) return LEGACY_DIRECTION_FACES[value];
+  return value;
+}
+
 export function buildCrmIdxODataFilter(params: URLSearchParams): string {
   const parts: string[] = [];
 
@@ -313,8 +326,10 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
       ]);
       for (const [htmlField, rawValues] of Object.entries(cbFilters)) {
         if (!rawValues || rawValues.length === 0) continue;
-        // Legacy: saved searches stored the non-live agreement value "CoExclusive"; live Cotality uses CoExclusiveAgency.
-        const values = htmlField === "ListingAgreement" ? rawValues.map((v) => (v === "CoExclusive" ? "CoExclusiveAgency" : v)) : rawValues;
+        // A checkbox can carry several comma-joined values (the "Exclusive" box does). Cotality compares these fields as enumerations, so a
+        // joined string is rejected (HTTP 400): split it into one comparison per value, mapping legacy saved values to live members.
+        const values = [...new Set(rawValues.flatMap((v) => String(v).split(",")).map((v) => v.trim()).filter(Boolean).map((v) => legacyCriterionValue(htmlField, v)))];
+        if (values.length === 0) continue;
         const cotalityField = crmCheckboxToCotalityField[htmlField] || htmlField;
         if (!odataSafe.has(cotalityField)) continue;
         if (cotalityField.endsWith("YN")) {
