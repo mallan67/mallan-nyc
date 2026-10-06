@@ -537,6 +537,7 @@
     sale: {
       prefix: 'sale',
       zones: ['saleMainTab1', 'saleMainTab2', 'saleMainTab3', 'saleMainTab4', 'saleBuildingModal'],
+      editZones: ['saleBuildingModal', 'saleMediaModal'],   // plus the form's main area (the container its save sweeps)
       fields: SALE_FIELD_MAP, radios: SALE_RADIO_MAP, arrays: SALE_CHECKBOX_ARRAY_MAP,
     },
     rental: {

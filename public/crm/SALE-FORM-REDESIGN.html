@@ -108,6 +108,7 @@ body { font-family: Manrope, sans-serif; }
 <script src="js/forms/agent-defaults.js"></script>
 <script src="js/forms/fair-housing.js"></script>
 <script src="js/forms/building-lookup.js"></script>
+<script src="js/forms/listing-hydration.js"></script>
 <script>
 // ── Auth gate (defense-in-depth — middleware is primary) ──
 // NOTE: session_token is httpOnly — JS cannot read it via document.cookie.
@@ -7195,7 +7196,6 @@ function collectSaleFormData() {
     data.UnitNumber = data.saleUnitNumber || '';
     data.City = data.saleCity || 'New York';
     data.CityRegion = data.saleBorough || '';
-    data.SubdivisionName = data.saleBldgNeighborhood || data.saleNeighborhoodFromAddress || '';
     data.StateOrProvince = data.saleStateOrProvince || 'NY';
     data.PostalCode = data.saleZipCode || '';
     // A1 (Cotality-clean 2026-05-30): emit canonical lowercase-p `UnparsedAddress`
@@ -7205,7 +7205,6 @@ function collectSaleFormData() {
     data.PublicRemarks = data.saleDescription || '';
     data.PrivateRemarks = data.saleBrokerComments || '';
     data.ShowingInstructions = data.saleShowingInstructions || '';
-    data.YearBuilt = parseInt(data.saleBldgYearBuilt || '0') || null;
     // NewDevelopmentYN is NOT in live Cotality $metadata (phantom — verified
     // 2026-05-30). Do not emit it as a canonical field; the agent's selection
     // persists internally as saleBldgNewDevelopment (collected by the building-
@@ -7327,6 +7326,9 @@ function collectSaleFormData() {
     // Cotality $metadata). (Audit F2, 2026-05-30 — Cotality-only.)
     data.TaxLot = data.saleBldgTaxLot || '';
     data.AssociationName = data.saleBldgAssociationName || '';
+    // read here, after the sweep: the building tab holds the year built and the neighborhood
+    data.SubdivisionName = data.saleBldgNeighborhood || data.saleNeighborhoodFromAddress || '';
+    data.YearBuilt = parseInt(data.saleBldgYearBuilt || '0') || null;
 
     // Collect multi-value checkbox fields as arrays
     data.PetsAllowed = [];
@@ -7909,22 +7911,10 @@ function performAutoSave() {
         }
     }
 
-    // Collect form data
-    const formData = {};
-    const container = document.getElementById('add-sales-listing') || document.querySelector('.flex-1');
-    if (!container) return;
-
-    container.querySelectorAll('input, select, textarea').forEach(field => {
-        const key = field.id || field.name;
-        if (!key) return;
-        if (field.type === 'radio') {
-            if (field.checked) formData[key] = field.value;
-        } else if (field.type === 'checkbox') {
-            formData[key] = field.checked;
-        } else {
-            formData[key] = field.value;
-        }
-    });
+    // The draft is what Save sends (collectSaleFormData): the same control keys, the building and media modals, and the values of every checkbox group, so Load Draft can
+    // put back everything the form holds
+    if (!document.querySelector('.flex-1')) return;
+    const formData = collectSaleFormData();
 
     formData._savedAt = new Date().toISOString();
     formData._formType = 'sale';
@@ -9466,6 +9456,47 @@ function _restoreSaleNeighborhoodSelect(value, boroughHint) {
     nEl.value = newOpt.value;
 }
 
+// The canonical status a workflow step stands for (CRM_TO_RESO_STATUS), or the one a record or an RLS-system step names. A step and a record are in the same family when these agree.
+var _SALE_STATUS_ALIASES = { Pending: 'Pending', ActiveUnderContract: 'ActiveUnderContract', Closed: 'Sold', Canceled: 'Cancelled', Incomplete: 'Draft' };
+function _saleStatusFamily(status) { return CRM_TO_RESO_STATUS[status] || _SALE_STATUS_ALIASES[status] || ''; }
+// The workflow step that stands for a family when the step the agent saved no longer agrees with the record (Pending and ActiveUnderContract have several steps, so they have none).
+var _SALE_STEP_FOR_FAMILY = { Draft: 'Draft', ComingSoon: 'ComingSoon', Active: 'Active', Sold: 'Sold', Withdrawn: 'Withdrawn', Cancelled: 'Cancelled', Hold: 'TempOffMarket', Expired: 'Expired' };
+// The step the form shows: the one the agent chose while it agrees with the record's status, else the step that stands for that status, else none (the agent chooses).
+function _saleStatusToShow(step, recordStatus) {
+    var family = _saleStatusFamily(recordStatus);
+    if (!family) return step;                                    // a record that carries no status this form knows: the saved step
+    if (step && _saleStatusFamily(step) === family) return step;
+    return _SALE_STEP_FOR_FAMILY[family] || '';
+}
+
+// Restores the exact raw provider ownership reference separately. null stays null.
+// A provider value outside today's REBNY entry picker remains visible as historical data.
+// (A saved listing and a browser draft carry the same CommonInterest key, so both go back through this.)
+function _restoreSaleOwnership(raw) {
+    var saleOwnershipEl = document.getElementById('saleCommonInterest');
+    if (saleOwnershipEl) {
+        delete saleOwnershipEl.dataset.explicit;
+        delete saleOwnershipEl.dataset.preserveNull;
+        delete saleOwnershipEl.dataset.autoDerived;
+        if (raw.CommonInterest === undefined || raw.CommonInterest === null) {
+            saleOwnershipEl.value = '';
+            saleOwnershipEl.dataset.preserveNull = 'true';
+        } else {
+            var rawOwnership = String(raw.CommonInterest);
+            var existingOwnershipOption = Array.from(saleOwnershipEl.options).some(function(opt) { return opt.value === rawOwnership; });
+            if (!existingOwnershipOption) {
+                var historicalOwnershipOption = document.createElement('option');
+                historicalOwnershipOption.value = rawOwnership;
+                historicalOwnershipOption.textContent = rawOwnership + ' (historical provider value)';
+                historicalOwnershipOption.dataset.historicalProviderValue = 'true';
+                saleOwnershipEl.appendChild(historicalOwnershipOption);
+            }
+            saleOwnershipEl.value = rawOwnership;
+            saleOwnershipEl.dataset.explicit = 'true';
+        }
+    }
+}
+
 function _populateSaleFormFromApi(listing) {
     _pendingMediaFiles = [];
     var raw = listing.raw_data || {};
@@ -9473,6 +9504,11 @@ function _populateSaleFormFromApi(listing) {
     var features = listing.features || {};
     var agentInfo = listing.agent_info || {};
     var media = listing.media || [];
+
+    // Every control the form saved goes back first, from the control keys of the stored listing (js/forms/listing-hydration.js, mode 'edit'); the Sale loader below keeps
+    // what needs more than a value. A page without the module fails the load: a form holding only part of the listing must not be saved over it.
+    if (typeof MallanListingHydration === 'undefined') throw new Error('js/forms/listing-hydration.js did not load');
+    MallanListingHydration.hydrate('sale', listing, { mode: 'edit' });
 
     // Populate-internal setters. Change-event dispatch is SUPPRESSED while
     // window._salePopulateInProgress is true (gap report 2026-05-28 §1.1,
@@ -9528,6 +9564,7 @@ function _populateSaleFormFromApi(listing) {
       listing.status ||
       raw.StandardStatus ||
       'Draft';
+    restoredWorkflowStatus = _saleStatusToShow(restoredWorkflowStatus, listing.status);
     setVal('saleStatus', restoredWorkflowStatus);
     // CoBrokeAgreement
     if (raw.CoBrokeAgreement) setVal('saleCoBrokeAgreementType', raw.CoBrokeAgreement);
@@ -9564,7 +9601,10 @@ function _populateSaleFormFromApi(listing) {
         if (val === undefined || val === null) return;
 
         if (f.type === 'date') {
-            setVal(f.form, String(val).split('T')[0]);
+            // a datetime-local control holds a date AND a time: only a value with a time can be placed in it (a date alone would blank what the control keys restored)
+            var dateEl = document.getElementById(f.form);
+            if (dateEl && dateEl.type === 'datetime-local') { if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(val))) setVal(f.form, String(val).slice(0, 16)); }
+            else setVal(f.form, String(val).split('T')[0]);
         } else if (f.type === 'bool') {
             setChecked(f.form, val === true || val === 'true');
         } else if (f.type === 'checked') {
@@ -9576,30 +9616,7 @@ function _populateSaleFormFromApi(listing) {
         }
     });
 
-    // Restore the exact raw provider ownership reference separately. null stays null.
-    // A provider value outside today's REBNY entry picker remains visible as historical data.
-    var saleOwnershipEl = document.getElementById('saleCommonInterest');
-    if (saleOwnershipEl) {
-        delete saleOwnershipEl.dataset.explicit;
-        delete saleOwnershipEl.dataset.preserveNull;
-        delete saleOwnershipEl.dataset.autoDerived;
-        if (raw.CommonInterest === undefined || raw.CommonInterest === null) {
-            saleOwnershipEl.value = '';
-            saleOwnershipEl.dataset.preserveNull = 'true';
-        } else {
-            var rawOwnership = String(raw.CommonInterest);
-            var existingOwnershipOption = Array.from(saleOwnershipEl.options).some(function(opt) { return opt.value === rawOwnership; });
-            if (!existingOwnershipOption) {
-                var historicalOwnershipOption = document.createElement('option');
-                historicalOwnershipOption.value = rawOwnership;
-                historicalOwnershipOption.textContent = rawOwnership + ' (historical provider value)';
-                historicalOwnershipOption.dataset.historicalProviderValue = 'true';
-                saleOwnershipEl.appendChild(historicalOwnershipOption);
-            }
-            saleOwnershipEl.value = rawOwnership;
-            saleOwnershipEl.dataset.explicit = 'true';
-        }
-    }
+    _restoreSaleOwnership(raw);
 
     // ── Neighborhood select — dynamic-option restore (2026-05-29 hotfix) ──
     // The generic SALE_FIELD_MAP setVal above silently no-ops when the saved
@@ -9935,6 +9952,11 @@ function _restoreDraftFromLocalStorage() {
 
     var saved;
     try { saved = JSON.parse(raw); } catch (e) { showToast('Draft data is corrupted.', 'error'); return; }
+
+    // Every control the draft saved goes back first (js/forms/listing-hydration.js, mode 'edit': a draft carries the same control keys as a saved listing), and the ownership
+    // reference goes back the way a saved listing's does (a draft the collector produced carries CommonInterest; the collector drops the control key)
+    if (typeof MallanListingHydration !== 'undefined') MallanListingHydration.hydrate('sale', { raw_data: saved }, { mode: 'edit' });
+    if (Object.prototype.hasOwnProperty.call(saved, 'CommonInterest')) _restoreSaleOwnership(saved);
 
     // Restore all input/select/textarea values by ID
     var restored = 0;
