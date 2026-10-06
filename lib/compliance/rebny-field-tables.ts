@@ -1001,6 +1001,10 @@ export const REBNY_FIELD_TABLES = {
     ListOfficeName: { agentInfo: true, raw: true },
     ListOfficeKey: { agentInfo: true, raw: true },
     ListOfficeMlsId: { agentInfo: true, raw: true },
+    // Co-list side: only slot 1's two MLS IDs have typed columns (co_list_agent_mls_id, co_list_office_mls_id). Every other co-list key
+    // (names, keys, CoListAgent2/3, CoListOffice2) is kept in raw_data, which stores the whole normalized payload.
+    CoListAgentMlsId: { agentInfo: true, raw: true },
+    CoListOfficeMlsId: { agentInfo: true, raw: true },
 
     // ── Agreement / Broker terms ──
     ListingAgreement: { raw: true },

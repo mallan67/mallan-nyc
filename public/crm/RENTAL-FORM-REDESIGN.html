@@ -86,6 +86,8 @@ body { font-family: Manrope, sans-serif; }
 </style>
 <!-- API Client — identity from session cookie, no PII in URLs -->
 <script src="js/core/api-client.js"></script>
+<script src="js/forms/directory-picker.js"></script>
+<script src="js/forms/colist-section.js"></script>
 <script>
 // ── Auth gate (defense-in-depth — middleware is primary) ──
 // NOTE: session_token is httpOnly — JS cannot read it via document.cookie.
@@ -5756,6 +5758,9 @@ function collectRentalFormData() {
     data.ListAgentDirectPhone = data.rentalUpdatingAgentPhone || '';
     data.ListOfficeName = data.rentalUpdatingAgentCompanyName || '';
     data.ListOfficeKey = data.rentalUpdatingAgentCompanyKey || '';
+    // Co-listing agents and offices: live Cotality CoListAgent{,2,3}* and CoListOffice{,2}*, apart from the primary ListAgent*/ListOffice* above.
+    var _rcSection = _rentalCoList();
+    if (_rcSection) _rcSection.collect(data);
 
     // Collect building modal fields (outside main container)
     var bldgModal = document.getElementById('rentalBuildingModal');
@@ -6183,35 +6188,50 @@ function toggleRentalCommercialOwnership() {
 // ══════════════════════════════════════════════════════
 // CO-LIST AGENT FUNCTIONS
 // ══════════════════════════════════════════════════════
-let rentalCoListCount = 0;
+var rentalCoList = null;
+function _rentalCoList() {
+    if (!rentalCoList && window.MallanCoList) {
+        var container = document.getElementById('rentalCoListAgents');
+        if (container) {
+            rentalCoList = MallanCoList.mount({
+                container: container,
+                emptyText: 'No co-listing agents added. Click "Add Co-List Agent" to add.',
+                onChange: _syncRentalCoListTable
+            });
+        }
+    }
+    return rentalCoList;
+}
+
+document.addEventListener('DOMContentLoaded', function () { _rentalCoList(); });
+
+// Live Cotality Property CoListAgent{,2,3}* and CoListOffice{,2}*, picked from the live Member directory (js/forms/colist-section.js).
+// The co-list side is stored apart from the primary ListAgent*/ListOffice* fields; an agent removed here is cleared on save.
 function addRentalCoListAgent() {
-    rentalCoListCount++;
-    const container = document.getElementById('rentalCoListAgents');
-    if (!container) return;
-    if (rentalCoListCount === 1) container.innerHTML = '';
-    const div = document.createElement('div');
-    div.className = 'bg-gray-50 border rounded-lg p-4';
-    div.innerHTML = `
-        <div class="flex items-center justify-between mb-3">
-            <span class="text-sm font-semibold text-gray-700">Co-List Agent #${rentalCoListCount}</span>
-            <button onclick="this.closest('.bg-gray-50').remove()" class="text-red-500 hover:text-red-700 text-xs"><i class="fas fa-trash mr-1"></i> Remove</button>
-        </div>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            <div class="company-dropdown" data-role="colist${rentalCoListCount}Company">
-                <label class="field-label">REBNY Company</label>
-                <input type="text" class="dd-input" placeholder="Search company..." readonly>
-                <i class="fas fa-chevron-down dd-chevron"></i>
-                <div class="dd-list"></div>
-            </div>
-            <div class="company-dropdown" data-role="colist${rentalCoListCount}Agent">
-                <label class="field-label">Agent Name</label>
-                <input type="text" class="dd-input" placeholder="Select company first..." readonly>
-                <i class="fas fa-chevron-down dd-chevron"></i>
-                <div class="dd-list"></div>
-            </div>
-        </div>
-    `;
-    container.appendChild(div);
+    var section = _rentalCoList();
+    if (section) section.add();
+}
+
+// Co-list rows of the agent contacts table. Built with DOM calls: directory text is never interpreted as HTML.
+function _syncRentalCoListTable(agents) {
+    var body = document.getElementById('rentalAgentContactsTable');
+    if (!body) return;
+    body.querySelectorAll('tr[data-colist]').forEach(function (row) { row.remove(); });
+    if (agents.length) {
+        var placeholder = document.getElementById('rentalAgentContactsPlaceholder');
+        if (placeholder) placeholder.remove();
+    }
+    agents.forEach(function (agent, i) {
+        var tr = document.createElement('tr');
+        tr.setAttribute('data-colist', String(i + 1));
+        ['Co-List #' + (i + 1), agent.mlsId, agent.fullName, agent.officeName || '', '', '', ''].forEach(function (text, c) {
+            var td = document.createElement('td');
+            td.className = 'border px-3 py-2' + (c === 2 ? ' font-medium' : '');
+            td.textContent = text;
+            tr.appendChild(td);
+        });
+        body.appendChild(tr);
+    });
 }
 
 // ══════════════════════════════════════════════════════
@@ -6997,10 +7017,9 @@ function _populateRentalFormFromApi(listing) {
     setVal('rentalListingAgentPhone', listing.list_agent_direct_phone || agentInfo.ListAgentDirectPhone || raw.ListAgentDirectPhone || '');
     setVal('rentalListingAgentEmail', listing.list_agent_email || agentInfo.ListAgentEmail || raw.ListAgentEmail || '');
 
-    // Co-listing — A3: removed. No single co-list text control exists in REDESIGN; co-listing is a
-    // structured component (rentalCoListAgents) and collectRentalFormData reads no rentalCoListing*
-    // control, so the old co-list agent/company hydration targets were phantom writes.
-    // Edit-hydration of co-list via the structured component is a tracked follow-up (A3-followup).
+    // Co-listing agents: live Cotality CoListAgent{,2,3}* hydrated into the structured component (js/forms/colist-section.js).
+    var _rcHydrate = _rentalCoList();
+    if (_rcHydrate) _rcHydrate.hydrate(raw, listing);
 
     // Distribution flags. A3: real save controls are rentalIDXEntireListingDisplayYN /
     // rentalInternetEntireListingDisplayYN / rentalInternetAddressDisplayYN (collectRentalFormData

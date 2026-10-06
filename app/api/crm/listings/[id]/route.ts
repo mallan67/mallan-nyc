@@ -420,6 +420,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     "ListAgentKey", "ListAgentMlsId", "ListAgentFullName",
     "ListAgentEmail", "ListAgentDirectPhone",
     "ListOfficeName", "ListOfficeKey", "ListOfficeMlsId",
+    // Co-list side (slot 1 has typed columns; the rest of the co-list keys live in raw_data via the full-body merge below).
+    "CoListAgentMlsId", "CoListOfficeMlsId",
   ];
   // Phase C: the LIVE agent attribution is in the 8 typed columns — agent_info JSON is
   // frozen/absent for rows created or edited after the stop-write change. Seed the merge

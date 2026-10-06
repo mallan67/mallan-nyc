@@ -103,6 +103,8 @@ body { font-family: Manrope, sans-serif; }
 </style>
 <!-- API Client — identity from session cookie, no PII in URLs -->
 <script src="js/core/api-client.js"></script>
+<script src="js/forms/directory-picker.js"></script>
+<script src="js/forms/colist-section.js"></script>
 <script>
 // ── Auth gate (defense-in-depth — middleware is primary) ──
 // NOTE: session_token is httpOnly — JS cannot read it via document.cookie.
@@ -6221,149 +6223,51 @@ function updateSaleAgentTable(type, agentId, name, company, phone, email) {
 
 // ══════════════════════════════════════════════════════
 // CO-LISTING AGENT
+// Live Cotality Property CoListAgent{,2,3}* and CoListOffice{,2}*, picked from the live Member directory (js/forms/colist-section.js).
+// The co-list side is stored apart from the primary ListAgent*/ListOffice* fields; an agent removed here is cleared on save.
 // ══════════════════════════════════════════════════════
-let coListAgentCount = 0;
+var saleCoList = null;
+function _saleCoList() {
+    if (!saleCoList && window.MallanCoList) {
+        var container = document.getElementById('saleCoListAgentsContainer');
+        if (container) {
+            saleCoList = MallanCoList.mount({
+                container: container,
+                emptyText: 'No co-listing agents added. Click "Add Co-List Agent" to add.',
+                onChange: _syncSaleCoListTable
+            });
+        }
+    }
+    return saleCoList;
+}
+
+document.addEventListener('DOMContentLoaded', function () { _saleCoList(); });
 
 function addSaleCoListAgent() {
-    coListAgentCount++;
-    const container = document.getElementById('saleCoListAgentsContainer');
-    const placeholder = container.querySelector('p.text-gray-500');
-    if (placeholder) placeholder.remove();
-
-    const n = coListAgentCount;
-    const coListHTML = '<div class="border border-gray-200 rounded-lg p-4 mb-3 bg-gray-50" id="coListAgentWrap' + n + '">' +
-        '<div class="flex items-center justify-between mb-3">' +
-        '<h5 class="text-sm font-medium text-gray-700">Co-List Agent #' + n + '</h5>' +
-        '<button type="button" onclick="removeSaleCoListAgent(' + n + ')" class="text-red-600 hover:text-red-700 text-xs"><i class="fas fa-times mr-1"></i> Remove</button>' +
-        '</div>' +
-        '<div class="grid grid-cols-1 lg:grid-cols-2 gap-3">' +
-        '<div><label class="field-label">REBNY Company</label>' +
-        '<div class="company-dropdown" id="coListCompanyDD' + n + '">' +
-        '<input type="text" class="dd-input" placeholder="Search REBNY Company..." autocomplete="off" id="coListCompanySearch' + n + '">' +
-        '<input type="hidden" id="coListCompany' + n + '">' +
-        '<i class="fas fa-chevron-down dd-chevron"></i>' +
-        '<div class="dd-list" id="coListCompanyList' + n + '"></div>' +
-        '</div></div>' +
-        '<div><label class="field-label">Agent/Broker Name</label>' +
-        '<div class="company-dropdown" id="coListAgentDD' + n + '">' +
-        '<input type="text" class="dd-input" placeholder="Select Company First" autocomplete="off" id="coListAgentSearch' + n + '" disabled>' +
-        '<input type="hidden" id="coListAgentHidden' + n + '">' +
-        '<i class="fas fa-chevron-down dd-chevron"></i>' +
-        '<div class="dd-list" id="coListAgentDDList' + n + '"></div>' +
-        '</div></div>' +
-        '</div>' +
-        '<div id="coListAgentInfo' + n + '" class="mt-3 bg-white rounded-lg p-2 border text-xs" style="display: none;">' +
-        '<div class="grid grid-cols-4 gap-2">' +
-        '<div><span class="text-gray-500">ID:</span> <span id="coListId' + n + '">--</span></div>' +
-        '<div><span class="text-gray-500">Phone:</span> <span id="coListPhone' + n + '">--</span></div>' +
-        '<div><span class="text-gray-500">Email:</span> <span id="coListEmail' + n + '">--</span></div>' +
-        '<div><span class="text-gray-500">License:</span> <span id="coListLicense' + n + '">--</span></div>' +
-        '</div></div></div>';
-
-    container.insertAdjacentHTML('beforeend', coListHTML);
-
-    // Wire up searchable dropdowns for this co-list agent
-    initSearchableDropdown({
-        wrapperId: 'coListCompanyDD' + n,
-        searchId: 'coListCompanySearch' + n,
-        hiddenId: 'coListCompany' + n,
-        listId: 'coListCompanyList' + n,
-        type: 'company',
-        onSelect: function(key) {
-            const agentSearch = document.getElementById('coListAgentSearch' + n);
-            const agentHidden = document.getElementById('coListAgentHidden' + n);
-            agentSearch.disabled = false;
-            agentSearch.placeholder = 'Search agent...';
-            agentSearch.value = '';
-            agentHidden.value = '';
-            agentHidden.dataset.company = key;
-            renderAgentList(document.getElementById('coListAgentDDList' + n), key, '');
-        }
-    });
-    initSearchableDropdown({
-        wrapperId: 'coListAgentDD' + n,
-        searchId: 'coListAgentSearch' + n,
-        hiddenId: 'coListAgentHidden' + n,
-        listId: 'coListAgentDDList' + n,
-        type: 'agent',
-        onSelect: function(data) {
-            document.getElementById('coListId' + n).textContent = data.id;
-            document.getElementById('coListPhone' + n).textContent = data.phone;
-            document.getElementById('coListEmail' + n).textContent = data.email;
-            document.getElementById('coListLicense' + n).textContent = data.license;
-            document.getElementById('coListAgentInfo' + n).style.display = 'block';
-            const companyKey = document.getElementById('coListCompany' + n).value;
-            const companyName = rebnyCompanyNames[companyKey] || companyKey;
-            updateSaleAgentTable('colist-' + n, data.id, data.name, companyName, data.phone, data.email);
-        }
-    });
+    var section = _saleCoList();
+    if (section) section.add();
 }
 
-function removeSaleCoListAgent(num) {
-    const element = document.getElementById('coListAgentWrap' + num);
-    if (element) element.remove();
-    const tableRow = document.querySelector('#saleAgentContactsTable tr[data-colist="' + num + '"]');
-    if (tableRow) tableRow.remove();
-    const container = document.getElementById('saleCoListAgentsContainer');
-    if (container.children.length === 0) {
-        container.innerHTML = '<p class="text-sm text-gray-500 italic">No co-listing agents added. Click "Add Co-List Agent" to add.</p>';
-    }
-}
-
-function updateCoListAgentList(num) {
-    const companySelect = document.getElementById('coListCompany' + num);
-    const agentSelect = document.getElementById('coListAgent' + num);
-    const selectedCompany = companySelect.value;
-    agentSelect.innerHTML = '<option value="">-- Select Agent --</option>';
-    if (selectedCompany && rebnyAgents[selectedCompany]) {
-        rebnyAgents[selectedCompany].forEach(agent => {
-            const option = document.createElement('option');
-            option.value = agent.id;
-            option.textContent = agent.name + ' (License #' + agent.license + ')';
-            option.dataset.phone = agent.phone;
-            option.dataset.email = agent.email;
-            option.dataset.license = agent.license;
-            option.dataset.name = agent.name;
-            agentSelect.appendChild(option);
-        });
-    }
-    const info = document.getElementById('coListAgentInfo' + num);
-    if (info) info.style.display = 'none';
-}
-
-function addCoListToTable(num) {
-    const companySelect = document.getElementById('coListCompany' + num);
-    const agentSelect = document.getElementById('coListAgent' + num);
-    const selectedOption = agentSelect.options[agentSelect.selectedIndex];
-    if (selectedOption && selectedOption.value) {
-        const agentId = selectedOption.value;
-        const name = selectedOption.dataset.name;
-        const phone = selectedOption.dataset.phone;
-        const email = selectedOption.dataset.email;
-        const license = selectedOption.dataset.license;
-        const companyName = rebnyCompanyNames[companySelect.value] || companySelect.value;
-        document.getElementById('coListId' + num).textContent = agentId;
-        document.getElementById('coListPhone' + num).textContent = phone;
-        document.getElementById('coListEmail' + num).textContent = email;
-        document.getElementById('coListLicense' + num).textContent = license;
-        document.getElementById('coListAgentInfo' + num).style.display = 'block';
-
-        // Add to summary table
-        const tableBody = document.getElementById('saleAgentContactsTable');
-        const placeholder = document.getElementById('saleAgentContactsPlaceholder');
+// Co-list rows of the agent contacts table. Built with DOM calls: directory text is never interpreted as HTML.
+function _syncSaleCoListTable(agents) {
+    var body = document.getElementById('saleAgentContactsTable');
+    if (!body) return;
+    body.querySelectorAll('tr[data-colist]').forEach(function (row) { row.remove(); });
+    if (agents.length) {
+        var placeholder = document.getElementById('saleAgentContactsPlaceholder');
         if (placeholder) placeholder.remove();
-        const existing = tableBody.querySelector('tr[data-colist="' + num + '"]');
-        const rowHTML = '<tr data-colist="' + num + '">' +
-            '<td class="border px-3 py-2"><span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">Co-List #' + num + '</span></td>' +
-            '<td class="border px-3 py-2">' + agentId + '</td>' +
-            '<td class="border px-3 py-2 font-medium">' + name + '</td>' +
-            '<td class="border px-3 py-2">' + companyName + '</td>' +
-            '<td class="border px-3 py-2">' + phone + '</td>' +
-            '<td class="border px-3 py-2">' + email + '</td>' +
-            '<td class="border px-3 py-2"><button type="button" onclick="removeSaleCoListAgent(' + num + ')" class="text-red-600 hover:text-red-800 text-xs"><i class="fas fa-times"></i></button></td>' +
-            '</tr>';
-        if (existing) { existing.outerHTML = rowHTML; } else { tableBody.insertAdjacentHTML('beforeend', rowHTML); }
     }
+    agents.forEach(function (agent, i) {
+        var tr = document.createElement('tr');
+        tr.setAttribute('data-colist', String(i + 1));
+        ['Co-List #' + (i + 1), agent.mlsId, agent.fullName, agent.officeName || '', '', '', ''].forEach(function (text, c) {
+            var td = document.createElement('td');
+            td.className = 'border px-3 py-2' + (c === 2 ? ' font-medium' : '');
+            td.textContent = text;
+            tr.appendChild(td);
+        });
+        body.appendChild(tr);
+    });
 }
 
 // ══════════════════════════════════════════════════════
@@ -7560,6 +7464,9 @@ function collectSaleFormData() {
     // (REBNY/Cotality/RealPlus) — never the "mallan" slug, never the REBNY
     // "MAllan" typo. (Maya decision, 2026-05-28.)
     data.ListOfficeName = data.saleUpdatingAgentCompanyName || 'Mallan Real Estate Inc.';
+    // Co-listing agents and offices: live Cotality CoListAgent{,2,3}* and CoListOffice{,2}*, apart from the primary ListAgent*/ListOffice* above.
+    var _scSection = _saleCoList();
+    if (_scSection) _scSection.collect(data);
     // ListOfficeKey / ListOfficeMlsId are intentionally NOT written here: the
     // form has no verified Cotality office id/key (only the "mallan" company-key
     // slug, which must NEVER be persisted as an office key). They stay blank
@@ -10027,6 +9934,10 @@ function _populateSaleFormFromApi(listing) {
         el = document.getElementById('saleListingAgentEmail'); if (el) el.textContent = _agentEmail;
         el = document.getElementById('saleListingAgentLicense'); if (el) el.textContent = '--';
     }
+
+    // ── Co-listing agents (live Cotality CoListAgent{,2,3}*; stored apart from the primary agent above) ──
+    var _scHydrate = _saleCoList();
+    if (_scHydrate) _scHydrate.hydrate(raw, listing);
 
     // Populate agent contacts summary table for edit mode
     if (typeof updateSaleAgentTable === 'function' && _agentId) {
