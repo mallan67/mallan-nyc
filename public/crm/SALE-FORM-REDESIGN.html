@@ -7419,7 +7419,15 @@ function collectSaleFormData() {
     data.PropertyType = resoFields.PropertyType || 'Residential';
     data.PropertySubType = resoFields.PropertySubType || '';
     var ownershipEl = document.getElementById('saleCommonInterest');
-    data.CommonInterest = ownershipEl ? (ownershipEl.value || null) : null;
+    if (!ownershipEl) {
+        data.CommonInterest = null;
+    } else if (ownershipEl.dataset.preserveNull === 'true' && ownershipEl.dataset.explicit !== 'true') {
+        // Edit-load restored a genuine provider null. Do not turn a programmatic
+        // UI default into provider data; only an explicit agent change may replace it.
+        data.CommonInterest = null;
+    } else {
+        data.CommonInterest = ownershipEl.value || null;
+    }
     delete data.saleCommonInterest;
 
     // Map CRM status to RLS MlsStatus

@@ -38,9 +38,9 @@ describe('_commonInterestToFormType mapper', () => {
     expect(body).toContain("'Condop': 'Condop'");
   });
 
-  it('maps Co-op to Coop', () => {
+  it('does not treat the Mallan display label Co-op as a raw provider value', () => {
     const body = formHtml.slice(fnStart, fnStart + 500);
-    expect(body).toContain("'Co-op': 'Coop'");
+    expect(body).not.toContain("'Co-op': 'Coop'");
   });
 });
 
