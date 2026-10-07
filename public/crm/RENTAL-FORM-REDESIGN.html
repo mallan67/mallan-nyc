@@ -223,7 +223,7 @@ body { font-family: Manrope, sans-serif; }
             <button id="sidebarTab7" onclick="showRentalMainTab(7)" class="sidebar-tab w-full flex items-center gap-3 px-4 py-3 text-left text-sm font-medium text-gray-400 opacity-50 pointer-events-none" disabled title="Available when listing status is Rented">
                 <span class="tab-dot"></span>
                 <i class="fas fa-dollar-sign text-xs w-4 text-center"></i>
-                <span>Commission Request</span>
+                <span>Commission Worksheet</span>
                 <i class="fas fa-lock text-[10px] ml-auto text-gray-300" id="rentalCommTabLock"></i>
             </button>
         </div>
@@ -2949,7 +2949,7 @@ body { font-family: Manrope, sans-serif; }
 </div><!-- /TAB 6 -->
 
 <!-- ╔══════════════════════════════════════════════════════════╗ -->
-<!-- ║ TAB 7: COMMISSION REQUEST                                ║ -->
+<!-- ║ TAB 7: COMMISSION WORKSHEET                              ║ -->
 <!-- ╚══════════════════════════════════════════════════════════╝ -->
 <div id="rentalMainTab7" class="rental-main-tab" style="display:none;">
 
@@ -2968,8 +2968,8 @@ body { font-family: Manrope, sans-serif; }
             <i class="fas fa-check-circle text-green-600 text-lg"></i>
         </div>
         <div>
-            <p class="text-sm font-bold text-green-800">Lease Signed — Submit Commission Request</p>
-            <p class="text-xs text-green-700">This listing has been marked as <strong>Rented</strong>. Complete the commission details below and submit to the broker for review and payment processing.</p>
+            <p class="text-sm font-bold text-green-800">Lease Signed — Commission Worksheet</p>
+            <p class="text-xs text-green-700">This listing has been marked as <strong>Rented</strong>. The figures below are a worksheet, saved with the listing. This page does not send a commission request: the broker is not notified.</p>
         </div>
     </div>
 
@@ -3171,48 +3171,14 @@ body { font-family: Manrope, sans-serif; }
         </div>
         <div>
             <label class="field-label">Notes / Special Instructions</label>
-            <textarea id="commRentalNotes" rows="3" placeholder="Any additional notes for the broker (referral fees, adjustments, etc.)" class="field-input" data-rls-ignore="true"></textarea>
-        </div>
-
-        <!-- Status Tracker -->
-        <div class="mt-4 bg-gray-50 rounded-lg p-4">
-            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Request Status</p>
-            <div class="flex items-center gap-0 overflow-x-auto">
-                <div class="flex flex-col items-center min-w-[90px]" id="commRentalStep1">
-                    <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">1</div>
-                    <p class="text-[10px] font-semibold text-blue-700 mt-1 text-center">Draft</p>
-                </div>
-                <div class="flex-1 h-0.5 bg-gray-300 min-w-[30px]"></div>
-                <div class="flex flex-col items-center min-w-[90px]" id="commRentalStep2">
-                    <div class="w-8 h-8 rounded-full bg-gray-300 text-gray-500 flex items-center justify-center text-xs font-bold">2</div>
-                    <p class="text-[10px] font-semibold text-gray-400 mt-1 text-center">Submitted</p>
-                </div>
-                <div class="flex-1 h-0.5 bg-gray-300 min-w-[30px]"></div>
-                <div class="flex flex-col items-center min-w-[90px]" id="commRentalStep3">
-                    <div class="w-8 h-8 rounded-full bg-gray-300 text-gray-500 flex items-center justify-center text-xs font-bold">3</div>
-                    <p class="text-[10px] font-semibold text-gray-400 mt-1 text-center">Under Review</p>
-                </div>
-                <div class="flex-1 h-0.5 bg-gray-300 min-w-[30px]"></div>
-                <div class="flex flex-col items-center min-w-[90px]" id="commRentalStep4">
-                    <div class="w-8 h-8 rounded-full bg-gray-300 text-gray-500 flex items-center justify-center text-xs font-bold">4</div>
-                    <p class="text-[10px] font-semibold text-gray-400 mt-1 text-center">Approved</p>
-                </div>
-                <div class="flex-1 h-0.5 bg-gray-300 min-w-[30px]"></div>
-                <div class="flex flex-col items-center min-w-[90px]" id="commRentalStep5">
-                    <div class="w-8 h-8 rounded-full bg-gray-300 text-gray-500 flex items-center justify-center text-xs font-bold">5</div>
-                    <p class="text-[10px] font-semibold text-gray-400 mt-1 text-center">Paid</p>
-                </div>
-            </div>
+            <textarea id="commRentalNotes" rows="3" placeholder="Notes (referral fees, adjustments, etc.)" class="field-input" data-rls-ignore="true"></textarea>
         </div>
     </div>
 
-    <!-- Navigation + Submit -->
+    <!-- Navigation -->
     <div class="flex justify-between pt-4">
         <button onclick="showRentalMainTab(6)" class="px-5 py-2 border border-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-100">
             <i class="fas fa-arrow-left mr-2"></i> Back: History
-        </button>
-        <button onclick="submitRentalCommissionRequest()" class="px-5 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700">
-            <i class="fas fa-paper-plane mr-2"></i> Submit to Broker
         </button>
     </div>
 
@@ -5254,7 +5220,7 @@ function updateRentalStatusFields() {
     var resoDisplay = document.getElementById('rentalResoMlsStatus');
     if (resoDisplay) resoDisplay.textContent = getResoRentalMlsStatus(status) || '--';
 
-    // Enable/disable Commission Request tab (Tab 7)
+    // Enable/disable Commission Worksheet tab (Tab 7)
     var commTab = document.getElementById('sidebarTab7');
     var commMobile = document.getElementById('mobileTab7');
     var commLock = document.getElementById('rentalCommTabLock');
@@ -7376,7 +7342,9 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ══════════════════════════════════════════════════════
-// COMMISSION REQUEST — Auto-populate & Calculate
+// COMMISSION WORKSHEET — Auto-populate & Calculate
+// The tab sends nothing: its figures are saved with the listing like any other box. A listing carries no commission request
+// (master plan 7.11: LINK versus OWN is still to be confirmed), and /api/crm/deals takes a buyer or tenant deal only.
 // ══════════════════════════════════════════════════════
 function populateRentalCommissionFields() {
     var val = function(id) { var el = document.getElementById(id); return el ? (el.value || el.textContent || '') : ''; };
@@ -7439,7 +7407,7 @@ function calculateRentalCommission() {
     var rent = parseFloat(document.getElementById('commRentalFinalPrice')?.value) || 0;
     var basis = (document.getElementById('commRentalBasis') || {}).value || 'months';
     var commValue = parseFloat(document.getElementById('commRentalCommValue')?.value) || 0;
-    var listingSidePct = parseFloat(document.getElementById('commRentalListingSidePct')?.value) || 0;
+    var typedListingSidePct = parseFloat(document.getElementById('commRentalListingSidePct')?.value);
     var agentSplitPct = parseFloat(document.getElementById('commRentalAgentSplitPct')?.value) || 0;
 
     // Update unit label
@@ -7454,10 +7422,13 @@ function calculateRentalCommission() {
     else if (basis === 'percent') gross = (rent * 12) * (commValue / 100);
     else gross = commValue; // flat fee
 
-    // Cooperating side auto-calc
-    var coopPct = Math.max(0, 100 - listingSidePct);
+    // Cooperating side auto-calc: the rest of 100 once the listing side is typed (a typed 0 is 0), and nothing until then.
+    // A listing side nobody has given is not a cooperating side of 100%; that figure was also saved with the listing.
+    var hasListingSide = !isNaN(typedListingSidePct);
+    var listingSidePct = hasListingSide ? typedListingSidePct : 0;
+    var coopPct = hasListingSide ? Math.max(0, 100 - listingSidePct) : 0;
     var coopEl = document.getElementById('commRentalCoopSidePct');
-    if (coopEl) coopEl.value = coopPct;
+    if (coopEl) coopEl.value = hasListingSide ? coopPct : '';
 
     var listingSideAmt = gross * (listingSidePct / 100);
     var coopSideAmt = gross * (coopPct / 100);
@@ -7472,41 +7443,6 @@ function calculateRentalCommission() {
     setText('commRentalCoopSideAmt', fmt(coopSideAmt));
     setText('commRentalAgentPayout', fmt(agentPayout));
     setText('commRentalCompanyShare', fmt(companyShare));
-}
-
-function submitRentalCommissionRequest() {
-    var rent = document.getElementById('commRentalFinalPrice')?.value;
-    var commValue = document.getElementById('commRentalCommValue')?.value;
-    var landlord = document.getElementById('commRentalLandlordName')?.value;
-    var tenant = document.getElementById('commRentalTenantName')?.value;
-    var tenantEmail = document.getElementById('commRentalTenantEmail')?.value;
-    var tenantPhone = document.getElementById('commRentalTenantPhone')?.value;
-    var payMethod = document.querySelector('input[name="commRentalPayMethod"]:checked');
-    var leaseStart = document.getElementById('commRentalLeaseStart')?.value;
-
-    if (!rent || !commValue || !landlord || !tenant || !tenantEmail || !tenantPhone || !payMethod || !leaseStart) {
-        alert('Please fill in all required fields:\n- Final Monthly Rent\n- Commission Amount\n- Landlord Name\n- Tenant Name\n- Tenant Email\n- Tenant Phone\n- Payment Method\n- Lease Start Date');
-        return;
-    }
-
-    var agentPayout = document.getElementById('commRentalAgentPayout')?.textContent || '$0';
-    var companyShare = document.getElementById('commRentalCompanyShare')?.textContent || '$0';
-
-    alert('Commission Request Submitted!\n\n' +
-        'Listing: ' + (document.getElementById('commRentalRlsId')?.value || 'N/A') + '\n' +
-        'Monthly Rent: $' + parseFloat(rent).toLocaleString() + '\n' +
-        'Agent Payout: ' + agentPayout + '\n' +
-        'Company Share: ' + companyShare + '\n' +
-        'Payment: ' + payMethod.value.charAt(0).toUpperCase() + payMethod.value.slice(1) + '\n' +
-        'Lease Start: ' + leaseStart + '\n\n' +
-        'Status: Submitted — awaiting broker review.');
-
-    // Update status tracker to "Submitted"
-    var step2 = document.getElementById('commRentalStep2');
-    if (step2) {
-        step2.querySelector('div').className = 'w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold';
-        step2.querySelector('p').className = 'text-[10px] font-semibold text-blue-700 mt-1 text-center';
-    }
 }
 
 // ═══════════════════════════════════════════════════════════
