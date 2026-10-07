@@ -363,7 +363,7 @@ describe('RENTAL-FORM-WITH-TOOLS: a stored value is text in everything the page 
 
   it('the print document holds every stored text as text (all sections, branding on)', () => {
     // The agent and the company in the document are the signed-in agent's: their controls are filled from the session (blank here), and a name or a company is text too.
-    (f.d.getElementById('rentalUpdatingAgent') as HTMLInputElement).value = H('preparer');
+    (f.d.getElementById('rentalUpdatingAgentName') as HTMLInputElement).value = H('preparer');
     (f.d.getElementById('rentalUpdatingAgentCompanyName') as HTMLInputElement).value = H('office');
     const data = f.w.collectRentalPrintData();
     const html: string = f.w.buildRentalPrintHTML(data, RENTAL_SECTIONS, { branding: true, landscape: false, preset: 'full' });
@@ -460,7 +460,7 @@ describe('RENTAL-FORM-WITH-TOOLS: a stored value is text in everything the page 
 
   it('the open house sign-in sheet holds the address and the hosting agent as text', () => {
     const parts = captureBlobs(f);
-    (f.d.getElementById('rentalUpdatingAgent') as HTMLInputElement).value = H('hosting');
+    (f.d.getElementById('rentalUpdatingAgentName') as HTMLInputElement).value = H('hosting');
     f.w.printOpenHouseSignIn('rental');
     const doc = parse(f, parts[0] ?? '');
     expect(doc.querySelector('img[src="x"]')).toBeNull();

@@ -16,7 +16,7 @@ export const LISTING_HYDRATION = read('public/crm/js/forms/listing-hydration.js'
 
 export type Mode = 'ok' | 'missing' | 'anon' | 'never';
 export type ViewerFile = 'SALE-FORM-WITH-TOOLS' | 'RENTAL-FORM-WITH-TOOLS';
-export type ViewerOpts = { search?: string; mode?: Mode; listing?: Record<string, unknown>; role?: string; delay?: number; shrinkLongTimers?: boolean };
+export type ViewerOpts = { search?: string; mode?: Mode; listing?: Record<string, unknown>; role?: string; delay?: number; shrinkLongTimers?: boolean; user?: Record<string, unknown> };   // user: the signed-in agent (/api/auth/me `user`)
 export type Booted = { w: any; d: Document; errors: string[]; requests: string[]; close: () => void }; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 export const ROUTES: Record<ViewerFile, string> = { 'SALE-FORM-WITH-TOOLS': 'sale-view', 'RENTAL-FORM-WITH-TOOLS': 'rental-view' };
@@ -41,7 +41,7 @@ export function bootViewer(file: ViewerFile, o: ViewerOpts = {}): Booted {
   const mode = o.mode ?? 'ok';
   const virtualConsole = new VirtualConsole();
   virtualConsole.on('jsdomError', (e: { message?: string; detail?: { message?: string } }) => errors.push(String(e.detail?.message ?? e.message)));
-  const me = { authenticated: true, principalType: 'agent', role: o.role ?? 'agent', portalRole: o.role ?? 'agent', user: { id: 'AG-9', name: 'Sender Agent', companyKey: 'mallan', companyName: 'Mallan Real Estate Inc.' } };
+  const me = { authenticated: true, principalType: 'agent', role: o.role ?? 'agent', portalRole: o.role ?? 'agent', user: o.user ?? { id: 'AG-9', name: 'Sender Agent', companyKey: 'mallan', companyName: 'Mallan Real Estate Inc.' } };
   const listing = o.listing ?? { id: '404', listing_id: 'SL-0404', status: 'Active', raw_data: {} };
   const dom = new JSDOM(html, {
     url: `https://mallan.nyc/crm/${ROUTES[file]}${o.search ?? '?id=SL-0404'}`,

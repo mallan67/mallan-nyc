@@ -742,15 +742,18 @@
   // The agent module (js/forms/agent-defaults.js) writes these from the agent the listing carries, and writes them last: a stored value (a draft another agent saved, the pickers'
   // own control keys) must not put another agent in the Contacts tab than the one the form submits.
   function agentOwned(cfg, id) {
-    return id.indexOf(cfg.prefix + 'UpdatingAgent') === 0 || ['ListingCompany', 'ListingCompanySearch', 'ListingAgent', 'ListingAgentSearch'].some(function (s) { return id === cfg.prefix + s; });
+    return sessionOwned(cfg, id) || ['ListingCompany', 'ListingCompanySearch', 'ListingAgent', 'ListingAgentSearch'].some(function (s) { return id === cfg.prefix + s; });
   }
+  // The signed-in agent's identity (the agent using the CRM, who prints and e-mails a listing): a record carries another agent's (the listing agent's, or whoever saved it), and a viewer
+  // that put the record's there would print the listing agent as the one preparing the report. These controls are never written from a record, in a viewer or in an Add / Edit form.
+  function sessionOwned(cfg, id) { return id.indexOf(cfg.prefix + 'UpdatingAgent') === 0; }
   function controlKeyedPass(cfg, raw, touched, edit) {    passZones(cfg, edit).forEach(function (zone) {
       if (!zone) return;
       zone.querySelectorAll('input, select, textarea').forEach(function (el) {
         var type = (el.getAttribute('type') || '').toLowerCase();
         if (type === 'button' || type === 'submit' || type === 'reset' || type === 'file' || type === 'image') return;
         if (type === 'hidden' && !(edit && el.id)) return;
-        if (edit && el.id && agentOwned(cfg, el.id)) return;
+        if (el.id && (sessionOwned(cfg, el.id) || (edit && agentOwned(cfg, el.id)))) return;
         var key = el.id || el.name;
         if (!key) return;
         if (type === 'radio') {
@@ -967,7 +970,7 @@
     document.querySelectorAll('.viewer-extra-value').forEach(function (e) { if (e.parentNode) e.parentNode.removeChild(e); });
 
     cfg.fields.forEach(function (f) {
-      if (edit && agentOwned(cfg, f.form)) return;      // the agent module writes these from the agent the listing carries (a draft's copy can be another agent's)
+      if (sessionOwned(cfg, f.form) || (edit && agentOwned(cfg, f.form))) return;      // the signed-in agent's identity is never the record's; the pickers are written by the agent module from the agent the listing carries (a draft's copy can be another agent's)
       var val = fieldValue(f, listing, raw, addr, features, agentInfo);
       if (isBlank(val) || !isPrimitive(val)) return;
       applyField(f, val, touched, raw);

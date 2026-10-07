@@ -4277,12 +4277,13 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
             <div>
                 <label class="field-label mb-2">Format Presets</label>
                 <div class="flex flex-wrap gap-2">
-                    <button onclick="applyRentalPrintPreset('full')" class="rental-print-preset px-3 py-1.5 rounded-full text-xs font-semibold border border-[#B8860B] bg-[#B8860B] text-white" data-preset="full">Full CRM Report</button>
-                    <button onclick="applyRentalPrintPreset('client')" class="rental-print-preset px-3 py-1.5 rounded-full text-xs font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50" data-preset="client">Client Sheet</button>
+                    <button onclick="applyRentalPrintPreset('full')" class="rental-print-preset px-3 py-1.5 rounded-full text-xs font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50" data-preset="full">Full CRM Report</button>
+                    <button onclick="applyRentalPrintPreset('client')" class="rental-print-preset px-3 py-1.5 rounded-full text-xs font-semibold border border-[#B8860B] bg-[#B8860B] text-white" data-preset="client">Client Sheet</button>
                     <button onclick="applyRentalPrintPreset('fact')" class="rental-print-preset px-3 py-1.5 rounded-full text-xs font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50" data-preset="fact">Fact Sheet</button>
                     <button onclick="applyRentalPrintPreset('commission')" class="rental-print-preset px-3 py-1.5 rounded-full text-xs font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50" data-preset="commission">Commission Report</button>
                     <button onclick="applyRentalPrintPreset('custom')" class="rental-print-preset px-3 py-1.5 rounded-full text-xs font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50" data-preset="custom">Custom</button>
                 </div>
+                <p class="text-[11px] text-gray-500 mt-2" data-print-note="internal">The Full CRM Report and the Commission Report are for you: they carry the listing agent and the commission. Give a buyer or a renter the Client Sheet or the Fact Sheet; a Custom report carries neither.</p>
             </div>
             <div>
                 <div class="flex items-center justify-between mb-2">
@@ -5876,10 +5877,12 @@ window.alert = function(msg) { showToast(String(msg)); };
 // ═══════════════════════════════════════════════════════════
 function generateAgentInfoSheet() {
     var gv = function(id) { var el = document.getElementById(id); return el ? viewerReadValue(el).trim() : ''; };
-    var agentName = gv('rentalUpdatingAgentName') || gv('rentalListingAgentId') || '--';
-    var agentPhone = gv('rentalUpdatingAgentPhone') || gv('rentalListingAgentPhone') || '--';
-    var agentEmail = gv('rentalUpdatingAgentEmail') || gv('rentalListingAgentEmail') || '--';
-    var agentLicense = gv('rentalUpdatingAgentLicense') || gv('rentalListingAgentLicense') || '--';
+    // The sheet is handed to a client: it is the signed-in agent's, from their session. When the session does not carry a value the sheet says "--"; it never falls back to the
+    // listing agent's (name, office phone, e-mail), who a buyer or a renter is not given.
+    var agentName = gv('rentalUpdatingAgentName') || '--';
+    var agentPhone = gv('rentalUpdatingAgentPhone') || '--';
+    var agentEmail = gv('rentalUpdatingAgentEmail') || '--';
+    var agentLicense = gv('rentalUpdatingAgentLicense') || '--';
     var address = gv('rentalStreetAddress') || '--';
     var unit = gv('rentalUnitNumber');
     var borough = (document.getElementById('rentalBorough') || {}).selectedOptions ? ((document.getElementById('rentalBorough').selectedOptions[0] || {}).text || '') : '';
@@ -5932,7 +5935,6 @@ function generateAgentInfoSheet() {
         '<div class="header"><div class="logo-block"><h1>MALLAN</h1><p>REAL ESTATE</p></div></div>' +
         '<div class="agent-card">' +
         '<h2>' + esc(agentName) + '</h2>' +
-        '<div class="title">Licensed Real Estate Agent</div>' +
         '<div class="agent-detail">' +
         '<div><div class="label">Phone</div><div class="value">' + esc(agentPhone) + '</div></div>' +
         '<div><div class="label">Email</div><div class="value">' + esc(agentEmail) + '</div></div>' +
@@ -5949,7 +5951,7 @@ function generateAgentInfoSheet() {
         '</div>' +
         '<div class="compliance">' +
         '<p>Listing data provided by the REBNY Listing Service. Information is deemed reliable but not guaranteed. ' +
-        'Data last updated ' + now + '. All information should be independently verified.</p>' +
+        'Printed ' + now + '. All information should be independently verified.</p>' +
         '<p>&copy; ' + new Date().getFullYear() + ' The Real Estate Board of New York, Inc. All rights reserved.</p>' +
         '<div class="fair-housing">Equal Housing Opportunity. We are pledged to the letter and spirit of U.S. policy for the achievement of equal housing opportunity. ' +
         'Commission rates are not set by law and are fully negotiable.</div>' +
@@ -5960,7 +5962,7 @@ function generateAgentInfoSheet() {
         '</div>' +
         '</div>' +
         '<script>function emailAgentSheet(){var s="Agent Info Sheet - "+document.querySelector(".agent-card h2").textContent;' +
-        'var b="Please find the attached agent info sheet for "+s+".";' +
+        'var b=[".agent-card",".brokerage",".listing-ref"].map(function(q){var e=document.querySelector(q);return e?e.innerText:"";}).join("\\n\\n");' +
         'window.location.href="mailto:?subject="+encodeURIComponent(s)+"&body="+encodeURIComponent(b);}<\/script>' +
         '</body></html>';
 
@@ -6197,17 +6199,16 @@ function printOpenHouseSignIn(type) {
         address = (getRentalFormValue('rentalStreetAddress') || '').trim();
         var unit = getRentalFormValue('rentalUnitNumber') || '';
         if (unit) address += ', Unit ' + unit;
-        agent = getRentalFormValue('rentalUpdatingAgent') || '';
+        agent = getRentalFormValue('rentalUpdatingAgentName') || '';
         company = getRentalFormValue('rentalUpdatingAgentCompanyName') || '';
     } else {
         address = (getSaleFormValue('saleStreetAddress') || '').trim();
         var unit = getSaleFormValue('saleUnitNumber') || '';
         if (unit) address += ', Unit ' + unit;
-        agent = getSaleFormValue('saleUpdatingAgent') || '';
+        agent = getSaleFormValue('saleUpdatingAgentName') || '';
         company = getSaleFormValue('saleUpdatingAgentCompanyName') || '';
     }
-    if (!address) address = 'Property Address';
-    if (!agent) agent = 'Hosting Agent';
+    // a sheet whose property or host the page does not know is left blank to be written in, not filled with a stand-in label
     if (!company) company = 'Mallan Real Estate Inc.';
 
     var today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -7198,7 +7199,7 @@ function submitRentalCommissionRequest() {
 
 function openRentalPrintModal() {
     document.getElementById('rentalPrintModal').classList.remove('hidden');
-    applyRentalPrintPreset('full');
+    applyRentalPrintPreset('client');          // what a buyer or a renter may be given: the reports that carry the listing agent and the commission are the agent's to choose
 }
 
 function closeRentalPrintModal() {
@@ -7296,11 +7297,26 @@ function getRentalBuildingAmenities() {
     return labels.join(', ');
 }
 
+// The listing agent, as the record names them (the Contacts tab's panel is filled from the record; "--" is the panel's own "nothing stored"). The agent's own reports carry it
+// (Full CRM Report, Commission Report); a report that goes to a buyer or a renter never does.
+function getRentalListingAgent() {
+    var shown = function(id) { var v = getRentalFormValue(id); return v === '--' ? '' : v; };
+    return {
+        name: shown('rentalListingAgentSearch'), mlsId: shown('rentalListingAgentId'), phone: shown('rentalListingAgentPhone'),
+        email: shown('rentalListingAgentEmail'), office: shown('rentalListingCompanySearch')
+    };
+}
+
 function collectRentalPrintData() {
     return {
-        // Agent Info
-        updatingAgent: getRentalFormValue('rentalUpdatingAgent') || '',
+        // The signed-in agent (who prints and sends the report): the controls the session fills, never the record's agent
+        updatingAgent: getRentalFormValue('rentalUpdatingAgentName') || '',
         updatingCompany: getRentalFormValue('rentalUpdatingAgentCompanyName') || '',
+        updatingPhone: getRentalFormValue('rentalUpdatingAgentPhone') || '',
+        updatingEmail: getRentalFormValue('rentalUpdatingAgentEmail') || '',
+        // the listing agent, as the record names them (the agent's own reports only)
+        listingAgent: getRentalListingAgent(),
+        // Listing info
         listingType: getRentalRadioValue('rentalListingType'),
         status: getRentalFormValue('rentalStatus'),
         dateListed: getRentalFormValue('rentalDateListed'),
@@ -7444,13 +7460,21 @@ function buildRentalPrintHTML(data, sections, options) {
         return s;
     }
 
+    // The agent's own reports (Full CRM Report, Commission Report) carry the listing agent and the commission; every other report (Client Sheet, Fact Sheet, Custom) carries neither,
+    // whatever sections are ticked: a report is handed to a buyer or a renter, and the listing agent and the commission are not theirs to read.
+    var internalReport = options.preset === 'full' || options.preset === 'commission';
     if (sections.indexOf('agentInfo') !== -1) {
-        html += makeSection('Listing Type & Agent Info', [
+        var agentRows = [
             ['Updating Agent', data.updatingAgent], ['Company', data.updatingCompany],
             ['Listing Type', data.listingType], ['Status', data.status],
             ['Date Listed', data.dateListed], ['Exclusive Start', data.exclusiveStart],
             ['Exclusive Expires', data.exclusiveExpires]
-        ]);
+        ];
+        if (internalReport) {
+            var la = data.listingAgent || {};
+            agentRows.push(['Listing Agent', la.name], ['Listing Agent MLS ID', la.mlsId], ['Listing Agent Phone', la.phone], ['Listing Agent Email', la.email], ['Listing Office', la.office]);
+        }
+        html += makeSection('Listing Type & Agent Info', agentRows);
     }
     if (sections.indexOf('classification') !== -1) {
         html += makeSection('Property Classification', [
@@ -7474,8 +7498,7 @@ function buildRentalPrintHTML(data, sections, options) {
             ['Broker Fee', data.brokerFee]
         ];
         // REBNY UCBA compliance: commission/compensation must NEVER appear on client-facing materials
-        var printPreset = options.preset || '';
-        if (printPreset !== 'client' && printPreset !== 'fact') {
+        if (internalReport) {
             pricingFields.push(['Exclusive Commission', data.exclusiveCommission ? data.exclusiveCommission + '%' : '']);
         }
         html += makeSection('Pricing & Rental Terms', pricingFields);
@@ -7542,9 +7565,8 @@ function buildRentalPrintHTML(data, sections, options) {
 
     // Compliance Footer (always shown — REBNY requires attribution + timestamp on displayed data)
     html += '<div class="print-footer">';
-    if (showBranding) {
-        html += '<p>Prepared by ' + esc(data.updatingAgent || '--') + ' | ' + esc(data.updatingCompany || '--') + '</p>';
-        html += '<p>' + esc(data.updatingCompany || '') + '</p>';
+    if (showBranding && (data.updatingAgent || data.updatingCompany)) {
+        html += '<p>Prepared by ' + [data.updatingAgent, data.updatingCompany].filter(Boolean).map(esc).join(' | ') + '</p>';
     }
     if (data.lastUpdated) html += '<p style="margin-top:4px;">Listing last updated: ' + esc(data.lastUpdated) + '</p>';
     html += '<p style="margin-top:4px;">Data as of: ' + new Date().toLocaleString() + '</p>';
@@ -7605,12 +7627,21 @@ function buildRentalEmailCardHTML(data) {
     if (data.availableDate) html += '<p style="font-size:12px; color:#555; margin:8px 0 0;">Available: ' + esc(data.availableDate) + '</p>';
     if (desc) html += '<p style="font-size:13px; color:#555; margin-top:12px; line-height:1.5; border-top:1px solid #eee; padding-top:12px;">"' + esc(desc) + '"</p>';
     html += '<div style="border-top:1px solid #eee; margin-top:16px; padding-top:12px; font-size:12px; color:#666;">';
-    html += '<p style="font-weight:600; color:#1a1a1a; margin:0;">' + esc(data.updatingAgent || '--') + '</p>';
-    html += '<p style="margin:2px 0;">Licensed Real Estate Broker</p>';
+    html += rentalSenderLinesHTML(data);
     html += '<p style="margin:2px 0;">Mallan Real Estate Inc. | Lic. #10991205323</p>';
     html += '<p style="margin:6px 0 2px; font-size:10px; color:#999;">Listing data provided by the REBNY Listing Service.</p>';
     html += '<p style="margin:0; font-size:10px; color:#999;">Equal Housing Opportunity</p>';
     html += '</div></div></div>';
+    return html;
+}
+
+// Who the e-mail is from: the signed-in agent (name, phone, e-mail), as their session has them. The listing agent is never named in anything a buyer or a renter receives, and no title
+// is claimed for the sender (the session does not carry one).
+function rentalSenderLinesHTML(data) {
+    var html = '';
+    if (data.updatingAgent) html += '<p style="font-weight:600; color:#1a1a1a; margin:0;">' + esc(data.updatingAgent) + '</p>';
+    var contact = [data.updatingPhone, data.updatingEmail].filter(Boolean).map(esc).join(' | ');
+    if (contact) html += '<p style="margin:2px 0;">' + contact + '</p>';
     return html;
 }
 
@@ -7633,8 +7664,10 @@ function getRentalPlainTextSummary(data) {
     lines.push('');
     if (data.description) lines.push(data.description.substring(0, 300));
     lines.push('');
-    lines.push((data.updatingAgent || '--') + ' | ' + (data.updatingCompany || '--'));
-    lines.push('646-258-4460 | info@mallan.nyc');
+    // from the signed-in agent: name, company, and their own phone and e-mail (the firm's general line when the session carries neither); never the listing agent
+    var sender = [data.updatingAgent, data.updatingCompany].filter(Boolean).join(' | ');
+    if (sender) lines.push(sender);
+    lines.push([data.updatingPhone, data.updatingEmail].filter(Boolean).join(' | ') || '646-258-4460 | info@mallan.nyc');
     return lines.join('\n');
 }
 
@@ -7670,8 +7703,7 @@ function copyRentalEmailToClipboard() {
     if (data.availableDate) htmlContent += '<p style="font-size:12px; color:#555; margin:8px 0 0;">Available: ' + esc(data.availableDate) + '</p>';
     if (desc) htmlContent += '<p style="font-size:13px; color:#555; margin:12px 0 0; line-height:1.5; border-top:1px solid #eee; padding-top:12px;">&ldquo;' + esc(desc) + '&rdquo;</p>';
     htmlContent += '<div style="border-top:1px solid #eee; margin-top:16px; padding-top:12px; font-size:12px; color:#666;">';
-    htmlContent += '<p style="font-weight:600; color:#1a1a1a; margin:0;">' + esc(data.updatingAgent || '--') + '</p>';
-    htmlContent += '<p style="margin:2px 0;">Licensed Real Estate Broker</p>';
+    htmlContent += rentalSenderLinesHTML(data);
     htmlContent += '<p style="margin:2px 0;">Mallan Real Estate Inc. | Lic. #10991205323</p>';
     htmlContent += '<p style="margin:6px 0 2px; font-size:10px; color:#999;">Listing data provided by the REBNY Listing Service.</p>';
     htmlContent += '<p style="margin:0; font-size:10px; color:#999;">Equal Housing Opportunity</p>';

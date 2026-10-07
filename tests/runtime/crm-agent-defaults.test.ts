@@ -1559,9 +1559,12 @@ describe('a restored draft leaves the Contacts tab to the agent module', () => {
       f.w.MallanListingHydration.hydrate(prefix, { raw_data: { ...Object.fromEntries(ids.map((id) => [id, 'STORED'])), [plain]: '555' } }, { mode: 'edit' });
       for (const id of ids) expect([id, val(f.d, id)]).toEqual([id, before[id]]);       // none of the agent module's controls was written
       expect(val(f.d, plain)).toBe('555');                                              // every other control was
-      // the viewers (the Tools pages) hydrate in view mode, and a view-mode pass writes every control the record carries: their own pass is unchanged
-      f.w.MallanListingHydration.hydrate(prefix, { raw_data: { [`${prefix}UpdatingAgentDisplay`]: 'VIEWED' } });
-      expect(val(f.d, `${prefix}UpdatingAgentDisplay`)).toBe('VIEWED');
+      // the viewers (the Tools pages) hydrate in view mode: the signed-in agent's controls are the session's there too (a record carries another agent's, the listing agent's, and a viewer
+      // that put it there would print the listing agent as the one preparing the report); every other control the record carries is written
+      f.w.MallanListingHydration.hydrate(prefix, { raw_data: { [`${prefix}UpdatingAgentDisplay`]: 'VIEWED', [`${prefix}UpdatingAgentName`]: 'VIEWED', [plain]: '777' } });
+      expect(val(f.d, plain)).toBe('777');                                              // (the pass ran)
+      expect(val(f.d, `${prefix}UpdatingAgentDisplay`)).toBe(before[`${prefix}UpdatingAgentDisplay`]);
+      expect(val(f.d, `${prefix}UpdatingAgentName`)).toBe(before[`${prefix}UpdatingAgentName`]);
     } finally { f.close(); }
   });
 });
@@ -1606,7 +1609,7 @@ describe('a draft the Sale collector produced (it carries the first agent\'s pro
     } finally { f.close(); }
   });
 
-  it('the table pass of an edit-mode hydrate skips the agent module\'s controls, and a view-mode hydrate (the Tools pages) still writes them', async () => {
+  it('the table pass of an edit-mode hydrate skips the agent module\'s controls, and a view-mode hydrate (the Tools pages) does not write the signed-in agent\'s either', async () => {
     const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 600 });
     try {
       const rows = { ListAgentFullName: 'STORED', ListAgentMlsId: '1', ListAgentEmail: 'stored@example.test', ListAgentDirectPhone: '2', ListOfficeName: 'STORED OFFICE', ListAgentKey: '3', ListOfficeKey: '4', ListOfficeMlsId: '5' };
@@ -1616,8 +1619,9 @@ describe('a draft the Sale collector produced (it carries the first agent\'s pro
       for (const id of ids) expect([id, val(f.d, id)]).toEqual([id, before[id]]);
       expect(val(f.d, 'salePrice')).toBe('555');
       expect(val(f.d, 'saleBldgTotalUnits')).toBe('42');                            // a row of the table (its key is not the control's id) still goes in
-      f.w.MallanListingHydration.hydrate('sale', { agent_info: rows });
-      expect([val(f.d, 'saleUpdatingAgentName'), val(f.d, 'saleUpdatingAgentMlsId'), val(f.d, 'saleUpdatingAgentKey')]).toEqual(['STORED', '1', '3']);
+      f.w.MallanListingHydration.hydrate('sale', { agent_info: rows, raw_data: { salePrice: '777' } });
+      expect(val(f.d, 'salePrice')).toBe('777');                                    // (the pass ran)
+      for (const id of ids) expect([id, val(f.d, id)]).toEqual([id, before[id]]);   // the signed-in agent is the session's: the listing agent the rows name is not the one preparing the report
     } finally { f.close(); }
   });
 });
