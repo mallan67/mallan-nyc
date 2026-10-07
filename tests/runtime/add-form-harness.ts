@@ -39,6 +39,7 @@ export type AddFormOpts = {
   modules?: string[];                                // page modules to load, in order (default: every module the forms load)
   moduleSources?: Record<string, (source: string) => string>;   // rewrite a module's source before it runs (a copy cached from an older deploy)
   storage?: Record<string, string>;                  // localStorage entries present when the page starts (a saved browser draft)
+  showings?: unknown;                                // what GET /api/crm/showings answers as its list of showings (anything: the rows are the server's); a POST is answered with { showing: { id: 'S-1' } }
   mediaRows?: unknown;                               // what GET /api/crm/listings/:id/media answers as its list of media rows (anything: the rows are the server's)
   created?: Record<string, unknown>;                 // what MallanAPI.listings.create answers, over the default { id, listing_id, status: 'Draft' } (the server's ids and addresses are the server's)
   updated?: Record<string, unknown>;                 // what MallanAPI.listings.update answers (default {}: the real route answers with the record's status, which is the server's)
@@ -65,7 +66,7 @@ export const SESSION_USER = {
 export const SESSION_MEMBER: DirectoryMember = {
   key: '4455667', mlsId: '39361', fullName: 'Sender Agent', status: 'Active', officeKey: '5671398', officeMlsId: '7041', officeName: 'Cotality Office Name',
 };
-export const PAGE_MODULES = ['directory-picker', 'colist-section', 'agent-defaults', 'listing-hydration', 'fair-housing', 'building-lookup', 'listing-media'];
+export const PAGE_MODULES = ['directory-picker', 'colist-section', 'agent-defaults', 'listing-hydration', 'fair-housing', 'building-lookup', 'listing-media', 'listing-open-houses'];
 
 const read = (p: string) => readFileSync(resolve(__dirname, '../..', p), 'utf8');
 
@@ -96,6 +97,11 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
         requests.push({ url: u, method: init?.method ?? 'GET', body: typeof init?.body === 'string' ? init.body : '' });
         if (o.mediaRows !== undefined && (init?.method ?? 'GET') === 'GET' && /^\/api\/crm\/listings\/[^/?]+\/media(\?.*)?$/.test(u)) {
           return { ok: true, status: 200, json: async () => ({ listing_id: 'L-1', media: o.mediaRows }), text: async () => '' };
+        }
+        if (u.startsWith('/api/crm/showings')) {
+          const method = init?.method ?? 'GET';
+          const body = method === 'GET' ? { showings: o.showings ?? [] } : method === 'POST' ? { showing: { id: 'S-1' } } : {};
+          return { ok: true, status: method === 'POST' ? 201 : 200, json: async () => body, text: async () => '' };
         }
         if (u.startsWith('/api/buildings/search')) {
           const q = decodeURIComponent((u.split('q=')[1] ?? '').split('&')[0]);

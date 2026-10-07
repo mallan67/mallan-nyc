@@ -93,6 +93,7 @@ body { font-family: Manrope, sans-serif; }
 <script src="js/forms/building-lookup.js"></script>
 <script src="js/forms/listing-hydration.js"></script>
 <script src="js/forms/listing-media.js"></script>
+<script src="js/forms/listing-open-houses.js"></script>
 <script>
 // ── Auth gate (defense-in-depth — middleware is primary) ──
 // NOTE: session_token is httpOnly — JS cannot read it via document.cookie.
@@ -1617,14 +1618,47 @@ body { font-family: Manrope, sans-serif; }
                 <button type="button" onclick="addRentalOpenHouse()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"><i class="fas fa-plus mr-2"></i> Add Open House</button>
             </div>
             <div id="rentalOpenHouseList" class="space-y-3 mb-6">
-                <div class="bg-gray-50 border rounded-lg p-4 text-center text-gray-500">
-                    <i class="fas fa-calendar-alt text-2xl mb-2"></i>
-                    <p class="text-sm">No open houses scheduled</p>
-                    <p class="text-xs">Click "Add Open House" to schedule one</p>
+                <p id="rentalOpenHouseEmpty" class="text-sm text-gray-500 italic py-4 text-center">No open houses scheduled yet. Click "Add Open House" to create one.</p>
+            </div>
+
+            <!-- Add Open House Form (hidden by default) -->
+            <div id="rentalAddOpenHouseForm" class="mb-6 p-4 bg-gray-50 rounded-lg border" style="display: none;">
+                <h5 class="text-sm font-semibold mb-3"><i class="fas fa-calendar-plus mr-1"></i> New Open House</h5>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
+                    <div>
+                        <label class="field-label">Date <span class="text-red-500">*</span></label>
+                        <input type="date" id="rentalNewOHDate" class="field-input" required data-rls-ignore="true">
+                    </div>
+                    <div>
+                        <label class="field-label">Start Time <span class="text-red-500">*</span></label>
+                        <input type="time" id="rentalNewOHStart" class="field-input" required data-rls-ignore="true">
+                    </div>
+                    <div>
+                        <label class="field-label">End Time <span class="text-red-500">*</span></label>
+                        <input type="time" id="rentalNewOHEnd" class="field-input" required data-rls-ignore="true">
+                    </div>
+                    <div>
+                        <label class="field-label">Type</label>
+                        <select id="rentalNewOHType" class="field-input" data-rls-ignore="true">
+                            <option value="Public">Public</option>
+                            <option value="BrokerOnly">Broker Only</option>
+                            <option value="ByAppointment">By Appointment</option>
+                            <option value="Virtual">Virtual</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="field-label">Notes</label>
+                    <input type="text" id="rentalNewOHNotes" placeholder="Optional notes for this open house..." class="field-input" data-rls-ignore="true">
+                </div>
+                <div class="flex gap-2">
+                    <button type="button" onclick="saveRentalOpenHouse()" data-oh-save class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"><i class="fas fa-check mr-1"></i> Save</button>
+                    <button type="button" onclick="cancelRentalOpenHouse()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Cancel</button>
                 </div>
             </div>
+
             <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p class="text-xs text-blue-800"><i class="fas fa-info-circle mr-2"></i> Open house information will be syndicated to REBNY RLS and partner sites.</p>
+                <p class="text-xs text-blue-800"><i class="fas fa-info-circle mr-2"></i> Open houses are saved with the listing, which has to be saved first. Broker Only ones are internal; the others are public events. They are not sent to REBNY RLS from this page.</p>
             </div>
         </div>
 
@@ -6369,48 +6403,33 @@ function updateRentalCharCount() {
 // ══════════════════════════════════════════════════════
 // OPEN HOUSE FUNCTIONS
 // ══════════════════════════════════════════════════════
-let rentalOpenHouseCount = 0;
+// js/forms/listing-open-houses.js: an open house is a showing of the saved listing (POST /api/crm/showings), shown again when the listing is opened. The cards that used to be built here
+// had inputs with no id and no name, so nothing the agent entered was saved. A page that could not load the module still boots; the buttons then say so.
+// The manager keeps no state of its own (the form and the cards are the page's), so one is made for each use.
+function _openHouses() {
+    if (!window.MallanOpenHouses) return null;
+    return MallanOpenHouses.create({
+        prefix: 'rental',
+        listingId: function() { return _rentalEditListingId || _rentalEditDbId || ''; },
+        toast: showToast
+    });
+}
+function _openHousesMissing() {
+    showToast('The open house manager did not load, so open houses cannot be scheduled. Reload the page.', 'error');
+}
 function addRentalOpenHouse() {
-    rentalOpenHouseCount++;
-    const list = document.getElementById('rentalOpenHouseList');
-    if (!list) return;
-    if (rentalOpenHouseCount === 1) list.innerHTML = '';
-    const div = document.createElement('div');
-    div.className = 'bg-white border rounded-lg p-4';
-    div.innerHTML = `
-        <div class="flex items-center justify-between mb-3">
-            <span class="text-sm font-semibold text-gray-800">Open House #${rentalOpenHouseCount}</span>
-            <button onclick="this.closest('.bg-white').remove()" class="text-red-500 hover:text-red-700 text-sm"><i class="fas fa-trash mr-1"></i> Remove</button>
-        </div>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div>
-                <label class="field-label">Date</label>
-                <input type="date" class="field-input">
-            </div>
-            <div>
-                <label class="field-label">Start Time</label>
-                <input type="time" class="field-input">
-            </div>
-            <div>
-                <label class="field-label">End Time</label>
-                <input type="time" class="field-input">
-            </div>
-            <div>
-                <label class="field-label">Type</label>
-                <select class="field-input">
-                    <option value="Public">Public</option>
-                    <option value="BrokerOnly">Broker Only</option>
-                    <option value="ByAppointment">By Appointment</option>
-                    <option value="Virtual">Virtual</option>
-                </select>
-            </div>
-        </div>
-        <div class="mt-2">
-            <label class="field-label">Notes</label>
-            <input type="text" placeholder="Optional notes..." class="field-input">
-        </div>
-    `;
-    list.appendChild(div);
+    var openHouses = _openHouses();
+    if (!openHouses) { _openHousesMissing(); return; }
+    openHouses.showForm();
+}
+function saveRentalOpenHouse() {
+    var openHouses = _openHouses();
+    if (!openHouses) { _openHousesMissing(); return; }
+    openHouses.save();
+}
+function cancelRentalOpenHouse() {
+    var openHouses = _openHouses();
+    if (openHouses) openHouses.cancelForm();
 }
 
 // ══════════════════════════════════════════════════════
@@ -7222,6 +7241,10 @@ function _populateRentalFormFromApi(listing) {
         media.reset();
         media.render(listing.listing_id || (listing.id != null ? String(listing.id) : ''), listing.id != null ? String(listing.id) : '');
     }
+
+    // Open houses: the listing's scheduled ones are shown as cards (js/forms/listing-open-houses.js)
+    var openHouses = _openHouses();
+    if (openHouses) openHouses.load([listing.listing_id, listing.id != null ? String(listing.id) : '']);
 }
 
 // The family a status belongs to, whichever vocabulary names it: a workflow step the agent picks (Draft ... PermOffMarket), a Cotality MlsStatus, or the status the

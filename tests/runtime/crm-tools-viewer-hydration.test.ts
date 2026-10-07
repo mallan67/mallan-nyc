@@ -464,7 +464,10 @@ const ABSENT_ON_VIEWER: Record<'sale' | 'rental', string[]> = {
     'value:saleAuctionEndDate', 'value:saleAuctionTermsUrl', 'value:saleStructureType', 'check:saleSendToRls', 'check:saleSendToWebsite', 'value:saleExclusiveCommissionType',
     'radio:saleBuyerAgentPays',
   ],
-  rental: ['value:rentalPostalCity', 'value:rentalStructureType', 'value:rentalFirstShowingDate', 'value:rentalCityDisplay'],
+  // The five last ones are the form of the Open Houses sub-tab (an open house is a showing of the listing, saved by its own button and not part of the listing's own save; the Sale viewer is a
+  // copy of the Sale form and has the same controls, the Rental viewer has no Open Houses tab).
+  rental: ['value:rentalPostalCity', 'value:rentalStructureType', 'value:rentalFirstShowingDate', 'value:rentalCityDisplay',
+    'value:rentalNewOHDate', 'value:rentalNewOHStart', 'value:rentalNewOHEnd', 'value:rentalNewOHType', 'value:rentalNewOHNotes'],
 };
 
 const KNOWN_LOST: Record<'sale' | 'rental', Record<string, string>> = {

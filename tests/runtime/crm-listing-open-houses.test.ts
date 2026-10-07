@@ -1,0 +1,498 @@
+/// <reference types="jest" />
+/**
+ * js/forms/listing-open-houses.js: the open houses of an Add / Edit listing form.
+ *
+ * The Rental form's "Add Open House" built a card of inputs that had no id and no name, so nothing the agent entered was saved, and the page said "Open house information will be
+ * syndicated to REBNY RLS and partner sites." The Sale form saves open houses as showings of the listing (POST /api/crm/showings) and loads them again when the listing is opened; that
+ * is this module, one piece both forms can use (the Rental form uses it; the Sale form keeps its own copy until it is moved over). These tests run it on a plain page with a fake
+ * network, so every request it makes is seen.
+ */
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { JSDOM } = require('jsdom');
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+const SOURCE = readFileSync(resolve(__dirname, '../../public/crm/js/forms/listing-open-houses.js'), 'utf8');
+
+type Call = { url: string; method: string; headers?: Record<string, string>; body?: any; credentials?: string };
+type Reply = { ok: boolean; status: number; body?: any; reject?: string };
+
+function boot(o: { savedId?: string; blocked?: () => string; answers?: (call: Call) => Reply | undefined; confirm?: boolean } = {}) {
+  const dom = new JSDOM(`<!doctype html><body>
+    <div id="rentalOpenHouseList"><p id="rentalOpenHouseEmpty">none</p></div>
+    <div id="rentalAddOpenHouseForm" style="display: none;">
+      <input type="date" id="rentalNewOHDate"><input type="time" id="rentalNewOHStart"><input type="time" id="rentalNewOHEnd">
+      <select id="rentalNewOHType"><option value="Public">Public</option><option value="BrokerOnly">Broker Only</option><option value="ByAppointment">By Appointment</option><option value="Virtual">Virtual</option></select>
+      <input type="text" id="rentalNewOHNotes"><button type="button" data-oh-save>Save</button>
+    </div></body>`, { url: 'https://mallan.nyc/crm/RENTAL-FORM-REDESIGN.html', runScripts: 'outside-only' });
+  const w: any = dom.window;
+  w.eval(SOURCE);
+  const calls: Call[] = [];
+  const toasts: [string, string | undefined][] = [];
+  const told: string[] = [];
+  let savedId = o.savedId ?? '';
+  const defaultAnswer = (call: Call): Reply => {
+    if (call.method === 'POST') return { ok: true, status: 201, body: { showing: { id: 'S-9' } } };
+    if (call.method === 'PATCH') return { ok: true, status: 200, body: {} };
+    return { ok: true, status: 200, body: { showings: [] } };
+  };
+  const manager = w.MallanOpenHouses.create({
+    prefix: 'rental',
+    listingId: () => savedId,
+    blocked: o.blocked,
+    toast: (message: string, type?: string) => toasts.push([message, type]),
+    alert: (message: string) => told.push(message),
+    confirm: () => o.confirm ?? true,
+    fetch: (url: string, init: any = {}) => {
+      const call: Call = { url, method: init.method ?? 'GET', headers: init.headers, body: init.body, credentials: init.credentials };
+      calls.push(call);
+      const r = o.answers?.(call) ?? defaultAnswer(call);
+      if (r.reject) return Promise.reject(new Error(r.reject));
+      return Promise.resolve({ ok: r.ok, status: r.status, json: () => (r.body === undefined ? Promise.reject(new Error('no body')) : Promise.resolve(r.body)) });
+    },
+  });
+  const d: Document = w.document;
+  const field = (suffix: string) => d.getElementById('rentalNewOH' + suffix) as HTMLInputElement;
+  const fill = (v: Partial<Record<'Date' | 'Start' | 'End' | 'Type' | 'Notes', string>>) => { for (const [k, x] of Object.entries(v)) field(k).value = x!; };
+  return {
+    w, d, manager, calls, toasts, told, field, fill,
+    setSaved: (id: string) => { savedId = id; },
+    list: () => d.getElementById('rentalOpenHouseList') as HTMLElement,
+    form: () => d.getElementById('rentalAddOpenHouseForm') as HTMLElement,
+    saveButton: () => d.querySelector('button[data-oh-save]') as HTMLButtonElement,
+    cards: () => [...d.querySelectorAll('[data-showing-id]')] as HTMLElement[],
+    flush: () => new Promise<void>((r) => setTimeout(r, 30)),
+  };
+}
+const FULL = { Date: '2026-10-11', Start: '14:00', End: '16:30', Type: 'Public', Notes: 'Bring ID' };
+
+describe('the form', () => {
+  it('opens and closes', () => {
+    const p = boot();
+    p.manager.showForm();
+    expect(p.form().style.display).toBe('block');
+    p.manager.cancelForm();
+    expect(p.form().style.display).toBe('none');
+  });
+
+  it('a page without the form does not fail', () => {
+    const p = boot();
+    p.form().remove();
+    expect(() => { p.manager.showForm(); p.manager.cancelForm(); }).not.toThrow();
+  });
+});
+
+describe('saving an open house', () => {
+  it('asks for the date and both times', async () => {
+    const p = boot({ savedId: 'RL-7' });
+    p.fill({ ...FULL, Date: '' });
+    await p.manager.save();
+    expect(p.told).toEqual(['Please fill in Date, Start Time, and End Time.']);
+    for (const missing of ['Start', 'End'] as const) {
+      p.fill(FULL);
+      p.fill({ [missing]: '' });
+      await p.manager.save();
+    }
+    expect(p.told).toHaveLength(3);
+    expect(p.calls).toEqual([]);
+  });
+
+  it('says why the form cannot schedule one now, when the page says so', async () => {
+    const p = boot({ savedId: 'RL-7', blocked: () => 'Open houses cannot be scheduled while the listing is in Coming Soon status.' });
+    p.fill(FULL);
+    await p.manager.save();
+    expect(p.told).toEqual(['Open houses cannot be scheduled while the listing is in Coming Soon status.']);
+    expect(p.calls).toEqual([]);
+  });
+
+  it('asks the agent to save the listing first: an open house is attached to a saved listing', async () => {
+    const p = boot();
+    p.fill(FULL);
+    await p.manager.save();
+    expect(p.told).toEqual(['Save the listing first (as a draft), then add open houses — they attach to the saved listing.']);
+    expect(p.calls).toEqual([]);
+  });
+
+  it('is saved as a showing of the listing, with the time as the public feed reads it and the type kept in the notes', async () => {
+    const p = boot({ savedId: 'RL-7' });
+    p.fill(FULL);
+    await p.manager.save();
+    expect(p.calls).toHaveLength(1);
+    const call = p.calls[0];
+    expect([call.method, call.url, call.credentials, call.headers]).toEqual(['POST', '/api/crm/showings', 'include', { 'Content-Type': 'application/json' }]);
+    expect(JSON.parse(call.body)).toEqual({ listing_id: 'RL-7', date: '2026-10-11', time: '2:00 PM - 4:30 PM', type: 'openhouse', notes: '[Public] Bring ID' });
+  });
+
+  it('shows the saved open house as a card with its date, time, type and notes, and says so', async () => {
+    const p = boot({ savedId: 'RL-7' });
+    p.fill(FULL);
+    await p.manager.save();
+    const [card] = p.cards();
+    expect(card.getAttribute('data-showing-id')).toBe('S-9');
+    expect(card.textContent).toContain('Oct 11');
+    expect(card.textContent).toContain('2:00 PM - 4:30 PM');
+    expect(card.textContent).toContain('Public');
+    expect(card.textContent).toContain('Bring ID');
+    expect(card.textContent).not.toContain('(internal)');
+    expect(card.querySelector('span')!.className).toContain('bg-green-100');
+    expect(p.toasts.at(-1)).toEqual(['Open house saved', 'success']);
+    expect(p.d.getElementById('rentalOpenHouseEmpty')).toBeNull();                 // the "none yet" line goes
+  });
+
+  it('takes the id from an answer that is the showing itself', async () => {
+    const p = boot({ savedId: 'RL-7', answers: (c) => (c.method === 'POST' ? { ok: true, status: 201, body: { id: 'S-5' } } : undefined) });
+    p.fill(FULL);
+    await p.manager.save();
+    expect(p.cards()[0].getAttribute('data-showing-id')).toBe('S-5');
+  });
+
+  it('empties the form and closes it after a save', async () => {
+    const p = boot({ savedId: 'RL-7' });
+    p.manager.showForm();
+    p.fill({ ...FULL, Type: 'Virtual' });
+    await p.manager.save();
+    expect(['Date', 'Start', 'End', 'Notes'].map((k) => p.field(k).value)).toEqual(['', '', '', '']);
+    expect(p.field('Type').value).toBe('Public');
+    expect(p.form().style.display).toBe('none');
+  });
+
+  it.each([['Public', 'openhouse', true], ['Virtual', 'openhouse', true], ['ByAppointment', 'openhouse', true], ['BrokerOnly', 'brokersopen', false]])('the %s type is saved as %s', async (type, showing, isPublic) => {
+    const p = boot({ savedId: 'RL-7' });
+    p.fill({ ...FULL, Type: type });
+    await p.manager.save();
+    expect(JSON.parse(p.calls[0].body)).toMatchObject({ type: showing, notes: `[${type}] Bring ID` });
+    expect(p.cards()[0].textContent!.includes('(internal)')).toBe(!isPublic);
+    expect(p.toasts.at(-1)![0]).toBe(isPublic ? 'Open house saved' : 'Open house saved (internal — not shown publicly)');
+  });
+
+  it('an internal event is badged and worded as one; the labels of the other types are short', async () => {
+    const p = boot({ savedId: 'RL-7' });
+    p.fill({ ...FULL, Type: 'BrokerOnly' });
+    await p.manager.save();
+    p.fill({ ...FULL, Type: 'ByAppointment' });
+    await p.manager.save();
+    const [internal, byAppt] = p.cards();
+    expect(internal.textContent).toContain('Broker Only');
+    expect(internal.querySelector('span')!.className).toContain('bg-blue-100');
+    expect(byAppt.textContent).toContain('By Appt');
+    expect(byAppt.querySelector('span')!.className).toContain('bg-yellow-100');
+  });
+
+  it('the listing id is sent as a text, whatever it is (a number too)', async () => {
+    const p = boot({ savedId: 77 as any });
+    p.fill(FULL);
+    await p.manager.save();
+    expect(JSON.parse(p.calls[0].body).listing_id).toBe('77');
+  });
+
+  it('a page that lost its list still saves, and does not fail drawing the card', async () => {
+    const p = boot({ savedId: 'RL-7' });
+    p.list().remove();
+    p.fill(FULL);
+    await p.manager.save();
+    expect(p.calls).toHaveLength(1);
+    expect(p.toasts.at(-1)).toEqual(['Open house saved', 'success']);
+  });
+
+  it('the date on a card is the month and the day, and a Virtual event is badged purple', async () => {
+    const p = boot({ savedId: 'RL-7' });
+    p.fill({ ...FULL, Type: 'Virtual' });
+    await p.manager.save();
+    expect(p.cards()[0].querySelector('.text-lg')!.textContent).toBe('Oct 11');
+    expect(p.cards()[0].querySelector('span')!.className).toContain('bg-purple-100');
+  });
+
+  it('a type that is nobody\'s is internal: it is never put on a public page by mistake', async () => {
+    const p = boot({ savedId: 'RL-7' });
+    const option = p.d.createElement('option'); option.value = 'Surprise'; option.textContent = 'Surprise';
+    p.field('Type').appendChild(option);
+    p.fill({ ...FULL, Type: 'Surprise' });
+    await p.manager.save();
+    expect(JSON.parse(p.calls[0].body).type).toBe('brokersopen');
+  });
+
+  it('an open house with no notes carries only its type in them', async () => {
+    const p = boot({ savedId: 'RL-7' });
+    p.fill({ ...FULL, Notes: '' });
+    await p.manager.save();
+    expect(JSON.parse(p.calls[0].body).notes).toBe('[Public] ');
+    expect(p.cards()[0].querySelectorAll('p')).toHaveLength(0);
+  });
+
+  it('the type defaults to Public when the box has none', async () => {
+    const p = boot({ savedId: 'RL-7' });
+    p.field('Type').innerHTML = '';
+    p.fill({ ...FULL, Type: '' });
+    await p.manager.save();
+    expect(JSON.parse(p.calls[0].body)).toMatchObject({ type: 'openhouse', notes: '[Public] Bring ID' });
+  });
+
+  it('the Save button is off while the request is out, and on again after', async () => {
+    let finish: (r: Reply) => void = () => undefined;
+    const held = new Promise<Reply>((r) => { finish = r; });
+    const p = boot({ savedId: 'RL-7' });
+    const slow = p.w.MallanOpenHouses.create({
+      prefix: 'rental', listingId: () => 'RL-7', toast: () => undefined, alert: () => undefined,
+      fetch: () => held.then((r) => ({ ok: r.ok, status: r.status, json: () => Promise.resolve(r.body) })),
+    });
+    p.fill(FULL);
+    const done = slow.save();
+    expect(p.saveButton().disabled).toBe(true);
+    finish({ ok: true, status: 201, body: { showing: { id: 'S-1' } } });
+    await done;
+    expect(p.saveButton().disabled).toBe(false);
+  });
+
+  it('a refusal is said with the server\'s words, or its status; the form keeps what was entered; the button is on again', async () => {
+    const p = boot({ savedId: 'RL-7', answers: (c) => (c.method === 'POST' ? { ok: false, status: 400, body: { error: 'Invalid date format' } } : undefined) });
+    p.manager.showForm();
+    p.fill(FULL);
+    await p.manager.save();
+    expect(p.toasts.at(-1)).toEqual(['Could not save open house: Invalid date format', 'error']);
+    expect(p.field('Date').value).toBe('2026-10-11');
+    expect(p.form().style.display).toBe('block');
+    expect(p.cards()).toHaveLength(0);
+    expect(p.saveButton().disabled).toBe(false);
+    const q = boot({ savedId: 'RL-7', answers: (c) => (c.method === 'POST' ? { ok: false, status: 500 } : undefined) });
+    q.fill(FULL);
+    await q.manager.save();
+    expect(q.toasts.at(-1)).toEqual(['Could not save open house: 500', 'error']);
+  });
+
+  it('a network failure is said, and the button is on again', async () => {
+    const p = boot({ savedId: 'RL-7', answers: (c) => (c.method === 'POST' ? { ok: false, status: 0, reject: 'offline' } : undefined) });
+    p.fill(FULL);
+    await p.manager.save();
+    expect(p.toasts.at(-1)).toEqual(['Could not save open house: offline', 'error']);
+    expect(p.saveButton().disabled).toBe(false);
+  });
+
+  it('a page without a Save button (data-oh-save) still saves', async () => {
+    const p = boot({ savedId: 'RL-7' });
+    p.saveButton().remove();
+    p.fill(FULL);
+    await p.manager.save();
+    expect(p.cards()).toHaveLength(1);
+  });
+});
+
+describe('the time of day', () => {
+  it.each([['00:05', '12:05 AM'], ['09:30', '9:30 AM'], ['12:00', '12:00 PM'], ['12:59', '12:59 PM'], ['13:30', '1:30 PM'], ['23:59', '11:59 PM'], ['2:00', '2:00 AM']])('%s is %s', (t, text) => {
+    const w: any = boot().w;
+    expect(w.MallanOpenHouses.time12h(t)).toBe(text);
+  });
+  it('a time that is not one is left as it is, and no time is none', () => {
+    const w: any = boot().w;
+    expect(w.MallanOpenHouses.time12h('soon')).toBe('soon');
+    expect(w.MallanOpenHouses.time12h('')).toBe('');
+    expect(w.MallanOpenHouses.time12h(undefined)).toBe('');
+  });
+});
+
+describe('the type of the showing', () => {
+  it.each([['Public', 'openhouse', true], ['Virtual', 'openhouse', true], ['ByAppointment', 'openhouse', true], ['BrokerOnly', 'brokersopen', false], ['', 'brokersopen', false], ['other', 'brokersopen', false], [undefined, 'brokersopen', false]])('%s', (t, type, isPublic) => {
+    const w: any = boot().w;
+    expect(w.MallanOpenHouses.showingType(t)).toEqual({ type, isPublic });
+  });
+});
+
+describe('removing an open house', () => {
+  const withCards = async (o: Parameters<typeof boot>[0] = {}) => {
+    const p = boot({ savedId: 'RL-7', ...o });
+    p.fill(FULL);
+    await p.manager.save();
+    p.fill({ ...FULL, Start: '10:00', End: '11:00' });
+    await p.manager.save();
+    return p;
+  };
+  const removeButton = (card: HTMLElement) => card.querySelector('button') as HTMLButtonElement;
+
+  it('asks first, and does nothing when the agent says no', async () => {
+    const p = await withCards({ confirm: false });
+    const before = p.calls.length;
+    removeButton(p.cards()[0]).click();
+    await p.flush();
+    expect(p.calls).toHaveLength(before);
+    expect(p.cards()).toHaveLength(2);
+  });
+
+  it('cancels the showing (no hard delete), and the card goes once the server has done it', async () => {
+    const p = await withCards();
+    const before = p.calls.length;
+    removeButton(p.cards()[0]).click();
+    expect(p.cards()).toHaveLength(2);                                            // the server has not answered yet
+    await p.flush();
+    const call = p.calls[before];
+    expect([call.method, call.url, call.credentials, call.headers]).toEqual(['PATCH', '/api/crm/showings/S-9', 'include', { 'Content-Type': 'application/json' }]);
+    expect(JSON.parse(call.body)).toEqual({ status: 'cancelled' });
+    expect(p.cards()).toHaveLength(1);
+    expect(p.toasts.at(-1)).toEqual(['Open house removed', 'success']);
+  });
+
+  it('puts the "none yet" line back when the last one goes', async () => {
+    const p = boot({ savedId: 'RL-7' });
+    p.fill(FULL);
+    await p.manager.save();
+    removeButton(p.cards()[0]).click();
+    await p.flush();
+    expect(p.cards()).toHaveLength(0);
+    expect(p.d.getElementById('rentalOpenHouseEmpty')!.textContent).toBe('No open houses scheduled yet. Click "Add Open House" to create one.');
+  });
+
+  it('keeps the card and says so when the server refuses, or the network is down', async () => {
+    const p = await withCards({ answers: (c) => (c.method === 'PATCH' ? { ok: false, status: 403 } : undefined) });
+    removeButton(p.cards()[0]).click();
+    await p.flush();
+    expect(p.cards()).toHaveLength(2);
+    expect(p.toasts.at(-1)).toEqual(['Could not remove open house (HTTP 403)', 'error']);
+    const q = await withCards({ answers: (c) => (c.method === 'PATCH' ? { ok: false, status: 0, reject: 'offline' } : undefined) });
+    removeButton(q.cards()[0]).click();
+    await q.flush();
+    expect(q.cards()).toHaveLength(2);
+    expect(q.toasts.at(-1)).toEqual(['Could not remove open house: offline', 'error']);
+  });
+
+  it('an open house with no id cannot be cancelled: the card stays and the agent is told', async () => {
+    const p = boot({ savedId: 'RL-7', answers: (c) => (c.method === 'POST' ? { ok: true, status: 201, body: {} } : undefined) });
+    p.fill(FULL);
+    await p.manager.save();
+    const before = p.calls.length;
+    removeButton(p.cards()[0]).click();
+    await p.flush();
+    expect(p.calls).toHaveLength(before);
+    expect(p.cards()).toHaveLength(1);
+    expect(p.toasts.at(-1)).toEqual(['This open house has no id, so it cannot be cancelled here.', 'error']);
+  });
+
+  it('encodes the id in the address', async () => {
+    const p = boot({ savedId: 'RL-7', answers: (c) => (c.method === 'POST' ? { ok: true, status: 201, body: { showing: { id: 'S 9/1' } } } : undefined) });
+    p.fill(FULL);
+    await p.manager.save();
+    removeButton(p.cards()[0]).click();
+    await p.flush();
+    expect(p.calls.at(-1)!.url).toBe('/api/crm/showings/S%209%2F1');
+  });
+});
+
+describe('the open houses of a saved listing', () => {
+  const show = (over: Record<string, unknown>) => ({ id: 'S-1', listing_id: '77', date: '2026-10-11T00:00:00.000Z', time: '2:00 PM - 4:30 PM', type: 'openhouse', status: 'confirmed', notes: '[Public] Bring ID', listing: { listing_id: 'RL-7' }, ...over });
+  const loaded = async (rows: unknown[], keys: unknown[] = ['RL-7', '77'], shape: (r: unknown[]) => unknown = (r) => ({ showings: r })) => {
+    const p = boot({ answers: (c) => (c.method === 'GET' ? { ok: true, status: 200, body: shape(rows) } : undefined) });
+    await p.manager.load(keys);
+    return p;
+  };
+
+  it('asks for the showings, whatever their type, and shows the open houses of this listing as cards', async () => {
+    const p = await loaded([
+      show({ id: 'S-1' }),
+      show({ id: 'S-2', type: 'brokersopen', notes: '[BrokerOnly] Lockbox on the door', date: '2026-10-12' }),
+      show({ id: 'S-3', type: 'showing' }),                                        // not an open house
+      show({ id: 'S-4', status: 'cancelled' }),                                    // cancelled
+      show({ id: 'S-5', listing: { listing_id: 'RL-8' }, listing_id: '88' }),      // another listing
+      show({ id: 'S-6', listing: undefined, listing_id: 77 }),                     // this listing, by its numeric id
+    ]);
+    expect(p.calls).toEqual([{ url: '/api/crm/showings?limit=200', method: 'GET', headers: undefined, body: undefined, credentials: 'include' }]);
+    expect(p.cards().map((c) => c.getAttribute('data-showing-id'))).toEqual(['S-1', 'S-2', 'S-6']);
+    const [first, second] = p.cards();
+    expect(first.textContent).toContain('Oct 11');
+    expect(first.textContent).toContain('2:00 PM - 4:30 PM');
+    expect(first.querySelector('.text-lg')!.textContent).toBe('Oct 11');
+    expect(first.textContent).toContain('Bring ID');
+    expect(first.textContent).not.toContain('[Public]');
+    expect(second.textContent).toContain('Oct 12');
+    expect(second.textContent).toContain('Broker Only');
+    expect(second.textContent).toContain('(internal)');
+    expect(second.textContent).toContain('Lockbox on the door');
+  });
+
+  it('gets the type the agent chose back from the notes (By Appointment), and a type from the showing when the notes have none', async () => {
+    const p = await loaded([show({ id: 'S-1', notes: '[ByAppointment] RSVP' }), show({ id: 'S-2', notes: 'plain note' }), show({ id: 'S-3', type: 'brokersopen', notes: null })]);
+    const [a, b, c] = p.cards();
+    expect(a.textContent).toContain('By Appt');
+    expect(a.textContent).not.toContain('(internal)');
+    expect(b.textContent).toContain('Public');
+    expect(b.textContent).toContain('plain note');
+    expect(c.textContent).toContain('Broker Only');
+    expect(c.textContent).toContain('(internal)');
+  });
+
+  it('reads the list from showings, data, or an answer that is the list', async () => {
+    for (const shape of [(r: unknown[]) => ({ showings: r }), (r: unknown[]) => ({ data: r }), (r: unknown[]) => r]) {
+      const p = await loaded([show({})], ['RL-7'], shape);
+      expect(p.cards()).toHaveLength(1);
+    }
+    const none = await loaded([show({})], ['RL-7'], () => ({ showings: 'none' }));
+    expect(none.cards()).toHaveLength(0);
+    const weird = await loaded([show({})], ['RL-7'], () => 42);
+    expect(weird.cards()).toHaveLength(0);
+  });
+
+  it('skips an entry that is not a record', async () => {
+    const p = await loaded([null, 'x', 7, show({})]);
+    expect(p.cards()).toHaveLength(1);
+  });
+
+  it('a note that is markup is text', async () => {
+    const p = await loaded([show({ notes: '[Public] <img src=x onerror=alert(1)>' })]);
+    expect(p.list().querySelectorAll('img')).toHaveLength(0);
+    expect(p.cards()[0].textContent).toContain('<img src=x onerror=alert(1)>');
+  });
+
+  it('a date that is not one is shown as it is', async () => {
+    const p = await loaded([show({ date: 'tomorrow' })]);
+    expect(p.cards()[0].textContent).toContain('tomorrow');
+  });
+
+  it('asks for nothing for a listing that has no id, and shows the "none yet" line', async () => {
+    const p = boot();
+    p.list().innerHTML = '<div data-showing-id="old">old</div>';
+    await p.manager.load(['', undefined, null]);
+    expect(p.calls).toEqual([]);
+    expect(p.cards()).toHaveLength(0);
+    expect(p.d.getElementById('rentalOpenHouseEmpty')).not.toBeNull();
+  });
+
+  it('replaces the cards it showed before', async () => {
+    const p = await loaded([show({})]);
+    await p.manager.load(['RL-7', '77']);
+    expect(p.cards()).toHaveLength(1);
+  });
+
+  it('leaves the "none yet" line when the list cannot be had', async () => {
+    const p = boot({ answers: () => ({ ok: false, status: 500 }) });
+    await p.manager.load(['RL-7']);
+    expect(p.cards()).toHaveLength(0);
+    expect(p.d.getElementById('rentalOpenHouseEmpty')).not.toBeNull();
+    const q = boot({ answers: () => ({ ok: false, status: 0, reject: 'offline' }) });
+    await q.manager.load(['RL-7']);
+    expect(q.d.getElementById('rentalOpenHouseEmpty')).not.toBeNull();
+    expect(q.toasts).toEqual([]);                                                  // not critical: no toast
+  });
+
+  it('a page without the list does nothing', async () => {
+    const p = boot();
+    p.list().remove();
+    await p.manager.load(['RL-7']);
+    expect(p.calls).toEqual([]);
+  });
+});
+
+describe('a page without a toast, an alert, a confirmation or a network', () => {
+  it('is built with the page\'s own when none is given', async () => {
+    const dom = new JSDOM('<!doctype html><body><div id="rentalOpenHouseList"></div></body>', { url: 'https://mallan.nyc/', runScripts: 'outside-only' });
+    const w: any = dom.window;
+    w.eval(SOURCE);
+    let alerted = '';
+    w.alert = (m: string) => { alerted = m; };
+    const manager = w.MallanOpenHouses.create({ prefix: 'rental' });
+    await manager.save();
+    expect(alerted).toBe('Please fill in Date, Start Time, and End Time.');
+    manager.render({ id: 'S-1', date: '2026-10-11', time: '2 PM', type: 'Public', notes: '', isPublic: true });
+    w.confirm = () => false;
+    const button = w.document.querySelector('button') as HTMLButtonElement;
+    button.click();
+    expect(w.document.querySelectorAll('[data-showing-id]')).toHaveLength(1);
+  });
+});
