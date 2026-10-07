@@ -238,6 +238,6 @@ describe('Building lookup fills SAVED Mallan profile fields only when blank', ()
     const fn = extractFn(FORM, 'populateBuildingFromIDX');
     expect(fn).toContain("prefix + 'BldgStreetAddress'");
     expect(fn).toContain("prefix + 'BldgAssociationName'");
-    expect(fn).toContain("prefix + 'BldgDoorman'");
+    expect(fn).toContain("prefix + 'AttendanceType'");
   });
 });

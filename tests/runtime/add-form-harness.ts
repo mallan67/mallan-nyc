@@ -28,9 +28,10 @@ export type AddFormOpts = {
   getError?: string;                                 // make MallanAPI.listings.get fail with this message (the listing could not be loaded)
   noListingsApi?: boolean;                           // a MallanAPI without listings (no way to load or save a listing)
   buildings?: Record<string, unknown>[] | ((query: string) => Record<string, unknown>[]);   // what GET /api/buildings/search answers (the building index)
-  buildingsStatus?: number;                          // the HTTP status it answers with (default 200)
+  buildingsStatus?: number | ((query: string, call: number) => number);   // the HTTP status it answers with (default 200); a function is asked per request (1, 2, ...)
   buildingsHint?: string;                            // the _errorHint it carries
-  buildingsDelay?: number;                           // ms before it answers
+  buildingsDelay?: number | ((query: string, call: number) => number);    // ms before it answers; a function is asked per request
+  buildingsReply?: (query: string, call: number) => unknown;               // answers the request itself: a response-like object, or throws (the network is down)
   neighborhoods?: Record<string, string[]>;          // what GET /api/crm/neighborhoods/cotality answers (borough -> neighborhoods)
   members?: Record<string, DirectoryMember | null>;  // live Member directory answers, by MLS ID
   directoryError?: string;                           // make every directory lookup fail with this message
@@ -68,6 +69,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
   const fetched: string[] = [];
   const saved: Record<string, unknown>[] = [];
   const searched: string[] = [];                       // the queries sent to /api/buildings/search
+  let buildingCalls = 0;
   const virtualConsole = new VirtualConsole();
   virtualConsole.on('jsdomError', (e: any) => errors.push(String(e?.detail?.message ?? e?.message)));
   const user = o.user === undefined ? SESSION_USER : o.user;
@@ -84,10 +86,14 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
       w.fetch = async (url: string) => {
         const u = String(url);
         if (u.startsWith('/api/buildings/search')) {
-          if (o.buildingsDelay) await sleep(o.buildingsDelay);
           const q = decodeURIComponent((u.split('q=')[1] ?? '').split('&')[0]);
-          searched.push(q);
-          const status = o.buildingsStatus ?? 200;
+          const call = ++buildingCalls;
+          searched.push(q);                              // the query as it was asked, before the index answers
+          const wait = typeof o.buildingsDelay === 'function' ? o.buildingsDelay(q, call) : o.buildingsDelay;
+          if (wait) await sleep(wait);
+          const reply = o.buildingsReply ? o.buildingsReply(q, call) : undefined;     // undefined: the stub answers as usual
+          if (reply !== undefined) return reply;
+          const status = typeof o.buildingsStatus === 'function' ? o.buildingsStatus(q, call) : (o.buildingsStatus ?? 200);
           const rows = typeof o.buildings === 'function' ? o.buildings(q) : (o.buildings ?? []);
           return { ok: status < 400, status, json: async () => ({ buildings: rows, ...(o.buildingsHint ? { _errorHint: o.buildingsHint } : {}) }), text: async () => '' };
         }

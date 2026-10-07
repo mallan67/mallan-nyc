@@ -29,7 +29,7 @@ describe('Form — InHouse permits Cotality building lookup', () => {
   it('saleAddressBlurLookup does NOT have InHouse early-return', () => {
     const fnStart = formHtml.indexOf('function saleAddressBlurLookup()');
     expect(fnStart).toBeGreaterThan(-1);
-    const body = formHtml.slice(fnStart, fnStart + 2000);
+    const body = formHtml.slice(fnStart, fnStart + 3500);
     expect(body).not.toContain('_isInHouseListingType');
   });
 
@@ -41,10 +41,10 @@ describe('Form — InHouse permits Cotality building lookup', () => {
   it('saleAddressBlurLookup checks local cache first, then falls back to API', () => {
     const fnStart = formHtml.indexOf('function saleAddressBlurLookup()');
     expect(fnStart).toBeGreaterThan(-1);
-    const body = formHtml.slice(fnStart, fnStart + 2000);
-    expect(body).toContain('buildingDatabase.find');
+    const body = formHtml.slice(fnStart, fnStart + 3500);
+    expect(body).toContain('exactMatch(buildingDatabase, addr)');
     expect(body).toContain('fetchBuildingsFromAPI(addr)');
-    const cacheIdx = body.indexOf('buildingDatabase.find');
+    const cacheIdx = body.indexOf('exactMatch(buildingDatabase, addr)');
     const apiIdx = body.indexOf('fetchBuildingsFromAPI(addr)');
     expect(cacheIdx).toBeLessThan(apiIdx);
   });
@@ -52,7 +52,7 @@ describe('Form — InHouse permits Cotality building lookup', () => {
   it('saleAddressBlurLookup shows candidates in existing results UI on multi-match', () => {
     const fnStart = formHtml.indexOf('function saleAddressBlurLookup()');
     expect(fnStart).toBeGreaterThan(-1);
-    const body = formHtml.slice(fnStart, fnStart + 2000);
+    const body = formHtml.slice(fnStart, fnStart + 3500);
     expect(body).toContain('saleBuildingSearchResults');
     expect(body).toContain("selectBuildingFromIDX('sale'");
   });
@@ -137,7 +137,7 @@ describe('filterDisplayableDbListings — website-only bypass', () => {
 
 describe('Form — InHouse address mismatch confirmation', () => {
   it('selectBuildingFromIDX checks _isInHouseListingType before address overwrite', () => {
-    const fnMatch = formHtml.match(/function selectBuildingFromIDX\(prefix, address\)\s*\{([\s\S]{0,4000}?)\n\}/);
+    const fnMatch = formHtml.match(/function selectBuildingFromIDX\(prefix, picked, auto\)\s*\{([\s\S]{0,6000}?)\n\}/);
     expect(fnMatch).not.toBeNull();
     const body = fnMatch![1];
     expect(body).toContain('_isInHouseListingType(prefix)');
@@ -155,7 +155,7 @@ describe('Form — InHouse address mismatch confirmation', () => {
   });
 
   it('Cancel preserves typed address but still populates building fields', () => {
-    const fnMatch = formHtml.match(/function selectBuildingFromIDX\(prefix, address\)\s*\{([\s\S]{0,4000}?)\n\}/);
+    const fnMatch = formHtml.match(/function selectBuildingFromIDX\(prefix, picked, auto\)\s*\{([\s\S]{0,6000}?)\n\}/);
     expect(fnMatch).not.toBeNull();
     const body = fnMatch![1];
     expect(body).toContain('if (!useCanonical)');
@@ -167,7 +167,7 @@ describe('Form — InHouse address mismatch confirmation', () => {
 
 describe('Form — Non-InHouse lookup behavior preserved', () => {
   it('selectBuildingFromIDX still overwrites address for non-InHouse (no confirm gate)', () => {
-    const fnMatch = formHtml.match(/function selectBuildingFromIDX\(prefix, address\)\s*\{([\s\S]{0,4000}?)\n\}/);
+    const fnMatch = formHtml.match(/function selectBuildingFromIDX\(prefix, picked, auto\)\s*\{([\s\S]{0,6000}?)\n\}/);
     expect(fnMatch).not.toBeNull();
     const body = fnMatch![1];
     const afterGuard = body.split('populateBuildingFromIDX(prefix, building)')[1] || '';

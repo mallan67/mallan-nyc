@@ -4965,6 +4965,17 @@ function toggleSaleAuctionFields() {
 // Building database — loaded from API, no hardcoded mock data
 let buildingDatabase = [];
 let _buildingSearchTimeout = null;
+let _buildingSearchSeq = 0;           // the search box's latest query: an answer for an earlier one is not shown
+let _buildingModalSearchTimer = null;
+let _buildingModalSearchSeq = 0;      // the same for the Building tab's search
+let _addressLookupFor = '';           // the typed address a lookup is waiting for (leaving the box again meanwhile asks nothing more)
+
+// js/forms/building-lookup.js is a separate script: a page that could not load it still boots, parses the typed address and takes a listing type; nothing is looked up.
+function _buildingLookup() { return typeof MallanBuildingLookup !== 'undefined' ? MallanBuildingLookup : null; }
+// What the index is asked: the street address of what was typed ("200 East 66th Street Apt 12B" is asked as "200 East 66th Street").
+function _searchText(query) { var bl = _buildingLookup(); return bl ? bl.searchText(query) : String(query || '').trim(); }
+// The form's Borough option for the borough the index names ("Staten Island", "Kings"); '' for what is not a borough, so nothing is written.
+function _boroughOption(name) { var bl = _buildingLookup(); return bl ? bl.boroughValue(name) : ''; }
 
 // Raw Cotality CommonInterest → Mallan form display classification.
 // Do not infer from PropertyType/PropertySubType here: this helper only translates exact raw values.
@@ -4983,7 +4994,7 @@ function _commonInterestToFormType(ci) {
 async function fetchBuildingsFromAPI(query) {
     if (!query || query.length < 3) return [];
     try {
-        var resp = await fetch('/api/buildings/search?q=' + encodeURIComponent(query), { credentials: 'same-origin' });
+        var resp = await fetch('/api/buildings/search?q=' + encodeURIComponent(_searchText(query)), { credentials: 'same-origin' });
         // Read body for all responses — backend returns _errorHint on errors
         var body;
         try { body = await resp.json(); } catch (_) { body = {}; }
@@ -4991,13 +5002,18 @@ async function fetchBuildingsFromAPI(query) {
 
         if (resp.status === 401) {
             showToast(hint || 'Session expired. Please log in again.', 'error');
-            return [];
+            return null;                                   // the lookup could not be made: that is not "no match"
         }
         if (!resp.ok) {
             showToast(hint || 'Building lookup temporarily unavailable.', 'warning');
-            return [];
+            return null;
         }
-        var buildings = body.buildings || [];
+        // an answer that is not JSON, or has no list of buildings, is no answer
+        var buildings = Array.isArray(body.buildings) ? body.buildings : null;
+        if (!buildings) {
+            showToast(hint || 'Building lookup temporarily unavailable.', 'warning');
+            return null;
+        }
         if (buildings.length === 0 && hint) {
             showToast(hint, 'warning');
         }
@@ -5006,8 +5022,8 @@ async function fetchBuildingsFromAPI(query) {
             var formType = _commonInterestToFormType(ci);
             var rawAddr = b.address || b.street_address || '';
             var bldgName = b.name || b.building_name || '';
-            var streetNum = rawAddr.match(/^\d+/);
-            var displayAddr = (bldgName && streetNum && bldgName.indexOf(streetNum[0]) !== -1) ? bldgName : rawAddr;
+            // the building's address is its address: a name that happens to contain the street number ("Beekman Tower 55") is a name, not the address
+            var displayAddr = rawAddr;
             // Preserve EVERY field the API returned (tax_block/tax_lot,
             // association_*, cross_street, stories_total/units_total,
             // structure_type, subdivisionName, and the expanded amenities
@@ -5022,6 +5038,8 @@ async function fetchBuildingsFromAPI(query) {
                 address: displayAddr,
                 name: bldgName,
                 borough: b.borough || b.city_region || '',
+                // the form's Borough option for it ("Staten Island" is StatenIsland), or '' when the index's word is not a borough: what the Borough controls are written from
+                boroughOption: _boroughOption(b.borough || b.city_region),
                 zip: b.zip || b.postal_code || '',
                 neighborhood: b.neighborhood || b.subdivision_name || '',
                 type: formType,
@@ -5037,41 +5055,61 @@ async function fetchBuildingsFromAPI(query) {
     } catch (e) {
         console.warn('[Building Search] API error:', e.message);
         showToast('Building lookup temporarily unavailable.', 'warning');
-        return [];
+        return null;
     }
 }
 
 // Building search — auto-detect property type and populate building data
 function searchBuildingForListing(query, prefix) {
     const results = document.getElementById(prefix + 'BuildingSearchResults');
-    if (!results) return;
+    var bl = _buildingLookup();
+    if (!results || !bl) return;
+    clearTimeout(_buildingSearchTimeout);          // a shorter query cancels the one still waiting
+    const asked = ++_buildingSearchSeq;             // and an answer is shown only for the latest query
     if (query.length < 3) { results.classList.add('hidden'); return; }
 
     // Debounce API calls
-    clearTimeout(_buildingSearchTimeout);
     _buildingSearchTimeout = setTimeout(async function() {
-        MallanBuildingLookup.message(results, 'Searching...');
+        bl.message(results, 'Searching...');
 
         var matches = await fetchBuildingsFromAPI(query);
+        if (asked !== _buildingSearchSeq) return;   // the agent has typed again since
+        if (matches === null) { bl.unavailable(results); return; }
         buildingDatabase = matches; // Cache results for selectBuildingFromIDX
 
         if (matches.length === 0) {
-            MallanBuildingLookup.message(results, 'No matches found. Enter address manually.');
+            bl.message(results, 'No matches found. Enter address manually.');
             return;
         }
 
-        MallanBuildingLookup.renderResults(results, matches, function(b) { selectBuildingFromIDX(prefix, b.address); });
+        // the row the agent clicks is the building applied: two buildings can share an address
+        bl.renderResults(results, matches, function(b) { selectBuildingFromIDX(prefix, b); });
     }, 300);
 }
 
 // Building selection — populates building/property fields from Trestle reference data.
 // For InHouse: requires explicit confirmation when Trestle address differs from typed address.
-function selectBuildingFromIDX(prefix, address) {
-    const building = buildingDatabase.find(b => b.address === address);
+function selectBuildingFromIDX(prefix, picked, auto) {
+    var bl = _buildingLookup();
+    if (!bl) return;
+    // The building the agent clicked (or the one the lookup chose), not "the building with that address": two buildings can share one. A caller that has only an address
+    // gets the one building the cache holds for it, if it holds exactly one.
+    const building = (picked && typeof picked === 'object') ? picked : bl.exactMatch(buildingDatabase, picked);
     if (!building) return;
+    // The same building again (the agent left the address box and came back): everything the agent changed since, in the Building tab and elsewhere, stays as it is.
+    // Only a building the agent picks from a list (auto is not set) is applied again.
+    if (auto && bl.isApplied(prefix, building)) {
+        var shown = document.getElementById(prefix + 'BuildingSearchResults');
+        if (shown) shown.classList.add('hidden');
+        bl.resolved(prefix);
+        return;
+    }
 
-    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    // a field the building's answer does not carry is left as it is: an empty answer never erases what the agent entered
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el && val !== null && val !== undefined && val !== '') el.value = val; };
     const currentAddr = document.getElementById(prefix + 'StreetAddress')?.value?.trim() || '';
+    const typedUnit = bl.splitAddress(currentAddr).unit;          // "200 East 66th Street Apt 12B": the unit typed in the street box
+    const borough = building.boroughOption;                        // the form's Borough option for the index's borough, or '' (see fetchBuildingsFromAPI)
 
     // InHouse guard: if typed address differs materially from Trestle canonical,
     // require explicit confirmation before overwriting. Prevents silent address
@@ -5090,13 +5128,13 @@ function selectBuildingFromIDX(prefix, address) {
             );
             if (!useCanonical) {
                 // Keep typed address but still populate building/property fields
-                setVal(prefix + 'Borough', building.borough);
+                setVal(prefix + 'Borough', borough);
                 setVal(prefix + 'ZipCode', building.zip);
                 setVal(prefix + 'NeighborhoodFromAddress', building.neighborhood);
                 parseSaleAddress();
                 updateSaleAddressDerived();
                 var keptTypeRadio = document.querySelector('input[name="' + prefix + 'PropertyType"][value="' + building.type + '"]');
-                if (keptTypeRadio) { keptTypeRadio.checked = true; applySalesFieldRules(); }
+                if (keptTypeRadio && !bl.overridden(prefix, building)) { keptTypeRadio.checked = true; applySalesFieldRules(); }
                 var keptBanner = document.getElementById(prefix + 'IdxMatchBanner');
                 if (keptBanner) {
                     keptBanner.classList.remove('hidden');
@@ -5114,15 +5152,18 @@ function selectBuildingFromIDX(prefix, address) {
 
     // 1. Populate address fields (overwrite with Trestle canonical)
     setVal(prefix + 'StreetAddress', building.address);
-    setVal(prefix + 'Borough', building.borough);
+    setVal(prefix + 'Borough', borough);
     setVal(prefix + 'ZipCode', building.zip);
     setVal(prefix + 'NeighborhoodFromAddress', building.neighborhood);
     parseSaleAddress();
     updateSaleAddressDerived();
+    // the unit typed with the address goes to the Unit Number when that is empty (the address box is rewritten with the building's own address)
+    var unitBox = document.getElementById(prefix + 'UnitNumber');
+    if (typedUnit && unitBox && !(unitBox.value || '').trim()) unitBox.value = typedUnit;
 
-    // 2. Auto-detect property type
+    // 2. Auto-detect property type (not for a building the agent has overridden)
     var typeRadio = document.querySelector('input[name="' + prefix + 'PropertyType"][value="' + building.type + '"]');
-    if (typeRadio) { typeRadio.checked = true; applySalesFieldRules(); }
+    if (typeRadio && !bl.overridden(prefix, building)) { typeRadio.checked = true; applySalesFieldRules(); }
 
     // 3. Show match banner
     var banner = document.getElementById(prefix + 'IdxMatchBanner');
@@ -5248,7 +5289,7 @@ function populateBuildingFromIDX(prefix, building) {
     // ── 1. Address atoms (NEVER drop StreetDirPrefix) ─────────────────
     setVal(prefix + 'BldgStreetAddress', building.address);
     setVal(prefix + 'BldgName', building.name);
-    setVal(prefix + 'BldgBorough', building.borough);
+    setVal(prefix + 'BldgBorough', building.boroughOption);
     setVal(prefix + 'BldgCity', pick('city', 'city') || 'New York');
     setVal(prefix + 'BldgState', pick('state', 'state') || 'NY');
     setVal(prefix + 'BldgZip', building.zip);
@@ -5368,12 +5409,10 @@ function populateBuildingFromIDX(prefix, building) {
     checkIf(prefix + 'BldgWasherDryerAllowed', pick('washer_dryer_allowed', 'washerDryerAllowed') || _wdAllowed);
 
     // ── 7. Amenity checkboxes (every BuildingFeatures-derived flag) ─
-    checkIf(prefix + 'BldgDoorman', building.doorman);
     checkIf(prefix + 'BldgElevator', building.elevator);
     checkIf(prefix + 'BldgGym', building.gym);
     checkIf(prefix + 'BldgPool', building.pool);
     checkIf(prefix + 'BldgParking', building.parking || pick('garage_yn', 'garageYN') || pick('attached_garage_yn', 'attachedGarageYN')); // GarageYN/AttachedGarageYN real Cotality (Track 1)
-    checkIf(prefix + 'BldgConcierge', building.concierge);
     checkIf(prefix + 'BldgSpa', pick('spa', 'spa'));
     checkIf(prefix + 'BldgRoofDeck', pick('roof_deck', 'roofDeck'));
     checkIf(prefix + 'BldgStorage', pick('storage', 'storage'));
@@ -5487,6 +5526,12 @@ function populateBuildingFromIDX(prefix, building) {
     // checkbox values mirror the Cotality members 1:1.
     fillGroupIfEmpty('saleBldgDocsAvailable', pick('documents_available', 'documentsAvailable'), function (m) { return m; });
 
+    // Doorman / Concierge: what the building index reads as the building's attendance (AttendanceType, BuildingFeatures). The form's Building Attendance Type is a group of
+    // the Cotality AttendanceType members, and "...Yes" is the one that says the building has one without saying for how many hours. Suggestion only, like the groups
+    // above: it fills when the agent has chosen none.
+    var _attendance = [building.doorman ? 'DoormanYes' : '', building.concierge ? 'ConciergeYes' : ''].filter(Boolean).join(',');
+    if (_attendance) fillGroupIfEmpty(prefix + 'AttendanceType', _attendance, function (m) { return m; });
+
     // Pets — UNIT-level Cotality PetsAllowed (NOT building-wide authority): a
     // building lookup only SUGGESTS the unit pet policy, applied when the agent
     // left it empty. EXPLICIT Cotality→form map (no guessing): live $metadata
@@ -5551,36 +5596,54 @@ function autoDeriveSaleStructureType() {
 // is applied; several are offered; none says so. An address the form filled in (a saved listing, a draft) is not looked up.
 function saleAddressBlurLookup() {
     const addr = document.getElementById('saleStreetAddress')?.value?.trim();
-    if (!addr || addr.length < 5 || !MallanBuildingLookup.typed('sale')) { parseSaleAddress(); return; }
-    MallanBuildingLookup.resolved('sale');
-    const localMatch = buildingDatabase.find(b => b.address.toLowerCase() === addr.toLowerCase());
+    var bl = _buildingLookup();
+    if (!addr || addr.length < 5 || !bl || !bl.typed('sale')) { parseSaleAddress(); return; }
+    // the cache first: the one building whose address IS the typed address (two buildings can share an address, and then nothing picks between them)
+    const localMatch = bl.exactMatch(buildingDatabase, addr);
     if (localMatch) {
-        selectBuildingFromIDX('sale', localMatch.address);
+        bl.resolved('sale');
+        selectBuildingFromIDX('sale', localMatch, true);
         parseSaleAddress();
         return;
     }
+    if (_addressLookupFor === addr) { parseSaleAddress(); return; }          // this address is already being looked up
+    _addressLookupFor = addr;
     // No local match — call API, then show candidates in the existing results UI
     fetchBuildingsFromAPI(addr).then(function(matches) {
+        if (_addressLookupFor === addr) _addressLookupFor = '';
         if ((document.getElementById('saleStreetAddress')?.value || '').trim() !== addr) return;   // the agent has changed the address since: that answer is for another
         var results = document.getElementById('saleBuildingSearchResults');
-        if (!matches || matches.length === 0) {
-            if (results) MallanBuildingLookup.message(results, 'No building match found — enter building details manually.');
+        if (matches === null) {                                                // the index could not answer: the address stays typed, so leaving the box again asks again
+            if (results) bl.unavailable(results);
+            parseSaleAddress();
+            return;
+        }
+        bl.resolved('sale');
+        if (matches.length === 0) {
+            if (results) bl.message(results, 'No building match found — enter building details manually.');
             parseSaleAddress();
             return;
         }
         buildingDatabase = matches;
-        var pick = matches.length === 1 ? matches[0] : MallanBuildingLookup.exactMatch(matches, addr);
+        // the candidate whose address IS the typed address is applied; a lone candidate for another address is offered, like several are
+        var pick = bl.exactMatch(matches, addr);
         if (results && pick) {
-            selectBuildingFromIDX('sale', pick.address);
+            selectBuildingFromIDX('sale', pick, true);
         } else if (results) {
-            MallanBuildingLookup.renderResults(results, matches, function(b) { selectBuildingFromIDX('sale', b.address); });
+            bl.renderResults(results, matches, function(b) { selectBuildingFromIDX('sale', b); });
         }
         parseSaleAddress();
-    }).catch(function() { parseSaleAddress(); });
+    }).catch(function() { _addressLookupFor = ''; parseSaleAddress(); });
 }
 
 // The building was applied: hold the property type its Cotality record names, and count the address as looked up.
-function _holdBuilding(prefix, building) { MallanBuildingLookup.lock(prefix, building); MallanBuildingLookup.resolved(prefix); }
+function _holdBuilding(prefix, building) {
+    var bl = _buildingLookup();
+    if (!bl) return;
+    bl.lock(prefix, building);
+    bl.resolved(prefix);
+    bl.markApplied(prefix, building);
+}
 
 // ══════════════════════════════════════════════════════
 // RLS ADDRESS FIELD DERIVATION
@@ -5652,7 +5715,9 @@ function _isInHouseListingType(prefix) {
 
 function _clearIdxMatchState(prefix) {
     clearTimeout(_buildingSearchTimeout);
-    MallanBuildingLookup.unlock(prefix);
+    _buildingSearchSeq++;
+    var bl = _buildingLookup();
+    if (bl) { bl.unlock(prefix); bl.reset(prefix); }
     var banner = document.getElementById(prefix + 'IdxMatchBanner');
     if (banner) banner.classList.add('hidden');
     var results = document.getElementById(prefix + 'BuildingSearchResults');
@@ -6675,11 +6740,15 @@ function showSaleBldgSubTab(mainTab, subTab) {
 
 async function searchBuildingByAddress(query, prefix) {
     const results = document.getElementById(prefix + 'BldgSearchResults');
-    if (!results) return;
+    var bl = _buildingLookup();
+    if (!results || !bl) return;
+    clearTimeout(_buildingModalSearchTimer);        // a newer keystroke cancels the query still waiting
+    const asked = ++_buildingModalSearchSeq;        // and an answer is shown only for the latest one
     if (query.length < 3) { results.classList.add('hidden'); return; }
 
     const renderMatches = function(list) {
-        MallanBuildingLookup.renderResults(results, list, function(b) { selectBuildingForModal(prefix, b.address); });
+        // the row the agent clicks is the building applied: two buildings can share an address
+        bl.renderResults(results, list, function(b) { selectBuildingForModal(prefix, b); });
     };
 
     // 1. Try the in-memory cache first (populated by the main-address lookup).
@@ -6687,28 +6756,31 @@ async function searchBuildingByAddress(query, prefix) {
         b.address.toLowerCase().includes(query.toLowerCase()) ||
         b.name.toLowerCase().includes(query.toLowerCase())
     );
+    if (matches.length > 0) { renderMatches(matches); return; }
 
     // 2. Cache empty/stale — e.g. the agent opened the Building tab directly, or
     //    the main-address lookup returned nothing. The Building tab is an
-    //    INDEPENDENT fallback: query the API so it works on its own.
-    if (matches.length === 0) {
-        MallanBuildingLookup.message(results, 'Searching...');
+    //    INDEPENDENT fallback: query the API so it works on its own. One query
+    //    per pause in typing, not one per keystroke (the index allows 20 a minute).
+    bl.message(results, 'Searching...');
+    _buildingModalSearchTimer = setTimeout(async function() {
         const apiMatches = await fetchBuildingsFromAPI(query);
-        if (apiMatches && apiMatches.length > 0) {
-            buildingDatabase = apiMatches;
-            matches = apiMatches;
+        if (asked !== _buildingModalSearchSeq) return;
+        if (apiMatches === null) { bl.unavailable(results); return; }
+        if (apiMatches.length === 0) {
+            bl.message(results, 'No building match found. Enter building details manually.');
+            return;
         }
-    }
-
-    if (matches.length === 0) {
-        MallanBuildingLookup.message(results, 'No building match found. Enter building details manually.');
-        return;
-    }
-    renderMatches(matches);
+        buildingDatabase = apiMatches;
+        renderMatches(apiMatches);
+    }, 300);
 }
 
-function selectBuildingForModal(prefix, address) {
-    const building = buildingDatabase.find(b => b.address === address);
+function selectBuildingForModal(prefix, picked) {
+    var bl = _buildingLookup();
+    if (!bl) return;
+    // the row the agent clicked: two buildings can share an address
+    const building = (picked && typeof picked === 'object') ? picked : bl.exactMatch(buildingDatabase, picked);
     if (!building) return;
     // Cotality is the source of truth — populate the FULL building field set via
     // the shared populateBuildingFromIDX (NOT a partial bespoke mapper), so the
@@ -6720,11 +6792,12 @@ function selectBuildingForModal(prefix, address) {
     populateBuildingFromIDX(prefix, building);
     // Building type (Condo / Co-op / Condop / Townhouse / …) from the match.
     var typeRadio = document.querySelector('input[name="' + prefix + 'PropertyType"][value="' + building.type + '"]');
-    if (typeRadio) {
+    if (typeRadio && !bl.overridden(prefix, building)) {
         typeRadio.checked = true;
         if (typeof applySalesFieldRules === 'function') applySalesFieldRules();
     }
-    MallanBuildingLookup.lock(prefix, building);
+    bl.lock(prefix, building);
+    bl.markApplied(prefix, building);
     // Hide results + reflect the chosen address in the search box.
     const results = document.getElementById(prefix + 'BldgSearchResults');
     if (results) results.classList.add('hidden');
@@ -7037,7 +7110,8 @@ function selectSaleCommercial(header) {
     const body = header.nextElementSibling;
     if (body && body.style.display !== 'none') {
         const commRadio = document.querySelector('#saleCommercialMasterSection input[name="salePropertyType"][value="Commercial"]');
-        if (commRadio && !commRadio.checked) {
+        // a locked property type (a building's Cotality record names it) is not changed by opening a section: its radios are disabled
+        if (commRadio && !commRadio.checked && !commRadio.disabled) {
             commRadio.checked = true;
             toggleSaleCommercialOwnership();
         }
