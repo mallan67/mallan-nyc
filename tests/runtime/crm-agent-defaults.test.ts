@@ -383,11 +383,11 @@ describe.each(FORMS)('%s: editing a saved listing', (form, prefix, collector) =>
     } finally { f.close(); }
   });
 
-  it('an MLS ID that is not a Cotality MLS ID (digits only) is not looked up and is said so', async () => {
+  it('an MLS ID that is not a Cotality MLS ID (1 to 12 digits) is not looked up and is said so', async () => {
     const f = await bootAddForm(form, { search: '?id=1', listing: { ...SAVED, list_agent_mls_id: 'AB-12', agent_info: {}, raw_data: {} }, settle: 1500 });
     try {
       await checked(f.d, prefix);
-      expect(cotalityStatus(f.d, prefix)).toBe('MLS ID "AB-12" is not a Cotality MLS ID (digits only), so it was not checked.');
+      expect(cotalityStatus(f.d, prefix)).toBe('MLS ID "AB-12" is not a Cotality MLS ID (1 to 12 digits), so it was not checked.');
       expect(f.fetched.filter((p) => p.includes('/directory/'))).toEqual([]);
       expect(payloadOf(f, collector)).not.toHaveProperty('ListAgentKey');
     } finally { f.close(); }
@@ -799,6 +799,68 @@ const NAMES: [string, string, 'same' | 'different' | 'unknown'][] = [
   ['Michael Smith, Compass, Inc.', 'Michael Smith', 'unknown'],
   ['a b c d e f g h i j k l Smith', 'Michael Smith', 'unknown'],
   ['Michael b c d e f g h i j k Smith', 'Michael Smith', 'unknown'],     // more words than any name has
+
+  // a family name written with a space is the same letters without one (a space is not a different name: nothing to attach, nothing to remove)
+  ['Anna Mc Donald', 'Anna McDonald', 'unknown'],
+  ['Anna Mac Donald', 'Anna MacDonald', 'unknown'],
+  ['Carlos San Martin', 'Carlos Sanmartin', 'unknown'],
+  ['Maria De Los Santos', 'Maria Delossantos', 'unknown'],
+  ['Maria Las Heras', 'Maria Lasheras', 'unknown'],
+  ['Sean Fitz Patrick', 'Sean Fitzpatrick', 'unknown'],
+  ['Lisa Lo Presti', 'Lisa Lopresti', 'unknown'],
+  ['Omar Abdel Rahman', 'Omar Abdelrahman', 'unknown'],
+  ['Tom Mac Kenzie', 'Tom Mackenzie', 'unknown'],
+  ['Santo Domingo', 'Santodomingo', 'unknown'],
+  ['Anna Mc Donald', 'Anna Mc Donalds', 'unknown'],
+  ['Anna Mc Donald', 'Anna Smith', 'different'],                          // a space does not make a different name look like this one
+  ['Maria De Los Santos', 'Maria Garcia', 'different'],
+  // a family name spelt two ways more than one letter apart (a romanization): too close to call, not a different person
+  ['Ivan Petrov', 'Ivan Petroff', 'unknown'],
+  ['Sergey Rabinovich', 'Sergey Rabinowitz', 'unknown'],
+  ['Alexander Gorenstein', 'Alexander Gornshteyn', 'unknown'],
+  ['Mark Johnson', 'Mark Jackson', 'different'],                          // three edits apart: another name
+  ['Wei Li', 'Wei Lee', 'different'],                                     // a short name has to be the same
+  ['Jenny Wu', 'Jenny Woo', 'different'],
+  ['Mark Peterson', 'Mark Petersen', 'unknown'],                          // one edit, as before
+  // two names that are the same words are the same name, whether or not the family name is a particle that belongs to a longer one
+  ['Anh Le', 'Anh Le', 'same'],
+  ['Kim Du', 'Kim Du', 'same'],
+  ['Thanh Van', 'Thanh Van', 'same'],
+  ['Maria Del', 'Maria Del', 'same'],
+  ['Jose Da', 'Jose Da', 'same'],
+  ['Kim Le', 'Kimberly Le', 'same'],
+  ['Anh Le', 'Anh Le Tran', 'same'],
+  ['De La Cruz', 'De La Cruz', 'unknown'],                                // no given name: nothing says whose
+  ['Anh Le', 'Linh Le', 'unknown'],
+  // a generation is part of who somebody is: a father and a son are not one person
+  ['John Smith Jr', 'John Smith Sr', 'unknown'],
+  ['John Smith II', 'John Smith III', 'unknown'],
+  ['John Smith III', 'John Smith IV', 'unknown'],
+  ['John Smith 2nd', 'John Smith 3rd', 'unknown'],
+  ['Smith, John Jr.', 'Smith, John Sr.', 'unknown'],
+  ['Mark Lee', 'Mark Lea', 'different'],                                  // three letters have to be the same
+  ['Mark Rees', 'Mark Reed', 'unknown'],                                  // four letters may be one edit away
+  ['Jo Mc Donald', 'Joanne McDonald', 'unknown'],                         // the family name is closed up without the given name
+  ['Sean O＇Brien', 'Sean O\'Brien', 'same'],                         // a full-width apostrophe
+  ['John Smith Jr', 'John Smith II', 'same'],                             // two ways of writing one generation
+  ['John Smith Jr', 'John Smith 2nd', 'same'],
+  ['John Smith II', 'John Smith 2nd', 'same'],
+  ['John Smith III', 'John Smith 3rd', 'same'],
+  ['John Smith IV', 'John Smith 4th', 'same'],
+  ['John Smith 3rd', 'John Smith 4th', 'unknown'],
+  ['John Smith Sr', 'John Smith Jr', 'unknown'],
+  ['John Smith Sr', 'John Smith III', 'unknown'],
+  ['John Smith Jr, MBA', 'John Smith Sr, MBA', 'unknown'],                // a credential after the generation does not hide it
+  ['John Smith Jr, MBA', 'John Smith II', 'same'],
+  ['Robert Kennedy Jr', 'Robert Kennedy', 'same'],                        // a suffix on one side only: the MLS ID decides, the name does not contradict it
+  ['John Smith Sr', 'John Smith Sr', 'same'],
+  // what copy and paste leaves in a name: soft hyphens, zero-width characters, full-width letters
+  ['John Smi­th', 'John Smith', 'same'],
+  ['John Smi​th', 'John Smith', 'same'],
+  ['Jo⁠hn Smith', 'John Smith', 'same'],
+  ['﻿John Smith', 'John Smith', 'same'],
+  ['Ｊｏｈｎ Ｓｍｉｔｈ', 'John Smith', 'same'],
+  ['John Smith', 'Ｊｏｈｎ Ｓｍｉｔｈ', 'same'],
 ];
 
 describe('agent-defaults: comparing the name a listing carries with the name Cotality has', () => {
@@ -1500,6 +1562,333 @@ describe('a restored draft leaves the Contacts tab to the agent module', () => {
       // the viewers (the Tools pages) hydrate in view mode, and a view-mode pass writes every control the record carries: their own pass is unchanged
       f.w.MallanListingHydration.hydrate(prefix, { raw_data: { [`${prefix}UpdatingAgentDisplay`]: 'VIEWED' } });
       expect(val(f.d, `${prefix}UpdatingAgentDisplay`)).toBe('VIEWED');
+    } finally { f.close(); }
+  });
+});
+
+// ── What the second adversarial review (of a4a87f64) found in the listing agent ──────────────────────────────────────────────────────────────────────────
+
+describe('a draft the Sale collector produced (it carries the first agent\'s provider keys) opened by the next agent', () => {
+  const SECOND = { ...SESSION_USER, id: 'AG-2', mlsId: '22222', name: 'Second Agent', email: 'second@example.test', phone: '212-555-0222' };
+  const SECOND_MEMBER = { ...SESSION_MEMBER, mlsId: '22222', fullName: 'Second Agent', key: '7777777', officeKey: '8888888', officeMlsId: '9999', officeName: 'B Office' };
+
+  it.each([
+    ['the session is ready before the draft is restored', { readySync: true }],
+    ['the session arrives after the draft is restored', { readyDelay: 300 }],
+  ])('?restore=local, %s: the form submits the signed-in agent, and not the agent who saved the draft', async (_name, timing) => {
+    const first = await bootAddForm('SALE-FORM-REDESIGN');
+    let draft = '';
+    try {
+      await checked(first.d, 'sale');
+      (first.d.getElementById('salePrice') as HTMLInputElement).value = '1234567';
+      draft = JSON.stringify({ ...first.w.collectSaleFormData(), _savedAt: new Date().toISOString() });
+    } finally { first.close(); }
+    // the draft is what the form submits: it carries the first agent's provider keys, not only the pickers' control keys
+    expect(JSON.parse(draft)).toMatchObject({
+      ListAgentFullName: 'Sender Agent', ListAgentMlsId: '39361', ListAgentKey: '4455667', ListAgentEmail: 'sender@example.test', ListAgentDirectPhone: '212-555-0199',
+      ListOfficeName: 'Mallan Real Estate Inc.', ListOfficeKey: '5671398', ListOfficeMlsId: '7041',
+    });
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { search: '?restore=local', storage: { mallan_draft_sale: draft }, user: SECOND, members: { '22222': SECOND_MEMBER }, settle: 1500, ...timing });
+    try {
+      await checked(f.d, 'sale');
+      expect(val(f.d, 'salePrice')).toBe('1234567');                                // the draft was restored...
+      expect(val(f.d, 'saleListingAgentSearch')).toBe('Second Agent');              // ...except the agent
+      expect(txt(f.d, 'saleListingAgentId')).toBe('22222');
+      expect(val(f.d, 'saleUpdatingAgentDisplay')).toBe('Second Agent · MLS ID 22222');
+      const p = f.w.collectSaleFormData();
+      expect(p).toMatchObject({
+        ListAgentFullName: 'Second Agent', ListAgentMlsId: '22222', ListAgentKey: '7777777', ListAgentEmail: 'second@example.test', ListAgentDirectPhone: '212-555-0222',
+        ListOfficeKey: '8888888', ListOfficeMlsId: '9999',
+      });
+      expect(JSON.stringify(p)).not.toMatch(/Sender Agent|4455667|5671398|sender@example\.test|212-555-0199/);   // nothing of the first agent is submitted
+      expect(cotalityStatus(f.d, 'sale')).toMatch(/^Cotality agent: Second Agent \(MLS ID 22222\)/);
+      expect(f.errors).toEqual([]);
+    } finally { f.close(); }
+  });
+
+  it('the table pass of an edit-mode hydrate skips the agent module\'s controls, and a view-mode hydrate (the Tools pages) still writes them', async () => {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 600 });
+    try {
+      const rows = { ListAgentFullName: 'STORED', ListAgentMlsId: '1', ListAgentEmail: 'stored@example.test', ListAgentDirectPhone: '2', ListOfficeName: 'STORED OFFICE', ListAgentKey: '3', ListOfficeKey: '4', ListOfficeMlsId: '5' };
+      const ids = ['saleUpdatingAgentName', 'saleUpdatingAgentMlsId', 'saleUpdatingAgentEmail', 'saleUpdatingAgentPhone', 'saleUpdatingAgentCompanyName', 'saleUpdatingAgentKey', 'saleUpdatingAgentOfficeKey', 'saleUpdatingAgentOfficeMlsId'];
+      const before = Object.fromEntries(ids.map((id) => [id, val(f.d, id)]));
+      f.w.MallanListingHydration.hydrate('sale', { raw_data: { ...rows, salePrice: '555', NumberOfUnitsTotal: '42' } }, { mode: 'edit' });
+      for (const id of ids) expect([id, val(f.d, id)]).toEqual([id, before[id]]);
+      expect(val(f.d, 'salePrice')).toBe('555');
+      expect(val(f.d, 'saleBldgTotalUnits')).toBe('42');                            // a row of the table (its key is not the control's id) still goes in
+      f.w.MallanListingHydration.hydrate('sale', { agent_info: rows });
+      expect([val(f.d, 'saleUpdatingAgentName'), val(f.d, 'saleUpdatingAgentMlsId'), val(f.d, 'saleUpdatingAgentKey')]).toEqual(['STORED', '1', '3']);
+    } finally { f.close(); }
+  });
+});
+
+describe.each(FORMS)('%s: a listing the signed-in broker owns that names nobody, but carries somebody else\'s identifiers', (form, prefix, collector) => {
+  const NAMELESS = { ...SAVED, agent_id: 'AG-9', list_agent_full_name: null, list_agent_mls_id: null, list_agent_email: null, list_agent_direct_phone: null, list_office_name: null,
+    list_office_mls_id: null, agent_info: { ListAgentKey: '777' }, raw_data: {} };
+  const BROKER = { ...SESSION_USER, name: 'Maya Allan' };
+
+  it('another agent\'s MLS ID, e-mail and phone: the broker\'s name and licence are not put on it, and the saved key stays', async () => {
+    const f = await bootAddForm(form, {
+      search: '?id=1', user: BROKER, members: { '39361': SESSION_MEMBER, '11111': SAVED_MEMBER }, settle: 1500,
+      listing: { ...NAMELESS, list_agent_mls_id: '11111', list_agent_email: 'saved@example.test', list_agent_direct_phone: '212-555-0111' },
+    });
+    try {
+      await checked(f.d, prefix);
+      expect(payloadOf(f, collector)).toMatchObject({ ListAgentFullName: '', ListAgentMlsId: '11111', ListAgentEmail: 'saved@example.test', ListAgentDirectPhone: '212-555-0111', ListAgentKey: '777' });
+      expect(txt(f.d, `${prefix}ListingAgentLicense`)).toBe('--');
+      expect(val(f.d, `${prefix}ListingAgentSearch`)).toBe('');
+      expect(cotalityStatus(f.d, prefix)).toMatch(/^Cotality agent: Saved Agent \(MLS ID 11111\)/);
+    } finally { f.close(); }
+  });
+
+  it.each([
+    ['another agent\'s MLS ID', { list_agent_mls_id: '11111' }],
+    ['another agent\'s e-mail', { list_agent_email: 'someone.else@example.test' }],
+    ['another agent\'s phone', { list_agent_direct_phone: '212-555-0111' }],
+  ])('%s alone: nothing of the broker\'s is put on it', async (_what, carried) => {
+    const f = await bootAddForm(form, { search: '?id=1', user: BROKER, listing: { ...NAMELESS, agent_info: {}, ...carried }, members: { '39361': SESSION_MEMBER }, settle: 1500 });
+    try {
+      await checked(f.d, prefix);
+      const p = payloadOf(f, collector);
+      expect(p.ListAgentFullName).toBe('');
+      expect(JSON.stringify(p)).not.toMatch(/Maya Allan|39361|4455667|sender@example\.test|212-555-0199|5671398/);
+      expect(txt(f.d, `${prefix}ListingAgentLicense`)).toBe('--');
+    } finally { f.close(); }
+  });
+
+  it.each([
+    ['the owner\'s own MLS ID', { list_agent_mls_id: '39361' }],
+    ['the owner\'s e-mail written in capitals', { list_agent_email: 'SENDER@Example.test' }],
+    ['the owner\'s phone written another way', { list_agent_direct_phone: '(212) 555-0199' }],
+    ['the owner\'s phone with a country code', { list_agent_direct_phone: '+1 212 555 0199' }],
+  ])('%s: it is still the owner\'s listing, and the profile fills what it lacks', async (_what, carried) => {
+    const f = await bootAddForm(form, { search: '?id=1', user: BROKER, listing: { ...NAMELESS, agent_info: {}, ...carried }, members: { '39361': { ...SESSION_MEMBER, fullName: 'Maya Allan' } }, settle: 1500 });
+    try {
+      await checked(f.d, prefix);
+      expect(payloadOf(f, collector)).toMatchObject({ ListAgentFullName: 'Maya Allan', ListAgentMlsId: '39361', ListAgentKey: '4455667' });
+      expect(txt(f.d, `${prefix}ListingAgentLicense`)).toBe('L-123');
+    } finally { f.close(); }
+  });
+});
+
+describe.each(FORMS)('%s: what the Contacts tab shows is what the form submits', (form, prefix, collector) => {
+  it('a listing that carries only an e-mail and a phone shows them (and is submitted with them)', async () => {
+    const f = await bootAddForm(form, {
+      search: '?id=1', settle: 1500,
+      listing: { ...SAVED, agent_id: '77', list_agent_full_name: null, list_agent_mls_id: null, list_agent_email: 'only@example.test', list_agent_direct_phone: '212-555-0123', list_office_name: null, list_office_mls_id: null, agent_info: {}, raw_data: {} },
+    });
+    try {
+      await checked(f.d, prefix);
+      expect((f.d.getElementById(`${prefix}ListingAgentInfo`) as HTMLElement).style.display).toBe('block');
+      expect(txt(f.d, `${prefix}ListingAgentEmail`)).toBe('only@example.test');
+      expect(txt(f.d, `${prefix}ListingAgentPhone`)).toBe('212-555-0123');
+      expect(tableRows(f, prefix)).toHaveLength(1);
+      expect(payloadOf(f, collector)).toMatchObject({ ListAgentEmail: 'only@example.test', ListAgentDirectPhone: '212-555-0123' });
+      expect(JSON.stringify((f.w as any).rebnyListingAgents)).not.toContain('only@example.test');      // the dropdown lists agents: this listing has none to list
+    } finally { f.close(); }
+  });
+
+  it('a listing that carries nothing at all still shows nobody', async () => {
+    const f = await bootAddForm(form, { search: '?id=1', settle: 1500, listing: { ...SAVED, agent_id: '77', list_agent_full_name: null, list_agent_mls_id: null, list_agent_email: null, list_agent_direct_phone: null, list_office_name: null, list_office_mls_id: null, agent_info: {}, raw_data: {} } });
+    try {
+      await checked(f.d, prefix);
+      expect((f.d.getElementById(`${prefix}ListingAgentInfo`) as HTMLElement).style.display).toBe('none');
+      expect(tableRows(f, prefix).map((r) => r.id)).toEqual([`${prefix}AgentContactsPlaceholder`]);
+    } finally { f.close(); }
+  });
+});
+
+describe.each(FORMS)('%s: what Cotality answers is checked before a key is attached', (form, prefix, collector) => {
+  const SAVED_NO_KEY = { ...SAVED, agent_info: {} };
+
+  it.each([
+    ['a member with no name on file, for a listing that names its agent', { ...SAVED_MEMBER, key: '999', fullName: '' }, /could not be confirmed/],
+    ['a member whose MLS ID is not the one asked for', { ...SAVED_MEMBER, key: '999', mlsId: '99999' }, /99999/],
+  ])('%s: no key is attached', async (_what, member, status) => {
+    const f = await bootAddForm(form, { search: '?id=1', listing: SAVED_NO_KEY, members: { '11111': member }, settle: 1500 });
+    try {
+      await checked(f.d, prefix);
+      const p = payloadOf(f, collector);
+      expect(p).not.toHaveProperty('ListAgentKey');
+      expect(p).not.toHaveProperty('ListOfficeKey');
+      expect(cotalityStatus(f.d, prefix)).toMatch(status);
+      expect(f.d.getElementById(`${prefix}AgentCotalityStatus`)?.className).not.toMatch(/green/);
+    } finally { f.close(); }
+  });
+
+  it('a member the directory returns without an MLS ID of its own is still the one asked for', async () => {
+    const f = await bootAddForm(form, { search: '?id=1', listing: SAVED_NO_KEY, members: { '11111': { ...SAVED_MEMBER, mlsId: undefined as any } }, settle: 1500 });
+    try {
+      await checked(f.d, prefix);
+      expect(payloadOf(f, collector)).toMatchObject({ ListAgentKey: '777', ListOfficeKey: '888' });
+    } finally { f.close(); }
+  });
+
+  it('a listing that names nobody still takes the key of the member its MLS ID names (nothing contradicts the directory)', async () => {
+    const f = await bootAddForm(form, { search: '?id=1', listing: { ...SAVED_NO_KEY, list_agent_full_name: null }, members: { '11111': SAVED_MEMBER }, settle: 1500 });
+    try {
+      await checked(f.d, prefix);
+      expect(payloadOf(f, collector)).toMatchObject({ ListAgentKey: '777', ListOfficeKey: '888' });
+    } finally { f.close(); }
+  });
+
+  it.each(['1234567890123', '12345678901234567890'])('an MLS ID of %s digits is not a Cotality MLS ID: it says so, instead of saying it looked and found nobody', async (mls) => {
+    const f = await bootAddForm(form, { search: '?id=1', listing: { ...SAVED_NO_KEY, list_agent_mls_id: mls }, settle: 1500 });
+    try {
+      await checked(f.d, prefix);
+      expect(cotalityStatus(f.d, prefix)).toBe(`MLS ID "${mls}" is not a Cotality MLS ID (1 to 12 digits), so it was not checked.`);
+      expect(f.fetched.filter((x) => x.includes('/directory/'))).toEqual([]);
+    } finally { f.close(); }
+  });
+
+  it('a twelve-digit MLS ID is asked for', async () => {
+    const f = await bootAddForm(form, { search: '?id=1', listing: { ...SAVED_NO_KEY, list_agent_mls_id: '123456789012' }, members: { '123456789012': { ...SAVED_MEMBER, mlsId: '123456789012' } }, settle: 1500 });
+    try {
+      await checked(f.d, prefix);
+      expect(f.fetched.filter((x) => x.includes('/directory/'))).toEqual(['/api/crm/directory/members?mlsId=123456789012&includeInactive=1&limit=1']);
+      expect(payloadOf(f, collector)).toMatchObject({ ListAgentKey: '777' });
+    } finally { f.close(); }
+  });
+});
+
+describe.each(FORMS)('%s: Cotality answers differently later in the same page session', (form, prefix, collector) => {
+  it('a member that was the agent and now is somebody else: the key and the office the first answer wrote are taken back', async () => {
+    const members: Record<string, any> = { '39361': SESSION_MEMBER };
+    const f = await bootAddForm(form, { members, settle: 1200 });
+    try {
+      await checked(f.d, prefix);
+      expect(payloadOf(f, collector)).toMatchObject({ ListAgentKey: '4455667', ListOfficeKey: '5671398', ListOfficeMlsId: '7041' });
+      members['39361'] = { ...SESSION_MEMBER, fullName: 'Totally Other', key: '555', officeKey: '666', officeMlsId: '777' };
+      await f.w.MallanAgentDefaults.verify(prefix);
+      const p = payloadOf(f, collector);
+      for (const k of ['ListAgentKey', 'ListOfficeKey', 'ListOfficeMlsId']) expect([k, p[k]]).toEqual([k, undefined]);
+      expect(cotalityStatus(f.d, prefix)).toMatch(/belongs to Totally Other in Cotality/);
+    } finally { f.close(); }
+  });
+
+  it.each([
+    ['no member', null, /No Cotality member was found/],
+  ])('%s: the key the earlier answer confirmed is kept, and the status says so', async (_what, answer, status) => {
+    const members: Record<string, any> = { '39361': SESSION_MEMBER };
+    const f = await bootAddForm(form, { members, settle: 1200 });
+    try {
+      await checked(f.d, prefix);
+      members['39361'] = answer;
+      await f.w.MallanAgentDefaults.verify(prefix);
+      expect(payloadOf(f, collector)).toMatchObject({ ListAgentKey: '4455667', ListOfficeKey: '5671398' });
+      expect(cotalityStatus(f.d, prefix)).toMatch(status);
+      expect(cotalityStatus(f.d, prefix)).toMatch(/confirmed earlier/);
+    } finally { f.close(); }
+  });
+
+  it('after an answer that said the member is somebody else, "no member" does not say a key was confirmed earlier', async () => {
+    const members: Record<string, any> = { '39361': { ...SESSION_MEMBER, fullName: 'Totally Other' } };
+    const f = await bootAddForm(form, { members, settle: 1200 });
+    try {
+      await checked(f.d, prefix);
+      expect(cotalityStatus(f.d, prefix)).toMatch(/belongs to Totally Other in Cotality/);
+      members['39361'] = null;
+      await f.w.MallanAgentDefaults.verify(prefix);
+      expect(cotalityStatus(f.d, prefix)).toBe('No Cotality member was found for MLS ID 39361, so no Cotality agent key was confirmed for this listing.');
+      expect(payloadOf(f, collector)).not.toHaveProperty('ListAgentKey');
+    } finally { f.close(); }
+  });
+
+  it('an earlier answer about another MLS ID is not a key "confirmed earlier"', async () => {
+    const members: Record<string, any> = { '39361': SESSION_MEMBER, '12345': null };
+    const f = await bootAddForm(form, { members, settle: 1200 });
+    try {
+      await checked(f.d, prefix);
+      (f.d.getElementById(`${prefix}UpdatingAgentMlsId`) as HTMLInputElement).value = '12345';          // the MLS ID in the inputs is not the one the earlier answer was about
+      await f.w.MallanAgentDefaults.verify(prefix);
+      expect(cotalityStatus(f.d, prefix)).toBe('No Cotality member was found for MLS ID 12345, so no Cotality agent key was confirmed for this listing.');
+    } finally { f.close(); }
+  });
+
+  it('a lookup that fails when nothing was confirmed before says only that', async () => {
+    const f = await bootAddForm(form, { directoryError: 'down', settle: 1200 });
+    try {
+      await checked(f.d, prefix);
+      expect(cotalityStatus(f.d, prefix)).toBe('Could not check MLS ID 39361 in Cotality (down).');
+    } finally { f.close(); }
+  });
+
+  it('a lookup that fails: the key the earlier answer confirmed is kept, and the status says so', async () => {
+    const f = await bootAddForm(form, { settle: 1200 });
+    try {
+      await checked(f.d, prefix);
+      f.w.MallanDirectory.lookupMember = () => Promise.reject(new Error('down'));
+      await f.w.MallanAgentDefaults.verify(prefix);
+      expect(payloadOf(f, collector)).toMatchObject({ ListAgentKey: '4455667' });
+      expect(cotalityStatus(f.d, prefix)).toMatch(/Could not check MLS ID 39361 in Cotality \(down\)/);
+      expect(cotalityStatus(f.d, prefix)).toMatch(/confirmed earlier/);
+    } finally { f.close(); }
+  });
+});
+
+describe('Sale: Use Exclusive Agent Contact writes the agent\'s name and phone into the showing instructions', () => {
+  it('names the agent (the panel\'s ID is the MLS ID)', async () => {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 1200 });
+    try {
+      await checked(f.d, 'sale');
+      f.w.useSaleExclusiveAgentContact();
+      expect(val(f.d, 'saleShowingInstructions')).toBe('(BROK) Sender Agent 212-555-0199');
+    } finally { f.close(); }
+  });
+
+  it('says so when there is no listing agent yet', async () => {
+    const alerts: string[] = [];
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { user: null, settle: 600 });          // no session: nobody is the listing agent
+    try {
+      f.w.alert = (m: string) => { alerts.push(String(m)); };
+      f.w.useSaleExclusiveAgentContact();
+      expect(alerts).toEqual(['Please select a Listing Agent first.']);
+      expect(val(f.d, 'saleShowingInstructions')).toBe('');
+    } finally { f.close(); }
+  });
+});
+
+describe('Sale: a draft that is not a draft does not stop the page from starting', () => {
+  it.each([
+    ['null', 'null'],
+    ['a list', '[1,2]'],
+    ['a string', '"x"'],
+    ['a number', '5'],
+  ])('?restore=local with a draft that is %s: nothing throws, autosave is on, and the agent is told the draft is corrupted', async (_what, draft) => {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { search: '?restore=local', storage: { mallan_draft_sale: draft }, settle: 1500 });
+    try {
+      await checked(f.d, 'sale');
+      expect(f.errors).toEqual([]);
+      expect(f.w._saleAutoSaveReady).toBe(true);
+      const said = [...f.d.querySelectorAll('.toast-notification, body > div[style*="99999"]')].map((t) => t.textContent ?? '').join(' | ');
+      expect(said).toContain('Draft data is corrupted.');
+      expect(said).not.toContain('Draft restored');
+    } finally { f.close(); }
+  });
+
+  it('a draft key that is empty does not tick a radio that has no name', async () => {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { storage: { mallan_draft_sale: JSON.stringify({ '': 'on', salePrice: '77' }) }, settle: 800 });
+    try {
+      await checked(f.d, 'sale');
+      const bare = f.d.createElement('input');
+      bare.type = 'radio';
+      bare.value = 'on';
+      f.d.body.appendChild(bare);
+      f.w._restoreDraftFromLocalStorage();
+      expect(bare.checked).toBe(false);
+      expect(val(f.d, 'salePrice')).toBe('77');
+      expect(f.errors).toEqual([]);
+    } finally { f.close(); }
+  });
+
+  it('a draft key that could not be a control name is skipped, and the rest of the draft comes back', async () => {
+    const draft = '{"a\\"b":"x","c]d":"y","constructor":"z","toString":"z","hasOwnProperty":"z","salePrice":"4321","__proto__":{"saleBedrooms":"9"}}';
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { search: '?restore=local', storage: { mallan_draft_sale: draft }, settle: 1500 });
+    try {
+      await checked(f.d, 'sale');
+      expect(f.errors).toEqual([]);
+      expect(val(f.d, 'salePrice')).toBe('4321');
+      expect(f.w._saleAutoSaveReady).toBe(true);
     } finally { f.close(); }
   });
 });

@@ -13,7 +13,8 @@
 // Who the listing agent is, whichever of the two arrives first (every change recomputes the whole identity from what is known, so no order leaves a trace):
 //   - a NEW listing: the signed-in user;
 //   - a SAVED listing: the agent the listing carries (typed columns, then agent_info, then raw_data), never the signed-in user's. A broker may edit any listing, so the
-//     signed-in user is used to fill what the listing lacks ONLY when the listing IS the signed-in user's own (listing.agent_id) and does not name another agent.
+//     signed-in user is used to fill what the listing lacks ONLY when the listing IS the signed-in user's own (listing.agent_id) and does not name another agent (nor carry
+//     another agent's MLS ID, e-mail or phone, when it names nobody).
 //   - a page opened with ?id= is editing a saved listing from its first moment: until the listing arrives nobody is shown or submitted as the agent. (MallanAPI.onReady
 //     calls back at once when the auth gate has already resolved, which is before the page looks at its own address, so the module reads ?id= itself, as the pages do;
 //     beginEdit(prefix) is a page saying the same thing, and wipes what an earlier apply showed.)
@@ -48,6 +49,10 @@
   function obj(v) { return v !== null && typeof v === 'object' && !Array.isArray(v) ? v : {}; }
   // Cotality office keys and MLS ids are digit strings (Property.ListOfficeKey 5671398 is Office.OfficeKey). Anything else in an office key is not one.
   function isCotalityId(v) { return /^\d+$/.test(str(v)); }
+  // A Member's MLS ID as the directory is asked for it: one to twelve digits (a longer one is never asked, so it cannot be answered "not found").
+  function isMlsId(v) { return /^\d{1,12}$/.test(str(v)); }
+  // the last ten digits of a phone number: "(212) 555-0199", "212-555-0199" and "+1 212 555 0199" are one number
+  function phoneKey(v) { return str(v).replace(/\D/g, '').slice(-10); }
 
   function hiddenEl(prefix, part) { return byId(prefix + HIDDEN[part]); }
   function read(prefix, part) { var el = hiddenEl(prefix, part); return el ? str(el.value) : ''; }
@@ -111,9 +116,15 @@
 
   // The signed-in user may fill in what a saved listing lacks only when the listing's agent IS the signed-in user: the listing is theirs (agent_id) and it names nobody, or
   // names them (compareNames says 'same'). A broker can edit any listing, and a listing a broker owns can still name another agent: a name that is not clearly theirs
-  // ('different', or too doubtful to tell) is not them, so nothing of theirs (contact details, licence, MLS ID) goes into somebody else's listing.
+  // ('different', or too doubtful to tell) is not them, so nothing of theirs (contact details, licence, MLS ID) goes into somebody else's listing. A listing that names
+  // nobody is the owner's unless it carries somebody else's MLS ID, e-mail or phone: those say whose it is, whatever the name field lacks.
   function isSessionAgent(s, saved) {
-    return ownedBySession(s) && (!saved.name || compareNames(saved.name, str(s.user.name)) === 'same');
+    if (!ownedBySession(s)) return false;
+    if (saved.name) return compareNames(saved.name, str(s.user.name)) === 'same';
+    var u = s.user;
+    return (!saved.mlsId || saved.mlsId === str(u.mlsId))
+      && (!saved.email || saved.email.toLowerCase() === str(u.email).toLowerCase())
+      && (!saved.phone || phoneKey(saved.phone) === phoneKey(u.phone));
   }
 
   // The whole identity from what is known now, or null while a saved listing is still on its way.
@@ -174,7 +185,7 @@
       text(prefix + 'ListingAgentEmail', a.email || '--');
       text(prefix + 'ListingAgentLicense', a.license || '--');
     }
-    registerAgent(a);
+    if (a.name || a.mlsId) registerAgent(a);                  // the dropdown lists agents: a listing that has only an e-mail or a phone has none to list
     if (opts && typeof opts.updateTable === 'function' && (a.agentValue || a.name)) {
       opts.updateTable('listing', a.mlsId || '--', a.name || '', a.companyName || '', a.phone || '--', a.email || '--');
     }
@@ -194,14 +205,16 @@
 
   // ── comparing names ──
   // Two names are compared the way people compare names, not letter by letter: accents are folded ("José García" is "Jose Garcia"), so are the letters no accent folds
-  // (Søren, Łukasz, Weiß) and the two spellings of a German umlaut (Müller is Muller and Mueller), apostrophes go ("O'Brien" is "OBrien"), and titles, suffixes and
-  // credentials ("Dr.", "Jr.", "3rd", ", CPA", "(Mike)") are not part of a name; "Smith, John" is "John Smith".
+  // (Søren, Łukasz, Weiß) and the two spellings of a German umlaut (Müller is Muller and Mueller), apostrophes go ("O'Brien" is "OBrien"), what copy and paste leaves (full-width
+  // letters, a soft hyphen, a zero-width space) is folded or dropped, and titles, suffixes and credentials ("Dr.", "Jr.", "3rd", ", CPA", "(Mike)") are not part of a name
+  // ("Smith, John" is "John Smith"), except that a generation tells a son from his father: "John Smith Jr" and "John Smith Sr" are not called the same person.
   // What a name decides here is whose Cotality key a listing carries, and a wrong answer costs differently: a wrong 'same' attaches somebody else's key, a wrong 'different'
   // removes the right one, 'unknown' costs one message. So there are THREE answers, and every doubt goes to the cheap one:
   //   'same'       the same family name (a double or hyphenated one agrees when a part of it does), and given names that agree: the shorter list of them matches a run of the
   //                longer one word for word (a middle name may be left out), a word may be a nickname of the other ("Bob" for "Robert"), and an initial matches only the word
   //                at its own place ("J." is "John", but the middle initial of "Michael J." is not "Jennifer");
-  //   'different'  no word of either name is, or nearly is, a word of the other's family part: nothing that could be the same person's name, however it is written;
+  //   'different'  no word of either name is, or nearly is, a word of the other's family part (nor the family part with its spaces closed up: Mc Donald, McDonald): nothing
+  //                that could be the same person's name, however it is written;
   //   'unknown'    everything else: a name of one word or in another script, a family name with a given name that does not agree (relatives, a married name, a middle name
   //                used as the first), names too close to call. Nothing is attached and nothing is removed.
   function wordSet(list) { var t = Object.create(null); list.split(' ').forEach(function (w) { t[w] = true; }); return t; }
@@ -243,7 +256,9 @@
   // text -> letters and digits in lower case, accents folded (only on Latin letters: a mark can be part of another script's letter), apostrophes gone, every dash a hyphen,
   // every other mark a space. german: an umlaut is written as a vowel and an e (ü is ue) rather than as the vowel alone.
   function fold(text, german) {
-    var s = text.normalize('NFC').toLowerCase();
+    // what copy and paste leaves in a name: full-width letters and compatibility forms (NFKC), and the characters nobody sees (a soft hyphen, a zero-width space).
+    // An apostrophe goes first (NFKC would turn a spacing acute into a space and an accent), and again after (a full-width apostrophe becomes an ASCII one).
+    var s = text.replace(/['’‘`´ʼʻ′]/g, '').normalize('NFKC').replace(/\p{Cf}/gu, '').toLowerCase();
     if (german) s = s.replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue');
     return s.normalize('NFD').replace(/(\p{Script=Latin})\p{M}+/gu, '$1').normalize('NFC')
       .replace(/[ßæœøðđþłıħ]/g, function (c) { return UNFOLDED[c]; })
@@ -252,11 +267,13 @@
   function words(text, german) {
     return fold(text, german).split(/\s+/).map(function (w) { return w.replace(/^-+|-+$/g, ''); }).filter(Boolean);
   }
+  // the generation a suffix names ("Jr", "II" and "2nd" are one, "Sr" is the one before): a father and a son are two people
+  var GENERATION = { sr: '1', jr: '2', ii: '2', '2nd': '2', iii: '3', '3rd': '3', iv: '4', '4th': '4' };
   function stripTitles(list) {
-    var from = 0, to = list.length;
+    var from = 0, to = list.length, gen = '';
     while (from < to && TITLES[list[from]]) from++;
-    while (to > from && SUFFIXES[list[to - 1]]) to--;
-    return list.slice(from, to);
+    while (to > from && SUFFIXES[list[to - 1]]) { if (!gen) gen = GENERATION[list[to - 1]] || ''; to--; }
+    return { list: list.slice(from, to), gen: gen };
   }
   function unhyphen(w) { return w.replace(/-/g, ''); }
   function meaningful(w) { return !PARTICLES[w] && !INITIAL.test(w); }
@@ -265,7 +282,9 @@
   // the family name (the last word, and the particles right before it; the first word is always a given name), and the word lists the comparisons use.
   function parse(raw, german) {
     var text = str(raw).slice(0, 200).replace(/\([^)]*\)|\[[^\]]*\]|\{[^}]*\}/g, ' ');
-    var pieces = text.split(',').map(function (piece) { return stripTitles(words(piece, german)); }).filter(function (piece) { return piece.length; });
+    var stripped = text.split(',').map(function (piece) { return stripTitles(words(piece, german)); });
+    var gen = stripped.reduce(function (g, piece) { return g || piece.gen; }, '');           // "Smith, John Jr." and "John Smith, Jr." are both a Jr
+    var pieces = stripped.map(function (piece) { return piece.list; }).filter(function (piece) { return piece.length; });
     if (!pieces.length || pieces.length > 2) return null;
     var list = pieces.length === 2 ? pieces[1].concat(pieces[0]) : pieces[0];             // "Smith, John" is "John Smith"
     if (list.length > 10) return null;
@@ -275,7 +294,9 @@
     var split = function (tokens) { return tokens.join('-').split('-').filter(Boolean); };
     var familyParts = split(family).filter(function (w) { return !PARTICLES[w]; });
     return {
-      list: list, latin: list.every(function (w) { return LATIN.test(w); }), size: list.filter(meaningful).length,
+      // size: the real words of the name; a family name that is all particles ("Anh Le") is a word too, or two such names could never be the same
+      list: list, latin: list.every(function (w) { return LATIN.test(w); }), gen: gen,
+      size: list.filter(meaningful).length + (family.every(function (w) { return PARTICLES[w]; }) ? 1 : 0),
       given: list.slice(0, start).map(unhyphen), familyKey: family.map(unhyphen).join(''), familyParts: familyParts.length ? familyParts : split(family),
       flat: split(list), all: split(list).filter(meaningful), rest: split(list.slice(1)).filter(meaningful),
     };
@@ -294,12 +315,13 @@
     }
     return d[a.length][b.length];
   }
-  // one word is, or is a slip of the pen from, the other: a word of up to three letters has to be the same, of four to seven may be one edit away, of more two
+  // one word is, or is a slip of the pen or another romanization from, the other: a word of up to three letters has to be the same, of four or five may be one edit away,
+  // of six to nine two (Petrov and Petroff), of ten or more three (Rabinovich and Rabinowitz)
   function near(p, q) {
     if (p === q) return true;
     var n = Math.min(p.length, q.length);
     if (n < 4) return false;
-    return distance(p, q) <= (n >= 8 ? 2 : 1);
+    return distance(p, q) <= (n >= 10 ? 3 : n >= 6 ? 2 : 1);
   }
   function overlap(as, bs) { return as.some(function (p) { return bs.some(function (q) { return near(p, q); }); }); }
 
@@ -334,12 +356,15 @@
     return false;
   }
   // nothing in the family part of either name (every word but the first) is, or nearly is, anywhere in the other: not "Wei Li" and "Li Wei", not "Maria Garcia Lopez" and "Maria Garcia"
+  // (and not the same letters with a space moved: "Mc Donald" and "McDonald", "San Martin" and "Sanmartin" are one family name written two ways)
   function conflict(x, y) {
-    return x.rest.length > 0 && y.rest.length > 0 && !overlap(x.rest, y.all) && !overlap(y.rest, x.all);
+    return x.rest.length > 0 && y.rest.length > 0 && !overlap(x.rest, y.all) && !overlap(y.rest, x.all)
+      && !near(x.flat.slice(1).join(''), y.flat.slice(1).join(''));
   }
   function compareFolded(a, b, german) {
     var x = parse(a, german), y = parse(b, german);
     if (!x || !y || x.latin !== y.latin) return 'unknown';
+    if (x.gen && y.gen && x.gen !== y.gen) return 'unknown';                               // a Jr and a Sr: the suffix is what tells a son from his father
     // the same words are the same name, unless the name is one real word in Latin letters (Cher, Smith: nothing says whose), or has no real word at all
     if (x.list.join(' ') === y.list.join(' ')) return !x.latin || x.size > 1 ? 'same' : 'unknown';
     if (x.list.length < 2 || y.list.length < 2) return 'unknown';
@@ -377,7 +402,15 @@
     } else {
       s.clearAgentKey = !!s.listing && !!savedAgent(s.listing).key;   // only a key the listing was saved with needs an explicit blank to be replaced
       write(prefix, 'key', '');
+      // an earlier answer may have said this member WAS the agent and written the member's office: the office goes back to the listing's own
+      var own = compute(prefix);
+      if (own) { write(prefix, 'officeKey', own.officeKey); write(prefix, 'officeMlsId', own.officeMlsId); }
     }
+  }
+  // what an earlier conclusive answer says about the agent now in the inputs: Cotality confirmed the key, and it is still on the form
+  function confirmedEarlier(s, mls, who) {
+    var v = s.verdict;
+    return !!v && v.result === 'same' && v.mls === mls && v.name === nameKey(who);
   }
 
   // Ask live Cotality which Member this MLS ID is, and keep the agent's MemberKey and office (OfficeKey / OfficeMlsId) for the submission.
@@ -391,8 +424,8 @@
         : 'Your agent profile has no Cotality MLS ID, so this listing cannot be matched to your Cotality agent record. Ask a broker to add it to your profile.');
       return Promise.resolve(null);
     }
-    if (!isCotalityId(mls)) {
-      say(prefix, 'warn', 'MLS ID "' + mls + '" is not a Cotality MLS ID (digits only), so it was not checked.');
+    if (!isMlsId(mls)) {
+      say(prefix, 'warn', 'MLS ID "' + mls + '" is not a Cotality MLS ID (1 to 12 digits), so it was not checked.');
       return Promise.resolve(null);
     }
     var directory = global.MallanDirectory;
@@ -405,12 +438,18 @@
     return Promise.resolve().then(function () { return directory.lookupMember(mls); }).then(function (m) {
       if (mine !== checks[prefix]) return null;
       if (!m) {
-        say(prefix, 'warn', 'No Cotality member was found for MLS ID ' + mls + ', so no Cotality agent key was confirmed for this listing.');
+        say(prefix, 'warn', 'No Cotality member was found for MLS ID ' + mls
+          + (confirmedEarlier(s, mls, who) ? ' this time, so the Cotality key confirmed earlier is kept.' : ', so no Cotality agent key was confirmed for this listing.'));
+        return null;
+      }
+      // an answer for another MLS ID than the one asked is not an answer
+      if (str(m.mlsId) && str(m.mlsId) !== mls) {
+        say(prefix, 'warn', 'Cotality answered with MLS ID ' + str(m.mlsId) + ' for MLS ID ' + mls + ', so no Cotality key was attached.');
         return null;
       }
       var member = str(m.fullName);
-      // an MLS ID with no name on the listing, or a member with none: nothing contradicts the directory
-      var same = who && member ? compareNames(who, member) : 'same';
+      // an MLS ID with no name on the listing: nothing contradicts the directory. A member with no name cannot confirm the name the listing carries: that is a doubt.
+      var same = !who ? 'same' : member ? compareNames(who, member) : 'unknown';
       if (same === 'different') {
         s.verdict = { mls: mls, name: nameKey(who), result: 'different' };
         applyVerdict(prefix);
@@ -419,7 +458,7 @@
         return null;
       }
       if (same === 'unknown') {
-        say(prefix, 'warn', 'Cotality lists MLS ID ' + mls + ' under ' + member + ', but the name here (' + who + ') could not be confirmed as the same person, so no Cotality key was attached.'
+        say(prefix, 'warn', 'Cotality lists MLS ID ' + mls + ' under ' + (member || 'no name') + ', but the name here (' + who + ') could not be confirmed as the same person, so no Cotality key was attached.'
           + (s.me ? ' Ask a broker to check your agent profile.' : ''));
         return null;
       }
@@ -433,7 +472,10 @@
       say(prefix, inactive ? 'warn' : 'ok', parts.join(' · '));
       return m;
     }).catch(function (err) {
-      if (mine === checks[prefix]) say(prefix, 'warn', 'Could not check MLS ID ' + mls + ' in Cotality (' + str(err && err.message ? err.message : err) + ').');
+      if (mine === checks[prefix]) {
+        say(prefix, 'warn', 'Could not check MLS ID ' + mls + ' in Cotality (' + str(err && err.message ? err.message : err) + ')'
+          + (confirmedEarlier(s, mls, who) ? '; the Cotality key confirmed earlier is kept.' : '.'));
+      }
       return null;
     });
   }
@@ -449,10 +491,11 @@
     applyVerdict(prefix);
     var display = byId(prefix + 'UpdatingAgentDisplay');
     if (display) display.value = parts.name ? parts.name + (parts.mlsId ? ' · MLS ID ' + parts.mlsId : '') : '';
-    if (parts.name || parts.mlsId) {
+    // the tab shows whatever the form is about to submit for the agent: a listing that carries only an e-mail or a phone has an agent to show too
+    if (parts.name || parts.mlsId || parts.email || parts.phone) {
       renderContacts(prefix, {
         // the agent dropdown's value must be set even when the listing carries no agent id: a set value is how the page knows the tab is filled
-        agentValue: parts.id || parts.mlsId || parts.name, name: parts.name, phone: parts.phone, email: parts.email, license: parts.license, mlsId: parts.mlsId,
+        agentValue: parts.id || parts.mlsId || parts.name || parts.email || parts.phone, name: parts.name, phone: parts.phone, email: parts.email, license: parts.license, mlsId: parts.mlsId,
         companyKey: parts.companyKey, companyName: parts.companyName,
       }, opts);
     } else {

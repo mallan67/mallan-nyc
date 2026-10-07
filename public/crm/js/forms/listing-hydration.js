@@ -967,6 +967,7 @@
     document.querySelectorAll('.viewer-extra-value').forEach(function (e) { if (e.parentNode) e.parentNode.removeChild(e); });
 
     cfg.fields.forEach(function (f) {
+      if (edit && agentOwned(cfg, f.form)) return;      // the agent module writes these from the agent the listing carries (a draft's copy can be another agent's)
       var val = fieldValue(f, listing, raw, addr, features, agentInfo);
       if (isBlank(val) || !isPrimitive(val)) return;
       applyField(f, val, touched, raw);

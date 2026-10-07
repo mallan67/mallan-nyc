@@ -6276,7 +6276,7 @@ function _syncSaleCoListTable(agents) {
 // SHOWING INSTRUCTIONS
 // ══════════════════════════════════════════════════════
 function useSaleExclusiveAgentContact() {
-    const agentName = document.getElementById('saleListingAgentId')?.textContent;
+    const agentName = document.getElementById('saleListingAgentSearch')?.value;
     const agentPhone = document.getElementById('saleListingAgentPhone')?.textContent;
     if (agentName && agentName !== '--') {
         const instructions = document.getElementById('saleShowingInstructions');
@@ -10032,6 +10032,7 @@ function _restoreDraftFromLocalStorage() {
 
     var saved;
     try { saved = JSON.parse(raw); } catch (e) { showToast('Draft data is corrupted.', 'error'); return; }
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) { showToast('Draft data is corrupted.', 'error'); return; }
 
     // Every control the draft saved goes back first (js/forms/listing-hydration.js, mode 'edit': a draft carries the same control keys as a saved listing), and the ownership
     // reference goes back the way a saved listing's does (a draft the collector produced carries CommonInterest; the collector drops the control key)
@@ -10055,10 +10056,12 @@ function _restoreDraftFromLocalStorage() {
         restored++;
     });
 
-    // Restore radio groups
+    // Restore radio groups (by name: a stored key is never put into a selector)
+    var radioGroups = Object.create(null);
+    document.querySelectorAll('input[type="radio"]').forEach(function(r) { if (r.name) (radioGroups[r.name] || (radioGroups[r.name] = [])).push(r); });
     Object.keys(saved).forEach(function(key) {
         if (key.startsWith('_')) return;
-        var radios = document.querySelectorAll('input[name="' + key + '"]');
+        var radios = radioGroups[key] || [];
         if (radios.length > 0) {
             radios.forEach(function(r) {
                 if (r.value === saved[key]) {
