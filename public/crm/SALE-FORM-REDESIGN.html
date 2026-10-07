@@ -7968,27 +7968,7 @@ function submitSalesListing() {
             var realPlusUrl = (typeof statusResult !== 'undefined' && statusResult && statusResult.realPlusUrl) || result.realPlusUrl || null;
             if (finalStatus === 'Active' && realPlusUrl) {
                 showToast('Listing ' + lid + ' published — Status: Active', 'success');
-                // Show RealPlus URL panel
-                var urlPanel = document.getElementById('salePublishUrlPanel');
-                if (!urlPanel) {
-                    urlPanel = document.createElement('div');
-                    urlPanel.id = 'salePublishUrlPanel';
-                    urlPanel.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]';
-                    document.body.appendChild(urlPanel);
-                }
-                urlPanel.innerHTML = '<div class="bg-white rounded-xl shadow-2xl p-6 max-w-lg w-full mx-4">' +
-                    '<h3 class="text-lg font-bold text-green-700 mb-3"><i class="fas fa-check-circle mr-2"></i>Listing Published</h3>' +
-                    '<p class="text-sm text-gray-600 mb-4">Listing <strong>' + lid + '</strong> is now Active on mallan.nyc.</p>' +
-                    '<div class="mb-3"><label class="text-xs font-semibold text-gray-500 block mb-1">Public URL</label>' +
-                    '<div class="flex items-center gap-2"><input id="salePublicUrlInput" type="text" readonly value="' + publicUrl + '" class="flex-1 text-sm border rounded px-3 py-2 bg-gray-50 text-gray-800 font-mono" />' +
-                    '<button onclick="navigator.clipboard.writeText(document.getElementById(\'salePublicUrlInput\').value);showToast(\'Public URL copied\',\'success\')" class="px-3 py-2 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700"><i class="fas fa-copy mr-1"></i>Copy</button></div></div>' +
-                    '<div class="mb-4"><label class="text-xs font-semibold text-gray-500 block mb-1">RealPlus URL</label>' +
-                    '<div class="flex items-center gap-2"><input id="saleRealPlusUrlInput" type="text" readonly value="' + realPlusUrl + '" class="flex-1 text-sm border rounded px-3 py-2 bg-gray-50 text-gray-800 font-mono" />' +
-                    '<button onclick="navigator.clipboard.writeText(document.getElementById(\'saleRealPlusUrlInput\').value);showToast(\'RealPlus URL copied\',\'success\')" class="px-3 py-2 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700"><i class="fas fa-copy mr-1"></i>Copy</button></div></div>' +
-                    '<div class="flex justify-end gap-2">' +
-                    '<button onclick="document.getElementById(\'salePublishUrlPanel\').remove();window.location.href=\'/crm/dashboard#/ops/listings\'" class="px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm font-medium hover:bg-gray-300">Go to Dashboard</button>' +
-                    '<a href="' + publicUrl + '" target="_blank" class="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 inline-flex items-center"><i class="fas fa-external-link-alt mr-1"></i>View Listing</a></div></div>';
-                urlPanel.style.display = 'flex';
+                showSalePublishedPanel(lid, publicUrl, realPlusUrl);
             } else {
                 showToast('Listing ' + lid + ' saved — Status: ' + finalStatus, 'success');
                 setTimeout(function() { window.location.href = '/crm/dashboard#/ops/listings'; }, 1500);
@@ -9965,16 +9945,18 @@ function _populateSaleFormFromApi(listing) {
         var floorContainer = document.getElementById('saleFloorplanPreview');
         var photoCount = 0;
         media.forEach(function(m, idx) {
-            var url = m.heroUrl || m.url || m.thumbUrl || '';
+            if (!m || typeof m !== 'object') return;                         // an entry that is not a record shows nothing
+            var url = _webAddress(m.heroUrl) || _webAddress(m.url) || _webAddress(m.thumbUrl);
             if (!url) return;
-            var isFloor = (m.type === 'floorplan' || m.type === 'FloorPlan' || (m.caption && m.caption.toLowerCase().includes('floor')));
+            var isFloor = (m.type === 'floorplan' || m.type === 'FloorPlan' || (typeof m.caption === 'string' && m.caption.toLowerCase().includes('floor')));
             var container = isFloor ? floorContainer : photoContainer;
             if (!container) return;
+            var slot = container.children.length;                           // the tile's place in its box (an entry that shows nothing, or a floor plan, does not take one)
             var div = document.createElement('div');
             div.className = 'relative group';
             div.draggable = true;
-            div.setAttribute('data-media-idx', String(idx));
-            div.ondragstart = function(e) { e.dataTransfer.setData('text/plain', String(idx)); };
+            div.setAttribute('data-media-idx', String(slot));
+            div.ondragstart = function(e) { e.dataTransfer.setData('text/plain', String(slot)); };
             div.ondragover = function(e) { e.preventDefault(); this.style.outline = '2px solid #B8860B'; };
             div.ondragleave = function() { this.style.outline = ''; };
             div.ondrop = function(e) {
@@ -9990,7 +9972,7 @@ function _populateSaleFormFromApi(listing) {
                     // Re-index and persist order to server
                     var reordered = Array.from(container.children);
                     reordered.forEach(function(el, i) { el.setAttribute('data-media-idx', String(i)); el.querySelector('.group-hover\\:opacity-100')?.firstChild && (el.querySelector('.fa-grip-vertical')?.parentNode && (el.querySelector('.fa-grip-vertical').parentNode.innerHTML = '<i class="fas fa-grip-vertical"></i> ' + (i + 1))); });
-                    var orderedIds = reordered.map(function(el) { return el.querySelector('button[onclick*="removeServerMedia"]')?.getAttribute('onclick')?.match(/'([^']+)'/)?.[1] || ''; }).filter(Boolean);
+                    var orderedIds = reordered.map(function(el) { return el.getAttribute('data-media-id') || ''; }).filter(Boolean);
                     // media-order resolves ONLY listing_id — prefer the canonical
                     // listing_id (_saleEditListingId, e.g. SL-0004) over the numeric
                     // DB id so the legacy-preview reorder cannot 404. (Maya #295.)
@@ -10014,11 +9996,16 @@ function _populateSaleFormFromApi(listing) {
                     }
                 }
             };
-            var mediaId = m.id || m.media_id || m.MediaKey || '';
-            div.innerHTML = '<img src="' + url + '" draggable="false" class="w-full h-24 object-cover rounded-lg border">' +
-                '<div class="absolute top-0.5 left-0.5 bg-black/50 text-white text-[9px] px-1 rounded opacity-0 group-hover:opacity-100 cursor-grab"><i class="fas fa-grip-vertical"></i> ' + (idx + 1) + '</div>' +
-                '<button type="button" onclick="removeServerMedia(this,\'' + mediaId + '\')" class="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full w-5 h-5 text-[10px] opacity-0 group-hover:opacity-100">&times;</button>' +
-                '<p class="text-[10px] text-gray-500 truncate mt-1">' + (isFloor ? 'Floor Plan' : 'Photo') + ' ' + (idx + 1) + '</p>';
+            // The tile is built with DOM calls: a stored address or id is an attribute value and text here, never markup and never a piece of script.
+            var mediaId = _mediaText(m.id) || _mediaText(m.media_id) || _mediaText(m.MediaKey);
+            div.setAttribute('data-media-id', mediaId);
+            div.appendChild(_tileImage(url, 'w-full h-24 object-cover rounded-lg border'));
+            var grip = _tileEl('div', 'absolute top-0.5 left-0.5 bg-black/50 text-white text-[9px] px-1 rounded opacity-0 group-hover:opacity-100 cursor-grab');
+            grip.appendChild(_tileEl('i', 'fas fa-grip-vertical'));
+            grip.appendChild(document.createTextNode(' ' + (slot + 1)));
+            div.appendChild(grip);
+            div.appendChild(_tileButton('absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full w-5 h-5 text-[10px] opacity-0 group-hover:opacity-100', '×', function() { removeServerMedia(this, mediaId); }));
+            div.appendChild(_tileEl('p', 'text-[10px] text-gray-500 truncate mt-1', (isFloor ? 'Floor Plan' : 'Photo') + ' ' + (slot + 1)));
             container.appendChild(div);
             if (!isFloor) photoCount++;
         });
@@ -10245,29 +10232,7 @@ function handleSaleMediaUpload(event, mediaType) {
 
         // Show local preview
         if (previewContainer) {
-            var previewUrl = URL.createObjectURL(file);
-            var div = document.createElement('div');
-            div.className = 'relative group';
-            div.setAttribute('data-media-index', String(_pendingMediaFiles.length - 1));
-            if (file.type === 'application/pdf') {
-                div.innerHTML = '<div class="w-full h-24 bg-gray-100 rounded-lg flex items-center justify-center"><i class="fas fa-file-pdf text-3xl text-red-400"></i></div>' +
-                    '<p class="text-[10px] text-gray-500 truncate mt-1">' + file.name + '</p>' +
-                    '<button type="button" onclick="removePendingMedia(' + (_pendingMediaFiles.length - 1) + ', this)" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-[10px] opacity-0 group-hover:opacity-100 transition">&times;</button>';
-            } else {
-                // Pre-save reorder: ◀/▶ on unsaved photo previews (_movePendingTile). draggable="false"
-                // so the tile (not the image) is the drag source. (2026-06-23)
-                var _pendMove = mediaType === 'photo'
-                    ? '<div class="absolute bottom-6 left-1 right-1 flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition z-10">' +
-                      '<button type="button" title="Move earlier" onclick="_movePendingTile(this.closest(\'[data-media-index]\'),-1)" class="bg-black/60 hover:bg-black/80 text-white rounded w-6 h-6 text-xs leading-none flex items-center justify-center">&#9664;</button>' +
-                      '<button type="button" title="Move later" onclick="_movePendingTile(this.closest(\'[data-media-index]\'),1)" class="bg-black/60 hover:bg-black/80 text-white rounded w-6 h-6 text-xs leading-none flex items-center justify-center">&#9654;</button>' +
-                      '</div>'
-                    : '';
-                div.innerHTML = '<img src="' + previewUrl + '" draggable="false" class="w-full h-24 object-cover rounded-lg">' +
-                    _pendMove +
-                    '<p class="text-[10px] text-gray-500 truncate mt-1">' + file.name + '</p>' +
-                    '<button type="button" onclick="removePendingMedia(' + (_pendingMediaFiles.length - 1) + ', this)" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-[10px] opacity-0 group-hover:opacity-100 transition">&times;</button>';
-            }
-            previewContainer.appendChild(div);
+            previewContainer.appendChild(_pendingTile(file, URL.createObjectURL(file), _pendingMediaFiles.length - 1, mediaType));
         }
     }
 
@@ -10295,6 +10260,35 @@ function handleSaleMediaUpload(event, mediaType) {
     } else {
         showToast(files.length + ' ' + mediaType + '(s) added. Save Draft to upload, then drag or use ◀/▶ to reorder.', 'success');
     }
+}
+
+// The preview tile of a file the agent has chosen and not saved yet, built with DOM calls: a file name is text, never markup (a file can be called <img src=x onerror=...>.jpg). Each call
+// has its own index and its own tile, so its buttons act on this file and this tile whatever else is chosen in the same batch.
+function _pendingTile(file, previewUrl, index, mediaType) {
+    var div = document.createElement('div');
+    div.className = 'relative group';
+    div.setAttribute('data-media-index', String(index));
+    var removeButton = _tileButton('absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-[10px] opacity-0 group-hover:opacity-100 transition', '×', function() { removePendingMedia(index, this); });
+    if (file.type === 'application/pdf') {
+        var pdfBox = _tileEl('div', 'w-full h-24 bg-gray-100 rounded-lg flex items-center justify-center');
+        pdfBox.appendChild(_tileEl('i', 'fas fa-file-pdf text-3xl text-red-400'));
+        div.appendChild(pdfBox);
+        div.appendChild(_tileEl('p', 'text-[10px] text-gray-500 truncate mt-1', file.name));
+        div.appendChild(removeButton);
+    } else {
+        // Pre-save reorder: ◀/▶ on unsaved photo previews (_movePendingTile). draggable="false"
+        // so the tile (not the image) is the drag source. (2026-06-23)
+        div.appendChild(_tileImage(previewUrl, 'w-full h-24 object-cover rounded-lg'));
+        if (mediaType === 'photo') {
+            var pendMove = _tileEl('div', 'absolute bottom-6 left-1 right-1 flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition z-10');
+            pendMove.appendChild(_tileButton(MOVE_BUTTON_CLASS, '◀', function() { _movePendingTile(div, -1); }, 'Move earlier'));
+            pendMove.appendChild(_tileButton(MOVE_BUTTON_CLASS, '▶', function() { _movePendingTile(div, 1); }, 'Move later'));
+            div.appendChild(pendMove);
+        }
+        div.appendChild(_tileEl('p', 'text-[10px] text-gray-500 truncate mt-1', file.name));
+        div.appendChild(removeButton);
+    }
+    return div;
 }
 
 function removeServerMedia(btn, mediaId) {
@@ -10465,8 +10459,9 @@ async function renderServerMediaRows(listingId, fallbackId) {
     // Replace the legacy JSON preview with the authoritative keyed rows.
     if (photoContainer) photoContainer.innerHTML = '';
     if (floorContainer) floorContainer.innerHTML = '';
-    var photos = data.media.filter(function (m) { return m.media_type !== 'FloorPlan'; });
-    var floors = data.media.filter(function (m) { return m.media_type === 'FloorPlan'; });
+    var rows = data.media.filter(function (m) { return m && typeof m === 'object' && (typeof m.media_key === 'number' || (typeof m.media_key === 'string' && m.media_key !== '')); });     // an entry that is not a record, or has no key (a text or a number: it could not be moved or removed), shows nothing
+    var photos = rows.filter(function (m) { return m.media_type !== 'FloorPlan'; });
+    var floors = rows.filter(function (m) { return m.media_type === 'FloorPlan'; });
     photos.forEach(function (m, idx) { _renderMediaTile(photoContainer, m, idx, actionId); });
     floors.forEach(function (m, idx) { _renderMediaTile(floorContainer, m, idx, actionId); });
     var countEl = document.getElementById('salePhotoCount');
@@ -10475,36 +10470,119 @@ async function renderServerMediaRows(listingId, fallbackId) {
 
 function _mediaCssEscape(s) { return String(s).replace(/["\\]/g, '\\$&'); }
 
+// The tiles are built with DOM calls: a stored address, id, key or caption is an attribute value and text here, never markup and never a piece of script. A stored media address
+// counts only when it is a web address (http, https, or from this site's own root); anything else (javascript:, data:, a list, a number) shows no picture.
+function _webAddress(value) { return (typeof value === 'string' && /^(https?:\/\/|\/(?!\/))/i.test(value.trim())) ? value.trim() : ''; }
+function _mediaText(value) { return typeof value === 'string' ? value : (typeof value === 'number' ? String(value) : ''); }
+var MOVE_BUTTON_CLASS = 'bg-black/60 hover:bg-black/80 text-white rounded w-6 h-6 text-xs leading-none flex items-center justify-center';
+function _tileEl(tag, className, text) {
+    var el = document.createElement(tag);
+    if (className) el.className = className;
+    if (text !== undefined) el.textContent = text;
+    return el;
+}
+function _tileButton(className, label, onClick, title) {
+    var button = _tileEl('button', className, label);
+    button.type = 'button';
+    if (title) button.title = title;
+    button.addEventListener('click', onClick);
+    return button;
+}
+function _tileImage(url, className) {
+    var img = document.createElement('img');
+    img.src = url;
+    img.draggable = false;
+    img.className = className;
+    return img;
+}
+
+// The "Listing Published" panel: shown when a listing goes Active and the server answers with its addresses.
+function showSalePublishedPanel(lid, publicUrl, realPlusUrl) {
+    // Show RealPlus URL panel
+    var urlPanel = document.getElementById('salePublishUrlPanel');
+    if (!urlPanel) {
+        urlPanel = document.createElement('div');
+        urlPanel.id = 'salePublishUrlPanel';
+        urlPanel.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]';
+        document.body.appendChild(urlPanel);
+    }
+    // Built with DOM calls: the listing id and the two addresses come back from the server and are text and attribute values here, never markup.
+    while (urlPanel.firstChild) urlPanel.removeChild(urlPanel.firstChild);
+    var publishCard = _tileEl('div', 'bg-white rounded-xl shadow-2xl p-6 max-w-lg w-full mx-4');
+    var publishHeading = _tileEl('h3', 'text-lg font-bold text-green-700 mb-3');
+    publishHeading.appendChild(_tileEl('i', 'fas fa-check-circle mr-2'));
+    publishHeading.appendChild(document.createTextNode('Listing Published'));
+    publishCard.appendChild(publishHeading);
+    var publishIntro = _tileEl('p', 'text-sm text-gray-600 mb-4');
+    publishIntro.appendChild(document.createTextNode('Listing '));
+    publishIntro.appendChild(_tileEl('strong', '', String(lid)));
+    publishIntro.appendChild(document.createTextNode(' is now Active on mallan.nyc.'));
+    publishCard.appendChild(publishIntro);
+    var urlRow = function(label, inputId, address, buttonClass, copied, spacing) {
+        var block = _tileEl('div', spacing);
+        block.appendChild(_tileEl('label', 'text-xs font-semibold text-gray-500 block mb-1', label));
+        var line = _tileEl('div', 'flex items-center gap-2');
+        var input = _tileEl('input', 'flex-1 text-sm border rounded px-3 py-2 bg-gray-50 text-gray-800 font-mono');
+        input.id = inputId; input.type = 'text'; input.readOnly = true; input.value = String(address || '');
+        line.appendChild(input);
+        var copy = _tileButton(buttonClass, '', function() { navigator.clipboard.writeText(input.value); showToast(copied, 'success'); });
+        copy.appendChild(_tileEl('i', 'fas fa-copy mr-1'));
+        copy.appendChild(document.createTextNode('Copy'));
+        line.appendChild(copy);
+        block.appendChild(line);
+        return block;
+    };
+    publishCard.appendChild(urlRow('Public URL', 'salePublicUrlInput', publicUrl, 'px-3 py-2 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700', 'Public URL copied', 'mb-3'));
+    publishCard.appendChild(urlRow('RealPlus URL', 'saleRealPlusUrlInput', realPlusUrl, 'px-3 py-2 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700', 'RealPlus URL copied', 'mb-4'));
+    var publishActions = _tileEl('div', 'flex justify-end gap-2');
+    publishActions.appendChild(_tileButton('px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm font-medium hover:bg-gray-300', 'Go to Dashboard', function() { urlPanel.remove(); window.location.href = '/crm/dashboard#/ops/listings'; }));
+    if (_webAddress(publicUrl)) {
+        var viewLink = _tileEl('a', 'px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 inline-flex items-center');
+        viewLink.href = _webAddress(publicUrl); viewLink.target = '_blank'; viewLink.rel = 'noopener noreferrer';
+        viewLink.appendChild(_tileEl('i', 'fas fa-external-link-alt mr-1'));
+        viewLink.appendChild(document.createTextNode('View Listing'));
+        publishActions.appendChild(viewLink);
+    }
+    publishCard.appendChild(publishActions);
+    urlPanel.appendChild(publishCard);
+    urlPanel.style.display = 'flex';
+}
+
 function _renderMediaTile(container, m, idx, listingId) {
-    if (!container) return;
+    if (!container || !m || typeof m !== 'object') return;
+    var mediaKey = _mediaText(m.media_key);
+    if (!mediaKey) return;                         // a row with no key cannot be set as the cover, moved or removed: nothing to show
     var isFloor = (m.media_type === 'FloorPlan');
     var div = document.createElement('div');
     div.className = 'relative group';
-    div.setAttribute('data-media-key', m.media_key);
+    div.setAttribute('data-media-key', mediaKey);
     if (!isFloor) {
         div.draggable = true;
-        div.ondragstart = function (e) { e.dataTransfer.setData('text/plain', m.media_key); };
+        div.ondragstart = function (e) { e.dataTransfer.setData('text/plain', mediaKey); };
         div.ondragover = function (e) { e.preventDefault(); this.style.outline = '2px solid #B8860B'; };
         div.ondragleave = function () { this.style.outline = ''; };
         div.ondrop = function (e) { e.preventDefault(); this.style.outline = ''; _onMediaRowDrop(e, this, listingId, container); };
     }
-    var topLeft = m.preferred_photo_yn
-        ? '<div class="absolute top-1 left-1 bg-[#B8860B] text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow">★ COVER</div>'
-        : (isFloor ? '' : '<button type="button" onclick="setMainPhoto(\'' + listingId + '\',\'' + m.media_key + '\')" class="absolute top-1 left-1 bg-white/90 text-[#7a6a3a] text-[9px] font-semibold px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow">☆ Set cover</button>');
+    // A row whose address is not a web address keeps its tile (it can still be removed), without a picture.
+    var url = _webAddress(m.url);
+    div.appendChild(url ? _tileImage(url, 'w-full h-24 object-cover rounded-lg border') : _tileEl('div', 'w-full h-24 bg-gray-100 rounded-lg border'));
+    if (m.preferred_photo_yn) {
+        div.appendChild(_tileEl('div', 'absolute top-1 left-1 bg-[#B8860B] text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow', '★ COVER'));
+    } else if (!isFloor) {
+        div.appendChild(_tileButton('absolute top-1 left-1 bg-white/90 text-[#7a6a3a] text-[9px] font-semibold px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow', '☆ Set cover', function () { setMainPhoto(listingId, mediaKey); }));
+    }
     // Click-to-move reorder buttons (photos only). Native HTML5 drag also works now that
-    // the <img> below is draggable="false" — an un-guarded image hijacks the mouse drag, so
+    // the <img> above is draggable="false" — an un-guarded image hijacks the mouse drag, so
     // the tile's dragstart/drop never fired (the reported "can't reorder with a mouse" bug).
     // The buttons are the robust path: no drag needed, works on every device. (2026-06-23)
-    var moveBtns = isFloor ? '' :
-        '<div class="absolute bottom-6 left-1 right-1 flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition z-10">' +
-        '<button type="button" title="Move earlier" onclick="_moveMediaTile(\'' + listingId + '\',\'' + m.media_key + '\',-1)" class="bg-black/60 hover:bg-black/80 text-white rounded w-6 h-6 text-xs leading-none flex items-center justify-center">&#9664;</button>' +
-        '<button type="button" title="Move later" onclick="_moveMediaTile(\'' + listingId + '\',\'' + m.media_key + '\',1)" class="bg-black/60 hover:bg-black/80 text-white rounded w-6 h-6 text-xs leading-none flex items-center justify-center">&#9654;</button>' +
-        '</div>';
-    div.innerHTML =
-        '<img src="' + m.url + '" draggable="false" class="w-full h-24 object-cover rounded-lg border">' +
-        topLeft + moveBtns +
-        '<button type="button" onclick="removeServerMedia(this,\'' + m.media_key + '\')" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-[10px] opacity-0 group-hover:opacity-100">&times;</button>' +
-        '<p class="text-[10px] text-gray-500 truncate mt-1">' + (isFloor ? 'Floor Plan' : 'Photo ' + (idx + 1)) + '</p>';
+    if (!isFloor) {
+        var move = _tileEl('div', 'absolute bottom-6 left-1 right-1 flex justify-center gap-2 opacity-0 group-hover:opacity-100 transition z-10');
+        move.appendChild(_tileButton(MOVE_BUTTON_CLASS, '◀', function () { _moveMediaTile(listingId, mediaKey, -1); }, 'Move earlier'));
+        move.appendChild(_tileButton(MOVE_BUTTON_CLASS, '▶', function () { _moveMediaTile(listingId, mediaKey, 1); }, 'Move later'));
+        div.appendChild(move);
+    }
+    div.appendChild(_tileButton('absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 text-[10px] opacity-0 group-hover:opacity-100', '×', function () { removeServerMedia(this, mediaKey); }));
+    div.appendChild(_tileEl('p', 'text-[10px] text-gray-500 truncate mt-1', isFloor ? 'Floor Plan' : 'Photo ' + (idx + 1)));
     container.appendChild(div);
 }
 

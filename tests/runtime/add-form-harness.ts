@@ -39,9 +39,12 @@ export type AddFormOpts = {
   modules?: string[];                                // page modules to load, in order (default: every module the forms load)
   moduleSources?: Record<string, (source: string) => string>;   // rewrite a module's source before it runs (a copy cached from an older deploy)
   storage?: Record<string, string>;                  // localStorage entries present when the page starts (a saved browser draft)
+  mediaRows?: unknown;                               // what GET /api/crm/listings/:id/media answers as its list of media rows (anything: the rows are the server's)
+  created?: Record<string, unknown>;                 // what MallanAPI.listings.create answers, over the default { id, listing_id, status: 'Draft' } (the server's ids and addresses are the server's)
   settle?: number;                                   // ms to let page init finish
 };
-export type BootedForm = { w: any; d: Document; errors: string[]; fetched: string[]; searched: string[]; saved: Record<string, unknown>[]; close: () => void };
+export type Request = { url: string; method: string; body: string };
+export type BootedForm = { w: any; d: Document; errors: string[]; fetched: string[]; searched: string[]; requests: Request[]; saved: Record<string, unknown>[]; close: () => void };
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function until(cond: () => boolean, ms = 8000): Promise<void> {
@@ -69,6 +72,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
   const fetched: string[] = [];
   const saved: Record<string, unknown>[] = [];
   const searched: string[] = [];                       // the queries sent to /api/buildings/search
+  const requests: Request[] = [];                      // every fetch() the page made, with its method and body
   let buildingCalls = 0;
   const virtualConsole = new VirtualConsole();
   virtualConsole.on('jsdomError', (e: any) => errors.push(String(e?.detail?.message ?? e?.message)));
@@ -83,8 +87,12 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
       w.tailwind = { config: {} };
       w.alert = () => undefined; w.confirm = () => true; w.scrollTo = () => undefined; w.print = () => undefined;
       w.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} });
-      w.fetch = async (url: string) => {
+      w.fetch = async (url: string, init?: { method?: string; body?: unknown }) => {
         const u = String(url);
+        requests.push({ url: u, method: init?.method ?? 'GET', body: typeof init?.body === 'string' ? init.body : '' });
+        if (o.mediaRows !== undefined && (init?.method ?? 'GET') === 'GET' && /^\/api\/crm\/listings\/[^/?]+\/media(\?.*)?$/.test(u)) {
+          return { ok: true, status: 200, json: async () => ({ listing_id: 'L-1', media: o.mediaRows }), text: async () => '' };
+        }
         if (u.startsWith('/api/buildings/search')) {
           const q = decodeURIComponent((u.split('q=')[1] ?? '').split('&')[0]);
           const call = ++buildingCalls;
@@ -112,7 +120,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
         init: () => Promise.resolve({ authenticated: !!user, user }),
         listings: {
           get: async () => { await sleep(o.getDelay ?? 10); if (o.getError) throw new Error(o.getError); return o.listing ?? {}; },
-          create: async (payload: Record<string, unknown>) => { saved.push(payload); return { id: '1', listing_id: 'L-1', status: 'Draft' }; },
+          create: async (payload: Record<string, unknown>) => { saved.push(payload); return { id: '1', listing_id: 'L-1', status: 'Draft', ...(o.created ?? {}) }; },
           update: async (_id: string, payload: Record<string, unknown>) => { saved.push(payload); return {}; },
           updateStatus: async () => ({}),
         },
@@ -134,7 +142,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
     },
   });
   await sleep(o.settle ?? 1200);
-  return { w: dom.window, d: dom.window.document, errors, fetched, searched, saved, close: () => dom.window.close() };
+  return { w: dom.window, d: dom.window.document, errors, fetched, searched, requests, saved, close: () => dom.window.close() };
 }
 
 export const val = (d: Document, id: string): string => ((d.getElementById(id) as HTMLInputElement | null)?.value) ?? '';
