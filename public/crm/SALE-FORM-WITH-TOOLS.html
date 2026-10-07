@@ -661,7 +661,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     </select>
                 </div>
                 <div id="saleRETaxesField">
-                    <label class="field-label">RE Taxes (Monthly)</label>
+                    <label class="field-label">RE Taxes (Annual)</label>
                     <input type="number" id="saleRETaxes" placeholder="$0.00" step="0.01" class="field-input" data-rls-field="TaxAnnualAmount">
                 </div>
             </div>
@@ -3224,7 +3224,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <div><span class="text-gray-600 text-xs">Listing URL</span></div>
                     <div class="text-blue-600 text-xs break-all" id="salePreviewURL">--</div>
                     <div><span class="text-gray-600 text-xs">Description</span></div>
-                    <div class="text-gray-700 text-xs leading-relaxed max-h-32 overflow-y-auto" id="salePreviewDesc">Enter a description to see it here.</div>
+                    <div class="text-gray-700 text-xs leading-relaxed max-h-32 overflow-y-auto" id="salePreviewDesc">--</div>
                 </div>
             </div>
 
@@ -3296,7 +3296,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <div class="w-3 h-3 rounded-full bg-amber-400"></div>
                 </div>
                 <div class="flex-1 bg-white rounded px-3 py-1 text-xs text-gray-500 ml-2">
-                    <i class="fas fa-lock text-[#B8860B] mr-1"></i> mallan.nyc/listing/<span id="salePreviewSiteSlug">new</span>
+                    <i class="fas fa-lock text-[#B8860B] mr-1"></i> mallan.nyc/listing/<span id="salePreviewSiteSlug">--</span>
                 </div>
             </div>
 
@@ -3350,7 +3350,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         <!-- Description -->
                         <div>
                             <h3 class="text-lg font-semibold mb-2">About This Property</h3>
-                            <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line max-h-40 overflow-y-auto" id="salePreviewSiteDesc">Listing description will appear here...</p>
+                            <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line max-h-40 overflow-y-auto" id="salePreviewSiteDesc">--</p>
                         </div>
 
                         <!-- Co-op/Condo Info -->
@@ -4883,7 +4883,7 @@ function generateAgentInfoSheet() {
     var baths = gv('saleFullBaths');
     var sqft = gv('saleUnitSqFt') || gv('saleLivingArea');
     var fullAddr = address + (unit ? ', Unit ' + unit : '') + (borough ? ', ' + borough : '') + (zip ? ' ' + zip : '');
-    var priceStr = price ? '$' + Number(price).toLocaleString() : '--';
+    var priceStr = saleMoney(price) || '--';
     var details = [];
     if (beds && beds !== '0') details.push(beds + ' BD');
     if (baths && baths !== '0') details.push(baths + ' BA');
@@ -5003,7 +5003,7 @@ function viewerBuildListing(apiData, id) {
         description: (apiData.features || {}).PublicRemarks || '',
         listingAgentName: apiData.list_agent_full_name || (apiData.agent_info || {}).ListAgentFullName || '',
         listingCompany: apiData.list_office_name || (apiData.agent_info || {}).ListOfficeName || '',
-        photos: Array.isArray(apiData.media) ? apiData.media.map(function(m) { return m.url || ''; }) : [],
+        photos: Array.isArray(apiData.media) ? apiData.media.map(function(m) { return (m && m.url) || ''; }) : [],
         lastUpdated: viewerDateTimeText(apiData.updated_at),
         createDate: viewerDateOnly(apiData.created_at),
         lastUpdatedDate: viewerDateOnly(apiData.updated_at),
@@ -5575,7 +5575,8 @@ function _performComplianceCheck(textareaId, flagsDivId) {
     const flagsDiv = document.getElementById(flagsDivId);
     if (!textarea || !flagsDiv) return;
     const text = textarea.value;
-    if (!text.trim()) {
+    // This viewer does not carry the Fair Housing word list (the Add forms do): it says nothing, rather than stop on a missing list or claim "No compliance violations detected".
+    if (typeof FAIR_HOUSING_VIOLATIONS === 'undefined' || !text.trim()) {
         flagsDiv.classList.add('hidden');
         flagsDiv.innerHTML = '';
         textarea.classList.remove('border-red-400', 'border-orange-400');
@@ -6535,10 +6536,10 @@ function updateSalePreview() {
     const propType = checked('salePropertyType');
     setText('salePreviewPropType', propType || '--');
     setText('salePreviewPrice', fmtPrice(val('salePrice')));
-    const maintVal = parseFloat(val('saleMaintCC')) || 0;
-    setText('salePreviewMaint', maintVal > 0 ? '$' + maintVal.toLocaleString() + '/mo' : '--');
-    const taxVal = parseFloat(val('saleRETaxes')) || 0;
-    setText('salePreviewTaxes', taxVal > 0 ? '$' + taxVal.toLocaleString() + '/mo' : '--');
+    const maintText = saleMaintenanceText(val('saleMaintCC'), (document.getElementById('saleMaintCCFreq') || {}).value);
+    setText('salePreviewMaint', maintText || '--');
+    const taxText = saleTaxText(val('saleRETaxes'));
+    setText('salePreviewTaxes', taxText || '--');
 
     // Address
     const parts = [];
@@ -6553,7 +6554,7 @@ function updateSalePreview() {
     // Card 2: Description
     setText('salePreviewHeadline', val('saleWebHeadline', '--'));
     setText('salePreviewURL', val('saleListingUrl', '--'));
-    setText('salePreviewDesc', val('saleDescription', 'Enter a description to see it here.'));
+    setText('salePreviewDesc', val('saleDescription'));
 
     // Card 3: Unit Info
     const floors = checked('saleNumFloors');
@@ -6567,10 +6568,9 @@ function updateSalePreview() {
     setText('salePreviewFloorNum', val('saleFloorInBuilding'));
 
     // Card 4: Distribution
+    // the viewer shows each distribution flag as a badge (yes / no / unknown): the flags the record sets are the distribution
     const distChecked = [];
-    document.querySelectorAll('input[name="saleDistribution"]:checked, input[name="saleIDXSites"]:checked').forEach(cb => {
-        distChecked.push(cb.value || cb.nextElementSibling?.textContent?.trim() || cb.parentElement?.textContent?.trim());
-    });
+    document.querySelectorAll('#saleMainTab4 [data-state="yes"]').forEach(badge => distChecked.push(badge.textContent.trim().split('\n')[0].trim()));
     setText('salePreviewDistro', distChecked.length ? distChecked.slice(0, 4).join(', ') + (distChecked.length > 4 ? ' +' + (distChecked.length - 4) + ' more' : '') : '--');
     setText('salePreviewPhotos', getListingPhotoUrls('sale').length + ' photos');
     setText('salePreviewVideo', val('saleVideoUrl', 'None') !== 'None' ? 'Yes' : 'None');
@@ -6625,6 +6625,8 @@ function updateSalePreview() {
     if (st !== '--') fullAddr.push(st);
     if (un !== '--') fullAddr.push(', Unit ' + un);
     setText('salePreviewSiteAddress', fullAddr.length ? fullAddr.join('') : '--');
+    var storedRecord = getSaleStored();
+    setText('salePreviewSiteSlug', (storedRecord && storedRecord._raw && typeof storedRecord._raw.slug === 'string' && storedRecord._raw.slug) || '--');       // the address of the public page is the record's own
 
     const hoodEl = document.getElementById('saleBldgNeighborhood');
     const hood = hoodEl && hoodEl.selectedIndex >= 0 ? hoodEl.options[hoodEl.selectedIndex].text : '';
@@ -6641,7 +6643,7 @@ function updateSalePreview() {
     const ppsf = (price > 0 && sqft > 0) ? '$' + Math.round(price / sqft).toLocaleString() : '--';
     setText('salePreviewSitePPSF', ppsf);
     setText('salePreviewSiteRooms', val('saleTotalRooms'));
-    setText('salePreviewSiteDesc', val('saleDescription', 'Listing description will appear here...'));
+    setText('salePreviewSiteDesc', val('saleDescription'));
 
     // Co-op/Condo info panel
     const coopInfo = document.getElementById('salePreviewSiteCoopInfo');
@@ -6649,8 +6651,8 @@ function updateSalePreview() {
         if (isManagedUnit) {
             coopInfo.classList.remove('hidden');
             setText('salePreviewSiteCoopTitle', propType === 'Coop' ? 'Co-op Information' : (propType === 'Condop' ? 'Condop Information' : 'Condo Information'));
-            setText('salePreviewSiteMaint', maintVal > 0 ? '$' + maintVal.toLocaleString() + '/mo' : '--');
-            setText('salePreviewSiteTaxes', taxVal > 0 ? '$' + taxVal.toLocaleString() + '/mo' : '--');
+            setText('salePreviewSiteMaint', maintText || '--');
+            setText('salePreviewSiteTaxes', taxText || '--');
         } else {
             coopInfo.classList.add('hidden');
         }
@@ -7001,6 +7003,34 @@ function getSaleCheckboxYN(id) {
     return el ? (el.checked ? 'Yes' : 'No') : '';
 }
 
+// Money the way the record says it. A price, a fee or a tax above zero is an amount; anything else (nothing, 0, a negative, text) is none. The association fee carries the frequency
+// the record stores (AssociationFeeFrequency; a record without one says nothing after the fee), and the tax is TaxAnnualAmount: a year of taxes, never a month's.
+var SALE_FEE_PERIODS = { Monthly: '/mo', Quarterly: '/qtr', Annually: '/yr', SemiAnnually: 'every 6 months', Weekly: '/wk', BiWeekly: 'every 2 weeks', SemiMonthly: 'twice a month', BiMonthly: 'every 2 months', Seasonal: 'per season', Daily: '/day', OneTime: 'one time' };
+function saleMoney(amount, period) {
+    var n = parseFloat(amount);
+    if (!(n > 0)) return '';
+    return '$' + n.toLocaleString() + (period ? (period.charAt(0) === '/' ? period : ' ' + period) : '');
+}
+function saleMaintenanceText(amount, frequency) { return saleMoney(amount, Object.prototype.hasOwnProperty.call(SALE_FEE_PERIODS, frequency) ? SALE_FEE_PERIODS[frequency] : ''); }
+function saleTaxText(amount) { return saleMoney(amount, '/yr'); }
+
+// Text for a mail-client address. encodeURIComponent throws on half of an emoji (a description cut in the middle of one, or stored that way) and the button then does nothing: a lone
+// half becomes U+FFFD first. A cut of a description is made by characters (code points), so it never leaves half of one.
+function wellFormed(s) {
+    s = String(s == null ? '' : s);
+    var out = '';
+    for (var i = 0; i < s.length; i++) {
+        var c = s.charCodeAt(i), next = i + 1 < s.length ? s.charCodeAt(i + 1) : 0;
+        if (c >= 0xD800 && c <= 0xDBFF && next >= 0xDC00 && next <= 0xDFFF) { out += s.charAt(i) + s.charAt(i + 1); i++; }
+        else if (c >= 0xD800 && c <= 0xDFFF) out += '\uFFFD';
+        else out += s.charAt(i);
+    }
+    return out;
+}
+function uriText(s) { return encodeURIComponent(wellFormed(s)); }
+function textHead(s, n) { return Array.from(wellFormed(s)).slice(0, n).join(''); }
+function textLength(s) { return Array.from(wellFormed(s)).length; }
+
 // Text for HTML: every character that can open a tag or leave an attribute, quotes included (escapeHtml, further up, does not escape quotes). Every stored or typed value that
 // is written into a print, e-mail or preview document goes through it.
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) { return '&#' + c.charCodeAt(0) + ';'; }); }
@@ -7071,6 +7101,7 @@ function collectSalePrintData() {
         // Pricing
         price: getSaleFormValue('salePrice'),
         maintCC: getSaleFormValue('saleMaintCC'),
+        maintFrequency: getSaleFormValue('saleMaintCCFreq'),
         reTaxes: getSaleFormValue('saleRETaxes'),
         flipTax: getSaleFormValue('saleFlipTaxAmount'),
         // Rooms
@@ -7152,7 +7183,7 @@ function buildSalePrintHTML(data, sections, options) {
     if (data.unit) address += ', Unit ' + data.unit;
     var location = [data.neighborhood, data.borough, data.state, data.zip].filter(Boolean).join(', ');
     html += '<div style="text-align:center; margin-bottom:20px;">';
-    if (data.price) html += '<p class="print-price">$' + parseFloat(data.price).toLocaleString() + '</p>';
+    if (saleMoney(data.price)) html += '<p class="print-price">' + saleMoney(data.price) + '</p>';
     if (address) html += '<p class="print-address">' + esc(address) + '</p>';
     if (location) html += '<p style="color:#666; font-size:10pt;">' + esc(location) + '</p>';
     var stats = [];
@@ -7207,9 +7238,9 @@ function buildSalePrintHTML(data, sections, options) {
     }
     if (sections.indexOf('pricing') !== -1) {
         var pricingFields = [
-            ['List Price', data.price ? '$' + parseFloat(data.price).toLocaleString() : ''],
-            ['Maintenance/CC', data.maintCC ? '$' + parseFloat(data.maintCC).toLocaleString() + '/mo' : ''],
-            ['RE Taxes', data.reTaxes ? '$' + parseFloat(data.reTaxes).toLocaleString() + '/mo' : ''],
+            ['List Price', saleMoney(data.price)],
+            ['Maintenance/CC', saleMaintenanceText(data.maintCC, data.maintFrequency)],
+            ['RE Taxes (annual)', saleTaxText(data.reTaxes)],
             ['Flip Tax', data.flipTax]
         ];
         // REBNY UCBA compliance: commission/compensation must NEVER appear on client-facing materials
@@ -7338,7 +7369,7 @@ function openSaleEmailModal() {
     var data = collectSalePrintData();
     var address = (data.streetAddress || '').trim();
     if (data.unit) address += ', Unit ' + data.unit;
-    var priceStr = data.price ? '$' + parseFloat(data.price).toLocaleString() : '';
+    var priceStr = saleMoney(data.price);
     document.getElementById('saleEmailSubject').value = 'Listing: ' + address + (priceStr ? ' — ' + priceStr : '');
 
     // Build preview card
@@ -7354,16 +7385,16 @@ function buildSaleEmailCardHTML(data) {
     var address = (data.streetAddress || '').trim();
     if (data.unit) address += ', Unit ' + data.unit;
     var location = [data.neighborhood, data.borough].filter(Boolean).join(', ');
-    var priceStr = data.price ? '$' + parseFloat(data.price).toLocaleString() : '';
+    var priceStr = saleMoney(data.price);
     var stats = [];
     if (data.bedrooms) stats.push(esc(data.bedrooms) + ' BD');
     if (data.fullBaths) stats.push(esc(data.fullBaths) + ' BA');
     if (data.livingArea) stats.push(esc(data.livingArea) + ' SF');
-    var desc = (data.description || '').substring(0, 200);
-    if ((data.description || '').length > 200) desc += '...';
+    var desc = textHead(data.description, 200);
+    if (textLength(data.description) > 200) desc += '...';
 
-    var maint = data.maintCC ? '$' + parseFloat(data.maintCC).toLocaleString() + '/mo' : '';
-    var taxes = data.reTaxes ? '$' + parseFloat(data.reTaxes).toLocaleString() + '/mo' : '';
+    var maint = saleMaintenanceText(data.maintCC, data.maintFrequency);
+    var taxes = saleTaxText(data.reTaxes);
 
     var html = '<div style="max-width:600px; margin:0 auto; font-family:Segoe UI,Tahoma,sans-serif; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">';
     // Primary photo
@@ -7414,16 +7445,16 @@ function buildSaleEmailInlineHTML(data) {
     var address = (data.streetAddress || '').trim();
     if (data.unit) address += ', Unit ' + data.unit;
     var location = [data.neighborhood, data.borough].filter(Boolean).join(', ');
-    var priceStr = data.price ? '$' + parseFloat(data.price).toLocaleString() : '';
+    var priceStr = saleMoney(data.price);
     var stats = [];
     if (data.bedrooms) stats.push(esc(data.bedrooms) + ' BD');
     if (data.fullBaths) stats.push(esc(data.fullBaths) + ' BA');
     if (data.livingArea) stats.push(esc(data.livingArea) + ' SF');
     if (data.propertyType) stats.push(esc(data.propertyType));
-    var desc = (data.description || '').substring(0, 200);
-    if ((data.description || '').length > 200) desc += '...';
-    var maint = data.maintCC ? '$' + parseFloat(data.maintCC).toLocaleString() + '/mo' : '';
-    var taxes = data.reTaxes ? '$' + parseFloat(data.reTaxes).toLocaleString() + '/mo' : '';
+    var desc = textHead(data.description, 200);
+    if (textLength(data.description) > 200) desc += '...';
+    var maint = saleMaintenanceText(data.maintCC, data.maintFrequency);
+    var taxes = saleTaxText(data.reTaxes);
 
     var message = (document.getElementById('saleEmailMessage').value || '').trim();
 
@@ -7460,7 +7491,7 @@ function buildSaleEmailInlineHTML(data) {
 function getSalePlainTextSummary(data) {
     var address = (data.streetAddress || '').trim();
     if (data.unit) address += ', Unit ' + data.unit;
-    var priceStr = data.price ? '$' + parseFloat(data.price).toLocaleString() : '';
+    var priceStr = saleMoney(data.price);
     var lines = [];
     if (priceStr) lines.push(priceStr);
     if (address) lines.push(address);
@@ -7472,10 +7503,12 @@ function getSalePlainTextSummary(data) {
     if (data.livingArea) stats.push(data.livingArea + ' SF');
     if (data.propertyType) stats.push(data.propertyType);
     if (stats.length) lines.push(stats.join(' | '));
-    if (data.maintCC) lines.push('Maint/CC: $' + parseFloat(data.maintCC).toLocaleString() + '/mo');
-    if (data.reTaxes) lines.push('RE Taxes: $' + parseFloat(data.reTaxes).toLocaleString() + '/mo');
+    var maintText = saleMaintenanceText(data.maintCC, data.maintFrequency);
+    if (maintText) lines.push('Maint/CC: ' + maintText);
+    var taxText = saleTaxText(data.reTaxes);
+    if (taxText) lines.push('RE Taxes (annual): ' + taxText);
     lines.push('');
-    if (data.description) lines.push(data.description.substring(0, 300));
+    if (data.description) lines.push(textHead(data.description, 300));
     lines.push('');
     // from the signed-in agent: name, company, and their own phone and e-mail (the firm's general line when the session carries neither); never the listing agent
     var sender = [data.updatingAgent, data.updatingCompany].filter(Boolean).join(' | ');
@@ -7523,10 +7556,10 @@ function openSaleInEmailClient() {
     var message = (document.getElementById('saleEmailMessage').value || '').trim();
     if (message) body = message + '\n\n' + body;
 
-    var mailto = 'mailto:' + encodeURIComponent(to);
-    mailto += '?subject=' + encodeURIComponent(subject);
-    if (cc) mailto += '&cc=' + encodeURIComponent(cc);
-    mailto += '&body=' + encodeURIComponent(body);
+    var mailto = 'mailto:' + uriText(to);
+    mailto += '?subject=' + uriText(subject);
+    if (cc) mailto += '&cc=' + uriText(cc);
+    mailto += '&body=' + uriText(body);
     window.open(mailto, '_self');
 }
 

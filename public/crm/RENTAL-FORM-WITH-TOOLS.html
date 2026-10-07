@@ -2691,7 +2691,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <div><span class="text-gray-600 text-xs">Listing URL</span></div>
                 <div class="text-blue-600 text-xs break-all" id="rentalPreviewCRMURL">--</div>
                 <div><span class="text-gray-600 text-xs">Description</span></div>
-                <div class="text-gray-700 text-xs leading-relaxed max-h-32 overflow-y-auto" id="rentalPreviewCRMDesc">Enter a description to see it here.</div>
+                <div class="text-gray-700 text-xs leading-relaxed max-h-32 overflow-y-auto" id="rentalPreviewCRMDesc">--</div>
             </div>
         </div>
 
@@ -2771,7 +2771,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
         </div>
         <div class="p-4">
             <h4 class="font-semibold text-gray-900 mb-2">Description</h4>
-            <p class="text-sm text-gray-600 mb-3" id="previewDescription">Enter a description in the Listing Description tab to see it here.</p>
+            <p class="text-sm text-gray-600 mb-3" id="previewDescription">--</p>
             <div class="flex flex-wrap gap-2" id="previewAmenities">
                 <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">Amenities will appear here</span>
             </div>
@@ -2801,7 +2801,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <div class="w-3 h-3 rounded-full bg-amber-400"></div>
             </div>
             <div class="flex-1 bg-white rounded px-3 py-1 text-xs text-gray-500 ml-2">
-                <i class="fas fa-lock text-[#B8860B] mr-1"></i> mallan.nyc/listing/<span id="rentalPreviewSiteSlug">new</span>
+                <i class="fas fa-lock text-[#B8860B] mr-1"></i> mallan.nyc/listing/<span id="rentalPreviewSiteSlug">--</span>
             </div>
         </div>
         <div class="bg-gray-100 px-6 py-3 flex items-center justify-between">
@@ -2833,7 +2833,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <div class="lg:col-span-2 space-y-6">
                     <div>
                         <h3 class="text-lg font-semibold mb-2">About This Property</h3>
-                        <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line max-h-40 overflow-y-auto" id="rentalPreviewSiteDesc">Listing description will appear here...</p>
+                        <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line max-h-40 overflow-y-auto" id="rentalPreviewSiteDesc">--</p>
                     </div>
                     <div>
                         <h3 class="text-lg font-semibold mb-3">Rental Details</h3>
@@ -4410,7 +4410,7 @@ function viewerBuildListing(apiData, id) {
         description: (apiData.features || {}).PublicRemarks || '',
         listingAgentName: apiData.list_agent_full_name || (apiData.agent_info || {}).ListAgentFullName || '',
         listingCompany: apiData.list_office_name || (apiData.agent_info || {}).ListOfficeName || '',
-        photos: Array.isArray(apiData.media) ? apiData.media.map(function(m) { return m.url || ''; }) : [],
+        photos: Array.isArray(apiData.media) ? apiData.media.map(function(m) { return (m && m.url) || ''; }) : [],
         lastUpdated: viewerDateTimeText(apiData.updated_at),
         createDate: viewerDateOnly(apiData.created_at),
         lastUpdatedDate: viewerDateOnly(apiData.updated_at),
@@ -5891,7 +5891,7 @@ function generateAgentInfoSheet() {
     var beds = gv('rentalBedrooms');
     var baths = gv('rentalFullBathrooms');
     var fullAddr = address + (unit ? ', Unit ' + unit : '') + (borough ? ', ' + borough : '') + (zip ? ' ' + zip : '');
-    var priceStr = rent ? '$' + Number(rent).toLocaleString() + '/mo' : '--';
+    var priceStr = rentalMoney(rent, '/mo') || '--';
     var details = [];
     if (beds && beds !== '0') details.push(beds + ' BD');
     if (baths && baths !== '0') details.push(baths + ' BA');
@@ -6810,7 +6810,7 @@ function updateRentalPreview() {
 
     // Card 1: Listing Essentials
     var agentNameVal = val('rentalUpdatingAgentName', '--');
-    var agentLicenseVal = val('rentalUpdatingAgentLicense', '--');
+    var agentLicenseVal = (document.getElementById('rentalListingAgentLicense') || {}).textContent || '--';       // the listing agent's, as the record has it (the public page names the listing agent)
     var companyNameVal = val('rentalListingCompanySearch', '--');
     setText('rentalPreviewAgent', agentNameVal);
     setText('previewAgentName', val('rentalListingAgentSearch', '--'));
@@ -6831,7 +6831,7 @@ function updateRentalPreview() {
 
     // Card 2: Description
     setText('rentalPreviewCRMHeadline', headline && headline.value ? headline.value : '--');
-    const urlField = document.getElementById('rentalListingURL');
+    const urlField = document.getElementById('rentalListingUrl');
     setText('rentalPreviewCRMURL', urlField && urlField.value ? urlField.value : '--');
     setText('rentalPreviewCRMDesc', desc && desc.value ? desc.value : '--');
 
@@ -6843,14 +6843,12 @@ function updateRentalPreview() {
     setText('rentalPreviewCRMFloor', val('rentalFloor'));
 
     // Card 4: Distribution & Media
+    // the viewer shows each distribution flag as a badge (yes / no / unknown): the flags the record sets are the distribution
     const distroChecked = [];
-    document.querySelectorAll('#rentalMainTab4 input[type="checkbox"]:checked').forEach(cb => {
-        const label = cb.closest('label');
-        if (label) distroChecked.push(label.textContent.trim().split('\n')[0].trim());
-    });
-    setText('rentalPreviewDistro', distroChecked.length ? distroChecked.join(', ') : 'None selected');
-    const photoCount = document.querySelectorAll('#rentalPhotoGrid .photo-item, #rentalPhotoGrid img').length;
-    setText('rentalPreviewPhotos', photoCount > 0 ? photoCount + ' photo(s)' : '0');
+    document.querySelectorAll('#rentalMainTab4 [data-state="yes"]').forEach(badge => distroChecked.push(badge.textContent.trim().split('\n')[0].trim()));
+    setText('rentalPreviewDistro', distroChecked.length ? distroChecked.join(', ') : '--');
+    const photoCount = getListingPhotoUrls('rental').length;        // the record's own photos (this viewer has no photo grid)
+    setText('rentalPreviewPhotos', photoCount === 1 ? '1 photo' : photoCount + ' photos');
     const videoURL = document.getElementById('rentalVideoURL');
     setText('rentalPreviewCRMVideo', videoURL && videoURL.value ? 'Yes' : 'None');
     const tourURL = document.getElementById('rentalVirtualTourURL') || document.getElementById('rentalTourURL');
@@ -6923,11 +6921,14 @@ function updateRentalPreview() {
     // ═══════════════════════════════════════
     setText('rentalPreviewSitePrice', priceVal > 0 ? '$' + priceVal.toLocaleString() + '/mo' : '--');
     setText('rentalPreviewSiteAddress', fullAddr !== '--' ? fullAddr : '--');
+    var storedRecord = getRentalStored();
+    setText('rentalPreviewSiteSlug', (storedRecord && storedRecord._raw && typeof storedRecord._raw.slug === 'string' && storedRecord._raw.slug) || '--');       // the address of the public page is the record's own
 
     const hood = val('rentalNeighborhood', '');
     const boro = borough ? borough.value : '';
-    const zip = val('rentalZip', '');
-    const locParts = [hood !== '--' ? hood : '', boro, zip !== '--' ? 'NY ' + zip : ''].filter(Boolean);
+    const zip = val('rentalZipCode', '');
+    const stateZip = [getRentalStoredAddress('StateOrProvince'), zip !== '--' ? zip : ''].filter(Boolean).join(' ');       // the state is the record's, never assumed
+    const locParts = [hood !== '--' ? hood : '', boro, stateZip].filter(Boolean);
     setText('rentalPreviewSiteNeighborhood', locParts.length ? locParts.join(', ') : '--');
     setText('rentalPreviewSitePropType', propType || '--');
 
@@ -7267,6 +7268,30 @@ function getRentalCheckboxYN(id) {
     return el.checked ? 'Yes' : 'No';
 }
 
+// Text for a mail-client address. encodeURIComponent throws on half of an emoji (a description cut in the middle of one, or stored that way) and the button then does nothing: a lone
+// half becomes U+FFFD first. A cut of a description is made by characters (code points), so it never leaves half of one.
+function wellFormed(s) {
+    s = String(s == null ? '' : s);
+    var out = '';
+    for (var i = 0; i < s.length; i++) {
+        var c = s.charCodeAt(i), next = i + 1 < s.length ? s.charCodeAt(i + 1) : 0;
+        if (c >= 0xD800 && c <= 0xDBFF && next >= 0xDC00 && next <= 0xDFFF) { out += s.charAt(i) + s.charAt(i + 1); i++; }
+        else if (c >= 0xD800 && c <= 0xDFFF) out += '\uFFFD';
+        else out += s.charAt(i);
+    }
+    return out;
+}
+function uriText(s) { return encodeURIComponent(wellFormed(s)); }
+function textHead(s, n) { return Array.from(wellFormed(s)).slice(0, n).join(''); }
+function textLength(s) { return Array.from(wellFormed(s)).length; }
+
+// Money the way the record says it: an amount above zero is an amount; anything else (nothing, 0, a negative, text) is none. A security deposit may be 0 (no deposit), so it only has to be a number.
+function rentalMoney(amount, suffix, allowZero) {
+    var n = parseFloat(amount);
+    if (!(allowZero ? n >= 0 : n > 0)) return '';
+    return '$' + n.toLocaleString() + (suffix || '');
+}
+
 // Text for HTML: every character that can open a tag or leave an attribute, quotes included. Every stored or typed value that is written into a print, e-mail, sheet or preview
 // document goes through it.
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) { return '&#' + c.charCodeAt(0) + ';'; }); }
@@ -7438,7 +7463,7 @@ function buildRentalPrintHTML(data, sections, options) {
     if (data.unit) address += ', Unit ' + data.unit;
     var location = [data.neighborhood, data.borough, data.state, data.zip].filter(Boolean).join(', ');
     html += '<div style="text-align:center; margin-bottom:20px;">';
-    if (data.monthlyRent) html += '<p class="print-price">$' + parseFloat(data.monthlyRent).toLocaleString() + '/mo</p>';
+    if (rentalMoney(data.monthlyRent)) html += '<p class="print-price">' + rentalMoney(data.monthlyRent, '/mo') + '</p>';
     if (address) html += '<p class="print-address">' + esc(address) + '</p>';
     if (location) html += '<p style="color:#666; font-size:10pt;">' + esc(location) + '</p>';
     var stats = [];
@@ -7492,8 +7517,8 @@ function buildRentalPrintHTML(data, sections, options) {
     }
     if (sections.indexOf('pricing') !== -1) {
         var pricingFields = [
-            ['Monthly Rent', data.monthlyRent ? '$' + parseFloat(data.monthlyRent).toLocaleString() + '/mo' : ''],
-            ['Security Deposit', data.securityDeposit ? '$' + parseFloat(data.securityDeposit).toLocaleString() : ''],
+            ['Monthly Rent', rentalMoney(data.monthlyRent, '/mo')],
+            ['Security Deposit', rentalMoney(data.securityDeposit, '', true)],
             ['Available Date', data.availableDate], ['Lease Term', data.leaseTerm],
             ['Broker Fee', data.brokerFee]
         ];
@@ -7588,7 +7613,7 @@ function openRentalEmailModal() {
     var data = collectRentalPrintData();
     var address = (data.streetAddress || '').trim();
     if (data.unit) address += ', Unit ' + data.unit;
-    var priceStr = data.monthlyRent ? '$' + parseFloat(data.monthlyRent).toLocaleString() + '/mo' : '';
+    var priceStr = rentalMoney(data.monthlyRent, '/mo');
     document.getElementById('rentalEmailSubject').value = 'Rental Listing: ' + address + (priceStr ? ' — ' + priceStr : '');
     document.getElementById('rentalEmailCardPreview').innerHTML = buildRentalEmailCardHTML(data);
 }
@@ -7601,13 +7626,13 @@ function buildRentalEmailCardHTML(data) {
     var address = (data.streetAddress || '').trim();
     if (data.unit) address += ', Unit ' + data.unit;
     var location = [data.neighborhood, data.borough].filter(Boolean).join(', ');
-    var priceStr = data.monthlyRent ? '$' + parseFloat(data.monthlyRent).toLocaleString() + '/mo' : '';
+    var priceStr = rentalMoney(data.monthlyRent, '/mo');
     var stats = [];
     if (data.bedrooms) stats.push(esc(data.bedrooms) + ' BD');
     if (data.fullBaths) stats.push(esc(data.fullBaths) + ' BA');
     if (data.livingArea) stats.push(esc(data.livingArea) + ' SF');
-    var desc = (data.description || '').substring(0, 200);
-    if ((data.description || '').length > 200) desc += '...';
+    var desc = textHead(data.description, 200);
+    if (textLength(data.description) > 200) desc += '...';
 
     var html = '<div style="max-width:600px; margin:0 auto; font-family:Segoe UI,Tahoma,sans-serif; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">';
     var emailPhotos = getListingPhotoUrls('rental');
@@ -7648,7 +7673,7 @@ function rentalSenderLinesHTML(data) {
 function getRentalPlainTextSummary(data) {
     var address = (data.streetAddress || '').trim();
     if (data.unit) address += ', Unit ' + data.unit;
-    var priceStr = data.monthlyRent ? '$' + parseFloat(data.monthlyRent).toLocaleString() + '/mo' : '';
+    var priceStr = rentalMoney(data.monthlyRent, '/mo');
     var lines = [];
     if (priceStr) lines.push(priceStr);
     if (address) lines.push(address);
@@ -7662,7 +7687,7 @@ function getRentalPlainTextSummary(data) {
     if (stats.length) lines.push(stats.join(' | '));
     if (data.availableDate) lines.push('Available: ' + data.availableDate);
     lines.push('');
-    if (data.description) lines.push(data.description.substring(0, 300));
+    if (data.description) lines.push(textHead(data.description, 300));
     lines.push('');
     // from the signed-in agent: name, company, and their own phone and e-mail (the firm's general line when the session carries neither); never the listing agent
     var sender = [data.updatingAgent, data.updatingCompany].filter(Boolean).join(' | ');
@@ -7677,14 +7702,14 @@ function copyRentalEmailToClipboard() {
     var address = (data.streetAddress || '').trim();
     if (data.unit) address += ', Unit ' + data.unit;
     var location = [data.neighborhood, data.borough].filter(Boolean).join(', ');
-    var priceStr = data.monthlyRent ? '$' + parseFloat(data.monthlyRent).toLocaleString() + '/mo' : '';
+    var priceStr = rentalMoney(data.monthlyRent, '/mo');
     var stats = [];
     if (data.bedrooms) stats.push(esc(data.bedrooms) + ' BD');
     if (data.fullBaths) stats.push(esc(data.fullBaths) + ' BA');
     if (data.livingArea) stats.push(esc(data.livingArea) + ' SF');
     if (data.propertyType) stats.push(esc(data.propertyType));
-    var desc = (data.description || '').substring(0, 200);
-    if ((data.description || '').length > 200) desc += '...';
+    var desc = textHead(data.description, 200);
+    if (textLength(data.description) > 200) desc += '...';
 
     var htmlContent = '<div style="font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif; max-width:600px;">';
     if (message) htmlContent += '<p style="font-size:14px; color:#333; margin-bottom:16px;">' + esc(message).replace(/\n/g, '<br>') + '</p>';
@@ -7736,9 +7761,9 @@ function openRentalInEmailClient() {
     var body = getRentalPlainTextSummary(data);
     var message = (document.getElementById('rentalEmailMessage').value || '').trim();
     if (message) body = message + '\n\n' + body;
-    var mailto = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(subject);
-    if (cc) mailto += '&cc=' + encodeURIComponent(cc);
-    mailto += '&body=' + encodeURIComponent(body);
+    var mailto = 'mailto:' + uriText(to) + '?subject=' + uriText(subject);
+    if (cc) mailto += '&cc=' + uriText(cc);
+    mailto += '&body=' + uriText(body);
     window.open(mailto, '_self');
 }
 
