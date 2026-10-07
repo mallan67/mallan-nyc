@@ -41,6 +41,9 @@ export type AddFormOpts = {
   storage?: Record<string, string>;                  // localStorage entries present when the page starts (a saved browser draft)
   mediaRows?: unknown;                               // what GET /api/crm/listings/:id/media answers as its list of media rows (anything: the rows are the server's)
   created?: Record<string, unknown>;                 // what MallanAPI.listings.create answers, over the default { id, listing_id, status: 'Draft' } (the server's ids and addresses are the server's)
+  updated?: Record<string, unknown>;                 // what MallanAPI.listings.update answers (default {}: the real route answers with the record's status, which is the server's)
+  statusAnswer?: Record<string, unknown>;            // what MallanAPI.listings.updateStatus answers (default {})
+  statusError?: string;                              // make MallanAPI.listings.updateStatus fail with this message (the status route refuses the change)
   settle?: number;                                   // ms to let page init finish
 };
 export type Request = { url: string; method: string; body: string };
@@ -122,8 +125,8 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
         listings: {
           get: async () => { await sleep(o.getDelay ?? 10); if (o.getError) throw new Error(o.getError); return o.listing ?? {}; },
           create: async (payload: Record<string, unknown>) => { saved.push(payload); return { id: '1', listing_id: 'L-1', status: 'Draft', ...(o.created ?? {}) }; },
-          update: async (_id: string, payload: Record<string, unknown>) => { saved.push(payload); return {}; },
-          updateStatus: async (id: unknown, status: unknown) => { statusCalls.push([id, status]); return {}; },
+          update: async (_id: string, payload: Record<string, unknown>) => { saved.push(payload); return { ...(o.updated ?? {}) }; },
+          updateStatus: async (id: unknown, status: unknown) => { statusCalls.push([id, status]); if (o.statusError) throw new Error(o.statusError); return { ...(o.statusAnswer ?? {}) }; },
         },
         idx: { search: async () => ({ results: [] }) },
         _fetch: async (path: string) => {

@@ -5607,6 +5607,15 @@ function getResoRentalMlsStatus(crmStatus) {
     return Object.prototype.hasOwnProperty.call(CRM_TO_RESO_RENTAL_STATUS, crmStatus) ? CRM_TO_RESO_RENTAL_STATUS[crmStatus] : '';
 }
 
+// The status the server is asked for when the agent has chosen a step. The server keeps its own statuses and lib/crm/status-mapping.ts knows the Sale steps only, so a Rental step is
+// taken through the Cotality MlsStatus it already stands for (getResoRentalMlsStatus) and from there to the server's status: a closed rental is the server's "Rented" (the status route's
+// state machine ends a rental there), and "Incomplete" is a Draft. A step the form does not know stands for none ('').
+var RESO_TO_SERVER_STATUS = { Incomplete: 'Draft', Active: 'Active', Pending: 'Pending', Closed: 'Rented', Withdrawn: 'Withdrawn', Canceled: 'Cancelled', Hold: 'Hold', Expired: 'Expired' };
+function _rentalServerStatus(step) {
+    var reso = getResoRentalMlsStatus(step);
+    return Object.prototype.hasOwnProperty.call(RESO_TO_SERVER_STATUS, reso) ? RESO_TO_SERVER_STATUS[reso] : '';
+}
+
 function validateStatusChange(prefix) {
     // Stub — full validation to be added
 }
@@ -6204,15 +6213,37 @@ function submitRentalListing() {
             apiCall = MallanAPI.listings.create(formData);
         }
 
-        apiCall.then(function(result) {
+        apiCall.then(async function(result) {
             var lid = result.listing_id || _rentalEditListingId || 'RL-' + Date.now();
-            if (_rentalEditMode) {
-                alert('SUCCESS! Listing updated.\n\nListing ID: ' + lid);
-            } else {
-                alert('SUCCESS! Your rental listing has been submitted.\n\nListing ID: ' + lid + '\nStatus: ' + result.status);
+            var wasSaved = _rentalEditMode;
+            if (!wasSaved) {
                 _rentalEditMode = true;
                 _rentalEditDbId = result.id || _rentalEditDbId;
                 _rentalEditListingId = lid;
+            }
+            // The listing is saved. Its status is the server's, and a save does not change it (a new listing is a Draft, and the listing route leaves the status column alone): the
+            // server is asked for the status that stands for the step the agent chose, through the status route, whose state machine decides (a Draft moves only to Active, an Active
+            // listing does not go back to Draft) and whose refusal is said below.
+            var dbId = result.id || _rentalEditDbId;
+            var statusNow = result.status || _rentalRecordStatus || 'Draft';
+            var statusControl = document.getElementById('rentalStatus');
+            var step = statusControl ? statusControl.value : '';
+            var wanted = step ? _rentalServerStatus(step) : '';
+            if (step && !wanted) {
+                showToast('The status "' + step + '" is not one this form can set: the listing was saved and its status left as it was.', 'warning');
+            } else if (wanted && wanted !== statusNow && dbId) {
+                try {
+                    var moved = await MallanAPI.listings.updateStatus(dbId, wanted);
+                    statusNow = (moved && moved.status) || wanted;
+                } catch (statusErr) {
+                    showToast('Saved as ' + statusNow + '. The status change failed: ' + statusErr.message, 'warning');
+                }
+            }
+            _rentalRecordStatus = statusNow;
+            if (wasSaved) {
+                alert('SUCCESS! Listing updated.\n\nListing ID: ' + lid + '\nStatus: ' + statusNow);
+            } else {
+                alert('SUCCESS! Your rental listing has been submitted.\n\nListing ID: ' + lid + '\nStatus: ' + statusNow);
             }
             if (result.warnings && result.warnings.length > 0) {
                 console.warn('[Submit] Warnings:', result.warnings);
@@ -7070,6 +7101,8 @@ function updateRentalPreview() {
 var _rentalEditMode = false;
 var _rentalEditDbId = null;
 var _rentalEditListingId = null;
+// The status the server holds for this listing, as last seen (when it was opened, and after each save): a save answers with it, and when it does not, this is the one to compare with.
+var _rentalRecordStatus = '';
 // 'loading' from the moment the page is opened with ?id= until that listing has been restored into the form, 'failed' when it could not be, '' for a new listing.
 // Until it is 'loaded' the form holds nothing of the listing, and every save writes the WHOLE form: it would replace the saved listing with a blank one.
 var _rentalEditLoad = '';
@@ -7102,6 +7135,7 @@ function _checkRentalEditMode() {
 
     MallanAPI.listings.get(id).then(function(listing) {
         _rentalEditListingId = listing.listing_id || listing.id;
+        _rentalRecordStatus = listing.status || '';
         _populateRentalFormFromApi(listing);
         recheckWording();
         _rentalEditLoad = 'loaded';
