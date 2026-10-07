@@ -318,6 +318,15 @@ describe.each(FORMS)('%s: editing a saved listing', (form, prefix, collector) =>
     ['王伟', '李娜', false],                       // a name with no ASCII letters is compared, not skipped
     ['Álvaro Pérez', 'Lucía Pérez', false],       // an accented first letter is a letter
     ['Michael Smith', 'Mark Smith', false],       // the same family name and first initial are not the same person
+    ['Michael J. Kim', 'Jennifer Kim', false],    // a middle initial is not the other person's first name
+    ['Maria de la Cruz', 'Carlos de la Cruz', false],   // particles are not given names
+    ['Jean-Marc Dupont', 'Jean-Luc Dupont', false],     // a hyphenated given name is one name
+    ['Mary Ann Smith', 'Mary Beth Smith', false],       // given names are compared in order
+    ['Alex Johnson', 'Alexander Johnson', true],        // the nicknames people really use
+    ['Maria Garcia Lopez', 'Maria Garcia', true],       // a second family name
+    ['Michael Smith, CPA', 'Michael Smith', true],      // a credential
+    ['Hans Müller', 'Hans Mueller', true],              // a German umlaut written either way
+    ['Smith, John', 'John Smith', true],                // the family name first
   ])('the listing names %j, Cotality has %j for that MLS ID: keys attached = %s', async (listed, member, attaches) => {
     const f = await bootAddForm(form, {
       search: '?id=1', listing: { ...SAVED, list_agent_full_name: listed || null, agent_info: {}, raw_data: {} }, settle: 1200,
@@ -331,14 +340,46 @@ describe.each(FORMS)('%s: editing a saved listing', (form, prefix, collector) =>
     } finally { f.close(); }
   });
 
-  it('Cotality\'s keys replace the ones a listing was saved with when the member Cotality returns IS the listing\'s agent (live Cotality is the only authority)', async () => {
+  it('Cotality\'s agent key replaces the one a listing was saved with when the member Cotality returns IS the listing\'s agent, and the listing\'s own office stays (live Cotality is the only authority on the agent)', async () => {
     const f = await bootAddForm(form, {
       search: '?id=1', listing: SAVED, settle: 1200,
-      members: { '11111': { ...SAVED_MEMBER, key: '999', officeKey: '998', officeMlsId: '997' } },
+      // the agent has moved since: the member's office is not the office the listing was saved with. The office is the listing's own: its name stays, so do its ids.
+      members: { '11111': { ...SAVED_MEMBER, key: '999', officeKey: '998', officeMlsId: '997', officeName: 'New Brokerage LLC' } },
     });
     try {
       await checked(f.d, prefix);
-      expect(payloadOf(f, collector)).toMatchObject({ ListAgentKey: '999', ListOfficeKey: '998', ListOfficeMlsId: '997' });
+      expect(payloadOf(f, collector)).toMatchObject({ ListAgentKey: '999', ListOfficeKey: '888', ListOfficeMlsId: '2222', ListOfficeName: 'Saved Office Inc.' });
+    } finally { f.close(); }
+  });
+
+  it('a member with no office MLS ID is not the office the listing was saved with: the saved office key stays', async () => {
+    const f = await bootAddForm(form, {
+      search: '?id=1', listing: { ...SAVED, list_office_mls_id: null, raw_data: {}, agent_info: { ListAgentKey: '777', ListOfficeKey: '888' } }, settle: 1200,
+      members: { '11111': { ...SAVED_MEMBER, key: '999', officeKey: '998', officeMlsId: '' } },
+    });
+    try {
+      await checked(f.d, prefix);
+      const p = payloadOf(f, collector);
+      expect(p).toMatchObject({ ListAgentKey: '999', ListOfficeKey: '888' });
+      expect(p).not.toHaveProperty('ListOfficeMlsId');
+    } finally { f.close(); }
+  });
+
+  it.each([
+    ['no office at all', { list_office_mls_id: null, agent_info: { ListAgentKey: '777' } }, { ListOfficeKey: '998', ListOfficeMlsId: '997' }],                  // the member's office fills it
+    ['the member\'s office MLS ID', { list_office_mls_id: '997', agent_info: { ListAgentKey: '777' } }, { ListOfficeKey: '998', ListOfficeMlsId: '997' }],      // the same office: the key it lacks
+    ['the member\'s office key', { list_office_mls_id: null, agent_info: { ListAgentKey: '777', ListOfficeKey: '998' } }, { ListOfficeKey: '998', ListOfficeMlsId: '997' }],   // and the MLS ID it lacks
+    ['another office\'s key', { list_office_mls_id: null, agent_info: { ListAgentKey: '777', ListOfficeKey: '888' } }, { ListOfficeKey: '888' }],                // another office: left alone
+  ])('the member\'s office goes into a saved listing only when it has none, or has that office: a listing with %s', async (_name, saved, expected) => {
+    const f = await bootAddForm(form, {
+      search: '?id=1', listing: { ...SAVED, raw_data: {}, ...saved }, settle: 1200,
+      members: { '11111': { ...SAVED_MEMBER, key: '999', officeKey: '998', officeMlsId: '997', officeName: 'New Brokerage LLC' } },
+    });
+    try {
+      await checked(f.d, prefix);
+      const p = payloadOf(f, collector);
+      expect(p).toMatchObject({ ListAgentKey: '999', ...expected });
+      if (!('ListOfficeMlsId' in expected)) expect(p).not.toHaveProperty('ListOfficeMlsId');          // nothing made up for an office that is not the member's
     } finally { f.close(); }
   });
 
@@ -474,6 +515,51 @@ describe.each(FORMS)('%s: the agent whose listing it is gets what the listing la
       expect(txt(f.d, `${prefix}ListingAgentLicense`)).toBe('--');
     } finally { f.close(); }
   });
+
+  // the broker whose listing it is borrows from their profile only when the listing names them: a name that is not clearly theirs is somebody else's listing
+  it.each([
+    ['Jennifer Kim', { ...SESSION_USER, name: 'Michael J. Kim' }],            // a middle initial that starts the other agent's first name
+    ['Sam Agent', SESSION_USER],                                               // the same family name, and another first name
+    ['Maria de la Cruz', { ...SESSION_USER, name: 'Carlos de la Cruz' }],      // particles are not given names
+    ['Jean-Luc Dupont', { ...SESSION_USER, name: 'Jean-Marc Dupont' }],        // a hyphenated given name is one name
+  ])('a listing the broker owns that names %s (not them) borrows nothing of theirs', async (named, user) => {
+    const f = await bootAddForm(form, { search: '?id=1', listing: { ...OWN, list_agent_full_name: named }, user, settle: 1500 });
+    try {
+      await checked(f.d, prefix);
+      const p = payloadOf(f, collector);
+      expect(p).toMatchObject({ ListAgentFullName: named, ListAgentMlsId: '', ListAgentEmail: '', ListAgentDirectPhone: '', ListOfficeName: '' });
+      expect(p).not.toHaveProperty('ListAgentKey');
+      expect(txt(f.d, `${prefix}ListingAgentLicense`)).toBe('--');
+      expect(JSON.stringify((f.w as any).rebnyListingAgents)).not.toContain('AG-9');          // the broker's id is not the named agent's
+    } finally { f.close(); }
+  });
+
+  it('a saved name that is a nickname of the owner is the owner: the profile fills what the listing lacks', async () => {
+    const f = await bootAddForm(form, {
+      search: '?id=1', listing: { ...OWN, list_agent_full_name: 'Mike Smith' }, user: { ...SESSION_USER, name: 'Michael Smith' }, settle: 1500,
+      members: { '39361': { ...SESSION_MEMBER, fullName: 'Michael Smith' } },
+    });
+    try {
+      await checked(f.d, prefix);
+      expect(payloadOf(f, collector)).toMatchObject({ ListAgentFullName: 'Mike Smith', ListAgentMlsId: '39361', ListAgentKey: '4455667', ListAgentEmail: 'sender@example.test' });
+    } finally { f.close(); }
+  });
+
+  // agent_id is the listing's OWNER; the agent shown and submitted is the one the listing NAMES
+  it('the agent picker holds the owner\'s id only when the listing\'s agent is the owner', async () => {
+    const own = await bootAddForm(form, { search: '?id=1', listing: OWN, settle: 1500 });
+    const other = await bootAddForm(form, { search: '?id=1', listing: { ...OWN, list_agent_full_name: 'Saved Agent', list_agent_mls_id: '11111' }, members: { '11111': SAVED_MEMBER }, settle: 1500 });
+    try {
+      await checked(own.d, prefix);
+      await checked(other.d, prefix);
+      expect(val(own.d, `${prefix}ListingAgent`)).toBe('AG-9');
+      expect(val(own.d, `${prefix}UpdatingAgent`)).toBe('AG-9');
+      expect(val(other.d, `${prefix}ListingAgent`)).toBe('11111');                          // the named agent's own value (their MLS ID), never the broker's id
+      expect(val(other.d, `${prefix}UpdatingAgent`)).toBe('');
+      expect(JSON.stringify((other.w as any).rebnyListingAgents)).not.toContain('AG-9');
+      expect((other.w as any).rebnyListingAgents.mallan.map((a: any) => [a.id, a.name])).toEqual([['11111', 'Saved Agent']]);
+    } finally { own.close(); other.close(); }
+  });
 });
 
 // ── Opening a listing to edit: the signed-in user is nobody's agent until the listing says so ───────────────────────────────────────────────────────────
@@ -541,7 +627,10 @@ describe.each(FORMS)('%s: while a saved listing is still loading', (form, prefix
 const AGENT_MODULE = readFileSync(resolve(__dirname, '../../public/crm/js/forms/agent-defaults.js'), 'utf8');
 const compareNames: (a: string, b: string) => string = (() => { const w: any = {}; new Function('window', 'document', AGENT_MODULE)(w, {}); return w.MallanAgentDefaults.compareNames; })();
 
+// What a name decides here is whose Cotality key a listing carries. A wrong 'same' attaches somebody else's key, a wrong 'different' removes the right one: every doubt is 'unknown',
+// which attaches nothing and removes nothing. 'different' is only a family name that nothing in the other name matches.
 const NAMES: [string, string, 'same' | 'different' | 'unknown'][] = [
+  // ── the same person ──
   ['Mike Smith', 'Michael Smith', 'same'],                     // a nickname
   ['Bob Smith', 'Robert Smith', 'same'],
   ['Bill Smith', 'William Smith', 'same'],
@@ -550,40 +639,166 @@ const NAMES: [string, string, 'same' | 'different' | 'unknown'][] = [
   ['Chris Evans', 'Christopher Evans', 'same'],                // a nickname that can stand for two given names matches either
   ['Chris Evans', 'Christina Evans', 'same'],
   ['Pat Jones', 'Patricia Jones', 'same'],
-  ['S. Agent', 'Sender Agent', 'same'],                        // an initial
-  ['J. Michael Smith', 'Michael Smith', 'same'],               // a middle name
-  ['José García', 'Jose Garcia', 'same'],                      // accents
-  ['Zoë Müller', 'Zoe Muller', 'same'],
-  ["Sean O'Brien", 'Sean OBrien', 'same'],                     // punctuation
-  ['Michael Smith Jr.', 'Michael Smith', 'same'],              // suffixes and titles
+  ['Pat Jones', 'Patrick Jones', 'same'],
+  ['Alex Johnson', 'Alexander Johnson', 'same'],
+  ['Alex Johnson', 'Alexandra Johnson', 'same'],
+  ['Jon Smith', 'Jonathan Smith', 'same'],
+  ['Nate Smith', 'Nathan Smith', 'same'],
+  ['Phil Smith', 'Philip Smith', 'same'],
+  ['Vince Smith', 'Vincent Smith', 'same'],
+  ['Kim Smith', 'Kimberly Smith', 'same'],
+  ['Cindy Smith', 'Cynthia Smith', 'same'],
+  ['Sandy Smith', 'Sandra Smith', 'same'],
+  ['Jerry Smith', 'Gerald Smith', 'same'],
+  ['Jerry Smith', 'Jeremy Smith', 'same'],
+  ['Nikki Smith', 'Nicole Smith', 'same'],
+  ['Betsy Smith', 'Elizabeth Smith', 'same'],
+  ['Peg Smith', 'Margaret Smith', 'same'],
+  ['Gene Smith', 'Eugene Smith', 'same'],
+  ['Randy Smith', 'Randall Smith', 'same'],
+  ['Ginny Smith', 'Virginia Smith', 'same'],
+  ['Chris Evans', 'Christian Evans', 'same'],
+  ['Gabe Smith', 'Gabriel Smith', 'same'],
+  ['Hal Smith', 'Harold Smith', 'same'],
+  ['Abby Smith', 'Abigail Smith', 'same'],
+  ['Maddie Smith', 'Madeline Smith', 'same'],
+  ['Mohammad Khan', 'Muhammad Khan', 'same'],
+  ['Md Khan', 'Mohammed Khan', 'same'],
+  ['S. Agent', 'Sender Agent', 'same'],                        // an initial, at its own place
+  ['Michael J. Smith', 'Michael James Smith', 'same'],
+  ['J. Michael Smith', 'Michael Smith', 'same'],               // a middle name used as the first
+  ['Michael Smith', 'Michael Smith Jones', 'same'],            // a name with more of it
+  ['Maria Garcia Lopez', 'Maria Garcia', 'same'],              // double and hyphenated family names
+  ['Maria Garcia-Lopez', 'Maria Garcia', 'same'],
+  ['Maria Garcia-Lopez', 'Maria Lopez', 'same'],
+  ['Maria Garcia-Lopez', 'Maria Garcia Lopez', 'same'],
+  ['Anna Smith', 'Anna Smith-Jones', 'same'],
+  ['Maria de la Cruz', 'Maria Delacruz', 'same'],              // particles belong to the family name
+  ['Maria de la Cruz', 'Maria Cruz', 'same'],
+  ['Pieter VanGogh', 'Pieter van Gogh', 'same'],
+  ['Jean-Marc Dupont', 'Jean Marc Dupont', 'same'],            // a hyphen
+  ['Mary Ann Smith', 'Mary Smith', 'same'],
+  ['Mary Ann Smith', 'Maryann Smith', 'same'],
+  ['José García', 'Jose Garcia', 'same'],                      // accents and letters no accent folds
+  ['Søren Sørensen', 'Soren Sorensen', 'same'],
+  ['Łukasz Nowak', 'Lukasz Nowak', 'same'],
+  ['Anna Weiß', 'Anna Weiss', 'same'],
+  ['Zoë Müller', 'Zoe Muller', 'same'],                        // a German umlaut is written either way
+  ['Zoë Müller', 'Zoe Mueller', 'same'],
+  ['Hans Müller', 'Hans Mueller', 'same'],
+  ["Sean O'Brien", 'Sean OBrien', 'same'],                     // punctuation, whichever apostrophe
+  ['Sean O‘Brien', "Sean O'Brien", 'same'],
+  ['Sean OʼBrien', "Sean O'Brien", 'same'],
+  ['Sean O´Brien', "Sean O'Brien", 'same'],
+  ['Michael Smith Jr.', 'Michael Smith', 'same'],              // suffixes, titles, credentials, a nickname in brackets
+  ['Michael Smith III', 'Michael Smith', 'same'],
+  ['Michael Smith 3rd', 'Michael Smith', 'same'],
   ['Michael Smith, Esq.', 'Michael Smith', 'same'],
+  ['Michael Smith, CPA', 'Michael Smith', 'same'],
+  ['Michael Smith, CPA, CRS', 'Michael Smith', 'same'],
+  ['Michael Smith CRS GRI', 'Michael Smith', 'same'],
   ['Dr. Michael Smith', 'Michael Smith', 'same'],
-  ['王伟', '王伟', 'same'],                                     // names with no ASCII letters are names
+  ['Michael Smith (Mike)', 'Michael Smith', 'same'],
+  ['Michael "Mike" Smith', 'Mike Smith', 'same'],
+  ['Smith, John', 'John Smith', 'same'],                       // the family name first
+  ['Smith, John Michael', 'John Michael Smith', 'same'],
+  ['de la Cruz, Maria', 'Maria de la Cruz', 'same'],
+  ['Smith Jr., John', 'John Smith', 'same'],
+  ['Mike Smith Jr.', 'Michael Smith', 'same'],
+  ['Mike Smith Jr. CPA', 'Michael Smith', 'same'],            // every suffix goes, not the first one only
+  ['Mike Smith, Jr., CPA', 'Michael Smith', 'same'],
+  ['Mr. Dr. Michael Smith', 'Michael Jones', 'different'],      // and every title
+  ['Michael Smith (Jones)', 'Michael Jones', 'different'],      // what is in brackets is not part of the name
+  ['Michael Smith [Jones]', 'Michael Jones', 'different'],
+  ['Michael Smith {Jones}', 'Michael Jones', 'different'],
+  ['Michael Smith -', 'Michael Smith', 'same'],                 // a dash on its own is not a word
+  ['Cher --', 'Cher --', 'unknown'],                          // dashes on their own are not words: nothing here says whose name it is
+  ['Cher -', 'Cher', 'unknown'],
+  ['Anna Smith-Jones', 'Anna SmithJones', 'same'],              // a hyphen is not part of a family name
+  ['Anna Smith-de', 'Anna Smith de', 'same'],                   // the same words, written with a hyphen or without
+  ['Jean–Marc Dupont', 'Jean-Marc Dupont', 'same'],            // whichever dash
+  ['Maria Garcia', 'Anna Maria Garcia Lopez', 'same'],         // a name inside another may sit in the middle of it
+  ['王伟', '王伟', 'same'],                                     // names with no Latin letters are names
   ['Дмитрий Иванов', 'Дмитрий Иванов', 'same'],
   ['Sender Agent', 'Sender Agent', 'same'],
-  ['Cher', 'Cher', 'same'],
-  ['Mike Smith', 'Mike Jones', 'different'],                   // another family name
-  ['Dara Smith', 'Paeder Smith', 'different'],                 // the same family name, another first name
-  ['Michael Smith', 'Mark Smith', 'different'],                // the same family name and first initial are not the same person
-  ['David Cohen', 'Daniel Cohen', 'different'],
-  ['Maria Cohen', 'Michael Cohen', 'different'],
-  ['Christopher Evans', 'Christina Evans', 'different'],       // two given names that share a nickname are two people
-  ['Patrick Jones', 'Patricia Jones', 'different'],
-  ['Bob Smith', 'William Smith', 'different'],
-  ['王伟', '李娜', 'different'],
-  ['김민수', '이영희', 'different'],
+  // ── a family name that nothing in the other name matches ──
+  ['Mike Smith', 'Mike Jones', 'different'],
+  ['Mary Smith', 'Mary Johnson', 'different'],
+  ['M. Smith', 'J. Jones', 'different'],
+  ['Michael Smith', 'Jennifer Kim', 'different'],
+  ['Sender Agent', 'Jennifer Kim', 'different'],
   ['Дмитрий Иванов', 'Анна Петрова', 'different'],
-  ['Álvaro Pérez', 'Lucía Pérez', 'different'],                // an accented first letter is a letter
-  ['Pat', 'Sender Agent', 'different'],                        // a one-word name that is nowhere in the other name
-  ['Smith', 'Michael Jones', 'different'],
-  ['Cher', 'Madonna', 'different'],
   ['<img src=x onerror="window.__pwned=1">', 'Sender Agent', 'different'],
-  ['Smith', 'Michael Smith', 'unknown'],                       // a one-word name agrees with a longer one but proves nothing
+  ['Michael constructor', 'Michael Smith', 'different'],       // a word that is a property of every object is a word
+  ['Michael __proto__', 'Michael Smith', 'different'],
+  // ── the family name agrees and a given name does not: relatives, a married name, a middle name used as the first. Nothing is attached, nothing is removed ──
+  ['Dara Smith', 'Paeder Smith', 'unknown'],
+  ['Michael Smith', 'Mark Smith', 'unknown'],
+  ['David Cohen', 'Daniel Cohen', 'unknown'],
+  ['Maria Cohen', 'Michael Cohen', 'unknown'],
+  ['Álvaro Pérez', 'Lucía Pérez', 'unknown'],
+  ['Christopher Evans', 'Christina Evans', 'unknown'],         // two given names that share a nickname are two people
+  ['Patrick Jones', 'Patricia Jones', 'unknown'],
+  ['Alexander Johnson', 'Alexandra Johnson', 'unknown'],
+  ['Gerald Smith', 'Jeremy Smith', 'unknown'],
+  ['Randall Smith', 'Randolph Smith', 'unknown'],
+  ['Christian Evans', 'Christopher Evans', 'unknown'],
+  ['Bob Smith', 'William Smith', 'unknown'],
+  ['Sender Agent', 'Sam Agent', 'unknown'],
+  ['constructor Smith', 'Mike Smith', 'unknown'],
+  ['Michael J. Kim', 'Jennifer Kim', 'unknown'],               // the middle initial of one is not the first name of the other
+  ['Maria L. Garcia', 'Luis Garcia', 'unknown'],
+  ['Robert J. Chen', 'Jessica Chen', 'unknown'],
+  ['Maria de la Cruz', 'Carlos de la Cruz', 'unknown'],        // particles are not given names
+  ['Anna van der Berg', 'Peter van der Berg', 'unknown'],
+  ['Pieter van Gogh', 'Anna van Gogh', 'unknown'],
+  ['Jean-Marc Dupont', 'Jean-Luc Dupont', 'unknown'],          // a hyphenated given name is one name
+  ['Mary Ann Smith', 'Mary Beth Smith', 'unknown'],            // given names are compared in order
+  ['Michael John Smith', 'John Michael Smith', 'unknown'],
+  ['J. Smith', 'Michael John Smith', 'unknown'],               // an initial matches only the word at its own place
+  ['Michael J. Smith', 'Michael Anne Smith', 'unknown'],
+  ['Maria Garcia Lopez', 'Luis Garcia', 'unknown'],
+  ['J. Smith', 'Anna J. Smith Jones', 'unknown'],              // one real word and an initial are not enough to say a name is inside another
+  ['Van Smith', 'Peter Van Smith', 'unknown'],                 // the first word is a given name, even when it is a particle
+  ['Anna B', 'Peter Smith', 'unknown'],                        // a name that ends in an initial has no family name to tell it apart by
+  ['Dr. Smith', 'Dr. Smith', 'unknown'],                       // a title is not a word of the name
+  ['Mike Smith', 'Mike Smyth', 'unknown'],                     // a slip of the pen is too close to call
+  ['Mike Cohen', 'Mike Cahan', 'different'],                   // two slips of the pen are too many for a short word
+  ['Anna Lee', 'Anna Lea', 'different'],                       // and any at all for a very short one
+  ['Maria de Cruz', 'Carlos de Vega', 'different'],            // a particle two families share is not a family name they share
+  ['Jean-Marc Dupont', 'Jean Dupont', 'unknown'],              // a hyphenated given name is one name: Jean-Marc is not Jean
+  ['Jean–Marc Dupont', 'Jean Dupont', 'unknown'],
+  ['J. Smith', 'M. Smith', 'unknown'],                         // two initials that are not the same letter
+  ['Smith Anna', 'Peter Smith', 'unknown'],                    // the family name of one is the first word of the other: either order
+  ['Сергей Иванов', 'Сергеи Иванов', 'unknown'],               // a mark can make another letter in another script
+  ['Anna Müller', 'Anna Muellner', 'unknown'],                  // one way of writing the umlaut says 'different', the other cannot tell: it is not 'different'
+  ['Anna Vandenberg', 'Anna Vandenburgh', 'unknown'],           // a long word is allowed two slips of the pen
+  ['Mike Smiht', 'Mike Smith', 'unknown'],                      // and a swap of two letters is one slip
+  ['Sean O Brien', "Sean O'Brien", 'unknown'],
+  ['Li Wei', 'Wei Li', 'unknown'],                             // the family name first, without a comma: either order
+  ['Wei Chen', 'Chen Wei', 'unknown'],
+  // ── too little to tell: one word, one real word, another script, no letters ──
+  ['Smith', 'Michael Smith', 'unknown'],
   ['Michael', 'Michael Jones', 'unknown'],
   ['Michael', 'Mike Jones', 'unknown'],
+  ['Smith', 'Michael Jones', 'unknown'],
+  ['Pat', 'Sender Agent', 'unknown'],
+  ['Cher', 'Cher', 'unknown'],                                 // two equal one-word names say nothing about whose they are
+  ['Cher', 'Madonna', 'unknown'],
+  ['Smith', 'Smith', 'unknown'],
+  ['(.*)+ Smith', 'Smith', 'unknown'],
+  ['<regex chars> Smith', 'Smith', 'unknown'],
+  ['De La Cruz', 'De La Cruz', 'unknown'],
+  ['王伟', '李娜', 'unknown'],                                   // another character is not another person: Simplified and Traditional write one name two ways
+  ['김민수', '이영희', 'unknown'],
+  ['王伟', 'Wei Wang', 'unknown'],                              // another script cannot be compared
+  ['Дмитрий Иванов', 'Dmitry Ivanov', 'unknown'],
   ['', 'Michael Smith', 'unknown'],                            // nothing to compare
   ['Jr.', 'Michael Smith', 'unknown'],
   ['--', 'Michael Smith', 'unknown'],
+  ['Michael Smith, Compass, Inc.', 'Michael Smith', 'unknown'],
+  ['a b c d e f g h i j k l Smith', 'Michael Smith', 'unknown'],
+  ['Michael b c d e f g h i j k Smith', 'Michael Smith', 'unknown'],     // more words than any name has
 ];
 
 describe('agent-defaults: comparing the name a listing carries with the name Cotality has', () => {
@@ -594,6 +809,37 @@ describe('agent-defaults: comparing the name a listing carries with the name Cot
   it('gives the same answer whichever name comes first', () => {
     for (const [a, b] of NAMES) expect([a, b, compareNames(b, a)]).toEqual([a, b, compareNames(a, b)]);
   });
+
+  it('compares a name of any length in bounded time, and never throws', () => {
+    const started = Date.now();
+    expect(compareNames('Michael Smith', 'x'.repeat(100000))).toBe('unknown');
+    expect(compareNames(`${'x'.repeat(100000)} ${'y'.repeat(100000)}`, 'Michael Smith')).toBe('unknown');
+    expect(compareNames('a-'.repeat(50000), 'b-'.repeat(50000))).toBe('unknown');
+    expect(compareNames(`${'x'.repeat(100000)} ${'y'.repeat(100000)}`, `${'p'.repeat(100000)} ${'q'.repeat(100000)}`)).toBe('unknown');
+    expect(compareNames(`Anna ${'x'.repeat(150)}`, `Anna ${'y'.repeat(150)}`)).toBe('different');       // two long words are compared too, in no time
+    expect(compareNames(null as any, undefined as any)).toBe('unknown');
+    expect(compareNames({} as any, [] as any)).toBe('unknown');
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+
+  // Every title, suffix and credential the module knows is left out of a name wherever it stands: left in, it makes a name look like a different one (a word the other
+  // name's family shares, a name that is not the one written twice).
+  it.each(['mr', 'mrs', 'ms', 'miss', 'mx', 'dr'])('the title %s is not part of a name', (title) => {
+    expect(compareNames(`${title} Michael Smith`, 'Michael Jones')).toBe('different');
+    expect(compareNames(`${title}. Mike Smith`, 'Michael Smith')).toBe('same');
+  });
+  it.each(['jr', 'sr', 'ii', 'iii', 'iv', '2nd', '3rd', '4th', 'esq', 'md', 'phd', 'dds', 'mba', 'cpa', 'jd', 'crs', 'gri', 'abr', 'cdpe', 'e-pro', 'sres', 'srs', 'realtor', 'broker'])(
+    'the suffix or credential %s is not part of a name', (suffix) => {
+      expect(compareNames(`Michael Smith ${suffix}`, 'Michael Jones')).toBe('different');
+      expect(compareNames(`Michael Smith, ${suffix}`, 'Michael Jones')).toBe('different');
+      expect(compareNames(`Mike Smith ${suffix}`, 'Michael Smith')).toBe('same');
+    });
+  // a particle belongs to the family name that follows it, joined to it or apart ("VanGogh", "van Gogh"), and is not a given name two people can share
+  it.each(['de', 'del', 'della', 'di', 'da', 'dos', 'das', 'du', 'des', 'la', 'le', 'van', 'von', 'der', 'den', 'ter', 'bin', 'ibn', 'al', 'el', 'st'])(
+    'the particle %s belongs to the family name that follows it', (particle) => {
+      expect(compareNames(`Anna ${particle}Berg`, `Anna ${particle} Berg`)).toBe('same');
+      expect(compareNames(`Maria ${particle} Berg`, `Carlos ${particle} Berg`)).toBe('unknown');
+    });
 });
 
 // another agent's listing, with nothing of the broker's in it
@@ -658,11 +904,11 @@ describe.each(FORMS)('%s: what Cotality says about the MLS ID decides the keys a
   const BROKERS_KEYS = { ListAgentKey: '4455667', ListOfficeKey: '5671398', ListOfficeMlsId: '7041' };
   const WITH_BROKERS_KEYS = { ...SAVED, list_office_mls_id: null, agent_info: {}, raw_data: { ...BROKERS_KEYS } };
 
-  it('replaces the keys a listing was saved with when the member Cotality returns is the listing\'s agent', async () => {
+  it('replaces the agent key a listing was saved with when the member Cotality returns is the listing\'s agent (the office ids it was saved with stay: they are the listing\'s own)', async () => {
     const f = await bootAddForm(form, { search: '?id=1', listing: WITH_BROKERS_KEYS, members: { '11111': SAVED_MEMBER }, settle: 1500 });
     try {
       await checked(f.d, prefix);
-      expect(payloadOf(f, collector)).toMatchObject({ ListAgentMlsId: '11111', ListAgentKey: '777', ListOfficeKey: '888', ListOfficeMlsId: '2222' });
+      expect(payloadOf(f, collector)).toMatchObject({ ListAgentMlsId: '11111', ListAgentKey: '777', ListOfficeKey: BROKERS_KEYS.ListOfficeKey, ListOfficeMlsId: BROKERS_KEYS.ListOfficeMlsId });
       expect(f.d.getElementById(`${prefix}AgentCotalityStatus`)?.className).toMatch(/green/);
     } finally { f.close(); }
   });
@@ -690,7 +936,7 @@ describe.each(FORMS)('%s: what Cotality says about the MLS ID decides the keys a
   });
 
   it.each([
-    ['is the agent', SAVED_MEMBER, { ListAgentKey: '777', ListOfficeKey: '888', ListOfficeMlsId: '2222' }, /^Cotality agent: Saved Agent/],
+    ['is the agent', SAVED_MEMBER, { ListAgentKey: '777', ListOfficeKey: BROKERS_KEYS.ListOfficeKey, ListOfficeMlsId: BROKERS_KEYS.ListOfficeMlsId }, /^Cotality agent: Saved Agent/],
     ['is somebody else', { ...SAVED_MEMBER, fullName: 'Someone Else' }, { ListAgentKey: '' }, /so no Cotality key was attached and the agent key saved with this listing was removed\.$/],
   ])('what Cotality said (the member %s) still holds when the page rewrites the identity from what it knows', async (_name, member, expected, status) => {
     const f = await bootAddForm(form, { search: '?id=1', listing: WITH_BROKERS_KEYS, members: { '11111': member }, settle: 1500 });
@@ -722,12 +968,59 @@ describe.each(FORMS)('%s: what Cotality says about the MLS ID decides the keys a
     } finally { f.close(); }
   });
 
-  it('a name too short to tell attaches no key and removes none, and says so', async () => {
-    const f = await bootAddForm(form, { search: '?id=1', listing: { ...WITH_BROKERS_KEYS, list_agent_full_name: 'Saved' }, members: { '11111': SAVED_MEMBER }, settle: 1500 });
+  it.each([
+    ['one word', 'Saved'],
+    ['the family name and another first name (a relative, a married name, a middle name used as the first)', 'Sam Agent'],
+    ['a middle initial that is not the member\'s first name', 'Michael J. Agent'],
+  ])('a name that cannot be confirmed (%s) attaches no key and removes none, and says so', async (_name, listed) => {
+    const f = await bootAddForm(form, { search: '?id=1', listing: { ...WITH_BROKERS_KEYS, list_agent_full_name: listed }, members: { '11111': SAVED_MEMBER }, settle: 1500 });
     try {
       await checked(f.d, prefix);
       expect(payloadOf(f, collector)).toMatchObject(BROKERS_KEYS);
-      expect(cotalityStatus(f.d, prefix)).toBe('Cotality lists MLS ID 11111 under Saved Agent, but the name here (Saved) is too short to confirm it is the same person, so no Cotality key was attached.');
+      expect(cotalityStatus(f.d, prefix)).toBe(`Cotality lists MLS ID 11111 under Saved Agent, but the name here (${listed}) could not be confirmed as the same person, so no Cotality key was attached.`);
+      expect(f.d.getElementById(`${prefix}AgentCotalityStatus`)?.className).toMatch(/amber/);
+    } finally { f.close(); }
+  });
+
+  it('a new listing that Cotality confirmed and then says belongs to somebody else sends no blank key and claims no removal: nothing was saved, so nothing is removed', async () => {
+    const f = await bootAddForm(form);
+    try {
+      await checked(f.d, prefix);
+      expect(payloadOf(f, collector)).toMatchObject({ ListAgentKey: '4455667' });
+      f.w.MallanDirectory.lookupMember = () => Promise.resolve({ ...SESSION_MEMBER, fullName: 'Someone Else' });     // the directory changes its answer
+      void f.w.MallanAgentDefaults.apply(prefix, SESSION_USER, {});                                                   // the same agent again: the page asks again
+      await checked(f.d, prefix);
+      expect(cotalityStatus(f.d, prefix)).toBe('MLS ID 39361 belongs to Someone Else in Cotality, not to Sender Agent, so no Cotality key was attached. Ask a broker to correct your agent profile.');
+      expect(payloadOf(f, collector)).not.toHaveProperty('ListAgentKey');                                              // not even a blank
+      expect(val(f.d, `${prefix}UpdatingAgentKey`)).toBe('');
+    } finally { f.close(); }
+  });
+
+  it('the same agent spelled another way (a double space, the family name first) keeps the keys Cotality gave them while the page checks again', async () => {
+    const f = await bootAddForm(form, { search: '?id=1', listing: { ...SAVED, agent_info: {}, raw_data: {} }, members: { '11111': SAVED_MEMBER }, settle: 1500 });
+    try {
+      await checked(f.d, prefix);
+      expect(payloadOf(f, collector)).toMatchObject({ ListAgentKey: '777', ListOfficeKey: '888' });
+      for (const spelled of ['Saved  Agent', 'Agent, Saved', 'Dr. Saved Agent, CPA']) {
+        void f.w.MallanAgentDefaults.hydrate(prefix, { ...SAVED, list_agent_full_name: spelled, agent_info: {}, raw_data: {} }, {});
+        expect(payloadOf(f, collector)).toMatchObject({ ListAgentFullName: spelled, ListAgentKey: '777', ListOfficeKey: '888' });   // before the new answer has come back
+        await checked(f.d, prefix);
+        expect(payloadOf(f, collector)).toMatchObject({ ListAgentKey: '777' });
+      }
+    } finally { f.close(); }
+  });
+
+  it('what Cotality said about one spelling of a name is not applied to another spelling that compares differently', async () => {
+    const f = await bootAddForm(form, {
+      search: '?id=1', listing: { ...SAVED, list_agent_full_name: 'Hans Müller', agent_info: {}, raw_data: {} }, members: { '11111': { ...SAVED_MEMBER, fullName: 'Hans Mueller' } }, settle: 1500,
+    });
+    try {
+      await checked(f.d, prefix);
+      expect(payloadOf(f, collector)).toMatchObject({ ListAgentKey: '777' });                       // Müller is Mueller
+      void f.w.MallanAgentDefaults.hydrate(prefix, { ...SAVED, list_agent_full_name: 'Hans Muller', agent_info: {}, raw_data: {} }, {});
+      expect(payloadOf(f, collector)).not.toHaveProperty('ListAgentKey');                            // Muller is only close to Mueller: nothing is carried over from the other spelling
+      await checked(f.d, prefix);
+      expect(payloadOf(f, collector)).not.toHaveProperty('ListAgentKey');
     } finally { f.close(); }
   });
 
@@ -744,7 +1037,9 @@ describe.each(FORMS)('%s: what Cotality says about the MLS ID decides the keys a
     ['Cotality says the signed-in agent\'s MLS ID is somebody else\'s', { members: { '39361': { ...SESSION_MEMBER, fullName: 'Someone Else' } } },
       'MLS ID 39361 belongs to Someone Else in Cotality, not to Sender Agent, so no Cotality key was attached. Ask a broker to correct your agent profile.'],
     ['the signed-in agent\'s profile name is one word', { user: { ...SESSION_USER, name: 'Sender' } },
-      'Cotality lists MLS ID 39361 under Sender Agent, but the name here (Sender) is too short to confirm it is the same person, so no Cotality key was attached. Ask a broker to complete your agent profile.'],
+      'Cotality lists MLS ID 39361 under Sender Agent, but the name here (Sender) could not be confirmed as the same person, so no Cotality key was attached. Ask a broker to check your agent profile.'],
+    ['the signed-in agent\'s profile name is a middle initial away from the first name Cotality has', { user: { ...SESSION_USER, name: 'Michael J. Kim' }, members: { '39361': { ...SESSION_MEMBER, fullName: 'Jennifer Kim' } } },
+      'Cotality lists MLS ID 39361 under Jennifer Kim, but the name here (Michael J. Kim) could not be confirmed as the same person, so no Cotality key was attached. Ask a broker to check your agent profile.'],
   ])('a new listing: %s, and the agent is told who can fix it', async (_name, opts, message) => {
     const f = await bootAddForm(form, opts);
     try {
@@ -1116,6 +1411,95 @@ describe.each(FORMS)('%s: a saved agent is read typed-first', (form, prefix, col
       await checked(f.d, prefix);
       expect(val(f.d, `${prefix}ListingAgentSearch`)).toBe('Saved Agent');
       expect(txt(f.d, `${prefix}ListingAgentId`)).toBe('11111');
+    } finally { f.close(); }
+  });
+});
+
+// ── A restored draft, or a stored control value, never puts another agent in the Contacts tab than the one the form submits ────────────────────────────────────
+// The agent module writes the identity inputs and the Contacts tab's company and agent pickers from the agent the listing carries. A draft (saved by another agent, on the
+// same browser) and a saved listing's own control keys carry those controls too; restoring them last left the tab showing an agent the form did not submit.
+describe('a restored draft leaves the Contacts tab to the agent module', () => {
+  const OTHER_AGENTS_PICKERS = {
+    saleListingCompany: 'other', saleListingCompanySearch: 'Other Company Inc.', saleListingAgent: 'AG-77', saleListingAgentSearch: 'Other Agent',
+    saleUpdatingAgentName: 'Other Agent', saleUpdatingAgentMlsId: '77777', saleUpdatingAgentEmail: 'other@example.test', saleUpdatingAgentDisplay: 'Other Agent · MLS ID 77777',
+  };
+
+  it.each([
+    ['the session is ready before the draft is restored (what the real client does once it has resolved)', { readySync: true }],
+    ['the session arrives after the draft is restored', { readyDelay: 300 }],
+  ])('Sale ?restore=local, %s: the tab shows the signed-in agent the form submits, and the rest of the draft comes back', async (_name, timing) => {
+    const draft = JSON.stringify({ ...OTHER_AGENTS_PICKERS, salePrice: '1234567' });
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { search: '?restore=local', storage: { mallan_draft_sale: draft }, settle: 1200, ...timing });
+    try {
+      await checked(f.d, 'sale');
+      expect(val(f.d, 'salePrice')).toBe('1234567');                               // the draft was restored...
+      expect(val(f.d, 'saleListingAgentSearch')).toBe('Sender Agent');             // ...except what the agent module owns
+      expect(val(f.d, 'saleListingAgent')).toBe('AG-9');
+      expect(val(f.d, 'saleListingCompany')).toBe('mallan');
+      expect(val(f.d, 'saleListingCompanySearch')).toMatch(/^Mallan Real Estate Inc/);     // (the page's own company list spells it without the period)
+      expect(val(f.d, 'saleUpdatingAgentName')).toBe('Sender Agent');
+      expect(val(f.d, 'saleUpdatingAgentDisplay')).toBe('Sender Agent · MLS ID 39361');
+      expect(f.w.collectSaleFormData()).toMatchObject({ ListAgentFullName: 'Sender Agent', ListAgentMlsId: '39361', ListAgentEmail: 'sender@example.test' });
+      expect(f.errors).toEqual([]);
+    } finally { f.close(); }
+  });
+
+  it('Rental: a draft saved by one agent, opened by the next agent on the same browser (the session ready at once)', async () => {
+    const first = await bootAddForm('RENTAL-FORM-REDESIGN');
+    let draft = '';
+    try {
+      await checked(first.d, 'rental');
+      (first.d.getElementById('rentalMonthlyRent') as HTMLInputElement).value = '4321';
+      first.w.saveRentalDraft();
+      draft = first.w.localStorage.getItem('rentalListingDraft') ?? '';
+    } finally { first.close(); }
+    expect(JSON.parse(draft)).toMatchObject({ rentalListingAgentSearch: 'Sender Agent', rentalListingAgent: 'AG-9', rentalMonthlyRent: '4321' });   // the draft carries the first agent's pickers
+    const SECOND = { ...SESSION_USER, id: 'AG-2', mlsId: '22222', name: 'Second Agent', email: 'second@example.test', phone: '212-555-0222' };
+    const f = await bootAddForm('RENTAL-FORM-REDESIGN', {
+      storage: { rentalListingDraft: draft }, user: SECOND, readySync: true, settle: 1200,
+      members: { '22222': { ...SESSION_MEMBER, mlsId: '22222', fullName: 'Second Agent', key: '7777777' } },
+    });
+    try {
+      await checked(f.d, 'rental');
+      expect(val(f.d, 'rentalMonthlyRent')).toBe('4321');                          // the draft was restored...
+      expect(val(f.d, 'rentalListingAgentSearch')).toBe('Second Agent');           // ...except what the agent module owns
+      expect(val(f.d, 'rentalListingAgent')).toBe('AG-2');
+      expect(val(f.d, 'rentalUpdatingAgentName')).toBe('Second Agent');
+      expect(f.w.collectRentalFormData()).toMatchObject({ ListAgentFullName: 'Second Agent', ListAgentMlsId: '22222', ListAgentKey: '7777777' });
+      expect(f.errors).toEqual([]);
+    } finally { f.close(); }
+  });
+
+  // a saved listing's own control keys (the form saves every control under its id) carry the pickers as well
+  it.each([
+    ['SALE-FORM-REDESIGN', 'sale', { ...OTHER_AGENTS_PICKERS }],
+    ['RENTAL-FORM-REDESIGN', 'rental', Object.fromEntries(Object.entries(OTHER_AGENTS_PICKERS).map(([k, v]) => [k.replace(/^sale/, 'rental'), v])) as Record<string, string>],
+  ] as [AddForm, 'sale' | 'rental', Record<string, string>][])('%s: an edit-mode load does not write the stored agent controls, and writes the rest', async (form, prefix, stored) => {
+    const f = await bootAddForm(form, { search: '?id=1', listing: { ...SAVED, agent_info: {}, raw_data: { ...stored } }, members: { '11111': SAVED_MEMBER }, settle: 1500 });
+    try {
+      await checked(f.d, prefix);
+      expect(val(f.d, `${prefix}ListingAgentSearch`)).toBe('Saved Agent');          // the agent the listing carries, not the one its control keys remember
+      expect(val(f.d, `${prefix}ListingAgent`)).toBe('11111');
+      expect(val(f.d, `${prefix}ListingCompany`)).toBe('mallan');
+      expect(val(f.d, `${prefix}UpdatingAgentName`)).toBe('Saved Agent');
+      expect(val(f.d, `${prefix}UpdatingAgentDisplay`)).toBe('Saved Agent · MLS ID 11111');
+    } finally { f.close(); }
+  });
+
+  it.each([
+    ['SALE-FORM-REDESIGN', 'sale', 'salePrice'],
+    ['RENTAL-FORM-REDESIGN', 'rental', 'rentalMonthlyRent'],
+  ] as [AddForm, 'sale' | 'rental', string][])('%s: the control pass of an edit-mode load skips exactly the agent module\'s controls', async (form, prefix, plain) => {
+    const f = await bootAddForm(form, { settle: 600 });
+    try {
+      const ids = ['ListingCompany', 'ListingCompanySearch', 'ListingAgent', 'ListingAgentSearch', 'UpdatingAgentName', 'UpdatingAgentDisplay', 'UpdatingAgentKey'].map((s) => prefix + s);
+      const before = Object.fromEntries(ids.map((id) => [id, val(f.d, id)]));
+      f.w.MallanListingHydration.hydrate(prefix, { raw_data: { ...Object.fromEntries(ids.map((id) => [id, 'STORED'])), [plain]: '555' } }, { mode: 'edit' });
+      for (const id of ids) expect([id, val(f.d, id)]).toEqual([id, before[id]]);       // none of the agent module's controls was written
+      expect(val(f.d, plain)).toBe('555');                                              // every other control was
+      // the viewers (the Tools pages) hydrate in view mode, and a view-mode pass writes every control the record carries: their own pass is unchanged
+      f.w.MallanListingHydration.hydrate(prefix, { raw_data: { [`${prefix}UpdatingAgentDisplay`]: 'VIEWED' } });
+      expect(val(f.d, `${prefix}UpdatingAgentDisplay`)).toBe('VIEWED');
     } finally { f.close(); }
   });
 });

@@ -9945,6 +9945,12 @@ function _offerDraftRestore() {
     document.body.appendChild(banner);
 }
 
+// The signed-in agent's identity and the Contacts tab's listing company and agent pickers are written by js/forms/agent-defaults.js from the agent the listing carries: a draft's
+// copy of them (it can be another agent's) is not put back.
+function _agentOwnedControl(key) {
+    return key.indexOf('saleUpdatingAgent') === 0 || /^saleListing(Company|Agent)(Search)?$/.test(key);
+}
+
 function _restoreDraftFromLocalStorage() {
     var raw;
     try { raw = localStorage.getItem('mallan_draft_sale'); } catch (e) { showToast('Cannot read browser storage.', 'error'); return; }
@@ -9961,7 +9967,7 @@ function _restoreDraftFromLocalStorage() {
     // Restore all input/select/textarea values by ID
     var restored = 0;
     Object.keys(saved).forEach(function(key) {
-        if (key.startsWith('_')) return;
+        if (key.startsWith('_') || _agentOwnedControl(key)) return;
         var el = document.getElementById(key);
         if (!el) return;
         var val = saved[key];

@@ -734,18 +734,23 @@
   // Control-keyed pass: the exact inverse of the forms' own collectors (key = field.id || field.name, radios write only when checked,
   // single checkboxes write true / false). Controls the tables already set are left alone. In 'edit' mode it covers the whole area the form's save sweeps
   // (its main container, the building modal and the media modal) and restores hidden controls too (the address atoms, the tenant-agent picker), except the
-  // signed-in agent's identity, which the agent module owns.
+  // signed-in agent's identity and the Contacts tab's listing company and agent pickers, which the agent module owns (agentOwned).
   function passZones(cfg, edit) {
     if (!edit) return cfg.zones.map(byId);
     return [document.querySelector('.flex-1')].concat((cfg.editZones || []).map(byId));
   }
-  function controlKeyedPass(cfg, raw, touched, edit) {
-    passZones(cfg, edit).forEach(function (zone) {
+  // The agent module (js/forms/agent-defaults.js) writes these from the agent the listing carries, and writes them last: a stored value (a draft another agent saved, the pickers'
+  // own control keys) must not put another agent in the Contacts tab than the one the form submits.
+  function agentOwned(cfg, id) {
+    return id.indexOf(cfg.prefix + 'UpdatingAgent') === 0 || ['ListingCompany', 'ListingCompanySearch', 'ListingAgent', 'ListingAgentSearch'].some(function (s) { return id === cfg.prefix + s; });
+  }
+  function controlKeyedPass(cfg, raw, touched, edit) {    passZones(cfg, edit).forEach(function (zone) {
       if (!zone) return;
       zone.querySelectorAll('input, select, textarea').forEach(function (el) {
         var type = (el.getAttribute('type') || '').toLowerCase();
         if (type === 'button' || type === 'submit' || type === 'reset' || type === 'file' || type === 'image') return;
-        if (type === 'hidden' && !(edit && el.id && el.id.indexOf(cfg.prefix + 'UpdatingAgent') !== 0)) return;
+        if (type === 'hidden' && !(edit && el.id)) return;
+        if (edit && el.id && agentOwned(cfg, el.id)) return;
         var key = el.id || el.name;
         if (!key) return;
         if (type === 'radio') {
