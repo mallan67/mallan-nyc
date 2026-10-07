@@ -44,7 +44,7 @@ export type AddFormOpts = {
   settle?: number;                                   // ms to let page init finish
 };
 export type Request = { url: string; method: string; body: string };
-export type BootedForm = { w: any; d: Document; errors: string[]; fetched: string[]; searched: string[]; requests: Request[]; saved: Record<string, unknown>[]; close: () => void };
+export type BootedForm = { w: any; d: Document; errors: string[]; fetched: string[]; searched: string[]; requests: Request[]; saved: Record<string, unknown>[]; statusCalls: [unknown, unknown][]; close: () => void };
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function until(cond: () => boolean, ms = 8000): Promise<void> {
@@ -71,6 +71,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
   const errors: string[] = [];
   const fetched: string[] = [];
   const saved: Record<string, unknown>[] = [];
+  const statusCalls: [unknown, unknown][] = [];          // every listings.updateStatus(id, status) the page made
   const searched: string[] = [];                       // the queries sent to /api/buildings/search
   const requests: Request[] = [];                      // every fetch() the page made, with its method and body
   let buildingCalls = 0;
@@ -122,7 +123,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
           get: async () => { await sleep(o.getDelay ?? 10); if (o.getError) throw new Error(o.getError); return o.listing ?? {}; },
           create: async (payload: Record<string, unknown>) => { saved.push(payload); return { id: '1', listing_id: 'L-1', status: 'Draft', ...(o.created ?? {}) }; },
           update: async (_id: string, payload: Record<string, unknown>) => { saved.push(payload); return {}; },
-          updateStatus: async () => ({}),
+          updateStatus: async (id: unknown, status: unknown) => { statusCalls.push([id, status]); return {}; },
         },
         idx: { search: async () => ({ results: [] }) },
         _fetch: async (path: string) => {
@@ -142,7 +143,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
     },
   });
   await sleep(o.settle ?? 1200);
-  return { w: dom.window, d: dom.window.document, errors, fetched, searched, requests, saved, close: () => dom.window.close() };
+  return { w: dom.window, d: dom.window.document, errors, fetched, searched, requests, saved, statusCalls, close: () => dom.window.close() };
 }
 
 export const val = (d: Document, id: string): string => ((d.getElementById(id) as HTMLInputElement | null)?.value) ?? '';

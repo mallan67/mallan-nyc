@@ -5252,7 +5252,7 @@ function updateRentalStatusFields() {
 
     // Update RESO MlsStatus display
     var resoDisplay = document.getElementById('rentalResoMlsStatus');
-    if (resoDisplay) resoDisplay.textContent = getResoRentalMlsStatus(status);
+    if (resoDisplay) resoDisplay.textContent = getResoRentalMlsStatus(status) || '--';
 
     // Enable/disable Commission Request tab (Tab 7)
     var commTab = document.getElementById('sidebarTab7');
@@ -5632,10 +5632,13 @@ const CRM_TO_RESO_RENTAL_STATUS = {
     'Rented': 'Closed', 'RentedThruUs': 'Closed',
     'Withdrawn': 'Withdrawn', 'Cancelled': 'Canceled',
     'PermOffMarket': 'Withdrawn', 'TempOffMarket': 'Hold', 'Expired': 'Expired',
+    // the steps of the "RLS System" part of the status list are RESO statuses already
+    'Hold': 'Hold', 'Pending': 'Pending', 'Closed': 'Closed', 'Canceled': 'Canceled', 'Incomplete': 'Incomplete',
 };
 
+// Looked up by its own keys: a status called "constructor" is no status, and a status the form does not know is none either (it used to be "Active": a rental marked Closed was sent as Active).
 function getResoRentalMlsStatus(crmStatus) {
-    return CRM_TO_RESO_RENTAL_STATUS[crmStatus] || 'Active';
+    return Object.prototype.hasOwnProperty.call(CRM_TO_RESO_RENTAL_STATUS, crmStatus) ? CRM_TO_RESO_RENTAL_STATUS[crmStatus] : '';
 }
 
 function validateStatusChange(prefix) {

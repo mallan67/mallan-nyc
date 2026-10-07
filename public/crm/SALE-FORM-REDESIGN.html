@@ -5988,7 +5988,7 @@ function updateSaleStatusFields() {
 
     // Update RESO MlsStatus display
     var resoDisplay = document.getElementById('saleResoMlsStatus');
-    if (resoDisplay) resoDisplay.textContent = getResoMlsStatus(status);
+    if (resoDisplay) resoDisplay.textContent = getResoMlsStatus(status) || '--';
 
     // Enable/disable Commission Request tab (Tab 7)
     var commTab = document.getElementById('sidebarTab7');
@@ -7937,8 +7937,8 @@ function submitSalesListing() {
             var dbId = result.id || _saleEditDbId;
             var currentCanonical = result.status || 'Draft';
             var statusResult = null;
-            var formWorkflowStatus = document.getElementById('saleStatus') ? document.getElementById('saleStatus').value : 'Active';
-            var targetCanonical = CRM_TO_RESO_STATUS[formWorkflowStatus] || 'Active';
+            var formWorkflowStatus = document.getElementById('saleStatus') ? document.getElementById('saleStatus').value : '';
+            var targetCanonical = _ownStatus(CRM_TO_RESO_STATUS, formWorkflowStatus);       // '' for a status this form does not know
             var listType = document.querySelector('input[name="saleListingType"]:checked');
             var isInternalOnly = (listType && listType.value === 'InHouseInternal') ||
                 fullData.inHouseVisibility === 'internal_only' ||
@@ -7950,7 +7950,9 @@ function submitSalesListing() {
                 } catch (e) { /* non-critical — workflow status is supplementary */ }
             }
             var finalStatus = currentCanonical;
-            if (currentCanonical !== targetCanonical && dbId && !isInternalOnly && targetCanonical !== 'Draft') {
+            if (!targetCanonical) {
+                showToast('The status "' + formWorkflowStatus + '" is not one this form can set: the listing was saved and its status left as it was.', 'warning');
+            } else if (currentCanonical !== targetCanonical && dbId && !isInternalOnly && targetCanonical !== 'Draft') {
                 try {
                     statusResult = await MallanAPI.listings.updateStatus(dbId, targetCanonical);
                     finalStatus = statusResult.status || targetCanonical;
@@ -8492,10 +8494,16 @@ const CRM_TO_RESO_STATUS = {
     'Withdrawn': 'Withdrawn', 'Cancelled': 'Cancelled',
     'PermOffMarket': 'Withdrawn', 'TempOffMarket': 'Hold', 'Expired': 'Expired',
     'Hold': 'Hold',
+    // the steps of the "RLS System" part of the status list stand for the statuses below (a stored record with one of them says the same: see _SALE_STATUS_ALIASES)
+    'Pending': 'Pending', 'Closed': 'Sold', 'Canceled': 'Cancelled', 'Incomplete': 'Draft',
 };
 
+// A table is looked up by its own keys: a status called "constructor" is no status, and a status the form does not know is none either (it used to be "Active": a listing marked Closed
+// was published as Active).
+function _ownStatus(table, status) { return Object.prototype.hasOwnProperty.call(table, status) ? table[status] : ''; }
+
 function getResoMlsStatus(crmStatus) {
-    return CRM_TO_RESO_STATUS[crmStatus] || 'Active';
+    return _ownStatus(CRM_TO_RESO_STATUS, crmStatus);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -8703,7 +8711,7 @@ function updateStatusTracking() {
     const statusEl = document.getElementById('saleStatus');
     const resoEl = document.getElementById('saleResoMlsStatus');
     if (statusEl && resoEl) {
-        resoEl.textContent = getResoMlsStatus(statusEl.value);
+        resoEl.textContent = getResoMlsStatus(statusEl.value) || '--';
     }
 
     // Compute DOM (days since first Active)
@@ -9621,7 +9629,7 @@ function _restoreSaleNeighborhoodSelect(value, boroughHint) {
 
 // The canonical status a workflow step stands for (CRM_TO_RESO_STATUS), or the one a record or an RLS-system step names. A step and a record are in the same family when these agree.
 var _SALE_STATUS_ALIASES = { Pending: 'Pending', ActiveUnderContract: 'ActiveUnderContract', Closed: 'Sold', Canceled: 'Cancelled', Incomplete: 'Draft' };
-function _saleStatusFamily(status) { return CRM_TO_RESO_STATUS[status] || _SALE_STATUS_ALIASES[status] || ''; }
+function _saleStatusFamily(status) { return _ownStatus(CRM_TO_RESO_STATUS, status) || _ownStatus(_SALE_STATUS_ALIASES, status); }
 // The workflow step that stands for a family when the step the agent saved no longer agrees with the record (Pending and ActiveUnderContract have several steps, so they have none).
 var _SALE_STEP_FOR_FAMILY = { Draft: 'Draft', ComingSoon: 'ComingSoon', Active: 'Active', Sold: 'Sold', Withdrawn: 'Withdrawn', Cancelled: 'Cancelled', Hold: 'TempOffMarket', Expired: 'Expired' };
 // The step the form shows: the one the agent chose while it agrees with the record's status, else the step that stands for that status, else none (the agent chooses).
