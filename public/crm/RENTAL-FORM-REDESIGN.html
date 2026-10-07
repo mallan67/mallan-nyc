@@ -243,7 +243,7 @@ body { font-family: Manrope, sans-serif; }
         <!-- Validation summary -->
         <div class="border-t px-4 py-3">
             <div id="rentalValidationSummary" class="text-xs">
-                <p class="text-green-600 font-medium"><i class="fas fa-check-circle mr-1"></i> All fields OK</p>
+                <p class="text-gray-500"><i class="fas fa-info-circle mr-1"></i> Required fields are checked when you press Next or Submit.</p>
             </div>
         </div>
     </aside>
@@ -5672,8 +5672,31 @@ function _rentalServerStatus(step) {
     return Object.prototype.hasOwnProperty.call(RESO_TO_SERVER_STATUS, reso) ? RESO_TO_SERVER_STATUS[reso] : '';
 }
 
+// The badge in the header says the status the form shows, in the words of the status list (the Sale form's badge does the same): yellow for a listing that is not live (Draft, Future,
+// Incomplete), green for a live one (Active, Back On Market), blue for the steps between and after. It said DRAFT for every rental, whatever the list held.
 function validateStatusChange(prefix) {
-    // Stub — full validation to be added
+    var statusEl = document.getElementById('rentalStatus');
+    var badge = document.getElementById('rentalDraftBadge');
+    if (!statusEl || !badge) return;
+    var step = statusEl.value;
+    var label = !step ? 'NO STATUS CHOSEN' : (statusEl.options[statusEl.selectedIndex].text || step).toUpperCase();          // a step is chosen, so an option is selected; its text is the browser's, trimmed
+    var icon, classes;
+    if (!step || step === 'Draft' || step === 'Future' || step === 'Incomplete') {
+        icon = 'fa-file-alt';
+        classes = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-300';
+    } else if (step === 'Active' || step === 'BackOnMarket') {
+        icon = 'fa-broadcast-tower';
+        classes = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800 border border-green-300';
+    } else {
+        icon = 'fa-file-contract';
+        classes = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-300';
+    }
+    badge.className = classes;
+    badge.textContent = '';
+    var mark = document.createElement('i');
+    mark.className = 'fas ' + icon;
+    badge.appendChild(mark);
+    badge.appendChild(document.createTextNode(' ' + label));
 }
 
 // ══════════════════════════════════════════════════════
@@ -5759,24 +5782,69 @@ const RENTAL_REQUIRED_FIELDS = {
     6: [], // History — read-only
 };
 
+// Whether a required field has an answer: the one test the tab check and the sidebar summary share. The first entry of the Bedrooms and Bathrooms lists, "Custom", has no box behind it and
+// is no answer (the save reads it as none, and sends no number): a new form starts on it, and it passed for "answered".
+function _rentalFieldFilled(f) {
+    if (f.type === 'radio') return !!document.querySelector('input[name="' + f.id + '"]:checked');
+    const el = document.getElementById(f.id);
+    if (f.type === 'checkbox') return !!(el && el.checked);
+    if (f.type === 'select') return !!(el && el.value && el.value !== 'custom');
+    return !!(el && el.value && el.value.trim() !== '');
+}
+
+// The summary in the sidebar lists what is missing, by tab, once a Next or a Submit has been refused for it (an empty form is not an error before the agent has tried to move on), and from
+// then on follows the form. Before that it says when the fields are checked: it used to say "All fields OK" whatever the form held, and went on saying it after a Next was refused.
+window._rentalValidationActivated = false;
+const RENTAL_TAB_NAMES = { 1: 'Listing Info', 2: 'Unit Info', 3: 'TH / Building', 4: 'Distribution' };
+function updateRentalValidationSummary() {
+    const summary = document.getElementById('rentalValidationSummary');
+    if (!summary || !window._rentalValidationActivated) return;
+    const groups = [];
+    Object.keys(RENTAL_REQUIRED_FIELDS).forEach(tab => {
+        const missing = RENTAL_REQUIRED_FIELDS[tab].filter(f => !_rentalFieldFilled(f)).map(f => f.label);
+        if (missing.length) groups.push([RENTAL_TAB_NAMES[tab] || 'Tab ' + tab, missing]);
+    });
+    summary.textContent = '';
+    if (groups.length === 0) {
+        const done = document.createElement('p');
+        done.className = 'text-green-600 font-medium';
+        const tick = document.createElement('i');
+        tick.className = 'fas fa-check-circle mr-1';
+        done.appendChild(tick);
+        done.appendChild(document.createTextNode('All required fields complete'));
+        summary.appendChild(done);
+        return;
+    }
+    groups.forEach(([name, labels]) => {
+        const block = document.createElement('div');
+        block.className = 'mb-2';
+        const heading = document.createElement('p');
+        heading.className = 'font-semibold text-red-600 text-xs mb-1';
+        heading.textContent = name + ':';
+        block.appendChild(heading);
+        const list = document.createElement('ul');
+        list.className = 'text-red-500 text-xs space-y-0.5 ml-4 list-disc';
+        labels.forEach(label => { const li = document.createElement('li'); li.textContent = label; list.appendChild(li); });
+        block.appendChild(list);
+        summary.appendChild(block);
+    });
+}
+
+// Whatever the agent types or chooses: a box that the last check marked red goes back to normal as soon as it has an answer, and the sidebar summary follows the form.
+function _rentalFormChanged() {
+    Object.keys(RENTAL_REQUIRED_FIELDS).forEach(tab => RENTAL_REQUIRED_FIELDS[tab].forEach(f => {
+        const el = document.getElementById(f.id);                     // a group of radio buttons has no box of that id: nothing to unmark
+        if (el && _rentalFieldFilled(f)) { el.style.borderColor = ''; el.style.boxShadow = ''; }
+    }));
+    updateRentalValidationSummary();
+}
+
 function validateRentalTab(tabNum) {
     const fields = RENTAL_REQUIRED_FIELDS[tabNum] || [];
     const missing = [];
 
     fields.forEach(f => {
-        let valid = false;
-        if (f.type === 'radio') {
-            valid = !!document.querySelector('input[name="' + f.id + '"]:checked');
-        } else if (f.type === 'checkbox') {
-            const el = document.getElementById(f.id);
-            valid = el && el.checked;
-        } else if (f.type === 'select') {
-            const el = document.getElementById(f.id);
-            valid = el && el.value && el.value !== '';
-        } else {
-            const el = document.getElementById(f.id);
-            valid = el && el.value && el.value.trim() !== '';
-        }
+        const valid = _rentalFieldFilled(f);
 
         // Visual feedback
         if (f.type !== 'radio' && f.type !== 'checkbox') {
@@ -5808,14 +5876,13 @@ function validateRentalTab(tabNum) {
         }
     }
 
+    // The sidebar summary lists what is missing from now on
+    if (missing.length > 0) window._rentalValidationActivated = true;
+    updateRentalValidationSummary();
+
     // Scroll to first invalid field
     if (missing.length > 0) {
-        const firstField = fields.find(f => {
-            if (f.type === 'radio') return !document.querySelector('input[name="' + f.id + '"]:checked');
-            if (f.type === 'checkbox') { const el = document.getElementById(f.id); return !(el && el.checked); }
-            const el = document.getElementById(f.id);
-            return !(el && el.value && el.value.trim() !== '');
-        });
+        const firstField = fields.find(f => !_rentalFieldFilled(f));
         if (firstField) {
             const el = firstField.type === 'radio'
                 ? document.querySelector('input[name="' + firstField.id + '"]')
@@ -6305,6 +6372,16 @@ function submitRentalListing() {
                 }
             }
             _rentalRecordStatus = statusNow;
+            // The form shows the status the server has: a change the server refused (or answered with another status) puts the list and the badge back in line with it. A step in the
+            // same family as the server's status stays (Future for a Draft, Lease Signed for a Pending listing). A family with no single step (Pending has several) leaves the list empty for
+            // the agent to choose, as when a listing is opened; a status the form has no family for leaves the list alone.
+            var shownFamily = _RENTAL_STATUS_FAMILY[step];
+            var hasFamily = _RENTAL_STATUS_FAMILY[statusNow];
+            if (statusControl && hasFamily && shownFamily !== hasFamily) {
+                statusControl.value = _RENTAL_STEP_FOR_FAMILY[hasFamily] || '';
+                updateRentalStatusFields();
+            }
+            validateStatusChange('rental');
             if (wasSaved) {
                 alert('SUCCESS! Listing updated.\n\nListing ID: ' + lid + '\nStatus: ' + statusNow);
             } else {
@@ -6328,8 +6405,14 @@ function submitRentalListing() {
     }
 }
 
+// The Required switch in the sidebar marks the boxes the form requires (the Sale form's does the same); it did nothing.
 function toggleRentalRequiredFields() {
-    // Stub — toggles required-only view
+    var toggle = document.getElementById('rentalShowRequiredOnly');
+    var on = !!(toggle && toggle.checked);
+    document.querySelectorAll('[required]').forEach(function(field) {
+        if (on) field.classList.add('ring-2', 'ring-red-300', 'bg-red-50');
+        else field.classList.remove('ring-2', 'ring-red-300', 'bg-red-50');
+    });
 }
 
 function navigateNextFromListingInfo(prefix) {
@@ -7335,6 +7418,7 @@ function _restoreRentalControls(listing) {
     // What depends on a control's state: field visibility, status fields, listing type notice, conditional sections.
     if (typeof applyRentalFieldRules === 'function') applyRentalFieldRules();
     updateRentalStatusFields();
+    validateStatusChange('rental');
     var listingTypeRadio = document.querySelector('input[name="rentalListingType"]:checked');
     if (listingTypeRadio) handleRentalListingTypeChange(listingTypeRadio.value);
     toggleFurnishedFields();
@@ -7430,6 +7514,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const descField = document.getElementById('rentalDescription');
     if (descField) {
         descField.addEventListener('input', updateRentalCharCount);
+    }
+
+    // The boxes a refused Next marked red and the sidebar summary follow the form
+    var formArea = document.querySelector('main');
+    if (formArea) {
+        formArea.addEventListener('input', _rentalFormChanged);
+        formArea.addEventListener('change', _rentalFormChanged);
     }
 
     // Photos and floor plans (js/forms/listing-media.js): the file boxes and their drop zones

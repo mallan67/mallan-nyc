@@ -91,6 +91,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
     beforeParse(w: any) {
       w.tailwind = { config: {} };
       w.alert = () => undefined; w.confirm = () => true; w.scrollTo = () => undefined; w.print = () => undefined;
+      w.Element.prototype.scrollIntoView = function () {};                 // jsdom has none; a browser has (the page scrolls to the first field a refused Next found missing)
       w.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} });
       w.fetch = async (url: string, init?: { method?: string; body?: unknown }) => {
         const u = String(url);

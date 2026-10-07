@@ -32,7 +32,7 @@ const STEPS: [string, string][] = [
 const set = (f: BootedForm, id: string, value: string) => { (f.d.getElementById(id) as HTMLInputElement).value = value; };
 const pick = (f: BootedForm, id: string) => {
   const select = f.d.getElementById(id) as HTMLSelectElement;
-  select.value = [...select.options].find((o) => o.value && !o.disabled)!.value;
+  select.value = [...select.options].find((o) => o.value && o.value !== 'custom' && !o.disabled)!.value;
 };
 const choose = (f: BootedForm, step: string) => {
   const select = f.d.getElementById('rentalStatus') as HTMLSelectElement;
