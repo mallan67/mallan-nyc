@@ -142,7 +142,7 @@ describe('Form — InHouse address mismatch confirmation', () => {
     const body = fnMatch![1];
     expect(body).toContain('_isInHouseListingType(prefix)');
     expect(body).toContain('typedNorm');
-    expect(body).toContain('trestleNorm');
+    expect(body).toContain('buildingNorm');
     expect(body).toContain('confirm(');
   });
 
@@ -151,7 +151,7 @@ describe('Form — InHouse address mismatch confirmation', () => {
     expect(fnMatch).not.toBeNull();
     const confirmBody = fnMatch![1];
     expect(confirmBody).toContain('You entered');
-    expect(confirmBody).toContain('Trestle/RLS canonical');
+    expect(confirmBody).toContain('Cotality building address');
   });
 
   it('Cancel preserves typed address but still populates building fields', () => {

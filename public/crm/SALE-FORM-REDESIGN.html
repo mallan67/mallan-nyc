@@ -4978,6 +4978,18 @@ function _searchText(query) { var bl = _buildingLookup(); return bl ? bl.searchT
 // The form's Borough option for the borough the index names ("Staten Island", "Kings"); '' for what is not a borough, so nothing is written.
 function _boroughOption(name) { var bl = _buildingLookup(); return bl ? bl.boroughValue(name) : ''; }
 
+// The index's answer as records whose text fields are text: an entry that is not a record (null, a string, a list) is no building, and a field that is not text (an address that is a
+// number or an object, a CommonInterest that is a list) is no value: it never reaches a control, a comparison or the Building tab's cached search.
+var _TEXT_FIELDS = ['address', 'street_address', 'name', 'building_name', 'borough', 'city_region', 'zip', 'postal_code', 'neighborhood', 'subdivision_name', 'common_interest', 'structure_type', 'city', 'state'];
+function _text(value) { return typeof value === 'string' ? value : (typeof value === 'number' ? String(value) : ''); }
+function _textRecords(list) {
+    return list.filter(function(b) { return b && typeof b === 'object' && !Array.isArray(b); }).map(function(b) {
+        var record = Object.assign({}, b);
+        _TEXT_FIELDS.forEach(function(key) { if (Object.prototype.hasOwnProperty.call(record, key)) record[key] = _text(record[key]); });
+        return record;
+    });
+}
+
 // Raw Cotality CommonInterest → Mallan form display classification.
 // Do not infer from PropertyType/PropertySubType here: this helper only translates exact raw values.
 function _commonInterestToFormType(ci) {
@@ -4988,7 +5000,7 @@ function _commonInterestToFormType(ci) {
         'Condop': 'Condop',
         'RentalBuilding': 'RentalBuilding'
     };
-    return map[ci] || '';
+    return Object.prototype.hasOwnProperty.call(map, ci) ? map[ci] : '';       // "constructor" is not a CommonInterest
 }
 
 // Fetch buildings from API by address query
@@ -5019,6 +5031,7 @@ async function fetchBuildingsFromAPI(query) {
             showToast(hint, 'warning');
             if (/unavailable/i.test(hint)) return null;     // the index says it could not look (Cotality is down): that is not "no match", and leaving the box again asks again
         }
+        buildings = _textRecords(buildings);
         return buildings.map(function(b) {
             var ci = b.common_interest == null ? '' : b.common_interest;
             var formType = _commonInterestToFormType(ci);
@@ -5170,18 +5183,19 @@ function _applyBuilding(prefix, building) {
     const typedUnit = bl.splitAddress(currentAddr).unit;          // "200 East 66th Street Apt 12B": the unit typed in the street box
     const borough = building.boroughOption;                        // the form's Borough option for the index's borough, or '' (see fetchBuildingsFromAPI)
 
-    // InHouse guard: if typed address differs materially from Trestle canonical,
-    // require explicit confirmation before overwriting. Prevents silent address
-    // mismatch (e.g., "333 46TH Street" → "333 East 46th Street").
-    if (_isInHouseListingType(prefix) && currentAddr) {
-        var typedNorm = currentAddr.toLowerCase().replace(/[^a-z0-9]/g, '');
-        var trestleNorm = building.address.toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (typedNorm !== trestleNorm) {
+    // InHouse guard: if the typed street address differs materially from the building's own
+    // address, require explicit confirmation before overwriting. Prevents silent address
+    // mismatch (e.g., "333 46TH Street" → "333 East 46th Street"). The street address is
+    // compared, not everything in the box (the unit typed after it, "Apt 12B", is not a difference), and a building that carries no address has none to offer.
+    if (_isInHouseListingType(prefix) && currentAddr && building.address) {
+        var typedNorm = bl.searchText(currentAddr).toLowerCase().replace(/[^a-z0-9]/g, '');
+        var buildingNorm = building.address.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (typedNorm !== buildingNorm) {
             var useCanonical = confirm(
                 'Building match found:\n\n' +
                 'You entered: ' + currentAddr + '\n' +
-                'Trestle/RLS canonical: ' + building.address + '\n\n' +
-                'Use the Trestle canonical address?\n' +
+                'Cotality building address: ' + building.address + '\n\n' +
+                'Use the building\'s own address?\n' +
                 'OK = use "' + building.address + '"\n' +
                 'Cancel = keep "' + currentAddr + '" (building data still populates)'
             );
@@ -5197,7 +5211,7 @@ function _applyBuilding(prefix, building) {
                 var keptBanner = document.getElementById(prefix + 'IdxMatchBanner');
                 if (keptBanner) {
                     keptBanner.classList.remove('hidden');
-                    document.getElementById(prefix + 'IdxDetectedType').textContent = building.model;
+                    document.getElementById(prefix + 'IdxDetectedType').textContent = building.model || '--';
                     document.getElementById(prefix + 'IdxDetectedBuilding').textContent = building.name;
                 }
                 document.getElementById(prefix + 'BuildingSearchResults').classList.add('hidden');
@@ -5228,7 +5242,7 @@ function _applyBuilding(prefix, building) {
     var banner = document.getElementById(prefix + 'IdxMatchBanner');
     if (banner) {
         banner.classList.remove('hidden');
-        document.getElementById(prefix + 'IdxDetectedType').textContent = building.model;
+        document.getElementById(prefix + 'IdxDetectedType').textContent = building.model || '--';
         document.getElementById(prefix + 'IdxDetectedBuilding').textContent = building.name;
     }
 
@@ -5360,8 +5374,9 @@ function populateBuildingFromIDX(prefix, building) {
     setVal(prefix + 'BldgStreetAddress', building.address);
     setVal(prefix + 'BldgName', building.name);
     setVal(prefix + 'BldgBorough', building.boroughOption);
-    setVal(prefix + 'BldgCity', pick('city', 'city') || 'New York');
-    setVal(prefix + 'BldgState', pick('state', 'state') || 'NY');
+    // the city and the state the record carries: a record that has none leaves what is there (the form's own "New York", "NY", or what the agent typed) alone
+    setVal(prefix + 'BldgCity', pick('city', 'city'));
+    setVal(prefix + 'BldgState', pick('state', 'state'));
     setVal(prefix + 'BldgZip', building.zip);
     // BldgNeighborhood — THE bug Maya hit. Set the dropdown value if it
     // exists as an option; otherwise add the value dynamically so the
@@ -5383,18 +5398,11 @@ function populateBuildingFromIDX(prefix, building) {
             if (matched) {
                 nEl.value = matched.value;
             } else {
-                // Cotality-only neighborhood — add under correct borough optgroup if possible.
-                const boroughVal = String(building.borough || '').toLowerCase();
-                const boroughLabel = boroughVal.includes('manhattan') || boroughVal === 'new york'
-                    ? 'Manhattan'
-                    : boroughVal.includes('brooklyn') || boroughVal === 'kings' ? 'Brooklyn'
-                    : boroughVal.includes('queens') ? 'Queens'
-                    : boroughVal.includes('bronx') ? 'Bronx'
-                    : boroughVal.includes('staten') || boroughVal === 'richmond' ? 'Staten Island'
-                    : '';
+                // Cotality-only neighborhood — add under the group of the building's borough (the form's option for it: "Kings County" is Brooklyn, the city "New York" is none); with no borough it goes in no group.
+                const boroughLabel = building.boroughOption === 'StatenIsland' ? 'Staten Island' : building.boroughOption;
                 let targetGroup = null;
                 for (const child of nEl.children) {
-                    if (child.tagName === 'OPTGROUP' && (child.label || '').toLowerCase().indexOf(boroughLabel.toLowerCase()) >= 0) {
+                    if (boroughLabel && child.tagName === 'OPTGROUP' && (child.label || '').toLowerCase().indexOf(boroughLabel.toLowerCase()) >= 0) {
                         targetGroup = child;
                         break;
                     }
@@ -5683,7 +5691,8 @@ function saleAddressBlurLookup() {
     _addressLookupFor = addr;
     // No local match — call API, then show candidates in the existing results UI
     fetchBuildingsFromAPI(addr).then(function(matches) {
-        if (_addressLookupFor === addr) _addressLookupFor = '';
+        if (_addressLookupFor !== addr) return;                                                    // the lookup was dropped meanwhile (an In-House listing type was chosen, a draft or a saved listing was put back)
+        _addressLookupFor = '';
         if ((document.getElementById('saleStreetAddress')?.value || '').trim() !== addr) return;   // the agent has changed the address since: that answer is for another
         var results = document.getElementById('saleBuildingSearchResults');
         if (matches === null) {                                                // the index could not answer: the address stays typed, so leaving the box again asks again
@@ -5751,10 +5760,16 @@ function parseSaleAddress() {
     var raw = (document.getElementById('saleStreetAddress')?.value || '').trim();
     document.getElementById('saleUnparsedAddress').value = raw;
     if (!raw) return;
+    // The street address alone is split into its parts: what the agent typed after it ("Apt 12B", "#4", ", New York, NY 10065") is not part of the street name. The unit goes to the
+    // Unit Number when that is empty.
+    var bl = _buildingLookup();
+    var typed = bl ? bl.splitAddress(raw) : { street: raw, unit: '' };
+    var unitBox = document.getElementById('saleUnitNumber');
+    if (typed.unit && unitBox && !(unitBox.value || '').trim()) unitBox.value = typed.unit;
     var directions = ['North','South','East','West','N','S','E','W','NE','NW','SE','SW'];
     var suffixes = ['Street','St','Avenue','Ave','Boulevard','Blvd','Road','Rd','Drive','Dr',
         'Place','Pl','Court','Ct','Lane','Ln','Way','Terrace','Ter','Circle','Cir','Parkway','Pkwy','Plaza','Plz','Alley'];
-    var parts = raw.split(/\s+/);
+    var parts = typed.street.split(/\s+/);
     var streetNum = '', dirPrefix = '', streetName = '', streetSuffix = '';
     // Extract street number (first token if starts with digit)
     if (parts.length > 0 && /^\d/.test(parts[0])) {
@@ -5793,6 +5808,7 @@ function _isInHouseListingType(prefix) {
 function _clearIdxMatchState(prefix) {
     clearTimeout(_buildingSearchTimeout);
     _buildingSearchSeq++;
+    _addressLookupFor = '';                                 // an address lookup still waiting is dropped, like a search
     var bl = _buildingLookup();
     if (bl) { bl.unlock(prefix); bl.reset(prefix); }
     var banner = document.getElementById(prefix + 'IdxMatchBanner');
@@ -5801,6 +5817,14 @@ function _clearIdxMatchState(prefix) {
     if (results) results.classList.add('hidden');
     var search = document.getElementById(prefix + 'BuildingSearch');
     if (search) search.value = '';
+}
+
+// The form is about to hold another record (a draft restored, a saved listing loaded): the building the agent had looked up is not applied any more, the property type is not held,
+// a lookup still waiting is dropped, and what the lookup wrote is not to be taken back over the record's own values.
+function _forgetBuilding(prefix) {
+    _clearIdxMatchState(prefix);
+    var bl = _buildingLookup();
+    if (bl) bl.forget(prefix);
 }
 
 // ══════════════════════════════════════════════════════
@@ -9667,6 +9691,7 @@ function _populateSaleFormFromApi(listing) {
     // Every control the form saved goes back first, from the control keys of the stored listing (js/forms/listing-hydration.js, mode 'edit'); the Sale loader below keeps
     // what needs more than a value. A page without the module fails the load: a form holding only part of the listing must not be saved over it.
     if (typeof MallanListingHydration === 'undefined') throw new Error('js/forms/listing-hydration.js did not load');
+    _forgetBuilding('sale');                       // the form holds the saved listing now, not a building the agent had looked up while it loaded
     MallanListingHydration.hydrate('sale', listing, { mode: 'edit' });
 
     // Populate-internal setters. Change-event dispatch is SUPPRESSED while
@@ -10118,6 +10143,9 @@ function _restoreDraftFromLocalStorage() {
     var saved;
     try { saved = JSON.parse(raw); } catch (e) { showToast('Draft data is corrupted.', 'error'); return; }
     if (!saved || typeof saved !== 'object' || Array.isArray(saved)) { showToast('Draft data is corrupted.', 'error'); return; }
+
+    // The form holds the draft now, not the building the agent had looked up
+    _forgetBuilding('sale');
 
     // Every control the draft saved goes back first (js/forms/listing-hydration.js, mode 'edit': a draft carries the same control keys as a saved listing), and the ownership
     // reference goes back the way a saved listing's does (a draft the collector produced carries CommonInterest; the collector drops the control key)

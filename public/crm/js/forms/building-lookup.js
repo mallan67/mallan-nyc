@@ -29,6 +29,8 @@
 //   isApplied / hasApplied / markApplied / reset  which building the form last applied (by address, borough and zip). The same building applied again (the agent left the address box and
 //                                    came back) must not overwrite what the agent has changed since in the Building tab, so a lookup that finds it again applies nothing; a
 //                                    building the agent clicks in a list is applied again
+//   forget(prefix)                   the form holds another record now (a draft restored, a saved listing loaded): no building is applied or locked, no address counts as typed,
+//                                    and nothing the lookup wrote is left to take back (the record's own values stand)
 //   lock(prefix, building) / unlock(prefix) / overridden   the property type a building's Cotality record names is LOCKED (the radios are disabled and a notice beside them
 //                                    says so) until the agent presses Override, so a co-op's fields cannot be left half co-op, half condo by a stray click. Only a CommonInterest
 //                                    classification locks: a type read from the property sub-type is a suggestion. The notice sits with the radios, not in the match banner,
@@ -60,11 +62,13 @@
   function byId(id) { return document.getElementById(id); }
   function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
   function str(value) { return String(value === undefined || value === null ? '' : value); }
+  // A word of an address is looked up in a table of the module's own: "constructor" (and "__proto__") is a word of a street name, not a member of the table
+  function own(table, key) { return Object.prototype.hasOwnProperty.call(table, key) ? table[key] : undefined; }
 
   function normalizeAddress(value) {
     return str(value).toLowerCase().replace(/[.,#]/g, ' ').split(/\s+/).filter(Boolean).map(function (token) {
       token = token.replace(/^(\d+)(?:st|nd|rd|th)$/, '$1');
-      return DIRECTIONS[token] || SUFFIXES[token] || token;
+      return own(DIRECTIONS, token) || own(SUFFIXES, token) || token;
     }).join(' ');
   }
 
@@ -173,6 +177,9 @@
   function overridden(prefix, building) { return !!building && overrides[prefix] !== undefined && overrides[prefix] === buildingKey(building); }
   function hasApplied(prefix) { return applied[prefix] !== undefined; }
   function reset(prefix) { delete applied[prefix]; delete overrides[prefix]; }
+  // The form holds another record now (a draft restored, a saved listing loaded over what the agent had typed): no building is applied, nothing is locked, no address counts as
+  // typed, and what the lookup wrote is no longer the lookup's to take back (the record's own values stand: putting "what was there before" back would erase them)
+  function forget(prefix) { unlock(prefix); reset(prefix); delete writes[prefix]; resolved(prefix); }
 
   // ── what the lookup wrote ──
   // Applying a building writes into dozens of controls (the name, the year, the fee, the amenities, the parking, ...). Which ones, and what was there before? So that the facts of
@@ -294,7 +301,7 @@
   global.MallanBuildingLookup = {
     normalizeAddress: normalizeAddress, splitAddress: splitAddress, searchText: searchText, exactMatch: exactMatch, boroughValue: boroughValue,
     renderResults: renderResults, message: message, unavailable: unavailable,
-    watch: watch, typed: typed, resolved: resolved, isApplied: isApplied, hasApplied: hasApplied, markApplied: markApplied, reset: reset, overridden: overridden,
+    watch: watch, typed: typed, resolved: resolved, isApplied: isApplied, hasApplied: hasApplied, markApplied: markApplied, reset: reset, forget: forget, overridden: overridden,
     snapshot: snapshot, record: record, undo: undo, setSelect: setSelect,
     lock: lock, unlock: unlock, isLocked: isLocked,
   };

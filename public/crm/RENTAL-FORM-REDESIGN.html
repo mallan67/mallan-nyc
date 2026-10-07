@@ -4332,16 +4332,29 @@ function _searchText(query) { var bl = _buildingLookup(); return bl ? bl.searchT
 // The form's Borough option for the borough the index names ("Staten Island", "Kings"); '' for what is not a borough, so nothing is written.
 function _boroughOption(name) { var bl = _buildingLookup(); return bl ? bl.boroughValue(name) : ''; }
 
+// The index's answer as records whose text fields are text: an entry that is not a record (null, a string, a list) is no building, and a field that is not text (an address that is a
+// number or an object, a CommonInterest that is a list) is no value: it never reaches a control, a comparison or the Building tab's cached search.
+var _TEXT_FIELDS = ['address', 'street_address', 'name', 'building_name', 'borough', 'city_region', 'zip', 'postal_code', 'neighborhood', 'subdivision_name', 'common_interest', 'property_sub_type', 'structure_type', 'city', 'state'];
+function _text(value) { return typeof value === 'string' ? value : (typeof value === 'number' ? String(value) : ''); }
+function _textRecords(list) {
+    return list.filter(function(b) { return b && typeof b === 'object' && !Array.isArray(b); }).map(function(b) {
+        var record = Object.assign({}, b);
+        _TEXT_FIELDS.forEach(function(key) { if (Object.prototype.hasOwnProperty.call(record, key)) record[key] = _text(record[key]); });
+        return record;
+    });
+}
+
 // Exact raw provider values only. If CommonInterest is None/absent, use only an
 // unambiguous PropertySubType; never substitute PropertyType for either field.
 function _rentalRawClassificationToFormType(commonInterest, propertySubType) {
+    var own = function(table, key) { return Object.prototype.hasOwnProperty.call(table, key) ? table[key] : ''; };     // "constructor" is neither a CommonInterest nor a sub-type
     var byOwnership = {
         Condominium: 'Condo',
         StockCooperative: 'Coop',
         Condop: 'Condop',
         RentalBuilding: 'RentalBuilding'
     };
-    if (byOwnership[commonInterest]) return byOwnership[commonInterest];
+    if (own(byOwnership, commonInterest)) return own(byOwnership, commonInterest);
 
     var bySubType = {
         SingleFamilyResidence: 'SingleFamily',
@@ -4353,7 +4366,7 @@ function _rentalRawClassificationToFormType(commonInterest, propertySubType) {
         Office: 'Office',
         Retail: 'Retail'
     };
-    return bySubType[propertySubType] || '';
+    return own(bySubType, propertySubType);
 }
 
 // Fetch buildings from API by address query. This is the Sale form's lookup: every field the API returned is kept (the building's tax block / lot, association, amenities,
@@ -4386,6 +4399,7 @@ async function fetchBuildingsFromAPI(query) {
             showToast(hint, 'warning');
             if (/unavailable/i.test(hint)) return null;     // the index says it could not look (Cotality is down): that is not "no match", and leaving the box again asks again
         }
+        buildings = _textRecords(buildings);
         return buildings.map(function(b) {
             var ci = b.common_interest == null ? '' : b.common_interest;
             var formType = _rentalRawClassificationToFormType(b.common_interest || '', b.property_sub_type || '');
@@ -4402,7 +4416,8 @@ async function fetchBuildingsFromAPI(query) {
                 zip: b.zip || b.postal_code || '',
                 neighborhood: b.neighborhood || b.subdivision_name || '',
                 type: formType,
-                model: formType || ci,
+                // the classification the form uses, as the match banner and the results list show it: a CommonInterest the form has no classification for is not a property type
+                model: formType,
                 commonInterestRaw: ci,
                 structureType: b.structure_type || '',
                 yearBuilt: b.year_built || null,
@@ -4531,11 +4546,12 @@ function _applyBuilding(prefix, building) {
     const typedUnit = bl.splitAddress(currentAddr).unit;          // "200 East 66th Street Apt 12B": the unit typed in the street box
 
     // An In-House listing keeps the address the agent typed unless they say to use the building's own (the Sale form asks the same question).
+    // The street address is compared, not everything in the box (the unit typed after it, "Apt 12B", is not a difference); a building that carries no address has none to offer.
     var keepTyped = false;
-    if (_isInHouseRental() && currentAddr) {
-        var typedNorm = currentAddr.toLowerCase().replace(/[^a-z0-9]/g, '');
-        var buildingNorm = String(building.address || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (buildingNorm && typedNorm !== buildingNorm) {
+    if (_isInHouseRental() && currentAddr && building.address) {
+        var typedNorm = bl.searchText(currentAddr).toLowerCase().replace(/[^a-z0-9]/g, '');
+        var buildingNorm = building.address.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (typedNorm !== buildingNorm) {
             keepTyped = !confirm(
                 'Building match found:\n\n' +
                 'You entered: ' + currentAddr + '\n' +
@@ -4569,7 +4585,7 @@ function _applyBuilding(prefix, building) {
     const banner = document.getElementById(prefix + 'IdxMatchBanner');
     if (banner) {
         banner.classList.remove('hidden');
-        document.getElementById(prefix + 'IdxDetectedType').textContent = building.model;
+        document.getElementById(prefix + 'IdxDetectedType').textContent = building.model || '--';
         document.getElementById(prefix + 'IdxDetectedBuilding').textContent = building.name;
     }
 
@@ -4632,8 +4648,9 @@ function populateBuildingFromIDX(prefix, building) {
     setVal('bldgStreetAddress', building.address);
     setVal('bldgName', building.name);
     setVal('bldgBorough', building.boroughOption);
-    setVal('bldgCity', pick('city', 'city') || 'New York');
-    setVal('bldgState', pick('state', 'state') || 'NY');
+    // the city and the state the record carries: a record that has none leaves what is there (the form's own "New York", "NY", or what the agent typed) alone
+    setVal('bldgCity', pick('city', 'city'));
+    setVal('bldgState', pick('state', 'state'));
     setVal('bldgZip', building.zip);
     // BldgNeighborhood — THE bug Maya hit. Set the dropdown value if it
     // exists as an option; otherwise add the value dynamically so the
@@ -4655,18 +4672,11 @@ function populateBuildingFromIDX(prefix, building) {
             if (matched) {
                 nEl.value = matched.value;
             } else {
-                // Cotality-only neighborhood — add under correct borough optgroup if possible.
-                const boroughVal = String(building.borough || '').toLowerCase();
-                const boroughLabel = boroughVal.includes('manhattan') || boroughVal === 'new york'
-                    ? 'Manhattan'
-                    : boroughVal.includes('brooklyn') || boroughVal === 'kings' ? 'Brooklyn'
-                    : boroughVal.includes('queens') ? 'Queens'
-                    : boroughVal.includes('bronx') ? 'Bronx'
-                    : boroughVal.includes('staten') || boroughVal === 'richmond' ? 'Staten Island'
-                    : '';
+                // Cotality-only neighborhood — add under the group of the building's borough (the form's option for it: "Kings County" is Brooklyn, the city "New York" is none); with no borough it goes in no group.
+                const boroughLabel = building.boroughOption === 'StatenIsland' ? 'Staten Island' : building.boroughOption;
                 let targetGroup = null;
                 for (const child of nEl.children) {
-                    if (child.tagName === 'OPTGROUP' && (child.label || '').toLowerCase().indexOf(boroughLabel.toLowerCase()) >= 0) {
+                    if (boroughLabel && child.tagName === 'OPTGROUP' && (child.label || '').toLowerCase().indexOf(boroughLabel.toLowerCase()) >= 0) {
                         targetGroup = child;
                         break;
                     }
@@ -5035,7 +5045,8 @@ function rentalAddressBlurLookup() {
     _addressLookupFor = addr;
     // No local match — call the API, then show candidates in the existing results UI
     fetchBuildingsFromAPI(addr).then(function(matches) {
-        if (_addressLookupFor === addr) _addressLookupFor = '';
+        if (_addressLookupFor !== addr) return;                                                      // the lookup was dropped meanwhile (an In-House listing type was chosen, a draft or a saved listing was put back)
+        _addressLookupFor = '';
         if ((document.getElementById('rentalStreetAddress')?.value || '').trim() !== addr) return;   // the agent has changed the address since: that answer is for another
         var results = document.getElementById('rentalBuildingSearchResults');
         if (matches === null) {                                                // the index could not answer: the address stays typed, so leaving the box again asks again
@@ -5090,10 +5101,16 @@ function parseRentalAddress() {
     var raw = (document.getElementById('rentalStreetAddress')?.value || '').trim();
     document.getElementById('rentalUnparsedAddress').value = raw;
     if (!raw) return;
+    // The street address alone is split into its parts: what the agent typed after it ("Apt 12B", "#4", ", New York, NY 10065") is not part of the street name. The unit goes to the
+    // Unit Number when that is empty.
+    var bl = _buildingLookup();
+    var typed = bl ? bl.splitAddress(raw) : { street: raw, unit: '' };
+    var unitBox = document.getElementById('rentalUnitNumber');
+    if (typed.unit && unitBox && !(unitBox.value || '').trim()) unitBox.value = typed.unit;
     var directions = ['North','South','East','West','N','S','E','W','NE','NW','SE','SW'];
     var suffixes = ['Street','St','Avenue','Ave','Boulevard','Blvd','Road','Rd','Drive','Dr',
         'Place','Pl','Court','Ct','Lane','Ln','Way','Terrace','Ter','Circle','Cir','Parkway','Pkwy','Plaza','Plz','Alley'];
-    var parts = raw.split(/\s+/);
+    var parts = typed.street.split(/\s+/);
     var streetNum = '', dirPrefix = '', streetName = '', streetSuffix = '';
     if (parts.length > 0 && /^\d/.test(parts[0])) { streetNum = parts.shift(); }
     if (parts.length > 1 && directions.indexOf(parts[0]) !== -1) { dirPrefix = parts.shift(); }
@@ -5182,6 +5199,7 @@ function _isInHouseRental() {
 function _clearIdxMatchState(prefix) {
     clearTimeout(_buildingSearchTimeout);
     _buildingSearchSeq++;
+    _addressLookupFor = '';                                 // an address lookup still waiting is dropped, like a search
     var bl = _buildingLookup();
     if (bl) { bl.unlock(prefix); bl.reset(prefix); }
     var banner = document.getElementById(prefix + 'IdxMatchBanner');
@@ -5190,6 +5208,14 @@ function _clearIdxMatchState(prefix) {
     if (results) results.classList.add('hidden');
     var search = document.getElementById(prefix + 'BuildingSearch');
     if (search) search.value = '';
+}
+
+// The form is about to hold another record (a saved listing loaded): the building the agent had looked up is not applied any more, the property type is not held, a lookup still
+// waiting is dropped, and what the lookup wrote is not to be taken back over the record's own values.
+function _forgetBuilding(prefix) {
+    _clearIdxMatchState(prefix);
+    var bl = _buildingLookup();
+    if (bl) bl.forget(prefix);
 }
 
 function handleRentalListingTypeChange(value) {
@@ -7175,6 +7201,10 @@ var _RENTAL_STEP_FOR_FAMILY = { draft: 'Draft', active: 'Active', closed: 'Rente
 // control's state run once at the end, so a cascade cannot overwrite a value that has not been restored yet.
 function _restoreRentalControls(listing) {
     var raw = listing.raw_data || {};
+
+    // The form holds this record now (a draft, a saved listing), not a building the agent had looked up: that building is not applied or held any more, and a lookup still
+    // waiting is dropped
+    _forgetBuilding('rental');
 
     // Co-listing agents: live Cotality CoListAgent{,2,3}* hydrated into the structured component (js/forms/colist-section.js).
     var _rcHydrate = _rentalCoList();
