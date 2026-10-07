@@ -169,7 +169,8 @@ export type Entered = { key: string; kind: 'value' | 'radio' | 'check' | 'group'
 // parseSaleAddress) from a real address a test types; the status is the record's (a create always starts as Draft, transitions go through the status route); and the
 // Office / Retail and Commercial sub-selectors only mean something for those classifications, so a form with another classification clears them (a test sets them
 // together with their classification).
-const NOT_ENTERED = /^(sale|rental)(ListingAgentSearch|ListingCompanySearch|StreetAddress|Status|OfficeRetailOwnership|CommercialOwnership)$/;
+const NOT_ENTERED = /^(sale|rental)(ListingAgentSearch|ListingCompanySearch|StreetAddress|Status|OfficeRetailOwnership|CommercialOwnership)$|^rental(Zip|State|CityDisplay)$/;
+// (the last three are the Rental form's Property Location card: its ZIP code, state and city are views of the saved ones, one value each, so a different value in each cannot come back as two)
 // "None of these" values switch the rest of their group off when the agent picks them; they are left unchecked so the group is coherent.
 const EXCLUSIVE = /^(None|BuildingNo|UnitNo)$/;
 // Choices that switch other controls off (opt-out listing types, tenant-pays, a commercial classification): the first option is neutral.

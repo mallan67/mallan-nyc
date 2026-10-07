@@ -453,6 +453,9 @@ function shown(d: Document, e: Expectation): string | string[] | boolean | null 
 // The viewer shows these from the record (the stored status, the system timestamps, the listing agent and office), not from a control's
 // saved entry, so an entry in the form's control does not have to come back.
 const VIEWER_OWNED = /^(sale|rental)(Status|CreateDate|LastUpdatedDate|ListingAgentSearch|ListingCompanySearch)$/;
+// The Rental form's Property Location card (Unit Info tab) shows the ZIP code and the state that are saved from the first tab and the hidden state box; they are the same value, not two entries, so a
+// different value in each cannot come back as two.
+const MIRRORS = /^rental(Zip|State)$/;
 
 // Entries the form's own save does NOT keep (or keeps under a key nothing can invert), each with the reason. Every line is a save-side gap in
 // the Add / Edit form, not a viewer gap: shrinking these tables is the Add / Edit data-integrity work, and a line that starts passing fails
@@ -485,7 +488,7 @@ describe.each([
     let payload: Record<string, unknown> = {};
     try {
       const numeric = new Set<string>(TABLES[kind].FIELD_MAP.filter((r: any) => r.type === 'number').map((r: any) => r.form));
-      expectations = fillForm(f.d, FORM_ZONES[kind], numeric).filter((e) => !VIEWER_OWNED.test(e.key));
+      expectations = fillForm(f.d, FORM_ZONES[kind], numeric).filter((e) => !VIEWER_OWNED.test(e.key) && !MIRRORS.test(e.key));
       payload = kind === 'sale' ? f.w.collectSaleFormData() : f.w.collectRentalFormData();
     } finally {
       f.close();

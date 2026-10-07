@@ -4266,6 +4266,7 @@ body { font-family: Manrope, sans-serif; }
 // NAVIGATION — Main tabs + Sub-tabs
 // ══════════════════════════════════════════════════════
 function showRentalMainTab(num) {
+    _rentalSyncLocation();
     // Block Tab 7 if not Rented (RLS/RESO/IDX: Closed)
     if (num === 7) {
         var st = (document.getElementById('rentalStatus') || {}).value || '';
@@ -5635,6 +5636,27 @@ function updateListingHeaderBar(prefix) {
     const unitDisp = document.getElementById(prefix + 'UnitDisplay');
     if (addr && addrDisp) addrDisp.textContent = addr.value || '[Enter Address]';
     if (unit && unitDisp) unitDisp.textContent = unit.value || '[Unit]';
+    _rentalSyncLocation();
+}
+
+// The Property Location card of the Unit Info tab shows the address of the Listing Info tab (its street and unit boxes are read-only copies) and holds the city, the state and the ZIP code of the
+// listing: one value each, whichever box it was typed in. The ZIP code was two boxes that nothing kept alike (the building lookup filled the first, the Next check asked for the second, and the
+// listing was saved with the first), and the copies, the city and the state showed their starting values for ever. The box the agent just edited (editedId) wins; with no edit (a lookup, a saved
+// listing, a draft) the saved box is shown. When it holds nothing, the card's box is what was typed there (a listing saved with the ZIP code on the card only), unless it still shows what it was
+// last given from the saved box (a value the lookup wrote and then took back).
+function _rentalSyncLocation(editedId) {
+    var box = function(id) { return document.getElementById(id); };
+    var copy = function(from, to) { var a = box(from), b = box(to); if (a && b) b.value = a.value; };
+    copy('rentalStreetAddress', 'rentalStreetAddress2');
+    copy('rentalUnitNumber', 'rentalUnitNumber2');
+    [['rentalZipCode', 'rentalZip'], ['rentalCity', 'rentalCityDisplay'], ['rentalStateOrProvince', 'rentalState']].forEach(function(pair) {
+        var saved = box(pair[0]), shown = box(pair[1]);
+        if (!saved || !shown) return;
+        var shows = function(value) { return shown.tagName !== 'SELECT' || Array.prototype.some.call(shown.options, function(o) { return o.value === value; }); };
+        if (editedId === pair[1]) { saved.value = shown.value; shown._given = shown.value; }
+        else if (editedId === pair[0] || saved.value || shown.value === shown._given) { if (shows(saved.value)) { shown.value = saved.value; shown._given = saved.value; } }
+        else if (shown.value) { saved.value = shown.value; shown._given = shown.value; }
+    });
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -5840,6 +5862,7 @@ function _rentalFormChanged() {
 }
 
 function validateRentalTab(tabNum) {
+    _rentalSyncLocation();
     const fields = RENTAL_REQUIRED_FIELDS[tabNum] || [];
     const missing = [];
 
@@ -6024,6 +6047,7 @@ function _numberOrNull(value, whole) {
 }
 
 function collectRentalFormData() {
+    _rentalSyncLocation();
     var data = { listing_type: 'rent' };
     // `add-rental-listing` was the legacy shell container — doesn't exist in
     // the redesigned form. `.flex-1` is the real container used in the shell.
@@ -7328,6 +7352,7 @@ function _populateRentalFormFromApi(listing) {
     // Open houses: the listing's scheduled ones are shown as cards (js/forms/listing-open-houses.js)
     var openHouses = _openHouses();
     if (openHouses) openHouses.load([listing.listing_id, listing.id != null ? String(listing.id) : '']);
+    _rentalSyncLocation();
 }
 
 // The family a status belongs to, whichever vocabulary names it: a workflow step the agent picks (Draft ... PermOffMarket), a Cotality MlsStatus, or the status the
@@ -7519,8 +7544,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // The boxes a refused Next marked red and the sidebar summary follow the form
     var formArea = document.querySelector('main');
     if (formArea) {
-        formArea.addEventListener('input', _rentalFormChanged);
-        formArea.addEventListener('change', _rentalFormChanged);
+        var formChanged = function(e) { _rentalSyncLocation(e.target && e.target.id); _rentalFormChanged(); };
+        formArea.addEventListener('input', formChanged);
+        formArea.addEventListener('change', formChanged);
     }
 
     // Photos and floor plans (js/forms/listing-media.js): the file boxes and their drop zones
