@@ -5918,6 +5918,13 @@ function _answerOrUndefined(v) {
  * Collect all rental form fields into a flat object with RESO field names.
  * Used by both submit and auto-save.
  */
+// A number box the agent left blank (or filled with something that is not a number) is none: null. It used to be 0, which says "0 bedrooms" (a studio), "no association fee", "closed at $0":
+// facts the agent never gave, and a save over a stored value cleared it to 0. A typed 0 is an answer and stays 0. (The server counts null as missing: lib/compliance/rebny-validator.ts.)
+function _numberOrNull(value, whole) {
+    var n = whole ? parseInt(value, 10) : parseFloat(value);
+    return isNaN(n) ? null : n;
+}
+
 function collectRentalFormData() {
     var data = { listing_type: 'rent' };
     // `add-rental-listing` was the legacy shell container — doesn't exist in
@@ -5959,12 +5966,12 @@ function collectRentalFormData() {
 
     // Map key fields to RLS names — using CORRECT element IDs
     data.ListPrice = parseFloat(data.rentalMonthlyRent || '0') || 0;
-    data.NetMonthlyRent = parseFloat(data.rentalMonthlyRent || '0') || 0;
-    data.BedroomsTotal = parseInt(data.rentalBedrooms || '0') || 0;
-    data.BathroomsFull = parseInt(data.rentalFullBathrooms || '0') || 0;
-    data.BathroomsHalf = parseInt(data.rentalHalfBathrooms || '0') || 0;
-    data.BathroomsTotal = (data.BathroomsFull || 0) + ((data.BathroomsHalf || 0) * 0.5);
-    data.LivingArea = parseFloat(data.rentalSqFt || '0') || 0;
+    data.NetMonthlyRent = _numberOrNull(data.rentalMonthlyRent, false);
+    data.BedroomsTotal = data.rentalBedrooms === 'Apartment' ? 0 : _numberOrNull(data.rentalBedrooms, true);       // the list's "Studio (Apartment)" is 0 bedrooms, and its first entry, "Custom", is no answer
+    data.BathroomsFull = _numberOrNull(data.rentalFullBathrooms, true);
+    data.BathroomsHalf = _numberOrNull(data.rentalHalfBathrooms, true);
+    data.BathroomsTotal = (data.BathroomsFull === null && data.BathroomsHalf === null) ? null : (data.BathroomsFull || 0) + ((data.BathroomsHalf || 0) * 0.5);
+    data.LivingArea = _numberOrNull(data.rentalSqFt, false);
     data.StreetNumber = data.rentalStreetNumber || '';
     data.StreetName = data.rentalStreetName || '';
     data.StreetSuffix = data.rentalStreetSuffix || '';
@@ -6139,14 +6146,10 @@ function collectRentalFormData() {
     data.WithdrawnDate = '';
 
     // Financial fields
-    // Rentals do not capture HOA/common-charge fees in this UI — those apply to
-    // sale (ownership) listings only. Literal defaults — original references
-    // (`rentalMaintCC`, `rentalMaintCCFreq`) pointed at elements that were
-    // removed during the redesign.
-    data.AssociationFee = 0;
-    data.AssociationFeeFrequency = '';
-    data.SecurityDeposit = parseFloat(data.rentalSecurityDeposit || '0') || 0;
-    data.LeaseAmount = parseFloat(data.rentalMonthlyRent || '0') || 0;
+    // Rentals do not capture HOA/common-charge fees in this UI — those apply to sale (ownership) listings only. No AssociationFee is sent: a 0 said "no fee" for every rental and, on a
+    // saved listing that carries one, replaced it.
+    data.SecurityDeposit = _numberOrNull(data.rentalSecurityDeposit, false);
+    data.LeaseAmount = _numberOrNull(data.rentalMonthlyRent, false);
 
     // Address fields
     data.StreetDirPrefix = data.rentalStreetDirPrefix || '';
@@ -6161,15 +6164,15 @@ function collectRentalFormData() {
     // doesn't exist in the redesign.
     data.EntryLevel = data.rentalFloor || '';
     data.Stories = parseInt(data.rentalTHStories || '0') || null;
-    data.BuildingAreaTotal = parseFloat(data.rentalTHBuildingArea || '0') || 0;
+    data.BuildingAreaTotal = _numberOrNull(data.rentalTHBuildingArea, false);
     data.Levels = data.rentalTHLevels || '';
     data.ZoningDescription = data.rentalTHZoning || '';
     data.GarageSpaces = parseInt(data.rentalTHGarageSpaces || '0') || null;
     data.ParkingTotal = parseInt(data.rentalTHParkingTotal || '0') || null;
-    data.FoundationArea = parseFloat(data.rentalTHFoundationArea || '0') || 0;
+    data.FoundationArea = _numberOrNull(data.rentalTHFoundationArea, false);
     var _BasementYN = _answerOrUndefined(data.rentalTHBasementYN);
     if (_BasementYN !== undefined) data.BasementYN = _BasementYN;
-    data.LotSizeArea = parseFloat(data.rentalTHLotSize || '0') || 0;
+    data.LotSizeArea = _numberOrNull(data.rentalTHLotSize, false);
 
     // Building fields
     data.YearRenovated = parseInt(data.bldgYearRenovated || '0') || null;
@@ -6194,10 +6197,10 @@ function collectRentalFormData() {
     data.OngoingFees = data.rentalOngoingFees || '';
     data.FeeFrequency = data.rentalFeeFrequency || '';
     data.MoveInCosts = data.rentalMoveInCosts || '';
-    data.MoveInCostsAmount = parseFloat(data.rentalMoveInCostsAmount || '0') || 0;
+    data.MoveInCostsAmount = _numberOrNull(data.rentalMoveInCostsAmount, false);
     data.MoveInCostsComments = data.rentalMoveInCostsComments || '';
     data.AdditionalFeeYN = data.rentalAdditionalFeeYN || '';
-    data.AdditionalFee = parseFloat(data.rentalAdditionalFee || '0') || 0;
+    data.AdditionalFee = _numberOrNull(data.rentalAdditionalFee, false);
     data.AdditionalFeeDescription = data.rentalAdditionalFeeDescription || '';
     data.AdditionalFeeFrequency = data.rentalAdditionalFeeFrequency || '';
 

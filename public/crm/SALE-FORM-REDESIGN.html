@@ -7309,6 +7309,13 @@ function _answerOrUndefined(v) {
     return undefined;
 }
 
+// A number box the agent left blank (or filled with something that is not a number) is none: null. It used to be 0, which says "0 bedrooms" (a studio), "no association fee", "closed at $0":
+// facts the agent never gave, and a save over a stored value cleared it to 0. A typed 0 is an answer and stays 0. (The server counts null as missing: lib/compliance/rebny-validator.ts.)
+function _numberOrNull(value, whole) {
+    var n = whole ? parseInt(value, 10) : parseFloat(value);
+    return isNaN(n) ? null : n;
+}
+
 function collectSaleFormData() {
     var data = { listing_type: 'sale' };
     // `add-sales-listing` was the legacy shell container — doesn't exist in
@@ -7368,11 +7375,11 @@ function collectSaleFormData() {
 
     // Map key fields to RLS names — using CORRECT element IDs
     data.ListPrice = parseFloat(data.salePrice || '0') || 0;
-    data.BedroomsTotal = parseInt(data.saleBedrooms || '0') || 0;
-    data.BathroomsFull = parseInt(data.saleFullBaths || '0') || 0;
-    data.BathroomsHalf = parseInt(data.saleHalfBaths || '0') || 0;
-    data.BathroomsTotal = (data.BathroomsFull || 0) + ((data.BathroomsHalf || 0) * 0.5);
-    data.LivingArea = parseFloat(data.saleUnitSqFt || data.saleLivingArea || data.saleInteriorSqFt || '0') || 0;
+    data.BedroomsTotal = _numberOrNull(data.saleBedrooms, true);
+    data.BathroomsFull = _numberOrNull(data.saleFullBaths, true);
+    data.BathroomsHalf = _numberOrNull(data.saleHalfBaths, true);
+    data.BathroomsTotal = (data.BathroomsFull === null && data.BathroomsHalf === null) ? null : (data.BathroomsFull || 0) + ((data.BathroomsHalf || 0) * 0.5);
+    data.LivingArea = _numberOrNull(data.saleUnitSqFt || data.saleLivingArea || data.saleInteriorSqFt, false);
     data.StreetNumber = data.saleStreetNumber || '';
     data.StreetName = data.saleStreetName || '';
     data.StreetSuffix = data.saleStreetSuffix || '';
@@ -7732,9 +7739,9 @@ function collectSaleFormData() {
     // TaxDeductionPercent phantom emit removed (Cotality-clean 2026-05-30): not in
     // live $metadata. Value persists as internal saleTaxDeduction (SALE_FIELD_MAP, legacy fallback).
     data.FlipTax = data.saleFlipTaxAmount || '';
-    data.OriginalListPrice = parseFloat(data.saleOriginalPrice || '0') || 0;
-    data.ClosePrice = parseFloat(data.saleSoldPrice || '0') || 0;
-    data.AssociationFee = parseFloat(data.saleMaintCC || '0') || 0;
+    data.OriginalListPrice = _numberOrNull(data.saleOriginalPrice, false);
+    data.ClosePrice = _numberOrNull(data.saleSoldPrice, false);
+    data.AssociationFee = _numberOrNull(data.saleMaintCC, false);
     data.AssociationFeeFrequency = data.saleMaintCCFreq || '';
 
     // Address fields
@@ -7747,15 +7754,15 @@ function collectSaleFormData() {
     // Townhouse / building detail fields
     data.EntryLevel = data.saleFloorInBuilding || '';
     data.Stories = parseInt(data.saleTHStories || '0') || null;
-    data.BuildingAreaTotal = parseFloat(data.saleTHBuildingArea || '0') || 0;
+    data.BuildingAreaTotal = _numberOrNull(data.saleTHBuildingArea, false);
     data.Levels = data.saleTHLevels || '';
     data.ZoningDescription = data.saleTHZoning || '';
     data.GarageSpaces = parseInt(data.saleTHGarageSpaces || '0') || null;
     data.ParkingTotal = parseInt(data.saleTHParkingTotal || '0') || null;
-    data.FoundationArea = parseFloat(data.saleTHFoundationArea || '0') || 0;
+    data.FoundationArea = _numberOrNull(data.saleTHFoundationArea, false);
     var _BasementYN = _answerOrUndefined(data.saleTHBasementYN);
     if (_BasementYN !== undefined) data.BasementYN = _BasementYN;
-    data.LotSizeArea = parseFloat(data.saleTHLotSize || '0') || 0;
+    data.LotSizeArea = _numberOrNull(data.saleTHLotSize, false);
 
     // Building fields
     // YearRenovated phantom emit removed (Cotality-clean 2026-05-30): not in live
