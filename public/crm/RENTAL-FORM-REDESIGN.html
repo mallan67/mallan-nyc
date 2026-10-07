@@ -92,6 +92,7 @@ body { font-family: Manrope, sans-serif; }
 <script src="js/forms/fair-housing.js"></script>
 <script src="js/forms/building-lookup.js"></script>
 <script src="js/forms/listing-hydration.js"></script>
+<script src="js/forms/listing-media.js"></script>
 <script>
 // ── Auth gate (defense-in-depth — middleware is primary) ──
 // NOTE: session_token is httpOnly — JS cannot read it via document.cookie.
@@ -3209,7 +3210,7 @@ body { font-family: Manrope, sans-serif; }
             <!-- Photos -->
             <div class="mb-8">
                 <div class="flex items-center justify-between mb-3">
-                    <h4 class="font-semibold text-gray-900">Photos <span class="text-xs text-gray-500 font-normal">(Up to 100 photos, min 1024x768px, recommended 2048x1365px, JPEG/PNG, max 20MB each)</span></h4>
+                    <h4 class="font-semibold text-gray-900">Photos <span class="text-xs text-gray-500 font-normal">(Up to 100 photos, min 1024x768px, recommended 2048x1365px, JPEG/PNG, max 10MB each)</span></h4>
                     <span id="rentalPhotoCount" class="text-xs font-semibold text-gray-500">0 / 100 uploaded</span>
                 </div>
                 <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#B8860B] cursor-pointer transition-colors" onclick="document.getElementById('rentalPhotoInput').click()">
@@ -3258,13 +3259,15 @@ body { font-family: Manrope, sans-serif; }
 
             <!-- Floor Plans -->
             <div class="mb-8">
-                <h4 class="font-semibold text-gray-900 mb-3">Floor Plans <span class="text-xs text-gray-500 font-normal">(max 20MB each, 150 dpi recommended)</span></h4>
+                <h4 class="font-semibold text-gray-900 mb-3">Floor Plans <span class="text-xs text-gray-500 font-normal">(max 10MB each, JPG/PNG only, 150 dpi recommended)</span></h4>
                 <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#B8860B] cursor-pointer transition-colors" onclick="document.getElementById('rentalFloorplanInput').click()">
                     <i class="fas fa-drafting-compass text-3xl text-gray-400 mb-2"></i>
                     <p class="text-sm text-gray-600">Upload Floor Plan</p>
-                    <p class="text-xs text-gray-500 mt-1">JPG, PNG, PDF only</p>
-                    <input type="file" id="rentalFloorplanInput" accept=".jpg,.jpeg,.png,.pdf" class="hidden" data-rls-ignore="true">
+                    <p class="text-xs text-gray-500 mt-1">JPG, PNG only (the server stores images)</p>
+                    <input type="file" id="rentalFloorplanInput" accept=".jpg,.jpeg,.png" class="hidden" data-rls-ignore="true">
                 </div>
+                <div id="rentalFloorplanPreview" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4"></div>
+                <p class="text-[10px] text-gray-400 mt-2"><i class="fas fa-shield-alt mr-1"></i>Only upload media you have rights/authorization to use.</p>
             </div>
 
             <!-- 3D Virtual Tours (RLS/RESO/IDX: VirtualTourURL) -->
@@ -5550,8 +5553,27 @@ function closeRentalMediaDocs(event) {
     document.getElementById('rentalMediaModal').classList.add('hidden');
     document.body.style.overflow = '';
 }
+// Photos and floor plans: js/forms/listing-media.js. The manager is made when the page first needs it. A page that could not load the module still boots, and its file boxes say so
+// instead of doing nothing.
+var _rentalMedia = null;
+function _media() {
+    if (!_rentalMedia && window.MallanListingMedia) {
+        _rentalMedia = MallanListingMedia.create({
+            prefix: 'rental',
+            listingId: function() { return _rentalEditListingId || _rentalEditDbId || ''; },
+            canUpload: function() { return typeof MallanAPI !== 'undefined' && !!MallanAPI.isReady; },
+            toast: showToast
+        });
+    }
+    return _rentalMedia;
+}
+function _mediaMissing() {
+    showToast('The media manager did not load, so photos and floor plans cannot be added. Reload the page.', 'error');
+}
 function saveRentalMedia() {
-    // Placeholder — collect media data for submission
+    var media = _media();
+    if (!media) { _mediaMissing(); return; }
+    media.saveMedia();
 }
 function showRentalBuildingInfo() {
     document.getElementById('rentalBuildingModal').classList.remove('hidden');
@@ -6225,6 +6247,15 @@ function submitRentalListing() {
             // server is asked for the status that stands for the step the agent chose, through the status route, whose state machine decides (a Draft moves only to Active, an Active
             // listing does not go back to Draft) and whose refusal is said below.
             var dbId = result.id || _rentalEditDbId;
+            // The photos and floor plans chosen so far go to the listing now that it is saved, and are shown as the listing's own tiles
+            var media = _media();
+            if (media && media.hasPending()) {
+                var mediaOf = result.listing_id || dbId || _rentalEditListingId;                // the id the server gave, never the made-up one the page shows when it gave none
+                showToast('Uploading media files...', 'info');
+                var sentMedia = await media.uploadPending(mediaOf);
+                if (sentMedia.failed > 0) showToast(sentMedia.failed + ' media upload(s) failed.', 'warning');
+                await media.render(mediaOf, dbId);
+            }
             var statusNow = result.status || _rentalRecordStatus || 'Draft';
             var statusControl = document.getElementById('rentalStatus');
             var step = statusControl ? statusControl.value : '';
@@ -7184,6 +7215,13 @@ function _populateRentalFormFromApi(listing) {
     // Listing agent: the saved agent goes back into the hidden identity inputs and the Contacts tab (js/forms/agent-defaults.js).
     // A saved identity is never replaced by the signed-in agent's; the session fills only what the listing lacks (see MallanAgentDefaults.apply).
     if (typeof MallanAgentDefaults !== 'undefined') MallanAgentDefaults.hydrate('rental', listing, { updateTable: updateRentalAgentTable });
+
+    // Photos and floor plans: what the listing has saved is shown as tiles (cover, move, remove), and files chosen for an earlier record are forgotten.
+    var media = _media();
+    if (media) {
+        media.reset();
+        media.render(listing.listing_id || (listing.id != null ? String(listing.id) : ''), listing.id != null ? String(listing.id) : '');
+    }
 }
 
 // The family a status belongs to, whichever vocabulary names it: a workflow step the agent picks (Draft ... PermOffMarket), a Cotality MlsStatus, or the status the
@@ -7369,6 +7407,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const descField = document.getElementById('rentalDescription');
     if (descField) {
         descField.addEventListener('input', updateRentalCharCount);
+    }
+
+    // Photos and floor plans (js/forms/listing-media.js): the file boxes and their drop zones
+    var media = _media();
+    if (media) {
+        media.bind();
+    } else {
+        ['rentalPhotoInput', 'rentalFloorplanInput'].forEach(function(id) {
+            var input = document.getElementById(id);
+            if (input) input.addEventListener('change', function() { _mediaMissing(); input.value = ''; });
+        });
     }
 
     // Check if editing an existing listing (?id= URL param)

@@ -65,7 +65,7 @@ export const SESSION_USER = {
 export const SESSION_MEMBER: DirectoryMember = {
   key: '4455667', mlsId: '39361', fullName: 'Sender Agent', status: 'Active', officeKey: '5671398', officeMlsId: '7041', officeName: 'Cotality Office Name',
 };
-export const PAGE_MODULES = ['directory-picker', 'colist-section', 'agent-defaults', 'listing-hydration', 'fair-housing', 'building-lookup'];
+export const PAGE_MODULES = ['directory-picker', 'colist-section', 'agent-defaults', 'listing-hydration', 'fair-housing', 'building-lookup', 'listing-media'];
 
 const read = (p: string) => readFileSync(resolve(__dirname, '../..', p), 'utf8');
 
