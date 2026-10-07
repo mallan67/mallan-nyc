@@ -90,6 +90,8 @@ body { font-family: Manrope, sans-serif; }
 body.viewer-mode .field-input { border-color: transparent; background: transparent; pointer-events: none; box-shadow: none; }
 body.viewer-mode .field-input:focus { border-color: transparent; box-shadow: none; }
 body.viewer-mode textarea.field-input { resize: none; }
+/* an empty control shows nothing: the form's placeholders ("$0", "10001", "The Grand") look like stored values in a read-only page */
+body.viewer-mode .field-input::placeholder { color: transparent; }
 /* Fix #2: Use .is-selected class instead of :has() for browser compat */
 body.viewer-mode .radio-card:not(.is-selected) { display: none; }
 body.viewer-mode .radio-card.is-selected { pointer-events: none; cursor: default; border-color: #2563eb; background: #eff6ff; }
@@ -4496,7 +4498,7 @@ function viewerHideWriteControls() {
     var writers = [
         '[onclick*="addRentalCoListAgent"]', '[onclick*="removeRentalCoListAgent"]', '[onclick*="useRentalExclusiveAgentContact"]',
         '[onclick*="addRentalOpenHouse"]', '[onclick*="saveRentalOpenHouse"]', '[onclick*="cancelRentalOpenHouse"]',
-        '[onclick*="addRentalFeeRow"]', '#rentalFeesTableBody button'
+        '[onclick*="addRentalFeeRow"]', '#rentalFeesTableBody button', '[onclick*="calculateRentalTHFinancials"]', '[onclick*="submitRentalCommissionRequest"]'
     ];
     document.querySelectorAll(writers.join(', ')).forEach(function(b) { b.classList.add('viewer-hidden'); });
 }
@@ -4570,6 +4572,11 @@ function loadRentalListingData(listingId) {
 
     // Status and tiles: the stored status verbatim (never derived or defaulted); days on market from the typed columns, else the record's own key.
     var rawData = (d._raw && d._raw.raw_data) || {};
+    // The Deal Fees table starts with pre-selected rows (an entry convenience); a record that stores no fees has none, and the viewer does not show the form's as its own.
+    if (!Array.isArray(rawData.rentalDealFees) || !rawData.rentalDealFees.length) {
+        var feeRows = document.getElementById('rentalFeesTableBody');
+        if (feeRows) feeRows.textContent = '';
+    }
     var firstKnown = function(a, b) { return (a !== null && a !== undefined && a !== '') ? a : b; };
     var domValue = firstKnown(d._raw && d._raw.days_on_market, rawData.DaysOnMarket);
     viewerSetVal('rentalStatus', d.status);
@@ -4858,8 +4865,32 @@ function toggleFormSection(el) {
 // ══════════════════════════════════════════════════════
 var buildingDatabase = [];  // Loaded from API
 
-function searchBuildingForListing(query, prefix) {
-    const results = document.getElementById(prefix + 'BuildingSearchResults');
+// One row of a building-search list, written with DOM calls: a building's name, address and neighborhood come from the database and from what agents typed, and are never markup.
+function buildingSearchRow(b, hover, onPick) {
+    var row = document.createElement('div');
+    row.className = 'p-3 hover:' + hover + ' cursor-pointer border-b last:border-0 transition';
+    row.addEventListener('click', onPick);
+    var line = document.createElement('div');
+    line.className = 'flex justify-between items-center';
+    var left = document.createElement('div');
+    var address = document.createElement('p');
+    address.className = 'font-semibold text-sm text-gray-800';
+    address.textContent = b.address;
+    var detail = document.createElement('p');
+    detail.className = 'text-xs text-gray-500';
+    detail.textContent = b.name + ' | ' + b.neighborhood + ', ' + b.borough;
+    left.appendChild(address);
+    left.appendChild(detail);
+    var badge = document.createElement('span');
+    badge.className = 'px-2 py-0.5 text-[10px] font-bold rounded-full ' + (b.model === 'Coop' ? 'bg-purple-100 text-purple-700' : b.model === 'Condo' ? 'bg-blue-100 text-blue-700' : b.model === 'Condop' ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-700');
+    badge.textContent = b.model;
+    line.appendChild(left);
+    line.appendChild(badge);
+    row.appendChild(line);
+    return row;
+}
+
+function searchBuildingForListing(query, prefix) {    const results = document.getElementById(prefix + 'BuildingSearchResults');
     if (!results) return;
     if (query.length < 3) { results.classList.add('hidden'); return; }
     const matches = buildingDatabase.filter(b =>
@@ -4871,23 +4902,8 @@ function searchBuildingForListing(query, prefix) {
         results.classList.remove('hidden');
         return;
     }
-    results.innerHTML = matches.map(b => `
-        <div class="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 transition"
-             onclick="selectBuildingFromIDX('${prefix}', '${b.address}')">
-            <div class="flex justify-between items-center">
-                <div>
-                    <p class="font-semibold text-sm text-gray-800">${b.address}</p>
-                    <p class="text-xs text-gray-500">${b.name} | ${b.neighborhood}, ${b.borough}</p>
-                </div>
-                <span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${
-                    b.model === 'Coop' ? 'bg-purple-100 text-purple-700' :
-                    b.model === 'Condo' ? 'bg-blue-100 text-blue-700' :
-                    b.model === 'Condop' ? 'bg-indigo-100 text-indigo-700' :
-                    'bg-amber-100 text-amber-700'
-                }">${b.model}</span>
-            </div>
-        </div>
-    `).join('');
+    results.textContent = '';
+    matches.forEach(function(b) { results.appendChild(buildingSearchRow(b, 'bg-blue-50', function() { selectBuildingFromIDX(prefix, b.address); })); });
     results.classList.remove('hidden');
 }
 
@@ -4952,23 +4968,8 @@ function searchBuildingModal(query) {
         results.classList.remove('hidden');
         return;
     }
-    results.innerHTML = matches.map(b => `
-        <div class="p-3 hover:bg-amber-50 cursor-pointer border-b last:border-0 transition"
-             onclick="selectBuildingForModal('${b.address}')">
-            <div class="flex justify-between items-center">
-                <div>
-                    <p class="font-semibold text-sm text-gray-800">${b.address}</p>
-                    <p class="text-xs text-gray-500">${b.name} | ${b.neighborhood}, ${b.borough}</p>
-                </div>
-                <span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${
-                    b.model === 'Coop' ? 'bg-purple-100 text-purple-700' :
-                    b.model === 'Condo' ? 'bg-blue-100 text-blue-700' :
-                    b.model === 'Condop' ? 'bg-indigo-100 text-indigo-700' :
-                    'bg-amber-100 text-amber-700'
-                }">${b.model}</span>
-            </div>
-        </div>
-    `).join('');
+    results.textContent = '';
+    matches.forEach(function(b) { results.appendChild(buildingSearchRow(b, 'bg-amber-50', function() { selectBuildingForModal(b.address); })); });
     results.classList.remove('hidden');
 }
 
@@ -5861,7 +5862,10 @@ function showToast(message, type) {
         toast.style.background = '#d97706';
     }
     var icon = type === 'error' ? 'fa-exclamation-circle' : type === 'warning' ? 'fa-exclamation-triangle' : 'fa-check-circle';
-    toast.innerHTML = '<i class="fas ' + icon + ' mr-2"></i> ' + message;
+    var iconEl = document.createElement('i');
+    iconEl.className = 'fas ' + icon + ' mr-2';
+    toast.appendChild(iconEl);
+    toast.appendChild(document.createTextNode(' ' + message));
     document.body.appendChild(toast);
     setTimeout(function() { toast.remove(); }, 3000);
 }
@@ -5882,7 +5886,7 @@ function generateAgentInfoSheet() {
     var zip = gv('rentalZipCode');
     var rent = gv('rentalMonthlyRent');
     var beds = gv('rentalBedrooms');
-    var baths = gv('rentalBathroomsTotal');
+    var baths = gv('rentalFullBathrooms');
     var fullAddr = address + (unit ? ', Unit ' + unit : '') + (borough ? ', ' + borough : '') + (zip ? ' ' + zip : '');
     var priceStr = rent ? '$' + Number(rent).toLocaleString() + '/mo' : '--';
     var details = [];
@@ -5927,21 +5931,21 @@ function generateAgentInfoSheet() {
         '<div class="sheet">' +
         '<div class="header"><div class="logo-block"><h1>MALLAN</h1><p>REAL ESTATE</p></div></div>' +
         '<div class="agent-card">' +
-        '<h2>' + agentName + '</h2>' +
+        '<h2>' + esc(agentName) + '</h2>' +
         '<div class="title">Licensed Real Estate Agent</div>' +
         '<div class="agent-detail">' +
-        '<div><div class="label">Phone</div><div class="value">' + agentPhone + '</div></div>' +
-        '<div><div class="label">Email</div><div class="value">' + agentEmail + '</div></div>' +
-        '<div><div class="label">License #</div><div class="value">' + agentLicense + '</div></div>' +
+        '<div><div class="label">Phone</div><div class="value">' + esc(agentPhone) + '</div></div>' +
+        '<div><div class="label">Email</div><div class="value">' + esc(agentEmail) + '</div></div>' +
+        '<div><div class="label">License #</div><div class="value">' + esc(agentLicense) + '</div></div>' +
         '</div></div>' +
         '<div class="brokerage"><h3>Mallan Real Estate Inc.</h3>' +
         '<p>NY DOS License #10991205323</p>' +
         '<p>400 East 90th Street, Suite 17C, New York, NY 10128</p>' +
         '<p>646-258-4460 | info@mallan.nyc</p></div>' +
         '<div class="listing-ref"><h3>Current Listing</h3>' +
-        '<p style="font-weight:600;">' + fullAddr + '</p>' +
+        '<p style="font-weight:600;">' + esc(fullAddr) + '</p>' +
         '<p class="price">' + priceStr + '</p>' +
-        (detailStr ? '<p>' + detailStr + '</p>' : '') +
+        (detailStr ? '<p>' + esc(detailStr) + '</p>' : '') +
         '</div>' +
         '<div class="compliance">' +
         '<p>Listing data provided by the REBNY Listing Service. Information is deemed reliable but not guaranteed. ' +
@@ -6095,14 +6099,14 @@ function checkDescriptionCompliance(textareaId, flagsDivId) {
     if (fhViolations.length > 0) {
         html += `<div class="bg-red-50 border border-red-300 rounded-lg p-3 mb-2">
             <p class="text-sm font-bold text-red-700 mb-2"><i class="fas fa-gavel mr-1"></i> Fair Housing Violation — BLOCKED</p>
-            ${fhViolations.map(v => `<p class="text-xs text-red-600 mb-1"><i class="fas fa-times-circle mr-1"></i> <strong>${v.category}:</strong> "${v.words.join('", "')}"</p>`).join('')}
+            ${fhViolations.map(v => `<p class="text-xs text-red-600 mb-1"><i class="fas fa-times-circle mr-1"></i> <strong>${esc(v.category)}:</strong> "${v.words.map(esc).join('", "')}"</p>`).join('')}
             <p class="text-[10px] text-red-500 mt-2 leading-tight">Fair Housing Act (42 U.S.C. 3604(c)), NY Executive Law Art. 15 Sec. 296, NYC Admin Code Title 8 Sec. 8-107. Penalty: $250 first offense, $500 + RLS termination second offense (UCBA Exhibit C).</p>
         </div>`;
     }
     if (rebnyViolations.length > 0) {
         html += `<div class="bg-orange-50 border border-orange-300 rounded-lg p-3">
             <p class="text-sm font-bold text-orange-700 mb-2"><i class="fas fa-exclamation-triangle mr-1"></i> REBNY RLS / UCBA 2026 Violation</p>
-            ${rebnyViolations.map(v => `<p class="text-xs text-orange-700 mb-1"><i class="fas fa-ban mr-1"></i> <strong>${v.category}:</strong> "${v.words.join('", "')}"</p>`).join('')}
+            ${rebnyViolations.map(v => `<p class="text-xs text-orange-700 mb-1"><i class="fas fa-ban mr-1"></i> <strong>${esc(v.category)}:</strong> "${v.words.map(esc).join('", "')}"</p>`).join('')}
             <p class="text-[10px] text-orange-600 mt-2 leading-tight">UCBA violations: $500 first, $2,000 second, $10,000 third, suspension fourth (UCBA Art. IX). Incurable violations: $250 first, $500 subsequent.</p>
         </div>`;
     }
@@ -6173,21 +6177,11 @@ function addRentalOpenHouse() {
 // PHOTO URL HELPER — collects photo URLs from listing data store
 // ══════════════════════════════════════════════════════
 function getListingPhotoUrls(type) {
-    var listings = (typeof VIEWER_LISTINGS !== 'undefined') ? VIEWER_LISTINGS : {};
-    var id = (typeof VIEWER_LISTING_ID !== 'undefined') ? VIEWER_LISTING_ID : '';
-    var d = id ? listings[id] : null;
-    if (d && Array.isArray(d.photos) && d.photos.length > 0) {
-        return d.photos.filter(function(u) { return u && u.length > 0; });
-    }
-    // Fallback: check for any img elements in the photo preview grid
-    var previewId = type === 'rental' ? 'rentalPhotoPreview' : 'salePhotoPreview';
-    var previewEl = document.getElementById(previewId);
-    if (previewEl) {
-        var imgs = previewEl.querySelectorAll('img');
-        var urls = [];
-        imgs.forEach(function(img) { if (img.src) urls.push(img.src); });
-        if (urls.length > 0) return urls;
-    }
+    var safeUrl = function(u) {
+        return (typeof u === 'string' && (u.indexOf('https://') === 0 || u.indexOf('http://') === 0)) ? u.split('"').join('%22').split('<').join('%3C') : '';
+    };
+    var d = VIEWER_LISTING_ID ? VIEWER_LISTINGS[VIEWER_LISTING_ID] : null;
+    if (d && Array.isArray(d.photos)) return d.photos.map(safeUrl).filter(function(u) { return u.length > 0; });
     return [];
 }
 
@@ -6248,9 +6242,9 @@ function printOpenHouseSignIn(type) {
     html += '</div>';
 
     html += '<div class="info-bar">';
-    html += '<div><div class="info-label">Property Address</div><div class="info-value">' + address + '</div></div>';
+    html += '<div><div class="info-label">Property Address</div><div class="info-value">' + esc(address) + '</div></div>';
     html += '<div style="text-align:center;"><div class="info-label">Date</div><div class="info-value">' + today + '</div></div>';
-    html += '<div style="text-align:right;"><div class="info-label">Hosting Agent</div><div class="info-value">' + agent + '</div></div>';
+    html += '<div style="text-align:right;"><div class="info-label">Hosting Agent</div><div class="info-value">' + esc(agent) + '</div></div>';
     html += '</div>';
 
     html += '<div class="notices">';
@@ -6369,7 +6363,10 @@ function renderCompanyList(listEl, filter) {
         count++;
     });
     if (count === 0) {
-        listEl.innerHTML = '<div class="dd-empty">No companies match "' + (filter||'') + '"</div>';
+        var none = document.createElement('div');
+        none.className = 'dd-empty';
+        none.textContent = 'No companies match "' + (filter || '') + '"';
+        listEl.appendChild(none);
     }
 }
 
@@ -6572,20 +6569,30 @@ function updateRentalAgentTable(type, agentId, name, company, phone, email) {
     const badgeClass = type === 'listing' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700';
     const label = type === 'listing' ? 'Listing Agent' : (type === 'tenant' ? "Tenant's Agent" : 'Co-List #' + type.split('-')[1]);
 
-    const rowHTML = '<tr data-type="' + type + '">' +
-        '<td class="border px-3 py-2"><span class="px-2 py-0.5 ' + badgeClass + ' rounded text-xs">' + label + '</span></td>' +
-        '<td class="border px-3 py-2">' + agentId + '</td>' +
-        '<td class="border px-3 py-2 font-medium">' + name + '</td>' +
-        '<td class="border px-3 py-2">' + company + '</td>' +
-        '<td class="border px-3 py-2">' + phone + '</td>' +
-        '<td class="border px-3 py-2">' + email + '</td>' +
-        '<td class="border px-3 py-2"><button class="text-blue-600 hover:text-blue-800 text-xs" aria-label="Edit"><i class="fas fa-edit"></i></button></td>' +
-        '</tr>';
+    const row = document.createElement('tr');
+    row.setAttribute('data-type', type);
+    const cell = function(className, text) { const td = document.createElement('td'); td.className = className; if (text !== undefined) td.textContent = text; row.appendChild(td); return td; };
+    const badge = document.createElement('span');
+    badge.className = 'px-2 py-0.5 ' + badgeClass + ' rounded text-xs';
+    badge.textContent = label;
+    cell('border px-3 py-2').appendChild(badge);
+    cell('border px-3 py-2', agentId);
+    cell('border px-3 py-2 font-medium', name);
+    cell('border px-3 py-2', company);
+    cell('border px-3 py-2', phone);
+    cell('border px-3 py-2', email);
+    const editButton = document.createElement('button');
+    editButton.className = 'text-blue-600 hover:text-blue-800 text-xs';
+    editButton.setAttribute('aria-label', 'Edit');
+    const editIcon = document.createElement('i');
+    editIcon.className = 'fas fa-edit';
+    editButton.appendChild(editIcon);
+    cell('border px-3 py-2').appendChild(editButton);
 
     if (existingRow) {
-        existingRow.outerHTML = rowHTML;
+        existingRow.replaceWith(row);
     } else {
-        tableBody.insertAdjacentHTML('beforeend', rowHTML);
+        tableBody.appendChild(row);
     }
 }
 
@@ -6754,7 +6761,25 @@ function toggleRentalPreviewView(view) {
 function updateRentalPreview() {
     function val(id, def) { const el = document.getElementById(id); return (el && el.value) ? el.value : (def || '--'); }
     function setText(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
-    function setHTML(id, html) { const el = document.getElementById(id); if (el) el.innerHTML = html; }
+    function setIcon(id, icon, text) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = '';
+        const i = document.createElement('i');
+        i.className = 'fas ' + icon + ' mr-1';
+        el.appendChild(i);
+        el.appendChild(document.createTextNode(' ' + text));
+    }
+    // one pill per label, written as text
+    function setPills(box, labels, pillClass) {
+        box.textContent = '';
+        labels.forEach(function(label) {
+            const pill = document.createElement('span');
+            pill.className = pillClass;
+            pill.textContent = label;
+            box.appendChild(pill);
+        });
+    }
 
     // ── Common values ──
     const street = document.getElementById('rentalStreetAddress');
@@ -6807,7 +6832,7 @@ function updateRentalPreview() {
     setText('rentalPreviewCRMHeadline', headline && headline.value ? headline.value : '--');
     const urlField = document.getElementById('rentalListingURL');
     setText('rentalPreviewCRMURL', urlField && urlField.value ? urlField.value : '--');
-    setText('rentalPreviewCRMDesc', desc && desc.value ? desc.value : 'Enter a description to see it here.');
+    setText('rentalPreviewCRMDesc', desc && desc.value ? desc.value : '--');
 
     // Card 3: Unit Info
     setText('rentalPreviewCRMRooms', val('rentalTotalRooms'));
@@ -6853,14 +6878,14 @@ function updateRentalPreview() {
     const bldgCard = document.getElementById('rentalPreviewBldgCard');
     if (bldgCard) bldgCard.style.display = isManaged ? '' : 'none';
     if (isManaged) {
-        setText('rentalPreviewBldgName', val('rentalBldgName'));
+        setText('rentalPreviewBldgName', val('bldgName'));
         setText('rentalPreviewBldgYear', val('bldgYearBuilt'));
         setText('rentalPreviewBldgUnits', val('bldgTotalUnits'));
         setText('rentalPreviewBldgFloors', val('bldgTotalFloors'));
         const doorman = document.querySelector('input[name="bldgDoorman"]:checked');
         setText('rentalPreviewBldgDoorman', doorman ? doorman.value : '--');
-        const elevator = document.querySelector('input[name="bldgElevator"]:checked');
-        setText('rentalPreviewBldgElevator', elevator ? elevator.value : '--');
+        const elevator = document.getElementById('bldgElevator');
+        setText('rentalPreviewBldgElevator', elevator && !elevator.indeterminate ? (elevator.checked ? 'Yes' : 'No') : '--');
         const pets = document.querySelector('input[name="bldgPets"]:checked');
         setText('rentalPreviewBldgPets', pets ? pets.value : '--');
     }
@@ -6868,20 +6893,20 @@ function updateRentalPreview() {
     // ═══════════════════════════════════════
     // LISTING CARD VIEW
     // ═══════════════════════════════════════
-    setText('previewHeadline', headline && headline.value ? headline.value : 'Listing Headline');
+    setText('previewHeadline', headline && headline.value ? headline.value : '--');
 
     const cardAddrParts = [];
     if (street && street.value) cardAddrParts.push(street.value);
     if (unit && unit.value) cardAddrParts.push('Unit ' + unit.value);
     if (borough && borough.value) cardAddrParts.push(borough.value);
-    setText('previewAddress', cardAddrParts.length ? cardAddrParts.join(', ') : 'Address');
+    setText('previewAddress', cardAddrParts.length ? cardAddrParts.join(', ') : '--');
 
-    setHTML('previewBeds', '<i class="fas fa-bed mr-1"></i> ' + ((beds && beds.value) ? beds.value + ' Beds' : '-- Beds'));
-    setHTML('previewBaths', '<i class="fas fa-bath mr-1"></i> ' + ((baths && baths.value) ? baths.value + ' Baths' : '-- Baths'));
-    setHTML('previewSqFt', '<i class="fas fa-ruler-combined mr-1"></i> ' + (sqftVal > 0 ? sqftVal.toLocaleString() + ' SF' : '-- SF'));
-    setText('previewRent', priceVal > 0 ? '$' + priceVal.toLocaleString() + '/month' : '$0/month');
+    setIcon('previewBeds', 'fa-bed', (beds && beds.value) ? beds.value + ' Beds' : '-- Beds');
+    setIcon('previewBaths', 'fa-bath', (baths && baths.value) ? baths.value + ' Baths' : '-- Baths');
+    setIcon('previewSqFt', 'fa-ruler-combined', sqftVal > 0 ? sqftVal.toLocaleString() + ' SF' : '-- SF');
+    setText('previewRent', priceVal > 0 ? '$' + priceVal.toLocaleString() + '/month' : '--');
     setText('previewAvailability', availDate && availDate.value ? 'Available: ' + availDate.value : 'Available: --');
-    setText('previewDescription', desc && desc.value ? desc.value : 'Listing description will appear here...');
+    setText('previewDescription', desc && desc.value ? desc.value : '--');
 
     // Listing card amenity pills
     const amenityPills = [];
@@ -6890,11 +6915,7 @@ function updateRentalPreview() {
         if (lbl) amenityPills.push(lbl.textContent.trim());
     });
     const amenBox = document.getElementById('previewAmenities');
-    if (amenBox) {
-        amenBox.innerHTML = amenityPills.length
-            ? amenityPills.map(a => '<span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">' + a + '</span>').join('')
-            : '<span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">Amenities will appear here</span>';
-    }
+    if (amenBox) setPills(amenBox, amenityPills, 'px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded');
 
     // ═══════════════════════════════════════
     // PUBLIC PAGE PREVIEW (mallan.nyc)
@@ -6906,14 +6927,14 @@ function updateRentalPreview() {
     const boro = borough ? borough.value : '';
     const zip = val('rentalZip', '');
     const locParts = [hood !== '--' ? hood : '', boro, zip !== '--' ? 'NY ' + zip : ''].filter(Boolean);
-    setText('rentalPreviewSiteNeighborhood', locParts.length ? locParts.join(', ') : 'Neighborhood, Borough, NY');
+    setText('rentalPreviewSiteNeighborhood', locParts.length ? locParts.join(', ') : '--');
     setText('rentalPreviewSitePropType', propType || '--');
 
     setText('rentalPreviewSiteBeds', beds && beds.value ? beds.value : '--');
     setText('rentalPreviewSiteBaths', baths && baths.value ? baths.value : '--');
     setText('rentalPreviewSiteSqFt', sqftVal > 0 ? sqftVal.toLocaleString() : '--');
     setText('rentalPreviewSiteRooms', val('rentalTotalRooms'));
-    setText('rentalPreviewSiteDesc', desc && desc.value ? desc.value : 'Listing description will appear here...');
+    setText('rentalPreviewSiteDesc', desc && desc.value ? desc.value : '--');
 
     // Rental details
     setText('rentalPreviewSiteDetailRent', priceVal > 0 ? '$' + priceVal.toLocaleString() + '/mo' : '--');
@@ -6943,11 +6964,7 @@ function updateRentalPreview() {
         }
     });
     const siteAmenBox = document.getElementById('rentalPreviewSiteAmenities');
-    if (siteAmenBox) {
-        siteAmenBox.innerHTML = bldgAmenities.length
-            ? bldgAmenities.map(a => '<span class="px-3 py-1.5 bg-gray-100 rounded-full text-xs text-gray-700">' + a + '</span>').join('')
-            : '<span class="px-3 py-1.5 bg-gray-100 rounded-full text-xs text-gray-400">Complete building info to see amenities</span>';
-    }
+    if (siteAmenBox) setPills(siteAmenBox, bldgAmenities, 'px-3 py-1.5 bg-gray-100 rounded-full text-xs text-gray-700');
 }
 
 
@@ -7136,7 +7153,12 @@ function calculateRentalCommission() {
 }
 
 function submitRentalCommissionRequest() {
-    var rent = document.getElementById('commRentalFinalPrice')?.value;
+    // VIEWER_MODE: commission submission disabled in the read-only viewer (it used to say "Commission Request Submitted!", and move the status tracker, without sending anything
+    // anywhere)
+    if (typeof VIEWER_MODE !== 'undefined' && VIEWER_MODE) {
+        showToast('Commission requests cannot be submitted from the viewer.', 'warning');
+        return;
+    }    var rent = document.getElementById('commRentalFinalPrice')?.value;
     var commValue = document.getElementById('commRentalCommValue')?.value;
     var landlord = document.getElementById('commRentalLandlordName')?.value;
     var tenant = document.getElementById('commRentalTenantName')?.value;
@@ -7237,9 +7259,41 @@ function getRentalCheckboxValues(name) {
     return vals.join(', ');
 }
 
+// A flag the record does not carry is unknown (its control is indeterminate), not "No".
 function getRentalCheckboxYN(id) {
     var el = document.getElementById(id);
-    return el ? (el.checked ? 'Yes' : 'No') : '';
+    if (!el || el.indeterminate) return '';
+    return el.checked ? 'Yes' : 'No';
+}
+
+// Text for HTML: every character that can open a tag or leave an attribute, quotes included. Every stored or typed value that is written into a print, e-mail, sheet or preview
+// document goes through it.
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) { return '&#' + c.charCodeAt(0) + ';'; }); }
+
+// The distribution checkboxes are replaced by badges when the viewer renders; a badge keeps what the record says: yes, no, or unknown (the record does not carry the flag).
+function getRentalDistState(id) {
+    var badge = document.querySelector('[data-for="' + id + '"]');
+    var state = badge ? badge.getAttribute('data-state') : '';
+    return state === 'yes' ? 'Yes' : (state === 'no' ? 'No' : '');
+}
+
+// The record the viewer loaded. What the record stores for the state is read from the record itself (its control is not filled by the stored value).
+function getRentalStored() { return (VIEWER_LISTING_ID && VIEWER_LISTINGS[VIEWER_LISTING_ID]) || null; }
+function getRentalStoredAddress(key) {
+    var d = getRentalStored();
+    var raw = (d && d._raw) || {};
+    var v = (raw.address && raw.address[key]) || (raw.raw_data && raw.raw_data[key]) || '';
+    return typeof v === 'string' ? v.trim() : '';
+}
+
+// The amenities the building modal ticks (what the record stores, as hydrated), by their labels.
+function getRentalBuildingAmenities() {
+    var labels = [];
+    document.querySelectorAll('#rentalBuildingModal input[data-rls-field="BuildingFeatures"]:checked').forEach(function(cb) {
+        var label = cb.parentElement ? cb.parentElement.textContent.trim() : '';
+        if (label) labels.push(label);
+    });
+    return labels.join(', ');
 }
 
 function collectRentalPrintData() {
@@ -7247,19 +7301,19 @@ function collectRentalPrintData() {
         // Agent Info
         updatingAgent: getRentalFormValue('rentalUpdatingAgent') || '',
         updatingCompany: getRentalFormValue('rentalUpdatingAgentCompanyName') || '',
-        listingType: getRentalRadioValue('rentalListingType') || 'Exclusive',
-        status: getRentalFormValue('rentalStatus') || 'Draft',
+        listingType: getRentalRadioValue('rentalListingType'),
+        status: getRentalFormValue('rentalStatus'),
         dateListed: getRentalFormValue('rentalDateListed'),
         exclusiveStart: getRentalFormValue('rentalExclusiveStart'),
         exclusiveExpires: getRentalFormValue('rentalExclusiveExpires'),
         // Classification
         propertyType: getRentalRadioValue('rentalPropertyType'),
-        buildingStatus: getRentalRadioValue('rentalBuildingStatus') || 'Resale',
+        buildingStatus: getRentalRadioValue('rentalBuildingStatus'),
         // Address — single combined field
         streetAddress: getRentalFormValue('rentalStreetAddress'),
         unit: getRentalFormValue('rentalUnitNumber'),
-        city: getRentalFormValue('rentalCity') || 'New York',
-        state: getRentalFormValue('rentalState') || 'NY',
+        city: getRentalFormValue('rentalCity') || getRentalStoredAddress('City'),
+        state: getRentalFormValue('rentalState') || getRentalStoredAddress('StateOrProvince'),
         zip: getRentalFormValue('rentalZipCode'),
         neighborhood: getRentalSelectText('rentalNeighborhood'),
         borough: getRentalSelectText('rentalBorough'),
@@ -7268,7 +7322,7 @@ function collectRentalPrintData() {
         securityDeposit: getRentalFormValue('rentalSecurityDeposit'),
         availableDate: getRentalFormValue('rentalAvailableDate'),
         leaseTerm: getRentalSelectText('rentalLeaseTerm'),
-        brokerFee: getRentalCheckboxYN('rentalOwnerPays') === 'Yes' ? 'Owner Pays' : 'Tenant Pays',
+        brokerFee: (function() { var s = getRentalCheckboxYN('rentalOwnerPays'); return s === 'Yes' ? 'Owner Pays' : (s === 'No' ? 'Tenant Pays' : ''); })(),
         // Rooms — correct field names
         bedrooms: getRentalSelectText('rentalBedrooms'),
         fullBaths: getRentalFormValue('rentalFullBathrooms'),
@@ -7289,10 +7343,12 @@ function collectRentalPrintData() {
         yearBuilt: getRentalFormValue('bldgYearBuilt'),
         totalUnits: getRentalFormValue('bldgTotalUnits'),
         stories: getRentalFormValue('bldgTotalFloors'),
+        amenities: getRentalBuildingAmenities(),
+        lastUpdated: getRentalFormValue('rentalLastUpdated'),
         // Distribution — derive from checkboxes
-        idxDisplay: getRentalCheckboxYN('rentalIDXEntireListingDisplayYN') || 'Yes',
-        ownerOptOut: getRentalRadioValue('rentalListingType') === 'RLS-Owner-OptOut' ? 'Yes' : 'No',
-        syndication: (function() { var el = document.getElementById('rentalSyndicateYN'); return el ? (el.checked ? 'Yes' : 'No') : 'Yes'; })(),
+        idxDisplay: getRentalDistState('rentalIDXEntireListingDisplayYN'),
+        ownerOptOut: (function() { var t = getRentalRadioValue('rentalListingType'); return t ? (t === 'RLS-Owner-OptOut' ? 'Yes' : 'No') : ''; })(),
+        syndication: getRentalDistState('rentalSyndicateYN'),
         // Description
         headline: getRentalFormValue('rentalWebHeadline'),
         description: getRentalFormValue('rentalDescription'),
@@ -7367,20 +7423,22 @@ function buildRentalPrintHTML(data, sections, options) {
     var location = [data.neighborhood, data.borough, data.state, data.zip].filter(Boolean).join(', ');
     html += '<div style="text-align:center; margin-bottom:20px;">';
     if (data.monthlyRent) html += '<p class="print-price">$' + parseFloat(data.monthlyRent).toLocaleString() + '/mo</p>';
-    if (address) html += '<p class="print-address">' + address + '</p>';
-    if (location) html += '<p style="color:#666; font-size:10pt;">' + location + '</p>';
+    if (address) html += '<p class="print-address">' + esc(address) + '</p>';
+    if (location) html += '<p style="color:#666; font-size:10pt;">' + esc(location) + '</p>';
     var stats = [];
-    if (data.bedrooms) stats.push(data.bedrooms + ' BD');
-    if (data.fullBaths) stats.push(data.fullBaths + ' BA');
-    if (data.livingArea) stats.push(data.livingArea + ' SF');
-    if (data.propertyType) stats.push(data.propertyType);
+    if (data.bedrooms) stats.push(esc(data.bedrooms) + ' BD');
+    if (data.fullBaths) stats.push(esc(data.fullBaths) + ' BA');
+    if (data.livingArea) stats.push(esc(data.livingArea) + ' SF');
+    if (data.propertyType) stats.push(esc(data.propertyType));
     if (stats.length) html += '<p style="font-size:11pt; color:#555; margin-top:4px;">' + stats.join(' &bull; ') + '</p>';
     html += '</div>';
 
     function makeSection(title, fields) {
+        var shown = fields.filter(function(f) { return f[1]; });
+        if (!shown.length) return '';
         var s = '<div class="print-section"><div class="print-section-title">' + title + '</div><div class="print-field-grid">';
-        fields.forEach(function(f) {
-            if (f[1]) s += '<div class="print-field"><span class="print-label">' + f[0] + '</span><span class="print-value">' + f[1] + '</span></div>';
+        shown.forEach(function(f) {
+            s += '<div class="print-field"><span class="print-label">' + f[0] + '</span><span class="print-value">' + esc(f[1]) + '</span></div>';
         });
         s += '</div></div>';
         return s;
@@ -7449,10 +7507,10 @@ function buildRentalPrintHTML(data, sections, options) {
         ]);
     }
     if (sections.indexOf('amenities') !== -1) {
-        html += makeSection('Amenities & Services', [['Amenities', 'See building modal for full amenity list']]);
+        html += makeSection('Amenities & Services', [['Amenities', data.amenities]]);
     }
     if (sections.indexOf('policies') !== -1) {
-        html += makeSection('Policies & Rules', [['Policies', 'See building modal for full policy details']]);
+        html += makeSection('Policies & Rules', []);   // nothing is stored for this section in the viewer: it prints nothing instead of a sentence that points at a modal
     }
     if (sections.indexOf('distribution') !== -1) {
         html += makeSection('Distribution Gates & IDX Settings', [
@@ -7462,8 +7520,8 @@ function buildRentalPrintHTML(data, sections, options) {
     }
     if (sections.indexOf('description') !== -1 && data.description) {
         html += '<div class="print-section"><div class="print-section-title">Listing Description</div>';
-        if (data.headline) html += '<p style="font-weight:700; font-size:11pt; margin-bottom:8px;">' + data.headline + '</p>';
-        html += '<div class="print-description">' + data.description + '</div></div>';
+        if (data.headline) html += '<p style="font-weight:700; font-size:11pt; margin-bottom:8px;">' + esc(data.headline) + '</p>';
+        html += '<div class="print-description">' + esc(data.description) + '</div></div>';
     }
     if (sections.indexOf('photos') !== -1) {
         html += '<div class="print-section"><div class="print-section-title">Photos</div>';
@@ -7472,7 +7530,7 @@ function buildRentalPrintHTML(data, sections, options) {
             html += '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">';
             var maxPhotos = Math.min(photoUrls.length, 6);
             for (var pi = 0; pi < maxPhotos; pi++) {
-                html += '<img src="' + photoUrls[pi] + '" style="width:100%; height:160px; object-fit:cover; border-radius:4px;" alt="Listing photo ' + (pi + 1) + '">';
+                html += '<img src="' + esc(photoUrls[pi]) + '" style="width:100%; height:160px; object-fit:cover; border-radius:4px;" alt="Listing photo ' + (pi + 1) + '">';
             }
             html += '</div>';
             if (photoUrls.length > 6) html += '<p style="color:#999; font-size:8pt; text-align:center; margin-top:4px;">Showing 6 of ' + photoUrls.length + ' photos</p>';
@@ -7485,9 +7543,10 @@ function buildRentalPrintHTML(data, sections, options) {
     // Compliance Footer (always shown — REBNY requires attribution + timestamp on displayed data)
     html += '<div class="print-footer">';
     if (showBranding) {
-        html += '<p>Prepared by ' + (data.updatingAgent || '--') + ' | ' + (data.updatingCompany || '--') + '</p>';
-        html += '<p>' + (data.updatingCompany || '') + '</p>';
+        html += '<p>Prepared by ' + esc(data.updatingAgent || '--') + ' | ' + esc(data.updatingCompany || '--') + '</p>';
+        html += '<p>' + esc(data.updatingCompany || '') + '</p>';
     }
+    if (data.lastUpdated) html += '<p style="margin-top:4px;">Listing last updated: ' + esc(data.lastUpdated) + '</p>';
     html += '<p style="margin-top:4px;">Data as of: ' + new Date().toLocaleString() + '</p>';
     html += '<p>Listing data provided by the REBNY Listing Service. Listing information deemed reliable but not guaranteed.</p>';
     html += '<p>Mallan Real Estate Inc. | Lic. #10991205323 | Equal Housing Opportunity</p>';
@@ -7520,33 +7579,33 @@ function buildRentalEmailCardHTML(data) {
     var address = (data.streetAddress || '').trim();
     if (data.unit) address += ', Unit ' + data.unit;
     var location = [data.neighborhood, data.borough].filter(Boolean).join(', ');
-    var priceStr = data.monthlyRent ? '$' + parseFloat(data.monthlyRent).toLocaleString() + '/mo' : '$0/mo';
+    var priceStr = data.monthlyRent ? '$' + parseFloat(data.monthlyRent).toLocaleString() + '/mo' : '';
     var stats = [];
-    if (data.bedrooms) stats.push(data.bedrooms + ' BD');
-    if (data.fullBaths) stats.push(data.fullBaths + ' BA');
-    if (data.livingArea) stats.push(data.livingArea + ' SF');
+    if (data.bedrooms) stats.push(esc(data.bedrooms) + ' BD');
+    if (data.fullBaths) stats.push(esc(data.fullBaths) + ' BA');
+    if (data.livingArea) stats.push(esc(data.livingArea) + ' SF');
     var desc = (data.description || '').substring(0, 200);
     if ((data.description || '').length > 200) desc += '...';
 
     var html = '<div style="max-width:600px; margin:0 auto; font-family:Segoe UI,Tahoma,sans-serif; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">';
     var emailPhotos = getListingPhotoUrls('rental');
     if (emailPhotos.length > 0) {
-        html += '<div style="height:200px; overflow:hidden;"><img src="' + emailPhotos[0] + '" style="width:100%; height:200px; object-fit:cover; display:block;" alt="Listing photo"></div>';
+        html += '<div style="height:200px; overflow:hidden;"><img src="' + esc(emailPhotos[0]) + '" style="width:100%; height:200px; object-fit:cover; display:block;" alt="Listing photo"></div>';
     } else {
         html += '<div style="background:#f3f4f6; height:200px; display:flex; align-items:center; justify-content:center; color:#9ca3af; font-size:14px;"><span>No photos available</span></div>';
     }
     html += '<div style="padding:20px;">';
     html += '<div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">';
-    html += '<div><p style="font-size:24px; font-weight:800; color:#2563eb; margin:0;">' + priceStr + '</p>';
+    html += '<div>' + (priceStr ? '<p style="font-size:24px; font-weight:800; color:#2563eb; margin:0;">' + priceStr + '</p>' : '');
     html += '<p style="font-size:14px; color:#555; margin:4px 0 0;">' + stats.join(' | ') + '</p></div>';
-    if (data.propertyType) html += '<span style="background:#f3f4f6; padding:4px 12px; border-radius:6px; font-size:12px; color:#555;">' + data.propertyType + '</span>';
+    if (data.propertyType) html += '<span style="background:#f3f4f6; padding:4px 12px; border-radius:6px; font-size:12px; color:#555;">' + esc(data.propertyType) + '</span>';
     html += '</div>';
-    html += '<p style="font-size:16px; font-weight:600; color:#1a1a1a; margin:12px 0 2px;">' + (address || 'Address') + '</p>';
-    html += '<p style="font-size:13px; color:#666; margin:0;">' + (location || 'New York, NY') + '</p>';
-    if (data.availableDate) html += '<p style="font-size:12px; color:#555; margin:8px 0 0;">Available: ' + data.availableDate + '</p>';
-    if (desc) html += '<p style="font-size:13px; color:#555; margin-top:12px; line-height:1.5; border-top:1px solid #eee; padding-top:12px;">"' + desc + '"</p>';
+    html += '<p style="font-size:16px; font-weight:600; color:#1a1a1a; margin:12px 0 2px;">' + esc(address) + '</p>';
+    html += '<p style="font-size:13px; color:#666; margin:0;">' + esc(location) + '</p>';
+    if (data.availableDate) html += '<p style="font-size:12px; color:#555; margin:8px 0 0;">Available: ' + esc(data.availableDate) + '</p>';
+    if (desc) html += '<p style="font-size:13px; color:#555; margin-top:12px; line-height:1.5; border-top:1px solid #eee; padding-top:12px;">"' + esc(desc) + '"</p>';
     html += '<div style="border-top:1px solid #eee; margin-top:16px; padding-top:12px; font-size:12px; color:#666;">';
-    html += '<p style="font-weight:600; color:#1a1a1a; margin:0;">' + (data.updatingAgent || '--') + '</p>';
+    html += '<p style="font-weight:600; color:#1a1a1a; margin:0;">' + esc(data.updatingAgent || '--') + '</p>';
     html += '<p style="margin:2px 0;">Licensed Real Estate Broker</p>';
     html += '<p style="margin:2px 0;">Mallan Real Estate Inc. | Lic. #10991205323</p>';
     html += '<p style="margin:6px 0 2px; font-size:10px; color:#999;">Listing data provided by the REBNY Listing Service.</p>';
@@ -7562,7 +7621,7 @@ function getRentalPlainTextSummary(data) {
     var lines = [];
     if (priceStr) lines.push(priceStr);
     if (address) lines.push(address);
-    var location = [data.neighborhood, data.borough, 'NY', data.zip].filter(Boolean).join(', ');
+    var location = [data.neighborhood, data.borough, data.state, data.zip].filter(Boolean).join(', ');
     if (location) lines.push(location);
     var stats = [];
     if (data.bedrooms) stats.push(data.bedrooms + ' Bed');
@@ -7585,33 +7644,33 @@ function copyRentalEmailToClipboard() {
     var address = (data.streetAddress || '').trim();
     if (data.unit) address += ', Unit ' + data.unit;
     var location = [data.neighborhood, data.borough].filter(Boolean).join(', ');
-    var priceStr = data.monthlyRent ? '$' + parseFloat(data.monthlyRent).toLocaleString() + '/mo' : '$0/mo';
+    var priceStr = data.monthlyRent ? '$' + parseFloat(data.monthlyRent).toLocaleString() + '/mo' : '';
     var stats = [];
-    if (data.bedrooms) stats.push(data.bedrooms + ' BD');
-    if (data.fullBaths) stats.push(data.fullBaths + ' BA');
-    if (data.livingArea) stats.push(data.livingArea + ' SF');
-    if (data.propertyType) stats.push(data.propertyType);
+    if (data.bedrooms) stats.push(esc(data.bedrooms) + ' BD');
+    if (data.fullBaths) stats.push(esc(data.fullBaths) + ' BA');
+    if (data.livingArea) stats.push(esc(data.livingArea) + ' SF');
+    if (data.propertyType) stats.push(esc(data.propertyType));
     var desc = (data.description || '').substring(0, 200);
     if ((data.description || '').length > 200) desc += '...';
 
     var htmlContent = '<div style="font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif; max-width:600px;">';
-    if (message) htmlContent += '<p style="font-size:14px; color:#333; margin-bottom:16px;">' + message.replace(/\n/g, '<br>') + '</p>';
+    if (message) htmlContent += '<p style="font-size:14px; color:#333; margin-bottom:16px;">' + esc(message).replace(/\n/g, '<br>') + '</p>';
     htmlContent += '<table cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:600px; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; font-family:Segoe UI,Tahoma,sans-serif;">';
     var inlinePhotos = getListingPhotoUrls('rental');
     if (inlinePhotos.length > 0) {
-        htmlContent += '<tr><td style="height:180px; overflow:hidden;"><img src="' + inlinePhotos[0] + '" style="width:100%; height:180px; object-fit:cover; display:block;" alt="Listing photo"></td></tr>';
+        htmlContent += '<tr><td style="height:180px; overflow:hidden;"><img src="' + esc(inlinePhotos[0]) + '" style="width:100%; height:180px; object-fit:cover; display:block;" alt="Listing photo"></td></tr>';
     } else {
         htmlContent += '<tr><td style="background:#f3f4f6; height:180px; text-align:center; color:#9ca3af; font-size:14px;">No photos available</td></tr>';
     }
     htmlContent += '<tr><td style="padding:20px;">';
-    htmlContent += '<p style="font-size:24px; font-weight:800; color:#2563eb; margin:0;">' + priceStr + '</p>';
+    if (priceStr) htmlContent += '<p style="font-size:24px; font-weight:800; color:#2563eb; margin:0;">' + priceStr + '</p>';
     htmlContent += '<p style="font-size:14px; color:#555; margin:4px 0 0;">' + stats.join(' &bull; ') + '</p>';
-    htmlContent += '<p style="font-size:16px; font-weight:600; color:#1a1a1a; margin:12px 0 2px;">' + (address || 'Address') + '</p>';
-    htmlContent += '<p style="font-size:13px; color:#666; margin:0;">' + (location || 'New York, NY') + '</p>';
-    if (data.availableDate) htmlContent += '<p style="font-size:12px; color:#555; margin:8px 0 0;">Available: ' + data.availableDate + '</p>';
-    if (desc) htmlContent += '<p style="font-size:13px; color:#555; margin:12px 0 0; line-height:1.5; border-top:1px solid #eee; padding-top:12px;">&ldquo;' + desc + '&rdquo;</p>';
+    htmlContent += '<p style="font-size:16px; font-weight:600; color:#1a1a1a; margin:12px 0 2px;">' + esc(address) + '</p>';
+    htmlContent += '<p style="font-size:13px; color:#666; margin:0;">' + esc(location) + '</p>';
+    if (data.availableDate) htmlContent += '<p style="font-size:12px; color:#555; margin:8px 0 0;">Available: ' + esc(data.availableDate) + '</p>';
+    if (desc) htmlContent += '<p style="font-size:13px; color:#555; margin:12px 0 0; line-height:1.5; border-top:1px solid #eee; padding-top:12px;">&ldquo;' + esc(desc) + '&rdquo;</p>';
     htmlContent += '<div style="border-top:1px solid #eee; margin-top:16px; padding-top:12px; font-size:12px; color:#666;">';
-    htmlContent += '<p style="font-weight:600; color:#1a1a1a; margin:0;">' + (data.updatingAgent || '--') + '</p>';
+    htmlContent += '<p style="font-weight:600; color:#1a1a1a; margin:0;">' + esc(data.updatingAgent || '--') + '</p>';
     htmlContent += '<p style="margin:2px 0;">Licensed Real Estate Broker</p>';
     htmlContent += '<p style="margin:2px 0;">Mallan Real Estate Inc. | Lic. #10991205323</p>';
     htmlContent += '<p style="margin:6px 0 2px; font-size:10px; color:#999;">Listing data provided by the REBNY Listing Service.</p>';
@@ -7645,7 +7704,6 @@ function openRentalInEmailClient() {
     var body = getRentalPlainTextSummary(data);
     var message = (document.getElementById('rentalEmailMessage').value || '').trim();
     if (message) body = message + '\n\n' + body;
-    body += '\n\n(Visual listing card has been copied to your clipboard — paste into the email body for the formatted version.)';
     var mailto = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(subject);
     if (cc) mailto += '&cc=' + encodeURIComponent(cc);
     mailto += '&body=' + encodeURIComponent(body);
@@ -7794,7 +7852,10 @@ function showRentalFormToast(msg, type) {
     var bg = type === 'success' ? 'bg-[#B8860B]' : 'bg-red-600';
     var icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
     toast.className = 'fixed bottom-4 right-4 ' + bg + ' text-white px-4 py-2 rounded-lg shadow-lg text-sm font-semibold z-[9999] flex items-center gap-2';
-    toast.innerHTML = '<i class="fas ' + icon + '"></i> ' + msg;
+    var iconEl = document.createElement('i');
+    iconEl.className = 'fas ' + icon;
+    toast.appendChild(iconEl);
+    toast.appendChild(document.createTextNode(' ' + msg));
     document.body.appendChild(toast);
     setTimeout(function() { toast.remove(); }, 3000);
 }

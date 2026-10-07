@@ -5089,7 +5089,7 @@ function viewerReadValue(el) {
 function viewerHideWriteControls() {
     var writers = [
         '[onclick*="addSaleCoListAgent"]', '[onclick*="removeSaleCoListAgent"]', '[onclick*="useSaleExclusiveAgentContact"]',
-        '[onclick*="addSaleOpenHouse"]', '[onclick*="saveSaleOpenHouse"]', '[onclick*="cancelSaleOpenHouse"]', '[onclick*="calculateSaleTHFinancials"]',
+        '[onclick*="addSaleOpenHouse"]', '[onclick*="saveSaleOpenHouse"]', '[onclick*="cancelSaleOpenHouse"]', '[onclick*="calculateSaleTHFinancials"]', '[onclick*="submitSaleCommissionRequest"]',
         '[onclick*="printOpenHouseSignIn(\'sale\')"]'
     ];
     document.querySelectorAll(writers.join(', ')).forEach(function(b) { b.classList.add('viewer-hidden'); });
