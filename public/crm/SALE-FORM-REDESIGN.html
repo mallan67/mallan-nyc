@@ -4969,6 +4969,7 @@ let _buildingSearchSeq = 0;           // the search box's latest query: an answe
 let _buildingModalSearchTimer = null;
 let _buildingModalSearchSeq = 0;      // the same for the Building tab's search
 let _addressLookupFor = '';           // the typed address a lookup is waiting for (leaving the box again meanwhile asks nothing more)
+let _buildingDatabaseFor = '';        // the street address the cached answer (buildingDatabase) was asked for: the cache is complete only for that address, not for a name or a part of one
 
 // js/forms/building-lookup.js is a separate script: a page that could not load it still boots, parses the typed address and takes a listing type; nothing is looked up.
 function _buildingLookup() { return typeof MallanBuildingLookup !== 'undefined' ? MallanBuildingLookup : null; }
@@ -5016,6 +5017,7 @@ async function fetchBuildingsFromAPI(query) {
         }
         if (buildings.length === 0 && hint) {
             showToast(hint, 'warning');
+            if (/unavailable/i.test(hint)) return null;     // the index says it could not look (Cotality is down): that is not "no match", and leaving the box again asks again
         }
         return buildings.map(function(b) {
             var ci = b.common_interest == null ? '' : b.common_interest;
@@ -5076,6 +5078,7 @@ function searchBuildingForListing(query, prefix) {
         if (asked !== _buildingSearchSeq) return;   // the agent has typed again since
         if (matches === null) { bl.unavailable(results); return; }
         buildingDatabase = matches; // Cache results for selectBuildingFromIDX
+        _buildingDatabaseFor = bl.normalizeAddress(bl.searchText(query));
 
         if (matches.length === 0) {
             bl.message(results, 'No matches found. Enter address manually.');
@@ -5096,17 +5099,73 @@ function selectBuildingFromIDX(prefix, picked, auto) {
     // gets the one building the cache holds for it, if it holds exactly one.
     const building = (picked && typeof picked === 'object') ? picked : bl.exactMatch(buildingDatabase, picked);
     if (!building) return;
-    // The same building again (the agent left the address box and came back): everything the agent changed since, in the Building tab and elsewhere, stays as it is.
-    // Only a building the agent picks from a list (auto is not set) is applied again.
+    // The same building again (the agent left the address box and came back): everything the agent changed since, in the Building tab and elsewhere, stays as it is. The box
+    // itself (its address, the unit typed after it, the area, the hold on the property type) is put right. Only a building the agent picks from a list (auto is not set) is
+    // applied again.
     if (auto && bl.isApplied(prefix, building)) {
-        var shown = document.getElementById(prefix + 'BuildingSearchResults');
-        if (shown) shown.classList.add('hidden');
-        bl.resolved(prefix);
+        _refreshAppliedBuilding(prefix, building);
         return;
     }
+    // Another building (or the same one picked again) replaces what the lookup wrote for the last one: that is taken back first, except what the agent changed since. What this
+    // lookup writes is recorded, to be taken back in its turn.
+    if (bl.undo(prefix)) applySalesFieldRules();
+    var before = bl.snapshot();
+    try { _applyBuilding(prefix, building); } finally { bl.record(prefix, before); }
+}
 
-    // a field the building's answer does not carry is left as it is: an empty answer never erases what the agent entered
-    const setVal = (id, val) => { const el = document.getElementById(id); if (el && val !== null && val !== undefined && val !== '') el.value = val; };
+// The building the form already holds was found again by its address: the street box takes the building's own address (the unit typed after it goes to the Unit Number when
+// that is empty), the area is filled where the form has none, and the property type is held again (a typo fixed in the box released it).
+function _refreshAppliedBuilding(prefix, building) {
+    var bl = _buildingLookup();
+    var shown = document.getElementById(prefix + 'BuildingSearchResults');
+    if (shown) shown.classList.add('hidden');
+    var box = document.getElementById(prefix + 'StreetAddress');
+    var typedUnit = bl.splitAddress(box ? box.value : '').unit;
+    var unitBox = document.getElementById(prefix + 'UnitNumber');
+    if (typedUnit && unitBox && !(unitBox.value || '').trim()) unitBox.value = typedUnit;
+    if (box && building.address && !_isInHouseListingType(prefix)) box.value = building.address;       // an In-House listing keeps the address typed
+    var fillIfEmpty = function(id, val) { var el = document.getElementById(id); if (el && val && !(el.value || '').trim()) { if (el.tagName === 'SELECT') bl.setSelect(el, val); else el.value = val; } };
+    fillIfEmpty(prefix + 'Borough', building.boroughOption);
+    fillIfEmpty(prefix + 'ZipCode', building.zip);
+    fillIfEmpty(prefix + 'NeighborhoodFromAddress', building.neighborhood);
+    parseSaleAddress();
+    updateSaleAddressDerived();
+    bl.lock(prefix, building);
+    bl.resolved(prefix);
+    updateListingHeaderBar(prefix);
+}
+
+// The address the agent typed names no building the form has applied: what the lookup wrote for the building it applied before is taken back (a control the agent changed since
+// keeps its value), the match banner goes, and the property type is released.
+function _releaseBuilding(prefix) {
+    var bl = _buildingLookup();
+    if (!bl || !bl.hasApplied(prefix)) return;
+    var banner = document.getElementById(prefix + 'IdxMatchBanner');
+    if (banner) banner.classList.add('hidden');
+    bl.unlock(prefix);
+    bl.reset(prefix);
+    if (bl.undo(prefix)) applySalesFieldRules();
+}
+
+// The Structure Type is on the main form and again in the Building tab, and the save sends the Building tab's when it has one: what the agent chooses in one is chosen in both.
+// The main control follows the Building tab when it has the option; the Building tab follows the main control, and is cleared when it lacks the option, so the save never sends
+// a stale value the agent has replaced. (The lookup writes both without a change event.)
+function _syncStructureType(prefix) {
+    var bl = _buildingLookup();
+    var main = document.getElementById(prefix + 'StructureType'), tab = document.getElementById(prefix + 'BldgType');
+    if (!main || !tab || !bl) return;
+    main.addEventListener('change', function() { if (!main.value || !bl.setSelect(tab, main.value)) tab.value = ''; });
+    tab.addEventListener('change', function() { if (tab.value) bl.setSelect(main, tab.value); });
+}
+
+function _applyBuilding(prefix, building) {
+    var bl = _buildingLookup();
+    // a field the building's answer does not carry is left as it is: an empty answer never erases what the agent entered (nor does one a select has no option for)
+    const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (!el || val === null || val === undefined || val === '') return;
+        if (el.tagName === 'SELECT') bl.setSelect(el, val); else el.value = val;
+    };
     const currentAddr = document.getElementById(prefix + 'StreetAddress')?.value?.trim() || '';
     const typedUnit = bl.splitAddress(currentAddr).unit;          // "200 East 66th Street Apt 12B": the unit typed in the street box
     const borough = building.boroughOption;                        // the form's Borough option for the index's borough, or '' (see fetchBuildingsFromAPI)
@@ -5143,7 +5202,7 @@ function selectBuildingFromIDX(prefix, picked, auto) {
                 }
                 document.getElementById(prefix + 'BuildingSearchResults').classList.add('hidden');
                 document.getElementById(prefix + 'BuildingSearch').value = '';
-                populateBuildingFromIDX(prefix, building);
+                _applyBuildingFacts(prefix, building);
                 updateListingHeaderBar(prefix); _holdBuilding(prefix, building);
                 return;
             }
@@ -5181,7 +5240,14 @@ function selectBuildingFromIDX(prefix, picked, auto) {
     updateListingHeaderBar(prefix); _holdBuilding(prefix, building);
 
     // 6. Populate building modal fields based on model
-    populateBuildingFromIDX(prefix, building);
+    _applyBuildingFacts(prefix, building);
+}
+
+// The building's facts into the Building tab and the controls it fills, recorded apart: the Building tab's own pick takes back these, and not the address.
+function _applyBuildingFacts(prefix, building) {
+    var bl = _buildingLookup();
+    var before = bl.snapshot();
+    try { populateBuildingFromIDX(prefix, building); } finally { bl.record(prefix, before, 'facts'); }
 }
 
 // Populate building modal fields from IDX data
@@ -5257,18 +5323,22 @@ function populateBuildingFromIDX(prefix, building) {
     // (year_built, stories_total, units_total) AND camelCase (yearBuilt,
     // streetNumber) — `pick` accepts both with fallback so this function
     // works regardless of caller shape.
+    // A select is written only with an option it has (an answer the control has no option for never blanks what the agent chose), and a box is only ever ticked, never
+    // cleared: "not reported" is not "no" (the amenity flags are substring booleans), and what the agent ticked, or the saved listing had ticked, stays ticked.
+    const bl = typeof _buildingLookup === 'function' ? _buildingLookup() : null;          // (this function also runs on its own, without the page's helpers: a select is then written as it always was)
+    const setValue = (el, val) => { if (el.tagName === 'SELECT' && bl) bl.setSelect(el, val); else el.value = val; };
     const setVal = (id, val) => {
         const el = document.getElementById(id);
-        if (el && val !== null && val !== undefined && val !== '') el.value = val;
+        if (el && val !== null && val !== undefined && val !== '') setValue(el, val);
     };
     const setIfPresent = (id, val) => {
         if (val === null || val === undefined || val === '') return;
         const el = document.getElementById(id);
-        if (el) el.value = val;
+        if (el) setValue(el, val);
     };
     const checkIf = (id, val) => {
         const el = document.getElementById(id);
-        if (el) el.checked = !!val;
+        if (el && val) el.checked = true;
     };
     const pick = (snake, camel) => {
         const a = building[snake];
@@ -5356,7 +5426,7 @@ function populateBuildingFromIDX(prefix, building) {
     const stVal = pick('structure_type', 'structureType');
     if (stVal) {
         const stEl = document.getElementById(prefix + 'StructureType');
-        if (stEl) stEl.value = stVal;
+        if (stEl) setValue(stEl, stVal);
         setVal(prefix + 'BldgType', stVal);
     }
     checkIf(prefix + 'BldgNewConstruction', pick('new_construction_yn', 'newConstructionYN'));
@@ -5392,7 +5462,7 @@ function populateBuildingFromIDX(prefix, building) {
     var _assocFreq = pick('association_fee_frequency', 'associationFeeFrequency');
     var _freqEl = document.getElementById('saleMaintCCFreq');
     if (_freqEl && _filledMaint && _assocFreq) {
-        _freqEl.value = _assocFreq;
+        setValue(_freqEl, _assocFreq);
     }
 
     // ── 6. Subletting / pet / Wd policy ──────────────────────────────
@@ -5444,7 +5514,7 @@ function populateBuildingFromIDX(prefix, building) {
         var el = document.getElementById(id);
         if (!el) return;
         if ((el.value || '').trim() !== '') return; // manual entry wins
-        el.value = val;
+        setValue(el, val);
     };
     var checkBldgProfileIfUnset = function (id, val) {
         if (val === null || val === undefined) return;
@@ -5576,6 +5646,8 @@ function populateBuildingFromIDX(prefix, building) {
     // backfill the modal Street Address, and mirror the neighborhood label into
     // the main form. (Track 1 fix, 2026-05-30.)
     _syncSaleBuildingAddressFields();
+    // The unit count the lookup wrote (and the type it chose) can change what the mixed-use rule says about the distribution.
+    if (typeof applySalesFieldRules === 'function') applySalesFieldRules();
 }
 
 // Auto-derive StructureType from PropertyType when no IDX match
@@ -5598,8 +5670,9 @@ function saleAddressBlurLookup() {
     const addr = document.getElementById('saleStreetAddress')?.value?.trim();
     var bl = _buildingLookup();
     if (!addr || addr.length < 5 || !bl || !bl.typed('sale')) { parseSaleAddress(); return; }
-    // the cache first: the one building whose address IS the typed address (two buildings can share an address, and then nothing picks between them)
-    const localMatch = bl.exactMatch(buildingDatabase, addr);
+    // the cache first: the one building whose address IS the typed address (two buildings can share an address, and then nothing picks between them). The cache is complete for
+    // the address it was asked for, and for no other: what a search by name or by a part of an address returned may hold one of two buildings that share the typed address.
+    const localMatch = _buildingDatabaseFor === bl.normalizeAddress(bl.searchText(addr)) ? bl.exactMatch(buildingDatabase, addr) : null;
     if (localMatch) {
         bl.resolved('sale');
         selectBuildingFromIDX('sale', localMatch, true);
@@ -5620,16 +5693,20 @@ function saleAddressBlurLookup() {
         }
         bl.resolved('sale');
         if (matches.length === 0) {
+            _releaseBuilding('sale');                                          // the address names no building: what the last one wrote is taken back
             if (results) bl.message(results, 'No building match found — enter building details manually.');
             parseSaleAddress();
             return;
         }
         buildingDatabase = matches;
+        _buildingDatabaseFor = bl.normalizeAddress(bl.searchText(addr));
         // the candidate whose address IS the typed address is applied; a lone candidate for another address is offered, like several are
         var pick = bl.exactMatch(matches, addr);
         if (results && pick) {
             selectBuildingFromIDX('sale', pick, true);
         } else if (results) {
+            // the typed address fits several buildings and is none of them: the building the form held is released, unless it is one of them (the agent chose it for this address)
+            if (!matches.some(function(b) { return bl.isApplied('sale', b); })) _releaseBuilding('sale');
             bl.renderResults(results, matches, function(b) { selectBuildingFromIDX('sale', b); });
         }
         parseSaleAddress();
@@ -6772,6 +6849,7 @@ async function searchBuildingByAddress(query, prefix) {
             return;
         }
         buildingDatabase = apiMatches;
+        _buildingDatabaseFor = bl.normalizeAddress(bl.searchText(query));
         renderMatches(apiMatches);
     }, 300);
 }
@@ -6789,13 +6867,19 @@ function selectBuildingForModal(prefix, picked) {
     // amenity, building policies, and the neighborhood (added dynamically when
     // Cotality has one the dropdown doesn't). This NEVER touches UnitNumber —
     // populateBuildingFromIDX preserves the user-entered unit.
-    populateBuildingFromIDX(prefix, building);
-    // Building type (Condo / Co-op / Condop / Townhouse / …) from the match.
-    var typeRadio = document.querySelector('input[name="' + prefix + 'PropertyType"][value="' + building.type + '"]');
-    if (typeRadio && !bl.overridden(prefix, building)) {
-        typeRadio.checked = true;
-        if (typeof applySalesFieldRules === 'function') applySalesFieldRules();
-    }
+    // Another building replaces the facts the lookup wrote for the last one (except what the agent changed since; the address the main box applied stays: this pick does not
+    // touch it); what this one writes is recorded, to be taken back in its turn.
+    if (bl.undo(prefix, 'facts') && typeof applySalesFieldRules === 'function') applySalesFieldRules();
+    var before = bl.snapshot();
+    try {
+        populateBuildingFromIDX(prefix, building);
+        // Building type (Condo / Co-op / Condop / Townhouse / …) from the match.
+        var typeRadio = document.querySelector('input[name="' + prefix + 'PropertyType"][value="' + building.type + '"]');
+        if (typeRadio && !bl.overridden(prefix, building)) {
+            typeRadio.checked = true;
+            if (typeof applySalesFieldRules === 'function') applySalesFieldRules();
+        }
+    } finally { bl.record(prefix, before, 'facts'); }
     bl.lock(prefix, building);
     bl.markApplied(prefix, building);
     // Hide results + reflect the chosen address in the search box.
@@ -7032,7 +7116,8 @@ function applySalesFieldRules() {
     // Handle Commercial/Mixed-Use distribution logic
     // UCBA Art. I, Sec. 5(F): Mixed-use in ≤5 unit buildings → RLS-eligible
     const isMixedUseSubtype = propertyType === 'MixedUse';
-    const totalUnits = parseInt(document.getElementById('saleTHUnitsTotal')?.value || document.getElementById('saleBldgTotalUnits')?.value || '0') || 0;
+    // (the count the save sends is the Building tab's: the rule reads that one first, not the townhouse section's, which can still hold an older number)
+    const totalUnits = parseInt(document.getElementById('saleBldgTotalUnits')?.value || document.getElementById('saleTHUnitsTotal')?.value || '0') || 0;
     const mixedUseSmallBuilding = isMixedUseSubtype && totalUnits > 0 && totalUnits <= 5;
 
     if (propertyType === 'Commercial' || (isMixedUseSubtype && totalUnits > 5)) {
@@ -10460,7 +10545,7 @@ function setMainPhoto(listingId, mediaKey) {
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize logged-in agent from URL params
     initLoggedInAgent();
-    if (typeof MallanBuildingLookup !== 'undefined') MallanBuildingLookup.watch('sale');
+    if (typeof MallanBuildingLookup !== 'undefined') { MallanBuildingLookup.watch('sale'); _syncStructureType('sale'); }
 
     // Load Cotality-sourced neighborhoods into the building dropdown.
     // Source of truth: /api/crm/neighborhoods/cotality. Static <optgroup>

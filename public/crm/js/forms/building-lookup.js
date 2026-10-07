@@ -19,8 +19,14 @@
 //   watch(prefix)                    the form's address box: remember that the agent typed in it (a lookup runs only for an address somebody typed, never for one the
 //                                    form filled in from a saved listing or a draft), and release the property type again when the address no longer names the building
 //   typed(prefix) / resolved(prefix) the two halves of that: should a lookup run, and the lookup has been answered (an address the index could not answer stays typed, so
-//                                    leaving the box again asks again)
-//   isApplied / markApplied / reset  which building the form last applied (by address, borough and zip). The same building applied again (the agent left the address box and
+//                                    leaving the box again asks again). What was typed counts only while the box still says it: a form that rewrites the box (a saved listing
+//                                    loading after the agent typed) is not an agent typing
+//   snapshot() / record(prefix, snapshot) / undo(prefix)   what a lookup wrote: the page takes a snapshot of every control before it applies a building and records the difference
+//                                    after; undo puts back what the lookup wrote when another building replaces the building, or the address no longer names it, and leaves
+//                                    every control the agent has changed since alone
+//   setSelect(select, value)         write a <select> only with an option it has (a comma list takes the first member it has): an answer the control has no option for never
+//                                    blanks what the agent chose
+//   isApplied / hasApplied / markApplied / reset  which building the form last applied (by address, borough and zip). The same building applied again (the agent left the address box and
 //                                    came back) must not overwrite what the agent has changed since in the Building tab, so a lookup that finds it again applies nothing; a
 //                                    building the agent clicks in a list is applied again
 //   lock(prefix, building) / unlock(prefix) / overridden   the property type a building's Cotality record names is LOCKED (the radios are disabled and a notice beside them
@@ -65,7 +71,8 @@
   // A unit designator closes a street address: "Apt 12B", "Unit 4", "#12B", "Ste 200", "Fl 3" (a floor of a street address is a unit too). It only counts after at least
   // two words of street address, so "1 Unit Street" stays a street.
   var DESIGNATOR = '(?:apt|apartment|unit|ste|suite|fl|floor|rm|room)\\.?\\s+#?\\s*';
-  var UNIT_TAIL = new RegExp('^(.*\\S)\\s+(?:#\\s*|' + DESIGNATOR + ')([\\w-]+)\\s*$', 'i');
+  // (a designator that has its own "#" -- "Apt #12B", "Ste #200" -- is read before the bare "#", or the designator would stay in the street)
+  var UNIT_TAIL = new RegExp('^(.*?\\S)\\s+(?:' + DESIGNATOR + '|#\\s*)([\\w-]+)\\s*$', 'i');
   var UNIT_PIECE = new RegExp('^(?:#\\s*|' + DESIGNATOR + ')([\\w-]+)$', 'i');
   function splitAddress(value) {
     var pieces = str(value).split(',');
@@ -90,6 +97,7 @@
 
   function boroughValue(value) {
     var key = str(value).toLowerCase().replace(/[^a-z]/g, '');
+    if (/ny$/.test(key)) key = key.slice(0, -2);                                                              // "Manhattan, NY" (no borough's own name ends in "ny")
     return Object.prototype.hasOwnProperty.call(BOROUGHS, key) ? BOROUGHS[key] : '';
   }
 
@@ -136,14 +144,14 @@
     if (!box || box.getAttribute('data-building-watch')) return;
     box.setAttribute('data-building-watch', '1');
     box.addEventListener('input', function () {
-      box.setAttribute('data-typed', '1');
+      box.setAttribute('data-typed', box.value);              // what was typed: it counts only while the box still says it (the form can rewrite the box later)
       if (locks[prefix] !== undefined && normalizeAddress(box.value) !== locks[prefix]) unlock(prefix);
     });
   }
-  // A lookup runs for an address an agent typed since the last answered lookup.
+  // A lookup runs for an address an agent typed since the last answered lookup, and still in the box.
   function typed(prefix) {
     var box = address(prefix);
-    return !!box && box.getAttribute('data-typed') === '1';
+    return !!box && box.getAttribute('data-typed') === box.value;
   }
   function resolved(prefix) {
     var box = address(prefix);
@@ -151,9 +159,10 @@
   }
 
   // ── which building is applied ──
-  // A building is its address, borough and zip: two buildings in two boroughs can share an address.
+  // A building is its address, borough and zip: two buildings in two boroughs can share an address. The borough is the form's option for it ("New York County" is Manhattan;
+  // "New York", the city, names none) and the zip its five digits ("10065-1234" is 10065), so one building written two ways is one key.
   function buildingKey(b) {
-    return b ? [normalizeAddress(b.address), boroughValue(b.borough) || str(b.borough).toLowerCase().trim(), str(b.zip).trim()].join('|') : '';
+    return b ? [normalizeAddress(b.address), boroughValue(b.borough), (str(b.zip).match(/\d{5}/) || [''])[0]].join('|') : '';
   }
   function isApplied(prefix, building) { return !!building && applied[prefix] !== undefined && applied[prefix] === buildingKey(building); }
   function markApplied(prefix, building) {
@@ -162,7 +171,66 @@
     applied[prefix] = key;
   }
   function overridden(prefix, building) { return !!building && overrides[prefix] !== undefined && overrides[prefix] === buildingKey(building); }
+  function hasApplied(prefix) { return applied[prefix] !== undefined; }
   function reset(prefix) { delete applied[prefix]; delete overrides[prefix]; }
+
+  // ── what the lookup wrote ──
+  // Applying a building writes into dozens of controls (the name, the year, the fee, the amenities, the parking, ...). Which ones, and what was there before? So that the facts of
+  // a building the address no longer names are taken back (and the building the form moves to is not mixed with the last one), while what the agent changed since is never
+  // touched: a control is put back only if it still holds what the lookup wrote. The page takes a snapshot of every control before it applies a building and records the
+  // difference after, so no control the lookup writes (now or later) is missed.
+  var writes = {};     // prefix -> [{ el, before, wrote }], in the order written
+  function choice(el) { return el.type === 'checkbox' || el.type === 'radio'; }
+  function stateOf(el) { return choice(el) ? el.checked : el.value; }
+  function snapshot() {
+    var list = [];
+    document.querySelectorAll('input, select, textarea').forEach(function (el) { if (el.type !== 'file') list.push({ el: el, state: stateOf(el) }); });
+    return list;
+  }
+  // kind: 'address' for everything an applied building writes (the address box, the area, the property type, the building's facts), 'facts' for the building's facts alone (the
+  // Building tab's own pick writes only those, so it takes back only those).
+  function record(prefix, before, kind) {
+    var log = writes[prefix] || (writes[prefix] = []);
+    var inGroup = function (a, b) { return a.el.type === 'radio' && a.el.name === b.el.name && a.el !== b.el; };
+    before.forEach(function (b) {
+      var now = stateOf(b.el);
+      if (now === b.state) return;
+      if (b.el.type === 'radio') {
+        // A radio the lookup checked replaced the one that was checked in its group: the browser unchecked that one, the lookup did not write it. Taking the check back puts that one
+        // back (and only while the agent has not chosen another).
+        if (now) log.push({ el: b.el, before: false, wrote: true, replaced: before.filter(function (o) { return inGroup(o, b) && o.state; }).map(function (o) { return o.el; }), kind: kind || 'address' });
+        return;
+      }
+      log.push({ el: b.el, before: b.state, wrote: now, kind: kind || 'address' });
+    });
+  }
+  // Put back what the lookup wrote (of that kind, or all of it) and the agent has not changed since; true when there was anything to put back.
+  function undo(prefix, kind) {
+    var log = writes[prefix] || [];
+    var undone = false;
+    writes[prefix] = kind ? log.filter(function (w) { return w.kind !== kind; }) : [];
+    for (var i = log.length - 1; i >= 0; i--) {
+      var w = log[i];
+      if (kind && w.kind !== kind) continue;
+      undone = true;
+      if (stateOf(w.el) !== w.wrote) continue;                       // the agent changed it since: it is theirs now
+      if (choice(w.el)) w.el.checked = w.before; else w.el.value = w.before;
+      (w.replaced || []).forEach(function (r) { r.checked = true; });  // the radio this one replaced is checked again
+    }
+    return undone;
+  }
+
+  // Write a value into a <select> only when the select has it (in any case; a list such as "HighRise,Apartment" takes the first member the select has): a value the control has
+  // no option for would blank what the agent had chosen. True when it was written.
+  function setSelect(select, value) {
+    var wanted = str(value).split(',').map(function (m) { return m.trim().toLowerCase(); }).filter(Boolean);
+    for (var i = 0; i < wanted.length; i++) {
+      for (var j = 0; j < select.options.length; j++) {
+        if (select.options[j].value.toLowerCase() === wanted[i]) { select.value = select.options[j].value; return true; }
+      }
+    }
+    return false;
+  }
 
   // ── the property type a building names ──
   function radios(prefix) { return document.querySelectorAll('input[name="' + prefix + 'PropertyType"]'); }
@@ -226,7 +294,8 @@
   global.MallanBuildingLookup = {
     normalizeAddress: normalizeAddress, splitAddress: splitAddress, searchText: searchText, exactMatch: exactMatch, boroughValue: boroughValue,
     renderResults: renderResults, message: message, unavailable: unavailable,
-    watch: watch, typed: typed, resolved: resolved, isApplied: isApplied, markApplied: markApplied, reset: reset, overridden: overridden,
+    watch: watch, typed: typed, resolved: resolved, isApplied: isApplied, hasApplied: hasApplied, markApplied: markApplied, reset: reset, overridden: overridden,
+    snapshot: snapshot, record: record, undo: undo, setSelect: setSelect,
     lock: lock, unlock: unlock, isLocked: isLocked,
   };
 })(window);

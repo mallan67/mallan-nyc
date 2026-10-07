@@ -136,8 +136,8 @@ describe('filterDisplayableDbListings — website-only bypass', () => {
 // ─── 5. Ambiguous Cotality match requires confirmation for InHouse ───────────
 
 describe('Form — InHouse address mismatch confirmation', () => {
-  it('selectBuildingFromIDX checks _isInHouseListingType before address overwrite', () => {
-    const fnMatch = formHtml.match(/function selectBuildingFromIDX\(prefix, picked, auto\)\s*\{([\s\S]{0,6000}?)\n\}/);
+  it('_applyBuilding (which selectBuildingFromIDX applies a building through) checks _isInHouseListingType before address overwrite', () => {
+    const fnMatch = formHtml.match(/function _applyBuilding\(prefix, building\)\s*\{([\s\S]{0,6000}?)\n\}/);
     expect(fnMatch).not.toBeNull();
     const body = fnMatch![1];
     expect(body).toContain('_isInHouseListingType(prefix)');
@@ -155,22 +155,22 @@ describe('Form — InHouse address mismatch confirmation', () => {
   });
 
   it('Cancel preserves typed address but still populates building fields', () => {
-    const fnMatch = formHtml.match(/function selectBuildingFromIDX\(prefix, picked, auto\)\s*\{([\s\S]{0,6000}?)\n\}/);
+    const fnMatch = formHtml.match(/function _applyBuilding\(prefix, building\)\s*\{([\s\S]{0,6000}?)\n\}/);
     expect(fnMatch).not.toBeNull();
     const body = fnMatch![1];
     expect(body).toContain('if (!useCanonical)');
-    expect(body).toContain('populateBuildingFromIDX(prefix, building)');
+    expect(body).toContain('_applyBuildingFacts(prefix, building)');
   });
 });
 
 // ─── 6. Non-InHouse preserves existing lookup behavior ──────────────────────
 
 describe('Form — Non-InHouse lookup behavior preserved', () => {
-  it('selectBuildingFromIDX still overwrites address for non-InHouse (no confirm gate)', () => {
-    const fnMatch = formHtml.match(/function selectBuildingFromIDX\(prefix, picked, auto\)\s*\{([\s\S]{0,6000}?)\n\}/);
+  it('_applyBuilding still overwrites address for non-InHouse (no confirm gate)', () => {
+    const fnMatch = formHtml.match(/function _applyBuilding\(prefix, building\)\s*\{([\s\S]{0,6000}?)\n\}/);
     expect(fnMatch).not.toBeNull();
     const body = fnMatch![1];
-    const afterGuard = body.split('populateBuildingFromIDX(prefix, building)')[1] || '';
+    const afterGuard = body.split('_applyBuildingFacts(prefix, building)')[1] || '';
     expect(afterGuard || body).toContain("setVal(prefix + 'StreetAddress', building.address)");
   });
 });

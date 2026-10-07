@@ -506,6 +506,14 @@ describe('building-lookup: the street address behind what an agent typed', () =>
     ['200 East 66th Street Apt. 12B', '200 East 66th Street', '12B'],
     ['200 East 66th Street #12B', '200 East 66th Street', '12B'],
     ['200 East 66th Street # 12B', '200 East 66th Street', '12B'],
+    ['200 East 66th Street Apt #12B', '200 East 66th Street', '12B'],
+    ['200 East 66th Street Apt. #4', '200 East 66th Street', '4'],
+    ['200 East 66th Street Apt # 12B', '200 East 66th Street', '12B'],
+    ['200 East 66th Street Unit #4', '200 East 66th Street', '4'],
+    ['350 5th Ave Ste #200', '350 5th Ave', '200'],
+    ['350 5th Ave Fl #3', '350 5th Ave', '3'],
+    ['10 Unit Street Apt 4', '10 Unit Street', '4'],                // a street called Unit, and then a unit
+    ['10 Unit Street #4', '10 Unit Street', '4'],
     ['200 East 66th Street Unit 4', '200 East 66th Street', '4'],
     ['350 5th Ave Ste 200', '350 5th Ave', '200'],
     ['200 East 66th Street, Apt 12B', '200 East 66th Street', '12B'],
@@ -540,6 +548,7 @@ describe('building-lookup: the Borough a building\'s answer names', () => {
     ['Queens', 'Queens'], ['Queens County', 'Queens'],
     ['Bronx', 'Bronx'], ['The Bronx', 'Bronx'], ['Bronx County', 'Bronx'],
     ['Staten Island', 'StatenIsland'], ['StatenIsland', 'StatenIsland'], ['staten island', 'StatenIsland'], ['Richmond', 'StatenIsland'], ['Richmond County', 'StatenIsland'],
+    ['Manhattan, NY', 'Manhattan'], ['Brooklyn NY', 'Brooklyn'], ['Staten Island, NY', 'StatenIsland'], ['New York, NY', ''], ['NY', ''], ['ny', ''],
     ['New York', ''], ['New York City', ''], ['Gotham', ''], ['', ''], [null, ''], [undefined, ''], [42, ''], ['constructor', ''], ['__proto__', ''],
   ])('%j is the Borough option %j', (spelling, option) => {
     expect(BL.boroughValue(spelling)).toBe(option);
@@ -558,6 +567,12 @@ describe('building-lookup: which building the form applied, and what the agent o
     expect(lookup.isApplied('sale', { ...A, address: '200 East 66th Street', borough: 'manhattan' })).toBe(true);
     expect(lookup.isApplied('sale', twin)).toBe(false);
     expect(lookup.isApplied('sale', { ...A, zip: '10099' })).toBe(false);                    // the zip is part of the building too
+    // one building written two ways is one building: the borough as the form names it, the zip by its five digits
+    expect(lookup.isApplied('sale', { ...A, borough: 'New York County', zip: '10065-1234' })).toBe(true);
+    expect(lookup.isApplied('sale', { ...A, borough: 'Manhattan, NY' })).toBe(true);
+    expect(lookup.isApplied('sale', { ...A, borough: 'MANHATTAN', zip: ' 10065 ' })).toBe(true);
+    expect(lookup.isApplied('sale', { ...A, borough: 'New York' })).toBe(false);              // the city names no borough: that is not Manhattan
+    expect(lookup.isApplied('sale', { ...A, zip: '' })).toBe(false);
     expect(lookup.isApplied('sale', B)).toBe(false);
     expect(lookup.isApplied('rental', A)).toBe(false);                    // each form has its own
     lookup.reset('sale');
@@ -715,7 +730,7 @@ describe.each(PAGES)('$form: what the agent changed survives the next lookup of 
     } finally { f.close(); }
   });
 
-  it('a building picked in the Building tab counts as applied: its address left in the address box applies nothing over what the agent changed', async () => {
+  it('a building picked in the Building tab counts as applied: its address left in the address box applies nothing over what the agent changed in the Building tab', async () => {
     const f = await bootAddForm(p.form, { buildings: [COOP], settle: 600 });
     try {
       set(f, p.modalSearchInput, 'plaza');
@@ -725,9 +740,9 @@ describe.each(PAGES)('$form: what the agent changed survives the next lookup of 
       expect(val(f, `${p.bld}Name`)).toBe('The Plaza Tower');
       set(f, `${p.bld}Name`, 'My Own Building Name');
       await resolveAddress(f, p, '200 East 66th Street');                                            // the same building, by its address
-      expect(f.searched).toEqual(['plaza']);                                                         // (the cache knows it: nothing more was asked)
+      expect(f.searched).toEqual(['plaza', '200 East 66th Street']);                                // (what a search by name returned is not the answer for an address: the index was asked)
       expect(val(f, `${p.bld}Name`)).toBe('My Own Building Name');
-      expect(val(f, `${p.prefix}StreetAddress`)).toBe('200 East 66th Street');                      // and the address the agent typed was not rewritten either
+      expect(val(f, `${p.prefix}StreetAddress`)).toBe('200 E 66th St');                             // the box takes the building's own address, and the main form its area
     } finally { f.close(); }
   });
 });
@@ -879,6 +894,12 @@ describe('Rental: an In-House listing keeps the address the agent typed and stil
       expect(chosenType(f, p)).toBe('Coop');
       expect(radios(f, p).every((r) => r.disabled)).toBe(true);
       expect(val(f, 'bldgYearBuilt')).toBe('1961');                                                  // the building's facts still come
+      await leaveAddress(f, p);                                                                      // the same building found again: the typed address is still the agent's
+      typeAddress(f, p, '200 East 66th Street');
+      await leaveAddress(f, p);
+      expect(asked).toBe(1);
+      expect(val(f, 'rentalStreetAddress')).toBe('200 East 66th Street');
+      expect(radios(f, p).every((r) => r.disabled)).toBe(true);
     } finally { f.close(); }
   });
 
@@ -1097,6 +1118,462 @@ describe.each(PAGES)('$form: a lookup that is still waiting, and one that is for
       await leaveAddress(f, p);
       expect(chosenType(f, p)).toBe('Coop');
       expect(radios(f, p).every((r) => r.disabled)).toBe(true);                                       // locked again: the Override was forgotten with the match
+    } finally { f.close(); }
+  });
+});
+
+// ══ What the second independent review of the address -> building work (a4a87f64) found, and what this fixes ═════════════════════════════
+const PLAZA_FULL = { ...COOP, doorman: true, concierge: true, pool: true, parking: true, open_parking_spaces: 12, association_fee: 3000, association_fee_frequency: 'Monthly', building_pets: ['BuildingYes'] };
+const TURTLE = { address: '333 E 46th St', name: '', borough: 'Manhattan', zip: '10017', neighborhood: 'Turtle Bay', common_interest: 'Condominium', association_fee: 1200, association_fee_frequency: 'Quarterly' };
+const twoBuildings = (q: string) => (/^200/.test(q) ? [PLAZA_FULL] : /^333/.test(q) ? [TURTLE] : []);
+const attendance = (f: BootedForm, p: Page) => [...f.d.querySelectorAll(`input[name="${p.prefix}AttendanceType"]:checked`)].map((c) => (c as HTMLInputElement).value);
+const tick = (f: BootedForm, id: string, on = true) => { (f.d.getElementById(id) as HTMLInputElement).checked = on; };
+const change = (f: BootedForm, id: string, value: string) => {
+  const el = f.d.getElementById(id) as HTMLInputElement | HTMLSelectElement;
+  el.value = value;
+  el.dispatchEvent(new f.w.Event('change', { bubbles: true }));
+};
+// the elements the field rules show for the property type the form holds now, by id
+const visibleRuleIds = (f: BootedForm, p: Page): string[] => {
+  const ruleIds: string[] = f.w.eval(p.prefix === 'sale' ? 'Object.keys(SALES_FIELD_VISIBILITY_RULES)' : 'Object.keys(RENTAL_FIELD_VISIBILITY_RULES)');
+  return ruleIds.filter((id) => { const e = f.d.getElementById(id); return !!e && !e.classList.contains('hidden') && e.style.display !== 'none'; });
+};
+
+describe.each(PAGES)('$form: another building replaces what the lookup wrote for the last one', (p) => {
+  it('the unit, the facts, the amenities, the attendance and the parking of the first building are gone, and the second building\'s are there', async () => {
+    const f = await bootAddForm(p.form, { buildings: twoBuildings, settle: 600 });
+    try {
+      await resolveAddress(f, p, '200 East 66th Street Apt 12B');
+      expect(val(f, `${p.prefix}UnitNumber`)).toBe('12B');
+      expect([val(f, `${p.bld}Name`), val(f, `${p.bld}YearBuilt`), val(f, `${p.bld}ParkingSpaces`)]).toEqual(['The Plaza Tower', '1961', '12']);
+      expect(['Elevator', 'Gym', 'Pool', 'Parking'].map((b) => checked(f, `${p.bld}${b}`))).toEqual([true, true, true, true]);
+      expect(attendance(f, p)).toEqual(['DoormanYes', 'ConciergeYes']);
+      if (p.prefix === 'sale') expect([val(f, 'saleMaintCC'), val(f, 'saleMaintCCFreq')]).toEqual(['3000', 'Monthly']);
+      await resolveAddress(f, p, '333 East 46th Street Apt 4');
+      expect(val(f, `${p.prefix}StreetAddress`)).toBe('333 E 46th St');
+      expect(val(f, `${p.prefix}UnitNumber`)).toBe('4');                                             // the new address's unit, not the last one's
+      expect(val(f, `${p.prefix}ZipCode`)).toBe('10017');
+      expect(val(f, `${p.prefix}NeighborhoodFromAddress`)).toBe('Turtle Bay');
+      expect([val(f, `${p.bld}Name`), val(f, `${p.bld}YearBuilt`), val(f, `${p.bld}ParkingSpaces`), val(f, `${p.bld}TotalFloors`)]).toEqual(['', '', '', '']);
+      expect(['Elevator', 'Gym', 'Pool', 'Parking'].map((b) => checked(f, `${p.bld}${b}`))).toEqual([false, false, false, false]);
+      expect(attendance(f, p)).toEqual([]);
+      expect(chosenType(f, p)).toBe('Condo');
+      expect(f.d.getElementById(`${p.prefix}IdxDetectedBuilding`)!.textContent).toBe('');
+      if (p.prefix === 'sale') expect([val(f, 'saleMaintCC'), val(f, 'saleMaintCCFreq')]).toEqual(['1200', 'Quarterly']);
+    } finally { f.close(); }
+  });
+
+  it('an address that names no building takes back the last building: its facts, its banner, the hold on the type and the type itself', async () => {
+    const f = await bootAddForm(p.form, { buildings: twoBuildings, settle: 600 });
+    try {
+      const startType = chosenType(f, p);
+      await resolveAddress(f, p, '200 East 66th Street Apt 12B');
+      expect(chosenType(f, p)).toBe('Coop');
+      expect(hidden(f, `${p.prefix}IdxMatchBanner`)).toBe(false);
+      await resolveAddress(f, p, '1 Nowhere Lane');
+      expect(hidden(f, `${p.prefix}IdxMatchBanner`)).toBe(true);
+      expect(radios(f, p).some((r) => r.disabled)).toBe(false);
+      expect(notice(f, p)!.classList.contains('hidden')).toBe(true);
+      expect(chosenType(f, p)).toBe(startType);
+      expect([val(f, `${p.prefix}Borough`), val(f, `${p.prefix}ZipCode`), val(f, `${p.prefix}UnitNumber`), val(f, `${p.bld}Name`), val(f, `${p.bld}YearBuilt`)]).toEqual(['', '', '', '', '']);
+      expect(val(f, `${p.prefix}StreetAddress`)).toBe('1 Nowhere Lane');                              // what the agent typed is theirs
+      expect(f.d.getElementById(`${p.prefix}BuildingSearchResults`)!.textContent).toMatch(/No building match found/);
+    } finally { f.close(); }
+  });
+
+  it('several buildings fit the new address and none is it: the last building is taken back, and the list is offered', async () => {
+    const f = await bootAddForm(p.form, { buildings: (q) => (/^200/.test(q) ? [PLAZA_FULL] : [{ ...TURTLE, address: '10 Oak Ave' }, { ...TURTLE, address: '12 Oak Ave' }]), settle: 600 });
+    try {
+      await resolveAddress(f, p, '200 East 66th Street');
+      expect(val(f, `${p.bld}Name`)).toBe('The Plaza Tower');
+      await resolveAddress(f, p, 'Oak Avenue');
+      expect(val(f, `${p.bld}Name`)).toBe('');
+      expect(hidden(f, `${p.prefix}IdxMatchBanner`)).toBe(true);
+      expect(rowsOf(f, `${p.prefix}BuildingSearchResults`)).toHaveLength(2);
+    } finally { f.close(); }
+  });
+
+  it('a choice the agent made in another group of radio buttons since stays theirs when the building is taken back', async () => {
+    const f = await bootAddForm(p.form, { buildings: twoBuildings, settle: 600 });
+    try {
+      const status = `${p.prefix}BuildingStatus`;
+      const startStatus = (f.d.querySelector(`input[name="${status}"]:checked`) as HTMLInputElement).value;
+      await resolveAddress(f, p, '200 East 66th Street');
+      (f.d.querySelector(`input[name="${status}"][value="NewDevelopment"]`) as HTMLInputElement).checked = true;
+      await resolveAddress(f, p, '1 Nowhere Lane');
+      expect((f.d.querySelector(`input[name="${status}"]:checked`) as HTMLInputElement).value).toBe('NewDevelopment');       // not put back to what it was
+      expect(startStatus).not.toBe('NewDevelopment');
+      expect(chosenType(f, p)).not.toBe('Coop');                                                       // the property type, which the lookup chose, is taken back
+    } finally { f.close(); }
+  });
+
+  it('what the agent changed since stays: a name they typed, a box they unticked', async () => {
+    const f = await bootAddForm(p.form, { buildings: twoBuildings, settle: 600 });
+    try {
+      await resolveAddress(f, p, '200 East 66th Street');
+      set(f, `${p.bld}Name`, 'My Own Name');
+      tick(f, `${p.bld}Gym`, false);
+      set(f, `${p.bld}YearBuilt`, '1999');
+      await resolveAddress(f, p, '333 East 46th Street');
+      expect(val(f, `${p.bld}Name`)).toBe('My Own Name');
+      expect(checked(f, `${p.bld}Gym`)).toBe(false);
+      expect(val(f, `${p.bld}YearBuilt`)).toBe('1999');
+      expect(checked(f, `${p.bld}Elevator`)).toBe(false);                                           // the lookup's own tick went with the building
+    } finally { f.close(); }
+  });
+
+  it('the building picked in the Building tab replaces the last one\'s facts, and leaves the address the main box applied as it is', async () => {
+    const f = await bootAddForm(p.form, { buildings: (q) => (/plaza|^200/i.test(q) ? [PLAZA_FULL] : [TURTLE]), settle: 600 });
+    try {
+      await resolveAddress(f, p, '200 East 66th Street');
+      expect(checked(f, `${p.bld}Pool`)).toBe(true);
+      await p.modalSearchFn(f, 'turtle');
+      await sleep(500);
+      rowsOf(f, p.modalResults)[0].click();
+      expect(checked(f, `${p.bld}Pool`)).toBe(false);                                               // the Plaza's tick is gone
+      expect(val(f, `${p.bld}Name`)).toBe('');
+      expect(val(f, `${p.prefix}ZipCode`)).toBe('10065');                                           // the address the main box applied is not touched by the Building tab
+      expect(val(f, `${p.prefix}Borough`)).toBe('Manhattan');
+    } finally { f.close(); }
+  });
+
+  it('the Building tab\'s pick takes back only the facts: the address the main box applied is still taken back with its building', async () => {
+    const f = await bootAddForm(p.form, { buildings: (q) => (/plaza|^200/i.test(q) ? [PLAZA_FULL] : /^1 Nowhere/.test(q) ? [] : [TURTLE]), settle: 600 });
+    try {
+      const startType = chosenType(f, p);
+      await resolveAddress(f, p, '200 East 66th Street');
+      await p.modalSearchFn(f, 'turtle');
+      await sleep(500);
+      rowsOf(f, p.modalResults)[0].click();                                                         // facts only
+      expect(val(f, `${p.prefix}ZipCode`)).toBe('10065');
+      await resolveAddress(f, p, '1 Nowhere Lane');                                                 // the address names no building: what the main box applied goes
+      expect([val(f, `${p.prefix}Borough`), val(f, `${p.prefix}ZipCode`), val(f, `${p.prefix}NeighborhoodFromAddress`)]).toEqual(['', '', '']);
+      expect(chosenType(f, p)).toBe(startType);
+    } finally { f.close(); }
+  });
+
+  it('a co-op\'s fields go when the lookup\'s type is taken back: by an address that names no building, and by a building that sets no type', async () => {
+    const f = await bootAddForm(p.form, { buildings: (q) => (/^200/.test(q) ? [COOP] : /^40/.test(q) ? [TOWNHOUSE] : []), settle: 600 });
+    try {
+      const start = visibleRuleIds(f, p);
+      await resolveAddress(f, p, '200 East 66th Street');
+      const coopOnly = visibleRuleIds(f, p).filter((id) => !start.includes(id));
+      expect(coopOnly.length).toBeGreaterThan(0);                                                   // a co-op shows fields the form did not
+      await resolveAddress(f, p, '40 West 12th Street');                                            // another building, which sets no type: the co-op's type goes
+      expect(chosenType(f, p)).not.toBe('Coop');
+      expect(visibleRuleIds(f, p).filter((id) => coopOnly.includes(id))).toEqual([]);
+      await resolveAddress(f, p, '200 East 66th Street');
+      expect(visibleRuleIds(f, p).filter((id) => coopOnly.includes(id)).length).toBe(coopOnly.length);
+      await resolveAddress(f, p, '1 Nowhere Lane');                                                 // an address that names no building
+      expect(chosenType(f, p)).not.toBe('Coop');
+      expect(visibleRuleIds(f, p).filter((id) => coopOnly.includes(id))).toEqual([]);
+    } finally { f.close(); }
+  });
+});
+
+describe.each(PAGES)('$form: an address typed before a saved listing loaded is not a lookup of the saved address', (p) => {
+  it('the form rewrote the box: leaving it does not apply a building over the saved listing', async () => {
+    const f = await bootAddForm(p.form, {
+      search: '?id=1', buildings: [COOP], getDelay: 900, settle: 300,
+      listing: {
+        id: '1', listing_id: 'L-1', status: 'Draft', address: { StreetNumber: '200', StreetDirPrefix: 'E', StreetName: '66th', StreetSuffix: 'St', UnparsedAddress: '200 E 66th St' },
+        features: {}, media: [], agent_info: {}, raw_data: { [`${p.prefix}StreetAddress`]: '200 E 66th St', [`${p.prefix}PropertyType`]: 'Condop' },
+      },
+    });
+    try {
+      typeAddress(f, p, '1 Typed Early Road');                                                       // before the listing arrives
+      await sleep(1800);                                                                             // it arrives, and the form writes the saved address into the box
+      expect(val(f, `${p.prefix}StreetAddress`)).toBe('200 E 66th St');
+      const before = chosenType(f, p);
+      await leaveAddress(f, p);
+      expect(f.searched).toEqual([]);
+      expect(chosenType(f, p)).toBe(before);
+      expect(radios(f, p).some((r) => r.disabled)).toBe(false);
+    } finally { f.close(); }
+  });
+
+  it('an address typed after the rewrite is a lookup again', async () => {
+    const f = await bootAddForm(p.form, { buildings: [COOP], settle: 600 });
+    try {
+      typeAddress(f, p, '1 Typed Early Road');
+      (f.d.getElementById(`${p.prefix}StreetAddress`) as HTMLInputElement).value = '200 East 66th Street';       // the form rewrites the box (no input event)
+      await leaveAddress(f, p);
+      expect(f.searched).toEqual([]);
+      await resolveAddress(f, p, '200 East 66th Street');                                           // the agent types it
+      expect(f.searched).toEqual(['200 East 66th Street']);
+    } finally { f.close(); }
+  });
+});
+
+describe.each(PAGES)('$form: a lookup ticks boxes and never unticks them', (p) => {
+  it('what the agent ticked stays ticked when the building reports none of it', async () => {
+    const f = await bootAddForm(p.form, { buildings: [{ ...TURTLE, address: '200 E 66th St' }], settle: 600 });
+    try {
+      const boxes = ['Pool', 'Elevator', 'Gym', 'RoofDeck', 'Parking', 'Storage', 'BikeRoom'];
+      for (const b of boxes) tick(f, `${p.bld}${b}`);
+      await resolveAddress(f, p, '200 East 66th Street');
+      expect(boxes.map((b) => checked(f, `${p.bld}${b}`))).toEqual(boxes.map(() => true));
+    } finally { f.close(); }
+  });
+});
+
+describe.each(PAGES)('$form: the mixed-use unit-count rule runs whenever the count changes', (p) => {
+  const gate = (f: BootedForm) => f.d.getElementById(`${p.prefix}Dist_IDX`) as HTMLInputElement;
+  const mixedUse = (f: BootedForm) => { (f.d.querySelector(`input[name="${p.prefix}PropertyType"][value="MixedUse"]`) as HTMLInputElement).checked = true; };
+  const unitsBox = (p.prefix === 'sale' ? 'saleBldgTotalUnits' : 'bldgTotalUnits');
+  const townhouseUnits = (p.prefix === 'sale' ? 'saleTHUnitsTotal' : 'rentalTHUnitsTotal');
+
+  it('typing the Building tab\'s unit count (a change event) enables and disables the IDX gate', async () => {
+    const f = await bootAddForm(p.form, { settle: 600 });
+    try {
+      mixedUse(f);
+      change(f, unitsBox, '12');
+      expect([gate(f).checked, gate(f).disabled]).toEqual([false, true]);                             // more than five units: not RLS-eligible
+      change(f, unitsBox, '3');
+      expect(gate(f).disabled).toBe(false);
+      expect(f.d.getElementById(`${p.prefix}MixedUseNotice`)!.style.display).toBe('');
+    } finally { f.close(); }
+  });
+
+  it('the count a lookup writes is read too (a mixed-use listing, a building of twelve units)', async () => {
+    const f = await bootAddForm(p.form, { buildings: [{ ...TOWNHOUSE, units_total: 12 }], settle: 600 });
+    try {
+      mixedUse(f);
+      await resolveAddress(f, p, '40 West 12th Street');
+      expect(val(f, unitsBox)).toBe('12');
+      expect(chosenType(f, p)).toBe('MixedUse');                                                     // the building names no ownership type: the agent's choice stands
+      expect([gate(f).checked, gate(f).disabled]).toEqual([false, true]);
+    } finally { f.close(); }
+  });
+
+  it('the rule reads the Building tab\'s count, the one the save sends, before the townhouse section\'s', async () => {
+    const f = await bootAddForm(p.form, { settle: 600 });
+    try {
+      mixedUse(f);
+      set(f, townhouseUnits, '2');
+      change(f, unitsBox, '12');
+      expect([gate(f).checked, gate(f).disabled]).toEqual([false, true]);
+      expect(f.d.getElementById(`${p.prefix}MixedUseNotice`)!.style.display).toBe('none');
+    } finally { f.close(); }
+  });
+});
+
+describe.each(PAGES)('$form: a unit written after a designator with its own #', (p) => {
+  it.each([
+    ['200 East 66th Street Apt #12B', '12B'],
+    ['200 East 66th Street Apt. #4', '4'],
+    ['200 East 66th Street Unit #4', '4'],
+    ['200 East 66th Street, Apt #12B', '12B'],
+  ])('%j finds the building and puts %j in the Unit Number', async (typed, unit) => {
+    const f = await bootAddForm(p.form, { buildings: [COOP], settle: 600 });
+    try {
+      await resolveAddress(f, p, typed);
+      expect(f.searched).toEqual(['200 East 66th Street']);
+      expect(val(f, `${p.prefix}UnitNumber`)).toBe(unit);
+      expect(chosenType(f, p)).toBe('Coop');
+    } finally { f.close(); }
+  });
+});
+
+describe.each(PAGES)('$form: the cached answer is complete only for the address it was asked for', (p) => {
+  it('a search by name that returned one of two buildings at an address does not stand in for the address', async () => {
+    const f = await bootAddForm(p.form, { buildings: (q) => (/alpha/i.test(q) ? [ALPHA] : /^100 water/i.test(q) ? [ALPHA, BETA] : []), settle: 600 });
+    try {
+      const startType = chosenType(f, p);
+      await p.modalSearchFn(f, 'Alpha');
+      await sleep(500);
+      expect(f.searched).toEqual(['Alpha']);
+      await resolveAddress(f, p, '100 Water Street');
+      expect(f.searched).toEqual(['Alpha', '100 Water Street']);                                      // the index was asked: the cache held one of two
+      expect(rowsOf(f, `${p.prefix}BuildingSearchResults`)).toHaveLength(2);
+      expect(chosenType(f, p)).toBe(startType);                                                      // nothing was applied
+      expect(val(f, `${p.prefix}ZipCode`)).toBe('');
+    } finally { f.close(); }
+  });
+
+  it('a later search by name does not leave the earlier address\'s claim on the cache standing', async () => {
+    const f = await bootAddForm(p.form, { buildings: (q) => (/gamma/i.test(q) ? [ALPHA] : /^100 water/i.test(q) ? [ALPHA, BETA] : []), settle: 600 });
+    try {
+      await resolveAddress(f, p, '100 Water Street');                                                // two buildings: a list, nothing applied; the cache is for this address
+      expect(rowsOf(f, `${p.prefix}BuildingSearchResults`)).toHaveLength(2);
+      await p.modalSearchFn(f, 'Gamma');                                                             // the Building tab's search finds one of them by another name
+      await sleep(500);
+      expect(f.searched).toEqual(['100 Water Street', 'Gamma']);
+      await resolveAddress(f, p, '100 Water Street');                                                // the cache now holds one of the two: it is not the answer for the address
+      expect(f.searched).toEqual(['100 Water Street', 'Gamma', '100 Water Street']);
+      expect(rowsOf(f, `${p.prefix}BuildingSearchResults`)).toHaveLength(2);
+    } finally { f.close(); }
+  });
+
+  it('the same street, typed again, is served from the cache', async () => {
+    const f = await bootAddForm(p.form, { buildings: [COOP], settle: 600 });
+    try {
+      await resolveAddress(f, p, '200 East 66th Street');
+      await resolveAddress(f, p, '200 E 66th St');
+      expect(f.searched).toEqual(['200 East 66th Street']);
+    } finally { f.close(); }
+  });
+});
+
+describe.each(PAGES)('$form: the building applied again by its address (the same building found again)', (p) => {
+  it('a typo fixed in the box holds the property type again', async () => {
+    const f = await bootAddForm(p.form, { buildings: [COOP], settle: 600 });
+    try {
+      await resolveAddress(f, p, '200 East 66th Street');
+      expect(radios(f, p).every((r) => r.disabled)).toBe(true);
+      typeAddress(f, p, '200 East 66th Streetx');
+      expect(radios(f, p).some((r) => r.disabled)).toBe(false);                                       // the first keystroke released it
+      typeAddress(f, p, '200 East 66th Street');
+      await leaveAddress(f, p);
+      expect(radios(f, p).every((r) => r.disabled)).toBe(true);
+      expect(notice(f, p)!.classList.contains('hidden')).toBe(false);
+    } finally { f.close(); }
+  });
+
+  it('a unit added after the address goes to the Unit Number, the box says the building\'s own address, and the hold stays', async () => {
+    const f = await bootAddForm(p.form, { buildings: [COOP], settle: 600 });
+    try {
+      await resolveAddress(f, p, '200 East 66th Street');
+      typeAddress(f, p, '200 E 66th St Apt 12B');
+      await leaveAddress(f, p);
+      expect(val(f, `${p.prefix}UnitNumber`)).toBe('12B');
+      expect(val(f, `${p.prefix}StreetAddress`)).toBe('200 E 66th St');
+      expect([val(f, `${p.prefix}StreetNumber`), val(f, `${p.prefix}StreetName`), val(f, `${p.prefix}StreetSuffix`)]).toEqual(['200', '66th', 'St']);
+      expect(radios(f, p).every((r) => r.disabled)).toBe(true);
+    } finally { f.close(); }
+  });
+
+  it('a building picked in the Building tab first gives the main form its area when its address is typed', async () => {
+    const f = await bootAddForm(p.form, { buildings: [COOP], settle: 600 });
+    try {
+      await p.modalSearchFn(f, 'Plaza');
+      await sleep(500);
+      rowsOf(f, p.modalResults)[0].click();
+      expect([val(f, `${p.prefix}Borough`), val(f, `${p.prefix}ZipCode`)]).toEqual(['', '']);
+      await resolveAddress(f, p, '200 East 66th Street');
+      expect([val(f, `${p.prefix}Borough`), val(f, `${p.prefix}ZipCode`), val(f, `${p.prefix}CountyOrParish`), val(f, `${p.prefix}PostalCity`)]).toEqual(['Manhattan', '10065', 'New York', 'New York']);
+      expect(val(f, `${p.prefix}StreetAddress`)).toBe('200 E 66th St');
+      expect(radios(f, p).every((r) => r.disabled)).toBe(true);
+    } finally { f.close(); }
+  });
+
+  it('what the agent put in the area since is not overwritten', async () => {
+    const f = await bootAddForm(p.form, { buildings: [COOP], settle: 600 });
+    try {
+      await resolveAddress(f, p, '200 East 66th Street');
+      set(f, `${p.prefix}NeighborhoodFromAddress`, 'My Neighborhood');
+      set(f, `${p.prefix}ZipCode`, '10001');
+      typeAddress(f, p, '200 East 66th Street');
+      await leaveAddress(f, p);
+      expect([val(f, `${p.prefix}NeighborhoodFromAddress`), val(f, `${p.prefix}ZipCode`)]).toEqual(['My Neighborhood', '10001']);
+    } finally { f.close(); }
+  });
+});
+
+describe.each(PAGES)('$form: the index saying it cannot look is not "no match"', (p) => {
+  it('an answer with no buildings and the unavailable hint says so, and leaving the box again asks again', async () => {
+    const f = await bootAddForm(p.form, { buildings: [], buildingsHint: 'Building lookup temporarily unavailable.', settle: 600 });
+    try {
+      await resolveAddress(f, p, '200 East 66th Street');
+      expect(f.d.getElementById(`${p.prefix}BuildingSearchResults`)!.textContent).toMatch(/Building lookup unavailable/);
+      await leaveAddress(f, p);
+      expect(f.searched).toEqual(['200 East 66th Street', '200 East 66th Street']);
+    } finally { f.close(); }
+  });
+
+  it('an answer with no buildings and another hint is a real "no match", asked once', async () => {
+    const f = await bootAddForm(p.form, { buildings: [], buildingsHint: 'No Cotality building match found.', settle: 600 });
+    try {
+      await resolveAddress(f, p, '1 Nowhere Lane');
+      expect(f.d.getElementById(`${p.prefix}BuildingSearchResults`)!.textContent).toMatch(/No building match found/);
+      await leaveAddress(f, p);
+      expect(f.searched).toEqual(['1 Nowhere Lane']);
+    } finally { f.close(); }
+  });
+});
+
+describe.each(PAGES)('$form: a value a select has no option for does not blank the agent\'s choice', (p) => {
+  const mainType = `${p.prefix}StructureType`;
+  // the main control has thirteen structure types, the Building tab's three more (Apartment, Commercial, Other): a value the control has is written, any other is not
+  it.each([
+    ['MidRise', 'Townhouse'], ['LowRise', 'Townhouse'], ['Apartment', 'Apartment'], ['Other', 'Other'], ['Apartment, MidRise', 'Apartment'], ['MidRise, Apartment', 'Apartment'],
+  ])('structure type %s: the main control keeps Townhouse, the Building tab\'s becomes %s', async (answer, inTab) => {
+    const f = await bootAddForm(p.form, { buildings: [{ ...COOP, structure_type: answer }], settle: 600 });
+    try {
+      set(f, mainType, 'Townhouse');
+      set(f, `${p.bld}Type`, 'Townhouse');
+      await resolveAddress(f, p, '200 East 66th Street');
+      expect(val(f, mainType)).toBe('Townhouse');
+      expect(val(f, `${p.bld}Type`)).toBe(inTab);
+    } finally { f.close(); }
+  });
+
+  it('a list takes the first member the select has, whatever the case', async () => {
+    const f = await bootAddForm(p.form, { buildings: [{ ...COOP, structure_type: 'MidRise,highrise' }], settle: 600 });
+    try {
+      await resolveAddress(f, p, '200 East 66th Street');
+      expect(val(f, mainType)).toBe('HighRise');
+      expect(val(f, `${p.bld}Type`)).toBe('HighRise');
+    } finally { f.close(); }
+  });
+
+  it('a state the Building tab\'s select has, spelt in lower case, is chosen; one it has not leaves the state alone', async () => {
+    const lower = await bootAddForm(p.form, { buildings: [{ ...COOP, state: 'nj' }], settle: 600 });
+    const other = await bootAddForm(p.form, { buildings: [{ ...COOP, state: 'New York' }], settle: 600 });
+    try {
+      set(other, `${p.bld}State`, 'CT');
+      await resolveAddress(lower, p, '200 East 66th Street');
+      await resolveAddress(other, p, '200 East 66th Street');
+      expect(val(lower, `${p.bld}State`)).toBe('NJ');
+      expect(val(other, `${p.bld}State`)).toBe('CT');
+    } finally { lower.close(); other.close(); }
+  });
+
+  if (p.prefix === 'sale') {
+    it('a fee frequency the select does not have leaves the frequency alone', async () => {
+      const f = await bootAddForm(p.form, { buildings: [{ ...COOP, association_fee: 900, association_fee_frequency: 'SeeRemarks' }], settle: 600 });
+      try {
+        await resolveAddress(f, p, '200 East 66th Street');
+        expect([val(f, 'saleMaintCC'), val(f, 'saleMaintCCFreq')]).toEqual(['900', 'Monthly']);
+      } finally { f.close(); }
+    });
+  }
+});
+
+describe.each(PAGES)('$form: the structure type the agent chooses is the one that is saved', (p) => {
+  const mainType = `${p.prefix}StructureType`;
+  it('a change to the main control reaches the Building tab, and the save sends it', async () => {
+    const f = await bootAddForm(p.form, { buildings: [COOP], settle: 600 });
+    try {
+      await resolveAddress(f, p, '200 East 66th Street');
+      expect(f.w[p.collector]().StructureType).toBe('HighRise');
+      change(f, mainType, 'Townhouse');
+      expect(val(f, `${p.bld}Type`)).toBe('Townhouse');
+      expect(f.w[p.collector]().StructureType).toBe('Townhouse');
+    } finally { f.close(); }
+  });
+
+  it('a change to the Building tab\'s control reaches the main control', async () => {
+    const f = await bootAddForm(p.form, { buildings: [COOP], settle: 600 });
+    try {
+      await resolveAddress(f, p, '200 East 66th Street');
+      change(f, `${p.bld}Type`, 'Townhouse');
+      expect(val(f, mainType)).toBe('Townhouse');
+      expect(f.w[p.collector]().StructureType).toBe('Townhouse');
+    } finally { f.close(); }
+  });
+
+  it('a main value the Building tab has no option for clears the Building tab, so the save sends the main one', async () => {
+    const f = await bootAddForm(p.form, { buildings: [COOP], settle: 600 });
+    try {
+      await resolveAddress(f, p, '200 East 66th Street');
+      const tab = f.d.getElementById(`${p.bld}Type`) as HTMLSelectElement;
+      const only = f.d.createElement('option');                                                      // a main-only option
+      only.value = 'MainOnly';
+      (f.d.getElementById(mainType) as HTMLSelectElement).appendChild(only);
+      change(f, mainType, 'MainOnly');
+      expect(tab.value).toBe('');
+      expect(f.w[p.collector]().StructureType).toBe('MainOnly');
     } finally { f.close(); }
   });
 });
