@@ -743,3 +743,67 @@ describe('a page without a toast, an alert, a confirmation or a network', () => 
     expect(w.document.querySelectorAll('[data-showing-id]')).toHaveLength(1);
   });
 });
+
+// ── An open house that ends before it begins (RP-11) ─────────────────────────────────────────────────────────────────────────────────────────────
+// "2:00 PM - 1:00 PM" was saved as an open house, and the public feed reads that text.
+
+describe('the end of an open house', () => {
+  it.each([
+    ['13:00', '14:00'],
+    ['14:00', '14:00'],
+    ['00:00', '00:00'],
+  ])('an end time of %s with a start of %s is refused: it says why, nothing is sent, and the form keeps what was entered', async (end, start) => {
+    const p = boot({ savedId: 'RL-7' });
+    p.fill({ ...FULL, Start: start, End: end });
+    await p.manager.save();
+    expect(p.told).toEqual(['The end time must be after the start time.']);
+    expect(p.calls).toEqual([]);
+    expect([p.field('Date').value, p.field('Start').value, p.field('End').value]).toEqual([FULL.Date, start, end]);
+  });
+
+  it('an end one minute after the start is an open house', async () => {
+    const p = boot({ savedId: 'RL-7' });
+    p.fill({ ...FULL, Start: '14:00', End: '14:01' });
+    await p.manager.save();
+    expect(p.told).toEqual([]);
+    expect(JSON.parse(p.calls[0].body).time).toBe('2:00 PM - 2:01 PM');
+  });
+
+  it('the hours are compared as numbers: 9:30 is before 10:00, and an end of 09:59 is before a start of 10:00', async () => {
+    const p = boot({ savedId: 'RL-7' });
+    p.fill({ ...FULL, Start: '09:30', End: '10:00' });
+    await p.manager.save();
+    expect(p.told).toEqual([]);
+    const q = boot({ savedId: 'RL-7' });
+    q.fill({ ...FULL, Start: '10:00', End: '09:59' });
+    await q.manager.save();
+    expect(q.told).toEqual(['The end time must be after the start time.']);
+  });
+
+  it('times a browser gives with seconds are compared by the minute, and a time that is not one is not judged (it is sent as the agent gave it)', async () => {
+    const p = boot({ savedId: 'RL-7' });
+    p.fill({ ...FULL, Start: '14:00:30', End: '14:00:45' });
+    await p.manager.save();
+    expect(p.told).toEqual(['The end time must be after the start time.']);
+    // a browser without time boxes gives the text that was typed; a time that is not one is sent as it was given, and one that is not judged cannot make the other refused
+    for (const [start, end, shown] of [['noon', '1pm', 'noon - 1pm'], ['noon', '00:00', 'noon - 12:00 AM'], ['23:00', 'late', '11:00 PM - late']]) {
+      const q = boot({ savedId: 'RL-7' });
+      q.field('Start').type = 'text'; q.field('End').type = 'text';
+      q.fill({ ...FULL, Start: start, End: end });
+      await q.manager.save();
+      expect(q.told).toEqual([]);
+      expect(JSON.parse(q.calls[0].body).time).toBe(shown);
+    }
+  });
+
+  it('is judged after the date and the times are asked for, and before the listing and the page are asked about', async () => {
+    const p = boot({ blocked: () => 'Open houses cannot be scheduled now.' });
+    p.fill({ ...FULL, Start: '15:00', End: '14:00' });
+    await p.manager.save();
+    expect(p.told).toEqual(['The end time must be after the start time.']);
+    const q = boot({});
+    q.fill({ ...FULL, End: '' });
+    await q.manager.save();
+    expect(q.told).toEqual(['Please fill in Date, Start Time, and End Time.']);
+  });
+});

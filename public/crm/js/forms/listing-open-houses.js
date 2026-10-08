@@ -39,6 +39,12 @@
     return h12 + ':' + minutes + ' ' + ampm;
   }
 
+  // "14:00" -> 840, the minutes since midnight (seconds are not counted, as time12h does not print them); null for what is not a time of day, which is sent as the agent gave it and not judged
+  function minutesOfDay(t) {
+    var m = String(t || '').trim().match(/^(\d{1,2}):(\d{2})/);
+    return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : null;
+  }
+
   // The form's type -> the showing's type and whether the event is public. Public, Virtual and By Appointment are public events (By Appointment is a public open house that needs an RSVP);
   // only Broker Only stays internal. A type nobody knows is internal: it is never put on a public page by mistake.
   function showingType(formType) {
@@ -125,6 +131,9 @@
       var type = value('NewOHType') || 'Public';
       var notes = value('NewOHNotes');
       if (!date || !start || !end) { tell('Please fill in Date, Start Time, and End Time.'); return Promise.resolve(null); }
+      // the public feed prints "start - end": an open house that ends when it begins, or before, is not one (it would be shown as "2:00 PM - 1:00 PM")
+      var from = minutesOfDay(start), to = minutesOfDay(end);
+      if (from !== null && to !== null && to <= from) { tell('The end time must be after the start time.'); return Promise.resolve(null); }
       var reason = blocked();
       if (reason) { tell(reason); return Promise.resolve(null); }
       var id = savedId();

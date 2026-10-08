@@ -1001,3 +1001,264 @@ describe('a page without a toast, a confirmation, a network or a way to preview 
     expect(w.MallanListingMedia.webAddress(undefined)).toBe('');
   });
 });
+
+// ── What an adversarial read of this module found it still got wrong (RP-11) ──────────────────────────────────────────────────────────────────────
+// Redrawing the saved tiles wiped the previews of files that were chosen and not saved (they stayed queued, and the agent could no longer see them); a file added while an upload was out was
+// told "uploading…", then "already in progress", and sent by nobody; Save Media on a saved listing sent each file with its place among the files chosen, which collides with the photos
+// the listing has, and showed no saved tile for what it had sent; Save Media pressed while an upload was out said "Uploading…" and then "0 uploaded" as a success; and a floor plan was
+// called a "floorplan(s)", a "photo(s)", and offered ◀/▶ it does not have.
+
+describe('the unsaved previews', () => {
+  const kinds = (p: ReturnType<typeof boot>, box: HTMLElement) => p.tiles(box).map((t) => t.getAttribute('data-media-key') ?? 'preview:' + t.getAttribute('data-media-index'));
+
+  it('stay when the saved tiles are drawn again, after the saved ones, and are counted with them', async () => {
+    const p = boot({ answers: listAnswer([row('k1')]) });
+    p.media.addFiles([p.file('a.jpg', 1), p.file('b.jpg', 2)], 'photo');                      // a new listing: the files wait
+    p.media.addFiles([p.file('plan.png', 3, 'image/png')], 'floorplan');
+    await p.media.render('RL-7');
+    expect(kinds(p, p.photos())).toEqual(['k1', 'preview:0', 'preview:1']);
+    expect(kinds(p, p.floors())).toEqual(['preview:2']);
+    expect(p.count()).toBe('3 / 100 uploaded');                                                // the saved photo and the two waiting
+    expect(p.media.hasPending()).toBe(true);
+  });
+
+  it('are counted with the saved photos when a file is chosen after they were drawn, and when one is removed', async () => {
+    const p = boot({ answers: listAnswer([row('k1'), row('k2')]) });
+    await p.media.render('RL-7');
+    p.media.addFiles([p.file('a.jpg', 1)], 'photo');
+    expect(p.count()).toBe('3 / 100 uploaded');
+    ([...p.tiles(p.photos())[2].querySelectorAll('button')].find((b) => b.textContent === '×') as HTMLElement).click();
+    expect(p.count()).toBe('2 / 100 uploaded');
+  });
+
+  it('of a file that was saved are replaced by its saved tile, not shown twice', async () => {
+    const p = boot({ answers: listAnswer([row('k1'), row('k2')]) });
+    p.media.addFiles([p.file('a.jpg', 1)], 'photo');
+    await p.media.uploadPending('RL-7');
+    await p.media.render('RL-7');
+    expect(kinds(p, p.photos())).toEqual(['k1', 'k2']);
+    expect(p.count()).toBe('2 / 100 uploaded');
+  });
+
+  it('of a file whose upload failed stay, so that the agent can send it again', async () => {
+    const p = boot({ answers: (c) => (c.method === 'POST' ? { ok: false, status: 500 } : { ok: true, status: 200, body: { listing_id: 'RL-7', media: [row('k1')] } }) });
+    p.media.addFiles([p.file('a.jpg', 1)], 'photo');
+    await p.media.uploadPending('RL-7');
+    await p.media.render('RL-7');
+    expect(kinds(p, p.photos())).toEqual(['k1', 'preview:0']);
+    expect(p.media.hasPending()).toBe(true);
+  });
+
+  it('of a PDF the upload dropped are gone after a redraw', async () => {
+    const p = boot({ answers: listAnswer([]) });
+    p.media.addFiles([p.file('plan.pdf', 5, 'application/pdf')], 'floorplan');
+    await p.media.uploadPending('RL-7');
+    await p.media.render('RL-7');
+    expect(p.tiles(p.floors())).toHaveLength(0);
+  });
+
+  it('stay when the saved tiles cannot be loaded', async () => {
+    const p = boot({ answers: () => ({ ok: false, status: 500 }) });
+    p.media.addFiles([p.file('a.jpg', 1)], 'photo');
+    await p.media.render('RL-7');
+    expect(kinds(p, p.photos())).toEqual(['preview:0']);
+  });
+
+  it('of files forgotten with another record go with them, and so do the last record\'s saved tiles (they act on its photos) and its count', async () => {
+    const p = boot({ answers: listAnswer([row('k1'), row('k2'), row('f1', { media_type: 'FloorPlan' })]) });
+    await p.media.render('RL-7');
+    p.media.addFiles([p.file('a.jpg', 1)], 'photo');
+    p.media.addFiles([p.file('plan.png', 2, 'image/png')], 'floorplan');
+    expect(p.tiles(p.photos())).toHaveLength(3);
+    expect(p.tiles(p.floors())).toHaveLength(2);
+    expect(p.count()).toBe('3 / 100 uploaded');
+    p.media.reset();
+    expect(p.tiles(p.photos())).toHaveLength(0);
+    expect(p.tiles(p.floors())).toHaveLength(0);
+    expect(p.count()).toBe('0 / 100 uploaded');
+  });
+
+  it('a reset on a page without the preview boxes does not fail', () => {
+    const p = boot();
+    p.media.addFiles([p.file('a.jpg', 1)], 'photo');
+    p.photos().remove(); p.floors().remove();
+    expect(() => p.media.reset()).not.toThrow();
+    expect(p.media.hasPending()).toBe(false);
+  });
+
+  it('a reset on a page with only one of the boxes empties that one', () => {
+    const p = boot();
+    p.media.addFiles([p.file('a.jpg', 1)], 'photo');
+    p.floors().remove();
+    p.media.reset();
+    expect(p.tiles(p.photos())).toHaveLength(0);
+  });
+});
+
+describe('files chosen while an upload is out, and Save Media', () => {
+  /** A manager of the saved listing RL-7 whose uploads wait until `release()`. */
+  const slow = (p: ReturnType<typeof boot>) => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((r) => { release = r; });
+    const media = p.w.MallanListingMedia.create({
+      prefix: 'rental', listingId: () => 'RL-7', toast: (m: string, t?: string) => p.toasts.push([m, t]), createObjectURL: (f: any) => 'blob:' + f.name, confirm: () => true,
+      fetch: (url: string, init: any = {}) => {
+        p.calls.push({ url, method: init.method ?? 'GET', body: init.body, credentials: init.credentials });
+        if ((init.method ?? 'GET') === 'POST') return gate.then(() => ({ ok: true, status: 200, json: () => Promise.resolve({ photo: { url: 'u' } }) }));
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ listing_id: 'RL-7', media: [] }) });
+      },
+    });
+    return { media, release };
+  };
+  const sent = (p: ReturnType<typeof boot>) => p.calls.filter((c) => c.method === 'POST').map((c) => c.body.get('file').name);
+
+  it('are sent when it is done, and say so, instead of waiting unseen after "already in progress"', async () => {
+    const p = boot();
+    const { media, release } = slow(p);
+    media.addFiles([p.file('a.jpg', 1)], 'photo');                                             // sending (held)
+    media.addFiles([p.file('b.jpg', 2)], 'photo');                                             // chosen while it is out
+    expect(p.said()).toContain('1 photo(s) added — uploading…');
+    expect(p.said()).toContain('1 photo(s) added — uploading as soon as the current upload is done…');
+    expect(p.said().filter((m) => /already in progress/.test(m))).toEqual([]);
+    expect(p.tiles(p.photos())).toHaveLength(2);                                               // both are shown while they wait
+    release();
+    await p.flush(); await p.flush(); await p.flush();
+    expect(sent(p)).toEqual(['a.jpg', 'b.jpg']);
+    expect(media.hasPending()).toBe(false);
+    expect(p.said().filter((m) => /photo\(s\) uploaded/.test(m))).toHaveLength(2);
+    expect(p.tiles(p.photos())).toHaveLength(0);                                               // saved: the redraw shows the listing's own tiles (none in this fake answer)
+  });
+
+  it('three batches chosen during one upload are each sent once, in the order chosen, by one upload that follows it, and the listing is drawn and told once for them', async () => {
+    const p = boot();
+    const { media, release } = slow(p);
+    media.addFiles([p.file('a.jpg', 1)], 'photo');
+    media.addFiles([p.file('b.jpg', 2)], 'photo');
+    media.addFiles([p.file('c.jpg', 3)], 'photo');
+    release();
+    for (let i = 0; i < 6; i++) await p.flush();
+    expect(sent(p)).toEqual(['a.jpg', 'b.jpg', 'c.jpg']);
+    expect(media.hasPending()).toBe(false);
+    expect(p.said().filter((m) => /already in progress/.test(m))).toEqual([]);
+    expect(p.calls.filter((c) => c.method === 'GET')).toHaveLength(2);                         // drawn after the first upload, and after the one that sent the other two
+    expect(p.said().filter((m) => /photo\(s\) uploaded/.test(m))).toEqual(['1 photo(s) uploaded — drag or use ◀/▶ to reorder.', '2 photo(s) uploaded — drag or use ◀/▶ to reorder.']);
+    media.addFiles([p.file('d.jpg', 4)], 'photo');                                             // and a batch chosen later is sent too (the queue is not left occupied)
+    for (let i = 0; i < 3; i++) await p.flush();
+    expect(sent(p)).toEqual(['a.jpg', 'b.jpg', 'c.jpg', 'd.jpg']);
+  });
+
+  it('a queued upload of photos and a floor plan together says files; of floor plans alone, floor plans', async () => {
+    const p = boot();
+    const { media, release } = slow(p);
+    media.addFiles([p.file('a.jpg', 1)], 'photo');                                             // sending (held)
+    media.addFiles([p.file('b.jpg', 2)], 'photo');
+    media.addFiles([p.file('plan.png', 3, 'image/png')], 'floorplan');
+    release();
+    for (let i = 0; i < 6; i++) await p.flush();
+    expect(p.said().filter((m) => /uploaded/.test(m))).toEqual(['1 photo(s) uploaded — drag or use ◀/▶ to reorder.', '2 file(s) uploaded.']);
+    const q = boot();
+    const second = slow(q);
+    second.media.addFiles([q.file('a.jpg', 1)], 'photo');
+    second.media.addFiles([q.file('p1.png', 2, 'image/png')], 'floorplan');
+    second.media.addFiles([q.file('p2.png', 3, 'image/png')], 'floorplan');
+    second.release();
+    for (let i = 0; i < 6; i++) await q.flush();
+    expect(q.said().filter((m) => /uploaded/.test(m))).toEqual(['1 photo(s) uploaded — drag or use ◀/▶ to reorder.', '2 floor plan(s) uploaded.']);
+  });
+
+  it('files chosen after an upload is done are uploaded at once: they are not told to wait for an upload that is over', async () => {
+    const p = boot({ savedId: 'RL-7', answers: listAnswer([]) });
+    p.media.addFiles([p.file('a.jpg', 1)], 'photo');
+    await p.flush(); await p.flush();
+    p.media.addFiles([p.file('b.jpg', 2)], 'photo');
+    await p.flush(); await p.flush();
+    expect(p.said().filter((m) => /added — uploading…/.test(m))).toHaveLength(2);
+    expect(p.said().filter((m) => /as soon as/.test(m))).toEqual([]);
+    expect(p.calls.filter((c) => c.method === 'POST').map((c) => c.body.get('file').name)).toEqual(['a.jpg', 'b.jpg']);
+  });
+
+  it('an upload that fails outright is told, and the files chosen while it was out are still sent (with the one that failed)', async () => {
+    const p = boot();
+    let first = true;
+    const media = p.w.MallanListingMedia.create({
+      prefix: 'rental', listingId: () => 'RL-7', toast: (m: string, t?: string) => p.toasts.push([m, t]), createObjectURL: (f: any) => 'blob:' + f.name, confirm: () => true,
+      fetch: (url: string, init: any = {}) => {
+        if ((init.method ?? 'GET') === 'POST' && first) { first = false; throw new Error('no network layer'); }        // a request that cannot even be made
+        p.calls.push({ url, method: init.method ?? 'GET', body: init.body, credentials: init.credentials });
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve((init.method ?? 'GET') === 'GET' ? { listing_id: 'RL-7', media: [] } : {}) });
+      },
+    });
+    media.addFiles([p.file('a.jpg', 1)], 'photo');
+    media.addFiles([p.file('b.jpg', 2)], 'photo');
+    for (let i = 0; i < 6; i++) await p.flush();
+    expect(p.said()).toContain('Upload failed: no network layer');
+    expect(sent(p)).toEqual(['a.jpg', 'b.jpg']);
+    expect(media.hasPending()).toBe(false);
+  });
+
+  it('Save Media on a saved listing adds after the photos it has: no order is sent, and the files go in the order they were arranged in', async () => {
+    const p = boot({ savedId: 'RL-7', canUpload: () => false, answers: listAnswer([]) });
+    p.media.addFiles([p.file('a.jpg', 1), p.file('b.jpg', 2), p.file('c.jpg', 3)], 'photo');
+    ([...p.tiles(p.photos())[2].querySelectorAll('button')].find((b) => b.textContent === '◀') as HTMLElement).click();          // a, c, b
+    await p.media.saveMedia();
+    const posts = p.calls.filter((c) => c.method === 'POST');
+    expect(posts.map((c) => c.body.get('file').name)).toEqual(['a.jpg', 'c.jpg', 'b.jpg']);
+    expect(posts.map((c) => c.body.has('order'))).toEqual([false, false, false]);
+  });
+
+  it('a new listing still sends each file with the place it was arranged in', async () => {
+    const p = boot();
+    p.media.addFiles([p.file('a.jpg', 1), p.file('b.jpg', 2)], 'photo');
+    await p.media.uploadPending('RL-7');
+    expect(p.calls.filter((c) => c.method === 'POST').map((c) => [c.body.get('file').name, c.body.get('order')])).toEqual([['a.jpg', '0'], ['b.jpg', '1']]);
+  });
+
+  it('Save Media shows the listing\'s own tiles for what it sent, in place of the previews, and tells the page how it went', async () => {
+    const p = boot({ savedId: 'RL-7', canUpload: () => false, answers: listAnswer([row('k1'), row('k2')]) });
+    p.media.addFiles([p.file('a.jpg', 1), p.file('b.jpg', 2)], 'photo');
+    expect(await p.media.saveMedia()).toEqual({ uploaded: 2, failed: 0 });
+    expect(p.tiles(p.photos()).map((t) => t.getAttribute('data-media-key'))).toEqual(['k1', 'k2']);
+    expect(p.count()).toBe('2 / 100 uploaded');
+  });
+
+  it('Save Media draws the listing again only when it saved something: when every file failed it shows their previews as they were', async () => {
+    const p = boot({ savedId: 'RL-7', canUpload: () => false, answers: (c) => (c.method === 'POST' ? { ok: false, status: 500 } : { ok: true, status: 200, body: { listing_id: 'RL-7', media: [] } }) });
+    p.media.addFiles([p.file('a.jpg', 1)], 'photo');
+    expect(await p.media.saveMedia()).toEqual({ uploaded: 0, failed: 1 });
+    expect(p.tiles(p.photos())).toHaveLength(1);
+    expect(p.media.hasPending()).toBe(true);
+    expect(p.toasts.at(-1)).toEqual(['0 uploaded, 1 failed', 'warning']);
+    expect(p.calls.filter((c) => c.method === 'GET')).toEqual([]);
+  });
+
+  it('Save Media while an upload is out says only that it is in progress: not "Uploading…", not "0 uploaded"', async () => {
+    const p = boot();
+    const { media, release } = slow(p);
+    media.addFiles([p.file('a.jpg', 1)], 'photo');                                             // sending (held)
+    p.toasts.length = 0;
+    expect(await media.saveMedia()).toEqual({ uploaded: 0, failed: 0, busy: true });
+    expect(p.said()).toEqual(['Media upload already in progress — please wait.']);
+    release();
+    await p.flush(); await p.flush();
+    expect(sent(p)).toEqual(['a.jpg']);
+  });
+});
+
+describe('what is said about a floor plan', () => {
+  it('on a saved listing it is a floor plan(s), not a floorplan(s) or a photo(s), and it is not offered ◀/▶', async () => {
+    const p = boot({ savedId: 'RL-7', answers: listAnswer([row('f1', { media_type: 'FloorPlan' })]) });
+    p.media.addFiles([p.file('plan.png', 1, 'image/png')], 'floorplan');
+    expect(p.said()).toContain('1 floor plan(s) added — uploading…');
+    await p.flush(); await p.flush();
+    expect(p.said()).toContain('1 floor plan(s) uploaded.');
+    expect(p.said().filter((m) => /photo\(s\) uploaded|reorder|floorplan/.test(m))).toEqual([]);
+    expect(p.tiles(p.floors()).map((t) => t.getAttribute('data-media-key'))).toEqual(['f1']);
+  });
+
+  it('on a new listing it is kept until the listing is saved, and is not told to be reordered', () => {
+    const p = boot();
+    p.media.addFiles([p.file('plan.png', 1, 'image/png')], 'floorplan');
+    expect(p.said()).toContain('1 floor plan(s) added. Save the listing to upload.');
+    expect(p.said().filter((m) => /reorder|floorplan/.test(m))).toEqual([]);
+  });
+});

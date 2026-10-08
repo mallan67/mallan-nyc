@@ -56,14 +56,19 @@
     var previewUrl = options.createObjectURL || function (file) { return global.URL.createObjectURL(file); };
     var pending = [];                    // the files chosen and not saved yet: { file, type, order, uploaded, _removed }
     var uploading = false;
+    var inFlight = null;                 // the upload that is sending now (a promise): files chosen meanwhile are sent when it is done
+    var queued = null;                   // the upload that waits for it (one, for all the files chosen meanwhile)
+    var savedPhotos = 0;                 // the photos the listing has saved, as the last redraw saw them
 
     function control(suffix) { return global.document.getElementById(prefix + suffix); }
     function mediaUrl(id, tail) { return '/api/crm/listings/' + encodeURIComponent(id) + '/media' + (tail || ''); }
     function errorText(err) { return (err && err.message) || 'network error'; }
 
+    // the photos the listing has and the ones still waiting to be saved (a file that has been saved is among the first: the redraw counted it)
     function countPhotos() {
       var count = control('PhotoCount');
-      if (count) count.textContent = pending.filter(function (m) { return m.type === 'photo' && !m._removed; }).length + ' / ' + MAX_PHOTOS + ' uploaded';
+      var waiting = pending.filter(function (m) { return m.type === 'photo' && !m._removed && !m.uploaded; }).length;
+      if (count) count.textContent = (savedPhotos + waiting) + ' / ' + MAX_PHOTOS + ' uploaded';
     }
 
     // ── files the agent has chosen ──
@@ -86,16 +91,34 @@
       countPhotos();
       // A listing that is already saved takes the files at once, so they are tiles that can be moved and made the cover straight away; a new one keeps them until it is saved.
       var id = savedId();
+      var plans = mediaType === 'floorplan';
+      var kind = plans ? 'floor plan' : 'photo';
       if (id && (!options.canUpload || options.canUpload())) {
-        toast(files.length + ' ' + mediaType + '(s) added — uploading…', 'info');
-        uploadPending(id, { appendAfterExisting: true }).then(function (result) {
-          render(id);
-          if (result && result.uploaded > 0) toast(result.uploaded + ' photo(s) uploaded — drag or use ◀/▶ to reorder.', 'success');
-          if (result && result.failed > 0) toast(result.failed + ' upload(s) failed.', 'warning');
-        }).catch(function (err) { toast('Upload failed: ' + errorText(err), 'error'); });
+        toast(files.length + ' ' + kind + '(s) added — uploading' + (inFlight ? ' as soon as the current upload is done' : '') + '…', 'info');
+        uploadSoon(id);
       } else {
-        toast(files.length + ' ' + mediaType + '(s) added. Save the listing to upload, then drag or use ◀/▶ to reorder.', 'success');
+        toast(files.length + ' ' + kind + '(s) added. Save the listing to upload' + (plans ? '.' : ', then drag or use ◀/▶ to reorder.'), 'success');
       }
+    }
+
+    // Sends the files that are waiting to the saved listing: at once, or when the upload that is out is done. The files chosen meanwhile ride on the ONE upload that follows it (it takes
+    // what is waiting when it begins), so none is left where nobody sends it, and the listing is redrawn and told once for them.
+    function uploadSoon(id) {
+      if (queued) return;
+      var start = function () {
+        queued = null;
+        var batch = pending.filter(function (m) { return !m.uploaded && !m._removed; });
+        var plans = batch.filter(function (m) { return m.type === 'floorplan'; }).length;
+        // what the files are called: floor plans, photos (which can be reordered), or both
+        var uploadedText = plans === batch.length ? ' floor plan(s) uploaded.' : plans === 0 ? ' photo(s) uploaded — drag or use ◀/▶ to reorder.' : ' file(s) uploaded.';
+        return uploadPending(id, { appendAfterExisting: true }).then(function (result) {
+          render(id);
+          if (result.uploaded > 0) toast(result.uploaded + uploadedText, 'success');
+          if (result.failed > 0) toast(result.failed + ' upload(s) failed.', 'warning');
+        }).catch(function (err) { toast('Upload failed: ' + errorText(err), 'error'); });
+      };
+      if (inFlight) queued = inFlight.then(start, start);      // (an upload that failed outright is told by whoever began it; it does not stop the files that follow)
+      else start();
     }
 
     // The preview tile of a file chosen and not saved yet. Its buttons act on this file and this tile, whatever else is chosen in the same batch.
@@ -154,7 +177,10 @@
       uploading = true;
       var uploaded = 0, failed = 0;
       var chain = Promise.resolve();
-      waiting.forEach(function (entry) {
+      // Files added to a saved listing go where the route puts them (after the photos it has, in the order they arrive), so they are sent in the order the agent arranged them in; a new
+      // listing sends the place of each file with it, and the sequence of its requests does not matter.
+      var sequence = (opts && opts.appendAfterExisting) ? waiting.slice().sort(function (a, b) { return a.order - b.order; }) : waiting;
+      sequence.forEach(function (entry) {
         chain = chain.then(function () {
           if (isPdf(entry.file)) {                             // the upload route takes images only
             toast('Skipping PDF "' + entry.file.name + '" — upload as JPG/PNG image instead.', 'warning');
@@ -179,7 +205,9 @@
           }).catch(function (err) { toast('Upload failed for ' + entry.file.name + ': ' + errorText(err), 'error'); failed++; });
         });
       });
-      return chain.then(function () { uploading = false; return { uploaded: uploaded, failed: failed }; }, function (err) { uploading = false; throw err; });
+      var done = function () { uploading = false; inFlight = null; };
+      inFlight = chain.then(function () { done(); return { uploaded: uploaded, failed: failed }; }, function (err) { done(); throw err; });
+      return inFlight;
     }
 
     function saveMedia() {
@@ -187,10 +215,14 @@
       if (!id) { toast(options.unsavedMessage || 'Save the listing first before uploading media.', 'warning'); return Promise.resolve(null); }
       var waiting = pending.filter(function (m) { return !m.uploaded && !m._removed; });
       if (waiting.length === 0) { toast('No new media to upload.', 'info'); return Promise.resolve(null); }
+      // an upload is out: it is not started again, and the agent is not told "Uploading…" and then "0 uploaded"
+      if (uploading) { toast('Media upload already in progress — please wait.', 'info'); return Promise.resolve({ uploaded: 0, failed: 0, busy: true }); }
       toast('Uploading ' + waiting.length + ' file(s)...', 'info');
-      return uploadPending(id).then(function (result) {
+      // the listing is saved, so the files go after the photos it has (their own places were counted among the files chosen, not among the listing's photos)
+      return uploadPending(id, { appendAfterExisting: true }).then(function (result) {
         toast(result.uploaded + ' uploaded' + (result.failed > 0 ? ', ' + result.failed + ' failed' : ''), result.failed > 0 ? 'warning' : 'success');
-        return result;
+        // what was saved is the listing's own tile now: shown in place of its preview
+        return (result.uploaded > 0 ? render(id) : Promise.resolve()).then(function () { return result; });
       });
     }
 
@@ -215,6 +247,16 @@
         if (!found.ok) { toast('Media manager could not load — showing the saved preview. Reload to retry.', 'warning'); return; }
         // The tiles act on the listing's own id as the server answers it: the order route knows no other, and a numeric id would not find it.
         var actionId = String((found.body && found.body.listing_id) || id || '');
+        // The saved tiles are drawn again. The previews of files that are still waiting to be saved stay, after them: those files are still queued, and the agent must be able to see (and remove)
+        // what will be sent. A file that was saved is its saved tile now, and one the upload dropped (a PDF) is gone.
+        var waitingTiles = function (box) {
+          if (!box) return [];
+          return Array.prototype.slice.call(box.children).filter(function (tile) {
+            var entry = pending[parseInt(tile.getAttribute('data-media-index'), 10)];       // a saved tile has no index: NaN finds no file
+            return !!entry && !entry.uploaded && !entry._removed;
+          });
+        };
+        var keepPhotos = waitingTiles(photos), keepPlans = waitingTiles(floors);
         if (photos) photos.innerHTML = '';
         if (floors) floors.innerHTML = '';
         // an entry that is not a record, or has no key (a text or a number: it could not be moved or removed), shows nothing
@@ -223,8 +265,10 @@
         var plans = rows.filter(function (m) { return m.media_type === 'FloorPlan'; });
         pictures.forEach(function (m, index) { renderTile(photos, m, index, actionId); });
         plans.forEach(function (m, index) { renderTile(floors, m, index, actionId); });
-        var count = control('PhotoCount');
-        if (count) count.textContent = pictures.length + ' / ' + MAX_PHOTOS + ' uploaded';
+        keepPhotos.forEach(function (tile) { photos.appendChild(tile); });
+        keepPlans.forEach(function (tile) { floors.appendChild(tile); });
+        savedPhotos = pictures.length;
+        countPhotos();
       });
     }
 
@@ -329,8 +373,15 @@
       });
     }
 
+    // Another record is in the form: the files chosen for the last one are forgotten, previews and all, and so are its saved tiles (they act on the last listing's photos: they must not be
+    // left to move or remove them, nor to stay if the next record's photos cannot be loaded). The next render draws the tiles of the record in the form.
     function reset() {
       pending = [];
+      savedPhotos = 0;
+      ['PhotoPreview', 'FloorplanPreview'].forEach(function (suffix) {
+        var box = control(suffix);
+        if (box) box.innerHTML = '';
+      });
       countPhotos();
     }
 
