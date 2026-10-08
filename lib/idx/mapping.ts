@@ -132,6 +132,8 @@ export const RESO_FIELDS = {
   PhotosCount: 'PhotosCount',
   VirtualTourURLBranded: 'VirtualTourURLBranded',
   VirtualTourURLUnbranded: 'VirtualTourURLUnbranded',
+  VirtualTourURLUnbranded2: 'VirtualTourURLUnbranded2',
+  VirtualTourURLUnbranded3: 'VirtualTourURLUnbranded3',
 
   // Remarks
   PublicRemarks: 'PublicRemarks',
@@ -229,6 +231,8 @@ export const FIELD_MAP: Record<string, string> = {
   [RESO_FIELDS.PhotosCount]: 'photosCount',
   [RESO_FIELDS.VirtualTourURLBranded]: 'virtualTourURLBranded',
   [RESO_FIELDS.VirtualTourURLUnbranded]: 'virtualTourURLUnbranded',
+  [RESO_FIELDS.VirtualTourURLUnbranded2]: 'virtualTourURLUnbranded2',
+  [RESO_FIELDS.VirtualTourURLUnbranded3]: 'virtualTourURLUnbranded3',
   [RESO_FIELDS.PublicRemarks]: 'publicRemarks',
   // idxEntireListingDisplayYN and participantOnlyYN are legacy DTO field names
   // — IDXEntireListingDisplayYN and ParticipantOnlyYN do NOT exist on live
@@ -418,6 +422,8 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     photosCount: raw.PhotosCount != null ? Number(raw.PhotosCount) : undefined,
     virtualTourURLBranded: raw.VirtualTourURLBranded ? String(raw.VirtualTourURLBranded) : undefined,
     virtualTourURLUnbranded: raw.VirtualTourURLUnbranded ? String(raw.VirtualTourURLUnbranded) : undefined,
+    virtualTourURLUnbranded2: raw.VirtualTourURLUnbranded2 ? String(raw.VirtualTourURLUnbranded2) : undefined,
+    virtualTourURLUnbranded3: raw.VirtualTourURLUnbranded3 ? String(raw.VirtualTourURLUnbranded3) : undefined,
     // Rental-specific
     leaseAmount: raw.LeaseAmount != null ? Number(raw.LeaseAmount) : undefined,
     leaseAmountFrequency: raw.LeaseAmountFrequency ? String(raw.LeaseAmountFrequency) : undefined,

@@ -463,7 +463,7 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
     media: resolvedMedia,
     photosCount: resolvedPhotoCount,
     // Host-split video vs 3D, unbranded-preferred (UCBA §5(C)).
-    ...tourUrlsForDto([listing.virtualTourURLUnbranded], listing.virtualTourURLBranded),
+    ...tourUrlsForDto([listing.virtualTourURLUnbranded, listing.virtualTourURLUnbranded2, listing.virtualTourURLUnbranded3], listing.virtualTourURLBranded),
     // Public remarks only — private remarks are NEVER on IDXListing
     publicRemarks: listing.publicRemarks,
     // Dates

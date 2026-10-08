@@ -42,7 +42,7 @@ export const CARD_SELECT_FIELDS = [
   // Agent/Office
   "ListAgentFullName", "ListOfficeName",
   // Media — PhotosChangeTimestamp is high-level trigger for media changes (Trestle guidance 2026-04-07)
-  "PhotosCount", "PhotosChangeTimestamp", "VirtualTourURLBranded", "VirtualTourURLUnbranded",
+  "PhotosCount", "PhotosChangeTimestamp", "VirtualTourURLBranded", "VirtualTourURLUnbranded", "VirtualTourURLUnbranded2", "VirtualTourURLUnbranded3",
   // Remarks
   "PublicRemarks",
   // Display gates

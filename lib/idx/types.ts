@@ -163,6 +163,8 @@ export interface IDXListing {
   photosCount?: number;
   virtualTourURLBranded?: string;
   virtualTourURLUnbranded?: string;
+  virtualTourURLUnbranded2?: string;
+  virtualTourURLUnbranded3?: string;
 
   // Remarks
   publicRemarks?: string;

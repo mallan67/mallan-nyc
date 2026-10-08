@@ -66,7 +66,7 @@ export const SEARCH_SELECT_FIELDS = [
   "CoListAgentMlsId", "CoListAgentFullName", "CoListAgent2MlsId", "CoListAgent2FullName", "CoListAgent3MlsId", "CoListAgent3FullName",
   "CoListOfficeMlsId", "CoListOfficeName", "CoListOffice2MlsId", "CoListOffice2Name",
   // Media (Media array needs $expand, not $select — use PhotosCount for now)
-  "PhotosCount", "VirtualTourURLBranded", "VirtualTourURLUnbranded",
+  "PhotosCount", "VirtualTourURLBranded", "VirtualTourURLUnbranded", "VirtualTourURLUnbranded2", "VirtualTourURLUnbranded3",
   // Remarks
   "PublicRemarks",
   // Display flags (read by checkDistributionGates below — the provider cannot gate for Mallan, Master §0.4)
