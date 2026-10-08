@@ -8,8 +8,10 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { JSDOM } from 'jsdom';
 import { bootViewer, rendered, sleep, until, type Booted, type ViewerFile } from './tools-viewer-harness';
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { JSDOM } = require('jsdom');
 
 jest.setTimeout(120000);
 /* eslint-disable @typescript-eslint/no-explicit-any */
