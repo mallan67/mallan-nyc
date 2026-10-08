@@ -807,3 +807,65 @@ describe('the end of an open house', () => {
     expect(q.told).toEqual(['Please fill in Date, Start Time, and End Time.']);
   });
 });
+
+// ── Times typed in a text box (RP-11b) ───────────────────────────────────────────────────────────────────────────────────────────────────────────
+// A browser without time boxes gives the text that was typed. "1:00 PM" was read as 1:00 and printed "1:00 AM" (the suffix was dropped), and "11:00 AM" to "1:00 PM" was refused as ending before it began.
+// Only the 24-hour form a time box gives (14:00, with seconds 14:00:30, hours up to 23 and minutes up to 59) is read as a time; any other text is sent as it was typed and is not judged.
+
+describe('times typed in a text box', () => {
+  const typed = async (start: string, end: string) => {
+    const p = boot({ savedId: 'RL-7' });
+    p.field('Start').type = 'text'; p.field('End').type = 'text';
+    p.fill({ ...FULL, Start: start, End: end });
+    await p.manager.save();
+    return p;
+  };
+
+  it('a time with AM or PM is sent as it was typed and is not judged: 11:00 AM to 1:00 PM is an open house', async () => {
+    const p = await typed('11:00 AM', '1:00 PM');
+    expect(p.told).toEqual([]);
+    expect(JSON.parse(p.calls[0].body).time).toBe('11:00 AM - 1:00 PM');
+  });
+
+  it('a 12-hour end that looks earlier as a number is not refused: 9:00 PM to 10:00 AM is left to the agent', async () => {
+    const p = await typed('9:00 PM', '10:00 AM');
+    expect(p.told).toEqual([]);
+    expect(JSON.parse(p.calls[0].body).time).toBe('9:00 PM - 10:00 AM');
+  });
+
+  it('the 24-hour form is read, with seconds too, and an hour or a minute that cannot be one is not a time', async () => {
+    const ok = await typed('14:00:30', '16:30:00');
+    expect(ok.told).toEqual([]);
+    expect(JSON.parse(ok.calls[0].body).time).toBe('2:00 PM - 4:30 PM');
+    const late = await typed('24:00', '25:00');                                                         // not times: sent as typed, not judged
+    expect(late.told).toEqual([]);
+    expect(JSON.parse(late.calls[0].body).time).toBe('24:00 - 25:00');
+    const minutes = await typed('10:60', '10:59');
+    expect(minutes.told).toEqual([]);
+    expect(JSON.parse(minutes.calls[0].body).time).toBe('10:60 - 10:59 AM');                                // (10:59 is a time, 10:60 is not: the one is converted, the other left, and neither judged)
+  });
+
+  it('spaces around a time are not part of it', async () => {
+    const p = await typed(' 14:00 ', ' 16:30 ');
+    expect(p.told).toEqual([]);
+    expect(JSON.parse(p.calls[0].body).time).toBe('2:00 PM - 4:30 PM');
+  });
+
+  it('a 24-hour end that is not after the start is still refused in a text box', async () => {
+    const p = await typed('16:30', '14:00');
+    expect(p.told).toEqual(['The end time must be after the start time.']);
+    expect(p.calls).toEqual([]);
+  });
+});
+
+describe('the 12-hour text of a time', () => {
+  it.each([['23:59:59', '11:59 PM'], [' 9:30 ', '9:30 AM']])('%j is %s', (t, text) => {
+    const p = boot();
+    expect(p.w.MallanOpenHouses.time12h(t)).toBe(text);
+  });
+
+  it.each(['1:00 PM', '11:00 am', '25:00', '10:60', 'noon', ' noon ', '1pm', ':30', '14:0'])('%j is left as it was typed', (t) => {
+    const p = boot();
+    expect(p.w.MallanOpenHouses.time12h(t)).toBe(t);
+  });
+});

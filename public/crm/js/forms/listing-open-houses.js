@@ -28,21 +28,29 @@
   var EMPTY_TEXT = 'No open houses scheduled yet. Click "Add Open House" to create one.';
   var TYPE_BADGE = { Public: 'bg-green-100 text-green-700', BrokerOnly: 'bg-blue-100 text-blue-700', ByAppointment: 'bg-yellow-100 text-yellow-700', Virtual: 'bg-purple-100 text-purple-700' };
 
-  // "14:00" -> "2:00 PM": the time the public feed reads ("start - end")
+  // The 24-hour form a time box gives ("14:00", with seconds "14:00:30"), hours up to 23 and minutes up to 59: { h, m } or null. Any other text (a browser without time boxes gives what was typed:
+  // "1:00 PM", "noon") is not read as a time: "1:00 PM" read as 1:00 would be printed "1:00 AM", and "11:00 AM" to "1:00 PM" would be refused as ending before it began.
+  function clock(t) {
+    var m = String(t == null ? '' : t).trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    if (!m) return null;
+    var h = parseInt(m[1], 10), minutes = parseInt(m[2], 10);
+    return h <= 23 && minutes <= 59 ? { h: h, m: minutes, text: m[2] } : null;
+  }
+
+  // "14:00" -> "2:00 PM": the time the public feed reads ("start - end"); text that is not a time is left as it was typed
   function time12h(t) {
     if (!t) return '';
-    var m = String(t).match(/^(\d{1,2}):(\d{2})/);
-    if (!m) return t;
-    var h = parseInt(m[1], 10), minutes = m[2];
-    var ampm = h >= 12 ? 'PM' : 'AM';
-    var h12 = (h % 12 === 0) ? 12 : (h % 12);
-    return h12 + ':' + minutes + ' ' + ampm;
+    var c = clock(t);
+    if (!c) return t;
+    var ampm = c.h >= 12 ? 'PM' : 'AM';
+    var h12 = (c.h % 12 === 0) ? 12 : (c.h % 12);
+    return h12 + ':' + c.text + ' ' + ampm;
   }
 
   // "14:00" -> 840, the minutes since midnight (seconds are not counted, as time12h does not print them); null for what is not a time of day, which is sent as the agent gave it and not judged
   function minutesOfDay(t) {
-    var m = String(t || '').trim().match(/^(\d{1,2}):(\d{2})/);
-    return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : null;
+    var c = clock(t);
+    return c ? c.h * 60 + c.m : null;
   }
 
   // The form's type -> the showing's type and whether the event is public. Public, Virtual and By Appointment are public events (By Appointment is a public open house that needs an RSVP);

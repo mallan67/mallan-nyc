@@ -69,8 +69,8 @@ export function formatEasternTime(time: string | null | undefined): string {
 // One helper decides the consumer-facing PUBLIC open-house designation, so the API, the shared card
 // resolver, the /open-houses cards and the listing sidebar all agree. Appointment-only is detected
 // from the ACTUAL production data contract (verified live against Cotality 2026-07-16):
-//   - local sale-form showings persist a `[ByAppointment]` marker at the START of showing.notes
-//     (saveSaleOpenHouse in public/crm/SALE-FORM-REDESIGN.html);
+//   - local showings (the Sale and Rental forms) persist a `[ByAppointment]` marker at the START of showing.notes
+//     (public/crm/js/forms/listing-open-houses.js writes it);
 //   - Cotality OpenHouse rows are OpenHouseType='Public' WITH the boolean AppointmentRequiredYN=true
 //     (NOT OpenHouseType='Private'); OpenHouseRemarks free-text is a defensive fallback.
 // Broker/Office/Private events are excluded UPSTREAM (feed `OpenHouseType eq 'Public'` filter + the
@@ -372,8 +372,8 @@ async function fetchLocalUpcoming(): Promise<UpcomingEntry[]> {
         date: s.date.toISOString().split('T')[0],
         startTime: timeParts[0] || '',
         endTime: timeParts[1] || '',
-        // Sale-form By-Appointment events persist as type='openhouse' with a `[ByAppointment]` notes
-        // marker (saveSaleOpenHouse); resolve that marker to the public designation.
+        // By-Appointment events of the Sale and Rental forms persist as type='openhouse' with a `[ByAppointment]` notes
+        // marker (public/crm/js/forms/listing-open-houses.js); resolve that marker to the public designation.
         type: resolvePublicOpenHouseType({ notes: s.notes }),
         source: 'local',
       });

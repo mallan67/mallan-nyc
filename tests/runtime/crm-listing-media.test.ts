@@ -1262,3 +1262,206 @@ describe('what is said about a floor plan', () => {
     expect(p.said().filter((m) => /reorder|floorplan/.test(m))).toEqual([]);
   });
 });
+
+// ── What an independent read of RP-11 found (RP-11b) ──────────────────────────────────────────────────────────────────────────────────────────────
+// A file removed with × while its batch was sending was still sent (the loop never looked again); reset() left an upload that was waiting for its turn with the OLD listing's id and the NEW record's
+// files (a photo chosen for the next record went to the last listing), and the running upload and a redraw that was out finished over the new record's form; and two redraws that overlap could
+// finish in the wrong order, the older drawing over the newer.
+
+describe('a removal, a reset and a redraw while an upload is out', () => {
+  /** A manager of the listing that `current()` names, whose uploads wait until release(), and whose redraws wait until releaseGets() when `holdGets` is set. A redraw answers one saved photo, keyed after its listing. */
+  const held = (p: ReturnType<typeof boot>, current: () => string, holdGets = false, canUpload?: () => boolean) => {
+    let release: () => void = () => undefined;
+    let releaseGets: () => void = () => undefined;
+    const gate = new Promise<void>((r) => { release = r; });
+    const getGate = new Promise<void>((r) => { releaseGets = r; });
+    const media = p.w.MallanListingMedia.create({
+      prefix: 'rental', listingId: current, canUpload, toast: (m: string, t?: string) => p.toasts.push([m, t]), createObjectURL: (f: any) => 'blob:' + f.name, confirm: () => true,
+      fetch: (url: string, init: any = {}) => {
+        const method = init.method ?? 'GET';
+        p.calls.push({ url, method, body: init.body, credentials: init.credentials });
+        if (method === 'POST') return gate.then(() => ({ ok: true, status: 200, json: () => Promise.resolve({}) }));
+        const listing = url.split('/')[4];
+        const answer = () => ({ ok: true, status: 200, json: () => Promise.resolve({ listing_id: listing, media: [row('k-' + listing)] }) });
+        return holdGets ? getGate.then(answer) : Promise.resolve(answer());
+      },
+    });
+    return { media, release, releaseGets };
+  };
+  const posts = (p: ReturnType<typeof boot>) => p.calls.filter((c) => c.method === 'POST').map((c) => [c.url.split('/')[4], c.body.get('file').name]);
+  const gets = (p: ReturnType<typeof boot>) => p.calls.filter((c) => c.method === 'GET').map((c) => c.url.split('/')[4]);
+  const keysOf = (p: ReturnType<typeof boot>, box: HTMLElement) => p.tiles(box).map((t) => t.getAttribute('data-media-key') ?? 'preview:' + t.getAttribute('data-media-index'));
+  const remove = (tile: HTMLElement) => ([...tile.querySelectorAll('button')].find((b) => b.textContent === '×') as HTMLElement).click();
+
+  it('a file the agent removes while its batch is sending is not sent, is not counted as uploaded, and does not come back as a saved tile', async () => {
+    const p = boot();
+    const { media, release } = held(p, () => 'RL-7');
+    media.addFiles([p.file('p1.jpg', 1), p.file('p2.jpg', 2), p.file('p3.jpg', 3)], 'photo');          // p1 is sending (held), p2 and p3 wait their turn in the same batch
+    remove(p.tiles(p.photos())[2]);                                                                    // p3 is removed while p1 is out
+    release();
+    for (let i = 0; i < 6; i++) await p.flush();
+    expect(posts(p)).toEqual([['RL-7', 'p1.jpg'], ['RL-7', 'p2.jpg']]);
+    expect(media.hasPending()).toBe(false);
+    expect(p.said().filter((m) => /photo\(s\) uploaded/.test(m))).toEqual(['2 photo(s) uploaded — drag or use ◀/▶ to reorder.']);
+  });
+
+  it('a file removed before Save Media sends it is not sent either', async () => {
+    const p = boot({ savedId: 'RL-7', canUpload: () => false, answers: listAnswer([row('k1')]) });
+    p.media.addFiles([p.file('a.jpg', 1), p.file('b.jpg', 2)], 'photo');
+    const first = p.media.saveMedia();                                                                  // sending a (the fake network answers at once, one request after the other)
+    remove(p.tiles(p.photos())[1]);                                                                     // b is removed while a is out
+    const result = await first;
+    expect(p.calls.filter((c) => c.method === 'POST').map((c) => c.body.get('file').name)).toEqual(['a.jpg']);
+    expect(result).toEqual({ uploaded: 1, failed: 0 });
+  });
+
+  it('after reset() the files of the last record are not sent: not the rest of the batch that was sending, not the batch that was waiting', async () => {
+    const p = boot();
+    const { media, release } = held(p, () => 'RL-A');
+    media.addFiles([p.file('a1.jpg', 1), p.file('a2.jpg', 2), p.file('a3.jpg', 3)], 'photo');          // a1 is sending (held); a2 and a3 are the rest of its batch
+    media.addFiles([p.file('b.jpg', 4)], 'photo');                                                      // waits for its turn
+    await p.flush();                                                                                    // a1's request is out
+    media.reset();                                                                                      // another record is in the form: the files were forgotten
+    release();
+    for (let i = 0; i < 6; i++) await p.flush();
+    expect(posts(p)).toEqual([['RL-A', 'a1.jpg']]);                                                     // a1's request was already out: nothing else is sent to RL-A
+  });
+
+  it('a file chosen for the next record after reset() goes to the next record, and is sent when the upload that was out is done', async () => {
+    const p = boot();
+    let current = 'RL-A';
+    const { media, release } = held(p, () => current);
+    media.addFiles([p.file('a.jpg', 1)], 'photo');                                                      // sending (held), to RL-A
+    media.addFiles([p.file('b.jpg', 2)], 'photo');                                                      // waiting for its turn, for RL-A
+    await p.flush();                                                                                    // a's request is out
+    media.reset();
+    current = 'RL-B';
+    media.addFiles([p.file('x.jpg', 3)], 'photo');                                                      // chosen for RL-B
+    release();
+    for (let i = 0; i < 8; i++) await p.flush();
+    expect(posts(p)).toEqual([['RL-A', 'a.jpg'], ['RL-B', 'x.jpg']]);                                   // not RL-A twice
+    expect(gets(p)).toEqual(['RL-B']);                                                                  // and RL-A is not drawn over RL-B's form
+    expect(keysOf(p, p.photos())).toEqual(['k-RL-B']);
+    expect(media.hasPending()).toBe(false);
+  });
+
+  it('a redraw that was out when another record was loaded does not draw the last record\'s tiles', async () => {
+    const p = boot();
+    const { media, releaseGets } = held(p, () => 'RL-A', true);
+    const drawn = media.render('RL-A');
+    media.reset();
+    releaseGets();
+    await drawn;
+    await p.flush();
+    expect(p.tiles(p.photos())).toHaveLength(0);
+    expect(p.count()).toBe('0 / 100 uploaded');
+  });
+
+  it('the redraw that is asked for after reset() draws, though an older one is still out', async () => {
+    const p = boot();
+    const { media, releaseGets } = held(p, () => 'RL-B', true);
+    const old = media.render('RL-A');
+    media.reset();
+    const fresh = media.render('RL-B');
+    releaseGets();
+    await Promise.all([old, fresh]);
+    expect(keysOf(p, p.photos())).toEqual(['k-RL-B']);
+    expect(p.count()).toBe('1 / 100 uploaded');
+  });
+
+  it('two redraws that overlap: an older one that answers after the newer one does not draw over it; one that answers first is drawn and then replaced', async () => {
+    const answerFor = (key: string) => ({ ok: true, status: 200, json: () => Promise.resolve({ listing_id: 'RL-7', media: [row(key)] }) });
+    // the older redraw's request is held until `late()`; the newer one answers at once
+    const build = (holdOlder: boolean) => {
+      const p = boot();
+      let asked = 0;
+      let late: () => void = () => undefined;
+      const gate = new Promise<void>((r) => { late = r; });
+      const media = p.w.MallanListingMedia.create({
+        prefix: 'rental', listingId: () => 'RL-7', toast: () => undefined, createObjectURL: () => 'blob:x', confirm: () => true,
+        fetch: () => { asked++; return asked === 1 && holdOlder ? gate.then(() => answerFor('older')) : Promise.resolve(answerFor(asked === 1 ? 'older' : 'newer')); },
+      });
+      return { p, media, late };
+    };
+    const a = build(true);
+    const older = a.media.render('RL-7');
+    const newer = a.media.render('RL-7');
+    await newer;
+    expect(keysOf(a.p, a.p.photos())).toEqual(['newer']);
+    a.late();
+    await older;
+    await a.p.flush();
+    expect(keysOf(a.p, a.p.photos())).toEqual(['newer']);                                               // the older answer came late: it is not drawn
+    const b = build(false);
+    await Promise.all([b.media.render('RL-7'), b.media.render('RL-7')]);
+    expect(keysOf(b.p, b.p.photos())).toEqual(['newer']);                                               // answered in order: the last one drawn is the newest
+  });
+
+  it('Save Media whose upload finishes after reset() says nothing and draws nothing about the listing that was left', async () => {
+    const p = boot();
+    const { media, release } = held(p, () => 'RL-A', false, () => false);
+    media.addFiles([p.file('a.jpg', 1)], 'photo');                                                      // the client is not ready: the file waits
+    const saving = media.saveMedia();                                                                   // sends it to RL-A (held)
+    await p.flush();
+    p.toasts.length = 0;
+    media.reset();
+    release();
+    const result = await saving;
+    await p.flush();
+    expect(result).toEqual({ uploaded: 1, failed: 0 });                                                  // the request was out: it went to RL-A
+    expect(p.said()).toEqual([]);
+    expect(gets(p)).toEqual([]);
+  });
+
+  it('a newer redraw that failed does not stop an older one that answers later from drawing', async () => {
+    const p = boot();
+    let asked = 0;
+    let late: () => void = () => undefined;
+    const gate = new Promise<void>((r) => { late = r; });
+    const media = p.w.MallanListingMedia.create({
+      prefix: 'rental', listingId: () => 'RL-7', toast: (m: string, t?: string) => p.toasts.push([m, t]), createObjectURL: () => 'blob:x', confirm: () => true,
+      fetch: () => {
+        asked++;
+        if (asked === 1) return gate.then(() => ({ ok: true, status: 200, json: () => Promise.resolve({ listing_id: 'RL-7', media: [row('older')] }) }));
+        return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) });                                  // the newer redraw fails at once
+      },
+    });
+    const older = media.render('RL-7');
+    await media.render('RL-7');
+    expect(p.said().filter((m) => /could not load/.test(m))).toHaveLength(1);
+    late();
+    await older;
+    await p.flush();
+    expect(keysOf(p, p.photos())).toEqual(['older']);                                                   // nothing was drawn by the newer one: the older answer is drawn
+  });
+
+  it('an older redraw that fails after a newer one was drawn does not say that the listing could not be loaded', async () => {
+    const p = boot();
+    let asked = 0;
+    let late: () => void = () => undefined;
+    const gate = new Promise<void>((r) => { late = r; });
+    const media = p.w.MallanListingMedia.create({
+      prefix: 'rental', listingId: () => 'RL-7', toast: (m: string, t?: string) => p.toasts.push([m, t]), createObjectURL: () => 'blob:x', confirm: () => true,
+      fetch: () => {
+        asked++;
+        if (asked === 1) return gate.then(() => ({ ok: false, status: 500, json: () => Promise.resolve({}) }));                  // the older redraw fails, late
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ listing_id: 'RL-7', media: [row('newer')] }) });
+      },
+    });
+    const older = media.render('RL-7');
+    await media.render('RL-7');
+    late();
+    await older;
+    await p.flush();
+    expect(keysOf(p, p.photos())).toEqual(['newer']);
+    expect(p.said().filter((m) => /could not load/.test(m))).toEqual([]);
+  });
+
+  it('a redraw that fails is told, and keeps what is shown', async () => {
+    const p = boot({ answers: () => ({ ok: false, status: 500 }) });
+    p.media.addFiles([p.file('a.jpg', 1)], 'photo');
+    await p.media.render('RL-7');
+    expect(p.said().filter((m) => /could not load/.test(m))).toHaveLength(1);
+    expect(keysOf(p, p.photos())).toEqual(['preview:0']);
+  });
+});

@@ -59,6 +59,8 @@
     var inFlight = null;                 // the upload that is sending now (a promise): files chosen meanwhile are sent when it is done
     var queued = null;                   // the upload that waits for it (one, for all the files chosen meanwhile)
     var savedPhotos = 0;                 // the photos the listing has saved, as the last redraw saw them
+    var generation = 0;                  // which record is in the form: reset() moves it on, and what was begun for the record before (an upload that waits, a redraw that is out) stops
+    var redraws = 0, shownRedraw = 0;    // the redraws asked for, and the newest one that was drawn: an older answer that comes late is not drawn over a newer one
 
     function control(suffix) { return global.document.getElementById(prefix + suffix); }
     function mediaUrl(id, tail) { return '/api/crm/listings/' + encodeURIComponent(id) + '/media' + (tail || ''); }
@@ -105,13 +107,16 @@
     // what is waiting when it begins), so none is left where nobody sends it, and the listing is redrawn and told once for them.
     function uploadSoon(id) {
       if (queued) return;
+      var record = generation;
       var start = function () {
+        if (record !== generation) return;                     // another record is in the form: these files were forgotten with the last one (and `queued` is the new record's to keep)
         queued = null;
         var batch = pending.filter(function (m) { return !m.uploaded && !m._removed; });
         var plans = batch.filter(function (m) { return m.type === 'floorplan'; }).length;
         // what the files are called: floor plans, photos (which can be reordered), or both
         var uploadedText = plans === batch.length ? ' floor plan(s) uploaded.' : plans === 0 ? ' photo(s) uploaded — drag or use ◀/▶ to reorder.' : ' file(s) uploaded.';
         return uploadPending(id, { appendAfterExisting: true }).then(function (result) {
+          if (record !== generation) return;                   // the record changed while they were out: no redraw or message about a listing that is not in the form
           render(id);
           if (result.uploaded > 0) toast(result.uploaded + uploadedText, 'success');
           if (result.failed > 0) toast(result.failed + ' upload(s) failed.', 'warning');
@@ -177,11 +182,14 @@
       uploading = true;
       var uploaded = 0, failed = 0;
       var chain = Promise.resolve();
+      var record = generation;
       // Files added to a saved listing go where the route puts them (after the photos it has, in the order they arrive), so they are sent in the order the agent arranged them in; a new
       // listing sends the place of each file with it, and the sequence of its requests does not matter.
       var sequence = (opts && opts.appendAfterExisting) ? waiting.slice().sort(function (a, b) { return a.order - b.order; }) : waiting;
       sequence.forEach(function (entry) {
         chain = chain.then(function () {
+          // a file the agent removed since the batch began is not sent, and neither are the files of a record that was left (reset()); a request that is out cannot be taken back
+          if (entry._removed || record !== generation) return null;
           if (isPdf(entry.file)) {                             // the upload route takes images only
             toast('Skipping PDF "' + entry.file.name + '" — upload as JPG/PNG image instead.', 'warning');
             entry._removed = true;
@@ -218,8 +226,10 @@
       // an upload is out: it is not started again, and the agent is not told "Uploading…" and then "0 uploaded"
       if (uploading) { toast('Media upload already in progress — please wait.', 'info'); return Promise.resolve({ uploaded: 0, failed: 0, busy: true }); }
       toast('Uploading ' + waiting.length + ' file(s)...', 'info');
+      var record = generation;
       // the listing is saved, so the files go after the photos it has (their own places were counted among the files chosen, not among the listing's photos)
       return uploadPending(id, { appendAfterExisting: true }).then(function (result) {
+        if (record !== generation) return result;              // another record is in the form now: nothing to say or draw about this listing
         toast(result.uploaded + ' uploaded' + (result.failed > 0 ? ', ' + result.failed + ' failed' : ''), result.failed > 0 ? 'warning' : 'success');
         // what was saved is the listing's own tile now: shown in place of its preview
         return (result.uploaded > 0 ? render(id) : Promise.resolve()).then(function () { return result; });
@@ -239,12 +249,16 @@
       if (!id && !fallbackId) return Promise.resolve();
       var photos = control('PhotoPreview'), floors = control('FloorplanPreview');
       if (!photos && !floors) return Promise.resolve();
+      var record = generation, mine = ++redraws;
       return fetchMedia(id).then(function (found) {
         // an edit session keyed by the numeric id still gets its tiles when the listing's own id does not answer
         if (!found.ok && fallbackId && fallbackId !== id) return fetchMedia(fallbackId);
         return found;
       }).then(function (found) {
+        if (record !== generation) return;                     // another record is in the form now (reset()): not this listing's tiles
+        if (mine < shownRedraw) return;                        // a newer redraw has been drawn already: this older answer came late and does not draw over it
         if (!found.ok) { toast('Media manager could not load — showing the saved preview. Reload to retry.', 'warning'); return; }
+        shownRedraw = mine;
         // The tiles act on the listing's own id as the server answers it: the order route knows no other, and a numeric id would not find it.
         var actionId = String((found.body && found.body.listing_id) || id || '');
         // The saved tiles are drawn again. The previews of files that are still waiting to be saved stay, after them: those files are still queued, and the agent must be able to see (and remove)
@@ -376,6 +390,8 @@
     // Another record is in the form: the files chosen for the last one are forgotten, previews and all, and so are its saved tiles (they act on the last listing's photos: they must not be
     // left to move or remove them, nor to stay if the next record's photos cannot be loaded). The next render draws the tiles of the record in the form.
     function reset() {
+      generation++;                                            // what was begun for the record before stops: the files that wait, the rest of a batch that is sending, a redraw that is out
+      queued = null;
       pending = [];
       savedPhotos = 0;
       ['PhotoPreview', 'FloorplanPreview'].forEach(function (suffix) {
