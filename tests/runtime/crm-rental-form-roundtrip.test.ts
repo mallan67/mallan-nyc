@@ -26,6 +26,8 @@ const NUMERIC = new Set<string>(win.MallanListingHydration.tables.rental.FIELD_M
 // Payload keys that legitimately differ between two saves of the same listing.
 const VOLATILE = /^(_savedAt|_formVersion)$/;
 const without = (o: Record<string, unknown>) => Object.fromEntries(Object.entries(o).filter(([k]) => !VOLATILE.test(k)));
+// The form derives this on its own: from the address and the listing id. A new listing has no listing id, so its public URL cannot be the saved one.
+const DERIVED_ON_LOAD = new Set(['rentalListingUrl']);
 
 /** What the agent does in a new form: a street address the form can read, then every other control. */
 async function fillNewListing(): Promise<{ entered: Entered[]; payload: Record<string, any> }> {
@@ -125,11 +127,15 @@ describe(`${FORM}: create -> save -> reload -> edit -> save -> reload`, () => {
       const b = without(payload2);
       const differ: Record<string, string> = {};
       for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) {
+        if (DERIVED_ON_LOAD.has(k)) continue;
         if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) differ[k] = `first save ${JSON.stringify(a[k])}, second save ${JSON.stringify(b[k])}`;
       }
       expect(differ).toEqual({});
+      expect(b.rentalListingUrl).toMatch(/\/listing\/.*\/rl-0001$/);       // the form fills the public URL in on load, from the address and the listing id
       const stored2 = storedListing(payload2, 'rent') as Record<string, any>;
-      expect(stored2.raw_data).toEqual(stored1.raw_data);
+      const { rentalListingUrl: _u1, ...raw1 } = stored1.raw_data;
+      const { rentalListingUrl: _u2, ...raw2 } = stored2.raw_data;
+      expect(raw2).toEqual(raw1);
       for (const col of ['status', 'list_price', 'bedrooms_total', 'bathrooms_full', 'bathrooms_half', 'living_area', 'list_agent_mls_id', 'list_office_mls_id']) {
         expect(stored2[col]).toEqual(stored1[col]);
       }

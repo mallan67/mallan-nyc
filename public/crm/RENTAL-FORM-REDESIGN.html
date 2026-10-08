@@ -94,6 +94,7 @@ body { font-family: Manrope, sans-serif; }
 <script src="js/forms/listing-hydration.js"></script>
 <script src="js/forms/listing-media.js"></script>
 <script src="js/forms/listing-open-houses.js"></script>
+<script src="js/forms/listing-published.js"></script>
 <script>
 // ── Auth gate (defense-in-depth — middleware is primary) ──
 // NOTE: session_token is httpOnly — JS cannot read it via document.cookie.
@@ -5657,6 +5658,24 @@ function _rentalSyncLocation(editedId) {
         else if (editedId === pair[0] || saved.value || shown.value === shown._given) { if (shows(saved.value)) { shown.value = saved.value; shown._given = saved.value; } }
         else if (shown.value) { saved.value = shown.value; shown._given = shown.value; }
     });
+    generateRentalListingUrl();
+}
+
+// The Listing URL box ("Auto-generated from address") shows the address the listing will have on mallan.nyc: /listing/{address}/{listing id}. The server builds the real one when the listing is saved
+// (lib/crm/listing-urls.ts) and answers with it, and the box then shows that one; until then it is the street (the unit typed after it left out), the unit, the city, the state and the ZIP code, and
+// the listing id once there is one. The Sale form does the same. It was never filled.
+function generateRentalListingUrl() {
+    var urlBox = document.getElementById('rentalListingUrl');
+    if (!urlBox) return;
+    var value = function(id) { var el = document.getElementById(id); return el && el.value ? el.value.trim() : ''; };
+    var bl = _buildingLookup();
+    var typed = value('rentalStreetAddress');
+    var street = bl ? bl.splitAddress(typed).street : typed;
+    var unit = value('rentalUnitNumber') || (bl ? bl.splitAddress(typed).unit : '');
+    var parts = [street, unit ? 'Apt ' + unit : '', value('rentalCity'), value('rentalStateOrProvince'), value('rentalZipCode')];
+    var slug = parts.join(' ').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    var id = String(_rentalEditListingId || '').toLowerCase();
+    urlBox.value = street && slug ? 'https://www.mallan.nyc/listing/' + slug + (id ? '/' + id : '') : '';           // no street, no address: the city and the state alone are not one
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -6406,10 +6425,20 @@ function submitRentalListing() {
                 updateRentalStatusFields();
             }
             validateStatusChange('rental');
+            // The addresses the server gave the listing: the Listing URL box shows the public one (or, when it gave none, the one worked out from the address and the listing id)
+            var publicUrl = (moved && moved.publicUrl) || result.publicUrl || null;
+            var realPlusUrl = (moved && moved.realPlusUrl) || result.realPlusUrl || null;
+            var urlBox = document.getElementById('rentalListingUrl');
+            if (urlBox && publicUrl) urlBox.value = publicUrl;
+            else generateRentalListingUrl();
             if (wasSaved) {
                 alert('SUCCESS! Listing updated.\n\nListing ID: ' + lid + '\nStatus: ' + statusNow);
             } else {
                 alert('SUCCESS! Your rental listing has been submitted.\n\nListing ID: ' + lid + '\nStatus: ' + statusNow);
+            }
+            // A listing that went Active is shown its addresses, with a way to copy them (the Sale form's "Listing Published" panel)
+            if (statusNow === 'Active' && realPlusUrl && window.MallanListingPublished) {
+                MallanListingPublished.show({ prefix: 'rental', listingId: lid, publicUrl: publicUrl, realPlusUrl: realPlusUrl, toast: showToast, dashboardUrl: '/crm/dashboard#/ops/listings' });
             }
             if (result.warnings && result.warnings.length > 0) {
                 console.warn('[Submit] Warnings:', result.warnings);
