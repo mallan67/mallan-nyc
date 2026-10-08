@@ -1,8 +1,8 @@
 /// <reference types="jest" />
 /**
- * Shared harness for the Tools viewer tests: boots SALE-FORM-WITH-TOOLS / RENTAL-FORM-WITH-TOOLS in jsdom with the REAL api-client and the
- * REAL listing-hydration module (the page's two <script src> files, which jsdom does not fetch) and a routed fetch for /api/auth/me and
- * /api/crm/listings/:id, so the real onReady / init / listings.get semantics decide the order of events.
+ * Shared harness for the Tools viewer tests: boots SALE-FORM-WITH-TOOLS / RENTAL-FORM-WITH-TOOLS in jsdom with the REAL api-client, the
+ * REAL listing-hydration module and the REAL listing-open-houses module (the page's <script src> files, which jsdom does not fetch) and a routed fetch for /api/auth/me,
+ * /api/crm/listings/:id and /api/crm/showings, so the real onReady / init / listings.get semantics decide the order of events.
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
@@ -13,10 +13,11 @@ const { JSDOM, VirtualConsole } = require('jsdom');
 const read = (p: string) => readFileSync(resolve(__dirname, '../..', p), 'utf8');
 export const API_CLIENT = read('public/crm/js/core/api-client.js');
 export const LISTING_HYDRATION = read('public/crm/js/forms/listing-hydration.js');
+export const OPEN_HOUSES = read('public/crm/js/forms/listing-open-houses.js');
 
 export type Mode = 'ok' | 'missing' | 'anon' | 'never';
 export type ViewerFile = 'SALE-FORM-WITH-TOOLS' | 'RENTAL-FORM-WITH-TOOLS';
-export type ViewerOpts = { search?: string; mode?: Mode; listing?: Record<string, unknown>; role?: string; delay?: number; shrinkLongTimers?: boolean; user?: Record<string, unknown> };   // user: the signed-in agent (/api/auth/me `user`)
+export type ViewerOpts = { search?: string; mode?: Mode; listing?: Record<string, unknown>; role?: string; delay?: number; shrinkLongTimers?: boolean; user?: Record<string, unknown>; showings?: unknown; showingsFail?: number | 'network'; showingsOpen?: boolean; noOpenHouses?: boolean };   // user: the signed-in agent (/api/auth/me `user`); showings: the showings the server has (GET /api/crm/showings answers from them as the server does: see showingsAnswer); showingsFail: it answers with this HTTP status instead, or the request fails ('network'); showingsOpen: it answers a reader who is not an agent or a broker (the real route refuses them); noOpenHouses: the page loads without listing-open-houses.js
 export type Booted = { w: any; d: Document; errors: string[]; requests: string[]; close: () => void }; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 export const ROUTES: Record<ViewerFile, string> = { 'SALE-FORM-WITH-TOOLS': 'sale-view', 'RENTAL-FORM-WITH-TOOLS': 'rental-view' };
@@ -33,6 +34,21 @@ export const isFailScreen = (d: Document) => d.body.children.length === 1 && /Li
 export const rendered = (d: Document) => d.body.classList.contains('viewer-mode') && !d.body.classList.contains('skeleton-loading') && !isFailScreen(d);
 export const field = (d: Document, id: string) => d.getElementById(id) as HTMLInputElement | HTMLSelectElement | null;
 export const NAVIGATION = 'Not implemented: navigation (except hash changes)'; // jsdom cannot navigate: a redirect attempt is its only trace
+
+// GET /api/crm/showings as the server answers it (app/api/crm/showings/route.ts): the showings that match type and date_from, the oldest first, a page of at most 200 (50 when no limit is asked)
+// from offset, and the number of all of them. It has no filter for a listing: the page asks for what it wants and picks its listing's out.
+export function showingsAnswer(rows: unknown, query: URLSearchParams) {
+  const day = (s: any) => String(s?.date ?? '').slice(0, 10);       // eslint-disable-line @typescript-eslint/no-explicit-any
+  const type = query.get('type'), from = query.get('date_from');
+  const matching = (Array.isArray(rows) ? rows : [])
+    .filter((s) => (!type || s.type === type) && (!from || day(s) >= from))
+    .map((s, index) => ({ s, index }))
+    .sort((a, b) => (day(a.s) < day(b.s) ? -1 : day(a.s) > day(b.s) ? 1 : a.index - b.index))
+    .map((entry) => entry.s);
+  const limit = Math.min(parseInt(query.get('limit') || '50', 10), 200);
+  const offset = parseInt(query.get('offset') || '0', 10);
+  return { showings: matching.slice(offset, offset + limit), total: matching.length, limit, offset };
+}
 
 export function bootViewer(file: ViewerFile, o: ViewerOpts = {}): Booted {
   const html = readFileSync(resolve(__dirname, `../../public/crm/${file}.html`), 'utf8');
@@ -63,8 +79,9 @@ export function bootViewer(file: ViewerFile, o: ViewerOpts = {}): Booted {
         const real = w.setTimeout.bind(w);
         w.setTimeout = (fn: () => void, ms?: number, ...rest: unknown[]) => real(fn, ms === 30000 ? 300 : ms, ...rest);
       }
+      // An answer to a window that was closed while the request was out is never delivered (a closed window has no document): the page's code would throw on it, in whichever test is running by then
       const reply = (status: number, body: unknown, wait = 0) =>
-        new Promise((r) => setTimeout(() => r({ ok: status >= 200 && status < 300, status, json: async () => body, text: async () => JSON.stringify(body) }), wait));
+        new Promise((r) => setTimeout(() => { if (w.document) r({ ok: status >= 200 && status < 300, status, json: async () => body, text: async () => JSON.stringify(body) }); }, wait));
       w.fetch = (u: string, init?: { method?: string }) => {
         const path = String(u).replace(/^https?:\/\/[^/]+/, '');
         requests.push(`${init?.method ?? 'GET'} ${path}`);
@@ -74,11 +91,18 @@ export function bootViewer(file: ViewerFile, o: ViewerOpts = {}): Booted {
           if (mode === 'missing') return reply(404, { error: 'Listing not found' }, o.delay ?? 40);
           return reply(200, listing, o.delay ?? 40);
         }
+        if (/^\/api\/crm\/showings(\?|$)/.test(path)) {
+          if (o.showingsFail === 'network') return Promise.reject(new Error('network down'));
+          const mayRead = ['agent', 'broker'].includes(o.role ?? 'agent') || !!o.showingsOpen;              // requireAgentOrBroker
+          const status = typeof o.showingsFail === 'number' ? o.showingsFail : (mayRead ? 200 : 403);
+          return reply(status, status === 200 ? showingsAnswer(o.showings, new URL(path, 'https://mallan.nyc').searchParams) : { error: 'refused' });
+        }
         return reply(200, {});
       };
       // The page's own <script src> files are not fetched by jsdom: run the real files first, in the order the page lists them.
       w.eval(API_CLIENT);
       w.eval(LISTING_HYDRATION);
+      if (!o.noOpenHouses) w.eval(OPEN_HOUSES);
     },
   });
   return { w: dom.window, d: dom.window.document, errors, requests, close: () => dom.window.close() };

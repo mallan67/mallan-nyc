@@ -130,6 +130,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
 <!-- API Client — identity from session token, no PII in URLs -->
 <script src="js/core/api-client.js"></script>
 <script src="js/forms/listing-hydration.js"></script>
+<script src="js/forms/listing-open-houses.js"></script>
 <script>
 (function() {
     var origin = window.location.origin;
@@ -1585,11 +1586,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 </div>
             </div>
             <div id="rentalOpenHouseList" class="space-y-3 mb-6">
-                <div class="bg-gray-50 border rounded-lg p-4 text-center text-gray-500">
-                    <i class="fas fa-calendar-alt text-2xl mb-2"></i>
-                    <p class="text-sm">No open houses scheduled</p>
-                    <p class="text-xs">Click "Add Open House" to schedule one</p>
-                </div>
+                <p id="rentalOpenHouseEmpty" class="text-sm text-gray-500 italic py-4 text-center">Open houses could not be loaded.</p>
             </div>
         </div>
 
@@ -4479,6 +4476,13 @@ function viewerHideWriteControls() {
     document.querySelectorAll(writers.join(', ')).forEach(function(b) { b.classList.add('viewer-hidden'); });
 }
 
+// ── Viewer Helper: the listing's scheduled open houses (its showings), as read-only cards ──
+// The Add forms save an open house as a showing of the listing; the viewer lists those and adds or removes none. The internal events (Broker Only) are for an agent or a broker only.
+function viewerShowOpenHouses(prefix, record) {
+    if (!window.MallanOpenHouses || !record) return;
+    MallanOpenHouses.create({ prefix: prefix, readOnly: true, showInternal: VIEWER_ROLE === 'agent' || VIEWER_ROLE === 'broker' }).load([record.listing_id, record.id]);
+}
+
 // ── Viewer Helper: entry-form defaults are not listing facts ──
 // A pre-checked radio, a pre-selected option, a pre-ticked box or prefilled text (a default status, a default city, default
 // distribution ticks) is a data-entry convenience. Clear them in the listing tabs and the building modal before hydrating, so a
@@ -6960,6 +6964,7 @@ function renderRentalViewer() {
         MallanListingHydration.hydrate('rental', VIEWER_LISTINGS[VIEWER_LISTING_ID]._raw);
         convertRentalFormToViewer();
         viewerHideWriteControls();
+        viewerShowOpenHouses('rental', VIEWER_LISTINGS[VIEWER_LISTING_ID]._raw);
         patchGetRentalFormValue();
         updateRentalHeaderForViewer(listingData);
         removeRentalNavigationButtons();

@@ -19,7 +19,7 @@ const SOURCE = readFileSync(resolve(__dirname, '../../public/crm/js/forms/listin
 type Call = { url: string; method: string; headers?: Record<string, string>; body?: any; credentials?: string };
 type Reply = { ok: boolean; status: number; body?: any; reject?: string };
 
-function boot(o: { savedId?: string; blocked?: () => string; answers?: (call: Call) => Reply | undefined; confirm?: boolean } = {}) {
+function boot(o: { savedId?: string; blocked?: () => string; answers?: (call: Call) => Reply | undefined; confirm?: boolean; readOnly?: boolean; showInternal?: boolean; now?: Date } = {}) {
   const dom = new JSDOM(`<!doctype html><body>
     <div id="rentalOpenHouseList"><p id="rentalOpenHouseEmpty">none</p></div>
     <div id="rentalAddOpenHouseForm" style="display: none;">
@@ -32,6 +32,7 @@ function boot(o: { savedId?: string; blocked?: () => string; answers?: (call: Ca
   const calls: Call[] = [];
   const toasts: [string, string | undefined][] = [];
   const told: string[] = [];
+  const asked: string[] = [];                                   // every confirmation the manager asked for
   let savedId = o.savedId ?? '';
   const defaultAnswer = (call: Call): Reply => {
     if (call.method === 'POST') return { ok: true, status: 201, body: { showing: { id: 'S-9' } } };
@@ -40,11 +41,14 @@ function boot(o: { savedId?: string; blocked?: () => string; answers?: (call: Ca
   };
   const manager = w.MallanOpenHouses.create({
     prefix: 'rental',
+    readOnly: o.readOnly,
+    showInternal: o.showInternal,
+    now: () => o.now ?? new Date(2026, 9, 10, 12),                // the day the page is open: 10 October 2026
     listingId: () => savedId,
     blocked: o.blocked,
     toast: (message: string, type?: string) => toasts.push([message, type]),
     alert: (message: string) => told.push(message),
-    confirm: () => o.confirm ?? true,
+    confirm: (message: string) => { asked.push(message); return o.confirm ?? true; },
     fetch: (url: string, init: any = {}) => {
       const call: Call = { url, method: init.method ?? 'GET', headers: init.headers, body: init.body, credentials: init.credentials };
       calls.push(call);
@@ -57,7 +61,7 @@ function boot(o: { savedId?: string; blocked?: () => string; answers?: (call: Ca
   const field = (suffix: string) => d.getElementById('rentalNewOH' + suffix) as HTMLInputElement;
   const fill = (v: Partial<Record<'Date' | 'Start' | 'End' | 'Type' | 'Notes', string>>) => { for (const [k, x] of Object.entries(v)) field(k).value = x!; };
   return {
-    w, d, manager, calls, toasts, told, field, fill,
+    w, d, manager, calls, toasts, told, asked, field, fill,
     setSaved: (id: string) => { savedId = id; },
     list: () => d.getElementById('rentalOpenHouseList') as HTMLElement,
     form: () => d.getElementById('rentalAddOpenHouseForm') as HTMLElement,
@@ -67,6 +71,15 @@ function boot(o: { savedId?: string; blocked?: () => string; answers?: (call: Ca
   };
 }
 const FULL = { Date: '2026-10-11', Start: '14:00', End: '16:30', Type: 'Public', Notes: 'Bring ID' };
+
+// The showings route as it answers: one type at a time (type=), from a date on (date_from=), a page at a time (limit=, offset=), with the number of them all (total)
+const route = (rows: unknown[], shape: (page: unknown[], total: number) => unknown = (page, total) => ({ showings: page, total })) => (c: Call): Reply | undefined => {
+  if (c.method !== 'GET') return undefined;
+  const q = new URL(c.url, 'https://mallan.nyc').searchParams;
+  const type = q.get('type'), from = q.get('date_from') ?? '', limit = Math.min(Number(q.get('limit') ?? 50), 200), offset = Number(q.get('offset') ?? 0);
+  const wanted = rows.filter((s: any) => !s || typeof s !== 'object' || ((!type || s.type === type) && String(s.date ?? '').slice(0, 10) >= from));
+  return { ok: true, status: 200, body: shape(wanted.slice(offset, offset + limit), wanted.length) };
+};
 
 describe('the form', () => {
   it('opens and closes', () => {
@@ -378,13 +391,13 @@ describe('removing an open house', () => {
 
 describe('the open houses of a saved listing', () => {
   const show = (over: Record<string, unknown>) => ({ id: 'S-1', listing_id: '77', date: '2026-10-11T00:00:00.000Z', time: '2:00 PM - 4:30 PM', type: 'openhouse', status: 'confirmed', notes: '[Public] Bring ID', listing: { listing_id: 'RL-7' }, ...over });
-  const loaded = async (rows: unknown[], keys: unknown[] = ['RL-7', '77'], shape: (r: unknown[]) => unknown = (r) => ({ showings: r })) => {
-    const p = boot({ answers: (c) => (c.method === 'GET' ? { ok: true, status: 200, body: shape(rows) } : undefined) });
+  const loaded = async (rows: unknown[], keys: unknown[] = ['RL-7', '77'], shape?: (page: unknown[], total: number) => unknown) => {
+    const p = boot({ answers: route(rows, shape) });
     await p.manager.load(keys);
     return p;
   };
 
-  it('asks for the showings, whatever their type, and shows the open houses of this listing as cards', async () => {
+  it('asks for the upcoming open houses and the Broker Only ones, a type at a time, and shows the ones of this listing as cards, in the order of their dates', async () => {
     const p = await loaded([
       show({ id: 'S-1' }),
       show({ id: 'S-2', type: 'brokersopen', notes: '[BrokerOnly] Lockbox on the door', date: '2026-10-12' }),
@@ -392,10 +405,15 @@ describe('the open houses of a saved listing', () => {
       show({ id: 'S-4', status: 'cancelled' }),                                    // cancelled
       show({ id: 'S-5', listing: { listing_id: 'RL-8' }, listing_id: '88' }),      // another listing
       show({ id: 'S-6', listing: undefined, listing_id: 77 }),                     // this listing, by its numeric id
+      show({ id: 'S-7', date: '2026-10-09T00:00:00.000Z' }),                       // yesterday
     ]);
-    expect(p.calls).toEqual([{ url: '/api/crm/showings?limit=200', method: 'GET', headers: undefined, body: undefined, credentials: 'include' }]);
-    expect(p.cards().map((c) => c.getAttribute('data-showing-id'))).toEqual(['S-1', 'S-2', 'S-6']);
-    const [first, second] = p.cards();
+    expect(p.calls.map((c) => c.url)).toEqual([
+      '/api/crm/showings?type=openhouse&date_from=2026-10-10&limit=200&offset=0',
+      '/api/crm/showings?type=brokersopen&date_from=2026-10-10&limit=200&offset=0',
+    ]);
+    expect(p.calls.every((c) => c.method === 'GET' && c.credentials === 'include')).toBe(true);
+    expect(p.cards().map((c) => c.getAttribute('data-showing-id'))).toEqual(['S-1', 'S-6', 'S-2']);
+    const [first, , second] = p.cards();
     expect(first.textContent).toContain('Oct 11');
     expect(first.textContent).toContain('2:00 PM - 4:30 PM');
     expect(first.querySelector('.text-lg')!.textContent).toBe('Oct 11');
@@ -409,7 +427,7 @@ describe('the open houses of a saved listing', () => {
 
   it('gets the type the agent chose back from the notes (By Appointment), and a type from the showing when the notes have none', async () => {
     const p = await loaded([show({ id: 'S-1', notes: '[ByAppointment] RSVP' }), show({ id: 'S-2', notes: 'plain note' }), show({ id: 'S-3', type: 'brokersopen', notes: null })]);
-    const [a, b, c] = p.cards();
+    const [a, b, c] = p.cards();                                                   // (the same day: the order they came in)
     expect(a.textContent).toContain('By Appt');
     expect(a.textContent).not.toContain('(internal)');
     expect(b.textContent).toContain('Public');
@@ -419,14 +437,103 @@ describe('the open houses of a saved listing', () => {
   });
 
   it('reads the list from showings, data, or an answer that is the list', async () => {
-    for (const shape of [(r: unknown[]) => ({ showings: r }), (r: unknown[]) => ({ data: r }), (r: unknown[]) => r]) {
+    for (const shape of [(page: unknown[]) => ({ showings: page }), (page: unknown[]) => ({ data: page }), (page: unknown[]) => page]) {
       const p = await loaded([show({})], ['RL-7'], shape);
       expect(p.cards()).toHaveLength(1);
     }
     const none = await loaded([show({})], ['RL-7'], () => ({ showings: 'none' }));
     expect(none.cards()).toHaveLength(0);
+    expect(none.d.getElementById('rentalOpenHouseEmpty')!.textContent).toBe('No open houses scheduled yet. Click "Add Open House" to create one.');       // (an answer with no list is none)
     const weird = await loaded([show({})], ['RL-7'], () => 42);
     expect(weird.cards()).toHaveLength(0);
+  });
+
+  it('says it is asking while it waits, then shows the cards', async () => {
+    const p = boot({ answers: route([show({})]) });
+    const pending = p.manager.load(['RL-7']);
+    expect(p.d.getElementById('rentalOpenHouseEmpty')!.textContent).toBe('Loading open houses...');
+    await pending;
+    expect(p.d.getElementById('rentalOpenHouseEmpty')).toBeNull();
+    expect(p.cards()).toHaveLength(1);
+  });
+
+  it('shows the cards by date, the internal ones among the others; the ones of one day stay in the order they came in', async () => {
+    const p = await loaded([
+      show({ id: 'S-1', date: '2026-10-14' }),
+      show({ id: 'S-2', type: 'brokersopen', notes: '[BrokerOnly] early', date: '2026-10-11' }),
+      show({ id: 'S-3', date: '2026-10-12' }),
+      show({ id: 'S-4', type: 'brokersopen', notes: '[BrokerOnly] same day', date: '2026-10-12' }),
+      show({ id: 'S-5', date: '2026-10-12' }),
+    ]);
+    expect(p.cards().map((c) => c.getAttribute('data-showing-id'))).toEqual(['S-2', 'S-3', 'S-5', 'S-4', 'S-1']);
+  });
+
+  it('reads every page the route has (it answers 200 at a time, and says how many there are), so an open house past the 200th is found', async () => {
+    const many = Array.from({ length: 450 }, (_, i) => show({ id: `S-${1000 + i}`, listing: { listing_id: i === 449 ? 'RL-7' : 'RL-9' }, listing_id: i === 449 ? '77' : '99', date: '2026-10-11' }));
+    const p = await loaded(many);
+    const asked = (type: string) => p.calls.map((c) => c.url).filter((url) => url.includes(`type=${type}&`));
+    expect(asked('openhouse')).toEqual([
+      '/api/crm/showings?type=openhouse&date_from=2026-10-10&limit=200&offset=0',
+      '/api/crm/showings?type=openhouse&date_from=2026-10-10&limit=200&offset=200',
+      '/api/crm/showings?type=openhouse&date_from=2026-10-10&limit=200&offset=400',
+    ]);
+    expect(asked('brokersopen')).toEqual(['/api/crm/showings?type=brokersopen&date_from=2026-10-10&limit=200&offset=0']);
+    expect(p.cards().map((c) => c.getAttribute('data-showing-id'))).toEqual(['S-1449']);
+  });
+
+  it('reads exactly ten pages of a type, and no more', async () => {
+    const rows = Array.from({ length: 2000 }, (_, i) => show({ id: `S-${i}`, listing: { listing_id: i === 1999 ? 'RL-7' : 'RL-9' }, listing_id: '99' }));
+    const p = await loaded(rows);
+    expect(p.calls.filter((c) => /type=openhouse&/.test(c.url))).toHaveLength(10);
+    expect(p.cards().map((c) => c.getAttribute('data-showing-id'))).toEqual(['S-1999']);                      // (the last row of the tenth page is found)
+  });
+
+  it('says the list could not be had when there are more than ten pages of a type, rather than showing a list that may be missing the listing\'s', async () => {
+    const rows = Array.from({ length: 2001 }, (_, i) => show({ id: `S-${i}`, listing: { listing_id: 'RL-9' }, listing_id: '99' }));
+    const p = await loaded(rows);
+    expect(p.calls.filter((c) => /type=openhouse&/.test(c.url))).toHaveLength(10);
+    expect(p.cards()).toHaveLength(0);
+    expect(p.d.getElementById('rentalOpenHouseEmpty')!.textContent).toBe('Open houses could not be loaded.');
+  });
+
+  it('asks again while the page is full when the route does not say how many there are, and stops at a page that is not', async () => {
+    const rows = Array.from({ length: 201 }, (_, i) => show({ id: `S-${i}`, listing: { listing_id: i === 200 ? 'RL-7' : 'RL-9' }, listing_id: '99' }));
+    const bare = await loaded(rows, ['RL-7'], (page) => page);                     // an answer that is the list, with no total
+    expect(bare.calls.filter((c) => /type=openhouse&/.test(c.url)).map((c) => c.url)).toEqual([
+      '/api/crm/showings?type=openhouse&date_from=2026-10-10&limit=200&offset=0',
+      '/api/crm/showings?type=openhouse&date_from=2026-10-10&limit=200&offset=200',
+    ]);
+    expect(bare.cards()).toHaveLength(1);
+    const short = await loaded(rows.slice(0, 199), ['RL-7'], (page) => ({ showings: page }));
+    expect(short.calls.filter((c) => /type=openhouse&/.test(c.url))).toHaveLength(1);
+  });
+
+  it('stops at an empty page, whatever total the route says', async () => {
+    const p = boot({ answers: (c) => (c.method === 'GET' ? { ok: true, status: 200, body: { showings: [], total: 500 } } : undefined) });
+    await p.manager.load(['RL-7']);
+    expect(p.calls).toHaveLength(2);                                               // one page of each type
+    expect(p.d.getElementById('rentalOpenHouseEmpty')!.textContent).toBe('No open houses scheduled yet. Click "Add Open House" to create one.');
+  });
+
+  it('shows a showing once, however many times it is sent (a page can overlap the next)', async () => {
+    const p = boot({ answers: (c) => (c.method === 'GET' ? { ok: true, status: 200, body: { showings: [show({ id: 'S-1' }), show({ id: 'S-1' })], total: 2 } } : undefined) });
+    await p.manager.load(['RL-7']);
+    expect(p.cards()).toHaveLength(1);
+  });
+
+  it('counts today as the agent\'s own calendar day, written with two digits', async () => {
+    const p = boot({ now: new Date(2026, 2, 5, 23, 59), answers: route([]) });
+    await p.manager.load(['RL-7']);
+    expect(p.calls.map((c) => c.url)).toEqual([
+      '/api/crm/showings?type=openhouse&date_from=2026-03-05&limit=200&offset=0',
+      '/api/crm/showings?type=brokersopen&date_from=2026-03-05&limit=200&offset=0',
+    ]);
+  });
+
+  it('asks for the open houses only when the page says not to list the internal ones', async () => {
+    const p = boot({ showInternal: false, answers: route([show({})]) });
+    await p.manager.load(['RL-7']);
+    expect(p.calls.map((c) => c.url)).toEqual(['/api/crm/showings?type=openhouse&date_from=2026-10-10&limit=200&offset=0']);
   });
 
   it('skips an entry that is not a record', async () => {
@@ -460,15 +567,62 @@ describe('the open houses of a saved listing', () => {
     expect(p.cards()).toHaveLength(1);
   });
 
-  it('leaves the "none yet" line when the list cannot be had', async () => {
+  it('says the list could not be loaded, not that there are none, when it cannot be had (no toast: the list is not what the agent came to do)', async () => {
     const p = boot({ answers: () => ({ ok: false, status: 500 }) });
     await p.manager.load(['RL-7']);
     expect(p.cards()).toHaveLength(0);
-    expect(p.d.getElementById('rentalOpenHouseEmpty')).not.toBeNull();
+    expect(p.d.getElementById('rentalOpenHouseEmpty')!.textContent).toBe('Open houses could not be loaded.');
     const q = boot({ answers: () => ({ ok: false, status: 0, reject: 'offline' }) });
     await q.manager.load(['RL-7']);
-    expect(q.d.getElementById('rentalOpenHouseEmpty')).not.toBeNull();
-    expect(q.toasts).toEqual([]);                                                  // not critical: no toast
+    expect(q.d.getElementById('rentalOpenHouseEmpty')!.textContent).toBe('Open houses could not be loaded.');
+    expect(q.toasts).toEqual([]);
+    const refused = boot({ answers: () => ({ ok: false, status: 403, body: { error: 'Forbidden' } }) });          // (the route's refusals come with a body: it is not a list)
+    await refused.manager.load(['RL-7']);
+    expect(refused.d.getElementById('rentalOpenHouseEmpty')!.textContent).toBe('Open houses could not be loaded.');
+  });
+
+  it('shows every showing that has no id: they cannot be told apart, so none is a copy of another', async () => {
+    const p = await loaded([show({ id: undefined }), show({ id: undefined }), show({ id: null }), show({ id: null }), show({ id: 'S-1' })]);
+    expect(p.cards().map((c) => c.getAttribute('data-showing-id'))).toEqual(['', '', '', '', 'S-1']);
+  });
+
+  it('says it could not be loaded when only one of the two types could be had: the list may be missing the listing\'s', async () => {
+    const p = boot({ answers: (c) => (/type=brokersopen/.test(c.url) ? { ok: false, status: 503 } : { ok: true, status: 200, body: { showings: [{ id: 'S-1', listing_id: '77', date: '2026-10-11', type: 'openhouse', status: 'confirmed', listing: { listing_id: 'RL-7' } }], total: 1 } }) });
+    await p.manager.load(['RL-7']);
+    expect(p.cards()).toHaveLength(0);
+    expect(p.d.getElementById('rentalOpenHouseEmpty')!.textContent).toBe('Open houses could not be loaded.');
+  });
+
+  it('says it could not be loaded when a later page fails', async () => {
+    const p = boot({ answers: (c) => (/offset=200/.test(c.url) ? { ok: false, status: 500 } : { ok: true, status: 200, body: { showings: Array.from({ length: 200 }, (_, i) => ({ id: `S-${i}`, listing_id: '99', date: '2026-10-11', type: 'openhouse', status: 'confirmed' })), total: 400 } }) });
+    await p.manager.load(['RL-7']);
+    expect(p.d.getElementById('rentalOpenHouseEmpty')!.textContent).toBe('Open houses could not be loaded.');
+  });
+
+  it('says it could not be loaded, and does not throw, when the request cannot even be made', async () => {
+    const p = boot({ answers: () => { throw new Error('no network layer'); } });
+    await expect(p.manager.load(['RL-7'])).resolves.toBeUndefined();
+    expect(p.d.getElementById('rentalOpenHouseEmpty')!.textContent).toBe('Open houses could not be loaded.');
+  });
+
+  it('does not fail when the page is closed while the list is being asked for (a continuation of a page that is gone has nothing to write to)', async () => {
+    for (const answers of [route([show({})]), () => ({ ok: false, status: 500 } as Reply)]) {
+      const p = boot({ answers });
+      const loading = p.manager.load(['RL-7']);
+      p.w.close();
+      await expect(loading).resolves.toBeUndefined();
+    }
+  });
+
+  it('shows what a later load finds after a failed one', async () => {
+    let up = false;
+    const p = boot({ answers: (c) => (up ? route([show({})])(c) : { ok: false, status: 500 }) });
+    await p.manager.load(['RL-7']);
+    expect(p.cards()).toHaveLength(0);
+    up = true;
+    await p.manager.load(['RL-7']);
+    expect(p.cards()).toHaveLength(1);
+    expect(p.d.querySelectorAll('#rentalOpenHouseEmpty')).toHaveLength(0);
   });
 
   it('a page without the list does nothing', async () => {
@@ -476,6 +630,90 @@ describe('the open houses of a saved listing', () => {
     p.list().remove();
     await p.manager.load(['RL-7']);
     expect(p.calls).toEqual([]);
+  });
+});
+
+describe('a read-only list (the Tools viewers show a listing\'s open houses; nothing there adds or removes one)', () => {
+  const rows = [
+    { id: 'S-1', listing_id: '77', date: '2026-10-11T00:00:00.000Z', time: '2:00 PM - 4:30 PM', type: 'openhouse', status: 'confirmed', notes: '[Public] Bring ID', listing: { listing_id: 'RL-7' } },
+    { id: 'S-2', listing_id: '77', date: '2026-10-12', time: '10:00 AM - 11:00 AM', type: 'brokersopen', status: 'confirmed', notes: '[BrokerOnly] Lockbox', listing: { listing_id: 'RL-7' } },
+  ];
+  const answers = route(rows);
+  // a route that sends every row whatever type was asked for: the page's own rules still hold
+  const everything = (c: Call): Reply | undefined => (c.method === 'GET' ? { ok: true, status: 200, body: { showings: rows, total: rows.length } } : undefined);
+
+  it('shows the open houses as cards with no Remove button', async () => {
+    const p = boot({ readOnly: true, answers });
+    await p.manager.load(['RL-7', '77']);
+    expect(p.cards().map((c) => c.getAttribute('data-showing-id'))).toEqual(['S-1', 'S-2']);
+    expect(p.list().querySelectorAll('button')).toHaveLength(0);
+    expect(p.list().textContent).not.toContain('Remove');
+    expect(p.cards()[0].textContent).toContain('Oct 11');
+    expect(p.cards()[0].textContent).toContain('Bring ID');
+  });
+
+  it('keeps the Remove button on a list that is not read-only (the Add forms)', async () => {
+    const p = boot({ answers });
+    await p.manager.load(['RL-7', '77']);
+    expect(p.list().querySelectorAll('button')).toHaveLength(2);
+  });
+
+  it('says "No upcoming open houses found." when there are none, without advice about a button the page does not show', async () => {
+    const p = boot({ readOnly: true });
+    await p.manager.load(['RL-7']);
+    expect(p.d.getElementById('rentalOpenHouseEmpty')!.textContent).toBe('No upcoming open houses found.');
+    const q = boot();
+    await q.manager.load(['RL-7']);
+    expect(q.d.getElementById('rentalOpenHouseEmpty')!.textContent).toBe('No open houses scheduled yet. Click "Add Open House" to create one.');
+  });
+
+  it('says "No upcoming open houses found." for a listing with no key too, and "could not be loaded" when it cannot be had', async () => {
+    const p = boot({ readOnly: true });
+    await p.manager.load([]);
+    expect(p.d.getElementById('rentalOpenHouseEmpty')!.textContent).toBe('No upcoming open houses found.');
+    const q = boot({ readOnly: true, answers: () => ({ ok: false, status: 500 }) });
+    await q.manager.load(['RL-7']);
+    expect(q.d.getElementById('rentalOpenHouseEmpty')!.textContent).toBe('Open houses could not be loaded.');
+  });
+
+  it('lists the internal events (Broker Only) unless the page says not to', async () => {
+    const all = boot({ readOnly: true, answers });
+    await all.manager.load(['RL-7']);
+    expect(all.cards().map((c) => c.getAttribute('data-showing-id'))).toEqual(['S-1', 'S-2']);
+    const publicOnly = boot({ readOnly: true, showInternal: false, answers });
+    await publicOnly.manager.load(['RL-7']);
+    expect(publicOnly.cards().map((c) => c.getAttribute('data-showing-id'))).toEqual(['S-1']);
+    expect(publicOnly.calls.map((c) => c.url)).toEqual(['/api/crm/showings?type=openhouse&date_from=2026-10-10&limit=200&offset=0']);
+    expect(publicOnly.list().textContent).not.toContain('Lockbox');
+    const explicit = boot({ readOnly: true, showInternal: true, answers });
+    await explicit.manager.load(['RL-7']);
+    expect(explicit.cards()).toHaveLength(2);
+  });
+
+  it('leaves an internal event out even when the route sends one among the open houses; a row sent twice is shown once', async () => {
+    const publicOnly = boot({ readOnly: true, showInternal: false, answers: everything });
+    await publicOnly.manager.load(['RL-7']);
+    expect(publicOnly.cards().map((c) => c.getAttribute('data-showing-id'))).toEqual(['S-1']);
+    expect(publicOnly.list().textContent).not.toContain('Lockbox');
+    const all = boot({ readOnly: true, answers: everything });
+    await all.manager.load(['RL-7']);
+    expect(all.cards().map((c) => c.getAttribute('data-showing-id'))).toEqual(['S-1', 'S-2']);      // (both asked for, both rows sent twice)
+  });
+
+  it('adds and removes nothing: no request, no form, no toast', async () => {
+    const p = boot({ readOnly: true, savedId: 'RL-7', answers });
+    await p.manager.load(['RL-7']);
+    p.calls.length = 0;
+    p.manager.showForm();
+    expect(p.form().style.display).toBe('none');
+    p.fill(FULL);
+    expect(await p.manager.save()).toBeNull();
+    expect(await p.manager.remove('S-1', p.cards()[0])).toBe(false);
+    expect(p.calls).toEqual([]);
+    expect(p.toasts).toEqual([]);
+    expect(p.told).toEqual([]);
+    expect(p.asked).toEqual([]);                                  // not even asked whether to remove
+    expect(p.cards()).toHaveLength(2);
   });
 });
 

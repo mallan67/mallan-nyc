@@ -146,7 +146,9 @@ describe(`${FORM}: a saved listing`, () => {
       expect(cards(f).map((c) => c.getAttribute('data-showing-id'))).toEqual(['S-1', 'S-3']);
       expect(cards(f)[0].textContent).toContain('By Appt');
       expect(cards(f)[1].textContent).toContain('(internal)');
-      expect(f.requests.some((r) => r.method === 'GET' && r.url === '/api/crm/showings?limit=200')).toBe(true);
+      // it asks for the upcoming open houses and the Broker Only ones, a type at a time (the route answers 200 at a time, the oldest first: see crm-listing-open-houses.test.ts)
+      const asked = f.requests.filter((r) => r.method === 'GET' && r.url.startsWith('/api/crm/showings')).map((r) => r.url.replace(/date_from=\d{4}-\d{2}-\d{2}/, 'date_from=TODAY'));
+      expect(asked).toEqual(['/api/crm/showings?type=openhouse&date_from=TODAY&limit=200&offset=0', '/api/crm/showings?type=brokersopen&date_from=TODAY&limit=200&offset=0']);
     } finally { await closeAfter(f); }
   });
 

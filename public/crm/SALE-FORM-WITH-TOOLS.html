@@ -134,6 +134,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
 <!-- API Client — identity from session token, no PII in URLs -->
 <script src="js/core/api-client.js"></script>
 <script src="js/forms/listing-hydration.js"></script>
+<script src="js/forms/listing-open-houses.js"></script>
 <script>
 (function() {
     var origin = window.location.origin;
@@ -1600,7 +1601,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
 
             <!-- Open House List -->
             <div id="saleOpenHouseList" class="space-y-3">
-                <p id="saleOpenHouseEmpty" class="text-sm text-gray-500 italic py-4 text-center">No open houses scheduled yet. Click "Add Open House" to create one.</p>
+                <p id="saleOpenHouseEmpty" class="text-sm text-gray-500 italic py-4 text-center">Open houses could not be loaded.</p>
             </div>
 
             <!-- Add Open House Form (hidden by default) -->
@@ -5071,6 +5072,13 @@ function viewerHideWriteControls() {
     document.querySelectorAll(writers.join(', ')).forEach(function(b) { b.classList.add('viewer-hidden'); });
 }
 
+// ── Viewer Helper: the listing's scheduled open houses (its showings), as read-only cards ──
+// The Add forms save an open house as a showing of the listing; the viewer lists those and adds or removes none. The internal events (Broker Only) are for an agent or a broker only.
+function viewerShowOpenHouses(prefix, record) {
+    if (!window.MallanOpenHouses || !record) return;
+    MallanOpenHouses.create({ prefix: prefix, readOnly: true, showInternal: VIEWER_ROLE === 'agent' || VIEWER_ROLE === 'broker' }).load([record.listing_id, record.id]);
+}
+
 // ── Viewer Helper: entry-form defaults are not listing facts ──
 // A pre-checked radio, a pre-selected option, a pre-ticked box or prefilled text (a default status, a default city, default
 // distribution ticks) is a data-entry convenience. Clear them in the listing tabs and the building modal before hydrating, so a
@@ -6704,6 +6712,7 @@ function renderSaleViewer() {
         MallanListingHydration.hydrate('sale', VIEWER_LISTINGS[VIEWER_LISTING_ID]._raw);
         convertSaleFormToViewer();
         viewerHideWriteControls();
+        viewerShowOpenHouses('sale', VIEWER_LISTINGS[VIEWER_LISTING_ID]._raw);
         patchGetSaleFormValue();
         updateSaleHeaderForViewer(listingData);
         removeSaleNavigationButtons();
