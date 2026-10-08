@@ -5599,6 +5599,7 @@ function _media() {
             prefix: 'rental',
             listingId: function() { return _rentalEditListingId || _rentalEditDbId || ''; },
             canUpload: function() { return typeof MallanAPI !== 'undefined' && !!MallanAPI.isReady; },
+            unsavedMessage: 'Submit the listing first before uploading media.',
             toast: showToast
         });
     }
@@ -5778,6 +5779,7 @@ function initLoggedInAgent() {
 // CANCEL — Close standalone form or navigate back
 // ══════════════════════════════════════════════════════
 function cancelRentalForm() {
+    if (_rentalBusy) { showToast('A save is still out. Wait for the CRM to answer before you close this form.', 'warning'); return; }
     if (confirm('Are you sure you want to close this form? Unsaved changes will be lost.')) {
         if (window.opener) {
             window.close();
@@ -5952,7 +5954,7 @@ function validateAndNextRentalTab(currentTab, nextTab) {
 // SAVE DRAFT — localStorage persistence
 // ══════════════════════════════════════════════════════
 function saveRentalDraft() {
-    if (_rentalSaveBlocked()) return;
+    if (_rentalSaveBlocked() || _rentalBusy) return Promise.resolve(false);
     var data = collectRentalFormData();
 
     // S-DB-008 phantom-draft guard (parity with the sales form's
@@ -5961,33 +5963,26 @@ function saveRentalDraft() {
     // shadow/overwrite the authoritative DB row on the next load. Persist
     // straight to the server instead, and clear any stale browser draft so it
     // can never shadow the DB listing.
-    if (_rentalEditMode && _rentalEditDbId) {
+    // A listing the server already has (opened, or created by this page) is saved to the server, by its database id or else the listing id it gave (the page knows either only when it holds a
+    // saved listing). The page says "saved" once the server has taken the changes, and says why when it did not.
+    var editKey = _rentalEditDbId || _rentalEditListingId;
+    if (editKey) {
         try { localStorage.removeItem('rentalListingDraft'); } catch (e) {}
-        if (typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
-            MallanAPI.listings.update(_rentalEditDbId, data).catch(function(err) {
-                console.warn('[AutoSave] Server save failed:', err.message);
-            });
+        if (!(typeof MallanAPI !== 'undefined' && MallanAPI.isReady)) {
+            showToast('Not saved: the CRM is not connected. The form still holds your changes.', 'error');
+            return Promise.resolve(false);
         }
-        showToast('Saved to listing ' + (_rentalEditListingId || _rentalEditDbId), 'success');
-        return;
+        return _rentalUpdateOnServer(editKey, data, 'Saved to listing ' + (_rentalEditListingId || editKey));
     }
 
-    // New, unsaved listing (no DB id yet) — a browser draft is safe here.
-    try {
-        localStorage.setItem('rentalListingDraft', JSON.stringify(Object.assign({ _savedAt: new Date().toISOString() }, data)));
-        showToast('Draft saved successfully', 'success');
-    } catch (e) {
-        showToast('Failed to save draft: ' + e.message, 'error');
+    // New, unsaved listing (no DB id yet) — a browser draft is safe here. It lives in this browser only: the listing reaches the CRM when it is submitted.
+    var problem = _rentalKeepBrowserCopy(data);
+    if (problem) {
+        showToast('Failed to save draft: ' + problem.message, 'error');
+        return Promise.resolve(false);
     }
-
-    // Also persist to server if connected and listing already has an ID
-    var listingIdEl = document.getElementById('rentalListingIdDisplay');
-    var existingId = listingIdEl ? listingIdEl.textContent.trim() : '';
-    if (existingId && existingId !== '--' && existingId !== 'New' && typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
-        MallanAPI.listings.update(existingId, data).catch(function(err) {
-            console.warn('[AutoSave] Server save failed:', err.message);
-        });
-    }
+    showToast('Saved in this browser only. Submit the listing to save it to the CRM.', 'warning');
+    return Promise.resolve(true);
 }
 
 function loadRentalDraft() {
@@ -6028,7 +6023,7 @@ function manualSaveDraft(prefix) {
 // ══════════════════════════════════════════════════════
 // TOAST NOTIFICATION — Unified helper
 // ══════════════════════════════════════════════════════
-function showToast(message, type) {
+function showToast(message, type, ms) {
     var toast = document.createElement('div');
     toast.className = 'toast-notification';
     if (type === 'error') {
@@ -6041,11 +6036,16 @@ function showToast(message, type) {
     iconEl.className = 'fas ' + icon + ' mr-2';
     toast.appendChild(iconEl);
     toast.appendChild(document.createTextNode(' ' + message));
+    // Each toast is put above the ones before it (they all sat in the same corner, and a later one covered an earlier one), and an error or a warning stays 10 seconds (a note that says "Do not submit
+    // it again" was gone in 3); the caller can ask for longer
+    var offset = 20;
+    document.querySelectorAll('.toast-notification').forEach(function(other) { offset += (other.offsetHeight || 48) + 8; });
+    toast.style.bottom = offset + 'px';
     document.body.appendChild(toast);
-    setTimeout(function() { toast.remove(); }, 3000);
+    setTimeout(function() { toast.remove(); }, ms || (type === 'error' || type === 'warning' ? 10000 : 3000));
 }
 // Override native alert → toast
-window.alert = function(msg) { showToast(String(msg)); };
+window.alert = function(msg) { var text = String(msg); showToast(text, /^SUCCESS/.test(text) ? 'success' : 'warning'); };
 
 // A yes / no a select or checkbox holds, for the provider's boolean fields: true for Yes, false for No, and nothing at all for a question nobody answered (an
 // unanswered field is not asserted false). The selects hold "Yes" / "No"; comparing them with true / 'true' made every answer false.
@@ -6349,8 +6349,82 @@ function collectRentalFormData() {
     return data;
 }
 
+// The server has the listing (created, or updated): the rest of what a submit does. Its status is the server's, the photos go to it, and the agent is shown the result.
+async function _rentalAfterSave(result) {
+    var lid = result.listing_id || _rentalEditListingId || 'RL-' + Date.now();
+    var wasSaved = _rentalEditMode;
+    if (!wasSaved) {
+        _rentalEditMode = true;
+        _rentalEditDbId = result.id || _rentalEditDbId;
+        _rentalEditListingId = lid;
+        _rentalShowEditLabels();
+    }
+    // The page shows the saved listing at once (a step below that throws must not leave "ID: New" above buttons that say Update), and the browser keeps no copy of it any more: restoring it would submit it again
+    var idDisplay = document.getElementById('rentalListingIdDisplay');
+    if (idDisplay) idDisplay.textContent = lid;
+    var lastUpdated = document.getElementById('rentalLastUpdated');
+    if (lastUpdated) lastUpdated.textContent = new Date().toLocaleString();
+    try { localStorage.removeItem('rentalListingDraft'); } catch (e) {}
+    // The listing is saved. Its status is the server's, and a save does not change it (a new listing is a Draft, and the listing route leaves the status column alone): the
+    // server is asked for the status that stands for the step the agent chose, through the status route, whose state machine decides (a Draft moves only to Active, an Active
+    // listing does not go back to Draft) and whose refusal is said below.
+    var dbId = result.id || _rentalEditDbId;
+    // The photos and floor plans chosen so far go to the listing now that it is saved, and are shown as the listing's own tiles
+    var media = _media();
+    if (media && media.hasPending()) {
+        var mediaOf = result.listing_id || dbId || _rentalEditListingId;                // the id the server gave, never the made-up one the page shows when it gave none
+        showToast('Uploading media files...', 'info');
+        var sentMedia = await media.uploadPending(mediaOf);
+        if (sentMedia.failed > 0) showToast(sentMedia.failed + ' media upload(s) failed.', 'warning');
+        await media.render(mediaOf, dbId);
+    }
+    var statusNow = result.status || _rentalRecordStatus || 'Draft';
+    var statusControl = document.getElementById('rentalStatus');
+    var step = statusControl ? statusControl.value : '';
+    var wanted = step ? _rentalServerStatus(step) : '';
+    if (step && !wanted) {
+        showToast('The status "' + step + '" is not one this form can set: the listing was saved and its status left as it was.', 'warning');
+    } else if (wanted && wanted !== statusNow && dbId) {
+        try {
+            var moved = await MallanAPI.listings.updateStatus(dbId, wanted);
+            statusNow = (moved && moved.status) || wanted;
+        } catch (statusErr) {
+            showToast('Saved as ' + statusNow + '. The status change failed: ' + statusErr.message, 'warning');
+        }
+    }
+    _rentalRecordStatus = statusNow;
+    // The form shows the status the server has: a change the server refused (or answered with another status) puts the list and the badge back in line with it. A step in the
+    // same family as the server's status stays (Future for a Draft, Lease Signed for a Pending listing). A family with no single step (Pending has several) leaves the list empty for
+    // the agent to choose, as when a listing is opened; a status the form has no family for leaves the list alone.
+    var shownFamily = _RENTAL_STATUS_FAMILY[step];
+    var hasFamily = _RENTAL_STATUS_FAMILY[statusNow];
+    if (statusControl && hasFamily && shownFamily !== hasFamily) {
+        statusControl.value = _RENTAL_STEP_FOR_FAMILY[hasFamily] || '';
+        updateRentalStatusFields();
+    }
+    validateStatusChange('rental');
+    // The addresses the server gave the listing: the Listing URL box shows the public one (or, when it gave none, the one worked out from the address and the listing id)
+    var publicUrl = (moved && moved.publicUrl) || result.publicUrl || null;
+    var realPlusUrl = (moved && moved.realPlusUrl) || result.realPlusUrl || null;
+    var urlBox = document.getElementById('rentalListingUrl');
+    if (urlBox && publicUrl) urlBox.value = publicUrl;
+    else generateRentalListingUrl();
+    if (wasSaved) {
+        alert('SUCCESS! Listing updated.\n\nListing ID: ' + lid + '\nStatus: ' + statusNow);
+    } else {
+        alert('SUCCESS! Your rental listing has been submitted.\n\nListing ID: ' + lid + '\nStatus: ' + statusNow);
+    }
+    // A listing that went Active is shown its addresses, with a way to copy them (the Sale form's "Listing Published" panel)
+    if (statusNow === 'Active' && realPlusUrl && window.MallanListingPublished) {
+        MallanListingPublished.show({ prefix: 'rental', listingId: lid, publicUrl: publicUrl, realPlusUrl: realPlusUrl, toast: showToast, dashboardUrl: '/crm/dashboard#/ops/listings' });
+    }
+    if (result.warnings && result.warnings.length > 0) {
+        console.warn('[Submit] Warnings:', result.warnings);
+    }
+}
+
 function submitRentalListing() {
-    if (_rentalSaveBlocked()) return;
+    if (_rentalSaveBlocked() || _rentalBusy) return;
     // Validate all tabs with required fields (tabs 1-4)
     var allValid = true;
     for (var t = 1; t <= 4; t++) {
@@ -6372,90 +6446,33 @@ function submitRentalListing() {
     var formData = collectRentalFormData();
 
     // Submit to API — create or update depending on edit mode
+    // A listing the server already has is updated, never created again: by its database id, else by the listing id it gave
+    var editKey = _rentalEditDbId || _rentalEditListingId;
     if (typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
-        var apiCall;
-        if (_rentalEditMode && _rentalEditDbId) {
-            apiCall = MallanAPI.listings.update(_rentalEditDbId, formData);
-        } else {
-            apiCall = MallanAPI.listings.create(formData);
+        if (!_rentalCanSend()) {
+            showToast('The page cannot send listings to the CRM (its client did not load), so the listing was not submitted. The form still holds everything you entered.', 'error');
+            return;
         }
-
-        apiCall.then(async function(result) {
-            var lid = result.listing_id || _rentalEditListingId || 'RL-' + Date.now();
-            var wasSaved = _rentalEditMode;
-            if (!wasSaved) {
-                _rentalEditMode = true;
-                _rentalEditDbId = result.id || _rentalEditDbId;
-                _rentalEditListingId = lid;
-            }
-            // The listing is saved. Its status is the server's, and a save does not change it (a new listing is a Draft, and the listing route leaves the status column alone): the
-            // server is asked for the status that stands for the step the agent chose, through the status route, whose state machine decides (a Draft moves only to Active, an Active
-            // listing does not go back to Draft) and whose refusal is said below.
-            var dbId = result.id || _rentalEditDbId;
-            // The photos and floor plans chosen so far go to the listing now that it is saved, and are shown as the listing's own tiles
-            var media = _media();
-            if (media && media.hasPending()) {
-                var mediaOf = result.listing_id || dbId || _rentalEditListingId;                // the id the server gave, never the made-up one the page shows when it gave none
-                showToast('Uploading media files...', 'info');
-                var sentMedia = await media.uploadPending(mediaOf);
-                if (sentMedia.failed > 0) showToast(sentMedia.failed + ' media upload(s) failed.', 'warning');
-                await media.render(mediaOf, dbId);
-            }
-            var statusNow = result.status || _rentalRecordStatus || 'Draft';
-            var statusControl = document.getElementById('rentalStatus');
-            var step = statusControl ? statusControl.value : '';
-            var wanted = step ? _rentalServerStatus(step) : '';
-            if (step && !wanted) {
-                showToast('The status "' + step + '" is not one this form can set: the listing was saved and its status left as it was.', 'warning');
-            } else if (wanted && wanted !== statusNow && dbId) {
-                try {
-                    var moved = await MallanAPI.listings.updateStatus(dbId, wanted);
-                    statusNow = (moved && moved.status) || wanted;
-                } catch (statusErr) {
-                    showToast('Saved as ' + statusNow + '. The status change failed: ' + statusErr.message, 'warning');
-                }
-            }
-            _rentalRecordStatus = statusNow;
-            // The form shows the status the server has: a change the server refused (or answered with another status) puts the list and the badge back in line with it. A step in the
-            // same family as the server's status stays (Future for a Draft, Lease Signed for a Pending listing). A family with no single step (Pending has several) leaves the list empty for
-            // the agent to choose, as when a listing is opened; a status the form has no family for leaves the list alone.
-            var shownFamily = _RENTAL_STATUS_FAMILY[step];
-            var hasFamily = _RENTAL_STATUS_FAMILY[statusNow];
-            if (statusControl && hasFamily && shownFamily !== hasFamily) {
-                statusControl.value = _RENTAL_STEP_FOR_FAMILY[hasFamily] || '';
-                updateRentalStatusFields();
-            }
-            validateStatusChange('rental');
-            // The addresses the server gave the listing: the Listing URL box shows the public one (or, when it gave none, the one worked out from the address and the listing id)
-            var publicUrl = (moved && moved.publicUrl) || result.publicUrl || null;
-            var realPlusUrl = (moved && moved.realPlusUrl) || result.realPlusUrl || null;
-            var urlBox = document.getElementById('rentalListingUrl');
-            if (urlBox && publicUrl) urlBox.value = publicUrl;
-            else generateRentalListingUrl();
-            if (wasSaved) {
-                alert('SUCCESS! Listing updated.\n\nListing ID: ' + lid + '\nStatus: ' + statusNow);
-            } else {
-                alert('SUCCESS! Your rental listing has been submitted.\n\nListing ID: ' + lid + '\nStatus: ' + statusNow);
-            }
-            // A listing that went Active is shown its addresses, with a way to copy them (the Sale form's "Listing Published" panel)
-            if (statusNow === 'Active' && realPlusUrl && window.MallanListingPublished) {
-                MallanListingPublished.show({ prefix: 'rental', listingId: lid, publicUrl: publicUrl, realPlusUrl: realPlusUrl, toast: showToast, dashboardUrl: '/crm/dashboard#/ops/listings' });
-            }
-            if (result.warnings && result.warnings.length > 0) {
-                console.warn('[Submit] Warnings:', result.warnings);
-            }
-            var idDisplay = document.getElementById('rentalListingIdDisplay');
-            if (idDisplay) idDisplay.textContent = lid;
-            var lastUpdated = document.getElementById('rentalLastUpdated');
-            if (lastUpdated) lastUpdated.textContent = new Date().toLocaleString();
-        }).catch(function(err) {
-            alert('Submission failed: ' + err.message + '\n\nDraft has been saved locally.');
-            saveRentalDraft();
-        });
-    } else {
-        // Offline fallback
+        _rentalSetBusy(true);
+        Promise.resolve().then(function() {
+            return editKey ? MallanAPI.listings.update(editKey, formData) : MallanAPI.listings.create(formData);
+        }).then(function(result) {
+            // The server has the listing. Whatever fails from here on is said as that: a submit that "failed" now would be sent again, and created again.
+            return _rentalAfterSave(result).catch(function(err) {
+                showToast('The listing was saved as ' + ((result && result.listing_id) || _rentalEditListingId || 'a listing') + ', but a later step failed: ' + ((err && err.message) || 'an error') +
+                    '. Do not submit it again; open the listing to check it.', 'warning', 20000);
+            });
+        }, function(err) {
+            _rentalSubmitFailed(err, !editKey);
+        }).then(function() { _rentalSetBusy(false); }, function() { _rentalSetBusy(false); });
+    } else if (editKey) {
+        // The CRM is not connected, and the page holds a saved listing: Save Draft clears the stale copy that would shadow it, and says that nothing was saved
         saveRentalDraft();
-        alert('SUCCESS! Draft saved locally (offline mode).');
+    } else if (!_rentalKeepBrowserCopy(formData)) {
+        // A new listing: one note says both that it was not submitted and that a copy is kept (toasts are stacked, but the two belong together)
+        showToast('The CRM is not connected, so the listing was not submitted. A copy is kept in this browser; submit it again when the CRM is back.', 'warning');
+    } else {
+        showToast('The CRM is not connected, so the listing was not submitted, and this browser could not keep a copy. The form still holds everything you entered.', 'error');
     }
 }
 
@@ -6548,6 +6565,7 @@ function _openHouses() {
     return MallanOpenHouses.create({
         prefix: 'rental',
         listingId: function() { return _rentalEditListingId || _rentalEditDbId || ''; },
+        unsavedMessage: 'Submit the listing first, then add open houses: they attach to the saved listing.',
         toast: showToast
     });
 }
@@ -7305,6 +7323,90 @@ function _rentalSaveBlocked() {
     return true;
 }
 
+// A submit or a save is out: the buttons that start one are off until the server has answered. A second click would send the listing twice (a new listing would be created twice).
+var _rentalBusy = false;
+function _rentalSetBusy(on) {
+    _rentalBusy = on;
+    document.querySelectorAll('[onclick*="submitRentalListing"], [onclick*="saveRentalDraft"], [onclick*="manualSaveDraft"]').forEach(function(btn) {
+        btn.disabled = on;
+        btn.classList.toggle('opacity-60', on);
+        btn.classList.toggle('cursor-not-allowed', on);
+    });
+}
+
+// Leaving the page (closing the form, a reload) while a submit or a save is out would lose its answer: the agent would enter the listing again and send it a second time. Cancel waits (see
+// cancelRentalForm) and the browser asks.
+window.addEventListener('beforeunload', function(e) {
+    if (_rentalBusy) { e.preventDefault(); e.returnValue = ''; }
+});
+
+// A page that holds a saved listing (one that was opened, or that this Submit created): Submit updates it and Save Draft saves it to the CRM, and the buttons say so (their icons stay).
+function _rentalShowEditLabels() {
+    document.querySelectorAll('[onclick*="submitRentalListing"]').forEach(function(btn) {
+        btn.childNodes.forEach(function(node) { if (node.nodeType === 3) node.nodeValue = node.nodeValue.replace(/Submit|Create/gi, 'Update'); });
+    });
+    document.querySelectorAll('[onclick*="saveRentalDraft"], [onclick*="manualSaveDraft"]').forEach(function(btn) {
+        btn.childNodes.forEach(function(node) { if (node.nodeType === 3) node.nodeValue = node.nodeValue.replace('Save Draft', 'Save Changes'); });
+    });
+}
+
+// What a request that failed tells the page. The server REFUSED it (a 4xx answer: it did not do what was asked), or nothing is known: no answer at all (the network), a 5xx, a timeout (the listing
+// create route answers 500 when it committed the listing and could not build its answer). "Nothing was saved" is only for a refusal. The CRM client (js/core/api-client.js) puts the HTTP status on the error.
+function _rentalRefused(err) {
+    var status = err && err.status;
+    return status >= 400 && status < 500 && status !== 408;
+}
+
+// Whether the CRM client has what a save needs. When it has not (it did not load), the request is never sent: that is known, not unknown.
+function _rentalCanSend() {
+    return typeof MallanAPI !== 'undefined' && !!MallanAPI.listings && typeof MallanAPI.listings.create === 'function' && typeof MallanAPI.listings.update === 'function';
+}
+
+// A copy of a NEW listing in this browser, where the draft restore reads it. Nothing is returned when the copy is kept, else the reason it could not be.
+function _rentalKeepBrowserCopy(data) {
+    try {
+        localStorage.setItem('rentalListingDraft', JSON.stringify(Object.assign({ _savedAt: new Date().toISOString() }, data)));
+        return null;
+    } catch (e) {
+        return e || new Error('this browser could not keep a copy');
+    }
+}
+
+// Sends the changes of a saved listing, and says what happened once the server has answered, never before: a toast of success, of the reason the server refused them, or that the CRM did not confirm
+// (the same changes can be sent again). The buttons are off meanwhile.
+function _rentalUpdateOnServer(key, data, savedMessage) {
+    if (!_rentalCanSend()) {
+        showToast('Not saved: the page cannot send listings to the CRM (its client did not load). The form still holds your changes.', 'error');
+        return Promise.resolve(false);
+    }
+    _rentalSetBusy(true);
+    var done = function(ok) { _rentalSetBusy(false); return ok; };
+    return Promise.resolve().then(function() { return MallanAPI.listings.update(key, data); }).then(function() {
+        showToast(savedMessage, 'success');
+        return true;
+    }, function(err) {
+        var why = err && err.message;
+        if (_rentalRefused(err)) showToast('Not saved: ' + (why || 'the server did not accept the changes') + '. The form still holds your changes.', 'error');
+        else showToast('The CRM did not confirm that the changes were saved: ' + (why || 'no answer') + '. The form still holds your changes; press Save Changes again.', 'error', 15000);
+        return false;
+    }).then(done, function() { return done(false); });
+}
+
+// The submit failed. A refusal: nothing was saved there. Otherwise it is not known whether the listing was saved: a new listing must be looked for before it is submitted again (it could be created twice),
+// and the changes of a saved listing can simply be sent again. The form still holds everything the agent entered, and for a new listing a copy is kept in this browser as well.
+function _rentalSubmitFailed(err, creating) {
+    var why = err && err.message;
+    var kept = creating && !_rentalKeepBrowserCopy(collectRentalFormData());
+    var holds = 'the form still holds everything you entered' + (kept ? ', and a copy is kept in this browser.' : '.');
+    if (_rentalRefused(err)) {
+        showToast((creating ? 'Submission failed: ' : 'Update failed: ') + (why || 'the server did not accept the listing') + '. Nothing was saved to the CRM; ' + holds, 'error');
+    } else if (creating) {
+        showToast('The CRM did not confirm whether the listing was saved: ' + (why || 'no answer') + '. Check My Listings for this address before submitting it again; ' + holds, 'error', 15000);
+    } else {
+        showToast('The CRM did not confirm whether the changes were saved: ' + (why || 'no answer') + '. Press Update to send them again; ' + holds, 'error', 15000);
+    }
+}
+
 function _checkRentalEditMode() {
     var params = new URLSearchParams(window.location.search);
     var id = params.get('id');
@@ -7336,11 +7438,8 @@ function _checkRentalEditMode() {
         var lastUpdated = document.getElementById('rentalLastUpdated');
         if (lastUpdated) lastUpdated.textContent = listing.updated_at ? new Date(listing.updated_at).toLocaleString() : '';
 
-        // Change submit button text
-        var submitBtns = document.querySelectorAll('[onclick*="submitRentalListing"]');
-        submitBtns.forEach(function(btn) {
-            btn.textContent = btn.textContent.replace(/Submit|Create/gi, 'Update');
-        });
+        // Submit updates this listing and Save Draft saves it to the CRM: the buttons say so
+        _rentalShowEditLabels();
     }).catch(function(err) {
         if (_rentalEditLoad !== 'loaded') _rentalEditLoad = 'failed';
         showToast('Failed to load listing: ' + err.message, 'error');

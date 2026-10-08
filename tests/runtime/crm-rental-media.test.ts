@@ -82,12 +82,12 @@ describe(`${FORM}: the Media panel`, () => {
     } finally { await closeAfter(f); }
   });
 
-  it('Save Media on a listing that is not saved says to save it first', async () => {
+  it('Save Media on a listing that is not saved says to submit it first (Save Draft does not create the listing)', async () => {
     const f = await boot();
     try {
       choose(f, 'rentalPhotoInput', ['a.jpg']);
       f.w.saveRentalMedia();
-      expect(toasts(f).some((t) => /Save the listing first before uploading media/.test(t))).toBe(true);
+      expect(toasts(f).some((t) => /Submit the listing first before uploading media/.test(t))).toBe(true);
       expect(f.requests.filter((r) => r.method === 'POST')).toEqual([]);
     } finally { await closeAfter(f); }
   });

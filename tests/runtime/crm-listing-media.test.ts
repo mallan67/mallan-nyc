@@ -20,7 +20,7 @@ type Call = { url: string; method: string; headers?: Record<string, string>; bod
 type Reply = { ok: boolean; status: number; body?: any; reject?: string };
 
 /** A page with the controls the module uses, the module loaded, and a network that answers from `answers` (a function of the request) and records every request. */
-function boot(o: { savedId?: string; canUpload?: () => boolean; answers?: (call: Call) => Reply | undefined; confirm?: boolean } = {}) {
+function boot(o: { savedId?: string; unsavedMessage?: string; canUpload?: () => boolean; answers?: (call: Call) => Reply | undefined; confirm?: boolean } = {}) {
   const dom = new JSDOM(`<!doctype html><body>
     <div id="photoZone"><input type="file" id="rentalPhotoInput" multiple></div><div id="rentalPhotoPreview"></div><span id="rentalPhotoCount"></span>
     <div id="floorZone"><input type="file" id="rentalFloorplanInput"></div><div id="rentalFloorplanPreview"></div>
@@ -36,6 +36,7 @@ function boot(o: { savedId?: string; canUpload?: () => boolean; answers?: (call:
   const media = w.MallanListingMedia.create({
     prefix: 'rental',
     listingId: () => savedId,
+    unsavedMessage: o.unsavedMessage,
     toast: (message: string, type?: string) => toasts.push([message, type]),
     confirm: () => o.confirm ?? true,
     canUpload: o.canUpload,
@@ -480,6 +481,14 @@ describe('Save Media', () => {
     p.media.addFiles([p.file('a.jpg')], 'photo');
     await p.media.saveMedia();
     expect(p.toasts.at(-1)).toEqual(['Save the listing first before uploading media.', 'warning']);
+    expect(p.calls).toEqual([]);
+  });
+
+  it('on a listing that is not saved, says what the page says when the page words it (the Rental form: Save Draft does not create the listing)', async () => {
+    const p = boot({ unsavedMessage: 'Submit the listing first before uploading media.' });
+    p.media.addFiles([p.file('a.jpg')], 'photo');
+    await p.media.saveMedia();
+    expect(p.toasts.at(-1)).toEqual(['Submit the listing first before uploading media.', 'warning']);
     expect(p.calls).toEqual([]);
   });
 

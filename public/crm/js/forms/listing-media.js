@@ -6,7 +6,7 @@
  *   media.bind();                           the two file boxes (<prefix>PhotoInput, <prefix>FloorplanInput) and their drop zones hand their files to the manager
  *   media.uploadPending(id, options)        saves the files chosen so far to the listing, one after the other: POST /api/crm/listings/<id>/media/upload
  *   media.render(id, fallbackId)            shows the saved photos and floor plans: GET /api/crm/listings/<id>/media, as tiles with a cover, move and remove
- *   media.saveMedia()                       the panel's Save Media button
+ *   media.saveMedia()                       the panel's Save Media button; a listing that is not saved yet is told options.unsavedMessage ('Save the listing first before uploading media.' unless the page words it)
  *   media.hasPending() / media.reset()      files chosen and not saved yet / forget them (another record is in the form)
  *
  * The controls it uses: <prefix>PhotoInput, <prefix>FloorplanInput (file boxes), <prefix>PhotoPreview, <prefix>FloorplanPreview (where the tiles go), <prefix>PhotoCount (the count).
@@ -184,7 +184,7 @@
 
     function saveMedia() {
       var id = savedId();
-      if (!id) { toast('Save the listing first before uploading media.', 'warning'); return Promise.resolve(null); }
+      if (!id) { toast(options.unsavedMessage || 'Save the listing first before uploading media.', 'warning'); return Promise.resolve(null); }
       var waiting = pending.filter(function (m) { return !m.uploaded && !m._removed; });
       if (waiting.length === 0) { toast('No new media to upload.', 'info'); return Promise.resolve(null); }
       toast('Uploading ' + waiting.length + ' file(s)...', 'info');

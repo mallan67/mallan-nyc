@@ -12,7 +12,8 @@
  * The controls it uses: <prefix>OpenHouseList (the cards), <prefix>OpenHouseEmpty (the line shown when there are none), <prefix>AddOpenHouseForm (the form) and in it
  * <prefix>NewOHDate, <prefix>NewOHStart, <prefix>NewOHEnd, <prefix>NewOHType, <prefix>NewOHNotes.
  *
- * An open house is a `showing` of the listing, so it is saved with the listing's id: a listing that is not saved yet has none (the agent is told to save it first). Public, Virtual and By
+ * An open house is a `showing` of the listing, so it is saved with the listing's id: a listing that is not saved yet has none (the agent is told to save it first: options.unsavedMessage words that for a
+ * page where Save Draft does not create the listing). Public, Virtual and By
  * Appointment are public events (type 'openhouse'); only Broker Only is internal (type 'brokersopen', never on a public page). The type the agent chose is kept in the notes as "[Type] ..."
  * so it comes back when the listing is opened. Built with DOM calls: a note or a time that came back from the server is text here, never markup.
  *
@@ -127,7 +128,7 @@
       var reason = blocked();
       if (reason) { tell(reason); return Promise.resolve(null); }
       var id = savedId();
-      if (!id) { tell('Save the listing first (as a draft), then add open houses — they attach to the saved listing.'); return Promise.resolve(null); }
+      if (!id) { tell(options.unsavedMessage || 'Save the listing first (as a draft), then add open houses — they attach to the saved listing.'); return Promise.resolve(null); }
       var info = showingType(type);
       var timeText = time12h(start) + ' - ' + time12h(end);
       var saveButton = global.document.querySelector('#' + prefix + 'AddOpenHouseForm button[data-oh-save]');

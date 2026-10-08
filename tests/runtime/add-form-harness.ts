@@ -46,10 +46,16 @@ export type AddFormOpts = {
   updated?: Record<string, unknown>;                 // what MallanAPI.listings.update answers (default {}: the real route answers with the record's status, which is the server's)
   statusAnswer?: Record<string, unknown>;            // what MallanAPI.listings.updateStatus answers (default {})
   statusError?: string;                              // make MallanAPI.listings.updateStatus fail with this message (the status route refuses the change)
+  createError?: string;                              // make MallanAPI.listings.create fail with this message (the server refuses the listing)
+  createErrorStatus?: number | null;                 // the HTTP status of that failure, as the real client reports it: 422 (the default) is a refusal, 500 is the server failing, null is no answer at all (the network)
+  createGate?: Promise<void>;                        // MallanAPI.listings.create answers once this promise is settled (a slow server: a test opens the gate when it wants the answer)
+  updateError?: string;                              // make MallanAPI.listings.update fail with this message
+  updateErrorStatus?: number | null;                 // the HTTP status of that failure (see createErrorStatus)
+  updateGate?: Promise<void>;                        // MallanAPI.listings.update answers once this promise is settled
   settle?: number;                                   // ms to let page init finish
 };
 export type Request = { url: string; method: string; body: string };
-export type BootedForm = { w: any; d: Document; errors: string[]; fetched: string[]; searched: string[]; requests: Request[]; saved: Record<string, unknown>[]; statusCalls: [unknown, unknown][]; dropped: string[]; close: () => void };
+export type BootedForm = { w: any; d: Document; errors: string[]; fetched: string[]; searched: string[]; requests: Request[]; saved: Record<string, unknown>[]; statusCalls: [unknown, unknown][]; dropped: string[]; calls: string[]; close: () => void };
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function until(cond: () => boolean, ms = 8000): Promise<void> {
@@ -80,6 +86,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
   const searched: string[] = [];                       // the queries sent to /api/buildings/search
   const requests: Request[] = [];                      // every fetch() the page made, with its method and body
   const dropped: string[] = [];                        // the answers that were not delivered because the window had been closed while the request was out
+  const calls: string[] = [];                          // every listings.create / listings.update the page made, in order ('create', 'update <id>'), whether the server took it or not
   let buildingCalls = 0;
   const virtualConsole = new VirtualConsole();
   virtualConsole.on('jsdomError', (e: any) => errors.push(String(e?.detail?.message ?? e?.message)));
@@ -98,6 +105,10 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
       // An answer to a request whose window was closed meanwhile is never delivered (a closed window has no document): the page's code would throw on it (showToast, getElementById) in whichever
       // test is running by then, a failure that depended on how busy the machine was.
       const later = async (what: string, ms: number) => { await sleep(ms); if (!w.document) { dropped.push(what); await new Promise<never>(() => undefined); } };
+      // a save the test holds back: its answer comes when the gate opens, and not at all if the window was closed meanwhile
+      const held = async (gate?: Promise<void>) => { if (!gate) return; await gate; if (!w.document) { dropped.push('save'); await new Promise<never>(() => undefined); } };
+      // a failure of the server as the real client (public/crm/js/core/api-client.js) reports it: the server's words and the HTTP status (a refusal, 422, unless the test says another; null: no answer at all)
+      const failure = (message: string, status: number | null | undefined) => Object.assign(new Error(message), status === null ? {} : { status: status ?? 422 });
       w.fetch = async (url: string, init?: { method?: string; body?: unknown }) => {
         const u = String(url);
         requests.push({ url: u, method: init?.method ?? 'GET', body: typeof init?.body === 'string' ? init.body : '' });
@@ -141,8 +152,8 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
         init: () => Promise.resolve({ authenticated: !!user, user }),
         listings: {
           get: async () => { await later('listings.get', o.getDelay ?? 10); if (o.getError) throw new Error(o.getError); return o.listing ?? {}; },
-          create: async (payload: Record<string, unknown>) => { saved.push(payload); return { id: '1', listing_id: 'L-1', status: 'Draft', ...(o.created ?? {}) }; },
-          update: async (_id: string, payload: Record<string, unknown>) => { saved.push(payload); return { ...(o.updated ?? {}) }; },
+          create: async (payload: Record<string, unknown>) => { calls.push('create'); await held(o.createGate); if (o.createError) throw failure(o.createError, o.createErrorStatus); saved.push(payload); return { id: '1', listing_id: 'L-1', status: 'Draft', ...(o.created ?? {}) }; },
+          update: async (id: string, payload: Record<string, unknown>) => { calls.push(`update ${id}`); await held(o.updateGate); if (o.updateError) throw failure(o.updateError, o.updateErrorStatus); saved.push(payload); return { ...(o.updated ?? {}) }; },
           updateStatus: async (id: unknown, status: unknown) => { statusCalls.push([id, status]); if (o.statusError) throw new Error(o.statusError); return { ...(o.statusAnswer ?? {}) }; },
         },
         idx: { search: async () => ({ results: [] }) },
@@ -163,7 +174,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
     },
   });
   await sleep(o.settle ?? 1200);
-  return { w: dom.window, d: dom.window.document, errors, fetched, searched, requests, saved, statusCalls, dropped, close: () => dom.window.close() };
+  return { w: dom.window, d: dom.window.document, errors, fetched, searched, requests, saved, statusCalls, dropped, calls, close: () => dom.window.close() };
 }
 
 export const val = (d: Document, id: string): string => ((d.getElementById(id) as HTMLInputElement | null)?.value) ?? '';

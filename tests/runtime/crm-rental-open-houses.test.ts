@@ -74,13 +74,13 @@ describe(`${FORM}: the Open Houses sub-tab`, () => {
     } finally { await closeAfter(f); }
   });
 
-  it('on a listing that is not saved, Save says to save the listing first and sends nothing', async () => {
+  it('on a listing that is not saved, Save says to submit the listing first (Save Draft does not create it) and sends nothing', async () => {
     const f = await boot();
     try {
       fillOpenHouse(f);
       click(f, '[onclick="saveRentalOpenHouse()"]');
       await sleep(100);
-      expect(toasts(f).some((t) => /Save the listing first \(as a draft\), then add open houses/.test(t))).toBe(true);
+      expect(toasts(f).some((t) => /Submit the listing first, then add open houses: they attach to the saved listing/.test(t))).toBe(true);
       expect(posts(f)).toEqual([]);
     } finally { await closeAfter(f); }
   });

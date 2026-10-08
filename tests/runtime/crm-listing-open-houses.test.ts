@@ -19,7 +19,7 @@ const SOURCE = readFileSync(resolve(__dirname, '../../public/crm/js/forms/listin
 type Call = { url: string; method: string; headers?: Record<string, string>; body?: any; credentials?: string };
 type Reply = { ok: boolean; status: number; body?: any; reject?: string };
 
-function boot(o: { savedId?: string; blocked?: () => string; answers?: (call: Call) => Reply | undefined; confirm?: boolean; readOnly?: boolean; showInternal?: boolean; now?: Date } = {}) {
+function boot(o: { savedId?: string; unsavedMessage?: string; blocked?: () => string; answers?: (call: Call) => Reply | undefined; confirm?: boolean; readOnly?: boolean; showInternal?: boolean; now?: Date } = {}) {
   const dom = new JSDOM(`<!doctype html><body>
     <div id="rentalOpenHouseList"><p id="rentalOpenHouseEmpty">none</p></div>
     <div id="rentalAddOpenHouseForm" style="display: none;">
@@ -45,6 +45,7 @@ function boot(o: { savedId?: string; blocked?: () => string; answers?: (call: Ca
     showInternal: o.showInternal,
     now: () => o.now ?? new Date(2026, 9, 10, 12),                // the day the page is open: 10 October 2026
     listingId: () => savedId,
+    unsavedMessage: o.unsavedMessage,
     blocked: o.blocked,
     toast: (message: string, type?: string) => toasts.push([message, type]),
     alert: (message: string) => told.push(message),
@@ -125,6 +126,14 @@ describe('saving an open house', () => {
     p.fill(FULL);
     await p.manager.save();
     expect(p.told).toEqual(['Save the listing first (as a draft), then add open houses — they attach to the saved listing.']);
+    expect(p.calls).toEqual([]);
+  });
+
+  it('asks the agent for what the page says when the page words it (the Rental form: Save Draft does not create the listing)', async () => {
+    const p = boot({ unsavedMessage: 'Submit the listing first, then add open houses: they attach to the saved listing.' });
+    p.fill(FULL);
+    await p.manager.save();
+    expect(p.told).toEqual(['Submit the listing first, then add open houses: they attach to the saved listing.']);
     expect(p.calls).toEqual([]);
   });
 
