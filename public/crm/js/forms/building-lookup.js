@@ -198,7 +198,7 @@
   // Building tab's own pick writes only those, so it takes back only those).
   function record(prefix, before, kind) {
     var log = writes[prefix] || (writes[prefix] = []);
-    var inGroup = function (a, b) { return a.el.type === 'radio' && a.el.name === b.el.name && a.el !== b.el; };
+    var inGroup = function (a, b) { return a.el.type === 'radio' && a.el.name === b.el.name; };       // (b itself was unchecked before, so it is never among the checked ones)
     before.forEach(function (b) {
       var now = stateOf(b.el);
       if (now === b.state) return;
