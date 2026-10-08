@@ -126,7 +126,8 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
       w.MallanAPI = {
         isReady: true,
         // the real client fires onReady with the session user once init() has resolved (at once when it already has), and with null when the session is anonymous
-        onReady: (cb: (u: unknown) => void) => { if (o.readySync && user) cb(user); else setTimeout(() => cb(user), o.readyDelay ?? 5); },
+        // (on the window's own timer: a window that was closed before the session answered is not called back, and the page's code does not throw on its dead document in whichever test is running)
+        onReady: (cb: (u: unknown) => void) => { if (o.readySync && user) cb(user); else w.setTimeout(() => cb(user), o.readyDelay ?? 5); },
         getContext: () => context,
         init: () => Promise.resolve({ authenticated: !!user, user }),
         listings: {
