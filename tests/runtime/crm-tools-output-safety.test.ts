@@ -553,7 +553,7 @@ describe('RENTAL-FORM-WITH-TOOLS: nothing is made up', () => {
     const f = await open('RENTAL-FORM-WITH-TOOLS', { id: '9', listing_id: 'RL-0009', status: '', raw_data: {} });
     try {
       const data = f.w.collectRentalPrintData();
-      for (const key of ['status', 'listingType', 'buildingStatus', 'city', 'state', 'brokerFee', 'idxDisplay', 'syndication', 'ownerOptOut', 'laundry', 'washerDryer']) expect([key, data[key]]).toEqual([key, '']);
+      for (const key of ['status', 'listingType', 'buildingStatus', 'city', 'state', 'idxDisplay', 'syndication', 'ownerOptOut', 'laundry', 'washerDryer']) expect([key, data[key]]).toEqual([key, '']);
       const print: string = f.w.buildRentalPrintHTML(data, RENTAL_SECTIONS, { branding: false, landscape: false, preset: 'full' });
       for (const made of ['Draft', 'Exclusive', 'Resale', 'Tenant Pays', 'IDX Display', 'Syndication', 'See building modal', 'New York']) expect([made, parse(f, print).body.textContent?.includes(made)]).toEqual([made, false]);
       const doc = parse(f, f.w.buildRentalEmailCardHTML(data));
@@ -596,14 +596,14 @@ describe('RENTAL-FORM-WITH-TOOLS: nothing is made up', () => {
     } finally { own.close(); padded.close(); odd.close(); bare.close(); lost.close(); }
   });
 
-  it('the broker fee, the distribution flags and the laundry flag are what the record says: yes, no, or left out when it does not carry them', async () => {
+  it('the distribution flags and the laundry flag are what the record says: yes, no, or left out when it does not carry them (and the report states no broker fee: see crm-tools-viewer-leftovers)', async () => {
     const yes = await open('RENTAL-FORM-WITH-TOOLS', { id: '9', listing_id: 'RL-0009', status: 'Active', raw_data: { rentalOwnerPays: true, rentalIDXEntireListingDisplayYN: true, rentalSyndicateYN: true, rentalLaundryRoom: true, rentalListingType: 'ExclusiveRightToLease' } });
     const no = await open('RENTAL-FORM-WITH-TOOLS', { id: '9', listing_id: 'RL-0009', status: 'Active', raw_data: { rentalOwnerPays: false, rentalIDXEntireListingDisplayYN: false, rentalSyndicateYN: false, rentalLaundryRoom: false, rentalListingType: 'RLS-Owner-OptOut' } });
     try {
       const a = yes.w.collectRentalPrintData();
-      expect([a.brokerFee, a.idxDisplay, a.syndication, a.ownerOptOut, a.laundry]).toEqual(['Owner Pays', 'Yes', 'Yes', 'No', 'Yes']);
+      expect([a.idxDisplay, a.syndication, a.ownerOptOut, a.laundry]).toEqual(['Yes', 'Yes', 'No', 'Yes']);
       const b = no.w.collectRentalPrintData();
-      expect([b.brokerFee, b.idxDisplay, b.syndication, b.ownerOptOut, b.laundry]).toEqual(['Tenant Pays', 'No', 'No', 'Yes', 'No']);
+      expect([b.idxDisplay, b.syndication, b.ownerOptOut, b.laundry]).toEqual(['No', 'No', 'Yes', 'No']);
     } finally { yes.close(); no.close(); }
   });
 

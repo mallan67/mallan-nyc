@@ -1386,7 +1386,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
 
         <!-- REBNY Notice -->
         <div class="form-card" style="background: #eff6ff; border-color: #bfdbfe;">
-            <p class="text-xs text-blue-800"><i class="fas fa-info-circle mr-2"></i>Agent and company information is pulled from the REBNY RLS database. Search by company name or agent name to auto-populate contact details.</p>
+            <p class="text-xs text-blue-800 viewer-hidden"><i class="fas fa-info-circle mr-2"></i>Agent and company information is pulled from the REBNY RLS database. Search by company name or agent name to auto-populate contact details.</p>
         </div>
 
         <!-- Listing Agent Section -->
@@ -2448,9 +2448,6 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
             <div class="form-card-header"><i class="fas fa-pencil"></i> Feature Description</div>
             <textarea id="saleFeatureDescription" rows="4" placeholder="Describe any additional features, changes, or special characteristics of the unit..."
                       class="field-input"></textarea>
-            <button class="mt-3 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition">
-                <i class="fas fa-save mr-1"></i> Save Feature / Changes / Sort Order
-            </button>
         </div>
 
         <!-- Navigation -->
@@ -3823,7 +3820,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
 
             <!-- Videos -->
             <div class="mb-8">
-                <h4 class="font-semibold text-gray-900 mb-3">Videos <span class="text-xs text-gray-500 font-normal">(YouTube or Vimeo URLs only)</span></h4>
+                <h4 class="font-semibold text-gray-900 mb-3">Videos</h4>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="field-label">Video URL</label>
@@ -3886,7 +3883,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <p class="text-xs text-gray-500 mt-1">Nothing chosen here would be saved, so the box is switched off.</p>
                     <input type="file" id="saleDocInput" multiple accept=".pdf,.doc,.docx" class="hidden" disabled data-rls-ignore="true">
                 </div>
-                <div class="bg-red-50 border border-red-200 rounded-lg p-2 mt-2">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-2 mt-2 viewer-hidden">
                     <p class="text-[10px] text-red-700"><i class="fas fa-exclamation-triangle mr-1"></i> <strong>Privacy:</strong> Do NOT upload owner/tenant ID scans, tax returns, or personal financial documents. These violate NY SHIELD Act requirements.</p>
                 </div>
             </div>
@@ -3907,7 +3904,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
         <div class="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-10">
             <div>
                 <h3 class="text-lg font-semibold">Building Information</h3>
-                <p class="text-xs text-gray-500">Complete building details for REBNY RLS compliance</p>
+                <p class="text-xs text-gray-500 viewer-hidden">Complete building details for REBNY RLS compliance</p>
             </div>
             <button onclick="closeSaleBuildingModal()" class="text-gray-500 hover:text-gray-700" aria-label="Close"><i class="fas fa-times text-xl"></i></button>
         </div>
@@ -3926,7 +3923,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <i class="fas fa-search mr-1"></i> Search
                 </button>
             </div>
-            <p class="text-xs text-amber-700 mt-2"><i class="fas fa-info-circle mr-1"></i> Building data from Trestle/REBNY RLS will auto-populate if available</p>
+            <p class="text-xs text-amber-700 mt-2 viewer-hidden"><i class="fas fa-info-circle mr-1"></i> Building data from Trestle/REBNY RLS will auto-populate if available</p>
             <div id="saleBldgSearchResults" class="mt-2 hidden"></div>
         </div>
 
