@@ -98,6 +98,20 @@ describe('cache policy: private no-store, public GET data APIs cacheable', () =>
       expect(headers.get('cache-control')).toBeNull();
     }
   });
+  it('public GET /api/media/health + /api/media/proxy keep their own CDN header (the health route is cached for five minutes so that Cotality is asked once per photo, not once per visitor)', () => {
+    for (const p of ['/api/media/health', '/api/media/proxy']) {
+      const { res, headers } = fakeRes();
+      applySecurityHeaders(res, p, 'GET');
+      expect(headers.get('cache-control')).toBeNull();
+    }
+  });
+  it('only the exact /api/media/health is public: its sub-routes, a write to it and the other /api/media routes stay no-store', () => {
+    for (const [p, method] of [['/api/media/health', 'POST'], ['/api/media/health/extra', 'GET'], ['/api/media/healthz', 'GET'], ['/api/media/batch', 'GET']] as const) {
+      const { res, headers } = fakeRes();
+      applySecurityHeaders(res, p, method);
+      expect(headers.get('cache-control')).toBe('no-store');
+    }
+  });
   it('authenticated GET /api/buildings/search IS no-store (not swept up by the public exemption)', () => {
     const { res, headers } = fakeRes();
     applySecurityHeaders(res, '/api/buildings/search', 'GET');

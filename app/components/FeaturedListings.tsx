@@ -14,17 +14,25 @@ import { useGsapReveal } from '@/lib/hooks/useGsapReveal';
 import {
   LISTING_PLACEHOLDER_IMAGE,
   getValidPhotoMedia,
+  shouldShowPhotoCount,
 } from '@/lib/media/listing-card-media';
 import { formatBathrooms } from '@/lib/format/bathrooms';
+import { hasVirtualTour, hasVideo } from '@/lib/idx/display-adapter';
 import {
   orderFeaturedListings,
   filterFeaturedDisplayable,
   collectDisplayableFeatured,
   featuredBadgeFor,
   featuredCardHref,
+  isMallanOwnedListing,
   isPinnedFeatured,
   buildExclusiveFeaturedParams,
 } from '@/lib/featured/featured-ordering';
+import {
+  checkHeroUrl,
+  featuredHeroUrl,
+  selectFeaturedWithWorkingHeroes,
+} from '@/lib/featured/featured-hero-check';
 
 interface FeaturedListing {
   id: string;
@@ -57,6 +65,9 @@ interface FeaturedListing {
   listOfficeName: string;
   media: { url: string; mediaType: string; order: number }[];
   photosCount?: number;
+  /** The listing's 3D tour and its playable video (the Cotality VirtualTourURL* fields, split by host); either may be absent. */
+  virtualTourURL?: string;
+  videoUrl?: string;
   monthlyCommonCharges?: number;
   monthlyMaintenance?: number;
   /** UCBA Art. I §16(C) — first-showing date used in the Coming Soon badge. */
@@ -90,6 +101,9 @@ interface FeaturedConfig {
   sort: string;
   limit: number;
 }
+
+/** How many candidates the section looks at for each place it has to fill (see selectFeaturedWithWorkingHeroes). */
+const CANDIDATES_PER_PLACE = 3;
 
 const DEFAULT_CONFIG: FeaturedConfig = {
   pinnedListingIds: [],
@@ -142,16 +156,22 @@ function CardHero({
   photos,
   alt,
   photosCount,
+  showTour,
+  showVideo,
 }: {
   photos: { url: string; mediaType: string; order?: number }[];
   alt: string;
   photosCount?: number;
+  /** The listing has a 3D tour / a playable video (they are shown whatever the photo does: they are not the photo). */
+  showTour?: boolean;
+  showVideo?: boolean;
 }) {
   const [heroFailed, setHeroFailed] = useState(false);
   // Canonical hero via the shared card helper, whose `isPhotoMedia` delegates
   // to `classifyMediaItem` — so a FloorPlan can never be promoted to hero.
   const hero = getValidPhotoMedia(photos)[0];
-  const currentSrc = !heroFailed && hero?.url ? String(hero.url) : LISTING_PLACEHOLDER_IMAGE;
+  const heroShown = !heroFailed && !!hero?.url;
+  const currentSrc = heroShown ? String(hero?.url) : LISTING_PLACEHOLDER_IMAGE;
 
   const handlePhotoError = useCallback(() => setHeroFailed(true), []);
 
@@ -168,14 +188,45 @@ function CardHero({
       />
       {/* The card still advertises the TRUE gallery size — `photosCount` comes
           from the full canonical DTO, not from the contracted media array — so
-          a 67-photo listing reads "67 photos" while shipping one image. Plain
-          text, not a control: no interactive element inside the Link. */}
-      {typeof photosCount === 'number' && photosCount > 1 && (
-        <span className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm text-white text-[11px] px-2 py-1 rounded-lg z-20">
-          {photosCount} photos
-        </span>
+          a 67-photo listing reads "67 photos" while shipping one image. Only
+          while a photo is showing: over the placeholder (no usable hero, or one
+          that failed to load) the count promises what the card cannot show.
+          Plain text, not a control: no interactive element inside the Link. */}
+      {(showVideo || showTour || shouldShowPhotoCount(photosCount, heroShown)) && (
+        <div className="absolute bottom-3 right-3 flex items-center gap-1.5 z-20">
+          {showVideo && <MediaBadge kind="video" />}
+          {showTour && <MediaBadge kind="tour" />}
+          {shouldShowPhotoCount(photosCount, heroShown) && (
+            <span className="bg-black/60 backdrop-blur-sm text-white text-[11px] px-2 py-1 rounded-lg">
+              {photosCount} photos
+            </span>
+          )}
+        </div>
       )}
     </div>
+  );
+}
+
+/**
+ * "Video" / "3D Tour" pill over the card photo — the same indicator the search cards show (SearchListingCard's TourBadge), so a listing with a video or a 3D tour is
+ * marked wherever it is listed. The tour and the video are the listing's own links (the Cotality VirtualTourURL* fields, split by host), opened on its detail page.
+ * Plain text, not a control: no interactive element inside the card's Link.
+ */
+function MediaBadge({ kind }: { kind: 'video' | 'tour' }) {
+  return (
+    <span
+      className="flex items-center gap-1 bg-black/60 backdrop-blur-sm text-white text-[11px] px-2 py-1 rounded-lg"
+      aria-label={kind === 'video' ? 'Video available' : '3D tour available'}
+    >
+      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+        {kind === 'video' ? (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z" />
+        ) : (
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9" />
+        )}
+      </svg>
+      {kind === 'video' ? 'Video' : '3D Tour'}
+    </span>
   );
 }
 
@@ -293,6 +344,8 @@ function ListingCard({ listing, pinned }: { listing: FeaturedListing; pinned?: b
           photos={photos}
           alt={`Photo of ${listing.address.streetNumber} ${listing.address.streetName}`.trim()}
           photosCount={listing.photosCount}
+          showTour={hasVirtualTour(listing)}
+          showVideo={hasVideo(listing)}
         />
         {/* Open-house banner — bottom-left of the photo, clear of the gold badge (top-left), the
             Coming Soon badge (top-right), the title (below), and the photo counter (bottom-right). */}
@@ -475,8 +528,9 @@ export default function FeaturedListings() {
             return (d.listings || []) as FeaturedListing[];
           },
           {
+            // One spare candidate per place, for the places whose photo cannot be shown.
             enough: (collected) =>
-              orderFeaturedListings(exclusives, collected, pinnedSet, limit).length >= limit,
+              orderFeaturedListings(exclusives, collected, pinnedSet, limit * 2).length >= limit * 2,
             pageSize,
             maxPages: 5,
           },
@@ -489,7 +543,17 @@ export default function FeaturedListings() {
         // listings. Dedupe by id + canonical address so a CRM exclusive
         // collapses its RLS/IDX twin and nothing renders twice. generalListings
         // is already filtered to displayable by collectDisplayableFeatured.
-        const featured = orderFeaturedListings(exclusives, generalListings, pinnedSet, limit);
+        // Cotality answers 404 for the photos of some listings (the card would show the
+        // grey placeholder), so look at more candidates than there are places and draw the
+        // first `limit` whose photo can be shown, in the order above. Mallan-owned and
+        // pinned listings are never passed over. See featured-hero-check.ts.
+        const candidates = orderFeaturedListings(exclusives, generalListings, pinnedSet, limit * CANDIDATES_PER_PLACE);
+        const featured = await selectFeaturedWithWorkingHeroes(
+          candidates,
+          limit,
+          (l) => checkHeroUrl(featuredHeroUrl(l)),
+          (l) => isMallanOwnedListing(l) || isPinnedFeatured(l, pinnedSet),
+        );
 
         if (!cancelled) {
           setListings(featured);

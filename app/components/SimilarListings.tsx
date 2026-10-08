@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { ComingSoonBadge } from './ComingSoonBadge';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
+import { shouldShowPhotoCount } from '@/lib/media/listing-card-media';
 
 interface SimilarListing {
   id: string;
@@ -48,6 +49,10 @@ function formatPrice(price: number, isRental: boolean): string {
 
 /** Card — enclosed card with white background, border, shadow, fixed height */
 function SimilarCard({ item, isRental }: { item: SimilarListing; isRental: boolean }) {
+  // A photo that fails to load (the provider answers 404 for the photos of some listings) leaves the
+  // placeholder, and the photo count goes with it: "12" over a placeholder promises what the card cannot show.
+  const [photoFailed, setPhotoFailed] = useState(false);
+  const photoUrl = photoFailed ? null : item.photoUrl;
   return (
     <Link
       href={buildCanonicalListingPath({ slug: item.slug || item.mlsId, id: item.mlsId || item.id })}
@@ -55,12 +60,13 @@ function SimilarCard({ item, isRental }: { item: SimilarListing; isRental: boole
     >
       {/* Photo — fixed 4:3 aspect */}
       <div className="relative overflow-hidden aspect-[4/3] bg-gray-100">
-        {item.photoUrl ? (
+        {photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={item.photoUrl}
+            src={photoUrl}
             alt={item.address}
             loading="lazy"
+            onError={() => setPhotoFailed(true)}
             className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
           />
         ) : (
@@ -70,7 +76,7 @@ function SimilarCard({ item, isRental }: { item: SimilarListing; isRental: boole
             </svg>
           </div>
         )}
-        {(item.photosCount ?? 0) > 1 && (
+        {shouldShowPhotoCount(item.photosCount, !!photoUrl) && (
           <span className="absolute top-2.5 right-2.5 flex items-center gap-1 bg-black/50 backdrop-blur-sm text-white text-[10px] px-1.5 py-0.5 rounded-md z-10">
             <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
             {item.photosCount}

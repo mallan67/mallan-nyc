@@ -187,7 +187,8 @@ describe('Home Featured section heading + ordering', () => {
   });
 
   test('the component orders via orderFeaturedListings(exclusives, generalListings, …)', () => {
-    expect(src).toMatch(/orderFeaturedListings\(exclusives, generalListings, pinnedSet, limit\)/);
+    // (it asks for `limit` listings, or for several candidates per place when it prefers the ones whose photo loads: see featured-hero-check.ts)
+    expect(src).toMatch(/orderFeaturedListings\(exclusives, generalListings, pinnedSet, limit(?: \* CANDIDATES_PER_PLACE)?\)/);
   });
 
   test('Mallan exclusives are ordered FIRST, then pinned, then regular (behavioral)', () => {

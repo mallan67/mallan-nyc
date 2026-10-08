@@ -12,6 +12,7 @@
  */
 import { mapTrestleToPrisma } from '@/lib/idx/trestle-mapper';
 import { RAW_DATA_KEEP_SET } from '@/lib/compliance/raw-data-keep-fields';
+import { tourUrlsForDto } from '@/lib/media/listing-media-resolver';
 
 /** Build a minimally-valid Cotality Property record + a bunch of unread fields. */
 function buildCotalityRow(extras: Record<string, unknown> = {}): Record<string, unknown> {
@@ -140,5 +141,27 @@ describe('mapTrestleToPrisma — raw_data slimming', () => {
     const slimJsonSize = JSON.stringify(result.raw_data).length;
     // The slim version must be MUCH smaller than the fat input.
     expect(slimJsonSize).toBeLessThan(fatJsonSize / 2);
+  });
+
+  it('keeps all of a listing\'s tour and video links, so the public card can show its video and its 3D tour (Cotality record -> raw_data -> public DTO)', () => {
+    const MATTERPORT = 'https://my.matterport.com/show/?m=abc';
+    const YOUTUBE = 'https://www.youtube.com/watch?v=RM4ef1CIo2k';
+    const result = mapTrestleToPrisma(buildCotalityRow({
+      VirtualTourURLUnbranded: MATTERPORT,
+      VirtualTourURLUnbranded2: YOUTUBE,
+      VirtualTourURLUnbranded3: 'https://vimeo.com/123456789',
+      VirtualTourURLBranded: 'https://tour.example.com/branded/xyz',
+    }));
+    const raw = result.raw_data as Record<string, unknown>;
+    expect(raw.VirtualTourURLUnbranded).toBe(MATTERPORT);
+    expect(raw.VirtualTourURLUnbranded2).toBe(YOUTUBE);
+    expect(raw.VirtualTourURLUnbranded3).toBe('https://vimeo.com/123456789');
+    expect(raw.VirtualTourURLBranded).toBe('https://tour.example.com/branded/xyz');
+    // what the public DTO makes of the saved record: the first tour and the first video
+    const dto = tourUrlsForDto(
+      [raw.VirtualTourURLUnbranded, raw.VirtualTourURLUnbranded2, raw.VirtualTourURLUnbranded3],
+      raw.VirtualTourURLBranded,
+    );
+    expect(dto).toEqual({ virtualTourURL: MATTERPORT, videoUrl: YOUTUBE });
   });
 });

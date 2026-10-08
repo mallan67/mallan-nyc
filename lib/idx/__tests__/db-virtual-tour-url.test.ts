@@ -75,3 +75,48 @@ describe('dbListingToPublicDTO · virtualTourURL from raw_data', () => {
     expect(dto.virtualTourURL).toBeUndefined();
   });
 });
+
+describe('dbListingToPublicDTO · a listing\'s video and 3D tour from all of its unbranded links', () => {
+  const MATTERPORT = 'https://my.matterport.com/show/?m=abc';
+  const YOUTUBE = 'https://www.youtube.com/watch?v=RM4ef1CIo2k';
+  const dtoOf = (raw: Record<string, unknown>) => dbListingToPublicDTO({ ...BASE, raw_data: raw } as unknown as DbListing);
+
+  it('a tour in the first box and a video in the second: both are shown (the video used to be dropped before the listing was saved)', () => {
+    const dto = dtoOf({ VirtualTourURLUnbranded: MATTERPORT, VirtualTourURLUnbranded2: YOUTUBE });
+    expect(dto.virtualTourURL).toBe(MATTERPORT);
+    expect(dto.videoUrl).toBe(YOUTUBE);
+  });
+
+  it('a video in the first box and a tour in the third: both are shown', () => {
+    const dto = dtoOf({ VirtualTourURLUnbranded: YOUTUBE, VirtualTourURLUnbranded3: MATTERPORT });
+    expect(dto.videoUrl).toBe(YOUTUBE);
+    expect(dto.virtualTourURL).toBe(MATTERPORT);
+  });
+
+  it('a video alone in the second box is the listing\'s video, and it has no 3D tour', () => {
+    const dto = dtoOf({ VirtualTourURLUnbranded2: YOUTUBE });
+    expect(dto.videoUrl).toBe(YOUTUBE);
+    expect(dto.virtualTourURL).toBeUndefined();
+  });
+
+  it('the first link of each kind is the one shown', () => {
+    const dto = dtoOf({
+      VirtualTourURLUnbranded: MATTERPORT,
+      VirtualTourURLUnbranded2: 'https://my.matterport.com/show/?m=second',
+      VirtualTourURLUnbranded3: 'https://vimeo.com/123456789',
+    });
+    expect(dto.virtualTourURL).toBe(MATTERPORT);
+    expect(dto.videoUrl).toBe('https://vimeo.com/123456789');
+  });
+
+  it('an unbranded link is shown over the branded one of its kind, and a branded link alone is still shown', () => {
+    expect(dtoOf({ VirtualTourURLBranded: 'https://tour.example.com/branded/xyz', VirtualTourURLUnbranded2: MATTERPORT }).virtualTourURL).toBe(MATTERPORT);
+    expect(dtoOf({ VirtualTourURLBranded: 'https://tour.example.com/branded/xyz' }).virtualTourURL).toBe('https://tour.example.com/branded/xyz');
+  });
+
+  it('blank links are no links', () => {
+    const dto = dtoOf({ VirtualTourURLUnbranded: '', VirtualTourURLUnbranded2: null, VirtualTourURLUnbranded3: '   ' });
+    expect(dto.virtualTourURL).toBeUndefined();
+    expect(dto.videoUrl).toBeUndefined();
+  });
+});

@@ -59,6 +59,19 @@ export function countPhotoMedia(media: readonly ListingPhotoMedia[] | null | und
 }
 
 /**
+ * Whether a card may say "N photos".
+ *
+ * The count is the size of the listing's whole gallery (the list endpoint ships one hero and the true
+ * count), so it is only honest while the card is showing a photo of that gallery. A hero that is missing,
+ * or that failed to load (the provider answers 404 for the photos of some listings), leaves the
+ * placeholder, and "12 photos" over a placeholder promises what the card cannot show. The search cards
+ * already work this way: their carousel drops a photo that failed, and its counter with it.
+ */
+export function shouldShowPhotoCount(photosCount: number | null | undefined, photoShown: boolean): boolean {
+  return photoShown && typeof photosCount === 'number' && photosCount > 1;
+}
+
+/**
  * Whether a listing card should run IDXImage's white-border auto-crop.
  *
  * White-border auto-crop forces a cross-origin image fetch
