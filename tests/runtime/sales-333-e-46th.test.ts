@@ -422,9 +422,19 @@ describe('sale form hardening (source-pin) — Maya audit follow-ups', () => {
   });
 
   test('Fix 3: manualSaveDraft catch does not call performAutoSave in edit mode', () => {
-    // Look for the guard `if (!_saleEditMode)` before performAutoSave within
-    // the manual-save catch handler (allow whitespace, comments, multiline).
-    expect(FORM).toMatch(/Save failed:[\s\S]{0,800}?if \(!_saleEditMode\)[\s\S]{0,200}?performAutoSave\(\)/);
+    // After a failed Save Draft the catch handler must not send the form that just failed again: a saved
+    // listing (edit mode) keeps no browser copy and sends nothing, and only a NEW listing keeps a copy, in this
+    // browser, with _saleKeepBrowserCopy() (it writes the draft the restore reads and sends nothing). The
+    // handler does not call performAutoSave() at all: while the save is out that only queues an autosave, which
+    // would send the failed form again two seconds later. crm-sale-save-feedback.test.ts drives the page and
+    // checks that nothing is sent.
+    const at = FORM.indexOf("showToast('Save failed: '");
+    const end = FORM.indexOf('} finally {', at);
+    expect(at).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(at);
+    const handler = FORM.slice(at, end).replace(/\/\/.*$/gm, '');          // the code, not the comments
+    expect(handler).toMatch(/if \(!_saleEditMode\) \{\s*_saleKeepBrowserCopy\(\);\s*\}/);
+    expect(handler).not.toMatch(/performAutoSave\(/);
   });
 
   test('Fix 4: autosave gate uses both _saleAutoSaveReady and _salePopulateInProgress', () => {

@@ -24,8 +24,9 @@ tailwind.config = {
 </script>
 <script>
 // ── Global Toast — replaces native alert() ──
-function showToast(message, type) {
+function showToast(message, type, ms) {
     var toast = document.createElement('div');
+    toast.className = 'mallan-toast';
     toast.style.cssText = 'position:fixed;top:20px;right:20px;z-index:99999;padding:12px 20px;border-radius:10px;color:#fff;font-size:13px;font-weight:500;font-family:Manrope,sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.15);opacity:0;transition:opacity .3s;max-width:400px;line-height:1.4;';
     if (type === 'error') toast.style.background = '#dc2626';
     else if (type === 'warning') toast.style.background = '#d97706';
@@ -33,11 +34,16 @@ function showToast(message, type) {
     else toast.style.background = '#1e293b';
     var icon = type === 'error' ? '\u274c ' : type === 'warning' ? '\u26a0\ufe0f ' : type === 'success' ? '\u2705 ' : '\u2139\ufe0f ';
     toast.textContent = icon + message;
+    // Each toast is put below the ones before it (they all sat in the same corner, and a later one covered an earlier one), and an error or a warning stays 10 seconds (a note that says "Do not submit
+    // it again" was gone in 4); the caller can ask for longer
+    var offset = 20;
+    document.querySelectorAll('.mallan-toast').forEach(function(other) { offset += (other.offsetHeight || 48) + 8; });
+    toast.style.top = offset + 'px';
     document.body.appendChild(toast);
     requestAnimationFrame(function() { toast.style.opacity = '1'; });
-    setTimeout(function() { toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 300); }, 4000);
+    setTimeout(function() { toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 300); }, ms || (type === 'error' || type === 'warning' ? 10000 : 4000));
 }
-window.alert = function(msg) { showToast(String(msg)); };
+window.alert = function(msg) { var text = String(msg); showToast(text, /^SUCCESS/.test(text) ? 'success' : 'warning'); };
 </script>
 <style>
 body { font-family: Manrope, sans-serif; }
@@ -171,6 +177,7 @@ body { font-family: Manrope, sans-serif; }
             <span><strong>Unit:</strong> <span id="saleUnitDisplay">[Unit]</span></span>
             <span><strong>ID:</strong> <span id="saleListingIdDisplay">New</span></span>
             <span><strong>Updated:</strong> <span id="saleLastUpdated">--</span></span>
+            <span id="saleAutoSaveIndicator" class="hidden text-xs text-gray-600" role="status" aria-live="polite"><span id="saleAutoSaveText"></span></span>
             <span id="saleDraftBadge" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-300"><i class="fas fa-file-alt"></i> DRAFT</span>
         </div>
         <div class="flex items-center gap-2">
@@ -4840,6 +4847,7 @@ function initLoggedInAgent() {
 }
 
 function cancelSaleForm() {
+    if (_saleBusy) { showToast('A save is still out. Wait for the CRM to answer before you close this form.', 'warning'); return; }
     if (confirm('Are you sure you want to close this form? Unsaved changes will be lost.')) {
         if (window.opener) {
             window.close();
@@ -7792,8 +7800,82 @@ function collectSaleFormData() {
     return data;
 }
 
+// The server has the listing (created, or updated): the rest of what a submit does. The photos go to it, its status is the server's, and the agent is shown the result.
+async function _saleAfterSave(result, formData, fullData) {
+    var lid = result.listing_id || _saleEditListingId || formData.listingId;
+    if (!_saleEditMode) {
+        _saleEditMode = true;
+        _saleEditDbId = result.id || _saleEditDbId;
+        _saleEditListingId = lid;
+        _saleShowEditLabels();
+    }
+    // The page shows the saved listing at once (a step below that throws must not leave "ID: New" above buttons that say Update), and the browser keeps no copy of it any more: restoring it would submit it again
+    var idDisplay = document.getElementById('saleListingIdDisplay');
+    if (idDisplay) idDisplay.textContent = lid;
+    var lastUpdated = document.getElementById('saleLastUpdated');
+    if (lastUpdated) lastUpdated.textContent = new Date().toLocaleString();
+    try { localStorage.removeItem('mallan_draft_sale'); } catch (e) {}
+    _saleShowSaveState('Saved to the CRM', 'ok');
+    // Upload pending media
+    var pendingCount = _pendingMediaFiles.filter(function(m) { return !m.uploaded && !m._removed; }).length;
+    if (pendingCount > 0 && lid) {
+        showToast('Uploading ' + pendingCount + ' media file(s)...', 'info');
+        var mediaResult = await uploadPendingMedia(lid);
+        if (mediaResult.failed > 0) {
+            showToast(mediaResult.failed + ' media upload(s) failed.', 'warning');
+        }
+    }
+    // Transition status using two-layer model:
+    // The form's selected CRM workflow status maps to a canonical server status.
+    var dbId = result.id || _saleEditDbId;
+    var currentCanonical = result.status || 'Draft';
+    var statusResult = null;
+    var formWorkflowStatus = document.getElementById('saleStatus') ? document.getElementById('saleStatus').value : '';
+    var targetCanonical = _ownStatus(CRM_TO_RESO_STATUS, formWorkflowStatus);       // '' for a status this form does not know
+    var listType = document.querySelector('input[name="saleListingType"]:checked');
+    var isInternalOnly = (listType && listType.value === 'InHouseInternal') ||
+        fullData.inHouseVisibility === 'internal_only' ||
+        fullData.saleListingType === 'InHouseInternal';
+    // Store workflow status in raw_data for CRM display on reload
+    if (formWorkflowStatus && dbId) {
+        try {
+            await MallanAPI.listings.update(dbId, { _crmWorkflowStatus: formWorkflowStatus });
+        } catch (e) { /* non-critical — workflow status is supplementary */ }
+    }
+    var finalStatus = currentCanonical;
+    if (!targetCanonical) {
+        showToast('The status "' + formWorkflowStatus + '" is not one this form can set: the listing was saved and its status left as it was.', 'warning');
+    } else if (currentCanonical !== targetCanonical && dbId && !isInternalOnly && targetCanonical !== 'Draft') {
+        try {
+            statusResult = await MallanAPI.listings.updateStatus(dbId, targetCanonical);
+            finalStatus = statusResult.status || targetCanonical;
+        } catch (statusErr) {
+            console.warn('[Submit] Status transition failed:', statusErr.message);
+            showToast('Saved as Draft. Publish failed: ' + statusErr.message, 'warning');
+        }
+    }
+    try { localStorage.removeItem('saleListings'); } catch (e) {}
+    clearTimeout(autoSaveTimer);
+    _pendingMediaFiles = [];
+    // Determine the best URL from status transition or create/update result
+    var publicUrl = (typeof statusResult !== 'undefined' && statusResult && statusResult.publicUrl) || result.publicUrl || null;
+    var realPlusUrl = (typeof statusResult !== 'undefined' && statusResult && statusResult.realPlusUrl) || result.realPlusUrl || null;
+    if (finalStatus === 'Active' && realPlusUrl) {
+        showToast('Listing ' + lid + ' published — Status: Active', 'success');
+        showSalePublishedPanel(lid, publicUrl, realPlusUrl);
+    } else {
+        showToast('Listing ' + lid + ' saved — Status: ' + finalStatus, 'success');
+        setTimeout(function() { window.location.href = '/crm/dashboard#/ops/listings'; }, 1500);
+    }
+    if (result.warnings && result.warnings.length > 0) {
+        console.warn('[Submit] Warnings:', result.warnings);
+    }
+    var statusBadge = document.getElementById('saleStatusBadge');
+    if (statusBadge) statusBadge.textContent = finalStatus;
+}
+
 function submitSalesListing() {
-    if (_saleSaveBlocked()) return;
+    if (_saleSaveBlocked() || _saleBusy) return;
     if (typeof activateSaleValidation === 'function') activateSaleValidation();
 
     // Step 1: Validate ALL tabs with HTML required fields
@@ -7879,102 +7961,29 @@ function submitSalesListing() {
 
     // Submit to API — create or update depending on edit mode
     if (typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
-        if (_saleEditMode && !_saleEditDbId) {
-            alert('Cannot submit: listing is in edit mode but has no database ID. Please save as draft first.');
+        if (!_saleCanSend()) {
+            showToast('The page cannot send listings to the CRM (its client did not load), so the listing was not submitted. The form still holds everything you entered.', 'error');
             return;
         }
-        var apiCall;
-        if (_saleEditDbId) {
-            apiCall = MallanAPI.listings.update(_saleEditDbId, fullData);
-        } else {
-            apiCall = MallanAPI.listings.create(fullData);
-        }
-
-        apiCall.then(async function(result) {
-            var lid = result.listing_id || _saleEditListingId || formData.listingId;
-            if (!_saleEditMode) {
-                _saleEditMode = true;
-                _saleEditDbId = result.id || _saleEditDbId;
-                _saleEditListingId = lid;
-            }
-            // Upload pending media
-            var pendingCount = _pendingMediaFiles.filter(function(m) { return !m.uploaded && !m._removed; }).length;
-            if (pendingCount > 0 && lid) {
-                showToast('Uploading ' + pendingCount + ' media file(s)...', 'info');
-                var mediaResult = await uploadPendingMedia(lid);
-                if (mediaResult.failed > 0) {
-                    showToast(mediaResult.failed + ' media upload(s) failed.', 'warning');
-                }
-            }
-            // Transition status using two-layer model:
-            // The form's selected CRM workflow status maps to a canonical server status.
-            var dbId = result.id || _saleEditDbId;
-            var currentCanonical = result.status || 'Draft';
-            var statusResult = null;
-            var formWorkflowStatus = document.getElementById('saleStatus') ? document.getElementById('saleStatus').value : '';
-            var targetCanonical = _ownStatus(CRM_TO_RESO_STATUS, formWorkflowStatus);       // '' for a status this form does not know
-            var listType = document.querySelector('input[name="saleListingType"]:checked');
-            var isInternalOnly = (listType && listType.value === 'InHouseInternal') ||
-                fullData.inHouseVisibility === 'internal_only' ||
-                fullData.saleListingType === 'InHouseInternal';
-            // Store workflow status in raw_data for CRM display on reload
-            if (formWorkflowStatus && dbId) {
-                try {
-                    await MallanAPI.listings.update(dbId, { _crmWorkflowStatus: formWorkflowStatus });
-                } catch (e) { /* non-critical — workflow status is supplementary */ }
-            }
-            var finalStatus = currentCanonical;
-            if (!targetCanonical) {
-                showToast('The status "' + formWorkflowStatus + '" is not one this form can set: the listing was saved and its status left as it was.', 'warning');
-            } else if (currentCanonical !== targetCanonical && dbId && !isInternalOnly && targetCanonical !== 'Draft') {
-                try {
-                    statusResult = await MallanAPI.listings.updateStatus(dbId, targetCanonical);
-                    finalStatus = statusResult.status || targetCanonical;
-                } catch (statusErr) {
-                    console.warn('[Submit] Status transition failed:', statusErr.message);
-                    showToast('Saved as Draft. Publish failed: ' + statusErr.message, 'warning');
-                }
-            }
-            try { localStorage.removeItem('mallan_draft_sale'); } catch (e) {}
-            try { localStorage.removeItem('saleListings'); } catch (e) {}
-            clearTimeout(autoSaveTimer);
-            _pendingMediaFiles = [];
-            // Determine the best URL from status transition or create/update result
-            var publicUrl = (typeof statusResult !== 'undefined' && statusResult && statusResult.publicUrl) || result.publicUrl || null;
-            var realPlusUrl = (typeof statusResult !== 'undefined' && statusResult && statusResult.realPlusUrl) || result.realPlusUrl || null;
-            if (finalStatus === 'Active' && realPlusUrl) {
-                showToast('Listing ' + lid + ' published — Status: Active', 'success');
-                showSalePublishedPanel(lid, publicUrl, realPlusUrl);
-            } else {
-                showToast('Listing ' + lid + ' saved — Status: ' + finalStatus, 'success');
-                setTimeout(function() { window.location.href = '/crm/dashboard#/ops/listings'; }, 1500);
-            }
-            if (result.warnings && result.warnings.length > 0) {
-                console.warn('[Submit] Warnings:', result.warnings);
-            }
-            var idDisplay = document.getElementById('saleListingIdDisplay');
-            if (idDisplay) idDisplay.textContent = lid;
-            var statusBadge = document.getElementById('saleStatusBadge');
-            if (statusBadge) statusBadge.textContent = finalStatus;
-            var lastUpdated = document.getElementById('saleLastUpdated');
-            if (lastUpdated) lastUpdated.textContent = new Date().toLocaleString();
-        }).catch(function(err) {
-            alert('Submission failed: ' + err.message + '\n\nDraft has been saved locally.');
-            // Fallback: save to localStorage
-            var listings = JSON.parse(localStorage.getItem('saleListings') || '[]');
-            listings.push(fullData);
-            localStorage.setItem('saleListings', JSON.stringify(listings));
-        });
+        // A listing the server already has is updated, never created again: by its database id, else by the listing id it gave (the route takes either)
+        var editKey = _saleEditDbId || _saleEditListingId;
+        var creating = !editKey;
+        _saleSetBusy(true);
+        Promise.resolve().then(function() {
+            return creating ? MallanAPI.listings.create(fullData) : MallanAPI.listings.update(editKey, fullData);
+        }).then(function(result) {
+            // The server has the listing. Whatever fails from here on is said as that: a submit that "failed" now would be sent again, and created again.
+            return _saleAfterSave(result, formData, fullData).catch(function(err) {
+                showToast('The listing was saved as ' + ((result && result.listing_id) || _saleEditListingId || 'a listing') + ', but a later step failed: ' + ((err && err.message) || 'an error') +
+                    '. Do not submit it again; open the listing to check it.', 'warning', 20000);
+            });
+        }, function(err) {
+            _saleSubmitFailed(err, creating);
+        }).then(function() { _saleSetBusy(false); }, function() { _saleSetBusy(false); });
     } else {
-        // Offline fallback
-        var listings = JSON.parse(localStorage.getItem('saleListings') || '[]');
-        listings.push(fullData);
-        localStorage.setItem('saleListings', JSON.stringify(listings));
-        alert('SUCCESS! Draft saved locally (offline mode).\n\nListing ID: ' + formData.listingId);
-        var idDisplay = document.getElementById('saleListingIdDisplay');
-        if (idDisplay) idDisplay.textContent = formData.listingId;
-        var lastUpdated = document.getElementById('saleLastUpdated');
-        if (lastUpdated) lastUpdated.textContent = new Date().toLocaleString();
+        // The CRM is not connected: nothing can be submitted. A copy of a new listing is kept in this browser.
+        if (!_saleEditMode && _saleKeepBrowserCopy()) showToast('The CRM is not connected, so the listing was not submitted. A copy is kept in this browser; submit it again when the CRM is back.', 'warning');
+        else showToast('The CRM is not connected, so the listing was not submitted' + (_saleEditMode ? '' : ', and this browser could not keep a copy') + '. The form still holds everything you entered.', 'error');
     }
 }
 
@@ -8039,16 +8048,9 @@ function autoSaveDraft() {
 
 function performAutoSave() {
     if (!window._saleAutoSaveReady || window._salePopulateInProgress) return;
-    const indicator = document.getElementById('saleAutoSaveIndicator');
-    const textEl = document.getElementById('saleAutoSaveText');
-    if (indicator) {
-        indicator.classList.remove('hidden');
-        if (textEl) {
-            textEl.textContent = 'Saving...';
-            indicator.classList.remove('text-green-600');
-            indicator.classList.add('text-gray-400');
-        }
-    }
+    // A submit or a save is out: this one waits for it (two requests for one listing can land in either order, and the older one would overwrite the newer); _saleSetBusy runs it when that is over
+    if (_saleBusy) { window._saleAutoSavePending = true; return; }
+    _saleShowSaveState('Saving...', 'saving');
 
     // The draft is what Save sends (collectSaleFormData): the same control keys, the building and media modals, and the values of every checkbox group, so Load Draft can
     // put back everything the form holds
@@ -8061,12 +8063,16 @@ function performAutoSave() {
     if (_saleEditDbId) formData._listingId = _saleEditDbId;
 
     // Save to localStorage as immediate fallback — skip if listing already saved to DB
-    if (_saleEditMode && _saleEditDbId) {
+    var copyKept = null;                    // null: a saved listing keeps no browser copy; true / false: a new listing's copy was kept, or this browser could not keep it
+    // (_saleEditMode is true exactly when the server has the listing: also when its answer to the first save had no database id and the page holds the listing id only)
+    if (_saleEditMode) {
         // Edit mode: server autosave only, no localStorage (prevents phantom draft)
     } else {
         try {
             localStorage.setItem('mallan_draft_sale', JSON.stringify(formData));
+            copyKept = true;
         } catch (e) {
+            copyKept = false;
             console.warn('Auto-save localStorage failed:', e);
         }
     }
@@ -8079,150 +8085,185 @@ function performAutoSave() {
     var displayId = listingIdEl ? listingIdEl.textContent.trim() : '';
     var updateId = _saleEditDbId || _saleEditListingId || displayId;
     var isRealId = updateId && updateId !== '--' && updateId !== 'New' && /^(SL-|RL-|\d)/.test(String(updateId));
-    if (isRealId && typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
+    var serverSave = Promise.resolve(null);                 // null: nothing is sent to the server (a new listing has only the copy in this browser)
+    if (isRealId && typeof MallanAPI !== 'undefined' && MallanAPI.isReady && _saleCanSend()) {
         var resoData = collectSaleFormData();
-        MallanAPI.listings.update(updateId, resoData).catch(function(err) {
-            console.warn('[AutoSave] Server save failed (id=' + updateId + '):', err.message);
+        serverSave = Promise.resolve().then(function() { return MallanAPI.listings.update(updateId, resoData); }).then(function() { return 'saved'; }, function(err) {
+            console.warn('[AutoSave] Server save failed (id=' + updateId + '):', err && err.message);
+            return _saleRefused(err) ? 'refused' : 'unconfirmed';
         });
     }
 
-    // Update indicator
-    setTimeout(() => {
-        if (textEl) {
-            const now = new Date();
-            const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            textEl.textContent = 'Draft saved ' + timeStr;
-            if (indicator) {
-                indicator.classList.remove('text-gray-400');
-                indicator.classList.add('text-green-600');
+    // The indicator says where the copy is, and says so when it is nowhere: the server took a saved listing's changes, refused them, or did not confirm; a new listing's draft is in this browser, or this
+    // browser could not keep it; a saved listing that could not be sent at all (the CRM is not connected) is not saved
+    serverSave.then(function(outcome) {
+        setTimeout(() => {
+            if (outcome === 'saved') _saleShowSaveState('Saved to the CRM', 'ok');
+            else if (outcome === 'refused') _saleShowSaveState('Not saved to the CRM', 'failed');
+            else if (outcome === 'unconfirmed') _saleShowSaveState('Not confirmed by the CRM', 'failed');
+            else if (copyKept === true) _saleShowSaveState('Draft saved in this browser', 'ok');
+            else if (copyKept === false) _saleShowSaveState('Not saved: this browser could not keep a copy', 'failed');
+            else _saleShowSaveState('Not saved to the CRM', 'failed');
+            // Update last updated display (only when something was saved)
+            const lastUpdated = document.getElementById('saleLastUpdated');
+            if (lastUpdated && (outcome === 'saved' || (outcome === null && copyKept === true))) {
+                lastUpdated.textContent = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
             }
-        }
-        // Update last updated display
-        const lastUpdated = document.getElementById('saleLastUpdated');
-        if (lastUpdated) {
-            lastUpdated.textContent = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-        }
-    }, 500);
+        }, 500);
+    });
 }
 
 async function manualSaveDraft() {
-    if (_saleSaveBlocked()) return;
-    // Capture the current autosave timer so we only cancel this one, not a newer one
-    var preFlightTimer = autoSaveTimer;
-    // Step 1: Save/create listing via API
-    parseSaleAddress();
-    updateSaleAddressDerived();
-    var fullData = collectSaleFormData();
-    var formData = {
-        listing_type: 'sale',
-        listingAgreement: document.querySelector('input[name="saleListingType"]:checked')?.value || 'ExclusiveRightToSell',
-        status: 'Draft',
-    };
-    Object.assign(fullData, formData);
+    if (_saleSaveBlocked() || _saleBusy) return;
+    _saleSetBusy(true);
+    try {
+        // Capture the current autosave timer so we only cancel this one, not a newer one
+        var preFlightTimer = autoSaveTimer;
+        // Step 1: Save/create listing via API
+        parseSaleAddress();
+        updateSaleAddressDerived();
+        var fullData = collectSaleFormData();
+        var formData = {
+            listing_type: 'sale',
+            listingAgreement: document.querySelector('input[name="saleListingType"]:checked')?.value || 'ExclusiveRightToSell',
+            status: 'Draft',
+        };
+        Object.assign(fullData, formData);
 
-    var listingId = _saleEditListingId;
-    var dbId = _saleEditDbId;
+        var listingId = _saleEditListingId;
+        var dbId = _saleEditDbId;
+        var saved = false;                 // the CRM has answered the save: what fails after that is a later step, not a failed save
 
-    if (typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
-        try {
-            var result;
-            if (_saleEditMode && dbId) {
-                result = await MallanAPI.listings.update(dbId, fullData);
-                listingId = result.listing_id || listingId;
-            } else {
-                result = await MallanAPI.listings.create(fullData);
-                listingId = result.listing_id;
-                dbId = result.id;
-                _saleEditMode = true;
-                _saleEditDbId = dbId;
-                _saleEditListingId = listingId;
-            }
+        if (typeof MallanAPI !== 'undefined' && MallanAPI.isReady && !_saleCanSend()) {
+            showToast('Not saved: the page cannot send listings to the CRM (its client did not load). The form still holds your changes.', 'error');
+            _saleShowSaveState('Not saved to the CRM', 'failed');
+            return;
+        }
+        if (typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
+            try {
+                var result;
+                // A listing the server already has (the page holds its ids only then) is updated, never created again: by its database id, else by the listing id it gave (the route takes either)
+                if (dbId || listingId) {
+                    result = await MallanAPI.listings.update(dbId || listingId, fullData);
+                    listingId = result.listing_id || listingId;
+                } else {
+                    result = await MallanAPI.listings.create(fullData);
+                    listingId = result.listing_id;
+                    dbId = result.id;
+                    _saleEditMode = true;
+                    _saleEditDbId = dbId;
+                    _saleEditListingId = listingId;
+                    _saleShowEditLabels();
+                }
+                saved = true;
 
-            var idDisplay = document.getElementById('saleListingIdDisplay');
-            if (idDisplay) idDisplay.textContent = listingId;
+                var idDisplay = document.getElementById('saleListingIdDisplay');
+                if (idDisplay) idDisplay.textContent = listingId;
 
-            // Step 2: Upload pending media files
-            var pendingCount = _pendingMediaFiles.filter(function(m) { return !m.uploaded && !m._removed; }).length;
-            if (pendingCount > 0 && listingId) {
-                showToast('Uploading ' + pendingCount + ' media file(s)...', 'info');
-                var mediaResult = await uploadPendingMedia(listingId);
-                if (mediaResult.uploaded > 0) {
-                    showToast(mediaResult.uploaded + ' file(s) uploaded successfully.' + (mediaResult.failed > 0 ? ' ' + mediaResult.failed + ' failed.' : ''), mediaResult.failed > 0 ? 'warning' : 'success');
+                // Step 2: Upload pending media files
+                var pendingCount = _pendingMediaFiles.filter(function(m) { return !m.uploaded && !m._removed; }).length;
+                if (pendingCount > 0 && listingId) {
+                    showToast('Uploading ' + pendingCount + ' media file(s)...', 'info');
+                    var mediaResult = await uploadPendingMedia(listingId);
+                    if (mediaResult.uploaded > 0) {
+                        showToast(mediaResult.uploaded + ' file(s) uploaded successfully.' + (mediaResult.failed > 0 ? ' ' + mediaResult.failed + ' failed.' : ''), mediaResult.failed > 0 ? 'warning' : 'success');
+                    }
+                }
+
+                // Cancel only the pre-flight autosave timer, not any newer one from edits during save
+                if (autoSaveTimer === preFlightTimer) clearTimeout(autoSaveTimer);
+                // Clear localStorage draft — now saved to DB, no longer "unsaved browser draft"
+                try { localStorage.removeItem('mallan_draft_sale'); } catch (e) {}
+
+                // Step 3: Show draft recovery info
+                showToast('Draft saved: ' + listingId, 'success');
+                _saleShowSaveState('Saved to the CRM', 'ok');
+                var editUrl = window.location.pathname + '?id=' + encodeURIComponent(dbId || listingId);
+                var recoveryDiv = document.getElementById('saleDraftRecovery');
+                if (!recoveryDiv) {
+                    recoveryDiv = document.createElement('div');
+                    recoveryDiv.id = 'saleDraftRecovery';
+                    recoveryDiv.className = 'fixed bottom-4 right-4 bg-white border border-green-300 rounded-xl shadow-xl p-4 z-50 max-w-sm';
+                    document.body.appendChild(recoveryDiv);
+                }
+                // Built with DOM calls: the edit URL carries the ?id= the page was opened with, which is whatever the link said (encodeURIComponent leaves ' ( ) as they are).
+                var recoveryRow = document.createElement('div');
+                recoveryRow.className = 'flex items-start gap-3';
+                var recoveryIcon = document.createElement('i');
+                recoveryIcon.className = 'fas fa-check-circle text-green-500 text-lg mt-0.5';
+                recoveryRow.appendChild(recoveryIcon);
+                var recoveryBody = document.createElement('div');
+                var recoveryTitle = document.createElement('p');
+                recoveryTitle.className = 'font-semibold text-gray-900 text-sm';
+                recoveryTitle.textContent = 'Draft Saved: ' + listingId;
+                recoveryBody.appendChild(recoveryTitle);
+                var recoveryUrl = document.createElement('p');
+                recoveryUrl.className = 'text-xs text-gray-500 mt-1';
+                recoveryUrl.appendChild(document.createTextNode('Edit URL: '));
+                var recoveryLink = document.createElement('a');
+                recoveryLink.href = editUrl;
+                recoveryLink.className = 'text-blue-600 underline';
+                recoveryLink.textContent = editUrl;
+                recoveryUrl.appendChild(recoveryLink);
+                recoveryBody.appendChild(recoveryUrl);
+                var recoveryButtons = document.createElement('div');
+                recoveryButtons.className = 'flex gap-2 mt-2';
+                var dismissButton = document.createElement('button');
+                dismissButton.className = 'px-3 py-1 bg-gray-100 text-gray-700 rounded text-xs font-medium hover:bg-gray-200';
+                dismissButton.textContent = 'Dismiss';
+                dismissButton.addEventListener('click', function() { recoveryDiv.remove(); });
+                var copyButton = document.createElement('button');
+                copyButton.className = 'px-3 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium hover:bg-blue-100';
+                var copyIcon = document.createElement('i');
+                copyIcon.className = 'fas fa-copy mr-1';
+                copyButton.appendChild(copyIcon);
+                copyButton.appendChild(document.createTextNode('Copy Link'));
+                copyButton.addEventListener('click', function() {
+                    if (navigator.clipboard) navigator.clipboard.writeText(editUrl);
+                    showToast('Edit link copied', 'success');
+                });
+                recoveryButtons.appendChild(dismissButton);
+                recoveryButtons.appendChild(copyButton);
+                recoveryBody.appendChild(recoveryButtons);
+                recoveryRow.appendChild(recoveryBody);
+                recoveryDiv.textContent = '';
+                recoveryDiv.appendChild(recoveryRow);
+                setTimeout(function() { var el = document.getElementById('saleDraftRecovery'); if (el) el.remove(); }, 15000);
+            } catch (err) {
+                var why = err && err.message;
+                if (saved) {
+                    // The CRM has the draft: a step of the page's own failed after that (the photos, the recovery panel)
+                    showToast('The draft was saved as ' + (listingId || 'a listing') + ', but a later step failed: ' + (why || 'an error') + '. Open the listing to check it.', 'warning', 20000);
+                } else if (_saleRefused(err)) {
+                    showToast('Save failed: ' + (why || 'the server did not accept the draft'), 'error');
+                    _saleShowSaveState('Not saved to the CRM', 'failed');
+                } else if (dbId || listingId) {
+                    showToast('The CRM did not confirm that the changes were saved: ' + (why || 'no answer') + '. The form still holds your changes; press Save Changes again.', 'error', 15000);
+                    _saleShowSaveState('Not confirmed by the CRM', 'failed');
+                } else {
+                    showToast('The CRM did not confirm whether the draft was saved: ' + (why || 'no answer') + '. Check My Listings for this address before saving it again.', 'error', 15000);
+                    _saleShowSaveState('Not confirmed by the CRM', 'failed');
+                }
+                // Do NOT call performAutoSave() in edit mode after a failed save —
+                // the form state that just failed is what would be pushed again,
+                // potentially overwriting good DB data with bad/default values.
+                // For new (non-edit) listings, autosave to localStorage is safe.
+                if (!_saleEditMode) {
+                    _saleKeepBrowserCopy();
                 }
             }
-
-            // Cancel only the pre-flight autosave timer, not any newer one from edits during save
-            if (autoSaveTimer === preFlightTimer) clearTimeout(autoSaveTimer);
-            // Clear localStorage draft — now saved to DB, no longer "unsaved browser draft"
-            try { localStorage.removeItem('mallan_draft_sale'); } catch (e) {}
-
-            // Step 3: Show draft recovery info
-            showToast('Draft saved: ' + listingId, 'success');
-            var editUrl = window.location.pathname + '?id=' + encodeURIComponent(dbId || listingId);
-            var recoveryDiv = document.getElementById('saleDraftRecovery');
-            if (!recoveryDiv) {
-                recoveryDiv = document.createElement('div');
-                recoveryDiv.id = 'saleDraftRecovery';
-                recoveryDiv.className = 'fixed bottom-4 right-4 bg-white border border-green-300 rounded-xl shadow-xl p-4 z-50 max-w-sm';
-                document.body.appendChild(recoveryDiv);
-            }
-            // Built with DOM calls: the edit URL carries the ?id= the page was opened with, which is whatever the link said (encodeURIComponent leaves ' ( ) as they are).
-            var recoveryRow = document.createElement('div');
-            recoveryRow.className = 'flex items-start gap-3';
-            var recoveryIcon = document.createElement('i');
-            recoveryIcon.className = 'fas fa-check-circle text-green-500 text-lg mt-0.5';
-            recoveryRow.appendChild(recoveryIcon);
-            var recoveryBody = document.createElement('div');
-            var recoveryTitle = document.createElement('p');
-            recoveryTitle.className = 'font-semibold text-gray-900 text-sm';
-            recoveryTitle.textContent = 'Draft Saved: ' + listingId;
-            recoveryBody.appendChild(recoveryTitle);
-            var recoveryUrl = document.createElement('p');
-            recoveryUrl.className = 'text-xs text-gray-500 mt-1';
-            recoveryUrl.appendChild(document.createTextNode('Edit URL: '));
-            var recoveryLink = document.createElement('a');
-            recoveryLink.href = editUrl;
-            recoveryLink.className = 'text-blue-600 underline';
-            recoveryLink.textContent = editUrl;
-            recoveryUrl.appendChild(recoveryLink);
-            recoveryBody.appendChild(recoveryUrl);
-            var recoveryButtons = document.createElement('div');
-            recoveryButtons.className = 'flex gap-2 mt-2';
-            var dismissButton = document.createElement('button');
-            dismissButton.className = 'px-3 py-1 bg-gray-100 text-gray-700 rounded text-xs font-medium hover:bg-gray-200';
-            dismissButton.textContent = 'Dismiss';
-            dismissButton.addEventListener('click', function() { recoveryDiv.remove(); });
-            var copyButton = document.createElement('button');
-            copyButton.className = 'px-3 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium hover:bg-blue-100';
-            var copyIcon = document.createElement('i');
-            copyIcon.className = 'fas fa-copy mr-1';
-            copyButton.appendChild(copyIcon);
-            copyButton.appendChild(document.createTextNode('Copy Link'));
-            copyButton.addEventListener('click', function() {
-                if (navigator.clipboard) navigator.clipboard.writeText(editUrl);
-                showToast('Edit link copied', 'success');
-            });
-            recoveryButtons.appendChild(dismissButton);
-            recoveryButtons.appendChild(copyButton);
-            recoveryBody.appendChild(recoveryButtons);
-            recoveryRow.appendChild(recoveryBody);
-            recoveryDiv.textContent = '';
-            recoveryDiv.appendChild(recoveryRow);
-            setTimeout(function() { var el = document.getElementById('saleDraftRecovery'); if (el) el.remove(); }, 15000);
-        } catch (err) {
-            showToast('Save failed: ' + err.message, 'error');
-            // Do NOT call performAutoSave() in edit mode after a failed save —
-            // the form state that just failed is what would be pushed again,
-            // potentially overwriting good DB data with bad/default values.
-            // For new (non-edit) listings, autosave to localStorage is safe.
-            if (!_saleEditMode) {
-                performAutoSave();
-            }
+        } else if (dbId || listingId) {
+            // A saved listing keeps no browser copy (it would shadow the listing): nothing is saved
+            showToast('Not saved: the CRM is not connected. The form still holds your changes.', 'error');
+            _saleShowSaveState('Not saved to the CRM', 'failed');
+        } else if (_saleKeepBrowserCopy()) {
+            showToast('Offline — saved locally only.', 'warning');
+            _saleShowSaveState('Draft saved in this browser', 'ok');
+        } else {
+            showToast('Not saved: the CRM is not connected and this browser could not keep a copy. The form still holds everything you entered.', 'error');
+            _saleShowSaveState('Not saved: this browser could not keep a copy', 'failed');
         }
-    } else {
-        performAutoSave();
-        showToast('Offline — saved locally only.', 'warning');
-    }
+    } finally { _saleSetBusy(false); }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -8979,6 +9020,88 @@ function _saleSaveBlocked() {
     return true;
 }
 
+// A submit or a save is out: the buttons that start one are off until the server has answered. A second click would send the listing twice (a new listing would be created twice).
+var _saleBusy = false;
+function _saleSetBusy(on) {
+    _saleBusy = on;
+    document.querySelectorAll('[onclick*="submitSalesListing"], [onclick*="saveSalesDraft"], [onclick*="manualSaveDraft"]').forEach(function(btn) {
+        btn.disabled = on;
+        btn.classList.toggle('opacity-60', on);
+        btn.classList.toggle('cursor-not-allowed', on);
+    });
+    // An autosave that came due while the request was out runs now that it is over (see performAutoSave)
+    if (!on && window._saleAutoSavePending) { window._saleAutoSavePending = false; autoSaveDraft(); }
+}
+
+// Leaving the page (closing the form, a reload) while a submit or a save is out would lose its answer: the agent would enter the listing again and send it a second time. Cancel waits (see
+// cancelSaleForm) and the browser asks.
+window.addEventListener('beforeunload', function(e) {
+    if (_saleBusy) { e.preventDefault(); e.returnValue = ''; }
+});
+
+// A page that holds a saved listing (one that was opened, or that this Submit created): Submit updates it and the Save buttons save it to the CRM, and the buttons say so (their icons stay).
+function _saleShowEditLabels() {
+    document.querySelectorAll('[onclick*="submitSalesListing"]').forEach(function(btn) {
+        btn.childNodes.forEach(function(node) { if (node.nodeType === 3) node.nodeValue = node.nodeValue.replace(/Submit|Create/gi, 'Update'); });
+    });
+    document.querySelectorAll('[onclick*="saveSalesDraft"], [onclick*="manualSaveDraft"]').forEach(function(btn) {
+        btn.childNodes.forEach(function(node) { if (node.nodeType === 3) node.nodeValue = node.nodeValue.replace(/Save (as )?Draft/, 'Save Changes'); });
+    });
+}
+
+// What a request that failed tells the page. The server REFUSED it (a 4xx answer: it did not do what was asked), or nothing is known: no answer at all (the network), a 5xx, a timeout (the listing
+// create route answers 500 when it committed the listing and could not build its answer). "Nothing was saved" is only for a refusal. The CRM client (js/core/api-client.js) puts the HTTP status on the error.
+function _saleRefused(err) {
+    var status = err && err.status;
+    return status >= 400 && status < 500 && status !== 408;
+}
+
+// Whether the CRM client has what a save needs. When it has not (it did not load), the request is never sent: that is known, not unknown.
+function _saleCanSend() {
+    return typeof MallanAPI !== 'undefined' && !!MallanAPI.listings && typeof MallanAPI.listings.create === 'function' && typeof MallanAPI.listings.update === 'function';
+}
+
+// A copy of the form in this browser, where the draft restore (and the autosave) keeps it. Only a NEW listing gets one (the callers see to that): a browser copy of a saved listing would shadow it on the next load.
+function _saleKeepBrowserCopy() {
+    try {
+        var draft = collectSaleFormData();
+        draft._savedAt = new Date().toISOString();
+        draft._formType = 'sale';
+        localStorage.setItem('mallan_draft_sale', JSON.stringify(draft));
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+// The submit failed. A refusal: nothing was saved there. Otherwise it is not known whether the listing was saved: a new listing must be looked for before it is submitted again (it could be created twice),
+// and the changes of a saved listing can simply be sent again. The form still holds everything the agent entered, and a new listing is kept in this browser as well.
+function _saleSubmitFailed(err, creating) {
+    var why = err && err.message;
+    var kept = creating && _saleKeepBrowserCopy();
+    var holds = 'the form still holds everything you entered' + (kept ? ', and a copy is kept in this browser.' : '.');
+    if (_saleRefused(err)) {
+        showToast((creating ? 'Submission failed: ' : 'Update failed: ') + (why || 'the server did not accept the listing') + '. Nothing was saved to the CRM; ' + holds, 'error');
+    } else if (creating) {
+        showToast('The CRM did not confirm whether the listing was saved: ' + (why || 'no answer') + '. Check My Listings for this address before submitting it again; ' + holds, 'error', 15000);
+    } else {
+        showToast('The CRM did not confirm whether the changes were saved: ' + (why || 'no answer') + '. Press Update to send them again; ' + holds, 'error', 15000);
+    }
+    _saleShowSaveState(_saleRefused(err) ? 'Not saved to the CRM' : 'Not confirmed by the CRM', 'failed');
+}
+
+// The indicator in the listing bar says where the work is: "Saving...", then where the copy is (a new listing's draft in this browser, a saved listing in the CRM), or in red that it is not. It is
+// hidden until the first autosave. The time is its tooltip: the time of the last update is in the bar.
+function _saleShowSaveState(text, state) {
+    var indicator = document.getElementById('saleAutoSaveIndicator');
+    var textEl = document.getElementById('saleAutoSaveText');
+    if (!indicator || !textEl) return;
+    indicator.classList.remove('hidden', 'text-gray-600', 'text-green-700', 'text-red-700');
+    indicator.classList.add(state === 'ok' ? 'text-green-700' : state === 'failed' ? 'text-red-700' : 'text-gray-600');
+    textEl.textContent = text;
+    indicator.title = state === 'saving' ? '' : new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
 function _checkSaleEditMode() {
     var params = new URLSearchParams(window.location.search);
     var id = params.get('id');
@@ -9037,11 +9160,8 @@ function _checkSaleEditMode() {
         var lastUpdated = document.getElementById('saleLastUpdated');
         if (lastUpdated) lastUpdated.textContent = listing.updated_at ? new Date(listing.updated_at).toLocaleString() : '';
 
-        // Change submit button text
-        var submitBtns = document.querySelectorAll('[onclick*="submitSalesListing"]');
-        submitBtns.forEach(function(btn) {
-            btn.textContent = btn.textContent.replace(/Submit|Create/gi, 'Update');
-        });
+        // Submit updates this listing and the Save buttons save it to the CRM: the buttons say so
+        _saleShowEditLabels();
     }).catch(function(err) {
         if (_saleEditLoad !== 'loaded') _saleEditLoad = 'failed';
         showToast('Failed to load listing: ' + err.message, 'error');
