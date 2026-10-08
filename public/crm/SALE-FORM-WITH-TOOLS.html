@@ -3775,48 +3775,19 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
         <div class="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-10">
             <div>
                 <h3 class="text-lg font-semibold">Media and Documents</h3>
-                <p class="text-xs text-gray-500">Upload photos, videos, floor plans, and documents</p>
+                <p class="text-xs text-gray-500">The listing's photos, floor plans, videos and tours</p>
             </div>
             <button onclick="closeSaleMediaModal()" class="text-gray-500 hover:text-gray-700" aria-label="Close"><i class="fas fa-times text-xl"></i></button>
         </div>
         <div class="p-6">
-            <!-- REBNY Media Compliance Notice -->
-            <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-6">
-                <p class="text-xs font-semibold text-amber-800 mb-1"><i class="fas fa-shield-alt mr-1"></i> REBNY Media Compliance (UCBA Art. I Sec. 5(C))</p>
-                <p class="text-[10px] text-amber-700 leading-relaxed">Photos, floor plans, and videos must NOT contain agent name, contact info, watermarks, or logos. Only exclusive broker (Mallan Real Estate) branding is permitted. All captions subject to Fair Housing + UCBA content rules.</p>
-            </div>
-
             <!-- Photos -->
             <div class="mb-8">
                 <div class="flex items-center justify-between mb-3">
-                    <h4 class="font-semibold text-gray-900">Photos <span class="text-xs text-gray-500 font-normal">(Up to 100 photos, min 1024x768px, recommended 2048x1365px, JPEG/PNG, max 20MB each)</span></h4>
-                    <span id="salePhotoCount" class="text-xs font-semibold text-gray-500">0 / 100 uploaded</span>
+                    <h4 class="font-semibold text-gray-900">Photos</h4>
+                    <span id="salePhotoCount" class="text-xs font-semibold text-gray-500">Loading...</span>
                 </div>
-                <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#B8860B] cursor-pointer transition-colors" onclick="document.getElementById('salePhotoInput').click()">
-                    <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-3"></i>
-                    <p class="text-sm text-gray-600 mb-1">Drag and drop photos here or click to browse</p>
-                    <p class="text-xs text-gray-500">JPEG, PNG only — Landscape 4:3 or 3:2 preferred — No watermarks, agent info, or logos (UCBA Art. I Sec. 5(C))</p>
-                    <input type="file" id="salePhotoInput" multiple accept=".jpg,.jpeg,.png" class="hidden" data-rls-ignore="true">
-                </div>
-                <!-- REBNY I23: Photo sort order — first photo = primary listing photo -->
-                <p class="text-xs text-amber-600 mt-2"><i class="fas fa-star mr-1"></i> <strong>Primary Photo:</strong> First photo = hero image on StreetEasy, Zillow, Realtor.com, and all syndicated sites. Drag to reorder.</p>
-                <!-- Photo quality guidelines -->
-                <div class="mt-2 p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-[10px] text-blue-700 space-y-1">
-                    <div class="font-bold text-blue-800"><i class="fas fa-info-circle mr-1"></i> Photo Requirements (Trestle / REBNY RLS)</div>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-0.5">
-                        <span><strong>Min:</strong> 1024 x 768 px</span>
-                        <span><strong>Rec:</strong> 2048 x 1365 px</span>
-                        <span><strong>Format:</strong> JPEG (preferred)</span>
-                        <span><strong>Size:</strong> 100KB – 3MB each</span>
-                        <span><strong>Ratio:</strong> 4:3 or 3:2 landscape</span>
-                        <span><strong>Max:</strong> 100 photos per listing</span>
-                        <span><strong>Optimal:</strong> 22–27 photos</span>
-                        <span><strong>Min rec:</strong> 10–15 photos</span>
-                    </div>
-                    <div class="text-blue-600 mt-1">Each photo must be assigned a Room/Category (RESO ImageOf) and sort order. Photos under 1024x768 will be flagged for rejection.</div>
-                </div>
-                <!-- RESO ImageOf category selector (shown per photo in preview) -->
-                <div id="salePhotoPreview" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4" style="cursor: grab;"></div>
+                <p class="text-xs text-gray-500 mb-2">The first photo is the listing's main photo.</p>
+                <div id="salePhotoPreview" class="grid grid-cols-2 sm:grid-cols-4 gap-2"><p class="text-sm text-gray-500 italic col-span-full">Loading photos...</p></div>
             </div>
 
             <!-- Videos -->
@@ -3839,13 +3810,8 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
 
             <!-- Floor Plans -->
             <div class="mb-8">
-                <h4 class="font-semibold text-gray-900 mb-3">Floor Plans <span class="text-xs text-gray-500 font-normal">(max 20MB each, 150 dpi recommended)</span></h4>
-                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#B8860B] cursor-pointer transition-colors" onclick="document.getElementById('saleFloorplanInput').click()">
-                    <i class="fas fa-drafting-compass text-3xl text-gray-400 mb-2"></i>
-                    <p class="text-sm text-gray-600">Upload Floor Plan</p>
-                    <p class="text-xs text-gray-500 mt-1">JPG, PNG, PDF only</p>
-                    <input type="file" id="saleFloorplanInput" accept=".jpg,.jpeg,.png,.pdf" class="hidden" data-rls-ignore="true">
-                </div>
+                <h4 class="font-semibold text-gray-900 mb-3">Floor Plans</h4>
+                <div id="saleFloorPlanList" class="space-y-1 text-sm"><p class="text-sm text-gray-500 italic">Loading floor plans...</p></div>
             </div>
 
             <!-- 3D Virtual Tours (RLS/RESO/IDX: VirtualTourURL) -->
@@ -3890,7 +3856,6 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
             </div>
         </div>
         <div class="sticky bottom-0 bg-white border-t px-6 py-4 flex justify-end gap-2">
-            <button onclick="closeSaleMediaModal()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Cancel</button>
             <button onclick="closeSaleMediaModal()" class="px-4 py-2 bg-gray-600 text-white rounded-lg text-sm hover:bg-gray-700">Close</button>
         </div>
     </div>
@@ -4978,7 +4943,9 @@ function viewerBuildListing(apiData, id) {
         description: (apiData.features || {}).PublicRemarks || '',
         listingAgentName: apiData.list_agent_full_name || (apiData.agent_info || {}).ListAgentFullName || '',
         listingCompany: apiData.list_office_name || (apiData.agent_info || {}).ListOfficeName || '',
-        photos: Array.isArray(apiData.media) ? apiData.media.map(function(m) { return (m && m.url) || ''; }) : [],
+        photos: [],                // the photos are the listing's media rows (see viewerLoadMedia): the record's own list is the legacy copy, and is not read
+        floorPlans: [],
+        mediaState: 'loading',
         lastUpdated: viewerDateTimeText(apiData.updated_at),
         createDate: viewerDateOnly(apiData.created_at),
         lastUpdatedDate: viewerDateOnly(apiData.updated_at),
@@ -5077,6 +5044,119 @@ function viewerHideWriteControls() {
 function viewerShowOpenHouses(prefix, record) {
     if (!window.MallanOpenHouses || !record) return;
     MallanOpenHouses.create({ prefix: prefix, readOnly: true, showInternal: VIEWER_ROLE === 'agent' || VIEWER_ROLE === 'broker' }).load([record.listing_id, record.id]);
+}
+
+// ── Viewer Helper: the listing's photos and floor plans ──
+// The listing record carries only the legacy copy of its media list (an upload never writes it, and a delete leaves it): the photos are the listing's media rows, which the media route answers
+// (GET /api/crm/listings/<id>/media, for an agent or a broker; for a listing with no rows yet it answers a read-only preview of that legacy list itself). The viewer reads that answer and nothing
+// else. Until it has come the photos are loading, and when it could not be had they could not be loaded: that is what the Media window, the Preview, the print and the e-mails say, never "none".
+// A row is a photo or a floor plan as the server reads it (classifyMediaItem in lib/media/listing-media-resolver.ts): Trestle tags some floor plans as photos, so the address is read too.
+function viewerMediaClass(row) {
+    var category = String((row.media_category !== null && row.media_category !== undefined ? row.media_category : row.media_type) || '').toLowerCase();
+    var url = String(row.heroUrl || row.url || '').toLowerCase();
+    // (the server also tests for a /floorplans/ path; the test for "floor plan" in the address covers it)
+    if (category === 'floorplan' || category.indexOf('floor plan') >= 0 || category.indexOf('floor_plan') >= 0 ||
+        /floor[\s_-]?plans?/.test(url) || /\.pdf(\?|$)/.test(url) ||
+        /(?:^|[/_-])(?:site[\s_-]?plans?|diagrams?)(?:[/_.-]|$)/.test(url) || /\/media\/property\/document-(?:gif|jpeg|png|pdf)\//.test(url)) return 'floorplan';
+    if (category.indexOf('video') >= 0 || /\.(?:mp4|mov|webm)(\?|$)/.test(url)) return 'video';
+    if (category === 'virtualtour' || category.indexOf('virtual tour') >= 0) return 'virtualTour';
+    if (category === 'photo' || category === 'image' || category === '') return 'photo';
+    return 'unknown';
+}
+function viewerWebUrls(list) {
+    return (Array.isArray(list) ? list : []).filter(function(u) { return typeof u === 'string' && (u.indexOf('https://') === 0 || u.indexOf('http://') === 0); });
+}
+// Where the listing's photos stand: 'loading' until the media route has answered, then 'loaded', or 'failed' when the answer could not be had
+function viewerMediaState() {
+    var listing = VIEWER_LISTING_ID ? VIEWER_LISTINGS[VIEWER_LISTING_ID] : null;
+    return listing ? listing.mediaState : 'failed';
+}
+function viewerPhotoCountText(prefix) {
+    var state = viewerMediaState();
+    if (state === 'loading') return 'Loading...';
+    if (state !== 'loaded') return 'Could not be loaded';
+    var count = getListingPhotoUrls(prefix).length;
+    return count === 1 ? '1 photo' : count + ' photos';
+}
+// What a report says where the photos would be when there are none to show: nothing is claimed about a list that is not in
+function getListingPhotoNote(emptyText) {
+    var state = viewerMediaState();
+    if (state === 'loaded') return emptyText;
+    return state === 'loading' ? 'Photos are still loading.' : 'Photos could not be loaded.';
+}
+function viewerShowMedia(prefix) {
+    var listing = VIEWER_LISTING_ID ? VIEWER_LISTINGS[VIEWER_LISTING_ID] : null;
+    if (!listing) return;
+    var state = listing.mediaState;
+    var photos = getListingPhotoUrls(prefix);                 // (both lists are empty unless the photos are loaded)
+    var plans = viewerWebUrls(listing.floorPlans);
+    var say = function(box, loaded, loading, failed) {
+        var line = document.createElement('p');
+        line.className = 'text-sm text-gray-500 italic col-span-full';
+        line.textContent = state === 'loaded' ? loaded : (state === 'loading' ? loading : failed);
+        box.appendChild(line);
+    };
+    var count = document.getElementById(prefix + 'PhotoCount');
+    if (count) count.textContent = viewerPhotoCountText(prefix);
+    var grid = document.getElementById(prefix + 'PhotoPreview');
+    if (grid) {
+        grid.textContent = '';
+        photos.forEach(function(url, i) {
+            var link = document.createElement('a');
+            link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+            var img = document.createElement('img');
+            img.src = url; img.alt = 'Photo ' + (i + 1); img.loading = 'lazy';
+            img.className = 'w-full h-24 object-cover rounded border';
+            link.appendChild(img);
+            grid.appendChild(link);
+        });
+        if (!photos.length) say(grid, 'No photos.', 'Loading photos...', 'Photos could not be loaded.');
+    }
+    var list = document.getElementById(prefix + 'FloorPlanList');
+    if (list) {
+        list.textContent = '';
+        plans.forEach(function(url, i) {
+            var link = document.createElement('a');
+            link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.className = 'text-blue-600 hover:underline block';
+            link.textContent = 'Floor plan ' + (i + 1);
+            list.appendChild(link);
+        });
+        if (!plans.length) say(list, 'No floor plans.', 'Loading floor plans...', 'Floor plans could not be loaded.');
+    }
+}
+function viewerLoadMedia(prefix, record, refresh) {
+    var listing = VIEWER_LISTING_ID ? VIEWER_LISTINGS[VIEWER_LISTING_ID] : null;
+    if (!listing) return Promise.resolve();
+    var settle = function(state, photos, plans) {
+        listing.mediaState = state; listing.photos = photos; listing.floorPlans = plans;
+        viewerShowMedia(prefix);
+        if (typeof refresh === 'function') refresh();
+    };
+    var key = record && (record.listing_id || record.id);
+    if (!key || typeof fetch !== 'function') { settle('failed', [], []); return Promise.resolve(); }
+    return fetch('/api/crm/listings/' + encodeURIComponent(String(key)) + '/media', { credentials: 'include' }).then(function(response) {
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        return response.json();
+    }).then(function(body) {
+        if (!body || !Array.isArray(body.media)) throw new Error('the answer holds no media list');
+        var rows = body.media.map(function(m, index) { return { m: m, index: index }; }).filter(function(entry) { return entry.m && typeof entry.m === 'object'; });
+        // the main photo first, then the route's own order; one address once
+        var addresses = function(kind) {
+            var seen = {};
+            return rows.filter(function(entry) { return viewerMediaClass(entry.m) === kind; })
+                .sort(function(a, b) { return (b.m.preferred_photo_yn ? 1 : 0) - (a.m.preferred_photo_yn ? 1 : 0) || a.index - b.index; })
+                .map(function(entry) { return entry.m.heroUrl || entry.m.url || ''; })
+                .filter(function(url) { if (seen[url]) return false; seen[url] = true; return true; });
+        };
+        return { photos: addresses('photo'), plans: addresses('floorplan') };
+    }).then(function(media) {
+        settle('loaded', media.photos, media.plans);
+    }, function(err) {
+        console.warn('[Viewer] The listing\'s media could not be read:', err && err.message);
+        settle('failed', [], []);
+    }).catch(function(err) {
+        console.warn('[Viewer] The Media window could not be drawn:', err && err.message);          // the Media window is an addition: the viewer renders without it
+    });
 }
 
 // ── Viewer Helper: entry-form defaults are not listing facts ──
@@ -6553,7 +6633,7 @@ function updateSalePreview() {
     const distChecked = [];
     document.querySelectorAll('#saleMainTab4 [data-state="yes"]').forEach(badge => distChecked.push(badge.textContent.trim().split('\n')[0].trim()));
     setText('salePreviewDistro', distChecked.length ? distChecked.slice(0, 4).join(', ') + (distChecked.length > 4 ? ' +' + (distChecked.length - 4) + ' more' : '') : '--');
-    setText('salePreviewPhotos', getListingPhotoUrls('sale').length + ' photos');
+    setText('salePreviewPhotos', viewerPhotoCountText('sale'));
     setText('salePreviewVideo', val('saleVideoUrl', 'None') !== 'None' ? 'Yes' : 'None');
     setText('salePreviewTour', val('saleMatterportUrl', 'None') !== 'None' ? 'Yes' : 'None');
 
@@ -6713,6 +6793,10 @@ function renderSaleViewer() {
         convertSaleFormToViewer();
         viewerHideWriteControls();
         viewerShowOpenHouses('sale', VIEWER_LISTINGS[VIEWER_LISTING_ID]._raw);
+        viewerLoadMedia('sale', VIEWER_LISTINGS[VIEWER_LISTING_ID]._raw, function() {
+            if (typeof updateSalePreview === 'function') updateSalePreview();
+            if (typeof refreshSaleEmailPreview === 'function') refreshSaleEmailPreview();
+        });
         patchGetSaleFormValue();
         updateSaleHeaderForViewer(listingData);
         removeSaleNavigationButtons();
@@ -7285,7 +7369,7 @@ function buildSalePrintHTML(data, sections, options) {
             html += '</div>';
             if (photoUrls.length > 6) html += '<p style="color:#999; font-size:8pt; text-align:center; margin-top:4px;">Showing 6 of ' + photoUrls.length + ' photos</p>';
         } else {
-            html += '<p style="color:#999; font-size:9pt; text-align:center; padding:20px;">No photos available for this listing.</p>';
+            html += '<p style="color:#999; font-size:9pt; text-align:center; padding:20px;">' + esc(getListingPhotoNote('No photos available for this listing.')) + '</p>';
         }
         html += '</div>';
     }
@@ -7359,6 +7443,13 @@ function openSaleEmailModal() {
     preview.innerHTML = buildSaleEmailCardHTML(data);
 }
 
+// The photos may arrive after the e-mail window was opened: its preview is drawn again
+function refreshSaleEmailPreview() {
+    var modal = document.getElementById('saleEmailModal');
+    var preview = document.getElementById('saleEmailCardPreview');
+    if (modal && preview && !modal.classList.contains('hidden')) preview.innerHTML = buildSaleEmailCardHTML(collectSalePrintData());
+}
+
 function closeSaleEmailModal() {
     document.getElementById('saleEmailModal').classList.add('hidden');
 }
@@ -7384,7 +7475,7 @@ function buildSaleEmailCardHTML(data) {
     if (emailPhotos.length > 0) {
         html += '<div style="height:200px; overflow:hidden;"><img src="' + esc(emailPhotos[0]) + '" style="width:100%; height:200px; object-fit:cover; display:block;" alt="Listing photo"></div>';
     } else {
-        html += '<div style="background:#f3f4f6; height:200px; display:flex; align-items:center; justify-content:center; color:#9ca3af; font-size:14px;"><span>No photos available</span></div>';
+        html += '<div style="background:#f3f4f6; height:200px; display:flex; align-items:center; justify-content:center; color:#9ca3af; font-size:14px;"><span>' + esc(getListingPhotoNote('No photos available')) + '</span></div>';
     }
     // Content
     html += '<div style="padding:20px;">';
@@ -7447,7 +7538,7 @@ function buildSaleEmailInlineHTML(data) {
     if (inlinePhotos.length > 0) {
         html += '<tr><td style="height:180px; overflow:hidden;"><img src="' + esc(inlinePhotos[0]) + '" style="width:100%; height:180px; object-fit:cover; display:block;" alt="Listing photo"></td></tr>';
     } else {
-        html += '<tr><td style="background:#f3f4f6; height:180px; text-align:center; color:#9ca3af; font-size:14px;">No photos available</td></tr>';
+        html += '<tr><td style="background:#f3f4f6; height:180px; text-align:center; color:#9ca3af; font-size:14px;">' + esc(getListingPhotoNote('No photos available')) + '</td></tr>';
     }
     html += '<tr><td style="padding:20px;">';
     if (priceStr) html += '<p style="font-size:24px; font-weight:800; color:#B8860B; margin:0;">' + priceStr + '</p>';
