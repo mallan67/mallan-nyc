@@ -515,8 +515,9 @@ body { font-family: Manrope, sans-serif; }
                 <label class="field-label">Owner Opt-Out Form (Exhibit B) <span class="text-red-500">*</span></label>
                 <div class="border-2 border-dashed border-amber-300 rounded-lg p-4 bg-amber-50 text-center">
                     <i class="fas fa-file-upload text-amber-500 text-xl mb-2"></i>
-                    <p class="text-sm text-gray-600">Upload signed Opt-Out form (required within 48 hours)</p>
-                    <input type="file" id="rentalOptOutFormUpload" accept=".pdf,.jpg,.png" class="mt-2 text-sm" data-rls-ignore="true">
+                    <p class="text-sm text-gray-700 font-medium">This form cannot store the signed Opt-Out form.</p>
+                    <p class="text-xs text-gray-600 mt-1">It is required within 48 hours: file it the way your broker requires, and do not rely on this page for it.</p>
+                    <input type="file" id="rentalOptOutFormUpload" accept=".pdf,.jpg,.png" class="mt-2 text-sm" disabled data-rls-ignore="true">
                 </div>
             </div>
         </div>
@@ -3334,12 +3335,12 @@ body { font-family: Manrope, sans-serif; }
 
             <!-- Documents (file uploads) -->
             <div class="mb-6">
-                <h4 class="font-semibold text-gray-900 mb-3">Documents <span class="text-xs text-gray-500 font-normal">(max 20MB each)</span></h4>
-                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#B8860B] cursor-pointer transition-colors" onclick="document.getElementById('rentalDocInput').click()">
-                    <i class="fas fa-file-pdf text-3xl text-gray-400 mb-2"></i>
-                    <p class="text-sm text-gray-600">Upload Documents</p>
-                    <p class="text-xs text-gray-500 mt-1">PDF, DOC, DOCX only (Lease, Rider, Board Package, etc.)</p>
-                    <input type="file" id="rentalDocInput" multiple accept=".pdf,.doc,.docx" class="hidden" data-rls-ignore="true">
+                <h4 class="font-semibold text-gray-900 mb-3">Documents</h4>
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center bg-gray-50">
+                    <i class="fas fa-file-pdf text-3xl text-gray-300 mb-2"></i>
+                    <p class="text-sm text-gray-700 font-medium">Documents cannot be attached to a listing from this form yet.</p>
+                    <p class="text-xs text-gray-500 mt-1">Nothing chosen here would be saved, so the box is switched off.</p>
+                    <input type="file" id="rentalDocInput" multiple accept=".pdf,.doc,.docx" class="hidden" disabled data-rls-ignore="true">
                 </div>
                 <div class="bg-red-50 border border-red-200 rounded-lg p-2 mt-2">
                     <p class="text-[10px] text-red-700"><i class="fas fa-exclamation-triangle mr-1"></i> <strong>Privacy:</strong> Do NOT upload owner/tenant ID scans, tax returns, or personal financial documents. These violate NY SHIELD Act requirements.</p>
