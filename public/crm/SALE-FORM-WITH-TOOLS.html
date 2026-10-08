@@ -3447,38 +3447,14 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
         </div>
     </div>
 
-    <!-- Transit & Commute Section -->
+    <!-- Nearby Transit Section (the commute calculator is gone: it ignored the work address and made its times up) -->
     <div class="form-card" id="saleTransitSection">
-        <div class="form-card-header"><i class="fas fa-subway"></i> Transit & Commute</div>
-        <p class="text-xs text-gray-500 mb-3">Nearby transit based on the listing address. Enter an address in Tab 1 to see results.</p>
+        <div class="form-card-header"><i class="fas fa-subway"></i> Nearby Transit</div>
+        <p class="text-xs text-gray-500 mb-3">Stops near the listing's ZIP code, from a partial list of Manhattan stops. Commute times are not shown: this page has no routing data.</p>
         <div id="saleTransitResults" class="space-y-2">
             <div class="text-center py-6 text-gray-400">
                 <i class="fas fa-map-marker-alt text-3xl mb-2"></i>
-                <p class="text-sm">Enter a street address in Tab 1 to see nearby transit stations.</p>
-            </div>
-        </div>
-        <div class="mt-4 pt-3 border-t">
-            <label class="field-label mb-1">Commute Calculator</label>
-            <div class="flex gap-2">
-                <input type="text" id="saleCommuteAddress" class="field-input flex-1" placeholder="Enter work address..." data-rls-ignore="true">
-                <button onclick="calcSaleCommute()" class="px-4 py-2 bg-[#B8860B] text-white rounded-lg text-sm font-semibold hover:bg-[#9A7209] transition whitespace-nowrap"><i class="fas fa-route mr-1"></i> Calculate</button>
-            </div>
-            <div id="saleCommuteResults" class="hidden grid grid-cols-3 gap-3 mt-3">
-                <div class="bg-blue-50 rounded-xl p-3 text-center">
-                    <i class="fas fa-subway text-blue-600 mb-1"></i>
-                    <div class="text-sm font-bold text-blue-700" id="saleCommuteSubway">--</div>
-                    <div class="text-[10px] text-blue-500 uppercase font-semibold">Subway</div>
-                </div>
-                <div class="bg-amber-50 rounded-xl p-3 text-center">
-                    <i class="fas fa-bus text-[#B8860B] mb-1"></i>
-                    <div class="text-sm font-bold text-amber-700" id="saleCommuteBus">--</div>
-                    <div class="text-[10px] text-[#B8860B] uppercase font-semibold">Bus</div>
-                </div>
-                <div class="bg-amber-50 rounded-xl p-3 text-center">
-                    <i class="fas fa-walking text-amber-600 mb-1"></i>
-                    <div class="text-sm font-bold text-amber-700" id="saleCommuteWalk">--</div>
-                    <div class="text-[10px] text-amber-500 uppercase font-semibold">Walking</div>
-                </div>
+                <p class="text-sm">This listing has no ZIP code, so no nearby transit can be worked out.</p>
             </div>
         </div>
     </div>
@@ -5216,7 +5192,7 @@ function loadSaleListingData(listingId) {
 
 // ── Convert all form fields to read-only ──
 function convertSaleFormToViewer() {
-    // Skip zones: print modal, email modal, transit commute inputs, building modal, media modal
+    // Skip zones: print modal, email modal, building modal, media modal
     var skipSelectors = ['#salePrintModal', '#saleEmailModal', '#saleBuildingModal', '#saleMediaModal', '#saleFinancialCalcModal'];
     // The skip zones are resolved once, not once per control.
     var skipZones = skipSelectors.map(function(sel) { return document.querySelector(sel); }).filter(Boolean);
@@ -5224,7 +5200,6 @@ function convertSaleFormToViewer() {
         for (var i = 0; i < skipZones.length; i++) {
             if (skipZones[i].contains(el)) return true;
         }
-        if (el.id === 'saleCommuteAddress') return true;
         return false;
     }
 
@@ -7608,7 +7583,7 @@ var FORM_STATIONS = [
     { name: 'M101/102/103', lines: ['M101'], lat: 40.7750, lng: -73.9590, type: 'bus' }
 ];
 
-// NYC address → approximate lat/lng lookup (by neighborhood)
+// The approximate center of each ZIP code it knows. A ZIP code that is not here has no stops listed: it is not put anywhere else.
 var NYC_GEOCODE_APPROX = {
     '10128': { lat: 40.7818, lng: -73.9530 }, '10028': { lat: 40.7767, lng: -73.9538 },
     '10021': { lat: 40.7693, lng: -73.9593 }, '10065': { lat: 40.7649, lng: -73.9640 },
@@ -7618,8 +7593,7 @@ var NYC_GEOCODE_APPROX = {
     '10001': { lat: 40.7506, lng: -73.9971 }, '10003': { lat: 40.7320, lng: -73.9893 },
     '10011': { lat: 40.7418, lng: -74.0002 }, '10012': { lat: 40.7258, lng: -73.9981 },
     '10013': { lat: 40.7197, lng: -74.0030 }, '10002': { lat: 40.7157, lng: -73.9860 },
-    '10007': { lat: 40.7134, lng: -74.0078 }, '10038': { lat: 40.7093, lng: -74.0026 },
-    'default': { lat: 40.7831, lng: -73.9554 }
+    '10007': { lat: 40.7134, lng: -74.0078 }, '10038': { lat: 40.7093, lng: -74.0026 }
 };
 
 function formHaversine(lat1, lon1, lat2, lon2) {
@@ -7640,20 +7614,18 @@ function formLineBadge(line) {
     return '<span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold flex-shrink-0" style="background:' + color + ';color:' + textColor + '">' + line + '</span>';
 }
 
-function getFormListingLatLng(prefix) {
-    var zip = getSaleFormValue(prefix + 'ZipCode') || '';
-    var geo = NYC_GEOCODE_APPROX[zip] || NYC_GEOCODE_APPROX['default'];
-    return geo;
+// The transit card shows a line of its own in place of the stops. The text goes in as text, never as markup.
+function showTransitNote(box, message) {
+    box.innerHTML = '<div class="text-center py-6 text-gray-400"><i class="fas fa-map-marker-alt text-3xl mb-2"></i><p class="text-sm"></p></div>';
+    box.querySelector('p').textContent = message;
 }
 
 function updateSaleTransit() {
+    var box = document.getElementById('saleTransitResults');
     var zip = getSaleFormValue('saleZipCode');
-    if (!zip) {
-        document.getElementById('saleTransitResults').innerHTML = '<div class="text-center py-6 text-gray-400"><i class="fas fa-map-marker-alt text-3xl mb-2"></i><p class="text-sm">Enter a street address in Tab 1 to see nearby transit stations.</p></div>';
-        return;
-    }
-    var geo = NYC_GEOCODE_APPROX[zip] || NYC_GEOCODE_APPROX['default'];
-    var lat = geo.lat, lng = geo.lng;
+    if (!zip) { showTransitNote(box, 'This listing has no ZIP code, so no nearby transit can be worked out.'); return; }
+    if (!Object.prototype.hasOwnProperty.call(NYC_GEOCODE_APPROX, zip)) { showTransitNote(box, 'No transit stops are listed for ZIP code ' + zip + ' yet: this page\'s list covers part of Manhattan only.'); return; }
+    var lat = NYC_GEOCODE_APPROX[zip].lat, lng = NYC_GEOCODE_APPROX[zip].lng;
 
     var stations = FORM_STATIONS.map(function(s) {
         var dist = formHaversine(lat, lng, s.lat, s.lng);
@@ -7693,20 +7665,12 @@ function updateSaleTransit() {
             html += '<div class="text-xs text-gray-500">' + s.dist.toFixed(2) + ' mi &middot; ' + s.walkMin + ' min walk</div></div></div>';
         });
     }
-    if (!html) html = '<div class="text-sm text-gray-400 text-center py-4">No transit stations found within 0.75 miles of this address.</div>';
-    document.getElementById('saleTransitResults').innerHTML = html;
-}
-
-function calcSaleCommute() {
-    var workAddr = (document.getElementById('saleCommuteAddress').value || '').trim();
-    if (!workAddr) { alert('Please enter your work address.'); return; }
-    document.getElementById('saleCommuteResults').classList.remove('hidden');
-    var geo = getFormListingLatLng('sale');
-    var midtownDist = formHaversine(geo.lat, geo.lng, 40.7549, -73.9840);
-    document.getElementById('saleCommuteSubway').textContent = '~' + Math.max(10, Math.round(midtownDist * 8 + 5)) + ' min';
-    document.getElementById('saleCommuteBus').textContent = '~' + Math.max(15, Math.round(midtownDist * 14 + 10)) + ' min';
-    var walkMin = Math.round(midtownDist / 3 * 60);
-    document.getElementById('saleCommuteWalk').textContent = walkMin > 60 ? Math.round(walkMin/60) + 'h ' + (walkMin%60) + 'm' : '~' + walkMin + ' min';
+    if (!html) { showTransitNote(box, 'No listed transit stops are within 0.75 miles of the center of ZIP code ' + zip + '.'); return; }
+    box.innerHTML = html;
+    var how = document.createElement('p');
+    how.className = 'text-[10px] text-gray-400 mt-2';
+    how.textContent = 'Straight-line distance from the center of ZIP code ' + zip + ' to a partial list of Manhattan stops: a guide, not a route.';
+    box.appendChild(how);
 }
 
 function showFormToast(msg, type) {
