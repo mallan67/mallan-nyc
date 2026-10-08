@@ -268,8 +268,8 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <i class="fas fa-lock text-[10px] ml-auto text-gray-300" id="saleCommTabLock"></i>
             </button>
         </div>
-        <!-- Validation toggle -->
-        <div class="border-t px-4 py-3">
+        <!-- Validation toggle (an Add / Edit form's: a viewer has no boxes to require) -->
+        <div class="border-t px-4 py-3 viewer-hidden">
             <div class="flex items-center gap-2">
                 <span class="text-xs font-medium text-gray-500">Required</span>
                 <label class="relative inline-flex items-center cursor-pointer">
@@ -279,8 +279,8 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <span class="text-xs text-blue-600 cursor-pointer hover:underline" onclick="document.getElementById('saleShowRequiredOnly').click()">All</span>
             </div>
         </div>
-        <!-- Validation summary -->
-        <div class="border-t px-4 py-3">
+        <!-- Validation summary (an Add / Edit form's: it said "All fields OK" whatever the listing held) -->
+        <div class="border-t px-4 py-3 viewer-hidden">
             <div id="saleValidationSummary" class="text-xs">
                 <p class="text-[#B8860B] font-medium"><i class="fas fa-check-circle mr-1"></i> All fields OK</p>
             </div>
