@@ -22,6 +22,17 @@ var MallanAPI = (function () {
   // ─── Internal helpers ────────────────────────────────────────────────────
 
   /**
+   * The error of a request the server answered with a failure. It carries the HTTP status and the body: a caller can tell a refusal (4xx: the server did not do what was asked) from a failure after
+   * which nothing is known (5xx: the listing create route answers 500 when the listing was committed and the answer could not be built). A request that got no answer at all (the network) has no status.
+   */
+  function _failure(message, status, body) {
+    var err = new Error(message);
+    err.status = status;
+    err.details = body;
+    return err;
+  }
+
+  /**
    * Core fetch wrapper. Sends credentials (cookies) for auth.
    * Handles 401 → dispatch unauthorized event.
    */
@@ -43,17 +54,16 @@ var MallanAPI = (function () {
       if (res.status === 401) {
         console.warn('[MallanAPI] 401 Unauthorized — redirecting to login');
         window.dispatchEvent(new CustomEvent('mallan:auth:unauthorized'));
-        return Promise.reject(new Error('Unauthorized'));
+        return Promise.reject(_failure('Unauthorized', 401));
       }
       if (res.status === 403) {
         console.warn('[MallanAPI] 403 Forbidden');
-        return Promise.reject(new Error('Access denied'));
+        return Promise.reject(_failure('Access denied', 403));
       }
       if (!res.ok) {
-        return res.json().then(function (data) {
-          return Promise.reject(new Error(data.error || 'Request failed: ' + res.status));
-        }).catch(function () {
-          return Promise.reject(new Error('Request failed: ' + res.status));
+        // The server's own words reach the caller (an error answer is {"error": "..."}); an answer that holds none says the status
+        return res.json().then(function (data) { return data; }, function () { return null; }).then(function (data) {
+          return Promise.reject(_failure((data && typeof data.error === 'string' && data.error) || 'Request failed: ' + res.status, res.status, data));
         });
       }
       return res.json();
