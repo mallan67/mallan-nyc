@@ -23,6 +23,7 @@ export type AddFormOpts = {
   listing?: Record<string, unknown>;                 // what MallanAPI.listings.get returns
   user?: Record<string, unknown> | null;             // the session user (/api/auth/me `user`); null = no session
   readyDelay?: number;                               // ms before MallanAPI.onReady fires with the user
+  readyGate?: Promise<void>;                         // MallanAPI.onReady fires with the user once this promise is settled (instead of after readyDelay: a test says when the session answers)
   readySync?: boolean;                               // fire MallanAPI.onReady's callback at once, inside the call (the auth gate had already resolved)
   getDelay?: number;                                 // ms before MallanAPI.listings.get resolves
   getError?: string;                                 // make MallanAPI.listings.get fail with this message (the listing could not be loaded)
@@ -48,7 +49,7 @@ export type AddFormOpts = {
   settle?: number;                                   // ms to let page init finish
 };
 export type Request = { url: string; method: string; body: string };
-export type BootedForm = { w: any; d: Document; errors: string[]; fetched: string[]; searched: string[]; requests: Request[]; saved: Record<string, unknown>[]; statusCalls: [unknown, unknown][]; close: () => void };
+export type BootedForm = { w: any; d: Document; errors: string[]; fetched: string[]; searched: string[]; requests: Request[]; saved: Record<string, unknown>[]; statusCalls: [unknown, unknown][]; dropped: string[]; close: () => void };
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function until(cond: () => boolean, ms = 8000): Promise<void> {
@@ -78,6 +79,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
   const statusCalls: [unknown, unknown][] = [];          // every listings.updateStatus(id, status) the page made
   const searched: string[] = [];                       // the queries sent to /api/buildings/search
   const requests: Request[] = [];                      // every fetch() the page made, with its method and body
+  const dropped: string[] = [];                        // the answers that were not delivered because the window had been closed while the request was out
   let buildingCalls = 0;
   const virtualConsole = new VirtualConsole();
   virtualConsole.on('jsdomError', (e: any) => errors.push(String(e?.detail?.message ?? e?.message)));
@@ -93,6 +95,9 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
       w.alert = () => undefined; w.confirm = () => true; w.scrollTo = () => undefined; w.print = () => undefined;
       w.Element.prototype.scrollIntoView = function () {};                 // jsdom has none; a browser has (the page scrolls to the first field a refused Next found missing)
       w.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {} });
+      // An answer to a request whose window was closed meanwhile is never delivered (a closed window has no document): the page's code would throw on it (showToast, getElementById) in whichever
+      // test is running by then, a failure that depended on how busy the machine was.
+      const later = async (what: string, ms: number) => { await sleep(ms); if (!w.document) { dropped.push(what); await new Promise<never>(() => undefined); } };
       w.fetch = async (url: string, init?: { method?: string; body?: unknown }) => {
         const u = String(url);
         requests.push({ url: u, method: init?.method ?? 'GET', body: typeof init?.body === 'string' ? init.body : '' });
@@ -127,11 +132,15 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
         isReady: true,
         // the real client fires onReady with the session user once init() has resolved (at once when it already has), and with null when the session is anonymous
         // (on the window's own timer: a window that was closed before the session answered is not called back, and the page's code does not throw on its dead document in whichever test is running)
-        onReady: (cb: (u: unknown) => void) => { if (o.readySync && user) cb(user); else w.setTimeout(() => cb(user), o.readyDelay ?? 5); },
+        onReady: (cb: (u: unknown) => void) => {
+          if (o.readySync && user) cb(user);
+          else if (o.readyGate) o.readyGate.then(() => w.setTimeout(() => cb(user), 0));          // (on the window's own timer, which a closed window never fires)
+          else w.setTimeout(() => cb(user), o.readyDelay ?? 5);
+        },
         getContext: () => context,
         init: () => Promise.resolve({ authenticated: !!user, user }),
         listings: {
-          get: async () => { await sleep(o.getDelay ?? 10); if (o.getError) throw new Error(o.getError); return o.listing ?? {}; },
+          get: async () => { await later('listings.get', o.getDelay ?? 10); if (o.getError) throw new Error(o.getError); return o.listing ?? {}; },
           create: async (payload: Record<string, unknown>) => { saved.push(payload); return { id: '1', listing_id: 'L-1', status: 'Draft', ...(o.created ?? {}) }; },
           update: async (_id: string, payload: Record<string, unknown>) => { saved.push(payload); return { ...(o.updated ?? {}) }; },
           updateStatus: async (id: unknown, status: unknown) => { statusCalls.push([id, status]); if (o.statusError) throw new Error(o.statusError); return { ...(o.statusAnswer ?? {}) }; },
@@ -141,7 +150,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
           fetched.push(path);
           const m = /\/api\/crm\/directory\/members\?.*mlsId=(\d+)/.exec(path);
           if (m) {
-            if (o.memberDelays?.[m[1]]) await sleep(o.memberDelays[m[1]]);
+            if (o.memberDelays?.[m[1]]) await later(`directory member ${m[1]}`, o.memberDelays[m[1]]);
             if (o.directoryError) throw new Error(o.directoryError);
             const member = members[m[1]];
             return { members: member ? [member] : [] };
@@ -154,7 +163,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
     },
   });
   await sleep(o.settle ?? 1200);
-  return { w: dom.window, d: dom.window.document, errors, fetched, searched, requests, saved, statusCalls, close: () => dom.window.close() };
+  return { w: dom.window, d: dom.window.document, errors, fetched, searched, requests, saved, statusCalls, dropped, close: () => dom.window.close() };
 }
 
 export const val = (d: Document, id: string): string => ((d.getElementById(id) as HTMLInputElement | null)?.value) ?? '';
