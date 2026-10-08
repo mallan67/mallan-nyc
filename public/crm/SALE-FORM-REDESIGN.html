@@ -3391,7 +3391,7 @@ body { font-family: Manrope, sans-serif; }
                     <div class="flex justify-between"><span class="text-gray-600">Year Built</span><span id="salePreviewBldgYear">--</span></div>
                     <div class="flex justify-between"><span class="text-gray-600">Total Units</span><span id="salePreviewBldgUnits">--</span></div>
                     <div class="flex justify-between"><span class="text-gray-600">Total Floors</span><span id="salePreviewBldgFloors">--</span></div>
-                    <div class="flex justify-between"><span class="text-gray-600">Doorman</span><span id="salePreviewBldgDoorman">--</span></div>
+                    <div class="flex justify-between"><span class="text-gray-600">Attendance</span><span id="salePreviewBldgDoorman">--</span></div>
                     <div class="flex justify-between"><span class="text-gray-600">Elevator</span><span id="salePreviewBldgElevator">--</span></div>
                     <div class="flex justify-between"><span class="text-gray-600">Pets</span><span id="salePreviewBldgPets">--</span></div>
                 </div>
@@ -8780,7 +8780,12 @@ function updateSalePreview() {
     const status = document.getElementById('saleStatus');
     setText('salePreviewStatus', status ? status.options[status.selectedIndex]?.text || 'Draft' : 'Draft');
     const propType = checked('salePropertyType');
-    setText('salePreviewPropType', propType || '--');
+    // The Preview says a property type by its label ("Co-op", not "Coop") and a group of boxes by the labels of the ones that are ticked.
+    const propTypeText = (function() { const el = document.querySelector('input[name="salePropertyType"]:checked'); const label = el && el.closest('label'); return label ? label.textContent.trim() : propType; })();
+    const checkedLabels = function(name) { return Array.from(document.querySelectorAll('input[name="' + name + '"]:checked')).map(function(cb) { const l = cb.closest('label'); return l ? l.textContent.trim() : cb.value; }); };
+    const anyValue = function(ids) { return ids.some(function(id) { const el = document.getElementById(id); return !!(el && el.value); }); };           // (a URL box drops the blanks around what is typed: the browser does)
+    const textOf = function(id) { const el = document.getElementById(id); return el && el.value ? el.value.trim() : ''; };
+    setText('salePreviewPropType', propTypeText || '--');
     setText('salePreviewPrice', fmtPrice(val('salePrice')));
     const maintVal = parseFloat(val('saleMaintCC')) || 0;
     setText('salePreviewMaint', maintVal > 0 ? '$' + maintVal.toLocaleString() + '/mo' : '--');
@@ -8799,7 +8804,7 @@ function updateSalePreview() {
 
     // Card 2: Description
     setText('salePreviewHeadline', val('saleWebHeadline', '--'));
-    setText('salePreviewURL', val('saleListingURL', '--'));
+    setText('salePreviewURL', val('saleListingUrl', '--'));
     setText('salePreviewDesc', val('saleDescription', 'Enter a description to see it here.'));
 
     // Card 3: Unit Info
@@ -8815,17 +8820,19 @@ function updateSalePreview() {
 
     // Card 4: Distribution
     const distChecked = [];
-    document.querySelectorAll('input[name="saleDistribution"]:checked, input[name="saleIDXSites"]:checked').forEach(cb => {
-        distChecked.push(cb.value || cb.nextElementSibling?.textContent?.trim() || cb.parentElement?.textContent?.trim());
+    document.querySelectorAll('#saleMainTab4 input[type="checkbox"]:checked').forEach(cb => {
+        const label = cb.closest('label');
+        if (label) distChecked.push(label.textContent.trim().split('\n')[0].trim());
     });
     setText('salePreviewDistro', distChecked.length ? distChecked.slice(0, 4).join(', ') + (distChecked.length > 4 ? ' +' + (distChecked.length - 4) + ' more' : '') : '--');
-    setText('salePreviewPhotos', '0 uploaded');
-    setText('salePreviewVideo', val('saleVideoUrl', 'None') !== 'None' ? 'Yes' : 'None');
-    setText('salePreviewTour', val('saleMatterportUrl', 'None') !== 'None' ? 'Yes' : 'None');
+    const photoCount = document.querySelectorAll('#salePhotoPreview [data-media-key], #salePhotoPreview [data-media-index]').length;           // the saved photos and the ones waiting for the save
+    setText('salePreviewPhotos', photoCount > 0 ? photoCount + ' photo(s)' : '0');
+    setText('salePreviewVideo', anyValue(['saleVideoUrl', 'saleVideoTourUrl']) ? 'Yes' : 'None');
+    setText('salePreviewTour', anyValue(['saleMatterportUrl', 'saleVirtualTourUnbranded', 'saleVirtualTourUnbranded2', 'saleVirtualTourUnbranded3']) ? 'Yes' : 'None');
 
     // Card 5: Townhouse / Building (Tab 3 — for TH/multi-family types)
     const thCard = document.getElementById('salePreviewTHCard');
-    const isTHType = ['SingleFamilyTownhouse','MultiFamilyTownhouse','SingleFamily','MultiFamily','MixedUse','Duplex','Triplex','Quadruplex','Land'].includes(propType);
+    const isTHType = !!propType && !shouldSkipTab3('sale');           // the types that have the Townhouse tab (the ones that skip it use the Building tab)
     if (thCard) thCard.style.display = isTHType ? '' : 'none';
     if (isTHType) {
         setText('salePreviewTHStories', val('saleTHStories'));
@@ -8845,23 +8852,18 @@ function updateSalePreview() {
 
     // Card 6: Building Modal Summary (for condo/co-op/condop types)
     const bldgCard = document.getElementById('salePreviewBldgCard');
-    const isManagedUnit = ['Co-op','Condo','Condop'].includes(propType);
-    if (bldgCard) bldgCard.style.display = isManagedUnit ? '' : 'none';
-    if (isManagedUnit) {
+    const isManagedUnit = ['Coop', 'Condo', 'Condop'].includes(propType);                 // the co-op / condo panel of the public page (maintenance and taxes)
+    const hasBuildingTab = shouldSkipTab3('sale');                                          // the Building card is for the types that use the Building tab (false when no type is chosen)
+    if (bldgCard) bldgCard.style.display = hasBuildingTab ? '' : 'none';
+    if (hasBuildingTab) {
         setText('salePreviewBldgName', val('saleBldgName'));
         setText('salePreviewBldgYear', val('saleBldgYearBuilt'));
         setText('salePreviewBldgUnits', val('saleBldgTotalUnits'));
         setText('salePreviewBldgFloors', val('saleBldgTotalFloors'));
-        const doorman = document.getElementById('saleBldgDoorman');
-        setText('salePreviewBldgDoorman', doorman ? (doorman.checked ? 'Yes' : 'No') : '--');
+        setText('salePreviewBldgDoorman', checkedLabels('saleAttendanceType').join(', ') || '--');
         const elevator = document.getElementById('saleBldgElevator');
-        setText('salePreviewBldgElevator', elevator ? (elevator.checked ? 'Yes' : 'No') : '--');
-        // Pets — check building modal checkboxes
-        const petChecks = [];
-        if (document.getElementById('saleBldgPetsCatsOK')?.checked) petChecks.push('Cats');
-        if (document.getElementById('saleBldgPetsDogsOK')?.checked) petChecks.push('Dogs');
-        if (document.getElementById('saleBldgPetsNone')?.checked) petChecks.push('No Pets');
-        setText('salePreviewBldgPets', petChecks.length ? petChecks.join(', ') : '--');
+        setText('salePreviewBldgElevator', elevator && elevator.checked ? 'Yes' : '--');
+        setText('salePreviewBldgPets', checkedLabels('saleBuildingPetsAllowed').join(', ') || '--');
     }
 
     // ── Public Page Preview ──
@@ -8873,13 +8875,13 @@ function updateSalePreview() {
     if (un !== '--') fullAddr.push(', Unit ' + un);
     setText('salePreviewSiteAddress', fullAddr.length ? fullAddr.join('') : 'Address');
 
-    const hood = val('saleNeighborhood', '');
-    const boro = val('saleBorough', '');
-    const zip = val('saleZip', '');
-    const locParts = [hood, boro, zip ? 'NY ' + zip : ''].filter(Boolean);
+    const hood = textOf('saleBldgNeighborhood') || textOf('saleNeighborhoodFromAddress');
+    const boro = textOf('saleBorough');
+    const zip = textOf('saleZipCode');
+    const locParts = [hood, boro, zip ? (textOf('saleStateOrProvince') || 'NY') + ' ' + zip : ''].filter(Boolean);
     setText('salePreviewSiteNeighborhood', locParts.length ? locParts.join(', ') : 'Neighborhood, Borough, NY');
 
-    setText('salePreviewSitePropType', propType || '--');
+    setText('salePreviewSitePropType', propTypeText || '--');
     setText('salePreviewSiteBeds', val('saleBedrooms'));
     setText('salePreviewSiteBaths', val('saleFullBaths'));
     setText('salePreviewSiteSqFt', sqft > 0 ? sqft.toLocaleString() : '--');
@@ -8893,7 +8895,7 @@ function updateSalePreview() {
     if (coopInfo) {
         if (isManagedUnit) {
             coopInfo.classList.remove('hidden');
-            setText('salePreviewSiteCoopTitle', propType === 'Co-op' ? 'Co-op Information' : (propType === 'Condop' ? 'Condop Information' : 'Condo Information'));
+            setText('salePreviewSiteCoopTitle', propType === 'Coop' ? 'Co-op Information' : (propType === 'Condop' ? 'Condop Information' : 'Condo Information'));
             setText('salePreviewSiteMaint', maintVal > 0 ? '$' + maintVal.toLocaleString() + '/mo' : '--');
             setText('salePreviewSiteTaxes', taxVal > 0 ? '$' + taxVal.toLocaleString() + '/mo' : '--');
         } else {
@@ -8902,7 +8904,7 @@ function updateSalePreview() {
     }
 
     // Property details
-    setText('salePreviewSiteDetailType', propType || '--');
+    setText('salePreviewSiteDetailType', propTypeText || '--');
     setText('salePreviewSiteDetailFloor', val('saleFloorInBuilding'));
     setText('salePreviewSiteDetailYear', val('saleBldgYearBuilt'));
     setText('salePreviewSiteDetailDOM', val('saleDaysOnMarket', '0'));
