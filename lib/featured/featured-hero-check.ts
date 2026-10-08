@@ -10,7 +10,8 @@
  *     order; a candidate whose photo answered 404 gives its place to the next one;
  *   - a Mallan-owned listing (its photos are our own copies) and a pinned listing (the broker chose it for the section) are never asked about or passed over;
  *   - a photo that did not answer in time, or whose address cannot be asked about, is NOT taken as broken (a slow network must not empty the section);
- *   - when there are fewer working listings than places, the ones passed over fill the rest, in their order (the card then shows the placeholder, without a photo count).
+ *   - a listing whose photo Cotality says it does not have is left out, not drawn as a placeholder (Master Plan 21.9: media that cannot be shown is absent, not empty): when there are fewer
+ *     working listings than places, the section has fewer cards (and none at all when it has none: the section is not drawn).
  *
  * The question is put to GET /api/media/health (app/api/media/health/route.ts), which asks Cotality once and says so for a few minutes at the CDN: a question put from every visitor's
  * browser would reach Cotality once per visitor per photo (an error is not cached by the proxy or the image optimizer, and Cotality meters media requests for the whole account).
@@ -41,13 +42,18 @@ export interface HeroCheckDeps {
   timeoutMs?: number;
 }
 
+/** The address as a URL parser writes it (the one spelling the health route answers: every other spelling of a photo is another key of the CDN's cache); null for none. It is only given an approved address. */
+function canonicalMediaAddress(address: string | null): string | null {
+  return address ? new URL(address).href : null;
+}
+
 /**
  * Asks whether the photo at `url` can be had. Only photos behind our media proxy (`/api/media/proxy?url=<Cotality media link>`) are asked about: they are the ones that can answer 404
  * (a Cotality media link whose file Cotality does not have). Any other address (a copy in our own storage, a relative or nested proxy address) is not asked about: nothing is known
  * ('unknown'), which is never taken as broken. An answer that cannot be had (the route is missing, it failed, it did not answer in time, it said it does not know) is 'unknown' as well.
  */
 export async function checkHeroUrl(url: string | null | undefined, deps: HeroCheckDeps = {}): Promise<HeroCheck> {
-  const source = url ? unwrapProxiedMediaUrl(url) : null;
+  const source = canonicalMediaAddress(url ? unwrapProxiedMediaUrl(url) : null);
   if (!source) return 'unknown';
   const fetchFn = deps.fetchFn ?? fetch;
   const controller = new AbortController();
@@ -65,8 +71,8 @@ export async function checkHeroUrl(url: string | null | undefined, deps: HeroChe
 }
 
 /**
- * The listings to draw: the first `limit` of `ordered` whose photo is not known to be broken, in their order, then (when there are not enough) the ones passed over, in their order.
- * Candidates are asked about in waves of as many as there are places left, so a feed whose first `limit` all work is asked about once.
+ * The listings to draw: the first `limit` of `ordered` whose photo is not known to be broken, in their order. A listing whose photo is known to be broken is left out, and when there are not
+ * enough of the others the result is shorter than `limit`. Candidates are asked about in waves of as many as there are places left, so a feed whose first `limit` all work is asked about once.
  *
  * `isExempt` listings (Mallan-owned, pinned) are taken as they come, without asking. A `check` that throws counts as 'unknown'.
  */
@@ -86,13 +92,12 @@ export async function selectFeaturedWithWorkingHeroes<T>(
     }
   };
   const shown: T[] = [];
-  const passedOver: T[] = [];
   let next = 0;
   while (shown.length < places && next < ordered.length) {
     const wave = ordered.slice(next, next + (places - shown.length));
     next += wave.length;
     const answers = await Promise.all(wave.map(ask));
-    wave.forEach((listing, i) => (answers[i] === 'broken' ? passedOver : shown).push(listing));
+    wave.forEach((listing, i) => { if (answers[i] !== 'broken') shown.push(listing); });
   }
-  return shown.concat(passedOver.slice(0, places - shown.length));
+  return shown;
 }

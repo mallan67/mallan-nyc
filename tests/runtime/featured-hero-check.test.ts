@@ -74,6 +74,17 @@ describe('checkHeroUrl: asking whether the photo can be had (through GET /api/me
   });
 
   it.each([
+    ['capitals in the scheme and the host', 'HTTPS://API.COTALITY.COM/trestle/Media/Property/PHOTO-Jpeg/1/1/A/B/C'],
+    ['the default port spelled out', 'https://api.cotality.com:443/trestle/Media/Property/PHOTO-Jpeg/1/1/A/B/C'],
+    ['a dot segment in the path', 'https://api.cotality.com/trestle/Media/../Media/Property/PHOTO-Jpeg/1/1/A/B/C'],
+  ] as const)('asks about a link with %s in the one spelling the route answers (the CDN keys its cache on the address, so one photo is one key)', async (_name, link) => {
+    const fetchFn = says({ ok: true });
+    await run(fetchFn, `/api/media/proxy?url=${encodeURIComponent(link)}`);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect((fetchFn.mock.calls[0] as unknown as [string])[0]).toBe(`/api/media/health?url=${encodeURIComponent(new URL(link).href)}`);
+  });
+
+  it.each([
     ['500', 500],
     ['502', 502],
     ['404 (a deploy that has no such route)', 404],
@@ -204,16 +215,21 @@ describe('selectFeaturedWithWorkingHeroes: the listings drawn once the photos ha
     expect(started.join('')).toBe('abcd');
   });
 
-  it('puts the listings passed over after the others, in their order, when there are fewer working ones than places', async () => {
+  it('leaves out a listing whose photo is broken, and draws fewer than the places when there are not enough of the others (no placeholder card takes the place)', async () => {
     const { check } = table({ b: 'broken', d: 'broken' });
-    expect(ids(await selectFeaturedWithWorkingHeroes(make('abcd'), 4, check, exempt))).toBe('acbd');
-    expect(ids(await selectFeaturedWithWorkingHeroes(make('abc'), 5, check, exempt))).toBe('acb');
+    expect(ids(await selectFeaturedWithWorkingHeroes(make('abcd'), 4, check, exempt))).toBe('ac');
+    expect(ids(await selectFeaturedWithWorkingHeroes(make('abc'), 5, check, exempt))).toBe('ac');
   });
 
-  it('draws only as many broken ones as the places that are left', async () => {
+  it('draws nothing when every photo is broken (the section is then not drawn)', async () => {
     const { check } = table({ a: 'broken', b: 'broken', c: 'broken', d: 'broken' });
-    expect(ids(await selectFeaturedWithWorkingHeroes(make('abcde'), 3, check, exempt))).toBe('eab');
-    expect(ids(await selectFeaturedWithWorkingHeroes(make('abcd'), 3, check, exempt))).toBe('abc');
+    expect(await selectFeaturedWithWorkingHeroes(make('abcd'), 3, check, exempt)).toEqual([]);
+    expect(ids(await selectFeaturedWithWorkingHeroes(make('abcde'), 3, check, exempt))).toBe('e');
+  });
+
+  it('draws every listing whose photo is not known to be broken, whatever the others do, up to the places', async () => {
+    const { check } = table({ a: 'broken', b: 'unknown', c: 'ok', d: 'broken', e: 'ok', f: 'ok', g: 'ok' });
+    expect(ids(await selectFeaturedWithWorkingHeroes(make('abcdefg'), 4, check, exempt))).toBe('bcef');
   });
 
   it('never asks about a listing that is exempt (Mallan-owned, pinned), and never passes it over', async () => {

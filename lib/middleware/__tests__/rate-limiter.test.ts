@@ -37,3 +37,15 @@ describe('unsubscribe rate-limit buckets', () => {
     expect(mockSlidingWindow).toHaveBeenCalledWith(20, '3600 s');  // unsubscribe (POST)
   });
 });
+
+describe('media health rate-limit buckets (GET /api/media/health: each question the CDN did not answer costs Cotality a media request)', () => {
+  const windowOf = (prefix: string) => {
+    const call = mockCtorCalls.find((c) => c.prefix === prefix) as unknown as { limiter: { _sw: { count: number; window: string } } } | undefined;
+    return call?.limiter._sw;
+  };
+
+  it('builds a limiter for one visitor (60 a minute) and a separate one for all visitors together (300 a minute), each with its own Redis prefix', () => {
+    expect(windowOf('rl:media_health')).toEqual({ count: 60, window: '60 s' });
+    expect(windowOf('rl:media_health_global')).toEqual({ count: 300, window: '60 s' });
+  });
+});
