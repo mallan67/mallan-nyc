@@ -2803,7 +2803,7 @@ body { font-family: Manrope, sans-serif; }
                 <div class="flex justify-between"><span class="text-gray-600">Year Built</span><span id="rentalPreviewBldgYear">--</span></div>
                 <div class="flex justify-between"><span class="text-gray-600">Total Units</span><span id="rentalPreviewBldgUnits">--</span></div>
                 <div class="flex justify-between"><span class="text-gray-600">Total Floors</span><span id="rentalPreviewBldgFloors">--</span></div>
-                <div class="flex justify-between"><span class="text-gray-600">Doorman</span><span id="rentalPreviewBldgDoorman">--</span></div>
+                <div class="flex justify-between"><span class="text-gray-600">Attendance</span><span id="rentalPreviewBldgDoorman">--</span></div>
                 <div class="flex justify-between"><span class="text-gray-600">Elevator</span><span id="rentalPreviewBldgElevator">--</span></div>
                 <div class="flex justify-between"><span class="text-gray-600">Pets</span><span id="rentalPreviewBldgPets">--</span></div>
             </div>
@@ -7064,6 +7064,13 @@ function updateRentalPreview() {
     const priceVal = (price ? parseFloat(price.value) : 0) || 0;
     const sqftVal = (sqft && sqft.value) ? Number(sqft.value) : 0;
     const propType = (function() { const el = document.querySelector('input[name="rentalPropertyType"]:checked'); return el ? el.value : ''; })();
+    // The Preview says what the agent chose in the words of the form: the property type by its label, a list that starts on "Custom" (that is no answer) as nothing, "Studio (Apartment)" as a
+    // studio, and a group of boxes by the labels of the ones that are ticked.
+    const propTypeText = (function() { const el = document.querySelector('input[name="rentalPropertyType"]:checked'); const label = el && el.closest('label'); return label ? label.textContent.trim() : propType; })();
+    const countText = function(el) { return (!el || el.value === 'custom') ? '' : (el.value === 'Apartment' ? 'Studio' : el.value); };
+    const bedsText = countText(beds), bathsText = countText(baths);
+    const checkedLabels = function(name) { return Array.from(document.querySelectorAll('input[name="' + name + '"]:checked')).map(function(cb) { const l = cb.closest('label'); return l ? l.textContent.trim() : cb.value; }); };
+    const anyValue = function(ids) { return ids.some(function(id) { const el = document.getElementById(id); return !!(el && el.value); }); };           // (a URL box drops the blanks around what is typed: the browser does)
 
     // Full address string
     const addrParts = [];
@@ -7088,8 +7095,8 @@ function updateRentalPreview() {
     var ltMap = { ExclusiveRightToLease: 'Exclusive Right to Lease', ExclusiveAgency: 'Exclusive Agency', ExclusiveRightWithException: 'Exclusive w/ Exception', CoExclusiveAgency: 'Co-Exclusive', InHouse: 'In-House', 'RLS-Owner-OptOut': 'Owner Opt-Out', 'RLS-Participant': 'Participant Only' };
     setText('rentalPreviewListingType', ltMap[listingTypeRadio ? listingTypeRadio.value : 'ExclusiveRightToLease'] || 'Exclusive Right to Lease');
     const status = document.getElementById('rentalStatus');
-    setText('rentalPreviewStatus', status ? status.value : 'Draft');
-    setText('rentalPreviewPropType', propType || '--');
+    setText('rentalPreviewStatus', !status ? 'Draft' : (status.value ? status.options[status.selectedIndex].text : 'No status chosen'));
+    setText('rentalPreviewPropType', propTypeText || '--');
     setText('rentalPreviewCRMPrice', priceVal > 0 ? '$' + priceVal.toLocaleString() + '/mo' : '$0/mo');
     const deposit = document.getElementById('rentalSecurityDeposit');
     setText('rentalPreviewDeposit', deposit && deposit.value ? '$' + Number(deposit.value).toLocaleString() : '--');
@@ -7098,14 +7105,14 @@ function updateRentalPreview() {
 
     // Card 2: Description
     setText('rentalPreviewCRMHeadline', headline && headline.value ? headline.value : '--');
-    const urlField = document.getElementById('rentalListingURL');
+    const urlField = document.getElementById('rentalListingUrl');
     setText('rentalPreviewCRMURL', urlField && urlField.value ? urlField.value : '--');
     setText('rentalPreviewCRMDesc', desc && desc.value ? desc.value : 'Enter a description to see it here.');
 
     // Card 3: Unit Info
     setText('rentalPreviewCRMRooms', val('rentalTotalRooms'));
-    setText('rentalPreviewCRMBeds', beds && beds.value ? beds.value : '--');
-    setText('rentalPreviewCRMBaths', baths && baths.value ? baths.value : '--');
+    setText('rentalPreviewCRMBeds', bedsText || '--');
+    setText('rentalPreviewCRMBaths', bathsText || '--');
     setText('rentalPreviewCRMSqFt', sqftVal > 0 ? sqftVal.toLocaleString() : '--');
     setText('rentalPreviewCRMFloor', val('rentalFloor'));
 
@@ -7116,46 +7123,41 @@ function updateRentalPreview() {
         if (label) distroChecked.push(label.textContent.trim().split('\n')[0].trim());
     });
     setText('rentalPreviewDistro', distroChecked.length ? distroChecked.join(', ') : 'None selected');
-    const photoCount = document.querySelectorAll('#rentalPhotoGrid .photo-item, #rentalPhotoGrid img').length;
+    const photoCount = document.querySelectorAll('#rentalPhotoPreview [data-media-key], #rentalPhotoPreview [data-media-index]').length;           // the saved photos and the ones waiting for the save
     setText('rentalPreviewPhotos', photoCount > 0 ? photoCount + ' photo(s)' : '0');
-    const videoURL = document.getElementById('rentalVideoURL');
-    setText('rentalPreviewCRMVideo', videoURL && videoURL.value ? 'Yes' : 'None');
-    const tourURL = document.getElementById('rentalVirtualTourURL') || document.getElementById('rentalTourURL');
-    setText('rentalPreviewCRMTour', tourURL && tourURL.value ? 'Yes' : 'None');
+    setText('rentalPreviewCRMVideo', anyValue(['rentalVideoUrl', 'rentalVideoTourUrl']) ? 'Yes' : 'None');
+    setText('rentalPreviewCRMTour', anyValue(['rentalMatterportUrl', 'rentalVirtualTourUnbranded', 'rentalVirtualTourUnbranded2', 'rentalVirtualTourUnbranded3']) ? 'Yes' : 'None');
 
     // Card 5: Townhouse / Building (conditional)
-    const thTypes = ['SingleFamilyTownhouse', 'MultiFamily', 'TwoFamily', 'ThreeFamily', 'MixedUse', 'WholeBuilding'];
-    const isTH = thTypes.includes(propType);
+    // Tab 3 (Townhouse / Building) is skipped for the managed types, which use the Building tab instead (shouldSkipTab3): the Townhouse card is for the types that have Tab 3, the Building card
+    // for the ones that skip it.
+    const isTH = !!propType && !shouldSkipTab3('rental');
     const thCard = document.getElementById('rentalPreviewTHCard');
     if (thCard) thCard.style.display = isTH ? '' : 'none';
     if (isTH) {
         setText('rentalPreviewTHStories', val('rentalTHStories'));
-        setText('rentalPreviewTHUnits', val('rentalTHResUnits'));
+        setText('rentalPreviewTHUnits', val('rentalTHUnitsTotal'));
         const lotVal = val('rentalTHLotSize');
         setText('rentalPreviewTHLot', lotVal !== '--' ? lotVal + ' sqft' : '--');
         const bldgAreaVal = val('rentalTHBuildingArea');
         setText('rentalPreviewTHBldgArea', bldgAreaVal !== '--' ? bldgAreaVal + ' sqft' : '--');
-        const garageEl = document.querySelector('input[name="rentalTHGarage"]:checked');
-        setText('rentalPreviewTHGarage', garageEl ? garageEl.value : '--');
+        setText('rentalPreviewTHGarage', val('rentalTHGarageYN'));
         setText('rentalPreviewTHCapRate', val('rentalTHCapRate') !== '--' ? val('rentalTHCapRate') + '%' : '--');
     }
 
     // Card 6: Building Modal Summary (conditional)
-    const managedTypes = ['Coop', 'Condo', 'Condop', 'RentalBuilding'];
-    const isManaged = managedTypes.includes(propType);
+    const isManaged = shouldSkipTab3('rental');                         // (false when no type is chosen)
     const bldgCard = document.getElementById('rentalPreviewBldgCard');
     if (bldgCard) bldgCard.style.display = isManaged ? '' : 'none';
     if (isManaged) {
-        setText('rentalPreviewBldgName', val('rentalBldgName'));
+        setText('rentalPreviewBldgName', val('bldgName'));
         setText('rentalPreviewBldgYear', val('bldgYearBuilt'));
         setText('rentalPreviewBldgUnits', val('bldgTotalUnits'));
         setText('rentalPreviewBldgFloors', val('bldgTotalFloors'));
-        const doorman = document.querySelector('input[name="bldgDoorman"]:checked');
-        setText('rentalPreviewBldgDoorman', doorman ? doorman.value : '--');
-        const elevator = document.querySelector('input[name="bldgElevator"]:checked');
-        setText('rentalPreviewBldgElevator', elevator ? elevator.value : '--');
-        const pets = document.querySelector('input[name="bldgPets"]:checked');
-        setText('rentalPreviewBldgPets', pets ? pets.value : '--');
+        setText('rentalPreviewBldgDoorman', checkedLabels('rentalAttendanceType').join(', ') || '--');
+        const elevator = document.getElementById('bldgElevator');
+        setText('rentalPreviewBldgElevator', elevator && elevator.checked ? 'Yes' : '--');
+        setText('rentalPreviewBldgPets', checkedLabels('rentalBuildingPetsAllowed').join(', ') || '--');
     }
 
     // ═══════════════════════════════════════
@@ -7169,8 +7171,8 @@ function updateRentalPreview() {
     if (borough && borough.value) cardAddrParts.push(borough.value);
     setText('previewAddress', cardAddrParts.length ? cardAddrParts.join(', ') : 'Address');
 
-    setHTML('previewBeds', '<i class="fas fa-bed mr-1"></i> ' + ((beds && beds.value) ? beds.value + ' Beds' : '-- Beds'));
-    setHTML('previewBaths', '<i class="fas fa-bath mr-1"></i> ' + ((baths && baths.value) ? baths.value + ' Baths' : '-- Baths'));
+    setHTML('previewBeds', '<i class="fas fa-bed mr-1"></i> ' + (bedsText ? (bedsText === 'Studio' ? 'Studio' : bedsText + ' Beds') : '-- Beds'));
+    setHTML('previewBaths', '<i class="fas fa-bath mr-1"></i> ' + (bathsText ? bathsText + ' Baths' : '-- Baths'));
     setHTML('previewSqFt', '<i class="fas fa-ruler-combined mr-1"></i> ' + (sqftVal > 0 ? sqftVal.toLocaleString() + ' SF' : '-- SF'));
     setText('previewRent', priceVal > 0 ? '$' + priceVal.toLocaleString() + '/month' : '$0/month');
     setText('previewAvailability', availDate && availDate.value ? 'Available: ' + availDate.value : 'Available: --');
@@ -7198,12 +7200,13 @@ function updateRentalPreview() {
     const hood = val('rentalNeighborhood', '');
     const boro = borough ? borough.value : '';
     const zip = val('rentalZip', '');
-    const locParts = [hood !== '--' ? hood : '', boro, zip !== '--' ? 'NY ' + zip : ''].filter(Boolean);
+    const stateCode = val('rentalStateOrProvince', 'NY');
+    const locParts = [hood !== '--' ? hood : '', boro, zip !== '--' ? stateCode + ' ' + zip : ''].filter(Boolean);
     setText('rentalPreviewSiteNeighborhood', locParts.length ? locParts.join(', ') : 'Neighborhood, Borough, NY');
-    setText('rentalPreviewSitePropType', propType || '--');
+    setText('rentalPreviewSitePropType', propTypeText || '--');
 
-    setText('rentalPreviewSiteBeds', beds && beds.value ? beds.value : '--');
-    setText('rentalPreviewSiteBaths', baths && baths.value ? baths.value : '--');
+    setText('rentalPreviewSiteBeds', bedsText || '--');
+    setText('rentalPreviewSiteBaths', bathsText || '--');
     setText('rentalPreviewSiteSqFt', sqftVal > 0 ? sqftVal.toLocaleString() : '--');
     setText('rentalPreviewSiteRooms', val('rentalTotalRooms'));
     setText('rentalPreviewSiteDesc', desc && desc.value ? desc.value : 'Listing description will appear here...');
@@ -7211,7 +7214,7 @@ function updateRentalPreview() {
     // Rental details
     setText('rentalPreviewSiteDetailRent', priceVal > 0 ? '$' + priceVal.toLocaleString() + '/mo' : '--');
     setText('rentalPreviewSiteDetailAvail', availDate && availDate.value ? availDate.value : '--');
-    setText('rentalPreviewSiteDetailType', propType || '--');
+    setText('rentalPreviewSiteDetailType', propTypeText || '--');
 
     // Exposure
     const exposures = [];
