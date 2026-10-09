@@ -11,6 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import vm from 'vm';
 import { bootAddForm } from './add-form-harness';
+import { validateListing } from '@/lib/compliance/rebny-validator';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { JSDOM } = require('jsdom');
@@ -23,7 +24,8 @@ const HTML = `
   <div class="mt-3"><label class="field-label">Living Area Units <span class="text-red-500">*</span></label>
     <select id="units" data-rls-field="LivingAreaUnits"><option>SquareFeet</option></select></div>
   <div id="conditionsBlock" class="mt-4"><label class="field-label">Special Listing Conditions <span class="text-red-500">*</span></label>
-    <label><input type="checkbox" name="g" id="std" value="Standard" data-rls-field="SpecialListingConditions"> Standard</label></div>
+    <label><input type="checkbox" name="g" id="std" value="Standard" data-rls-field="SpecialListingConditions"> Standard</label>
+    <label><input type="checkbox" name="g" id="std2" value="Estate"> Estate</label></div>
   <div class="mt-3"><span class="hint">Pick the closest</span><label class="field-label">Condition <span class="text-red-500">*</span></label>
     <select id="cond" data-rls-field="PropertyCondition"><option>Excellent</option></select></div>
   <div id="bare"><input id="fireplaces" data-rls-field="FireplacesTotal"></div>
@@ -52,7 +54,7 @@ describe('MallanServerRefusal', () => {
   it('fields: the Cotality names a refusal names, once each, from the blockers and from the validator\'s errors', () => {
     expect(p.api.fields(BLOCKED)).toEqual(['LivingAreaUnits', 'SpecialListingConditions']);
     expect(p.api.fields({ validation: { errors: ['[REBNY] Required field missing: ListPrice', '[REBNY] Conditional field required: TaxLot - Condo requires LivingArea and TaxLot', '[NYC] YearBuilt 670 is before 1700 - invalid', '[REBNY] Required field missing: ListPrice'] } }))
-      .toEqual(['ListPrice', 'TaxLot']);
+      .toEqual(['ListPrice', 'TaxLot', 'YearBuilt']);
     expect(p.api.fields({ blockers: [{ field: 'A' }], validation: { errors: ['[REBNY] Required field missing: A', '[REBNY] Required field missing: B'] } })).toEqual(['A', 'B']);
   });
 
@@ -186,7 +188,7 @@ describe.each([
   });
 
   it('a Fair Housing refusal names the free-text box the form posted the text under, by its label on the page, with the phrase found, and marks it', async () => {
-    const [box, label, remarks] = form.startsWith('SALE') ? ['saleBrokerComments', 'Broker To Broker Comments', 'Listing Description'] : ['rentalAgentRemarks', 'Agent Remarks (Private)', 'Public Remarks'];
+    const [box, label, remarks] = form.startsWith('SALE') ? ['saleBrokerComments', 'Broker To Broker Comments', 'Listing Description'] : ['rentalAgentRemarks', 'Agent Remarks (Private)', 'Listing Description'];
     const details = { blockers: [fh(`raw:${box}`, 'no felonies', 'NYC Fair Chance Housing Act'), fh('PublicRemarks', 'adults only')] };
     const texts = await toastsAfter(422, details, 'Listing blocked by Fair Housing content gate');
     const refusal = texts.find((t) => /Submission failed/.test(t));
@@ -213,5 +215,175 @@ describe.each([
     expect(failed).toBeTruthy();
     expect(failed).not.toMatch(/Nothing was saved/);
     expect(failed).not.toContain('Condition');                                      // only a refusal names boxes
+  });
+});
+
+// ── What the validator's lines name, and the boxes a refusal points to ──────────────────────────────────────────────────────────────────────────────────
+// The create route answers with the validator's errors ("Listing failed compliance validation") before the gate runs, so they are the first refusal an agent meets. The helper used to read two of the
+// validator's line shapes ("Required field missing", "Conditional field required"); the Fair Housing, NYC and field-format lines named no box, and the review of 2026-10-09 found that the boxes the pages hold
+// under another name (the price of a rental is its monthly rent, the tax lot box carried a name the field no longer has, ...) were named by their Cotality words, and the Rental description as "Public Remarks"
+// though its card says "Listing Description".
+const BOXES_HTML = `
+  <div class="mt-3"><label class="field-label">Lot Number</label><input id="bldgTaxLot" data-rls-ignore="true"></div>
+  <div class="mt-3"><label class="field-label">Monthly Rent</label><input id="rentalMonthlyRent" data-rls-ignore="true"></div>
+  <div class="mt-3"><label class="field-label">Exclusive Start</label><input id="saleExclusiveStart" type="date" data-rls-ignore="true"></div>
+  <div id="typeBlock"><label class="field-label">Property Type</label>
+    <label><input type="radio" name="rentalPropertyType" value="Condo"> Condo</label><label><input type="radio" name="rentalPropertyType" value="Coop"> Co-op</label></div>
+  <div id="viewsBlock"><label class="field-label">Views</label>
+    <label><input type="checkbox" name="saleViewList" id="viewOcean" value="Ocean"> Ocean</label><label><input type="checkbox" name="saleViewList" id="viewStreet" value="Street"> Street</label></div>
+  <div class="form-card"><div class="form-card-header"><i class="fas fa-pen-fancy"></i> Listing Description</div><textarea id="alone" data-rls-field="ShowingInstructions"></textarea></div>
+  <div class="form-card"><div class="form-card-header">Two Notes</div><textarea id="noteA" data-rls-field="MlsNoteA"></textarea><textarea id="noteB" data-rls-field="MlsNoteB"></textarea></div>`;
+
+// a box that carries a Cotality name in data-rls-field, held beside the table's: the sub type
+const CARRIER = '<div class="mt-3"><label class="field-label">Unit Type</label><select id="carrier" data-rls-field="PropertySubType"><option>Apartment</option></select></div>';
+
+function boxesPage(extra = '') {
+  const dom = new JSDOM(`<!doctype html><html><body>${HTML}${BOXES_HTML}${extra}</body></html>`, { runScripts: 'outside-only' });
+  dom.window.eval(SOURCE);
+  return { w: dom.window as any, api: (dom.window as any).MallanServerRefusal, close: () => dom.window.close() };
+}
+
+// What the real validator answers with: a listing missing almost everything, one with Fair Housing wording and a year before 1700, and one with a year far in the future.
+const BAD_LISTINGS: Record<string, unknown>[] = [
+  { PropertyType: 'Residential', PropertySubType: 'Apartment', ListPrice: 'abc', LivingArea: 0, YearBuilt: 670, PublicRemarks: 'Adults only. No section 8.', City: 'New York', CityRegion: 'Brooklyn', CountyOrParish: 'New York', StateOrProvince: 'NY', ListingContractDate: 'yesterday', listing_type: 'sale' },
+  { PropertyType: 'Residential', YearBuilt: 2090, City: 'New York', StateOrProvince: 'NY', CountyOrParish: 'New York' },
+  { listing_type: 'sale' },
+];
+
+describe('MallanServerRefusal and the validator\'s lines', () => {
+  const p = boxesPage(CARRIER);
+  afterAll(() => p.close());
+  const names = (...errors: string[]) => p.api.fields({ validation: { errors } });
+
+  it.each([
+    ['[REBNY] Required field missing: ListPrice - the asking price', ['ListPrice']],
+    ['[REBNY] Conditional field required: TaxLot - Condo requires LivingArea and TaxLot', ['TaxLot']],
+    ['[REBNY] LivingArea: Value 0 is below minimum 1', ['LivingArea']],
+    ['[REBNY] Email: Invalid email format', ['Email']],
+    ['[Fair Housing] Prohibited terms found in PublicRemarks: "adults only", "no section 8". These terms may violate Fair Housing Act by implying discrimination', ['PublicRemarks']],
+    ['[NYC] TaxLot is required for NYC properties', ['TaxLot']],
+    ['[NYC] County mismatch: Brooklyn should have county "Kings", not "New York"', ['CountyOrParish']],
+    ['[NYC] YearBuilt 670 is before 1700 - invalid', ['YearBuilt']],
+    ['[NYC] YearBuilt 2090 is more than 10 years in the future - invalid', ['YearBuilt']],
+    ['[FORMAT] ListingContractDate: Should be ISO 8601 date format (YYYY-MM-DD)', []],
+    ['[FORMAT] Non-standard field naming detected. Canonical field names use PascalCase. Consider renaming: listing_type', []],
+    ['[NYC] Co-op: Consider adding MaxFinancing (max financing percentage)', []],
+    ['[Fair Housing Warning] (PublicRemarks) Avoid "perfect for [group]" - may imply targeting', []],
+    ['Required field missing', []],
+  ])('fields: the validator line %j names %j', (line, expected) => {
+    expect(names(line)).toEqual(expected);
+  });
+
+  it('fields: every line the REAL validator answers with for a bad listing names a box (the shapes cannot drift from the validator unnoticed)', () => {
+    let lines = 0;
+    for (const listing of BAD_LISTINGS) {
+      for (const line of validateListing(listing as any).errors) {
+        lines++;
+        expect({ line, names: names(line).length }).toEqual({ line, names: 1 });
+      }
+    }
+    expect(lines).toBeGreaterThan(60);
+  });
+
+  it('words: the phrases the validator found are named with the box, together with the gate\'s, once each', () => {
+    const line = '[Fair Housing] Prohibited terms found in PublicRemarks: "adults only", "no section 8". These terms may violate Fair Housing Act by implying discrimination';
+    expect(p.api.words(err(p.w, 'Listing failed compliance validation', { validation: { errors: [line] } }))).toBe('Listing failed compliance validation: Public Remarks ("adults only", "no section 8")');
+    const gate = { code: 'FH-001', field: 'PublicRemarks', message: 'Fair Housing violation in PublicRemarks: "adults only" - violates NY HRL (Age).' };
+    const gate2 = { code: 'FH-001', field: 'PublicRemarks', message: 'Fair Housing violation in PublicRemarks: "no children" - violates NYC HRL.' };
+    expect(p.api.words(err(p.w, 'refused', { blockers: [gate, gate2], validation: { errors: [line] } }))).toBe('refused: Public Remarks ("adults only", "no children", "no section 8")');
+  });
+
+  it('words: two names that lead to the same box are one name, with the phrases of both (PublicRemarks and the id of the text area the scan also read)', () => {
+    const a = { code: 'FH-001', field: 'PublicRemarks', message: 'Fair Housing violation in PublicRemarks: "adults only" - x' };
+    const b = { code: 'FH-001', field: 'raw:pubRemarks', message: 'Fair Housing violation in raw:pubRemarks: "adults only" - x' };
+    const c = { code: 'FH-001', field: 'raw:pubRemarks', message: 'Fair Housing violation in raw:pubRemarks: "no section 8" - x' };
+    expect(p.api.words(err(p.w, 'refused', { blockers: [a, b, c] }))).toBe('refused: Public Remarks ("adults only", "no section 8")');
+    expect(p.api.words(err(p.w, 'refused', { blockers: [{ field: 'raw:agentRemarks' }, { field: 'agentRemarks' }] }))).toBe('refused: Agent Remarks');          // no box on the page: the same words are one name
+  });
+
+  it('words: a field the page holds in a box that does not carry its Cotality name is named by that box\'s label', () => {
+    expect(p.api.words(err(p.w, 'refused', { blockers: [{ field: 'TaxLot' }, { field: 'ListPrice' }, { field: 'ListingContractDate' }, { field: 'PropertyType' }, { field: 'View' }] })))
+      .toBe('refused: Lot Number, Monthly Rent, Exclusive Start, Property Type, Views');
+    // a box that carries the Cotality name wins over the table (the sub type is the "Unit Type" box here; the property type, which no box carries, is the radios)
+    expect(p.api.words(err(p.w, 'refused', { blockers: [{ field: 'PropertySubType' }] }))).toBe('refused: Unit Type');
+  });
+
+  it('words: with no box that carries the sub type\'s name, the property type radios stand for both the property type and the sub type', () => {
+    const bare = boxesPage();
+    try {
+      expect(bare.api.words(err(bare.w, 'refused', { blockers: [{ field: 'PropertySubType' }, { field: 'PropertyType' }] }))).toBe('refused: Property Type');        // one box, one name
+    } finally { bare.close(); }
+  });
+
+  it('words: a text area that stands alone in its card is named by the card\'s heading; one among others, by the Cotality words', () => {
+    expect(p.api.words(err(p.w, 'refused', { blockers: [{ field: 'ShowingInstructions' }] }))).toBe('refused: Listing Description');
+    expect(p.api.words(err(p.w, 'refused', { blockers: [{ field: 'MlsNoteA' }, { field: 'MlsNoteB' }] }))).toBe('refused: Mls Note A, Mls Note B');
+  });
+
+  it('mark: the box a field is held in under another name is marked, and a group (the views, the property types) by its block', () => {
+    const q = (sel: string) => p.w.document.querySelector(sel) as HTMLElement;
+    expect(p.api.mark(err(p.w, 'refused', { blockers: [{ field: 'TaxLot' }, { field: 'ListPrice' }, { field: 'View' }, { field: 'PropertyType' }] }))).toBe(true);
+    for (const id of ['#bldgTaxLot', '#rentalMonthlyRent', '#viewsBlock', '#typeBlock']) expect({ id, marked: q(id).classList.contains('border-red-500') }).toEqual({ id, marked: true });
+  });
+
+  it('mark: any box of a group takes the mark off, not only the first (the second view, the second special condition)', () => {
+    const fresh = boxesPage();
+    try {
+      const f = (sel: string) => fresh.w.document.querySelector(sel) as HTMLElement;
+      expect(fresh.api.mark(err(fresh.w, 'refused', { blockers: [{ field: 'View' }, { field: 'SpecialListingConditions' }] }))).toBe(true);
+      expect(f('#viewsBlock').classList.contains('border-red-500')).toBe(true);
+      f('#viewStreet').dispatchEvent(new fresh.w.Event('change', { bubbles: true }));                                // the second box of the group
+      expect(f('#viewsBlock').classList.contains('border-red-500')).toBe(false);
+      expect(f('#viewsBlock').style.outline).toBe('');
+      expect(f('#conditionsBlock').classList.contains('border-red-500')).toBe(true);
+      f('#std2').dispatchEvent(new fresh.w.Event('change', { bubbles: true }));
+      expect(f('#conditionsBlock').classList.contains('border-red-500')).toBe(false);
+    } finally { fresh.close(); }
+  });
+
+  it('mark: two names that lead to one box mark it once and scroll to it once', () => {
+    const fresh = boxesPage();
+    try {
+      let scrolled = 0;
+      (fresh.w.document.getElementById('pubRemarks') as any).scrollIntoView = () => { scrolled++; };
+      expect(fresh.api.mark(err(fresh.w, 'refused', { blockers: [{ field: 'PublicRemarks' }, { field: 'raw:pubRemarks' }] }))).toBe(true);
+      expect(scrolled).toBe(1);
+    } finally { fresh.close(); }
+  });
+});
+
+describe.each([
+  ['SALE-FORM-REDESIGN', '_saleSubmitFailed', 'div[style*="99999"]', ['Price', 'Exclusive Start', 'Tax Lot'], ['salePrice', 'saleExclusiveStart', 'saleBldgTaxLot'], 'Listing Description'],
+  ['RENTAL-FORM-REDESIGN', '_rentalSubmitFailed', 'div.toast-notification', ['Monthly Rent', 'Exclusive Start Date', 'Tax Lot'], ['rentalMonthlyRent', 'rentalExclusiveStart', 'bldgTaxLot'], 'Listing Description'],
+] as const)('%s: the validator\'s refusal names the boxes the page has', (form, handler, toastSelector, labels, ids, description) => {
+  const refusal = async (details: unknown) => {
+    const f = await bootAddForm(form, { settle: 300 });
+    try {
+      const failure = Object.assign(new f.w.Error('Listing failed compliance validation'), { status: 422, details });
+      f.w[handler](failure, true);
+      const toasts = [...f.d.querySelectorAll(toastSelector)].map((t) => t.textContent ?? '');
+      return { toasts, marked: ids.map((id) => (f.d.getElementById(id) as HTMLElement).classList.contains('border-red-500')), described: (f.d.getElementById(form.startsWith('SALE') ? 'saleDescription' : 'rentalDescription') as HTMLElement).classList.contains('border-red-500') };
+    } finally { f.close(); }
+  };
+
+  it('a price, a start date and a tax lot are named by the label the page gives their box, and the box is marked (they used to be named by their Cotality words)', async () => {
+    const out = await refusal({ validation: { errors: ['[REBNY] Required field missing: ListPrice - x', '[REBNY] Required field missing: ListingContractDate - x', '[NYC] TaxLot is required for NYC properties'] } });
+    const text = out.toasts.find((t) => /Submission failed/.test(t));
+    expect(text).toContain(`Submission failed: Listing failed compliance validation: ${labels.join(', ')}. Nothing was saved to the CRM`);
+    expect(out.marked).toEqual([true, true, true]);
+  });
+
+  it('a Fair Housing line of the validator is named by the description box\'s label, with its phrases, and the box is marked', async () => {
+    const out = await refusal({ validation: { errors: ['[Fair Housing] Prohibited terms found in PublicRemarks: "adults only", "no section 8". These terms may violate Fair Housing Act'] } });
+    const text = out.toasts.find((t) => /Submission failed/.test(t));
+    expect(text).toContain(`Submission failed: Listing failed compliance validation: ${description} ("adults only", "no section 8"). Nothing was saved to the CRM`);
+    expect(out.described).toBe(true);
+  });
+
+  it('the first refusal for a form the agent has filled in badly names the boxes of every line the real validator sent', async () => {
+    const real = validateListing(BAD_LISTINGS[0] as any).errors;
+    const out = await refusal({ validation: { errors: real } });
+    const text = out.toasts.find((t) => /Submission failed/.test(t)) ?? '';
+    expect(text).toMatch(/Submission failed: Listing failed compliance validation: .+ and \d+ more\. Nothing was saved to the CRM/);        // eight boxes are listed, the rest counted
   });
 });
