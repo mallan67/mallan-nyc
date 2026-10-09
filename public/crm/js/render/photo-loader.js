@@ -197,6 +197,11 @@
 
         /**
          * Apply fetched media to the listing object in listings for detail panel use.
+         *
+         * Every row's mediaType is the server's classification (/api/media/batch, lib/media/listing-media-resolver.ts: 'Photo', 'FloorPlan', 'Video', 'VirtualTour' or 'Unknown'),
+         * so nothing is classified again here. Only a Photo is a photo: a video or a tour row is a link, not a picture (shown as an <img> it is a broken image, and it would count
+         * towards photoCount), and 'Unknown' (a category the resolver does not know) is none of the four. The detail panel reads listing.images, listing._floorPlans,
+         * listing._videos and listing._virtualTours (search/pagination.js).
          */
         function _applyMediaToListing(listingId, mediaItems) {
             if (!mediaItems || !mediaItems.length) return;
@@ -205,14 +210,16 @@
             if (!listing) return;
 
             // Build typed arrays
-            // Trestle Media has 2 categories: Photo and FloorPlan.
-            // Videos/VirtualTours/3D come from Property fields (VirtualTourURLUnbranded), not Media.
             var photos = [];
             var floorPlans = [];
+            var videos = [];
+            var virtualTours = [];
             mediaItems.forEach(function(m) {
                 var entry = { url: m.url, caption: '', order: m.order || 0, mediaType: m.mediaType };
-                if (m.mediaType === 'FloorPlan') floorPlans.push(entry);
-                else photos.push(entry);
+                if (m.mediaType === 'Photo') photos.push(entry);
+                else if (m.mediaType === 'FloorPlan') floorPlans.push(entry);
+                else if (m.mediaType === 'Video') videos.push(entry);
+                else if (m.mediaType === 'VirtualTour') virtualTours.push(entry);
             });
 
             // Update listing.images with photos only
@@ -223,7 +230,9 @@
                     listing.photoCount = photos.length;
                 }
             }
-            // Store floor plans separately for detail panel
+            // Store floor plans, videos and tours separately for the detail panel
             if (floorPlans.length > 0) listing._floorPlans = floorPlans;
-            // Note: Videos/VirtualTours/3D are on listing.virtualTourUrl (from Property.VirtualTourURLUnbranded)
+            if (videos.length > 0) listing._videos = videos;
+            if (virtualTours.length > 0) listing._virtualTours = virtualTours;
+            // The tour links of the Property fields are listing.virtualTourUrl; the panel prefers it to _virtualTours
         }

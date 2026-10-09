@@ -10,7 +10,7 @@ import {
 } from "@/lib/auth";
 import { validateListing } from "@/lib/compliance/rebny-validator";
 import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
-import { nonTextRemarkSlot, scanListingBodyForFairHousing } from "@/lib/compliance/listing-fair-housing";
+import { nonTextFreeTextKey, nonTextRemarkSlot, scanListingBodyForFairHousing } from "@/lib/compliance/listing-fair-housing";
 import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { sanitizeForCRM } from "@/lib/compliance/dto";
@@ -153,8 +153,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   }
 
   // The remark slots are text. The Fair Housing scans read text only, PATCH copies PublicRemarks into the features bucket as it is, and the public listing page calls string methods on it:
-  // an array or an object there answers 400.
-  const nonTextSlot = nonTextRemarkSlot(body);
+  // an array or an object there answers 400. So does a list or an object under any other key the scan reads as free text (a headline, a comment, the layout / financing boxes ...), which would be saved unread.
+  const nonTextSlot = nonTextRemarkSlot(body) ?? nonTextFreeTextKey(body);
   if (nonTextSlot) {
     return NextResponse.json({ error: `${nonTextSlot} must be text` }, { status: 400 });
   }

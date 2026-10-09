@@ -7,11 +7,13 @@
  *    completeness of such information and shall not be held liable for any omission or inaccuracy of such information thereof."
  *
  * UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED: the UCBA document itself was not supplied, so this wording is the repo extraction's, not a reading of the PDF. If the PDF differs, change
- * RLS_STATISTICAL_DISCLAIMER_TEMPLATE and nothing else (the CRM twin, public/crm/js/compliance/rls-statistical-disclaimer.js, holds the same string; tests/runtime/rls-statistical-disclaimer.test.ts
- * holds the two to each other).
+ * RLS_STATISTICAL_DISCLAIMER_TEMPLATE and the extraction together: lib/compliance/__tests__/rls-statistical-disclaimer.test.ts holds this template to the extraction file and to the rule table's template
+ * (lib/compliance/rebny-field-tables.ts), which is built from it.
  *
  * The code carried more than twenty different wordings of this sentence, most of them with no dates ("for the period indicated", "for the period ending <today>") or with a second sentence that is
- * not the UCBA's. Anything that shows statistics drawn from the RLS (an average, a median, a count, a comparable-sales table) says it with the period the statistics cover, through this module.
+ * not the UCBA's. Anything that shows statistics drawn from the RLS (an average, a median, a count, a comparable-sales table) must say it with the period the statistics cover, through this module. The
+ * seller pitch packet and /api/market do; the surfaces that still print their own wording (the CRM reports and CMA, the portals' market card, the building pages, ...) are listed in
+ * docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md with the decision each needs (which period a snapshot of the current inventory covers).
  *
  * Dates are calendar days in New York ("MMMM d, yyyy"). A date-only string ("2026-04-02") is that day, whatever the time zone of the server; a timestamp with an offset is converted to New York time. Only
  * ISO 8601 text is read. An invalid date, or a period that ends before it starts, throws: a disclaimer with the wrong period is worse than none, and nothing here defaults to "now".

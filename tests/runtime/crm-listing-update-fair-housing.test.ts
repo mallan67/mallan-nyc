@@ -124,6 +124,23 @@ describe('PATCH /api/crm/listings/[id]: a Fair Housing violation in the text of 
       expect(row.update).not.toHaveBeenCalled();
     });
 
+  // found 2026-10-09 by an independent review: the scan reads strings only, so a list or an object under any other free-text key (a headline, a comment, the layout / financing boxes) was saved without a word
+  it.each([[{ saleTHLayout: ['No vouchers, adults only.'] }, 'saleTHLayout'], [{ bldgMinIncome: { note: 'no children' } }, 'bldgMinIncome'], [{ webHeadline: ['Adults only'] }, 'webHeadline'], [{ saleBrokerComments: [] }, 'saleBrokerComments']])(
+    'a list or an object under the free-text key (%j) answers 400 and nothing is written: the scan reads strings only', async (body, key) => {
+      const row = withListing();
+      const res = await callPatch(body);
+      expect(res.status).toBe(400);
+      expect(((await res.json()) as { error: string }).error).toBe(`${key} must be text`);
+      expect(row.update).not.toHaveBeenCalled();
+    });
+
+  it('a checkbox posted under a name that says "comment" (InternetConsumerCommentYN) is saved: a boolean is not wording', async () => {
+    const row = withListing();
+    const res = await callPatch({ InternetConsumerCommentYN: true, saleInternetConsumerCommentYN: false });
+    expect(res.status).toBe(200);
+    expect(row.update).toHaveBeenCalledTimes(1);
+  });
+
   it('a remark slot set to null or to an empty string is text (clearing a remark is allowed)', async () => {
     const row = withListing();
     const res = await callPatch({ PublicRemarks: '', PrivateRemarks: null });

@@ -16,6 +16,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { buildCrmIdxODataFilter } from '@/lib/search/crm-idx-filter';
+import { resolveListingMedia } from '@/lib/media/listing-media-resolver';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { JSDOM, VirtualConsole } = require('jsdom');
@@ -39,6 +40,8 @@ const OFFICES = [
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Handler = (kind: 'members' | 'offices', url: string) => unknown;
 let handler: Handler | null = null; // per-test override of the stubbed directory
+let mediaBatch: ((url: string) => unknown) | null = null; // per-test answer of the stubbed /api/media/batch
+let mediaCalls = 0; // how many times the page asked for media in the current test; past 200 the stub answers "failed", so a request loop in the page ends (and the test that counts the requests fails) instead of spinning
 const errors: string[] = [];
 const calls: string[] = [];
 let w: any;
@@ -76,6 +79,12 @@ beforeAll(async () => {
         }
         if (u.includes('/api/auth/me')) return ok({ authenticated: true, principalType: 'agent', role: 'agent', portalRole: 'agent', user: { id: 'AG-9', name: 'Test Agent', role: 'agent' } });
         if (u.includes('/api/idx/search')) return ok({ listings: [], total: 0 });
+        if (u.includes('/api/media/batch')) {
+          mediaCalls++;
+          await sleep(1);                                                          // a real answer takes a macrotask: timers (and the test's own waits) keep running while the page asks
+          if (mediaCalls > 200) return { ok: false, status: 500, json: async () => ({}), text: async () => '' };
+          return ok(mediaBatch ? mediaBatch(u) : {});
+        }
         return ok({});
       };
     },
@@ -93,6 +102,8 @@ beforeEach(() => {
   (d.getElementById('searchFormContainer') as HTMLElement).style.display = '';
   calls.length = 0;
   handler = null;
+  mediaBatch = null;
+  mediaCalls = 0;
 });
 
 const typeInto = async (id: string, text: string) => {
@@ -370,8 +381,9 @@ describe('MallanAPI.idx.search forwards the filters the server supports and Cota
 });
 
 describe('every enabled Search control sends only values live Cotality accepts', () => {
-  // Controls handled by other parameters (status, ownership, property subtype) or by a post-fetch filter.
-  const HANDLED_ELSEWHERE = new Set(['MlsStatus', 'CommonInterest', 'PropertySubType', 'SponsorUnit']);
+  // Controls handled by other parameters (status, ownership, property subtype). (Sponsor Unit was here, as a post-fetch filter; the control is disabled now, see below, and if it is ever enabled again this
+  // test must see it: a control the server never sends is a silent partial filter.)
+  const HANDLED_ELSEWHERE = new Set(['MlsStatus', 'CommonInterest', 'PropertySubType']);
   // Enabled controls whose field the server never sends to Cotality: they only narrow the rows the server already returned, so they are a
   // silent partial filter. This is the visible backlog and it may only shrink: wire a new control to a live Cotality field instead of adding to it.
   const CLIENT_ONLY_BACKLOG = ['BathroomCondition', 'BuildingSmokeFreeYN', 'KitchenCondition', 'PetsAllowed', 'PoolFeatures', 'PriceChangeDirection', 'PriceChangeTimestamp', 'PropertyCondition'];
@@ -470,5 +482,199 @@ describe('every enabled Search control sends only values live Cotality accepts',
     expect(buildCrmIdxODataFilter(new URLSearchParams({ status: '*', checkboxFilters: JSON.stringify({ DirectionFaces: ['N', 'SE'] }) }))).toContain(
       "(DirectionFaces eq 'North' or DirectionFaces eq 'Southeast')",
     );
+  });
+});
+
+describe('Sponsor Unit: the control is disabled, because the search route can never know the flag', () => {
+  // The flag is SponsorUnitYN inside CustomProperty.CustomFields. The search route never gets CustomProperty from Cotality (it does not ask: the repo records that the $expand answered HTTP 400), so
+  // listing.sponsorUnit is unknown on every row and the route's post-filter (sponsorUnit === true) could only answer "no results" (found 2026-10-09 by an independent review). Enable the box again together
+  // with the provider-contract join that supplies the flag, and take it out of the disabled list (public/crm/js/init/init-disable-dead-controls.js) then.
+  const boxes = () => [...d.querySelectorAll('input[data-field="SponsorUnit"]')] as HTMLInputElement[];
+  afterEach(() => boxes().forEach((b) => { b.checked = false; }));
+
+  it('the Sponsor Unit checkbox is offered, disabled, with the reason as its title', () => {
+    expect(boxes().length).toBeGreaterThan(0);
+    expect(boxes().map((b) => ({ disabled: b.disabled, title: b.title }))).toEqual(boxes().map(() => ({ disabled: true, title: 'Not currently supported' })));
+  });
+
+  it('a Sponsor Unit criterion that arrives anyway (code ticked the box) is stripped: the request carries no sponsorUnit and no SponsorUnit filter', async () => {
+    boxes().forEach((b) => { b.checked = true; });
+    const criteria = w.collectSearchCriteria();
+    expect(criteria.checkboxFilters.SponsorUnit).toEqual(['true']);                 // the criterion is there ...
+    const params = w.buildIdxSearchParams(criteria);
+    expect(params).not.toHaveProperty('sponsorUnit');                               // ... and does not leave the page
+    expect(params.checkboxFilters).toBeUndefined();
+
+    boxes().forEach((b) => { b.checked = true; });
+    calls.length = 0;
+    w.performSearch();
+    await sleep(300);
+    const sent = searchUrl().searchParams;
+    expect(sent.has('sponsorUnit')).toBe(false);
+    expect(sent.has('checkboxFilters')).toBe(false);
+  });
+
+  it('the other checkbox filters still go out next to it', () => {
+    boxes().forEach((b) => { b.checked = true; });
+    (d.querySelector('#agentOfficeSearch [data-field="ListingAgreement"][data-value="Open"]') as HTMLInputElement).checked = true;
+    const params = w.buildIdxSearchParams(w.collectSearchCriteria());
+    expect(params).not.toHaveProperty('sponsorUnit');
+    expect(params.checkboxFilters).toBe('{"ListingAgreement":["Open"]}');
+  });
+
+  it('a saved search that carries Sponsor Unit does not tick the disabled box (it used to run with it and find nothing)', () => {
+    w.toggleSearchMode('advanced');
+    for (const flag of [true, 'true']) {
+      w._criteriaToFormFields({ listing_type: 'sale', _search_tab: 'sale', sponsor_unit: flag });
+      expect(boxes().filter((b) => b.checked)).toEqual([]);
+    }
+  });
+});
+
+describe('detail media on the real page: only a Photo is a photo (a video or a tour is a link, a floor plan has its own place)', () => {
+  // What /api/media/batch?detail=true answers for one listing: the real resolver's output for raw Cotality Media rows, shaped as app/api/media/batch/route.ts shapes them ({ url, mediaType, order }).
+  // The CRM used to treat every row that was not a floor plan as a photo, so a video or a tour link was a broken <img> in the gallery and counted as a photo, and _videos / _virtualTours, which the
+  // detail panel reads, were never set (found 2026-10-09 by an independent review).
+  const RAW_MEDIA = [
+    { MediaURL: 'https://media.example.com/L/photo-1.jpg', Order: 1, MediaCategory: 'Photo' },
+    { MediaURL: 'https://media.example.com/L/photo-2.jpg', Order: 2, MediaCategory: 'Photo' },
+    { MediaURL: 'https://media.example.com/L/layout.jpg', Order: 3, MediaCategory: 'FloorPlan' },
+    { MediaURL: 'https://media.example.com/L/walkthrough.mp4', Order: 4, MediaCategory: 'Video' },
+    { MediaURL: 'https://tours.example.com/L/branded', Order: 5, MediaCategory: 'BrandedVirtualTour' },
+    { MediaURL: 'https://tours.example.com/L/unbranded', Order: 6, MediaCategory: 'UnbrandedVirtualTour' },
+    { MediaURL: 'https://media.example.com/L/agent-headshot.jpg', Order: 7, MediaCategory: 'AgentPhoto' },        // live MediaCategory members that are no picture of the listing:
+    { MediaURL: 'https://media.example.com/L/office-logo.png', Order: 8, MediaCategory: 'OfficeLogo' },          // the resolver calls them Unknown, and the old CRM rule showed them as photos
+  ];
+  const ROWS = resolveListingMedia(RAW_MEDIA).map((r) => ({ url: r.url, mediaType: r.mediaType, order: r.providerOrder }));
+  const urls = (type: string) => ROWS.filter((r) => r.mediaType === type).map((r) => r.url);
+  const rowsOf = (...types: string[]) => ROWS.filter((r) => types.includes(r.mediaType));
+  const added: any[] = [];
+  const addListing = (lid: string, extra: Record<string, unknown> = {}) => {
+    const listing: any = { lid, id: lid, ...extra };
+    w.listings.push(listing);
+    added.push(listing);
+    return listing;
+  };
+  afterEach(() => {
+    for (const listing of added.splice(0)) {
+      const at = w.listings.indexOf(listing);
+      if (at >= 0) w.listings.splice(at, 1);
+    }
+  });
+  const answer = (lid: string, rows: Array<{ url: string; mediaType: string; order: number }>) => {
+    mediaBatch = () => ({ photos: { [lid]: rows.find((r) => r.mediaType === 'Photo')?.url ?? null }, media: { [lid]: rows } });
+  };
+  const fetchDetail = (lid: string) => new Promise<void>((done) => w.fetchDetailMedia(lid, () => done()));
+
+  it('the fixture carries all five kinds the resolver tells apart (the tests below are not vacuous), and the live categories AgentPhoto and OfficeLogo are Unknown to it', () => {
+    expect(ROWS.map((r) => r.mediaType).sort()).toEqual(['FloorPlan', 'Photo', 'Photo', 'Unknown', 'Unknown', 'Video', 'VirtualTour', 'VirtualTour']);
+    const live = JSON.parse(readFileSync(resolve(ROOT, 'data/cotality-enums.live.json'), 'utf8')).enums.MediaCategory as string[];
+    expect(RAW_MEDIA.map((r) => r.MediaCategory).filter((c) => !live.includes(c))).toEqual([]);   // every category of the fixture is a live Cotality member
+  });
+
+  it('sorts the five kinds where the detail panel reads them, and the unknown one nowhere', async () => {
+    const listing = addListing('L-MEDIA-ALL');
+    answer('L-MEDIA-ALL', ROWS);
+    await fetchDetail('L-MEDIA-ALL');
+    expect(listing.images.map((i: any) => i.url)).toEqual(urls('Photo'));
+    expect(listing.images.every((i: any) => i.mediaType === 'Photo')).toBe(true);
+    expect(listing.photoCount).toBe(2);                                              // the two photos, not the seven rows
+    expect(listing._floorPlans.map((i: any) => i.url)).toEqual(urls('FloorPlan'));
+    expect(listing._videos.map((i: any) => i.url)).toEqual(urls('Video'));
+    expect(listing._virtualTours.map((i: any) => i.url)).toEqual(urls('VirtualTour'));
+    const everywhere = [...listing.images, ...listing._floorPlans, ...listing._videos, ...listing._virtualTours].map((i: any) => i.url).sort();
+    expect(everywhere).toEqual(rowsOf('Photo', 'FloorPlan', 'Video', 'VirtualTour').map((r) => r.url).sort());
+    expect(urls('Unknown')).toHaveLength(2);
+    for (const unknown of urls('Unknown')) expect(everywhere).not.toContain(unknown);                    // not the agent's headshot, not the office logo
+  });
+
+  it('a listing whose only media is a video and tours gets no photo: the gallery is untouched and the photo count is not raised', async () => {
+    const listing = addListing('L-MEDIA-LINKS', { photoCount: 0 });
+    answer('L-MEDIA-LINKS', rowsOf('Video', 'VirtualTour'));
+    await fetchDetail('L-MEDIA-LINKS');
+    expect(listing.images).toBeUndefined();
+    expect(listing.photoCount).toBe(0);
+    expect(listing._videos).toHaveLength(1);
+    expect(listing._virtualTours).toHaveLength(2);
+    expect(listing._floorPlans).toBeUndefined();
+  });
+
+  it('a row of a kind the resolver does not know is not a photo, a floor plan, a video or a tour', async () => {
+    const listing = addListing('L-MEDIA-UNKNOWN', { photoCount: 3 });
+    answer('L-MEDIA-UNKNOWN', rowsOf('Unknown'));
+    await fetchDetail('L-MEDIA-UNKNOWN');
+    expect([listing.images, listing._floorPlans, listing._videos, listing._virtualTours]).toEqual([undefined, undefined, undefined, undefined]);
+    expect(listing.photoCount).toBe(3);
+  });
+
+  it('the photo count only goes up (the provider\'s own count is authoritative), and the photos come in the provider\'s order', async () => {
+    const listing = addListing('L-MEDIA-COUNT', { photoCount: 10 });
+    answer('L-MEDIA-COUNT', [...rowsOf('Photo')].reverse());                         // the answer arrives in the wrong order
+    await fetchDetail('L-MEDIA-COUNT');
+    expect(listing.photoCount).toBe(10);
+    expect(listing.images.map((i: any) => i.order)).toEqual([1, 2]);
+  });
+
+  it('a report builds its images from photos and floor plans only, in order, with the floor plans marked so the report pages can tell them apart', () => {
+    const images = w.reportImagesFromMedia(ROWS);
+    expect(images.map((i: any) => [i.url, i.mediaType, i.mediaCategory, i.imageOf])).toEqual([
+      ...urls('Photo').map((u) => [u, 'Photo', 'Photo', 'Photo']),
+      ...urls('FloorPlan').map((u) => [u, 'FloorPlan', 'FloorPlan', 'FloorPlan']),
+    ]);
+    expect(w.reportImagesFromMedia([...ROWS].reverse()).map((i: any) => i.order)).toEqual([1, 2, 3]);      // in the provider's order, whatever order the answer comes in
+    expect(w.reportImagesFromMedia(rowsOf('Video', 'VirtualTour', 'Unknown'))).toEqual([]);
+    expect(w.reportImagesFromMedia(undefined)).toEqual([]);
+    expect(w.reportImagesFromMedia([null, { url: 'https://media.example.com/L/typeless.jpg' }])).toEqual([]);
+  });
+
+  // The report preview asks for the media of every listing that has no images, then re-renders; the preview itself needs more of the page than this test boots, so only the part that fetches and applies is observed.
+  const runReportPreview = async (listing: any) => {
+    const before = w.searchResultsState.filteredListings;
+    w.searchResultsState.filteredListings = [listing];
+    try {
+      try { w.populateReportPreview(); } catch { /* the media fetch has been issued by then */ }
+      await sleep(200);
+    } finally {
+      w.searchResultsState.filteredListings = before;
+    }
+  };
+
+  it('a report that fetches the media of a listing without images gets photos and floor plans only, and counts the photos only', async () => {
+    const listing = addListing('L-MEDIA-REPORT', { status: 'Active', idxDisplayYN: true, internetDisplayYN: true });
+    answer('L-MEDIA-REPORT', ROWS);
+    await runReportPreview(listing);
+    expect(calls.some((c) => c.includes('/api/media/batch') && c.includes('detail=true') && c.includes('L-MEDIA-REPORT'))).toBe(true);
+    expect(listing.images.map((i: any) => i.mediaType)).toEqual(['Photo', 'Photo', 'FloorPlan']);
+    expect(listing.photoCount).toBe(2);
+  });
+
+  it('a report listing whose media are only a video and tours falls back to the primary photo the same answer carries, and to nothing when there is none', async () => {
+    const withPrimary = addListing('L-MEDIA-FALLBACK', { status: 'Active', idxDisplayYN: true, internetDisplayYN: true });
+    mediaBatch = () => ({ photos: { 'L-MEDIA-FALLBACK': 'https://media.example.com/L/primary.jpg' }, media: { 'L-MEDIA-FALLBACK': rowsOf('Video', 'VirtualTour') } });
+    await runReportPreview(withPrimary);
+    expect(withPrimary.images).toEqual([{ url: 'https://media.example.com/L/primary.jpg', isPrimary: true, mediaType: 'Photo', mediaCategory: 'Photo', imageOf: 'Photo' }]);
+    expect(withPrimary.photoCount).toBe(1);
+
+    const withNone = addListing('L-MEDIA-NONE', { status: 'Active', idxDisplayYN: true, internetDisplayYN: true });
+    answer('L-MEDIA-NONE', rowsOf('Video', 'VirtualTour'));                           // the answer's primary photo is null: the server picks photos only
+    const asked = () => calls.filter((c) => c.includes('/api/media/batch') && c.includes('L-MEDIA-NONE')).length;
+    await runReportPreview(withNone);
+    expect(withNone.images).toBeUndefined();
+    expect(withNone.photoCount).toBeUndefined();
+    await sleep(300);
+    expect(asked()).toBe(1);                                                          // asked once, not again: the re-render that follows the answer does not ask for the pictures a listing does not have
+  });
+
+  it('a listing with no media at all is asked for once as well (the preview fetched, re-rendered and fetched again, for ever)', async () => {
+    const bare = addListing('L-MEDIA-BARE', { status: 'Active', idxDisplayYN: true, internetDisplayYN: true });
+    mediaBatch = () => ({ photos: { 'L-MEDIA-BARE': null }, media: { 'L-MEDIA-BARE': [] } });
+    await runReportPreview(bare);
+    await sleep(300);
+    expect(calls.filter((c) => c.includes('/api/media/batch') && c.includes('L-MEDIA-BARE'))).toHaveLength(1);
+    expect(bare.images).toBeUndefined();
+    // asking again is the user's doing: a second preview asks again, once
+    await runReportPreview(bare);
+    await sleep(300);
+    expect(calls.filter((c) => c.includes('/api/media/batch') && c.includes('L-MEDIA-BARE'))).toHaveLength(2);
   });
 });

@@ -7,7 +7,7 @@ import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { validateListing } from "@/lib/compliance/rebny-validator";
 import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
-import { nonTextRemarkSlot, scanListingBodyForFairHousing } from "@/lib/compliance/listing-fair-housing";
+import { nonTextFreeTextKey, nonTextRemarkSlot, scanListingBodyForFairHousing } from "@/lib/compliance/listing-fair-housing";
 import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { normalizePayload, derivePermissionBooleans, buildPersistenceRecord } from "@/lib/compliance/normalizer";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
@@ -258,8 +258,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // The remark slots are text. The Fair Housing scans read text only, and the public listing page calls string methods on PublicRemarks, so an array or an object there is refused here.
-  const nonTextSlot = nonTextRemarkSlot(body);
+  // The remark slots are text. The Fair Housing scans read text only, and the public listing page calls string methods on PublicRemarks, so an array or an object there is refused here; so is a list or an
+  // object under any other key the scan reads as free text (a headline, a comment, the layout / financing boxes ...): the scan reads strings only, and the value would be saved unread.
+  const nonTextSlot = nonTextRemarkSlot(body) ?? nonTextFreeTextKey(body);
   if (nonTextSlot) {
     return NextResponse.json({ error: `${nonTextSlot} must be text` }, { status: 400 });
   }

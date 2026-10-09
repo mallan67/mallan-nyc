@@ -130,6 +130,10 @@
                 // BuildingPetsAllowed maps to PetsAllowedYN, which live Cotality leaves empty (0 rows for true and for false); the pet data is in
                 // PetsAllowed (live members such as BuildingYes, BuildingCatsOk, BuildingDogsOk, BuildingNo).
                 'input[data-field="BuildingPetsAllowed"]',
+                // SponsorUnit: the flag lives only in SponsorUnitYN inside CustomProperty.CustomFields, and the search route never gets CustomProperty from Cotality (it does not ask: the repo records
+                // that the $expand answered HTTP 400, app/api/idx/search/route.ts and lib/idx/fetch.ts), so every row reaches the route's post-filter (listing.sponsorUnit === true) with the flag unknown
+                // and the box could only answer "no results". Re-enable it when the route learns the flag from a provider-contract join by ListingKey that live Cotality accepts (the route is on the frozen list).
+                'input[data-field="SponsorUnit"]',
             ];
 
             // ── P1: Container-level dead controls ──────────────────────

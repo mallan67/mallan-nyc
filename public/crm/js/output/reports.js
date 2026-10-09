@@ -472,7 +472,26 @@
             'floor','totalFloors','unitNumber','condition','exposures','dom','listedDate','updatedDate',
             'publicDescription','rlsId','webId'];
 
-        function populateReportPreview() {
+        // The images of a report listing, from the media rows of /api/media/batch?detail=true. Each row's mediaType is the server's classification (lib/media/listing-media-resolver.ts:
+        // 'Photo', 'FloorPlan', 'Video', 'VirtualTour' or 'Unknown'). A report shows pictures: photos, and floor plans on their own pages. A video or a tour row is a link, not a picture
+        // (printed as an <img> it is a broken image, and it would be counted as a photo) and 'Unknown' is none of them, so those rows are not images.
+        function reportImagesFromMedia(rows) {
+            return (rows || []).filter(function(m) {
+                return m && (m.mediaType === 'Photo' || m.mediaType === 'FloorPlan');
+            }).map(function(m) {
+                return {
+                    url: m.url, mediaType: m.mediaType,
+                    mediaCategory: m.mediaType,
+                    imageOf: m.mediaType === 'FloorPlan' ? 'FloorPlan' : 'Photo',
+                    order: m.order, caption: m.caption || '',
+                    isPrimary: m.order === -1 || m.order === 0
+                };
+            }).sort(function(a, b) { return a.order - b.order; });
+        }
+
+        // mediaAlreadyAsked is true only for the re-render that follows the media fetch below. A listing the server has no picture for (no media at all, or only a video or a tour)
+        // stays without images, and asking again on every re-render never ended: the preview fetched, re-rendered, fetched again, for ever.
+        function populateReportPreview(mediaAlreadyAsked) {
             // Use the same listing selection logic as generateReport
             // getReportListings() handles: selection radio (all/selected/picked/liked),
             // IDX compliance filter, sorting, and 250 cap
@@ -484,7 +503,7 @@
 
             // Pre-fetch photos for listings missing images before rendering
             // Batch in groups of 25 (API detail mode limit) to handle larger reports
-            var needPhotos = listings.filter(function(l) { return !l.images || l.images.length === 0; });
+            var needPhotos = mediaAlreadyAsked === true ? [] : listings.filter(function(l) { return !l.images || l.images.length === 0; });
             if (needPhotos.length > 0 && typeof fetch !== 'undefined') {
                 var allIds = needPhotos.map(function(l) { return l.lid || l.id; }).filter(Boolean);
                 var BATCH_SIZE = 25;
@@ -500,16 +519,9 @@
                     needPhotos.forEach(function(l) {
                         if (l.images && l.images.length > 0) return; // already populated by earlier batch
                         var lid = l.lid || l.id;
-                        if (media[lid] && media[lid].length > 0) {
-                            l.images = media[lid].map(function(m) {
-                                return {
-                                    url: m.url, mediaType: m.mediaType,
-                                    mediaCategory: m.mediaType,
-                                    imageOf: m.mediaType === 'FloorPlan' ? 'FloorPlan' : 'Photo',
-                                    order: m.order, caption: m.caption || '',
-                                    isPrimary: m.order === -1 || m.order === 0
-                                };
-                            }).sort(function(a, b) { return a.order - b.order; });
+                        var reportImages = reportImagesFromMedia(media[lid]);
+                        if (reportImages.length > 0) {
+                            l.images = reportImages;
                             l.photoCount = l.images.filter(function(m) { return m.mediaCategory !== 'FloorPlan'; }).length;
                         } else if (photos[lid]) {
                             l.images = [{ url: photos[lid], isPrimary: true, mediaType: 'Photo', mediaCategory: 'Photo', imageOf: 'Photo' }];
@@ -518,7 +530,7 @@
                     });
                     completedBatches++;
                     if (completedBatches >= batches.length) {
-                        try { populateReportPreview(); } catch(e) { console.warn('Report re-render with photos failed:', e); }
+                        try { populateReportPreview(true); } catch(e) { console.warn('Report re-render with photos failed:', e); }
                     }
                 }
                 batches.forEach(function(batchIds) {

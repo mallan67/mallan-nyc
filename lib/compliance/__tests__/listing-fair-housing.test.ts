@@ -5,7 +5,7 @@
  * It scans the free text a request carries: the canonical remark slots after the accepted aliases are resolved, and every other string under a key that names free text
  * (the forms post their free-text boxes under the id of the control). Structured values are not scanned.
  */
-import { FREE_TEXT_IDS, nonTextRemarkSlot, scanListingBodyForFairHousing } from '@/lib/compliance/listing-fair-housing';
+import { FREE_TEXT_IDS, nonTextFreeTextKey, nonTextRemarkSlot, scanListingBodyForFairHousing } from '@/lib/compliance/listing-fair-housing';
 import { normalizePayload } from '@/lib/compliance/normalizer';
 
 /** the fields the scan names, once each (a phrase that two rules match is two blockers in one field) */
@@ -102,5 +102,46 @@ describe('nonTextRemarkSlot', () => {
 
   it('a body that is not an object is not a violation', () => {
     for (const nothing of [null, undefined, 'text', 5]) expect(nonTextRemarkSlot(nothing as never)).toBeNull();
+  });
+});
+
+describe('nonTextFreeTextKey', () => {
+  it('is null when every free-text key holds text, null or nothing, and when the body carries no free-text key', () => {
+    expect(nonTextFreeTextKey({})).toBeNull();
+    expect(nonTextFreeTextKey({ webHeadline: 'Bright corner unit', saleBrokerComments: '', agentRemarks: null, bldgMinIncome: undefined, saleTHLayout: 'Open plan.' })).toBeNull();
+  });
+
+  it.each([...FREE_TEXT_IDS].map((id) => [id]))('names the box %s, whose id does not name free text, when it holds a list or an object (the scan reads strings only: found 2026-10-09)', (id) => {
+    expect(nonTextFreeTextKey({ [id]: ['No vouchers, adults only.'] })).toBe(id);
+    expect(nonTextFreeTextKey({ [id]: { note: 'no children' } })).toBe(id);
+    expect(nonTextFreeTextKey({ [id]: [] })).toBe(id);                                      // an empty list is still not text
+  });
+
+  it.each(['webHeadline', 'saleBrokerComments', 'agentRemarks', 'showingInstructions', 'rentalMoveInCostsComments', 'photoCaption', 'saleNewOHNotes', 'previewDescription'])(
+    'names the free-text key %s when it holds a list or an object', (key) => {
+      expect(nonTextFreeTextKey({ [key]: ['Adults only.'] })).toBe(key);
+      expect(nonTextFreeTextKey({ [key]: { text: 'Adults only.' } })).toBe(key);
+    });
+
+  it('names the remark slots too (a list there is not text either), and the first offending key in the order the body carries them', () => {
+    expect(nonTextFreeTextKey({ PublicRemarks: ['x'] })).toBe('PublicRemarks');
+    expect(nonTextFreeTextKey({ ListPrice: 5, webHeadline: ['a'], saleBrokerComments: ['b'] })).toBe('webHeadline');
+    expect(nonTextFreeTextKey({ saleBrokerComments: ['b'], webHeadline: ['a'] })).toBe('saleBrokerComments');
+  });
+
+  it('a number or a boolean is not wording and passes (the forms post InternetConsumerCommentYN, a checkbox, under a name that says "comment")', () => {
+    expect(nonTextFreeTextKey({ InternetConsumerCommentYN: true, saleInternetConsumerCommentYN: false, rentalInternetConsumerCommentYN: true, webHeadline: 5, bldgMaxOccupants: 2 })).toBeNull();
+  });
+
+  it('a structured key, whose name does not say free text, may hold a list or an object', () => {
+    expect(nonTextFreeTextKey({ images: [{ url: 'a.jpg' }], saleViewList: ['City'], features: { Doorman: true }, property_sub_type: 'Active Adult', OpenHouses: [{ day: 'Sat' }] })).toBeNull();
+  });
+
+  it('null is not an object: a cleared box is allowed', () => {
+    expect(nonTextFreeTextKey({ webHeadline: null, bldgMinIncome: null })).toBeNull();
+  });
+
+  it('a body that is not an object is not a violation', () => {
+    for (const nothing of [null, undefined, 'text', 5]) expect(nonTextFreeTextKey(nothing as never)).toBeNull();
   });
 });

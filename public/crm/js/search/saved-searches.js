@@ -478,13 +478,17 @@
             }
 
             // SponsorUnit — independent param (Bug A11 split). Restored
-            // by toggling the SponsorUnit/Yes checkbox if it exists.
+            // by toggling the SponsorUnit/Yes checkbox if it exists. The
+            // control is disabled while the search cannot know the flag
+            // (init-disable-dead-controls.js), and a disabled control is
+            // never ticked, as for the checkbox filters below.
             if (criteria.sponsor_unit === 'true' || criteria.sponsor_unit === true) {
                 var spScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById('searchBasicMode');
                 if (spScope) {
                     var spCb = spScope.querySelector('input[data-field="SponsorUnit"][data-value="true"]') ||
                                spScope.querySelector('input[data-field="SponsorUnit"][data-value="Yes"]');
-                    if (spCb) spCb.checked = true;
+                    if (spCb && !spCb.disabled) spCb.checked = true;
+                    else if (spCb) console.warn('[CRM Search] The saved search asks for Sponsor Unit, which is not supported; it was not applied.');
                 }
             }
 

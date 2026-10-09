@@ -97,6 +97,24 @@ describe("POST /api/crm/listings — Fair Housing scan is unconditional (rls_eli
     expect((await readJson<{ error: string }>(res)).error).toBe(`${slot} must be text`);
   });
 
+  // found 2026-10-09 by an independent review: the scan reads strings only, so a list or an object under any other free-text key (a headline, a comment, the layout / financing boxes) was saved without a word
+  it.each([
+    [{ saleTHLayout: ["No vouchers, adults only."] }, "saleTHLayout"],
+    [{ bldgMinIncome: { note: "no children" } }, "bldgMinIncome"],
+    [{ webHeadline: ["Adults only"] }, "webHeadline"],
+    [{ saleBrokerComments: [] }, "saleBrokerComments"],
+  ])("a list or an object under a free-text key (%j) answers 400 before any gate: the scan reads strings only and the value would be saved unread", async (extra, key) => {
+    const res = await POST(makeRequest({ method: "POST", body: { listing_type: "sale", rls_eligible: false, ...extra } }));
+    expect(res.status).toBe(400);
+    expect((await readJson<{ error: string }>(res)).error).toBe(`${key} must be text`);
+  });
+
+  it("a checkbox posted under a name that says 'comment' (InternetConsumerCommentYN) is not refused as non-text: a boolean is not wording", async () => {
+    const res = await POST(makeRequest({ method: "POST", body: { listing_type: "sale", rls_eligible: false, InternetConsumerCommentYN: true, saleInternetConsumerCommentYN: false } }));
+    const json = await readJson<{ error?: string }>(res);
+    expect(json.error ?? "").not.toMatch(/must be text/);
+  });
+
   it("does NOT false-positive on a structured (non-free-text) field value", async () => {
     // A clean create whose only 'adult/active' text is in a structured field name must pass the FH
     // gate (the scan keys on free-text field NAMES, so enums like property_sub_type aren't scanned).

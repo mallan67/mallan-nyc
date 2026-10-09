@@ -18,7 +18,8 @@
  * A blocker for such a box is reported under `raw:<key>`; js/forms/server-refusal.js turns that into the box and the phrase found.
  *
  * A remark slot that is not text (an array, an object) is refused outright (nonTextRemarkSlot): the scan reads text only, PATCH copies PublicRemarks into the features bucket as it is, and the
- * public listing page calls string methods on it.
+ * public listing page calls string methods on it. The same goes for a list or an object under any other key the scan reads as free text (nonTextFreeTextKey): the scan reads strings only, so
+ * { webHeadline: ["Adults only"] } or { bldgMinIncome: { note: "no vouchers" } } would be saved unread.
  */
 import { normalizePayload } from "@/lib/compliance/normalizer";
 import { scanRecordForFairHousing, type EnforcementIssue } from "@/lib/compliance/rls-enforcement";
@@ -49,6 +50,19 @@ export function nonTextRemarkSlot(body: Record<string, unknown>, normalized?: Re
   const isText = (v: unknown) => v === undefined || v === null || typeof v === "string";
   for (const slot of REMARK_SLOTS) {
     if (!isText(canonical[slot]) || !isText(body[slot])) return slot;
+  }
+  return null;
+}
+
+/**
+ * The first key of the request that the scan reads as free text (isFreeTextKey) and that holds a list or an object; null when there is none. The scan reads strings only, so such a value is saved without a
+ * word from the server. A number or a boolean is not wording and passes: the forms post InternetConsumerCommentYN, a checkbox, under a name that says "comment". (The four remark slots also refuse a number
+ * or a boolean: nonTextRemarkSlot, above, is their rule.) Found 2026-10-09 by an independent review; neither Add form, nor any other caller of the listing routes, sends a list or an object under such a key.
+ */
+export function nonTextFreeTextKey(body: Record<string, unknown>): string | null {
+  if (!body || typeof body !== "object") return null;
+  for (const [key, value] of Object.entries(body)) {
+    if (isFreeTextKey(key) && typeof value === "object" && value !== null) return key;
   }
   return null;
 }

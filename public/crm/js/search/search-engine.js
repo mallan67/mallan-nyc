@@ -363,13 +363,17 @@
             // property. The generic checkboxFilters loop on the backend
             // (lib/search/crm-idx-filter.ts:239-277) would silently drop
             // it because "SponsorUnit" is not in the odataSafe whitelist.
-            // Pull it out into a dedicated `sponsorUnit` param so the
-            // route handler can apply a post-fetch filter against the
-            // mapper's parsed listing.sponsorUnit field.
+            // It used to be pulled out into a dedicated `sponsorUnit` param for
+            // the route's post-fetch filter on the mapper's listing.sponsorUnit,
+            // but the route never gets CustomProperty from Cotality, so that
+            // field is always unknown and the filter could only return nothing.
+            // The control is disabled (init-disable-dead-controls.js); criteria
+            // that still carry it (a saved search, a programmatic call) are
+            // stripped here with a warning, like the Open House dates below.
             if (criteria.checkboxFilters && criteria.checkboxFilters.SponsorUnit) {
                 var _sp = criteria.checkboxFilters.SponsorUnit;
                 if (Array.isArray(_sp) && (_sp.indexOf('true') !== -1 || _sp.indexOf('Yes') !== -1)) {
-                    params.sponsorUnit = 'true';
+                    console.warn('[CRM Search] Stripped unsupported SponsorUnit criterion — the search route never receives the flag from Cotality, so the filter could only return nothing. See init-disable-dead-controls.js.');
                 }
                 // Remove from the JSON payload so the backend doesn't try to
                 // OData-filter on it.

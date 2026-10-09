@@ -5,6 +5,8 @@
  * The code carried more than twenty wordings of it, most with no dates ("for the period indicated", "for the period ending <today>") or with a second sentence that is not the UCBA's. The text below is
  * the repo's extraction of the UCBA (data/UCBA-2026-Requirements.md); the PDF itself was not supplied (UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED).
  */
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import {
   RLS_STATISTICAL_DISCLAIMER_TEMPLATE,
   formatDisclaimerDate,
@@ -20,6 +22,14 @@ describe('the wording', () => {
   it('is the UCBA sentence pair, word for word, with a [date] in each place the period goes', () => {
     expect(RLS_STATISTICAL_DISCLAIMER_TEMPLATE).toBe(UCBA_TEXT);
     expect(RLS_STATISTICAL_DISCLAIMER_TEMPLATE.split('[date]')).toHaveLength(3);
+  });
+
+  it('is the sentence the repo\'s extraction of the UCBA gives for Art. VIII Sec. 4 (data/UCBA-2026-Requirements.md): the template cannot drift from the document it quotes', () => {
+    const extraction = readFileSync(resolve(__dirname, '../../../data/UCBA-2026-Requirements.md'), 'utf8');
+    const rows = extraction.split('\n').filter((line) => line.includes('Statistical Data Attribution'));
+    expect(rows).toHaveLength(1);                                                  // one row says it; if the document is reorganised this test is looked at, not skipped
+    expect(rows[0]).toContain('Art. VIII, Sec. 4');
+    expect(rows[0]).toContain(`"${RLS_STATISTICAL_DISCLAIMER_TEMPLATE}"`);
   });
 
   it('the rule table\'s template is the same sentence pair (it used to end "deemed reliable but not guaranteed")', () => {
