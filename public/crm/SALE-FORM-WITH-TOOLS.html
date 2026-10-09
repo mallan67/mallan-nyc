@@ -2115,13 +2115,13 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
             <div class="form-card-header"><i class="fas fa-paw"></i> Unit Pet Policy <span class="text-red-500">*</span></div>
             <p class="text-[10px] text-gray-500 mb-3">RLS: PetsAllowed — Unit-level pet policy. Locked if building says "No Pets".</p>
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3" id="salePetsAllowedGroup">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="UnitYes" class="w-4 h-4 sale-unit-pets-cb" data-rls-field="PetsAllowed"> Yes (All Pets)</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="UnitCatsOK" class="w-4 h-4 sale-unit-pets-cb"> Cats OK</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="UnitDogsOK" class="w-4 h-4 sale-unit-pets-cb"> Dogs OK</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="UnitBreedRestrictions" class="w-4 h-4 sale-unit-pets-cb"> Breed Restrictions</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="UnitSizeLimit" class="w-4 h-4 sale-unit-pets-cb"> Size Limit</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="UnitNumberLimit" class="w-4 h-4 sale-unit-pets-cb"> Number Limit</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="UnitNo" class="w-4 h-4 sale-unit-pets-cb"> No Pets</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="Yes" class="w-4 h-4 sale-unit-pets-cb" data-rls-field="PetsAllowed"> Yes (All Pets)</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="CatsOk" class="w-4 h-4 sale-unit-pets-cb"> Cats OK</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="DogsOk" class="w-4 h-4 sale-unit-pets-cb"> Dogs OK</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="BreedRestrictions" class="w-4 h-4 sale-unit-pets-cb"> Breed Restrictions</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="SizeLimit" class="w-4 h-4 sale-unit-pets-cb"> Size Limit</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="NumberLimit" class="w-4 h-4 sale-unit-pets-cb"> Number Limit</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="No" class="w-4 h-4 sale-unit-pets-cb"> No Pets</label>
             </div>
         </div>
 
@@ -3858,13 +3858,13 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="field-label">Video URL</label>
-                        <input type="url" id="saleVideoUrl" placeholder="https://youtube.com/watch?v=..." class="field-input" data-rls-field="VirtualTourURLBranded">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VideoURL</p>
+                        <input type="url" id="saleVideoUrl" placeholder="https://youtube.com/watch?v=..." class="field-input">
+                        <p class="text-[10px] text-gray-400 mt-1">Saved with the listing for Mallan's use. Not sent to a Cotality field; the public site does not read it.</p>
                     </div>
                     <div>
                         <label class="field-label">Video Tour URL</label>
-                        <input type="url" id="saleVideoTourUrl" placeholder="https://vimeo.com/..." class="field-input" data-rls-field="VirtualTourURLUnbranded">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: Video2URL</p>
+                        <input type="url" id="saleVideoTourUrl" placeholder="https://vimeo.com/..." class="field-input">
+                        <p class="text-[10px] text-gray-400 mt-1">Saved with the listing for Mallan's use. Not sent to a Cotality field; the public site does not read it.</p>
                     </div>
                 </div>
                 <p class="text-[10px] text-amber-600 mt-2"><i class="fas fa-ban mr-1"></i> No agent name, contact, or on-screen appearance in videos (UCBA Art. I Sec. 5(C))</p>
@@ -3876,14 +3876,14 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <div id="saleFloorPlanList" class="space-y-1 text-sm"><p class="text-sm text-gray-500 italic">Loading floor plans...</p></div>
             </div>
 
-            <!-- 3D Virtual Tours (RLS/RESO/IDX: VirtualTourURL) -->
+            <!-- 3D Virtual Tours (the Unbranded Tour URL is sent as RLS/RESO/IDX VirtualTourURLUnbranded; the others are saved under their own ids) -->
             <div class="mb-8">
                 <h4 class="font-semibold text-gray-900 mb-3">3D Virtual Tours</h4>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="field-label">Branded Tour URL <span class="text-[10px] text-gray-400 font-normal">(with broker branding)</span></label>
-                        <input type="url" id="saleMatterportUrl" placeholder="https://my.matterport.com/show/?m=..." class="field-input" data-rls-field="VirtualTourURLUnbranded2">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VirtualTourURLBranded</p>
+                        <input type="url" id="saleMatterportUrl" placeholder="https://my.matterport.com/show/?m=..." class="field-input">
+                        <p class="text-[10px] text-gray-400 mt-1">Saved with the listing for Mallan's use. Not sent to a Cotality field; the public site does not read it.</p>
                     </div>
                     <div>
                         <label class="field-label">Unbranded Tour URL <span class="text-[10px] text-gray-400 font-normal">(no watermark)</span></label>
@@ -3892,13 +3892,13 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     </div>
                     <div>
                         <label class="field-label">Unbranded Tour URL 2</label>
-                        <input type="url" id="saleVirtualTourUnbranded2" placeholder="https://..." class="field-input" data-rls-field="VirtualTourURLUnbranded2">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VirtualTourURLUnbranded2</p>
+                        <input type="url" id="saleVirtualTourUnbranded2" placeholder="https://..." class="field-input">
+                        <p class="text-[10px] text-gray-400 mt-1">Saved with the listing for Mallan's use. Not sent to a Cotality field; the public site does not read it.</p>
                     </div>
                     <div>
                         <label class="field-label">Unbranded Tour URL 3</label>
-                        <input type="url" id="saleVirtualTourUnbranded3" placeholder="https://..." class="field-input" data-rls-field="VirtualTourURLUnbranded3">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VirtualTourURLUnbranded3</p>
+                        <input type="url" id="saleVirtualTourUnbranded3" placeholder="https://..." class="field-input">
+                        <p class="text-[10px] text-gray-400 mt-1">Saved with the listing for Mallan's use. Not sent to a Cotality field; the public site does not read it.</p>
                     </div>
                 </div>
             </div>

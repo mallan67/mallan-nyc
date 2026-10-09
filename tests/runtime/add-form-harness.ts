@@ -194,7 +194,7 @@ export type Entered = { key: string; kind: 'value' | 'radio' | 'check' | 'group'
 const NOT_ENTERED = /^(sale|rental)(ListingAgentSearch|ListingCompanySearch|StreetAddress|Status|OfficeRetailOwnership|CommercialOwnership)$|^rental(Zip|State|CityDisplay)$/;
 // (the last three are the Rental form's Property Location card: its ZIP code, state and city are views of the saved ones, one value each, so a different value in each cannot come back as two)
 // "None of these" values switch the rest of their group off when the agent picks them; they are left unchecked so the group is coherent.
-const EXCLUSIVE = /^(None|BuildingNo|UnitNo)$/;
+const EXCLUSIVE = /^(None|BuildingNo|No)$/;
 // Choices that switch other controls off (opt-out listing types, tenant-pays, a commercial classification): the first option is neutral.
 const FIRST_OF = /ListingType$|FareAct|PropertyType$/;
 

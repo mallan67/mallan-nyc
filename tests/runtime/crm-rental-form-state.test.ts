@@ -104,7 +104,7 @@ describe(`${FORM}: what depends on a control's state is shown again after a relo
       expect(g.d.getElementById('rentalPetsAllowedLocked')!.classList.contains('hidden')).toBe(false);
       const unit = [...g.d.querySelectorAll('input[name="rentalPetsAllowed"]')] as HTMLInputElement[];
       expect(unit.every((c) => c.disabled)).toBe(true);
-      expect(unit.filter((c) => c.checked).map((c) => c.value)).toEqual(['UnitNo']);
+      expect(unit.filter((c) => c.checked).map((c) => c.value)).toEqual(['No']);
     } finally { g.close(); }
   });
 

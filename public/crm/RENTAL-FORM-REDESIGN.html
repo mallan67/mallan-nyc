@@ -988,13 +988,13 @@ body { font-family: Manrope, sans-serif; }
                     <label class="field-label mb-2">Unit Pet Policy <span class="text-red-500">*</span></label>
                     <p class="text-[10px] text-gray-500 mb-2">RLS Field: PetsAllowed — Unit-level policy. Locked if building says "No Pets".</p>
                     <div class="grid grid-cols-2 gap-2" id="rentalPetsAllowedGroup">
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitYes" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)" data-rls-field="PetsAllowed"> Yes</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitCatsOK" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Cats OK</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitDogsOK" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Dogs OK</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitBreedRestrictions" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Breed Restr.</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitSizeLimit" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Size Limit</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitNumberLimit" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Number Limit</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitNo" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> No Pets</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="Yes" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)" data-rls-field="PetsAllowed"> Yes</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="CatsOk" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Cats OK</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="DogsOk" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Dogs OK</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="BreedRestrictions" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Breed Restr.</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="SizeLimit" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Size Limit</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="NumberLimit" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Number Limit</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="No" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> No Pets</label>
                     </div>
                     <div id="rentalPetsAllowedLocked" class="hidden mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
                         <i class="fas fa-lock mr-1"></i> Locked to "No Pets" — Building pet policy is "No Pets" (BuildingNo).
@@ -3309,13 +3309,13 @@ body { font-family: Manrope, sans-serif; }
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="field-label">Video URL</label>
-                        <input type="url" id="rentalVideoUrl" placeholder="https://youtube.com/watch?v=..." class="field-input" data-rls-field="VirtualTourURLBranded">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VideoURL</p>
+                        <input type="url" id="rentalVideoUrl" placeholder="https://youtube.com/watch?v=..." class="field-input">
+                        <p class="text-[10px] text-gray-400 mt-1">Saved with the listing for Mallan's use. Not sent to a Cotality field; the public site does not read it.</p>
                     </div>
                     <div>
                         <label class="field-label">Video Tour URL</label>
-                        <input type="url" id="rentalVideoTourUrl" placeholder="https://vimeo.com/..." class="field-input" data-rls-field="VirtualTourURLUnbranded">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: Video2URL</p>
+                        <input type="url" id="rentalVideoTourUrl" placeholder="https://vimeo.com/..." class="field-input">
+                        <p class="text-[10px] text-gray-400 mt-1">Saved with the listing for Mallan's use. Not sent to a Cotality field; the public site does not read it.</p>
                     </div>
                 </div>
                 <p class="text-[10px] text-amber-600 mt-2"><i class="fas fa-ban mr-1"></i> No agent name, contact, or on-screen appearance in videos (UCBA Art. I Sec. 5(C))</p>
@@ -3334,14 +3334,14 @@ body { font-family: Manrope, sans-serif; }
                 <p class="text-[10px] text-gray-400 mt-2"><i class="fas fa-shield-alt mr-1"></i>Only upload media you have rights/authorization to use.</p>
             </div>
 
-            <!-- 3D Virtual Tours (RLS/RESO/IDX: VirtualTourURL) -->
+            <!-- 3D Virtual Tours (the Unbranded Tour URL is sent as RLS/RESO/IDX VirtualTourURLUnbranded; the others are saved under their own ids) -->
             <div class="mb-8">
                 <h4 class="font-semibold text-gray-900 mb-3">3D Virtual Tours</h4>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="field-label">Branded Tour URL <span class="text-[10px] text-gray-400 font-normal">(with broker branding)</span></label>
-                        <input type="url" id="rentalMatterportUrl" placeholder="https://my.matterport.com/show/?m=..." class="field-input" data-rls-field="VirtualTourURLUnbranded2">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VirtualTourURLBranded</p>
+                        <input type="url" id="rentalMatterportUrl" placeholder="https://my.matterport.com/show/?m=..." class="field-input">
+                        <p class="text-[10px] text-gray-400 mt-1">Saved with the listing for Mallan's use. Not sent to a Cotality field; the public site does not read it.</p>
                     </div>
                     <div>
                         <label class="field-label">Unbranded Tour URL <span class="text-[10px] text-gray-400 font-normal">(no watermark)</span></label>
@@ -3350,13 +3350,13 @@ body { font-family: Manrope, sans-serif; }
                     </div>
                     <div>
                         <label class="field-label">Unbranded Tour URL 2</label>
-                        <input type="url" id="rentalVirtualTourUnbranded2" placeholder="https://..." class="field-input" data-rls-field="VirtualTourURLUnbranded2">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VirtualTourURLUnbranded2</p>
+                        <input type="url" id="rentalVirtualTourUnbranded2" placeholder="https://..." class="field-input">
+                        <p class="text-[10px] text-gray-400 mt-1">Saved with the listing for Mallan's use. Not sent to a Cotality field; the public site does not read it.</p>
                     </div>
                     <div>
                         <label class="field-label">Unbranded Tour URL 3</label>
-                        <input type="url" id="rentalVirtualTourUnbranded3" placeholder="https://..." class="field-input" data-rls-field="VirtualTourURLUnbranded3">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VirtualTourURLUnbranded3</p>
+                        <input type="url" id="rentalVirtualTourUnbranded3" placeholder="https://..." class="field-input">
+                        <p class="text-[10px] text-gray-400 mt-1">Saved with the listing for Mallan's use. Not sent to a Cotality field; the public site does not read it.</p>
                     </div>
                 </div>
             </div>
@@ -7901,24 +7901,24 @@ function handleRentalBldgPetsChange(cb) {
     enforceRentalPetsConditional();
 }
 
-// PetsAllowed (unit): "UnitNo" deselects all others
+// PetsAllowed (unit): "No" deselects all others
 function handleRentalUnitPetsChange(cb) {
     var cbs = document.querySelectorAll('.rental-unit-pets-cb');
-    if (cb.value === 'UnitNo' && cb.checked) {
-        cbs.forEach(function(c) { if (c.value !== 'UnitNo') c.checked = false; });
+    if (cb.value === 'No' && cb.checked) {
+        cbs.forEach(function(c) { if (c.value !== 'No') c.checked = false; });
     } else if (cb.checked) {
-        cbs.forEach(function(c) { if (c.value === 'UnitNo') c.checked = false; });
+        cbs.forEach(function(c) { if (c.value === 'No') c.checked = false; });
     }
 }
 
-// Conditional: BuildingNo → lock unit PetsAllowed to UnitNo
+// Conditional: BuildingNo → lock unit PetsAllowed to No
 function enforceRentalPetsConditional() {
     var buildingNo = document.querySelector('.rental-bldg-pets-cb[value="BuildingNo"]');
     var unitCbs = document.querySelectorAll('.rental-unit-pets-cb');
     var lockMsg = document.getElementById('rentalPetsAllowedLocked');
     if (buildingNo && buildingNo.checked) {
         unitCbs.forEach(function(c) {
-            c.checked = (c.value === 'UnitNo');
+            c.checked = (c.value === 'No');
             c.disabled = true;
         });
         if (lockMsg) lockMsg.classList.remove('hidden');

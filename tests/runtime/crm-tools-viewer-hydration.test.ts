@@ -247,10 +247,12 @@ describe.each(['SALE-FORM-WITH-TOOLS', 'RENTAL-FORM-WITH-TOOLS'] as ViewerFile[]
     try {
       await until(() => rendered(b.d));
       const extras = [...b.d.querySelectorAll('.viewer-extra-value')].map((e) => e.textContent);
-      // ListingAgreement "Open" is a live Cotality member this page has no radio for; PetsAllowed "Yes"/"CatsOk" are live members the page's
-      // own checkboxes (UnitYes, UnitCatsOK, ...) do not use.
+      // ListingAgreement "Open" is a live Cotality member this page has no radio for. PetsAllowed "Yes"/"CatsOk" are live members the page's checkboxes carry
+      // (they used to be UnitYes, UnitCatsOK, ...), so they are ticked and not listed as stored extras (tests/runtime/crm-pets-allowed-live.test.ts).
       expect(extras.some((t) => /ListingAgreement \(stored\): Open/.test(String(t)))).toBe(true);
-      expect(extras.some((t) => /PetsAllowed \(stored\): Yes, CatsOk/.test(String(t)))).toBe(true);
+      expect(extras.some((t) => /PetsAllowed/.test(String(t)))).toBe(false);
+      const ticked = [...b.d.querySelectorAll(`input[name="${p}PetsAllowed"]:checked`)].map((e) => (e as HTMLInputElement).value);
+      expect(ticked).toEqual(['Yes', 'CatsOk']);
       // and nothing is shown for a group the record says nothing about
       expect(extras.some((t) => /AttendanceType/.test(String(t)))).toBe(false);
     } finally {

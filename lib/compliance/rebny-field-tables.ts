@@ -159,7 +159,7 @@ export const REBNY_FIELD_TABLES = {
         ],
       },
       PetsAllowed: {
-        note: 'If BuildingPetsAllowed = BuildingNo then PetsAllowed must = UnitNo',
+        note: 'If BuildingPetsAllowed = BuildingNo then PetsAllowed must = No',
       },
       StreetName: { rejectIfNotInDictionary: true },
     },
@@ -235,9 +235,10 @@ export const REBNY_FIELD_TABLES = {
       'BuildingBreedRestrictions', 'BuildingCatsOK', 'BuildingDogsOK',
       'BuildingNo', 'BuildingNumberLimit', 'BuildingSizeLimit', 'BuildingYes',
     ] as const,
+    // The unit-level members of the live Cotality PetsAllowed list (data/cotality-enums.live.json) the forms offer; the live list also carries Building* members and others.
     PetsAllowed: [
-      'UnitBreedRestrictions', 'UnitCatsOK', 'UnitDogsOK', 'UnitNo',
-      'UnitNumberLimit', 'UnitSizeLimit', 'UnitYes',
+      'BreedRestrictions', 'CatsOk', 'DogsOk', 'No',
+      'NumberLimit', 'SizeLimit', 'Yes',
     ] as const,
     Furnished: ['Furnished', 'Negotiable', 'Partially', 'Unfurnished'] as const,
     LeaseType: ['NonStabilizedLease', 'StabilizedLease'] as const,

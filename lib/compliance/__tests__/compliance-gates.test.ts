@@ -410,7 +410,7 @@ describe('assertRlsCompliantPayload', () => {
       AttendanceType: 'DoormanFullTime',
       BuildingLaundryFeatures: 'InUnit',
       BuildingPetsAllowed: 'BuildingYes',
-      PetsAllowed: 'UnitYes',
+      PetsAllowed: 'Yes',
       BuildingTaxLot: '1234',
       TaxBlock: '567',
       ElevatorsTotal: 2,

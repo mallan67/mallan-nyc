@@ -322,7 +322,7 @@
   ];
 
   var SALE_CHECKBOX_ARRAY_MAP = [
-    { rls: 'PetsAllowed', name: 'salePetsAllowed' },
+    { rls: 'PetsAllowed', name: 'salePetsAllowed', valueMap: { UnitYes: 'Yes', UnitCatsOK: 'CatsOk', UnitDogsOK: 'DogsOk', UnitBreedRestrictions: 'BreedRestrictions', UnitSizeLimit: 'SizeLimit', UnitNumberLimit: 'NumberLimit', UnitNo: 'No' } },
     { rls: 'BuildingPetsAllowed', name: 'saleBuildingPetsAllowed' },
     { rls: 'AttendanceType', name: 'saleAttendanceType' },
     { rls: 'BuildingLaundryFeatures', name: 'saleBuildingLaundryFeatures' },
@@ -541,7 +541,7 @@
   ];
 
   var RENTAL_CHECKBOX_ARRAY_MAP = [
-    { rls: 'PetsAllowed', name: 'rentalPetsAllowed' },
+    { rls: 'PetsAllowed', name: 'rentalPetsAllowed', valueMap: { UnitYes: 'Yes', UnitCatsOK: 'CatsOk', UnitDogsOK: 'DogsOk', UnitBreedRestrictions: 'BreedRestrictions', UnitSizeLimit: 'SizeLimit', UnitNumberLimit: 'NumberLimit', UnitNo: 'No' } },
     { rls: 'BuildingPetsAllowed', name: 'rentalBuildingPetsAllowed' },
     { rls: 'AttendanceType', name: 'rentalAttendanceType' },
     { rls: 'BuildingLaundryFeatures', name: 'rentalBuildingLaundryFeatures' },
@@ -710,6 +710,8 @@
       var vals = raw[ca.rls];
       if (!Array.isArray(vals) && ca.fallbackRls) vals = raw[ca.fallbackRls];
       if (!Array.isArray(vals)) return;
+      // a listing saved before the boxes carried the live members (UnitYes, UnitCatsOK, ...) still loads: its values are read as the live ones
+      if (ca.valueMap) vals = vals.map(function (v) { return Object.prototype.hasOwnProperty.call(ca.valueMap, v) ? ca.valueMap[v] : v; });
       var boxes = document.querySelectorAll('input[type="checkbox"][name="' + ca.name + '"]');
       if (!boxes.length) return;
       var shown = {};

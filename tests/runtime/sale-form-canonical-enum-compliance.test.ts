@@ -19,15 +19,17 @@
  * value written to a live Cotality enum field must be a live member of that
  * field's enum, so a non-live string cannot ship.
  *
+ * Closed 2026-10-09 (Maya: "there is no noise, there are errors and the need fixing. Do not assume, do actual corrections"): salePetsAllowed used to write UnitYes / UnitCatsOK / …
+ * into PetsAllowed. Its boxes now carry the live members (Yes / CatsOk / DogsOk / …), a live value is REQUIRED here (the first describe below), and a listing saved with the old
+ * spellings still loads (valueMap; tests/runtime/crm-pets-allowed-live.test.ts).
+ *
  * Known Sale Redesign gap (live probe 2026-10-01; closed by the Sale Redesign
  * conversion, never by widening this test):
- *   - salePetsAllowed writes UnitYes / UnitCatsOK / … into PetsAllowed. Live
- *     PetsAllowed uses Yes / CatsOk / DogsOk / … and also carries the building
- *     values (BuildingYes, BuildingCatsOk, …) in the same field.
  *   - saleBuildingPetsAllowed, saleBldgHeating, saleBldgCooling,
  *     saleBuildingLaundryFeatures and saleAttendanceType write fields that are
  *     not typed live fields (AttendanceType is a CustomProperty.CustomFields key).
- * The ratchet below lets those existing values stand and fails on any new one.
+ *     They are the Mallan Building Profile's own, internal fields.
+ * The ratchet below lets those existing fields stand and fails on any new one.
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
@@ -87,6 +89,7 @@ describe('Writes to live Cotality enum fields use live members only', () => {
   const liveEnumWrites: Array<{ formName: string; field: string }> = [
     { formName: 'saleHeating', field: 'Heating' },
     { formName: 'saleCooling', field: 'Cooling' },
+    { formName: 'salePetsAllowed', field: 'PetsAllowed' },
   ];
 
   it.each(liveEnumWrites.map(({ formName, field }) => [formName, field]))(
@@ -103,11 +106,6 @@ describe('Writes to live Cotality enum fields use live members only', () => {
 });
 
 describe('Known Sale Redesign gap cannot grow (closed by the Sale Redesign conversion)', () => {
-  // Values the form writes into live PetsAllowed that live Cotality does not serve.
-  const KNOWN_NON_LIVE_PETS = new Set([
-    'UnitYes', 'UnitCatsOK', 'UnitDogsOK', 'UnitBreedRestrictions',
-    'UnitSizeLimit', 'UnitNumberLimit', 'UnitNo',
-  ]);
   // Fields the form writes that are not typed live Cotality fields.
   const NON_LIVE_FIELDS: Array<{ formName: string; field: string }> = [
     { formName: 'saleBuildingPetsAllowed', field: 'BuildingPetsAllowed' },
@@ -116,15 +114,6 @@ describe('Known Sale Redesign gap cannot grow (closed by the Sale Redesign conve
     { formName: 'saleBuildingLaundryFeatures', field: 'BuildingLaundryFeatures' },
     { formName: 'saleAttendanceType', field: 'AttendanceType' },
   ];
-
-  it('salePetsAllowed adds no non-live PetsAllowed value beyond the known set', () => {
-    const formVals = formValuesForName('salePetsAllowed');
-    expect(formVals.length).toBeGreaterThan(0);
-    const enumSet = liveEnum('PetsAllowed');
-    expect(enumSet.size).toBeGreaterThan(0);
-    const newNonLive = formVals.filter((v) => !enumSet.has(v) && !KNOWN_NON_LIVE_PETS.has(v));
-    expect(newNonLive).toEqual([]);
-  });
 
   it.each(NON_LIVE_FIELDS.map(({ formName, field }) => [formName, field]))(
     'name="%s" still writes "%s", which is not a typed live field',
