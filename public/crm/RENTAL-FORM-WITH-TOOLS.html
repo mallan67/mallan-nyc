@@ -1759,6 +1759,13 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
             <input type="number" id="rentalSqFt" class="field-input" placeholder="850" data-rls-field="LivingArea">
         </div>
         <div>
+            <label class="field-label">Area Units</label>
+            <select id="rentalLivingAreaUnits" class="field-input" data-rls-field="LivingAreaUnits">
+                <option value="SquareFeet">Square Feet</option>
+                <option value="SquareMeters">Square Meters</option>
+            </select>
+        </div>
+        <div>
             <label class="field-label">Floor in Building</label>
             <input type="text" id="rentalFloor" class="field-input" placeholder="3" data-rls-field="EntryLevel">
         </div>
@@ -1801,14 +1808,34 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
             <label class="field-label">Condition</label>
             <select id="rentalCondition" class="field-input" data-rls-field="PropertyCondition">
                 <option value="">Select Condition</option>
+                <option value="Fair" hidden>Fair (earlier list - choose a condition from the list)</option>
+                <option value="AdditionsAlterations">Additions / Alterations</option>
+                <option value="AverageCondition">Average Condition</option>
+                <option value="BelowAverage">Below Average</option>
+                <option value="BuildingPermit">Building Permit</option>
                 <option value="Excellent">Excellent</option>
                 <option value="Fixer">Fixer</option>
-                <option value="Good">Good</option>
-                <option value="Fair">Fair</option>
-                <option value="Poor">Poor</option>
-                <option value="UnderConstruction">Under Construction</option>
+                <option value="GoodCondition">Good Condition</option>
+                <option value="KnownDamage">Known Damage</option>
+                <option value="NeverOccupied">Never Occupied</option>
                 <option value="NewConstruction">New Construction</option>
-                <option value="Updated">Updated/Remodeled</option>
+                <option value="Other">Other</option>
+                <option value="PoorCondition">Poor Condition</option>
+                <option value="RepairsCosmetic">Repairs (Cosmetic)</option>
+                <option value="RepairsMajor">Repairs (Major)</option>
+                <option value="Resale">Resale</option>
+                <option value="SeeDisclosure">See Disclosure</option>
+                <option value="SeeRemarks">See Remarks</option>
+                <option value="ShowsWell">Shows Well</option>
+                <option value="TearDownValueInLand">Tear Down / Value in Land</option>
+                <option value="TermiteClearance">Termite Clearance</option>
+                <option value="ToBeBuilt">To Be Built</option>
+                <option value="Turnkey">Turnkey</option>
+                <option value="UnderConstruction">Under Construction</option>
+                <option value="UnderRenovation">Under Renovation</option>
+                <option value="Unknown">Unknown</option>
+                <option value="UpdatedRemodeled">Updated / Remodeled</option>
+                <option value="VeryGoodCondition">Very Good Condition</option>
             </select>
         </div>
         <div>
@@ -2196,7 +2223,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
         <div>
             <label class="field-label">Lot Size Units <span class="text-red-500">*</span></label>
             <select id="rentalTHLotSizeUnits" class="field-input" required data-rls-field="LotSizeUnits">
-                <option value="SquareFeet">Square Feet</option><option value="SquareMeters">Square Meters</option>
+                <option value="SquareFeet">Square Feet</option><option value="SquareMeters">Square Meters</option><option value="Acres">Acres</option><option value="Hectares">Hectares</option>
             </select>
         </div>
         <div class="col-span-2">

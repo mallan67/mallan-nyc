@@ -113,6 +113,7 @@ body { font-family: Manrope, sans-serif; }
 <script src="js/forms/colist-section.js"></script>
 <script src="js/forms/agent-defaults.js"></script>
 <script src="js/forms/fair-housing.js"></script>
+<script src="js/forms/server-refusal.js"></script>
 <script src="js/forms/building-lookup.js"></script>
 <script src="js/forms/listing-hydration.js"></script>
 <script src="js/forms/listing-open-houses.js"></script>
@@ -891,6 +892,48 @@ body { font-family: Manrope, sans-serif; }
                             <option value="RentalBuilding">Rental Building</option>
                             <option value="None">None</option>
                         </select>
+                    </div>
+
+                    <!-- Cotality SpecialListingConditions (Multi enumeration; REBNY requires it for a Condo, Co-op or Condop) -->
+                    <div class="mt-4 pt-3 border-t" id="saleSpecialListingConditionsBlock">
+                        <label class="field-label mb-2">Special Listing Conditions <span class="text-red-500">*</span></label>
+                        <p class="text-[10px] text-gray-500 mb-2">Provider field: SpecialListingConditions · Choose every condition that applies. Required for a Condo, Co-op or Condop.</p>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="AffordableHousingSubsidy" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Affordable Housing Subsidy</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="AllowanceFlooring" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Allowance (Flooring)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="AllowanceRoofing" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Allowance (Roofing)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Auction" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Auction</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="BankruptcyProperty" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Bankruptcy Property</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="BoardApprovalNotRequired" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Board Approval Not Required</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="BoardApprovalRequired" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Board Approval Required</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="BuilderOwned" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Builder Owned</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Conservatorship" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Conservatorship</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="CorporateListing" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Corporate Listing</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Estate" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Estate</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="GovernmentOwned" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Government Owned</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="GseOwned" class="w-4 h-4" data-rls-field="SpecialListingConditions"> GSE Owned</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="HudOwned" class="w-4 h-4" data-rls-field="SpecialListingConditions"> HUD Owned</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="InForeclosure" class="w-4 h-4" data-rls-field="SpecialListingConditions"> In Foreclosure</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="ListedAsIs" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Listed As-Is</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Model" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Model</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="None" class="w-4 h-4" data-rls-field="SpecialListingConditions"> None</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="NoSmoking" class="w-4 h-4" data-rls-field="SpecialListingConditions"> No Smoking</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="NoticeOfDefault" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Notice of Default</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Other" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Other</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="PetRestrictions" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Pet Restrictions</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="PreForeclosure" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Pre-Foreclosure</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="ProbateListing" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Probate Listing</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="RealEstateOwned" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Real Estate Owned (REO)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Relocation" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Relocation</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Section8Accepted" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Section 8 Accepted</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="SeeAgent" class="w-4 h-4" data-rls-field="SpecialListingConditions"> See Agent</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="SeeRemarks" class="w-4 h-4" data-rls-field="SpecialListingConditions"> See Remarks</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="ShortSale" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Short Sale</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Standard" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Standard</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="ThirdPartyApproval" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Third Party Approval</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Trust" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Trust</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="VaOwned" class="w-4 h-4" data-rls-field="SpecialListingConditions"> VA Owned</label>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1844,14 +1887,34 @@ body { font-family: Manrope, sans-serif; }
                     <label class="field-label">Property Condition</label>
                     <select id="saleCondition" class="field-input" data-rls-field="PropertyCondition">
                         <option value="">Select Condition</option>
+                        <option value="Fair" hidden>Fair (earlier list - choose a condition from the list)</option>
+                        <option value="AdditionsAlterations">Additions / Alterations</option>
+                        <option value="AverageCondition">Average Condition</option>
+                        <option value="BelowAverage">Below Average</option>
+                        <option value="BuildingPermit">Building Permit</option>
                         <option value="Excellent">Excellent</option>
                         <option value="Fixer">Fixer</option>
-                        <option value="Good">Good</option>
-                        <option value="Fair">Fair</option>
-                        <option value="Poor">Poor</option>
-                        <option value="UnderConstruction">Under Construction</option>
+                        <option value="GoodCondition">Good Condition</option>
+                        <option value="KnownDamage">Known Damage</option>
+                        <option value="NeverOccupied">Never Occupied</option>
                         <option value="NewConstruction">New Construction</option>
-                        <option value="Updated">Updated/Remodeled</option>
+                        <option value="Other">Other</option>
+                        <option value="PoorCondition">Poor Condition</option>
+                        <option value="RepairsCosmetic">Repairs (Cosmetic)</option>
+                        <option value="RepairsMajor">Repairs (Major)</option>
+                        <option value="Resale">Resale</option>
+                        <option value="SeeDisclosure">See Disclosure</option>
+                        <option value="SeeRemarks">See Remarks</option>
+                        <option value="ShowsWell">Shows Well</option>
+                        <option value="TearDownValueInLand">Tear Down / Value in Land</option>
+                        <option value="TermiteClearance">Termite Clearance</option>
+                        <option value="ToBeBuilt">To Be Built</option>
+                        <option value="Turnkey">Turnkey</option>
+                        <option value="UnderConstruction">Under Construction</option>
+                        <option value="UnderRenovation">Under Renovation</option>
+                        <option value="Unknown">Unknown</option>
+                        <option value="UpdatedRemodeled">Updated / Remodeled</option>
+                        <option value="VeryGoodCondition">Very Good Condition</option>
                     </select>
                 </div>
             </div>
@@ -2662,7 +2725,8 @@ body { font-family: Manrope, sans-serif; }
                     <select id="saleTHLotSizeUnits" class="field-input" required data-rls-field="LotSizeUnits">
                         <option value="SquareFeet">Square Feet</option>
                         <option value="SquareMeters">Square Meters</option>
-                        <option value="SquareFeet">Square Feet (Acres N/A)</option>
+                        <option value="Acres">Acres</option>
+                        <option value="Hectares">Hectares</option>
                     </select>
                 </div>
                 <div class="col-span-2">
@@ -7144,6 +7208,9 @@ function _numberOrNull(value, whole) {
 
 function collectSaleFormData() {
     var data = { listing_type: 'sale' };
+    // The county box is a read-only view of the borough: bring it up to date before the sweep reads it (the address lookup and a stored listing set the borough without a change event).
+    var _boroughBox = document.getElementById('saleBorough'), _countyBox = document.getElementById('saleCountyOrParish');
+    if (_boroughBox && _countyBox && BOROUGH_TO_COUNTY[_boroughBox.value]) _countyBox.value = BOROUGH_TO_COUNTY[_boroughBox.value];
     // `add-sales-listing` was the legacy shell container — doesn't exist in
     // the redesigned form. `.flex-1` is the real container used in the shell.
     var container = document.querySelector('.flex-1');
@@ -7206,6 +7273,9 @@ function collectSaleFormData() {
     data.BathroomsHalf = _numberOrNull(data.saleHalfBaths, true);
     data.BathroomsTotal = (data.BathroomsFull === null && data.BathroomsHalf === null) ? null : (data.BathroomsFull || 0) + ((data.BathroomsHalf || 0) * 0.5);
     data.LivingArea = _numberOrNull(data.saleUnitSqFt || data.saleLivingArea || data.saleInteriorSqFt, false);
+    // The unit of an area travels with the area, under the name Cotality gives it (the create gate reads the body as the form sent it, before any alias is applied): a box
+    // nobody gave an area to asserts no unit.
+    if (data.LivingArea !== null && data.saleLivingAreaUnits) data.LivingAreaUnits = data.saleLivingAreaUnits;
     data.StreetNumber = data.saleStreetNumber || '';
     data.StreetName = data.saleStreetName || '';
     data.StreetSuffix = data.saleStreetSuffix || '';
@@ -7518,6 +7588,16 @@ function collectSaleFormData() {
     // Map remaining RLS field names from CRM element IDs
     data.CountyOrParish = data.saleCountyOrParish || '';
     data.PostalCity = data.salePostalCity || '';
+    // PropertyCondition is a live Cotality enumeration (Multi): the box lists its members and what it holds is sent as a one-member list. A value from before the list was the live one
+    // is sent as the member of the same name (Good, Poor, Updated); one with no member (Fair) is not sent as one, and the gate asks the agent for a condition.
+    var _condition = typeof MallanListingHydration !== 'undefined' ? MallanListingHydration.propertyCondition(data.saleCondition) : '';
+    if (_condition) data.PropertyCondition = [_condition];
+    // SpecialListingConditions (live, Multi): the boxes the agent ticked, as a list (the boxes share one name and have no ids, so the sweep above kept only the last one's state).
+    // Nothing ticked is no answer, so the key is left out and the gate asks for it (an empty list would count as an answer).
+    var _special = [];
+    document.querySelectorAll('input[name="saleSpecialListingConditions"]:checked').forEach(function(cb) { _special.push(cb.value); });
+    if (_special.length) data.SpecialListingConditions = _special;
+    delete data.saleSpecialListingConditions;
     data.RoomsTotal = parseInt(data.saleTotalRooms || '0') || null;
     data.Concessions = data.saleConcessions || '';
     data.NewConstructionYN = data.saleBldgNewConstruction === true || data.saleBldgNewConstruction === 'true';
@@ -7581,6 +7661,7 @@ function collectSaleFormData() {
     data.EntryLevel = data.saleFloorInBuilding || '';
     data.Stories = parseInt(data.saleTHStories || '0') || null;
     data.BuildingAreaTotal = _numberOrNull(data.saleTHBuildingArea, false);
+    if (data.BuildingAreaTotal !== null && data.saleTHBuildingAreaUnits) data.BuildingAreaUnits = data.saleTHBuildingAreaUnits;
     data.Levels = data.saleTHLevels || '';
     data.ZoningDescription = data.saleTHZoning || '';
     data.GarageSpaces = parseInt(data.saleTHGarageSpaces || '0') || null;
@@ -7589,6 +7670,7 @@ function collectSaleFormData() {
     var _BasementYN = _answerOrUndefined(data.saleTHBasementYN);
     if (_BasementYN !== undefined) data.BasementYN = _BasementYN;
     data.LotSizeArea = _numberOrNull(data.saleTHLotSize, false);
+    if (data.LotSizeArea !== null && data.saleTHLotSizeUnits) data.LotSizeUnits = data.saleTHLotSizeUnits;
 
     // Building fields
     // YearRenovated phantom emit removed (Cotality-clean 2026-05-30): not in live
@@ -8081,12 +8163,13 @@ async function manualSaveDraft() {
                 recoveryDiv.appendChild(recoveryRow);
                 setTimeout(function() { var el = document.getElementById('saleDraftRecovery'); if (el) el.remove(); }, 15000);
             } catch (err) {
-                var why = err && err.message;
+                var why = _saleWhy(err);
                 if (saved) {
                     // The CRM has the draft: a step of the page's own failed after that (the photos, the recovery panel)
                     showToast('The draft was saved as ' + (listingId || 'a listing') + ', but a later step failed: ' + (why || 'an error') + '. Open the listing to check it.', 'warning', 20000);
                 } else if (_saleRefused(err)) {
                     showToast('Save failed: ' + (why || 'the server did not accept the draft'), 'error');
+                    if (typeof MallanServerRefusal !== 'undefined') MallanServerRefusal.mark(err);
                     _saleShowSaveState('Not saved to the CRM', 'failed');
                 } else if (dbId || listingId) {
                     showToast('The CRM did not confirm that the changes were saved: ' + (why || 'no answer') + '. The form still holds your changes; press Save Changes again.', 'error', 15000);
@@ -8907,6 +8990,11 @@ function _saleRefused(err) {
     return status >= 400 && status < 500 && status !== 408;
 }
 
+// What a failed request tells the agent: the server's message and, for a refusal, the boxes it names (js/forms/server-refusal.js: "Listing blocked by RLS enforcement gate: Special Listing Conditions").
+function _saleWhy(err) {
+    return _saleRefused(err) && typeof MallanServerRefusal !== 'undefined' ? MallanServerRefusal.words(err) : err && err.message;
+}
+
 // Whether the CRM client has what a save needs. When it has not (it did not load), the request is never sent: that is known, not unknown.
 function _saleCanSend() {
     return typeof MallanAPI !== 'undefined' && !!MallanAPI.listings && typeof MallanAPI.listings.create === 'function' && typeof MallanAPI.listings.update === 'function';
@@ -8928,11 +9016,12 @@ function _saleKeepBrowserCopy() {
 // The submit failed. A refusal: nothing was saved there. Otherwise it is not known whether the listing was saved: a new listing must be looked for before it is submitted again (it could be created twice),
 // and the changes of a saved listing can simply be sent again. The form still holds everything the agent entered, and a new listing is kept in this browser as well.
 function _saleSubmitFailed(err, creating) {
-    var why = err && err.message;
+    var why = _saleWhy(err);
     var kept = creating && _saleKeepBrowserCopy();
     var holds = 'the form still holds everything you entered' + (kept ? ', and a copy is kept in this browser.' : '.');
     if (_saleRefused(err)) {
         showToast((creating ? 'Submission failed: ' : 'Update failed: ') + (why || 'the server did not accept the listing') + '. Nothing was saved to the CRM; ' + holds, 'error');
+        if (typeof MallanServerRefusal !== 'undefined') MallanServerRefusal.mark(err);
     } else if (creating) {
         showToast('The CRM did not confirm whether the listing was saved: ' + (why || 'no answer') + '. Check My Listings for this address before submitting it again; ' + holds, 'error', 15000);
     } else {
@@ -9144,7 +9233,7 @@ var SALE_FIELD_MAP = [
   { rls: 'saleTHNumBuildings', form: 'saleTHNumBuildings', type: 'number', src: 'raw' },
   { rls: 'saleTHLotDimensions', form: 'saleTHLotDimensions', type: 'text', src: 'raw' },
   { rls: 'saleTHLotFeatures', form: 'saleTHLotFeatures', type: 'text', src: 'raw' },
-  { rls: 'saleTHLotSizeUnits', form: 'saleTHLotSizeUnits', type: 'text', src: 'raw' },
+  { rls: 'LotSizeUnits', form: 'saleTHLotSizeUnits', type: 'text', src: 'raw', fallbackRls: 'saleTHLotSizeUnits' },
   { rls: 'saleTHLotSizeSource', form: 'saleTHLotSizeSource', type: 'text', src: 'raw' },
   { rls: 'saleTHGrossSqFt', form: 'saleTHGrossSqFt', type: 'number', src: 'raw' },
   { rls: 'saleTHNetSqFt', form: 'saleTHNetSqFt', type: 'number', src: 'raw' },
@@ -9159,7 +9248,7 @@ var SALE_FIELD_MAP = [
   { rls: 'saleTHOpenParkingYN', form: 'saleTHOpenParkingYN', type: 'text', src: 'raw' },
   { rls: 'saleTHOpenSpaces', form: 'saleTHOpenSpaces', type: 'number', src: 'raw' },
   { rls: 'saleTHLandmark', form: 'saleTHLandmark', type: 'text', src: 'raw' },
-  { rls: 'saleTHBuildingAreaUnits', form: 'saleTHBuildingAreaUnits', type: 'text', src: 'raw' },
+  { rls: 'BuildingAreaUnits', form: 'saleTHBuildingAreaUnits', type: 'text', src: 'raw', fallbackRls: 'saleTHBuildingAreaUnits' },
   { rls: 'saleTHCommercialYN', form: 'saleTHCommercialYN', type: 'text', src: 'raw' },
   { rls: 'saleTHDevStatus', form: 'saleTHDevStatus', type: 'text', src: 'raw' },
   { rls: 'saleTHCapRate', form: 'saleTHCapRate', type: 'number', src: 'raw' },
@@ -9168,13 +9257,15 @@ var SALE_FIELD_MAP = [
   { rls: 'saleTHVacantUnits', form: 'saleTHVacantUnits', type: 'number', src: 'raw' },
 
   // ── Unit additional ──
-  { rls: 'saleCondition', form: 'saleCondition', type: 'text', src: 'raw' },
+  // PropertyCondition is a live Cotality enumeration: a record that holds it (a synced listing, or one saved since the list was the live one) shows its member; one saved before it
+  // holds the old word, shown as the member of the same name (see propertyCondition in js/forms/listing-hydration.js)
+  { rls: 'PropertyCondition', form: 'saleCondition', type: 'text', src: 'raw', fallbackRls: 'saleCondition', firstOfList: true, valueMap: { Good: 'GoodCondition', Poor: 'PoorCondition', Updated: 'UpdatedRemodeled' } },
   { rls: 'saleInteriorSqFt', form: 'saleInteriorSqFt', type: 'number', src: 'raw' },
   { rls: 'saleExteriorSqFt', form: 'saleExteriorSqFt', type: 'number', src: 'raw' },
   { rls: 'saleLineInBuilding', form: 'saleLineInBuilding', type: 'text', src: 'raw' },
   { rls: 'saleUnitShares', form: 'saleUnitShares', type: 'number', src: 'raw' },
   { rls: 'salePercentCommon', form: 'salePercentCommon', type: 'number', src: 'raw' },
-  { rls: 'saleLivingAreaUnits', form: 'saleLivingAreaUnits', type: 'text', src: 'raw' },
+  { rls: 'LivingAreaUnits', form: 'saleLivingAreaUnits', type: 'text', src: 'raw', fallbackRls: 'saleLivingAreaUnits' },
 
   // ── Selects not yet mapped ──
   { rls: 'saleStructureType', form: 'saleStructureType', type: 'text', src: 'raw' },
@@ -9312,6 +9403,7 @@ var SALE_CHECKBOX_ARRAY_MAP = [
   { rls: 'BuildingLaundryFeatures', name: 'saleBuildingLaundryFeatures' },
   { rls: 'Heating', name: 'saleHeating' },
   { rls: 'Cooling', name: 'saleCooling' },
+  { rls: 'SpecialListingConditions', name: 'saleSpecialListingConditions' },
   { rls: 'saleCommSubtype', name: 'saleCommSubtype' },
   // ── Class B (2026-05-28) ──
   // 5 named checkbox groups whose data was lost at save time (no array
@@ -9717,6 +9809,10 @@ function _populateSaleFormFromApi(listing) {
         if ((val === undefined || val === null || val === '') && f.fallbackRls) {
             val = raw[f.fallbackRls];
         }
+        if (val === undefined || val === null) return;
+        // A Multi enumeration shown by one control (PropertyCondition) shows its first member; a value the row maps (the box's earlier words) is shown as the member it stands for
+        if (f.firstOfList && Array.isArray(val)) val = val[0];
+        if (f.valueMap && Object.prototype.hasOwnProperty.call(f.valueMap, val)) val = f.valueMap[val];
         if (val === undefined || val === null) return;
 
         if (f.type === 'date') {

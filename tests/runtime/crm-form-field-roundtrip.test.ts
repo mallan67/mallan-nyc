@@ -42,6 +42,8 @@ describe('CRM form save/load field parity', () => {
         //   - sale-form-all-radio-checkbox-coverage.test.ts (this PR — full
         //     parametrized inventory + restore-map contract for ALL groups)
         'Heating', 'Cooling', 'SyndicateTo',
+        // SpecialListingConditions is a Multi enumeration (a checkbox group): restored through its SALE_CHECKBOX_ARRAY_MAP entry like Heating and Cooling.
+        'SpecialListingConditions',
         'BuildingHeating', 'BuildingCooling',
         // 'View' is the canonical Cotality array mirror (audit F7, 2026-05-30),
         // emitted from saleViewList for the server-side RLS conditional

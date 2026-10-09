@@ -791,6 +791,47 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                                 <option value="None">None</option>
                             </select>
                         </div>
+                        <!-- Cotality SpecialListingConditions (Multi enumeration; REBNY requires it for a Condo, Co-op or Condop) -->
+                        <div class="col-span-full mt-2" id="saleSpecialListingConditionsBlock">
+                            <label class="field-label mb-2">Special Listing Conditions <span class="text-red-500">*</span></label>
+                            <p class="text-[10px] text-gray-500 mb-2">Provider field: SpecialListingConditions · Required for a Condo, Co-op or Condop.</p>
+                            <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="AffordableHousingSubsidy" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Affordable Housing Subsidy</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="AllowanceFlooring" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Allowance (Flooring)</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="AllowanceRoofing" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Allowance (Roofing)</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Auction" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Auction</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="BankruptcyProperty" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Bankruptcy Property</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="BoardApprovalNotRequired" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Board Approval Not Required</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="BoardApprovalRequired" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Board Approval Required</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="BuilderOwned" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Builder Owned</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Conservatorship" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Conservatorship</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="CorporateListing" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Corporate Listing</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Estate" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Estate</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="GovernmentOwned" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Government Owned</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="GseOwned" class="w-4 h-4" data-rls-field="SpecialListingConditions"> GSE Owned</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="HudOwned" class="w-4 h-4" data-rls-field="SpecialListingConditions"> HUD Owned</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="InForeclosure" class="w-4 h-4" data-rls-field="SpecialListingConditions"> In Foreclosure</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="ListedAsIs" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Listed As-Is</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Model" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Model</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="None" class="w-4 h-4" data-rls-field="SpecialListingConditions"> None</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="NoSmoking" class="w-4 h-4" data-rls-field="SpecialListingConditions"> No Smoking</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="NoticeOfDefault" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Notice of Default</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Other" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Other</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="PetRestrictions" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Pet Restrictions</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="PreForeclosure" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Pre-Foreclosure</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="ProbateListing" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Probate Listing</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="RealEstateOwned" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Real Estate Owned (REO)</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Relocation" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Relocation</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Section8Accepted" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Section 8 Accepted</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="SeeAgent" class="w-4 h-4" data-rls-field="SpecialListingConditions"> See Agent</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="SeeRemarks" class="w-4 h-4" data-rls-field="SpecialListingConditions"> See Remarks</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="ShortSale" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Short Sale</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Standard" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Standard</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="ThirdPartyApproval" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Third Party Approval</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Trust" class="w-4 h-4" data-rls-field="SpecialListingConditions"> Trust</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="VaOwned" class="w-4 h-4" data-rls-field="SpecialListingConditions"> VA Owned</label>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1736,14 +1777,34 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <label class="field-label">Property Condition</label>
                     <select id="saleCondition" class="field-input" data-rls-field="PropertyCondition">
                         <option value="">Select Condition</option>
+                        <option value="Fair" hidden>Fair (earlier list - choose a condition from the list)</option>
+                        <option value="AdditionsAlterations">Additions / Alterations</option>
+                        <option value="AverageCondition">Average Condition</option>
+                        <option value="BelowAverage">Below Average</option>
+                        <option value="BuildingPermit">Building Permit</option>
                         <option value="Excellent">Excellent</option>
                         <option value="Fixer">Fixer</option>
-                        <option value="Good">Good</option>
-                        <option value="Fair">Fair</option>
-                        <option value="Poor">Poor</option>
-                        <option value="UnderConstruction">Under Construction</option>
+                        <option value="GoodCondition">Good Condition</option>
+                        <option value="KnownDamage">Known Damage</option>
+                        <option value="NeverOccupied">Never Occupied</option>
                         <option value="NewConstruction">New Construction</option>
-                        <option value="Updated">Updated/Remodeled</option>
+                        <option value="Other">Other</option>
+                        <option value="PoorCondition">Poor Condition</option>
+                        <option value="RepairsCosmetic">Repairs (Cosmetic)</option>
+                        <option value="RepairsMajor">Repairs (Major)</option>
+                        <option value="Resale">Resale</option>
+                        <option value="SeeDisclosure">See Disclosure</option>
+                        <option value="SeeRemarks">See Remarks</option>
+                        <option value="ShowsWell">Shows Well</option>
+                        <option value="TearDownValueInLand">Tear Down / Value in Land</option>
+                        <option value="TermiteClearance">Termite Clearance</option>
+                        <option value="ToBeBuilt">To Be Built</option>
+                        <option value="Turnkey">Turnkey</option>
+                        <option value="UnderConstruction">Under Construction</option>
+                        <option value="UnderRenovation">Under Renovation</option>
+                        <option value="Unknown">Unknown</option>
+                        <option value="UpdatedRemodeled">Updated / Remodeled</option>
+                        <option value="VeryGoodCondition">Very Good Condition</option>
                     </select>
                 </div>
             </div>
@@ -2548,7 +2609,8 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <select id="saleTHLotSizeUnits" class="field-input" required data-rls-field="LotSizeUnits">
                         <option value="SquareFeet">Square Feet</option>
                         <option value="SquareMeters">Square Meters</option>
-                        <option value="SquareFeet">Square Feet (Acres N/A)</option>
+                        <option value="Acres">Acres</option>
+                        <option value="Hectares">Hectares</option>
                     </select>
                 </div>
                 <div class="col-span-2">

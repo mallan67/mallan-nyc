@@ -21,6 +21,22 @@
 (function (global) {
   'use strict';
 
+  // PropertyCondition is a Multi enumeration of the live Cotality Property resource; these are its members (tests/runtime/crm-form-create-gate.test.ts pins both forms' lists to
+  // data/cotality-enums.live.json). The forms' Condition box lists them and sends the one chosen as a one-member list.
+  var PROPERTY_CONDITION = [
+    'AdditionsAlterations', 'AverageCondition', 'BelowAverage', 'BuildingPermit', 'Excellent', 'Fixer', 'GoodCondition', 'KnownDamage', 'NeverOccupied', 'NewConstruction', 'Other',
+    'PoorCondition', 'RepairsCosmetic', 'RepairsMajor', 'Resale', 'SeeDisclosure', 'SeeRemarks', 'ShowsWell', 'TearDownValueInLand', 'TermiteClearance', 'ToBeBuilt', 'Turnkey',
+    'UnderConstruction', 'UnderRenovation', 'Unknown', 'UpdatedRemodeled', 'VeryGoodCondition',
+  ];
+  // What the Condition box held before its list was the live one, where the live list has the member of the same name. "Fair" has none: it is kept as it was and not sent.
+  var PROPERTY_CONDITION_LEGACY = { Good: 'GoodCondition', Poor: 'PoorCondition', Updated: 'UpdatedRemodeled' };
+  // The live member a Condition box's value stands for, or '' (nothing chosen, or a value that is no member).
+  function propertyCondition(value) {
+    var v = value === undefined || value === null ? '' : String(value).trim();
+    if (PROPERTY_CONDITION.indexOf(v) >= 0) return v;
+    return Object.prototype.hasOwnProperty.call(PROPERTY_CONDITION_LEGACY, v) ? PROPERTY_CONDITION_LEGACY[v] : '';
+  }
+
   // ── Sale: VERBATIM copies of the Sale form's own save <-> load tables (public/crm/SALE-FORM-REDESIGN.html) ───────────────────────
   // Do not edit here: change the form, then copy. tests/runtime/crm-tools-viewer-hydration.test.ts compares these row by row.
   var SALE_FIELD_MAP = [
@@ -143,7 +159,7 @@
     { rls: 'saleTHNumBuildings', form: 'saleTHNumBuildings', type: 'number', src: 'raw' },
     { rls: 'saleTHLotDimensions', form: 'saleTHLotDimensions', type: 'text', src: 'raw' },
     { rls: 'saleTHLotFeatures', form: 'saleTHLotFeatures', type: 'text', src: 'raw' },
-    { rls: 'saleTHLotSizeUnits', form: 'saleTHLotSizeUnits', type: 'text', src: 'raw' },
+    { rls: 'LotSizeUnits', form: 'saleTHLotSizeUnits', type: 'text', src: 'raw', fallbackRls: 'saleTHLotSizeUnits' },
     { rls: 'saleTHLotSizeSource', form: 'saleTHLotSizeSource', type: 'text', src: 'raw' },
     { rls: 'saleTHGrossSqFt', form: 'saleTHGrossSqFt', type: 'number', src: 'raw' },
     { rls: 'saleTHNetSqFt', form: 'saleTHNetSqFt', type: 'number', src: 'raw' },
@@ -158,7 +174,7 @@
     { rls: 'saleTHOpenParkingYN', form: 'saleTHOpenParkingYN', type: 'text', src: 'raw' },
     { rls: 'saleTHOpenSpaces', form: 'saleTHOpenSpaces', type: 'number', src: 'raw' },
     { rls: 'saleTHLandmark', form: 'saleTHLandmark', type: 'text', src: 'raw' },
-    { rls: 'saleTHBuildingAreaUnits', form: 'saleTHBuildingAreaUnits', type: 'text', src: 'raw' },
+    { rls: 'BuildingAreaUnits', form: 'saleTHBuildingAreaUnits', type: 'text', src: 'raw', fallbackRls: 'saleTHBuildingAreaUnits' },
     { rls: 'saleTHCommercialYN', form: 'saleTHCommercialYN', type: 'text', src: 'raw' },
     { rls: 'saleTHDevStatus', form: 'saleTHDevStatus', type: 'text', src: 'raw' },
     { rls: 'saleTHCapRate', form: 'saleTHCapRate', type: 'number', src: 'raw' },
@@ -167,13 +183,15 @@
     { rls: 'saleTHVacantUnits', form: 'saleTHVacantUnits', type: 'number', src: 'raw' },
 
     // ── Unit additional ──
-    { rls: 'saleCondition', form: 'saleCondition', type: 'text', src: 'raw' },
+    // PropertyCondition is a live Cotality enumeration: a record that holds it (a synced listing, or one saved since the list was the live one) shows its member; one saved before it
+    // holds the old word, shown as the member of the same name (see propertyCondition below)
+    { rls: 'PropertyCondition', form: 'saleCondition', type: 'text', src: 'raw', fallbackRls: 'saleCondition', firstOfList: true, valueMap: { Good: 'GoodCondition', Poor: 'PoorCondition', Updated: 'UpdatedRemodeled' } },
     { rls: 'saleInteriorSqFt', form: 'saleInteriorSqFt', type: 'number', src: 'raw' },
     { rls: 'saleExteriorSqFt', form: 'saleExteriorSqFt', type: 'number', src: 'raw' },
     { rls: 'saleLineInBuilding', form: 'saleLineInBuilding', type: 'text', src: 'raw' },
     { rls: 'saleUnitShares', form: 'saleUnitShares', type: 'number', src: 'raw' },
     { rls: 'salePercentCommon', form: 'salePercentCommon', type: 'number', src: 'raw' },
-    { rls: 'saleLivingAreaUnits', form: 'saleLivingAreaUnits', type: 'text', src: 'raw' },
+    { rls: 'LivingAreaUnits', form: 'saleLivingAreaUnits', type: 'text', src: 'raw', fallbackRls: 'saleLivingAreaUnits' },
 
     // ── Selects not yet mapped ──
     { rls: 'saleStructureType', form: 'saleStructureType', type: 'text', src: 'raw' },
@@ -310,6 +328,7 @@
     { rls: 'BuildingLaundryFeatures', name: 'saleBuildingLaundryFeatures' },
     { rls: 'Heating', name: 'saleHeating' },
     { rls: 'Cooling', name: 'saleCooling' },
+    { rls: 'SpecialListingConditions', name: 'saleSpecialListingConditions' },
     { rls: 'saleCommSubtype', name: 'saleCommSubtype' },
     // ── Class B (2026-05-28) ──
     // 5 named checkbox groups whose data was lost at save time (no array
@@ -442,11 +461,13 @@
     { rls: 'BathroomsFull', form: 'rentalFullBathrooms', type: 'number', src: 'listing', listingKey: 'bathrooms_full' },
     { rls: 'BathroomsHalf', form: 'rentalHalfBathrooms', type: 'number', src: 'listing', listingKey: 'bathrooms_half' },
     { rls: 'LivingArea', form: 'rentalSqFt', type: 'number', src: 'listing', listingKey: 'living_area' },
+    { rls: 'LivingAreaUnits', form: 'rentalLivingAreaUnits', type: 'text', src: 'raw' },
     { rls: 'RoomsTotal', form: 'rentalTotalRooms', type: 'number', src: 'raw' },
     { rls: 'SecurityDeposit', form: 'rentalSecurityDeposit', type: 'number', src: 'raw' },
     { rls: 'EntryLevel', form: 'rentalFloor', type: 'text', src: 'raw' },
     { rls: 'Concessions', form: 'rentalConcessions', type: 'text', src: 'raw' },
     { rls: 'Furnished', form: 'rentalFurnished', type: 'text', src: 'raw' },
+    { rls: 'PropertyCondition', form: 'rentalCondition', type: 'text', src: 'raw', fallbackRls: 'rentalCondition', firstOfList: true, valueMap: PROPERTY_CONDITION_LEGACY },
     // Address (the street line is composed separately)
     { rls: 'UnitNumber', form: 'rentalUnitNumber', type: 'text', src: 'addr' },
     { rls: 'City', form: 'rentalCity', type: 'text', src: 'addr' },
@@ -470,12 +491,14 @@
     // Townhouse / building detail
     { rls: 'Stories', form: 'rentalTHStories', type: 'number', src: 'raw' },
     { rls: 'BuildingAreaTotal', form: 'rentalTHBuildingArea', type: 'number', src: 'raw' },
+    { rls: 'BuildingAreaUnits', form: 'rentalTHBuildingAreaUnits', type: 'text', src: 'raw' },
     { rls: 'Levels', form: 'rentalTHLevels', type: 'text', src: 'raw' },
     { rls: 'ZoningDescription', form: 'rentalTHZoning', type: 'text', src: 'raw' },
     { rls: 'GarageSpaces', form: 'rentalTHGarageSpaces', type: 'number', src: 'raw' },
     { rls: 'ParkingTotal', form: 'rentalTHParkingTotal', type: 'number', src: 'raw' },
     { rls: 'FoundationArea', form: 'rentalTHFoundationArea', type: 'number', src: 'raw' },
     { rls: 'LotSizeArea', form: 'rentalTHLotSize', type: 'number', src: 'raw' },
+    { rls: 'LotSizeUnits', form: 'rentalTHLotSizeUnits', type: 'text', src: 'raw' },
     // Building modal
     { rls: 'BuildingName', form: 'bldgName', type: 'text', src: 'raw' },
     { rls: 'StructureType', form: 'bldgType', type: 'text', src: 'raw' },
@@ -656,6 +679,8 @@
     // select) is a lossy summary of what the agent chose: the control's own saved value is restored by the control-keyed pass instead.
     if (f.type === 'bool' || f.type === 'checked') return;
     if (f.type === 'date') val = dateText(val);
+    // a value the row maps (the box's earlier words) is shown as the member it stands for
+    if (f.valueMap && Object.prototype.hasOwnProperty.call(f.valueMap, val)) val = f.valueMap[val];
     // The typed column holds a number ("6") where the select offers "6+": the saved control value is the more exact display of the same fact.
     var own = raw[f.form];
     if (el.tagName === 'SELECT' && typeof own === 'string' && own.replace(/\+$/, '') === String(val)) val = own;
@@ -972,6 +997,7 @@
     cfg.fields.forEach(function (f) {
       if (sessionOwned(cfg, f.form) || (edit && agentOwned(cfg, f.form))) return;      // the signed-in agent's identity is never the record's; the pickers are written by the agent module from the agent the listing carries (a draft's copy can be another agent's)
       var val = fieldValue(f, listing, raw, addr, features, agentInfo);
+      if (f.firstOfList && Array.isArray(val)) val = val[0];      // a Multi enumeration shown by one control (PropertyCondition) shows its first member
       if (isBlank(val) || !isPrimitive(val)) return;
       applyField(f, val, touched, raw);
     });
@@ -1011,6 +1037,8 @@
 
   global.MallanListingHydration = {
     hydrate: hydrate,
+    propertyCondition: propertyCondition,
+    PROPERTY_CONDITION: PROPERTY_CONDITION,
     coListRows: coListRows,
     streetLine: function (listing) { listing = asObject(listing); return streetLine(asObject(listing.address), asObject(listing.raw_data)); },
     tables: {

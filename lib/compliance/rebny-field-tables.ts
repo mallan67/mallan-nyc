@@ -81,12 +81,12 @@ export const REBNY_FIELD_TABLES = {
       // fallbackRls; it is NOT the mandatory authority.
       'TaxLot',
       'TaxBlock',
-      'ElevatorsTotal',
+      // ElevatorsTotal and NewDevelopmentYN were reclassified the same way (2026-10-09): neither is in live Cotality $metadata (the Sale form already
+      // keeps both internal and sends neither), so a gate that required them refused every Sale listing. Their values persist under the forms' own keys.
       'GarageYN',
       'NumberOfUnitsTotal',
       'StoriesTotal',
       'NewConstructionYN',
-      'NewDevelopmentYN',
       'YearBuilt',
 
       // Unit info
@@ -402,24 +402,22 @@ export const REBNY_FIELD_TABLES = {
   // ═══════════════════════════════════════════════════════════════════════════
   // 6. CONDITIONAL RULES — field requirements that apply when a rule's conditions match.
   //    Each rule: when conditions match, these additional fields are required.
-  //    85 conditional fields organized into logical rule groups.
+  //    A rule may name only fields of the live Cotality Property resource (data/cotality-enums.live.json): a field Cotality does not have can never be
+  //    sent, so a rule that required it refused every listing it applied to (the 19 rules and the fields of 4 more that did were removed 2026-10-09).
+  //    lib/compliance/__tests__/rebny-field-tables-live-parity.test.ts pins it.
   // ═══════════════════════════════════════════════════════════════════════════
 
   conditionalRules: [
     // ── Condo / Co-op / Condop financial fields ──
     {
       code: 'CONDO-COOP-001',
-      description: 'Condo/Co-op/Condop require financial disclosures',
+      description: 'Condo/Co-op/Condop require AssociationFee and SpecialListingConditions',
       appliesWhen: {
         PropertyType: ['Residential'],
         CommonInterest: ['Condominium', 'StockCooperative', 'Condop'],
       },
       requireFields: [
         'AssociationFee',
-        'FlipTax',
-        'MaximumFinancingPercent',
-        'MaximumFinancingRemarks',
-        'TaxAbatementYN',
         'SpecialListingConditions',
       ],
     },
@@ -434,28 +432,15 @@ export const REBNY_FIELD_TABLES = {
       requireFields: ['AssociationFeeFrequency'],
     },
 
-    // ── Co-op / Condop only ──
-    {
-      code: 'COOP-001',
-      description: 'Co-op/Condop require NumberOfShares',
-      appliesWhen: {
-        PropertyType: ['Residential'],
-        CommonInterest: ['StockCooperative', 'Condop'],
-      },
-      requireFields: ['NumberOfShares'],
-    },
-
     // ── Condo only ──
     {
       code: 'CONDO-001',
-      description: 'Condo requires PercentOfCommonElements, TaxMonthlyAmount, LivingArea, TaxLot',
+      description: 'Condo requires LivingArea and TaxLot',
       appliesWhen: {
         PropertyType: ['Residential'],
         CommonInterest: ['Condominium'],
       },
       requireFields: [
-        'PercentOfCommonElements',
-        'TaxMonthlyAmount',
         'LivingArea',
         'TaxLot',
       ],
@@ -484,24 +469,14 @@ export const REBNY_FIELD_TABLES = {
     // ── Rental ──
     {
       code: 'RENTAL-001',
-      description: 'Rentals require AvailabilityDate, Furnished, MinLeaseMonths',
+      description: 'Rentals require AvailabilityDate and Furnished',
       appliesWhen: {
         PropertyType: ['ResidentialLease'],
       },
       requireFields: [
         'AvailabilityDate',
         'Furnished',
-        'MinLeaseMonths',
       ],
-    },
-    {
-      code: 'RENTAL-002',
-      description: 'Rental buildings require LeaseType',
-      appliesWhen: {
-        PropertyType: ['ResidentialLease'],
-        CommonInterest: ['RentalBuilding'],
-      },
-      requireFields: ['LeaseType'],
     },
 
     // ── Status-dependent ──
@@ -523,14 +498,13 @@ export const REBNY_FIELD_TABLES = {
     },
     {
       code: 'CLOSED-001',
-      description: 'Closed requires CloseDate, ClosePrice, BuyerAgentRLSParticipantYN',
+      description: 'Closed requires CloseDate and ClosePrice',
       appliesWhen: {
         MlsStatus: ['Closed'],
       },
       requireFields: [
         'CloseDate',
         'ClosePrice',
-        'BuyerAgentRLSParticipantYN',
       ],
     },
     {
@@ -566,49 +540,6 @@ export const REBNY_FIELD_TABLES = {
       requireFields: ['OffMarketDate'],
     },
 
-    // ── Buyer agent (non-RLS participant at close) ──
-    {
-      code: 'BUYER-NONRLS-001',
-      description: 'Non-RLS buyer agent at close requires full contact info',
-      appliesWhen: {
-        BuyerAgentRLSParticipantYN: [false],
-      },
-      requireFields: [
-        'BuyerAgentFullName',
-        'BuyerAgentDirectPhone',
-        'BuyerAgentEmail',
-        'BuyerAgentStateLicense',
-        'BuyerOfficeName',
-        'BuyerOfficePhone',
-      ],
-    },
-
-    // ── Tax abatement sub-conditionals ──
-    {
-      code: 'TAXABATE-001',
-      description: 'Tax abatement details required if TaxAbatementYN = true',
-      appliesWhen: {
-        TaxAbatementYN: [true],
-      },
-      requireFields: [
-        'TaxAbatementComments',
-        'TaxAbatementExpirationYear',
-      ],
-    },
-
-    // ── FlipTax sub-conditionals ──
-    {
-      code: 'FLIPTAX-001',
-      description: 'FlipTax details required if FlipTax > 0',
-      appliesWhen: {
-        FlipTax: { gt: 0 },
-      },
-      requireFields: [
-        'FlipTaxType',
-        'FlipTaxRemarks',
-      ],
-    },
-
     // ── Concessions sub-conditionals ──
     {
       code: 'CONCESSIONS-001',
@@ -619,20 +550,6 @@ export const REBNY_FIELD_TABLES = {
       requireFields: [
         'ConcessionsAmount',
         'ConcessionsComments',
-      ],
-    },
-
-    // ── Furnished sub-conditionals ──
-    {
-      code: 'FURNISHED-001',
-      description: 'Furnished pricing/terms if Furnished, Partially, or Negotiable',
-      appliesWhen: {
-        Furnished: ['Furnished', 'Partially', 'Negotiable'],
-      },
-      requireFields: [
-        'FurnishedListPrice',
-        'FurnishedMinLeaseMonths',
-        'FurnishedMaxLeaseMonths',
       ],
     },
 
@@ -683,36 +600,6 @@ export const REBNY_FIELD_TABLES = {
       requireFields: ['PropertyCondition'],
     },
 
-    // ── Sponsor unit ──
-    {
-      code: 'SPONSOR-001',
-      description: 'SponsorUnitYN required for new development/construction',
-      appliesWhen: {
-        PropertyType: ['Residential'],
-        NewDevelopmentYN: [true],
-      },
-      requireFields: ['SponsorUnitYN'],
-    },
-    {
-      code: 'SPONSOR-002',
-      description: 'SponsorUnitYN required for new construction',
-      appliesWhen: {
-        PropertyType: ['Residential'],
-        NewConstructionYN: [true],
-      },
-      requireFields: ['SponsorUnitYN'],
-    },
-
-    // ── Co-Ownership ──
-    {
-      code: 'COOWN-001',
-      description: 'Co-Ownership requires CoOwnershipInterest and FractionalUnitNumber',
-      appliesWhen: {
-        PropertySubType: ['CoOwnership'],
-      },
-      requireFields: ['CoOwnershipInterest', 'FractionalUnitNumber'],
-    },
-
     // ── UnitNumber conditional ──
     {
       code: 'UNIT-001',
@@ -725,24 +612,6 @@ export const REBNY_FIELD_TABLES = {
         ],
       },
       requireFields: ['UnitNumber'],
-    },
-
-    // ── Pets comments ──
-    {
-      code: 'BLDGPETS-001',
-      description: 'BuildingPetsAllowedComments required if size/number/breed restrictions',
-      appliesWhen: {
-        BuildingPetsAllowed: ['BuildingSizeLimit', 'BuildingNumberLimit', 'BuildingBreedRestrictions'],
-      },
-      requireFields: ['BuildingPetsAllowedComments'],
-    },
-    {
-      code: 'UNITPETS-001',
-      description: 'PetsAllowedComments required if unit-level restrictions',
-      appliesWhen: {
-        PetsAllowed: ['UnitBreedRestrictions', 'UnitNumberLimit', 'UnitSizeLimit'],
-      },
-      requireFields: ['PetsAllowedComments'],
     },
 
     // ── Heating/Cooling follow-ups ──
@@ -781,14 +650,6 @@ export const REBNY_FIELD_TABLES = {
       requireFields: ['View'],
     },
 
-    // ── Garage ──
-    {
-      code: 'GARAGE-001',
-      description: 'GarageSpaces required if GarageSpacesAssignedYN = true',
-      appliesWhen: { GarageSpacesAssignedYN: [true] },
-      requireFields: ['GarageSpaces'],
-    },
-
     // ── Showing times ──
     {
       code: 'SHOWING-001',
@@ -803,32 +664,6 @@ export const REBNY_FIELD_TABLES = {
       requireFields: ['ShowingStartTime'],
     },
 
-    // ── CoBuyer agent block (mirrors BUYER-NONRLS-001) ──
-    {
-      code: 'COBUYER-RLS-001',
-      description: 'CoBuyer agent MlsId/OfficeMlsId required if CoBuyerAgentRLSParticipantYN = true',
-      appliesWhen: {
-        CoBuyerAgentRLSParticipantYN: [true],
-      },
-      requireFields: ['CoBuyerAgentMlsId', 'CoBuyerOfficeMlsId'],
-    },
-    {
-      code: 'COBUYER-NONRLS-001',
-      description: 'Non-RLS co-buyer agent at close requires full contact info',
-      appliesWhen: {
-        CoBuyerAgentRLSParticipantYN: [false],
-      },
-      requireFields: [
-        'CoBuyerAgentFullName',
-        'CoBuyerAgentDirectPhone',
-        'CoBuyerAgentEmail',
-        'CoBuyerAgentStateLicense',
-        'CoBuyerOfficeName',
-        'CoBuyerOfficePhone',
-      ],
-      note: 'CSV also requires "AND any CoBuyer value filled" — compound condition',
-    },
-
     // ── Area unit follow-ups ──
     {
       code: 'AREA-UNITS-004',
@@ -841,29 +676,6 @@ export const REBNY_FIELD_TABLES = {
       description: 'BelowGradeFinishedAreaUnits required if BelowGradeFinishedArea is entered',
       appliesWhen: { BelowGradeFinishedArea: { gt: 0 } },
       requireFields: ['BelowGradeFinishedAreaUnits'],
-    },
-
-    // ── Alternate street mutual dependency ──
-    {
-      code: 'ALTSTREET-001',
-      description: 'AlternateStreetName and AlternateStreetNumber required if any AlternateStreet attribute submitted',
-      appliesWhen: { AlternateStreetDirPrefix: { exists: true } },
-      requireFields: ['AlternateStreetName', 'AlternateStreetNumber'],
-      note: 'Triggers on any AlternateStreet* attribute being submitted',
-    },
-
-    // ── Ceiling height mutual dependency ──
-    {
-      code: 'CEILING-001',
-      description: 'CeilingHeightInches required if CeilingHeightFeet is not null',
-      appliesWhen: { CeilingHeightFeet: { exists: true } },
-      requireFields: ['CeilingHeightInches'],
-    },
-    {
-      code: 'CEILING-002',
-      description: 'CeilingHeightFeet required if CeilingHeightInches is not null',
-      appliesWhen: { CeilingHeightInches: { exists: true } },
-      requireFields: ['CeilingHeightFeet'],
     },
 
     // ── Fireplace reverse direction ──
@@ -906,22 +718,6 @@ export const REBNY_FIELD_TABLES = {
       requireFields: ['OpenParkingSpaces'],
     },
 
-    // ── Price change ──
-    {
-      code: 'PRICECHANGE-001',
-      description: 'OriginalListPrice required if ChangeType = PriceChange',
-      appliesWhen: { ChangeType: ['PriceChange'] },
-      requireFields: ['OriginalListPrice'],
-    },
-
-    // ── Private outdoor space ──
-    {
-      code: 'OUTDOOR-001',
-      description: 'PrivateOutdoorSpaceSize required if PatioAndPorchFeatures or ExteriorFeatures have non-None value',
-      appliesWhen: { PatioAndPorchFeatures: { exists: true } },
-      requireFields: ['PrivateOutdoorSpaceSize'],
-      note: 'Also triggers on ExteriorFeatures having any value other than None',
-    },
   ],
 
   // ═══════════════════════════════════════════════════════════════════════════

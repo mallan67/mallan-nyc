@@ -90,6 +90,7 @@ body { font-family: Manrope, sans-serif; }
 <script src="js/forms/colist-section.js"></script>
 <script src="js/forms/agent-defaults.js"></script>
 <script src="js/forms/fair-housing.js"></script>
+<script src="js/forms/server-refusal.js"></script>
 <script src="js/forms/building-lookup.js"></script>
 <script src="js/forms/listing-hydration.js"></script>
 <script src="js/forms/listing-media.js"></script>
@@ -1833,6 +1834,13 @@ body { font-family: Manrope, sans-serif; }
             <input type="number" id="rentalSqFt" class="field-input" placeholder="850" data-rls-field="LivingArea">
         </div>
         <div>
+            <label class="field-label">Area Units</label>
+            <select id="rentalLivingAreaUnits" class="field-input" data-rls-field="LivingAreaUnits">
+                <option value="SquareFeet">Square Feet</option>
+                <option value="SquareMeters">Square Meters</option>
+            </select>
+        </div>
+        <div>
             <label class="field-label">Floor in Building</label>
             <input type="text" id="rentalFloor" class="field-input" placeholder="3" data-rls-field="EntryLevel">
         </div>
@@ -1875,14 +1883,34 @@ body { font-family: Manrope, sans-serif; }
             <label class="field-label">Condition</label>
             <select id="rentalCondition" class="field-input" data-rls-field="PropertyCondition">
                 <option value="">Select Condition</option>
+                <option value="Fair" hidden>Fair (earlier list - choose a condition from the list)</option>
+                <option value="AdditionsAlterations">Additions / Alterations</option>
+                <option value="AverageCondition">Average Condition</option>
+                <option value="BelowAverage">Below Average</option>
+                <option value="BuildingPermit">Building Permit</option>
                 <option value="Excellent">Excellent</option>
                 <option value="Fixer">Fixer</option>
-                <option value="Good">Good</option>
-                <option value="Fair">Fair</option>
-                <option value="Poor">Poor</option>
-                <option value="UnderConstruction">Under Construction</option>
+                <option value="GoodCondition">Good Condition</option>
+                <option value="KnownDamage">Known Damage</option>
+                <option value="NeverOccupied">Never Occupied</option>
                 <option value="NewConstruction">New Construction</option>
-                <option value="Updated">Updated/Remodeled</option>
+                <option value="Other">Other</option>
+                <option value="PoorCondition">Poor Condition</option>
+                <option value="RepairsCosmetic">Repairs (Cosmetic)</option>
+                <option value="RepairsMajor">Repairs (Major)</option>
+                <option value="Resale">Resale</option>
+                <option value="SeeDisclosure">See Disclosure</option>
+                <option value="SeeRemarks">See Remarks</option>
+                <option value="ShowsWell">Shows Well</option>
+                <option value="TearDownValueInLand">Tear Down / Value in Land</option>
+                <option value="TermiteClearance">Termite Clearance</option>
+                <option value="ToBeBuilt">To Be Built</option>
+                <option value="Turnkey">Turnkey</option>
+                <option value="UnderConstruction">Under Construction</option>
+                <option value="UnderRenovation">Under Renovation</option>
+                <option value="Unknown">Unknown</option>
+                <option value="UpdatedRemodeled">Updated / Remodeled</option>
+                <option value="VeryGoodCondition">Very Good Condition</option>
             </select>
         </div>
         <div>
@@ -2264,7 +2292,7 @@ body { font-family: Manrope, sans-serif; }
         <div>
             <label class="field-label">Lot Size Units <span class="text-red-500">*</span></label>
             <select id="rentalTHLotSizeUnits" class="field-input" required data-rls-field="LotSizeUnits">
-                <option value="SquareFeet">Square Feet</option><option value="SquareMeters">Square Meters</option>
+                <option value="SquareFeet">Square Feet</option><option value="SquareMeters">Square Meters</option><option value="Acres">Acres</option><option value="Hectares">Hectares</option>
             </select>
         </div>
         <div class="col-span-2">
@@ -3649,7 +3677,7 @@ body { font-family: Manrope, sans-serif; }
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgHistoric" class="w-4 h-4" data-rls-field="BuildingFeatures"> Historic District</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgLEED" class="w-4 h-4" data-rls-field="BuildingFeatures"> LEED Certified</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgNewConstruction" class="w-4 h-4" data-rls-field="NewConstructionYN"> New Construction</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgNewDevelopment" class="w-4 h-4" data-rls-field="NewConstructionYN"> New Development</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgNewDevelopment" class="w-4 h-4" data-rls-ignore="true" data-removed-field="NewDevelopmentYN"> New Development</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgConversion" class="w-4 h-4" data-rls-field="BuildingFeatures"> Conversion</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgSponsorUnits" class="w-4 h-4" data-rls-field="SponsorUnitYN"> Has Sponsor Units</label>
                         </div>
@@ -5660,6 +5688,9 @@ function _rentalSyncLocation(editedId) {
         else if (editedId === pair[0] || saved.value || shown.value === shown._given) { if (shows(saved.value)) { shown.value = saved.value; shown._given = saved.value; } }
         else if (shown.value) { saved.value = shown.value; shown._given = shown.value; }
     });
+    // The county box is a read-only view of the borough: kept up to date whichever way the borough was set (the box, the address lookup, a stored listing).
+    var boroughBox = box('rentalBorough'), countyBox = box('rentalCountyOrParish');
+    if (boroughBox && countyBox && BOROUGH_TO_COUNTY[boroughBox.value]) countyBox.value = BOROUGH_TO_COUNTY[boroughBox.value];
     generateRentalListingUrl();
 }
 
@@ -6066,6 +6097,16 @@ function _numberOrNull(value, whole) {
     return isNaN(n) ? null : n;
 }
 
+// The syndication boxes -> Cotality's SyndicateTo (the Sale form's SALE_SYNDICATION_MAP, for the Rental boxes). `cotality` is the live SyndicateTo enumeration member; an entry with
+// cotality: null is a destination Cotality does not list, kept in the form's own list and never sent as a SyndicateTo member.
+var RENTAL_SYNDICATION_MAP = [
+  { id: 'rentalDist_Listhub', target: 'Listhub', cotality: 'Listhub' },
+  { id: 'rentalDist_NYMLS', target: 'NYMLS', cotality: null },
+  { id: 'rentalDist_Realtor', target: 'Realtor', cotality: 'Realtorcom' },
+  { id: 'rentalDist_RLS', target: 'RLS', cotality: null },
+  { id: 'rentalDist_RPX', target: 'RPX', cotality: null },
+];
+
 function collectRentalFormData() {
     _rentalSyncLocation();
     var data = { listing_type: 'rent' };
@@ -6114,6 +6155,8 @@ function collectRentalFormData() {
     data.BathroomsHalf = _numberOrNull(data.rentalHalfBathrooms, true);
     data.BathroomsTotal = (data.BathroomsFull === null && data.BathroomsHalf === null) ? null : (data.BathroomsFull || 0) + ((data.BathroomsHalf || 0) * 0.5);
     data.LivingArea = _numberOrNull(data.rentalSqFt, false);
+    // The unit of an area travels with the area, under the name Cotality gives it: a box nobody gave an area to asserts no unit.
+    if (data.LivingArea !== null && data.rentalLivingAreaUnits) data.LivingAreaUnits = data.rentalLivingAreaUnits;
     data.StreetNumber = data.rentalStreetNumber || '';
     data.StreetName = data.rentalStreetName || '';
     data.StreetSuffix = data.rentalStreetSuffix || '';
@@ -6123,7 +6166,8 @@ function collectRentalFormData() {
     data.SubdivisionName = data.rentalNeighborhood || data.rentalNeighborhoodFromAddress || '';
     data.StateOrProvince = data.rentalStateOrProvince || 'NY';
     data.PostalCode = data.rentalZipCode || '';
-    data.UnParsedAddress = data.rentalUnparsedAddress || '';
+    // the live Cotality field is UnparsedAddress (lowercase p): the create gate reads the body as the form sent it, before the server's alias for the old capital-P spelling is applied
+    data.UnparsedAddress = data.rentalUnparsedAddress || '';
     data.PublicRemarks = data.rentalDescription || '';
     data.PrivateRemarks = data.rentalAgentRemarks || '';
     data.ShowingInstructions = data.rentalShowingInstructions || '';
@@ -6268,6 +6312,28 @@ function collectRentalFormData() {
     // Map remaining RLS field names from CRM element IDs
     data.CountyOrParish = data.rentalCountyOrParish || '';
     data.PostalCity = data.rentalPostalCity || '';
+    // NewConstructionYN is the live Cotality field (the building tab's New Construction box). New Development is the form's own box (NewDevelopmentYN is not in live Cotality).
+    data.NewConstructionYN = data.bldgNewConstruction === true || data.bldgNewConstruction === 'true';
+    // PropertyCondition is a live Cotality enumeration (Multi): the box lists its members and what it holds is sent as a one-member list. A value from before the list was the live one
+    // is sent as the member of the same name (Good, Poor, Updated); one with no member (Fair) is not sent as one.
+    var _condition = typeof MallanListingHydration !== 'undefined' ? MallanListingHydration.propertyCondition(data.rentalCondition) : '';
+    if (_condition) data.PropertyCondition = [_condition];
+    // The answers to the two per-row display questions, as Cotality's booleans (the Sale form's own pair): left out when the box holds no answer
+    if (data.rentalInternetAVMDisplayYN === 'No') data.InternetAutomatedValuationDisplayYN = false;
+    else if (data.rentalInternetAVMDisplayYN === 'Yes') data.InternetAutomatedValuationDisplayYN = true;
+    if (typeof data.rentalInternetConsumerCommentYN === 'boolean') data.InternetConsumerCommentYN = data.rentalInternetConsumerCommentYN;
+    // SyndicateTo: only the live Cotality members (RENTAL_SYNDICATION_MAP: entry.cotality); the destinations Cotality does not list are kept in the form's own list. An opt-out, a
+    // participant-only or an in-house listing syndicates nowhere, which Cotality expresses as an empty list.
+    data.SyndicateTo = [];
+    data._rentalSyndicateInternal = [];
+    if (!(isOwnerOptOut || isParticipantOnly || isInHouse)) {
+        RENTAL_SYNDICATION_MAP.forEach(function(entry) {
+            var box = document.getElementById(entry.id);
+            if (!box || !box.checked) return;
+            if (entry.cotality) { if (data.SyndicateTo.indexOf(entry.cotality) === -1) data.SyndicateTo.push(entry.cotality); }
+            else data._rentalSyndicateInternal.push(entry.target);
+        });
+    }
     data.RoomsTotal = parseInt(data.rentalTotalRooms || '0') || null;
     data.Concessions = data.rentalConcessions || '';
     data.ElevatorsTotal = parseInt(data.bldgNumElevators || '0') || null;
@@ -6307,6 +6373,7 @@ function collectRentalFormData() {
     data.EntryLevel = data.rentalFloor || '';
     data.Stories = parseInt(data.rentalTHStories || '0') || null;
     data.BuildingAreaTotal = _numberOrNull(data.rentalTHBuildingArea, false);
+    if (data.BuildingAreaTotal !== null && data.rentalTHBuildingAreaUnits) data.BuildingAreaUnits = data.rentalTHBuildingAreaUnits;
     data.Levels = data.rentalTHLevels || '';
     data.ZoningDescription = data.rentalTHZoning || '';
     data.GarageSpaces = parseInt(data.rentalTHGarageSpaces || '0') || null;
@@ -6315,6 +6382,7 @@ function collectRentalFormData() {
     var _BasementYN = _answerOrUndefined(data.rentalTHBasementYN);
     if (_BasementYN !== undefined) data.BasementYN = _BasementYN;
     data.LotSizeArea = _numberOrNull(data.rentalTHLotSize, false);
+    if (data.LotSizeArea !== null && data.rentalTHLotSizeUnits) data.LotSizeUnits = data.rentalTHLotSizeUnits;
 
     // Building fields
     data.YearRenovated = parseInt(data.bldgYearRenovated || '0') || null;
@@ -7357,6 +7425,11 @@ function _rentalRefused(err) {
     return status >= 400 && status < 500 && status !== 408;
 }
 
+// What a failed request tells the agent: the server's message and, for a refusal, the boxes it names (js/forms/server-refusal.js: "Listing blocked by RLS enforcement gate: Condition").
+function _rentalWhy(err) {
+    return _rentalRefused(err) && typeof MallanServerRefusal !== 'undefined' ? MallanServerRefusal.words(err) : err && err.message;
+}
+
 // Whether the CRM client has what a save needs. When it has not (it did not load), the request is never sent: that is known, not unknown.
 function _rentalCanSend() {
     return typeof MallanAPI !== 'undefined' && !!MallanAPI.listings && typeof MallanAPI.listings.create === 'function' && typeof MallanAPI.listings.update === 'function';
@@ -7385,8 +7458,8 @@ function _rentalUpdateOnServer(key, data, savedMessage) {
         showToast(savedMessage, 'success');
         return true;
     }, function(err) {
-        var why = err && err.message;
-        if (_rentalRefused(err)) showToast('Not saved: ' + (why || 'the server did not accept the changes') + '. The form still holds your changes.', 'error');
+        var why = _rentalWhy(err);
+        if (_rentalRefused(err)) { showToast('Not saved: ' + (why || 'the server did not accept the changes') + '. The form still holds your changes.', 'error'); if (typeof MallanServerRefusal !== 'undefined') MallanServerRefusal.mark(err); }
         else showToast('The CRM did not confirm that the changes were saved: ' + (why || 'no answer') + '. The form still holds your changes; press Save Changes again.', 'error', 15000);
         return false;
     }).then(done, function() { return done(false); });
@@ -7395,11 +7468,12 @@ function _rentalUpdateOnServer(key, data, savedMessage) {
 // The submit failed. A refusal: nothing was saved there. Otherwise it is not known whether the listing was saved: a new listing must be looked for before it is submitted again (it could be created twice),
 // and the changes of a saved listing can simply be sent again. The form still holds everything the agent entered, and for a new listing a copy is kept in this browser as well.
 function _rentalSubmitFailed(err, creating) {
-    var why = err && err.message;
+    var why = _rentalWhy(err);
     var kept = creating && !_rentalKeepBrowserCopy(collectRentalFormData());
     var holds = 'the form still holds everything you entered' + (kept ? ', and a copy is kept in this browser.' : '.');
     if (_rentalRefused(err)) {
         showToast((creating ? 'Submission failed: ' : 'Update failed: ') + (why || 'the server did not accept the listing') + '. Nothing was saved to the CRM; ' + holds, 'error');
+        if (typeof MallanServerRefusal !== 'undefined') MallanServerRefusal.mark(err);
     } else if (creating) {
         showToast('The CRM did not confirm whether the listing was saved: ' + (why || 'no answer') + '. Check My Listings for this address before submitting it again; ' + holds, 'error', 15000);
     } else {
