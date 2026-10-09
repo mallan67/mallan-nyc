@@ -4,6 +4,7 @@ import { cachedPublicRead, SEARCH_CACHE_TAG } from '@/lib/cache/public-cache';
 import type { Prisma } from '@prisma/client';
 import { getAccessToken } from '@/lib/idx/auth';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
+import { rlsStatisticalDisclaimer } from '@/lib/compliance/rls-statistical-disclaimer';
 
 const COTALITY_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -99,7 +100,9 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const borough = searchParams.get('borough');
     const neighborhood = searchParams.get('neighborhood');
-    const type = searchParams.get('type') || 'sale';
+    // 'rental' is the word MarketSnapshot sent; the route only knew 'rent', so a rental listing page was shown the SALE statistics under a "Median Rent" label
+    const requestedType = searchParams.get('type') || 'sale';
+    const type = requestedType === 'rental' ? 'rent' : requestedType;
     const period = searchParams.get('period') || '90d';
 
     const cacheKey = `market:${type}:${period}:${borough || 'all'}:${neighborhood || 'all'}`;
@@ -430,8 +433,6 @@ export async function GET(request: Request) {
 
     // ── Build response ──
     const periodLabel = period === '30d' ? '30 Days' : period === '1y' ? '1 Year' : '90 Days';
-    const startDateStr = periodStart.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    const endDateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
     // Overflow disclosure: counts (totalCount / underContract) are always exact.
     // The distribution metrics (median price / avgPricePerSqft / medianDaysOnMarket
@@ -482,7 +483,8 @@ export async function GET(request: Request) {
       neighborhoodBreakdown: neighborhoodChart,
       _compliance: {
         source: 'db',
-        disclaimer: `Based on information from the REBNY Listing Service for the period ${startDateStr} through ${endDateStr}. The data relating to real estate for ${type === 'rent' ? 'rent' : 'sale'} on this web site comes in part from the REBNY RLS. Data deemed reliable but not guaranteed.`,
+        // UCBA Art. VIII Sec. 4: the statistics cover the period asked for (30 days, 90 days, a year), through today; the wording and the New York days come from one module
+        disclaimer: `${rlsStatisticalDisclaimer(periodStart, now)} The data relating to real estate for ${type === 'rent' ? 'rent' : 'sale'} on this web site comes in part from the REBNY RLS. Data deemed reliable but not guaranteed.`,
         attribution: 'Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service.',
         generatedAt: now.toISOString(),
       },

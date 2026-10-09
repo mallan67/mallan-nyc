@@ -2,15 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-
-interface SnapshotData {
-  neighborhood: string;
-  borough: string;
-  medianPrice: number | null;
-  avgPricePerSqft: number | null;
-  totalActive: number;
-  avgDaysOnMarket: number | null;
-}
+import { marketRequestType, snapshotFromMarket, type SnapshotData } from '@/lib/market/market-snapshot-data';
 
 function formatPrice(price: number): string {
   if (price >= 1_000_000) return `$${(price / 1_000_000).toFixed(price % 1_000_000 === 0 ? 0 : 1)}M`;
@@ -38,25 +30,15 @@ export default function MarketSnapshot({
   const [data, setData] = useState<SnapshotData | null>(null);
 
   useEffect(() => {
-    const params = new URLSearchParams({ type: listingType === 'rent' ? 'rental' : 'sale' });
+    const params = new URLSearchParams({ type: marketRequestType(listingType) });
     if (borough) params.set('borough', borough);
     // Try neighborhood first, fall back to borough-level
     fetch(`/api/market?${params}`)
       .then((r) => r.ok ? r.json() : null)
       .then((d) => {
-        if (!d?.success) return;
-        // Find this neighborhood in the breakdown
-        const match = d.neighborhoodBreakdown?.find(
-          (n: { name: string }) => n.name.toLowerCase() === neighborhood.toLowerCase()
-        );
-        setData({
-          neighborhood: match ? match.name : borough,
-          borough,
-          medianPrice: match?.avgPrice || d.active?.medianPrice || null,
-          avgPricePerSqft: d.active?.avgPricePerSqft || null,
-          totalActive: match?.count || d.active?.totalCount || 0,
-          avgDaysOnMarket: d.active?.medianDaysOnMarket || null,
-        });
+        // this neighborhood in the breakdown, with the statistics and the disclaimer the API sent for them (nothing when either is missing)
+        const next = snapshotFromMarket(d, neighborhood, borough);
+        if (next) setData(next);
       })
       .catch(() => {});
   }, [neighborhood, borough, listingType]);
@@ -116,10 +98,8 @@ export default function MarketSnapshot({
         View Full Market Report &rarr;
       </Link>
 
-      {/* REBNY UCBA Art. VIII §4 — statistical disclaimer required on all aggregate displays */}
-      <p className="text-[11px] text-brand-dark/55 mt-3 leading-snug">
-        Based on information from the REBNY Listing Service for the period currently available. Data deemed reliable but not guaranteed.
-      </p>
+      {/* REBNY UCBA Art. VIII §4 — statistical disclaimer required on all aggregate displays: the API's, with the period the statistics cover */}
+      <p className="text-[11px] text-brand-dark/55 mt-3 leading-snug">{data.disclaimer}</p>
     </div>
   );
 }
