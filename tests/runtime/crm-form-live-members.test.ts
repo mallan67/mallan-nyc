@@ -30,7 +30,9 @@ const docOf = (name: string): Document => new JSDOM(read(name)).window.document;
 const AMENITIES: Record<string, [string, string | null]> = {
   bldgElevator: ['Elevator', 'Elevators'], bldgGym: ['Gym/Fitness Center', 'FitnessCenter'], bldgPlayroom: ["Children's Playroom", 'CommonPlayroom'], bldgLounge: ['Resident Lounge', 'CommonLounge'],
   bldgBikeRoom: ['Bike Room', 'BikeStorage'], bldgStorage: ['Storage Available', 'Storage'], bldgPackageRoom: ['Package Room', 'PackageRoom'], bldgColdStorage: ['Cold Storage', 'ColdStorage'],
-  bldgPool: ['Pool', null], bldgRoofDeck: ['Roof Deck', null], bldgCourtyard: ['Courtyard/Garden', null], bldgBusinessCenter: ['Business Center', null], bldgConferenceRoom: ['Conference Room', null],
+  bldgPool: ['Pool', null], bldgRoofDeck: ['Roof Deck', null], bldgCourtyard: ['Courtyard/Garden', null], bldgBusinessCenter: ['Business Center', null],
+  // "Conference Room" has an exact live member, ConferenceRoom (the first version of this test called it ambiguous; an independent review, 2026-10-09, found it in the mirror)
+  bldgConferenceRoom: ['Conference Room', 'ConferenceRoom'],
   bldgParking: ['Parking Garage', null], bldgValet: ['Valet Parking', null], bldgLiveInSuper: ['Live-In Super', null], bldgOnSiteManager: ['On-Site Manager', null],
   bldgWheelchairAccess: ['Wheelchair Access', null], bldgSpa: ['Spa', null],
 };
@@ -42,7 +44,7 @@ const LABELS_KEPT = Object.values(AMENITIES).filter(([, m]) => !m).map(([label])
 
 describe('Rental BuildingFeatures: the live members', () => {
   it('the members the translation uses are members of the live BuildingFeatures list', () => {
-    expect(MEMBERS).toHaveLength(8);
+    expect(MEMBERS).toHaveLength(9);
     for (const m of MEMBERS) expect(live.enums.BuildingFeatures).toContain(m);
   });
 
@@ -234,5 +236,34 @@ describe('Sale View: the live members', () => {
       expect(await ticked({ View: ['Skyline', 'Street'] })).toEqual(['Skyline', 'Street']);
       expect(await ticked({ saleViewList: ['Streets', 'Park'] })).toEqual(['ParkGreenbelt', 'Street']);
     });
+  });
+});
+
+// ── 4. Sale BuildingFeatures: Conference Room ────────────────────────────────────────────────────────────────────────────────────────────────
+describe('Sale BuildingFeatures: Conference Room is a live member', () => {
+  it('ConferenceRoom is a member of the live BuildingFeatures list', () => {
+    expect(live.enums.BuildingFeatures).toContain('ConferenceRoom');
+  });
+
+  it('ticking the Sale box sends ConferenceRoom as a BuildingFeatures member, and keeps the label out of the form\'s own list', async () => {
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { settle: 400 });
+    try {
+      (f.d.getElementById('saleBldgConferenceRoom') as HTMLInputElement).checked = true;
+      (f.d.getElementById('saleBldgPool') as HTMLInputElement).checked = true;                 // a box with no live member: its label stays in the form's own list
+      const body = f.w.collectSaleFormData();
+      expect(body.BuildingFeatures).toEqual(['ConferenceRoom']);
+      expect(body.saleBuildingFeaturesInternal).toEqual(['Pool']);
+    } finally { f.close(); }
+  });
+
+  it('the saved listing opens with the box ticked', async () => {
+    const created = await bootAddForm('SALE-FORM-REDESIGN', { settle: 400 });
+    let stored: Record<string, any>;
+    try {
+      (created.d.getElementById('saleBldgConferenceRoom') as HTMLInputElement).checked = true;
+      stored = storedListing(created.w.collectSaleFormData(), 'sale') as Record<string, any>;
+    } finally { created.close(); }
+    const f = await bootAddForm('SALE-FORM-REDESIGN', { search: '?id=1', listing: stored, settle: 1500 });
+    try { expect((f.d.getElementById('saleBldgConferenceRoom') as HTMLInputElement).checked).toBe(true); } finally { f.close(); }
   });
 });

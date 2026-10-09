@@ -228,12 +228,12 @@ describe.each([
     } finally { f.close(); }
   });
 
-  it('a listing saved with "Fair" (no member) still shows it, sends no PropertyCondition, and is not lost', async () => {
+  it('a listing saved with "Fair" (no member) still shows it, sends no member as PropertyCondition (an edit sends the empty list: the box holds no live member), and is not lost', async () => {
     const f = await open({ [conditionId]: 'Fair' });
     try {
       expect(value(f, conditionId)).toBe('Fair');
       const body = f.w[collector]();
-      expect('PropertyCondition' in body).toBe(false);
+      expect(body.PropertyCondition).toEqual([]);                  // an edit clears the stored list (a create leaves the key out: tests/runtime/crm-form-edit-clears.test.ts)
       expect(body[conditionId]).toBe('Fair');
     } finally { f.close(); }
   });

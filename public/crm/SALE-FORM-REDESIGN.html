@@ -5683,6 +5683,8 @@ function populateBuildingFromIDX(prefix, building) {
     // kept separate from these building-level policies. (Building union, 2026-05-31.)
     var _bldgPets = Array.isArray(building.building_pets) ? building.building_pets.join(',') : '';
     if (_bldgPets) fillGroupIfEmpty('saleBuildingPetsAllowed', _bldgPets, function (m) { return m; });
+    // a looked-up building whose policy is "No Pets" (BuildingNo) ticks the box without the change event that applies the lock: apply it (found 2026-10-09)
+    if (_bldgPets && typeof enforceSalePetsConditional === 'function') enforceSalePetsConditional();
     var _bldgLaundry = Array.isArray(building.building_laundry) ? building.building_laundry.join(',') : '';
     if (_bldgLaundry) fillGroupIfEmpty('saleBuildingLaundryFeatures', _bldgLaundry, function (m) { return m; });
 
@@ -5809,6 +5811,13 @@ function parseSaleAddress() {
     var directions = ['North','South','East','West','N','S','E','W','NE','NW','SE','SW'];
     var suffixes = ['Street','St','Avenue','Ave','Boulevard','Blvd','Road','Rd','Drive','Dr',
         'Place','Pl','Court','Ct','Lane','Ln','Way','Terrace','Ter','Circle','Cir','Parkway','Pkwy','Plaza','Plz','Alley'];
+    // Cotality's StreetDirection list is the letters (E, W, N, S, NE, ...) and its StreetSuffix list the whole words (Street, Avenue, ...): the atoms are stored as those members, so "East 57th Street"
+    // is E / 57th / Street (the typed words were stored as typed: "East", "St", which are not members). A long direction word that is not followed by a number ("West End Avenue", "North Moore
+    // Street") belongs to the street's name and stays in it, as Cotality has it.
+    var DIRECTION_LETTER = { North: 'N', South: 'S', East: 'E', West: 'W' };
+    var SUFFIX_WORD = { street: 'Street', st: 'Street', avenue: 'Avenue', ave: 'Avenue', boulevard: 'Boulevard', blvd: 'Boulevard', road: 'Road', rd: 'Road', drive: 'Drive', dr: 'Drive',
+        place: 'Place', pl: 'Place', court: 'Court', ct: 'Court', lane: 'Lane', ln: 'Lane', way: 'Way', terrace: 'Terrace', ter: 'Terrace', circle: 'Circle', cir: 'Circle',
+        parkway: 'Parkway', pkwy: 'Parkway', plaza: 'Plaza', plz: 'Plaza', alley: 'Alley' };
     var parts = typed.street.split(/\s+/);
     var streetNum = '', dirPrefix = '', streetName = '', streetSuffix = '';
     // Extract street number (first token if starts with digit)
@@ -5817,14 +5826,18 @@ function parseSaleAddress() {
     }
     // Check for direction prefix
     if (parts.length > 1 && directions.indexOf(parts[0]) !== -1) {
-        dirPrefix = parts.shift();
+        if (DIRECTION_LETTER[parts[0]]) {
+            if (/^\d/.test(parts[1])) dirPrefix = DIRECTION_LETTER[parts.shift()];
+        } else {
+            dirPrefix = parts.shift();
+        }
     }
     // Check for suffix (last token)
     if (parts.length > 1) {
         var last = parts[parts.length - 1];
         for (var i = 0; i < suffixes.length; i++) {
             if (last.toLowerCase() === suffixes[i].toLowerCase()) {
-                streetSuffix = parts.pop();
+                streetSuffix = SUFFIX_WORD[parts.pop().toLowerCase()];
                 break;
             }
         }
@@ -7425,7 +7438,7 @@ function collectSaleFormData() {
     data.BuildingPetsAllowed = [];
     document.querySelectorAll('input[name="saleBuildingPetsAllowed"]:checked').forEach(function(cb) { data.BuildingPetsAllowed.push(cb.value); });
     // BuildingFeatures — translate to canonical IDX Plus / RESO enum
-    // (only 8 unambiguous mappings per BUILDING_FEATURES_LABEL_TO_CANONICAL).
+    // (only the 9 unambiguous mappings of BUILDING_FEATURES_LABEL_TO_CANONICAL).
     // Untranslatable labels go to Mallan internal saleBuildingFeaturesInternal
     // so the agent's selection is preserved without polluting the canonical
     // BuildingFeatures field with non-enum strings.
@@ -7546,7 +7559,12 @@ function collectSaleFormData() {
     // server-side RLS conditional (ViewYN=true → require View) is satisfiable.
     // saleViewList is the form's restore key; View is the Cotality field.
     // The boxes carry the live View members (ParkGreenbelt, Ocean, Street, ...). The one answer the live list has no member for ("Rooftops/Sky") stays in saleViewList, the restore key, and is not sent as a View.
-    data.View = data.saleViewList.filter(function(v) { return ['RooftopsSky'].indexOf(v) < 0; });
+    // An empty live list is not sent as an empty list: the key is left out so the rule "ViewYN = true needs a View" (VIEW-001) fires, as an empty list would count as an answer; an EDIT sends the
+    // empty list so that a stored View is cleared (see the Condition below). ViewYN itself follows the live members (_deriveSaleYNFields): "Rooftops/Sky" alone is not a Cotality view.
+    var _liveViews = data.saleViewList.filter(function(v) { return ['RooftopsSky'].indexOf(v) < 0; });
+    var _editing = !!(typeof _saleEditDbId !== 'undefined' && (_saleEditDbId || (typeof _saleEditListingId !== 'undefined' && _saleEditListingId)));
+    if (_liveViews.length) data.View = _liveViews;
+    else if (_editing) data.View = [];
     data.saleAdditionalRooms = [];
     document.querySelectorAll('input[name="saleAdditionalRooms"]:checked').forEach(function(cb) { data.saleAdditionalRooms.push(cb.value); });
     data.saleKitchenType = [];
@@ -7595,12 +7613,17 @@ function collectSaleFormData() {
     // PropertyCondition is a live Cotality enumeration (Multi): the box lists its members and what it holds is sent as a one-member list. A value from before the list was the live one
     // is sent as the member of the same name (Good, Poor, Updated); one with no member (Fair) is not sent as one, and the gate asks the agent for a condition.
     var _condition = typeof MallanListingHydration !== 'undefined' ? MallanListingHydration.propertyCondition(data.saleCondition) : '';
+    // An EDIT that leaves a box empty sends an empty list, so that the answer stored before is cleared: the update route stores {...what is stored, ...what is sent}, a key left out keeps its old value,
+    // and the form shows that value again when the listing is opened (found 2026-10-09: a condition set back to blank, or the last special condition unticked, could not be saved). A CREATE leaves
+    // the key out: the gate asks for an answer, and an empty list would count as one.
     if (_condition) data.PropertyCondition = [_condition];
+    else if (_editing) data.PropertyCondition = [];
     // SpecialListingConditions (live, Multi): the boxes the agent ticked, as a list (the boxes share one name and have no ids, so the sweep above kept only the last one's state).
-    // Nothing ticked is no answer, so the key is left out and the gate asks for it (an empty list would count as an answer).
+    // Nothing ticked is no answer, so the key is left out and the gate asks for it (an empty list would count as an answer), except in an edit (above).
     var _special = [];
     document.querySelectorAll('input[name="saleSpecialListingConditions"]:checked').forEach(function(cb) { _special.push(cb.value); });
     if (_special.length) data.SpecialListingConditions = _special;
+    else if (_editing) data.SpecialListingConditions = [];
     delete data.saleSpecialListingConditions;
     data.RoomsTotal = parseInt(data.saleTotalRooms || '0') || null;
     data.Concessions = data.saleConcessions || '';
@@ -9479,6 +9502,7 @@ var BUILDING_FEATURES_LABEL_TO_CANONICAL = {
   'Storage Available': 'Storage',
   'Package Room': 'PackageRoom',
   'Cold Storage': 'ColdStorage',
+  'Conference Room': 'ConferenceRoom',
 };
 // Inverse map for restore-side lookup (canonical → form-label).
 var BUILDING_FEATURES_CANONICAL_TO_LABEL = (function() {
@@ -9609,15 +9633,17 @@ function _deriveSaleYNFields(data) {
     var groups = [
         { yn: 'saleHeatingYN', canonical: 'HeatingYN', type: 'saleHeating', strays: ['saleHeatingYes', 'saleHeatingNo'] },
         { yn: 'saleCoolingYN', canonical: 'CoolingYN', type: 'saleCooling', strays: ['saleCoolingYes', 'saleCoolingNo'] },
-        { yn: 'saleHasViews', canonical: 'ViewYN', type: 'saleViewList', strays: [] }
+        // "Rooftops/Sky" is the one view answer with no live View member, so it alone does not make ViewYN true (it would be a ViewYN with no View)
+        { yn: 'saleHasViews', canonical: 'ViewYN', type: 'saleViewList', strays: [], notAnswer: ['RooftopsSky'] }
     ];
     groups.forEach(function(g) {
         var radio = document.querySelector('input[name="' + g.yn + '"]:checked');
         var resolved; // 'Yes' | 'No' | undefined
+        var detail = Array.prototype.some.call(document.querySelectorAll('input[name="' + g.type + '"]:checked'), function(cb) { return (g.notAnswer || []).indexOf(cb.value) < 0; });
         if (radio) {
             data[g.yn] = radio.value;
             resolved = radio.value;
-        } else if (document.querySelector('input[name="' + g.type + '"]:checked')) {
+        } else if (detail) {
             data[g.yn] = 'Yes';
             resolved = 'Yes';
         }
@@ -10109,6 +10135,9 @@ function _populateSaleFormFromApi(listing) {
     // would leave a Contract/Sold listing's Buyer's Agent Contact section
     // (default display:none) hidden until a manual status change. (Codex #298.)
     if (typeof updateSaleStatusFields === 'function') updateSaleStatusFields();
+    // Re-apply the pet lock on edit-load, as the Rental form does: a building whose policy is "No Pets" (BuildingNo) locks the unit's pet boxes to "No", but the lock ran only when the building box
+    // was changed by hand, so a saved listing opened with the unit boxes enabled and an agent could save BuildingNo with a unit policy of Yes (found 2026-10-09).
+    if (typeof enforceSalePetsConditional === 'function') enforceSalePetsConditional();
 
     // Auto-generate the Listing URL on edit-load. generateListingUrl is wired
     // only to the address atoms' `change` event; restoring them via setVal sets

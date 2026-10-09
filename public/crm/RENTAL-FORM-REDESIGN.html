@@ -5144,14 +5144,27 @@ function parseRentalAddress() {
     var directions = ['North','South','East','West','N','S','E','W','NE','NW','SE','SW'];
     var suffixes = ['Street','St','Avenue','Ave','Boulevard','Blvd','Road','Rd','Drive','Dr',
         'Place','Pl','Court','Ct','Lane','Ln','Way','Terrace','Ter','Circle','Cir','Parkway','Pkwy','Plaza','Plz','Alley'];
+    // Cotality's StreetDirection list is the letters (E, W, N, S, NE, ...) and its StreetSuffix list the whole words (Street, Avenue, ...): the atoms are stored as those members, so "East 57th Street"
+    // is E / 57th / Street (the typed words were stored as typed: "East", "St", which are not members). A long direction word that is not followed by a number ("West End Avenue", "North Moore
+    // Street") belongs to the street's name and stays in it, as Cotality has it.
+    var DIRECTION_LETTER = { North: 'N', South: 'S', East: 'E', West: 'W' };
+    var SUFFIX_WORD = { street: 'Street', st: 'Street', avenue: 'Avenue', ave: 'Avenue', boulevard: 'Boulevard', blvd: 'Boulevard', road: 'Road', rd: 'Road', drive: 'Drive', dr: 'Drive',
+        place: 'Place', pl: 'Place', court: 'Court', ct: 'Court', lane: 'Lane', ln: 'Lane', way: 'Way', terrace: 'Terrace', ter: 'Terrace', circle: 'Circle', cir: 'Circle',
+        parkway: 'Parkway', pkwy: 'Parkway', plaza: 'Plaza', plz: 'Plaza', alley: 'Alley' };
     var parts = typed.street.split(/\s+/);
     var streetNum = '', dirPrefix = '', streetName = '', streetSuffix = '';
     if (parts.length > 0 && /^\d/.test(parts[0])) { streetNum = parts.shift(); }
-    if (parts.length > 1 && directions.indexOf(parts[0]) !== -1) { dirPrefix = parts.shift(); }
+    if (parts.length > 1 && directions.indexOf(parts[0]) !== -1) {
+        if (DIRECTION_LETTER[parts[0]]) {
+            if (/^\d/.test(parts[1])) dirPrefix = DIRECTION_LETTER[parts.shift()];
+        } else {
+            dirPrefix = parts.shift();
+        }
+    }
     if (parts.length > 1) {
         var last = parts[parts.length - 1];
         for (var i = 0; i < suffixes.length; i++) {
-            if (last.toLowerCase() === suffixes[i].toLowerCase()) { streetSuffix = parts.pop(); break; }
+            if (last.toLowerCase() === suffixes[i].toLowerCase()) { streetSuffix = SUFFIX_WORD[parts.pop().toLowerCase()]; break; }
         }
     }
     streetName = parts.join(' ');
@@ -6324,7 +6337,14 @@ function collectRentalFormData() {
     // PropertyCondition is a live Cotality enumeration (Multi): the box lists its members and what it holds is sent as a one-member list. A value from before the list was the live one
     // is sent as the member of the same name (Good, Poor, Updated); one with no member (Fair) is not sent as one.
     var _condition = typeof MallanListingHydration !== 'undefined' ? MallanListingHydration.propertyCondition(data.rentalCondition) : '';
+    // An EDIT that leaves the box empty sends an empty list, so that the answer stored before is cleared: the update route stores {...what is stored, ...what is sent}, a key left out keeps its old value,
+    // and the form shows that value again when the listing is opened (found 2026-10-09). A CREATE leaves the key out: the gate asks for an answer, and an empty list would count as one.
+    var _editing = !!(typeof _rentalEditDbId !== 'undefined' && (_rentalEditDbId || (typeof _rentalEditListingId !== 'undefined' && _rentalEditListingId)));
     if (_condition) data.PropertyCondition = [_condition];
+    else if (_editing) data.PropertyCondition = [];
+    // A listing saved before the "Owner Pays" box stopped being sent as OwnerPays (the utilities field) holds ['Yes'] there, and an edit stores {...what is stored, ...what is sent}: an edit clears it, as
+    // an empty list of utilities. (Nothing reads raw_data.OwnerPays for a rental: it was a wrong answer kept in the record, found 2026-10-09.)
+    if (_editing) data.OwnerPays = [];
     // The answers to the two per-row display questions, as Cotality's booleans (the Sale form's own pair): left out when the box holds no answer
     if (data.rentalInternetAVMDisplayYN === 'No') data.InternetAutomatedValuationDisplayYN = false;
     else if (data.rentalInternetAVMDisplayYN === 'Yes') data.InternetAutomatedValuationDisplayYN = true;

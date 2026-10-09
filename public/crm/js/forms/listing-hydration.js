@@ -374,7 +374,11 @@
     'Storage Available': 'Storage',
     'Package Room': 'PackageRoom',
     'Cold Storage': 'ColdStorage',
+    'Conference Room': 'ConferenceRoom',
   };
+
+  // The Rental building window's boxes that are not building features (the form's own answers); an earlier version of the page sent their labels as BuildingFeatures.
+  var RENTAL_LABEL_ONLY_BOX_IDS = ['bldgHistoric', 'bldgLEED', 'bldgConversion', 'bldgParentsAllowed', 'bldgCoBuyersAllowed', 'bldgCorpOwnAllowed', 'bldgGiftsAllowed', 'bldgBoardApproval'];
 
   var SALE_BUILDING_FEATURE_IDS = [
     'saleBldgElevator', 'saleBldgGym', 'saleBldgPool', 'saleBldgRoofDeck',
@@ -573,6 +577,13 @@
 
   // ── Small helpers (all display-only) ───────────────────────────────────────────────────────────────────────────────────────────
   function isBlank(v) { return v === undefined || v === null || v === ''; }
+  // A Multi enumeration as a list. The forms save it as an array; Cotality serves it as a comma-separated string ("Yes,CatsOk", "Park,Ocean"), and a synced listing keeps its facts that way (and
+  // in its features bucket, not in raw_data: View and BuildingFeatures are not in the raw_data keep list). An array is a list; a non-blank string is its comma-separated members; anything else is none.
+  function listOf(v) {
+    if (Array.isArray(v)) return v;
+    if (typeof v === 'string' && v.trim() !== '') return v.split(',').map(function (s) { return s.trim(); }).filter(function (s) { return s !== ''; });
+    return null;
+  }
   function isObject(v) { return v !== null && typeof v === 'object' && !Array.isArray(v); }
   function asObject(v) { return isObject(v) ? v : {}; }
   function byId(id) { return document.getElementById(id); }
@@ -705,11 +716,12 @@
     });
   }
 
-  function applyArrays(arrays, raw, touched) {
+  function applyArrays(arrays, raw, features, touched) {
     arrays.forEach(function (ca) {
-      var vals = raw[ca.rls];
-      if (!Array.isArray(vals) && ca.fallbackRls) vals = raw[ca.fallbackRls];
-      if (!Array.isArray(vals)) return;
+      // the record's own list first (what the forms save), then the features bucket (where a synced listing keeps its View, its pets and its special conditions); either may be Cotality's comma-separated string
+      var vals = listOf(raw[ca.rls]) || listOf(features[ca.rls]);
+      if (!vals && ca.fallbackRls) vals = listOf(raw[ca.fallbackRls]) || listOf(features[ca.fallbackRls]);
+      if (!vals) return;
       // a listing saved before the boxes carried the live members (UnitYes, UnitCatsOK, ...) still loads: its values are read as the live ones
       if (ca.valueMap) vals = vals.map(function (v) { return Object.prototype.hasOwnProperty.call(ca.valueMap, v) ? ca.valueMap[v] : v; });
       var boxes = document.querySelectorAll('input[type="checkbox"][name="' + ca.name + '"]');
@@ -724,8 +736,8 @@
 
   // Building amenity checkboxes: both forms restore them from the canonical BuildingFeatures array plus their own internal label list (saleBuildingFeaturesInternal, rentalBuildingFeaturesInternal);
   // a Rental listing saved before stored the visible labels in BuildingFeatures, and they still load.
-  function applyBuildingFeatures(kind, raw) {
-    var canonical = Array.isArray(raw.BuildingFeatures) ? raw.BuildingFeatures : [];
+  function applyBuildingFeatures(kind, raw, features) {
+    var canonical = listOf(raw.BuildingFeatures) || listOf(features.BuildingFeatures) || [];
     var internal = Array.isArray(raw[kind + 'BuildingFeaturesInternal']) ? raw[kind + 'BuildingFeaturesInternal'] : [];
     if (!canonical.length && !internal.length) return;
     var canonicalSet = {}; canonical.forEach(function (v) { canonicalSet[String(v)] = true; });
@@ -740,6 +752,16 @@
       var canon = inverse[label];
       setChecked(el, !!((canon && canonicalSet[canon]) || internalSet[label] || canonicalSet[label] || canonicalSet[el.value]));
     });
+    // The Rental building window's other boxes (Historic District, LEED, Parents Buying Allowed, ...) are the form's own: they are no longer sent as BuildingFeatures, but a listing saved before still
+    // holds their visible labels there. A box with no value stored under its own id shows ticked when its label is in that list, so the earlier save does not lose the answer.
+    if (kind === 'rental') {
+      RENTAL_LABEL_ONLY_BOX_IDS.forEach(function (id) {
+        var el = byId(id);
+        if (!el || (raw[id] !== undefined && raw[id] !== null)) return;
+        var label = el.parentElement ? el.parentElement.textContent.trim() : '';
+        if (label && (canonicalSet[label] || internalSet[label])) setChecked(el, true);
+      });
+    }
   }
 
   // Sale: the six syndication destinations from SyndicateTo (verbatim from the form's restore).
@@ -999,14 +1021,14 @@
     cfg.fields.forEach(function (f) {
       if (sessionOwned(cfg, f.form) || (edit && agentOwned(cfg, f.form))) return;      // the signed-in agent's identity is never the record's; the pickers are written by the agent module from the agent the listing carries (a draft's copy can be another agent's)
       var val = fieldValue(f, listing, raw, addr, features, agentInfo);
-      if (f.firstOfList && Array.isArray(val)) val = val[0];      // a Multi enumeration shown by one control (PropertyCondition) shows its first member
+      if (f.firstOfList) { var list = listOf(val); if (list) val = list[0]; }      // a Multi enumeration shown by one control (PropertyCondition) shows its first member (the list may be Cotality's comma-separated string)
       if (isBlank(val) || !isPrimitive(val)) return;
       applyField(f, val, touched, raw);
     });
     applyRadios(cfg.radios, raw, touched);
-    applyArrays(cfg.arrays, raw, touched);
+    applyArrays(cfg.arrays, raw, features, touched);
     if (kind === 'sale') applySyndication(raw, touched);
-    applyBuildingFeatures(kind, raw);
+    applyBuildingFeatures(kind, raw, features);
     if (kind === 'rental') applyDealFees(raw, edit);
 
     if (!edit) {
@@ -1023,8 +1045,12 @@
 
     controlKeyedPass(cfg, raw, touched, edit);
 
+    // The street line the agent typed comes back as typed (a listing the form saved carries it under the control's own id). The line composed from the address atoms is for a listing that
+    // carries none (a synced one): the atoms hold the live members ("St" is stored as Street, "East" as E), so composing them would rewrite a saved "333 E 46th St" as "333 E 46th Street" on
+    // every reload, and the next save would store the rewrite.
     var street = byId(cfg.prefix + 'StreetAddress');
-    var line = streetLine(addr, raw);
+    var typedLine = raw[cfg.prefix + 'StreetAddress'];
+    var line = typeof typedLine === 'string' && typedLine.trim() ? typedLine : streetLine(addr, raw);
     if (street && line) street.value = line;
     var hood = byId(cfg.prefix === 'sale' ? 'saleBldgNeighborhood' : 'rentalNeighborhood');
     var area = !isBlank(listing.neighborhood) ? listing.neighborhood : raw.MLSAreaMajor;   // MLSAreaMajor: the provider's area when no neighborhood column is filled

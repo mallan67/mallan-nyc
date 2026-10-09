@@ -9,6 +9,10 @@
  *
  * The same goes for the KEYS a collector sends (KNOWN_NON_PROPERTY_KEYS): the provider-style names (a capital first letter) that are not fields of the live Property resource.
  *
+ * The audit holds a value to the live list of its field whether the mirror keys that list by the field's own name or by the name of its TYPE (59 of the 182 enumeration fields: StreetDirPrefix is a
+ * "StreetDirection", the area units "AreaUnits" ...), and a key the normalizer renames (Permissions -> Permission) to the name it becomes. A first version looked fields up by their own name only and
+ * skipped both kinds without a word (an independent review, 2026-10-09). It sets controls, so it does not type an address: tests/runtime/crm-form-address-atoms-live.test.ts does, for the street atoms.
+ *
  * KNOWN_GAPS is the inventory of what is left, per form. Each entry is a value the page sends that the live list does not have, with the reason it is still there. The test fails when a page sends a NEW
  * value that is not a member (so a new control cannot repeat the error), and when a gap listed here is no longer sent (so the list is cleaned when a gap is closed).
  */
@@ -20,6 +24,19 @@ jest.setTimeout(900000);
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const live: { entities: Record<string, Record<string, string>>; enums: Record<string, string[]> } = JSON.parse(readFileSync(resolve(__dirname, '../../data/cotality-enums.live.json'), 'utf8'));
+
+/** the names the normalizer renames (REBNY_FIELD_TABLES.aliasToCanonical) that a collector still sends: they are held to the live list of the name they become */
+const RENAMED: Record<string, string> = { Permissions: 'Permission' };
+/**
+ * The members of the live enumeration of a Property field, or null when the field is not a Property enumeration. The mirror keys 59 of the 182 enumeration fields by the NAME OF THEIR TYPE, not of the
+ * field (StreetDirPrefix and StreetDirSuffix are both "StreetDirection", FeeFrequency, AreaUnits, AreaSource ...): looking the field up by its own name skipped all of them without a word, so a value sent for
+ * one of them was never checked (found 2026-10-09 by an independent review). The type name is read from the Property resource.
+ */
+function membersOf(field: string): string[] | null {
+  if (!(field in live.entities.Property)) return null;
+  const type = String(live.entities.Property[field]).replace(/^.*\.Enums\.(?:Multi\.)?/, '');
+  return live.enums[field] ?? live.enums[type] ?? null;
+}
 
 const WORKFLOW = 'a word of Mallan\'s own listing workflow, not a Cotality status: the status route (not this field) decides the stored status';
 const STRUCTURE = 'UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED: the live StructureType list has no such member (Loft and WalkUp are live ArchitecturalStyle members; "Commercial" has none); whether these options move to another field or go is the product\'s call';
@@ -40,6 +57,7 @@ const KNOWN_GAPS: Record<string, Record<string, string>> = {
     'StructureType = Loft': STRUCTURE, 'StructureType = WalkUp': STRUCTURE, 'StructureType = Commercial': STRUCTURE,
     'PropertySubType = SingleFamilyTownhouse': SUBTYPE, 'PropertySubType = MultiFamilyTownhouse': SUBTYPE,
     'PropertyType = Commercial': COMMERCIAL,
+    'Permission = OwnerOptOut': PERMISSION,                // sent as Permissions, which the normalizer renames to Permission; the first version of this audit skipped the key, so the Rental gap was missing
   },
 };
 
@@ -78,10 +96,12 @@ async function emittedNonMembers(form: string, collector: string): Promise<Recor
     const base = collect();
     const fire = (el: Element) => el.dispatchEvent(new w.Event('change', { bubbles: true }));
     const check = (where: string, data: any, onlyChanged: boolean) => {
-      for (const [k, v] of Object.entries<any>(data)) {
-        if (!(k in live.entities.Property) || !live.enums[k]) continue;
-        if (onlyChanged && JSON.stringify(v) === JSON.stringify(base[k])) continue;
-        for (const p of parts(v)) if (!live.enums[k].includes(p)) found[`${k} = ${p}`] = found[`${k} = ${p}`] ?? where;
+      for (const [sent, v] of Object.entries<any>(data)) {
+        const k = RENAMED[sent] ?? sent;                                         // the name the normalizer gives it (Permissions -> Permission) is the one the gate and Cotality see
+        const members = membersOf(k);
+        if (!members) continue;
+        if (onlyChanged && JSON.stringify(v) === JSON.stringify(base[sent])) continue;
+        for (const p of parts(v)) if (!members.includes(p)) found[`${k} = ${p}`] = found[`${k} = ${p}`] ?? where;
       }
     };
     check('(the default form)', base, false);
@@ -118,6 +138,19 @@ describe('what the Add forms send for a live enumeration is a member of it, but 
 
   it('every gap names its reason', () => {
     for (const gaps of Object.values(KNOWN_GAPS)) for (const [gap, reason] of Object.entries(gaps)) expect({ gap, reason: reason.length > 40 }).toEqual({ gap, reason: true });
+  });
+
+  it('the audit finds the live list of a field by its own name or by the name of its type, and holds a renamed key to the name it becomes', () => {
+    expect(membersOf('StreetDirPrefix')).toEqual(live.enums.StreetDirection);               // keyed by the type's name in the mirror
+    expect(membersOf('StreetDirSuffix')).toEqual(live.enums.StreetDirection);
+    expect(membersOf('PropertyCondition')).toEqual(live.enums.PropertyCondition);           // keyed by the field's own name
+    expect(membersOf('AvailableLeaseType')).toEqual(live.enums.ExistingLeaseType);          // a Multi type
+    expect(membersOf('ListPrice')).toBeNull();                                               // not an enumeration
+    expect(membersOf('NotAField')).toBeNull();
+    expect(RENAMED.Permissions).toBe('Permission');
+    // the guard is not vacuous: it covers many more fields than the mirror keys by their own name
+    const byTypeOnly = Object.keys(live.entities.Property).filter((field) => !live.enums[field] && membersOf(field));
+    expect(byTypeOnly.length).toBeGreaterThan(50);
   });
 });
 

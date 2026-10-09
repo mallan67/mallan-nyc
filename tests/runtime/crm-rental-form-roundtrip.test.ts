@@ -25,7 +25,10 @@ const NUMERIC = new Set<string>(win.MallanListingHydration.tables.rental.FIELD_M
 
 // Payload keys that legitimately differ between two saves of the same listing.
 const VOLATILE = /^(_savedAt|_formVersion)$/;
-const without = (o: Record<string, unknown>) => Object.fromEntries(Object.entries(o).filter(([k]) => !VOLATILE.test(k)));
+// An empty list says nothing. A form opened for editing sends one for a multi-choice answer nobody gave (OwnerPays), so that an answer given earlier can be cleared: an update merges what it is
+// sent into what is stored. A new listing sends none.
+const isEmptyList = (v: unknown) => Array.isArray(v) && v.length === 0;
+const without = (o: Record<string, unknown>) => Object.fromEntries(Object.entries(o).filter(([k, v]) => !VOLATILE.test(k) && !isEmptyList(v)));
 // The form derives this on its own: from the address and the listing id. A new listing has no listing id, so its public URL cannot be the saved one.
 const DERIVED_ON_LOAD = new Set(['rentalListingUrl']);
 
@@ -135,7 +138,7 @@ describe(`${FORM}: create -> save -> reload -> edit -> save -> reload`, () => {
       const stored2 = storedListing(payload2, 'rent') as Record<string, any>;
       const { rentalListingUrl: _u1, ...raw1 } = stored1.raw_data;
       const { rentalListingUrl: _u2, ...raw2 } = stored2.raw_data;
-      expect(raw2).toEqual(raw1);
+      expect(without(raw2)).toEqual(without(raw1));
       for (const col of ['status', 'list_price', 'bedrooms_total', 'bathrooms_full', 'bathrooms_half', 'living_area', 'list_agent_mls_id', 'list_office_mls_id']) {
         expect(stored2[col]).toEqual(stored1[col]);
       }

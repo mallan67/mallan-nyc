@@ -257,8 +257,10 @@ describe('Sale form save/load retention — collect/populate shape parity (cross
 
   it('collect emits the canonical Cotality View array (mirrors Heating/Cooling) — Codex #280 F7', () => {
     // Server RLS conditional (ViewYN=true → require View) reads the canonical
-    // `View` field; collect must emit it from saleViewList.
-    expect(collectBody).toMatch(/data\.View\s*=\s*data\.saleViewList/);
+    // `View` field; collect must emit it from saleViewList (its live members: _liveViews, since 2026-10-09;
+    // tests/runtime/crm-form-edit-clears.test.ts runs the collector and holds the create / edit behavior).
+    expect(collectBody).toMatch(/var _liveViews\s*=\s*data\.saleViewList\.filter/);
+    expect(collectBody).toMatch(/data\.View\s*=\s*_liveViews/);
   });
 
   it('_deriveSaleYNFields maps each form YN to its canonical Cotality field', () => {

@@ -102,7 +102,7 @@ describe.each(PAGES)('$form: the address finds the building', (p) => {
       expect(val(f, `${p.prefix}NeighborhoodFromAddress`)).toBe('Lenox Hill');
       expect(val(f, `${p.prefix}CountyOrParish`)).toBe('New York');                       // derived from the borough
       expect(val(f, `${p.prefix}PostalCity`)).toBe('New York');
-      expect([val(f, `${p.prefix}StreetNumber`), val(f, `${p.prefix}StreetDirPrefix`), val(f, `${p.prefix}StreetName`), val(f, `${p.prefix}StreetSuffix`)]).toEqual(['200', 'E', '66th', 'St']);
+      expect([val(f, `${p.prefix}StreetNumber`), val(f, `${p.prefix}StreetDirPrefix`), val(f, `${p.prefix}StreetName`), val(f, `${p.prefix}StreetSuffix`)]).toEqual(['200', 'E', '66th', 'Street']);
       expect(chosenType(f, p)).toBe('Coop');
       expect(hidden(f, `${p.prefix}IdxMatchBanner`)).toBe(false);
       expect(f.d.getElementById(`${p.prefix}IdxDetectedType`)!.textContent).toBe('Coop');
@@ -1443,7 +1443,7 @@ describe.each(PAGES)('$form: the building applied again by its address (the same
       await leaveAddress(f, p);
       expect(val(f, `${p.prefix}UnitNumber`)).toBe('12B');
       expect(val(f, `${p.prefix}StreetAddress`)).toBe('200 E 66th St');
-      expect([val(f, `${p.prefix}StreetNumber`), val(f, `${p.prefix}StreetName`), val(f, `${p.prefix}StreetSuffix`)]).toEqual(['200', '66th', 'St']);
+      expect([val(f, `${p.prefix}StreetNumber`), val(f, `${p.prefix}StreetName`), val(f, `${p.prefix}StreetSuffix`)]).toEqual(['200', '66th', 'Street']);
       expect(radios(f, p).every((r) => r.disabled)).toBe(true);
     } finally { f.close(); }
   });
@@ -1687,7 +1687,7 @@ describe.each(PAGES)('$form: the address the agent typed is split into its parts
     const f = await bootAddForm(p.form, { buildings: [], settle: 600 });
     try {
       await resolveAddress(f, p, typedText);
-      expect(atoms(f)).toEqual(['200', 'East', '66th', 'Street']);                                   // no unit, city, state or zip in the street name
+      expect(atoms(f)).toEqual(['200', 'E', '66th', 'Street']);                                      // the live direction member, no unit, city, state or zip in the street name
       expect(val(f, `${p.prefix}UnitNumber`)).toBe(unit);
       expect(val(f, `${p.prefix}UnparsedAddress`)).toBe(typedText);                                  // what was typed, as typed
       expect(val(f, `${p.prefix}StreetAddress`)).toBe(typedText);                                    // the box stays the agent's own
@@ -1700,7 +1700,7 @@ describe.each(PAGES)('$form: the address the agent typed is split into its parts
       set(f, `${p.prefix}UnitNumber`, '5C');
       await resolveAddress(f, p, '200 East 66th Street Apt 12B');
       expect(val(f, `${p.prefix}UnitNumber`)).toBe('5C');
-      expect(atoms(f)).toEqual(['200', 'East', '66th', 'Street']);
+      expect(atoms(f)).toEqual(['200', 'E', '66th', 'Street']);
     } finally { f.close(); }
   });
 
@@ -2062,7 +2062,7 @@ describe.each(PAGES)('$form: the same building found again puts the box right, a
       set(f, `${p.prefix}StreetNumber`, '999');
       set(f, `${p.prefix}StreetName`, 'junk');
       await again(f);
-      expect(atoms(f)).toEqual(['200', 'E', '66th', 'St']);
+      expect(atoms(f)).toEqual(['200', 'E', '66th', 'Street']);
     } finally { f.close(); }
   });
 
@@ -2086,7 +2086,7 @@ describe.each(PAGES)('$form: the same building found again puts the box right, a
       set(f, `${p.prefix}StreetName`, 'junk');
       set(f, `${p.prefix}UnparsedAddress`, 'junk');
       f.w._refreshAppliedBuilding(p.prefix, building);                             // called directly: no caller reads the atoms after it
-      expect(atoms(f)).toEqual(['200', 'E', '66th', 'St']);
+      expect(atoms(f)).toEqual(['200', 'E', '66th', 'Street']);
       expect(val(f, `${p.prefix}UnparsedAddress`)).toBe('200 E 66th St');
     } finally { f.close(); }
   });
