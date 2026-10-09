@@ -20,6 +20,7 @@ import { safeBigInt } from "@/lib/utils/safe-bigint";
 import { serializeBigInts } from "@/lib/api/serialize";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { escapeHtml } from "@/lib/sanitize";
+import { rlsStatisticalDisclaimer, statisticalPeriod } from "@/lib/compliance/rls-statistical-disclaimer";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -579,13 +580,9 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   const now = new Date();
   const yearAgo = new Date();
   yearAgo.setFullYear(yearAgo.getFullYear() - 1);
-  const fmtDate = (d: Date) =>
-    d.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  const attribution = `Based on information from the REBNY Listing Service for the period ${fmtDate(yearAgo)} through ${fmtDate(now)}. This information is provided for consumers' personal, non-commercial use.`;
+  // UCBA Art. VIII Sec. 4: the comparable sales are the curated ones; the period is the year before today, further back when a curated sale is older
+  const period = statisticalPeriod(yearAgo, now, curatedComps.map((c) => c.close_date));
+  const attribution = `${rlsStatisticalDisclaimer(period.start, period.end)} This information is provided for consumers' personal, non-commercial use.`;
 
   // ── Build and send email ─────────────────────────────────────────────────
   const subject = `Your Home's Market Analysis — ${agentName}, Mallan Real Estate`;

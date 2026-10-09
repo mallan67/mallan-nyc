@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
+import { rlsStatisticalDisclaimer, statisticalPeriod } from "@/lib/compliance/rls-statistical-disclaimer";
 // PitchPacketData type imported inline — the simple renderer handles its own typing
 
 export const maxDuration = 30;
@@ -336,16 +337,10 @@ async function assemblePitchPacket(prospect: any, agentName: string): Promise<Re
 
   // ── Attribution ──
   const now = new Date();
-  const yearAgo = new Date();
-  yearAgo.setFullYear(yearAgo.getFullYear() - 1);
-  const fmt = (d: Date) =>
-    d.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
 
-  const attribution = `Based on information from the REBNY Listing Service for the period ${fmt(yearAgo)} through ${fmt(now)}. This information is provided for consumers' personal, non-commercial use.`;
+  // UCBA Art. VIII Sec. 4: the comparable sales were asked for the year before today, and the active competition is as of today
+  const period = statisticalPeriod(twelveMonthsAgo, now);
+  const attribution = `${rlsStatisticalDisclaimer(period.start, period.end)} This information is provided for consumers' personal, non-commercial use.`;
 
   return {
     prospect_id: String(prospect.id),
@@ -458,6 +453,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       firms: ep.firms || 570,
       agentName,
       generatedAt: new Date().toISOString(),
+      attribution: String(packetData.attribution || ""),
     });
 
     // Update pitch_generated_at

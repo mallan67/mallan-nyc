@@ -13,6 +13,7 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
 import { serializeBigInts } from "@/lib/api/serialize";
+import { rlsStatisticalDisclaimer, statisticalPeriod } from "@/lib/compliance/rls-statistical-disclaimer";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -472,14 +473,10 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   const now = new Date();
   const yearAgo = new Date();
   yearAgo.setFullYear(yearAgo.getFullYear() - 1);
-  const fmt = (d: Date) =>
-    d.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
 
-  const attribution = `Based on information from the REBNY Listing Service for the period ${fmt(yearAgo)} through ${fmt(now)}. This information is provided for consumers' personal, non-commercial use.`;
+  // UCBA Art. VIII Sec. 4: the statistics cover the year the comparable sales were asked for, further back when a curated comparable sale is older, through today (the active competition is as of today)
+  const period = statisticalPeriod(yearAgo, now, recentSalesFormatted.map((s) => s.close_date));
+  const attribution = `${rlsStatisticalDisclaimer(period.start, period.end)} This information is provided for consumers' personal, non-commercial use.`;
 
   // Update pitch_generated_at
   await prisma.sellerLead.update({

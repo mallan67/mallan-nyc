@@ -20,6 +20,8 @@
  * Anything uncertain fails closed — it defaults to NON-DISPLAY.
  */
 
+import { RLS_STATISTICAL_DISCLAIMER_TEMPLATE } from "./rls-statistical-disclaimer";
+
 export const REBNY_FIELD_TABLES = {
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1073,7 +1075,8 @@ export const REBNY_FIELD_TABLES = {
     attributionNote: 'Must appear in reasonably prominent location, font not smaller than median used on page',
 
     // Statistical data disclaimer — UCBA Art. VIII Sec. 4
-    statisticalDisclaimer: 'Based on information from the REBNY Listing Service for the period {startDate} through {endDate}. This information is deemed reliable but not guaranteed.',
+    // the one wording, with {startDate} / {endDate} where the periods go (lib/compliance/rls-statistical-disclaimer.ts); the sentence this table carried before ended "deemed reliable but not guaranteed"
+    statisticalDisclaimer: RLS_STATISTICAL_DISCLAIMER_TEMPLATE.replace("[date]", "{startDate}").replace("[date]", "{endDate}"),
 
     // Commission negotiability — UCBA Art. I Sec. 17
     commissionNegotiabilityDisclosure: 'Broker commissions are not set by law and are fully negotiable.',

@@ -80,6 +80,8 @@ export interface PitchPacketData {
   firms: number;
   agentName: string;
   generatedAt: string;
+  /** The REBNY Listing Service statistical disclaimer for the period the sales and listings cover (lib/compliance/rls-statistical-disclaimer.ts); printed in the legal block. */
+  attribution: string;
 }
 
 export function renderPitchPacketHTML(d: PitchPacketData): string {
@@ -603,7 +605,8 @@ ${d.recommended ? `
 
 <!-- ══════ LEGAL / FAIR HOUSING ══════ -->
 <div class="legal">
-  <p>This proposal is intended for the exclusive use of the property owner named herein. The market data and pricing estimates are based on currently available information and are subject to change. This is not an appraisal or guarantee of value.</p>
+  <p>${esc(d.attribution)}</p>
+  <p style="margin-top:8px">This proposal is intended for the exclusive use of the property owner named herein. The market data and pricing estimates are based on currently available information and are subject to change. This is not an appraisal or guarantee of value.</p>
   <p style="margin-top:8px">Mallan Real Estate Inc. is committed to compliance with the Fair Housing Act, the New York State Human Rights Law, and the New York City Human Rights Law (Title 8). We do not discriminate on the basis of race, color, religion, sex, national origin, familial status, disability, sexual orientation, gender identity, marital status, age, lawful source of income, or any other protected class.</p>
   <p style="margin-top:8px">&copy; ${new Date().getFullYear()} Mallan Real Estate Inc. All rights reserved.</p>
 </div>
