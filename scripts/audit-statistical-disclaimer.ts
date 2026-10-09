@@ -11,7 +11,9 @@
 // Strategy:
 //   1. Identify pages/components that render aggregate statistics
 //      (avgPrice / medianPrice / closedSales / dom / counts / trends).
-//   2. For each, check it has the disclaimer with "for the period".
+//   2. For each, check it has the disclaimer with "for the period", or that it prints the disclaimer the API sends with the statistics (`_compliance.disclaimer`:
+//      /api/market builds it with the period they cover) or builds one with lib/compliance/rls-statistical-disclaimer.ts. The wording itself and its dates are held
+//      by lib/compliance/__tests__/rls-statistical-disclaimer.test.ts and tests/runtime/market-statistical-disclaimer.test.ts; this script only finds a surface with none.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -34,6 +36,8 @@ const STATS_TOKENS = [
 const DISCLAIMER_PERIOD = /Based on information from the REBNY Listing Service for the period/i;
 const DISCLAIMER_GENERIC = /Based on information from the REBNY Listing Service/i;
 const DISCLAIMER_VIA_COMPONENT = /<IDXDisclaimer|<MarketReport|<MarketStatsModule|<MarketSnapshot|<AnswerBox/;
+// the disclaimer arrives with the statistics (the API's, or the module's) instead of being typed into the component
+const DISCLAIMER_FROM_DATA = /\b_compliance\??\.disclaimer\b|\bdata\.disclaimer\b|rlsStatisticalDisclaimer\(/;
 
 interface Finding {
   file: string;
@@ -76,7 +80,7 @@ for (const file of files) {
 
   const hasPeriod = DISCLAIMER_PERIOD.test(content);
   const hasGeneric = DISCLAIMER_GENERIC.test(content);
-  const usesDisclaimerComp = DISCLAIMER_VIA_COMPONENT.test(content);
+  const usesDisclaimerComp = DISCLAIMER_VIA_COMPONENT.test(content) || DISCLAIMER_FROM_DATA.test(content);
 
   if (!hasPeriod && !hasGeneric && !usesDisclaimerComp) {
     findings.push({
