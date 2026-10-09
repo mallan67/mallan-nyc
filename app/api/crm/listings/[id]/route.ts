@@ -10,7 +10,7 @@ import {
 } from "@/lib/auth";
 import { validateListing } from "@/lib/compliance/rebny-validator";
 import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
-import { scanListingBodyForFairHousing } from "@/lib/compliance/listing-fair-housing";
+import { nonTextRemarkSlot, scanListingBodyForFairHousing } from "@/lib/compliance/listing-fair-housing";
 import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { sanitizeForCRM } from "@/lib/compliance/dto";
@@ -26,9 +26,31 @@ import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-colum
 import { resolveListingAgentInfo } from "@/lib/listings/agent-info-resolver";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
+import { REBNY_FIELD_TABLES } from "@/lib/compliance/rebny-field-tables";
 import type { Prisma } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
+
+/**
+ * The keys an edit writes into the features bucket (the public copy of a listing's facts): the ones this route has always carried plus every key the create route routes there. The create route
+ * builds that bucket from REBNY_FIELD_TABLES.persistenceMap (buildPersistenceRecord), so reading the same map here keeps the two from drifting; tests/runtime/crm-listing-update-features-parity.test.ts
+ * holds every key of the map to it.
+ */
+const LEGACY_FEATURE_KEYS = [
+  "YearBuilt", "StoriesTotal", "Rooms", "LivingAreaUnits",
+  "Flooring", "Heating", "Cooling", "ParkingFeatures",
+  "LaundryFeatures", "Appliances", "InteriorFeatures",
+  "ExteriorFeatures", "PublicRemarks", "PrivateRemarks",
+  "ShowingInstructions", "CommonInterest", "AssociationFee",
+  "RealEstateTax", "TaxAnnualAmount", "NewDevelopmentYN",
+  "BathroomsTotal",
+];
+const FEATURE_KEYS: string[] = Array.from(new Set([
+  ...LEGACY_FEATURE_KEYS,
+  ...Object.entries(REBNY_FIELD_TABLES.persistenceMap as Record<string, { features?: boolean; removed?: boolean }>)
+    .filter(([, target]) => target.features && !target.removed)
+    .map(([key]) => key),
+]));
 
 /**
  * Resolve a listing by numeric ID or listing_id string.
@@ -130,10 +152,18 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
+  // The remark slots are text. The Fair Housing scans read text only, PATCH copies PublicRemarks into the features bucket as it is, and the public listing page calls string methods on it:
+  // an array or an object there answers 400.
+  const nonTextSlot = nonTextRemarkSlot(body);
+  if (nonTextSlot) {
+    return NextResponse.json({ error: `${nonTextSlot} must be text` }, { status: 400 });
+  }
+
   // Fair Housing applies to every EDIT of a listing's text, not only to its creation: POST /api/crm/listings scans the text it is given, and without the same scan here a clean
-  // listing could be edited to say anything. The RLS gate below skips every CRM-created listing (they have no mls_id, and only those can be edited here) and every draft, and the
-  // validator's verdict below is recorded but never blocks. Federal FHA, NY State HRL and NYC HRL Title 8 apply to all advertising whatever its RLS eligibility or status, so the
-  // text this request carries is scanned, with the create route's own scan (lib/compliance/listing-fair-housing.ts), before anything is written.
+  // listing could be edited to say anything. The RLS gate below skips every CRM-created listing (the ones with no mls_id) and every draft, and the validator's verdict below is
+  // recorded but never blocks; and this route manages any Mallan-authored local row (an SL-/RL- id, or rls_eligible false), whether or not it carries an mls_id. Federal FHA, NY State
+  // HRL and NYC HRL Title 8 apply to all advertising whatever its RLS eligibility or status, so the text this request carries is scanned, with the create route's own scan
+  // (lib/compliance/listing-fair-housing.ts), before anything is written.
   const fhViolations = scanListingBodyForFairHousing(body);
   if (fhViolations.length > 0) {
     return NextResponse.json(
@@ -414,15 +444,10 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   }
   update.address = updatedAddress as Prisma.InputJsonValue;
 
-  const featureKeys = [
-    "YearBuilt", "StoriesTotal", "Rooms", "LivingAreaUnits",
-    "Flooring", "Heating", "Cooling", "ParkingFeatures",
-    "LaundryFeatures", "Appliances", "InteriorFeatures",
-    "ExteriorFeatures", "PublicRemarks", "PrivateRemarks",
-    "ShowingInstructions", "CommonInterest", "AssociationFee",
-    "RealEstateTax", "TaxAnnualAmount", "NewDevelopmentYN",
-    "BathroomsTotal",
-  ];
+  // The keys an edit carries into the features bucket: the ones this route has always carried PLUS every key the create route routes there (the persistence map, through
+  // buildPersistenceRecord). The hand-written list held 21 keys while a create writes the 60-odd the map names, so a pet policy, a view, a fireplace, a tax, a condition ... changed after
+  // the listing was created reached raw_data only, and the public page, which reads `features`, kept the old answer.
+  const featureKeys = FEATURE_KEYS;
   const updatedFeatures = { ...existingFeatures };
   for (const k of featureKeys) {
     if (body[k] !== undefined) updatedFeatures[k] = body[k];

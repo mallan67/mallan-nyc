@@ -45,11 +45,53 @@ const kinds = (findings: Finding[], id: string) => {
 };
 
 describe('POST /api/crm/compliance/audit: Fair Housing findings', () => {
-  it('text the validator already reports is reported once: no second finding from the scan', async () => {
+  it('text the validator already reports is reported once: no second finding from the scan, and none from the audit\'s own list', async () => {
     rows = [listing('RLS-A', { PublicRemarks: 'Tenant must pass background check.' })];
     const k = kinds(await audit(), 'RLS-A');
     expect(k.validator).toHaveLength(1);
     expect(k.scan).toHaveLength(0);
+  });
+
+  it.each(['Quiet building, adults only.', 'No section 8.', 'Seniors only, 55+ community.', 'No children.', 'A safe neighborhood near church.'])('a phrase both the validator and the audit\'s own list name (%j) is reported ONCE, and the score docks it once', async (text) => {
+    rows = [listing('RLS-A2', { PublicRemarks: text })];
+    const findings = await audit();
+    const k = kinds(findings, 'RLS-A2');
+    expect([k.validator.length, k.scan.length, k.steering.length]).toEqual([1, 0, 0]);
+    expect(findings.filter((f) => f.listingId === 'RLS-A2' && f.severity === 'critical' && f.category === 'fair_housing')).toHaveLength(1);
+  });
+
+  it('a hit in one slot does not hide a violation in another: the validator reports the showing instructions, the scan still reports the public remarks', async () => {
+    rows = [listing('RLS-A3', { PublicRemarks: 'Bright one-bedroom, under 40 only.', ShowingInstructions: 'No felonies.' })];
+    const k = kinds(await audit(), 'RLS-A3');
+    expect(k.validator).toHaveLength(1);
+    expect(k.validator[0].title).toContain('ShowingInstructions');
+    expect(k.scan).toHaveLength(1);
+    expect(k.scan[0].title).toBe('Fair Housing violation in PublicRemarks');
+  });
+
+  it('a website-only listing (rls_eligible false) is scanned for Fair Housing wording like the write routes do, and for nothing else (no RLS validator, no IDX or photo findings)', async () => {
+    rows = [
+      { ...listing('SL-W1', { saleBrokerComments: 'Seniors only', Media: [] }), rls_eligible: false, idx_display_yn: false },
+      { ...listing('SL-W2', { PublicRemarks: 'Sun-filled corner unit.' }), rls_eligible: false, idx_display_yn: false },
+    ];
+    const findings = await audit();
+    expect(findings.filter((f) => f.listingId === 'SL-W1').map((f) => `${f.category}: ${f.title}`)).toEqual(['fair_housing: Fair Housing violation in saleBrokerComments']);
+    expect(findings.filter((f) => f.listingId === 'SL-W2')).toEqual([]);
+  });
+
+  it('asks for every active listing, website-only ones included (the query no longer filters on rls_eligible)', async () => {
+    rows = [];
+    await audit();
+    const where = ((prismaMock as { listing: { findMany: jest.Mock } }).listing.findMany.mock.calls[0][0] as { where: Record<string, unknown> }).where;
+    expect(where).not.toHaveProperty('rls_eligible');
+    expect(where.status).toBeDefined();
+  });
+
+  it('free-text boxes the id of which does not say so are scanned: the layout, the financing terms and the two rental-building inputs', async () => {
+    rows = [listing('RLS-G', { PublicRemarks: 'Sunny.', saleTHLayout: 'Adults only', bldgMinIncome: '40x, no vouchers' })];
+    const k = kinds(await audit(), 'RLS-G');
+    expect(k.scan).toHaveLength(1);                  // one finding per listing from the scan, as before
+    expect(k.scan[0].title).toMatch(/^Fair Housing violation in (saleTHLayout|bldgMinIncome)$/);
   });
 
   it('flags text in a free-text box of the form that the validator does not look at, naming the box without the raw: prefix', async () => {

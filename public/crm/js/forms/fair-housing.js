@@ -372,21 +372,23 @@
     text: { substring: false, ucba: 'review' },
     internal: { substring: false, ucba: '' },
   };
-  // id: the text box; flags: where its findings show; saves: the server refuses wording in it when the listing is created (a name that looks like free text)
+  // id: the text box; flags: where its findings show; saves: the server refuses wording in it when the listing is created or edited (a name that looks like free text, or one of FREE_TEXT_IDS in
+  // lib/compliance/listing-fair-housing.ts: the layout and financing boxes are, since 2026-10-09). The two rental-building inputs the server also reads (bldgMinIncome, bldgMaxOccupants) are not
+  // checked on this page; the server's refusal names them and the phrase.
   var BOXES = [
     { id: 'rentalDescription', flags: 'rentalFairHousingFlags', label: 'Listing Description', kind: 'description', saves: true },
     { id: 'rentalShowingInstructions', flags: 'rentalShowingFlags', label: 'Showing Instructions', kind: 'private', saves: true },
     { id: 'rentalAgentRemarks', flags: 'rentalAgentRemarksFlags', label: 'Agent Remarks', kind: 'private', saves: true },
     { id: 'rentalTHDescription', flags: 'rentalTHFairHousingFlags', label: 'Description (syndication)', kind: 'text', saves: true },
-    { id: 'rentalTHLayout', flags: 'rentalTHLayoutFlags', label: 'Layout', kind: 'text', saves: false },
+    { id: 'rentalTHLayout', flags: 'rentalTHLayoutFlags', label: 'Layout', kind: 'text', saves: true },
     { id: 'rentalTHNotes', flags: 'rentalTHNotesFlags', label: 'Internal Notes', kind: 'internal', saves: true },
     { id: 'bldgDescription', flags: 'bldgDescriptionFlags', label: 'Building Description', kind: 'text', saves: true },
     { id: 'saleDescription', flags: 'saleFairHousingFlags', label: 'Listing Description', kind: 'description', saves: true },
     { id: 'saleShowingInstructions', flags: 'saleShowingFlags', label: 'Showing Instructions', kind: 'private', saves: true },
     { id: 'saleBrokerComments', flags: 'saleBrokerCommentsFlags', label: 'Broker Comments', kind: 'private', saves: true },
     { id: 'saleTHDescription', flags: 'saleTHDescriptionFlags', label: 'Description (syndication)', kind: 'text', saves: true },
-    { id: 'saleTHLayout', flags: 'saleTHLayoutFlags', label: 'Layout', kind: 'text', saves: false },
-    { id: 'saleTHFinancing', flags: 'saleTHFinancingFlags', label: 'Financing', kind: 'text', saves: false },
+    { id: 'saleTHLayout', flags: 'saleTHLayoutFlags', label: 'Layout', kind: 'text', saves: true },
+    { id: 'saleTHFinancing', flags: 'saleTHFinancingFlags', label: 'Financing', kind: 'text', saves: true },
     { id: 'saleTHNotes', flags: 'saleTHNotesFlags', label: 'Internal Notes', kind: 'internal', saves: true },
     { id: 'saleBldgDescription', flags: 'saleBldgDescriptionFlags', label: 'Building Description', kind: 'text', saves: true },
   ];

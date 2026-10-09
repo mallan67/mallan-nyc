@@ -7,7 +7,7 @@ import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { validateListing } from "@/lib/compliance/rebny-validator";
 import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
-import { scanListingBodyForFairHousing } from "@/lib/compliance/listing-fair-housing";
+import { nonTextRemarkSlot, scanListingBodyForFairHousing } from "@/lib/compliance/listing-fair-housing";
 import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { normalizePayload, derivePermissionBooleans, buildPersistenceRecord } from "@/lib/compliance/normalizer";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
@@ -256,6 +256,12 @@ export async function POST(req: NextRequest) {
       { error: "listing_type must be 'sale' or 'rent'" },
       { status: 400 }
     );
+  }
+
+  // The remark slots are text. The Fair Housing scans read text only, and the public listing page calls string methods on PublicRemarks, so an array or an object there is refused here.
+  const nonTextSlot = nonTextRemarkSlot(body);
+  if (nonTextSlot) {
+    return NextResponse.json({ error: `${nonTextSlot} must be text` }, { status: 400 });
   }
 
   // Classify RLS eligibility using UCBA mixed-use model (Art. I, Sec. 5(F))

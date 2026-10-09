@@ -5,7 +5,7 @@
  * It scans the free text a request carries: the canonical remark slots after the accepted aliases are resolved, and every other string under a key that names free text
  * (the forms post their free-text boxes under the id of the control). Structured values are not scanned.
  */
-import { scanListingBodyForFairHousing } from '@/lib/compliance/listing-fair-housing';
+import { FREE_TEXT_IDS, nonTextRemarkSlot, scanListingBodyForFairHousing } from '@/lib/compliance/listing-fair-housing';
 import { normalizePayload } from '@/lib/compliance/normalizer';
 
 /** the fields the scan names, once each (a phrase that two rules match is two blockers in one field) */
@@ -66,5 +66,41 @@ describe('scanListingBodyForFairHousing', () => {
     const normalized = { ...normalizePayload(body).normalized, PublicRemarks: 'Adults only.' };
     expect(fields(body, normalized)).toEqual(['PublicRemarks']);
     expect(fields(body)).toEqual([]);                                                // without it, the body alone is clean
+  });
+
+  it.each(FREE_TEXT_IDS.map((id) => [id]))('the box %s, whose id does not name free text, is scanned under raw:<id> (found 2026-10-09)', (id) => {
+    expect(fields({ [id]: 'No vouchers, adults only.' })).toContain(`raw:${id}`);
+    expect(fields({ [id]: 'Open plan, two bedrooms, 40x monthly rent.' })).toEqual([]);
+  });
+
+  it('the boxes are these five: the layout and financing textareas, and the two rental-building inputs where an income or an occupancy policy is typed (the list cannot shrink unnoticed)', () => {
+    expect([...FREE_TEXT_IDS].sort()).toEqual(['bldgMaxOccupants', 'bldgMinIncome', 'rentalTHLayout', 'saleTHFinancing', 'saleTHLayout']);
+    expect(fields({ bldgMinIncome: 'No vouchers.', bldgMaxOccupants: 'Adults only.' })).toEqual(['raw:bldgMinIncome', 'raw:bldgMaxOccupants']);
+  });
+});
+
+describe('nonTextRemarkSlot', () => {
+  it('is null for text, for null and for an absent slot (clearing a remark is allowed)', () => {
+    expect(nonTextRemarkSlot({})).toBeNull();
+    expect(nonTextRemarkSlot({ PublicRemarks: 'Sunny.', PrivateRemarks: '', ShowingInstructions: null, SyndicationRemarks: undefined })).toBeNull();
+    expect(nonTextRemarkSlot({ description: 'Sunny.', privateRemarks: 'Call first.' })).toBeNull();
+  });
+
+  it.each([['PublicRemarks', ['x']], ['ShowingInstructions', { a: 1 }], ['PrivateRemarks', 5], ['SyndicationRemarks', true]])('names the slot %s when it holds something that is not text', (slot, value) => {
+    expect(nonTextRemarkSlot({ [slot]: value })).toBe(slot);
+  });
+
+  it('sees an alias too: description holding a list is the PublicRemarks slot', () => {
+    expect(nonTextRemarkSlot({ description: ['No children'] })).toBe('PublicRemarks');
+    expect(nonTextRemarkSlot({ privateRemarks: { a: 1 } })).toBe('PrivateRemarks');
+  });
+
+  it('looks at the body\'s own slot as well as the normalized one: the body is what an edit merges into raw_data', () => {
+    expect(nonTextRemarkSlot({ PublicRemarks: ['No children'] }, { PublicRemarks: 'Sunny.' })).toBe('PublicRemarks');
+    expect(nonTextRemarkSlot({ PublicRemarks: 'Sunny.' }, { PublicRemarks: 'Sunny.' })).toBeNull();
+  });
+
+  it('a body that is not an object is not a violation', () => {
+    for (const nothing of [null, undefined, 'text', 5]) expect(nonTextRemarkSlot(nothing as never)).toBeNull();
   });
 });

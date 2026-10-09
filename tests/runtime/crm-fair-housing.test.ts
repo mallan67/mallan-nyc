@@ -382,13 +382,14 @@ describe.each(PAGES)('$form: the wording check in the page', (p) => {
     } finally { f.close(); }
   });
 
-  it('says "fix before publishing", not "before saving", for a box the server does not scan when the listing is created (Layout)', async () => {
+  it('says "fix before saving" for the Layout box: the server refuses wording in it (create and edit) since 2026-10-09; it used to be a box the server did not scan, and said "fix before publishing"', async () => {
     const f = await bootAddForm(p.form, { settle: 600 });
     try {
       await typeInto(f, p.layout, 'No children please', p.wait);
-      expect(flagsOf(f, p.layoutFlags).textContent).toMatch(/blocked \u2014 fix before publishing/);
+      expect(flagsOf(f, p.layoutFlags).textContent).toMatch(/blocked \u2014 fix before saving/);
+      expect(flagsOf(f, p.layoutFlags).textContent).not.toMatch(/fix before publishing/);
       expect(has(flagsOf(f, p.layoutFlags), '.bg-red-50')).toBe(true);
-      expect((f.w as any).MallanFairHousing.blockedFields().map((x: any) => [x.id, x.saves])).toEqual([[p.layout, false]]);
+      expect((f.w as any).MallanFairHousing.blockedFields().map((x: any) => [x.id, x.saves])).toEqual([[p.layout, true]]);
     } finally { f.close(); }
   });
 
@@ -515,14 +516,24 @@ describe('Rental: Submit', () => {
     } finally { f.close(); }
   });
 
-  it('does not stop for advice, for a phone number in Showing Instructions, nor for wording in a box the server does not scan at create (Layout)', async () => {
+  it('does not stop for advice, nor for a phone number in Showing Instructions', async () => {
     const f = await ready('Perfect for a growing family, close to the Chinese community.');
     try {
       (f.d.getElementById('rentalShowingInstructions') as HTMLTextAreaElement).value = '(BROK) Sam Agent 212-555-1234';
-      (f.d.getElementById('rentalTHLayout') as HTMLTextAreaElement).value = 'No children please';
       (f.w as any).submitRentalListing();
       await sleep(200);
       expect(f.saved.length).toBe(1);
+    } finally { f.close(); }
+  });
+
+  it('stops for the Layout box too: the server refuses wording in it (create and edit) since 2026-10-09, and used to save it unread', async () => {
+    const f = await ready('A lovely home.');
+    try {
+      (f.d.getElementById('rentalTHLayout') as HTMLTextAreaElement).value = 'No children please';
+      (f.w as any).submitRentalListing();
+      await sleep(150);
+      expect(f.saved).toEqual([]);
+      expect(toasts(f).some((t) => /Layout/.test(t))).toBe(true);
     } finally { f.close(); }
   });
 });
@@ -558,10 +569,20 @@ describe('Sale: Submit', () => {
     const sent = await ready('Perfect for a growing family, close to the Chinese community.');
     try {
       (sent.f.d.getElementById('saleShowingInstructions') as HTMLTextAreaElement).value = '(BROK) Sam Agent 212-555-1234';
-      (sent.f.d.getElementById('saleTHLayout') as HTMLTextAreaElement).value = 'No children please';        // a box the server does not scan at create
       try { (sent.f.w as any).submitSalesListing(); } catch { /* what happens after the wording check is not what is under test */ }
       await sleep(300);
       expect(sent.alerts.some((a) => /hold wording the server refuses/.test(a))).toBe(false);
     } finally { sent.f.close(); }
+  });
+
+  it.each([['saleTHLayout', 'Layout', 'No children please'], ['saleTHFinancing', 'Financing', 'No vouchers accepted']])('stops for the %s box too: the server refuses wording in it (create and edit) since 2026-10-09, and used to save it unread', async (id, label, text) => {
+    const { f, alerts } = await ready('A lovely home.');
+    try {
+      (f.d.getElementById(id) as HTMLTextAreaElement).value = text;
+      (f.w as any).submitSalesListing();
+      await sleep(150);
+      expect(f.saved).toEqual([]);
+      expect(alerts.some((a) => new RegExp(label).test(a))).toBe(true);
+    } finally { f.close(); }
   });
 });

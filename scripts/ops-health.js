@@ -280,8 +280,10 @@ async function run() {
   // (data-retention route + archive-backlog-predicate.js), an exact-case `status IN (...)` that names every
   // spelling a terminal status is stored under, Cotality's single-L 'Canceled' included
   // (lib/compliance/terminal-status.ts, #449). Keeping the gauge on that same list preserves health<->cron
-  // coherence: it counts exactly the population the cron can archive, and the alias-aware backfill
-  // (lower()+`canceled`) now fills terminal_since only on rows the cron can drain.
+  // coherence: it counts exactly the population the cron can archive. The alias-aware backfill
+  // (lower()+`canceled`) matches case-insensitively, so on a row stored in a non-standard casing ('CLOSED',
+  // 'canceled') it would fill terminal_since where the exact-case cron and this gauge still do not see it; every
+  // writer stores the standard casing today, so that gap is latent (found by an independent review, 2026-10-09).
   const terminalMissingClock = await prisma.listing.count({
     where: {
       status: { in: ARCHIVE_TERMINAL_STATUSES },

@@ -97,6 +97,40 @@ describe('PATCH /api/crm/listings/[id]: a Fair Housing violation in the text of 
       expect(row.update).not.toHaveBeenCalled();
     });
 
+  // found 2026-10-09 by an independent review: these five boxes post under ids that do not name free text, and the scan did not read them (the existing test of the page even asserted that "No children please" in
+  // the layout box saves). A rental building's "Min. income" ("40x monthly rent") and "Max. occupants" ("2 per bedroom") are where "no vouchers" and "no children" get typed.
+  it.each([['saleTHLayout', 'Adults only'], ['saleTHFinancing', 'No vouchers accepted'], ['rentalTHLayout', 'No children please'], ['bldgMinIncome', '40x monthly rent, no vouchers'], ['bldgMaxOccupants', 'no children']])(
+    'the box %s, whose id does not name free text, is scanned and named raw:%s', async (key, text) => {
+      const row = withListing();
+      const res = await callPatch({ [key]: text });
+      expect(res.status).toBe(422);
+      expect(((await res.json()) as Refusal).blockers.some((b) => b.field === `raw:${key}`)).toBe(true);
+      expect(row.update).not.toHaveBeenCalled();
+    });
+
+  it.each([['saleTHLayout', 'Open plan living room, two bedrooms on the garden side.'], ['bldgMinIncome', '40x monthly rent'], ['bldgMaxOccupants', '2 per bedroom']])('the same boxes with ordinary text (%s) are saved', async (key, text) => {
+    const row = withListing();
+    const res = await callPatch({ [key]: text });
+    expect(res.status).toBe(200);
+    expect(row.update).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([[{ PublicRemarks: ['Adults only. No Section 8.'] }, 'PublicRemarks'], [{ ShowingInstructions: { text: 'No felonies' } }, 'ShowingInstructions'], [{ PrivateRemarks: ['x'] }, 'PrivateRemarks'], [{ description: ['No children'] }, 'PublicRemarks']])(
+    'a remark slot that is not text (%j) answers 400, because the scan reads text only and the public page calls string methods on it', async (body, slot) => {
+      const row = withListing();
+      const res = await callPatch(body);
+      expect(res.status).toBe(400);
+      expect(((await res.json()) as { error: string }).error).toBe(`${slot} must be text`);
+      expect(row.update).not.toHaveBeenCalled();
+    });
+
+  it('a remark slot set to null or to an empty string is text (clearing a remark is allowed)', async () => {
+    const row = withListing();
+    const res = await callPatch({ PublicRemarks: '', PrivateRemarks: null });
+    expect(res.status).toBe(200);
+    expect(row.update).toHaveBeenCalledTimes(1);
+  });
+
   it('the scan runs before the RLS gate, so an RLS-eligible Active listing with an mls_id and a thin payload is told about the text first', async () => {
     withListing({ status: 'Active', mls_id: 'RLS123' });
     const res = await callPatch({ PublicRemarks: 'Adults only.' });

@@ -72,6 +72,31 @@ describe("POST /api/crm/listings — Fair Housing scan is unconditional (rls_eli
     expect(json.error).toMatch(/Fair Housing/i);
   });
 
+  it.each([
+    ["saleTHLayout", "Adults only"],
+    ["saleTHFinancing", "No vouchers accepted"],
+    ["rentalTHLayout", "No children please"],
+    ["bldgMinIncome", "40x monthly rent, no vouchers"],
+    ["bldgMaxOccupants", "no children"],
+  ])("the box `%s`, whose id does not name free text, is scanned too (found 2026-10-09: it was saved unread) → 422 naming raw:<the id>", async (key, text) => {
+    const res = await POST(makeRequest({ method: "POST", body: { listing_type: "rent", rls_eligible: false, [key]: text } }));
+    expect(res.status).toBe(422);
+    const json = await readJson<{ error: string; blockers: Array<{ field: string }> }>(res);
+    expect(json.error).toMatch(/Fair Housing/i);
+    expect(json.blockers.some((b) => b.field === `raw:${key}`)).toBe(true);
+  });
+
+  it.each([
+    [{ PublicRemarks: ["Adults only. No Section 8."] }, "PublicRemarks"],
+    [{ ShowingInstructions: { text: "No felonies" } }, "ShowingInstructions"],
+    [{ privateRemarks: ["x"] }, "PrivateRemarks"],
+    [{ description: ["No children"] }, "PublicRemarks"],
+  ])("a remark slot that is not text (%j) answers 400 before any gate: the scans read text only and the public page calls string methods on it", async (extra, slot) => {
+    const res = await POST(makeRequest({ method: "POST", body: { listing_type: "sale", rls_eligible: false, ...extra } }));
+    expect(res.status).toBe(400);
+    expect((await readJson<{ error: string }>(res)).error).toBe(`${slot} must be text`);
+  });
+
   it("does NOT false-positive on a structured (non-free-text) field value", async () => {
     // A clean create whose only 'adult/active' text is in a structured field name must pass the FH
     // gate (the scan keys on free-text field NAMES, so enums like property_sub_type aren't scanned).
