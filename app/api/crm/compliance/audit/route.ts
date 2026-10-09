@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { validateListing } from "@/lib/compliance/rebny-validator";
+import { scanListingBodyForFairHousing } from "@/lib/compliance/listing-fair-housing";
 
 interface AuditFinding {
   listingId: string;
@@ -151,9 +152,26 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Fair Housing scan on description
+    // Fair Housing scan. The validator above already reports the prohibited terms it finds in the four remark slots ("[Fair Housing] Prohibited terms found in ..."). The write
+    // routes refuse more than that substring check sees: the gate's regex rules, and every free-text box the form posts under its own key (agentRemarks, saleBrokerComments, ...).
+    // So, for a listing the validator found clean, run the scan the write routes run (lib/compliance/listing-fair-housing.ts), so the audit never passes text the create and
+    // edit routes would refuse; THEN this audit's own pattern list over the public remarks, which also names steering phrases neither list has ("perfect for singles",
+    // "bachelor pad", "safe neighborhood", ...). At most one finding of the scan and of the pattern list per listing.
+    const validatorFlaggedFairHousing = (validation.errors ?? []).some((e) => /\[Fair Housing\]/.test(String(typeof e === "string" ? e : (e as { message?: string }).message ?? "")));
+    const fhViolations = validatorFlaggedFairHousing ? [] : scanListingBodyForFairHousing(raw);
+    if (fhViolations.length > 0) {
+      const first = fhViolations[0];
+      findings.push({
+        listingId, address, agentId,
+        category: "fair_housing",
+        severity: "critical",
+        title: `Fair Housing violation in ${String(first.field ?? "listing text").replace(/^raw:/, "")}`,
+        description: first.message,
+        fix: "Review and revise the listing text to remove discriminatory language",
+      });
+    }
     const description = (raw.PublicRemarks ?? raw.public_remarks ?? "") as string;
-    if (description) {
+    if (description && fhViolations.length === 0) {
       // Fair Housing patterns — aligned with public/crm/js/compliance/fair-housing.js (29 patterns, 10 categories)
       const fairHousingPatterns: { pattern: RegExp; category: string }[] = [
         // Race / National Origin

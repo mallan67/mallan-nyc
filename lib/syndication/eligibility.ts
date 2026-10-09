@@ -93,6 +93,8 @@ export interface MallanSyndicationEligibility {
 // (not imported) to maintain the no-cross-import structural defense.
 // If REBNY adds a status, this list must be updated alongside the
 // mapper. Source-regex test enforces no `lib/idx` import.
+// Cancelled is listed under both spellings it is stored under: the CRM's "Cancelled"
+// and the "Canceled" the Cotality sync stores verbatim (lib/compliance/terminal-status.ts, #449).
 const TERMINAL_STATUSES: ReadonlySet<string> = new Set([
   "Closed",
   "Sold",
@@ -101,6 +103,7 @@ const TERMINAL_STATUSES: ReadonlySet<string> = new Set([
   "Withdrawn",
   "Expired",
   "Cancelled",
+  "Canceled",
 ]);
 
 function asRecord(v: unknown): Record<string, unknown> {

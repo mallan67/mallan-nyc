@@ -64,7 +64,7 @@ if (!process.env.DATABASE_URL) {
 const { PrismaClient } = require('@prisma/client');
 const { R2_RETRY_EXHAUSTED_THRESHOLD, classifyR2RetryBacklog } = require('./r2-retry-health');
 const { deriveImageIssues } = require('./media-image-health');
-const { buildArchiveBacklogWhere } = require('./archive-backlog-predicate');
+const { buildArchiveBacklogWhere, ARCHIVE_TERMINAL_STATUSES } = require('./archive-backlog-predicate');
 const prisma = new PrismaClient();
 
 const JSON_OUT = process.argv.includes('--json');
@@ -215,7 +215,7 @@ async function run() {
 
   const idxViolation = await prisma.listing.count({
     where: {
-      status: { in: ['Closed', 'Sold', 'Leased', 'Rented', 'Withdrawn', 'Expired', 'Cancelled'] },
+      status: { in: ARCHIVE_TERMINAL_STATUSES },
       status_changed_at: { lt: new Date(Date.now() - 86400000) },
       idx_display_yn: true,
     },
@@ -233,7 +233,7 @@ async function run() {
   // the 24h window can't be evaluated, so these represent a tracking gap.
   const terminalUnknownAge = await prisma.listing.count({
     where: {
-      status: { in: ['Closed', 'Sold', 'Leased', 'Rented', 'Withdrawn', 'Expired', 'Cancelled'] },
+      status: { in: ARCHIVE_TERMINAL_STATUSES },
       status_changed_at: null,
       idx_display_yn: true,
     },
@@ -276,17 +276,15 @@ async function run() {
   // clock. READ-ONLY count. The legacy listings_missing_status_changed gauge above is kept for one
   // release for comparison so health and cron both track the new clock without drifting.
   //
-  // CANONICAL terminal set BY DESIGN: this gauge mirrors the archive cron's terminal predicate
-  // (data-retention route + archive-backlog-predicate.js), which is canonical case-sensitive
-  // `status IN (...)`. Keeping it canonical preserves health↔cron coherence — the gauge must count
-  // exactly the population the cron can archive, NOT a broader set. The backfill is alias-aware
-  // (lower()+`canceled`), so it could populate terminal_since on a non-canonical row the cron would
-  // never archive; that backfill-vs-archiver mismatch is latent (prod blast radius 0 today) and is
-  // tracked separately in #449 — it touches §2.05/archive compliance and must be its own gated change.
-  // Do NOT make this gauge alias-aware here (it would over-report rows the cron can't drain).
+  // SAME terminal set as the archive cron BY DESIGN: this gauge mirrors the cron's terminal predicate
+  // (data-retention route + archive-backlog-predicate.js), an exact-case `status IN (...)` that names every
+  // spelling a terminal status is stored under, Cotality's single-L 'Canceled' included
+  // (lib/compliance/terminal-status.ts, #449). Keeping the gauge on that same list preserves health<->cron
+  // coherence: it counts exactly the population the cron can archive, and the alias-aware backfill
+  // (lower()+`canceled`) now fills terminal_since only on rows the cron can drain.
   const terminalMissingClock = await prisma.listing.count({
     where: {
-      status: { in: ['Closed', 'Sold', 'Leased', 'Rented', 'Withdrawn', 'Expired', 'Cancelled'] },
+      status: { in: ARCHIVE_TERMINAL_STATUSES },
       sync_status: { not: 'archived' },
       terminal_since: null,
     },

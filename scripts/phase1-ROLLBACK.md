@@ -29,7 +29,7 @@ This should not happen — the backfill only sets `status_changed_at` on listing
 -- Restore idx_display_yn for all listings that the cron just disabled
 UPDATE listings
 SET idx_display_yn = true
-WHERE status IN ('Closed','Sold','Leased','Rented','Withdrawn','Expired','Cancelled')
+WHERE status IN ('Closed','Sold','Leased','Rented','Withdrawn','Expired','Cancelled','Canceled')
   AND updated_at > '<timestamp of cron run>'
   AND idx_display_yn = false;
 ```

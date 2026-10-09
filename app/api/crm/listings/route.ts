@@ -6,7 +6,8 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { validateListing } from "@/lib/compliance/rebny-validator";
-import { assertRlsCompliantPayload, scanRecordForFairHousing } from "@/lib/compliance/rls-enforcement";
+import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
+import { scanListingBodyForFairHousing } from "@/lib/compliance/listing-fair-housing";
 import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { normalizePayload, derivePermissionBooleans, buildPersistenceRecord } from "@/lib/compliance/normalizer";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
@@ -355,25 +356,9 @@ export async function POST(req: NextRequest) {
   // resolved first — scanning raw fields here would let an aliased payload bypass the gate) on EVERY
   // create, before any persistence. (RLS-eligible listings are also scanned inside
   // assertRlsCompliantPayload; the duplicate is harmless defense-in-depth.)
-  const fhRecord: Record<string, string | null | undefined> = {
-    PublicRemarks: normalized.PublicRemarks as string | null | undefined,
-    ShowingInstructions: normalized.ShowingInstructions as string | null | undefined,
-    PrivateRemarks: normalized.PrivateRemarks as string | null | undefined,
-    SyndicationRemarks: normalized.SyndicationRemarks as string | null | undefined,
-  };
-  // Also scan any RAW free-text field the normalizer does not canonicalize but which still persists
-  // (verbatim in raw_data) — the CRM forms POST camelCase remark fields like `agentRemarks`,
-  // `showingInstructions`, `webHeadline` that normalizePayload's aliasToCanonical does not map
-  // (only `description`/`privateRemarks` are aliased). Key on the field NAME so structured enums
-  // (property_sub_type, status, etc.) are NOT scanned and legit values like an "Active Adult"
-  // property type don't false-positive (Codex #460).
-  const FREE_TEXT_KEY = /(remark|description|instruction|headline|comment|note|caption)/i;
-  for (const [key, value] of Object.entries(body)) {
-    if (typeof value === "string" && FREE_TEXT_KEY.test(key)) {
-      fhRecord[`raw:${key}`] = value;
-    }
-  }
-  const fhViolations = scanRecordForFairHousing(fhRecord);
+  // The scan itself (the canonical remark slots, then every other free-text key the body carries, named `raw:<key>`) is shared with the edit route
+  // so the two cannot drift: lib/compliance/listing-fair-housing.ts.
+  const fhViolations = scanListingBodyForFairHousing(body, normalized);
   if (fhViolations.length > 0) {
     return NextResponse.json(
       { error: "Listing blocked by Fair Housing content gate", blockers: fhViolations },

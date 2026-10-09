@@ -12,6 +12,7 @@
  *   - Sold/Rented = final DOM snapshot (no further accrual)
  *   - Cannot circumvent by re-naming or re-listing
  */
+import { DOM_RESET_STATUS_SPELLINGS } from "./terminal-status";
 
 /** Number of consecutive days in Withdrawn/Cancelled before DOM resets */
 export const DOM_RESET_DAYS = 30;
@@ -19,8 +20,8 @@ export const DOM_RESET_DAYS = 30;
 /** Statuses where DOM actively accrues (subject to permissions check) */
 const DOM_ACCRUING_STATUSES = new Set(["Active", "ActiveUnderContract"]);
 
-/** Statuses that can trigger a DOM reset after DOM_RESET_DAYS */
-const DOM_RESET_ELIGIBLE_STATUSES = new Set(["Withdrawn", "Cancelled"]);
+/** Statuses that can trigger a DOM reset after DOM_RESET_DAYS (Cancelled under both spellings it is stored under: the CRM's and Cotality's) */
+const DOM_RESET_ELIGIBLE_STATUSES = new Set<string>(DOM_RESET_STATUS_SPELLINGS);
 
 /** Permissions values that suppress DOM accrual even when status is Active */
 const DOM_SUPPRESSING_PERMISSIONS = new Set([

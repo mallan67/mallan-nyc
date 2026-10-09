@@ -10,6 +10,7 @@ import {
 } from "@/lib/auth";
 import { validateListing } from "@/lib/compliance/rebny-validator";
 import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
+import { scanListingBodyForFairHousing } from "@/lib/compliance/listing-fair-housing";
 import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { sanitizeForCRM } from "@/lib/compliance/dto";
@@ -127,6 +128,18 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  // Fair Housing applies to every EDIT of a listing's text, not only to its creation: POST /api/crm/listings scans the text it is given, and without the same scan here a clean
+  // listing could be edited to say anything. The RLS gate below skips every CRM-created listing (they have no mls_id, and only those can be edited here) and every draft, and the
+  // validator's verdict below is recorded but never blocks. Federal FHA, NY State HRL and NYC HRL Title 8 apply to all advertising whatever its RLS eligibility or status, so the
+  // text this request carries is scanned, with the create route's own scan (lib/compliance/listing-fair-housing.ts), before anything is written.
+  const fhViolations = scanListingBodyForFairHousing(body);
+  if (fhViolations.length > 0) {
+    return NextResponse.json(
+      { error: "Update blocked by Fair Housing content gate", blockers: fhViolations },
+      { status: 422 }
+    );
   }
 
   // Merge existing raw_data with updates for validation

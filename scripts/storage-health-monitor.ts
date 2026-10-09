@@ -58,6 +58,7 @@
 import prisma from '@/lib/prisma';
 import { hasR2Config, listR2ObjectKeys, keyFromUrl } from '@/lib/images/r2';
 import { TERMINAL_STATUSES } from '@/lib/idx/trestle-mapper';
+import { CANCELLED_STATUS_SPELLINGS } from '@/lib/compliance/terminal-status';
 
 // Listing-media R2 objects live ONLY under these prefixes (buildMediaR2Key in
 // lib/media/media-sync-service.ts). The shared bucket also holds objects written
@@ -402,8 +403,10 @@ async function collect() {
 
   // 13 — terminal/closed media (+ how many still hold an R2 object).
   // Uses a parameterised ANY($1) list from the canonical TERMINAL_STATUSES set
-  // (imported from the mapper) so this never drifts from the compliance source.
-  const terminalList = [...TERMINAL_STATUSES];
+  // (imported from the mapper) so this never drifts from the compliance source, plus the
+  // other spelling of Cancelled: the mapper's set holds the CRM's "Cancelled" and the sync
+  // stores Cotality's "Canceled" (lib/compliance/terminal-status.ts, #449).
+  const terminalList = [...TERMINAL_STATUSES, ...CANCELLED_STATUS_SPELLINGS.filter((s) => !TERMINAL_STATUSES.has(s))];
   const terminal = await withRetry('terminal-media', () =>
     prisma.$queryRawUnsafe<
       {

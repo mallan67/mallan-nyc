@@ -216,6 +216,7 @@ const FREE_SERVICE_PATTERNS = REBNY_FIELD_TABLES.contentRules.freeService.map(
 // ─── Status Transition Rules ──────────────────────────────────────────────
 
 import { DOM_RESET_DAYS } from "./dom-tracker";
+import { isCancelledStatus } from "./terminal-status";
 
 const TERMINAL_STATUSES = new Set(["Closed"]);
 
@@ -554,7 +555,7 @@ export function assertRlsCompliantPayload(
   // DOM reset info (30 days per UCBA 2026)
   if (
     ctx.previousStatus === "Withdrawn" ||
-    ctx.previousStatus === "Cancelled" ||
+    isCancelledStatus(ctx.previousStatus) ||
     ctx.previousStatus === "TemporarilyOffMarket"
   ) {
     if (ctx.statusChangedAt) {

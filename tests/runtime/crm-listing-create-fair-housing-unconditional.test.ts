@@ -92,13 +92,19 @@ describe("POST /api/crm/listings — Fair Housing scan is unconditional (rls_eli
       require("path").resolve(__dirname, "../../app/api/crm/listings/route.ts"),
       "utf8",
     );
-    expect(src).toMatch(/scanRecordForFairHousing\(/);
+    // The scan itself lives in lib/compliance/listing-fair-housing.ts (shared with the edit route, so the two cannot drift); the route hands it the body AND the normalized payload.
+    expect(src).toMatch(/scanListingBodyForFairHousing\(body,\s*normalized\)/);
+    expect(src).not.toMatch(/scanRecordForFairHousing\(/);                       // no second, inline copy of the scan
     // normalizePayload(body) MUST run before the scan, so `description`→PublicRemarks etc. are
     // resolved before scanning. The behavioral alias test above proves the gate blocks (422) before
     // any persistence; this pins the resolve-then-scan ordering against future refactors.
     const normIdx = src.indexOf("normalizePayload(body)");
-    const scanIdx = src.indexOf("scanRecordForFairHousing(");
+    const scanIdx = src.indexOf("scanListingBodyForFairHousing(body, normalized)");
     expect(normIdx).toBeGreaterThan(0);
     expect(scanIdx).toBeGreaterThan(normIdx); // scan consumes normalized output
+    // the helper does the resolving: it reads the canonical slots from what it is given and the raw free-text keys from the body
+    const helper = require("fs").readFileSync(require("path").resolve(__dirname, "../../lib/compliance/listing-fair-housing.ts"), "utf8");
+    expect(helper).toMatch(/scanRecordForFairHousing\(record\)/);
+    expect(helper).toMatch(/normalized \?\? normalizePayload\(body\)\.normalized/);
   });
 });
