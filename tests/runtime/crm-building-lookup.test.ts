@@ -9,7 +9,7 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { bootAddForm, sleep, PAGE_MODULES, type AddForm, type AddFormOpts, type BootedForm } from './add-form-harness';
+import { bootAddForm, sleep, until, PAGE_MODULES, type AddForm, type AddFormOpts, type BootedForm } from './add-form-harness';
 
 jest.setTimeout(120000);
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -1273,8 +1273,11 @@ describe.each(PAGES)('$form: another building replaces what the lookup wrote for
 
 describe.each(PAGES)('$form: an address typed before a saved listing loaded is not a lookup of the saved address', (p) => {
   it('the form rewrote the box: leaving it does not apply a building over the saved listing', async () => {
+    // the listing arrives when the test says so: a timer raced against the typing (900 ms) failed on a loaded CI runner
+    let arrive!: () => void;
+    const arrival = new Promise<void>((resolveArrival) => { arrive = resolveArrival; });
     const f = await bootAddForm(p.form, {
-      search: '?id=1', buildings: [COOP], getDelay: 900, settle: 300,
+      search: '?id=1', buildings: [COOP], getGate: arrival, settle: 300,
       listing: {
         id: '1', listing_id: 'L-1', status: 'Draft', address: { StreetNumber: '200', StreetDirPrefix: 'E', StreetName: '66th', StreetSuffix: 'St', UnparsedAddress: '200 E 66th St' },
         features: {}, media: [], agent_info: {}, raw_data: { [`${p.prefix}StreetAddress`]: '200 E 66th St', [`${p.prefix}PropertyType`]: 'Condop' },
@@ -1282,7 +1285,9 @@ describe.each(PAGES)('$form: an address typed before a saved listing loaded is n
     });
     try {
       typeAddress(f, p, '1 Typed Early Road');                                                       // before the listing arrives
-      await sleep(1800);                                                                             // it arrives, and the form writes the saved address into the box
+      arrive();                                                                                      // it arrives, and the form writes the saved address into the box
+      await until(() => val(f, `${p.prefix}StreetAddress`) === '200 E 66th St');
+      await sleep(300);
       expect(val(f, `${p.prefix}StreetAddress`)).toBe('200 E 66th St');
       const before = chosenType(f, p);
       await leaveAddress(f, p);
@@ -1640,8 +1645,11 @@ describe.each(PAGES)('$form: a draft or a saved listing put back over a building
   });
 
   it('a saved listing that loads after the agent looked up a building is not held to that building', async () => {
+    // the listing arrives when the test says so: a timer raced against the lookup (1500 ms) failed on a loaded CI runner (82523881, PR checks 37902935493 attempt 2)
+    let arrive!: () => void;
+    const arrival = new Promise<void>((resolveArrival) => { arrive = resolveArrival; });
     const f = await bootAddForm(p.form, {
-      search: '?id=1', buildings: [COOP], getDelay: 1500, settle: 300,
+      search: '?id=1', buildings: [COOP], getGate: arrival, settle: 300,
       listing: {
         id: '1', listing_id: 'L-1', status: 'Draft', address: { StreetNumber: '200', StreetDirPrefix: 'E', StreetName: '66th', StreetSuffix: 'St', UnparsedAddress: '200 E 66th St' },
         features: {}, media: [], agent_info: {}, raw_data: { [`${p.prefix}StreetAddress`]: '200 E 66th St', [`${p.prefix}PropertyType`]: 'Condop', [`${p.prefix}ZipCode`]: '10065' },
@@ -1650,7 +1658,9 @@ describe.each(PAGES)('$form: a draft or a saved listing put back over a building
     try {
       await resolveAddress(f, p, '200 East 66th Street');                                           // before the listing arrives
       expect(radios(f, p).every((r) => r.disabled)).toBe(true);
-      await sleep(2200);                                                                            // it arrives and is put back
+      arrive();                                                                                      // it arrives and is put back
+      await until(() => chosenType(f, p) === 'Condop' && !radios(f, p).some((r) => r.disabled));
+      await sleep(300);
       expect(chosenType(f, p)).toBe('Condop');
       expect(radios(f, p).some((r) => r.disabled)).toBe(false);
       expect((f.w as any).MallanBuildingLookup.isLocked(p.prefix)).toBe(false);

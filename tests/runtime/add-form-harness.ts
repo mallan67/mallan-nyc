@@ -26,6 +26,7 @@ export type AddFormOpts = {
   readyGate?: Promise<void>;                         // MallanAPI.onReady fires with the user once this promise is settled (instead of after readyDelay: a test says when the session answers)
   readySync?: boolean;                               // fire MallanAPI.onReady's callback at once, inside the call (the auth gate had already resolved)
   getDelay?: number;                                 // ms before MallanAPI.listings.get resolves
+  getGate?: Promise<void>;                           // MallanAPI.listings.get resolves (after getDelay) once this promise is settled: a test says when the listing arrives, instead of racing a timer against its own assertions
   getError?: string;                                 // make MallanAPI.listings.get fail with this message (the listing could not be loaded)
   noListingsApi?: boolean;                           // a MallanAPI without listings (no way to load or save a listing)
   buildings?: Record<string, unknown>[] | ((query: string) => Record<string, unknown>[]);   // what GET /api/buildings/search answers (the building index)
@@ -151,7 +152,7 @@ export async function bootAddForm(form: AddForm, o: AddFormOpts = {}): Promise<B
         getContext: () => context,
         init: () => Promise.resolve({ authenticated: !!user, user }),
         listings: {
-          get: async () => { await later('listings.get', o.getDelay ?? 10); if (o.getError) throw new Error(o.getError); return o.listing ?? {}; },
+          get: async () => { await later('listings.get', o.getDelay ?? 10); await held(o.getGate); if (o.getError) throw new Error(o.getError); return o.listing ?? {}; },
           create: async (payload: Record<string, unknown>) => { calls.push('create'); await held(o.createGate); if (o.createError) throw failure(o.createError, o.createErrorStatus); saved.push(payload); return { id: '1', listing_id: 'L-1', status: 'Draft', ...(o.created ?? {}) }; },
           update: async (id: string, payload: Record<string, unknown>) => { calls.push(`update ${id}`); await held(o.updateGate); if (o.updateError) throw failure(o.updateError, o.updateErrorStatus); saved.push(payload); return { ...(o.updated ?? {}) }; },
           updateStatus: async (id: unknown, status: unknown) => { statusCalls.push([id, status]); if (o.statusError) throw new Error(o.statusError); return { ...(o.statusAnswer ?? {}) }; },

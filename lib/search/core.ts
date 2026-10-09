@@ -59,6 +59,9 @@ export const SEARCH_RESULT_LISTING_SELECT = {
   modification_timestamp: true,
   internet_entire_listing_display_yn: true,
   internet_address_display_yn: true,
+  // The listing broker, for the alert email's per-listing "Listing courtesy of ..." (UCBA Art. III §2(C)). One more column of the same row: no media, no second query,
+  // and serializeSearchListing names its keys, so no response gains it.
+  list_office_name: true,
 } satisfies Prisma.ListingSelect;
 
 export type SearchResultListing = Prisma.ListingGetPayload<{

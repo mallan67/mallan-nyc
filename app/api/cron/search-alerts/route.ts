@@ -142,9 +142,16 @@ export async function GET(req: NextRequest) {
           beds: listing.bedrooms_total || 0,
           baths: listing.bathrooms_full || 0,
           url: `${BASE_URL}/listing/${listing.listing_id}`,
+          office: listing.list_office_name,
         }));
 
-        const html = listingAlertEmail(formattedListings, escapeHtml(clientName || "there"));
+        // When the data is from: the newest update among the listings in this email (not the day it is sent).
+        const updated = newListings
+          .map((listing) => (listing.modification_timestamp ? new Date(listing.modification_timestamp) : null))
+          .filter((d): d is Date => d !== null && !Number.isNaN(d.getTime()));
+        const dataAsOf = updated.length ? new Date(Math.max(...updated.map((d) => d.getTime()))) : null;
+
+        const html = listingAlertEmail(formattedListings, escapeHtml(clientName || "there"), dataAsOf);
         const subject = `${newListings.length} New Listing${newListings.length !== 1 ? "s" : ""} Matching "${search.name}"`;
         const result = await sendEmail(email, subject, html);
 

@@ -71,6 +71,11 @@ jest.mock("@/lib/idx/auth", () => ({
 
 import { syncListings, getPropertyKeysetCursor } from "@/lib/idx/sync";
 
+// The first test of this file ran past Jest's 5 s default on a loaded CI runner (commit 82523881, PR checks run 37902935493: "Exceeded timeout of 5000 ms"; the whole file takes about a second
+// on a quiet machine). Its sync run was still going when the second test cleared the shared mocks and wrote into them afterwards, so the second test counted two upserts and failed too.
+// A longer limit changes nothing the suite proves.
+jest.setTimeout(30000);
+
 const DB_MAX_MT = "2026-08-01T12:00:00.000Z";
 
 /**

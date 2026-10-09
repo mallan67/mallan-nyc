@@ -277,6 +277,9 @@ export async function POST(req: NextRequest) {
   const emailData: InvestorListingEmailData = {
     address: dtoAddressLine(dto),
     neighborhood: dto.address.neighborhood ?? null,
+    // The listing's own attribution from the public DTO (UCBA Art. III §2(C)): the actual listing broker for a third-party listing, Mallan only for Mallan's own. The agent below is the sender, not the listing broker.
+    attributionText: dto._displayCompliance?.attributionText ?? null,
+    disclaimerRequired: dto._displayCompliance?.disclaimerRequired === true,
     price: dto.listPrice ? `$${dto.listPrice.toLocaleString()}` : "Price upon request",
     beds: dto.bedroomsTotal ?? null,
     baths: dto.bathroomsFull ?? null,
