@@ -4491,7 +4491,8 @@ function viewerMediaClass(row) {
         /floor[\s_-]?plans?/.test(url) || /\.pdf(\?|$)/.test(url) ||
         /(?:^|[/_-])(?:site[\s_-]?plans?|diagrams?)(?:[/_.-]|$)/.test(url) || /\/media\/property\/document-(?:gif|jpeg|png|pdf)\//.test(url)) return 'floorplan';
     if (category.indexOf('video') >= 0 || /\.(?:mp4|mov|webm)(\?|$)/.test(url)) return 'video';
-    if (category === 'virtualtour' || category.indexOf('virtual tour') >= 0) return 'virtualTour';
+    // Cotality serializes the enum member name without spaces ('BrandedVirtualTour', 'UnbrandedVirtualTour'), as the server's classifyMediaItem now reads it
+    if (category.indexOf('virtualtour') >= 0 || category.indexOf('virtual tour') >= 0) return 'virtualTour';
     if (category === 'photo' || category === 'image' || category === '') return 'photo';
     return 'unknown';
 }

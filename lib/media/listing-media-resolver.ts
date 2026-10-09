@@ -155,7 +155,9 @@ export function classifyMediaItem(raw: unknown): MediaClass {
   if (cat === 'video' || cat.includes('video') || /\.(mp4|mov|webm)(\?|$)/i.test(url)) {
     return 'video';
   }
-  if (cat === 'virtualtour' || cat.includes('virtual tour') || cat === 'virtual tour') {
+  // Cotality serializes the enum MEMBER NAME, without spaces: the live categories are 'BrandedVirtualTour' and 'UnbrandedVirtualTour' (data/cotality-enums.live.json), which neither
+  // `=== 'virtualtour'` nor the with-space check matched, so a tour row fell through to 'unknown'. classifyTrestleMediaCategory (media-sync-service.ts) already had the no-space check.
+  if (cat.includes('virtualtour') || cat.includes('virtual tour')) {
     return 'virtualTour';
   }
   if (cat === 'photo' || cat === 'image' || cat === '' /* default Trestle Media is Photo */) {

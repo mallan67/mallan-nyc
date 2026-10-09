@@ -43,7 +43,7 @@
  * output classes (photo/floorplan/video/virtualTour/unknown) by design; those categories
  * are not gallery image content. See the doc's Section 3/4.3 for that boundary.
  */
-import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
+import { classifyMediaItem, getPhotoGallery, getPrimaryPhoto, getVirtualTours } from "@/lib/media/listing-media-resolver";
 import { classifyTrestleMediaCategory } from "@/lib/media/media-sync-service";
 
 // Sanitized live-row-derived fixtures, as supplied by Maya with MediaKey/ResourceRecordKey
@@ -150,16 +150,49 @@ describe("Media contract — PROVEN_RESOURCE_GAP: classifyMediaItem has no real 
     expect(result).toBe("floorplan"); // Addendum+.pdf has not been observed live; demonstrates the same unconditional-URL-override gap.
   });
 
-  it("[PROVEN_RESOURCE_GAP] MediaCategory='BrandedVirtualTour' (valid RLS value, 0 rows today) has no path to a virtual-tour classification — falls through to 'unknown'", () => {
-    const result = classifyMediaItem({ MediaCategory: "BrandedVirtualTour" });
-    expect(result).toBe("unknown"); // the intended behavior is unambiguous (a virtual-tour category should not become 'unknown'); the gap is proven by direct trace even with 0 live rows.
-    expect(classifyTrestleMediaCategory("BrandedVirtualTour")).toBe("VirtualTour"); // this sibling function has the no-space check and does not share the gap.
+  // FIXED 2026-10-09 (Maya: "there is no noise, there are errors and the need fixing. Do not assume, do actual corrections"; her adversarial audit named it: the classifier cannot recognise the
+  // VirtualTour categories). The two tests below pinned the GAP ('unknown'); they now pin the fix. virtualTour is one of the resolver's own five target classes, so a valid RLS category must not
+  // become 'unknown'; classifyTrestleMediaCategory, the sibling that classifies on ingest, always had the no-space check.
+  it("[FIXED] MediaCategory='BrandedVirtualTour' (valid RLS value, 0 rows today) is a virtual tour, as the sibling classifier already said", () => {
+    expect(classifyMediaItem({ MediaCategory: "BrandedVirtualTour" })).toBe("virtualTour");
+    expect(classifyTrestleMediaCategory("BrandedVirtualTour")).toBe("VirtualTour");
   });
 
-  it("[PROVEN_RESOURCE_GAP] MediaCategory='UnbrandedVirtualTour' (the other valid RLS value, 0 rows today) has the same gap", () => {
-    const result = classifyMediaItem({ MediaCategory: "UnbrandedVirtualTour" });
-    expect(result).toBe("unknown");
+  it("[FIXED] MediaCategory='UnbrandedVirtualTour' (the other valid RLS value, 0 rows today) is a virtual tour too", () => {
+    expect(classifyMediaItem({ MediaCategory: "UnbrandedVirtualTour" })).toBe("virtualTour");
     expect(classifyTrestleMediaCategory("UnbrandedVirtualTour")).toBe("VirtualTour");
+  });
+
+  it("every spelling of the category is recognised the same way: the live member names, the with-space and the lowercase forms, and a DTO item's mediaType", () => {
+    for (const category of ["BrandedVirtualTour", "UnbrandedVirtualTour", "VirtualTour", "virtualtour", "Virtual Tour", "virtual tour", "UNBRANDEDVIRTUALTOUR"]) {
+      expect(classifyMediaItem({ MediaCategory: category })).toBe("virtualTour");
+      expect(classifyMediaItem({ mediaType: category })).toBe("virtualTour");
+      expect(classifyMediaItem({ category })).toBe("virtualTour");
+    }
+  });
+
+  it("the other live categories are untouched by it: Photo, FloorPlan and Video keep their classes, Addendum / Document / Other stay 'unknown', and a tour is not a photo", () => {
+    expect(classifyMediaItem({ MediaCategory: "Photo" })).toBe("photo");
+    expect(classifyMediaItem({ MediaCategory: "FloorPlan" })).toBe("floorplan");
+    expect(classifyMediaItem({ MediaCategory: "Video" })).toBe("video");
+    for (const category of ["Addendum", "Document", "Other", "AgentPhoto", "OfficeLogo", "Map"]) expect(classifyMediaItem({ MediaCategory: category })).toBe("unknown");
+    expect(classifyMediaItem({ MediaCategory: "UnbrandedVirtualTour" })).not.toBe("photo");
+  });
+
+  it("a floor-plan signal and a video file still outrank the tour category, as they did (the order of the checks is unchanged)", () => {
+    expect(classifyMediaItem({ MediaCategory: "UnbrandedVirtualTour", ShortDescription: "Floor plan" })).toBe("floorplan");
+    expect(classifyMediaItem({ MediaCategory: "UnbrandedVirtualTour", MediaURL: "https://cdn.example.com/tour/walkthrough.mp4" })).toBe("video");
+  });
+
+  it("the gallery resolver now offers the tour as a tour and keeps it out of the photos", () => {
+    const items = [
+      { MediaURL: "https://cdn.example.com/p1.jpg", MediaCategory: "Photo", Order: 1 },
+      { MediaURL: "https://my.matterport.com/show/?m=abc", MediaCategory: "UnbrandedVirtualTour", Order: 2 },
+      { MediaURL: "https://cdn.example.com/p2.jpg", MediaCategory: "Photo", Order: 3 },
+    ];
+    expect(getVirtualTours(items).map((m) => m.url)).toEqual(["https://my.matterport.com/show/?m=abc"]);
+    expect(getPhotoGallery(items).map((m) => m.url)).toEqual(["https://cdn.example.com/p1.jpg", "https://cdn.example.com/p2.jpg"]);
+    expect(getPrimaryPhoto(items)?.url).toBe("https://cdn.example.com/p1.jpg");
   });
 });
 
