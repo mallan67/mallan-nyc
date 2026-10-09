@@ -349,7 +349,7 @@
     { rls: 'saleCommercialFeatures', name: 'saleCommercialFeatures' },
     { rls: 'salePrivateOutdoorSpace', name: 'salePrivateOutdoorSpace' },
     { rls: 'saleExposure', name: 'saleExposure' },
-    { rls: 'saleViewList', name: 'saleViewList' },
+    { rls: 'saleViewList', name: 'saleViewList', valueMap: { Park: 'ParkGreenbelt', SeaOcean: 'Ocean', Streets: 'Street' }, fallbackRls: 'View' },
     { rls: 'saleAdditionalRooms', name: 'saleAdditionalRooms' },
     { rls: 'saleKitchenType', name: 'saleKitchenType' },
     { rls: 'saleKitchenFeatures', name: 'saleKitchenFeatures' },
@@ -722,11 +722,11 @@
     });
   }
 
-  // Building amenity checkboxes: the Sale form restores them from the canonical BuildingFeatures array plus its own internal label list;
-  // the Rental form stores the visible labels.
+  // Building amenity checkboxes: both forms restore them from the canonical BuildingFeatures array plus their own internal label list (saleBuildingFeaturesInternal, rentalBuildingFeaturesInternal);
+  // a Rental listing saved before stored the visible labels in BuildingFeatures, and they still load.
   function applyBuildingFeatures(kind, raw) {
     var canonical = Array.isArray(raw.BuildingFeatures) ? raw.BuildingFeatures : [];
-    var internal = Array.isArray(raw.saleBuildingFeaturesInternal) ? raw.saleBuildingFeaturesInternal : [];
+    var internal = Array.isArray(raw[kind + 'BuildingFeaturesInternal']) ? raw[kind + 'BuildingFeaturesInternal'] : [];
     if (!canonical.length && !internal.length) return;
     var canonicalSet = {}; canonical.forEach(function (v) { canonicalSet[String(v)] = true; });
     var internalSet = {}; internal.forEach(function (v) { internalSet[String(v)] = true; });
@@ -1041,6 +1041,7 @@
     hydrate: hydrate,
     propertyCondition: propertyCondition,
     PROPERTY_CONDITION: PROPERTY_CONDITION,
+    BUILDING_FEATURES_LABEL_TO_CANONICAL: BUILDING_FEATURES_LABEL_TO_CANONICAL,
     coListRows: coListRows,
     streetLine: function (listing) { listing = asObject(listing); return streetLine(asObject(listing.address), asObject(listing.raw_data)); },
     tables: {

@@ -932,7 +932,7 @@ body { font-family: Manrope, sans-serif; }
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4">
                 <div id="rentalBoardApprovalField" class="flex items-center gap-3">
                     <span class="text-[13px] font-semibold text-gray-600 whitespace-nowrap">Board Approval</span>
-                    <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalBoardApproval" value="Yes" class="w-4 h-4" data-rls-field="BuildingFeatures"> Y</label>
+                    <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalBoardApproval" value="Yes" class="w-4 h-4"> Y</label>
                     <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalBoardApproval" value="No" class="w-4 h-4"> N</label>
                 </div>
                 <div id="rentalBoardInterviewField" class="flex items-center gap-3">
@@ -1228,7 +1228,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
             </div>
             <div class="flex flex-wrap gap-4 mb-3">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalOwnerPays" class="w-4 h-4" data-rls-field="OwnerPays"> Owner Pays</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalOwnerPays" class="w-4 h-4" data-rls-ignore="true"> Owner Pays</label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalFreeRent" class="w-4 h-4" data-rls-ignore="true"> Free Rent</label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalOwnerPaysFreeRent" class="w-4 h-4" data-rls-ignore="true"> Owner Pays AND Free Rent</label>
             </div>
@@ -2062,18 +2062,18 @@ body { font-family: Manrope, sans-serif; }
 <div class="form-card">
     <div class="form-card-header"><i class="fas fa-building"></i> Building Amenities</div>
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDoorman" class="w-4 h-4" data-rls-field="BuildingFeatures"> Doorman</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalElevator" class="w-4 h-4" data-rls-field="BuildingFeatures"> Elevator</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalGym" class="w-4 h-4" data-rls-field="BuildingFeatures"> Gym/Fitness</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDoorman" class="w-4 h-4"> Doorman</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalElevator" class="w-4 h-4"> Elevator</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalGym" class="w-4 h-4"> Gym/Fitness</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm text-gray-400"><i class="fas fa-tshirt w-4 h-4 text-center"></i> Laundry <span class="text-[10px]">(set in Building Modal)</span></label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalBikeRoom" class="w-4 h-4" data-rls-field="BuildingFeatures"> Bike Room</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalStorage" class="w-4 h-4" data-rls-field="BuildingFeatures"> Storage</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalRoofDeck" class="w-4 h-4" data-rls-field="BuildingFeatures"> Roof Deck</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalLiveInSuper" class="w-4 h-4" data-rls-field="BuildingFeatures"> Live-in Super</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalParking" class="w-4 h-4" data-rls-field="BuildingFeatures"> Parking</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalPool" class="w-4 h-4" data-rls-field="BuildingFeatures"> Pool</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalConcierge" class="w-4 h-4" data-rls-field="BuildingFeatures"> Concierge</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalValet" class="w-4 h-4" data-rls-field="BuildingFeatures"> Valet</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalBikeRoom" class="w-4 h-4"> Bike Room</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalStorage" class="w-4 h-4"> Storage</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalRoofDeck" class="w-4 h-4"> Roof Deck</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalLiveInSuper" class="w-4 h-4"> Live-in Super</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalParking" class="w-4 h-4"> Parking</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalPool" class="w-4 h-4"> Pool</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalConcierge" class="w-4 h-4"> Concierge</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalValet" class="w-4 h-4"> Valet</label>
     </div>
 </div>
 
@@ -3674,11 +3674,11 @@ body { font-family: Manrope, sans-serif; }
                         <div class="form-card-header"><i class="fas fa-certificate"></i> Building Status</div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgLandmark" class="w-4 h-4" data-rls-field="LandmarkStatusYN"> Landmark Building</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgHistoric" class="w-4 h-4" data-rls-field="BuildingFeatures"> Historic District</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgLEED" class="w-4 h-4" data-rls-field="BuildingFeatures"> LEED Certified</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgHistoric" class="w-4 h-4"> Historic District</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgLEED" class="w-4 h-4"> LEED Certified</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgNewConstruction" class="w-4 h-4" data-rls-field="NewConstructionYN"> New Construction</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgNewDevelopment" class="w-4 h-4" data-rls-ignore="true" data-removed-field="NewDevelopmentYN"> New Development</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgConversion" class="w-4 h-4" data-rls-field="BuildingFeatures"> Conversion</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgConversion" class="w-4 h-4"> Conversion</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgSponsorUnits" class="w-4 h-4" data-rls-field="SponsorUnitYN"> Has Sponsor Units</label>
                         </div>
                     </div>
@@ -4088,10 +4088,10 @@ body { font-family: Manrope, sans-serif; }
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgWasherDryerAllowed" class="w-4 h-4" data-rls-field="LaundryFeatures"> Washer/Dryer Allowed</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgPiedATerre" class="w-4 h-4" data-rls-ignore="true"> Pied-a-Terre Allowed</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgParentsAllowed" class="w-4 h-4" data-rls-field="BuildingFeatures"> Parents Buying Allowed</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgCoBuyersAllowed" class="w-4 h-4" data-rls-field="BuildingFeatures"> Co-Buyers Allowed</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgCorpOwnAllowed" class="w-4 h-4" data-rls-field="BuildingFeatures"> Corp/LLC Purchase Allowed</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgGiftsAllowed" class="w-4 h-4" data-rls-field="BuildingFeatures"> Gifts Allowed for Down Payment</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgParentsAllowed" class="w-4 h-4"> Parents Buying Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgCoBuyersAllowed" class="w-4 h-4"> Co-Buyers Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgCorpOwnAllowed" class="w-4 h-4"> Corp/LLC Purchase Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgGiftsAllowed" class="w-4 h-4"> Gifts Allowed for Down Payment</label>
                         </div>
                     </div>
 
@@ -4187,7 +4187,7 @@ body { font-family: Manrope, sans-serif; }
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-users"></i> Board Process</div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgBoardApproval" class="w-4 h-4" data-rls-field="BuildingFeatures"> Board Approval Required</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgBoardApproval" class="w-4 h-4"> Board Approval Required</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgBoardInterview" class="w-4 h-4" data-rls-ignore="true"> Board Interview Required</label>
                         </div>
                     </div>
@@ -6258,10 +6258,16 @@ function collectRentalFormData() {
     document.querySelectorAll('input[name="rentalPetsAllowed"]:checked').forEach(function(cb) { data.PetsAllowed.push(cb.value); });
     data.BuildingPetsAllowed = [];
     document.querySelectorAll('input[name="rentalBuildingPetsAllowed"]:checked').forEach(function(cb) { data.BuildingPetsAllowed.push(cb.value); });
+    // BuildingFeatures are the live Cotality members: the amenity labels with an unambiguous member are translated (the table of the hydration module, the Sale form's), the others are kept in the
+    // form's own list so that the agent's choice survives without a word that is no member in BuildingFeatures. (They used to be sent as the labels the boxes show.)
+    var _featureMembers = (typeof MallanListingHydration !== 'undefined' && MallanListingHydration.BUILDING_FEATURES_LABEL_TO_CANONICAL) || {};
     data.BuildingFeatures = [];
+    data.rentalBuildingFeaturesInternal = [];
     document.querySelectorAll('#rentalBuildingModal input[data-rls-field="BuildingFeatures"]:checked').forEach(function(cb) {
         var label = cb.parentElement ? cb.parentElement.textContent.trim() : cb.value;
-        data.BuildingFeatures.push(label);
+        if (!label) return;
+        if (Object.prototype.hasOwnProperty.call(_featureMembers, label)) data.BuildingFeatures.push(_featureMembers[label]);
+        else data.rentalBuildingFeaturesInternal.push(label);
     });
     // AttendanceType — multi-value checkbox array
     data.AttendanceType = [];
@@ -6305,9 +6311,7 @@ function collectRentalFormData() {
         if (!description && !cost) return;
         data.rentalDealFees.push({ type: feeType ? feeType.value : '', description: description, cost: cost });
     });
-    // OwnerPays — single checkbox (id-based, no name attribute)
-    var ownerPaysEl = document.getElementById('rentalOwnerPays');
-    data.OwnerPays = (ownerPaysEl && ownerPaysEl.checked) ? ['Yes'] : [];
+    // "Owner Pays" is the broker-fee concession; Cotality's OwnerPays is the list of utilities the owner pays (Heat, Water, ...), so the box is not sent as that field. It is saved under its own id.
 
     // Map remaining RLS field names from CRM element IDs
     data.CountyOrParish = data.rentalCountyOrParish || '';

@@ -2211,12 +2211,12 @@ body { font-family: Manrope, sans-serif; }
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="Downtown" class="w-4 h-4" data-rls-ignore="true"> Downtown</label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="Garden" class="w-4 h-4" data-rls-ignore="true"> Garden</label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="Panoramic" class="w-4 h-4" data-rls-ignore="true"> Panoramic</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="Park" class="w-4 h-4" data-rls-ignore="true"> Park</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="ParkGreenbelt" class="w-4 h-4" data-rls-ignore="true"> Park</label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="River" class="w-4 h-4" data-rls-ignore="true"> River</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="SeaOcean" class="w-4 h-4" data-rls-ignore="true"> Sea/Ocean</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="Ocean" class="w-4 h-4" data-rls-ignore="true"> Sea/Ocean</label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="RooftopsSky" class="w-4 h-4" data-rls-ignore="true"> Rooftops/Sky</label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="Skyline" class="w-4 h-4" data-rls-ignore="true"> Skyline</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="Streets" class="w-4 h-4" data-rls-ignore="true"> Streets</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleViewList" value="Street" class="w-4 h-4" data-rls-ignore="true"> Streets</label>
             </div>
         </div>
 
@@ -7542,7 +7542,8 @@ function collectSaleFormData() {
     // Canonical Cotality `View` array (mirrors the Heating/Cooling pattern) so the
     // server-side RLS conditional (ViewYN=true → require View) is satisfiable.
     // saleViewList is the form's restore key; View is the Cotality field.
-    data.View = data.saleViewList.slice();
+    // The boxes carry the live View members (ParkGreenbelt, Ocean, Street, ...). The one answer the live list has no member for ("Rooftops/Sky") stays in saleViewList, the restore key, and is not sent as a View.
+    data.View = data.saleViewList.filter(function(v) { return ['RooftopsSky'].indexOf(v) < 0; });
     data.saleAdditionalRooms = [];
     document.querySelectorAll('input[name="saleAdditionalRooms"]:checked').forEach(function(cb) { data.saleAdditionalRooms.push(cb.value); });
     data.saleKitchenType = [];
@@ -9424,7 +9425,7 @@ var SALE_CHECKBOX_ARRAY_MAP = [
   { rls: 'saleCommercialFeatures', name: 'saleCommercialFeatures' },
   { rls: 'salePrivateOutdoorSpace', name: 'salePrivateOutdoorSpace' },
   { rls: 'saleExposure', name: 'saleExposure' },
-  { rls: 'saleViewList', name: 'saleViewList' },
+  { rls: 'saleViewList', name: 'saleViewList', valueMap: { Park: 'ParkGreenbelt', SeaOcean: 'Ocean', Streets: 'Street' }, fallbackRls: 'View' },
   { rls: 'saleAdditionalRooms', name: 'saleAdditionalRooms' },
   { rls: 'saleKitchenType', name: 'saleKitchenType' },
   { rls: 'saleKitchenFeatures', name: 'saleKitchenFeatures' },
