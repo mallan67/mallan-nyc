@@ -453,6 +453,7 @@ describe('assertRlsCompliantPayload', () => {
       SpecialListingConditions: 'Standard',
       PercentOfCommonElements: 1.5,
       TaxMonthlyAmount: 800,
+      TaxAnnualAmount: 9600,                       // the live field CONDO-001 asks for (the monthly figure above is the earlier, non-live one)
       LivingArea: 1200,
       LivingAreaUnits: 'SquareFeet',
       TaxLot: '1234',

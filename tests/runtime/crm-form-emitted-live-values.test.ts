@@ -48,12 +48,13 @@ const FARE_LEGACY = 'a legacy fee-disclosure name (a CustomProperty field in Cot
 const ALIASED = 'a name the normalizer renames (REBNY_FIELD_TABLES.aliasToCanonical) to the live one';
 const PHANTOM_RENTAL = 'UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED: not in the live metadata, raw_data only; the Sale form stopped sending it (Cotality-clean 2026-05-30) and keeps the value under its own key with a legacy reload, the Rental form still sends it';
 const MALLAN_OWN = 'a Mallan field with a provider-style name; not a live Property field, raw_data only';
+const NYC_FACT = 'an NYC fact the rule table classifies (rebny-field-tables.ts header), not a top-level Property field: sent as the agent\'s answer because the create gate (CS-002: no Coming Soon for a new development; SPONSOR-001) and the building search read it; persisted in features and raw_data';
 
 /** form -> key -> why the collector still sends it */
 const KNOWN_NON_PROPERTY_KEYS: Record<string, Record<string, string>> = {
   'SALE-FORM-REDESIGN': {
     AttendanceType: BUILDING_PROFILE, BathroomsTotal: BUILDING_PROFILE, BuildingLaundryFeatures: BUILDING_PROFILE, BuildingPetsAllowed: BUILDING_PROFILE, FlipTax: BUILDING_PROFILE,
-    SponsorUnitYN: BUILDING_PROFILE, TaxAbatementComments: BUILDING_PROFILE, TaxAbatementYN: BUILDING_PROFILE, CoBrokeAgreement: MALLAN_OWN,
+    SponsorUnitYN: BUILDING_PROFILE, TaxAbatementComments: BUILDING_PROFILE, TaxAbatementYN: BUILDING_PROFILE, CoBrokeAgreement: MALLAN_OWN, NewDevelopmentYN: NYC_FACT,
   },
   'RENTAL-FORM-REDESIGN': {
     AttendanceType: BUILDING_PROFILE, BathroomsTotal: BUILDING_PROFILE, BuildingLaundryFeatures: BUILDING_PROFILE, BuildingPetsAllowed: BUILDING_PROFILE, ElevatorsTotal: BUILDING_PROFILE,

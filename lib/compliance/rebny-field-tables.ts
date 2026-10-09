@@ -436,14 +436,18 @@ export const REBNY_FIELD_TABLES = {
     // ── Condo only ──
     {
       code: 'CONDO-001',
-      description: 'Condo requires LivingArea and TaxLot',
+      description: 'Condo requires LivingArea, TaxLot and the annual tax',
       appliesWhen: {
         PropertyType: ['Residential'],
         CommonInterest: ['Condominium'],
       },
+      // The rule asked for TaxMonthlyAmount, which is not a Cotality field (the live one is the ANNUAL TaxAnnualAmount, which both Add forms send); the 2026-10-09 trim dropped the tax
+      // altogether, so a condo needed no tax figure. The live field takes its place. UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED: that REBNY wants the tax of a condo is the
+      // old table's statement; the rule text was not supplied.
       requireFields: [
         'LivingArea',
         'TaxLot',
+        'TaxAnnualAmount',
       ],
     },
 
@@ -599,6 +603,29 @@ export const REBNY_FIELD_TABLES = {
         PropertyType: ['Residential'],
       },
       requireFields: ['PropertyCondition'],
+    },
+
+    // ── Sponsor unit ──
+    // SponsorUnitYN and NewDevelopmentYN are not top-level Property fields. They are the NYC facts this table's header says to classify before removing (the provider carries SponsorUnitYN
+    // inside CustomProperty.CustomFields; the Mallan Building Profile keeps both as features), and the Sale form sends both as booleans, so these two rules are satisfiable. They were removed
+    // on 2026-10-09 with the rules that no form can answer; an independent review found these two were not of that kind.
+    {
+      code: 'SPONSOR-001',
+      description: 'SponsorUnitYN required for new development/construction',
+      appliesWhen: {
+        PropertyType: ['Residential'],
+        NewDevelopmentYN: [true],
+      },
+      requireFields: ['SponsorUnitYN'],
+    },
+    {
+      code: 'SPONSOR-002',
+      description: 'SponsorUnitYN required for new construction',
+      appliesWhen: {
+        PropertyType: ['Residential'],
+        NewConstructionYN: [true],
+      },
+      requireFields: ['SponsorUnitYN'],
     },
 
     // ── UnitNumber conditional ──

@@ -7291,10 +7291,7 @@ function collectSaleFormData() {
     data.PublicRemarks = data.saleDescription || '';
     data.PrivateRemarks = data.saleBrokerComments || '';
     data.ShowingInstructions = data.saleShowingInstructions || '';
-    // NewDevelopmentYN is NOT in live Cotality $metadata (phantom — verified
-    // 2026-05-30). Do not emit it as a canonical field; the agent's selection
-    // persists internally as saleBldgNewDevelopment (collected by the building-
-    // modal sweep) and restores via SALE_FIELD_MAP fallbackRls. (Track 1.)
+    // (NewDevelopmentYN is sent with the building facts below, once the building profile has been read.)
 
     // ListingAgreement — INDEPENDENT from Permissions per RLS rules.
     // OwnerOptOut/ParticipantOnly set Permissions, NOT ListingAgreement.
@@ -7366,6 +7363,12 @@ function collectSaleFormData() {
     }
     // (left undefined when the form value is empty/null — read-side gate's
     // affirmPermission() treats undefined/null as fail-closed.)
+    // A listing whose whole-listing display is off has no estimate to show and takes no comments: the create gate's cascade (DG-001) refuses either answer as true then. The Owner Opt-Out,
+    // Participant Only and In-House handlers switch the display off without the change event that carries the two answers with it, so the answers are brought down here, where they are sent.
+    if (data.InternetEntireListingDisplayYN === false) {
+        data.InternetAutomatedValuationDisplayYN = false;
+        data.InternetConsumerCommentYN = false;
+    }
 
     // Agent identity: js/forms/agent-defaults.js owns the hidden saleUpdatingAgent* inputs, which sit OUTSIDE the area swept above, so they are read by id
     // there. ListAgentMlsId is the Cotality MLS ID (Agent.trestle_mls_id) and never the internal Agent.id; ListAgentKey, ListOfficeKey and ListOfficeMlsId are
@@ -7677,6 +7680,12 @@ function collectSaleFormData() {
     // YearRenovated phantom emit removed (Cotality-clean 2026-05-30): not in live
     // $metadata. Value persists as internal saleBldgYearRenovated (SALE_FIELD_MAP, legacy fallback).
     data.SponsorUnitYN = data.saleBldgSponsorUnits === true || data.saleBldgSponsorUnits === 'true';
+    // NewDevelopmentYN is not a top-level field of the live Cotality Property resource, and it is not required (the rule table no longer asks every listing for it). It is the key the create
+    // gate reads to refuse "Coming Soon" for a new development (CS-002, UCBA Sec. D rule 1; POST /api/crm/listings: isNewDevelopment = body.NewDevelopmentYN === true), the one the rule
+    // table's SPONSOR-001 and its Coming Soon rejection read, and features.NewDevelopmentYN is what the building search shows. The form sent none of it for the Sale, so a listing marked
+    // "New Development" could be saved as Coming Soon. It is sent as the agent's answer: the Building Status "New Development" or the building profile's own box. It reloads from
+    // saleBuildingStatus / saleBldgNewDevelopment (SALE_FIELD_MAP) as before.
+    data.NewDevelopmentYN = data.saleBuildingStatus === 'NewDevelopment' || data.saleBldgNewDevelopment === true || data.saleBldgNewDevelopment === 'true';
     var _TaxAbatementYN = _answerOrUndefined(data.saleBldgTaxAbatementYN);
     if (_TaxAbatementYN !== undefined) data.TaxAbatementYN = _TaxAbatementYN;
     data.TaxAbatementComments = data.saleBldgTaxAbatementComments || '';

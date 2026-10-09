@@ -32,6 +32,9 @@ describe('CRM form save/load field parity', () => {
         'IDXEntireListingDisplayYN', 'SyndicateYN', 'BathroomsTotal',
         'PropertyType', 'PropertySubType', 'CommonInterest', 'MlsStatus',
         'ListingAgreement', 'BuildingFeatures', 'CoBrokeAgreement',
+        // NewDevelopmentYN is the agent's building answer (the Building Status "New Development" or the building profile's box) sent for the create gate's Coming Soon rule (CS-002). It is
+        // restored through the saleBldgNewDevelopment entry's fallbackRls and the saleBuildingStatus radio, not through an entry of its own.
+        'NewDevelopmentYN',
         // Checkbox-array groups newly added by PR #268 + this PR. These are
         // restored via SALE_CHECKBOX_ARRAY_MAP, NOT SALE_FIELD_MAP, so they
         // have no `rls: 'X'` entry in SALE_FIELD_MAP. The corresponding

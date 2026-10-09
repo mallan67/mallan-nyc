@@ -5519,7 +5519,9 @@ function handleFareActChange(value) {
             if (el) { el.checked = false; el.disabled = true; }
         });
         avmRadios.forEach(function(r) {
-            if (r.value === 'false' || r.value === 'no') r.checked = true;
+            // the radios carry 'Yes' / 'No': the comparison was against lower-case words, so "No" was never ticked and "Yes" stayed ticked, disabled
+            var v = String(r.value).toLowerCase();
+            if (v === 'false' || v === 'no') r.checked = true;
             r.disabled = true;
         });
         if (vowCheckbox) { vowCheckbox.checked = true; vowCheckbox.disabled = true; }
@@ -6199,8 +6201,9 @@ function collectRentalFormData() {
         data.InternetAddressDisplayYN = false;
         data.SyndicateYN = false;
     } else {
-        data.IDXEntireListingDisplayYN = data.rentalDist_IDX !== false;
         data.InternetEntireListingDisplayYN = data.rentalInternetEntireListingDisplayYN !== false && data.rentalDist_VOW !== false;
+        // the IDX answer cannot be Yes while the whole-listing display is off (the gate's cascade, DG-001): a tenant-pays fee under the FARE Act unticks the display box and left this at Yes
+        data.IDXEntireListingDisplayYN = data.rentalDist_IDX !== false && data.InternetEntireListingDisplayYN;
         data.InternetAddressDisplayYN = data.rentalInternetAddressDisplayYN !== false;
         data.SyndicateYN = data.rentalSyndicateYN !== false;
     }
@@ -6326,6 +6329,12 @@ function collectRentalFormData() {
     if (data.rentalInternetAVMDisplayYN === 'No') data.InternetAutomatedValuationDisplayYN = false;
     else if (data.rentalInternetAVMDisplayYN === 'Yes') data.InternetAutomatedValuationDisplayYN = true;
     if (typeof data.rentalInternetConsumerCommentYN === 'boolean') data.InternetConsumerCommentYN = data.rentalInternetConsumerCommentYN;
+    // A listing whose whole-listing display is off (Owner Opt-Out, Participant Only, a tenant-pays fee under the FARE Act, or the box unticked) has no estimate to show and takes no comments: the
+    // create gate's cascade (DG-001) refuses either answer as true then, and the AVM radios are disabled by the FARE handler, so the agent could not change it. The answers go down with the display.
+    if (data.InternetEntireListingDisplayYN === false) {
+        data.InternetAutomatedValuationDisplayYN = false;
+        data.InternetConsumerCommentYN = false;
+    }
     // SyndicateTo: only the live Cotality members (RENTAL_SYNDICATION_MAP: entry.cotality); the destinations Cotality does not list are kept in the form's own list. An opt-out, a
     // participant-only or an in-house listing syndicates nowhere, which Cotality expresses as an empty list.
     data.SyndicateTo = [];

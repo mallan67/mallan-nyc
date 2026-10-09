@@ -83,11 +83,13 @@ describe('Building — phantom fields reclassified internal (match Cotality)', (
     expect(formHtml).toMatch(/id="saleBldgNewDevelopment"[^>]*data-rls-ignore="true"[^>]*data-removed-field="NewDevelopmentYN"/);
     expect(formHtml).not.toMatch(/id="saleBldgNewDevelopment"[^>]*data-rls-field="NewConstructionYN"/);
   });
-  it('collect no longer emits the phantom canonical keys; NewConstructionYN (real) still emitted', () => {
+  it('collect no longer emits ElevatorsTotal; NewConstructionYN (real) still emitted; NewDevelopmentYN is sent only as the agent\'s building answer (2026-10-09: the create gate reads it for Coming Soon)', () => {
     const collect = extractFn(formHtml, 'collectSaleFormData');
-    expect(collect).not.toMatch(/data\.NewDevelopmentYN\s*=/);
     expect(collect).not.toMatch(/data\.ElevatorsTotal\s*=/);
     expect(collect).toMatch(/data\.NewConstructionYN\s*=/);
+    // it is not a top-level Cotality field (the control stays untagged, above), but the create gate refuses "Coming Soon" for a new development from body.NewDevelopmentYN (CS-002), and the Sale form
+    // never sent it, so a listing marked New Development could be saved as Coming Soon. It is derived from the two answers the agent gives, and from nothing else.
+    expect(collect).toMatch(/data\.NewDevelopmentYN\s*=\s*data\.saleBuildingStatus === 'NewDevelopment' \|\| data\.saleBldgNewDevelopment === true \|\| data\.saleBldgNewDevelopment === 'true';/);
   });
   it('restore keeps the values internal with legacy fallback', () => {
     expect(formHtml).toMatch(/rls:\s*'saleBldgNumElevators',\s*form:\s*'saleBldgNumElevators'[^}]*fallbackRls:\s*'ElevatorsTotal'/);

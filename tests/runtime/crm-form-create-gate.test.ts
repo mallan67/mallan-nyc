@@ -309,3 +309,124 @@ describe('RENTAL-FORM-REDESIGN: what the Rental form tells Cotality about syndic
     } finally { f.close(); }
   });
 });
+
+// ── What the gate is told: Coming Soon for a new development, and the display answers of a listing that is not displayed ───────────────────────────────────────────────────────────────
+// Found 2026-10-09 by an independent read-only review of the commit that made the forms pass the gate: (1) the Sale form never sent NewDevelopmentYN, the key the create route reads to refuse "Coming Soon" for
+// a new development (CS-002, UCBA Sec. D rule 1), and the rule that used to ask every Sale listing for it was gone, so a new development could be saved as Coming Soon; (2) the Rental form sent its AVM and
+// consumer-comment answers (default Yes) with an Owner Opt-Out, a Participant Only or a tenant-pays listing, whose whole-listing display is off, and the gate's cascade (DG-001) refuses either answer as true
+// then; the Sale form's opt-out handler switches the display off without the change event that carries the answers with it. The first pass only ran Draft / exclusive / landlord-pays listings.
+describe('the create gate is told what the agent chose', () => {
+  const comingSoon = async (mark: (f: BootedForm) => void) => {
+    const f = await fillRealistically('SALE-FORM-REDESIGN', 'sale', KINDS[0], BOROUGHS[0]);
+    try {
+      // the filler ticks every box; an agent listing a resale leaves the building profile's "New Development" box unticked
+      (f.d.getElementById('saleBldgNewDevelopment') as HTMLInputElement).checked = false;
+      mark(f);
+      change(f, 'saleStatus', 'ComingSoon');
+      await sleep(200);
+      const body = f.w.collectSaleFormData();
+      return { body, verdict: createGate(body, 'sale') };
+    } finally { f.close(); }
+  };
+  const radio = (f: BootedForm, name: string, value: string) => {
+    const el = f.d.querySelector(`input[name="${name}"][value="${value}"]`) as HTMLInputElement | null;
+    if (!el) throw new Error(`no radio ${name}=${value}`);
+    el.checked = true;
+    el.dispatchEvent(new (f.w as any).Event('change', { bubbles: true }));
+  };
+
+  it('Sale: Building Status "New Development" and Coming Soon is refused with CS-002, and the form sends the flag the route reads', async () => {
+    const { body, verdict } = await comingSoon((f) => radio(f, 'saleBuildingStatus', 'NewDevelopment'));
+    expect(body.NewDevelopmentYN).toBe(true);
+    expect(verdict.problems.filter((p) => p.includes('CS-002'))).toHaveLength(1);
+  });
+
+  it('Sale: the building profile\'s own "New Development" box and Coming Soon is refused with CS-002 too', async () => {
+    const { body, verdict } = await comingSoon((f) => { const box = f.d.getElementById('saleBldgNewDevelopment') as HTMLInputElement; box.checked = true; box.dispatchEvent(new (f.w as any).Event('change', { bubbles: true })); });
+    expect(body.NewDevelopmentYN).toBe(true);
+    expect(verdict.problems.some((p) => p.includes('CS-002'))).toBe(true);
+  });
+
+  it('Sale: a resale and Coming Soon is accepted, and says it is not a new development; the other building statuses are not new developments either', async () => {
+    const resale = await comingSoon(() => undefined);
+    expect(resale.body.NewDevelopmentYN).toBe(false);
+    expect(resale.verdict.problems).toEqual([]);
+    for (const status of ['SponsorUnit', 'NewConversion']) {
+      const other = await comingSoon((f) => radio(f, 'saleBuildingStatus', status));
+      expect({ status, flag: other.body.NewDevelopmentYN, refused: other.verdict.problems.some((p) => p.includes('CS-002')) }).toEqual({ status, flag: false, refused: false });
+    }
+  });
+
+  it('Sale: a new development that is not Coming Soon is accepted, and SPONSOR-001 is answered by the sponsor-unit answer the form always sends', async () => {
+    const f = await fillRealistically('SALE-FORM-REDESIGN', 'sale', KINDS[0], BOROUGHS[0]);
+    try {
+      radio(f, 'saleBuildingStatus', 'NewDevelopment');
+      const body = f.w.collectSaleFormData();
+      expect(body.NewDevelopmentYN).toBe(true);
+      expect(typeof body.SponsorUnitYN).toBe('boolean');
+      expect(createGate(body, 'sale').problems).toEqual([]);
+    } finally { f.close(); }
+  });
+
+  /** the agent has answered Yes to the estimate and ticked the comments box (the filler's own answers are not the defaults of the page): the answers an opt-out must not carry */
+  const answerYes = (f: BootedForm, prefix: 'sale' | 'rental') => {
+    (f.d.querySelector(`input[name="${prefix}InternetAVMDisplayYN"][value="Yes"]`) as HTMLInputElement).checked = true;
+    (f.d.getElementById(`${prefix}InternetConsumerCommentYN`) as HTMLInputElement).checked = true;
+  };
+
+  it.each([['OwnerOptOut'], ['ParticipantOnly']])('Sale %s: the display answers go down with the display, and the gate accepts the listing', async (listingType) => {
+    const f = await fillRealistically('SALE-FORM-REDESIGN', 'sale', KINDS[0], BOROUGHS[0]);
+    try {
+      answerYes(f, 'sale');
+      expect(f.w.collectSaleFormData().InternetAutomatedValuationDisplayYN).toBe(true);         // the answers are Yes before the listing type is chosen
+      radio(f, 'saleListingType', listingType);
+      await sleep(200);
+      const body = f.w.collectSaleFormData();
+      expect(body.InternetEntireListingDisplayYN).toBe(false);
+      expect([body.InternetAutomatedValuationDisplayYN, body.InternetConsumerCommentYN]).toEqual([false, false]);
+      expect(createGate(body, 'sale').problems).toEqual([]);
+    } finally { f.close(); }
+  });
+
+  it.each([['RLS-Owner-OptOut', 'OwnerOptOut'], ['RLS-Participant', 'Private']])('Rental %s: the display answers go down with the display, and the gate accepts the listing', async (listingType, permission) => {
+    const f = await fillRealistically('RENTAL-FORM-REDESIGN', 'rental', KINDS[0], BOROUGHS[0]);
+    try {
+      answerYes(f, 'rental');
+      expect(f.w.collectRentalFormData().InternetAutomatedValuationDisplayYN).toBe(true);        // the answers are Yes before the listing type is chosen
+      radio(f, 'rentalListingType', listingType);
+      await sleep(200);
+      const body = f.w.collectRentalFormData();
+      expect(body.Permissions).toBe(permission);
+      expect(body.InternetEntireListingDisplayYN).toBe(false);
+      expect([body.InternetAutomatedValuationDisplayYN, body.InternetConsumerCommentYN]).toEqual([false, false]);
+      expect(createGate(body, 'rent').problems).toEqual([]);
+    } finally { f.close(); }
+  });
+
+  it('Rental: a tenant-pays fee (FARE Act) switches the display off; the AVM radios show "No" (not a stuck, disabled "Yes") and the gate accepts the listing', async () => {
+    const f = await fillRealistically('RENTAL-FORM-REDESIGN', 'rental', KINDS[0], BOROUGHS[0]);
+    try {
+      answerYes(f, 'rental');                                                                     // the estimate answer is Yes when the fee is switched to the tenant
+      radio(f, 'rentalFareActLandlordPays', 'no');
+      await sleep(200);
+      const checked = f.d.querySelector('input[name="rentalInternetAVMDisplayYN"]:checked') as HTMLInputElement;
+      expect(checked.value).toBe('No');
+      expect([...f.d.querySelectorAll('input[name="rentalInternetAVMDisplayYN"]')].every((r) => (r as HTMLInputElement).disabled)).toBe(true);
+      const body = f.w.collectRentalFormData();
+      expect(body.InternetEntireListingDisplayYN).toBe(false);
+      expect([body.InternetAutomatedValuationDisplayYN, body.InternetConsumerCommentYN]).toEqual([false, false]);
+      expect(createGate(body, 'rent').problems.filter((p) => p.includes('DG-001'))).toEqual([]);
+    } finally { f.close(); }
+  });
+
+  it('a displayed listing keeps the answers the agent gave (the cascade only brings them down with the display)', async () => {
+    const f = await fillRealistically('RENTAL-FORM-REDESIGN', 'rental', KINDS[0], BOROUGHS[0]);
+    try {
+      (f.d.getElementById('rentalInternetConsumerCommentYN') as HTMLInputElement).checked = true;
+      (f.d.querySelector('input[name="rentalInternetAVMDisplayYN"][value="Yes"]') as HTMLInputElement).checked = true;
+      const body = f.w.collectRentalFormData();
+      expect(body.InternetEntireListingDisplayYN).toBe(true);
+      expect([body.InternetAutomatedValuationDisplayYN, body.InternetConsumerCommentYN]).toEqual([true, true]);
+    } finally { f.close(); }
+  });
+});
