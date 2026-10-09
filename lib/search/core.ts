@@ -59,9 +59,11 @@ export const SEARCH_RESULT_LISTING_SELECT = {
   modification_timestamp: true,
   internet_entire_listing_display_yn: true,
   internet_address_display_yn: true,
-  // The listing broker, for the alert email's per-listing "Listing courtesy of ..." (UCBA Art. III §2(C)). One more column of the same row: no media, no second query,
-  // and serializeSearchListing names its keys, so no response gains it.
+  // The listing broker, for the alert email's per-listing "Listing courtesy of ..." (UCBA Art. III §2(C)), and whether Mallan authored the listing (lib/listings/mallan-source-identity.ts
+  // isMallanLocalListing: the listing id and rls_eligible), so a Mallan listing is not credited to "REBNY RLS". Two more columns of the same row: no media, no second query,
+  // and serializeSearchListing names its keys, so no response gains either.
   list_office_name: true,
+  rls_eligible: true,
 } satisfies Prisma.ListingSelect;
 
 export type SearchResultListing = Prisma.ListingGetPayload<{

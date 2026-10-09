@@ -4,7 +4,7 @@
 // COMPLIANCE: Fair Housing disclaimer + REBNY attribution included.
 
 import { escapeHtml } from "@/lib/sanitize";
-import { publicAttributionText } from "@/lib/idx/public-attribution";
+import { MALLAN_EXCLUSIVE_ATTRIBUTION, publicAttributionText } from "@/lib/idx/public-attribution";
 import type { InvestmentMetrics } from "./investment-metrics";
 
 const BRAND_GOLD = "#C4A052";
@@ -118,11 +118,12 @@ export function portalInviteEmail(
  * Listing alert email — sent when new listings match a client's saved search criteria.
  *
  * Every listing names its actual listing broker (UCBA Art. III §2(C): attribution identifies the listing broker, never the displaying broker; lib/idx/public-attribution.ts is the one
- * policy owner, and an unknown office is the neutral "REBNY RLS", never Mallan). `dataAsOf` is when the newest of these listings was last updated; the footer says it only when it
- * is known (it used to say "Data last updated: <the day the email was sent>" whatever the data was).
+ * policy owner, and an unknown office is the neutral "REBNY RLS", never Mallan). A listing Mallan authored says so instead ("Exclusive listing by Mallan Real Estate Inc."): the caller passes
+ * `mallanAuthored` from lib/listings/mallan-source-identity.ts isMallanLocalListing, never from `agent_id`. `dataAsOf` is when the newest of these listings was last updated; the footer says it
+ * only when it is known (it used to say "Data last updated: <the day the email was sent>" whatever the data was).
  */
 export function listingAlertEmail(
-  listings: { address: string; price: string; beds: number; baths: number; url: string; office?: string | null }[],
+  listings: { address: string; price: string; beds: number; baths: number; url: string; office?: string | null; mallanAuthored?: boolean }[],
   clientName: string,
   dataAsOf?: Date | null
 ): string {
@@ -136,7 +137,7 @@ export function listingAlertEmail(
           ${escapeHtml(l.price)} &middot; ${l.beds} bed &middot; ${l.baths} bath
         </div>
         <div style="font-size:13px;color:#6b7280;margin-top:4px;">
-          ${escapeHtml(publicAttributionText(l.office))}
+          ${escapeHtml(l.mallanAuthored ? MALLAN_EXCLUSIVE_ATTRIBUTION : publicAttributionText(l.office))}
         </div>
       </td>
     </tr>

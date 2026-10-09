@@ -7,8 +7,9 @@
  *    listing says "Listing courtesy of <the listing office>"; its footer said "Data last updated: <the day the email was sent>" whatever the data was;
  *  - the investor campaign (investorListingEmail, /api/crm/listing-campaigns) showed the sender under "Presented By ... Mallan Real Estate Inc." and nothing about the listing's own broker; the route
  *    even selects list_office_name and never used it.
- * lib/idx/public-attribution.ts is the one owner of the policy (an unknown office is the neutral "REBNY RLS", never Mallan, which would be a false claim of brokerage), and the public DTO already
- * carries the finished line (_displayCompliance.attributionText) for the campaign.
+ * lib/idx/public-attribution.ts is the one owner of the policy (an unknown office is the neutral "REBNY RLS", never Mallan, which would be a false claim of brokerage; a listing Mallan authored says
+ * "Exclusive listing by Mallan Real Estate Inc."). The campaign route decides the line from where the listing comes from, not from the DTO's `_displayCompliance`, which reads agent_id
+ * (tests/runtime/listing-campaign-attribution.test.ts); the alert cron passes `mallanAuthored` the same way (tests/runtime/search-alert-listing-attribution.test.ts).
  */
 import { listingAlertEmail, investorListingEmail, type InvestorListingEmailData } from '@/lib/email/templates';
 import { SEARCH_RESULT_LISTING_SELECT, serializeSearchListing } from '@/lib/search/core';
@@ -30,6 +31,16 @@ describe('listingAlertEmail: every listing names its listing broker', () => {
     const html = listingAlertEmail([card(office)], 'Maya');
     expect(attributions(html)).toEqual(['Listing courtesy of REBNY RLS']);
     expect(attributions(html).join(' ')).not.toMatch(/Mallan/i);
+  });
+
+  it('a listing Mallan authored says so, with or without an office on its row, and is never credited to "REBNY RLS"; the others keep their own broker', () => {
+    const html = listingAlertEmail([card(null, { mallanAuthored: true }), card('Compass'), card('Mallan Real Estate Inc.', { mallanAuthored: true }), card(undefined, { mallanAuthored: false })], 'Maya');
+    expect(attributions(html)).toEqual([
+      'Exclusive listing by Mallan Real Estate Inc.',
+      'Listing courtesy of Compass',
+      'Exclusive listing by Mallan Real Estate Inc.',
+      'Listing courtesy of REBNY RLS',
+    ]);
   });
 
   it('an office name is escaped, and trimmed', () => {
@@ -96,18 +107,21 @@ describe('investorListingEmail: the listing\'s own attribution, apart from the s
 });
 
 describe('the search alert\'s listings carry their office without changing any response', () => {
-  it('SEARCH_RESULT_LISTING_SELECT asks for list_office_name (one more column of the same row), and still not for media', () => {
+  it('SEARCH_RESULT_LISTING_SELECT asks for list_office_name and rls_eligible (two more columns of the same row), and still not for media or agent_id', () => {
     expect(SEARCH_RESULT_LISTING_SELECT.list_office_name).toBe(true);
+    expect(SEARCH_RESULT_LISTING_SELECT.rls_eligible).toBe(true);
     expect(SEARCH_RESULT_LISTING_SELECT).not.toHaveProperty('media');
+    expect(SEARCH_RESULT_LISTING_SELECT).not.toHaveProperty('agent_id');
   });
 
-  it('serializeSearchListing still emits its fifteen keys: the office does not leak into the saved-search response', () => {
+  it('serializeSearchListing still emits its fifteen keys: neither the office nor rls_eligible leaks into the saved-search response', () => {
     const serialized = serializeSearchListing({
       id: BigInt(1), listing_id: 'RLS1', status: 'Active', listing_type: 'sale', property_type: 'Residential', property_sub_type: 'Condominium', list_price: '1', bedrooms_total: 1,
       bathrooms_full: 1, bathrooms_half: 0, living_area: '1', borough: 'Manhattan', neighborhood: 'Tribeca', address: {}, modification_timestamp: new Date(0),
-      internet_entire_listing_display_yn: true, internet_address_display_yn: true, list_office_name: 'Compass',
+      internet_entire_listing_display_yn: true, internet_address_display_yn: true, list_office_name: 'Compass', rls_eligible: true,
     } as never);
     expect(Object.keys(serialized)).toHaveLength(15);
     expect(serialized).not.toHaveProperty('list_office_name');
+    expect(serialized).not.toHaveProperty('rls_eligible');
   });
 });

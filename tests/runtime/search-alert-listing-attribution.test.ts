@@ -33,7 +33,7 @@ const listingRow = (id: number, over: Record<string, unknown> = {}) => ({
   id: BigInt(id), listing_id: `RLS${id}`, status: 'Active', listing_type: 'sale', property_type: 'Residential', property_sub_type: 'Condominium', list_price: '1850000',
   bedrooms_total: 2, bathrooms_full: 2, bathrooms_half: 0, living_area: '1320', borough: 'Manhattan', neighborhood: 'Tribeca',
   address: { streetNumber: '217', streetName: `W 57th Street ${id}`, city: 'New York', full: `217 W 57th Street ${id}` },
-  modification_timestamp: new Date('2026-08-12T12:00:00Z'), internet_entire_listing_display_yn: true, internet_address_display_yn: true, list_office_name: 'Compass',
+  modification_timestamp: new Date('2026-08-12T12:00:00Z'), internet_entire_listing_display_yn: true, internet_address_display_yn: true, list_office_name: 'Compass', rls_eligible: true,
   ...over,
 });
 const search = {
@@ -67,6 +67,23 @@ describe('GET /api/cron/search-alerts: the email names each listing\'s broker', 
     expect(html.indexOf('Douglas Elliman')).toBeLessThan(html.indexOf('217 W 57th Street 2'));
   });
 
+  it('a listing Mallan authored is credited to Mallan (an SL-/RL- id, or rls_eligible false), whatever office its row carries; a synced listing is never "Exclusive listing by Mallan"', async () => {
+    const html = await runAlert([
+      listingRow(1, { listing_id: 'SL-0005', list_office_name: null }),                      // converted from a prospect: rls_eligible true, no office stored
+      listingRow(2, { listing_id: 'RLS20093870', list_office_name: 'Compass' }),
+      listingRow(3, { listing_id: 'COM-7', rls_eligible: false, list_office_name: null }),   // website-only
+      listingRow(4, { listing_id: 'RL-0002', list_office_name: 'Mallan Real Estate Inc.' }),
+      listingRow(5, { listing_id: 'RLS20099999', list_office_name: null, agent_id: BigInt(5) }),   // a synced row the agent history stamped: still the other firm's, unknown office
+    ]);
+    expect([...html.matchAll(/(?:Listing courtesy of|Exclusive listing by)[^<\n]*/g)].map((m) => m[0].trim())).toEqual([
+      'Exclusive listing by Mallan Real Estate Inc.',
+      'Listing courtesy of Compass',
+      'Exclusive listing by Mallan Real Estate Inc.',
+      'Exclusive listing by Mallan Real Estate Inc.',
+      'Listing courtesy of REBNY RLS',
+    ]);
+  });
+
   it('says the listing information is as of the NEWEST update among the listings it carries, in New York time', async () => {
     const html = await runAlert([
       listingRow(1, { modification_timestamp: new Date('2026-08-12T12:00:00Z') }),
@@ -86,10 +103,12 @@ describe('GET /api/cron/search-alerts: the email names each listing\'s broker', 
     expect(none).not.toContain('Data last updated');
   });
 
-  it('asks the projection runner for the listings\' office, and for nothing the search never read (no media)', async () => {
+  it('asks the projection runner for the listings\' office and rls_eligible, and for nothing the search never read (no media, no agent_id)', async () => {
     await runAlert([listingRow(1)]);
     const args = projectionFindMany.mock.calls[0][0] as { include: { listing: { select: Record<string, unknown> } } };
     expect(args.include.listing.select.list_office_name).toBe(true);
+    expect(args.include.listing.select.rls_eligible).toBe(true);
     expect(args.include.listing.select).not.toHaveProperty('media');
+    expect(args.include.listing.select).not.toHaveProperty('agent_id');
   });
 });

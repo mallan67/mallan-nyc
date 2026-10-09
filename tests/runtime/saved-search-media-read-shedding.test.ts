@@ -163,9 +163,10 @@ describe('runProjectionListingSearch — the query no longer asks for the media 
     expect(select).not.toHaveProperty('media');
     // Nothing else was dropped along with it — the alert formatter and the
     // address-suppression decision both read from this exact set. `list_office_name`
-    // is the one column added since: the alert email names each listing's broker
-    // (tests/runtime/search-alert-listing-attribution.test.ts), one more column of
-    // the same row, no media and no second query.
+    // and `rls_eligible` are the two columns added since: the alert email names each
+    // listing's broker and says "Exclusive listing by Mallan" only for a listing Mallan
+    // authored (tests/runtime/search-alert-listing-attribution.test.ts), two more columns
+    // of the same row, no media and no second query.
     expect(Object.keys(select).sort()).toEqual(
       [
         'address',
@@ -185,6 +186,7 @@ describe('runProjectionListingSearch — the query no longer asks for the media 
         'neighborhood',
         'property_sub_type',
         'property_type',
+        'rls_eligible',
         'status',
       ].sort(),
     );

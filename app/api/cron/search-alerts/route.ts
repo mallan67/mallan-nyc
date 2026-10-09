@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { listingAlertEmail } from "@/lib/email/templates";
+import { isMallanLocalListing } from "@/lib/listings/mallan-source-identity";
 import { escapeHtml } from "@/lib/sanitize";
 import { formatSearchAlertAddress, runProjectionListingSearch } from "@/lib/search/core";
 import { recordSearchRun } from "@/lib/search/search-run-recorder";
@@ -143,6 +144,8 @@ export async function GET(req: NextRequest) {
           baths: listing.bathrooms_full || 0,
           url: `${BASE_URL}/listing/${listing.listing_id}`,
           office: listing.list_office_name,
+          // a listing Mallan authored says so; never decided from agent_id (see lib/idx/public-attribution.ts listingAttribution)
+          mallanAuthored: isMallanLocalListing({ listing_id: listing.listing_id, rls_eligible: listing.rls_eligible }),
         }));
 
         // When the data is from: the newest update among the listings in this email (not the day it is sent).
