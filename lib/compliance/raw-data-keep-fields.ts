@@ -191,6 +191,10 @@ export const RAW_DATA_KEEP_FIELDS: readonly string[] = [
   // is what prevents a one-time whole-table rewrite storm on first deploy.
   'PhotosCount',
   'VirtualTourURLBranded',
+  // The second and third BRANDED links of a listing, the same way (Cotality's Property has VirtualTourURLBranded, ...Branded2 and ...Branded3). The public DTO shows a branded link only when the
+  // listing has no unbranded link of the same kind (UCBA Art. I Sec. 5(C)). Added 2026-10-09 (Maya: "there are no videos or virtual tours").
+  'VirtualTourURLBranded2',
+  'VirtualTourURLBranded3',
   'VirtualTourURLUnbranded',
   // The second and third tour / video links of a listing. The sync selects them (lib/idx/trestle-mapper.ts) and the public DTO reads them
   // (lib/idx/db-to-public-dto.ts: tourUrlsForDto([Unbranded, Unbranded2, Unbranded3], Branded)), but they were dropped here, so a listing whose

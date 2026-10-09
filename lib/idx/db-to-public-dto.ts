@@ -605,7 +605,7 @@ export function dbListingToPublicDTO(
     // unbranded preferred over branded (UCBA Art. I §5(C)). See tourUrlsForDto.
     ...tourUrlsForDto(
       [rawData.VirtualTourURLUnbranded, rawData.VirtualTourURLUnbranded2, rawData.VirtualTourURLUnbranded3],
-      rawData.VirtualTourURLBranded,
+      [rawData.VirtualTourURLBranded, rawData.VirtualTourURLBranded2, rawData.VirtualTourURLBranded3],
     ),
     // FARE Act fee transparency
     moveInCosts: features.MoveInCosts ? String(features.MoveInCosts) : undefined,

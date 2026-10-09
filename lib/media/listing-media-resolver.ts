@@ -840,7 +840,7 @@ function mergeGalleryByVisualIdentity(
 // VIRTUAL-TOUR / VIDEO SPLIT  (fix/listing-media-pipeline)
 //
 // REBNY IDX Plus delivers "video" and "3D tour" through the SAME Property fields
-// (`VirtualTourURLBranded` / `VirtualTourURLUnbranded[2,3]`) — there is no separate
+// (`VirtualTourURLBranded[2,3]` / `VirtualTourURLUnbranded[2,3]`) — there is no separate
 // playable video field (`VideosCount` is a count only, no URL). A YouTube/Vimeo
 // link and a Matterport link both land in those fields. Consumers previously
 // mapped ALL of them to one `virtualTourURL` (the "3D Tour" tab), so real videos
@@ -881,7 +881,7 @@ export function classifyTourUrl(url: string | null | undefined): 'video' | 'virt
 /** One candidate tour URL from Trestle, tagged branded/unbranded. */
 export interface TourUrlCandidate {
   url: string | null | undefined;
-  /** true = `VirtualTourURLBranded` (agent-branded — public-suppressed when an unbranded exists). */
+  /** true = `VirtualTourURLBranded[2,3]` (agent-branded — public-suppressed when an unbranded exists). */
   branded?: boolean;
 }
 
@@ -909,16 +909,17 @@ export function splitTourUrls(candidates: TourUrlCandidate[]): { videoUrl: strin
 
 /**
  * DTO-shaped convenience wrapper around {@link splitTourUrls}. Accepts the raw
- * unbranded candidate list (`VirtualTourURLUnbranded[,2,3]`) + the branded URL,
+ * unbranded candidate list (`VirtualTourURLUnbranded[,2,3]`) + the branded URL (or the list of them: `VirtualTourURLBranded[,2,3]`, in that order),
  * coerces unknown values, and returns the DTO field names/shape: `videoUrl` and
  * `virtualTourURL` (capital URL), `undefined` (not null) when absent. Unbranded
  * is preferred over branded within each class (UCBA §5(C)).
  */
-export function tourUrlsForDto(unbranded: unknown[], branded?: unknown): { videoUrl?: string; virtualTourURL?: string } {
+export function tourUrlsForDto(unbranded: unknown[], branded?: unknown | unknown[]): { videoUrl?: string; virtualTourURL?: string } {
   const norm = (v: unknown) => (v == null || v === '' ? undefined : String(v));
+  const brandedList: unknown[] = Array.isArray(branded) ? branded : [branded];
   const s = splitTourUrls([
     ...(unbranded || []).map((url) => ({ url: norm(url), branded: false })),
-    { url: norm(branded), branded: true },
+    ...brandedList.map((url) => ({ url: norm(url), branded: true })),
   ]);
   return { videoUrl: s.videoUrl ?? undefined, virtualTourURL: s.virtualTourUrl ?? undefined };
 }

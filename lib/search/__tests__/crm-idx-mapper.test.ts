@@ -523,6 +523,35 @@ describe("crm idx mapper — ownership raw contract (2026-10-03 CommonInterest c
     expect(l.ownership).toBe("StockCooperative");
   });
 
+  describe("the tour link: the first one the listing has, the unbranded ones before the branded ones, each in the order first, second, third", () => {
+    const link = (extra: Record<string, unknown>) =>
+      mapTrestleToCrmListing({ ListingId: "TOUR", InternetEntireListingDisplayYN: true, InternetAddressDisplayYN: true, ...extra }, 0).virtualTourUrl;
+    const U1 = "https://my.matterport.com/show/?m=u1";
+    const U2 = "https://www.youtube.com/watch?v=u2";
+    const U3 = "https://vimeo.com/3";
+    const B1 = "https://tour.example.com/b1";
+    const B2 = "https://tour.example.com/b2";
+    const B3 = "https://tour.example.com/b3";
+
+    it("is the first unbranded link", () => {
+      expect(link({ VirtualTourURLUnbranded: U1, VirtualTourURLUnbranded2: U2, VirtualTourURLUnbranded3: U3, VirtualTourURLBranded: B1 })).toBe(U1);
+      expect(link({ VirtualTourURLUnbranded2: U2, VirtualTourURLUnbranded3: U3, VirtualTourURLBranded: B1 })).toBe(U2);
+      expect(link({ VirtualTourURLUnbranded3: U3, VirtualTourURLBranded: B1, VirtualTourURLBranded2: B2 })).toBe(U3);
+    });
+
+    it("is a branded link only when the listing has no unbranded one, first before second before third", () => {
+      expect(link({ VirtualTourURLBranded: B1, VirtualTourURLBranded2: B2, VirtualTourURLBranded3: B3 })).toBe(B1);
+      expect(link({ VirtualTourURLBranded2: B2, VirtualTourURLBranded3: B3 })).toBe(B2);
+      expect(link({ VirtualTourURLBranded3: B3 })).toBe(B3);
+    });
+
+    it("is null when the listing has none, and a blank link is none", () => {
+      expect(link({})).toBeNull();
+      expect(link({ VirtualTourURLUnbranded: "", VirtualTourURLUnbranded2: null, VirtualTourURLBranded3: "" })).toBeNull();
+      expect(link({ VirtualTourURLUnbranded: "", VirtualTourURLBranded2: B2 })).toBe(B2);
+    });
+  });
+
   it("does not fall back to OwnershipType -- it is a separate, non-RLS-associated field with 0 current accessible rows", () => {
     const l = mapTrestleToCrmListing({
       ListingId: "X",

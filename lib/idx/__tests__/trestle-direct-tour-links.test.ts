@@ -2,13 +2,13 @@
 /**
  * A listing's second and third tour links reach the public page whichever path serves it.
  *
- * The public site reads a listing's video and 3D tour from the Cotality Property fields VirtualTourURLBranded and VirtualTourURLUnbranded, ...2 and ...3 (tourUrlsForDto splits their links by host: a
+ * The public site reads a listing's video and 3D tour from the Cotality Property fields VirtualTourURLBranded and VirtualTourURLUnbranded, ...2 and ...3 of each (tourUrlsForDto splits their links by host: a
  * YouTube or Vimeo link is the listing's video, a Matterport link its 3D tour). The database path reads all of them (db-to-public-dto.ts, and the keep list of raw_data since the Featured / media
  * change), but the live-Trestle path, which serves the public pages when the database has nothing synced for a search (and every page of a deployment that has no database, a preview), asked Cotality
  * for the first and the branded one only, mapped those two, and gave only those two to the public DTO: a video in a listing's second link was in the record Cotality holds (the sync reads it) and
  * never reached the page on that path (CLAUDE.md J.5 asks for the public DTO to be checked on the DB path and on the Cotality-direct path).
  *
- * These tests follow a raw Cotality Property record through the live-Trestle path (mapRESOToInternal -> toPublicDTO) and pin the two lists of fields that path asks Cotality for: both carry the four tour
+ * These tests follow a raw Cotality Property record through the live-Trestle path (mapRESOToInternal -> toPublicDTO) and pin the two lists of fields that path asks Cotality for: both carry the six tour
  * fields, and every field of both is a Property field of the repo's copy of the live $metadata (Cotality refuses a whole query that asks for a field it does not know; card-fields.ts, rule 2).
  */
 import fs from 'fs';
@@ -16,9 +16,10 @@ import path from 'path';
 import { mapRESOToInternal, RESO_FIELDS, FIELD_MAP } from '@/lib/idx/mapping';
 import { toPublicDTO } from '@/lib/idx/public-dto';
 import { CARD_SELECT_FIELDS } from '@/lib/idx/card-fields';
+import { B26_MEDIA } from '@/lib/idx/trestle-mapper';
 
 const ROOT = path.resolve(__dirname, '../../..');
-const TOUR_FIELDS = ['VirtualTourURLBranded', 'VirtualTourURLUnbranded', 'VirtualTourURLUnbranded2', 'VirtualTourURLUnbranded3'];
+const TOUR_FIELDS = ['VirtualTourURLBranded', 'VirtualTourURLBranded2', 'VirtualTourURLBranded3', 'VirtualTourURLUnbranded', 'VirtualTourURLUnbranded2', 'VirtualTourURLUnbranded3'];
 /** The repo's copy of the live Cotality $metadata (scripts/cotality/pull-enums.mjs writes it; the Property entity maps each field to its type). */
 const MIRROR = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/cotality-enums.live.json'), 'utf8')) as { source: string; entities: { Property: Record<string, string> } };
 /** The field names of SEARCH_SELECT_FIELDS in the search route, read from its source (the route module needs the Next runtime). */
@@ -33,6 +34,8 @@ const MATTERPORT2 = 'https://my.matterport.com/show/?m=def';
 const YOUTUBE = 'https://www.youtube.com/watch?v=RM4ef1CIo2k';
 const VIMEO = 'https://vimeo.com/123456789';
 const BRANDED = 'https://tour.example.com/branded/xyz';
+const BRANDED2 = 'https://tour.example.com/branded/two';
+const BRANDED3 = 'https://tour.example.com/branded/three';
 
 /** A raw Cotality Property record the public path accepts (displayable, with an address), plus the tour fields of the test. */
 const record = (tours: Record<string, string>): Record<string, unknown> => ({
@@ -51,15 +54,16 @@ const publicOf = (tours: Record<string, string>) => {
 };
 
 describe('the live-Trestle path carries all of a listing\'s tour links', () => {
-  it('asks Cotality for the four tour fields on a card and on a search', () => {
+  it('asks Cotality for the six tour fields on a card, on a search and in the sync', () => {
     const search = searchSelectFields();
     for (const field of TOUR_FIELDS) {
       expect(CARD_SELECT_FIELDS).toContain(field);
       expect(search).toContain(field);
+      expect(B26_MEDIA).toContain(field);
     }
   });
 
-  it('asks Cotality only for Property fields of the live $metadata (the repo\'s copy of it), the four tour fields among them', () => {
+  it('asks Cotality only for Property fields of the live $metadata (the repo\'s copy of it), the six tour fields among them', () => {
     expect(MIRROR.source).toBe('https://api.cotality.com/trestle/odata/$metadata');
     const lists: Array<[string, string[]]> = [['the card list', [...CARD_SELECT_FIELDS]], ['the search list', searchSelectFields()]];
     for (const [name, fields] of lists) {
@@ -69,20 +73,28 @@ describe('the live-Trestle path carries all of a listing\'s tour links', () => {
     for (const field of TOUR_FIELDS) expect(MIRROR.entities.Property[field]).toBe('Edm.String');
   });
 
-  it('names the two fields in the field table, and maps them into the internal listing', () => {
+  it('names the fields in the field table, and maps them into the internal listing', () => {
     expect(RESO_FIELDS.VirtualTourURLUnbranded2).toBe('VirtualTourURLUnbranded2');
     expect(RESO_FIELDS.VirtualTourURLUnbranded3).toBe('VirtualTourURLUnbranded3');
+    expect(RESO_FIELDS.VirtualTourURLBranded2).toBe('VirtualTourURLBranded2');
+    expect(RESO_FIELDS.VirtualTourURLBranded3).toBe('VirtualTourURLBranded3');
     expect(FIELD_MAP.VirtualTourURLUnbranded2).toBe('virtualTourURLUnbranded2');
     expect(FIELD_MAP.VirtualTourURLUnbranded3).toBe('virtualTourURLUnbranded3');
-    const listing = mapRESOToInternal(record({ VirtualTourURLBranded: BRANDED, VirtualTourURLUnbranded: MATTERPORT, VirtualTourURLUnbranded2: YOUTUBE, VirtualTourURLUnbranded3: VIMEO }))!;
+    expect(FIELD_MAP.VirtualTourURLBranded2).toBe('virtualTourURLBranded2');
+    expect(FIELD_MAP.VirtualTourURLBranded3).toBe('virtualTourURLBranded3');
+    const listing = mapRESOToInternal(record({ VirtualTourURLBranded: BRANDED, VirtualTourURLBranded2: BRANDED2, VirtualTourURLBranded3: BRANDED3, VirtualTourURLUnbranded: MATTERPORT, VirtualTourURLUnbranded2: YOUTUBE, VirtualTourURLUnbranded3: VIMEO }))!;
     expect(listing.virtualTourURLBranded).toBe(BRANDED);
+    expect(listing.virtualTourURLBranded2).toBe(BRANDED2);
+    expect(listing.virtualTourURLBranded3).toBe(BRANDED3);
     expect(listing.virtualTourURLUnbranded).toBe(MATTERPORT);
     expect(listing.virtualTourURLUnbranded2).toBe(YOUTUBE);
     expect(listing.virtualTourURLUnbranded3).toBe(VIMEO);
   });
 
   it('leaves a link out that the record does not carry (and takes a blank for none)', () => {
-    const listing = mapRESOToInternal(record({ VirtualTourURLUnbranded2: '', VirtualTourURLUnbranded3: '' }))!;
+    const listing = mapRESOToInternal(record({ VirtualTourURLUnbranded2: '', VirtualTourURLUnbranded3: '', VirtualTourURLBranded2: '', VirtualTourURLBranded3: '' }))!;
+    expect(listing.virtualTourURLBranded2).toBeUndefined();
+    expect(listing.virtualTourURLBranded3).toBeUndefined();
     expect(listing.virtualTourURLUnbranded).toBeUndefined();
     expect(listing.virtualTourURLUnbranded2).toBeUndefined();
     expect(listing.virtualTourURLUnbranded3).toBeUndefined();
@@ -116,6 +128,22 @@ describe('the live-Trestle path carries all of a listing\'s tour links', () => {
   it('an unbranded link is shown over a branded one of its kind, and a branded one alone is still shown (as before)', () => {
     expect(publicOf({ VirtualTourURLBranded: BRANDED, VirtualTourURLUnbranded2: MATTERPORT }).virtualTourURL).toBe(MATTERPORT);
     expect(publicOf({ VirtualTourURLBranded: BRANDED }).virtualTourURL).toBe(BRANDED);
+  });
+
+  it('the second and third branded links are shown when the listing has no unbranded link of their kind, in the order of the fields', () => {
+    expect(publicOf({ VirtualTourURLBranded2: BRANDED2 }).virtualTourURL).toBe(BRANDED2);
+    expect(publicOf({ VirtualTourURLBranded3: BRANDED3 }).virtualTourURL).toBe(BRANDED3);
+    expect(publicOf({ VirtualTourURLBranded2: BRANDED2, VirtualTourURLBranded3: BRANDED3 }).virtualTourURL).toBe(BRANDED2);
+    expect(publicOf({ VirtualTourURLBranded: BRANDED, VirtualTourURLBranded2: BRANDED2, VirtualTourURLBranded3: BRANDED3 }).virtualTourURL).toBe(BRANDED);
+    expect(publicOf({ VirtualTourURLBranded3: VIMEO }).videoUrl).toBe(VIMEO);
+  });
+
+  it('an unbranded link of a kind is shown over every branded one of that kind (UCBA Art. I Sec. 5(C)), and a branded link of the other kind is still shown', () => {
+    const dto = publicOf({ VirtualTourURLBranded: BRANDED, VirtualTourURLBranded2: BRANDED2, VirtualTourURLBranded3: BRANDED3, VirtualTourURLUnbranded3: MATTERPORT });
+    expect(dto.virtualTourURL).toBe(MATTERPORT);
+    const mixed = publicOf({ VirtualTourURLBranded2: YOUTUBE, VirtualTourURLUnbranded: MATTERPORT });
+    expect(mixed.virtualTourURL).toBe(MATTERPORT);
+    expect(mixed.videoUrl).toBe(YOUTUBE);
   });
 
   it('a listing with no tour link has neither', () => {

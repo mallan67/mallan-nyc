@@ -281,11 +281,10 @@ export function mapTrestleToCrmListing(
     crossStreet: String(raw.CrossStreet || ""),
     floor: null,
     description: String(raw.PublicRemarks || ""),
-    virtualTourUrl: raw.VirtualTourURLUnbranded
-      ? String(raw.VirtualTourURLUnbranded)
-      : raw.VirtualTourURLBranded
-        ? String(raw.VirtualTourURLBranded)
-        : null,
+    // the first link the listing has: the unbranded ones before the branded ones (UCBA Art. I Sec. 5(C)), each in the order first, second, third
+    virtualTourUrl: [raw.VirtualTourURLUnbranded, raw.VirtualTourURLUnbranded2, raw.VirtualTourURLUnbranded3, raw.VirtualTourURLBranded, raw.VirtualTourURLBranded2, raw.VirtualTourURLBranded3]
+      .map((link) => (link ? String(link) : ""))
+      .find((link) => link !== "") || null,
     idxDisplayYN: true,
     internetDisplayYN: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
     addressDisplayYN,

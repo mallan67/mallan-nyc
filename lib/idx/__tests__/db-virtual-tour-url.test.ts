@@ -4,7 +4,7 @@
  * virtual-tour URL so SearchListingCard can render the 3D Tour badge.
  *
  * `dbListingToPublicDTO` derives `virtualTourURL` from
- * `raw_data.VirtualTourURLUnbranded` / `VirtualTourURLBranded` — those fields
+ * `raw_data.VirtualTourURLUnbranded` / `VirtualTourURLBranded` (and the second and third of each) — those fields
  * live ONLY in `raw_data` (the `features` JSON excludes the B26 media group).
  * The DB-first search select omitted `raw_data`, so DB-backed cards always got
  * `virtualTourURL: undefined` and the badge never showed. This pins the DTO
@@ -114,8 +114,26 @@ describe('dbListingToPublicDTO · a listing\'s video and 3D tour from all of its
     expect(dtoOf({ VirtualTourURLBranded: 'https://tour.example.com/branded/xyz' }).virtualTourURL).toBe('https://tour.example.com/branded/xyz');
   });
 
+  it('the second and third branded links are shown when the listing has no unbranded link of their kind, in the order of the fields', () => {
+    const B1 = 'https://tour.example.com/branded/xyz';
+    const B2 = 'https://tour.example.com/branded/two';
+    const B3 = 'https://tour.example.com/branded/three';
+    expect(dtoOf({ VirtualTourURLBranded2: B2 }).virtualTourURL).toBe(B2);
+    expect(dtoOf({ VirtualTourURLBranded3: B3 }).virtualTourURL).toBe(B3);
+    expect(dtoOf({ VirtualTourURLBranded2: B2, VirtualTourURLBranded3: B3 }).virtualTourURL).toBe(B2);
+    expect(dtoOf({ VirtualTourURLBranded: B1, VirtualTourURLBranded2: B2, VirtualTourURLBranded3: B3 }).virtualTourURL).toBe(B1);
+    expect(dtoOf({ VirtualTourURLBranded3: YOUTUBE }).videoUrl).toBe(YOUTUBE);
+  });
+
+  it('an unbranded link of a kind outranks every branded link of that kind (UCBA Art. I Sec. 5(C)); the other kind still shows its branded link', () => {
+    const raw = { VirtualTourURLBranded: 'https://tour.example.com/branded/xyz', VirtualTourURLBranded2: 'https://tour.example.com/branded/two', VirtualTourURLBranded3: YOUTUBE, VirtualTourURLUnbranded3: MATTERPORT };
+    const dto = dtoOf(raw);
+    expect(dto.virtualTourURL).toBe(MATTERPORT);
+    expect(dto.videoUrl).toBe(YOUTUBE);
+  });
+
   it('blank links are no links', () => {
-    const dto = dtoOf({ VirtualTourURLUnbranded: '', VirtualTourURLUnbranded2: null, VirtualTourURLUnbranded3: '   ' });
+    const dto = dtoOf({ VirtualTourURLUnbranded: '', VirtualTourURLUnbranded2: null, VirtualTourURLUnbranded3: '   ', VirtualTourURLBranded2: '', VirtualTourURLBranded3: null });
     expect(dto.virtualTourURL).toBeUndefined();
     expect(dto.videoUrl).toBeUndefined();
   });

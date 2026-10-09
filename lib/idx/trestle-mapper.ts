@@ -278,7 +278,7 @@ const B25_GREEN = [
 export const B26_MEDIA = [
   "PhotosCount", "PhotosChangeTimestamp",
   "VideosCount",
-  "VirtualTourURLBranded", "VirtualTourURLUnbranded", "VirtualTourURLUnbranded2", "VirtualTourURLUnbranded3",
+  "VirtualTourURLBranded", "VirtualTourURLBranded2", "VirtualTourURLBranded3", "VirtualTourURLUnbranded", "VirtualTourURLUnbranded2", "VirtualTourURLUnbranded3",
   "DocumentsAvailable", "DocumentsCount", "DocumentsChangeTimestamp",
   "MapURL",
 ];

@@ -84,6 +84,14 @@ describe('splitTourUrls / tourUrlsForDto — video/3D split + unbranded preferen
     expect(dto.videoUrl).toBe('https://youtube.com/watch?v=a');
     expect(dto.virtualTourURL).toBe('https://my.matterport.com/show/?m=b');
   });
+  it('tourUrlsForDto takes the branded links as a list too: every unbranded link outranks them, and the first branded one of a kind wins', () => {
+    const dto = tourUrlsForDto(['https://my.matterport.com/show/?m=b'], ['https://vimeo.com/b1', 'https://youtube.com/b2']);
+    expect(dto.virtualTourURL).toBe('https://my.matterport.com/show/?m=b');
+    expect(dto.videoUrl).toBe('https://vimeo.com/b1');
+    expect(tourUrlsForDto(['https://vimeo.com/u'], ['https://youtube.com/b'])).toEqual({ videoUrl: 'https://vimeo.com/u', virtualTourURL: undefined });
+    expect(tourUrlsForDto([], [null, '', 'https://my.matterport.com/show/?m=b3']).virtualTourURL).toBe('https://my.matterport.com/show/?m=b3');
+    expect(tourUrlsForDto([], [])).toEqual({ videoUrl: undefined, virtualTourURL: undefined });
+  });
   it('returns undefined (not null) when a class is absent', () => {
     const dto = tourUrlsForDto(['https://my.matterport.com/show/?m=b'], null);
     expect(dto.virtualTourURL).toBe('https://my.matterport.com/show/?m=b');
