@@ -120,15 +120,11 @@
                 // Checking one makes Cotality answer HTTP 400 ("The string 'X' is not a valid enumeration type"), which fails the whole search once the
                 // API client forwards checkboxFilters. Verified live 2026-10-06. Re-enable a control only after mapping it to a live member
                 // (the live members are in data/cotality-enums.live.json); tests/runtime/crm-search-real-page.test.ts enforces this.
-                'input[data-field="AccessibilityFeatures"][data-value="WheelchairAccessible"]',
-                'input[data-field="StructureType"][data-value="Loft"]',
-                'input[data-field="StructureType"][data-value="WalkUp"]',
+                // Six controls of the first version of this list were mapped to the live member that stands for them and enabled (Wheelchair Accessible -> WheelchairAccess, Loft and Walk-Up -> ArchitecturalStyle,
+                // Roof Deck -> BuildingRoofDeck, Gym -> FitnessCenter, Bike Room -> BikeStorage). The ones below have no single live member (Brownstone, Terrace, "Laundry in Building" has several candidates).
                 'input[data-field="ArchitecturalStyle"][data-value="Brownstone"]',
-                'input[data-field="ExteriorFeatures"][data-value="RoofDeck"]',
                 'input[data-field="ExteriorFeatures"][data-value="Terrace"]',
                 'input[data-field="LaundryFeatures"][data-value="Common"]',
-                'input[data-field="BuildingFeatures"][data-value="Fitness"]',
-                'input[data-field="BuildingFeatures"][data-value="BikeRoom"]',
                 'input[data-field="BusinessType"][data-value="FlexibleSpace"]',
                 'input[data-field="BusinessType"][data-value="Investment"]',
                 // BuildingPetsAllowed maps to PetsAllowedYN, which live Cotality leaves empty (0 rows for true and for false); the pet data is in

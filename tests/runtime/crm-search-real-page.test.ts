@@ -375,11 +375,20 @@ describe('every enabled Search control sends only values live Cotality accepts',
   // Enabled controls whose field the server never sends to Cotality: they only narrow the rows the server already returned, so they are a
   // silent partial filter. This is the visible backlog and it may only shrink: wire a new control to a live Cotality field instead of adding to it.
   const CLIENT_ONLY_BACKLOG = ['BathroomCondition', 'BuildingSmokeFreeYN', 'KitchenCondition', 'PetsAllowed', 'PoolFeatures', 'PriceChangeDirection', 'PriceChangeTimestamp', 'PropertyCondition'];
-  // Live Cotality answered HTTP 400 (not a valid enumeration type) to each of these, or the field is empty live; they are disabled.
+  // Live Cotality answered HTTP 400 (not a valid enumeration type) to each of these, or the field is empty live; they are disabled. (Six more were in this list: they were mapped to the live member
+  // that stands for them and enabled, see REMAPPED below. The ones left have no single live member: Brownstone and Terrace have none, "Laundry in Building" has several candidates, Flexible Space and
+  // Investment are PropertySubType members, not BusinessType members.)
   const DISABLED = [
-    ['AccessibilityFeatures', 'WheelchairAccessible'], ['StructureType', 'Loft'], ['StructureType', 'WalkUp'], ['ArchitecturalStyle', 'Brownstone'],
-    ['ExteriorFeatures', 'RoofDeck'], ['ExteriorFeatures', 'Terrace'], ['LaundryFeatures', 'Common'], ['BuildingFeatures', 'Fitness'],
-    ['BuildingFeatures', 'BikeRoom'], ['BusinessType', 'FlexibleSpace'], ['BusinessType', 'Investment'],
+    ['ArchitecturalStyle', 'Brownstone'], ['ExteriorFeatures', 'Terrace'], ['LaundryFeatures', 'Common'], ['BusinessType', 'FlexibleSpace'], ['BusinessType', 'Investment'],
+  ];
+  // [the field and the live member the control sends now, the field and the value it used to send]
+  const REMAPPED: Array<[string, string, string, string]> = [
+    ['AccessibilityFeatures', 'WheelchairAccess', 'AccessibilityFeatures', 'WheelchairAccessible'],
+    ['ArchitecturalStyle', 'Loft', 'StructureType', 'Loft'],
+    ['ArchitecturalStyle', 'WalkUp', 'StructureType', 'WalkUp'],
+    ['ExteriorFeatures', 'BuildingRoofDeck', 'ExteriorFeatures', 'RoofDeck'],
+    ['BuildingFeatures', 'FitnessCenter', 'BuildingFeatures', 'Fitness'],
+    ['BuildingFeatures', 'BikeStorage', 'BuildingFeatures', 'BikeRoom'],
   ];
 
   const enabledControls = (): Array<{ field: string; value: string }> => {
@@ -433,6 +442,17 @@ describe('every enabled Search control sends only values live Cotality accepts',
     const pets = [...d.querySelectorAll('input[data-field="BuildingPetsAllowed"]')] as HTMLInputElement[];
     expect(pets.length).toBeGreaterThan(0);
     expect(pets.every((b) => b.disabled)).toBe(true);
+  });
+
+  it('the controls mapped to a live member are enabled in every panel, send that member, and the value live Cotality rejected is no longer offered', () => {
+    for (const [field, value, oldField, oldValue] of REMAPPED) {
+      expect(mirror.enums[field]).toContain(value);
+      const boxes = [...d.querySelectorAll('input[data-field="' + field + '"][data-value="' + value + '"]')] as HTMLInputElement[];
+      expect({ field, value, found: boxes.length > 0, anyDisabled: boxes.some((b) => b.disabled || b.title === 'Not currently supported') }).toEqual({ field, value, found: true, anyDisabled: false });
+      expect(enabledControls()).toContainEqual({ field, value });
+      expect(clauseFor(field, value)).toContain(field + " eq '" + value + "'");
+      expect({ oldField, oldValue, offered: d.querySelectorAll('input[data-field="' + oldField + '"][data-value="' + oldValue + '"]').length }).toEqual({ oldField, oldValue, offered: 0 });
+    }
   });
 
   it('DirectionFaces sends the live members and the Park view sends ParkGreenbelt', () => {
