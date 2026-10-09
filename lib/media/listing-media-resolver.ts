@@ -341,6 +341,9 @@ export function resolveListingMedia(items: unknown, options: ResolveListingMedia
       // when the source has no separate thumbnail (Trestle/legacy/JSON).
       const rawThumb = String(m.ThumbURL ?? m.thumbUrl ?? '').trim();
       const klass = classifyMediaItem(raw);
+      // a BRANDED tour row (MediaCategory 'BrandedVirtualTour'; 'UnbrandedVirtualTour' contains the word too, hence the second test) may carry the agent's name and contact
+      const tourCategory = String(m.MediaCategory ?? m.mediaCategory ?? m.category ?? m.mediaType ?? '').toLowerCase();
+      const brandedTour = klass === 'virtualTour' && tourCategory.includes('branded') && !tourCategory.includes('unbranded');
       const orderRaw = m.Order ?? m.order;
       const orderNum = orderRaw === '' || orderRaw == null || Number.isNaN(Number(orderRaw))
         ? idx
@@ -363,6 +366,7 @@ export function resolveListingMedia(items: unknown, options: ResolveListingMedia
         providerOrder: preferred && klass === 'photo' ? -1 : orderNum,
         idx,
         preferred,
+        brandedTour,
       };
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
@@ -370,6 +374,9 @@ export function resolveListingMedia(items: unknown, options: ResolveListingMedia
   decorated.sort((a, b) => {
     const cp = CLASS_PRIORITY[a.klass] - CLASS_PRIORITY[b.klass];
     if (cp !== 0) return cp;
+    // within the tours an UNBRANDED row comes before a branded one whatever the provider's order: a branded tour may carry the agent's name and contact and must not be shown while an
+    // unbranded one exists (UCBA Art. I Sec. 5(C); splitTourUrls does the same for the listing-level links). The page takes the first tour.
+    if (a.klass === 'virtualTour' && a.brandedTour !== b.brandedTour) return a.brandedTour ? 1 : -1;
     if (a.providerOrder !== b.providerOrder) return a.providerOrder - b.providerOrder;
     return a.idx - b.idx;
   });

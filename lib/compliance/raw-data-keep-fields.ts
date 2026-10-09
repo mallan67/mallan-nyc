@@ -197,7 +197,7 @@ export const RAW_DATA_KEEP_FIELDS: readonly string[] = [
   'VirtualTourURLBranded3',
   'VirtualTourURLUnbranded',
   // The second and third tour / video links of a listing. The sync selects them (lib/idx/trestle-mapper.ts) and the public DTO reads them
-  // (lib/idx/db-to-public-dto.ts: tourUrlsForDto([Unbranded, Unbranded2, Unbranded3], Branded)), but they were dropped here, so a listing whose
+  // (lib/idx/db-to-public-dto.ts: tourUrlsForDto([Unbranded, Unbranded2, Unbranded3], [Branded, Branded2, Branded3])), but they were dropped here, so a listing whose
   // video sat in its second box never had one on mallan.nyc. Added 2026-10-08 (Maya: "there are no videos or virtual tours").
   'VirtualTourURLUnbranded2',
   'VirtualTourURLUnbranded3',

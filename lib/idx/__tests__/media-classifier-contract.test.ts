@@ -43,7 +43,7 @@
  * output classes (photo/floorplan/video/virtualTour/unknown) by design; those categories
  * are not gallery image content. See the doc's Section 3/4.3 for that boundary.
  */
-import { classifyMediaItem, getPhotoGallery, getPrimaryPhoto, getVirtualTours } from "@/lib/media/listing-media-resolver";
+import { classifyMediaItem, getPhotoGallery, getPrimaryPhoto, getVirtualTours, resolveListingMedia, resolveListingMediaFromRows } from "@/lib/media/listing-media-resolver";
 import { classifyTrestleMediaCategory } from "@/lib/media/media-sync-service";
 
 // Sanitized live-row-derived fixtures, as supplied by Maya with MediaKey/ResourceRecordKey
@@ -193,6 +193,48 @@ describe("Media contract — PROVEN_RESOURCE_GAP: classifyMediaItem has no real 
     expect(getVirtualTours(items).map((m) => m.url)).toEqual(["https://my.matterport.com/show/?m=abc"]);
     expect(getPhotoGallery(items).map((m) => m.url)).toEqual(["https://cdn.example.com/p1.jpg", "https://cdn.example.com/p2.jpg"]);
     expect(getPrimaryPhoto(items)?.url).toBe("https://cdn.example.com/p1.jpg");
+  });
+
+  describe("an UNBRANDED tour row comes before a BRANDED one, whatever the provider's order (UCBA Art. I Sec. 5(C): a branded tour may carry the agent's name and contact and is not shown while an unbranded one exists)", () => {
+    const BRANDED = "https://branded.example.com/tour";
+    const UNBRANDED = "https://my.matterport.com/show/?m=u";
+    const OTHER_UNBRANDED = "https://youriguide.com/u2";
+    const OTHER_BRANDED = "https://branded.example.com/tour2";
+    const row = (url: string, MediaCategory: string, Order: number) => ({ MediaURL: url, MediaCategory, Order });
+    const tableRow = (url: string, media_category: string, order: number) => ({
+      media_url_original: url, media_url_cached: null, media_type: "VirtualTour", media_category, media_classification: null, order, preferred_photo_yn: false, status: "active",
+    });
+
+    it("the first tour of the gallery resolver is the unbranded one", () => {
+      expect(getVirtualTours([row(BRANDED, "BrandedVirtualTour", 1), row(UNBRANDED, "UnbrandedVirtualTour", 2)]).map((m) => m.url)).toEqual([UNBRANDED, BRANDED]);
+      expect(getVirtualTours([row(UNBRANDED, "UnbrandedVirtualTour", 1), row(BRANDED, "BrandedVirtualTour", 2)]).map((m) => m.url)).toEqual([UNBRANDED, BRANDED]);
+    });
+
+    it("among the unbranded tours (and among the branded ones) the provider's order is kept", () => {
+      const rows = [row(OTHER_BRANDED, "BrandedVirtualTour", 1), row(BRANDED, "BrandedVirtualTour", 2), row(OTHER_UNBRANDED, "UnbrandedVirtualTour", 3), row(UNBRANDED, "UnbrandedVirtualTour", 4)];
+      expect(getVirtualTours(rows).map((m) => m.url)).toEqual([OTHER_UNBRANDED, UNBRANDED, OTHER_BRANDED, BRANDED]);
+    });
+
+    it("a tour of the plain category, the with-space form and a DTO item's mediaType count as unbranded (nothing says they are branded)", () => {
+      for (const category of ["VirtualTour", "Virtual Tour", "virtualtour"]) {
+        expect(getVirtualTours([row(BRANDED, "BrandedVirtualTour", 1), row(UNBRANDED, category, 2)]).map((m) => m.url)).toEqual([UNBRANDED, BRANDED]);
+      }
+      expect(getVirtualTours([{ url: BRANDED, mediaType: "BrandedVirtualTour", order: 1 }, { url: UNBRANDED, mediaType: "UnbrandedVirtualTour", order: 2 }]).map((m) => m.url)).toEqual([UNBRANDED, BRANDED]);
+    });
+
+    it("the same through the table rows the public reader uses (resolveListingMediaFromRows)", () => {
+      const resolved = resolveListingMediaFromRows([tableRow(BRANDED, "BrandedVirtualTour", 1), tableRow(UNBRANDED, "UnbrandedVirtualTour", 2)] as never);
+      expect(resolved.filter((m) => m.class === "virtualTour").map((m) => m.url)).toEqual([UNBRANDED, BRANDED]);
+    });
+
+    it("a listing with only a branded tour row still has it (the preference is an order, not a removal), photos stay first, and the order of everything else is untouched", () => {
+      const mixed = resolveListingMedia([
+        row(BRANDED, "BrandedVirtualTour", 1), row("https://cdn.example.com/p2.jpg", "Photo", 3), row("https://cdn.example.com/p1.jpg", "Photo", 2), row("https://cdn.example.com/fp.jpg", "FloorPlan", 4),
+      ]);
+      expect(mixed.map((m) => m.class)).toEqual(["photo", "photo", "floorplan", "virtualTour"]);
+      expect(mixed.map((m) => m.url).slice(0, 2)).toEqual(["https://cdn.example.com/p1.jpg", "https://cdn.example.com/p2.jpg"]);
+      expect(getVirtualTours([row(BRANDED, "BrandedVirtualTour", 1)]).map((m) => m.url)).toEqual([BRANDED]);
+    });
   });
 });
 

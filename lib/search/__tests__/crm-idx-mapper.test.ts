@@ -523,32 +523,50 @@ describe("crm idx mapper — ownership raw contract (2026-10-03 CommonInterest c
     expect(l.ownership).toBe("StockCooperative");
   });
 
-  describe("the tour link: the first one the listing has, the unbranded ones before the branded ones, each in the order first, second, third", () => {
+  describe("the 3D tour link: chosen the way the public DTO chooses it -- a video-host link is a video and never fills it, the unbranded 3D links come before the branded ones, each in the order first, second, third", () => {
     const link = (extra: Record<string, unknown>) =>
       mapTrestleToCrmListing({ ListingId: "TOUR", InternetEntireListingDisplayYN: true, InternetAddressDisplayYN: true, ...extra }, 0).virtualTourUrl;
+    // three 3D tours, unbranded: a Matterport, an iGuide, a Kuula; three branded ones; and videos on the hosts the public site plays as video
     const U1 = "https://my.matterport.com/show/?m=u1";
-    const U2 = "https://www.youtube.com/watch?v=u2";
-    const U3 = "https://vimeo.com/3";
+    const U2 = "https://youriguide.com/u2";
+    const U3 = "https://kuula.co/share/u3";
     const B1 = "https://tour.example.com/b1";
     const B2 = "https://tour.example.com/b2";
     const B3 = "https://tour.example.com/b3";
+    const YT = "https://www.youtube.com/watch?v=x";
+    const VIMEO = "https://vimeo.com/3";
 
-    it("is the first unbranded link", () => {
+    it("is the first unbranded 3D link, first before second before third", () => {
       expect(link({ VirtualTourURLUnbranded: U1, VirtualTourURLUnbranded2: U2, VirtualTourURLUnbranded3: U3, VirtualTourURLBranded: B1 })).toBe(U1);
       expect(link({ VirtualTourURLUnbranded2: U2, VirtualTourURLUnbranded3: U3, VirtualTourURLBranded: B1 })).toBe(U2);
       expect(link({ VirtualTourURLUnbranded3: U3, VirtualTourURLBranded: B1, VirtualTourURLBranded2: B2 })).toBe(U3);
     });
 
-    it("is a branded link only when the listing has no unbranded one, first before second before third", () => {
+    it("is a branded 3D link only when the listing has no unbranded 3D one, first before second before third", () => {
       expect(link({ VirtualTourURLBranded: B1, VirtualTourURLBranded2: B2, VirtualTourURLBranded3: B3 })).toBe(B1);
       expect(link({ VirtualTourURLBranded2: B2, VirtualTourURLBranded3: B3 })).toBe(B2);
       expect(link({ VirtualTourURLBranded3: B3 })).toBe(B3);
     });
 
-    it("is null when the listing has none, and a blank link is none", () => {
+    it("a video never fills the 3D slot: the CRM frames this link as \"3D Virtual Tour\", and a YouTube watch page refuses to be framed", () => {
+      // a video in the second unbranded box and a Matterport in the branded one: the Matterport is the 3D tour (it used to be hidden by the video)
+      expect(link({ VirtualTourURLUnbranded2: YT, VirtualTourURLBranded: U1 })).toBe(U1);
+      expect(link({ VirtualTourURLUnbranded: YT, VirtualTourURLUnbranded2: VIMEO, VirtualTourURLBranded3: B3 })).toBe(B3);
+      // a listing whose only link is a video has no 3D tour (it used to get a broken frame)
+      expect(link({ VirtualTourURLUnbranded2: YT })).toBeNull();
+      expect(link({ VirtualTourURLUnbranded3: VIMEO, VirtualTourURLBranded2: "https://youtu.be/abc" })).toBeNull();
+      expect(link({ VirtualTourURLUnbranded: "https://cdn.example.com/walkthrough.mp4" })).toBeNull();
+    });
+
+    it("is null when the listing has none, and a blank or whitespace-only link is none", () => {
       expect(link({})).toBeNull();
       expect(link({ VirtualTourURLUnbranded: "", VirtualTourURLUnbranded2: null, VirtualTourURLBranded3: "" })).toBeNull();
       expect(link({ VirtualTourURLUnbranded: "", VirtualTourURLBranded2: B2 })).toBe(B2);
+      expect(link({ VirtualTourURLUnbranded: "   ", VirtualTourURLBranded2: B2 })).toBe(B2);
+    });
+
+    it("is trimmed", () => {
+      expect(link({ VirtualTourURLUnbranded: `  ${U1}  ` })).toBe(U1);
     });
   });
 

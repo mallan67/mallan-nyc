@@ -1,4 +1,4 @@
-import { resolveListingMedia } from "@/lib/media/listing-media-resolver";
+import { resolveListingMedia, tourUrlsForDto } from "@/lib/media/listing-media-resolver";
 import { readCotalityStandardStatus, readCotalityPropertySubType, readCotalityCommonInterest } from "@/lib/cotality/property";
 
 // REBNY IDX Plus pre-filter: REBNY/Cotality removes non-displayable rows from
@@ -281,10 +281,12 @@ export function mapTrestleToCrmListing(
     crossStreet: String(raw.CrossStreet || ""),
     floor: null,
     description: String(raw.PublicRemarks || ""),
-    // the first link the listing has: the unbranded ones before the branded ones (UCBA Art. I Sec. 5(C)), each in the order first, second, third
-    virtualTourUrl: [raw.VirtualTourURLUnbranded, raw.VirtualTourURLUnbranded2, raw.VirtualTourURLUnbranded3, raw.VirtualTourURLBranded, raw.VirtualTourURLBranded2, raw.VirtualTourURLBranded3]
-      .map((link) => (link ? String(link) : ""))
-      .find((link) => link !== "") || null,
+    // the 3D tour the listing has, chosen the way the public DTO chooses it (tourUrlsForDto): a link on a video host is a VIDEO, not a 3D tour (the CRM frames this one as "3D Virtual Tour", and
+    // YouTube refuses to be framed), the unbranded links come before the branded ones (UCBA Art. I Sec. 5(C)), each in the order first, second, third, and a blank link is none
+    virtualTourUrl: tourUrlsForDto(
+      [raw.VirtualTourURLUnbranded, raw.VirtualTourURLUnbranded2, raw.VirtualTourURLUnbranded3],
+      [raw.VirtualTourURLBranded, raw.VirtualTourURLBranded2, raw.VirtualTourURLBranded3],
+    ).virtualTourURL ?? null,
     idxDisplayYN: true,
     internetDisplayYN: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
     addressDisplayYN,
