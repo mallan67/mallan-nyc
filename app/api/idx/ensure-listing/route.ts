@@ -6,7 +6,8 @@
 // If not, creates a minimal record from the IDX search data provided in the body.
 //
 // Auth: agent or broker session required.
-// The listing is marked rls_eligible=false (external IDX listing, not our exclusive).
+// The listing is created RLS-eligible, like every row the Cotality sync writes: it is another firm's listing,
+// and rls_eligible=false would make every reader take it for Mallan's own (see the column below).
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
@@ -69,6 +70,16 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  // The id of a stub is a Cotality ListingId. SL- / RL- are the ids Mallan mints for its OWN listings, and the identity rule
+  // (lib/listings/mallan-source-identity.ts) reads either prefix as "Mallan's own" whatever rls_eligible says, so a stub created
+  // under one would be labelled and gated as Mallan's listing. (A row that already exists under such an id was returned above, unchanged.)
+  if (/^(SL|RL)-/i.test(trimmedId)) {
+    return NextResponse.json(
+      { error: "listing_id is a Mallan listing id (SL-/RL-), not a Cotality ListingId; this route only creates stubs of Cotality listings" },
+      { status: 400 }
+    );
+  }
+
   // 3. Create minimal record from IDX data provided by the frontend
   // address, agent_info, media, features, compliance are all Json columns
   const addressStr = (body.address as string) || "";
@@ -120,7 +131,15 @@ export async function POST(req: NextRequest) {
         postal_code: (body.zip as string) || null,
         property_type: (body.property_type as string) || null,
         property_sub_type: (body.property_sub_type as string) || null,
-        rls_eligible: false, // External IDX listing, not our exclusive
+        // RLS-eligible: this is a FEED listing (another firm's), and the sync writes the same for every Cotality row
+        // ("Cotality-sourced rows are RLS-eligible by definition", lib/idx/sync.ts). rls_eligible=false means "Mallan's own
+        // website-only listing, outside RLS" to every reader: the public label ("Exclusive listing by Mallan Real Estate Inc.", no
+        // disclaimer, an agent card built from the agent columns below), the IDX-display, internet-display, owner-opt-out,
+        // participant-only and address gates (all skipped for such a row), the campaign gate and the exclusives lists. This line
+        // used to write false ("External IDX listing, not our exclusive"), which made another firm's listing read as Mallan's own.
+        // The display flags below come from the request body, fail-closed, and now bind the stub like any feed row. Rows written
+        // before this change keep false until they are corrected (a data change; see the Execution State).
+        rls_eligible: true,
         // H1 fix (2026-05-13): close the secondary-writer §2.05 gap.
         // `canonicalStatus` is the normalized form of body.status (see the
         // declaration above). Using the SAME canonical value for both the
