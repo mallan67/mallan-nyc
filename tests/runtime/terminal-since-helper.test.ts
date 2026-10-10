@@ -92,8 +92,8 @@ describe("deriveTerminalSince — priority + fail-safe", () => {
   });
 });
 
-describe("Trestle Expired: ExpirationDate stripped from mapped.raw_data but raw fallback used (#446)", () => {
-  function expiredTrestleRow(): Record<string, unknown> {
+describe("Cotality Expired: ExpirationDate stripped from mapped.raw_data but raw fallback used (#446)", () => {
+  function expiredCotalityRow(): Record<string, unknown> {
     return {
       ListingKey: "RBNY-EXP-1", ListingId: "RBNY-EXP-1", SourceSystemKey: "RBNY",
       StandardStatus: "Expired", MlsStatus: "Expired",
@@ -106,11 +106,11 @@ describe("Trestle Expired: ExpirationDate stripped from mapped.raw_data but raw 
     };
   }
   it("mapper strips ExpirationDate from raw_data, yet terminal_since derives from the raw fallback (not now)", () => {
-    const raw = expiredTrestleRow();
+    const raw = expiredCotalityRow();
     const mapped = mapTrestleToPrisma(raw);
     // 1) confirm the mapper stripped ExpirationDate from the persisted raw_data
     expect((mapped.raw_data as Record<string, unknown>).ExpirationDate).toBeUndefined();
-    // 2) the Trestle writer passes the original raw ExpirationDate as the fallback
+    // 2) the Cotality sync writer passes the original raw ExpirationDate as the fallback
     const patch = computeTerminalSincePatch({
       previousStatus: "Active",
       newStatus: mapped.status,
@@ -123,7 +123,7 @@ describe("Trestle Expired: ExpirationDate stripped from mapped.raw_data but raw 
     expect(patch.terminal_since).not.toEqual(NOW);
   });
   it("WITHOUT the fallback, the same Expired row falls to wall-clock (proves the fallback is what fixes it)", () => {
-    const raw = expiredTrestleRow();
+    const raw = expiredCotalityRow();
     const mapped = mapTrestleToPrisma(raw);
     const patch = computeTerminalSincePatch({
       previousStatus: "Active",

@@ -27,7 +27,7 @@
  *   7  listing_media rows with media_url_cached
  *   8  media rows missing R2 keys
  *   9  primary_photo_r2_key coverage (flagged unused-by-readers → informational)
- *   10 rows where the frontend would fall back to Trestle/proxy (active, cached IS NULL)
+ *   10 rows where the frontend would fall back to Cotality/proxy (active, cached IS NULL)
  *   11 listings raw_data toast size (catalog; precise per-column sum under --deep)
  *   12 audit_events size + count + date range
  *   13 terminal/closed/expired media counts (+ how many still hold an R2 object)
@@ -58,6 +58,7 @@
 import prisma from '@/lib/prisma';
 import { hasR2Config, listR2ObjectKeys, keyFromUrl } from '@/lib/images/r2';
 import { TERMINAL_STATUSES } from '@/lib/idx/trestle-mapper';
+import { CANCELLED_STATUS_SPELLINGS } from '@/lib/compliance/terminal-status';
 
 // Listing-media R2 objects live ONLY under these prefixes (buildMediaR2Key in
 // lib/media/media-sync-service.ts). The shared bucket also holds objects written
@@ -115,13 +116,13 @@ const WARN_THRESHOLDS = {
 const RAG_THRESHOLDS = {
   // % of ACTIVE media rows that carry an r2_key
   r2CoveragePct: { green: 98, yellow: 90 },
-  // % of ACTIVE media rows the frontend would proxy from Trestle (cached IS NULL)
+  // % of ACTIVE media rows the frontend would proxy from Cotality (cached IS NULL)
   proxyFallbackPct: { green: 2, yellow: 10 }, // lower is better
   // pg_database_size in MB — predictability signal, NOT a plan-limit claim
   dbSizeMB: { green: 1024, yellow: 4096 },
   // max dead-tuple % across the top churn tables
   deadTuplePct: { green: 20, yellow: 40 }, // lower is better
-  // groups where the SAME Trestle original was uploaded under DIFFERENT r2_keys
+  // groups where the SAME Cotality original was uploaded under DIFFERENT r2_keys
   // (true wasteful re-uploads). 0 = clean. Lower is better.
   duplicateUploadGroups: { green: 0, yellow: 25 },
 } as const;
@@ -402,8 +403,10 @@ async function collect() {
 
   // 13 — terminal/closed media (+ how many still hold an R2 object).
   // Uses a parameterised ANY($1) list from the canonical TERMINAL_STATUSES set
-  // (imported from the mapper) so this never drifts from the compliance source.
-  const terminalList = [...TERMINAL_STATUSES];
+  // (imported from the mapper) so this never drifts from the compliance source, plus the
+  // other spelling of Cancelled: the mapper's set holds the CRM's "Cancelled" and the sync
+  // stores Cotality's "Canceled" (lib/compliance/terminal-status.ts, #449).
+  const terminalList = [...TERMINAL_STATUSES, ...CANCELLED_STATUS_SPELLINGS.filter((s) => !TERMINAL_STATUSES.has(s))];
   const terminal = await withRetry('terminal-media', () =>
     prisma.$queryRawUnsafe<
       {
@@ -753,7 +756,7 @@ function renderMarkdown(
   L.push('| Dimension | Value | Status |');
   L.push('|---|---|---|');
   L.push(`| R2 coverage (active media w/ r2_key) | ${rag.r2CoveragePct.toFixed(1)}% | ${RAG_ICON[rag.dims.r2Coverage.rag]} ${rag.dims.r2Coverage.rag} |`);
-  L.push(`| Proxy/Trestle fallback (active) | ${rag.proxyFallbackPct.toFixed(2)}% | ${RAG_ICON[rag.dims.proxyFallback.rag]} ${rag.dims.proxyFallback.rag} |`);
+  L.push(`| Proxy/Cotality fallback (active) | ${rag.proxyFallbackPct.toFixed(2)}% | ${RAG_ICON[rag.dims.proxyFallback.rag]} ${rag.dims.proxyFallback.rag} |`);
   L.push(`| DB size (advisory, plan unconfirmed) | ${fmtBytes(data.dbBytes)} | ${RAG_ICON[rag.dims.dbSize.rag]} ${rag.dims.dbSize.rag} |`);
   // SEPARATE Free-tier gate. The advisory `dbSize` dimension above uses a 1 GB
   // green threshold as a PREDICTABILITY signal, so a database comfortably over
@@ -854,7 +857,7 @@ function renderMarkdown(
   L.push(`- **7. Rows with media_url_cached:** ${n(m.with_cached).toLocaleString()} (${pct(n(m.with_cached), totalRows).toFixed(1)}% of all)`);
   L.push(`- **8. Rows missing r2_key:** ${n(m.missing_r2_key).toLocaleString()} total · ${n(m.active_missing_r2_key).toLocaleString()} of them active`);
   L.push(`- **9. primary_photo_r2_key coverage:** ${n(p.with_primary_r2).toLocaleString()}/${n(p.total_listings).toLocaleString()} listings (${pct(n(p.with_primary_r2), n(p.total_listings)).toFixed(1)}%); of listings with photos: ${n(p.photos_with_primary_r2).toLocaleString()}/${n(p.listings_with_photos).toLocaleString()} (${pct(n(p.photos_with_primary_r2), n(p.listings_with_photos)).toFixed(1)}%). _Informational — this column is not consumed by any public reader (readers use listing_media directly)._`);
-  L.push(`- **10. Frontend would proxy Trestle (active, cached IS NULL, original present):** ${n(m.active_proxy_fallback).toLocaleString()} rows (${rag.proxyFallbackPct.toFixed(2)}% of active). Broken (no URL at all): ${n(m.active_no_url).toLocaleString()}.`);
+  L.push(`- **10. Frontend would proxy Cotality (active, cached IS NULL, original present):** ${n(m.active_proxy_fallback).toLocaleString()} rows (${rag.proxyFallbackPct.toFixed(2)}% of active). Broken (no URL at all): ${n(m.active_no_url).toLocaleString()}.`);
   L.push('');
 
   // 11

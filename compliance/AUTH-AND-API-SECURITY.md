@@ -151,8 +151,7 @@ All files also listen for `mallan:auth:unauthorized` event (dispatched on 401) â
 ## 8. Compliance Impact
 
 ### REBNY RLS Compliance
-- All auth changes are **INTERNAL-ONLY** (no impact on RLS field binding, display rules, or distribution gates)
-- RLS Validator v2: **0 UNKNOWN**, **10/10 sections PASS** after Sprint 9 changes
+- All auth changes are **INTERNAL-ONLY** (no impact on listing display rules or distribution gates)
 - Bearer tokens are **never** included in listing data or API responses (only in auth response)
 
 ### NY SHIELD Act

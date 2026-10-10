@@ -14,8 +14,8 @@
  * #423 no-op trap (mirrored here): the SALE renderer reads `d.listingAgentName`
  * (SALE-FORM-WITH-TOOLS.html:5125) and `d.listingCompany` (:5184). The pre-fix object set the
  * UNUSED `listingAgent` key — a no-op the renderer never reads (the sale-side twin of Codex
- * #423). The fix writes the RENDERED key `listingAgentName` typed-first, in BOTH viewer blocks
- * (the initial fetch ~:4955 and the postMessage handler ~:4990).
+ * #423). The fix writes the RENDERED key `listingAgentName` typed-first. The initial fetch and the
+ * opener's postMessage used to build the object twice; the viewer now builds it once (viewerBuildListing).
  *
  * Fallback order stays safe: typed column → legacy agent_info JSON → ''. No agent email/phone
  * is read from agent_info (name + office are the only attribution reads).
@@ -49,20 +49,24 @@ describe("Codex #429 P2 — sale viewer hydrates the RENDERED keys typed-first",
     expect(saleViewer).toContain("courtesyCompany.textContent = d.listingCompany");
   });
 
-  it("object sets listingAgentName typed-first in BOTH viewer blocks", () => {
+  it("object sets listingAgentName typed-first in the one viewer builder", () => {
     const m =
       saleViewer.match(
         /listingAgentName: apiData\.list_agent_full_name \|\| \(apiData\.agent_info \|\| \{\}\)\.ListAgentFullName \|\| ''/g,
       ) || [];
-    expect(m.length).toBe(2);
+    // The fetch and the opener's postMessage used to build this object twice; the viewer builds it once (viewerBuildListing).
+    expect(m.length).toBe(1);
+    expect((saleViewer.match(/function viewerBuildListing\(/g) || []).length).toBe(1);
   });
 
-  it("object sets listingCompany typed-first in BOTH viewer blocks", () => {
+  it("object sets listingCompany typed-first in the one viewer builder", () => {
     const m =
       saleViewer.match(
         /listingCompany: apiData\.list_office_name \|\| \(apiData\.agent_info \|\| \{\}\)\.ListOfficeName \|\| ''/g,
       ) || [];
-    expect(m.length).toBe(2);
+    // The fetch and the opener's postMessage used to build this object twice; the viewer builds it once (viewerBuildListing).
+    expect(m.length).toBe(1);
+    expect((saleViewer.match(/function viewerBuildListing\(/g) || []).length).toBe(1);
   });
 
   // Regression guard for the #423-style no-op: the prior object wrote the UNUSED `listingAgent`

@@ -78,7 +78,7 @@ SELECT-only, canonical prod, host-guard passed:
 
 - `listing_media.media_url_cached` (135,954 rows with a value): **exactly one base host — `https://pub-c05d6bb7575841e88a1f634081aaf714.r2.dev` (100%)**. No second r2.dev hash, no r2.cloudflarestorage URLs, no old domains.
 - Legacy `listings.media` JSON r2.dev hosts: **same single host.**
-- `listings.primary_photo_url`: only `https://api.cotality.com` (Trestle-direct, not R2 — expected; the R2 pointer is `primary_photo_r2_key`).
+- `listings.primary_photo_url`: only `https://api.cotality.com` (Cotality-direct, not R2 — expected; the R2 pointer is `primary_photo_r2_key`).
 - Domain→bucket mapping proven live: `GET https://pub-c05d…r2.dev/test/ping.txt` → **HTTP 200, 2 bytes, body `ok`** — exactly the `test/ping.txt` object the 06-12 inventory captured inside `mallan-images`. The public domain serves the env-configured bucket.
 - These rows are written by production crons running on Vercel env vars → production writes to and serves from `mallan-images`. **No old base URLs anywhere in data.**
 

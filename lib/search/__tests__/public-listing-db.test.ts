@@ -1,6 +1,9 @@
+import { readFileSync } from "fs";
+import { resolve } from "path";
 import {
   applyPublicListingPostFilters,
   buildPublicListingDbSearch,
+  mallanAuthoredWhere,
 } from "@/lib/search/public-listing-db";
 
 describe("buildPublicListingDbSearch", () => {
@@ -82,7 +85,9 @@ describe("buildPublicListingDbSearch", () => {
 
   it("applies special public sorts with their required filters", () => {
     const exclusives = buildPublicListingDbSearch(new URLSearchParams("sort=exclusives"));
-    expect(exclusives.where.agent_id).toEqual({ not: null });
+    // "Exclusives" are Mallan-AUTHORED listings (SL-/RL- or website-only), never rows that merely carry an agent_id: syncAgentHistory stamps agent_id onto third-party rows
+    expect(exclusives.where.agent_id).toBeUndefined();
+    expect(exclusives.where.AND).toEqual([mallanAuthoredWhere()]);
     expect(exclusives.orderBy).toEqual({ modification_timestamp: "desc" });
 
     const newDev = buildPublicListingDbSearch(new URLSearchParams("sort=new-development"));
@@ -92,7 +97,7 @@ describe("buildPublicListingDbSearch", () => {
 
   it("restricts exclusive=mallan to TRUE Mallan exclusives (SL-/RL- or website-only), never agent_id", () => {
     // Requirement: the homepage exclusives feed must be provably Mallan-only.
-    // syncAgentHistory stamps agent_id onto THIRD-PARTY (buyer-side) Trestle rows
+    // syncAgentHistory stamps agent_id onto THIRD-PARTY (buyer-side) Cotality rows
     // (lib/idx/fetch.ts:427 matches BuyerAgentMlsId), so agent_id != null is unsafe.
     const { where } = buildPublicListingDbSearch(
       new URLSearchParams("type=sale&exclusive=mallan"),
@@ -112,6 +117,28 @@ describe("buildPublicListingDbSearch", () => {
     );
     // It must NOT fall back to agent_id (which can be set on third-party IDX rows).
     expect(where.agent_id).toBeUndefined();
+  });
+
+  it("mallanAuthoredWhere is exactly the canonical source rule: an SL- or RL- listing id, or rls_eligible=false", () => {
+    expect(mallanAuthoredWhere()).toEqual({
+      OR: [
+        { listing_id: { startsWith: "SL-" } },
+        { listing_id: { startsWith: "RL-" } },
+        { rls_eligible: false },
+      ],
+    });
+    expect(mallanAuthoredWhere()).not.toBe(mallanAuthoredWhere());          // a fresh object every time: callers append it to their own where
+  });
+
+  it("exclusive=mallan together with sort=exclusives applies the Mallan-authored predicate ONCE", () => {
+    const { where } = buildPublicListingDbSearch(new URLSearchParams("type=sale&exclusive=mallan&sort=exclusives"));
+    expect(where.agent_id).toBeUndefined();
+    expect((where.AND as unknown[]).filter((c) => JSON.stringify(c) === JSON.stringify(mallanAuthoredWhere()))).toHaveLength(1);
+  });
+
+  it("without exclusive=mallan or sort=exclusives, no Mallan-authored predicate is applied (the general feed is every listing)", () => {
+    const { where } = buildPublicListingDbSearch(new URLSearchParams("type=sale&sort=newest"));
+    expect(JSON.stringify(where)).not.toContain('"startsWith":"SL-"');
   });
 
   it("keeps the general-feed minBeds floor (third-party studios excluded)", () => {
@@ -198,7 +225,7 @@ describe("applyPublicListingPostFilters", () => {
     expect(condoOnly.map((l) => l.id)).toEqual(["a"]);
   });
 
-  it("filters by yearBuilt pre-war and post-war using the same threshold as Trestle", () => {
+  it("filters by yearBuilt pre-war and post-war using the same threshold as the Cotality-direct filter", () => {
     const preWar = applyPublicListingPostFilters(
       listings,
       featuresById,
@@ -246,6 +273,24 @@ describe("applyPublicListingPostFilters", () => {
       new URLSearchParams("amenities=dishwasher,renovated"),
     );
     expect(dishAndRenovated.map((l) => l.id)).toEqual(["b"]);
+  });
+
+  it("pet-friendly keeps every live PetsAllowed answer but No and BuildingNo (a substring \"no\" is also in NoPetRestrictions, NoBreedRestrictions, NoSizeLimit and NoDogs)", () => {
+    const live: string[] = JSON.parse(readFileSync(resolve(__dirname, "../../../data/cotality-enums.live.json"), "utf8")).enums.PetsAllowed;
+    const each = live.map((member) => ({ id: member, petsAllowed: member }));
+    const kept = applyPublicListingPostFilters(each as never, new Map(), new URLSearchParams("amenities=pet-friendly")).map((l) => l.id);
+    expect(live.filter((m) => !kept.includes(m)).sort()).toEqual(["BuildingNo", "No"]);
+    for (const member of ["NoPetRestrictions", "NoBreedRestrictions", "NoSizeLimit", "NoDogs"]) expect(kept).toContain(member);
+  });
+
+  it("pet-friendly reads the features JSON when the DTO has no answer, a list as the string the DTO makes of it, and the old Unit spellings", () => {
+    const rows = [{ id: "dto", petsAllowed: "BuildingNo" }, { id: "json-yes", petsAllowed: null }, { id: "json-no", petsAllowed: undefined }, { id: "legacy-yes", petsAllowed: "UnitYes" }, { id: "legacy-no", petsAllowed: "UnitNo" }, { id: "none", petsAllowed: null }];
+    const features = new Map<string, Record<string, unknown>>([
+      ["json-yes", { PetsAllowed: ["Yes", "CatsOk"] }],
+      ["json-no", { PetsAllowed: "BuildingNo" }],
+    ]);
+    const kept = applyPublicListingPostFilters(rows as never, features, new URLSearchParams("amenities=pet-friendly")).map((l) => l.id);
+    expect(kept).toEqual(["json-yes", "legacy-yes"]);
   });
 
   it("ANDs keyword search across PublicRemarks substring (case-insensitive)", () => {

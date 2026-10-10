@@ -283,7 +283,7 @@ export async function POST(
       });
   const restored = !!existingRow;
 
-  // P1C4: never bump MT on Trestle-synced rows (idx-sync cursor reads it);
+  // P1C4: never bump MT on Cotality-synced rows (idx-sync cursor reads it);
   // CRM-only exclusives keep the touch (legacy JSON left intact either way).
   // The old "ISR sees the change" rationale was inert — detail pages are
   // time-based ISR (revalidate=300), not MT-triggered.

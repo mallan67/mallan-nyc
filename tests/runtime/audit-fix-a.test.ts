@@ -16,10 +16,10 @@
  *
  *   Fix 3 — `/buy?exclusive=mallan` must filter to Mallan-authored rows
  *           only. The DB query restricts to `agent_id != null` and the
- *           route short-circuits past the Trestle fallback so external
+ *           route short-circuits past the Cotality fallback so external
  *           listings can never surface under the "exclusives" label.
  *
- * NO live Prisma, NO live Trestle. The mappers and the where-builder
+ * NO live Prisma, NO live Cotality. The mappers and the where-builder
  * are pure functions over inputs; we feed fixtures and assert outputs.
  */
 
@@ -320,7 +320,7 @@ describe('Search-fix · Fix 4 — case-insensitive address search', () => {
 describe('Search-fix · Fix 5 — numbered-address short-circuit classification', () => {
   // The route's `isNumberedAddressSearch` guard uses the regex `/^\d/`
   // (after trim) to decide whether an address miss should return an honest
-  // empty state (numbered, true) or fall through to Trestle's BuildingName
+  // empty state (numbered, true) or fall through to Cotality's BuildingName
   // search (text-only, false). Codex P1 feedback on PR #107 flagged that
   // the original `isAddressSearch` caught both classes and broke
   // building-name searches. This test pins the classifier so a future
@@ -358,7 +358,7 @@ describe('Search-fix · Fix 5 — numbered-address short-circuit classification'
 
   it('edge: text-only inputs starting with a non-digit character pass through', () => {
     // These reach the DB filter (StreetName containment, case-insensitive)
-    // and then, on miss, the Trestle text-only fallback which also probes
+    // and then, on miss, the Cotality text-only fallback which also probes
     // BuildingName. Documents that the classifier is intentionally narrow.
     for (const q of ['Soho loft', 'park slope', '"425 park"', '#425 park']) {
       expect(isNumberedAddressSearch(q)).toBe(false);
@@ -429,7 +429,7 @@ describe('Search-fix · Fix 6 — DTO propagates Latitude/Longitude', () => {
     expect(dto.address.longitude).toBeCloseTo(-73.9844, 4);
   });
 
-  it('null Latitude/Longitude (the common Trestle case) → DTO has undefined', () => {
+  it('null Latitude/Longitude (the common Cotality case) → DTO has undefined', () => {
     const dto = dbListingToPublicDTO(baseListing({
       address: {
         StreetNumber: '425', StreetName: 'PARK',
@@ -458,7 +458,7 @@ describe('Search-fix · Fix 6 — DTO propagates Latitude/Longitude', () => {
 describe('Audit-fix PR A · Fix 3 — /buy?exclusive=mallan filter', () => {
   it('exclusive=mallan restricts to TRUE Mallan exclusives (SL-/RL-/website-only), NOT agent_id', () => {
     // Updated 2026-06-23: agent_id is unsafe — syncAgentHistory stamps it onto
-    // THIRD-PARTY buyer-side Trestle rows (lib/idx/fetch.ts:427 matches
+    // THIRD-PARTY buyer-side Cotality rows (lib/idx/fetch.ts:427 matches
     // BuyerAgentMlsId). Identity is now the CRM SL-/RL- prefix OR rls_eligible=false
     // (the PR #308 signal). The homepage Featured exclusives feed drops the generic
     // bed/price filters, so this identity check must be airtight.
@@ -497,13 +497,16 @@ describe('Audit-fix PR A · Fix 3 — /buy?exclusive=mallan filter', () => {
     }
   });
 
-  it('exclusive=mallan + sort=exclusives still narrows by agent_id (the conditions compose)', () => {
+  it('exclusive=mallan + sort=exclusives narrows to Mallan-AUTHORED listings once, never by agent_id (the conditions compose)', () => {
+    // 2026-10-09: sort=exclusives used to set `agent_id: { not: null }`, which lists another firm's listing that the sync stamped with an agent_id
     const params = new URLSearchParams();
     params.set('type', 'sale');
     params.set('exclusive', 'mallan');
     params.set('sort', 'exclusives');
     const { where, orderBy } = buildPublicListingDbSearch(params);
-    expect(where.agent_id).toEqual({ not: null });
+    expect(where.agent_id).toBeUndefined();
+    const mallanOnly = (where.AND as Array<Record<string, unknown>>).filter((c) => Array.isArray(c.OR) && JSON.stringify(c.OR).includes('"startsWith":"SL-"'));
+    expect(mallanOnly).toHaveLength(1);
     expect(orderBy).toEqual({ modification_timestamp: 'desc' });
   });
 });

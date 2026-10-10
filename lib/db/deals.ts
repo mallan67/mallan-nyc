@@ -74,6 +74,7 @@ export async function createDeal(data: {
   company_fee_usd?: number | null;
   gross_commission_usd?: number | null;
   contract_signed?: Date | null;
+  contract_closed?: Date | null;
 }) {
   const deal = await prisma.deal.create({
     data: {

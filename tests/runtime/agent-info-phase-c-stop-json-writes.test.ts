@@ -1,7 +1,7 @@
 /// <reference types="jest" />
 /**
  * Phase C (agent_info normalization) — producers STOP persisting the legacy `agent_info`
- * JSON column while still writing the 8 typed agent columns. Design = Option B: the trestle
+ * JSON column while still writing the 8 typed agent columns. Design = Option B: the Cotality raw
  * mapper is UNCHANGED (still emits `agent_info` in-memory so typed columns can be derived);
  * each persistence site strips `agent_info` from the Prisma write payload.
  *

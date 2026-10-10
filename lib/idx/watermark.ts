@@ -28,7 +28,7 @@
 import prisma from '@/lib/prisma';
 
 export type IdxWatermark = {
-  /** Last ModificationTimestamp successfully processed from Trestle Property. */
+  /** Last ModificationTimestamp successfully processed from the Cotality Property resource. */
   lastWatermark: Date | null;
   /** Clock time of the last successful sync run. */
   lastRunAt: Date | null;

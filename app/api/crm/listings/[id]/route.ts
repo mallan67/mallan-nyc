@@ -10,6 +10,7 @@ import {
 } from "@/lib/auth";
 import { validateListing } from "@/lib/compliance/rebny-validator";
 import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
+import { nonTextFreeTextKey, nonTextRemarkSlot, scanListingBodyForFairHousing } from "@/lib/compliance/listing-fair-housing";
 import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { sanitizeForCRM } from "@/lib/compliance/dto";
@@ -25,9 +26,31 @@ import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-colum
 import { resolveListingAgentInfo } from "@/lib/listings/agent-info-resolver";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
+import { REBNY_FIELD_TABLES } from "@/lib/compliance/rebny-field-tables";
 import type { Prisma } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
+
+/**
+ * The keys an edit writes into the features bucket (the public copy of a listing's facts): the ones this route has always carried plus every key the create route routes there. The create route
+ * builds that bucket from REBNY_FIELD_TABLES.persistenceMap (buildPersistenceRecord), so reading the same map here keeps the two from drifting; tests/runtime/crm-listing-update-features-parity.test.ts
+ * holds every key of the map to it.
+ */
+const LEGACY_FEATURE_KEYS = [
+  "YearBuilt", "StoriesTotal", "Rooms", "LivingAreaUnits",
+  "Flooring", "Heating", "Cooling", "ParkingFeatures",
+  "LaundryFeatures", "Appliances", "InteriorFeatures",
+  "ExteriorFeatures", "PublicRemarks", "PrivateRemarks",
+  "ShowingInstructions", "CommonInterest", "AssociationFee",
+  "RealEstateTax", "TaxAnnualAmount", "NewDevelopmentYN",
+  "BathroomsTotal",
+];
+const FEATURE_KEYS: string[] = Array.from(new Set([
+  ...LEGACY_FEATURE_KEYS,
+  ...Object.entries(REBNY_FIELD_TABLES.persistenceMap as Record<string, { features?: boolean; removed?: boolean }>)
+    .filter(([, target]) => target.features && !target.removed)
+    .map(([key]) => key),
+]));
 
 /**
  * Resolve a listing by numeric ID or listing_id string.
@@ -110,7 +133,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // WRITE: this handler mutates source-derived columns (property_type,
   // list_price, bedrooms_total, borough, the display gates) AND stamps
   // `modification_timestamp: new Date()`. On a synced row that is both a local
-  // divergence the next sync silently overwrites AND a poisoned Trestle cursor
+  // divergence the next sync silently overwrites AND a poisoned Cotality cursor
   // (getLastSyncTimestamp takes MAX(modification_timestamp) over rows with
   // last_synced_from_trestle NOT NULL). Only Mallan-authored local rows are
   // manageable here — for every role, broker included.
@@ -127,6 +150,26 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  // The remark slots are text. The Fair Housing scans read text only, PATCH copies PublicRemarks into the features bucket as it is, and the public listing page calls string methods on it:
+  // an array or an object there answers 400. So does a list or an object under any other key the scan reads as free text (a headline, a comment, the layout / financing boxes ...), which would be saved unread.
+  const nonTextSlot = nonTextRemarkSlot(body) ?? nonTextFreeTextKey(body);
+  if (nonTextSlot) {
+    return NextResponse.json({ error: `${nonTextSlot} must be text` }, { status: 400 });
+  }
+
+  // Fair Housing applies to every EDIT of a listing's text, not only to its creation: POST /api/crm/listings scans the text it is given, and without the same scan here a clean
+  // listing could be edited to say anything. The RLS gate below skips every CRM-created listing (the ones with no mls_id) and every draft, and the validator's verdict below is
+  // recorded but never blocks; and this route manages any Mallan-authored local row (an SL-/RL- id, or rls_eligible false), whether or not it carries an mls_id. Federal FHA, NY State
+  // HRL and NYC HRL Title 8 apply to all advertising whatever its RLS eligibility or status, so the text this request carries is scanned, with the create route's own scan
+  // (lib/compliance/listing-fair-housing.ts), before anything is written.
+  const fhViolations = scanListingBodyForFairHousing(body);
+  if (fhViolations.length > 0) {
+    return NextResponse.json(
+      { error: "Update blocked by Fair Housing content gate", blockers: fhViolations },
+      { status: 422 }
+    );
   }
 
   // Merge existing raw_data with updates for validation
@@ -202,7 +245,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // FARE Act fee-disclosure gate (NYC LL 119/2024) — rentals becoming display-ready
   // (Active / ComingSoon). Covers the edit-save publish path. Applies to CRM rental
   // exclusives too. Gate on DISPLAY-READY status (not !isDraft): the CRM form saves
-  // drafts as RESO MlsStatus "Incomplete", which is non-Draft but NOT display-ready,
+  // drafts with the CRM draft marker MlsStatus "Incomplete", which is non-Draft but NOT display-ready,
   // so a draft save must never be gated (Codex #348).
   //
   // Unchanged from its #350 baseline: this gate reads `effectiveStatus`
@@ -258,7 +301,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   else if (body.SubdivisionName !== undefined) update.neighborhood = String(body.SubdivisionName);
   if (body.City !== undefined) update.city = String(body.City);
   if (body.PostalCode !== undefined) update.postal_code = String(body.PostalCode);
-  // Distribution gates — all use canonical RESO/RLS field names (YN suffix).
+  // Distribution gates (YN-suffixed flags). InternetEntireListingDisplayYN and
+  // InternetAddressDisplayYN are live Cotality Property fields; the IDX-display
+  // control below is Mallan-internal (there is no Cotality IDX-display field).
   //
   // 2026-04-28 fail-closed correction: previous pattern was `body.X !== false`
   // which coerced null/string-"false"/garbage to true (fail-OPEN). Use
@@ -285,7 +330,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     // pre-amend guard treated that as non-terminal and let display through.
     // After normalization the guard sees the canonical "Closed" and refuses.
     // Reuses the C2 canonical TERMINAL_STATUSES set so writer and cron stay
-    // aligned (lib/idx/trestle-mapper.ts is the source of truth).
+    // aligned (imported from lib/idx/trestle-mapper.ts).
     //
     // Phase A Codex fix (2026-05-20): also AND-in `effectiveRlsEligible` so a
     // commercial / website-only listing (`rls_eligible=false`) cannot have
@@ -344,7 +389,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         : null;
   }
   // ParticipantOnly + OwnerOptOut: derive from Permissions enum (same as POST route),
-  // or accept the canonical RESO field names ParticipantOnlyYN / OwnerOptOutYN as fallback.
+  // or accept the legacy ParticipantOnlyYN / OwnerOptOutYN body keys as fallback (not live Cotality fields).
   const permValue = body.Permission ?? body.Permissions; // A2: accept canonical Permission + legacy Permissions
   if (permValue !== undefined) {
     const permBools = derivePermissionBooleans(permValue);
@@ -364,7 +409,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // ListAgentKey were never persisted post-Phase-C).
   const existingAgentInfo: Record<string, unknown> = {};
 
-  // Address bucket key allowlist. Includes both canonical RESO names AND the
+  // Address bucket key allowlist. Includes both the stored address keys (Cotality
+  // address fields plus Mallan's Borough/Neighborhood) AND the
   // CRM-form alias keys (CityRegion/SubdivisionName/CountyOrParish/PostalCity)
   // that collectSaleFormData emits. Before adding the aliases, those four
   // fields landed only in raw_data on PATCH — the structured address bucket
@@ -376,7 +422,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     "City", "StateOrProvince", "PostalCode", "Borough",
     "Neighborhood", "BuildingName", "UnparsedAddress",
     // Alias keys the CRM sale form emits via collectSaleFormData (these are
-    // the same fields under different RESO/REBNY names — see
+    // the same fields under different Cotality/REBNY names — see
     // lib/compliance/normalizer.ts aliasToCanonical).
     "CityRegion", "SubdivisionName", "CountyOrParish", "PostalCity",
   ];
@@ -385,8 +431,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     if (body[k] !== undefined) updatedAddress[k] = body[k];
   }
   // UnparsedAddress case normalization: the CRM sale form's
-  // collectSaleFormData emits `UnParsedAddress` (capital P, the spelling on
-  // Trestle's $metadata for OData $orderby), while existing Trestle-mapped
+  // collectSaleFormData emits `UnParsedAddress` (capital P; the live Cotality
+  // $metadata spells it `UnparsedAddress`), while existing Cotality-mapped
   // rows and most internal callers use `UnparsedAddress` (lowercase p). Accept
   // either casing and store under the lowercase-p canonical so the public-DTO
   // builders + slug + address validator (which all read `UnparsedAddress`)
@@ -398,15 +444,10 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   }
   update.address = updatedAddress as Prisma.InputJsonValue;
 
-  const featureKeys = [
-    "YearBuilt", "StoriesTotal", "Rooms", "LivingAreaUnits",
-    "Flooring", "Heating", "Cooling", "ParkingFeatures",
-    "LaundryFeatures", "Appliances", "InteriorFeatures",
-    "ExteriorFeatures", "PublicRemarks", "PrivateRemarks",
-    "ShowingInstructions", "CommonInterest", "AssociationFee",
-    "RealEstateTax", "TaxAnnualAmount", "NewDevelopmentYN",
-    "BathroomsTotal",
-  ];
+  // The keys an edit carries into the features bucket: the ones this route has always carried PLUS every key the create route routes there (the persistence map, through
+  // buildPersistenceRecord). The hand-written list held 21 keys while a create writes the 60-odd the map names, so a pet policy, a view, a fireplace, a tax, a condition ... changed after
+  // the listing was created reached raw_data only, and the public page, which reads `features`, kept the old answer.
+  const featureKeys = FEATURE_KEYS;
   const updatedFeatures = { ...existingFeatures };
   for (const k of featureKeys) {
     if (body[k] !== undefined) updatedFeatures[k] = body[k];
@@ -417,6 +458,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     "ListAgentKey", "ListAgentMlsId", "ListAgentFullName",
     "ListAgentEmail", "ListAgentDirectPhone",
     "ListOfficeName", "ListOfficeKey", "ListOfficeMlsId",
+    // Co-list side (slot 1 has typed columns; the rest of the co-list keys live in raw_data via the full-body merge below).
+    "CoListAgentMlsId", "CoListOfficeMlsId",
   ];
   // Phase C: the LIVE agent attribution is in the 8 typed columns — agent_info JSON is
   // frozen/absent for rows created or edited after the stop-write change. Seed the merge
@@ -521,7 +564,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // `idx_display_yn` (via IDXEntireListingDisplayYN guard above),
   // `rls_eligible`, status, and other projection-mirrored columns; without
   // this dual-write the projection would lag until the next idx-sync run
-  // (Trestle path only) or the data-retention cron (terminal rows only).
+  // (Cotality path only) or the data-retention cron (terminal rows only).
   //
   // See docs/idx/post-reconciliation-tightening-audit-2026-05-20.md W3 for
   // the gap analysis. Failure logged to AuditEvent + does NOT block the

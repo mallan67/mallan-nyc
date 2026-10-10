@@ -6,7 +6,7 @@
 > state. Product/system authority remains the repository's designated master authority; this file governs
 > how agents verify and execute work.
 
-This project is a **live Cotality/Trestle (REBNY IDX Plus) synchronization platform** — not "an IDX
+This project is a **live Cotality (REBNY IDX Plus) synchronization platform** — not "an IDX
 website." It has downstream consumers: search, CRM, portal, media, compliance, archive, email, contact.
 
 ---
@@ -43,9 +43,9 @@ Changes reach `main` only through a pull request that passes the required `pr-ch
   `hidden-mountain-87248164`. Administrative/dashboard access starts through Vercel SSO
   (`vercel integration open neon neon-green-school`). Live Neon reads must be reconciled to this exact
   Vercel binding before being used as Mallan truth. Do not create an independent Neon resource to bypass it.
-- **Cotality/Trestle facts** come from the authorized live Cotality/Trestle contract and official provider
+- **Cotality facts** come from the authorized live Cotality contract and official provider
   documentation. Repo metadata, CSVs, generated enums, and old audits are caches/evidence only.
-- **Cotality/Trestle proof is live-provider proof.** Runtime OAuth lives in `lib/idx/auth.ts`:
+- **Cotality proof is live-provider proof.** Runtime OAuth lives in `lib/idx/auth.ts`:
   `TRESTLE_API_URL` (or legacy `IDX_ENDPOINT`) selects the base, token grant is `client_credentials`,
   scope is `api`, and token lifetime comes from provider `expires_in`. `.mcp.json` / `trestle-fields`
   is an **optional local developer helper only**, never provider authority; it must fail closed when live
@@ -62,9 +62,8 @@ Changes reach `main` only through a pull request that passes the required `pr-ch
    org** `Vercel: maya` / `org-wild-king-99967357`) · default branch **`main` = `br-crimson-frog-adr7g9gt`**
    · endpoint **`ep-cold-waterfall-adno3ao2`**. **Stale / do-not-serve:** `morning-bread-68708332` /
    `ep-royal-dawn-ad6eh8t2` (personal org). Never target the stale one. Full rules: `NEON.md`.
-2. **Live Cotality/Trestle cadence is intentional** — `/api/cron/idx-sync` **every 10 min**,
-   `/api/cron/media-sync` **every 15 min**, `/api/cron/db-keepalive` **every 15 min** (source of truth =
-   `vercel.json`). Some route-file **comments are stale** (say "4 hours" / "4 minutes"). **Fix the
+2. **Cron cadence is intentional** — `vercel.json` is the source of truth for every schedule; read it
+   rather than trusting a copied cadence. Some route-file **comments are stale**. **Fix the
    comments, never the schedule**, unless Maya explicitly asks.
 3. **Proof-first** — a change is not "done" without a failing test that flips green, a live URL/runtime-log
    proof, or a direct source read (static claims only). Source-grep alone never proves rendering/behavior.
@@ -74,22 +73,27 @@ Changes reach `main` only through a pull request that passes the required `pr-ch
    the current HEAD already addresses it. Always check the PR's current head SHA first.
 6. **Compliance-first** — anything touching listings, IDX, syndication, CRM lead/contact, intake forms,
    display gates, media, or public text: read `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` first.
-7. **Cotality/Trestle is the sole provider authority — verify the whole contract live.**
+7. **Cotality is the sole provider authority — verify the whole contract live.**
    For any field, enum/string, resource, attribution requirement, permission, mapping, search/filter/OData
    semantic, pagination rule, media relationship, or API behavior, verify against the authorized live
-   Cotality/Trestle API **and the provider's current documentation**. Do not promote repo snapshots or old
-   agent prose into provider truth. `data/cotality-enums.live.json`, `artifacts/metadata.xml`, registries,
-   and CSVs are useful mirrors/evidence only. `npm run cotality:pull` / `npm run cotality:verify` may
-   refresh/check the enum mirror, but they do not replace live provider semantics. Do not embed dated enum
+   Cotality API **and the provider's current documentation**. Do not promote repo snapshots or old
+   agent prose into provider truth. `data/cotality-enums.live.json` (the committed field and
+   enum mirror) is useful evidence only. `npm run cotality:pull` / `npm run cotality:verify` may
+   refresh/check the mirror, but they do not replace live provider semantics. Do not embed dated enum
    lists in this constitution; re-read the provider when the answer matters.
 
 ## 2. Non-negotiable holds (require explicit Maya approval)
 
 Gate 6 `--execute` / any archive-drain execute / 20K–80K batches · manual cron trigger · Vercel env
 changes · Neon reclaim/downgrade · `VACUUM FULL` · production migrations
-(`prisma migrate deploy` / `db push`) · PR-5B · projection backfill · PageSpeed/media lane ·
-notification dispatcher · open-house v2 · admin merge bypass · force-push to main. (Full list + why:
-`CLAUDE.md` §C and the handoff snapshot.)
+(`prisma migrate deploy` / `db push`) · **PR 5B** (`refactor/05-listing-search-projection`, the public
+reader swap from `listings.idx_display_yn` to `listing_search_projection.idx_display_yn` —
+`memory/REFACTOR-2026-04-25.md`) · projection backfill · PageSpeed/media lane · notification dispatcher ·
+open-house v2 · admin merge bypass · force-push to main. These are examples of the Execution State §9
+boundaries, plus PR 5B, which has no Execution State entry and is recorded only here and in
+`CLAUDE.md` §C. Convergence-specific holds and mutation boundaries are recorded in
+`docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` (§7, §9, §11). Do not create a dated handoff
+snapshot as the record for a hold; a hold belongs on this list or in the Execution State, not both.
 
 ## 3. Where truth lives
 
@@ -98,7 +102,7 @@ notification dispatcher · open-house v2 · admin merge bypass · force-push to 
 | 1 | Product/business/system architecture | `MALLAN-PLATFORM-MASTER-PLAN.md` |
 | 2 | Current execution state | `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` |
 | 3 | Current repository reality | GitHub current base/head/PR/checks |
-| 3 | Cotality/Trestle provider truth | Authorized live Cotality/Trestle API + current provider documentation |
+| 3 | Cotality provider truth | Authorized live Cotality API + current provider documentation |
 | 3 | Vercel runtime/integration truth | Connected Vercel project + current official Vercel documentation |
 | 3 | Neon runtime/control-plane truth | Live Neon evidence reconciled to the Vercel-bound resource |
 | 4 | Cross-agent working discipline | `AGENTS.md` |
@@ -115,8 +119,10 @@ Newly proven business requirements amend the one Master. Current mutable status 
 Before ending a session or handing off:
 1. Run **`npm run health:probe`** (read-only) to refresh the dashboard's auto tier.
 2. Update any **assessed-tier** rows you actually verified (with evidence). Leave the rest ⚪ UNVERIFIED.
-3. Update the dated **handoff snapshot** with: date/time, main SHA, open PRs, latest prod deploy, last-24h
-   runtime errors, unresolved blockers, what changed, exact stop point.
+3. Record in the active pull request — and, when the stage, holds or stop point change, in
+   `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` (its §10) — the date/time, main SHA, open PRs,
+   latest prod deploy, last-24h runtime errors, unresolved blockers, what changed and the exact stop point.
+   Do not create dated handoff snapshots, session logs or `memory/` records.
 4. Never mark a status 🟢 without captured proof. Never rely on chat memory alone.
 
 ## 5. Evidence language rule (binds every agent, every report — Maya directive 2026-07-01)
@@ -132,8 +138,8 @@ Before ending a session or handing off:
 - A hypothesis mistaken for a diagnosis is a process failure; wording must make the difference
   impossible to miss across sessions and across agents.
 - **Derived-summary invariant (Maya 2026-07-02):** changing any issue requires updating every
-  derived summary in the same PR (Issue Row → Priority Table → P0/P1 Summary → Dashboard →
-  Handoff). Any stale layer = the PR is incomplete.
+  derived summary in the same PR (Issue Row → Priority Table → P0/P1 Summary → Dashboard; the
+  Execution State when a blocker, hold or stop point changes). Any stale layer = the PR is incomplete.
 - **Single-ID invariant (Maya 2026-07-02):** every issue has exactly one ID, defined in the
   Platform Issue Registry; all other documents reference the ID instead of duplicating the
   description.
@@ -153,7 +159,8 @@ Before ending a session or handing off:
 
 ## 7. Current status — never copy it here
 
-Do not freeze a dated project-status narrative into this constitution. For current state, read the current
-GitHub `main` / PR HEAD, `docs/PROJECT-HEALTH-DASHBOARD.md`, `docs/PLATFORM-ISSUE-REGISTRY.md`, the
-latest repo handoff snapshot, and live Vercel/Neon/Cotality evidence appropriate to the claim. Historical
-status text is evidence only, not current truth.
+Do not freeze a dated project-status narrative into this constitution. For current state, read
+`docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md`, the current GitHub `main` / PR HEAD,
+`docs/PLATFORM-ISSUE-REGISTRY.md`, `docs/PROJECT-HEALTH-DASHBOARD.md`, and live Vercel/Neon/Cotality
+evidence appropriate to the claim. Dated handoffs, audits, plans and `memory/` records are evidence only,
+not current truth.

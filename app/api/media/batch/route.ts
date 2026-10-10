@@ -1,9 +1,9 @@
 // GET /api/media/batch?ids=RLS-12345,RLS-67890
-// Fetches primary photo URLs for a batch of listings from Trestle Media resource.
+// Fetches primary photo URLs for a batch of listings from Cotality Media resource.
 // Returns map of listingId → proxied photo URL.
 //
 // Used by CRM search cards to lazy-load photos for listings that don't have
-// $expand=Media data (which fails for bulk queries on Trestle).
+// $expand=Media data (which fails for bulk queries on Cotality).
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
@@ -11,12 +11,12 @@ import { getAccessToken } from "@/lib/idx/auth";
 import prisma from "@/lib/prisma";
 import { resolveListingMedia, pickPrimaryPhotoUrl } from "@/lib/media/listing-media-resolver";
 
-const TRESTLE_API =
+const COTALITY_API =
   process.env.TRESTLE_API_URL ||
   process.env.IDX_ENDPOINT ||
   "https://api.cotality.com/trestle";
 
-// Trestle Media has only 2 categories: Photo and FloorPlan.
+// Cotality Media has only 2 categories: Photo and FloorPlan.
 // Videos/VirtualTours/3D come from Property fields (VirtualTourURLUnbranded), not Media resource.
 // Classification + photo-first ordering is centralised in
 // lib/media/listing-media-resolver.ts (used by both `detail` and default modes).
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
   const photoResult: Record<string, string | null> = {};
   const mediaResult: Record<string, MediaEntry[]> = {};
 
-  // Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
+  // Cotality guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
   // NOT ResourceRecordID (can duplicate). Resolve mls_id (= ListingKey = ResourceRecordKey) from DB.
   const dbListings = await prisma.listing.findMany({
     where: { listing_id: { in: ids } },
@@ -96,14 +96,14 @@ export async function GET(req: NextRequest) {
     if (uncached.length > 0) {
       try {
         const token = await getAccessToken();
-        // Use ResourceRecordKey (unique) per Trestle guidance, fallback to ResourceRecordID
+        // Use ResourceRecordKey (unique) per Cotality guidance, fallback to ResourceRecordID
         const filterParts = uncached.map((id) => {
           const key = idToKey.get(id) || id;
           const escaped = key.replace(/'/g, "''");
           return key !== id ? `ResourceRecordKey eq '${escaped}'` : `ResourceRecordID eq '${escaped}'`;
         });
         // Fetch ALL media for detail view — photos, floorplans, videos, virtual tours, 3D.
-        // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
+        // MediaStatus filter: exclude tombstoned photos retained by Cotality as historical records.
         const filter = `(${filterParts.join(" or ")}) and MediaStatus ne 'Deleted'`;
         const params = new URLSearchParams();
         params.set("$filter", filter);
@@ -115,7 +115,7 @@ export async function GET(req: NextRequest) {
         params.set("$orderby", "Order asc");
         params.set("$top", String(uncached.length * 40)); // Up to 40 media items per listing
 
-        const response = await fetch(`${TRESTLE_API}/odata/Media?${params.toString()}`, {
+        const response = await fetch(`${COTALITY_API}/odata/Media?${params.toString()}`, {
           headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
         });
 
@@ -133,7 +133,7 @@ export async function GET(req: NextRequest) {
             const rawItems = rawByKey.get(key) || [];
             // Photo-first sort + proxy via shared resolver. Guarantees
             // mediaResult[id] starts with a Photo whenever one exists, even
-            // if Trestle returned them in mixed order.
+            // if Cotality returned them in mixed order.
             const resolved = resolveListingMedia(rawItems);
             const items = resolved.map(r => ({
               url: r.url,
@@ -179,13 +179,13 @@ export async function GET(req: NextRequest) {
   if (uncached.length > 0) {
     try {
       const token = await getAccessToken();
-      // Use ResourceRecordKey (unique) per Trestle guidance
+      // Use ResourceRecordKey (unique) per Cotality guidance
       const filterParts = uncached.map((id) => {
         const key = idToKey.get(id) || id;
         const escaped = key.replace(/'/g, "''");
         return key !== id ? `ResourceRecordKey eq '${escaped}'` : `ResourceRecordID eq '${escaped}'`;
       });
-      // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
+      // MediaStatus filter: exclude tombstoned photos retained by Cotality as historical records.
       const filter = `(${filterParts.join(" or ")}) and (MediaCategory eq 'Photo' or MediaCategory eq null) and MediaStatus ne 'Deleted'`;
       const params = new URLSearchParams();
       params.set("$filter", filter);
@@ -193,7 +193,7 @@ export async function GET(req: NextRequest) {
       params.set("$orderby", "Order asc");
       params.set("$top", String(uncached.length * 2));
 
-      const response = await fetch(`${TRESTLE_API}/odata/Media?${params.toString()}`, {
+      const response = await fetch(`${COTALITY_API}/odata/Media?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       });
 

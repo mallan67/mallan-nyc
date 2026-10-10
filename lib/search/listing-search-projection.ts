@@ -20,7 +20,8 @@
 
 import { Prisma } from "@prisma/client";
 
-import { AMENITY_FIELD_MAP, type AmenityFilter } from "@/lib/search/types";
+import { AMENITY_FIELD_MAP, isSearchableAmenity, type AmenityFilter } from "@/lib/search/types";
+import { allowsPets } from "@/lib/search/pet-policy";
 import { isMallanExclusiveListing } from "@/lib/listings/exclusive-agent-assignment";
 // The canonical all-status fallback policy. Imported rather than reimplemented
 // so the projection cannot hold a second opinion about when the legacy media
@@ -277,6 +278,7 @@ export function extractProjectionAmenityKeys(listing: ListingProjectionSource): 
 
   const matched: string[] = [];
   for (const amenityKey of Object.keys(AMENITY_FIELD_MAP) as AmenityFilter[]) {
+    if (!isSearchableAmenity(amenityKey)) continue; // a disabled filter (No Fee: no live field) is never stored as a listing's amenity
     const mapping = AMENITY_FIELD_MAP[amenityKey];
     const fields = mapping.field.split(",").map((f) => f.trim());
     const matchValues = mapping.values.map((v) => v.toLowerCase());
@@ -285,7 +287,8 @@ export function extractProjectionAmenityKeys(listing: ListingProjectionSource): 
       const featValue = String(features[fieldName] || "").toLowerCase();
       if (!featValue) return false;
       if (amenityKey === "pet-friendly") {
-        return !featValue.includes("no") || featValue.includes("catsok") || featValue.includes("dogsok");
+        // allowsPets (lib/search/pet-policy.ts): any answer that is not No / BuildingNo. Not a substring test: "no" is inside NoPetRestrictions, NoBreedRestrictions, NoSizeLimit and NoDogs.
+        return allowsPets(features[fieldName]);
       }
       return matchValues.some((mv) => featValue.includes(mv));
     });
@@ -385,8 +388,7 @@ export function extractProjectionFeatureFlags(listing: ListingProjectionSource):
     const furnished = String(features.Furnished ?? "").toLowerCase();
     flags.is_furnished = furnished === "furnished";
 
-    const pets = String(features.PetsAllowed ?? "").toLowerCase();
-    flags.is_pet_friendly = !!pets && (!pets.includes("no") || pets.includes("catsok") || pets.includes("dogsok"));
+    flags.is_pet_friendly = allowsPets(features.PetsAllowed);
   }
 
   return Object.keys(flags).length > 0 ? flags : null;
@@ -541,7 +543,7 @@ export function projectionRowMateriallyEqual(
 
 /**
  * Projection columns that carry SOURCE PROVENANCE only — no public search
- * surface reads them as content. `modified_at` mirrors the Trestle
+ * surface reads them as content. `modified_at` mirrors the Cotality
  * ModificationTimestamp; its consumers (verified 2026-07-24) are the
  * search-alerts `modifiedSince` filter and `modified_at desc` recency
  * ordering (lib/search/core.ts, lib/search/criteria-to-prisma.ts) — both of

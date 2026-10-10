@@ -10,7 +10,7 @@
  *
  * Once aliased, every downstream consumer of `searchParams` in
  * `app/api/listings/route.ts` — the cache-key construction, the DB filter
- * via `buildPublicListingDbSearch`, the Trestle fallback via
+ * via `buildPublicListingDbSearch`, the Cotality fallback via
  * `buildPublicListingTrestleFilter`, the numbered-address heuristic —
  * sees the resolved `address` value automatically. This test exercises
  * the alias-resolution layer; downstream filter behavior is covered by

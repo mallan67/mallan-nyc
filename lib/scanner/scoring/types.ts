@@ -3,7 +3,7 @@
  *
  * Types for the seller-intent scoring engine. Inputs are denormalized
  * per-BBL prospect bundles (PLUTO context + ACRIS distress signals +
- * Trestle off-market signals + DOS Corp matches). Output is a scored
+ * Cotality off-market signals + DOS Corp matches). Output is a scored
  * prospect with full per-reason explainability.
  *
  * Design philosophy (per Maya's WIP doc):

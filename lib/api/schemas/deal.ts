@@ -10,6 +10,7 @@ export const createDealSchema = z.object({
   company_fee_usd: z.coerce.number().min(0).optional(),
   gross_commission_usd: z.coerce.number().min(0).optional(),
   contract_signed: z.string().datetime().optional().nullable(),
+  contract_closed: z.string().datetime().optional().nullable(),
 });
 
 export const updateDealSchema = createDealSchema.partial();

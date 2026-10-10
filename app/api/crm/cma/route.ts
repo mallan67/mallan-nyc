@@ -72,11 +72,11 @@ export async function POST(req: NextRequest) {
   // (estimateValue returns {0,0,0}). Sellers receiving such a report
   // had no signal that the comp pool was empty. Now the route returns
   // 422 with a clear error and skips the DB write — agent must broaden
-  // criteria or verify Trestle availability before proceeding.
+  // criteria or verify Cotality availability before proceeding.
   if (comps.length === 0) {
     return NextResponse.json(
       {
-        error: "Insufficient comparable data — broaden criteria or check Trestle availability.",
+        error: "Insufficient comparable data — broaden criteria or check Cotality availability.",
         code: "INSUFFICIENT_COMPS",
         subject: { property_address, borough, neighborhood, listing_type, property_type, bedrooms, bathrooms },
       },

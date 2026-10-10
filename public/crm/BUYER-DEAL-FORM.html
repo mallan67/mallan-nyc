@@ -75,15 +75,15 @@ body { font-family: Manrope, sans-serif; }
 (function() {
     if (typeof MallanAPI !== 'undefined') {
         MallanAPI.init().then(function(d) {
-            if (!d.authenticated) window.location.href = '/crm/login.html;
+            if (!d.authenticated) window.location.href = '/crm/login.html';
         }).catch(function() {
-            window.location.href = '/crm/login.html;
+            window.location.href = '/crm/login.html';
         });
     } else {
-        window.location.href = '/crm/login.html;
+        window.location.href = '/crm/login.html';
     }
     window.addEventListener('mallan:auth:unauthorized', function() {
-        window.location.href = '/crm/login.html;
+        window.location.href = '/crm/login.html';
     });
 })();
 </script>
@@ -420,12 +420,12 @@ body { font-family: Manrope, sans-serif; }
                         <p class="text-xs font-medium text-gray-700" id="buyerStatusChangeTimestamp">--</p>
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
-                        <p class="text-[10px] text-gray-500 uppercase">RESO MlsStatus</p>
-                        <p class="text-xs font-medium text-blue-700" id="buyerResoMlsStatus">--</p>
+                        <p class="text-[10px] text-gray-500 uppercase">Cotality StandardStatus</p>
+                        <p class="text-xs font-medium text-blue-700" id="buyerCotalityStatus">--</p>
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">Deal Source</p>
-                        <p class="text-xs font-medium text-gray-700" id="buyerDealSourceDisplay">IDX/RLS</p>
+                        <p class="text-xs font-medium text-gray-700" id="buyerDealSourceDisplay">Manual</p>
                     </div>
                 </div>
             </div>
@@ -443,8 +443,9 @@ body { font-family: Manrope, sans-serif; }
                     <input type="number" id="buyerOfferPrice" placeholder="$0" class="field-input">
                 </div>
                 <div id="buyerSoldPriceField" style="display:none;">
-                    <label class="field-label">Sale Price <span class="text-red-500">*</span></label>
-                    <input type="number" id="buyerSoldPrice" placeholder="$0" class="field-input">
+                    <label class="field-label">Close Price / Sale Price <span class="text-red-500">*</span></label>
+                    <input type="number" id="buyerSoldPrice" placeholder="$0" class="field-input" data-cotality-field="ClosePrice">
+                    <p class="text-[10px] text-gray-400 mt-1">Cotality ClosePrice when the deal closes.</p>
                 </div>
                 <div>
                     <label class="field-label">Maint/CC</label>
@@ -465,12 +466,12 @@ body { font-family: Manrope, sans-serif; }
                     <input type="date" id="buyerOfferDate" class="field-input">
                 </div>
                 <div>
-                    <label class="field-label">Contract Date</label>
-                    <input type="date" id="buyerContractDate" class="field-input">
+                    <label class="field-label">Contract Signed Date</label>
+                    <input type="date" id="buyerContractDate" class="field-input" data-cotality-field="PurchaseContractDate">
                 </div>
                 <div id="buyerCloseDateField" style="display:none;">
                     <label class="field-label">Close Date <span class="text-red-500">*</span></label>
-                    <input type="date" id="buyerCloseDate" class="field-input">
+                    <input type="date" id="buyerCloseDate" class="field-input" data-cotality-field="CloseDate">
                 </div>
             </div>
         </div>
@@ -550,8 +551,8 @@ body { font-family: Manrope, sans-serif; }
         <div id="buyerPropertyIdxBanner" class="hidden warning-banner bg-green-50 border border-green-200 text-green-800 mb-4">
             <i class="fas fa-database text-green-500 mt-0.5"></i>
             <div class="text-xs">
-                <p class="font-semibold">Data Source: IDX/RLS</p>
-                <p>The property details below were auto-populated from the listing. Fields are editable if you need to make corrections.</p>
+                <p class="font-semibold">Data Source: Cotality</p>
+                <p>The property details below were auto-populated from the authenticated Cotality search result. Manual/off-provider deals remain editable.</p>
             </div>
         </div>
 
@@ -559,25 +560,13 @@ body { font-family: Manrope, sans-serif; }
             <div class="form-card-header"><i class="fas fa-home"></i> Property Type & Unit</div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
-                    <label class="field-label">Property Type</label>
-                    <select id="buyerPropertyType" class="field-input">
-                        <option value="">-- Select --</option>
-                        <option value="Condo">Condo</option>
-                        <option value="Coop">Co-op</option>
-                        <option value="Condop">Condop</option>
-                        <option value="SingleFamilyTownhouse">Single Family TH</option>
-                        <option value="MultiFamilyTownhouse">Multi-Family TH</option>
-                        <option value="SingleFamily">Single Family</option>
-                        <option value="MultiFamily">Multi-Family</option>
-                        <option value="MixedUse">Mixed Use</option>
-                        <option value="Loft">Loft</option>
-                        <option value="Duplex">Duplex</option>
-                        <option value="Triplex">Triplex</option>
-                        <option value="Quadruplex">Quadruplex</option>
-                        <option value="Office">Office</option>
-                        <option value="Retail">Retail</option>
-                        <option value="Land">Land</option>
-                    </select>
+                    <label class="field-label">Property Subtype</label>
+                    <input type="text" id="buyerPropertySubType" class="field-input" data-cotality-field="PropertySubType" placeholder="Auto-populated from Cotality">
+                </div>
+                <div>
+                    <label class="field-label">Ownership Type</label>
+                    <input type="text" id="buyerOwnershipType" class="field-input" placeholder="Auto-populated from Cotality">
+                    <p class="text-[10px] text-gray-400 mt-1">Broker-facing label for the raw provider ownership reference.</p>
                 </div>
                 <div>
                     <label class="field-label">Bedrooms</label>
@@ -1328,52 +1317,127 @@ function toggleFormSection(el) {
 // at the moment the agent types into the search field. No hardcoded fixtures.
 // ══════════════════════════════════════════════════════
 var listingDatabase = [];
+var buyerListingSearchTimer = null;
+var buyerListingSearchSeq = 0;
 
-function searchListingForBuyerDeal(query) {
-    var results = document.getElementById('buyerListingSearchResults');
-    if (!results) return;
-    if (query.length < 3) { results.classList.add('hidden'); return; }
-    var q = query.toLowerCase();
-    var matches = listingDatabase.filter(function(l) {
-        return l.address.toLowerCase().includes(q) ||
-               l.buildingName.toLowerCase().includes(q) ||
-               (l.unit && l.unit.toLowerCase().includes(q)) ||
-               (l.address + ' ' + l.unit).toLowerCase().includes(q);
+function dealOwnershipLabel(raw) {
+    var map = { Condominium: 'Condo', StockCooperative: 'Co-op', Condop: 'Condop', RentalBuilding: 'Rental Building', None: 'None' };
+    return map[raw] || raw || '';
+}
+
+function escapeDealHtml(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function(ch) {
+        return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[ch];
     });
-    if (matches.length === 0) {
-        results.innerHTML = '<div class="p-3 text-sm text-gray-500"><i class="fas fa-exclamation-circle mr-1 text-amber-500"></i> No IDX/RLS matches. This may be an off-RLS deal — enter details manually.</div>';
+}
+
+function normalizeBuyerCotalityListing(l) {
+    return {
+        rlsId: String(l.lid || l.id || ''),
+        webId: String(l.wid || ''),
+        address: String(l.address || ''),
+        unit: String(l.unit || ''),
+        borough: String(l.borough || ''),
+        zip: String(l.zip || ''),
+        neighborhood: String(l.neighborhood || ''),
+        standardStatus: String(l.status || l.mlsStatus || ''),
+        listingAgent: String(l.agentName || ''),
+        listingBrokerage: String(l.company || ''),
+        listingAgentPhone: String(l.agentPhone || ''),
+        listingAgentEmail: String(l.agentEmail || ''),
+        price: Number(l.price) || 0,
+        maintCC: Number(l.maintCC) || 0,
+        ownership: l.ownership == null ? null : String(l.ownership),
+        propertySubType: String(l.propertySubType || ''),
+        bed: Number(l.beds) || 0,
+        fullBath: Number(l.fullBaths) || 0,
+        halfBath: Number(l.halfBaths) || 0,
+        sqft: l.intSqft == null ? null : Number(l.intSqft),
+        rooms: Number(l.rooms) || 0,
+        exposure: String(l.DirectionFaces || ''),
+        buildingName: String(l.buildingName || ''),
+        yearBuilt: l.yearBuilt == null ? null : Number(l.yearBuilt),
+        description: String(l.description || ''),
+        images: Array.isArray(l.images) ? l.images : []
+    };
+}
+
+function renderBuyerListingMatches(results) {
+    if (!listingDatabase.length) {
+        results.innerHTML = '<div class="p-3 text-sm text-gray-500"><i class="fas fa-exclamation-circle mr-1 text-amber-500"></i> No Cotality matches. This may be an off-provider deal — enter details manually.</div>';
         results.classList.remove('hidden');
         document.getElementById('buyerManualEntryBanner').classList.remove('hidden');
         document.getElementById('buyerIdxMatchBanner').classList.add('hidden');
         return;
     }
-    results.innerHTML = matches.map(function(l) {
-        return '<div class="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 transition" onclick="selectListingForBuyerDeal(\'' + l.rlsId + '\')">' +
+    results.innerHTML = listingDatabase.map(function(l, index) {
+        var classification = dealOwnershipLabel(l.ownership);
+        if (!classification || classification === 'None') classification = l.propertySubType || classification;
+        return '<button type="button" class="w-full p-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 transition text-left" onclick="selectListingForBuyerDeal(' + index + ')">' +
             '<div class="flex justify-between items-center">' +
-            '<div><p class="font-semibold text-sm text-gray-800">' + l.address + (l.unit ? ', ' + l.unit : '') + '</p>' +
-            '<p class="text-xs text-gray-500">' + l.buildingName + ' | ' + l.neighborhood + ', ' + l.borough + ' | $' + l.price.toLocaleString() + '</p></div>' +
-            '<div class="text-right"><span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700">' + l.type + '</span>' +
-            '<p class="text-[10px] text-gray-400 mt-1">' + l.rlsId + '</p></div></div></div>';
+            '<div><p class="font-semibold text-sm text-gray-800">' + escapeDealHtml(l.address) + (l.unit ? ', ' + escapeDealHtml(l.unit) : '') + '</p>' +
+            '<p class="text-xs text-gray-500">' + escapeDealHtml(l.buildingName) + ' | ' + escapeDealHtml(l.neighborhood) + (l.borough ? ', ' + escapeDealHtml(l.borough) : '') + ' | $' + l.price.toLocaleString() + '</p></div>' +
+            '<div class="text-right"><span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-700">' + escapeDealHtml(classification) + '</span>' +
+            '<p class="text-[10px] text-gray-400 mt-1">' + escapeDealHtml(l.rlsId) + '</p></div></div></button>';
     }).join('');
     results.classList.remove('hidden');
 }
 
-function searchByRlsId(query, prefix) {
-    if (query.length < 3) return;
-    var q = query.toUpperCase();
-    var match = listingDatabase.find(function(l) {
-        return l.rlsId.toUpperCase() === q || l.webId.toUpperCase() === q;
-    });
-    if (match) selectListingForBuyerDeal(match.rlsId);
+function searchListingForBuyerDeal(query) {
+    var results = document.getElementById('buyerListingSearchResults');
+    if (!results) return;
+    clearTimeout(buyerListingSearchTimer);
+    var trimmed = String(query || '').trim();
+    if (trimmed.length < 3) {
+        results.classList.add('hidden');
+        listingDatabase = [];
+        return;
+    }
+    if (typeof MallanAPI === 'undefined' || !MallanAPI.idx || typeof MallanAPI.idx.search !== 'function') {
+        results.innerHTML = '<div class="p-3 text-sm text-red-600">Cotality search is unavailable. Reload the CRM and try again.</div>';
+        results.classList.remove('hidden');
+        return;
+    }
+    var seq = ++buyerListingSearchSeq;
+    results.innerHTML = '<div class="p-3 text-sm text-gray-500">Searching Cotality…</div>';
+    results.classList.remove('hidden');
+    buyerListingSearchTimer = setTimeout(function() {
+        MallanAPI.idx.search({ type: 'sale', address: trimmed, limit: 20 }).then(function(data) {
+            if (seq !== buyerListingSearchSeq) return;
+            listingDatabase = Array.isArray(data && data.listings) ? data.listings.map(normalizeBuyerCotalityListing) : [];
+            renderBuyerListingMatches(results);
+        }).catch(function(err) {
+            if (seq !== buyerListingSearchSeq) return;
+            listingDatabase = [];
+            console.error('[BuyerDeal] Cotality search failed:', err);
+            results.innerHTML = '<div class="p-3 text-sm text-red-600">Cotality search failed. No provider data was loaded.</div>';
+            results.classList.remove('hidden');
+        });
+    }, 250);
 }
 
-function selectListingForBuyerDeal(rlsId) {
-    var listing = listingDatabase.find(function(l) { return l.rlsId === rlsId; });
+function searchByRlsId(query, prefix) {
+    var trimmed = String(query || '').trim();
+    if (trimmed.length < 3) return;
+    if (typeof MallanAPI === 'undefined' || !MallanAPI.idx || typeof MallanAPI.idx.search !== 'function') return;
+    var seq = ++buyerListingSearchSeq;
+    MallanAPI.idx.search({ type: 'sale', listingId: trimmed, limit: 20 }).then(function(data) {
+        if (seq !== buyerListingSearchSeq) return;
+        listingDatabase = Array.isArray(data && data.listings) ? data.listings.map(normalizeBuyerCotalityListing) : [];
+        if (listingDatabase.length) selectListingForBuyerDeal(0);
+    }).catch(function(err) {
+        console.error('[BuyerDeal] Cotality listing-id search failed:', err);
+    });
+}
+
+function selectListingForBuyerDeal(index) {
+    var listing = listingDatabase[Number(index)];
     if (!listing) return;
+    var setVal = function(id, val) {
+        var el = document.getElementById(id);
+        if (el) el.value = val == null ? '' : val;
+    };
 
-    var setVal = function(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; };
-
-    // Address fields
     setVal('buyerStreetAddress', listing.address);
     setVal('buyerUnitNumber', listing.unit);
     setVal('buyerBorough', listing.borough);
@@ -1382,72 +1446,64 @@ function selectListingForBuyerDeal(rlsId) {
     setVal('buyerRlsId', listing.rlsId);
     setVal('buyerWebId', listing.webId);
 
-    // Listing side info
     setVal('buyerListingAgentName', listing.listingAgent);
     setVal('buyerListingBrokerageName', listing.listingBrokerage);
     setVal('buyerListingAgentPhone', listing.listingAgentPhone);
     setVal('buyerListingAgentEmail', listing.listingAgentEmail);
-    setVal('buyerListingAgentMlsId', listing.listingAgentMlsId);
+    setVal('buyerListingAgentMlsId', '');
 
-    // Pricing
     setVal('buyerListPrice', listing.price);
     setVal('buyerMaintCC', listing.maintCC);
 
-    // Property details (Tab 2)
-    var typeSel = document.getElementById('buyerPropertyType');
-    if (typeSel) { for (var i = 0; i < typeSel.options.length; i++) { if (typeSel.options[i].value === listing.type) { typeSel.selectedIndex = i; break; } } }
+    setVal('buyerPropertySubType', listing.propertySubType);
+    var ownershipEl = document.getElementById('buyerOwnershipType');
+    if (ownershipEl) {
+        ownershipEl.value = dealOwnershipLabel(listing.ownership);
+        ownershipEl.dataset.providerValue = listing.ownership == null ? '' : listing.ownership;
+    }
     setVal('buyerBedrooms', listing.bed);
     setVal('buyerFullBaths', listing.fullBath);
     setVal('buyerHalfBaths', listing.halfBath);
     setVal('buyerLivingArea', listing.sqft);
+    setVal('buyerTotalRooms', listing.rooms);
+    setVal('buyerExposure', listing.exposure);
+    setVal('buyerFloor', '');
     setVal('buyerBuildingName', listing.buildingName);
     setVal('buyerYearBuilt', listing.yearBuilt);
-    setVal('buyerTotalFloors', listing.floors);
-    setVal('buyerTotalUnits', listing.units);
+    setVal('buyerTotalFloors', '');
+    setVal('buyerTotalUnits', '');
     setVal('buyerDescription', listing.description);
 
-    // Features checkboxes
-    var featureMap = { 'Doorman':'buyerFeatDoorman','Elevator':'buyerFeatElevator','Gym':'buyerFeatGym','Pool':'buyerFeatPool','Laundry':'buyerFeatLaundry','Parking':'buyerFeatParking','Concierge':'buyerFeatConcierge','Spa':'buyerFeatPool' };
-    if (listing.features) {
-        listing.features.forEach(function(f) { var el = document.getElementById(featureMap[f]); if (el) el.checked = true; });
-    }
-
-    // Show IDX match banner
     document.getElementById('buyerIdxMatchBanner').classList.remove('hidden');
     document.getElementById('buyerManualEntryBanner').classList.add('hidden');
-    document.getElementById('buyerIdxSource').textContent = 'REBNY RLS via Trestle';
+    document.getElementById('buyerIdxSource').textContent = 'Cotality';
     document.getElementById('buyerListingBrokerage').textContent = listing.listingBrokerage;
     document.getElementById('buyerPropertyIdxBanner').classList.remove('hidden');
-
-    // Photo courtesy
+    document.getElementById('buyerCotalityStatus').textContent = listing.standardStatus || '--';
+    document.getElementById('buyerDealSourceDisplay').textContent = 'Cotality';
     document.getElementById('buyerPhotoCourtesy').textContent = listing.listingBrokerage;
 
-    // Load mock photos
     loadBuyerPhotos(listing);
 
-    // Hide search results
     document.getElementById('buyerListingSearchResults').classList.add('hidden');
     document.getElementById('buyerListingSearch').value = listing.address + (listing.unit ? ', ' + listing.unit : '');
-
-    // Update header bar
     updateBuyerHeaderBar();
-
-    showToast('Listing data loaded from IDX/RLS');
+    showToast('Listing data loaded from Cotality');
 }
 
 function loadBuyerPhotos(listing) {
     var grid = document.getElementById('buyerPhotoGrid');
     if (!grid) return;
-    var count = listing.photos || 6;
-    var html = '';
-    for (var i = 1; i <= count; i++) {
-        html += '<div class="photo-card">' +
-            '<div class="bg-gray-200 flex items-center justify-center" style="height:140px;">' +
-            '<div class="text-center"><i class="fas fa-image text-gray-400 text-2xl"></i><p class="text-[10px] text-gray-400 mt-1">Photo ' + i + '</p></div></div>' +
-            '<div class="caption"><p class="font-medium text-gray-700">' + listing.address + (listing.unit ? ' #' + listing.unit : '') + '</p>' +
-            '<p class="text-[10px] text-gray-500 mt-0.5">Courtesy of <strong>' + listing.listingBrokerage + '</strong></p></div></div>';
+    var images = Array.isArray(listing.images) ? listing.images.filter(function(img) { return img && img.url; }) : [];
+    if (!images.length) {
+        grid.innerHTML = '<div class="col-span-full p-4 text-sm text-gray-500 border rounded-lg bg-gray-50">No inline Cotality media URLs were returned for this search result. No mock photos are shown.</div>';
+        return;
     }
-    grid.innerHTML = html;
+    grid.innerHTML = images.map(function(img) {
+        return '<div class="photo-card"><img src="' + escapeDealHtml(img.url) + '" alt="" class="w-full object-cover" style="height:140px;">' +
+            '<div class="caption"><p class="font-medium text-gray-700">' + escapeDealHtml(listing.address) + (listing.unit ? ' #' + escapeDealHtml(listing.unit) : '') + '</p>' +
+            '<p class="text-[10px] text-gray-500 mt-0.5">Courtesy of <strong>' + escapeDealHtml(listing.listingBrokerage) + '</strong></p></div></div>';
+    }).join('');
 }
 
 // ══════════════════════════════════════════════════════
@@ -1465,26 +1521,15 @@ function updateBuyerHeaderBar() {
 // ══════════════════════════════════════════════════════
 // STATUS LOGIC
 // ══════════════════════════════════════════════════════
-var BUYER_CRM_TO_RESO = {
-    'Draft': 'Incomplete', 'Searching': 'Active', 'Showing': 'Active',
-    'OfferOut': 'Pending', 'OfferAccepted': 'Pending', 'OfferRejected': 'Active', 'OfferCountered': 'Pending',
-    'ContractOut': 'Pending', 'ContractSigned': 'Pending', 'BoardApproved': 'Pending',
-    'Sold': 'Closed', 'SoldThruUs': 'Closed',
-    'Withdrawn': 'Withdrawn', 'Cancelled': 'Canceled', 'DealFellThrough': 'Canceled'
-};
-
 function updateBuyerStatusFields() {
     var status = (document.getElementById('buyerDealStatus') || {}).value || 'Draft';
     var now = new Date().toLocaleString();
     document.getElementById('buyerStatusChangeTimestamp').textContent = now;
-    document.getElementById('buyerResoMlsStatus').textContent = BUYER_CRM_TO_RESO[status] || '--';
 
-    // Show/hide sold price and close date fields
     var isClosed = (status === 'Sold' || status === 'SoldThruUs');
     document.getElementById('buyerSoldPriceField').style.display = isClosed ? '' : 'none';
     document.getElementById('buyerCloseDateField').style.display = isClosed ? '' : 'none';
 
-    // Enable/disable Commission Request tab (Tab 7)
     var tab7 = document.getElementById('sidebarTab7');
     var mobile7 = document.getElementById('mobileTab7');
     var lock = document.getElementById('buyerCommTabLock');
@@ -1498,18 +1543,17 @@ function updateBuyerStatusFields() {
         if (lock) { lock.classList.add('fa-lock','text-gray-300'); lock.classList.remove('fa-lock-open','text-green-500'); }
     }
 
-    // Update badge
     var badge = document.getElementById('buyerDraftBadge');
     if (badge) {
         var badgeMap = {
-            'Draft': { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-300', icon: 'fa-file-alt', label: 'DRAFT' },
-            'Searching': { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-300', icon: 'fa-search', label: 'SEARCHING' },
-            'Showing': { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-300', icon: 'fa-eye', label: 'SHOWING' },
-            'OfferOut': { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-300', icon: 'fa-paper-plane', label: 'OFFER OUT' },
-            'OfferAccepted': { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-300', icon: 'fa-check', label: 'OFFER ACCEPTED' },
-            'ContractSigned': { bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-300', icon: 'fa-file-signature', label: 'CONTRACT' },
-            'Sold': { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-300', icon: 'fa-check-circle', label: 'SOLD' },
-            'SoldThruUs': { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-300', icon: 'fa-check-circle', label: 'SOLD THRU US' },
+            'Draft': { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-300', icon: 'fa-file-alt', label:'DRAFT' },
+            'Searching': { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-300', icon:'fa-search', label:'SEARCHING' },
+            'Showing': { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-300', icon:'fa-eye', label:'SHOWING' },
+            'OfferOut': { bg:'bg-orange-100', text:'text-orange-800', border:'border-orange-300', icon:'fa-paper-plane', label:'OFFER OUT' },
+            'OfferAccepted': { bg:'bg-orange-100', text:'text-orange-800', border:'border-orange-300', icon:'fa-check', label:'OFFER ACCEPTED' },
+            'ContractSigned': { bg:'bg-purple-100', text:'text-purple-800', border:'border-purple-300', icon:'fa-file-signature', label:'CONTRACT' },
+            'Sold': { bg:'bg-green-100', text:'text-green-800', border:'border-green-300', icon:'fa-check-circle', label:'SOLD' },
+            'SoldThruUs': { bg:'bg-green-100', text:'text-green-800', border:'border-green-300', icon:'fa-check-circle', label:'SOLD THRU US' }
         };
         var b = badgeMap[status] || badgeMap['Draft'];
         badge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ' + b.bg + ' ' + b.text + ' border ' + b.border;
@@ -1524,7 +1568,8 @@ function updateBuyerPreview() {
     var val = function(id) { var el = document.getElementById(id); return el ? (el.value || el.textContent || '') : ''; };
     var fmt = function(n) { return n ? '$' + parseFloat(n).toLocaleString() : '--'; };
     document.getElementById('prevBuyerAddress').textContent = (val('buyerStreetAddress') || '--') + (val('buyerUnitNumber') ? ', ' + val('buyerUnitNumber') : '');
-    document.getElementById('prevBuyerPropertyType').textContent = val('buyerPropertyType') || '--';
+    var providerClass = [val('buyerOwnershipType'), val('buyerPropertySubType')].filter(function(v) { return v && v !== 'None'; }).join(' · ');
+    document.getElementById('prevBuyerPropertyType').textContent = providerClass || val('buyerOwnershipType') || '--';
     var bed = val('buyerBedrooms'), bath = val('buyerFullBaths'), sqft = val('buyerLivingArea');
     document.getElementById('prevBuyerBedBath').textContent = (bed || '--') + ' BD / ' + (bath || '--') + ' BA | ' + (sqft ? sqft + ' sq ft' : '--');
     document.getElementById('prevBuyerClient').textContent = val('buyerClientName') || '--';
@@ -1620,6 +1665,7 @@ function submitBuyerCommissionRequest() {
     var buyerName = (document.getElementById('commBuyerName') || {}).value;
     var payMethod = document.querySelector('input[name="commBuyerPayMethod"]:checked');
     var closingDate = (document.getElementById('commBuyerClosingDate') || {}).value;
+    var contractDate = (document.getElementById('buyerContractDate') || {}).value;
 
     if (!price || !totalPct || !buyerName || !payMethod || !closingDate) {
         alert('Please fill in all required fields:\n- Sale Price\n- Total Commission %\n- Buyer Name\n- Payment Method\n- Closing Date');
@@ -1654,6 +1700,8 @@ function submitBuyerCommissionRequest() {
 
     // Persist to API
     if (typeof MallanAPI !== 'undefined' && MallanAPI.deals) {
+        var contractSignedIso = contractDate ? new Date(contractDate + 'T00:00:00').toISOString() : null;
+        var contractClosedIso = closingDate ? new Date(closingDate + 'T00:00:00').toISOString() : null;
         MallanAPI.deals.create({
             representation_code: 'buyer',
             property_address: propertyAddress,
@@ -1663,7 +1711,8 @@ function submitBuyerCommissionRequest() {
             agent_fee_usd: agentFee,
             company_fee_usd: companyFee,
             gross_commission_usd: grossAmt,
-            contract_signed: closingDate || null
+            contract_signed: contractSignedIso,
+            contract_closed: contractClosedIso
         }).then(function(data) {
             requestData.dbId = data.id;
             sessionStorage.setItem('buyerCommRequest', JSON.stringify(requestData));
@@ -1942,6 +1991,7 @@ function submitBuyerDeal() {
     }
 
     var contractDate = val('buyerContractDate');
+    var closeDate = val('buyerCloseDate');
 
     var payload = {
         representation_code: 'buyer',
@@ -1955,6 +2005,10 @@ function submitBuyerDeal() {
     if (grossUsd !== null && grossUsd >= 0) payload.gross_commission_usd = grossUsd;
     if (contractDate) {
         try { payload.contract_signed = new Date(contractDate + 'T00:00:00').toISOString(); }
+        catch (e) { /* ignore unparseable date */ }
+    }
+    if (closeDate) {
+        try { payload.contract_closed = new Date(closeDate + 'T00:00:00').toISOString(); }
         catch (e) { /* ignore unparseable date */ }
     }
 

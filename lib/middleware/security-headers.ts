@@ -125,6 +125,9 @@ export function applySecurityHeaders(response: NextResponse, pathname: string, m
         // /api/buildings/search, which is authenticated (handled as private above).
         pathname === "/api/buildings" ||
         pathname.startsWith("/api/media/proxy") ||
+        // ONLY the exact public route (app/api/media/health/route.ts): its whole purpose is its own `s-maxage` (Cotality, which meters media requests for the
+        // whole account, is asked once per photo per cache window), which no-store here would silently defeat.
+        pathname === "/api/media/health" ||
         pathname === "/api/idx/watermark");
     if (!isPublicCacheableApi) {
       response.headers.set("Cache-Control", "no-store");

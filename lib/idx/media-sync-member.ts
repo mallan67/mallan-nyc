@@ -23,7 +23,7 @@ export async function runMediaSyncMember({
 }: {
   oneCycleRunId: string | null;
 }): Promise<MemberRunResult> {
-  // Trestle credential pre-check — soft fail (503) so the cron can be dialled
+  // Cotality credential pre-check — soft fail (503) so the cron can be dialled
   // out gracefully if creds rotate. PRECONDITION FAILURE: no media work ran, so
   // outcome is "skipped" (never counts as machine success; the standalone
   // completion marker will say "skipped", not "success").
@@ -31,7 +31,7 @@ export async function runMediaSyncMember({
     return {
       status: 503,
       outcome: "skipped",
-      body: { error: "Trestle credentials not configured" },
+      body: { error: "Cotality credentials not configured" },
     };
   }
 

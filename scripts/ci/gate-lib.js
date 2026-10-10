@@ -18,7 +18,7 @@ const DOMAIN_RULES = [
   { match: /^lib\/auth\//,                         domain: 'auth',          gates: ['security-agent'] },
   { match: /^lib\/(idx|search)\//,                 domain: 'search/idx',    gates: ['rebny-search-compliance-auditor', 'tristle'] },
   { match: /^lib\/media\//,                        domain: 'media',         gates: ['tristle'] },
-  { match: /^lib\/compliance\//,                   domain: 'compliance',    gates: ['tristle', 'ucba/rls/idx'] },
+  { match: /^lib\/compliance\//,                   domain: 'compliance',    gates: ['tristle', 'ucba/idx'] },
   { match: /^lib\/syndication\//,                  domain: 'syndication',   gates: ['tristle', 'HELD'] },
   { match: /^app\/listing\//,                      domain: 'listing-ui',    gates: ['frontend-auditor', 'tristle'] },
   { match: /^app\/components\//,                   domain: 'ui',            gates: ['frontend-auditor'] },

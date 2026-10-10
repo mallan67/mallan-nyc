@@ -38,13 +38,13 @@ jest.mock("next/cache", () => {
 
 // ── scenario-parameterized fixtures ────────────────────────────────────────
 // Each scenario uses a distinct street number so cache entries never collide.
-// Failure modes per scenario: DB down (5xx from prisma), Trestle down, both.
+// Failure modes per scenario: DB down (5xx from prisma), Cotality down, both.
 const FAIL_DB = new Set(["500", "700"]);
-const FAIL_TRESTLE = new Set(["600", "700"]);
+const FAIL_COTALITY = new Set(["600", "700"]);
 
 function dbRows(num: string) {
   // Rich DB layer: a CRM exclusive (SL- prefix, exists ONLY in Neon), an IDX
-  // twin of a Trestle record (deduped by mlsId in the merge), and a CLOSED
+  // twin of a Cotality record (deduped by mlsId in the merge), and a CLOSED
   // row with raw_data (legacy pushed it as source:'mls' — always withheld by
   // the public visibility contract; the new module drops the layer — parity
   // must hold either way).
@@ -98,7 +98,7 @@ function dbRows(num: string) {
   ];
 }
 
-function trestleRecords(num: string) {
+function cotalityRecords(num: string) {
   // scenario ownership forms: 800=rental building · 900=co-op · 901=condop ·
   // 902=NO ownership signal anywhere (tests the no-signal rules)
   const buildingCI =
@@ -220,17 +220,17 @@ jest.mock("@/lib/buildings/upsert", () => ({
   }),
 }));
 
-// Trestle OData fetch: serve the scenario's records by StreetNumber in $filter
+// Cotality OData fetch: serve the scenario's records by StreetNumber in $filter
 beforeAll(() => {
   global.fetch = jest.fn(async (url: unknown) => {
     const u = String(url);
     // URLSearchParams encodes spaces as '+' — normalize before matching
     const m = /StreetNumber\s+eq\s+'(\d+)'/.exec(decodeURIComponent(u.replace(/\+/g, " ")));
     const num = m?.[1] ?? "";
-    if (FAIL_TRESTLE.has(num)) throw new Error("simulated Cotality outage");
+    if (FAIL_COTALITY.has(num)) throw new Error("simulated Cotality outage");
     return {
       ok: true,
-      json: async () => ({ value: trestleRecords(num) }),
+      json: async () => ({ value: cotalityRecords(num) }),
     } as unknown as Response;
   }) as unknown as typeof fetch;
 });
@@ -352,7 +352,7 @@ describe("building payload parity — legacy production route vs new shared acce
   });
 
   it("buildingName decoration parity: bn= fills a missing name identically (post-cache in the new module)", async () => {
-    // Trestle down for 600 → no BuildingName from feed; DB rows carry none.
+    // Cotality down for 600 → no BuildingName from feed; DB rows carry none.
     const legacy = await legacyPayload("600", "The Grand Alias");
     const fresh = await newPayload("600", "The Grand Alias");
     expect(stripDirectedDivergence(fresh)).toEqual(stripDirectedDivergence(legacy.body));

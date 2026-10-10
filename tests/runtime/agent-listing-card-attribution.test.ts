@@ -24,11 +24,11 @@ describe('Agent-page listing card — exclusive vs RLS attribution', () => {
     expect(tabs).toMatch(/listing\._source === 'exclusive' \|\| \/\^\(SL\|RL\)-\/i\.test\(listing\.id/);
   });
 
-  it('prefix signal: SL-/RL- match, Trestle RLS… ids do NOT (so synced rows keep RLS courtesy)', () => {
+  it('prefix signal: SL-/RL- match, Cotality RLS… ids do NOT (so synced rows keep RLS courtesy)', () => {
     const isExclusivePrefix = (id: string) => /^(SL|RL)-/i.test(id || '');
     expect(isExclusivePrefix('SL-0004')).toBe(true);
     expect(isExclusivePrefix('RL-0099')).toBe(true);
-    expect(isExclusivePrefix('RLS20059088')).toBe(false); // Trestle/IDX id → not a CRM exclusive
+    expect(isExclusivePrefix('RLS20059088')).toBe(false); // Cotality/IDX id → not a CRM exclusive
     expect(isExclusivePrefix('')).toBe(false);
   });
 
@@ -61,7 +61,7 @@ describe('Agent-listings route must NOT pass agent_id as exclusive provenance (C
     resolve(__dirname, '../../app/api/agents/[slug]/listings/route.ts'),
     'utf8',
   );
-  // syncAgentHistory writes agent_id onto Trestle-synced (third-party IDX) rows,
+  // syncAgentHistory writes agent_id onto Cotality-synced (third-party IDX) rows,
   // so selecting agent_id would make classifyDbListing mislabel them as Mallan
   // exclusives and drop the required RLS courtesy line (UCBA Art. III §2(C)).
   it('does NOT select agent_id / owner_client_id (genuine exclusives use prefix / rls_eligible)', () => {

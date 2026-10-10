@@ -122,10 +122,10 @@ jest.mock("@/lib/prisma", () => ({
   default: { listing: { findMany: (...a: unknown[]) => findManyMock(...(a as [Record<string, unknown>])) } },
 }));
 
-// Trestle auth: rejects fast — its CALL COUNT is our per-building assembly
+// Cotality auth: rejects fast — its CALL COUNT is our per-building assembly
 // counter (each buildBuildingPayload execution calls it exactly once).
 const tokenMock = jest.fn(async () => {
-  throw new Error("no trestle in tests");
+  throw new Error("no Cotality in tests");
 });
 jest.mock("@/lib/idx/auth", () => ({ getAccessToken: () => tokenMock() }));
 

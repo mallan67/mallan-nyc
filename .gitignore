@@ -167,9 +167,6 @@ smoke-test.ps1
 commit-uploaded-file*.ps1
 process-remaining-prs.ps1
 
-# Exception: track scripts used by GitHub Actions
-!scripts/geocode.ps1
-
 # Temp build files
 build.log
 
@@ -216,7 +213,7 @@ report-*
 out.txt
 dump-*
 
-# Trestle/Cotality diagnostic dumps + local config backups.
+# Cotality API diagnostic dumps + local config backups.
 # Security: these may contain OAuth tokens / credentials — never commit.
 .trestle_*
 *.cleanbak
@@ -240,9 +237,7 @@ __pycache__/
 # Orphaned root dumps removed in this PR (0 code refs). Root-anchored so
 # similarly-named files inside subdirectories are unaffected.
 /value
-/trestle-fields.json
 /repo-fields.json
-/audit-trestle-report.json
 /old-list.txt
 /SALE_SEARCH_SPEC.json
 /RENTAL_SEARCH_SPEC.json

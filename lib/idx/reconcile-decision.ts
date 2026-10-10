@@ -3,7 +3,7 @@
  *
  * ROOT CAUSE this fixes (verified live 2026-07-05 by the full DB↔Cotality census,
  * scripts/audit/reconcile-db-vs-live-cotality.mjs):
- *   `feed-reconcile` decided "Withdrawn" purely from ABSENCE in an Active-only Trestle
+ *   `feed-reconcile` decided "Withdrawn" purely from ABSENCE in an Active-only Cotality
  *   snapshot, with no per-listing live-status check. That is wrong in BOTH directions:
  *     • 103 rows were marked terminal while still LIVE on-market (6 Active, 97 Pending) — hidden.
  *     • 345 rows were left marked on-market while live they are Closed (127) or gone (218) — shown.

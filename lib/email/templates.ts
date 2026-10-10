@@ -4,6 +4,7 @@
 // COMPLIANCE: Fair Housing disclaimer + REBNY attribution included.
 
 import { escapeHtml } from "@/lib/sanitize";
+import { MALLAN_EXCLUSIVE_ATTRIBUTION, publicAttributionText } from "@/lib/idx/public-attribution";
 import type { InvestmentMetrics } from "./investment-metrics";
 
 const BRAND_GOLD = "#C4A052";
@@ -115,10 +116,16 @@ export function portalInviteEmail(
 
 /**
  * Listing alert email — sent when new listings match a client's saved search criteria.
+ *
+ * Every listing names its actual listing broker (UCBA Art. III §2(C): attribution identifies the listing broker, never the displaying broker; lib/idx/public-attribution.ts is the one
+ * policy owner, and an unknown office is the neutral "REBNY RLS", never Mallan). A listing Mallan authored says so instead ("Exclusive listing by Mallan Real Estate Inc."): the caller passes
+ * `mallanAuthored` from lib/listings/mallan-source-identity.ts isMallanLocalListing, never from `agent_id`. `dataAsOf` is when the newest of these listings was last updated; the footer says it
+ * only when it is known (it used to say "Data last updated: <the day the email was sent>" whatever the data was).
  */
 export function listingAlertEmail(
-  listings: { address: string; price: string; beds: number; baths: number; url: string }[],
-  clientName: string
+  listings: { address: string; price: string; beds: number; baths: number; url: string; office?: string | null; mallanAuthored?: boolean }[],
+  clientName: string,
+  dataAsOf?: Date | null
 ): string {
   const listingCards = listings.slice(0, 10).map((l) => `
     <tr>
@@ -128,6 +135,9 @@ export function listingAlertEmail(
         </a>
         <div style="font-size:13px;color:#6b7280;margin-top:4px;">
           ${escapeHtml(l.price)} &middot; ${l.beds} bed &middot; ${l.baths} bath
+        </div>
+        <div style="font-size:13px;color:#6b7280;margin-top:4px;">
+          ${escapeHtml(l.mallanAuthored ? MALLAN_EXCLUSIVE_ATTRIBUTION : publicAttributionText(l.office))}
         </div>
       </td>
     </tr>
@@ -151,7 +161,7 @@ export function listingAlertEmail(
     </div>
     <p style="font-size:11px;color:#9ca3af;margin:16px 0 0;">
       Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service.
-      Data last updated: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}.
+      ${dataAsOf && !Number.isNaN(dataAsOf.getTime()) ? `Listing information as of ${dataAsOf.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "America/New_York" })}.` : ""}
     </p>
   `);
 }
@@ -478,6 +488,11 @@ export interface InvestorListingEmailData {
   // ── Listing identity ──
   address: string;
   neighborhood?: string | null;
+  /** The listing's attribution line from the public DTO (`_displayCompliance.attributionText`): "Listing courtesy of <the actual listing broker>" for a third-party listing, "Exclusive listing by Mallan
+   *  Real Estate Inc." for Mallan's own. Rendered under the address; the sender in "Presented By" is the displaying broker and never stands in for it (UCBA Art. III §2(C)). */
+  attributionText?: string | null;
+  /** `_displayCompliance.disclaimerRequired`: the listing is third-party RLS content, so the data-provider sentence is added to the disclaimer. */
+  disclaimerRequired?: boolean;
   price: string;
   beds?: number | null;
   baths?: number | null;
@@ -612,6 +627,7 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
       <p style="font-size:26px;line-height:1.15;font-weight:700;color:${ink};margin:0 0 5px;font-family:${serif};">${p(d.address)}</p>
       ${d.neighborhood ? `<p style="font-size:14px;color:${muted};margin:0 0 3px;font-family:${sans};letter-spacing:.3px;">${p(d.neighborhood)}</p>` : ""}
       ${specLine ? `<p style="font-size:12px;color:#8a857c;margin:0;font-family:${sans};letter-spacing:.5px;text-transform:uppercase;">${p(specLine)}</p>` : ""}
+      ${d.attributionText ? `<p style="font-size:13px;color:${muted};margin:6px 0 0;font-family:${sans};">${p(d.attributionText)}</p>` : ""}
     </td></tr>
 
     <!-- Figures -->
@@ -686,6 +702,7 @@ export function investorListingEmail(d: InvestorListingEmailData): string {
             like-kind replacement property, and all 1031 identification and closing deadlines, must be confirmed by the
             buyer's own attorney, tax adviser, and qualified intermediary. Nothing herein guarantees eligibility, income, or return.
           </p>
+          ${d.disclaimerRequired ? `<p style="font-size:11px;color:${muted};line-height:1.6;margin:8px 0 0;font-family:${sans};">Listing data provided by the Real Estate Board of New York (REBNY) Residential Listing Service.</p>` : ""}
         </td>
       </tr></table>
     </td></tr>
@@ -783,7 +800,7 @@ export function genericCrmEmail(
  * Body content for Tier A is intentionally generic + safe — a brief
  * professional touch with a CTA to schedule a call. Trigger-specific
  * rich content (matched listings, market stats, rent-vs-buy widget)
- * is Tier B work that needs additional Trestle queries and a richer
+ * is Tier B work that needs additional Cotality queries and a richer
  * action_config schema.
  */
 export function lifecycleTriggerEmail(opts: {
@@ -873,7 +890,7 @@ export function lifecycleTriggerEmail(opts: {
 
 /**
  * Feed-reconcile abort alert — sent by app/api/cron/feed-reconcile when
- * the GHOST_ABORT_CAP fires (likely Trestle outage). Goes to brokers as
+ * the GHOST_ABORT_CAP fires (likely Cotality feed outage). Goes to brokers as
  * a transactional system notification. Body explicitly cites the count
  * and the cap so the operator can decide whether to investigate or wait.
  */
@@ -888,7 +905,7 @@ export function feedReconcileAbortEmail(opts: {
   return wrapEmail(`
     <div style="background:#fee2e2;border:1px solid #f87171;border-radius:8px;padding:14px 16px;margin:0 0 16px;">
       <p style="font-size:12px;font-weight:700;color:#991b1b;margin:0 0 4px;text-transform:uppercase;letter-spacing:1px;">Feed reconcile aborted</p>
-      <p style="font-size:14px;color:#7f1d1d;margin:0;">Trestle anomaly detected. No transitions made.</p>
+      <p style="font-size:14px;color:#7f1d1d;margin:0;">Cotality feed anomaly detected. No transitions made.</p>
     </div>
     <h1 style="font-size:22px;color:${BRAND_DARK};margin:0 0 16px;">Feed Reconcile Aborted — Manual Review Required</h1>
     <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
@@ -896,12 +913,12 @@ export function feedReconcileAbortEmail(opts: {
     </p>
     <p style="font-size:15px;color:#374151;line-height:1.6;margin:0 0 16px;">
       The daily feed-reconcile cron detected <strong>${opts.ghostCount}</strong> ghost listings
-      (Active in our DB but missing from the Trestle Active feed) — exceeding the safety cap of
+      (Active in our DB but missing from the Cotality Active feed) — exceeding the safety cap of
       <strong>${opts.cap}</strong>. The cron aborted before transitioning anything.
     </p>
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #e5e7eb;margin:0 0 16px;">
       <tr>
-        <td style="padding:10px 16px;font-size:13px;color:#6b7280;background:#f9fafb;border-bottom:1px solid #e5e7eb;">Trestle Active count</td>
+        <td style="padding:10px 16px;font-size:13px;color:#6b7280;background:#f9fafb;border-bottom:1px solid #e5e7eb;">Cotality Active count</td>
         <td style="padding:10px 16px;font-size:13px;font-weight:600;color:${BRAND_DARK};text-align:right;background:#f9fafb;border-bottom:1px solid #e5e7eb;">${opts.trestleActiveCount.toLocaleString()}</td>
       </tr>
       <tr>
@@ -914,10 +931,9 @@ export function feedReconcileAbortEmail(opts: {
       </tr>
     </table>
     <p style="font-size:14px;color:#374151;line-height:1.6;margin:0 0 16px;">
-      A delta this large typically indicates a Trestle fetch failure (partial result) rather than an
-      actual mass-disappearance. The cron will retry on its next schedule. Investigate Trestle status,
-      or run <code style="background:#f3f4f6;padding:1px 4px;border-radius:3px;">scripts/feed-reconcile-dry-run</code>
-      to inspect the diff manually.
+      A delta this large typically indicates a Cotality fetch failure (partial result) rather than an
+      actual mass-disappearance. The cron will retry on its next schedule. Investigate Cotality feed status
+      and the ghost diff before the next run.
     </p>
     <p style="font-size:13px;color:#9ca3af;margin:16px 0 0;line-height:1.5;">
       This is an automated alert from the feed-reconcile cron. Reason code: <code>${escapeHtml(opts.abortReason)}</code>.

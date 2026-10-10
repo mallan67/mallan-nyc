@@ -17,6 +17,8 @@
  *   - No compensation/commission terms
  */
 
+import { isSearchableAmenity } from './types';
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface ResolvedNeighborhood {
@@ -283,6 +285,12 @@ const BOROUGH_ALIASES: Record<string, string> = {
 
 // ─── NYC Property Lingo Map ──────────────────────────────────────────────────
 
+/**
+ * The `filterKey` of a phrase that is read but not searched: matchLingo still finds it and removes it from the text (so "no fee" is not left over to be read as a place name or sent on as a text
+ * search), and the parser applies nothing for it. `filterValue` names the disabled filter; its reason is AMENITY_FIELD_MAP[filterValue].unavailable (lib/search/types.ts). Autocomplete does not offer it.
+ */
+export const LINGO_UNAVAILABLE = 'unavailable';
+
 interface LingoEntry {
   type: LingoMatch['type'];
   filterKey: string;
@@ -343,14 +351,41 @@ const LINGO_MAP: Record<string, LingoEntry> = {
   'post war': { type: 'year-built', filterKey: 'yearBuilt', filterValue: 'post-war', label: 'Post-War' },
 
   // ── Rental ──
-  'no fee': { type: 'rental', filterKey: 'amenities', filterValue: 'no-fee', label: 'No Fee' },
-  'no broker fee': { type: 'rental', filterKey: 'amenities', filterValue: 'no-fee', label: 'No Fee' },
-  'owner pays': { type: 'rental', filterKey: 'amenities', filterValue: 'no-fee', label: 'No Fee' },
+  // No Fee is DISABLED until a live Cotality field is found (Maya, 2026-10-09): these phrases were turned into a filter on ListingTerms NoFee / OwnerPays, which are not members, so every search with
+  // one of them answered "no results". They are still recognised and removed from the text, and filter nothing (LINGO_UNAVAILABLE).
+  // The usual spellings are all read, so that none of them falls through to a text search for words no listing holds (compliance review of 2026-10-09). A hyphen, a space and several spaces are one
+  // separator when a phrase is matched (matchLingo), so "no-fee", "no fee" and "no  fee" are the phrase 'no fee'. "owner pays" and "landlord pays" are read on their own and with the fee they name, longest first
+  // ("owner pays broker fee" leaves nothing over; "owner pays heat" leaves "heat": the live OwnerPays field lists utilities, and a utilities filter is not what this phrase turns on).
+  'no fee': { type: 'rental', filterKey: LINGO_UNAVAILABLE, filterValue: 'no-fee', label: 'No Fee' },
+  'no fees': { type: 'rental', filterKey: LINGO_UNAVAILABLE, filterValue: 'no-fee', label: 'No Fee' },
+  'nofee': { type: 'rental', filterKey: LINGO_UNAVAILABLE, filterValue: 'no-fee', label: 'No Fee' },
+  'no broker fee': { type: 'rental', filterKey: LINGO_UNAVAILABLE, filterValue: 'no-fee', label: 'No Fee' },
+  'no broker fees': { type: 'rental', filterKey: LINGO_UNAVAILABLE, filterValue: 'no-fee', label: 'No Fee' },
+  'owner pays': { type: 'rental', filterKey: LINGO_UNAVAILABLE, filterValue: 'no-fee', label: 'No Fee' },
+  'owner pays fee': { type: 'rental', filterKey: LINGO_UNAVAILABLE, filterValue: 'no-fee', label: 'No Fee' },
+  'owner pays the fee': { type: 'rental', filterKey: LINGO_UNAVAILABLE, filterValue: 'no-fee', label: 'No Fee' },
+  'owner pays broker fee': { type: 'rental', filterKey: LINGO_UNAVAILABLE, filterValue: 'no-fee', label: 'No Fee' },
+  'owner pays the broker fee': { type: 'rental', filterKey: LINGO_UNAVAILABLE, filterValue: 'no-fee', label: 'No Fee' },
+  'landlord pays': { type: 'rental', filterKey: LINGO_UNAVAILABLE, filterValue: 'no-fee', label: 'No Fee' },
+  'landlord pays fee': { type: 'rental', filterKey: LINGO_UNAVAILABLE, filterValue: 'no-fee', label: 'No Fee' },
+  'landlord pays the fee': { type: 'rental', filterKey: LINGO_UNAVAILABLE, filterValue: 'no-fee', label: 'No Fee' },
+  'landlord pays broker fee': { type: 'rental', filterKey: LINGO_UNAVAILABLE, filterValue: 'no-fee', label: 'No Fee' },
+  'landlord pays the broker fee': { type: 'rental', filterKey: LINGO_UNAVAILABLE, filterValue: 'no-fee', label: 'No Fee' },
   'furnished': { type: 'rental', filterKey: 'furnished', filterValue: true, label: 'Furnished' },
   'walkup': { type: 'rental', filterKey: 'propertySubTypes', filterValue: 'Walk-Up', label: 'Walk-Up' },
   'walk-up': { type: 'rental', filterKey: 'propertySubTypes', filterValue: 'Walk-Up', label: 'Walk-Up' },
   'walk up': { type: 'rental', filterKey: 'propertySubTypes', filterValue: 'Walk-Up', label: 'Walk-Up' },
 };
+
+/**
+ * A phrase for a DISABLED filter (LINGO_UNAVAILABLE) is a real filter phrase again the moment the filter it names is searchable (lib/search/types.ts: its `unavailable` reason removed and a live
+ * field named): enabling No Fee is one change, there, and the typed phrases, the parser and the autocomplete follow. (The documented steps used to leave the checkbox working and every typed phrase
+ * dead: found by the code review of 2026-10-09.)
+ */
+function resolveLingoEntry(entry: LingoEntry): LingoEntry {
+  if (entry.filterKey === LINGO_UNAVAILABLE && isSearchableAmenity(String(entry.filterValue))) return { ...entry, filterKey: 'amenities' };
+  return entry;
+}
 
 /** Sorted keys longest-first for greedy matching */
 const LINGO_KEYS_SORTED = Object.keys(LINGO_MAP).sort((a, b) => b.length - a.length);
@@ -533,13 +568,16 @@ export function matchLingo(text: string): { matches: LingoMatch[]; remainder: st
   let remaining = text;
 
   for (const key of LINGO_KEYS_SORTED) {
+    const entry = resolveLingoEntry(LINGO_MAP[key]);
     // Build a regex that matches the key as a word boundary
     const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+    // A phrase that filters nothing must leave nothing over (it would otherwise be read as a place name or sent on as a text search): a space, a hyphen or several spaces are one separator
+    // ("no fee", "no-fee", "no  fee"), and every occurrence goes ("no fee no fee"). Found by the code review of 2026-10-09; the other lingo keeps its exact matching.
+    const inert = entry.filterKey === LINGO_UNAVAILABLE;
+    const regex = new RegExp(`\\b${inert ? escaped.replace(/[ -]+/g, '[\\s-]+') : escaped}\\b`, inert ? 'gi' : 'i');
     const match = remaining.match(regex);
 
     if (match) {
-      const entry = LINGO_MAP[key];
       // Avoid duplicates (e.g., "coop" and "co-op" both matching)
       const isDuplicate = matches.some(
         m => m.filterKey === entry.filterKey && m.filterValue === entry.filterValue,
@@ -687,6 +725,7 @@ export function getSuggestions(input: string, limit: number = 10): DictionarySug
 
   // ── Lingo terms ──
   for (const [key, entry] of Object.entries(LINGO_MAP)) {
+    if (resolveLingoEntry(entry).filterKey === LINGO_UNAVAILABLE) continue; // a phrase that filters nothing is not offered
     if (key.startsWith(normalized) || key.includes(normalized) || entry.label.toLowerCase().includes(normalized)) {
       add({
         type: 'lingo',

@@ -472,7 +472,26 @@
             'floor','totalFloors','unitNumber','condition','exposures','dom','listedDate','updatedDate',
             'publicDescription','rlsId','webId'];
 
-        function populateReportPreview() {
+        // The images of a report listing, from the media rows of /api/media/batch?detail=true. Each row's mediaType is the server's classification (lib/media/listing-media-resolver.ts:
+        // 'Photo', 'FloorPlan', 'Video', 'VirtualTour' or 'Unknown'). A report shows pictures: photos, and floor plans on their own pages. A video or a tour row is a link, not a picture
+        // (printed as an <img> it is a broken image, and it would be counted as a photo) and 'Unknown' is none of them, so those rows are not images.
+        function reportImagesFromMedia(rows) {
+            return (rows || []).filter(function(m) {
+                return m && (m.mediaType === 'Photo' || m.mediaType === 'FloorPlan');
+            }).map(function(m) {
+                return {
+                    url: m.url, mediaType: m.mediaType,
+                    mediaCategory: m.mediaType,
+                    imageOf: m.mediaType === 'FloorPlan' ? 'FloorPlan' : 'Photo',
+                    order: m.order, caption: m.caption || '',
+                    isPrimary: m.order === -1 || m.order === 0
+                };
+            }).sort(function(a, b) { return a.order - b.order; });
+        }
+
+        // mediaAlreadyAsked is true only for the re-render that follows the media fetch below. A listing the server has no picture for (no media at all, or only a video or a tour)
+        // stays without images, and asking again on every re-render never ended: the preview fetched, re-rendered, fetched again, for ever.
+        function populateReportPreview(mediaAlreadyAsked) {
             // Use the same listing selection logic as generateReport
             // getReportListings() handles: selection radio (all/selected/picked/liked),
             // IDX compliance filter, sorting, and 250 cap
@@ -484,7 +503,7 @@
 
             // Pre-fetch photos for listings missing images before rendering
             // Batch in groups of 25 (API detail mode limit) to handle larger reports
-            var needPhotos = listings.filter(function(l) { return !l.images || l.images.length === 0; });
+            var needPhotos = mediaAlreadyAsked === true ? [] : listings.filter(function(l) { return !l.images || l.images.length === 0; });
             if (needPhotos.length > 0 && typeof fetch !== 'undefined') {
                 var allIds = needPhotos.map(function(l) { return l.lid || l.id; }).filter(Boolean);
                 var BATCH_SIZE = 25;
@@ -500,16 +519,9 @@
                     needPhotos.forEach(function(l) {
                         if (l.images && l.images.length > 0) return; // already populated by earlier batch
                         var lid = l.lid || l.id;
-                        if (media[lid] && media[lid].length > 0) {
-                            l.images = media[lid].map(function(m) {
-                                return {
-                                    url: m.url, mediaType: m.mediaType,
-                                    mediaCategory: m.mediaType,
-                                    imageOf: m.mediaType === 'FloorPlan' ? 'FloorPlan' : 'Photo',
-                                    order: m.order, caption: m.caption || '',
-                                    isPrimary: m.order === -1 || m.order === 0
-                                };
-                            }).sort(function(a, b) { return a.order - b.order; });
+                        var reportImages = reportImagesFromMedia(media[lid]);
+                        if (reportImages.length > 0) {
+                            l.images = reportImages;
                             l.photoCount = l.images.filter(function(m) { return m.mediaCategory !== 'FloorPlan'; }).length;
                         } else if (photos[lid]) {
                             l.images = [{ url: photos[lid], isPrimary: true, mediaType: 'Photo', mediaCategory: 'Photo', imageOf: 'Photo' }];
@@ -518,7 +530,7 @@
                     });
                     completedBatches++;
                     if (completedBatches >= batches.length) {
-                        try { populateReportPreview(); } catch(e) { console.warn('Report re-render with photos failed:', e); }
+                        try { populateReportPreview(true); } catch(e) { console.warn('Report re-render with photos failed:', e); }
                     }
                 }
                 batches.forEach(function(batchIds) {
@@ -1219,8 +1231,8 @@
             // Property Details card
             d += '<div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px" class="pkg-no-break">' +
                 '<h3 style="font-weight:700;color:#111827;margin:0 0 12px;font-size:15px"><i class="fas fa-home" style="color:#C4A052;margin-right:8px"></i>Property Details</h3>' +
-                detRow('Type', ownershipLabel(first.ownership)||'\u2014') +
-                detRow('Ownership', ownershipLabel(first.ownership)||'\u2014') +
+                detRow('Property Subtype', first.propertySubType||'\u2014') +
+                detRow('Ownership Type', ownershipLabel(first.ownership)||'\u2014') +
                 detRow('Building', first.era||'\u2014') +
                 detRow('Total Rooms', first.rooms||'\u2014') +
                 detRow('Exposures', first.exposures||'\u2014');
@@ -1347,7 +1359,8 @@
             compRows.push(['Bedrooms', function(l){ return '<td style="' + compTdS + '">' + (l.beds||'\u2014') + '</td>'; }, true]);
             compRows.push(['Bathrooms', function(l){ return '<td style="' + compTdS + '">' + (l.baths||'\u2014') + '</td>'; }, true]);
             compRows.push(['SqFt', function(l){ return '<td style="' + compTdS + '">' + (l.intSqft?l.intSqft.toLocaleString():'\u2014') + '</td>'; }, true]);
-            compRows.push(['Type', function(l){ return '<td style="' + compTdS + '">' + (ownershipLabel(l.ownership)||'\u2014') + '</td>'; }, true]);
+            compRows.push(['Property Subtype', function(l){ return '<td style="' + compTdS + '">' + (l.propertySubType||'\u2014') + '</td>'; }, true]);
+            compRows.push(['Ownership Type', function(l){ return '<td style="' + compTdS + '">' + (ownershipLabel(l.ownership)||'\u2014') + '</td>'; }, true]);
             compRows.push(['Era', function(l){ return '<td style="' + compTdS + '">' + (l.era||'\u2014') + '</td>'; }, true]);
             compRows.push(['Monthly', function(l){ return '<td style="' + compTdS + '">' + (l.totalMonthly?fmtCurrency(l.totalMonthly):'\u2014') + '</td>'; }, true]);
             compRows.push(['Floor', function(l){ return '<td style="' + compTdS + '">' + (l.floor||'\u2014') + '</td>'; }, true]);
@@ -1391,7 +1404,8 @@
             listings.forEach(function(l, idx) {
                 var isRental = l.listingCategory === 'rental';
                 var mlsId = l.lid || l.wid || '';
-                var ownerType = ownershipLabel(l.ownership) || l.propertySubType || '';
+                var ownerType = ownershipLabel(l.ownership) || '';
+                var propertySubType = l.propertySubType || '';
 
                 // ── Page 1: Listing fact sheet ──
                 fs += '<div class="pkg-per-listing">';
@@ -1417,7 +1431,9 @@
                 fs += '</div>';
                 fs += '<div style="text-align:right">' +
                     '<p style="font-size:20px;font-weight:700;color:#111;margin:0">' + fmtPrice(l) + '</p>' +
-                    '<p style="font-size:11px;color:#555;margin:2px 0 0">' + (l.status || 'Active') + ' / ' + ownerType + (mlsId ? ' / #' + mlsId : '') + '</p></div></div>';
+                    '<p style="font-size:11px;color:#555;margin:2px 0 0">' +
+                    [l.status || 'Active', ownerType, propertySubType, mlsId ? '#' + mlsId : ''].filter(Boolean).join(' / ') +
+                    '</p></div></div>';
                 fs += '<hr style="border:none;border-top:1px solid #bbb;margin:0 0 12px">';
 
                 // Body: photos + description + details table
@@ -2084,7 +2100,7 @@
 
                 // Extra details row
                 var extras = [];
-                if (l.ownership) extras.push(l.ownership === 'StockCooperative' ? 'Co-op' : l.ownership);
+                if (l.ownership) extras.push(ownershipLabel(l.ownership));
                 if (l.era) extras.push(l.era);
                 if (l.dom !== undefined) extras.push(l.dom + ' DOM');
                 if (l.floor) extras.push('Floor ' + l.floor);
@@ -2562,7 +2578,8 @@
             // ── Property + Financial Details ──
             html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px">';
             html += '<div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px"><h3 style="font-weight:700;color:#111827;margin:0 0 12px;font-size:15px">Property Details</h3>' +
-                dr('Type', (typeof ownershipLabel === 'function' ? ownershipLabel(l.ownership) : l.ownership) || '\u2014') +
+                dr('Property Subtype', l.propertySubType || '\u2014') +
+                dr('Ownership Type', (typeof ownershipLabel === 'function' ? ownershipLabel(l.ownership) : l.ownership) || '\u2014') +
                 dr('Building', l.era||'\u2014') +
                 dr('Total Rooms', l.rooms||'\u2014') +
                 dr('Exposures', l.exposures||'\u2014');

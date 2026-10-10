@@ -22,6 +22,17 @@ var MallanAPI = (function () {
   // ─── Internal helpers ────────────────────────────────────────────────────
 
   /**
+   * The error of a request the server answered with a failure. It carries the HTTP status and the body: a caller can tell a refusal (4xx: the server did not do what was asked) from a failure after
+   * which nothing is known (5xx: the listing create route answers 500 when the listing was committed and the answer could not be built). A request that got no answer at all (the network) has no status.
+   */
+  function _failure(message, status, body) {
+    var err = new Error(message);
+    err.status = status;
+    err.details = body;
+    return err;
+  }
+
+  /**
    * Core fetch wrapper. Sends credentials (cookies) for auth.
    * Handles 401 → dispatch unauthorized event.
    */
@@ -43,17 +54,16 @@ var MallanAPI = (function () {
       if (res.status === 401) {
         console.warn('[MallanAPI] 401 Unauthorized — redirecting to login');
         window.dispatchEvent(new CustomEvent('mallan:auth:unauthorized'));
-        return Promise.reject(new Error('Unauthorized'));
+        return Promise.reject(_failure('Unauthorized', 401));
       }
       if (res.status === 403) {
         console.warn('[MallanAPI] 403 Forbidden');
-        return Promise.reject(new Error('Access denied'));
+        return Promise.reject(_failure('Access denied', 403));
       }
       if (!res.ok) {
-        return res.json().then(function (data) {
-          return Promise.reject(new Error(data.error || 'Request failed: ' + res.status));
-        }).catch(function () {
-          return Promise.reject(new Error('Request failed: ' + res.status));
+        // The server's own words reach the caller (an error answer is {"error": "..."}); an answer that holds none says the status
+        return res.json().then(function (data) { return data; }, function () { return null; }).then(function (data) {
+          return Promise.reject(_failure((data && typeof data.error === 'string' && data.error) || 'Request failed: ' + res.status, res.status, data));
         });
       }
       return res.json();
@@ -655,6 +665,18 @@ var MallanAPI = (function () {
       if (params.minUnits) qs.push('minUnits=' + params.minUnits);
       if (params.maxUnits) qs.push('maxUnits=' + params.maxUnits);
       if (params.buildingName) qs.push('buildingName=' + encodeURIComponent(params.buildingName));
+      // Filters lib/search/crm-idx-filter.ts supports and the Search page collects. They were collected and logged but never sent, so the
+      // checkbox filters, management company, unit and contract dates only narrowed the first rows the server returned. `keyword` is
+      // deliberately NOT forwarded: live Cotality cannot evaluate contains(PublicRemarks, ...) within the request timeout (it aborts).
+      if (params.unit) qs.push('unit=' + encodeURIComponent(params.unit));
+      if (params.managementCompany) qs.push('managementCompany=' + encodeURIComponent(params.managementCompany));
+      if (params.contractDateFrom) qs.push('contractDateFrom=' + encodeURIComponent(params.contractDateFrom));
+      if (params.contractDateTo) qs.push('contractDateTo=' + encodeURIComponent(params.contractDateTo));
+      if (params.checkboxFilters) qs.push('checkboxFilters=' + encodeURIComponent(params.checkboxFilters));
+      // Agent / office filters (primary and co-list sides are separate): each value is a comma-separated list of MLS IDs and/or typed names.
+      ['listAgent', 'coListAgent', 'anyAgent', 'listOffice', 'coListOffice'].forEach(function (key) {
+        if (params[key]) qs.push(key + '=' + encodeURIComponent(params[key]));
+      });
       if (params.sort) qs.push('sort=' + encodeURIComponent(params.sort));
       if (params.limit) qs.push('limit=' + params.limit);
       if (params.skip) qs.push('skip=' + params.skip);

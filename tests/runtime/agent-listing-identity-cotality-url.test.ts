@@ -2,13 +2,13 @@
 /**
  * Agent + listing identity (Cotality-authoritative) + canonical URL.
  *
- * Audit: docs/crm/agent-listing-identity-cotality-url-audit-2026-05-28.md
+ * Audit: 2026-05-28 agent/listing identity audit (retired to git history).
  *
  * Verified live values that drive these tests:
  *   - Agent "Maya Allan": id=1, trestle_mls_id=39361, email=maya@mallan.nyc
  *   - SL-0004 (CRM exclusive):   agent_id=1, idx_display_yn=false, rls_eligible=false,
  *                                agent_info.ListAgentMlsId="" (empty — broken picker)
- *   - RLS20093870 (Trestle copy): agent_id=null, idx_display_yn=true,
+ *   - RLS20093870 (Cotality copy): agent_id=null, idx_display_yn=true,
  *                                  ListAgentMlsId=39361 (== Maya), same unit 2G
  *
  * Mix of runtime (real functions) + source-verification (route/auth/form wiring).
@@ -25,14 +25,14 @@ import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 const ROOT = process.cwd();
 const read = (p: string) => readFileSync(join(ROOT, p), 'utf8');
 
-// ── RUNTIME: cross-source dedupe survives DB-shape vs Trestle-shape divergence ──
-describe('cross-source dedupe — DB DTO vs Trestle DTO address shapes', () => {
+// ── RUNTIME: cross-source dedupe survives DB-shape vs Cotality-shape divergence ──
+describe('cross-source dedupe — DB DTO vs Cotality DTO address shapes', () => {
   // DB shape (dbListingToPublicDTO): streetDirPrefix separate, streetName = name+suffix.
   const SL_0004: DedupeCandidate = {
     id: 'SL-0004',
     address: { streetNumber: '333', streetDirPrefix: 'E', streetName: '46th Street', unitNumber: '2G', postalCode: '10017' },
   };
-  // Trestle shape (toPublicDTO via mapRESOToInternal): no streetDirPrefix,
+  // Cotality shape (toPublicDTO via mapRESOToInternal): no streetDirPrefix,
   // streetName already = "<dir> <name> <suffix>".
   const RLS_20093870: DedupeCandidate = {
     id: 'RLS20093870',
@@ -47,11 +47,11 @@ describe('cross-source dedupe — DB DTO vs Trestle DTO address shapes', () => {
     address: { streetNumber: '333', streetName: 'W 46th Street', unitNumber: '2G', postalCode: '10017' }, // different direction
   };
 
-  it('DB-shape and Trestle-shape rows for the same unit produce the IDENTICAL address key', () => {
+  it('DB-shape and Cotality-shape rows for the same unit produce the IDENTICAL address key', () => {
     expect(buildAddressKey(SL_0004.address)).toBe(buildAddressKey(RLS_20093870.address));
   });
 
-  it('agent-page merge: SL-0004 (CRM) wins, RLS20093870 (Trestle dup) suppressed', () => {
+  it('agent-page merge: SL-0004 (CRM) wins, RLS20093870 (Cotality dup) suppressed', () => {
     const merged = preferCrmExclusiveOverIdxDuplicate([SL_0004, RLS_20093870, RLS_20087929]);
     const ids = merged.map((l) => l.id);
     expect(ids).toContain('SL-0004');
@@ -69,7 +69,7 @@ describe('cross-source dedupe — DB DTO vs Trestle DTO address shapes', () => {
     expect(merged.map((l) => l.id).sort()).toEqual(['RLS20099999', 'SL-0004']);
   });
 
-  it('when no CRM row exists, the Trestle row is kept (no over-suppression)', () => {
+  it('when no CRM row exists, the Cotality row is kept (no over-suppression)', () => {
     const merged = preferCrmExclusiveOverIdxDuplicate([RLS_20093870, RLS_20087929]);
     expect(merged.map((l) => l.id).sort()).toEqual(['RLS20087929', 'RLS20093870']);
   });
@@ -106,7 +106,7 @@ describe('agent route — Cotality identity + display gate + cross-source dedupe
   it('agent lookup selects trestle_mls_id', () => {
     expect(route).toMatch(/trestle_mls_id:\s*true/);
   });
-  it('Trestle branch matches by ListAgentMlsId when an MLS id is present', () => {
+  it('Cotality branch matches by ListAgentMlsId when an MLS id is present', () => {
     expect(route).toMatch(/ListAgentMlsId eq '\$\{/);
   });
   it('name matching is fallback only (ListAgentFullName behind the mlsId ternary)', () => {
@@ -127,18 +127,23 @@ describe('identity capture — /api/auth/me exposes trestle_mls_id; form stamps 
     expect(me).toMatch(/trestle_mls_id:\s*true/);
     expect(me).toMatch(/mlsId:\s*agent\.trestle_mls_id/);
   });
-  it('form collect maps ListAgentMlsId from the Cotality mls id, NOT the internal Agent.id', () => {
-    expect(form).toMatch(/data\.ListAgentMlsId\s*=\s*data\.saleUpdatingAgentMlsId/);
+  const defaults = read('public/crm/js/forms/agent-defaults.js');
+  // The save used to read hidden inputs that sit outside the area it sweeps, so ListAgentMlsId was always blank. crm-agent-defaults.test.ts drives the page
+  // and proves the payload; these pin the wiring it depends on.
+  it('form collect takes the agent identity from MallanAgentDefaults.identity, whose ListAgentMlsId is the Cotality mls id, NOT the internal Agent.id', () => {
+    expect(form).toMatch(/MallanAgentDefaults\.identity\('sale'\)/);
+    expect(defaults).toMatch(/ListAgentMlsId: read\(prefix, 'mlsId'\)/);
+    expect(defaults).not.toMatch(/ListAgentMlsId: read\(prefix, 'id'\)/);
     expect(form).not.toMatch(/data\.ListAgentMlsId\s*=\s*data\.saleUpdatingAgent\b\s*\|\|/);
   });
-  it('form persists the hidden saleUpdatingAgentMlsId field from the session', () => {
+  it('form persists the hidden saleUpdatingAgentMlsId field from the session mlsId', () => {
     expect(form).toMatch(/id="saleUpdatingAgentMlsId"/);
-    expect(form).toMatch(/setVal\('saleUpdatingAgentMlsId',\s*u\.mlsId\)/);
+    expect(defaults).toMatch(/mlsId: str\(u\.mlsId\)/);
+    expect(defaults).toMatch(/PARTS\.forEach\(function \(part\) \{ write\(prefix, part, parts\[part\]\); \}\)/);
   });
-  it('CRM-owned office name is canonical; the company-key slug is no longer written into ListOfficeKey', () => {
-    expect(form).toMatch(/data\.ListOfficeName\s*=\s*data\.saleUpdatingAgentCompanyName\s*\|\|\s*'Mallan Real Estate Inc\.'/);
-    // The prior bug wrote the "mallan" company-key slug into ListOfficeKey.
+  it('the company-key slug is never written into ListOfficeKey: only a digit string (a Cotality OfficeKey) is submitted', () => {
     expect(form).not.toMatch(/data\.ListOfficeKey\s*=\s*data\.saleUpdatingAgentCompanyKey/);
+    expect(defaults).toMatch(/if \(isCotalityId\(officeKey\)\) out\.ListOfficeKey = officeKey;/);
   });
 });
 

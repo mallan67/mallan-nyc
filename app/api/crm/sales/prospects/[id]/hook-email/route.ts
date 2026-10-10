@@ -30,6 +30,7 @@ import { safeBigInt } from "@/lib/utils/safe-bigint";
 import { serializeBigInts } from "@/lib/api/serialize";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { escapeHtml } from "@/lib/sanitize";
+import { rlsStatisticalDisclaimer, statisticalPeriod } from "@/lib/compliance/rls-statistical-disclaimer";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -74,7 +75,8 @@ function buildHookEmail(params: {
   comps: Comp[];
   agentName: string;
   agentTitle: string;
-  attributionDate: string;
+  /** The statistical disclaimer for the period the comparable sales cover (lib/compliance/rls-statistical-disclaimer.ts) */
+  attribution: string;
 }): string {
   const {
     ownerName,
@@ -87,7 +89,7 @@ function buildHookEmail(params: {
     comps,
     agentName,
     agentTitle,
-    attributionDate,
+    attribution,
   } = params;
 
   // Top 3 comps only
@@ -171,7 +173,7 @@ function buildHookEmail(params: {
 
   <!-- Required compliance footer -->
   <div style="margin-top:32px;padding-top:16px;border-top:1px solid #eee;font-size:10px;color:#999;line-height:1.6;">
-    <p style="margin:0 0 6px;">Based on information from the REBNY Listing Service for the period ${escapeHtml(attributionDate)}. This information is provided for consumers&rsquo; personal, non-commercial use and may not be used for any purpose other than to identify prospective properties consumers may be interested in purchasing or renting.</p>
+    <p style="margin:0 0 6px;">${escapeHtml(attribution)} This information is provided for consumers&rsquo; personal, non-commercial use and may not be used for any purpose other than to identify prospective properties consumers may be interested in purchasing or renting.</p>
     <p style="margin:0 0 6px;">Mallan Real Estate Inc. | 400 East 90th Street, Suite 17C, New York, NY 10128 | License #10991205323</p>
     <p style="margin:0 0 6px;">Commission rates are not set by law and are fully negotiable.</p>
     <p style="margin:0 0 6px;">Equal Housing Opportunity. Committed to compliance with the Fair Housing Act,
@@ -318,13 +320,9 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   const now = new Date();
   const yearAgo = new Date(now);
   yearAgo.setFullYear(yearAgo.getFullYear() - 1);
-  const fmtLong = (d: Date) =>
-    d.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  const attributionDate = `${fmtLong(yearAgo)} through ${fmtLong(now)}`;
+  // UCBA Art. VIII Sec. 4: the comparable sales are the curated ones; the period is the year before today, further back when a curated sale is older
+  const period = statisticalPeriod(yearAgo, now, comps.map((c) => c.close_date));
+  const attribution = rlsStatisticalDisclaimer(period.start, period.end);
 
   // ── Build email subject ───────────────────────────────────────────────────────
   const fullAddress =
@@ -347,7 +345,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     comps,
     agentName,
     agentTitle,
-    attributionDate,
+    attribution,
   });
 
   // ── Send via M365 SMTP (agent channel) ───────────────────────────────────────

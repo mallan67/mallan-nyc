@@ -14,12 +14,15 @@ import SearchFilterPanel from '@/app/components/SearchFilterPanel';
 import NeighborhoodSelector from '@/app/components/NeighborhoodSelector';
 import type { SearchTab, ViewMode, SearchFilters } from '@/lib/search/types';
 import { getAllNeighborhoods } from '@/lib/neighborhoods/boroughs';
-import { parseNaturalLanguageSearch } from '@/lib/search/natural-language-parser';
-import { TAB_CONFIG } from '@/lib/search/types';
+import { parseNaturalLanguageSearch, type UnavailablePhrase } from '@/lib/search/natural-language-parser';
+import { TAB_CONFIG, searchableAmenities, unavailableAmenities } from '@/lib/search/types';
 import nextDynamic from 'next/dynamic';
 import { trackSearch } from '@/lib/posthog';
 
 // Client component — data fetched via useListings hook (no force-dynamic needed)
+
+/** One shared empty list for the resolved searches that read nothing they did not apply (so the memo's result keeps one shape). */
+const NO_UNAVAILABLE: UnavailablePhrase[] = [];
 
 const SearchMapLazy = nextDynamic(() => import('@/app/components/SearchMap'), { ssr: false });
 
@@ -328,6 +331,8 @@ function SearchClient() {
       const v = sp?.get(key);
       return v ? v.split(',') : undefined;
     };
+    // Only filters a search can apply: an old link with amenities=no-fee (disabled, lib/search/types.ts) or a word the map does not name is dropped, so no chip shows a filter that does nothing.
+    const amenityKeys = searchableAmenities(csv('amenities'));
     return {
       minPrice: sp?.get('minPrice') ? Number(sp.get('minPrice')) : undefined,
       maxPrice: sp?.get('maxPrice') ? Number(sp.get('maxPrice')) : undefined,
@@ -340,7 +345,7 @@ function SearchClient() {
       statuses: csv('statuses'),
       yearBuilt: (sp?.get('yearBuilt') as SearchFilters['yearBuilt']) || undefined,
       furnished: sp?.get('furnished') === 'true' || undefined,
-      amenities: csv('amenities') as SearchFilters['amenities'],
+      amenities: amenityKeys.length ? amenityKeys : undefined,
       openHouse: sp?.get('openHouse') === 'true' || undefined,
       openHouseDate: sp?.get('openHouseDate') || undefined,
       minSqft: sp?.get('minSqft') ? Number(sp.get('minSqft')) : undefined,
@@ -397,24 +402,24 @@ function SearchClient() {
   // Handles: exact neighborhoods, boroughs, zips, natural language ("2 bed UES"), addresses
   const resolvedSearch = useMemo(() => {
     const q = (searchQuery || '').trim();
-    if (!q) return { neighborhood: undefined, borough: undefined, address: undefined, nlFilters: undefined };
+    if (!q) return { neighborhood: undefined, borough: undefined, address: undefined, nlFilters: undefined, unavailable: NO_UNAVAILABLE };
 
     const qLower = q.toLowerCase();
 
     // Exact neighborhood match
     const allNeighborhoods = getAllNeighborhoods();
     const matchedNeighborhood = allNeighborhoods.find(n => n.name.toLowerCase() === qLower);
-    if (matchedNeighborhood) return { neighborhood: matchedNeighborhood.name, borough: undefined, address: undefined, nlFilters: undefined };
+    if (matchedNeighborhood) return { neighborhood: matchedNeighborhood.name, borough: undefined, address: undefined, nlFilters: undefined, unavailable: NO_UNAVAILABLE };
 
     // Exact borough match
     const boroughs = ['manhattan', 'brooklyn', 'queens', 'bronx', 'staten island'];
-    if (boroughs.includes(qLower)) return { neighborhood: undefined, borough: q, address: undefined, nlFilters: undefined };
+    if (boroughs.includes(qLower)) return { neighborhood: undefined, borough: q, address: undefined, nlFilters: undefined, unavailable: NO_UNAVAILABLE };
 
     // Zip code
-    if (/^\d{5}$/.test(q)) return { neighborhood: undefined, borough: undefined, address: undefined, nlFilters: undefined };
+    if (/^\d{5}$/.test(q)) return { neighborhood: undefined, borough: undefined, address: undefined, nlFilters: undefined, unavailable: NO_UNAVAILABLE };
 
     // Natural language detection: contains beds, price, property type, amenity, or neighborhood keywords
-    const nlSignals = /(\d\s*(?:bed|br|bath|ba\b)|studio|\$|under|over|below|above|condo|co-?op|townhouse|loft|pre-?war|doorman|elevator|pets?|no\s*fee|gym|pool|furnished)/i;
+    const nlSignals = /(\d\s*(?:bed|br|bath|ba\b)|studio|\$|under|over|below|above|condo|co-?op|townhouse|loft|pre-?war|doorman|elevator|pets?|no[\s-]*fees?|no[\s-]+broker[\s-]+fees?|(?:owner|landlord)\s+pays|gym|pool|furnished)/i;
     const containsNeighborhood = allNeighborhoods.some(n => qLower.includes(n.name.toLowerCase()));
     const containsBorough = boroughs.some(b => qLower.includes(b));
 
@@ -425,12 +430,26 @@ function SearchClient() {
         borough: parsed.borough || undefined,
         address: undefined,
         nlFilters: parsed.filters,
+        // what the parse read but did not apply (told under the chips); only this branch parses, so only this branch can say it was not applied
+        unavailable: parsed.unavailable,
       };
     }
 
     // Plain address/text search
-    return { neighborhood: undefined, borough: undefined, address: q, nlFilters: undefined };
+    return { neighborhood: undefined, borough: undefined, address: q, nlFilters: undefined, unavailable: NO_UNAVAILABLE };
   }, [searchQuery]);
+
+  // What was asked for and is not searched, with the reason (No Fee is disabled until a live Cotality field is found, lib/search/types.ts); shown under the chips. Two sources: the words typed in the search
+  // box that the SAME parse as the filters read ("no fee"; a query that is searched as plain text is not read, so it is not told as "not applied"), and a disabled filter named by the link itself
+  // (?amenities=no-fee: an old link, or the home page carrying what its search read). A filter named by both is told once.
+  const amenitiesParam = searchParams?.get('amenities') ?? '';
+  const unavailableTerms = useMemo(() => {
+    const typed = resolvedSearch.unavailable;
+    const fromLink = unavailableAmenities(amenitiesParam.split(','))
+      .filter(({ key }) => !typed.some((t) => t.key === key))
+      .map(({ key, label, reason }) => ({ phrase: label, key, reason }));
+    return [...typed, ...fromLink];
+  }, [resolvedSearch, amenitiesParam]);
 
   // ── Listings hook ──
   // NL-parsed filters (from "2 bed upper east side" etc.) merge with toolbar filters
@@ -1026,6 +1045,15 @@ function SearchClient() {
               total={loading ? undefined : total}
             />
           </div>
+        </div>
+      )}
+
+      {/* A typed phrase that was read but is not searched (No Fee: no live Cotality field behind it), with the reason. */}
+      {unavailableTerms.length > 0 && (
+        <div role="status" className="flex-shrink-0 bg-amber-50/60 border-b border-amber-200/50 px-4 md:px-6 py-1.5">
+          <p className="max-w-[1920px] mx-auto text-[11px] text-amber-900/90 leading-tight">
+            {unavailableTerms.map((t) => `“${t.phrase}” was not applied. ${t.reason}`).join(' ')}
+          </p>
         </div>
       )}
 

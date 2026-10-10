@@ -7,14 +7,13 @@
  *
  * WHY THIS EXISTS
  * ---------------
- * The drift audit at `docs/listing-search-projection-drift-report-2026-05-16.md`
+ * The 2026-05-16 projection drift audit (retired to git history)
  * found 1,949 rows on production where `Listing.idx_display_yn=false` but
  * `ListingSearchProjection.idx_display_yn=true` (the dangerous direction —
  * if PR 5B's reader swap ships on this state, those rows go public).
  *
  * Root cause: two cron writers flipped `Listing.idx_display_yn=false`
- * without dual-writing the projection (see
- * `docs/listing-search-projection-drift-report-2026-05-16.md` §D).
+ * without dual-writing the projection (drift audit §D).
  *
  * That cron writer gap is patched by PR #147
  * (`fix/projection-dual-write-cron-writers`). This script is the
@@ -115,8 +114,8 @@ interface DriftRow {
 }
 
 async function fetchDriftBatch(lastId: bigint | null, take: number): Promise<DriftRow[]> {
-  // Raw query mirrors the read-only audit query in
-  // docs/listing-search-projection-drift-report-2026-05-16.md so that
+  // Raw query mirrors the read-only audit query of the 2026-05-16
+  // projection drift report (in git history) so that
   // re-running this script with --execute reconciles exactly the rows
   // that the drift report identified. Pagination is on listings.id so a
   // long execute is interruptible and resumable.

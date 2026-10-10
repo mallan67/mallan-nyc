@@ -3,7 +3,7 @@
  * DELETE /api/crm/listings/[id] — CRM-only guard.
  *
  * Only CRM-created listings (mls_id=null) can be withdrawn.
- * Trestle-synced listings (mls_id set) return 409.
+ * Cotality-synced listings (mls_id set) return 409.
  */
 
 import { readFileSync } from 'fs';

@@ -29,7 +29,7 @@ const heroOf = (items: unknown[]) =>
   getHeroPhoto(toCardMedia(resolveListingMedia(items, { mapUrl: (u: string) => u })));
 
 describe('classifyMediaItem — document/floor-plan URL detection with empty category', () => {
-  it('Trestle DOCUMENT- URL with empty MediaCategory is NOT a photo', () => {
+  it('Cotality DOCUMENT- URL with empty MediaCategory is NOT a photo', () => {
     expect(classifyMediaItem({ MediaCategory: '', MediaURL: 'https://api.cotality.com/trestle/Media/Property/DOCUMENT-Jpeg/x.jpg' })).toBe('floorplan');
   });
   it('floor-plan filename with empty category is NOT a photo', () => {
@@ -140,7 +140,7 @@ describe('resolveListingMedia (JSON path) — dedupe + hero safety', () => {
   // inside the `?url=` param, hiding the anchored `/Media/Property/DOCUMENT-…/`
   // path from classification. classifyMediaItem must decode the proxy wrapper
   // first, else a proxied floor plan/document defaults to photo and can hero.
-  it('classifies a pre-proxied Trestle DOCUMENT- URL as floorplan (decode before classify)', () => {
+  it('classifies a pre-proxied Cotality DOCUMENT- URL as floorplan (decode before classify)', () => {
     const docProxied = proxied('https://api.cotality.com/trestle/Media/Property/DOCUMENT-Jpeg/x.jpg');
     expect(classifyMediaItem({ MediaCategory: '', url: docProxied })).toBe('floorplan');
     // URL document signal must win even if the category claims Photo.

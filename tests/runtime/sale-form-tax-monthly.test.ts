@@ -3,7 +3,7 @@
  * Sale-form RE tax: two-way monthly<->annual + zero-clobber guard (2026-06-23).
  *
  * Cotality exposes only an ANNUAL unit tax field (TaxAnnualAmount on Property; verified
- * artifacts/metadata.xml). Monthly is a DERIVED display (annual/12) and is NEVER stored.
+ * data/cotality-enums.live.json). Monthly is a DERIVED display (annual/12) and is NEVER stored.
  * Fixes the reported "tax won't save / needs monthly":
  *   - typing MONTHLY back-fills the canonical ANNUAL field (saleRETaxes -> TaxAnnualAmount) x12,
  *   - typing ANNUAL derives monthly /12,

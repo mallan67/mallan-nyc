@@ -8,7 +8,7 @@
  * route's exact expand form returned HTTP 200 with media).
  *
  * Under test:
- *   1. Pending/AUC Trestle listings missing locally ARE detected and created
+ *   1. Pending/AUC Cotality listings missing locally ARE detected and created
  *      (RED on main: Active-only diff never sees them).
  *   2. Created orphan WITH media → listing_media populated via the
  *      RC1-hardened upsert with tombstoneVanished:false (the inline expand
@@ -57,7 +57,7 @@ jest.mock('@/lib/prisma', () => ({
     auditEvent: { create: jest.fn(async () => ({})) },
     agent: { findMany: jest.fn(async () => []) },
     // P1C6b: archive exclusion read — RLS-ARCHIVED simulates an archived id
-    // present in the Trestle eligible set (must never be re-imported).
+    // present in the Cotality eligible set (must never be re-imported).
     listingsArchive: { findMany: jest.fn(async () => [{ listing_id: 'RLS-ARCHIVED' }]) },
     $transaction: async (ops: Promise<unknown>[]) => Promise.all(ops),
   },
@@ -260,7 +260,7 @@ describe('STATUS-TRUTH HARDENING — feed floor guards', () => {
   }) as unknown as Response;
 
   it('empty HTTP-200 feed → aborts (live_feed_empty), NO withdrawals', async () => {
-    // Every Trestle page returns 200 with an empty set → liveOnMarketIds is empty.
+    // Every Cotality page returns 200 with an empty set → liveOnMarketIds is empty.
     global.fetch = jest.fn(async () => okVal([])) as unknown as typeof fetch;
     const res = await call();
     const json = await readJson<Record<string, unknown>>(res);

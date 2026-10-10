@@ -5,9 +5,9 @@
 
 ---
 
-> ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
-> 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+> ### AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
+> 1. **NY law/DOS, Fair Housing and REBNY rules (UCBA 2026, REBNY Listing Service)** govern use, display and conduct. 2. **The live Cotality API** is the only authority for provider fields, values and picklists (`data/cotality-enums.live.json` is its committed copy).
+> 3. **Mallan business rules** govern how verified facts are used; Mallan-created fields (mostly commercial and private-listing fields) are Mallan facts, never presented as provider data, and can restrict but never override a law/REBNY/provider display restriction (Master §0.2, §4, §21.1). 4. **Fail closed = NON-DISPLAY.** Plan: `MALLAN-PLATFORM-MASTER-PLAN.md`; state: `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md`.
 
 ---
 
@@ -27,7 +27,7 @@ Listing Query → Gate 1 (Owner Opt-Out?) → Gate 2 (Participant Only?)
 |------|--------|----------------|
 | Gate 1 | Exclude `Permissions = Owner Opt-Out` | WHERE clause |
 | Gate 2 | Exclude `Permissions = Participant Only` | WHERE clause |
-| Gate 3 | Require `InternetEntireListingDisplayYN = True` *(no separate IDX field on Trestle)* | WHERE clause |
+| Gate 3 | Require `InternetEntireListingDisplayYN = True` *(no separate IDX field in the live Cotality schema)* | WHERE clause |
 | Gate 5 | Coming Soon: add badge, disable showings | Conditional render |
 | Gate 6 | Closed: remove or mark within 24hrs | Cron/webhook |
 
@@ -178,7 +178,7 @@ When listing goes off-market:
 
 ### Prohibited
 
-- Client-side API calls to MLS/Trestle endpoints
+- Client-side API calls to MLS/Cotality endpoints
 - MLS credentials in frontend JavaScript
 - Public/unsecured JSON endpoints returning MLS data
 - LocalStorage/SessionStorage with bulk MLS data
@@ -198,8 +198,8 @@ When listing goes off-market:
 | Field | Reason |
 |-------|--------|
 | `ExpirationDate` | HIDDEN — confidential |
-| `ShowingInstructions` | Agent-only (AGT distribution) |
-| `PrivateRemarks` | Agent-only (AGT distribution) |
+| `ShowingInstructions` | Agent-only |
+| `PrivateRemarks` | Agent-only |
 | `PropertyCondition` | Agent-only (with disclaimer if shown to agents) |
 | `ListingContractDate` | HIDDEN |
 | Seller/Buyer name/identity | Hidden until Closed (F4, H12) |

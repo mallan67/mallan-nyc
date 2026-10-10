@@ -46,14 +46,14 @@ describe('buildings/search response shape — Cotality fields the modal needs', 
     }
   });
 
-  test('Trestle branch response surfaces neighborhood + subdivisionName + address atoms', () => {
+  test('Cotality branch response surfaces neighborhood + subdivisionName + address atoms', () => {
     expect(src).toMatch(/neighborhood:\s*String\(r\.SubdivisionName/);
     expect(src).toMatch(/subdivisionName:\s*String\(r\.SubdivisionName/);
     expect(src).toMatch(/streetDirPrefix:\s*String\(r\.StreetDirPrefix/);
     expect(src).toMatch(/source:\s*['"]cotality['"]/);
   });
 
-  test('Trestle branch response surfaces tax + association', () => {
+  test('Cotality branch response surfaces tax + association', () => {
     expect(src).toMatch(/tax_block:\s*String\(r\.TaxBlock/);
     expect(src).toMatch(/tax_lot:\s*String\(r\.TaxLot/);
     expect(src).toMatch(/association_name:\s*String\(r\.AssociationName/);
@@ -62,7 +62,7 @@ describe('buildings/search response shape — Cotality fields the modal needs', 
     // still sets it from stored features.
   });
 
-  test('Trestle branch surfaces expanded amenity flags (roof deck, storage, bike, valet, etc.)', () => {
+  test('Cotality branch surfaces expanded amenity flags (roof deck, storage, bike, valet, etc.)', () => {
     for (const flag of [
       'roof_deck', 'storage', 'spa', 'bike_room', 'package_room',
       'lounge', 'playroom', 'business_center', 'conference_room',
@@ -213,23 +213,17 @@ describe('form init wires Cotality neighborhood loader', () => {
 
 // ──────────────────────────────────────────────────────────────────────────
 // Metadata-backed contract: the OData $select may ONLY reference fields that
-// exist on the live Cotality `Property` entity. An unknown field makes Trestle
+// exist on the live Cotality `Property` entity. An unknown field makes Cotality
 // reject the whole query with HTTP 400 (no 4xx retry), silently killing the
 // Cotality building lookup. This test fails if future code reintroduces a
-// phantom field. Source of truth: artifacts/metadata.xml.
+// phantom field. Source of truth: data/cotality-enums.live.json (live $metadata).
 // ──────────────────────────────────────────────────────────────────────────
 describe('buildings/search $select is metadata-valid (no phantom Cotality fields)', () => {
   const routeSrc = read('app/api/buildings/search/route.ts');
-  const metadata = read('artifacts/metadata.xml');
+  const live = JSON.parse(read('data/cotality-enums.live.json'));
 
-  // EDM property names on the Cotality Property entity (the `"` anchors away
-  // from PropertyRooms / PropertyUnitTypes / PropertyGreenVerification).
-  const propertyFields = (() => {
-    const block = (metadata.match(/<EntityType Name="Property"[\s\S]*?<\/EntityType>/) || [''])[0];
-    const names = new Set<string>();
-    for (const m of block.matchAll(/<Property Name="([^"]+)"/g)) names.add(m[1]);
-    return names;
-  })();
+  // Field names on the live Cotality Property entity.
+  const propertyFields = new Set<string>(Object.keys(live.entities.Property));
 
   // The route's OData $select array (const SELECT = [ '...', ... ].join(','))
   const selectFields = (() => {

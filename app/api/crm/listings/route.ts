@@ -6,7 +6,8 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { validateListing } from "@/lib/compliance/rebny-validator";
-import { assertRlsCompliantPayload, scanRecordForFairHousing } from "@/lib/compliance/rls-enforcement";
+import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
+import { nonTextFreeTextKey, nonTextRemarkSlot, scanListingBodyForFairHousing } from "@/lib/compliance/listing-fair-housing";
 import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { normalizePayload, derivePermissionBooleans, buildPersistenceRecord } from "@/lib/compliance/normalizer";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
@@ -37,16 +38,16 @@ export async function GET(req: NextRequest) {
 
   // Build where clause with ownership enforcement.
   // CRM My Listings shows: (1) CRM-created listings (no mls_id — SL-/RL- prefix),
-  // and (2) closed/terminal Trestle-synced deals. Active/Pending Trestle listings
+  // and (2) closed/terminal Cotality-synced deals. Active/Pending Cotality listings
   // are managed via REBNY RLS directly, not through the CRM.
-  const TRESTLE_CLOSED = ["Closed", "Sold", "Leased", "Rented"];
+  const FEED_CLOSED = ["Closed", "Sold", "Leased", "Rented"];
   const CRM_HIDDEN = ["Withdrawn", "Cancelled"];
   const crmCreated = { mls_id: null, listing_id: { startsWith: "SL-" }, status: { notIn: CRM_HIDDEN } };
   const crmCreatedRental = { mls_id: null, listing_id: { startsWith: "RL-" }, status: { notIn: CRM_HIDDEN } };
-  const trestleClosed = { mls_id: { not: null }, status: { in: TRESTLE_CLOSED } };
+  const feedClosed = { mls_id: { not: null }, status: { in: FEED_CLOSED } };
 
   const where: Record<string, unknown> = {
-    OR: [crmCreated, crmCreatedRental, trestleClosed],
+    OR: [crmCreated, crmCreatedRental, feedClosed],
   };
 
   // Ownership: agent sees only their own, broker sees all
@@ -257,6 +258,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // The remark slots are text. The Fair Housing scans read text only, and the public listing page calls string methods on PublicRemarks, so an array or an object there is refused here; so is a list or an
+  // object under any other key the scan reads as free text (a headline, a comment, the layout / financing boxes ...): the scan reads strings only, and the value would be saved unread.
+  const nonTextSlot = nonTextRemarkSlot(body) ?? nonTextFreeTextKey(body);
+  if (nonTextSlot) {
+    return NextResponse.json({ error: `${nonTextSlot} must be text` }, { status: 400 });
+  }
+
   // Classify RLS eligibility using UCBA mixed-use model (Art. I, Sec. 5(F))
   // Mixed-use in ≤5 unit buildings → RLS-eligible; >5 units or pure commercial → website-only
   // InHouse listings are website-only by definition — not on RLS.
@@ -355,25 +363,9 @@ export async function POST(req: NextRequest) {
   // resolved first — scanning raw fields here would let an aliased payload bypass the gate) on EVERY
   // create, before any persistence. (RLS-eligible listings are also scanned inside
   // assertRlsCompliantPayload; the duplicate is harmless defense-in-depth.)
-  const fhRecord: Record<string, string | null | undefined> = {
-    PublicRemarks: normalized.PublicRemarks as string | null | undefined,
-    ShowingInstructions: normalized.ShowingInstructions as string | null | undefined,
-    PrivateRemarks: normalized.PrivateRemarks as string | null | undefined,
-    SyndicationRemarks: normalized.SyndicationRemarks as string | null | undefined,
-  };
-  // Also scan any RAW free-text field the normalizer does not canonicalize but which still persists
-  // (verbatim in raw_data) — the CRM forms POST camelCase remark fields like `agentRemarks`,
-  // `showingInstructions`, `webHeadline` that normalizePayload's aliasToCanonical does not map
-  // (only `description`/`privateRemarks` are aliased). Key on the field NAME so structured enums
-  // (property_sub_type, status, etc.) are NOT scanned and legit values like an "Active Adult"
-  // property type don't false-positive (Codex #460).
-  const FREE_TEXT_KEY = /(remark|description|instruction|headline|comment|note|caption)/i;
-  for (const [key, value] of Object.entries(body)) {
-    if (typeof value === "string" && FREE_TEXT_KEY.test(key)) {
-      fhRecord[`raw:${key}`] = value;
-    }
-  }
-  const fhViolations = scanRecordForFairHousing(fhRecord);
+  // The scan itself (the canonical remark slots, then every other free-text key the body carries, named `raw:<key>`) is shared with the edit route
+  // so the two cannot drift: lib/compliance/listing-fair-housing.ts.
+  const fhViolations = scanListingBodyForFairHousing(body, normalized);
   if (fhViolations.length > 0) {
     return NextResponse.json(
       { error: "Listing blocked by Fair Housing content gate", blockers: fhViolations },
@@ -499,7 +491,7 @@ export async function POST(req: NextRequest) {
         // if a future refactor allows the create status to come from the
         // request body, the SAME guard (normalize → check TERMINAL_STATUSES)
         // prevents a terminal listing from being born with
-        // idx_display_yn=true. Single source of truth:
+        // idx_display_yn=true. Status helpers:
         // lib/idx/trestle-mapper.ts exports TERMINAL_STATUSES +
         // normalizeStandardStatus.
         idx_display_yn:
@@ -575,7 +567,7 @@ export async function POST(req: NextRequest) {
   // docs/idx/post-reconciliation-tightening-audit-2026-05-20.md: before this
   // change, CRM POST only wrote `listings`; the projection row was created
   // lazily by the next `lib/idx/sync.ts` run — but that path only writes
-  // Trestle-sourced rows. Mallan exclusives could exist for hours / days
+  // Cotality-sourced rows. Mallan exclusives could exist for hours / days
   // with NO projection row until `npm run ops:projection-backfill` ran.
   // After PR 5B reader swap, that gap = Mallan exclusive invisible on
   // /search and any other projection-backed surface.

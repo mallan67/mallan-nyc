@@ -8,7 +8,7 @@
  * a live doc pointing an agent at a deleted file.
  *
  * DERIVED set (not a hand-maintained list — Codex #568): it recursively walks
- * the active-governance roots (incl. the living + canonical HANDOFF sources) plus
+ * the active-governance roots (incl. the Execution State) plus
  * a few explicit top-level files, and checks every one. It is PATH-based on
  * purpose: it does NOT flag the bare word "sentinel" (a generic programming
  * term) nor bare historical mentions — only concrete references to files #566
@@ -47,10 +47,10 @@ const GOVERNANCE_DIRS = [
   'docs/agents',
   'docs/engineering',
   'docs/architecture',
-  'docs/operations', // includes the canonical site-audit-handoff-*.md
+  'docs/operations', // includes the Execution State
   'docs/superpowers/plans',
 ];
-// Explicit top-level governance files (incl. the LIVING handoff memory/HANDOFF.md).
+// Explicit top-level governance files.
 const GOVERNANCE_FILES = [
   'CLAUDE.md',
   'AGENTS.md',
@@ -59,7 +59,6 @@ const GOVERNANCE_FILES = [
   '.github/pull_request_template.md',
   'docs/PROJECT-HEALTH-DASHBOARD.md',
   'docs/PLATFORM-ISSUE-REGISTRY.md',
-  'memory/HANDOFF.md',
 ];
 const SCAN_EXT = new Set(['.md', '.yml', '.yaml', '.ts', '.js', '.mjs']);
 // Files that may legitimately NAME the deleted paths (the record of the removal).
@@ -91,10 +90,12 @@ describe('Sentinel decommission — the bot subsystem stays gone', () => {
     }
   });
 
-  it('no ACTIVE governance file (derived set, incl. living + canonical handoffs) references a deleted bot PATH', () => {
+  it('no ACTIVE governance file (derived set, incl. the agent instruction files and the Execution State) references a deleted bot PATH', () => {
     const scanned = activeGovernanceFiles();
-    // Sanity: the derived set actually includes the handoff sources Codex flagged.
-    expect(scanned).toEqual(expect.arrayContaining(['memory/HANDOFF.md']));
+    // Sanity: the derived set actually includes the agent instruction files and the Execution State.
+    expect(scanned).toEqual(
+      expect.arrayContaining(['CLAUDE.md', 'AGENTS.md', 'docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md']),
+    );
     expect(scanned.some((f) => f.startsWith('docs/operations/'))).toBe(true);
 
     const offenders: string[] = [];
@@ -105,13 +106,6 @@ describe('Sentinel decommission — the bot subsystem stays gone', () => {
       }
     }
     expect(offenders).toEqual([]);
-  });
-
-  it('the agent-routing mandate carries no live Sentinel-G routing section', () => {
-    const mandate = read('docs/agents/AGENT-ROUTING-MANDATE-2026-05-28.md');
-    expect(mandate).not.toMatch(/^##\s*Sentinel-G\b/m);
-    expect(mandate).not.toContain('run-sentinel-g');
-    expect(mandate).not.toContain('SENTINEL-G-MANDATE');
   });
 
   it('the durable decommission record still exists (the allowlisted place the paths may be named)', () => {

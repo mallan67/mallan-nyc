@@ -28,7 +28,7 @@
  *      `r2_failure_budget_exhausted` is true ONLY when the cap stopped the
  *      drain early leaving ≥1 selected main row unattempted.
  *
- * No live R2, no live Trestle, no live DB.
+ * No live R2, no live Cotality, no live DB.
  */
 
 import type {

@@ -3,15 +3,15 @@
  *
  * The function under test (`mirrorMediaToR2`) has these dependencies:
  *   - R2: `existsInR2`, `uploadToR2`, `getR2PublicUrl`
- *   - Trestle: `getAccessToken`, `fetchFn`
+ *   - Cotality: `getAccessToken`, `fetchFn`
  *   - Neon: `prisma.listingMedia.update`
  *
- * R2 / Trestle / fetch are injected via the `MirrorMediaToR2Deps` shape so
- * tests can stub them without touching the live R2 bucket or live Trestle.
+ * R2 / Cotality / fetch are injected via the `MirrorMediaToR2Deps` shape so
+ * tests can stub them without touching the live R2 bucket or live Cotality.
  * Prisma is mocked via `jest.mock('@/lib/prisma')` matching the pattern
  * used by Checkpoints 1-3.
  *
- * NO live R2 writes. NO live Trestle calls. NO live DB writes.
+ * NO live R2 writes. NO live Cotality calls. NO live DB writes.
  */
 
 import type { MirrorMediaToR2Deps, MirrorMediaToR2Row } from "../media-sync";
@@ -231,7 +231,7 @@ describe("mirrorMediaToR2 — reuse path (object already in R2)", () => {
   });
 
   it("(7) signed-query rotation on media_url_original does not upload again", async () => {
-    // Trestle re-signs media URLs; the query string changes every cycle. The
+    // Cotality re-signs media URLs; the query string changes every cycle. The
     // object key is derived from IDENTITY, never from the URL, so a rotated
     // signature must not produce a new object or a new upload.
     const legacyKey = "photos/RLS20012345/1.jpg";
@@ -310,7 +310,7 @@ describe("mirrorMediaToR2 — reuse path (object already in R2)", () => {
 // ─── Upload path ──────────────────────────────────────────────────────────
 
 describe("mirrorMediaToR2 — upload path", () => {
-  it("downloads from Trestle and uploads to R2 when no existing object", async () => {
+  it("downloads from Cotality and uploads to R2 when no existing object", async () => {
     const deps = makeDeps();
     const result = await mirrorMediaToR2(makeRow(), deps);
 
@@ -318,7 +318,7 @@ describe("mirrorMediaToR2 — upload path", () => {
     expect(result.r2_key).toBe("photos/RLS20012345/MK-1.jpg");
     expect(result.media_url_cached).toBe("https://r2.example.com/photos/RLS20012345/MK-1.jpg");
 
-    // Trestle fetch with bearer token + image accept header.
+    // Cotality fetch with bearer token + image accept header.
     expect(deps.fetchFn).toHaveBeenCalledTimes(1);
     const [fetchUrl, fetchInit] = deps.fetchFn.mock.calls[0];
     expect(fetchUrl).toBe("https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/100/1/abc");
@@ -484,7 +484,7 @@ function expectFailureDbUpdate(
 }
 
 describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410) after 3 attempts tombstones", () => {
-  it("Trestle 404 (1st attempt) → fetch_failed, sets cooldown, increments attempts to 1, NO tombstone", async () => {
+  it("Cotality 404 (1st attempt) → fetch_failed, sets cooldown, increments attempts to 1, NO tombstone", async () => {
     const deps = makeDeps({
       fetchFn: jest.fn<Promise<Response>, FetchArgs>().mockResolvedValue(
         makeFetchResponse({ status: 404 }),
@@ -503,7 +503,7 @@ describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410
     });
   });
 
-  it("Trestle 404 (3rd attempt) → tombstones with status='deleted'", async () => {
+  it("Cotality 404 (3rd attempt) → tombstones with status='deleted'", async () => {
     const deps = makeDeps({
       fetchFn: jest.fn<Promise<Response>, FetchArgs>().mockResolvedValue(
         makeFetchResponse({ status: 404 }),
@@ -519,7 +519,7 @@ describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410
     });
   });
 
-  it("Trestle 403 (3rd attempt) → cooldown only, does NOT tombstone (403 is ambiguous, not permanent)", async () => {
+  it("Cotality 403 (3rd attempt) → cooldown only, does NOT tombstone (403 is ambiguous, not permanent)", async () => {
     const deps = makeDeps({
       fetchFn: jest.fn<Promise<Response>, FetchArgs>().mockResolvedValue(
         makeFetchResponse({ status: 403 }),
@@ -532,7 +532,7 @@ describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410
     });
   });
 
-  it("Trestle 410 (3rd attempt) → tombstones (Gone is RFC-correct permanent)", async () => {
+  it("Cotality 410 (3rd attempt) → tombstones (Gone is RFC-correct permanent)", async () => {
     const deps = makeDeps({
       fetchFn: jest.fn<Promise<Response>, FetchArgs>().mockResolvedValue(
         makeFetchResponse({ status: 410 }),
@@ -545,7 +545,7 @@ describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410
     });
   });
 
-  it("Trestle 429 (3rd attempt) → cooldown only, does NOT tombstone (rate-limit is transient — Trestle 480/min ceiling regression guard)", async () => {
+  it("Cotality 429 (3rd attempt) → cooldown only, does NOT tombstone (rate-limit is transient — Cotality 480/min ceiling regression guard)", async () => {
     const deps = makeDeps({
       fetchFn: jest.fn<Promise<Response>, FetchArgs>().mockResolvedValue(
         makeFetchResponse({ status: 429 }),
@@ -558,7 +558,7 @@ describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410
     });
   });
 
-  it("Trestle 500 (3rd attempt) → increments cooldown but does NOT tombstone (5xx are transient)", async () => {
+  it("Cotality 500 (3rd attempt) → increments cooldown but does NOT tombstone (5xx are transient)", async () => {
     const deps = makeDeps({
       fetchFn: jest.fn<Promise<Response>, FetchArgs>().mockResolvedValue(
         makeFetchResponse({ status: 500 }),
@@ -622,7 +622,7 @@ describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410
     });
   });
 
-  it("R2 head failure (3rd attempt) → cooldown, NO tombstone (R2-side error, no Trestle call)", async () => {
+  it("R2 head failure (3rd attempt) → cooldown, NO tombstone (R2-side error, no Cotality call)", async () => {
     const deps = makeDeps({
       existsInR2: jest
         .fn<Promise<boolean>, [string]>()
@@ -639,7 +639,7 @@ describe("mirrorMediaToR2 — failure paths set cooldown; permanent 4xx (404/410
     });
   });
 
-  it("Trestle token failure (3rd attempt) → cooldown, NO tombstone (auth-side error)", async () => {
+  it("Cotality token failure (3rd attempt) → cooldown, NO tombstone (auth-side error)", async () => {
     const deps = makeDeps({
       getAccessToken: jest
         .fn<Promise<string>, []>()

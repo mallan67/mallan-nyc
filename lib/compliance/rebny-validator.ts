@@ -1,25 +1,28 @@
 /**
- * REBNY RLS Compliance Validator
+ * CRM listing validator — validateListing()
  *
- * Validates listing data against:
- * - REBNY RLS Data Rules (2025_LMP migration)
- * - RESO standards via Trestle Web API
- * - NYC regulations (NY DOS advertising, Fair Housing Act)
+ * Validates CRM listing data against:
+ * - required/conditional field rules from REBNY_FIELD_TABLES (lib/compliance/
+ *   rebny-field-tables.ts) — the same live-Cotality-verified source
+ *   lib/compliance/rls-enforcement.ts's write-path gate already uses. It is not
+ *   provider authority; live Cotality is (data/cotality-enums.live.json is its
+ *   committed copy);
+ * - PascalCase field-name and ISO 8601 date format checks;
+ * - NYC regulations (NY DOS advertising, Fair Housing Act).
  *
- * @see https://docs.google.com/spreadsheets/d/1OiO7SQcMrLE8yMOoePWtv-dtcf2nXc-1iBssRJaOhxQ
+ * This file previously read its field-requirement table and NYC borough/county
+ * map from the now-deleted lib/compliance/rls-rules.json (a legacy, provider-CSV-
+ * derived extract; its CSV source was removed in convergence milestone 8). Both
+ * are migrated here: field requirements now come from REBNY_FIELD_TABLES; the
+ * borough/county map is a small inline constant (NYC_BOROUGHS below) — a fixed
+ * federal/state geographic fact, not provider data, so it needs no REBNY/Cotality
+ * re-verification. The Fair Housing prohibited-term list was already migrated to
+ * the canonical data/compliance/prohibited-terms.json in an earlier change.
  */
 
-import rlsRulesData from './rls-rules.json';
-
-// Types - matches actual rls-rules.json structure
-export interface RLSField {
-  field: string;
-  matrixFieldName: string;
-  description: string;
-  lmpAddEdit: string; // "Yes" or "No"
-  lmpSearch: string;  // "Yes" or "No"
-  requirements: string; // "No", "Yes", or "Conditional: ..."
-}
+import { REBNY_FIELD_TABLES } from './rebny-field-tables';
+import { conditionMatches } from './rls-enforcement';
+import prohibitedTermsJson from '../../data/compliance/prohibited-terms.json';
 
 // Normalized rule for validation logic
 export interface RLSRule {
@@ -29,10 +32,13 @@ export interface RLSRule {
   search: boolean;
   required: boolean;
   conditional: {
-    if: string;
+    appliesWhen: Record<string, unknown>;
     message: string;
   } | null;
-  // Optional type validation properties (not currently in rls-rules.json)
+  // Optional type validation properties — not currently populated by
+  // REBNY_FIELD_TABLES (none of the rules below set them), same as the file this
+  // replaces; validateFieldValue's corresponding branches are therefore unreachable
+  // today, preserved as-is rather than removed in this change.
   type?: string;
   enum?: string[];
   validation?: string;
@@ -66,44 +72,65 @@ export interface ListingData {
   [key: string]: unknown;
 }
 
-// Load and normalize rules from JSON structure
-const rawFields = rlsRulesData.fields as RLSField[];
-const fairHousingProhibitedTerms = rlsRulesData.fairHousingProhibitedTerms;
-const nycBoroughs = rlsRulesData.nycBoroughs;
+// Fair Housing term list: the canonical single source of truth is
+// data/compliance/prohibited-terms.json (tests/runtime/guardrails-prohibited-terms-single-source.test.ts
+// pins it after #460/#461, where a stale embedded copy here let discriminatory terms through).
+// Derive from `categories` first, matching scripts/ci/guardrails.mjs's documented precedence: `flatList`
+// can omit a term `categories` has (the exact #461 failure mode); fall back to `flatList` only if
+// `categories` is absent.
+type ProhibitedTermsFile = { categories?: Record<string, { terms: string[] }>; flatList?: string[] };
+const prohibitedTermsData = prohibitedTermsJson as unknown as ProhibitedTermsFile;
+const fairHousingProhibitedTerms: string[] = prohibitedTermsData.categories
+  ? [...new Set(Object.values(prohibitedTermsData.categories).flatMap((c) => c.terms || []))]
+  : prohibitedTermsData.flatList || [];
 
-// Convert raw JSON fields to normalized rules
-function normalizeFields(fields: RLSField[]): RLSRule[] {
-  return fields.map((f) => {
-    const reqLower = f.requirements.toLowerCase().trim();
-    // "Yes", "Yes; ...", "Yes, ...", "Yes: ...", "Yes but ..." all count as required
-    const isRequired = reqLower === 'yes' || /^yes[;:,\s]/.test(reqLower) || /^yes\b/.test(reqLower);
-    const isConditional = reqLower.startsWith('conditional:');
+// NYC's five boroughs, their counties, and FIPS codes. A fixed federal/state
+// geographic fact, not provider data — it needs no REBNY/Cotality verification.
+// Other parts of the repo derive borough/county independently too (e.g.
+// lib/idx/trestle-mapper.ts's inferBorough()); unifying every borough-derivation
+// path into one is separate, already-tracked convergence work, not this change.
+const NYC_BOROUGHS: Record<string, { county: string; fips: string }> = {
+  Manhattan: { county: 'New York', fips: '36061' },
+  Brooklyn: { county: 'Kings', fips: '36047' },
+  Queens: { county: 'Queens', fips: '36081' },
+  Bronx: { county: 'Bronx', fips: '36005' },
+  'Staten Island': { county: 'Richmond', fips: '36085' },
+};
+const nycBoroughs = NYC_BOROUGHS;
 
-    let conditional: RLSRule['conditional'] = null;
-    if (isConditional) {
-      // Extract condition from "Conditional: Required if X"
-      const conditionText = f.requirements.replace(/^conditional:\s*/i, '');
-      conditional = {
-        if: conditionText,
-        message: conditionText,
-      };
-    }
+// Unconditionally required fields (agent-submitted). REBNY_FIELD_TABLES's flat
+// name list carries no per-field description, unlike the old rls-rules.json;
+// error/suggestion text below falls back to the field name alone.
+const requiredRules: RLSRule[] = REBNY_FIELD_TABLES.requiredFields.agentSubmitted.map((field) => ({
+  field,
+  description: '',
+  addEdit: true,
+  search: true,
+  required: true,
+  conditional: null,
+}));
 
-    return {
-      field: f.field,
-      description: f.description,
-      addEdit: f.lmpAddEdit.toLowerCase() === 'yes',
-      search: f.lmpSearch.toLowerCase() === 'yes',
-      required: isRequired,
-      conditional,
-    };
-  });
-}
+// Conditionally required fields, one RLSRule per (rule, field) pair, flattened
+// from REBNY_FIELD_TABLES.conditionalRules so each field keeps its own
+// structured `appliesWhen` (evaluated by the imported conditionMatches, the
+// same evaluator lib/compliance/rls-enforcement.ts's write-path gate uses —
+// one canonical interpreter, not a second one).
+const conditionalFieldRules: RLSRule[] = REBNY_FIELD_TABLES.conditionalRules.flatMap((rule) =>
+  rule.requireFields.map((field) => ({
+    field,
+    description: rule.description,
+    addEdit: true,
+    search: true,
+    required: false,
+    conditional: { appliesWhen: rule.appliesWhen, message: rule.description },
+  }))
+);
 
-const rules = normalizeFields(rawFields);
+const rules: RLSRule[] = [...requiredRules, ...conditionalFieldRules];
 
 /**
- * Main validation function for REBNY RLS compliance
+ * Main CRM listing validation function: required/conditional fields, Fair Housing,
+ * NYC-specific rules and field format.
  */
 export function validateListing(listing: ListingData): ValidationResult {
   const errors: string[] = [];
@@ -125,11 +152,13 @@ export function validateListing(listing: ListingData): ValidationResult {
 
     // Check required fields
     if (rule.required && !hasValue) {
-      errors.push(`[REBNY] Required field missing: ${rule.field} - ${rule.description}`);
+      errors.push(
+        `[REBNY] Required field missing: ${rule.field}${rule.description ? ` - ${rule.description}` : ''}`
+      );
       fieldResults.push({
         field: rule.field,
         status: 'error',
-        message: `Required: ${rule.description}`,
+        message: rule.description ? `Required: ${rule.description}` : 'Required',
       });
       rebnyRlsCompliant = false;
       continue;
@@ -137,7 +166,7 @@ export function validateListing(listing: ListingData): ValidationResult {
 
     // Check conditional requirements
     if (rule.conditional && !hasValue) {
-      const conditionMet = evaluateCondition(rule.conditional.if, listing);
+      const conditionMet = conditionMatches(listing as Record<string, unknown>, rule.conditional.appliesWhen);
       if (conditionMet) {
         errors.push(`[REBNY] Conditional field required: ${rule.field} - ${rule.conditional.message}`);
         fieldResults.push({
@@ -173,7 +202,7 @@ export function validateListing(listing: ListingData): ValidationResult {
     } else if (!rule.required) {
       // Optional field not provided - add suggestion if beneficial
       if (rule.addEdit && rule.search) {
-        suggestions.push(`Consider adding ${rule.field}: ${rule.description}`);
+        suggestions.push(`Consider adding ${rule.field}${rule.description ? `: ${rule.description}` : ''}`);
       }
       fieldResults.push({
         field: rule.field,
@@ -204,10 +233,10 @@ export function validateListing(listing: ListingData): ValidationResult {
   }
   suggestions.push(...nycResult.suggestions);
 
-  // 4. RESO format validation
-  const resoResult = validateRESOFormat(listing);
-  if (!resoResult.valid) {
-    warnings.push(...resoResult.errors);
+  // 4. Field-name and date format validation
+  const formatResult = validateFieldFormat(listing);
+  if (!formatResult.valid) {
+    warnings.push(...formatResult.errors);
     resoCompliant = false;
   }
 
@@ -229,63 +258,6 @@ export function validateListing(listing: ListingData): ValidationResult {
     },
     fieldResults,
   };
-}
-
-/**
- * Evaluate conditional rule expressions
- */
-function evaluateCondition(condition: string, listing: ListingData): boolean {
-  // Handle simple equality: "FieldName=Value"
-  const equalityMatch = condition.match(/^(\w+)=(.+)$/);
-  if (equalityMatch) {
-    const [, field, expectedValue] = equalityMatch;
-    return String(listing[field]) === expectedValue;
-  }
-
-  // Handle IN conditions: "FieldName IN (Value1,Value2)"
-  const inMatch = condition.match(/^(\w+)\s+IN\s+\(([^)]+)\)$/);
-  if (inMatch) {
-    const [, field, valuesStr] = inMatch;
-    const values = valuesStr.split(',').map((v) => v.trim());
-    return values.includes(String(listing[field]));
-  }
-
-  // Handle AND conditions
-  if (condition.includes(' AND ')) {
-    const parts = condition.split(' AND ');
-    return parts.every((part) => evaluateCondition(part.trim(), listing));
-  }
-
-  // Handle OR conditions
-  if (condition.includes(' OR ')) {
-    const parts = condition.split(' OR ');
-    return parts.some((part) => evaluateCondition(part.trim(), listing));
-  }
-
-  // Handle existence check: just field name
-  if (condition.match(/^\w+$/)) {
-    const value = listing[condition];
-    return value !== undefined && value !== null && value !== '';
-  }
-
-  // Handle greater than: "Field>0"
-  const gtMatch = condition.match(/^(\w+)>(\d+)$/);
-  if (gtMatch) {
-    const [, field, threshold] = gtMatch;
-    const value = Number(listing[field]);
-    return !isNaN(value) && value > Number(threshold);
-  }
-
-  // Handle pipe-separated OR for field existence
-  if (condition.includes('|')) {
-    const fields = condition.split('|');
-    return fields.some((field) => {
-      const value = listing[field.trim()];
-      return value !== undefined && value !== null && value !== '';
-    });
-  }
-
-  return false;
 }
 
 /**
@@ -606,24 +578,24 @@ function validateNYCSpecific(listing: ListingData): {
 }
 
 /**
- * RESO format validation
+ * Field-name (PascalCase) and ISO 8601 date format validation
  */
-function validateRESOFormat(listing: ListingData): {
+function validateFieldFormat(listing: ListingData): {
   valid: boolean;
   errors: string[];
 } {
   const errors: string[] = [];
 
-  // Check for RESO-compliant field naming (PascalCase)
-  const nonResoFields = Object.keys(listing).filter((key) => {
-    // RESO fields should be PascalCase
+  // Check for PascalCase field naming (live Cotality field names are PascalCase)
+  const nonPascalCaseFields = Object.keys(listing).filter((key) => {
+    // Canonical fields are PascalCase
     return key !== key.charAt(0).toUpperCase() + key.slice(1) && !key.startsWith('_');
   });
 
-  if (nonResoFields.length > 0) {
+  if (nonPascalCaseFields.length > 0) {
     errors.push(
-      `[RESO] Non-standard field naming detected. RESO uses PascalCase. ` +
-        `Consider renaming: ${nonResoFields.slice(0, 5).join(', ')}${nonResoFields.length > 5 ? '...' : ''}`
+      `[FORMAT] Non-standard field naming detected. Canonical field names use PascalCase. ` +
+        `Consider renaming: ${nonPascalCaseFields.slice(0, 5).join(', ')}${nonPascalCaseFields.length > 5 ? '...' : ''}`
     );
   }
 
@@ -633,7 +605,7 @@ function validateRESOFormat(listing: ListingData): {
     const value = listing[field];
     if (value && typeof value === 'string') {
       if (!isValidDate(value)) {
-        errors.push(`[RESO] ${field}: Should be ISO 8601 date format (YYYY-MM-DD)`);
+        errors.push(`[FORMAT] ${field}: Should be ISO 8601 date format (YYYY-MM-DD)`);
       }
     }
   }
@@ -758,13 +730,20 @@ export function getRequiredFields(propertyType: string, commonInterest?: string)
       required.push(rule.field);
     }
 
-    // Check conditionals that apply to this property type
+    // Check conditionals that apply to this property type / common interest,
+    // using the same structured appliesWhen the rule was built from (see
+    // conditionalFieldRules above) rather than string-matching a condition.
     if (rule.conditional) {
-      const condition = rule.conditional.if;
-      if (
-        condition.includes(`PropertyType=${propertyType}`) ||
-        (commonInterest && condition.includes(commonInterest))
-      ) {
+      const appliesWhen = rule.conditional.appliesWhen;
+      const propertyTypeValues = appliesWhen.PropertyType;
+      const commonInterestValues = appliesWhen.CommonInterest;
+      const matchesPropertyType =
+        Array.isArray(propertyTypeValues) && propertyTypeValues.includes(propertyType);
+      const matchesCommonInterest =
+        !!commonInterest &&
+        Array.isArray(commonInterestValues) &&
+        commonInterestValues.includes(commonInterest);
+      if (matchesPropertyType || matchesCommonInterest) {
         required.push(rule.field);
       }
     }
@@ -779,7 +758,7 @@ export function getRequiredFields(propertyType: string, commonInterest?: string)
 export function generatePublicRemarks(listing: ListingData): string {
   const parts: string[] = [];
 
-  // Property type and size - handle both RESO and internal format
+  // Property type and size - handle both PascalCase (Cotality) and internal camelCase format
   const propertyInfo = listing.propertyInfo as Record<string, unknown> | undefined;
   const beds = listing.BedroomsTotal || propertyInfo?.bedroomsTotal;
   const baths = listing.BathroomsTotal || propertyInfo?.bathroomsFull;

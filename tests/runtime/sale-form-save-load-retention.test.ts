@@ -75,7 +75,7 @@ describe('Sale form save/load retention — PR-A/F backend address persistence',
     );
   });
 
-  it('UnparsedAddress (lowercase p) remains in addressKeys for Trestle-sourced rows (no regression)', () => {
+  it('UnparsedAddress (lowercase p) remains in addressKeys for Cotality-sourced rows (no regression)', () => {
     expect(patchBody).toMatch(/['"]UnparsedAddress['"]/);
   });
 });
@@ -93,7 +93,7 @@ describe('Sale form save/load retention — PR-B saleStatus overwrite removed', 
   it('populate does NOT contain the legacy unconditional canonical-status overwrite (the line we removed)', () => {
     // Before PR-B, populate had a second:
     //   setVal('saleStatus', listing.status || raw.StandardStatus || raw.MlsStatus || 'Draft');
-    // that clobbered the workflow value with the canonical RESO value. This
+    // that clobbered the workflow value with the canonical Cotality value. This
     // test asserts that exact pattern no longer executes.
     expect(populateBody).not.toMatch(
       /setVal\(['"]saleStatus['"]\s*,\s*listing\.status\s*\|\|\s*raw\.StandardStatus\s*\|\|\s*raw\.MlsStatus\s*\|\|\s*['"]Draft['"]\s*\)/,
@@ -174,11 +174,11 @@ describe('Sale form save/load retention — PR-D checkbox-array collector', () =
 
 describe('Sale form save/load retention — PR-E populate/autosave race hardening', () => {
   // ── Test 10: populate setters do not dispatch change events during populate ──
-  // Slice bumped to 24000 (the tax features-first branch 2026-06-23 added a few
-  // lines inside populate, pushing its single guarded applySalesFieldRules() call to
-  // +23078 chars, past the old 23000 window; the next function _offerDraftRestore
-  // begins at +24733, so 24000 reaches the real call but stops before that next call).
-  const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 24000);
+  // The populate function has grown as verified Cotality fields were restored.
+  // At #647 head cbe1c4a5 the single guarded applySalesFieldRules() call is at
+  // +24685 chars and the next top-level function begins at +26300. Keep the
+  // window large enough to include the real call but smaller than the next function.
+  const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 25500);
 
   it('setVal inside populate gates the change-event dispatch on !_salePopulateInProgress (PR-E C9)', () => {
     // Helper is local to _populateSaleFormFromApi; assert it is gated.
@@ -257,8 +257,10 @@ describe('Sale form save/load retention — collect/populate shape parity (cross
 
   it('collect emits the canonical Cotality View array (mirrors Heating/Cooling) — Codex #280 F7', () => {
     // Server RLS conditional (ViewYN=true → require View) reads the canonical
-    // `View` field; collect must emit it from saleViewList.
-    expect(collectBody).toMatch(/data\.View\s*=\s*data\.saleViewList/);
+    // `View` field; collect must emit it from saleViewList (its live members: _liveViews, since 2026-10-09;
+    // tests/runtime/crm-form-edit-clears.test.ts runs the collector and holds the create / edit behavior).
+    expect(collectBody).toMatch(/var _liveViews\s*=\s*data\.saleViewList\.filter/);
+    expect(collectBody).toMatch(/data\.View\s*=\s*_liveViews/);
   });
 
   it('_deriveSaleYNFields maps each form YN to its canonical Cotality field', () => {

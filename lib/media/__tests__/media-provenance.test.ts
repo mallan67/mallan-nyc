@@ -1,7 +1,7 @@
 /**
  * MEDIA PROVENANCE — the Cotality -> `crm:` contamination gate.
  *
- * PROVEN DEFECT. The Trestle sync writes Cotality image URLs into the legacy
+ * PROVEN DEFECT. The feed sync writes Cotality image URLs into the legacy
  * `Listing.media` JSON (lib/idx/sync.ts:821 on every upsert, plus the media
  * backfills at :1173/:1699/:2394; :1756 literally selects rows whose
  * `media::text LIKE '%cotality.com%'`). `importJsonMediaToRows` then converted
@@ -65,7 +65,7 @@ describe('item-level provenance on a SYNCED (Cotality) listing', () => {
 
   it('an item with CRM upload markers IS a genuine Mallan upload', () => {
     // `contentHash` / `uploadedAt` are written only by the CRM upload path;
-    // the Trestle mapper emits { url, mediaType, order } and never these.
+    // the feed mapper emits { url, mediaType, order } and never these.
     expect(
       classifyLegacyMediaItemProvenance(
         { url: 'https://cdn.example.test/a.jpg', contentHash: 'deadbeef' },

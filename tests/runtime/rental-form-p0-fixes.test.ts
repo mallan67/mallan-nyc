@@ -32,23 +32,23 @@ describe('Rental form — malformed rental-login redirect is fixed', () => {
 
 describe('Rental form — edit-mode browser-draft shadowing guard on save', () => {
   const fnStart = form.indexOf('function saveRentalDraft()');
-  const fnBody = form.slice(fnStart, fnStart + 1400);
+  const fnBody = form.slice(fnStart, fnStart + 2400);
 
   test('saveRentalDraft exists', () => {
     expect(fnStart).toBeGreaterThan(-1);
   });
 
   test('edit-mode guard appears BEFORE the localStorage draft write', () => {
-    const guardIdx = fnBody.indexOf('_rentalEditMode && _rentalEditDbId');
-    const setItemIdx = fnBody.indexOf("localStorage.setItem('rentalListingDraft'");
+    const guardIdx = fnBody.indexOf('var editKey = _rentalEditDbId || _rentalEditListingId;');
+    const setItemIdx = fnBody.indexOf('_rentalKeepBrowserCopy(data)');
     expect(guardIdx).toBeGreaterThan(-1);
     expect(setItemIdx).toBeGreaterThan(-1);
     expect(guardIdx).toBeLessThan(setItemIdx);
   });
 
   test('edit-mode path clears the stale draft and returns before writing a new one', () => {
-    const guardIdx = fnBody.indexOf('_rentalEditMode && _rentalEditDbId');
-    const setItemIdx = fnBody.indexOf("localStorage.setItem('rentalListingDraft'");
+    const guardIdx = fnBody.indexOf('var editKey = _rentalEditDbId || _rentalEditListingId;');
+    const setItemIdx = fnBody.indexOf('_rentalKeepBrowserCopy(data)');
     const guardBlock = fnBody.slice(guardIdx, setItemIdx);
     expect(guardBlock).toContain("removeItem('rentalListingDraft')");
     expect(guardBlock).toContain('return');

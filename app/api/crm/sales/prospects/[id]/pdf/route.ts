@@ -12,18 +12,19 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { safeBigInt } from "@/lib/utils/safe-bigint";
+import { rlsStatisticalDisclaimer, statisticalPeriod } from "@/lib/compliance/rls-statistical-disclaimer";
 // PitchPacketData type imported inline — the simple renderer handles its own typing
 
 export const maxDuration = 30;
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-// ── Trestle helper ──────────────────────────────────────────────────────
+// ── Cotality helper ──────────────────────────────────────────────────────
 import { getAccessToken } from "@/lib/idx/auth";
 
-const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+const COTALITY_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
 
-interface TrestleProperty {
+interface CotalityProperty {
   ListingId?: string;
   UnparsedAddress?: string;
   UnitNumber?: string;
@@ -41,15 +42,15 @@ interface TrestleProperty {
   PostalCode?: string;
 }
 
-async function queryTrestle(
+async function queryCotality(
   resource: string,
   filter: string,
   select: string,
   top = 10,
-): Promise<TrestleProperty[]> {
+): Promise<CotalityProperty[]> {
   try {
     const token = await getAccessToken();
-    const url = `${TRESTLE_API}/odata/${resource}?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=${top}&$orderby=ModificationTimestamp desc`;
+    const url = `${COTALITY_API}/odata/${resource}?$filter=${encodeURIComponent(filter)}&$select=${select}&$top=${top}&$orderby=ModificationTimestamp desc`;
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(10000),
@@ -109,7 +110,7 @@ async function assemblePitchPacket(prospect: any, agentName: string): Promise<Re
   }
 
   const recentSales = buildingFilter
-    ? await queryTrestle("Property", buildingFilter, compFields, 10)
+    ? await queryCotality("Property", buildingFilter, compFields, 10)
     : [];
 
   const activeFields =
@@ -137,7 +138,7 @@ async function assemblePitchPacket(prospect: any, agentName: string): Promise<Re
   }
 
   const activeCompetition = competitionFilter
-    ? await queryTrestle("Property", competitionFilter, activeFields, 10)
+    ? await queryCotality("Property", competitionFilter, activeFields, 10)
     : [];
 
   const propertyIntel = {
@@ -336,16 +337,10 @@ async function assemblePitchPacket(prospect: any, agentName: string): Promise<Re
 
   // ── Attribution ──
   const now = new Date();
-  const yearAgo = new Date();
-  yearAgo.setFullYear(yearAgo.getFullYear() - 1);
-  const fmt = (d: Date) =>
-    d.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
 
-  const attribution = `Based on information from the REBNY Listing Service for the period ${fmt(yearAgo)} through ${fmt(now)}. This information is provided for consumers' personal, non-commercial use.`;
+  // UCBA Art. VIII Sec. 4: the comparable sales were asked for the year before today, and the active competition is as of today
+  const period = statisticalPeriod(twelveMonthsAgo, now);
+  const attribution = `${rlsStatisticalDisclaimer(period.start, period.end)} This information is provided for consumers' personal, non-commercial use.`;
 
   return {
     prospect_id: String(prospect.id),
@@ -396,7 +391,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     : "Your Agent";
 
   try {
-    // Assemble pitch packet data (reuses existing function — Trestle comps, pricing, financials)
+    // Assemble pitch packet data (reuses existing function — Cotality comps, pricing, financials)
     const packetData = await assemblePitchPacket(prospect, agentName);
 
     // Render the luxury HTML presentation
@@ -458,6 +453,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       firms: ep.firms || 570,
       agentName,
       generatedAt: new Date().toISOString(),
+      attribution: String(packetData.attribution || ""),
     });
 
     // Update pitch_generated_at

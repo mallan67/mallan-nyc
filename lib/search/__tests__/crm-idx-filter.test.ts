@@ -276,7 +276,7 @@ describe("buildCrmIdxODataFilter", () => {
   // ═══════════════════════════════════════════════════════════════════
 
   it("DEAD: openHouseDateFrom / openHouseDateTo are silently dropped (no Property OData clause)", () => {
-    // Open-house filtering on Trestle goes through a separate OpenHouse
+    // Open-house filtering on Cotality goes through a separate OpenHouse
     // entity, not Property's $filter. The frontend `_serverSearch`
     // forwards openHouseDateFrom/To params, but this filter builder
     // produces no clause for them. Marked DEAD until the OpenHouse
@@ -385,8 +385,8 @@ describe("buildCrmIdxODataFilter", () => {
     const f = buildCrmIdxODataFilter(new URLSearchParams({ checkboxFilters }));
 
     // Translates to LaundryFeatures eq 'Any' — a literal string equality
-    // that won't match any actual enum value (Trestle has values like
-    // "InUnit", "Common Area", "WasherDryerInstallAllowed"). Returns 0.
+    // that won't match any actual enum value (Cotality has values like
+    // "InUnit", "CommonArea", "WasherDryerInstallAllowed"). Returns 0.
     expect(f).toContain("LaundryFeatures eq 'Any'");
     // Verify no expansion occurred:
     expect(f).not.toContain("InUnit");
@@ -419,12 +419,12 @@ describe("buildCrmIdxODataFilter", () => {
 
   it("DEAD: status sub-statuses (OfferOut / ContractSigned / etc) become uppercase strings that don't match any enum", () => {
     // The frontend collects sub-status into criteria.statuses then maps
-    // CRM-uppercase to RESO-PascalCase via search-engine.js:285 statusMap.
+    // CRM-uppercase to Cotality PascalCase via search-engine.js:285 statusMap.
     // Sub-statuses like 'OfferOut' get .toUpperCase() → 'OFFEROUT' which
     // isn't in the statusMap, so it falls through unchanged.
     // The resulting OData clause is:
     //   StandardStatus eq 'OFFEROUT'
-    // which never matches any Trestle enum (real values are 'Pending',
+    // which never matches any Cotality enum (real values are 'Pending',
     // 'Active', 'Closed', etc.). Returns 0.
     //
     // We exercise this here by passing a known sub-status string. When
@@ -433,7 +433,7 @@ describe("buildCrmIdxODataFilter", () => {
     const f = buildCrmIdxODataFilter(new URLSearchParams({
       status: "OFFEROUT",
     }));
-    // Builder produces literal 'OFFEROUT' — won't match Trestle.
+    // Builder produces literal 'OFFEROUT' — won't match Cotality.
     expect(f).toContain("StandardStatus eq 'OFFEROUT'");
     // Verify proper mapping is NOT present:
     expect(f).not.toContain("MlsStatus");
@@ -448,11 +448,11 @@ describe("buildCrmIdxODataFilter", () => {
   // init-disable-dead-controls.js. Both must move together.
   // ═══════════════════════════════════════════════════════════════════
 
-  it("DEAD: every visible Trestle sub-status produces a literal OData clause that matches no enum", () => {
+  it("DEAD: every visible CRM sub-status produces a literal OData clause that matches no enum", () => {
     // Inventory of sub-status values that exist in the CRM HTML
     // (public/crm/html/search-form-and-results.html, search-engine.js
     // collectSearchCriteria pushes them to criteria.statuses verbatim).
-    // None map to a real Trestle StandardStatus value.
+    // None map to a real Cotality StandardStatus value.
     //
     // When real sub-status routing is added (likely via MlsStatus +
     // a nested param), this assertion must be updated AND the
@@ -490,7 +490,7 @@ describe("buildCrmIdxODataFilter", () => {
     for (const s of subStatuses) {
       const upper = s.toUpperCase();
       const f = buildCrmIdxODataFilter(new URLSearchParams({ status: upper }));
-      // Builder emits literal-string equality — no Trestle row matches.
+      // Builder emits literal-string equality — no Cotality row matches.
       expect(f).toContain(`StandardStatus eq '${upper}'`);
       // Must not have leaked into MlsStatus (correct routing would do that)
       expect(f).not.toContain("MlsStatus");

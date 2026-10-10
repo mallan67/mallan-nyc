@@ -38,6 +38,7 @@ import { scanRecordForFairHousing } from "@/lib/compliance/rls-enforcement";
 // `evaluateCampaignDistributionGate`, so this route holds no gate logic of its own.
 import { evaluateCampaignDistributionGate } from "@/lib/compliance/campaign-distribution-gate";
 import { dbListingToPublicDTO, type DbListing } from "@/lib/idx/db-to-public-dto";
+import { listingAttribution } from "@/lib/idx/public-attribution";
 import { investorListingEmail, type InvestorListingEmailData } from "@/lib/email/templates";
 import { computeInvestmentMetrics, parseMoney } from "@/lib/email/investment-metrics";
 import { sendEmail } from "@/lib/email/sendgrid";
@@ -59,7 +60,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 type CampaignMode = "preview" | "dry_run" | "test" | "live";
 const MODES: CampaignMode[] = ["preview", "dry_run", "test", "live"];
 
-// Fields dbListingToPublicDTO + classifyDbListing read, plus the gate columns.
+// Fields dbListingToPublicDTO reads, plus the gate columns. `agent_id` and `owner_client_id` are deliberately NOT selected: the DTO does not read them (whose listing it is comes from the listing id
+// and `rls_eligible`, lib/listings/mallan-source-identity.ts, the same way app/api/agents/[slug]/listings/route.ts does it), and `syncAgentHistory` writes `agent_id` onto third-party Cotality
+// rows too (list-side AND buyer-side matches), so there is nothing to gain by fetching them.
 const LISTING_SELECT = {
   id: true,
   listing_id: true,
@@ -80,8 +83,6 @@ const LISTING_SELECT = {
   media: true,
   list_agent_full_name: true,
   list_office_name: true,
-  agent_id: true,
-  owner_client_id: true,
   rls_eligible: true,
   idx_display_yn: true,
   internet_entire_listing_display_yn: true,
@@ -187,16 +188,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  // Prisma returns BigInt PKs; the DTO/classifier want string|null. Cast for the
-  // shape the DTO expects (it only reads agent_id/owner_client_id via `!= null`).
+  // Prisma returns BigInt PKs; the DTO wants a string id. The listing's attribution below comes from where the listing comes from (the listing id and rls_eligible), as does the DTO's own
+  // provenance. The DTO is used for the address, price, media and URL.
   const dbListing = {
     ...row,
     id: String(row.id),
-    agent_id: row.agent_id == null ? null : String(row.agent_id),
-    owner_client_id: row.owner_client_id == null ? null : String(row.owner_client_id),
   } as unknown as DbListing;
 
   const dto = dbListingToPublicDTO(dbListing);
+  const attribution = listingAttribution({ listing_id: row.listing_id, rls_eligible: row.rls_eligible }, dto.listOfficeName);
 
   // ── Distribution gate ───────────────────────────────────────────────────────
   // Delegates to the canonical pure gate. This previously keyed the IDX
@@ -277,6 +277,9 @@ export async function POST(req: NextRequest) {
   const emailData: InvestorListingEmailData = {
     address: dtoAddressLine(dto),
     neighborhood: dto.address.neighborhood ?? null,
+    // The listing's own attribution (UCBA Art. III §2(C)): the actual listing broker for a third-party listing, Mallan only for a listing Mallan authored. The agent below is the sender, not the listing broker.
+    attributionText: attribution.attributionText,
+    disclaimerRequired: attribution.disclaimerRequired,
     price: dto.listPrice ? `$${dto.listPrice.toLocaleString()}` : "Price upon request",
     beds: dto.bedroomsTotal ?? null,
     baths: dto.bathroomsFull ?? null,

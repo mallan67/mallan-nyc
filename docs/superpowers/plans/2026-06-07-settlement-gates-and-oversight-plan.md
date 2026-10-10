@@ -6,8 +6,8 @@ plane** verifying every fix at the **micro** (per-change) and **macro** (whole-s
 levels. **Compliance-bound throughout.**
 
 **Status:** PLAN ONLY. Nothing executes. Every phase is HELD behind an explicit per-step
-Maya GO. Builds on `2026-06-07-systematic-fix-plan.md` (Phases 0/0.4/0.5 already shipped) and
-the verified findings in `docs/audits/repo-wide-audit-verification-2026-06-07.md` +
+Maya GO. Builds on the 2026-06-07 systematic fix plan (Phases 0/0.4/0.5 already shipped; retired, Git history) and
+the verified findings in the 2026-06-07 repo-wide audit verification (retired to git history) +
 `docs/incidents/2026-06-06-system-root-cause-registry.md`.
 
 **Three non-negotiables (CLAUDE.md):** §F proof-first (failing-test-flips-green or live URL
@@ -54,7 +54,7 @@ phase · current status. (Class per §J; B/C/D items still need a live proof bef
 |---|---|---|---|---|
 | M1 | 3+ writers fight `Listing.media` JSON; denorm/projection columns written, read by nobody; 5 JSON cols never dropped | P1 | 5 | HELD (PR-4/5B/10) |
 | M2 | Sync is incremental-only (no full/reconcile pass), capped 1000/call + 120s + Active-only → media starvation, incomplete inventory, stale status/gates/price | P1 | 3 | OPEN |
-| M3 | Media classifier divergence — `mapping.ts:335` classifies Trestle `FloorPlan` as Photo on the live render path | P1 | 4 | OPEN |
+| M3 | Media classifier divergence — `mapping.ts:335` classifies Cotality `FloorPlan` as Photo on the live render path | P1 | 4 | OPEN |
 | M4 | Coverage gap: ~8,568 displayable listings with no active `listing_media` | P1 | 8 | OPEN (backfill HELD) |
 
 ### A3. Silent failures / blind observability
@@ -62,7 +62,7 @@ phase · current status. (Class per §J; B/C/D items still need a live proof bef
 |---|---|---|---|---|
 | SF1 | Sync/media crons log `status=ok` while broken | P1 | 2 | OPEN |
 | SF2 | `/api/analytics/event` missing → all first-party analytics silently dropped | P2 | 2 | OPEN |
-| SF3 | DB-outage → silent Trestle fallback | P2 | 2 | OPEN |
+| SF3 | DB-outage → silent Cotality-direct fallback | P2 | 2 | OPEN |
 | SF4 | `refused` neon-prune now surfaced (Codex) | — | 0.5 | **DONE (#371)** |
 
 ### A4. Search correctness
@@ -117,10 +117,10 @@ cross-system regressions.
 
 ### B0. Layer 0 — The harness (every commit) — the regression floor
 The §G chain **plus** `type-check` and `build`, run identically every time and **diffed
-against the frozen baseline** (`docs/audits/green-baseline-2026-06-07.md`):
+against the frozen 2026-06-07 baseline** (retired to git history):
 ```
 type-check · lint · test:runtime · crm:test · test:scanner · ucba:audit
-compliance-check · rls:validate · idx:validate · audit:display-compliance · build
+compliance-check · idx:validate · audit:display-compliance · build
 ```
 **Rule:** pass-set must equal `baseline ∪ {this step's new tests}`. Any red beyond the one
 accepted exception (`idx:validate`: `/api/cron/media-backfill not scheduled`) = a regression
@@ -131,7 +131,7 @@ Before merging anything touching a §D surface (listings, IDX/RLS, search, CRM l
 intake forms, advertising text, attribution, disclosures, display gates, status transitions,
 media): read `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` → the area's canonical file
 FIRST, then run + require green:
-`ucba:audit` (0 regressions) · `rls:validate` (0 errors) · `idx:validate` (0 critical
+`ucba:audit` (0 regressions) · `idx:validate` (0 critical
 beyond the known exception) · `compliance-check` (0 BLOCKER+STRICT) · `crm:test` (if
 `public/crm/**`). **Fail-closed (§E): unclear/conflicting/missing canonical rule → STOP and
 report, do not guess.**
@@ -152,7 +152,7 @@ surface the change can reach. The concrete checklist (all must be answered + gre
 
 1. **Blast-radius map** — list every module / route / DB column / data-path / **downstream
    consumer** the change can affect, direct AND transitive (the §J.5 end-to-end trace: live
-   field → select → mapper → raw_data → DB-DTO path → Trestle-direct DTO path → render → form
+   field → select → mapper → raw_data → DB-DTO path → Cotality-direct DTO path → render → form
    hydrate → tests). Unknown reach = STOP and trace first.
 2. **Cross-domain check** — does it touch any of: search · media · sync · CRM/lead-flow ·
    portal · auth · compliance-display · status/gates · attribution? For **each** touched
@@ -245,8 +245,8 @@ sign-off. **DONE** = shipped; **HELD** = needs explicit Maya GO to start.
 - **Phase 0.4 — Un-blind compliance-check.** DONE (#370). ✓
 - **Phase 0.5 — Production-cut guardrails.** DONE (#371, incl. Codex ops-health fix). Macro
   sign-off pending #371 settle. ✓ (settling)
-- **Phase 1 — Measure + confirm (read-only).** Run `trestle-listing-count`, integrity SQL
-  packs, the live Class-B Trestle probe; trace all A8 UNVERIFIED items into findings docs;
+- **Phase 1 — Measure + confirm (read-only).** Run a live Cotality listing count, integrity SQL
+  packs, the live Class-B Cotality probe; trace all A8 UNVERIFIED items into findings docs;
   stand up the Settlement Ledger. *Gate:* read-only proofs captured. *Oversight:* repo-audit-bot
   baseline. **HELD.**
 - **Phase 2 — Stop the silent failures (SF1-SF3, CC6, CC7).** Make crons fail loud; build

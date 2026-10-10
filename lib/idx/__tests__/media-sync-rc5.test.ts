@@ -1,7 +1,7 @@
 /**
  * RC5 — ghost-listing cursor freeze (behavioral RED→GREEN).
  *
- * A "ghost" is a Trestle Property with a valid ListingId/ListingKey that has
+ * A "ghost" is a Cotality Property with a valid ListingId/ListingKey that has
  * NO local `listings` row (never imported). Before RC5, a ghost at the head of
  * the keyset batch threw in updateListingMediaSummary (P2025) → ok:false →
  * pickKeysetWatermark returned null → the cursor never advanced → the SAME
@@ -16,7 +16,7 @@
  *   5. fail-closed preserved: if the existence probe itself REJECTS, ok:false
  *      → watermark halts (never advance past unknown).
  *
- * No live R2, no live Trestle, no live DB.
+ * No live R2, no live Cotality, no live DB.
  */
 
 import type {
@@ -90,8 +90,6 @@ function ghostProperty(): TrestleProperty {
     ModificationTimestamp: GHOST_TS,
     StandardStatus: "Active",
     Permission: null,
-    Permissions: null,
-    MlsStatus: "Active",
     InternetEntireListingDisplayYN: true,
     InternetAddressDisplayYN: true,
   };

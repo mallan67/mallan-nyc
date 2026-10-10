@@ -155,7 +155,9 @@ export function classifyMediaItem(raw: unknown): MediaClass {
   if (cat === 'video' || cat.includes('video') || /\.(mp4|mov|webm)(\?|$)/i.test(url)) {
     return 'video';
   }
-  if (cat === 'virtualtour' || cat.includes('virtual tour') || cat === 'virtual tour') {
+  // Cotality serializes the enum MEMBER NAME, without spaces: the live categories are 'BrandedVirtualTour' and 'UnbrandedVirtualTour' (data/cotality-enums.live.json), which neither
+  // `=== 'virtualtour'` nor the with-space check matched, so a tour row fell through to 'unknown'. classifyTrestleMediaCategory (media-sync-service.ts) already had the no-space check.
+  if (cat.includes('virtualtour') || cat.includes('virtual tour')) {
     return 'virtualTour';
   }
   if (cat === 'photo' || cat === 'image' || cat === '' /* default Trestle Media is Photo */) {
@@ -339,6 +341,9 @@ export function resolveListingMedia(items: unknown, options: ResolveListingMedia
       // when the source has no separate thumbnail (Trestle/legacy/JSON).
       const rawThumb = String(m.ThumbURL ?? m.thumbUrl ?? '').trim();
       const klass = classifyMediaItem(raw);
+      // a BRANDED tour row (MediaCategory 'BrandedVirtualTour'; 'UnbrandedVirtualTour' contains the word too, hence the second test) may carry the agent's name and contact
+      const tourCategory = String(m.MediaCategory ?? m.mediaCategory ?? m.category ?? m.mediaType ?? '').toLowerCase();
+      const brandedTour = klass === 'virtualTour' && tourCategory.includes('branded') && !tourCategory.includes('unbranded');
       const orderRaw = m.Order ?? m.order;
       const orderNum = orderRaw === '' || orderRaw == null || Number.isNaN(Number(orderRaw))
         ? idx
@@ -361,6 +366,7 @@ export function resolveListingMedia(items: unknown, options: ResolveListingMedia
         providerOrder: preferred && klass === 'photo' ? -1 : orderNum,
         idx,
         preferred,
+        brandedTour,
       };
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
@@ -368,6 +374,9 @@ export function resolveListingMedia(items: unknown, options: ResolveListingMedia
   decorated.sort((a, b) => {
     const cp = CLASS_PRIORITY[a.klass] - CLASS_PRIORITY[b.klass];
     if (cp !== 0) return cp;
+    // within the tours an UNBRANDED row comes before a branded one whatever the provider's order: a branded tour may carry the agent's name and contact and must not be shown while an
+    // unbranded one exists (UCBA Art. I Sec. 5(C); splitTourUrls does the same for the listing-level links). The page takes the first tour.
+    if (a.klass === 'virtualTour' && a.brandedTour !== b.brandedTour) return a.brandedTour ? 1 : -1;
     if (a.providerOrder !== b.providerOrder) return a.providerOrder - b.providerOrder;
     return a.idx - b.idx;
   });
@@ -838,7 +847,7 @@ function mergeGalleryByVisualIdentity(
 // VIRTUAL-TOUR / VIDEO SPLIT  (fix/listing-media-pipeline)
 //
 // REBNY IDX Plus delivers "video" and "3D tour" through the SAME Property fields
-// (`VirtualTourURLBranded` / `VirtualTourURLUnbranded[2,3]`) — there is no separate
+// (`VirtualTourURLBranded[2,3]` / `VirtualTourURLUnbranded[2,3]`) — there is no separate
 // playable video field (`VideosCount` is a count only, no URL). A YouTube/Vimeo
 // link and a Matterport link both land in those fields. Consumers previously
 // mapped ALL of them to one `virtualTourURL` (the "3D Tour" tab), so real videos
@@ -879,7 +888,7 @@ export function classifyTourUrl(url: string | null | undefined): 'video' | 'virt
 /** One candidate tour URL from Trestle, tagged branded/unbranded. */
 export interface TourUrlCandidate {
   url: string | null | undefined;
-  /** true = `VirtualTourURLBranded` (agent-branded — public-suppressed when an unbranded exists). */
+  /** true = `VirtualTourURLBranded[2,3]` (agent-branded — public-suppressed when an unbranded exists). */
   branded?: boolean;
 }
 
@@ -907,16 +916,17 @@ export function splitTourUrls(candidates: TourUrlCandidate[]): { videoUrl: strin
 
 /**
  * DTO-shaped convenience wrapper around {@link splitTourUrls}. Accepts the raw
- * unbranded candidate list (`VirtualTourURLUnbranded[,2,3]`) + the branded URL,
+ * unbranded candidate list (`VirtualTourURLUnbranded[,2,3]`) + the branded URL (or the list of them: `VirtualTourURLBranded[,2,3]`, in that order),
  * coerces unknown values, and returns the DTO field names/shape: `videoUrl` and
  * `virtualTourURL` (capital URL), `undefined` (not null) when absent. Unbranded
  * is preferred over branded within each class (UCBA §5(C)).
  */
-export function tourUrlsForDto(unbranded: unknown[], branded?: unknown): { videoUrl?: string; virtualTourURL?: string } {
+export function tourUrlsForDto(unbranded: unknown[], branded?: unknown | unknown[]): { videoUrl?: string; virtualTourURL?: string } {
   const norm = (v: unknown) => (v == null || v === '' ? undefined : String(v));
+  const brandedList: unknown[] = Array.isArray(branded) ? branded : [branded];
   const s = splitTourUrls([
     ...(unbranded || []).map((url) => ({ url: norm(url), branded: false })),
-    { url: norm(branded), branded: true },
+    ...brandedList.map((url) => ({ url: norm(url), branded: true })),
   ]);
   return { videoUrl: s.videoUrl ?? undefined, virtualTourURL: s.virtualTourUrl ?? undefined };
 }

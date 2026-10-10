@@ -156,9 +156,10 @@
             return ' data-reso-field="' + reso + '" data-reso-value="' + safeVal + '"';
         }
 
-        // Helper: map REBNY CommonInterest enum values to user-friendly display labels
+        // Raw Cotality field key: CommonInterest. REBNY uses these current values for
+        // the broker-facing Ownership Type display. The raw field name is not a Mallan category.
         function ownershipLabel(val) {
-            var map = { Condominium: 'Condo', StockCooperative: 'Co-op', Condop: 'Condop', RentalBuilding: 'Rental Bldg', None: 'None' };
+            var map = { Condominium: 'Condo', StockCooperative: 'Co-op', Condop: 'Condop', RentalBuilding: 'Rental Building', None: 'None' };
             return map[val] || val;
         }
 

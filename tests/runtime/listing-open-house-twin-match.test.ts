@@ -3,7 +3,7 @@
  * Twin-safe open-house matching for the listing-detail panel (follow-up to #463).
  *
  * /api/open-houses dedupes a local CRM open house (SL-0007) against its Cotality RLS twin
- * (RLS20099289) and keeps only the Trestle entry. The detail panel previously matched by exact
+ * (RLS20099289) and keeps only the Cotality entry. The detail panel previously matched by exact
  * listingId only, so the SL-0007 page (listing.id="SL-0007") never matched the deduped feed entry
  * (listingId="RLS20099289"). This pins the twin-safe selector: match by exact listingId OR by a
  * shared normalized addressKey (the same key the canonical resolver / dedup use).

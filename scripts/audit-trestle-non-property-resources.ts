@@ -1,5 +1,5 @@
 #!/usr/bin/env tsx
-// Per-resource Trestle $select audit for non-Property resources.
+// Per-resource Cotality $select audit for non-Property resources.
 //
 // Scans every line that addresses a non-Property OData resource and extracts
 // the explicit $select field list. Then cross-checks each name against the
@@ -82,7 +82,7 @@ interface Finding {
 }
 
 (async () => {
-  console.log('Pulling live Trestle metadata...');
+  console.log('Pulling live Cotality metadata...');
   const liveByResource = await getResourceFields();
   console.log(`  ✓ ${liveByResource.size} resources in live $metadata`);
   console.log('');

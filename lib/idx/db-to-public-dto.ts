@@ -33,6 +33,7 @@ import {
 
 import { normalizeStreetCase } from './normalize-street-case';
 import { resolveListingAgentInfo } from '@/lib/listings/agent-info-resolver';
+import { isMallanLocalListing } from '@/lib/listings/mallan-source-identity';
 
 /** Borough → County mapping (reverse of display-adapter) */
 const BOROUGH_TO_COUNTY: Record<string, string> = {
@@ -194,15 +195,19 @@ export interface DbListing {
   list_agent_mls_id?: string | null;
   co_list_office_mls_id?: string | null;
   co_list_agent_mls_id?: string | null;
-  // C1 fix (2026-05-13): ownership signals required to classify each row as
-  // Mallan-authored (`agent_id` or `owner_client_id` non-null), website-only
-  // commercial (`rls_eligible === false`), or third-party IDX/RLS. Without
-  // these, every DB row was hard-coded as `_source: 'exclusive'` regardless
-  // of provenance — see the per-row classifier below.
+  // C1 fix (2026-05-13): provenance signals required to classify each row as
+  // Mallan-authored, website-only commercial (`rls_eligible === false`), or
+  // third-party IDX/RLS. Without them, every DB row was hard-coded as
+  // `_source: 'exclusive'` regardless of provenance — see the per-row
+  // classifier below.
   //
-  // Prisma exposes both as `bigint | null`; the route's serialize step
-  // stringifies for JSON safety and the classifier only checks `!= null`,
-  // so accepting either shape keeps callers flexible.
+  // WHOSE LISTING IT IS comes from the SOURCE fields only: `listing_id` (the
+  // CRM's SL-/RL- prefix) and `rls_eligible` (lib/listings/mallan-source-identity.ts).
+  // `agent_id` and `owner_client_id` are NOT read by the classifier:
+  // `syncAgentHistory` stamps `agent_id` onto third-party Cotality rows (list
+  // side AND buyer side), so a row that carries one can be another firm's
+  // listing. They stay optional here only so callers that still select them
+  // type-check; the DTO never looks at them.
   agent_id?: bigint | string | null;
   owner_client_id?: bigint | string | null;
   rls_eligible?: boolean;
@@ -272,8 +277,10 @@ const proxyDbMediaUrl = toPublicMediaUrl;
 /**
  * Provenance of a DB-cached listing row.
  *
- * - `mallan-exclusive`: owned by a Mallan client (`owner_client_id` non-null)
- *   or carried by a Mallan agent (`agent_id` non-null). True Mallan exclusive.
+ * - `mallan-exclusive`: a Mallan-authored local listing: the CRM's `SL-` / `RL-`
+ *   listing id (lib/listings/mallan-source-identity.ts). Never decided from
+ *   `agent_id` / `owner_client_id`, which say who a row is associated with, not
+ *   whose listing it is.
  * - `website-only`: commercial / off-RLS listing (`rls_eligible === false`).
  *   Bypasses REBNY distribution gates; surfaced only on mallan.nyc.
  * - `third-party-idx`: synced from REBNY RLS via Trestle/IDX Plus with no
@@ -293,15 +300,22 @@ export type DbListingProvenance =
  * Trestle-synced third-party row as a Mallan exclusive (10,484 / 10,484 rows
  * affected). The classifier is exported so tests, sitemap, and any downstream
  * consumer can reuse the same predicate.
+ *
+ * The first version of the fix decided "Mallan-authored" from `agent_id` /
+ * `owner_client_id` being set. That is the wrong question: `syncAgentHistory`
+ * writes `agent_id` onto third-party Cotality rows too (it matches the buyer
+ * side as well as the list side), so another firm's listing that carried one
+ * said "Exclusive listing by Mallan Real Estate Inc." and lost the REBNY data
+ * sentence (UCBA Art. III Sec. 2(C), NY DOS 19 NYCRR Sec. 175.25). A Mallan
+ * listing is identified by its source fields, the same rule the emails, the
+ * media authority and the search projection already use.
  */
-export function classifyDbListing(listing: Pick<DbListing,
-  'agent_id' | 'owner_client_id' | 'rls_eligible'>): DbListingProvenance {
+export function classifyDbListing(listing: Pick<DbListing, 'listing_id' | 'rls_eligible'>): DbListingProvenance {
   // Website-only check first: commercial rows opt out of RLS entirely and
   // are tagged exclusive (Mallan-owned) by definition.
   if (listing.rls_eligible === false) return 'website-only';
-  if (listing.agent_id != null || listing.owner_client_id != null) {
-    return 'mallan-exclusive';
-  }
+  // A Mallan-authored local listing: the CRM's SL-/RL- listing id.
+  if (isMallanLocalListing(listing)) return 'mallan-exclusive';
   return 'third-party-idx';
 }
 
@@ -605,7 +619,7 @@ export function dbListingToPublicDTO(
     // unbranded preferred over branded (UCBA Art. I §5(C)). See tourUrlsForDto.
     ...tourUrlsForDto(
       [rawData.VirtualTourURLUnbranded, rawData.VirtualTourURLUnbranded2, rawData.VirtualTourURLUnbranded3],
-      rawData.VirtualTourURLBranded,
+      [rawData.VirtualTourURLBranded, rawData.VirtualTourURLBranded2, rawData.VirtualTourURLBranded3],
     ),
     // FARE Act fee transparency
     moveInCosts: features.MoveInCosts ? String(features.MoveInCosts) : undefined,

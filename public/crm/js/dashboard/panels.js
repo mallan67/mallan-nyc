@@ -784,7 +784,7 @@ var Panels = (function () {
     var listings = a._allListings || [];
     var filterStatus = (agentIdx !== undefined && _rosterListingFilter[agentIdx]) ? _rosterListingFilter[agentIdx] : '';
 
-    // RLS-aligned status counts
+    // Status counts keyed by live Cotality StandardStatus values
     var statusDefs = [
       { key: '',                    label: 'All',                         count: listings.length },
       { key: 'Active',              label: 'Active',                      count: listings.filter(function (l) { return l.status === 'Active'; }).length },
@@ -5798,8 +5798,8 @@ var Panels = (function () {
       '<div class="flex items-center justify-between flex-wrap gap-4">' +
         '<div class="flex items-center gap-4">' +
           '<div>' +
-            '<p class="text-sm font-bold text-gray-900">IDX / Trestle — ' + (connected ? 'Connected' : 'Disconnected') + '</p>' +
-            '<p class="text-xs text-gray-500">IDX Plus via Trestle/Cotality</p>' +
+            '<p class="text-sm font-bold text-gray-900">IDX / Cotality — ' + (connected ? 'Connected' : 'Disconnected') + '</p>' +
+            '<p class="text-xs text-gray-500">IDX Plus via Cotality</p>' +
           '</div>' +
         '</div>' +
         '<div class="flex items-center gap-4 text-xs text-gray-500">' +
@@ -7536,7 +7536,7 @@ var Panels = (function () {
               '<i class="fas ' + statusIcon + ' text-2xl" style="color:' + statusColor + '"></i></div>' +
             '<div>' +
               '<p class="text-lg font-bold" style="color:' + statusColor + '">' + statusLabel + '</p>' +
-              '<p class="text-xs text-gray-500">IDX Plus via Trestle/Cotality</p>' +
+              '<p class="text-xs text-gray-500">IDX Plus via Cotality</p>' +
             '</div>' +
           '</div>' +
           '<div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-center">' +
@@ -7675,7 +7675,7 @@ var Panels = (function () {
       html += '<div class="card"><div class="card-header"><h3><i class="fas fa-cogs text-gray-400 mr-2"></i>Feed Configuration</h3></div>' +
         '<div class="card-body"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">' +
           '<div><p class="text-[10px] font-bold text-gray-500 uppercase">Feed Type</p><p class="text-sm font-medium">IDX Plus - WebAPI</p></div>' +
-          '<div><p class="text-[10px] font-bold text-gray-500 uppercase">Provider</p><p class="text-sm font-medium">Trestle (Cotality)</p></div>' +
+          '<div><p class="text-[10px] font-bold text-gray-500 uppercase">Provider</p><p class="text-sm font-medium">Cotality</p></div>' +
           '<div><p class="text-[10px] font-bold text-gray-500 uppercase">API Endpoint</p><p class="text-sm font-mono">api.cotality.com/trestle</p></div>' +
           '<div><p class="text-[10px] font-bold text-gray-500 uppercase">Sync Frequency</p><p class="text-sm font-medium">Every 4 hours</p></div>' +
           '<div><p class="text-[10px] font-bold text-gray-500 uppercase">Photo Caching</p><p class="text-sm font-medium">Cloudflare R2</p></div>' +
@@ -7686,7 +7686,7 @@ var Panels = (function () {
       c.innerHTML = html;
     }).catch(function () {
       c.innerHTML = '<div class="space-y-4">' +
-        UI.sectionHeader('IDX/RLS Activity', 'Trestle API monitoring') +
+        UI.sectionHeader('IDX/RLS Activity', 'Cotality API monitoring') +
         UI.emptyState('fa-database', 'IDX status unavailable') +
       '</div>';
     });
@@ -9246,14 +9246,14 @@ var Panels = (function () {
   }
 
   // ─── Address resolver — handles all address formats ──
-  // Priority: street (pre-built display string) > UnparsedAddress > Trestle components > fallback
+  // Priority: street (pre-built display string) > UnparsedAddress > Cotality address components > fallback
   function _resolveAddress(l) {
     if (l.address && typeof l.address === 'object') {
       // 1. Pre-built display string (set by import scripts and CRM forms)
       if (l.address.street) {
         return l.address.street;
       }
-      // 2. Trestle UnparsedAddress
+      // 2. Cotality UnparsedAddress
       if (l.address.UnparsedAddress || l.address.UnParsedAddress) {
         var unparsed = l.address.UnparsedAddress || l.address.UnParsedAddress;
         if (l.address.UnitNumber && unparsed.indexOf(l.address.UnitNumber) === -1) {
@@ -9261,7 +9261,7 @@ var Panels = (function () {
         }
         return unparsed;
       }
-      // 3. Build from Trestle components: StreetNumber + StreetDirPrefix + StreetName + StreetSuffix + StreetDirSuffix + UnitNumber
+      // 3. Build from Cotality address components: StreetNumber + StreetDirPrefix + StreetName + StreetSuffix + StreetDirSuffix + UnitNumber
       var parts = [
         l.address.StreetNumber || '',
         l.address.StreetDirPrefix || '',
@@ -13134,7 +13134,7 @@ var Panels = (function () {
     c.innerHTML = '<div class="space-y-4">' +
       UI.sectionHeader('Integrations', 'Connected services') +
       '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">' +
-        _integrationCard('Trestle / REBNY RLS', 'Connected', 'fa-database', true) +
+        _integrationCard('Cotality / REBNY RLS', 'Connected', 'fa-database', true) +
         _integrationCard('Cloudflare R2', 'Connected', 'fa-cloud', true) +
         _integrationCard('Stripe', 'Not configured', 'fa-credit-card', false) +
         _integrationCard('Google Calendar', 'Not configured', 'fa-calendar', false) +

@@ -47,7 +47,7 @@ SELECT
   'retention_eligible_terminal_listings' AS metric,
   COUNT(*)::text AS value
 FROM listings
-WHERE status IN ('Closed','Sold','Leased','Rented','Withdrawn','Expired','Cancelled')
+WHERE status IN ('Closed','Sold','Leased','Rented','Withdrawn','Expired','Cancelled','Canceled')
   AND status_changed_at IS NOT NULL
   AND status_changed_at < NOW() - INTERVAL '24 hours'
   AND idx_display_yn = true;

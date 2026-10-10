@@ -4,7 +4,8 @@ import {
   buildSearchDisplayWhere,
   SEARCH_DISPLAY_GATE,
 } from "@/lib/search/listing-access-decision";
-import { AMENITY_FIELD_MAP, type AmenityFilter } from "@/lib/search/types";
+import { AMENITY_FIELD_MAP, isSearchableAmenity, type AmenityFilter } from "@/lib/search/types";
+import { allowsPets } from "@/lib/search/pet-policy";
 
 export interface PublicListingDbSearch {
   where: Prisma.ListingWhereInput;
@@ -52,6 +53,23 @@ const AMENITY_FIELD_TO_DTO: Record<string, string> = {
 
 function appendAnd(where: Prisma.ListingWhereInput, condition: Prisma.ListingWhereInput): void {
   where.AND = [...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []), condition];
+}
+
+/**
+ * The listings Mallan itself AUTHORED: CRM-authored (SL-/RL- listing_id prefix) or website-only (rls_eligible=false). This is the canonical signal of
+ * lib/listings/mallan-source-identity.ts (isMallanLocalListing) as a Prisma `where`, and the ONE place the public queries take "ours" from. It is NOT
+ * `agent_id != null`: syncAgentHistory (lib/idx/sync.ts) stamps agent_id onto THIRD-PARTY Trestle rows where a Mallan agent was the BUYER side
+ * (buildAgentHistoricalFilter matches BuyerAgentMlsId, lib/idx/fetch.ts), so agent_id would mislabel another firm's listing as our exclusive, and the
+ * homepage Featured exclusives feed drops the generic bed/price filters, so the identity check MUST be airtight (UCBA Art. III Sec. 2(A,C), NY DOS 19 NYCRR Sec. 175.25).
+ */
+export function mallanAuthoredWhere(): Prisma.ListingWhereInput {
+  return {
+    OR: [
+      { listing_id: { startsWith: "SL-" } },
+      { listing_id: { startsWith: "RL-" } },
+      { rls_eligible: false },
+    ],
+  };
 }
 
 function appendAndMany(where: Prisma.ListingWhereInput, conditions: Prisma.ListingWhereInput[]): void {
@@ -208,23 +226,12 @@ export function buildPublicListingDbSearch(params: URLSearchParams): PublicListi
   // surfacing other brokers' listings as if they were ours.
   //
   // A genuine Mallan exclusive is CRM-AUTHORED (SL-/RL- listing_id prefix) OR
-  // website-only (rls_eligible=false) — the SAME robust signal the agent page
-  // uses (PR #308, app/api/agents/[slug]/listings/route.ts:245-252). It is NOT
-  // `agent_id != null`: syncAgentHistory (lib/idx/sync.ts) stamps agent_id onto
-  // THIRD-PARTY Trestle rows where a Mallan agent was the BUYER side
-  // (buildAgentHistoricalFilter matches BuyerAgentMlsId, lib/idx/fetch.ts:427),
-  // so agent_id would mislabel third-party IDX listings as our exclusives — and
-  // the homepage Featured exclusives feed drops the generic bed/price filters,
-  // so the identity check here MUST be airtight.
-  if (params.get("exclusive") === "mallan") {
-    appendAnd(where, {
-      OR: [
-        { listing_id: { startsWith: "SL-" } },
-        { listing_id: { startsWith: "RL-" } },
-        { rls_eligible: false },
-      ],
-    });
-  }
+  // website-only (rls_eligible=false) — mallanAuthoredWhere() above, the SAME
+  // robust signal the agent page uses (PR #308). It is NOT `agent_id != null`
+  // (see mallanAuthoredWhere), and the homepage Featured exclusives feed drops
+  // the generic bed/price filters, so the identity check here MUST be airtight.
+  const mallanOnly = params.get("exclusive") === "mallan";
+  if (mallanOnly) appendAnd(where, mallanAuthoredWhere());
 
   const minPrice = intParam(params, "minPrice");
   const maxPrice = intParam(params, "maxPrice");
@@ -324,7 +331,9 @@ export function buildPublicListingDbSearch(params: URLSearchParams): PublicListi
       orderBy = { bedrooms_total: "desc" };
       break;
     case "exclusives":
-      where.agent_id = { not: null };
+      // "Exclusives" are Mallan-AUTHORED listings (mallanAuthoredWhere), not rows that carry an agent_id: syncAgentHistory stamps agent_id onto third-party
+      // rows, so `agent_id != null` listed other firms' listings under our label. (exclusive=mallan, above, has already applied it.)
+      if (!mallanOnly) appendAnd(where, mallanAuthoredWhere());
       orderBy = { modification_timestamp: "desc" };
       break;
     case "neighborhood":
@@ -407,12 +416,14 @@ export function applyPublicListingPostFilters<T extends PublicPostFilterListing>
   // amenities — AND across requested keys; each key is OR-of-substring across
   // the configured fields (DTO camelCase first, features JSON PascalCase
   // fallback). PetsAllowed has its own logic because its values encode
-  // negative cases (e.g., "No") that need positive recognition.
+  // negative cases ("No", "BuildingNo") that need positive recognition: allowsPets
+  // (lib/search/pet-policy.ts), the one reading of a pet answer the public site uses.
+  // A key the map does not name, and a disabled filter (No Fee: no live field), is dropped and filters nothing; it used to match a ListingTerms value that does not exist and answer "no results".
   const amenitiesParam = params.get("amenities");
   if (amenitiesParam) {
     const requested = amenitiesParam
       .split(",")
-      .filter((a): a is AmenityFilter => a in AMENITY_FIELD_MAP);
+      .filter((a): a is AmenityFilter => isSearchableAmenity(a));
 
     for (const amenityKey of requested) {
       const mapping = AMENITY_FIELD_MAP[amenityKey];
@@ -421,12 +432,9 @@ export function applyPublicListingPostFilters<T extends PublicPostFilterListing>
 
       if (amenityKey === "pet-friendly") {
         result = result.filter((listing) => {
-          const dtoVal = String(listing.petsAllowed || "").toLowerCase();
           const feat = featuresById.get(listing.id) || {};
-          const featVal = String(feat.PetsAllowed || "").toLowerCase();
-          const val = dtoVal || featVal;
-          if (!val) return false;
-          return !val.includes("no") || val.includes("catsok") || val.includes("dogsok");
+          // the raw value, as the Trestle path and the projection hand it to allowsPets: a string, or a list of strings (anything else is no answer)
+          return allowsPets(listing.petsAllowed || feat.PetsAllowed);
         });
       } else {
         result = result.filter((listing) => {

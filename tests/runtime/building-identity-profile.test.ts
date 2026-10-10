@@ -29,11 +29,12 @@ import { resolve } from 'path';
 
 const ROUTE = readFileSync(resolve(__dirname, '../../app/api/buildings/search/route.ts'), 'utf8');
 const FORM = readFileSync(resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'), 'utf8');
-const META = readFileSync(resolve(__dirname, '../../artifacts/metadata.xml'), 'utf8');
+const LIVE: { entities: Record<string, Record<string, string>>; enums: Record<string, string[]> } =
+  JSON.parse(readFileSync(resolve(__dirname, '../../data/cotality-enums.live.json'), 'utf8'));
 // addressIdentityKey now canonicalizes dir/suffix/ordinal via the shared NYC
 // normalizer, so the eval block must include those helpers + their lookup maps.
 const NORM = readFileSync(resolve(__dirname, '../../lib/address/nyc-address-normalizer.ts'), 'utf8');
-const hasField = (f: string) => new RegExp(`Property Name="${f}"`).test(META);
+const hasField = (f: string) => Object.values(LIVE.entities).some((e) => Object.prototype.hasOwnProperty.call(e, f));
 
 // ── Load the route's identity + profile helpers via Function-eval ─────────────
 // Strip TS-only syntax from the const map + the two helper functions so they

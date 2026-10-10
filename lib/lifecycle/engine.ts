@@ -592,7 +592,7 @@ function generateNotificationBody(context: Record<string, unknown>, leadName?: s
     case 'lease_expiring_180d':
       return `${leadName || 'A tenant'}'s lease expires in ~6 months (${context.lease_end_date}). ${context.is_buyer_candidate ? 'They are a buyer conversion candidate — ' : ''}Auto-sent rent vs buy analysis with matching sale listings.`;
     case 'lease_expiring_90d':
-      return `${leadName || 'A tenant'}'s lease expires in ~90 days. Auto-sent both sale and rental options (including no-fee rentals). Monitor their engagement to see which direction they lean.`;
+      return `${leadName || 'A tenant'}'s lease expires in ~90 days. Auto-sent both sale and rental options. Monitor their engagement to see which direction they lean.`;
     case 'lease_expiring_30d':
       return `${leadName || 'A tenant'}'s lease expires in ~30 days. Urgency email sent with latest options. Consider calling to schedule showings this week.`;
     case 'quarterly_nurture':
@@ -687,7 +687,7 @@ export const DEFAULT_TRIGGERS = [
     trigger_type: 'lease_expiring_90d',
     conditions: {},
     action_type: 'email',
-    action_config: { include_sale_listings: true, include_rental_listings: true, include_no_fee: true },
+    action_config: { include_sale_listings: true, include_rental_listings: true },
     cooldown_hours: 720,
   },
   {

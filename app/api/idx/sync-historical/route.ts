@@ -1,7 +1,7 @@
 // POST /api/idx/sync-historical
-// Broker-only endpoint to pull an agent's historical listings from Trestle.
+// Broker-only endpoint to pull an agent's historical listings from Cotality.
 // Fetches Closed (Sold/Rented), Expired, Hold (Temp Off), Withdrawn (Perm Off).
-// Matches agent by license_no → Trestle ListAgentMlsId / ListAgentStateLicense.
+// Matches agent by license_no → Cotality ListAgentMlsId / ListAgentStateLicense.
 import { NextRequest, NextResponse } from "next/server";
 import { requireBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { syncAgentHistory } from "@/lib/idx/sync";
@@ -68,13 +68,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // The agent's trestle_mls_id is the REBNY member ID on Trestle (e.g. "39361").
+    // The agent's trestle_mls_id is the REBNY member ID on Cotality (e.g. "39361").
     // This is different from the NY state license number (license_no).
     // Falls back to license_no if trestle_mls_id is not set.
     const agentMlsId = agent.trestle_mls_id || agent.license_no;
     if (!agentMlsId) {
       return NextResponse.json(
-        { error: "Agent has no Trestle MLS ID or license number on file. Set trestle_mls_id on the Agent record." },
+        { error: "Agent has no Cotality MLS member ID or license number on file. Set trestle_mls_id on the Agent record." },
         { status: 422 }
       );
     }

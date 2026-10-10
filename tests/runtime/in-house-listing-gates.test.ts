@@ -3,11 +3,11 @@
  * InHouse listing gate tests — PR-Exclusive.1.
  *
  * Proves:
- *   1. InHouse still permits Trestle building lookup (not suppressed)
+ *   1. InHouse still permits Cotality building lookup (not suppressed)
  *   2. InHouse forces all 4 distribution gates OFF in form serialization
  *   3. InHouse → rls_eligible=false in backend eligibility classification
  *   4. Website-only (rls_eligible=false) listings pass filterDisplayableDbListings
- *   5. Ambiguous/different Trestle match requires confirmation for InHouse
+ *   5. Ambiguous/different Cotality match requires confirmation for InHouse
  *   6. Non-InHouse listing types preserve existing lookup behavior
  *   7. Switching to InHouse clears stale IDX match state
  */
@@ -17,9 +17,9 @@ const path = require('path');
 const FORM_PATH = path.resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html');
 const formHtml = fs.readFileSync(FORM_PATH, 'utf8');
 
-// ─── 1. InHouse still permits Trestle building lookup ───────────────────────
+// ─── 1. InHouse still permits Cotality building lookup ───────────────────────
 
-describe('Form — InHouse permits Trestle building lookup', () => {
+describe('Form — InHouse permits Cotality building lookup', () => {
   it('searchBuildingForListing does NOT have InHouse early-return', () => {
     const fnMatch = formHtml.match(/function searchBuildingForListing\(query, prefix\)\s*\{([\s\S]{0,600}?)\n\s*\/\/ Debounce/);
     expect(fnMatch).not.toBeNull();
@@ -29,7 +29,7 @@ describe('Form — InHouse permits Trestle building lookup', () => {
   it('saleAddressBlurLookup does NOT have InHouse early-return', () => {
     const fnStart = formHtml.indexOf('function saleAddressBlurLookup()');
     expect(fnStart).toBeGreaterThan(-1);
-    const body = formHtml.slice(fnStart, fnStart + 2000);
+    const body = formHtml.slice(fnStart, fnStart + 3500);
     expect(body).not.toContain('_isInHouseListingType');
   });
 
@@ -41,10 +41,10 @@ describe('Form — InHouse permits Trestle building lookup', () => {
   it('saleAddressBlurLookup checks local cache first, then falls back to API', () => {
     const fnStart = formHtml.indexOf('function saleAddressBlurLookup()');
     expect(fnStart).toBeGreaterThan(-1);
-    const body = formHtml.slice(fnStart, fnStart + 2000);
-    expect(body).toContain('buildingDatabase.find');
+    const body = formHtml.slice(fnStart, fnStart + 3500);
+    expect(body).toContain('exactMatch(buildingDatabase, addr)');
     expect(body).toContain('fetchBuildingsFromAPI(addr)');
-    const cacheIdx = body.indexOf('buildingDatabase.find');
+    const cacheIdx = body.indexOf('exactMatch(buildingDatabase, addr)');
     const apiIdx = body.indexOf('fetchBuildingsFromAPI(addr)');
     expect(cacheIdx).toBeLessThan(apiIdx);
   });
@@ -52,7 +52,7 @@ describe('Form — InHouse permits Trestle building lookup', () => {
   it('saleAddressBlurLookup shows candidates in existing results UI on multi-match', () => {
     const fnStart = formHtml.indexOf('function saleAddressBlurLookup()');
     expect(fnStart).toBeGreaterThan(-1);
-    const body = formHtml.slice(fnStart, fnStart + 2000);
+    const body = formHtml.slice(fnStart, fnStart + 3500);
     expect(body).toContain('saleBuildingSearchResults');
     expect(body).toContain("selectBuildingFromIDX('sale'");
   });
@@ -133,44 +133,44 @@ describe('filterDisplayableDbListings — website-only bypass', () => {
   });
 });
 
-// ─── 5. Ambiguous Trestle match requires confirmation for InHouse ───────────
+// ─── 5. Ambiguous Cotality match requires confirmation for InHouse ───────────
 
 describe('Form — InHouse address mismatch confirmation', () => {
-  it('selectBuildingFromIDX checks _isInHouseListingType before address overwrite', () => {
-    const fnMatch = formHtml.match(/function selectBuildingFromIDX\(prefix, address\)\s*\{([\s\S]{0,4000}?)\n\}/);
+  it('_applyBuilding (which selectBuildingFromIDX applies a building through) checks _isInHouseListingType before address overwrite', () => {
+    const fnMatch = formHtml.match(/function _applyBuilding\(prefix, building\)\s*\{([\s\S]{0,6000}?)\n\}/);
     expect(fnMatch).not.toBeNull();
     const body = fnMatch![1];
     expect(body).toContain('_isInHouseListingType(prefix)');
     expect(body).toContain('typedNorm');
-    expect(body).toContain('trestleNorm');
+    expect(body).toContain('buildingNorm');
     expect(body).toContain('confirm(');
   });
 
-  it('confirmation dialog mentions both typed and Trestle canonical addresses', () => {
+  it('confirmation dialog mentions both typed and provider canonical addresses', () => {
     const fnMatch = formHtml.match(/function selectBuildingFromIDX[\s\S]*?confirm\(([\s\S]*?)\)/);
     expect(fnMatch).not.toBeNull();
     const confirmBody = fnMatch![1];
     expect(confirmBody).toContain('You entered');
-    expect(confirmBody).toContain('Trestle/RLS canonical');
+    expect(confirmBody).toContain('Cotality building address');
   });
 
   it('Cancel preserves typed address but still populates building fields', () => {
-    const fnMatch = formHtml.match(/function selectBuildingFromIDX\(prefix, address\)\s*\{([\s\S]{0,4000}?)\n\}/);
+    const fnMatch = formHtml.match(/function _applyBuilding\(prefix, building\)\s*\{([\s\S]{0,6000}?)\n\}/);
     expect(fnMatch).not.toBeNull();
     const body = fnMatch![1];
     expect(body).toContain('if (!useCanonical)');
-    expect(body).toContain('populateBuildingFromIDX(prefix, building)');
+    expect(body).toContain('_applyBuildingFacts(prefix, building)');
   });
 });
 
 // ─── 6. Non-InHouse preserves existing lookup behavior ──────────────────────
 
 describe('Form — Non-InHouse lookup behavior preserved', () => {
-  it('selectBuildingFromIDX still overwrites address for non-InHouse (no confirm gate)', () => {
-    const fnMatch = formHtml.match(/function selectBuildingFromIDX\(prefix, address\)\s*\{([\s\S]{0,4000}?)\n\}/);
+  it('_applyBuilding still overwrites address for non-InHouse (no confirm gate)', () => {
+    const fnMatch = formHtml.match(/function _applyBuilding\(prefix, building\)\s*\{([\s\S]{0,6000}?)\n\}/);
     expect(fnMatch).not.toBeNull();
     const body = fnMatch![1];
-    const afterGuard = body.split('populateBuildingFromIDX(prefix, building)')[1] || '';
+    const afterGuard = body.split('_applyBuildingFacts(prefix, building)')[1] || '';
     expect(afterGuard || body).toContain("setVal(prefix + 'StreetAddress', building.address)");
   });
 });
@@ -199,7 +199,7 @@ describe('Form — Banner text uses building reference, not IDX distribution', (
   });
 });
 
-// ─── 9. RESO address parser — parseAddressQuery ─────────────────────────────
+// ─── 9. Address parser — parseAddressQuery ──────────────────────────────────
 
 describe('Building search — Cotality OData pattern alignment', () => {
   const routeCode = fs.readFileSync(
@@ -219,15 +219,15 @@ describe('Building search — Cotality OData pattern alignment', () => {
     expect(routeCode).toMatch(/south.*'S'/i);
   });
 
-  it('Trestle OData uses startswith(StreetNumber,...) not strict eq', () => {
+  it('Cotality OData uses startswith(StreetNumber,...) not strict eq', () => {
     expect(routeCode).toContain("startswith(StreetNumber,");
   });
 
-  it('Trestle OData uses contains(tolower(StreetName),...) for case-insensitive search', () => {
+  it('Cotality OData uses contains(tolower(StreetName),...) for case-insensitive search', () => {
     expect(routeCode).toContain("contains(tolower(StreetName),");
   });
 
-  it('Trestle OData uses StreetDirPrefix eq for enum comparison', () => {
+  it('Cotality OData uses StreetDirPrefix eq for enum comparison', () => {
     expect(routeCode).toContain("StreetDirPrefix eq");
   });
 
@@ -254,7 +254,7 @@ describe('Building search — Cotality OData pattern alignment', () => {
     expect(routeCode).toContain("LOWER(address->>'StreetName')");
   });
 
-  it('Trestle fallback fires when streetNumber + streetDirPrefix (no streetName)', () => {
+  it('Cotality fallback fires when streetNumber + streetDirPrefix (no streetName)', () => {
     expect(routeCode).toContain("parsed.streetName || parsed.streetDirPrefix");
   });
 });

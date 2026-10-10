@@ -2,7 +2,7 @@
 /**
  * /api/listings/building must filter on StandardStatus, NOT MlsStatus.
  *
- * MlsStatus is provider-suppressed in the REBNY IDX Plus OData $filter — Trestle
+ * MlsStatus is provider-suppressed in the REBNY IDX Plus OData $filter — Cotality
  * returns HTTP 400 ("Results from 'RLS' has been suppressed (provider Level)").
  * The route caught that failure and returned empty arrays, so the "units in this
  * building" / sales-history section (BuildingUnits, rendered on every listing
@@ -32,8 +32,8 @@ describe('/api/listings/building — StandardStatus filter (no MlsStatus 400)', 
     expect(src).toMatch(/StandardStatus eq 'Closed'/);
   });
 
-  it('public saleHistory excludes RLS/Cotality (source:mls) closed rows — ACRIS public-record only', () => {
-    // Restoring the closed query re-surfaced RLS/Cotality closed rows (incl. closed
+  it('public saleHistory excludes Cotality (source:mls) closed rows — ACRIS public-record only', () => {
+    // Restoring the closed query re-surfaced Cotality closed rows (incl. closed
     // leases shown as "sales") on a PUBLIC surface. Until display rights + sale/lease
     // separation are handled (follow-up lane), public saleHistory = ACRIS-only.
     expect(src).toMatch(/\.filter\(\s*\(?s\)?\s*=>\s*s\.source\s*===\s*'acris'\s*\)/);

@@ -6,6 +6,7 @@ import IDXImage from '@/app/components/IDXImage';
 import { type FavoriteEntry } from '@/lib/hooks/useFavorites';
 import { useAsyncResource } from '@/lib/hooks/useAsyncResource';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
+import { formatPetPolicy } from '@/lib/search/pet-policy';
 
 interface ListingDetail {
   id: string;
@@ -285,7 +286,7 @@ export default function CompareProperties({ entries, onRemove }: CompareProperti
               />
               <CompareRow
                 label="Pets"
-                values={listings.map(l => l.detail?.petsAllowed || '—')}
+                values={listings.map(l => formatPetPolicy(l.detail?.petsAllowed) || '—')}
               />
             </>
           )}

@@ -29,7 +29,7 @@ This should not happen — the backfill only sets `status_changed_at` on listing
 -- Restore idx_display_yn for all listings that the cron just disabled
 UPDATE listings
 SET idx_display_yn = true
-WHERE status IN ('Closed','Sold','Leased','Rented','Withdrawn','Expired','Cancelled')
+WHERE status IN ('Closed','Sold','Leased','Rented','Withdrawn','Expired','Cancelled','Canceled')
   AND updated_at > '<timestamp of cron run>'
   AND idx_display_yn = false;
 ```
@@ -61,7 +61,6 @@ This reverts the retention cron to its broken state (will not flag closed listin
 
 - [ ] Phase 0 has been deployed and the keepalive is at `*/15` (verify on Vercel cron dashboard)
 - [ ] `npm run ucba:audit` passes
-- [ ] `npm run rls:validate` passes
 - [ ] `npm run crm:test` passes
 - [ ] `node --env-file=.env.local scripts/phase1-run.js --verify-only` captures pre-state
 - [ ] Run scheduled for low-traffic window (3–5 AM ET)

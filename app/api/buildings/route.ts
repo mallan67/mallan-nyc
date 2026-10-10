@@ -19,7 +19,7 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-/** Format Trestle camelCase → readable: "HealthClub" → "Health Club" */
+/** Format Cotality camelCase → readable: "HealthClub" → "Health Club" */
 export async function GET(request: NextRequest) {
   // Rate limit
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 'unknown';
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     // Neon-quiet (2026-07-23): ALL assembly lives in the shared cached
     // accessor (lib/buildings/public-building-data) — the same function the
     // building page consumes directly (no internal HTTP). Repeated requests
-    // for the same building execute zero Prisma/Trestle work; this GET is a
+    // for the same building execute zero Prisma/Cotality work; this GET is a
     // PURE READ (the dormant fire-and-forget building upsert was removed).
     const payload = await getBuildingDataCached({ streetNumber, streetName, postalCode, buildingName });
     return NextResponse.json(payload);

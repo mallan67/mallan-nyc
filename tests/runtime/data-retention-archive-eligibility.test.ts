@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 /**
- * Archive eligibility fix (scope-archive-eligibility-bug-2026-06-15).
+ * Archive eligibility fix (2026-06-15 scope; the record is retired to git history).
  *
  * Defect: the T+180 archive query filtered `status_changed_at < cutoff`, and a
  * NULL `status_changed_at` silently fails `{ lt }` (NULL < ts is NULL), so

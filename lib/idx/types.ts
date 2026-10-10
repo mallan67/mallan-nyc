@@ -162,7 +162,11 @@ export interface IDXListing {
   }[];
   photosCount?: number;
   virtualTourURLBranded?: string;
+  virtualTourURLBranded2?: string;
+  virtualTourURLBranded3?: string;
   virtualTourURLUnbranded?: string;
+  virtualTourURLUnbranded2?: string;
+  virtualTourURLUnbranded3?: string;
 
   // Remarks
   publicRemarks?: string;

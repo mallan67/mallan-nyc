@@ -96,13 +96,15 @@ export const PROVIDER_SELECT_FIELDS: readonly string[] = [
   "StandardStatus",
   "PropertyType",
   "InternetEntireListingDisplayYN",
-  // The two source fields behind the per-row REBNY gates. Selected 2026-08-13
-  // to break the display-gate reconciliation circularity: the gates must be
-  // re-derived from CURRENT provider state, never read back from the stored
-  // local columns they produced. `MlsStatus` is required as well — it carries
-  // the second arm of the owner-opt-out test in `derivePermissionGates`.
+  // The source field behind the one remaining per-row REBNY gate derived from
+  // the provider (Participant Only). Selected 2026-08-13 to break the
+  // display-gate reconciliation circularity: the gate must be re-derived from
+  // CURRENT provider state, never read back from the stored local columns it
+  // produced. `MlsStatus` is NOT selected (2026-10-02 Permission cutover):
+  // Owner Opt-Out has no Cotality signal at all and is Mallan-local authority
+  // (see derivePermissionGates's docstring) -- fetching MlsStatus here served
+  // no purpose once that was corrected.
   "Permission",
-  "MlsStatus",
 ];
 
 /**
@@ -180,10 +182,10 @@ export interface ProviderRow {
   StandardStatus: string | null;
   PropertyType: string | null;
   InternetEntireListingDisplayYN: boolean | null;
-  /** Multi-Enum. Source of BOTH per-row REBNY gates. */
+  /** Multi-Enum. Source of the Participant Only gate (`has 'Private'`). Owner
+   * Opt-Out has no Cotality field at all -- see derivePermissionGates's
+   * docstring -- so there is deliberately no MlsStatus field here either. */
   Permission: string | null;
-  /** Second arm of the owner-opt-out test. Not a display status. */
-  MlsStatus: string | null;
 }
 
 /**
@@ -213,7 +215,9 @@ export interface LocalRow {
   sync_status: string | null;
   /** REBNY Gate 2 — Permission='Private'. Forces idx_display_yn=false. */
   participant_only: boolean;
-  /** REBNY Gate 1 — Permission='OwnerOptOut'. Forces idx_display_yn=false. */
+  /** REBNY Gate 1 — Mallan-local authority (CRM-set, never provider-derived
+   * -- Owner Opt-Out has no live Cotality signal; see derivePermissionGates's
+   * docstring). Forces idx_display_yn=false via expectedIdxDisplay above. */
   owner_opt_out: boolean;
   /** false = website-only / commercial. Forces idx_display_yn=false. */
   rls_eligible: boolean;
@@ -384,25 +388,35 @@ export function providerExpectedIdxDisplay(provider: ProviderRow): boolean {
  * for this row RIGHT NOW.
  *
  * Every source-derived input comes from the CURRENT provider record — status,
- * entire-listing flag, and the two per-row REBNY gates re-derived from live
- * `Permission` / `MlsStatus` through `derivePermissionGates`, the same single
- * owner `mapTrestleToPrisma` uses. Only `rls_eligible` is read locally, and
- * only because it is genuinely local: no Cotality field maps to it,
- * `mapTrestleToPrisma` never emits it, it appears zero times in
- * `LISTING_SYNC_COMPARE_SELECT`, the Trestle path hard-codes the constant
- * `true` (`lib/idx/sync.ts:1085`), and its only real writers are the CRM
- * routes classifying Mallan-authored website-only inventory. Provider state
- * cannot answer it, so local state is the authority — not a fallback.
+ * entire-listing flag, and the one per-row REBNY gate re-derived from live
+ * `Permission` through `derivePermissionGates`, the same single owner
+ * `mapTrestleToPrisma` uses. `rls_eligible` and (2026-10-02 Permission
+ * cutover) `owner_opt_out` are both read locally, and only because they are
+ * genuinely local: no Cotality field maps to either, `mapTrestleToPrisma`
+ * never emits owner_opt_out at all any more, and `rls_eligible` appears zero
+ * times in `LISTING_SYNC_COMPARE_SELECT` while the Cotality sync path hard-
+ * codes the constant `true` (`lib/idx/sync.ts:1085`). Provider state cannot
+ * answer either, so local state is the authority — not a fallback.
  *
  * WHY THIS IS NOT THE OLD VERSION. Until 2026-08-13 this fed the STORED local
- * `participant_only` / `owner_opt_out` into the evaluator. Those columns are
- * outputs of `derivePermissionGates`, so stored state was vouching for stored
- * state. The concrete failure: a listing whose Permission goes 'Private' →
- * 'Public' at the source keeps `participant_only=true` locally until something
- * refreshes it; that stale `true` "explained" its stale `idx_display_yn=false`,
- * the row earned no reason, and the generator whose job is to schedule that
- * refresh excluded it — permanently. Re-deriving from the provider inverts it:
- * the row now reports `display_gate_mismatch` and gets repaired.
+ * `participant_only` / `owner_opt_out` into the evaluator. Those columns were
+ * BOTH outputs of `derivePermissionGates` at the time, so stored state was
+ * vouching for stored state. The concrete failure: a listing whose Permission
+ * goes 'Private' → 'Public' at the source keeps `participant_only=true`
+ * locally until something refreshes it; that stale `true` "explained" its
+ * stale `idx_display_yn=false`, the row earned no reason, and the generator
+ * whose job is to schedule that refresh excluded it — permanently. Re-
+ * deriving `participant_only` from the provider inverts it: the row now
+ * reports `display_gate_mismatch` and gets repaired.
+ *
+ * 2026-10-02 Permission cutover: `owner_opt_out` is carved OUT of the above.
+ * It is no longer a `derivePermissionGates` output at all — Gate 1 (Owner
+ * Opt-Out) has no live Cotality signal (confirmed via trestle_get_picklist;
+ * see `derivePermissionGates`'s docstring) and is Mallan-local authority,
+ * full stop. Reading `local.owner_opt_out` here is NOT a reintroduction of
+ * the pre-2026-08-13 circularity: that bug was stored state vouching for a
+ * PROVIDER-DERIVED column, and there is no provider derivation for
+ * owner_opt_out to vouch for in the first place.
  *
  * Delegating to `computeGateColumns` keeps this file holding no second opinion
  * about gate semantics — null IELD = REBNY pre-filter passed = displayable,
@@ -411,24 +425,28 @@ export function providerExpectedIdxDisplay(provider: ProviderRow): boolean {
 export function expectedIdxDisplay(provider: ProviderRow, local: LocalRow): boolean {
   const gates = derivePermissionGates({
     Permission: provider.Permission,
-    MlsStatus: provider.MlsStatus,
   });
   return computeGateColumns({
     status: provider.StandardStatus,
     internetEntireListingDisplayYN: provider.InternetEntireListingDisplayYN,
     participantOnly: gates.participantOnly,
-    ownerOptOut: gates.ownerOptOut,
+    // Mallan-local authority — see the docstring above.
+    ownerOptOut: local.owner_opt_out,
     // Local by proof, not by convenience — see the docstring.
     rls_eligible: local.rls_eligible,
   }).idx_display_yn;
 }
 
 /**
- * True when the STORED source-derived gate columns disagree with what the
- * CURRENT provider record derives. Pure diagnostic — see
+ * True when the STORED `participant_only` disagrees with what the CURRENT
+ * provider record derives. Pure diagnostic — see
  * `ManifestDiagnostics.staleLocalPermissionGates`. Emits NO reason: this
  * function exists to MEASURE the drift the old circular classifier consumed,
  * never to act on it.
+ *
+ * owner_opt_out is NOT compared here (2026-10-02 Permission cutover): it is
+ * Mallan-local authority (see expectedIdxDisplay's docstring), so it can
+ * never be "stale" relative to a provider that has no opinion about it.
  */
 export function localPermissionGatesAreStale(
   provider: ProviderRow,
@@ -436,12 +454,8 @@ export function localPermissionGatesAreStale(
 ): boolean {
   const gates = derivePermissionGates({
     Permission: provider.Permission,
-    MlsStatus: provider.MlsStatus,
   });
-  return (
-    gates.participantOnly !== local.participant_only ||
-    gates.ownerOptOut !== local.owner_opt_out
-  );
+  return gates.participantOnly !== local.participant_only;
 }
 
 /**
@@ -482,9 +496,11 @@ export function displayGateMismatchExplainedByGate(
  *    not a mismatch. Comparing raw strings would manufacture work.
  *
  *  - `display_gate_mismatch` — fires ONLY when the disagreement is UNEXPLAINED.
- *    The expectation is computed by `expectedIdxDisplay`, which re-derives the
- *    REBNY gates from the row's CURRENT provider `Permission` / `MlsStatus` and
- *    folds in the genuinely-local `rls_eligible`. A row that canonical ingest
+ *    The expectation is computed by `expectedIdxDisplay`, which re-derives
+ *    participant_only from the row's CURRENT provider `Permission`, and folds
+ *    in owner_opt_out and the genuinely-local `rls_eligible` straight from the
+ *    stored row (neither has a Cotality signal -- see expectedIdxDisplay's own
+ *    docstring). A row that canonical ingest
  *    would gate off TODAY produces NO reason on this axis; a row gated off only
  *    by a STALE stored gate column now DOES produce one, which is the entire
  *    point of the 2026-08-13 de-circularization. Emitting it would be a false positive of
@@ -805,14 +821,13 @@ function coerceProviderRow(raw: Record<string, unknown>): ProviderRow | null {
     // the second interpretation this refactor exists to prevent. `nonEmpty`
     // only distinguishes absent from present — it makes no claim about value.
     Permission: nonEmpty(raw.Permission),
-    MlsStatus: nonEmpty(raw.MlsStatus),
   };
 }
 
 /**
  * Chunk size for the reverse-set existence probe. Matches the Property lookup
  * in `scripts/recover-residual-listing-media.ts` — an `or`-joined ListingId
- * filter grows the URL linearly and Trestle rejects over-long query strings.
+ * filter grows the URL linearly and Cotality rejects over-long query strings.
  */
 export const EXISTENCE_PROBE_CHUNK_SIZE = 15;
 
@@ -1204,7 +1219,7 @@ async function main(): Promise<void> {
   // wall clock -- the very defect this PR removes.
   // `where: { last_synced_from_trestle: { not: null } }` is LOAD-BEARING, and
   // matches the canonical reader `getLastSyncTimestamp` (lib/idx/sync.ts:2198).
-  // Without it the MAX runs over rows that non-Trestle writers stamp with a
+  // Without it the MAX runs over rows that non-Cotality writers stamp with a
   // LOCAL WALL CLOCK — app/api/crm/convert, app/api/crm/listings[/id][/status],
   // app/api/idx/ensure-listing, app/api/cron/listing-expiration,
   // lib/media/crm-media — and those writers deliberately confine the stamp to

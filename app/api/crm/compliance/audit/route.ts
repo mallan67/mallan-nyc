@@ -1,11 +1,12 @@
 // POST /api/crm/compliance/audit
-// Bulk compliance audit — validates all active RLS-eligible listings server-side.
+// Bulk compliance audit — validates all active RLS-eligible listings server-side, and scans every active listing (website-only ones too) for Fair Housing wording, which applies to all advertising.
 // Returns per-listing findings with severity, category, fix steps.
 // Broker-only.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { validateListing } from "@/lib/compliance/rebny-validator";
+import { scanListingBodyForFairHousing } from "@/lib/compliance/listing-fair-housing";
 
 interface AuditFinding {
   listingId: string;
@@ -26,11 +27,10 @@ export async function POST(req: NextRequest) {
   const auth = await requireBroker(req);
   if (isAuthError(auth)) return auth;
 
-  // Fetch all active RLS-eligible listings
+  // Fetch all active listings: the RLS-eligible ones get the whole audit, the website-only ones (rls_eligible false) the Fair Housing scan the write routes run on them
   const listings = await prisma.listing.findMany({
     where: {
       status: { in: ["Active", "Pending", "ActiveUnderContract", "ComingSoon", "Hold"] },
-      rls_eligible: { not: false },
     },
     select: {
       id: true,
@@ -55,11 +55,13 @@ export async function POST(req: NextRequest) {
     const address = (listing.address ?? raw.UnparsedAddress ?? "Unknown") as string;
     const agentId = listing.agent_id?.toString() ?? null;
 
-    // Run REBNY validator
-    const validation = validateListing(raw);
+    // The REBNY validator, the distribution gates, the photo and the stale checks are for RLS-eligible listings: a website-only listing (rls_eligible false) is not on RLS, and its IDX display is off by
+    // design. Fair Housing applies to every advertisement, so the section at the end runs for both kinds.
+    const rlsEligible = listing.rls_eligible !== false;
+    const validation = rlsEligible ? validateListing(raw) : null;
 
     // Convert validation errors to findings
-    if (validation.errors) {
+    if (validation?.errors) {
       for (const err of validation.errors) {
         const errObj: { field?: string; message?: string } = typeof err === 'string' ? { message: err } : err as { field?: string; message?: string };
         findings.push({
@@ -75,7 +77,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (validation.warnings) {
+    if (validation?.warnings) {
       for (const warn of validation.warnings) {
         const warnObj: { field?: string; message?: string } = typeof warn === 'string' ? { message: warn } : warn as { field?: string; message?: string };
         findings.push({
@@ -91,6 +93,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (rlsEligible) {
     // Distribution gate checks
     const ownerOptOut = raw.OwnerOptOut || raw.owner_opt_out;
     if (ownerOptOut) {
@@ -150,10 +153,34 @@ export async function POST(req: NextRequest) {
         fix: "Consider a price adjustment or status update",
       });
     }
+    }
 
-    // Fair Housing scan on description
+    // Fair Housing scan. The validator above reports the prohibited terms it finds in the four remark slots ("[Fair Housing] Prohibited terms found in <Field>: ..."). The write routes refuse more than
+    // that substring check sees: the gate's regex rules, and every free-text box the form posts under its own key (agentRemarks, saleBrokerComments, ...). So the scan the write routes run
+    // (lib/compliance/listing-fair-housing.ts) always runs, for every listing, so the audit never passes text the create and edit routes would refuse; what the validator already reported
+    // FIELD BY FIELD is not reported again, but a field it did not report still is (a hit in one slot used to hide the others). THEN this audit's own pattern list over the public remarks, which
+    // also names steering phrases neither list has ("perfect for singles", "bachelor pad", "safe neighborhood", ...), only when nothing else was reported for the listing: a phrase the validator or the scan
+    // named is not counted a second time (the score docks each critical finding). At most one finding of the scan and of the pattern list per listing.
+    const validatorFlaggedFields = new Set<string>();
+    for (const e of validation?.errors ?? []) {
+      const m = /^\[Fair Housing\] Prohibited terms found in ([A-Za-z0-9_]+)\b/.exec(String(typeof e === "string" ? e : (e as { message?: string }).message ?? ""));
+      if (m) validatorFlaggedFields.add(m[1].toLowerCase());
+    }
+    const validatorFlaggedFairHousing = (validation?.errors ?? []).some((e) => /\[Fair Housing\]/.test(String(typeof e === "string" ? e : (e as { message?: string }).message ?? "")));
+    const fhViolations = scanListingBodyForFairHousing(raw).filter((v) => !validatorFlaggedFields.has(String(v.field ?? "").replace(/^raw:/, "").toLowerCase()));
+    if (fhViolations.length > 0) {
+      const first = fhViolations[0];
+      findings.push({
+        listingId, address, agentId,
+        category: "fair_housing",
+        severity: "critical",
+        title: `Fair Housing violation in ${String(first.field ?? "listing text").replace(/^raw:/, "")}`,
+        description: first.message,
+        fix: "Review and revise the listing text to remove discriminatory language",
+      });
+    }
     const description = (raw.PublicRemarks ?? raw.public_remarks ?? "") as string;
-    if (description) {
+    if (description && fhViolations.length === 0 && !validatorFlaggedFairHousing) {
       // Fair Housing patterns — aligned with public/crm/js/compliance/fair-housing.js (29 patterns, 10 categories)
       const fairHousingPatterns: { pattern: RegExp; category: string }[] = [
         // Race / National Origin

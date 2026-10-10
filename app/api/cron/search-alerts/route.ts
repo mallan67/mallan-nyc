@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { listingAlertEmail } from "@/lib/email/templates";
+import { isMallanLocalListing } from "@/lib/listings/mallan-source-identity";
 import { escapeHtml } from "@/lib/sanitize";
 import { formatSearchAlertAddress, runProjectionListingSearch } from "@/lib/search/core";
 import { recordSearchRun } from "@/lib/search/search-run-recorder";
@@ -142,9 +143,18 @@ export async function GET(req: NextRequest) {
           beds: listing.bedrooms_total || 0,
           baths: listing.bathrooms_full || 0,
           url: `${BASE_URL}/listing/${listing.listing_id}`,
+          office: listing.list_office_name,
+          // a listing Mallan authored says so; never decided from agent_id (see lib/idx/public-attribution.ts listingAttribution)
+          mallanAuthored: isMallanLocalListing({ listing_id: listing.listing_id, rls_eligible: listing.rls_eligible }),
         }));
 
-        const html = listingAlertEmail(formattedListings, escapeHtml(clientName || "there"));
+        // When the data is from: the newest update among the listings in this email (not the day it is sent).
+        const updated = newListings
+          .map((listing) => (listing.modification_timestamp ? new Date(listing.modification_timestamp) : null))
+          .filter((d): d is Date => d !== null && !Number.isNaN(d.getTime()));
+        const dataAsOf = updated.length ? new Date(Math.max(...updated.map((d) => d.getTime()))) : null;
+
+        const html = listingAlertEmail(formattedListings, escapeHtml(clientName || "there"), dataAsOf);
         const subject = `${newListings.length} New Listing${newListings.length !== 1 ? "s" : ""} Matching "${search.name}"`;
         const result = await sendEmail(email, subject, html);
 

@@ -268,7 +268,7 @@
     },
     {
       "section": 30,
-      "title": "Trestle → Frontend Data Chain",
+      "title": "Cotality → Frontend Data Chain",
       "category": "Data Integrity",
       "pass": 8,
       "critical": 0,
@@ -349,7 +349,7 @@
     },
     {
       "section": 39,
-      "title": "data-field vs Trestle/RESO Validation",
+      "title": "data-field vs Cotality Field Contract",
       "category": "Search",
       "pass": 3,
       "critical": 0,

@@ -90,6 +90,8 @@ body { font-family: Manrope, sans-serif; }
 body.viewer-mode .field-input { border-color: transparent; background: transparent; pointer-events: none; box-shadow: none; }
 body.viewer-mode .field-input:focus { border-color: transparent; box-shadow: none; }
 body.viewer-mode textarea.field-input { resize: none; }
+/* an empty control shows nothing: the form's placeholders ("$0", "10001", "The Grand") look like stored values in a read-only page */
+body.viewer-mode .field-input::placeholder { color: transparent; }
 /* Fix #2: Use .is-selected class instead of :has() for browser compat */
 body.viewer-mode .radio-card:not(.is-selected) { display: none; }
 body.viewer-mode .radio-card.is-selected { pointer-events: none; cursor: default; border-color: #2563eb; background: #eff6ff; }
@@ -103,6 +105,7 @@ body.viewer-mode .validation-panel { display: none !important; }
 body.viewer-mode .autosave-indicator { display: none !important; }
 body.viewer-mode .dist-gate-yes { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
 body.viewer-mode .dist-gate-no { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+body.viewer-mode .dist-gate-unknown { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; background: #f3f4f6; color: #4b5563; border: 1px solid #d1d5db; }
 /* Fix #3: Selects stay as <select disabled> — no DOM replacement */
 body.viewer-mode select.field-input { pointer-events: none; appearance: none; -webkit-appearance: none; -moz-appearance: none; border-color: transparent; background: transparent; color: #374151; }
 /* Buyer/tenant agent masking: content replaced by JS with "Mallan Team" card — no CSS hide needed */
@@ -114,6 +117,9 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
 .skeleton-loading textarea.field-input { background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%); background-size: 200% 100%; animation: skeleton-pulse 1.5s ease-in-out infinite; color: transparent !important; border-color: #e5e7eb !important; min-height: 36px; border-radius: 8px; }
 .skeleton-loading .radio-card { background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%); background-size: 200% 100%; animation: skeleton-pulse 1.5s ease-in-out infinite; }
 @keyframes skeleton-pulse { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+/* While the listing loads nothing of the page may show: an entry-form default (a DRAFT badge, "[Enter Address]", a checked radio) is not a fact. */
+body.skeleton-loading { visibility: hidden; }
+body.skeleton-loading::before { visibility: visible; content: 'Loading listing...'; position: fixed; top: 40%; left: 0; right: 0; text-align: center; font: 600 14px Manrope, sans-serif; color: #6b7280; }
 /* No-listing placeholder */
 .no-listing-placeholder { display: flex; align-items: center; justify-content: center; min-height: 80vh; font-family: Manrope, sans-serif; }
 .no-listing-placeholder .card { text-align: center; max-width: 400px; padding: 40px; }
@@ -123,6 +129,8 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
 </style>
 <!-- API Client — identity from session token, no PII in URLs -->
 <script src="js/core/api-client.js"></script>
+<script src="js/forms/listing-hydration.js"></script>
+<script src="js/forms/listing-open-houses.js"></script>
 <script>
 (function() {
     var origin = window.location.origin;
@@ -132,7 +140,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
 })();
 </script>
 </head>
-<body class="bg-gray-50 min-h-screen" data-rls-viewer="true">
+<body class="bg-gray-50 min-h-screen skeleton-loading" data-rls-viewer="true">
 
 <!-- HEADER BAR -->
 <header class="bg-white border-b shadow-sm px-6 py-3 flex items-center justify-between sticky top-0 z-50">
@@ -249,8 +257,8 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                 <i class="fas fa-lock text-[10px] ml-auto text-gray-300" id="rentalCommTabLock"></i>
             </button>
         </div>
-        <!-- Validation toggle -->
-        <div class="border-t px-4 py-3">
+        <!-- Validation toggle (an Add / Edit form's: a viewer has no boxes to require) -->
+        <div class="border-t px-4 py-3 viewer-hidden">
             <div class="flex items-center gap-2">
                 <span class="text-xs font-medium text-gray-500">Required</span>
                 <label class="relative inline-flex items-center cursor-pointer">
@@ -260,8 +268,8 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                 <span class="text-xs text-blue-600 cursor-pointer hover:underline" onclick="document.getElementById('rentalShowRequiredOnly').click()">All</span>
             </div>
         </div>
-        <!-- Validation summary -->
-        <div class="border-t px-4 py-3">
+        <!-- Validation summary (an Add / Edit form's: it said "All fields OK" whatever the listing held) -->
+        <div class="border-t px-4 py-3 viewer-hidden">
             <div id="rentalValidationSummary" class="text-xs">
                 <p class="text-[#B8860B] font-medium"><i class="fas fa-check-circle mr-1"></i> All fields OK</p>
             </div>
@@ -388,8 +396,8 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                         <span class="text-[9px] text-gray-400">(ExclusiveRightWithException)</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer text-sm">
-                        <input type="radio" name="rentalListingType" value="CoExclusive" class="w-4 h-4" onchange="handleRentalListingTypeChange(this.value)"> Co-Exclusive
-                        <span class="text-[9px] text-gray-400">(CoExclusive)</span>
+                        <input type="radio" name="rentalListingType" value="CoExclusiveAgency" class="w-4 h-4" onchange="handleRentalListingTypeChange(this.value)"> Co-Exclusive
+                        <span class="text-[9px] text-gray-400">(CoExclusiveAgency)</span>
                     </label>
                     <!-- Non-RLS / Permission-based -->
                     <div class="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5">
@@ -432,9 +440,9 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                                 <p class="text-purple-700 text-xs mt-1"><i class="fas fa-file-contract mr-1"></i>RLS eligible. Document the exceptions in the listing agreement.</p>
                             </div>
                             <div class="border-l-4 border-teal-500 pl-3">
-                                <p class="font-bold text-gray-900">Co-Exclusive <span class="text-[10px] text-gray-400 font-normal">(CoExclusive)</span></p>
-                                <p class="text-gray-600 mt-1"><strong>Two brokers share the exclusive right.</strong> Either broker can lease the property. Commission is owed regardless of who finds the tenant. Co-brokering terms must be in writing.</p>
-                                <p class="text-teal-700 text-xs mt-1"><i class="fas fa-handshake mr-1"></i>RLS eligible. Both firms named on listing.</p>
+                                <p class="font-bold text-gray-900">Co-Exclusive <span class="text-[10px] text-gray-400 font-normal">(CoExclusiveAgency)</span></p>
+                                <p class="text-gray-600 mt-1"><strong>Two listing agents share the exclusive right.</strong> Either listing agent can lease the property. Commission is owed regardless of who finds the tenant. Co-brokering terms must be in writing.</p>
+                                <p class="text-teal-700 text-xs mt-1"><i class="fas fa-handshake mr-1"></i>RLS eligible. Both listing agents and their offices are named on the listing.</p>
                             </div>
                             <hr class="border-gray-200">
                             <div class="border-l-4 border-blue-400 pl-3 bg-blue-50 py-2 pr-2 rounded-r">
@@ -477,7 +485,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                 </div>
                 <div class="mt-2">
                     <label class="flex items-center gap-2 cursor-pointer text-sm">
-                        <input type="checkbox" class="w-4 h-4"> Agreement on File
+                        <input type="checkbox" id="rentalAgreementOnFile" class="w-4 h-4"> Agreement on File
                     </label>
                 </div>
             </div>
@@ -512,8 +520,9 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                 <label class="field-label">Owner Opt-Out Form (Exhibit B) <span class="text-red-500">*</span></label>
                 <div class="border-2 border-dashed border-amber-300 rounded-lg p-4 bg-amber-50 text-center">
                     <i class="fas fa-file-upload text-amber-500 text-xl mb-2"></i>
-                    <p class="text-sm text-gray-600">Upload signed Opt-Out form (required within 48 hours)</p>
-                    <input type="file" id="rentalOptOutFormUpload" accept=".pdf,.jpg,.png" class="mt-2 text-sm" data-rls-ignore="true">
+                    <p class="text-sm text-gray-700 font-medium">This form cannot store the signed Opt-Out form.</p>
+                    <p class="text-xs text-gray-600 mt-1">It is required within 48 hours: file it the way your broker requires, and do not rely on this page for it.</p>
+                    <input type="file" id="rentalOptOutFormUpload" accept=".pdf,.jpg,.png" class="mt-2 text-sm" disabled data-rls-ignore="true">
                 </div>
             </div>
         </div>
@@ -562,11 +571,11 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">Days on Market</p>
-                        <p class="text-sm font-bold text-gray-800" id="rentalDaysOnMarket">0</p>
+                        <p class="text-sm font-bold text-gray-800" id="rentalDaysOnMarket">--</p>
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">Cumulative DOM</p>
-                        <p class="text-sm font-bold text-gray-800" id="rentalCumulativeDaysOnMarket">0</p>
+                        <p class="text-sm font-bold text-gray-800" id="rentalCumulativeDaysOnMarket">--</p>
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">Status Changed</p>
@@ -574,7 +583,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">RESO MlsStatus</p>
-                        <p class="text-xs font-medium text-blue-700" id="rentalResoMlsStatus">Draft</p>
+                        <p class="text-xs font-medium text-blue-700" id="rentalResoMlsStatus">--</p>
                     </div>
                 </div>
                 <!-- Validation Panel -->
@@ -690,20 +699,17 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                                 <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalBuildingStatus" value="NewConversion" class="w-4 h-4"> New Conversion</label>
                             </div>
                         </div>
-                        <!-- RLS: CommonInterest — REQUIRED, Single-Select Picklist (8 values) -->
+                        <!-- REBNY RLS Ownership Type — raw Cotality field key: CommonInterest -->
                         <div>
-                            <label class="field-label mb-2">Ownership Structure <span class="text-red-500">*</span></label>
-                            <p class="text-[10px] text-gray-500 mb-2">RLS: CommonInterest</p>
+                            <label class="field-label mb-2">Ownership Type <span class="text-red-500">*</span></label>
+                            <p class="text-[10px] text-gray-500 mb-2">Provider field: CommonInterest · Current REBNY RLS entry values.</p>
                             <select id="rentalCommonInterest" class="field-input" data-rls-field="CommonInterest">
                                 <option value="">Select...</option>
-                                <option value="Condominium">Condominium</option>
-                                <option value="StockCooperative">Stock Cooperative (Co-op)</option>
+                                <option value="Condominium">Condo</option>
+                                <option value="StockCooperative">Co-op</option>
                                 <option value="Condop">Condop</option>
-                                <option value="CommunityApartment">Community Apartment</option>
-                                <option value="PlannedDevelopment">Planned Development</option>
-                                <option value="None">None (Fee Simple)</option>
                                 <option value="RentalBuilding" selected>Rental Building</option>
-                                <option value="Timeshare">Timeshare</option>
+                                <option value="None">None</option>
                             </select>
                         </div>
                     </div>
@@ -849,11 +855,11 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                         <div>
                             <label class="field-label">Usable Sq Ft</label>
-                            <input type="number" placeholder="0" class="field-input">
+                            <input id="rentalUsableSqFt" type="number" placeholder="0" class="field-input">
                         </div>
                         <div>
                             <label class="field-label">Lease Type</label>
-                            <select class="field-input">
+                            <select id="rentalCommercialLeaseType" class="field-input">
                                 <option value="">Select...</option>
                                 <option value="Gross">Gross</option>
                                 <option value="Net">Net</option>
@@ -865,7 +871,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                         </div>
                         <div>
                             <label class="field-label">Zoning</label>
-                            <select class="field-input">
+                            <select id="rentalCommercialZoning" class="field-input">
                                 <option value="">Select Zoning</option>
                                 <option value="C1">C1 - Local Commercial</option>
                                 <option value="C2">C2 - Local Commercial</option>
@@ -882,19 +888,19 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                         <div>
                             <label class="field-label">Ceiling Height (ft)</label>
-                            <input type="number" step="0.5" placeholder="0" class="field-input">
+                            <input id="rentalCeilingHeightFt" type="number" step="0.5" placeholder="0" class="field-input">
                         </div>
                         <div>
                             <label class="field-label">Frontage (ft)</label>
-                            <input type="number" placeholder="0" class="field-input">
+                            <input id="rentalFrontageFt" type="number" placeholder="0" class="field-input">
                         </div>
                         <div>
                             <label class="field-label">Min Lease Term</label>
-                            <input type="text" placeholder="e.g., 5 years" class="field-input">
+                            <input id="rentalCommercialMinLeaseTerm" type="text" placeholder="e.g., 5 years" class="field-input">
                         </div>
                         <div>
                             <label class="field-label">Lease Expiration</label>
-                            <input type="date" class="field-input">
+                            <input id="rentalCommercialLeaseExpiration" type="date" class="field-input">
                         </div>
                     </div>
                 </div>
@@ -907,7 +913,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4">
                 <div id="rentalBoardApprovalField" class="flex items-center gap-3">
                     <span class="text-[13px] font-semibold text-gray-600 whitespace-nowrap">Board Approval</span>
-                    <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalBoardApproval" value="Yes" class="w-4 h-4" data-rls-field="BuildingFeatures"> Y</label>
+                    <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalBoardApproval" value="Yes" class="w-4 h-4"> Y</label>
                     <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalBoardApproval" value="No" class="w-4 h-4"> N</label>
                 </div>
                 <div id="rentalBoardInterviewField" class="flex items-center gap-3">
@@ -959,25 +965,18 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                         <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalGuarantors" value="No" class="w-4 h-4"> No</label>
                     </div>
                 </div>
-                <div>
-                    <label class="field-label mb-2">Furnished</label>
-                    <div class="flex gap-4">
-                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalFurnished" value="Yes" class="w-4 h-4"> Yes</label>
-                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalFurnished" value="No" class="w-4 h-4"> No</label>
-                    </div>
-                </div>
                 <!-- RLS: PetsAllowed — REQUIRED, Multi-Select Picklist (7 values) — Unit-level -->
                 <div class="col-span-2">
                     <label class="field-label mb-2">Unit Pet Policy <span class="text-red-500">*</span></label>
                     <p class="text-[10px] text-gray-500 mb-2">RLS: PetsAllowed — Locked if building says "No Pets".</p>
                     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2" id="rentalPetsAllowedGroup">
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitYes" class="w-4 h-4 rental-unit-pets-cb" data-rls-field="PetsAllowed"> Yes</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitCatsOK" class="w-4 h-4 rental-unit-pets-cb"> Cats OK</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitDogsOK" class="w-4 h-4 rental-unit-pets-cb"> Dogs OK</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitBreedRestrictions" class="w-4 h-4 rental-unit-pets-cb"> Breed Restr.</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitSizeLimit" class="w-4 h-4 rental-unit-pets-cb"> Size Limit</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitNumberLimit" class="w-4 h-4 rental-unit-pets-cb"> Number Limit</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitNo" class="w-4 h-4 rental-unit-pets-cb"> No Pets</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="Yes" class="w-4 h-4 rental-unit-pets-cb" data-rls-field="PetsAllowed"> Yes</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="CatsOk" class="w-4 h-4 rental-unit-pets-cb"> Cats OK</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="DogsOk" class="w-4 h-4 rental-unit-pets-cb"> Dogs OK</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="BreedRestrictions" class="w-4 h-4 rental-unit-pets-cb"> Breed Restr.</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="SizeLimit" class="w-4 h-4 rental-unit-pets-cb"> Size Limit</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="NumberLimit" class="w-4 h-4 rental-unit-pets-cb"> Number Limit</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="No" class="w-4 h-4 rental-unit-pets-cb"> No Pets</label>
                     </div>
                 </div>
                 <div>
@@ -1189,7 +1188,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                 </div>
             </div>
             <div class="flex flex-wrap gap-4 mb-3">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalOwnerPays" class="w-4 h-4" data-rls-field="OwnerPays"> Owner Pays</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalOwnerPays" class="w-4 h-4" data-rls-ignore="true"> Owner Pays</label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalFreeRent" class="w-4 h-4" data-rls-ignore="true"> Free Rent</label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalOwnerPaysFreeRent" class="w-4 h-4" data-rls-ignore="true"> Owner Pays AND Free Rent</label>
             </div>
@@ -1424,7 +1423,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
     <div id="rentalSubTabContent1_3" class="rental-sub-tab" style="display:none;">
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-info-circle"></i> REBNY Notice</div>
-            <p class="text-xs text-blue-800 bg-blue-50 border border-blue-200 rounded-lg p-3">Agent and company information is pulled from the REBNY RLS database. Search by company name or agent name to auto-populate contact details.</p>
+            <p class="text-xs text-blue-800 bg-blue-50 border border-blue-200 rounded-lg p-3 viewer-hidden">Agent and company information is pulled from the REBNY RLS database. Search by company name or agent name to auto-populate contact details.</p>
         </div>
 
         <!-- Listing Agent -->
@@ -1587,14 +1586,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                 </div>
             </div>
             <div id="rentalOpenHouseList" class="space-y-3 mb-6">
-                <div class="bg-gray-50 border rounded-lg p-4 text-center text-gray-500">
-                    <i class="fas fa-calendar-alt text-2xl mb-2"></i>
-                    <p class="text-sm">No open houses scheduled</p>
-                    <p class="text-xs">Click "Add Open House" to schedule one</p>
-                </div>
-            </div>
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p class="text-xs text-blue-800"><i class="fas fa-info-circle mr-2"></i> Open house information will be syndicated to REBNY RLS and partner sites.</p>
+                <p id="rentalOpenHouseEmpty" class="text-sm text-gray-500 italic py-4 text-center">Open houses could not be loaded.</p>
             </div>
         </div>
 
@@ -1767,6 +1759,13 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
             <input type="number" id="rentalSqFt" class="field-input" placeholder="850" data-rls-field="LivingArea">
         </div>
         <div>
+            <label class="field-label">Area Units</label>
+            <select id="rentalLivingAreaUnits" class="field-input" data-rls-field="LivingAreaUnits">
+                <option value="SquareFeet">Square Feet</option>
+                <option value="SquareMeters">Square Meters</option>
+            </select>
+        </div>
+        <div>
             <label class="field-label">Floor in Building</label>
             <input type="text" id="rentalFloor" class="field-input" placeholder="3" data-rls-field="EntryLevel">
         </div>
@@ -1809,19 +1808,40 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
             <label class="field-label">Condition</label>
             <select id="rentalCondition" class="field-input" data-rls-field="PropertyCondition">
                 <option value="">Select Condition</option>
+                <option value="Fair" hidden>Fair (earlier list - choose a condition from the list)</option>
+                <option value="AdditionsAlterations">Additions / Alterations</option>
+                <option value="AverageCondition">Average Condition</option>
+                <option value="BelowAverage">Below Average</option>
+                <option value="BuildingPermit">Building Permit</option>
                 <option value="Excellent">Excellent</option>
                 <option value="Fixer">Fixer</option>
-                <option value="Good">Good</option>
-                <option value="Fair">Fair</option>
-                <option value="Poor">Poor</option>
-                <option value="UnderConstruction">Under Construction</option>
+                <option value="GoodCondition">Good Condition</option>
+                <option value="KnownDamage">Known Damage</option>
+                <option value="NeverOccupied">Never Occupied</option>
                 <option value="NewConstruction">New Construction</option>
-                <option value="Updated">Updated/Remodeled</option>
+                <option value="Other">Other</option>
+                <option value="PoorCondition">Poor Condition</option>
+                <option value="RepairsCosmetic">Repairs (Cosmetic)</option>
+                <option value="RepairsMajor">Repairs (Major)</option>
+                <option value="Resale">Resale</option>
+                <option value="SeeDisclosure">See Disclosure</option>
+                <option value="SeeRemarks">See Remarks</option>
+                <option value="ShowsWell">Shows Well</option>
+                <option value="TearDownValueInLand">Tear Down / Value in Land</option>
+                <option value="TermiteClearance">Termite Clearance</option>
+                <option value="ToBeBuilt">To Be Built</option>
+                <option value="Turnkey">Turnkey</option>
+                <option value="UnderConstruction">Under Construction</option>
+                <option value="UnderRenovation">Under Renovation</option>
+                <option value="Unknown">Unknown</option>
+                <option value="UpdatedRemodeled">Updated / Remodeled</option>
+                <option value="VeryGoodCondition">Very Good Condition</option>
             </select>
         </div>
         <div>
             <label class="field-label">Furnished</label>
             <select id="rentalFurnished" class="field-input" onchange="toggleFurnishedFields()" data-rls-field="Furnished">
+                <option value="">Select...</option>
                 <option value="Unfurnished">Unfurnished</option>
                 <option value="Furnished">Furnished</option>
                 <option value="Partially">Partially Furnished</option>
@@ -1967,18 +1987,18 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
 <div class="form-card">
     <div class="form-card-header"><i class="fas fa-building"></i> Building Amenities</div>
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDoorman" class="w-4 h-4" data-rls-field="BuildingFeatures"> Doorman</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalElevator" class="w-4 h-4" data-rls-field="BuildingFeatures"> Elevator</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalGym" class="w-4 h-4" data-rls-field="BuildingFeatures"> Gym/Fitness</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDoorman" class="w-4 h-4"> Doorman</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalElevator" class="w-4 h-4"> Elevator</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalGym" class="w-4 h-4"> Gym/Fitness</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalBldgLaundry" class="w-4 h-4" data-rls-field="LaundryFeatures"> Laundry (Building)</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalBikeRoom" class="w-4 h-4" data-rls-field="BuildingFeatures"> Bike Room</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalStorage" class="w-4 h-4" data-rls-field="BuildingFeatures"> Storage</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalRoofDeck" class="w-4 h-4" data-rls-field="BuildingFeatures"> Roof Deck</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalLiveInSuper" class="w-4 h-4" data-rls-field="BuildingFeatures"> Live-in Super</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalParking" class="w-4 h-4" data-rls-field="BuildingFeatures"> Parking</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalPool" class="w-4 h-4" data-rls-field="BuildingFeatures"> Pool</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalConcierge" class="w-4 h-4" data-rls-field="BuildingFeatures"> Concierge</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalValet" class="w-4 h-4" data-rls-field="BuildingFeatures"> Valet</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalBikeRoom" class="w-4 h-4"> Bike Room</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalStorage" class="w-4 h-4"> Storage</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalRoofDeck" class="w-4 h-4"> Roof Deck</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalLiveInSuper" class="w-4 h-4"> Live-in Super</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalParking" class="w-4 h-4"> Parking</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalPool" class="w-4 h-4"> Pool</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalConcierge" class="w-4 h-4"> Concierge</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalValet" class="w-4 h-4"> Valet</label>
     </div>
 </div>
 
@@ -2203,7 +2223,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         <div>
             <label class="field-label">Lot Size Units <span class="text-red-500">*</span></label>
             <select id="rentalTHLotSizeUnits" class="field-input" required data-rls-field="LotSizeUnits">
-                <option value="SquareFeet">Square Feet</option><option value="SquareMeters">Square Meters</option>
+                <option value="SquareFeet">Square Feet</option><option value="SquareMeters">Square Meters</option><option value="Acres">Acres</option><option value="Hectares">Hectares</option>
             </select>
         </div>
         <div class="col-span-2">
@@ -2274,13 +2294,13 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         </div>
         <div>
             <label class="field-label">Basement</label>
-            <select id="rentalTHBasementYN" class="field-input" onchange="document.getElementById('rentalTHBasementType').style.display=this.value==='true'?'block':'none'" data-rls-field="BasementYN">
+            <select id="rentalTHBasementYN" class="field-input" onchange="document.getElementById('rentalTHBasementType').style.display=this.value==='Yes'?'block':'none'" data-rls-field="BasementYN">
                 <option value="">Select</option><option value="Yes">Yes</option><option value="No">No</option>
             </select>
         </div>
         <div id="rentalTHBasementType" style="display:none;">
             <label class="field-label">Basement Type</label>
-            <select class="field-input">
+            <select id="rentalTHBasementKind" class="field-input">
                 <option value="">Select</option><option value="Finished">Finished</option><option value="PartiallyFinished">Partially Finished</option>
                 <option value="Unfinished">Unfinished</option><option value="CrawlSpace">Crawl Space</option><option value="DirtFloor">Dirt Floor</option><option value="ExteriorEntry">Exterior Entry</option>
             </select>
@@ -2693,7 +2713,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                 <div><span class="text-gray-600 text-xs">Listing URL</span></div>
                 <div class="text-blue-600 text-xs break-all" id="rentalPreviewCRMURL">--</div>
                 <div><span class="text-gray-600 text-xs">Description</span></div>
-                <div class="text-gray-700 text-xs leading-relaxed max-h-32 overflow-y-auto" id="rentalPreviewCRMDesc">Enter a description to see it here.</div>
+                <div class="text-gray-700 text-xs leading-relaxed max-h-32 overflow-y-auto" id="rentalPreviewCRMDesc">--</div>
             </div>
         </div>
 
@@ -2773,7 +2793,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         </div>
         <div class="p-4">
             <h4 class="font-semibold text-gray-900 mb-2">Description</h4>
-            <p class="text-sm text-gray-600 mb-3" id="previewDescription">Enter a description in the Listing Description tab to see it here.</p>
+            <p class="text-sm text-gray-600 mb-3" id="previewDescription">--</p>
             <div class="flex flex-wrap gap-2" id="previewAmenities">
                 <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">Amenities will appear here</span>
             </div>
@@ -2803,7 +2823,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                 <div class="w-3 h-3 rounded-full bg-amber-400"></div>
             </div>
             <div class="flex-1 bg-white rounded px-3 py-1 text-xs text-gray-500 ml-2">
-                <i class="fas fa-lock text-[#B8860B] mr-1"></i> mallan.nyc/listing/<span id="rentalPreviewSiteSlug">new</span>
+                <i class="fas fa-lock text-[#B8860B] mr-1"></i> mallan.nyc/listing/<span id="rentalPreviewSiteSlug">--</span>
             </div>
         </div>
         <div class="bg-gray-100 px-6 py-3 flex items-center justify-between">
@@ -2816,7 +2836,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         <div class="bg-white p-6">
             <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
                 <div>
-                    <p class="text-2xl sm:text-3xl font-bold text-gray-900" id="rentalPreviewSitePrice">$0/mo</p>
+                    <p class="text-2xl sm:text-3xl font-bold text-gray-900" id="rentalPreviewSitePrice">--</p>
                     <p class="text-lg text-gray-700 mt-1" id="rentalPreviewSiteAddress">Address</p>
                     <p class="text-gray-500 text-sm" id="rentalPreviewSiteNeighborhood">Neighborhood, Borough, NY</p>
                 </div>
@@ -2835,7 +2855,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                 <div class="lg:col-span-2 space-y-6">
                     <div>
                         <h3 class="text-lg font-semibold mb-2">About This Property</h3>
-                        <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line max-h-40 overflow-y-auto" id="rentalPreviewSiteDesc">Listing description will appear here...</p>
+                        <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line max-h-40 overflow-y-auto" id="rentalPreviewSiteDesc">--</p>
                     </div>
                     <div>
                         <h3 class="text-lg font-semibold mb-3">Rental Details</h3>
@@ -2844,7 +2864,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                             <div class="flex justify-between py-1.5 border-b"><span class="text-gray-500">Available</span><span class="font-medium" id="rentalPreviewSiteDetailAvail">--</span></div>
                             <div class="flex justify-between py-1.5 border-b"><span class="text-gray-500">Property Type</span><span class="font-medium" id="rentalPreviewSiteDetailType">--</span></div>
                             <div class="flex justify-between py-1.5 border-b"><span class="text-gray-500">Exposure</span><span class="font-medium" id="rentalPreviewSiteDetailExposure">--</span></div>
-                            <div class="flex justify-between py-1.5 border-b"><span class="text-gray-500">Days on Market</span><span class="font-medium" id="rentalPreviewSiteDetailDOM">0</span></div>
+                            <div class="flex justify-between py-1.5 border-b"><span class="text-gray-500">Days on Market</span><span class="font-medium" id="rentalPreviewSiteDetailDOM">--</span></div>
                             <div class="flex justify-between py-1.5 border-b"><span class="text-gray-500">Furnished</span><span class="font-medium" id="rentalPreviewSiteDetailFurnished">--</span></div>
                         </div>
                     </div>
@@ -2896,38 +2916,14 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
     </div>
 </div>
 
-<!-- Transit & Commute Section -->
+<!-- Nearby Transit Section (the commute calculator is gone: it ignored the work address and made its times up) -->
 <div class="form-card" id="rentalTransitSection">
-    <div class="form-card-header"><i class="fas fa-subway"></i> Transit & Commute</div>
-    <p class="text-xs text-gray-500 mb-3">Nearby transit based on the listing address. Enter an address in Tab 1 to see results.</p>
+    <div class="form-card-header"><i class="fas fa-subway"></i> Nearby Transit</div>
+    <p class="text-xs text-gray-500 mb-3">Stops near the listing's ZIP code, from a partial list of Manhattan stops. Commute times are not shown: this page has no routing data.</p>
     <div id="rentalTransitResults" class="space-y-2">
         <div class="text-center py-6 text-gray-400">
             <i class="fas fa-map-marker-alt text-3xl mb-2"></i>
-            <p class="text-sm">Enter a street address in Tab 1 to see nearby transit stations.</p>
-        </div>
-    </div>
-    <div class="mt-4 pt-3 border-t">
-        <label class="field-label mb-1">Commute Calculator</label>
-        <div class="flex gap-2">
-            <input type="text" id="rentalCommuteAddress" class="field-input flex-1" placeholder="Enter work address..." data-rls-ignore="true">
-            <button onclick="calcRentalCommute()" class="px-4 py-2 bg-[#B8860B] text-white rounded-lg text-sm font-semibold hover:bg-[#9A7209] transition whitespace-nowrap"><i class="fas fa-route mr-1"></i> Calculate</button>
-        </div>
-        <div id="rentalCommuteResults" class="hidden grid grid-cols-3 gap-3 mt-3">
-            <div class="bg-blue-50 rounded-xl p-3 text-center">
-                <i class="fas fa-subway text-blue-600 mb-1"></i>
-                <div class="text-sm font-bold text-blue-700" id="rentalCommuteSubway">--</div>
-                <div class="text-[10px] text-blue-500 uppercase font-semibold">Subway</div>
-            </div>
-            <div class="bg-amber-50 rounded-xl p-3 text-center">
-                <i class="fas fa-bus text-[#B8860B] mb-1"></i>
-                <div class="text-sm font-bold text-amber-700" id="rentalCommuteBus">--</div>
-                <div class="text-[10px] text-[#B8860B] uppercase font-semibold">Bus</div>
-            </div>
-            <div class="bg-amber-50 rounded-xl p-3 text-center">
-                <i class="fas fa-walking text-amber-600 mb-1"></i>
-                <div class="text-sm font-bold text-amber-700" id="rentalCommuteWalk">--</div>
-                <div class="text-[10px] text-amber-500 uppercase font-semibold">Walking</div>
-            </div>
+            <p class="text-sm">This listing has no ZIP code, so no nearby transit can be worked out.</p>
         </div>
     </div>
 </div>
@@ -3240,62 +3236,34 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         <div class="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-10">
             <div>
                 <h3 class="text-lg font-semibold">Media and Documents</h3>
-                <p class="text-xs text-gray-500">Upload photos, videos, floor plans, and documents</p>
+                <p class="text-xs text-gray-500">The listing's photos, floor plans, videos and tours</p>
             </div>
             <button onclick="closeRentalMediaDocs()" class="text-gray-500 hover:text-gray-700" aria-label="Close"><i class="fas fa-times text-xl"></i></button>
         </div>
         <div class="p-6">
-            <!-- REBNY Media Compliance Notice -->
-            <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-6">
-                <p class="text-xs font-semibold text-amber-800 mb-1"><i class="fas fa-shield-alt mr-1"></i> REBNY Media Compliance (UCBA Art. I Sec. 5(C))</p>
-                <p class="text-[10px] text-amber-700 leading-relaxed">Photos, floor plans, and videos must NOT contain agent name, contact info, watermarks, or logos. Only exclusive broker (Mallan Real Estate) branding is permitted. All captions subject to Fair Housing + UCBA content rules.</p>
-            </div>
-
             <!-- Photos -->
             <div class="mb-8">
                 <div class="flex items-center justify-between mb-3">
-                    <h4 class="font-semibold text-gray-900">Photos <span class="text-xs text-gray-500 font-normal">(Up to 100 photos, min 1024x768px, recommended 2048x1365px, JPEG/PNG, max 20MB each)</span></h4>
-                    <span id="rentalPhotoCount" class="text-xs font-semibold text-gray-500">0 / 100 uploaded</span>
+                    <h4 class="font-semibold text-gray-900">Photos</h4>
+                    <span id="rentalPhotoCount" class="text-xs font-semibold text-gray-500">Loading...</span>
                 </div>
-                <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#B8860B] cursor-pointer transition-colors" onclick="document.getElementById('rentalPhotoInput').click()">
-                    <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-3"></i>
-                    <p class="text-sm text-gray-600 mb-1">Drag and drop photos here or click to browse</p>
-                    <p class="text-xs text-gray-500">JPEG, PNG only — Landscape 4:3 or 3:2 preferred — No watermarks, agent info, or logos (UCBA Art. I Sec. 5(C))</p>
-                    <input type="file" id="rentalPhotoInput" multiple accept=".jpg,.jpeg,.png" class="hidden" data-rls-ignore="true">
-                </div>
-                <!-- REBNY I23: Photo sort order — first photo = primary listing photo -->
-                <p class="text-xs text-amber-600 mt-2"><i class="fas fa-star mr-1"></i> <strong>Primary Photo:</strong> First photo = hero image on StreetEasy, Zillow, Realtor.com, and all syndicated sites. Drag to reorder.</p>
-                <!-- Photo quality guidelines -->
-                <div class="mt-2 p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-[10px] text-blue-700 space-y-1">
-                    <div class="font-bold text-blue-800"><i class="fas fa-info-circle mr-1"></i> Photo Requirements (Trestle / REBNY RLS)</div>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-0.5">
-                        <span><strong>Min:</strong> 1024 x 768 px</span>
-                        <span><strong>Rec:</strong> 2048 x 1365 px</span>
-                        <span><strong>Format:</strong> JPEG (preferred)</span>
-                        <span><strong>Size:</strong> 100KB – 3MB each</span>
-                        <span><strong>Ratio:</strong> 4:3 or 3:2 landscape</span>
-                        <span><strong>Max:</strong> 100 photos per listing</span>
-                        <span><strong>Optimal:</strong> 22–27 photos</span>
-                        <span><strong>Min rec:</strong> 10–15 photos</span>
-                    </div>
-                    <div class="text-blue-600 mt-1">Each photo must be assigned a Room/Category (RESO ImageOf) and sort order. Photos under 1024x768 will be flagged for rejection.</div>
-                </div>
-                <div id="rentalPhotoPreview" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4" style="cursor: grab;"></div>
+                <p class="text-xs text-gray-500 mb-2">The first photo is the listing's main photo.</p>
+                <div id="rentalPhotoPreview" class="grid grid-cols-2 sm:grid-cols-4 gap-2"><p class="text-sm text-gray-500 italic col-span-full">Loading photos...</p></div>
             </div>
 
             <!-- Videos -->
             <div class="mb-8">
-                <h4 class="font-semibold text-gray-900 mb-3">Videos <span class="text-xs text-gray-500 font-normal">(YouTube or Vimeo URLs only)</span></h4>
+                <h4 class="font-semibold text-gray-900 mb-3">Videos</h4>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="field-label">Video URL</label>
-                        <input type="url" id="rentalVideoUrl" placeholder="https://youtube.com/watch?v=..." class="field-input" data-rls-field="VirtualTourURLBranded">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VideoURL</p>
+                        <input type="url" id="rentalVideoUrl" placeholder="https://youtube.com/watch?v=..." class="field-input">
+                        <p class="text-[10px] text-gray-400 mt-1">Saved with the listing for Mallan's use. Not sent to a Cotality field; the public site does not read it.</p>
                     </div>
                     <div>
                         <label class="field-label">Video Tour URL</label>
-                        <input type="url" id="rentalVideoTourUrl" placeholder="https://vimeo.com/..." class="field-input" data-rls-field="VirtualTourURLUnbranded">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: Video2URL</p>
+                        <input type="url" id="rentalVideoTourUrl" placeholder="https://vimeo.com/..." class="field-input">
+                        <p class="text-[10px] text-gray-400 mt-1">Saved with the listing for Mallan's use. Not sent to a Cotality field; the public site does not read it.</p>
                     </div>
                 </div>
                 <p class="text-[10px] text-amber-600 mt-2"><i class="fas fa-ban mr-1"></i> No agent name, contact, or on-screen appearance in videos (UCBA Art. I Sec. 5(C))</p>
@@ -3303,23 +3271,18 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
 
             <!-- Floor Plans -->
             <div class="mb-8">
-                <h4 class="font-semibold text-gray-900 mb-3">Floor Plans <span class="text-xs text-gray-500 font-normal">(max 20MB each, 150 dpi recommended)</span></h4>
-                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#B8860B] cursor-pointer transition-colors" onclick="document.getElementById('rentalFloorplanInput').click()">
-                    <i class="fas fa-drafting-compass text-3xl text-gray-400 mb-2"></i>
-                    <p class="text-sm text-gray-600">Upload Floor Plan</p>
-                    <p class="text-xs text-gray-500 mt-1">JPG, PNG, PDF only</p>
-                    <input type="file" id="rentalFloorplanInput" accept=".jpg,.jpeg,.png,.pdf" class="hidden" data-rls-ignore="true">
-                </div>
+                <h4 class="font-semibold text-gray-900 mb-3">Floor Plans</h4>
+                <div id="rentalFloorPlanList" class="space-y-1 text-sm"><p class="text-sm text-gray-500 italic">Loading floor plans...</p></div>
             </div>
 
-            <!-- 3D Virtual Tours (RLS/RESO/IDX: VirtualTourURL) -->
+            <!-- 3D Virtual Tours (the Unbranded Tour URL is sent as RLS/RESO/IDX VirtualTourURLUnbranded; the others are saved under their own ids) -->
             <div class="mb-8">
                 <h4 class="font-semibold text-gray-900 mb-3">3D Virtual Tours</h4>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="field-label">Branded Tour URL <span class="text-[10px] text-gray-400 font-normal">(with broker branding)</span></label>
-                        <input type="url" id="rentalMatterportUrl" placeholder="https://my.matterport.com/show/?m=..." class="field-input" data-rls-field="VirtualTourURLUnbranded2">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VirtualTourURLBranded</p>
+                        <input type="url" id="rentalMatterportUrl" placeholder="https://my.matterport.com/show/?m=..." class="field-input">
+                        <p class="text-[10px] text-gray-400 mt-1">Saved with the listing for Mallan's use. Not sent to a Cotality field; the public site does not read it.</p>
                     </div>
                     <div>
                         <label class="field-label">Unbranded Tour URL <span class="text-[10px] text-gray-400 font-normal">(no watermark)</span></label>
@@ -3328,33 +3291,32 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                     </div>
                     <div>
                         <label class="field-label">Unbranded Tour URL 2</label>
-                        <input type="url" id="rentalVirtualTourUnbranded2" placeholder="https://..." class="field-input" data-rls-field="VirtualTourURLUnbranded2">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VirtualTourURLUnbranded2</p>
+                        <input type="url" id="rentalVirtualTourUnbranded2" placeholder="https://..." class="field-input">
+                        <p class="text-[10px] text-gray-400 mt-1">Saved with the listing for Mallan's use. Not sent to a Cotality field; the public site does not read it.</p>
                     </div>
                     <div>
                         <label class="field-label">Unbranded Tour URL 3</label>
-                        <input type="url" id="rentalVirtualTourUnbranded3" placeholder="https://..." class="field-input" data-rls-field="VirtualTourURLUnbranded3">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VirtualTourURLUnbranded3</p>
+                        <input type="url" id="rentalVirtualTourUnbranded3" placeholder="https://..." class="field-input">
+                        <p class="text-[10px] text-gray-400 mt-1">Saved with the listing for Mallan's use. Not sent to a Cotality field; the public site does not read it.</p>
                     </div>
                 </div>
             </div>
 
             <!-- Documents (file uploads) -->
             <div class="mb-6">
-                <h4 class="font-semibold text-gray-900 mb-3">Documents <span class="text-xs text-gray-500 font-normal">(max 20MB each)</span></h4>
-                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#B8860B] cursor-pointer transition-colors" onclick="document.getElementById('rentalDocInput').click()">
-                    <i class="fas fa-file-pdf text-3xl text-gray-400 mb-2"></i>
-                    <p class="text-sm text-gray-600">Upload Documents</p>
-                    <p class="text-xs text-gray-500 mt-1">PDF, DOC, DOCX only (Lease, Rider, Board Package, etc.)</p>
-                    <input type="file" id="rentalDocInput" multiple accept=".pdf,.doc,.docx" class="hidden" data-rls-ignore="true">
+                <h4 class="font-semibold text-gray-900 mb-3">Documents</h4>
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center bg-gray-50">
+                    <i class="fas fa-file-pdf text-3xl text-gray-300 mb-2"></i>
+                    <p class="text-sm text-gray-700 font-medium">Documents cannot be attached to a listing from this form yet.</p>
+                    <p class="text-xs text-gray-500 mt-1">Nothing chosen here would be saved, so the box is switched off.</p>
+                    <input type="file" id="rentalDocInput" multiple accept=".pdf,.doc,.docx" class="hidden" disabled data-rls-ignore="true">
                 </div>
-                <div class="bg-red-50 border border-red-200 rounded-lg p-2 mt-2">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-2 mt-2 viewer-hidden">
                     <p class="text-[10px] text-red-700"><i class="fas fa-exclamation-triangle mr-1"></i> <strong>Privacy:</strong> Do NOT upload owner/tenant ID scans, tax returns, or personal financial documents. These violate NY SHIELD Act requirements.</p>
                 </div>
             </div>
         </div>
         <div class="sticky bottom-0 bg-white border-t px-6 py-4 flex justify-end gap-2">
-            <button onclick="closeRentalMediaDocs()" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Cancel</button>
             <button onclick="closeRentalMediaDocs()" class="px-4 py-2 bg-gray-600 text-white rounded-lg text-sm hover:bg-gray-700">Close</button>
         </div>
     </div>
@@ -3369,7 +3331,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         <div class="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-10">
             <div>
                 <h3 class="text-lg font-semibold">Building Information</h3>
-                <p class="text-xs text-gray-500">Complete building details for REBNY RLS compliance</p>
+                <p class="text-xs text-gray-500 viewer-hidden">Complete building details for REBNY RLS compliance</p>
             </div>
             <button onclick="closeRentalBuildingInfo()" class="text-gray-500 hover:text-gray-700" aria-label="Close"><i class="fas fa-times text-xl"></i></button>
         </div>
@@ -3388,7 +3350,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                     <i class="fas fa-search mr-1"></i> Search
                 </button>
             </div>
-            <p class="text-xs text-amber-700 mt-2"><i class="fas fa-info-circle mr-1"></i> Building data from Trestle/REBNY RLS will auto-populate if available</p>
+            <p class="text-xs text-amber-700 mt-2 viewer-hidden"><i class="fas fa-info-circle mr-1"></i> Building data from Trestle/REBNY RLS will auto-populate if available</p>
             <div id="bldgSearchResults" class="mt-2 hidden"></div>
         </div>
 
@@ -3652,11 +3614,11 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                         <div class="form-card-header"><i class="fas fa-certificate"></i> Building Status</div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgLandmark" class="w-4 h-4" data-rls-field="LandmarkStatusYN"> Landmark Building</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgHistoric" class="w-4 h-4" data-rls-field="BuildingFeatures"> Historic District</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgLEED" class="w-4 h-4" data-rls-field="BuildingFeatures"> LEED Certified</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgHistoric" class="w-4 h-4"> Historic District</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgLEED" class="w-4 h-4"> LEED Certified</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgNewConstruction" class="w-4 h-4" data-rls-field="NewConstructionYN"> New Construction</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgNewDevelopment" class="w-4 h-4" data-rls-field="NewConstructionYN"> New Development</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgConversion" class="w-4 h-4" data-rls-field="BuildingFeatures"> Conversion</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgConversion" class="w-4 h-4"> Conversion</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgSponsorUnits" class="w-4 h-4" data-rls-field="SponsorUnitYN"> Has Sponsor Units</label>
                         </div>
                     </div>
@@ -3692,12 +3654,29 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="None" class="w-4 h-4 rental-attendance-cb"> None</label>
                         </div>
                     </div>
+
+                    <div class="form-card">
+                        <div class="form-card-header"><i class="fas fa-user-shield"></i> Lobby Attendant</div>
+                        <p class="text-[10px] text-gray-500 mb-3">RLS Field: LobbyAttendant — Specify lobby attendant coverage type.</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="field-label">Lobby Attendant</label>
+                                <select id="rentalLobbyAttendant" class="field-input" data-rls-ignore="true" data-removed-field="LobbyAttendant">
+                                    <option value="">Select</option>
+                                    <option value="FullTime">Full Time</option>
+                                    <option value="PartTime">Part Time</option>
+                                    <option value="Virtual">Virtual</option>
+                                    <option value="None">None</option>
+                                </select>
+                                <p class="text-[10px] text-gray-400 mt-1">RLS: LobbyAttendant</p>
+                            </div>
+                        </div>
+                    </div>
                     <!-- Building Amenities (non-AttendanceType) -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-building"></i> Building Amenities</div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgElevator" class="w-4 h-4" data-rls-field="BuildingFeatures"> Elevator</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgLaundry" class="w-4 h-4" data-rls-field="LaundryFeatures"> Laundry Room</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgGym" class="w-4 h-4" data-rls-field="BuildingFeatures"> Gym/Fitness Center</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgPool" class="w-4 h-4" data-rls-field="BuildingFeatures"> Pool</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgRoofDeck" class="w-4 h-4" data-rls-field="BuildingFeatures"> Roof Deck</label>
@@ -3716,6 +3695,36 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgOnSiteManager" class="w-4 h-4" data-rls-field="BuildingFeatures"> On-Site Manager</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgWheelchairAccess" class="w-4 h-4" data-rls-field="BuildingFeatures"> Wheelchair Access</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgSpa" class="w-4 h-4" data-rls-field="BuildingFeatures"> Spa</label>
+                        </div>
+                    </div>
+
+                    <div class="form-card">
+                        <div class="form-card-header"><i class="fas fa-tshirt"></i> Building Laundry Features <span class="text-red-500">*</span></div>
+                        <p class="text-[10px] text-gray-500 mb-2">RLS: BuildingLaundryFeatures — Select all that apply. "None" deselects all others.</p>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="InUnit" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)" data-rls-ignore="true"> In Unit</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="WasherDryerInstallAllowed" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> W/D Install Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="WasherHookup" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Washer Hookup</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="ElectricDryerHookup" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Electric Dryer Hookup</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="GasDryerHookup" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Gas Dryer Hookup</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="CommonArea" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Common Area</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="OnCommonFloor" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> On Common Floor</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="InBasement" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> In Basement</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="CoinOperated" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Coin Operated</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="LaundryDropOffService" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Drop-Off Service</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="DryCleaningService" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Dry Cleaning Service</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="Inside" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Inside</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="InHall" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> In Hall</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="InGarage" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> In Garage</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="InCarport" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> In Carport</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="Outside" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Outside</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="MainLevel" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Main Level</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="UpperLevel" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Upper Level</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="LowerLevel" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Lower Level</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="MultipleLocations" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Multiple Locations</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="SeeRemarks" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> See Remarks</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="Other" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> Other</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="None" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> None</label>
                         </div>
                     </div>
 
@@ -4016,10 +4025,10 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgWasherDryerAllowed" class="w-4 h-4" data-rls-field="LaundryFeatures"> Washer/Dryer Allowed</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgPiedATerre" class="w-4 h-4" data-rls-ignore="true"> Pied-a-Terre Allowed</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgParentsAllowed" class="w-4 h-4" data-rls-field="BuildingFeatures"> Parents Buying Allowed</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgCoBuyersAllowed" class="w-4 h-4" data-rls-field="BuildingFeatures"> Co-Buyers Allowed</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgCorpOwnAllowed" class="w-4 h-4" data-rls-field="BuildingFeatures"> Corp/LLC Purchase Allowed</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgGiftsAllowed" class="w-4 h-4" data-rls-field="BuildingFeatures"> Gifts Allowed for Down Payment</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgParentsAllowed" class="w-4 h-4"> Parents Buying Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgCoBuyersAllowed" class="w-4 h-4"> Co-Buyers Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgCorpOwnAllowed" class="w-4 h-4"> Corp/LLC Purchase Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgGiftsAllowed" class="w-4 h-4"> Gifts Allowed for Down Payment</label>
                         </div>
                     </div>
 
@@ -4115,7 +4124,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-users"></i> Board Process</div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgBoardApproval" class="w-4 h-4" data-rls-field="BuildingFeatures"> Board Approval Required</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgBoardApproval" class="w-4 h-4"> Board Approval Required</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgBoardInterview" class="w-4 h-4" data-rls-ignore="true"> Board Interview Required</label>
                         </div>
                     </div>
@@ -4232,12 +4241,13 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
             <div>
                 <label class="field-label mb-2">Format Presets</label>
                 <div class="flex flex-wrap gap-2">
-                    <button onclick="applyRentalPrintPreset('full')" class="rental-print-preset px-3 py-1.5 rounded-full text-xs font-semibold border border-[#B8860B] bg-[#B8860B] text-white" data-preset="full">Full CRM Report</button>
-                    <button onclick="applyRentalPrintPreset('client')" class="rental-print-preset px-3 py-1.5 rounded-full text-xs font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50" data-preset="client">Client Sheet</button>
+                    <button onclick="applyRentalPrintPreset('full')" class="rental-print-preset px-3 py-1.5 rounded-full text-xs font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50" data-preset="full">Full CRM Report</button>
+                    <button onclick="applyRentalPrintPreset('client')" class="rental-print-preset px-3 py-1.5 rounded-full text-xs font-semibold border border-[#B8860B] bg-[#B8860B] text-white" data-preset="client">Client Sheet</button>
                     <button onclick="applyRentalPrintPreset('fact')" class="rental-print-preset px-3 py-1.5 rounded-full text-xs font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50" data-preset="fact">Fact Sheet</button>
                     <button onclick="applyRentalPrintPreset('commission')" class="rental-print-preset px-3 py-1.5 rounded-full text-xs font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50" data-preset="commission">Commission Report</button>
                     <button onclick="applyRentalPrintPreset('custom')" class="rental-print-preset px-3 py-1.5 rounded-full text-xs font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50" data-preset="custom">Custom</button>
                 </div>
+                <p class="text-[11px] text-gray-500 mt-2" data-print-note="internal">The Full CRM Report and the Commission Report are for you: they carry the listing agent and the commission. Give a buyer or a renter the Client Sheet or the Fact Sheet; a Custom report carries neither.</p>
             </div>
             <div>
                 <div class="flex items-center justify-between mb-2">
@@ -4339,111 +4349,304 @@ var VIEWER_ROLE = VIEWER_VALID_ROLES.indexOf(VIEWER_ROLE_RAW) >= 0 ? VIEWER_ROLE
 var VIEWER_MODE = true; // Always viewer — this file has no form mode
 var _isLocal = (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
 
-// ── Try API fetch first, fall back to cached data ──
-if (VIEWER_MODE && typeof MallanAPI !== 'undefined') {
-    MallanAPI.onReady(function() {
-        // Override URL param with server-validated role (prevents ?role=broker bypass)
-        try {
-            var ctx = MallanAPI.getContext ? MallanAPI.getContext() : null;
-            if (ctx && ctx.authenticated) {
-                var serverRole = (ctx.portalRole || ctx.role || 'tenant').toLowerCase();
-                VIEWER_ROLE = VIEWER_VALID_ROLES.indexOf(serverRole) >= 0 ? serverRole : 'tenant';
-                if (typeof applyRentalRoleMasking === 'function') applyRentalRoleMasking();
-            }
-        } catch(e) { /* fail closed — keep tenant default */ }
-        MallanAPI.listings.get(VIEWER_LISTING_ID).then(function(apiData) {
-            VIEWER_LISTINGS[VIEWER_LISTING_ID] = {
-                listingId: apiData.listing_id || VIEWER_LISTING_ID,
-                status: apiData.status || 'Active',
-                address: ((apiData.address || {}).StreetNumber || '') + ' ' + ((apiData.address || {}).StreetName || ''),
-                unit: (apiData.address || {}).UnitNumber || '',
-                city: apiData.city || 'New York',
-                state: 'NY',
-                zipCode: apiData.postal_code || '',
-                borough: apiData.borough || 'Manhattan',
-                neighborhood: apiData.neighborhood || '',
-                propertyType: apiData.property_type || 'Residential',
-                monthlyRent: apiData.list_price,
-                sqft: apiData.living_area,
-                bedrooms: apiData.bedrooms_total,
-                fullBaths: apiData.bathrooms_full,
-                halfBaths: apiData.bathrooms_half,
-                description: (apiData.features || {}).PublicRemarks || '',
-                listingAgentName: apiData.list_agent_full_name || (apiData.agent_info || {}).ListAgentFullName || '',
-                listingCompany: apiData.list_office_name || (apiData.agent_info || {}).ListOfficeName || '',
-                photos: Array.isArray(apiData.media) ? apiData.media.map(function(m) { return m.url || ''; }) : [],
-                _raw: apiData,
-            };
-            if (typeof loadRentalListingData === 'function') loadRentalListingData(VIEWER_LISTING_ID);
-            console.log('[Viewer] Loaded rental listing from API:', VIEWER_LISTING_ID);
-        }).catch(function(err) {
-            console.warn('[Viewer] API fetch failed, using cached data:', err.message);
-        });
+// ── Listing store + loader ──
+// The viewer shows what the API returned for the requested id and nothing else: a value the record does not carry stays
+// empty (no default status, city, borough or state). Rendering waits for this request to settle (see the boot below).
+var VIEWER_LISTINGS = {};
+
+function viewerBuildListing(apiData, id) {
+    var addr = apiData.address || {};
+    return {
+        listingId: apiData.listing_id || id,
+        status: apiData.status || '',
+        address: MallanListingHydration.streetLine(apiData),
+        unit: addr.UnitNumber || '',
+        city: apiData.city || '',
+        zipCode: apiData.postal_code || '',
+        borough: apiData.borough || '',
+        neighborhood: apiData.neighborhood || '',
+        propertyType: apiData.property_type || '',
+        monthlyRent: apiData.list_price,
+        sqft: apiData.living_area,
+        bedrooms: apiData.bedrooms_total,
+        fullBaths: apiData.bathrooms_full,
+        halfBaths: apiData.bathrooms_half,
+        description: (apiData.features || {}).PublicRemarks || '',
+        listingAgentName: apiData.list_agent_full_name || (apiData.agent_info || {}).ListAgentFullName || '',
+        listingCompany: apiData.list_office_name || (apiData.agent_info || {}).ListOfficeName || '',
+        photos: [],                // the photos are the listing's media rows (see viewerLoadMedia): the record's own list is the legacy copy, and is not read
+        floorPlans: [],
+        mediaState: 'loading',
+        lastUpdated: viewerDateTimeText(apiData.updated_at),
+        createDate: viewerDateOnly(apiData.created_at),
+        lastUpdatedDate: viewerDateOnly(apiData.updated_at),
+        _raw: apiData,
+    };
+}
+
+function viewerFetchListing(id) {
+    if (typeof MallanAPI === 'undefined' || !MallanAPI.listings) {
+        return Promise.reject(new Error('The CRM data service is unavailable.'));
+    }
+    return MallanAPI.listings.get(id).then(function(apiData) {
+        if (!apiData || typeof apiData !== 'object' || Array.isArray(apiData) || (apiData.listing_id === undefined && apiData.id === undefined)) {
+            throw new Error('The CRM returned no data for this listing.');
+        }
+        VIEWER_LISTINGS[id] = viewerBuildListing(apiData, id);
+        return VIEWER_LISTINGS[id];
     });
 }
 
-// ── PostMessage listener — CRM opener can send listing ID after open ──
+// The role comes from the server-validated session, never from the URL (a ?role=broker hint cannot unmask anything), and
+// anything unknown falls back to the most restrictive role.
+function viewerApplyServerRole() {
+    VIEWER_ROLE = 'tenant';
+    try {
+        var ctx = MallanAPI.getContext ? MallanAPI.getContext() : null;
+        if (ctx && ctx.authenticated) {
+            var serverRole = String(ctx.portalRole || ctx.role || 'tenant').toLowerCase();
+            VIEWER_ROLE = VIEWER_VALID_ROLES.indexOf(serverRole) >= 0 ? serverRole : 'tenant';
+        }
+    } catch(e) { /* fail closed — keep the restrictive default */ }
+}
+
+// ── PostMessage listener — the CRM opener can send a different listing ID after open ──
+// A different listing is a different page state (selected cards, distribution badges, masked cards), so the viewer
+// reloads on the new id instead of re-hydrating the old page.
 window.addEventListener('message', function(event) {
     // Only accept messages from our own origin
     if (event.origin !== window.location.origin) return;
     if (!event.data || event.data.type !== 'loadListing') return;
     var id = event.data.listingId;
-    if (!id || VIEWER_LISTING_ID === id) return;
-    VIEWER_LISTING_ID = id;
-    if (typeof MallanAPI !== 'undefined' && MallanAPI.listings) {
-        MallanAPI.listings.get(id).then(function(apiData) {
-            VIEWER_LISTINGS[id] = {
-                listingId: apiData.listing_id || id,
-                status: apiData.status || 'Active',
-                address: ((apiData.address || {}).StreetNumber || '') + ' ' + ((apiData.address || {}).StreetName || ''),
-                unit: (apiData.address || {}).UnitNumber || '',
-                city: apiData.city || 'New York', state: 'NY',
-                zipCode: apiData.postal_code || '', borough: apiData.borough || 'Manhattan',
-                neighborhood: apiData.neighborhood || '', propertyType: apiData.property_type || 'Residential',
-                monthlyRent: apiData.list_price, sqft: apiData.living_area,
-                bedrooms: apiData.bedrooms_total, fullBaths: apiData.bathrooms_full, halfBaths: apiData.bathrooms_half,
-                description: (apiData.features || {}).PublicRemarks || '',
-                listingAgentName: apiData.list_agent_full_name || (apiData.agent_info || {}).ListAgentFullName || '',
-                listingCompany: apiData.list_office_name || (apiData.agent_info || {}).ListOfficeName || '',
-                photos: Array.isArray(apiData.media) ? apiData.media.map(function(m) { return m.url || ''; }) : [],
-                _raw: apiData,
-            };
-            if (typeof loadRentalListingData === 'function') loadRentalListingData(id);
-        }).catch(function(err) { console.warn('[Viewer] postMessage API fetch failed:', err.message); });
-    }
+    if (!id || String(VIEWER_LISTING_ID) === String(id)) return;
+    window.location.search = '?id=' + encodeURIComponent(String(id));
 });
 
-// ── Listing data store (populated from API) ──
-var VIEWER_LISTINGS = {};
-
-// ── Viewer Helpers ──
+// ── Viewer Helper: Set field value ──
 function viewerSetVal(id, val) {
     var el = document.getElementById(id);
     if (!el) return;
-    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.value = val || '';
+    // 0 is a value (a studio has 0 bedrooms); only null / undefined mean the record does not carry the field.
+    var s = (val === null || val === undefined) ? '' : String(val);
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.value = s;
     else if (el.tagName === 'SELECT') {
-        el.value = val || '';
-        if (!el.value && val) { var opt = document.createElement('option'); opt.value = val; opt.textContent = val; el.appendChild(opt); el.value = val; }
+        el.value = s;
+        if (s !== '' && el.value !== s) { var opt = document.createElement('option'); opt.value = s; opt.textContent = s; el.appendChild(opt); el.value = s; }
     }
-    else el.textContent = val || '';
+    else el.textContent = s;
 }
 function viewerSetRadio(name, val) {
-    document.querySelectorAll('input[name="' + name + '"]').forEach(function(r) { r.checked = (r.value === val); });
+    var s = (val === null || val === undefined) ? '' : String(val);
+    document.querySelectorAll('input[name="' + name + '"]').forEach(function(r) { r.checked = (s !== '' && r.value === s); });
 }
 function viewerSetCheck(id, val) {
     var el = document.getElementById(id);
-    if (el) el.checked = !!val;
+    if (!el) return;
+    // A flag the record does not carry is unknown, not "No".
+    if (val === null || val === undefined) { el.checked = false; el.indeterminate = true; return; }
+    el.indeterminate = false;
+    el.checked = !!val;
 }
 
-// ── Fail-closed blank view for invalid listing ──
+// ── Viewer Helper: stored timestamps ──
+function viewerDateOnly(v) { var m = /^(\d{4}-\d{2}-\d{2})/.exec(String(v || '')); return m ? m[1] : ''; }
+function viewerDateTimeText(v) { if (!v) return ''; var t = new Date(v); return isNaN(t.getTime()) ? '' : t.toLocaleString(); }
+
+// ── Viewer Helper: what a control currently says ──
+// A select with nothing selected says nothing: its textContent is every option label, which must never be read as its value.
+function viewerReadValue(el) {
+    if (!el) return '';
+    if (el.tagName === 'SELECT') return el.value || '';
+    return el.value || el.textContent || '';
+}
+
+// ── Viewer Helper: a read-only viewer has no controls that add, save or remove ──
+function viewerHideWriteControls() {
+    var writers = [
+        '[onclick*="addRentalCoListAgent"]', '[onclick*="removeRentalCoListAgent"]', '[onclick*="useRentalExclusiveAgentContact"]',
+        '[onclick*="addRentalOpenHouse"]', '[onclick*="saveRentalOpenHouse"]', '[onclick*="cancelRentalOpenHouse"]',
+        '[onclick*="addRentalFeeRow"]', '#rentalFeesTableBody button', '[onclick*="calculateRentalTHFinancials"]', '[onclick*="submitRentalCommissionRequest"]',
+        '[onclick*="printOpenHouseSignIn(\'rental\')"]'
+    ];
+    document.querySelectorAll(writers.join(', ')).forEach(function(b) { b.classList.add('viewer-hidden'); });
+}
+
+// ── Viewer Helper: the listing's scheduled open houses (its showings), as read-only cards ──
+// The Add forms save an open house as a showing of the listing; the viewer lists those and adds or removes none. The internal events (Broker Only) are for an agent or a broker only.
+function viewerShowOpenHouses(prefix, record) {
+    if (!window.MallanOpenHouses || !record) return;
+    MallanOpenHouses.create({ prefix: prefix, readOnly: true, showInternal: VIEWER_ROLE === 'agent' || VIEWER_ROLE === 'broker' }).load([record.listing_id, record.id]);
+}
+
+// ── Viewer Helper: the listing's photos and floor plans ──
+// The listing record carries only the legacy copy of its media list (an upload never writes it, and a delete leaves it): the photos are the listing's media rows, which the media route answers
+// (GET /api/crm/listings/<id>/media, for an agent or a broker; for a listing with no rows yet it answers a read-only preview of that legacy list itself). The viewer reads that answer and nothing
+// else. Until it has come the photos are loading, and when it could not be had they could not be loaded: that is what the Media window, the Preview, the print and the e-mails say, never "none".
+// A row is a photo or a floor plan as the server reads it (classifyMediaItem in lib/media/listing-media-resolver.ts): Trestle tags some floor plans as photos, so the address is read too.
+function viewerMediaClass(row) {
+    var category = String((row.media_category !== null && row.media_category !== undefined ? row.media_category : row.media_type) || '').toLowerCase();
+    var url = String(row.heroUrl || row.url || '').toLowerCase();
+    // (the server also tests for a /floorplans/ path; the test for "floor plan" in the address covers it)
+    if (category === 'floorplan' || category.indexOf('floor plan') >= 0 || category.indexOf('floor_plan') >= 0 ||
+        /floor[\s_-]?plans?/.test(url) || /\.pdf(\?|$)/.test(url) ||
+        /(?:^|[/_-])(?:site[\s_-]?plans?|diagrams?)(?:[/_.-]|$)/.test(url) || /\/media\/property\/document-(?:gif|jpeg|png|pdf)\//.test(url)) return 'floorplan';
+    if (category.indexOf('video') >= 0 || /\.(?:mp4|mov|webm)(\?|$)/.test(url)) return 'video';
+    // Cotality serializes the enum member name without spaces ('BrandedVirtualTour', 'UnbrandedVirtualTour'), as the server's classifyMediaItem now reads it
+    if (category.indexOf('virtualtour') >= 0 || category.indexOf('virtual tour') >= 0) return 'virtualTour';
+    if (category === 'photo' || category === 'image' || category === '') return 'photo';
+    return 'unknown';
+}
+function viewerWebUrls(list) {
+    return (Array.isArray(list) ? list : []).filter(function(u) { return typeof u === 'string' && (u.indexOf('https://') === 0 || u.indexOf('http://') === 0); });
+}
+// Where the listing's photos stand: 'loading' until the media route has answered, then 'loaded', or 'failed' when the answer could not be had
+function viewerMediaState() {
+    var listing = VIEWER_LISTING_ID ? VIEWER_LISTINGS[VIEWER_LISTING_ID] : null;
+    return listing ? listing.mediaState : 'failed';
+}
+function viewerPhotoCountText(prefix) {
+    var state = viewerMediaState();
+    if (state === 'loading') return 'Loading...';
+    if (state !== 'loaded') return 'Could not be loaded';
+    var count = getListingPhotoUrls(prefix).length;
+    return count === 1 ? '1 photo' : count + ' photos';
+}
+// What a report says where the photos would be when there are none to show: nothing is claimed about a list that is not in
+function getListingPhotoNote(emptyText) {
+    var state = viewerMediaState();
+    if (state === 'loaded') return emptyText;
+    return state === 'loading' ? 'Photos are still loading.' : 'Photos could not be loaded.';
+}
+function viewerShowMedia(prefix) {
+    var listing = VIEWER_LISTING_ID ? VIEWER_LISTINGS[VIEWER_LISTING_ID] : null;
+    if (!listing) return;
+    var state = listing.mediaState;
+    var photos = getListingPhotoUrls(prefix);                 // (both lists are empty unless the photos are loaded)
+    var plans = viewerWebUrls(listing.floorPlans);
+    var say = function(box, loaded, loading, failed) {
+        var line = document.createElement('p');
+        line.className = 'text-sm text-gray-500 italic col-span-full';
+        line.textContent = state === 'loaded' ? loaded : (state === 'loading' ? loading : failed);
+        box.appendChild(line);
+    };
+    var count = document.getElementById(prefix + 'PhotoCount');
+    if (count) count.textContent = viewerPhotoCountText(prefix);
+    var grid = document.getElementById(prefix + 'PhotoPreview');
+    if (grid) {
+        grid.textContent = '';
+        photos.forEach(function(url, i) {
+            var link = document.createElement('a');
+            link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+            var img = document.createElement('img');
+            img.src = url; img.alt = 'Photo ' + (i + 1); img.loading = 'lazy';
+            img.className = 'w-full h-24 object-cover rounded border';
+            link.appendChild(img);
+            grid.appendChild(link);
+        });
+        if (!photos.length) say(grid, 'No photos.', 'Loading photos...', 'Photos could not be loaded.');
+    }
+    var list = document.getElementById(prefix + 'FloorPlanList');
+    if (list) {
+        list.textContent = '';
+        plans.forEach(function(url, i) {
+            var link = document.createElement('a');
+            link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.className = 'text-blue-600 hover:underline block';
+            link.textContent = 'Floor plan ' + (i + 1);
+            list.appendChild(link);
+        });
+        if (!plans.length) say(list, 'No floor plans.', 'Loading floor plans...', 'Floor plans could not be loaded.');
+    }
+}
+function viewerLoadMedia(prefix, record, refresh) {
+    var listing = VIEWER_LISTING_ID ? VIEWER_LISTINGS[VIEWER_LISTING_ID] : null;
+    if (!listing) return Promise.resolve();
+    var settle = function(state, photos, plans) {
+        listing.mediaState = state; listing.photos = photos; listing.floorPlans = plans;
+        viewerShowMedia(prefix);
+        if (typeof refresh === 'function') refresh();
+    };
+    var key = record && (record.listing_id || record.id);
+    if (!key || typeof fetch !== 'function') { settle('failed', [], []); return Promise.resolve(); }
+    return fetch('/api/crm/listings/' + encodeURIComponent(String(key)) + '/media', { credentials: 'include' }).then(function(response) {
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        return response.json();
+    }).then(function(body) {
+        if (!body || !Array.isArray(body.media)) throw new Error('the answer holds no media list');
+        var rows = body.media.map(function(m, index) { return { m: m, index: index }; }).filter(function(entry) { return entry.m && typeof entry.m === 'object'; });
+        // the main photo first, then the route's own order; one address once
+        var addresses = function(kind) {
+            var seen = {};
+            return rows.filter(function(entry) { return viewerMediaClass(entry.m) === kind; })
+                .sort(function(a, b) { return (b.m.preferred_photo_yn ? 1 : 0) - (a.m.preferred_photo_yn ? 1 : 0) || a.index - b.index; })
+                .map(function(entry) { return entry.m.heroUrl || entry.m.url || ''; })
+                .filter(function(url) { if (seen[url]) return false; seen[url] = true; return true; });
+        };
+        return { photos: addresses('photo'), plans: addresses('floorplan') };
+    }).then(function(media) {
+        settle('loaded', media.photos, media.plans);
+    }, function(err) {
+        console.warn('[Viewer] The listing\'s media could not be read:', err && err.message);
+        settle('failed', [], []);
+    }).catch(function(err) {
+        console.warn('[Viewer] The Media window could not be drawn:', err && err.message);          // the Media window is an addition: the viewer renders without it
+    });
+}
+
+// ── Viewer Helper: entry-form defaults are not listing facts ──
+// A pre-checked radio, a pre-selected option, a pre-ticked box or prefilled text (a default status, a default city, default
+// distribution ticks) is a data-entry convenience. Clear them in the listing tabs and the building modal before hydrating, so a
+// field the listing does not carry shows blank / unknown instead of a default. Controls with neither an id nor a name are table
+// scaffolds that cannot be hydrated by key and are left alone.
+function viewerClearEntryDefaults() {
+    ['rentalMainTab1', 'rentalMainTab2', 'rentalMainTab3', 'rentalMainTab4', 'rentalBuildingModal'].forEach(function(zoneId) {
+        var zone = document.getElementById(zoneId);
+        if (!zone) return;
+        zone.querySelectorAll('input, select, textarea').forEach(function(el) {
+            if (!el.id && !el.name) return;
+            var t = (el.getAttribute('type') || '').toLowerCase();
+            if (el.tagName === 'SELECT') el.selectedIndex = -1;
+            else if (t === 'checkbox') { el.checked = false; el.indeterminate = (zoneId === 'rentalMainTab4' || !!el.id); }
+            else if (t === 'radio') el.checked = false;
+            else if (t === 'hidden' || t === 'button' || t === 'submit' || t === 'reset' || t === 'file' || t === 'image') return;
+            else el.value = '';
+        });
+    });
+    ['rentalInternetEntireListingDisplayYN', 'rentalInternetAddressDisplayYN', 'rentalIDXEntireListingDisplayYN'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) { el.checked = false; el.indeterminate = true; }
+    });
+}
+
+// ── Fail-closed blank view for a listing that cannot be shown ──
+// The id comes from the URL, so it is written as text and never parsed as markup.
 function showRentalFailClosed(listingId) {
-    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f9fafb;font-family:Manrope,sans-serif;">' +
-        '<div style="text-align:center;max-width:400px;padding:40px;">' +
-        '<i class="fas fa-eye-slash" style="font-size:48px;color:#d1d5db;margin-bottom:16px;display:block;"></i>' +
-        '<h2 style="font-size:18px;font-weight:700;color:#374151;margin-bottom:8px;">Listing Not Available</h2>' +
-        '<p style="font-size:14px;color:#6b7280;margin-bottom:20px;">The listing <strong>' + (listingId || '(none)') + '</strong> could not be found or is not available for display.</p>' +
-        '<button onclick="window.close();if(!window.closed)history.back();" style="padding:8px 24px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Back to CRM</button>' +
-        '</div></div>';
+    document.body.classList.remove('skeleton-loading');
+    document.body.textContent = '';
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f9fafb;font-family:Manrope,sans-serif;';
+    var box = document.createElement('div');
+    box.style.cssText = 'text-align:center;max-width:400px;padding:40px;';
+    var icon = document.createElement('i');
+    icon.className = 'fas fa-eye-slash';
+    icon.style.cssText = 'font-size:48px;color:#d1d5db;margin-bottom:16px;display:block;';
+    var title = document.createElement('h2');
+    title.style.cssText = 'font-size:18px;font-weight:700;color:#374151;margin-bottom:8px;';
+    title.textContent = 'Listing Not Available';
+    var note = document.createElement('p');
+    note.style.cssText = 'font-size:14px;color:#6b7280;margin-bottom:20px;';
+    var strong = document.createElement('strong');
+    strong.textContent = listingId || '(none)';
+    note.appendChild(document.createTextNode('The listing '));
+    note.appendChild(strong);
+    note.appendChild(document.createTextNode(' could not be loaded. It may not exist, you may not have access to it, or the connection may have failed.'));
+    var back = document.createElement('button');
+    back.type = 'button';
+    back.style.cssText = 'padding:8px 24px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;';
+    back.textContent = 'Back to CRM';
+    back.addEventListener('click', function() { window.close(); if (!window.closed) history.back(); });
+    box.appendChild(icon); box.appendChild(title); box.appendChild(note); box.appendChild(back);
+    wrap.appendChild(box);
+    document.body.appendChild(wrap);
 }
 
 // ── Load rental listing data ──
@@ -4452,153 +4655,38 @@ function loadRentalListingData(listingId) {
     // Fix #4/#9: Fail closed — invalid ID → blank blocked view, not partial render
     if (!d) { showRentalFailClosed(listingId); return null; }
 
+    // Entry-form defaults are not listing facts: clear them, then set only what the record carries.
+    viewerClearEntryDefaults();
+    MallanListingHydration.hydrate('rental', d._raw);
+
+    // Status and tiles: the stored status verbatim (never derived or defaulted); days on market from the typed columns, else the record's own key.
+    var rawData = (d._raw && d._raw.raw_data) || {};
+    // The Deal Fees table starts with pre-selected rows (an entry convenience); a record that stores no fees has none, and the viewer does not show the form's as its own.
+    if (!Array.isArray(rawData.rentalDealFees) || !rawData.rentalDealFees.length) {
+        var feeRows = document.getElementById('rentalFeesTableBody');
+        if (feeRows) feeRows.textContent = '';
+    }
+    var firstKnown = function(a, b) { return (a !== null && a !== undefined && a !== '') ? a : b; };
+    var domValue = firstKnown(d._raw && d._raw.days_on_market, rawData.DaysOnMarket);
     viewerSetVal('rentalStatus', d.status);
-    viewerSetRadio('rentalListingType', d.listingType);
+    viewerSetVal('rentalResoMlsStatus', d.status ? d.status : '--');
+    viewerSetVal('rentalDaysOnMarket', (domValue === null || domValue === undefined) ? '--' : domValue);
+    var cdomValue = firstKnown(d._raw && d._raw.cumulative_days_on_market, rawData.CumulativeDaysOnMarket);
+    viewerSetVal('rentalCumulativeDaysOnMarket', (cdomValue === null || cdomValue === undefined) ? '--' : cdomValue);
+    viewerSetVal('rentalStatusChangeTimestamp', viewerDateTimeText(d._raw && d._raw.status_changed_at) || '--');
 
-    viewerSetVal('rentalAddress', d.address);
-    viewerSetVal('rentalUnit', d.unit);
-    viewerSetVal('rentalCity', d.city);
-    viewerSetVal('rentalState', d.state);
-    viewerSetVal('rentalZipCode', d.zipCode);
-    viewerSetVal('rentalBorough', d.borough);
-    viewerSetVal('rentalNeighborhood', d.neighborhood);
-    viewerSetVal('rentalCrossStreet', d.crossStreet);
-
-    viewerSetRadio('rentalPropertyType', d.propertyType);
-
-    viewerSetVal('rentalMonthlyRent', d.monthlyRent);
-    viewerSetVal('rentalSecurityDeposit', d.securityDeposit);
-    viewerSetVal('rentalLeaseTerm', d.leaseTerm);
-    viewerSetVal('rentalAvailableDate', d.availableDate);
-    viewerSetVal('rentalSqFt', d.sqft);
-
-    viewerSetVal('rentalBedrooms', d.bedrooms);
-    viewerSetVal('rentalBathrooms', d.bathrooms);
-    viewerSetVal('rentalBathroomsFull', d.bathroomsFull);
-    viewerSetVal('rentalBathroomsTotal', d.bathroomsTotal);
-    viewerSetVal('rentalBedroomsTotal', d.bedroomsTotal);
-    viewerSetVal('rentalRoomsTotal', d.roomsTotal);
-
-    // Property Sub-Type
-    viewerSetVal('rentalPropertySubType', d.propertySubType);
-
-    viewerSetVal('rentalYearBuilt', d.yearBuilt);
-    viewerSetVal('rentalTotalUnits', d.totalUnits);
-    viewerSetVal('rentalStories', d.stories);
-    viewerSetVal('rentalFloor', d.floor);
     // Trestle 6.17: BuildingKeyNumeric (system-assigned building grouping ID)
-    var bldgKey = d.buildingKey || d.BuildingKeyNumeric || (d._raw && d._raw.raw_data && d._raw.raw_data.BuildingKeyNumeric) || null;
-    if (bldgKey) { setText('rentalPreviewBldgKey', bldgKey); }
-    viewerSetVal('rentalElevatorsTotal', d.elevatorsTotal);
-    viewerSetCheck('rentalGarageYN', d.garageYN);
-    viewerSetCheck('rentalNewConstructionYN', d.newConstructionYN);
-    viewerSetCheck('rentalNewDevelopmentYN', d.newDevelopmentYN);
-    viewerSetVal('rentalLaundryFeatures', d.laundryFeatures);
+    var bldgKey = d.buildingKey || d.BuildingKeyNumeric || rawData.BuildingKeyNumeric || null;
+    if (bldgKey) { viewerSetVal('rentalPreviewBldgKey', bldgKey); }
 
-    // RLS: CommonInterest
-    viewerSetVal('rentalCommonInterest', d.CommonInterest);
-
-    // RLS: AttendanceType (multi-value)
-    var atGroup = document.getElementById('rentalAttendanceTypeGroup');
-    if (atGroup && d.AttendanceType) {
-        d.AttendanceType.forEach(function(v) {
-            var cb = atGroup.querySelector('input[value="' + v + '"]');
-            if (cb) cb.checked = true;
-        });
-    }
-
-    // RLS: PetsAllowed (unit-level)
-    var paGroup = document.getElementById('rentalPetsAllowedGroup');
-    if (paGroup && d.PetsAllowed) {
-        d.PetsAllowed.forEach(function(v) {
-            var cb = paGroup.querySelector('input[value="' + v + '"]');
-            if (cb) cb.checked = true;
-        });
-    }
-
-    // RLS: BuildingPetsAllowed
-    var bpaGroup = document.getElementById('rentalBuildingPetsAllowedGroup');
-    if (bpaGroup && d.BuildingPetsAllowed) {
-        d.BuildingPetsAllowed.forEach(function(v) {
-            var cb = bpaGroup.querySelector('input[value="' + v + '"]');
-            if (cb) cb.checked = true;
-        });
-    }
-
-    viewerSetVal('rentalDescription', d.description);
-
+    // Listing agent: the name from the typed-first object; the contact panel is hydrated from the record above.
     viewerSetVal('rentalListingAgentSearch', d.listingAgentName);
-    viewerSetVal('rentalListingAgentId', d.listingAgentId);
-    viewerSetVal('rentalListingAgentPhone', d.listingAgentPhone);
-    viewerSetVal('rentalListingAgentEmail', d.listingAgentEmail);
-    viewerSetVal('rentalListingAgentLicense', d.listingAgentLicense);
-    var agentInfoEl = document.getElementById('rentalListingAgentInfo');
-    if (agentInfoEl) agentInfoEl.style.display = '';
 
-    // Agreement & Compliance
-    viewerSetVal('rentalCoBrokeAgreement', d.coBrokeAgreement);
-    viewerSetVal('rentalListingAgreement', d.listingAgreement);
-
+    // Stored timestamps
     viewerSetVal('rentalCreateDate', d.createDate);
-    viewerSetVal('rentalLastUpdatedDate', d.lastUpdated);
-    viewerSetVal('rentalOnMarketDate', d.onMarketDate);
-    viewerSetVal('rentalExpirationDate', d.expirationDate);
+    viewerSetVal('rentalLastUpdatedDate', d.lastUpdatedDate);
 
-    // Address components
-    viewerSetVal('rentalStreetNumber', d.streetNumber);
-    viewerSetVal('rentalStreetName', d.streetName);
-    viewerSetVal('rentalCountyOrParish', d.countyOrParish);
-    viewerSetVal('rentalPostalCity', d.postalCity);
-    viewerSetVal('rentalCityRegion', d.cityRegion);
-
-    // Display permissions
-    viewerSetCheck('rentalInternetEntireListingDisplayYN', d.internetEntireListingDisplayYN);
-    viewerSetCheck('rentalInternetAddressDisplayYN', d.internetAddressDisplayYN);
-
-    // Agent MLS ID
-    viewerSetVal('rentalListAgentMlsId', d.listAgentMlsId);
-
-    viewerSetCheck('rentalVOWOptOutYN', d.vowOptOut);
-    viewerSetCheck('rentalSyndicateYN', d.syndicateYN);
-    viewerSetCheck('rentalIDXEntireListingDisplayYN', d.idxDisplay);
-    viewerSetCheck('rentalDist_IDX', d.distIDX);
-    viewerSetCheck('rentalDist_VOW', d.internetDisplayYN !== false);
-    viewerSetCheck('rentalDist_Listhub', d.distListhub);
-    viewerSetCheck('rentalDist_NYMLS', d.distNYMLS);
-    viewerSetCheck('rentalDist_Realtor', d.distRealtor);
-    viewerSetCheck('rentalDist_RPX', d.distRPX);
-    viewerSetCheck('rentalDist_WWW', d.distWWW);
-    viewerSetCheck('rentalDist_RLS', d.distRLS);
-
-    viewerSetVal('rentalShowingInstructions', d.showingInstructions);
-    viewerSetVal('rentalBrokerRemarks', d.brokerRemarks);
-
-    // FARE Act (NYC LL 119/2024) fee disclosure fields
-    viewerSetVal('rentalMoveInCosts', d.MoveInCosts);
-    // Legacy fallback (pre-2026-06-04 listings stored the amount under MoveInCostsAmountTotal)
-    // Read-time legacy fallback (canonical wins): MoveInCostsAmount → AdditionalFee
-    // → MoveInCostsAmountTotal; MoveInCostsComments → AdditionalFeeDescription.
-    // Explicit blank check (null/undefined/'') — NOT truthiness — so a canonical 0
-    // wins over a stale legacy AdditionalFee/MoveInCostsAmountTotal (Codex #346).
-    var _miBlankV = function (v) { return v === null || v === undefined || v === ''; };
-    viewerSetVal('rentalMoveInCostsAmount',
-      !_miBlankV(d.MoveInCostsAmount) ? d.MoveInCostsAmount
-      : !_miBlankV(d.AdditionalFee) ? d.AdditionalFee
-      : !_miBlankV(d.MoveInCostsAmountTotal) ? d.MoveInCostsAmountTotal
-      : undefined);
-    viewerSetVal('rentalMoveInCostsComments',
-      !_miBlankV(d.MoveInCostsComments) ? d.MoveInCostsComments
-      : !_miBlankV(d.AdditionalFeeDescription) ? d.AdditionalFeeDescription
-      : undefined);
-    viewerSetVal('rentalOngoingFees', d.OngoingFees);
-    viewerSetVal('rentalFeeFrequency', d.FeeFrequency);
-    viewerSetVal('rentalTenantPays', d.TenantPays);
-    viewerSetVal('rentalTenantPaysDescription', d.TenantPaysDescription);
-    viewerSetVal('rentalAdditionalFeeYN', d.AdditionalFeeYN);
-    viewerSetVal('rentalAdditionalFee', d.AdditionalFee);
-    viewerSetVal('rentalAdditionalFeeDescription', d.AdditionalFeeDescription);
-    viewerSetVal('rentalAdditionalFeeFrequency', d.AdditionalFeeFrequency);
-
+    // Header display bar
     viewerSetVal('rentalAddressDisplay', d.address + (d.unit ? ' #' + d.unit : ''));
     viewerSetVal('rentalUnitDisplay', d.unit || '--');
     viewerSetVal('rentalListingIdDisplay', d.listingId);
@@ -4618,12 +4706,12 @@ function loadRentalListingData(listingId) {
 // ── Convert form to viewer ──
 function convertRentalFormToViewer() {
     var skipSelectors = ['#rentalPrintModal', '#rentalEmailModal', '#rentalBuildingModal', '#rentalMediaModal', '#rentalFinancialCalcModal'];
+    // The skip zones are resolved once, not once per control.
+    var skipZones = skipSelectors.map(function(sel) { return document.querySelector(sel); }).filter(Boolean);
     function isInsideSkipZone(el) {
-        for (var i = 0; i < skipSelectors.length; i++) {
-            var zone = document.querySelector(skipSelectors[i]);
-            if (zone && zone.contains(el)) return true;
+        for (var i = 0; i < skipZones.length; i++) {
+            if (skipZones[i].contains(el)) return true;
         }
-        if (el.id === 'rentalCommuteAddress') return true;
         return false;
     }
 
@@ -4683,7 +4771,12 @@ function updateRentalHeaderForViewer(listingData) {
         };
         var sc = statusColors[listingData.status] || 'bg-gray-100 text-gray-600 border-gray-300';
         draftBadge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ' + sc;
-        draftBadge.innerHTML = '<i class="fas fa-circle" style="font-size:6px;"></i> ' + (listingData.status || 'Unknown').replace(/([A-Z])/g, ' $1').trim();
+        draftBadge.textContent = '';
+        var statusDot = document.createElement('i');
+        statusDot.className = 'fas fa-circle';
+        statusDot.style.fontSize = '6px';
+        draftBadge.appendChild(statusDot);
+        draftBadge.appendChild(document.createTextNode(' ' + String(listingData.status || 'Unknown').split(/(?=[A-Z])/).join(' ').trim()));
     }
 
     // Sticky bar buttons already set to viewer tools in HTML
@@ -4717,10 +4810,17 @@ function convertRentalDistributionToDisplay() {
         var label = cb.closest('label');
         if (!label) return;
         var text = label.textContent.trim();
-        var isChecked = cb.checked;
+        // Three states: a flag the record sets, a flag the record clears, and a flag the record does not carry (unknown).
+        var state = cb.indeterminate ? 'unknown' : (cb.checked ? 'yes' : 'no');
         var badge = document.createElement('span');
-        badge.className = isChecked ? 'dist-gate-yes' : 'dist-gate-no';
-        badge.innerHTML = '<i class="fas ' + (isChecked ? 'fa-check-circle' : 'fa-times-circle') + '" style="font-size:11px;"></i> ' + text;
+        badge.className = state === 'yes' ? 'dist-gate-yes' : (state === 'no' ? 'dist-gate-no' : 'dist-gate-unknown');
+        badge.setAttribute('data-for', cb.id || cb.name || '');
+        badge.setAttribute('data-state', state);
+        var icon = document.createElement('i');
+        icon.className = 'fas ' + (state === 'yes' ? 'fa-check-circle' : (state === 'no' ? 'fa-times-circle' : 'fa-question-circle'));
+        icon.style.fontSize = '11px';
+        badge.appendChild(icon);
+        badge.appendChild(document.createTextNode(' ' + text));
         label.parentNode.replaceChild(badge, label);
     });
 }
@@ -4853,8 +4953,32 @@ function toggleFormSection(el) {
 // ══════════════════════════════════════════════════════
 var buildingDatabase = [];  // Loaded from API
 
-function searchBuildingForListing(query, prefix) {
-    const results = document.getElementById(prefix + 'BuildingSearchResults');
+// One row of a building-search list, written with DOM calls: a building's name, address and neighborhood come from the database and from what agents typed, and are never markup.
+function buildingSearchRow(b, hover, onPick) {
+    var row = document.createElement('div');
+    row.className = 'p-3 hover:' + hover + ' cursor-pointer border-b last:border-0 transition';
+    row.addEventListener('click', onPick);
+    var line = document.createElement('div');
+    line.className = 'flex justify-between items-center';
+    var left = document.createElement('div');
+    var address = document.createElement('p');
+    address.className = 'font-semibold text-sm text-gray-800';
+    address.textContent = b.address;
+    var detail = document.createElement('p');
+    detail.className = 'text-xs text-gray-500';
+    detail.textContent = b.name + ' | ' + b.neighborhood + ', ' + b.borough;
+    left.appendChild(address);
+    left.appendChild(detail);
+    var badge = document.createElement('span');
+    badge.className = 'px-2 py-0.5 text-[10px] font-bold rounded-full ' + (b.model === 'Coop' ? 'bg-purple-100 text-purple-700' : b.model === 'Condo' ? 'bg-blue-100 text-blue-700' : b.model === 'Condop' ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-700');
+    badge.textContent = b.model;
+    line.appendChild(left);
+    line.appendChild(badge);
+    row.appendChild(line);
+    return row;
+}
+
+function searchBuildingForListing(query, prefix) {    const results = document.getElementById(prefix + 'BuildingSearchResults');
     if (!results) return;
     if (query.length < 3) { results.classList.add('hidden'); return; }
     const matches = buildingDatabase.filter(b =>
@@ -4866,23 +4990,8 @@ function searchBuildingForListing(query, prefix) {
         results.classList.remove('hidden');
         return;
     }
-    results.innerHTML = matches.map(b => `
-        <div class="p-3 hover:bg-blue-50 cursor-pointer border-b last:border-0 transition"
-             onclick="selectBuildingFromIDX('${prefix}', '${b.address}')">
-            <div class="flex justify-between items-center">
-                <div>
-                    <p class="font-semibold text-sm text-gray-800">${b.address}</p>
-                    <p class="text-xs text-gray-500">${b.name} | ${b.neighborhood}, ${b.borough}</p>
-                </div>
-                <span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${
-                    b.model === 'Coop' ? 'bg-purple-100 text-purple-700' :
-                    b.model === 'Condo' ? 'bg-blue-100 text-blue-700' :
-                    b.model === 'Condop' ? 'bg-indigo-100 text-indigo-700' :
-                    'bg-amber-100 text-amber-700'
-                }">${b.model}</span>
-            </div>
-        </div>
-    `).join('');
+    results.textContent = '';
+    matches.forEach(function(b) { results.appendChild(buildingSearchRow(b, 'bg-blue-50', function() { selectBuildingFromIDX(prefix, b.address); })); });
     results.classList.remove('hidden');
 }
 
@@ -4947,23 +5056,8 @@ function searchBuildingModal(query) {
         results.classList.remove('hidden');
         return;
     }
-    results.innerHTML = matches.map(b => `
-        <div class="p-3 hover:bg-amber-50 cursor-pointer border-b last:border-0 transition"
-             onclick="selectBuildingForModal('${b.address}')">
-            <div class="flex justify-between items-center">
-                <div>
-                    <p class="font-semibold text-sm text-gray-800">${b.address}</p>
-                    <p class="text-xs text-gray-500">${b.name} | ${b.neighborhood}, ${b.borough}</p>
-                </div>
-                <span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${
-                    b.model === 'Coop' ? 'bg-purple-100 text-purple-700' :
-                    b.model === 'Condo' ? 'bg-blue-100 text-blue-700' :
-                    b.model === 'Condop' ? 'bg-indigo-100 text-indigo-700' :
-                    'bg-amber-100 text-amber-700'
-                }">${b.model}</span>
-            </div>
-        </div>
-    `).join('');
+    results.textContent = '';
+    matches.forEach(function(b) { results.appendChild(buildingSearchRow(b, 'bg-amber-50', function() { selectBuildingForModal(b.address); })); });
     results.classList.remove('hidden');
 }
 
@@ -5402,7 +5496,7 @@ const CRM_TO_RESO_RENTAL_STATUS = {
 };
 
 function getResoRentalMlsStatus(crmStatus) {
-    return CRM_TO_RESO_RENTAL_STATUS[crmStatus] || 'Active';
+    return CRM_TO_RESO_RENTAL_STATUS[crmStatus] || '--';
 }
 
 function validateStatusChange(prefix) {
@@ -5429,56 +5523,28 @@ function initLoggedInAgent() {
         if (headerCompany && u.companyName) headerCompany.textContent = u.companyName;
     }
 
+    // Handle 401 events from API calls
+    window.addEventListener('mallan:auth:unauthorized', function() {
+        window.location.href = '/crm/login.html';
+    });
+
     if (typeof MallanAPI !== 'undefined') {
-        MallanAPI.init().then(function(data) {
+        // Resolves with the /api/auth/me result so the boot waits for the server-validated identity and role.
+        return MallanAPI.init().then(function(data) {
             if (data.authenticated && data.user) {
                 populate(data.user);
                 var agentDisplay = document.getElementById('rentalUpdatingAgentDisplay');
                 if (agentDisplay && data.user.id && data.user.name) {
                     agentDisplay.value = data.user.id + ' | ' + data.user.name;
                 }
-            } else {
-                // Not authenticated — redirect to login
-                window.location.href = '/crm/login.html;
-                return;
+                return data;
             }
+            // Not authenticated — redirect to login
+            window.location.href = '/crm/login.html';
+            return null;
         });
     }
-    // Handle 401 events from API calls
-    window.addEventListener('mallan:auth:unauthorized', function() {
-        window.location.href = '/crm/login.html;
-    });
-
-    // Pre-select the agent's company in the Listing Agent dropdown (Tab 1.3)
-    var listingCompanyHidden = document.getElementById('rentalListingCompany');
-    var listingCompanySearch = document.getElementById('rentalListingCompanySearch');
-    if (listingCompanyHidden && companyKey) listingCompanyHidden.value = companyKey;
-    if (listingCompanySearch && companyName) listingCompanySearch.value = companyName;
-
-    // Enable agent search for that company
-    var listingAgentSearch = document.getElementById('rentalListingAgentSearch');
-    if (listingAgentSearch) {
-        listingAgentSearch.disabled = false;
-        listingAgentSearch.placeholder = 'Search agent...';
-    }
-
-    // If agent data in rebnyAgents, auto-select the agent
-    if (companyKey && rebnyAgents[companyKey]) {
-        var match = rebnyAgents[companyKey].find(function(a) { return a.id === agentId; });
-        if (match) {
-            var agentHidden = document.getElementById('rentalListingAgent');
-            if (agentHidden) agentHidden.value = agentId;
-            if (listingAgentSearch) listingAgentSearch.value = match.name;
-            // Show agent info card
-            var el = function(id) { return document.getElementById(id); };
-            if (el('rentalListingAgentId')) el('rentalListingAgentId').textContent = match.id;
-            if (el('rentalListingAgentPhone')) el('rentalListingAgentPhone').textContent = match.phone;
-            if (el('rentalListingAgentEmail')) el('rentalListingAgentEmail').textContent = match.email;
-            if (el('rentalListingAgentLicense')) el('rentalListingAgentLicense').textContent = match.license;
-            var infoCard = el('rentalListingAgentInfo');
-            if (infoCard) infoCard.style.display = 'block';
-        }
-    }
+    return null;
 }
 
 // ══════════════════════════════════════════════════════
@@ -5884,7 +5950,10 @@ function showToast(message, type) {
         toast.style.background = '#d97706';
     }
     var icon = type === 'error' ? 'fa-exclamation-circle' : type === 'warning' ? 'fa-exclamation-triangle' : 'fa-check-circle';
-    toast.innerHTML = '<i class="fas ' + icon + ' mr-2"></i> ' + message;
+    var iconEl = document.createElement('i');
+    iconEl.className = 'fas ' + icon + ' mr-2';
+    toast.appendChild(iconEl);
+    toast.appendChild(document.createTextNode(' ' + message));
     document.body.appendChild(toast);
     setTimeout(function() { toast.remove(); }, 3000);
 }
@@ -5894,20 +5963,22 @@ window.alert = function(msg) { showToast(String(msg)); };
 // AGENT INFO SHEET — Print / Email professional agent card
 // ═══════════════════════════════════════════════════════════
 function generateAgentInfoSheet() {
-    var gv = function(id) { var el = document.getElementById(id); return el ? (el.value || el.textContent || '').trim() : ''; };
-    var agentName = gv('rentalUpdatingAgentName') || gv('rentalListingAgentId') || '--';
-    var agentPhone = gv('rentalUpdatingAgentPhone') || gv('rentalListingAgentPhone') || '--';
-    var agentEmail = gv('rentalUpdatingAgentEmail') || gv('rentalListingAgentEmail') || '--';
-    var agentLicense = gv('rentalUpdatingAgentLicense') || gv('rentalListingAgentLicense') || '--';
+    var gv = function(id) { var el = document.getElementById(id); return el ? viewerReadValue(el).trim() : ''; };
+    // The sheet is handed to a client: it is the signed-in agent's, from their session. When the session does not carry a value the sheet says "--"; it never falls back to the
+    // listing agent's (name, office phone, e-mail), who a buyer or a renter is not given.
+    var agentName = gv('rentalUpdatingAgentName') || '--';
+    var agentPhone = gv('rentalUpdatingAgentPhone') || '--';
+    var agentEmail = gv('rentalUpdatingAgentEmail') || '--';
+    var agentLicense = gv('rentalUpdatingAgentLicense') || '--';
     var address = gv('rentalStreetAddress') || '--';
     var unit = gv('rentalUnitNumber');
     var borough = (document.getElementById('rentalBorough') || {}).selectedOptions ? ((document.getElementById('rentalBorough').selectedOptions[0] || {}).text || '') : '';
     var zip = gv('rentalZipCode');
     var rent = gv('rentalMonthlyRent');
     var beds = gv('rentalBedrooms');
-    var baths = gv('rentalBathroomsTotal');
+    var baths = gv('rentalFullBathrooms');
     var fullAddr = address + (unit ? ', Unit ' + unit : '') + (borough ? ', ' + borough : '') + (zip ? ' ' + zip : '');
-    var priceStr = rent ? '$' + Number(rent).toLocaleString() + '/mo' : '--';
+    var priceStr = rentalMoney(rent, '/mo') || '--';
     var details = [];
     if (beds && beds !== '0') details.push(beds + ' BD');
     if (baths && baths !== '0') details.push(baths + ' BA');
@@ -5950,25 +6021,24 @@ function generateAgentInfoSheet() {
         '<div class="sheet">' +
         '<div class="header"><div class="logo-block"><h1>MALLAN</h1><p>REAL ESTATE</p></div></div>' +
         '<div class="agent-card">' +
-        '<h2>' + agentName + '</h2>' +
-        '<div class="title">Licensed Real Estate Agent</div>' +
+        '<h2>' + esc(agentName) + '</h2>' +
         '<div class="agent-detail">' +
-        '<div><div class="label">Phone</div><div class="value">' + agentPhone + '</div></div>' +
-        '<div><div class="label">Email</div><div class="value">' + agentEmail + '</div></div>' +
-        '<div><div class="label">License #</div><div class="value">' + agentLicense + '</div></div>' +
+        '<div><div class="label">Phone</div><div class="value">' + esc(agentPhone) + '</div></div>' +
+        '<div><div class="label">Email</div><div class="value">' + esc(agentEmail) + '</div></div>' +
+        '<div><div class="label">License #</div><div class="value">' + esc(agentLicense) + '</div></div>' +
         '</div></div>' +
         '<div class="brokerage"><h3>Mallan Real Estate Inc.</h3>' +
         '<p>NY DOS License #10991205323</p>' +
         '<p>400 East 90th Street, Suite 17C, New York, NY 10128</p>' +
         '<p>646-258-4460 | info@mallan.nyc</p></div>' +
         '<div class="listing-ref"><h3>Current Listing</h3>' +
-        '<p style="font-weight:600;">' + fullAddr + '</p>' +
+        '<p style="font-weight:600;">' + esc(fullAddr) + '</p>' +
         '<p class="price">' + priceStr + '</p>' +
-        (detailStr ? '<p>' + detailStr + '</p>' : '') +
+        (detailStr ? '<p>' + esc(detailStr) + '</p>' : '') +
         '</div>' +
         '<div class="compliance">' +
         '<p>Listing data provided by the REBNY Listing Service. Information is deemed reliable but not guaranteed. ' +
-        'Data last updated ' + now + '. All information should be independently verified.</p>' +
+        'Printed ' + now + '. All information should be independently verified.</p>' +
         '<p>&copy; ' + new Date().getFullYear() + ' The Real Estate Board of New York, Inc. All rights reserved.</p>' +
         '<div class="fair-housing">Equal Housing Opportunity. We are pledged to the letter and spirit of U.S. policy for the achievement of equal housing opportunity. ' +
         'Commission rates are not set by law and are fully negotiable.</div>' +
@@ -5979,8 +6049,8 @@ function generateAgentInfoSheet() {
         '</div>' +
         '</div>' +
         '<script>function emailAgentSheet(){var s="Agent Info Sheet - "+document.querySelector(".agent-card h2").textContent;' +
-        'var b="Please find the attached agent info sheet for "+s+".";' +
-        'window.location.href="mailto:?subject="+encodeURIComponent(s)+"&body="+encodeURIComponent(b);}</script>' +
+        'var b=[".agent-card",".brokerage",".listing-ref"].map(function(q){var e=document.querySelector(q);return e?e.innerText:"";}).join("\\n\\n");' +
+        'window.location.href="mailto:?subject="+encodeURIComponent(s)+"&body="+encodeURIComponent(b);}<\/script>' +
         '</body></html>';
 
     var win = window.open('', '_blank');
@@ -6118,14 +6188,14 @@ function checkDescriptionCompliance(textareaId, flagsDivId) {
     if (fhViolations.length > 0) {
         html += `<div class="bg-red-50 border border-red-300 rounded-lg p-3 mb-2">
             <p class="text-sm font-bold text-red-700 mb-2"><i class="fas fa-gavel mr-1"></i> Fair Housing Violation — BLOCKED</p>
-            ${fhViolations.map(v => `<p class="text-xs text-red-600 mb-1"><i class="fas fa-times-circle mr-1"></i> <strong>${v.category}:</strong> "${v.words.join('", "')}"</p>`).join('')}
+            ${fhViolations.map(v => `<p class="text-xs text-red-600 mb-1"><i class="fas fa-times-circle mr-1"></i> <strong>${esc(v.category)}:</strong> "${v.words.map(esc).join('", "')}"</p>`).join('')}
             <p class="text-[10px] text-red-500 mt-2 leading-tight">Fair Housing Act (42 U.S.C. 3604(c)), NY Executive Law Art. 15 Sec. 296, NYC Admin Code Title 8 Sec. 8-107. Penalty: $250 first offense, $500 + RLS termination second offense (UCBA Exhibit C).</p>
         </div>`;
     }
     if (rebnyViolations.length > 0) {
         html += `<div class="bg-orange-50 border border-orange-300 rounded-lg p-3">
             <p class="text-sm font-bold text-orange-700 mb-2"><i class="fas fa-exclamation-triangle mr-1"></i> REBNY RLS / UCBA 2026 Violation</p>
-            ${rebnyViolations.map(v => `<p class="text-xs text-orange-700 mb-1"><i class="fas fa-ban mr-1"></i> <strong>${v.category}:</strong> "${v.words.join('", "')}"</p>`).join('')}
+            ${rebnyViolations.map(v => `<p class="text-xs text-orange-700 mb-1"><i class="fas fa-ban mr-1"></i> <strong>${esc(v.category)}:</strong> "${v.words.map(esc).join('", "')}"</p>`).join('')}
             <p class="text-[10px] text-orange-600 mt-2 leading-tight">UCBA violations: $500 first, $2,000 second, $10,000 third, suspension fourth (UCBA Art. IX). Incurable violations: $250 first, $500 subsequent.</p>
         </div>`;
     }
@@ -6196,21 +6266,11 @@ function addRentalOpenHouse() {
 // PHOTO URL HELPER — collects photo URLs from listing data store
 // ══════════════════════════════════════════════════════
 function getListingPhotoUrls(type) {
-    var listings = (typeof VIEWER_LISTINGS !== 'undefined') ? VIEWER_LISTINGS : {};
-    var id = (typeof VIEWER_LISTING_ID !== 'undefined') ? VIEWER_LISTING_ID : '';
-    var d = id ? listings[id] : null;
-    if (d && Array.isArray(d.photos) && d.photos.length > 0) {
-        return d.photos.filter(function(u) { return u && u.length > 0; });
-    }
-    // Fallback: check for any img elements in the photo preview grid
-    var previewId = type === 'rental' ? 'rentalPhotoPreview' : 'salePhotoPreview';
-    var previewEl = document.getElementById(previewId);
-    if (previewEl) {
-        var imgs = previewEl.querySelectorAll('img');
-        var urls = [];
-        imgs.forEach(function(img) { if (img.src) urls.push(img.src); });
-        if (urls.length > 0) return urls;
-    }
+    var safeUrl = function(u) {
+        return (typeof u === 'string' && (u.indexOf('https://') === 0 || u.indexOf('http://') === 0)) ? u.split('"').join('%22').split('<').join('%3C') : '';
+    };
+    var d = VIEWER_LISTING_ID ? VIEWER_LISTINGS[VIEWER_LISTING_ID] : null;
+    if (d && Array.isArray(d.photos)) return d.photos.map(safeUrl).filter(function(u) { return u.length > 0; });
     return [];
 }
 
@@ -6226,17 +6286,16 @@ function printOpenHouseSignIn(type) {
         address = (getRentalFormValue('rentalStreetAddress') || '').trim();
         var unit = getRentalFormValue('rentalUnitNumber') || '';
         if (unit) address += ', Unit ' + unit;
-        agent = getRentalFormValue('rentalUpdatingAgent') || '';
+        agent = getRentalFormValue('rentalUpdatingAgentName') || '';
         company = getRentalFormValue('rentalUpdatingAgentCompanyName') || '';
     } else {
         address = (getSaleFormValue('saleStreetAddress') || '').trim();
         var unit = getSaleFormValue('saleUnitNumber') || '';
         if (unit) address += ', Unit ' + unit;
-        agent = getSaleFormValue('saleUpdatingAgent') || '';
+        agent = getSaleFormValue('saleUpdatingAgentName') || '';
         company = getSaleFormValue('saleUpdatingAgentCompanyName') || '';
     }
-    if (!address) address = 'Property Address';
-    if (!agent) agent = 'Hosting Agent';
+    // a sheet whose property or host the page does not know is left blank to be written in, not filled with a stand-in label
     if (!company) company = 'Mallan Real Estate Inc.';
 
     var today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -6271,9 +6330,9 @@ function printOpenHouseSignIn(type) {
     html += '</div>';
 
     html += '<div class="info-bar">';
-    html += '<div><div class="info-label">Property Address</div><div class="info-value">' + address + '</div></div>';
+    html += '<div><div class="info-label">Property Address</div><div class="info-value">' + esc(address) + '</div></div>';
     html += '<div style="text-align:center;"><div class="info-label">Date</div><div class="info-value">' + today + '</div></div>';
-    html += '<div style="text-align:right;"><div class="info-label">Hosting Agent</div><div class="info-value">' + agent + '</div></div>';
+    html += '<div style="text-align:right;"><div class="info-label">Hosting Agent</div><div class="info-value">' + esc(agent) + '</div></div>';
     html += '</div>';
 
     html += '<div class="notices">';
@@ -6392,7 +6451,10 @@ function renderCompanyList(listEl, filter) {
         count++;
     });
     if (count === 0) {
-        listEl.innerHTML = '<div class="dd-empty">No companies match "' + (filter||'') + '"</div>';
+        var none = document.createElement('div');
+        none.className = 'dd-empty';
+        none.textContent = 'No companies match "' + (filter || '') + '"';
+        listEl.appendChild(none);
     }
 }
 
@@ -6595,20 +6657,30 @@ function updateRentalAgentTable(type, agentId, name, company, phone, email) {
     const badgeClass = type === 'listing' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700';
     const label = type === 'listing' ? 'Listing Agent' : (type === 'tenant' ? "Tenant's Agent" : 'Co-List #' + type.split('-')[1]);
 
-    const rowHTML = '<tr data-type="' + type + '">' +
-        '<td class="border px-3 py-2"><span class="px-2 py-0.5 ' + badgeClass + ' rounded text-xs">' + label + '</span></td>' +
-        '<td class="border px-3 py-2">' + agentId + '</td>' +
-        '<td class="border px-3 py-2 font-medium">' + name + '</td>' +
-        '<td class="border px-3 py-2">' + company + '</td>' +
-        '<td class="border px-3 py-2">' + phone + '</td>' +
-        '<td class="border px-3 py-2">' + email + '</td>' +
-        '<td class="border px-3 py-2"><button class="text-blue-600 hover:text-blue-800 text-xs" aria-label="Edit"><i class="fas fa-edit"></i></button></td>' +
-        '</tr>';
+    const row = document.createElement('tr');
+    row.setAttribute('data-type', type);
+    const cell = function(className, text) { const td = document.createElement('td'); td.className = className; if (text !== undefined) td.textContent = text; row.appendChild(td); return td; };
+    const badge = document.createElement('span');
+    badge.className = 'px-2 py-0.5 ' + badgeClass + ' rounded text-xs';
+    badge.textContent = label;
+    cell('border px-3 py-2').appendChild(badge);
+    cell('border px-3 py-2', agentId);
+    cell('border px-3 py-2 font-medium', name);
+    cell('border px-3 py-2', company);
+    cell('border px-3 py-2', phone);
+    cell('border px-3 py-2', email);
+    const editButton = document.createElement('button');
+    editButton.className = 'text-blue-600 hover:text-blue-800 text-xs';
+    editButton.setAttribute('aria-label', 'Edit');
+    const editIcon = document.createElement('i');
+    editIcon.className = 'fas fa-edit';
+    editButton.appendChild(editIcon);
+    cell('border px-3 py-2').appendChild(editButton);
 
     if (existingRow) {
-        existingRow.outerHTML = rowHTML;
+        existingRow.replaceWith(row);
     } else {
-        tableBody.insertAdjacentHTML('beforeend', rowHTML);
+        tableBody.appendChild(row);
     }
 }
 
@@ -6709,15 +6781,8 @@ function calculateRentalTHFinancials() {
 // CONDITIONAL FIELD TOGGLES
 // ══════════════════════════════════════════════════════
 function toggleFurnishedFields() {
-    // Check both the select dropdown (Tab 2) and radios (Tab 1)
     const sel = document.getElementById('rentalFurnished');
-    let value = '';
-    if (sel && sel.tagName === 'SELECT') {
-        value = sel.value;
-    } else {
-        const radios = document.querySelectorAll('input[name="rentalFurnished"]');
-        radios.forEach(r => { if (r.checked) value = r.value; });
-    }
+    const value = sel ? sel.value : '';
     const section = document.getElementById('rentalFurnishedDetails');
     if (section) {
         section.style.display = (value === 'Furnished' || value === 'Partially') ? 'block' : 'none';
@@ -6784,7 +6849,25 @@ function toggleRentalPreviewView(view) {
 function updateRentalPreview() {
     function val(id, def) { const el = document.getElementById(id); return (el && el.value) ? el.value : (def || '--'); }
     function setText(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
-    function setHTML(id, html) { const el = document.getElementById(id); if (el) el.innerHTML = html; }
+    function setIcon(id, icon, text) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = '';
+        const i = document.createElement('i');
+        i.className = 'fas ' + icon + ' mr-1';
+        el.appendChild(i);
+        el.appendChild(document.createTextNode(' ' + text));
+    }
+    // one pill per label, written as text
+    function setPills(box, labels, pillClass) {
+        box.textContent = '';
+        labels.forEach(function(label) {
+            const pill = document.createElement('span');
+            pill.className = pillClass;
+            pill.textContent = label;
+            box.appendChild(pill);
+        });
+    }
 
     // ── Common values ──
     const street = document.getElementById('rentalStreetAddress');
@@ -6814,20 +6897,20 @@ function updateRentalPreview() {
 
     // Card 1: Listing Essentials
     var agentNameVal = val('rentalUpdatingAgentName', '--');
-    var agentLicenseVal = val('rentalUpdatingAgentLicense', '--');
-    var companyNameVal = val('rentalUpdatingAgentCompanyName', 'Mallan Real Estate Inc.');
+    var agentLicenseVal = (document.getElementById('rentalListingAgentLicense') || {}).textContent || '--';       // the listing agent's, as the record has it (the public page names the listing agent)
+    var companyNameVal = val('rentalListingCompanySearch', '--');
     setText('rentalPreviewAgent', agentNameVal);
-    setText('previewAgentName', agentNameVal);
-    setText('rentalPreviewSiteAgentName', agentNameVal);
+    setText('previewAgentName', val('rentalListingAgentSearch', '--'));
+    setText('rentalPreviewSiteAgentName', val('rentalListingAgentSearch', '--'));
     setText('rentalPreviewSiteAgentLicense', agentLicenseVal);
     setText('rentalPreviewSiteCompanyName', companyNameVal);
     var listingTypeRadio = document.querySelector('input[name="rentalListingType"]:checked');
-    var ltMap = { ExclusiveRightToLease: 'Exclusive Right to Lease', ExclusiveAgency: 'Exclusive Agency', ExclusiveRightWithException: 'Exclusive w/ Exception', CoExclusive: 'Co-Exclusive', InHouse: 'In-House', 'RLS-Owner-OptOut': 'Owner Opt-Out', 'RLS-Participant': 'Participant Only' };
-    setText('rentalPreviewListingType', ltMap[listingTypeRadio ? listingTypeRadio.value : 'ExclusiveRightToLease'] || 'Exclusive Right to Lease');
+    var ltMap = { ExclusiveRightToLease: 'Exclusive Right to Lease', ExclusiveAgency: 'Exclusive Agency', ExclusiveRightWithException: 'Exclusive w/ Exception', CoExclusiveAgency: 'Co-Exclusive', InHouse: 'In-House', 'RLS-Owner-OptOut': 'Owner Opt-Out', 'RLS-Participant': 'Participant Only' };
+    setText('rentalPreviewListingType', listingTypeRadio ? (ltMap[listingTypeRadio.value] || listingTypeRadio.value) : '--');
     const status = document.getElementById('rentalStatus');
-    setText('rentalPreviewStatus', status ? status.value : 'Draft');
+    setText('rentalPreviewStatus', status && status.value ? status.value : '--');
     setText('rentalPreviewPropType', propType || '--');
-    setText('rentalPreviewCRMPrice', priceVal > 0 ? '$' + priceVal.toLocaleString() + '/mo' : '$0/mo');
+    setText('rentalPreviewCRMPrice', priceVal > 0 ? '$' + priceVal.toLocaleString() + '/mo' : '--');
     const deposit = document.getElementById('rentalSecurityDeposit');
     setText('rentalPreviewDeposit', deposit && deposit.value ? '$' + Number(deposit.value).toLocaleString() : '--');
     setText('rentalPreviewCRMAvail', availDate && availDate.value ? availDate.value : '--');
@@ -6835,9 +6918,9 @@ function updateRentalPreview() {
 
     // Card 2: Description
     setText('rentalPreviewCRMHeadline', headline && headline.value ? headline.value : '--');
-    const urlField = document.getElementById('rentalListingURL');
+    const urlField = document.getElementById('rentalListingUrl');
     setText('rentalPreviewCRMURL', urlField && urlField.value ? urlField.value : '--');
-    setText('rentalPreviewCRMDesc', desc && desc.value ? desc.value : 'Enter a description to see it here.');
+    setText('rentalPreviewCRMDesc', desc && desc.value ? desc.value : '--');
 
     // Card 3: Unit Info
     setText('rentalPreviewCRMRooms', val('rentalTotalRooms'));
@@ -6847,14 +6930,11 @@ function updateRentalPreview() {
     setText('rentalPreviewCRMFloor', val('rentalFloor'));
 
     // Card 4: Distribution & Media
+    // the viewer shows each distribution flag as a badge (yes / no / unknown): the flags the record sets are the distribution
     const distroChecked = [];
-    document.querySelectorAll('#rentalMainTab4 input[type="checkbox"]:checked').forEach(cb => {
-        const label = cb.closest('label');
-        if (label) distroChecked.push(label.textContent.trim().split('\n')[0].trim());
-    });
-    setText('rentalPreviewDistro', distroChecked.length ? distroChecked.join(', ') : 'None selected');
-    const photoCount = document.querySelectorAll('#rentalPhotoGrid .photo-item, #rentalPhotoGrid img').length;
-    setText('rentalPreviewPhotos', photoCount > 0 ? photoCount + ' photo(s)' : '0');
+    document.querySelectorAll('#rentalMainTab4 [data-state="yes"]').forEach(badge => distroChecked.push(badge.textContent.trim().split('\n')[0].trim()));
+    setText('rentalPreviewDistro', distroChecked.length ? distroChecked.join(', ') : '--');
+    setText('rentalPreviewPhotos', viewerPhotoCountText('rental'));
     const videoURL = document.getElementById('rentalVideoURL');
     setText('rentalPreviewCRMVideo', videoURL && videoURL.value ? 'Yes' : 'None');
     const tourURL = document.getElementById('rentalVirtualTourURL') || document.getElementById('rentalTourURL');
@@ -6883,14 +6963,14 @@ function updateRentalPreview() {
     const bldgCard = document.getElementById('rentalPreviewBldgCard');
     if (bldgCard) bldgCard.style.display = isManaged ? '' : 'none';
     if (isManaged) {
-        setText('rentalPreviewBldgName', val('rentalBldgName'));
+        setText('rentalPreviewBldgName', val('bldgName'));
         setText('rentalPreviewBldgYear', val('bldgYearBuilt'));
         setText('rentalPreviewBldgUnits', val('bldgTotalUnits'));
         setText('rentalPreviewBldgFloors', val('bldgTotalFloors'));
         const doorman = document.querySelector('input[name="bldgDoorman"]:checked');
         setText('rentalPreviewBldgDoorman', doorman ? doorman.value : '--');
-        const elevator = document.querySelector('input[name="bldgElevator"]:checked');
-        setText('rentalPreviewBldgElevator', elevator ? elevator.value : '--');
+        const elevator = document.getElementById('bldgElevator');
+        setText('rentalPreviewBldgElevator', elevator && !elevator.indeterminate ? (elevator.checked ? 'Yes' : 'No') : '--');
         const pets = document.querySelector('input[name="bldgPets"]:checked');
         setText('rentalPreviewBldgPets', pets ? pets.value : '--');
     }
@@ -6898,20 +6978,20 @@ function updateRentalPreview() {
     // ═══════════════════════════════════════
     // LISTING CARD VIEW
     // ═══════════════════════════════════════
-    setText('previewHeadline', headline && headline.value ? headline.value : 'Listing Headline');
+    setText('previewHeadline', headline && headline.value ? headline.value : '--');
 
     const cardAddrParts = [];
     if (street && street.value) cardAddrParts.push(street.value);
     if (unit && unit.value) cardAddrParts.push('Unit ' + unit.value);
     if (borough && borough.value) cardAddrParts.push(borough.value);
-    setText('previewAddress', cardAddrParts.length ? cardAddrParts.join(', ') : 'Address');
+    setText('previewAddress', cardAddrParts.length ? cardAddrParts.join(', ') : '--');
 
-    setHTML('previewBeds', '<i class="fas fa-bed mr-1"></i> ' + ((beds && beds.value) ? beds.value + ' Beds' : '-- Beds'));
-    setHTML('previewBaths', '<i class="fas fa-bath mr-1"></i> ' + ((baths && baths.value) ? baths.value + ' Baths' : '-- Baths'));
-    setHTML('previewSqFt', '<i class="fas fa-ruler-combined mr-1"></i> ' + (sqftVal > 0 ? sqftVal.toLocaleString() + ' SF' : '-- SF'));
-    setText('previewRent', priceVal > 0 ? '$' + priceVal.toLocaleString() + '/month' : '$0/month');
+    setIcon('previewBeds', 'fa-bed', (beds && beds.value) ? beds.value + ' Beds' : '-- Beds');
+    setIcon('previewBaths', 'fa-bath', (baths && baths.value) ? baths.value + ' Baths' : '-- Baths');
+    setIcon('previewSqFt', 'fa-ruler-combined', sqftVal > 0 ? sqftVal.toLocaleString() + ' SF' : '-- SF');
+    setText('previewRent', priceVal > 0 ? '$' + priceVal.toLocaleString() + '/month' : '--');
     setText('previewAvailability', availDate && availDate.value ? 'Available: ' + availDate.value : 'Available: --');
-    setText('previewDescription', desc && desc.value ? desc.value : 'Listing description will appear here...');
+    setText('previewDescription', desc && desc.value ? desc.value : '--');
 
     // Listing card amenity pills
     const amenityPills = [];
@@ -6920,30 +7000,29 @@ function updateRentalPreview() {
         if (lbl) amenityPills.push(lbl.textContent.trim());
     });
     const amenBox = document.getElementById('previewAmenities');
-    if (amenBox) {
-        amenBox.innerHTML = amenityPills.length
-            ? amenityPills.map(a => '<span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">' + a + '</span>').join('')
-            : '<span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">Amenities will appear here</span>';
-    }
+    if (amenBox) setPills(amenBox, amenityPills, 'px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded');
 
     // ═══════════════════════════════════════
     // PUBLIC PAGE PREVIEW (mallan.nyc)
     // ═══════════════════════════════════════
-    setText('rentalPreviewSitePrice', priceVal > 0 ? '$' + priceVal.toLocaleString() + '/mo' : '$0/mo');
-    setText('rentalPreviewSiteAddress', fullAddr !== '--' ? fullAddr : 'Address');
+    setText('rentalPreviewSitePrice', priceVal > 0 ? '$' + priceVal.toLocaleString() + '/mo' : '--');
+    setText('rentalPreviewSiteAddress', fullAddr !== '--' ? fullAddr : '--');
+    var storedRecord = getRentalStored();
+    setText('rentalPreviewSiteSlug', (storedRecord && storedRecord._raw && typeof storedRecord._raw.slug === 'string' && storedRecord._raw.slug) || '--');       // the address of the public page is the record's own
 
     const hood = val('rentalNeighborhood', '');
     const boro = borough ? borough.value : '';
-    const zip = val('rentalZip', '');
-    const locParts = [hood !== '--' ? hood : '', boro, zip !== '--' ? 'NY ' + zip : ''].filter(Boolean);
-    setText('rentalPreviewSiteNeighborhood', locParts.length ? locParts.join(', ') : 'Neighborhood, Borough, NY');
+    const zip = val('rentalZipCode', '');
+    const stateZip = [getRentalStoredAddress('StateOrProvince'), zip !== '--' ? zip : ''].filter(Boolean).join(' ');       // the state is the record's, never assumed
+    const locParts = [hood !== '--' ? hood : '', boro, stateZip].filter(Boolean);
+    setText('rentalPreviewSiteNeighborhood', locParts.length ? locParts.join(', ') : '--');
     setText('rentalPreviewSitePropType', propType || '--');
 
     setText('rentalPreviewSiteBeds', beds && beds.value ? beds.value : '--');
     setText('rentalPreviewSiteBaths', baths && baths.value ? baths.value : '--');
     setText('rentalPreviewSiteSqFt', sqftVal > 0 ? sqftVal.toLocaleString() : '--');
     setText('rentalPreviewSiteRooms', val('rentalTotalRooms'));
-    setText('rentalPreviewSiteDesc', desc && desc.value ? desc.value : 'Listing description will appear here...');
+    setText('rentalPreviewSiteDesc', desc && desc.value ? desc.value : '--');
 
     // Rental details
     setText('rentalPreviewSiteDetailRent', priceVal > 0 ? '$' + priceVal.toLocaleString() + '/mo' : '--');
@@ -6956,16 +7035,11 @@ function updateRentalPreview() {
     setText('rentalPreviewSiteDetailExposure', exposures.length ? exposures.join(', ') : '--');
 
     // Days on Market
-    const createDate = document.getElementById('rentalCreateDate');
-    if (createDate && createDate.value) {
-        const diffMs = Date.now() - new Date(createDate.value).getTime();
-        const dom = Math.max(0, Math.floor(diffMs / 86400000));
-        setText('rentalPreviewSiteDetailDOM', dom.toString());
-    }
+    setText('rentalPreviewSiteDetailDOM', ((document.getElementById('rentalDaysOnMarket') || {}).textContent || '--'));
 
     // Furnished
-    const furnished = document.querySelector('input[name="rentalFurnished"]:checked');
-    setText('rentalPreviewSiteDetailFurnished', furnished ? furnished.value : '--');
+    const furnishedSel = document.getElementById('rentalFurnished');
+    setText('rentalPreviewSiteDetailFurnished', furnishedSel && furnishedSel.value ? furnishedSel.options[furnishedSel.selectedIndex].text : '--');
 
     // Building amenities pills
     const amenityNames = ['bldgDoorman', 'bldgElevator', 'bldgGym', 'bldgPool', 'bldgRoofDeck', 'bldgLaundry', 'bldgParking', 'bldgBikeRoom', 'bldgStorage', 'bldgConcierge', 'bldgPlayroom', 'bldgCourtyard', 'bldgGarden', 'bldgLobbyAttendant'];
@@ -6978,22 +7052,54 @@ function updateRentalPreview() {
         }
     });
     const siteAmenBox = document.getElementById('rentalPreviewSiteAmenities');
-    if (siteAmenBox) {
-        siteAmenBox.innerHTML = bldgAmenities.length
-            ? bldgAmenities.map(a => '<span class="px-3 py-1.5 bg-gray-100 rounded-full text-xs text-gray-700">' + a + '</span>').join('')
-            : '<span class="px-3 py-1.5 bg-gray-100 rounded-full text-xs text-gray-400">Complete building info to see amenities</span>';
-    }
+    if (siteAmenBox) setPills(siteAmenBox, bldgAmenities, 'px-3 py-1.5 bg-gray-100 rounded-full text-xs text-gray-700');
 }
 
 
 // ══════════════════════════════════════════════════════
 // INIT — Viewer-only boot sequence (no form mode)
 // ══════════════════════════════════════════════════════
+// Renders the loaded listing. Any failure ends on the fail-closed screen: nothing is shown from a partial render.
+function renderRentalViewer() {
+    try {
+        var listingData = loadRentalListingData(VIEWER_LISTING_ID);
+        if (!listingData) { showRentalFailClosed(VIEWER_LISTING_ID); return; }
+        showRentalMainTab(1);
+        // The field rules fall back to a default type (Condo on a sale, Rental Building on a rental) when none is chosen: a listing whose
+        // type is unknown is not shown as one, so they run only when the record named a type.
+        if (typeof applyRentalFieldRules === 'function' && document.querySelector('input[name="rentalPropertyType"]:checked')) applyRentalFieldRules();
+        // The field rules may reset a control (they do on the Add form); the stored record has the last word.
+        MallanListingHydration.hydrate('rental', VIEWER_LISTINGS[VIEWER_LISTING_ID]._raw);
+        convertRentalFormToViewer();
+        viewerHideWriteControls();
+        viewerShowOpenHouses('rental', VIEWER_LISTINGS[VIEWER_LISTING_ID]._raw);
+        viewerLoadMedia('rental', VIEWER_LISTINGS[VIEWER_LISTING_ID]._raw, function() {
+            if (typeof updateRentalPreview === 'function') updateRentalPreview();
+            if (typeof refreshRentalEmailPreview === 'function') refreshRentalEmailPreview();
+        });
+        patchGetRentalFormValue();
+        updateRentalHeaderForViewer(listingData);
+        removeRentalNavigationButtons();
+        convertRentalDistributionToDisplay();
+        applyRentalRoleMasking();
+        document.body.classList.remove('skeleton-loading');
+        setTimeout(function() {
+            if (typeof updateRentalPreview === 'function') updateRentalPreview();
+            if (typeof updateRentalTransit === 'function') updateRentalTransit();
+        }, 200);
+        console.log('[RentalViewer] Initialized. Listing:', VIEWER_LISTING_ID, 'Role:', VIEWER_ROLE);
+    } catch (e) {
+        console.error('[RentalViewer] render failed:', e && e.message);
+        showRentalFailClosed(VIEWER_LISTING_ID);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     document.body.classList.add('viewer-mode');
 
     // If no listing ID provided, show placeholder
     if (!VIEWER_LISTING_ID) {
+        document.body.classList.remove('skeleton-loading');
         document.body.innerHTML = '<div class="no-listing-placeholder"><div class="card">' +
             '<i class="fas fa-search"></i>' +
             '<h2>No Listing Selected</h2>' +
@@ -7002,44 +7108,49 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
-    // Show skeleton loading while data loads
+    // Skeleton placeholders until the listing is in: entry-form defaults are never shown as listing data.
     document.body.classList.add('skeleton-loading');
 
     neutralizeRentalFormSystems();
-    initLoggedInAgent();
 
-    var listingData = loadRentalListingData(VIEWER_LISTING_ID);
+    // Identity (server role) first, then the listing, then render. A signed-out visitor, or an identity service that cannot be reached
+    // (the api client reports both as not authenticated), goes to the login page; a listing failure, or no answer within 30 seconds, ends
+    // on the fail-closed screen.
+    var finished = false;
+    var guard = setTimeout(function() {
+        if (finished) return;
+        finished = true;
+        showRentalFailClosed(VIEWER_LISTING_ID);
+    }, 30000);
+    var finish = function() { finished = true; clearTimeout(guard); };
 
-    // Remove skeleton after data loads (or timeout)
-    var removeSkeleton = function() { document.body.classList.remove('skeleton-loading'); };
-    if (listingData) {
-        removeSkeleton();
-    } else {
-        setTimeout(removeSkeleton, 3000);
-    }
+    var session = null;
+    try { session = initLoggedInAgent(); } catch (e) { console.error('[RentalViewer] identity lookup failed:', e && e.message); }
+    if (!session) { finish(); showRentalFailClosed(VIEWER_LISTING_ID); return; }
 
-    showRentalMainTab(1);
-    if (typeof applyRentalFieldRules === 'function') applyRentalFieldRules();
-    convertRentalFormToViewer();
-    patchGetRentalFormValue();
-    updateRentalHeaderForViewer(listingData);
-    removeRentalNavigationButtons();
-    convertRentalDistributionToDisplay();
-    applyRentalRoleMasking();
-
-    setTimeout(function() {
-        if (typeof updateRentalPreview === 'function') updateRentalPreview();
-        if (typeof updateRentalTransit === 'function') updateRentalTransit();
-    }, 200);
-
-    console.log('[RentalViewer] Initialized. Listing:', VIEWER_LISTING_ID, 'Role:', VIEWER_ROLE);
+    session.then(function(data) {
+        if (finished) return null;
+        // Not signed in: initLoggedInAgent is already redirecting to the login page.
+        if (!data || !data.authenticated) { finish(); return null; }
+        viewerApplyServerRole();
+        return viewerFetchListing(VIEWER_LISTING_ID).then(function() {
+            if (finished) return;
+            finish();
+            renderRentalViewer();
+        });
+    }).catch(function(err) {
+        if (finished) return;
+        finish();
+        console.warn('[RentalViewer] listing request failed:', err && err.message);
+        showRentalFailClosed(VIEWER_LISTING_ID);
+    });
 });
 
 // ══════════════════════════════════════════════════════
 // COMMISSION REQUEST — Auto-populate & Calculate
 // ══════════════════════════════════════════════════════
 function populateRentalCommissionFields() {
-    var val = function(id) { var el = document.getElementById(id); return el ? (el.value || el.textContent || '') : ''; };
+    var val = function(id) { var el = document.getElementById(id); return el ? viewerReadValue(el) : ''; };
     var set = function(id, v) { var el = document.getElementById(id); if (el) el.value = v; };
     var selText = function(id) {
         var el = document.getElementById(id);
@@ -7135,7 +7246,12 @@ function calculateRentalCommission() {
 }
 
 function submitRentalCommissionRequest() {
-    var rent = document.getElementById('commRentalFinalPrice')?.value;
+    // VIEWER_MODE: commission submission disabled in the read-only viewer (it used to say "Commission Request Submitted!", and move the status tracker, without sending anything
+    // anywhere)
+    if (typeof VIEWER_MODE !== 'undefined' && VIEWER_MODE) {
+        showToast('Commission requests cannot be submitted from the viewer.', 'warning');
+        return;
+    }    var rent = document.getElementById('commRentalFinalPrice')?.value;
     var commValue = document.getElementById('commRentalCommValue')?.value;
     var landlord = document.getElementById('commRentalLandlordName')?.value;
     var tenant = document.getElementById('commRentalTenantName')?.value;
@@ -7175,7 +7291,7 @@ function submitRentalCommissionRequest() {
 
 function openRentalPrintModal() {
     document.getElementById('rentalPrintModal').classList.remove('hidden');
-    applyRentalPrintPreset('full');
+    applyRentalPrintPreset('client');          // what a buyer or a renter may be given: the reports that carry the listing agent and the commission are the agent's to choose
 }
 
 function closeRentalPrintModal() {
@@ -7211,7 +7327,7 @@ function toggleAllRentalPrintSections(on) {
 
 function getRentalFormValue(id) {
     var el = document.getElementById(id);
-    return el ? (el.value || el.textContent || '').trim() : '';
+    return el ? viewerReadValue(el).trim() : '';
 }
 
 function getRentalRadioValue(name) {
@@ -7236,29 +7352,100 @@ function getRentalCheckboxValues(name) {
     return vals.join(', ');
 }
 
+// A flag the record does not carry is unknown (its control is indeterminate), not "No".
 function getRentalCheckboxYN(id) {
     var el = document.getElementById(id);
-    return el ? (el.checked ? 'Yes' : 'No') : '';
+    if (!el || el.indeterminate) return '';
+    return el.checked ? 'Yes' : 'No';
+}
+
+// Text for a mail-client address. encodeURIComponent throws on half of an emoji (a description cut in the middle of one, or stored that way) and the button then does nothing: a lone
+// half becomes U+FFFD first. A cut of a description is made by characters (code points), so it never leaves half of one.
+function wellFormed(s) {
+    s = String(s == null ? '' : s);
+    var out = '';
+    for (var i = 0; i < s.length; i++) {
+        var c = s.charCodeAt(i), next = i + 1 < s.length ? s.charCodeAt(i + 1) : 0;
+        if (c >= 0xD800 && c <= 0xDBFF && next >= 0xDC00 && next <= 0xDFFF) { out += s.charAt(i) + s.charAt(i + 1); i++; }
+        else if (c >= 0xD800 && c <= 0xDFFF) out += '\uFFFD';
+        else out += s.charAt(i);
+    }
+    return out;
+}
+function uriText(s) { return encodeURIComponent(wellFormed(s)); }
+function textHead(s, n) { return Array.from(wellFormed(s)).slice(0, n).join(''); }
+function textLength(s) { return Array.from(wellFormed(s)).length; }
+
+// Money the way the record says it: an amount above zero is an amount; anything else (nothing, 0, a negative, text) is none. A security deposit may be 0 (no deposit), so it only has to be a number.
+function rentalMoney(amount, suffix, allowZero) {
+    var n = parseFloat(amount);
+    if (!(allowZero ? n >= 0 : n > 0)) return '';
+    return '$' + n.toLocaleString() + (suffix || '');
+}
+
+// Text for HTML: every character that can open a tag or leave an attribute, quotes included. Every stored or typed value that is written into a print, e-mail, sheet or preview
+// document goes through it.
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) { return '&#' + c.charCodeAt(0) + ';'; }); }
+
+// The distribution checkboxes are replaced by badges when the viewer renders; a badge keeps what the record says: yes, no, or unknown (the record does not carry the flag).
+function getRentalDistState(id) {
+    var badge = document.querySelector('[data-for="' + id + '"]');
+    var state = badge ? badge.getAttribute('data-state') : '';
+    return state === 'yes' ? 'Yes' : (state === 'no' ? 'No' : '');
+}
+
+// The record the viewer loaded. What the record stores for the state is read from the record itself (its control is not filled by the stored value).
+function getRentalStored() { return (VIEWER_LISTING_ID && VIEWER_LISTINGS[VIEWER_LISTING_ID]) || null; }
+function getRentalStoredAddress(key) {
+    var d = getRentalStored();
+    var raw = (d && d._raw) || {};
+    var v = (raw.address && raw.address[key]) || (raw.raw_data && raw.raw_data[key]) || '';
+    return typeof v === 'string' ? v.trim() : '';
+}
+
+// The amenities the building modal ticks (what the record stores, as hydrated), by their labels.
+function getRentalBuildingAmenities() {
+    var labels = [];
+    document.querySelectorAll('#rentalBuildingModal input[data-rls-field="BuildingFeatures"]:checked').forEach(function(cb) {
+        var label = cb.parentElement ? cb.parentElement.textContent.trim() : '';
+        if (label) labels.push(label);
+    });
+    return labels.join(', ');
+}
+
+// The listing agent, as the record names them (the Contacts tab's panel is filled from the record; "--" is the panel's own "nothing stored"). The agent's own reports carry it
+// (Full CRM Report, Commission Report); a report that goes to a buyer or a renter never does.
+function getRentalListingAgent() {
+    var shown = function(id) { var v = getRentalFormValue(id); return v === '--' ? '' : v; };
+    return {
+        name: shown('rentalListingAgentSearch'), mlsId: shown('rentalListingAgentId'), phone: shown('rentalListingAgentPhone'),
+        email: shown('rentalListingAgentEmail'), office: shown('rentalListingCompanySearch')
+    };
 }
 
 function collectRentalPrintData() {
     return {
-        // Agent Info
-        updatingAgent: getRentalFormValue('rentalUpdatingAgent') || '',
+        // The signed-in agent (who prints and sends the report): the controls the session fills, never the record's agent
+        updatingAgent: getRentalFormValue('rentalUpdatingAgentName') || '',
         updatingCompany: getRentalFormValue('rentalUpdatingAgentCompanyName') || '',
-        listingType: getRentalRadioValue('rentalListingType') || 'Exclusive',
-        status: getRentalFormValue('rentalStatus') || 'Draft',
+        updatingPhone: getRentalFormValue('rentalUpdatingAgentPhone') || '',
+        updatingEmail: getRentalFormValue('rentalUpdatingAgentEmail') || '',
+        // the listing agent, as the record names them (the agent's own reports only)
+        listingAgent: getRentalListingAgent(),
+        // Listing info
+        listingType: getRentalRadioValue('rentalListingType'),
+        status: getRentalFormValue('rentalStatus'),
         dateListed: getRentalFormValue('rentalDateListed'),
         exclusiveStart: getRentalFormValue('rentalExclusiveStart'),
         exclusiveExpires: getRentalFormValue('rentalExclusiveExpires'),
         // Classification
         propertyType: getRentalRadioValue('rentalPropertyType'),
-        buildingStatus: getRentalRadioValue('rentalBuildingStatus') || 'Resale',
+        buildingStatus: getRentalRadioValue('rentalBuildingStatus'),
         // Address — single combined field
         streetAddress: getRentalFormValue('rentalStreetAddress'),
         unit: getRentalFormValue('rentalUnitNumber'),
-        city: getRentalFormValue('rentalCity') || 'New York',
-        state: getRentalFormValue('rentalState') || 'NY',
+        city: getRentalFormValue('rentalCity') || getRentalStoredAddress('City'),
+        state: getRentalFormValue('rentalState') || getRentalStoredAddress('StateOrProvince'),
         zip: getRentalFormValue('rentalZipCode'),
         neighborhood: getRentalSelectText('rentalNeighborhood'),
         borough: getRentalSelectText('rentalBorough'),
@@ -7267,7 +7454,6 @@ function collectRentalPrintData() {
         securityDeposit: getRentalFormValue('rentalSecurityDeposit'),
         availableDate: getRentalFormValue('rentalAvailableDate'),
         leaseTerm: getRentalSelectText('rentalLeaseTerm'),
-        brokerFee: getRentalCheckboxYN('rentalOwnerPays') === 'Yes' ? 'Owner Pays' : 'Tenant Pays',
         // Rooms — correct field names
         bedrooms: getRentalSelectText('rentalBedrooms'),
         fullBaths: getRentalFormValue('rentalFullBathrooms'),
@@ -7288,10 +7474,12 @@ function collectRentalPrintData() {
         yearBuilt: getRentalFormValue('bldgYearBuilt'),
         totalUnits: getRentalFormValue('bldgTotalUnits'),
         stories: getRentalFormValue('bldgTotalFloors'),
+        amenities: getRentalBuildingAmenities(),
+        lastUpdated: getRentalFormValue('rentalLastUpdated'),
         // Distribution — derive from checkboxes
-        idxDisplay: getRentalCheckboxYN('rentalIDXEntireListingDisplayYN') || 'Yes',
-        ownerOptOut: getRentalRadioValue('rentalListingType') === 'RLS-Owner-OptOut' ? 'Yes' : 'No',
-        syndication: (function() { var el = document.getElementById('rentalSyndicateYN'); return el ? (el.checked ? 'Yes' : 'No') : 'Yes'; })(),
+        idxDisplay: getRentalDistState('rentalIDXEntireListingDisplayYN'),
+        ownerOptOut: (function() { var t = getRentalRadioValue('rentalListingType'); return t ? (t === 'RLS-Owner-OptOut' ? 'Yes' : 'No') : ''; })(),
+        syndication: getRentalDistState('rentalSyndicateYN'),
         // Description
         headline: getRentalFormValue('rentalWebHeadline'),
         description: getRentalFormValue('rentalDescription'),
@@ -7365,33 +7553,43 @@ function buildRentalPrintHTML(data, sections, options) {
     if (data.unit) address += ', Unit ' + data.unit;
     var location = [data.neighborhood, data.borough, data.state, data.zip].filter(Boolean).join(', ');
     html += '<div style="text-align:center; margin-bottom:20px;">';
-    if (data.monthlyRent) html += '<p class="print-price">$' + parseFloat(data.monthlyRent).toLocaleString() + '/mo</p>';
-    if (address) html += '<p class="print-address">' + address + '</p>';
-    if (location) html += '<p style="color:#666; font-size:10pt;">' + location + '</p>';
+    if (rentalMoney(data.monthlyRent)) html += '<p class="print-price">' + rentalMoney(data.monthlyRent, '/mo') + '</p>';
+    if (address) html += '<p class="print-address">' + esc(address) + '</p>';
+    if (location) html += '<p style="color:#666; font-size:10pt;">' + esc(location) + '</p>';
     var stats = [];
-    if (data.bedrooms) stats.push(data.bedrooms + ' BD');
-    if (data.fullBaths) stats.push(data.fullBaths + ' BA');
-    if (data.livingArea) stats.push(data.livingArea + ' SF');
-    if (data.propertyType) stats.push(data.propertyType);
+    if (data.bedrooms) stats.push(esc(data.bedrooms) + ' BD');
+    if (data.fullBaths) stats.push(esc(data.fullBaths) + ' BA');
+    if (data.livingArea) stats.push(esc(data.livingArea) + ' SF');
+    if (data.propertyType) stats.push(esc(data.propertyType));
     if (stats.length) html += '<p style="font-size:11pt; color:#555; margin-top:4px;">' + stats.join(' &bull; ') + '</p>';
     html += '</div>';
 
     function makeSection(title, fields) {
+        var shown = fields.filter(function(f) { return f[1]; });
+        if (!shown.length) return '';
         var s = '<div class="print-section"><div class="print-section-title">' + title + '</div><div class="print-field-grid">';
-        fields.forEach(function(f) {
-            if (f[1]) s += '<div class="print-field"><span class="print-label">' + f[0] + '</span><span class="print-value">' + f[1] + '</span></div>';
+        shown.forEach(function(f) {
+            s += '<div class="print-field"><span class="print-label">' + f[0] + '</span><span class="print-value">' + esc(f[1]) + '</span></div>';
         });
         s += '</div></div>';
         return s;
     }
 
+    // The agent's own reports (Full CRM Report, Commission Report) carry the listing agent and the commission; every other report (Client Sheet, Fact Sheet, Custom) carries neither,
+    // whatever sections are ticked: a report is handed to a buyer or a renter, and the listing agent and the commission are not theirs to read.
+    var internalReport = options.preset === 'full' || options.preset === 'commission';
     if (sections.indexOf('agentInfo') !== -1) {
-        html += makeSection('Listing Type & Agent Info', [
+        var agentRows = [
             ['Updating Agent', data.updatingAgent], ['Company', data.updatingCompany],
             ['Listing Type', data.listingType], ['Status', data.status],
             ['Date Listed', data.dateListed], ['Exclusive Start', data.exclusiveStart],
             ['Exclusive Expires', data.exclusiveExpires]
-        ]);
+        ];
+        if (internalReport) {
+            var la = data.listingAgent || {};
+            agentRows.push(['Listing Agent', la.name], ['Listing Agent MLS ID', la.mlsId], ['Listing Agent Phone', la.phone], ['Listing Agent Email', la.email], ['Listing Office', la.office]);
+        }
+        html += makeSection('Listing Type & Agent Info', agentRows);
     }
     if (sections.indexOf('classification') !== -1) {
         html += makeSection('Property Classification', [
@@ -7409,14 +7607,12 @@ function buildRentalPrintHTML(data, sections, options) {
     }
     if (sections.indexOf('pricing') !== -1) {
         var pricingFields = [
-            ['Monthly Rent', data.monthlyRent ? '$' + parseFloat(data.monthlyRent).toLocaleString() + '/mo' : ''],
-            ['Security Deposit', data.securityDeposit ? '$' + parseFloat(data.securityDeposit).toLocaleString() : ''],
-            ['Available Date', data.availableDate], ['Lease Term', data.leaseTerm],
-            ['Broker Fee', data.brokerFee]
+            ['Monthly Rent', rentalMoney(data.monthlyRent, '/mo')],
+            ['Security Deposit', rentalMoney(data.securityDeposit, '', true)],
+            ['Available Date', data.availableDate], ['Lease Term', data.leaseTerm]
         ];
         // REBNY UCBA compliance: commission/compensation must NEVER appear on client-facing materials
-        var printPreset = options.preset || '';
-        if (printPreset !== 'client' && printPreset !== 'fact') {
+        if (internalReport) {
             pricingFields.push(['Exclusive Commission', data.exclusiveCommission ? data.exclusiveCommission + '%' : '']);
         }
         html += makeSection('Pricing & Rental Terms', pricingFields);
@@ -7448,10 +7644,10 @@ function buildRentalPrintHTML(data, sections, options) {
         ]);
     }
     if (sections.indexOf('amenities') !== -1) {
-        html += makeSection('Amenities & Services', [['Amenities', 'See building modal for full amenity list']]);
+        html += makeSection('Amenities & Services', [['Amenities', data.amenities]]);
     }
     if (sections.indexOf('policies') !== -1) {
-        html += makeSection('Policies & Rules', [['Policies', 'See building modal for full policy details']]);
+        html += makeSection('Policies & Rules', []);   // nothing is stored for this section in the viewer: it prints nothing instead of a sentence that points at a modal
     }
     if (sections.indexOf('distribution') !== -1) {
         html += makeSection('Distribution Gates & IDX Settings', [
@@ -7461,8 +7657,8 @@ function buildRentalPrintHTML(data, sections, options) {
     }
     if (sections.indexOf('description') !== -1 && data.description) {
         html += '<div class="print-section"><div class="print-section-title">Listing Description</div>';
-        if (data.headline) html += '<p style="font-weight:700; font-size:11pt; margin-bottom:8px;">' + data.headline + '</p>';
-        html += '<div class="print-description">' + data.description + '</div></div>';
+        if (data.headline) html += '<p style="font-weight:700; font-size:11pt; margin-bottom:8px;">' + esc(data.headline) + '</p>';
+        html += '<div class="print-description">' + esc(data.description) + '</div></div>';
     }
     if (sections.indexOf('photos') !== -1) {
         html += '<div class="print-section"><div class="print-section-title">Photos</div>';
@@ -7471,22 +7667,22 @@ function buildRentalPrintHTML(data, sections, options) {
             html += '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">';
             var maxPhotos = Math.min(photoUrls.length, 6);
             for (var pi = 0; pi < maxPhotos; pi++) {
-                html += '<img src="' + photoUrls[pi] + '" style="width:100%; height:160px; object-fit:cover; border-radius:4px;" alt="Listing photo ' + (pi + 1) + '">';
+                html += '<img src="' + esc(photoUrls[pi]) + '" style="width:100%; height:160px; object-fit:cover; border-radius:4px;" alt="Listing photo ' + (pi + 1) + '">';
             }
             html += '</div>';
             if (photoUrls.length > 6) html += '<p style="color:#999; font-size:8pt; text-align:center; margin-top:4px;">Showing 6 of ' + photoUrls.length + ' photos</p>';
         } else {
-            html += '<p style="color:#999; font-size:9pt; text-align:center; padding:20px;">No photos available for this listing.</p>';
+            html += '<p style="color:#999; font-size:9pt; text-align:center; padding:20px;">' + esc(getListingPhotoNote('No photos available for this listing.')) + '</p>';
         }
         html += '</div>';
     }
 
     // Compliance Footer (always shown — REBNY requires attribution + timestamp on displayed data)
     html += '<div class="print-footer">';
-    if (showBranding) {
-        html += '<p>Prepared by ' + (data.updatingAgent || '--') + ' | ' + (data.updatingCompany || '--') + '</p>';
-        html += '<p>' + (data.updatingCompany || '') + '</p>';
+    if (showBranding && (data.updatingAgent || data.updatingCompany)) {
+        html += '<p>Prepared by ' + [data.updatingAgent, data.updatingCompany].filter(Boolean).map(esc).join(' | ') + '</p>';
     }
+    if (data.lastUpdated) html += '<p style="margin-top:4px;">Listing last updated: ' + esc(data.lastUpdated) + '</p>';
     html += '<p style="margin-top:4px;">Data as of: ' + new Date().toLocaleString() + '</p>';
     html += '<p>Listing data provided by the REBNY Listing Service. Listing information deemed reliable but not guaranteed.</p>';
     html += '<p>Mallan Real Estate Inc. | Lic. #10991205323 | Equal Housing Opportunity</p>';
@@ -7506,9 +7702,16 @@ function openRentalEmailModal() {
     var data = collectRentalPrintData();
     var address = (data.streetAddress || '').trim();
     if (data.unit) address += ', Unit ' + data.unit;
-    var priceStr = data.monthlyRent ? '$' + parseFloat(data.monthlyRent).toLocaleString() + '/mo' : '';
+    var priceStr = rentalMoney(data.monthlyRent, '/mo');
     document.getElementById('rentalEmailSubject').value = 'Rental Listing: ' + address + (priceStr ? ' — ' + priceStr : '');
     document.getElementById('rentalEmailCardPreview').innerHTML = buildRentalEmailCardHTML(data);
+}
+
+// The photos may arrive after the e-mail window was opened: its preview is drawn again
+function refreshRentalEmailPreview() {
+    var modal = document.getElementById('rentalEmailModal');
+    var preview = document.getElementById('rentalEmailCardPreview');
+    if (modal && preview && !modal.classList.contains('hidden')) preview.innerHTML = buildRentalEmailCardHTML(collectRentalPrintData());
 }
 
 function closeRentalEmailModal() {
@@ -7519,34 +7722,33 @@ function buildRentalEmailCardHTML(data) {
     var address = (data.streetAddress || '').trim();
     if (data.unit) address += ', Unit ' + data.unit;
     var location = [data.neighborhood, data.borough].filter(Boolean).join(', ');
-    var priceStr = data.monthlyRent ? '$' + parseFloat(data.monthlyRent).toLocaleString() + '/mo' : '$0/mo';
+    var priceStr = rentalMoney(data.monthlyRent, '/mo');
     var stats = [];
-    if (data.bedrooms) stats.push(data.bedrooms + ' BD');
-    if (data.fullBaths) stats.push(data.fullBaths + ' BA');
-    if (data.livingArea) stats.push(data.livingArea + ' SF');
-    var desc = (data.description || '').substring(0, 200);
-    if ((data.description || '').length > 200) desc += '...';
+    if (data.bedrooms) stats.push(esc(data.bedrooms) + ' BD');
+    if (data.fullBaths) stats.push(esc(data.fullBaths) + ' BA');
+    if (data.livingArea) stats.push(esc(data.livingArea) + ' SF');
+    var desc = textHead(data.description, 200);
+    if (textLength(data.description) > 200) desc += '...';
 
     var html = '<div style="max-width:600px; margin:0 auto; font-family:Segoe UI,Tahoma,sans-serif; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">';
     var emailPhotos = getListingPhotoUrls('rental');
     if (emailPhotos.length > 0) {
-        html += '<div style="height:200px; overflow:hidden;"><img src="' + emailPhotos[0] + '" style="width:100%; height:200px; object-fit:cover; display:block;" alt="Listing photo"></div>';
+        html += '<div style="height:200px; overflow:hidden;"><img src="' + esc(emailPhotos[0]) + '" style="width:100%; height:200px; object-fit:cover; display:block;" alt="Listing photo"></div>';
     } else {
-        html += '<div style="background:#f3f4f6; height:200px; display:flex; align-items:center; justify-content:center; color:#9ca3af; font-size:14px;"><span>No photos available</span></div>';
+        html += '<div style="background:#f3f4f6; height:200px; display:flex; align-items:center; justify-content:center; color:#9ca3af; font-size:14px;"><span>' + esc(getListingPhotoNote('No photos available')) + '</span></div>';
     }
     html += '<div style="padding:20px;">';
     html += '<div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">';
-    html += '<div><p style="font-size:24px; font-weight:800; color:#2563eb; margin:0;">' + priceStr + '</p>';
+    html += '<div>' + (priceStr ? '<p style="font-size:24px; font-weight:800; color:#2563eb; margin:0;">' + priceStr + '</p>' : '');
     html += '<p style="font-size:14px; color:#555; margin:4px 0 0;">' + stats.join(' | ') + '</p></div>';
-    if (data.propertyType) html += '<span style="background:#f3f4f6; padding:4px 12px; border-radius:6px; font-size:12px; color:#555;">' + data.propertyType + '</span>';
+    if (data.propertyType) html += '<span style="background:#f3f4f6; padding:4px 12px; border-radius:6px; font-size:12px; color:#555;">' + esc(data.propertyType) + '</span>';
     html += '</div>';
-    html += '<p style="font-size:16px; font-weight:600; color:#1a1a1a; margin:12px 0 2px;">' + (address || 'Address') + '</p>';
-    html += '<p style="font-size:13px; color:#666; margin:0;">' + (location || 'New York, NY') + '</p>';
-    if (data.availableDate) html += '<p style="font-size:12px; color:#555; margin:8px 0 0;">Available: ' + data.availableDate + '</p>';
-    if (desc) html += '<p style="font-size:13px; color:#555; margin-top:12px; line-height:1.5; border-top:1px solid #eee; padding-top:12px;">"' + desc + '"</p>';
+    html += '<p style="font-size:16px; font-weight:600; color:#1a1a1a; margin:12px 0 2px;">' + esc(address) + '</p>';
+    html += '<p style="font-size:13px; color:#666; margin:0;">' + esc(location) + '</p>';
+    if (data.availableDate) html += '<p style="font-size:12px; color:#555; margin:8px 0 0;">Available: ' + esc(data.availableDate) + '</p>';
+    if (desc) html += '<p style="font-size:13px; color:#555; margin-top:12px; line-height:1.5; border-top:1px solid #eee; padding-top:12px;">"' + esc(desc) + '"</p>';
     html += '<div style="border-top:1px solid #eee; margin-top:16px; padding-top:12px; font-size:12px; color:#666;">';
-    html += '<p style="font-weight:600; color:#1a1a1a; margin:0;">' + (data.updatingAgent || '--') + '</p>';
-    html += '<p style="margin:2px 0;">Licensed Real Estate Broker</p>';
+    html += rentalSenderLinesHTML(data);
     html += '<p style="margin:2px 0;">Mallan Real Estate Inc. | Lic. #10991205323</p>';
     html += '<p style="margin:6px 0 2px; font-size:10px; color:#999;">Listing data provided by the REBNY Listing Service.</p>';
     html += '<p style="margin:0; font-size:10px; color:#999;">Equal Housing Opportunity</p>';
@@ -7554,14 +7756,24 @@ function buildRentalEmailCardHTML(data) {
     return html;
 }
 
+// Who the e-mail is from: the signed-in agent (name, phone, e-mail), as their session has them. The listing agent is never named in anything a buyer or a renter receives, and no title
+// is claimed for the sender (the session does not carry one).
+function rentalSenderLinesHTML(data) {
+    var html = '';
+    if (data.updatingAgent) html += '<p style="font-weight:600; color:#1a1a1a; margin:0;">' + esc(data.updatingAgent) + '</p>';
+    var contact = [data.updatingPhone, data.updatingEmail].filter(Boolean).map(esc).join(' | ');
+    if (contact) html += '<p style="margin:2px 0;">' + contact + '</p>';
+    return html;
+}
+
 function getRentalPlainTextSummary(data) {
     var address = (data.streetAddress || '').trim();
     if (data.unit) address += ', Unit ' + data.unit;
-    var priceStr = data.monthlyRent ? '$' + parseFloat(data.monthlyRent).toLocaleString() + '/mo' : '';
+    var priceStr = rentalMoney(data.monthlyRent, '/mo');
     var lines = [];
     if (priceStr) lines.push(priceStr);
     if (address) lines.push(address);
-    var location = [data.neighborhood, data.borough, 'NY', data.zip].filter(Boolean).join(', ');
+    var location = [data.neighborhood, data.borough, data.state, data.zip].filter(Boolean).join(', ');
     if (location) lines.push(location);
     var stats = [];
     if (data.bedrooms) stats.push(data.bedrooms + ' Bed');
@@ -7571,10 +7783,12 @@ function getRentalPlainTextSummary(data) {
     if (stats.length) lines.push(stats.join(' | '));
     if (data.availableDate) lines.push('Available: ' + data.availableDate);
     lines.push('');
-    if (data.description) lines.push(data.description.substring(0, 300));
+    if (data.description) lines.push(textHead(data.description, 300));
     lines.push('');
-    lines.push((data.updatingAgent || '--') + ' | ' + (data.updatingCompany || '--'));
-    lines.push('646-258-4460 | info@mallan.nyc');
+    // from the signed-in agent: name, company, and their own phone and e-mail (the firm's general line when the session carries neither); never the listing agent
+    var sender = [data.updatingAgent, data.updatingCompany].filter(Boolean).join(' | ');
+    if (sender) lines.push(sender);
+    lines.push([data.updatingPhone, data.updatingEmail].filter(Boolean).join(' | ') || '646-258-4460 | info@mallan.nyc');
     return lines.join('\n');
 }
 
@@ -7584,34 +7798,33 @@ function copyRentalEmailToClipboard() {
     var address = (data.streetAddress || '').trim();
     if (data.unit) address += ', Unit ' + data.unit;
     var location = [data.neighborhood, data.borough].filter(Boolean).join(', ');
-    var priceStr = data.monthlyRent ? '$' + parseFloat(data.monthlyRent).toLocaleString() + '/mo' : '$0/mo';
+    var priceStr = rentalMoney(data.monthlyRent, '/mo');
     var stats = [];
-    if (data.bedrooms) stats.push(data.bedrooms + ' BD');
-    if (data.fullBaths) stats.push(data.fullBaths + ' BA');
-    if (data.livingArea) stats.push(data.livingArea + ' SF');
-    if (data.propertyType) stats.push(data.propertyType);
-    var desc = (data.description || '').substring(0, 200);
-    if ((data.description || '').length > 200) desc += '...';
+    if (data.bedrooms) stats.push(esc(data.bedrooms) + ' BD');
+    if (data.fullBaths) stats.push(esc(data.fullBaths) + ' BA');
+    if (data.livingArea) stats.push(esc(data.livingArea) + ' SF');
+    if (data.propertyType) stats.push(esc(data.propertyType));
+    var desc = textHead(data.description, 200);
+    if (textLength(data.description) > 200) desc += '...';
 
     var htmlContent = '<div style="font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif; max-width:600px;">';
-    if (message) htmlContent += '<p style="font-size:14px; color:#333; margin-bottom:16px;">' + message.replace(/\n/g, '<br>') + '</p>';
+    if (message) htmlContent += '<p style="font-size:14px; color:#333; margin-bottom:16px;">' + esc(message).replace(/\n/g, '<br>') + '</p>';
     htmlContent += '<table cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:600px; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; font-family:Segoe UI,Tahoma,sans-serif;">';
     var inlinePhotos = getListingPhotoUrls('rental');
     if (inlinePhotos.length > 0) {
-        htmlContent += '<tr><td style="height:180px; overflow:hidden;"><img src="' + inlinePhotos[0] + '" style="width:100%; height:180px; object-fit:cover; display:block;" alt="Listing photo"></td></tr>';
+        htmlContent += '<tr><td style="height:180px; overflow:hidden;"><img src="' + esc(inlinePhotos[0]) + '" style="width:100%; height:180px; object-fit:cover; display:block;" alt="Listing photo"></td></tr>';
     } else {
-        htmlContent += '<tr><td style="background:#f3f4f6; height:180px; text-align:center; color:#9ca3af; font-size:14px;">No photos available</td></tr>';
+        htmlContent += '<tr><td style="background:#f3f4f6; height:180px; text-align:center; color:#9ca3af; font-size:14px;">' + esc(getListingPhotoNote('No photos available')) + '</td></tr>';
     }
     htmlContent += '<tr><td style="padding:20px;">';
-    htmlContent += '<p style="font-size:24px; font-weight:800; color:#2563eb; margin:0;">' + priceStr + '</p>';
+    if (priceStr) htmlContent += '<p style="font-size:24px; font-weight:800; color:#2563eb; margin:0;">' + priceStr + '</p>';
     htmlContent += '<p style="font-size:14px; color:#555; margin:4px 0 0;">' + stats.join(' &bull; ') + '</p>';
-    htmlContent += '<p style="font-size:16px; font-weight:600; color:#1a1a1a; margin:12px 0 2px;">' + (address || 'Address') + '</p>';
-    htmlContent += '<p style="font-size:13px; color:#666; margin:0;">' + (location || 'New York, NY') + '</p>';
-    if (data.availableDate) htmlContent += '<p style="font-size:12px; color:#555; margin:8px 0 0;">Available: ' + data.availableDate + '</p>';
-    if (desc) htmlContent += '<p style="font-size:13px; color:#555; margin:12px 0 0; line-height:1.5; border-top:1px solid #eee; padding-top:12px;">&ldquo;' + desc + '&rdquo;</p>';
+    htmlContent += '<p style="font-size:16px; font-weight:600; color:#1a1a1a; margin:12px 0 2px;">' + esc(address) + '</p>';
+    htmlContent += '<p style="font-size:13px; color:#666; margin:0;">' + esc(location) + '</p>';
+    if (data.availableDate) htmlContent += '<p style="font-size:12px; color:#555; margin:8px 0 0;">Available: ' + esc(data.availableDate) + '</p>';
+    if (desc) htmlContent += '<p style="font-size:13px; color:#555; margin:12px 0 0; line-height:1.5; border-top:1px solid #eee; padding-top:12px;">&ldquo;' + esc(desc) + '&rdquo;</p>';
     htmlContent += '<div style="border-top:1px solid #eee; margin-top:16px; padding-top:12px; font-size:12px; color:#666;">';
-    htmlContent += '<p style="font-weight:600; color:#1a1a1a; margin:0;">' + (data.updatingAgent || '--') + '</p>';
-    htmlContent += '<p style="margin:2px 0;">Licensed Real Estate Broker</p>';
+    htmlContent += rentalSenderLinesHTML(data);
     htmlContent += '<p style="margin:2px 0;">Mallan Real Estate Inc. | Lic. #10991205323</p>';
     htmlContent += '<p style="margin:6px 0 2px; font-size:10px; color:#999;">Listing data provided by the REBNY Listing Service.</p>';
     htmlContent += '<p style="margin:0; font-size:10px; color:#999;">Equal Housing Opportunity</p>';
@@ -7644,10 +7857,9 @@ function openRentalInEmailClient() {
     var body = getRentalPlainTextSummary(data);
     var message = (document.getElementById('rentalEmailMessage').value || '').trim();
     if (message) body = message + '\n\n' + body;
-    body += '\n\n(Visual listing card has been copied to your clipboard — paste into the email body for the formatted version.)';
-    var mailto = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(subject);
-    if (cc) mailto += '&cc=' + encodeURIComponent(cc);
-    mailto += '&body=' + encodeURIComponent(body);
+    var mailto = 'mailto:' + uriText(to) + '?subject=' + uriText(subject);
+    if (cc) mailto += '&cc=' + uriText(cc);
+    mailto += '&body=' + uriText(body);
     window.open(mailto, '_self');
 }
 
@@ -7694,6 +7906,7 @@ var FORM_STATIONS = [
     { name: 'M101/102/103', lines: ['M101'], lat: 40.7750, lng: -73.9590, type: 'bus' }
 ];
 
+// The approximate center of each ZIP code it knows. A ZIP code that is not here has no stops listed: it is not put anywhere else.
 var NYC_GEOCODE_APPROX = {
     '10128': { lat: 40.7818, lng: -73.9530 }, '10028': { lat: 40.7767, lng: -73.9538 },
     '10021': { lat: 40.7693, lng: -73.9593 }, '10065': { lat: 40.7649, lng: -73.9640 },
@@ -7702,8 +7915,7 @@ var NYC_GEOCODE_APPROX = {
     '10019': { lat: 40.7637, lng: -73.9829 }, '10001': { lat: 40.7506, lng: -73.9971 },
     '10003': { lat: 40.7320, lng: -73.9893 }, '10011': { lat: 40.7418, lng: -74.0002 },
     '10012': { lat: 40.7258, lng: -73.9981 }, '10013': { lat: 40.7197, lng: -74.0030 },
-    '10002': { lat: 40.7157, lng: -73.9860 }, '10007': { lat: 40.7134, lng: -74.0078 },
-    'default': { lat: 40.7831, lng: -73.9554 }
+    '10002': { lat: 40.7157, lng: -73.9860 }, '10007': { lat: 40.7134, lng: -74.0078 }
 };
 
 function formHaversine(lat1, lon1, lat2, lon2) {
@@ -7724,14 +7936,18 @@ function formLineBadge(line) {
     return '<span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold flex-shrink-0" style="background:' + color + ';color:' + textColor + '">' + line + '</span>';
 }
 
+// The transit card shows a line of its own in place of the stops. The text goes in as text, never as markup.
+function showTransitNote(box, message) {
+    box.innerHTML = '<div class="text-center py-6 text-gray-400"><i class="fas fa-map-marker-alt text-3xl mb-2"></i><p class="text-sm"></p></div>';
+    box.querySelector('p').textContent = message;
+}
+
 function updateRentalTransit() {
+    var box = document.getElementById('rentalTransitResults');
     var zip = getRentalFormValue('rentalZipCode');
-    if (!zip) {
-        document.getElementById('rentalTransitResults').innerHTML = '<div class="text-center py-6 text-gray-400"><i class="fas fa-map-marker-alt text-3xl mb-2"></i><p class="text-sm">Enter a street address in Tab 1 to see nearby transit stations.</p></div>';
-        return;
-    }
-    var geo = NYC_GEOCODE_APPROX[zip] || NYC_GEOCODE_APPROX['default'];
-    var lat = geo.lat, lng = geo.lng;
+    if (!zip) { showTransitNote(box, 'This listing has no ZIP code, so no nearby transit can be worked out.'); return; }
+    if (!Object.prototype.hasOwnProperty.call(NYC_GEOCODE_APPROX, zip)) { showTransitNote(box, 'No transit stops are listed for ZIP code ' + zip + ' yet: this page\'s list covers part of Manhattan only.'); return; }
+    var lat = NYC_GEOCODE_APPROX[zip].lat, lng = NYC_GEOCODE_APPROX[zip].lng;
 
     var stations = FORM_STATIONS.map(function(s) {
         var dist = formHaversine(lat, lng, s.lat, s.lng);
@@ -7771,21 +7987,12 @@ function updateRentalTransit() {
             html += '<div class="text-xs text-gray-500">' + s.dist.toFixed(2) + ' mi &middot; ' + s.walkMin + ' min walk</div></div></div>';
         });
     }
-    if (!html) html = '<div class="text-sm text-gray-400 text-center py-4">No transit stations found within 0.75 miles of this address.</div>';
-    document.getElementById('rentalTransitResults').innerHTML = html;
-}
-
-function calcRentalCommute() {
-    var workAddr = (document.getElementById('rentalCommuteAddress').value || '').trim();
-    if (!workAddr) { alert('Please enter your work address.'); return; }
-    document.getElementById('rentalCommuteResults').classList.remove('hidden');
-    var zip = getRentalFormValue('rentalZipCode');
-    var geo = NYC_GEOCODE_APPROX[zip] || NYC_GEOCODE_APPROX['default'];
-    var midtownDist = formHaversine(geo.lat, geo.lng, 40.7549, -73.9840);
-    document.getElementById('rentalCommuteSubway').textContent = '~' + Math.max(10, Math.round(midtownDist * 8 + 5)) + ' min';
-    document.getElementById('rentalCommuteBus').textContent = '~' + Math.max(15, Math.round(midtownDist * 14 + 10)) + ' min';
-    var walkMin = Math.round(midtownDist / 3 * 60);
-    document.getElementById('rentalCommuteWalk').textContent = walkMin > 60 ? Math.round(walkMin/60) + 'h ' + (walkMin%60) + 'm' : '~' + walkMin + ' min';
+    if (!html) { showTransitNote(box, 'No listed transit stops are within 0.75 miles of the center of ZIP code ' + zip + '.'); return; }
+    box.innerHTML = html;
+    var how = document.createElement('p');
+    how.className = 'text-[10px] text-gray-400 mt-2';
+    how.textContent = 'Straight-line distance from the center of ZIP code ' + zip + ' to a partial list of Manhattan stops: a guide, not a route.';
+    box.appendChild(how);
 }
 
 function showRentalFormToast(msg, type) {
@@ -7793,7 +8000,10 @@ function showRentalFormToast(msg, type) {
     var bg = type === 'success' ? 'bg-[#B8860B]' : 'bg-red-600';
     var icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
     toast.className = 'fixed bottom-4 right-4 ' + bg + ' text-white px-4 py-2 rounded-lg shadow-lg text-sm font-semibold z-[9999] flex items-center gap-2';
-    toast.innerHTML = '<i class="fas ' + icon + '"></i> ' + msg;
+    var iconEl = document.createElement('i');
+    iconEl.className = 'fas ' + icon;
+    toast.appendChild(iconEl);
+    toast.appendChild(document.createTextNode(' ' + msg));
     document.body.appendChild(toast);
     setTimeout(function() { toast.remove(); }, 3000);
 }

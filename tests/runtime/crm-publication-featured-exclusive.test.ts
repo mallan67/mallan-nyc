@@ -5,7 +5,7 @@
  * Proves the Mallan-exclusive public-presentation contract:
  *
  *   1. Featured pin matches by id / mlsId / listing_id (match ANY).
- *   2. A Mallan CRM exclusive WINS over its RLS/IDX duplicate of the same
+ *   2. A Mallan CRM exclusive WINS over its Cotality/IDX duplicate of the same
  *      address+unit (reuses preferCrmExclusiveOverIdxDuplicate).
  *   3. The public exclusives section heading is "Mallan Exclusives"
  *      (not "Properties" / "Our Listings").
@@ -125,9 +125,9 @@ describe('Featured pin matching (id / mlsId / listing_id — match ANY)', () => 
   });
 });
 
-// ── 2. Mallan exclusive wins over its RLS/IDX duplicate ─────────────────
+// ── 2. Mallan exclusive wins over its Cotality/IDX duplicate ─────────────────
 
-describe('Mallan exclusive wins over RLS/IDX duplicate (same address+unit)', () => {
+describe('Mallan exclusive wins over Cotality/IDX duplicate (same address+unit)', () => {
   const addr = {
     streetNumber: '100',
     streetName: 'Sample Street',
@@ -137,7 +137,7 @@ describe('Mallan exclusive wins over RLS/IDX duplicate (same address+unit)', () 
 
   test('collapses the IDX duplicate, keeps the SL- exclusive', () => {
     const rows = [
-      { id: 'RLS90001', address: addr },        // RLS/IDX duplicate
+      { id: 'RLS90001', address: addr },        // Cotality/IDX duplicate
       { id: 'SL-9001', address: addr },          // Mallan exclusive
     ];
     const out = preferCrmExclusiveOverIdxDuplicate(rows);
@@ -165,7 +165,7 @@ describe('Mallan exclusive wins over RLS/IDX duplicate (same address+unit)', () 
 
 // ── 3. Home FEATURED section: titled "Featured Listings", exclusives first ──
 //
-// The home featured section is a MIX — pinned IDX/RLS third-party listings plus
+// The home featured section is a MIX — pinned Cotality/IDX third-party listings plus
 // Mallan exclusives. Titling it "Mallan Exclusives" misrepresents those
 // third-party listings as Mallan's own (NY DOS 19 NYCRR §175 / REBNY advertising
 // violation). The <h2> must read "Featured Listings"; Mallan exclusives are
@@ -187,7 +187,8 @@ describe('Home Featured section heading + ordering', () => {
   });
 
   test('the component orders via orderFeaturedListings(exclusives, generalListings, …)', () => {
-    expect(src).toMatch(/orderFeaturedListings\(exclusives, generalListings, pinnedSet, limit\)/);
+    // (it asks for `limit` listings, or for several candidates per place when it prefers the ones whose photo loads: see featured-hero-check.ts)
+    expect(src).toMatch(/orderFeaturedListings\(exclusives, generalListings, pinnedSet, limit(?: \* CANDIDATES_PER_PLACE)?\)/);
   });
 
   test('Mallan exclusives are ordered FIRST, then pinned, then regular (behavioral)', () => {

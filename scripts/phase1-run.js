@@ -29,7 +29,7 @@ async function verify(label) {
 
   const retention = await prisma.$queryRawUnsafe(`
     SELECT COUNT(*)::bigint AS c FROM listings
-    WHERE status IN ('Closed','Sold','Leased','Rented','Withdrawn','Expired','Cancelled')
+    WHERE status IN ('Closed','Sold','Leased','Rented','Withdrawn','Expired','Cancelled','Canceled')
       AND status_changed_at IS NOT NULL
       AND status_changed_at < NOW() - INTERVAL '24 hours'
       AND idx_display_yn = true

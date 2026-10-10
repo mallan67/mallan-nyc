@@ -1,4 +1,5 @@
-import { resolveListingMedia } from "@/lib/media/listing-media-resolver";
+import { resolveListingMedia, tourUrlsForDto } from "@/lib/media/listing-media-resolver";
+import { readCotalityStandardStatus, readCotalityPropertySubType, readCotalityCommonInterest } from "@/lib/cotality/property";
 
 // REBNY IDX Plus pre-filter: REBNY/Cotality removes non-displayable rows from
 // the IDX Plus feed upstream, leaving InternetEntireListingDisplayYN and
@@ -22,7 +23,11 @@ export function mapDisplayPropertyType(raw: Record<string, unknown>): string {
   if (sub.includes("condop")) return "Condop";
   if (sub.includes("townhouse")) return "Townhouse";
   if (sub.includes("loft")) return "Loft";
-  if (sub.includes("single family") || sub.includes("house")) return "House";
+  // SingleFamilyResidence has no dedicated case here -- MALLAN_BUSINESS_RULE_UNRESOLVED
+  // (see readCotalityPropertySubType's docstring in lib/cotality/property.ts). Falls
+  // through to the verbatim raw-value return below. A prior branch here
+  // (sub.includes("single family") || sub.includes("house")) was proven dead against the
+  // live spelling "SingleFamilyResidence" and was deleted, not retained, 2026-10-03.
   if (sub.includes("multi")) return "Multi-Family";
   if (sub === "apartment") return "Residential";
   if (sub) return String(raw.PropertySubType);
@@ -35,6 +40,27 @@ export function classifyMediaCategory(media: Record<string, unknown>): string {
   if (cat.includes("video")) return "Video";
   if (cat.includes("virtual tour")) return "VirtualTour";
   return "Photo";
+}
+
+// Co-list side (live Property CoListAgent{,2,3}* and CoListOffice{,2}*). Kept separate from the primary ListAgent*/ListOffice*
+// fields and never merged with them. The office relation is derived ONLY from the two office MLS IDs: same / different / unknown
+// (a blank id). It says nothing about whether two offices belong to one firm; several Office records can share a main office.
+function coListSlots(raw: Record<string, unknown>, kind: "Agent" | "Office", slots: number[]) {
+  return slots
+    .map((slot) => {
+      const prefix = `CoList${kind}${slot === 1 ? "" : slot}`;
+      return {
+        slot,
+        mlsId: String(raw[`${prefix}MlsId`] || ""),
+        name: String(raw[kind === "Agent" ? `${prefix}FullName` : `${prefix}Name`] || ""),
+      };
+    })
+    .filter((entry) => entry.mlsId || entry.name);
+}
+
+function officeRelation(primaryMlsId: string, otherMlsId: string): "same" | "different" | "unknown" {
+  if (!primaryMlsId || !otherMlsId) return "unknown";
+  return primaryMlsId === otherMlsId ? "same" : "different";
 }
 
 export function mapTrestleToCrmListing(
@@ -67,7 +93,7 @@ export function mapTrestleToCrmListing(
   // Photo-first media ordering — single source of truth in
   // lib/media/listing-media-resolver.ts. Replaces the prior
   // `isPrimary: i === 0` index-based assignment which would mark a FloorPlan
-  // as primary whenever Trestle returned floor-plan rows ahead of photo rows.
+  // as primary whenever Cotality returned floor-plan rows ahead of photo rows.
   const media = Array.isArray(raw.Media) ? raw.Media : [];
   const resolved = resolveListingMedia(media);
   const images = resolved.map(m => ({
@@ -97,7 +123,7 @@ export function mapTrestleToCrmListing(
   const dpaCount = dpaCountSrc != null && dpaCountSrc !== '' ? Number(dpaCountSrc) : null;
 
   // CustomFields is a REBNY-specific JSON string on CustomProperty that
-  // carries 41 NYC-specific flags (per CLAUDE.md). SponsorUnitYN is the
+  // carries NYC-specific flags as JSON (live CustomProperty.CustomFields). SponsorUnitYN is the
   // canonical source-of-truth for "Is this a sponsor sale?" — the prior
   // CRM rendering (grid-column-defs.js:63) showed a static '--' because
   // there was no source. Now we parse the JSON once and expose
@@ -132,7 +158,16 @@ export function mapTrestleToCrmListing(
     else era = "Pre-War";
   }
 
-  const mlsStatus = String(raw.MlsStatus || raw.StandardStatus || "Active");
+  // Master Plan §0.6: StandardStatus and MlsStatus are independent enums and must never
+  // substitute for one another, in either direction. canonicalStatus is the single raw
+  // Cotality value (or null if genuinely absent) that drives BOTH the mlsStatus output
+  // field below (kept under this name only because the frozen
+  // public/crm/js/search/search-engine.js reads `listing.mlsStatus` for free-text status
+  // search — traced as part of the Stage B1 cutover; it is tolerant of any reasonable
+  // status string, not a semantic read of Cotality's literal MlsStatus field) and the
+  // UCBA-safe statusMap lookup. Neither reads Cotality's actual MlsStatus field at all.
+  const canonicalStatus = readCotalityStandardStatus(raw);
+  const mlsStatus = canonicalStatus ?? "";
   const statusMap: Record<string, string> = {
     Active: "ACTIVE",
     ComingSoon: "COMING_SOON",
@@ -148,11 +183,12 @@ export function mapTrestleToCrmListing(
     Canceled: "CANCELLED",
     Cancelled: "CANCELLED",
     // ── UCBA Art. I §5(D) — "Off-Market" labeling is prohibited.
-    // Some MLS feeds (or stale data sources) may emit "Off Market" /
-    // "Off-Market" / "OffMarket" in MlsStatus. Map all variants to
-    // "WITHDRAWN", the closest UCBA-compliant canonical status.
-    // Without this mapping, the prior `mlsStatus.toUpperCase()`
-    // fallback would produce "OFF MARKET" — a literal violation.
+    // Some data sources may emit "Off Market" / "Off-Market" / "OffMarket" as the
+    // canonicalStatus value (sourced from StandardStatus via readCotalityStandardStatus
+    // above -- never from Cotality's actual MlsStatus field; 2026-10-03 Status residue
+    // cutover). Map all variants to "WITHDRAWN", the closest UCBA-compliant canonical
+    // status. Without this mapping, the prior `mlsStatus.toUpperCase()` fallback would
+    // produce "OFF MARKET" — a literal violation.
     "Off Market": "WITHDRAWN",
     "Off-Market": "WITHDRAWN",
     OffMarket: "WITHDRAWN",
@@ -165,16 +201,16 @@ export function mapTrestleToCrmListing(
   // sentinel and either suppress badges or show a neutral indicator.
   // (Was: `mlsStatus.toUpperCase()` which could produce "OFF MARKET",
   // "FUTURE", or any other vendor-specific string in the UI.)
-  const status = statusMap[mlsStatus] || "UNKNOWN";
+  const status = statusMap[canonicalStatus ?? ""] || "UNKNOWN";
 
   // ── Coming Soon date (UCBA Art. I §16(C)) ──────────────────────────
   // UCBA requires "No Showings or Open House until [date]" disclosure
   // for Coming Soon listings. The date must be specific. Previously
   // comingSoonDate was hard-coded to null in the return object, and
   // the badge renderer fell back to the vague string "until active
-  // date". Pull the actual date from Trestle:
+  // date". Pull the actual date from the Cotality record:
   //   ActivationDate    — REBNY's "showings begin" timestamp
-  //   OnMarketDate      — RESO standard fallback
+  //   OnMarketDate      — fallback (live Cotality field)
   // Format as ISO YYYY-MM-DD for downstream display.
   let comingSoonDate: string | null = null;
   if (status === "COMING_SOON") {
@@ -203,9 +239,9 @@ export function mapTrestleToCrmListing(
     intSqft: raw.LivingArea != null ? Number(raw.LivingArea) : null,
     status,
     mlsStatus,
-    ownership: String(raw.CommonInterest || raw.OwnershipType || ""),
+    ownership: readCotalityCommonInterest(raw),
     propertyType: mapDisplayPropertyType(raw),
-    propertySubType: String(raw.PropertySubType || ""),
+    propertySubType: readCotalityPropertySubType(raw),
     neighborhood: String(raw.SubdivisionName || ""),
     borough: String(raw.CityRegion || raw.CountyOrParish || "Manhattan"),
     zip: String(raw.PostalCode || ""),
@@ -228,6 +264,14 @@ export function mapTrestleToCrmListing(
     agentName: String(raw.ListAgentFullName || ""),
     agentEmail: String(raw.ListAgentEmail || ""),
     agentPhone: String(raw.ListAgentDirectPhone || ""),
+    listAgentMlsId: String(raw.ListAgentMlsId || ""),
+    listOfficeMlsId: String(raw.ListOfficeMlsId || ""),
+    coListingAgentName: String(raw.CoListAgentFullName || ""),
+    coListAgents: coListSlots(raw, "Agent", [1, 2, 3]),
+    coListOffices: coListSlots(raw, "Office", [1, 2]).map((office) => ({
+      ...office,
+      relation: officeRelation(String(raw.ListOfficeMlsId || ""), office.mlsId),
+    })),
     priceChange,
     originalPrice: originalPrice > 0 && originalPrice !== price ? originalPrice : null,
     photoCount,
@@ -237,11 +281,12 @@ export function mapTrestleToCrmListing(
     crossStreet: String(raw.CrossStreet || ""),
     floor: null,
     description: String(raw.PublicRemarks || ""),
-    virtualTourUrl: raw.VirtualTourURLUnbranded
-      ? String(raw.VirtualTourURLUnbranded)
-      : raw.VirtualTourURLBranded
-        ? String(raw.VirtualTourURLBranded)
-        : null,
+    // the 3D tour the listing has, chosen the way the public DTO chooses it (tourUrlsForDto): a link on a video host is a VIDEO, not a 3D tour (the CRM frames this one as "3D Virtual Tour", and
+    // YouTube refuses to be framed), the unbranded links come before the branded ones (UCBA Art. I Sec. 5(C)), each in the order first, second, third, and a blank link is none
+    virtualTourUrl: tourUrlsForDto(
+      [raw.VirtualTourURLUnbranded, raw.VirtualTourURLUnbranded2, raw.VirtualTourURLUnbranded3],
+      [raw.VirtualTourURLBranded, raw.VirtualTourURLBranded2, raw.VirtualTourURLBranded3],
+    ).virtualTourURL ?? null,
     idxDisplayYN: true,
     internetDisplayYN: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
     addressDisplayYN,

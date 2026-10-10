@@ -208,6 +208,7 @@
                 parts.push(c.neighborhoods.length === 1 ? c.neighborhoods[0] : c.neighborhoods.length + ' neighborhoods');
             }
             if (c.sqftMin) parts.push(c.sqftMin + '+ sqft');
+            if (c.agentOffice) parts.push('agent/office filter');
 
             summary.innerHTML = parts.length > 0
                 ? '<p class="text-xs text-blue-700"><i class="fas fa-search mr-1"></i> <strong>Criteria:</strong> ' + escapeHtml(parts.join(' | ')) + '</p>'
@@ -249,7 +250,7 @@
                 borough: c.borough || undefined,
                 zip: c.zip || undefined,
                 status: c.statuses && c.statuses.length > 0 ? c.statuses : undefined,
-                property_type: c.ownership && c.ownership.length > 0 ? c.ownership : undefined,
+                ownership: c.ownership && c.ownership.length > 0 ? c.ownership : undefined,
                 address: c.address || undefined,
                 listing_id: c.rlsId || undefined,
                 // Building-specific
@@ -283,6 +284,8 @@
                 // BuildingFeatures/etc. set. Stored as a JSON string to
                 // preserve the inner shape unchanged across save/load.
                 checkbox_filters: c.checkboxFilters ? JSON.stringify(c.checkboxFilters) : undefined,
+                // Agent / office pickers: the entries the search used ({id|text, label} per filter); restored with no network call.
+                agent_office: c.agentOffice || undefined,
             };
             return out;
         }
@@ -393,14 +396,23 @@
                 });
             }
 
-            // Restore ownership checkboxes
-            if (criteria.property_type && Array.isArray(criteria.property_type) && criteria.property_type.length > 0) {
-                var ownerForm = document.getElementById(tab === 'rent' ? 'searchBasicModeRental' : 'searchBasicMode');
-                if (ownerForm) {
+            // Restore ownership checkboxes from the canonical ownership criterion.
+            // Legacy compatibility is bounded: older CRM saves incorrectly used property_type
+            // for ownership. Restore those values only when they match a real CommonInterest
+            // control; true PropertyType values are never reinterpreted.
+            var ownerForm = document.getElementById(tab === 'rent' ? 'searchBasicModeRental' : 'searchBasicMode');
+            if (ownerForm) {
+                var ownershipValues = Array.isArray(criteria.ownership) ? criteria.ownership : [];
+                if (ownershipValues.length === 0 && Array.isArray(criteria.property_type)) {
+                    ownershipValues = criteria.property_type.filter(function(value) {
+                        return !!ownerForm.querySelector('[data-field="CommonInterest"][data-value="' + value + '"], [data-field="CommonInterest"][value="' + value + '"]');
+                    });
+                }
+                if (ownershipValues.length > 0) {
                     ownerForm.querySelectorAll('[data-field="CommonInterest"]').forEach(function(cb) { cb.checked = false; });
-                    criteria.property_type.forEach(function(pt) {
-                        var cb = ownerForm.querySelector('[data-field="CommonInterest"][data-value="' + pt + '"]');
-                        if (!cb) cb = ownerForm.querySelector('[data-field="CommonInterest"][value="' + pt + '"]');
+                    ownershipValues.forEach(function(value) {
+                        var cb = ownerForm.querySelector('[data-field="CommonInterest"][data-value="' + value + '"]');
+                        if (!cb) cb = ownerForm.querySelector('[data-field="CommonInterest"][value="' + value + '"]');
                         if (cb) cb.checked = true;
                     });
                 }
@@ -410,6 +422,9 @@
             // inputs that previously dropped on save. Each block locates
             // the active input ID per tab/mode (mirrors search-engine.js
             // collectSearchCriteria input ID resolution exactly).
+
+            // Agent / office filters live in the advanced form: show it so the restored filter is visible and applied.
+            if (criteria.agent_office && typeof toggleSearchMode === 'function') toggleSearchMode('advanced');
 
             // Detect advanced mode for ID prefix selection
             var _isAdv = (function () {
@@ -428,6 +443,9 @@
                 var mgmtEl = document.getElementById(_isAdv ? 'adv-management' : 'searchManagementCompany');
                 if (mgmtEl) mgmtEl.value = criteria.management_company;
             }
+
+            // Agent / office pickers
+            if (criteria.agent_office && window.AgentOfficeSearch) window.AgentOfficeSearch.setState(criteria.agent_office);
 
             // Unit number (mirrors collectSearchCriteria adv vs basic)
             if (criteria.unit) {
@@ -460,13 +478,17 @@
             }
 
             // SponsorUnit — independent param (Bug A11 split). Restored
-            // by toggling the SponsorUnit/Yes checkbox if it exists.
+            // by toggling the SponsorUnit/Yes checkbox if it exists. The
+            // control is disabled while the search cannot know the flag
+            // (init-disable-dead-controls.js), and a disabled control is
+            // never ticked, as for the checkbox filters below.
             if (criteria.sponsor_unit === 'true' || criteria.sponsor_unit === true) {
                 var spScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById('searchBasicMode');
                 if (spScope) {
                     var spCb = spScope.querySelector('input[data-field="SponsorUnit"][data-value="true"]') ||
                                spScope.querySelector('input[data-field="SponsorUnit"][data-value="Yes"]');
-                    if (spCb) spCb.checked = true;
+                    if (spCb && !spCb.disabled) spCb.checked = true;
+                    else if (spCb) console.warn('[CRM Search] The saved search asks for Sponsor Unit, which is not supported; it was not applied.');
                 }
             }
 
@@ -488,7 +510,7 @@
                             // First clear existing checks for this field
                             cbScope.querySelectorAll('input[data-field="' + field + '"]').forEach(function(cb) { cb.checked = false; });
                             values.forEach(function(v) {
-                                var cb = cbScope.querySelector('input[data-field="' + field + '"][data-value="' + String(v).replace(/"/g, '\\"') + '"]');
+                                var cb = cbScope.querySelector('input[data-field="' + field + '"][data-value="' + String(_legacyCriterionValue(field, v)).replace(/"/g, '\\"') + '"]');
                                 if (cb && !cb.disabled) cb.checked = true;
                             });
                         });
@@ -502,6 +524,14 @@
         }
 
         /** Helper: set a <select> value, trying exact match then closest */
+        // Saved searches written before the live-Cotality cutover stored values Cotality does not have; map them to the live members.
+        var _LEGACY_DIRECTION_FACES = { N: 'North', S: 'South', E: 'East', W: 'West', NE: 'Northeast', NW: 'Northwest', SE: 'Southeast', SW: 'Southwest' };
+        function _legacyCriterionValue(field, v) {
+            if (field === 'ListingAgreement' && v === 'CoExclusive') return 'CoExclusiveAgency';
+            if (field === 'DirectionFaces' && _LEGACY_DIRECTION_FACES[v]) return _LEGACY_DIRECTION_FACES[v];
+            return v;
+        }
+
         function _setSelectValue(elementId, value) {
             if (value == null) return;
             var el = document.getElementById(elementId);

@@ -1,52 +1,59 @@
 /// <reference types="jest" />
 /**
- * Canonical enum-compliance guard for collectSaleFormData.
+ * Live Cotality enum guard for collectSaleFormData.
  *
  * Codex caught two Herringbone-class bugs on PR #270:
- *   1. Flooring write included "Herringbone" — not in REBNY Flooring enum
+ *   1. Flooring write included "Herringbone" — not a live Flooring member
  *   2. BuildingFeatures write pushed all 19 amenity LABEL TEXTs (e.g.
- *      "Elevator", "Gym/Fitness Center") — none of which are in REBNY's
- *      BuildingFeatures enum
+ *      "Elevator", "Gym/Fitness Center") — none of which are live
+ *      BuildingFeatures members
  *
  * Both fixes:
  *   - Flooring → demoted to Mallan internal (saleFlooring raw key)
  *   - BuildingFeatures → translation table (8 unambiguous label→canonical
  *     mappings; untranslatable labels go to saleBuildingFeaturesInternal)
  *
- * This file is the regression guard. It cross-checks every canonical
- * write in collectSaleFormData against the REBNY normalized registry
- * (data/rebny-rls-property-lookup.csv). If any future PR adds a new
- * canonical write whose form values diverge from the registered enum,
- * CI fails before the bad data ships to production.
+ * Authority: the committed live Cotality contract `data/cotality-enums.live.json`
+ * (every entity, field type and enum from live `$metadata`; regenerate with
+ * `npm run cotality:pull`, check drift with `npm run cotality:verify`). Every form
+ * value written to a live Cotality enum field must be a live member of that
+ * field's enum, so a non-live string cannot ship.
  *
- * Specifically:
- *   - BuildingFeatures: translation table covers every amenity label
- *     AND the canonical output is enum-compliant
- *   - All other canonical-array writes (Heating, Cooling, BuildingHeating,
- *     BuildingCooling, PetsAllowed, BuildingPetsAllowed, AttendanceType,
- *     BuildingLaundryFeatures): every form value must match the REBNY
- *     enum exactly
+ * Closed 2026-10-09 (Maya: "there is no noise, there are errors and the need fixing. Do not assume, do actual corrections"): salePetsAllowed used to write UnitYes / UnitCatsOK / …
+ * into PetsAllowed. Its boxes now carry the live members (Yes / CatsOk / DogsOk / …), a live value is REQUIRED here (the first describe below), and a listing saved with the old
+ * spellings still loads (valueMap; tests/runtime/crm-pets-allowed-live.test.ts).
+ *
+ * Known Sale Redesign gap (live probe 2026-10-01; closed by the Sale Redesign
+ * conversion, never by widening this test):
+ *   - saleBuildingPetsAllowed, saleBldgHeating, saleBldgCooling,
+ *     saleBuildingLaundryFeatures and saleAttendanceType write fields that are
+ *     not typed live fields (AttendanceType is a CustomProperty.CustomFields key).
+ *     They are the Mallan Building Profile's own, internal fields.
+ * The ratchet below lets those existing fields stand and fails on any new one.
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
 const FORM_PATH = resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html');
-const LOOKUP_PATH = resolve(__dirname, '../../data/rebny-rls-property-lookup.csv');
+const LIVE_PATH = resolve(__dirname, '../../data/cotality-enums.live.json');
 
 const formHtml = readFileSync(FORM_PATH, 'utf8');
-const lookupCsv = readFileSync(LOOKUP_PATH, 'utf8');
+const live: { entities: Record<string, Record<string, string>>; enums: Record<string, string[]> } =
+  JSON.parse(readFileSync(LIVE_PATH, 'utf8'));
 
 // ── Helpers ──
 
-/** Extract REBNY enum values for a given canonical field name. */
-function rebnyEnum(field: string): Set<string> {
-  const values = new Set<string>();
-  const re = new RegExp(`,Property,${field},([^,]+),`, 'g');
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(lookupCsv)) !== null) {
-    values.add(m[1]);
-  }
-  return values;
+/** Live enum members for a Property field, via the enum type it is declared with. */
+function liveEnum(field: string): Set<string> {
+  const type = live.entities.Property?.[field];
+  if (!type) return new Set();
+  const enumName = type.replace(/^Collection\((.*)\)$/, '$1').split('.').pop() ?? '';
+  return new Set(live.enums[enumName] ?? []);
+}
+
+/** True when the field is declared on any live entity. */
+function isLiveField(field: string): boolean {
+  return Object.values(live.entities).some((e) => Object.prototype.hasOwnProperty.call(e, field));
 }
 
 /** Extract `value="..."` attributes from all <input> tags with a given `name`. */
@@ -76,35 +83,43 @@ function extractBuildingFeaturesMap(): Record<string, string> {
 
 // ── Tests ─────────────────────────────────────────────────────────────
 
-describe('Canonical-array writes that match the REBNY enum directly', () => {
-  // For these fields, collectSaleFormData pushes `cb.value` directly into
-  // `data.<Canonical>`. The value attributes on the inputs must all be
-  // present in the REBNY enum, otherwise we ship non-compliant strings.
-  const directCanonical: Array<{ formName: string; canonical: string }> = [
-    { formName: 'saleHeating', canonical: 'Heating' },
-    { formName: 'saleCooling', canonical: 'Cooling' },
-    { formName: 'saleBldgHeating', canonical: 'BuildingHeating' },
-    { formName: 'saleBldgCooling', canonical: 'BuildingCooling' },
-    { formName: 'salePetsAllowed', canonical: 'PetsAllowed' },
-    { formName: 'saleBuildingPetsAllowed', canonical: 'BuildingPetsAllowed' },
-    { formName: 'saleAttendanceType', canonical: 'AttendanceType' },
-    { formName: 'saleBuildingLaundryFeatures', canonical: 'BuildingLaundryFeatures' },
+describe('Writes to live Cotality enum fields use live members only', () => {
+  // collectSaleFormData pushes `cb.value` directly into `data.<Field>`, so every
+  // value attribute must be a live member of that field's enum.
+  const liveEnumWrites: Array<{ formName: string; field: string }> = [
+    { formName: 'saleHeating', field: 'Heating' },
+    { formName: 'saleCooling', field: 'Cooling' },
+    { formName: 'salePetsAllowed', field: 'PetsAllowed' },
   ];
 
-  it.each(directCanonical.map(({ formName, canonical }) => [formName, canonical]))(
-    'every form value for name="%s" exists in REBNY enum "%s"',
-    (formName, canonical) => {
+  it.each(liveEnumWrites.map(({ formName, field }) => [formName, field]))(
+    'every form value for name="%s" is a live member of "%s"',
+    (formName, field) => {
       const formVals = formValuesForName(formName);
       expect(formVals.length).toBeGreaterThan(0); // sanity — fields exist
-      const enumSet = rebnyEnum(canonical);
-      expect(enumSet.size).toBeGreaterThan(0); // sanity — enum loaded
-      const nonCompliant = formVals.filter((v) => !enumSet.has(v));
-      // If this fires, we're about to ship a Herringbone-class bug — a
-      // non-compliant value going into a canonical IDX Plus field.
-      expect({ canonical, nonCompliantValues: nonCompliant }).toEqual({
-        canonical,
-        nonCompliantValues: [],
-      });
+      const enumSet = liveEnum(field);
+      expect(enumSet.size).toBeGreaterThan(0); // sanity — live enum resolved
+      const nonLive = formVals.filter((v) => !enumSet.has(v));
+      expect({ field, nonLiveValues: nonLive }).toEqual({ field, nonLiveValues: [] });
+    },
+  );
+});
+
+describe('Known Sale Redesign gap cannot grow (closed by the Sale Redesign conversion)', () => {
+  // Fields the form writes that are not typed live Cotality fields.
+  const NON_LIVE_FIELDS: Array<{ formName: string; field: string }> = [
+    { formName: 'saleBuildingPetsAllowed', field: 'BuildingPetsAllowed' },
+    { formName: 'saleBldgHeating', field: 'BuildingHeating' },
+    { formName: 'saleBldgCooling', field: 'BuildingCooling' },
+    { formName: 'saleBuildingLaundryFeatures', field: 'BuildingLaundryFeatures' },
+    { formName: 'saleAttendanceType', field: 'AttendanceType' },
+  ];
+
+  it.each(NON_LIVE_FIELDS.map(({ formName, field }) => [formName, field]))(
+    'name="%s" still writes "%s", which is not a typed live field',
+    (formName, field) => {
+      expect(formValuesForName(formName).length).toBeGreaterThan(0);
+      expect({ field, live: isLiveField(field) }).toEqual({ field, live: false });
     },
   );
 });
@@ -116,11 +131,11 @@ describe('BuildingFeatures translation table — Herringbone-class PR #270 fix',
     expect(Object.keys(translationMap).length).toBeGreaterThan(0);
   });
 
-  it('every mapped canonical value exists in REBNY BuildingFeatures enum', () => {
-    const enumSet = rebnyEnum('BuildingFeatures');
+  it('every mapped canonical value is a live BuildingFeatures member', () => {
+    const enumSet = liveEnum('BuildingFeatures');
     expect(enumSet.size).toBeGreaterThan(0);
-    const nonCompliant = Object.entries(translationMap).filter(([, canonical]) => !enumSet.has(canonical));
-    expect({ nonCompliantMappings: nonCompliant }).toEqual({ nonCompliantMappings: [] });
+    const nonLive = Object.entries(translationMap).filter(([, canonical]) => !enumSet.has(canonical));
+    expect({ nonLiveMappings: nonLive }).toEqual({ nonLiveMappings: [] });
   });
 
   it('every SALE_BUILDING_FEATURE_IDS amenity label is either translated OR routed to internal', () => {
@@ -225,7 +240,7 @@ describe('Flooring — demoted to Mallan internal (Codex PR #270 review)', () =>
 
   it('SALE_CHECKBOX_ARRAY_MAP entry for saleFlooring uses Mallan internal rls key', () => {
     expect(formHtml).toMatch(/\{\s*rls:\s*'saleFlooring'\s*,\s*name:\s*'saleFlooring'/);
-    // The old RESO-canonical mapping `{ rls: 'Flooring', name: 'saleFlooring' }`
+    // The old Cotality-field mapping `{ rls: 'Flooring', name: 'saleFlooring' }`
     // should no longer be present.
     expect(formHtml).not.toMatch(/\{\s*rls:\s*'Flooring'\s*,\s*name:\s*'saleFlooring'/);
   });

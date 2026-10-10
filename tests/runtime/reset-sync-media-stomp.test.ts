@@ -2,16 +2,16 @@
 /**
  * P1C1 — reset-sync RC2 patch (behavioral RED→GREEN).
  *
- * The reset-sync route fetches with expandMedia:false (Trestle 400s the
+ * The reset-sync route fetches with expandMedia:false (Cotality 400s the
  * expand — PR-S.1c), so mapped.media is ALWAYS []. Its upsert UPDATE branch
- * wrote `media: mapped.media` unconditionally — the last Trestle-shaped JSON
+ * wrote `media: mapped.media` unconditionally — the last Cotality-shaped JSON
  * writer outside the RC2 guard. On any UPDATE-branch hit (re-entrant run /
  * partial failure / future edit) it stomps existing listings.media to [] —
  * the exact RC2 bug surviving in a manual side door (deep-review L5-manual,
  * writer W16). Defense-in-depth note: STEP 1 deletes all listings first, so a
  * clean run hits CREATE everywhere; the UPDATE branch is the re-entrant path.
  *
- * Under test (route-level, mocked Trestle + Prisma):
+ * Under test (route-level, mocked Cotality + Prisma):
  *   1. the captured upsert `update` payload has NO `media` key (RED: media:[]).
  *   2. the CREATE branch still writes media (new row — W1-identical semantics).
  */
@@ -80,6 +80,7 @@ jest.mock('@/lib/idx/trestle-mapper', () => ({
   normalizeStandardStatus: jest.requireActual('@/lib/idx/trestle-mapper').normalizeStandardStatus,
   validateHistoricalFields: jest.fn(() => ({ valid: true, missingFields: [] })),
   checkDistributionGates: jest.fn(() => ({ displayable: true, reason: null })),
+  applyLocalOwnerOptOutGate: jest.fn((idxDisplayYn: boolean) => idxDisplayYn),
   mapTrestleToPrisma: jest.fn(() => ({
     listing_id: 'RLS20012345',
     mls_id: 'RLS20012345',

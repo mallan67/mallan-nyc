@@ -2,7 +2,7 @@ import neighborhoodAliases from "@/data/rls/geo/neighborhood-aliases.json";
 
 /**
  * Expand a canonical neighborhood name into all SubdivisionName variants
- * found in the RLS feed. E.g. "Kips Bay" -> ["Kips Bay","KIPS",...].
+ * found in a Cotality feed snapshot (SubdivisionName, 2026-03-03). E.g. "Kips Bay" -> ["Kips Bay","KIPS",...].
  */
 export function expandCrmIdxNeighborhood(canonical: string): string[] {
   const aliases = (neighborhoodAliases as Record<string, unknown>).aliases as
@@ -33,6 +33,71 @@ function stripStreetSuffix(value: string): string {
   return value
     .replace(/\s+(STREET|ST|AVENUE|AVE|BOULEVARD|BLVD|PLACE|PL|DRIVE|DR|ROAD|RD|LANE|LN|COURT|CT|WAY|TERRACE|TER|CIRCLE|CIR|PARKWAY|PKWY|PLAZA)\s*$/i, "")
     .trim();
+}
+
+// Agent / office search. The primary side (ListAgent*, ListOffice*) and the co-list side (CoListAgent{,2,3}*, CoListOffice{,2}*)
+// are separate filters and are never merged; "anyAgent" is a convenience that spans both and does not replace either.
+// Every id/name field below filters without error on live Cotality Property (verified 2026-10-06, api.cotality.com/trestle/odata).
+// A token of digits is an exact MLS ID; anything else is a name match (every word must appear, case-insensitive).
+const AGENT_PRIMARY_IDS = ["ListAgentMlsId"];
+const AGENT_PRIMARY_NAMES = ["ListAgentFullName"];
+const AGENT_COLIST_IDS = ["CoListAgentMlsId", "CoListAgent2MlsId", "CoListAgent3MlsId"];
+const AGENT_COLIST_NAMES = ["CoListAgentFullName", "CoListAgent2FullName", "CoListAgent3FullName"];
+
+export const CRM_AGENT_OFFICE_FILTERS: Record<string, { ids: string[]; names: string[] }> = {
+  listAgent: { ids: AGENT_PRIMARY_IDS, names: AGENT_PRIMARY_NAMES },
+  coListAgent: { ids: AGENT_COLIST_IDS, names: AGENT_COLIST_NAMES },
+  anyAgent: { ids: [...AGENT_PRIMARY_IDS, ...AGENT_COLIST_IDS], names: [...AGENT_PRIMARY_NAMES, ...AGENT_COLIST_NAMES] },
+  listOffice: { ids: ["ListOfficeMlsId"], names: ["ListOfficeName"] },
+  coListOffice: { ids: ["CoListOfficeMlsId", "CoListOffice2MlsId"], names: ["CoListOfficeName", "CoListOffice2Name"] },
+};
+
+const AGENT_OFFICE_MAX_TOKENS = 5;
+const AGENT_OFFICE_MAX_WORDS = 4;
+
+function joinOr(terms: string[]): string {
+  return terms.length === 1 ? terms[0] : `(${terms.join(" or ")})`;
+}
+
+function agentOfficeClause(spec: { ids: string[]; names: string[] }, token: string): string {
+  if (/^\d{1,12}$/.test(token)) {
+    return joinOr(spec.ids.map((field) => `${field} eq '${token}'`));
+  }
+  const words = token.split(/\s+/).filter(Boolean).slice(0, AGENT_OFFICE_MAX_WORDS);
+  return joinOr(
+    spec.names.map((field) => {
+      const matches = words.map((word) => `contains(${field},'${escapeOData(word)}')`);
+      return matches.length === 1 ? matches[0] : `(${matches.join(" and ")})`;
+    }),
+  );
+}
+
+export function buildAgentOfficeFilterParts(params: URLSearchParams): string[] {
+  const parts: string[] = [];
+  for (const [param, spec] of Object.entries(CRM_AGENT_OFFICE_FILTERS)) {
+    const tokens = (params.get(param) || "")
+      .split(",")
+      .map((token) => token.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 80))
+      .filter(Boolean)
+      .slice(0, AGENT_OFFICE_MAX_TOKENS);
+    const clauses = tokens.map((token) => agentOfficeClause(spec, token));
+    if (clauses.length === 1) parts.push(clauses[0]);
+    else if (clauses.length > 1) parts.push(`(${clauses.join(" or ")})`);
+  }
+  return parts;
+}
+
+// Legacy input aliases, mapped to the live Cotality enumeration members (live $metadata, 2026-10-06). Saved searches written before the cutover
+// stored the non-live ListingAgreement value "CoExclusive" (live: CoExclusiveAgency) and DirectionFaces as N/S/E/W/NE/NW/SE/SW
+// (live: North, South, East, West, Northeast, Northwest, Southeast, Southwest). Cotality answers HTTP 400 to any other string.
+const LEGACY_DIRECTION_FACES: Record<string, string> = {
+  N: "North", S: "South", E: "East", W: "West", NE: "Northeast", NW: "Northwest", SE: "Southeast", SW: "Southwest",
+};
+
+function legacyCriterionValue(field: string, value: string): string {
+  if (field === "ListingAgreement" && value === "CoExclusive") return "CoExclusiveAgency";
+  if (field === "DirectionFaces" && LEGACY_DIRECTION_FACES[value]) return LEGACY_DIRECTION_FACES[value];
+  return value;
 }
 
 export function buildCrmIdxODataFilter(params: URLSearchParams): string {
@@ -97,7 +162,7 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
 
   const status = params.get("status");
   if (status === "*") {
-    // Intentionally no status filter; used by RLS tracker for total count.
+    // Intentionally no status filter; the CRM listing tracker (public/crm/js/init/init-tracker.js) uses it for the total count.
   } else if (status) {
     const statuses = status.split(",").map((value) => {
       const normalized = value.trim().replace(/\s+/g, "");
@@ -214,6 +279,8 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
   const mgmtCompany = params.get("managementCompany");
   if (mgmtCompany) parts.push(`contains(ListOfficeName,'${escapeOData(mgmtCompany)}')`);
 
+  parts.push(...buildAgentOfficeFilterParts(params));
+
   const subType = params.get("propertySubType");
   if (subType) {
     const subTypes = subType.split(",").map((value) => value.trim()).filter(Boolean);
@@ -240,7 +307,7 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
   if (cbRaw) {
     try {
       const cbFilters: Record<string, string[]> = JSON.parse(cbRaw);
-      const trestleFieldMap: Record<string, string> = {
+      const crmCheckboxToCotalityField: Record<string, string> = {
         BuildingLaundryFeatures: "LaundryFeatures",
         BuildingSecurityFeatures: "SecurityFeatures",
         BuildingPoolFeatures: "PoolFeatures",
@@ -257,17 +324,21 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
         "View", "AccessibilityFeatures", "ExteriorFeatures",
         "BuildingFeatures", "LaundryFeatures", "SecurityFeatures",
       ]);
-      for (const [htmlField, values] of Object.entries(cbFilters)) {
-        if (!values || values.length === 0) continue;
-        const trestleField = trestleFieldMap[htmlField] || htmlField;
-        if (!odataSafe.has(trestleField)) continue;
-        if (trestleField.endsWith("YN")) {
+      for (const [htmlField, rawValues] of Object.entries(cbFilters)) {
+        if (!rawValues || rawValues.length === 0) continue;
+        // A checkbox can carry several comma-joined values (the "Exclusive" box does). Cotality compares these fields as enumerations, so a
+        // joined string is rejected (HTTP 400): split it into one comparison per value, mapping legacy saved values to live members.
+        const values = [...new Set(rawValues.flatMap((v) => String(v).split(",")).map((v) => v.trim()).filter(Boolean).map((v) => legacyCriterionValue(htmlField, v)))];
+        if (values.length === 0) continue;
+        const cotalityField = crmCheckboxToCotalityField[htmlField] || htmlField;
+        if (!odataSafe.has(cotalityField)) continue;
+        if (cotalityField.endsWith("YN")) {
           const wantTrue = values.includes("true") || values.includes("Yes");
-          parts.push(`${trestleField} eq ${wantTrue ? "true" : "false"}`);
+          parts.push(`${cotalityField} eq ${wantTrue ? "true" : "false"}`);
         } else if (values.length === 1) {
-          parts.push(`${trestleField} eq '${escapeOData(values[0])}'`);
+          parts.push(`${cotalityField} eq '${escapeOData(values[0])}'`);
         } else {
-          const orParts = values.map((value) => `${trestleField} eq '${escapeOData(value)}'`);
+          const orParts = values.map((value) => `${cotalityField} eq '${escapeOData(value)}'`);
           parts.push(`(${orParts.join(" or ")})`);
         }
       }
@@ -285,7 +356,7 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
   const listingId = params.get("listingId");
   if (listingId) {
     // Bug A13 (L2 patch) — accept comma-separated RLS IDs.
-    // Trestle/REBNY contract: Property.ListingId is the canonical RLS ID
+    // Live Cotality contract (Master §0 IDENTIFIER): Property.ListingId is the RLS ID
     // (e.g. RLS20078109). Single-value input remains the common case.
     // Comma-separated input lets agents look up multiple listings in one
     // shot — generates `(ListingId eq 'X' or ListingId eq 'Y')`.

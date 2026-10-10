@@ -202,7 +202,7 @@ describe("computeListingMediaSummary (pure function)", () => {
     expect(summary.photos_change_timestamp?.toISOString()).toBe("2026-05-15T00:00:00.000Z");
   });
 
-  it("treats case variants in media_type and status (Trestle inconsistency tolerance)", () => {
+  it("treats case variants in media_type and status (Cotality inconsistency tolerance)", () => {
     const summary = computeListingMediaSummary([
       row({ media_type: "PHOTO", status: "ACTIVE", order: 1, media_url_original: "https://example.com/upper.jpg" }),
       row({ media_type: "photo", status: "active", order: 2, media_url_original: "https://example.com/lower.jpg" }),

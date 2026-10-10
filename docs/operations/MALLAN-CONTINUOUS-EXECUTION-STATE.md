@@ -7,20 +7,21 @@
 > and next action. It is status and history only: it authorizes no branch name, file path, implementation
 > scope or mutation envelope, and no check reads authorization from it. It may not redefine the Master.
 
-**Checkpoint:** 2026-09-29 — Maya decided to retire the old execution wall: the branch restriction, the State modes and path envelopes, the controller's authorization cycle and `authority-root` (§7). #646 removes only that wall and adds no new gate. **PENDING:** Maya temporarily removes `authority-root` from `Protect main` so #646 can merge; the protection is then INTERIM (§7). Until then the live required checks are `pr-check` and `authority-root`. The sequence after that is §11.
+> **Latest checkpoint: 2026-10-09.** See "Convergence progress — PR #647 (checkpoint 2026-10-09)" below for the head, the commit count, what was done since and the decisions that are Maya's. The "Checkpoint" paragraph that follows is the 2026-10-01 record and is kept as history.
+
+**Checkpoint:** 2026-10-01 — the Cotality convergence is ACTIVE on draft PR #647 (`recovery/cotality-main-convergence` → `main`), DRAFT and unmerged. At this checkpoint the PR holds 13 Git commits representing 8 numbered convergence milestones; all current CI is green; preview proof exists and production proof does not (§11). **`main` is FROZEN at `3656a423`** — #646 MERGED (`3656a42333f2be5e837015e0165387ea96fe99b6`) retired the old execution wall; the live required check is `pr-check` only, and protection is INTERIM (§7). The only exception is a hotfix: if Production breaks or blocks the business, a minimal, reviewed fix may go to `main` with Maya's approval, and is then merged into the convergence branch. All cleanup and the Cotality migration happen on the convergence branch, which becomes the new `main` once the old system is zero (§11).
 **Repository:** `mallan67/mallan-nyc` only  
 **Canonical branch:** `main`  
-**Main at this checkpoint:** `005786e71818ef13f555111de67e3d6248412987` — the PR #632 merge
-commit, which is the commit this checkpoint describes. **This is not a claim about the current
-tip of `main` and must never be read as one.** Updating this file necessarily advances `main`
-past whatever SHA it records, so a literal current-main field here self-stales the moment it
-merges. §1 already forbids persisting mutable fingerprints for exactly this reason. **Read the
-live tip from GitHub.**  
-**Active governance convergence PR:** none. PR #632 MERGED 2026-09-20T17:53:22Z as `005786e71818ef13f555111de67e3d6248412987`  
-**Checkpoint source head:** `fb100d6a12f572d78aaac0ec152c4cc57ac6ce74` (final #632 head; all checks green, zero unresolved review threads). Current head must always be read live from GitHub  
+**Main at this checkpoint:** `3656a42333f2be5e837015e0165387ea96fe99b6` — the #646 merge
+commit; `main` is frozen there during the convergence (§11). **This is not a claim about the
+current tip of `main` and must never be read as one.** A literal current-tip field here
+self-stales the moment the branch it describes moves. §1 already forbids persisting mutable
+fingerprints for exactly this reason. **Read the live tip from GitHub.**  
+**Active convergence PR:** #647, `recovery/cotality-main-convergence` → `main`, DRAFT, unmerged; Maya merges it once the old system is zero (§11). HISTORY: PR #632 MERGED 2026-09-20T17:53:22Z as `005786e71818ef13f555111de67e3d6248412987`  
+**Checkpoint source head:** `0e0cc29daff27ac5d4884236b4ded0123fed5f0a` (#647 head at convergence milestone 8; all current checks green on it). The documentation commit that records this checkpoint moves the head past it; read the current head live from GitHub  
 **Authorized work surface:** GitHub repository + explicitly authorized provider connections only; Desktop/worktrees/scratch copies are not execution authority  
 **PR #595:** authority provenance / historical governance source; CLOSED 2026-09-20T17:54:35Z as superseded by #632, unmerged. Its lineage is in `main` history through #632  
-**Governance activation:** `authority-root` has been a required status check on the `Protect main` ruleset `19435006` since 2026-09-22, bound to the GitHub Actions integration `15368`; the live required checks are `pr-check` and `authority-root` (verified 2026-09-29). #646 retires it; Maya temporarily removes it from the ruleset so #646 can merge (§11). Read the live ruleset for the current required set.
+**Governance activation:** HISTORY. `authority-root` was a required status check on the `Protect main` ruleset `19435006` from 2026-09-22 until Maya removed it on 2026-09-29 (ruleset updated 17:17 -04:00); #646, merged as `3656a423`, retired it. The live required check is `pr-check` only (verified 2026-09-29). Read the live ruleset for the current required set.
 
 ---
 
@@ -141,13 +142,14 @@ No historical #595 support file becomes a competing authority merely because it 
 ## Main
 
 **This section records checkpoint data, not the live tip.** Read the current tip from GitHub.
-No SHA written into this file can be the live tip, because merging this file moves `main` past
-whatever it records.
+No SHA written here is guaranteed to be the live tip: the convergence head moves with every commit,
+including the one that records this file, and `main` moves when a hotfix or the convergence PR merges.
 
-The commit this checkpoint describes is `005786e71818ef13f555111de67e3d6248412987`, which merged
-PR #632, the integrated Master + execution control convergence. The commit before it,
-`bba9d8d6c92bb3bfe95b9f4b90da69534650c276`, merged PR #631 (Database Authority Safety Packet 1).
-Both are history; neither is a claim about where `main` points now.
+At this checkpoint (2026-10-01) `main` is frozen at `3656a42333f2be5e837015e0165387ea96fe99b6`,
+which merged #646 (§7); the convergence work is on draft PR #647 (§11). Earlier,
+`005786e71818ef13f555111de67e3d6248412987` merged PR #632, the integrated Master + execution
+control convergence, and `bba9d8d6c92bb3bfe95b9f4b90da69534650c276` merged PR #631 (Database
+Authority Safety Packet 1). These are history; none is a claim about where `main` points now.
 
 ## PR #631 — CLOSED
 
@@ -186,7 +188,7 @@ PR #632 was the **one-time bootstrap exception**, granted because `main` did not
 the Master or the Execution State. **That exception is now CLOSED.** It was guarded on the
 ABSENCE of both files rather than on a PR number, and `main` now carries both, so the branch
 is unreachable for every pull request including #632 itself. Two tests in
-`tests/runtime/mallan-execution-control.test.ts` assert that property from the post-merge side.
+`tests/runtime/mallan-execution-control.test.ts` asserted that property until #646 deleted the controller and that test (§7).
 
 ## Branch estate
 
@@ -217,7 +219,7 @@ Current repo/provider state:
   the adapter pointed at an untracked `dist/index.js`. That was true before #632 and is not true
   at `005786e`.);
 - the adapter FAILS CLOSED. It throws `No local snapshot fallback is permitted` when a live fetch
-  fails, and contains no reference to `artifacts/metadata.xml`. (Corrected 2026-09-20: this
+  fails, and reads no repository snapshot. (Corrected 2026-09-20: this
   bullet previously described a snapshot fallback that has been removed. An agent acting on the
   old wording would reject a helper that is behaving correctly.);
 - the current runtime test proves configuration strings, not that a clean Git checkout can start the adapter and reach Cotality live;
@@ -540,7 +542,7 @@ Permanent platform issues are defined **only** in `docs/PLATFORM-ISSUE-REGISTRY.
 
 PR-review findings that are corrected inside the active packet remain review evidence in the PR thread/history rather than becoming parallel issue IDs. Historical observations that may inform later work must be promoted into the Platform Issue Registry before they are treated as actionable platform defects.
 
-The dependency-ordered recovery sequence for the current convergence program is §5.1 (Phases A–H). It is execution sequencing, not a second issue registry.
+The dependency-ordered recovery sequence for the former (2026-09-20) governance convergence program was §5.1 (Phases A–H). The current Cotality convergence sequence is §11 steps 5–6. It is execution sequencing, not a second issue registry.
 
 # 6. Mandatory closure model
 
@@ -584,20 +586,20 @@ Maya decided on 2026-09-29 to retire the old execution wall:
 
 It kept unsafe changes out of `main`, but it also kept correct changes out: from 2026-09-18 to 2026-09-26 all thirteen merges to `main` (#632–#644) were governance updates and none changed the product. Its history is in Git.
 
-#646 removes only that wall:
+#646 (merged 2026-09-29 as `3656a42333f2be5e837015e0165387ea96fe99b6`) removed only that wall:
 - `scripts/ci/mallan-execution-control.mjs` and its test;
 - `.github/workflows/authority-root.yml` and `.github/workflows/branch-authority.yml`;
 - the controller steps in `pr-check`.
 
-It adds no new gate. It also makes `pr-check` read-only (`permissions: contents: read`, checkout with `persist-credentials: false`), so pull-request code never receives repository write credentials.
+It added no new gate. It also made `pr-check` read-only (`permissions: contents: read`, checkout with `persist-credentials: false`), so pull-request code never receives repository write credentials.
 
 **The protection after #646 is INTERIM:**
 - every change arrives through a pull request;
-- the required `pr-check` runs as it does today;
+- `pr-check` is the only required check (Maya removed `authority-root` on 2026-09-29);
 - force-push and deletion of `main` are blocked;
 - Maya reviews and merges every pull request. Agents never merge, never enable auto-merge and never change branch protection or rulesets.
 
-**What the interim protection does not certify.** `pr-check` still runs `rls:validate` and `validate:form-rls`. They are validators of the retired provider authority: the REBNY RLS CSVs, the RESO field map and a RESO-to-RLS rename table. They are not provider authority and are not correct or canonical. They remain only until the first cleanup pull request removes them together with their old provider readers, writers and source files, and nothing requires or protects them.
+**What the interim protection does not certify.** The convergence branch removes obsolete provider implementation component by component; each removal is recorded with its commit under §11 "Completed". Obsolete provider implementation that live code still reads stays until it is replaced in place. What remains, including the RESO field map (`public/crm/js/core/reso-field-map.js`), is listed under §11 "Open". None of that provider-derived material is provider authority, correct or canonical, and no rule or check requires or protects it; it stays only while live consumers, including the frozen tools and public search, still read it. The CRM listing gate's field-requirement table and Fair Housing prohibited-terms list (`lib/compliance/rebny-validator.ts`) now both read current, canonical sources (`lib/compliance/rebny-field-tables.ts` and `data/compliance/prohibited-terms.json` respectively, milestones 20-21); that screen is a current compliance control (Master §21.10).
 
 Passing `pr-check` during the interim therefore does not certify provider correctness. `main` still contains obsolete provider implementation, which must be cleaned before permanent governance is designed. The architectural authority is unchanged (Master §21.2):
 
@@ -620,7 +622,7 @@ COTALITY RAW CONTRACT → VERIFIED MAPPING → MALLAN STORAGE → MALLAN BUSINES
 
 # 8.1 Human / agent identity boundary
 
-GitHub's `Protect main` ruleset (`19435006`) requires a pull request and the `pr-check` and `authority-root` status checks, and blocks non-fast-forward pushes and deletion of `main`. It requires 0 approving reviews, requires review threads to be resolved, and has no bypass actors (verified live 2026-09-29). `authority-root` runs the retired controller, which refuses #646 by design, so Maya temporarily removes it from the required checks for #646 to merge (§11, step 2). The protection is then INTERIM (§7): pull request + current `pr-check` + Maya's review. The permanent required-check set is designed only after `main` is cleaned (§11, step 8). Read the live ruleset for the current required set.
+GitHub's `Protect main` ruleset (`19435006`) requires a pull request and the `pr-check` status check (strict, branch up to date). It blocks non-fast-forward pushes and deletion of `main`, requires 0 approving reviews, requires review threads to be resolved, and has no bypass actors. This was verified live on 2026-09-29, after Maya removed `authority-root` at 17:17 -04:00 and #646 merged. The protection is INTERIM (§7), and `main` is frozen at `3656a423` during the convergence (§11). The permanent required-check set is designed only after the corrected system is the new `main` (§11). Read the live ruleset for the current required set.
 
 If an AI agent operates through Maya's own GitHub identity, GitHub cannot distinguish a change made by Maya from one made by the agent, and repository CI cannot prove which of them opened a pull request.
 
@@ -692,18 +694,556 @@ Do not create another status file because this one becomes inconvenient.
 
 # 11. Current exact stop point
 
-**2026-09-29 — stop point.** The actual sequence, one step at a time. Nothing in steps 4–8 is implemented by #646.
+**2026-10-01 — stop point.** The Cotality convergence is ACTIVE. The sequence (set 2026-09-29):
 
-1. #646 removes only the old execution wall (§7).
-2. Maya temporarily removes `authority-root` from `Protect main` so #646 can merge.
-3. Protection is explicitly INTERIM: pull request + current `pr-check` + Maya's review (§7).
-4. Clean current `main`. The first cleanup pull request removes `rls:validate` and `validate:form-rls` together with their old provider readers, writers and source files.
-5. Remove the old provider authority and duplicate/parallel systems.
-6. Verify the live Cotality contract.
-7. Build the single Cotality mapping from the cleaned `main`.
-8. Only after the corrected source exists, design and build the permanent `pr-check`, the provider-contract check, `pr-safety` and the final `Protect main` required-check set.
+1. DONE — #646 merged 2026-09-29 as `3656a42333f2be5e837015e0165387ea96fe99b6`; the old execution wall is retired (§7).
+2. DONE — Maya removed `authority-root` from `Protect main` (2026-09-29, 17:17 -04:00); the live required check is `pr-check` only.
+3. IN FORCE — protection is INTERIM: pull request + `pr-check` + Maya's review (§7). `main` is FROZEN at `3656a423`. The only exception is a hotfix: a minimal, reviewed fix that goes to `main` with Maya's approval when Production breaks or blocks the business, and is then merged into the convergence branch.
+4. ACTIVE — the convergence branch `recovery/cotality-main-convergence`, created from `3656a423`, with one draft pull request to `main`: #647. Convergence milestones 1–8 are complete ("Convergence progress" below). Milestone 1 removed the old provider authority that no live code read, including `rls:validate`, `validate:form-rls` and the files only they used; later milestones replace live consumers in place under step 5.
+5. Replace the old system component by component, in the existing code, never beside it:
+   1. identify the next old or wrong component;
+   2. verify the exact live Cotality contract that component needs;
+   3. replace the old implementation in the existing canonical path. No new parallel module, no side-by-side copy, no second mapping;
+   4. remove the old mapping, reader, writer and fallback;
+   5. prove every affected consumer still works;
+   6. move to the next component.
+6. Repeat until the old system is zero:
+   - no reader of the REBNY provider CSVs or RESO maps;
+   - no RESO→RLS translation;
+   - no RLS bindings used as provider truth;
+   - no static provider fallback;
+   - no duplicate status maps and no duplicate raw mappers.
+7. Merge the corrected system as the new `main` (Maya merges the convergence pull request).
+8. Only after that, design the permanent required checks.
 
-No Search, CMA, forms, CRM, listing or other product development merges during the interim cleanup. Everything below this entry is history.
+Nothing is merged into `main` except the hotfix exception until step 7.
+
+## Authority separation rule (Maya, 2026-10-02)
+
+Three separate authorities govern this convergence. None substitutes for another — the
+"Known held defect" entries below exist because the old system collapsed this exact
+distinction.
+
+| Authority | Controls | Must NOT control |
+|---|---|---|
+| **REBNY RLS compliance rule** (UCBA, Mandatory Listing Info, current REBNY guidance) | Brokerage rules, mandatory listing information, dissemination, Owner Opt-Out, Participant Only, timing, fines | Cotality field names, API types, enum availability, queryability, resource structure |
+| **Live Cotality contract** (`$metadata`, Lookup/Field catalog, actual entitled rows) | Exact resources, fields, types, enums, relationships, filter/order permissions, actual delivered data | REBNY business/compliance interpretation |
+| **Mallan business rule** | Canonical storage, owner identity, CRM state, business workflows, audience-specific display | Inventing Cotality fields or replacing REBNY rules |
+
+**A REBNY concept becomes a Cotality mapping only when the live Cotality contract
+independently verifies the corresponding resource/field/value.** Owner Opt-Out and
+Participant Only are the worked example of both directions:
+
+- **Owner Opt-Out** — REBNY's UCBA names it as a real compliance state (not disseminated
+  through the RLS; no IDX/VOW/syndication/public; a signed form required; 2026 submission is
+  through the Exclusive Agent's LMP). Live Cotality's `Permission` (18 values) and `MlsStatus`
+  (26 values) enums have no `OwnerOptOut`/`Owner Opt-Out` member at all — the second authority
+  does NOT independently verify it. The correct chain is: REBNY names the rule → Mallan stores
+  `owner_opt_out` as canonical business/compliance state → Mallan blocks
+  public/IDX/VOW/marketing. It is never "REBNY names the rule → assume Cotality `Permission`
+  carries it." That assumption was exactly the bug fixed in the 2026-10-02 Permission cutover
+  (see "Known held defect — owner opt-out derivation" below, now RESOLVED).
+- **Participant Only** — REBNY's UCBA Definition (W) names it. Live Cotality's `Permission`
+  enum independently exposes `Private` for the same concept. Both authorities line up here, so
+  `Permission='Private' → participant_only=true` is a valid, verified mapping.
+
+Exact terminology from here forward — "RLS specification" is retired as ambiguous:
+- **"REBNY RLS compliance rule"** — UCBA, Mandatory Listing Info, current REBNY guidance.
+- **"live Cotality contract"** — resource/field/enum/type/query/data fact, verified live (never
+  assumed from an old file).
+- **"Mallan business rule"** — canonical behavior built from the two above.
+
+Historical files such as the now-deleted `data/rebny-rls-property-lookup.csv` (milestone 8),
+old `RLS-FIELD-REGISTRY`, and old Trestle/RLS mapper docs are evidence of a past claim, never
+a technical authority. Nothing in this convergence may cite one as proof that a Cotality
+field/value exists — only a live check (`trestle_get_picklist`, `trestle_lookup_field`,
+`trestle_validate_field`, or an actual entitled-row query) does that.
+
+## Convergence progress — PR #647 (checkpoint 2026-10-09)
+
+| fact | value at this checkpoint |
+|---|---|
+| PR | #647, OPEN, DRAFT, unmerged |
+| base | `main` at `3656a42333f2be5e837015e0165387ea96fe99b6`, frozen |
+| head | `dc363fb7dc3dab80d771b8b78a921fd1b48f16ef`, the last commit that changed code; the documentation commits after it change this file only |
+| commits | 162 Git commits up to and including `dc363fb7` (the 2026-10-02 checkpoint, below, counted 25); the documentation commits after it add no code |
+| CI on that head | all six checks (PR checks, Target Platform Build, CRM Validation, Guardrails, Claude review, Release Truth) passed on the FIRST attempt of every run, with no re-run, on `e269eee5`, `1803ad60`, `3aff9efb`, `4a8e5dc7` (documentation only), `99cb6351`, `dc363fb7` and `760adec0` (documentation only) (`pr-check` 23.2, 23.4, 17.7, 23.4, 18.4, 18.3 and 23.1 minutes; Release Truth 23.8, 23.7, 18.3, 23.7, 18.8, 18.7 and 23.4 minutes). Before `e269eee5`, Release Truth failed on its first attempt on eleven healthy heads in a row (`a900a939` through `9e08ef3c`) and passed only on a re-run, because its wait for `pr-check` (60 attempts, about 12 minutes) was shorter than `pr-check` (18.0 to 23.9 minutes): the workflow defect that `e269eee5` fixes (see the Release Truth item). `9175011f` is the one red head of the day: its Guardrails and Target Platform Build failed on seven type errors in the new classifier test (a Jest run in a scratch tree does not type-check; the targeted `tsc` is now run before every push), fixed by `df927eb7`. The `pr-check` of `43cbeec7` needed seven attempts: the first six died at "Initialize containers" because Docker Hub refused the unauthenticated pull of the `postgres:15` service image (`toomanyrequests`) before any step of the code ran |
+| proof | `release-truth`: preview proven on that head. Production is NOT proven |
+
+Read the live PR for the current head, commit count and checks; this documentation commit moves the head.
+
+**The seven stand-alone tools were edited on this branch after the 2026-10-02 checkpoint.** The "Frozen during the current cleanup" section below is the 2026-10-01 state. On 2026-10-03 Maya authorized the edits for the convergence work; the authorization is recorded in the header of `tools/push-647-mapper-exception.js` (in the `mallan-ops` workspace): "the 7 standalone CRM tools and index-built.html are no longer frozen dependencies for this convergence work", limited to the six stand-alone form and deal-form tools, `index-built.html` and its traced bundle inputs (`public/crm/js/**` except `dashboard/**`, `css/**`, `html/**`). For the public listing pages, her media request of 2026-10-08 ("there are no videos or virtual tours. Please make sure that the issue is resolved in the front end listing searches under featured/ sale/ rental/ commercial") named the frozen files it needed; each is recorded, with the request, in the same tool's allowlist. Every push after 2026-10-02 went through that tool: head-pinned, one writer, an allowlist whose entries carry the dated authorization they rest on, CI green before the next push. On 2026-10-09 the allowlist grew by the files each correction below needed, each entry quoting her message of that day ("there is no noise, there are errors and the need fixing. Do not assume, do actual corrections") and the finding it answers; `lib/idx/db-to-public-dto.ts` and `lib/idx/public-attribution.ts` (frozen) are named there for the media and attribution corrections.
+
+What those commits did (each commit message carries its tests, mutation check and sweep):
+
+- 2026-10-02 / 10-03: the raw-mapper characterization (Stage A, with the Media resource's own contract), one canonical status source (Stage B1), the Permission cutover (`owner_opt_out` is Mallan-local authority), the Permission Multi-Enum / Participant Only cutover, the PropertySubType and CommonInterest raw-contract boundary accessors, the status filter of `/api/market`, and `rebny-validator.ts` off the legacy `rls-rules.json` (milestone 21): `a9289ab9` through `90cb25c3`.
+- 2026-10-04 / 10-06: the Cotality ownership boundary across Search, CMA and the deal forms (`0013286e` through `de130724`); the live Member / Office directory with separate primary and co-list Agent Search and a working Exclusive filter, and an API client that no longer drops the filters it is given (`039ca3ae`, `f47ba7d6`); co-listing agents on both forms (`86f3fa7a`); the Tools viewers boot, wait for the listing and show the whole stored listing (`1ba17ae0`, `ba479bc0`); the listing agent's identity (`65780472`, `72d9091b`, `23843e22`, `5a6dbcc1`, `3222872b`); the Rental form saves what the agent entered (`0c9baadb`, `6a0b1bef`); the Sale form loads what it saved (`4c80a599`); the address-to-building lookup on both forms (`7248b0cb`, `a4a87f64`, `b569a9af`, `14afb447`); a wording check for the listing forms (`ed6a4112`).
+- 2026-10-07 / 10-08: the Tools viewers say what the record says and nothing else (`2a19ac29` through `7668eb2e`); the Rental form's status, photos, open houses, badge, location card, Preview and Listing URL (`05fb283b` through `ce40aff8`); the Sale form's Preview, save feedback and open houses (`6d240e63`, `671c469a`, `82b17639`); the API client's error words (`3f0d53ac`); the public cards (Featured prefers listings whose photo loads and marks a video or 3D tour; the second and third unbranded tour links are kept and read) (`c8af3812`, `020b5fad`, `5efb5c36`); the form test harness (`fe2e5140`, `0f83f7b2`).
+- 2026-10-09 (Maya, after the adversarial audit she pasted: "there is no noise, there are errors and the need fixing. Do not assume, do actual corrections"). Independent read-only reviews of the first commits of the day found errors in them; the later commits correct those, and say so:
+  - `ba6320df`: neither Add form could produce a listing that `POST /api/crm/listings` accepts; conditional rules that asked for non-Cotality fields were removed from the rule table, and a refusal names the boxes and the Fair Housing phrase. (Its message said all 19 removed rules asked for non-Cotality fields: that is true of 14; see `60213b9e`.)
+  - `82523881`: a synced "Canceled" listing is terminal under either spelling in the retention / archive / DOM-reset / eligibility family; every listing write (create, update, bulk audit) runs the Fair Housing scan (corrected and extended by `87d22ce0`).
+  - `063718ab`: the search-alert and investor-campaign emails name the listing broker per listing and say truthfully when the data is from. Two CI timing flakes are removed (a 5 s default in the sync cursor test; a 1.5 s timer in the building-lookup test). (Its investor email took "whose listing" from `agent_id`, which the sync stamps on other firms' listings: corrected by `126c21a5`.)
+  - `cb4ef54e`: a virtual-tour media row is recognised by its Cotality category name (`BrandedVirtualTour`, `UnbrandedVirtualTour`).
+  - `1f331876`: the second and third branded tour links (`VirtualTourURLBranded2`, `VirtualTourURLBranded3`) travel the same path as the other four.
+  - `dd86fd0c`: `PetsAllowed` of both Add forms, both Tools viewers and the rule table is the live list (closes the "Known held defect" below); the six tour / video boxes claim only the field they send.
+  - `63a6ce79`: the Rental building amenities, the Rental "Owner Pays" box and the Sale View words are live members; a test names every value and key the Add forms still send that is not. (Its message said Conference Room has no unambiguous member and that a synced listing's pets, View and amenities were shown: both were wrong, see `92a5b64c`.)
+  - `fe805ba1`: six CRM Search controls that sent a value live Cotality rejects send the live member that stands for them and are enabled.
+  - `126c21a5`: the investor and alert emails decide whose listing it is from the listing id and `rls_eligible` (`lib/listings/mallan-source-identity.ts`), never from `agent_id`.
+  - `8371f49c`: the CRM's 3D-tour link is never a video; an unbranded tour row comes before a branded one.
+  - `60213b9e`: the create gate is told when a Sale listing is a new development (`NewDevelopmentYN`: a new development could be saved as Coming Soon), a listing that is not displayed carries no estimate and no comments answer (the Rental form's defaults were refused by cascade rule DG-001), `SPONSOR-001` / `SPONSOR-002` are back and `CONDO-001` requires the live tax field.
+  - `87d22ce0`: the Fair Housing scan reads the five free-text boxes it missed (`saleTHLayout`, `saleTHFinancing`, `rentalTHLayout`, `bldgMinIncome`, `bldgMaxOccupants`) and refuses a remark that is not text; an edit writes every key a create writes into the public `features` copy (it wrote 21 of 66); the bulk audit covers website-only listings and counts a phrase once.
+  - `92a5b64c`: the street direction and suffix are saved as the live members (`E` / `Street`, not `East` / `St`); an edit can clear a Condition, a Special Listing Condition, a View and the earlier wrong `OwnerPays`; the Tools viewers and the forms read a synced listing's pets, View and building amenities the way Cotality stores them (comma-separated strings, `View` and `BuildingFeatures` in the features bucket); Conference Room is a live member; the Sale form applies the pet lock on load.
+  - `82207b54`: a refused listing names the box for every line the validator sends, once, and for the boxes the pages hold under another name (the rental price, the start date, the tax lot, the views).
+  - `0943eafd`: the statistical-data disclaimer (UCBA Art. VIII Sec. 4) has one wording (`lib/compliance/rls-statistical-disclaimer.ts`) and a true period; the seller pitch packet (the JSON, the printable packet, the packet email, the hook email) says it with the dates its comparable sales cover; the rule table's template is the same sentence pair.
+  - `f9759a22`: the public market statistics say it with the period they cover (`/api/market`), and a rental listing's page no longer shows the sale statistics under a "Median Rent" label.
+  - `2969080f`: the repo's own statistical-disclaimer audit (`scripts/audit-statistical-disclaimer.ts`, the `pr-check` step `audit:stat-disclaimer`) accepts a disclaimer that arrives with its data; it had failed `f9759a22` in CI (its `pr-check` went red) because it looked for a typed phrase in each component's source.
+  - `43cbeec7` (after the second review Maya pasted, the "Brutal Contrary Review"; each claim was read in the code first): the CRM detail panel and the client reports no longer take a video, a tour or an agent / office photo (`AgentPhoto`, `OfficePhoto`, `OfficeLogo`) for a listing photo, and the `_videos` / `_virtualTours` the detail panel reads are filled (the media type is the server's, `lib/media/listing-media-resolver.ts`); a report preview no longer asks again and again for the pictures of a listing that has none (it fetched, re-rendered and fetched for ever: found by the test of the change above); the CRM Search "Sponsor Unit" box, which could only answer "no results", is disabled; creating or editing a listing refuses a list or an object under any key the Fair Housing scan reads as free text (the scan reads text only); the header of `lib/compliance/rls-statistical-disclaimer.ts` no longer claims a CRM twin and a test that do not exist, and the module's test now reads the repo's UCBA extraction (`data/UCBA-2026-Requirements.md`).
+  - `9175011f` and `df927eb7` (Maya, asked "May I change the two frozen public files so a listing counts as "Mallan's own" by its listing id (SL-/RL-) and rls_eligible, as the emails already do, instead of agent_id / owner_client_id?": "Yes, change both (Recommended)", then "find where it is located do not guess make the necessary changes across"): the public site decides "Mallan's own listing" from the listing id and `rls_eligible` (`lib/listings/mallan-source-identity.ts`), never from `agent_id` / `owner_client_id`, which the sync stamps on other firms' listings. Four places read it: `classifyDbListing` (the DTO's `_source`, disclaimer, attribution line and assigned-agent card: another firm's listing said "Exclusive listing by Mallan Real Estate Inc." and lost the REBNY data sentence, UCBA Art. III Sec. 2(C) and NY DOS 19 NYCRR Sec. 175.25), `computeDbEnvelopeSource` (the response label), `sort=exclusives` (it listed other firms' listings under our label) and `fetchExclusiveListings` (it returned every displayable RLS row of the table under that label). `/api/listings` no longer selects `agent_id` / `owner_client_id` for the DTO. A Mallan row with neither an `SL-` / `RL-` id nor `rls_eligible === false` now shows the full REBNY disclaimer (the safe side); production rows were not read. `df927eb7` is the type fix of the first commit's test: the Guardrails and Target Platform Build checks of `9175011f` failed on seven type errors (the scratch Jest run does not type-check; the targeted `tsc` is now run before every push). The compliance review of the same day found that the `rls_eligible === false` arm of the rule, which Maya's question named and the emails already used, also admits third-party stubs: the first decision below.
+  - `c1feefdc` (Maya, asked "May I fix how public search and the listing page read the live PetsAllowed answers?": "Yes (Recommended)", with `NoDogs` counted as pet-friendly): one module, `lib/search/pet-policy.ts`, reads the answers for the DB filter, the Trestle filter, the search projection (key and flag), the listing page, the building pages and the compare table. Only the live members `No` and `BuildingNo` mean no pets. The old substring test read `NoPetRestrictions`, `NoBreedRestrictions`, `NoSizeLimit` and `NoDogs` as "no pets" and left them out of "Pet Friendly" searches; the listing page printed no Pet Policy section at all for `Yes`, `BuildingYes`, `No` and `BuildingNo` and "Dogs Ok" for `NoDogs`; the building pages printed "No" for `BuildingNo`. A table over all 31 live members (`lib/search/__tests__/pet-policy.test.ts`) gives each a verdict and a label and fails when the committed mirror gains a member that has none. CORRECTION: the question asked of Maya, and the previous version of this document, said the listing page showed a check mark beside `No` / `BuildingNo`; running the old page code on every live member showed it printed nothing for them. (The page text this commit chose, "No Pets" with a cross, was revised by `5d9bda47`.)
+  - `ec1dfacf` (Maya, asked about the "No Fee" chip and the phrases "no fee" / "no broker fee" / "owner pays": "Disable until a live field is found (Recommended)"): "No Fee" filtered `ListingTerms` for `NoFee` / `OwnerPays`, neither of which is a live member (`ListingTerms` has 67; the live `OwnerPays` lists the utilities the owner pays), so on the DB path every such search matched nothing while the Trestle path ignored it. It is disabled in the one map every layer reads (`lib/search/types.ts`, `unavailable`): the filter panel shows the box disabled with the reason; the DB path and the projection drop it; the phrases are still read and removed from the text, filter nothing and are reported on the search page with the reason; autocomplete no longer offers them; the home page no longer suggests "no fee"; an old link with `amenities=no-fee` is cleaned. The same commit fixes `amenities=toString` (an inherited name passed `key in AMENITY_FIELD_MAP` and made the DB path throw). A test fails if the committed live metadata gains a field named for the broker-fee payer. (Its reason text was false as built and was revised by `5d9bda47`.)
+  - `d4678d4b`: a test that renders the real listing page from a database row and reads the Pet Policy section for each answer (`tests/runtime/listing-page-pet-policy.test.ts`); the source guard that came with `c1feefdc` could not tell a page that prints the wrong word from one that prints the right one. Writing it showed that the "C + E: requesting the canonical URL renders" case of `tests/runtime/return-copy-redirect-route-boundary.test.ts` ends in `.catch(() => undefined)` and its mock of `@/lib/geo/geocode` has no `ZIP_CENTROIDS`, which the page reads, so the page throws a TypeError there and the test proves only that nothing redirected (not changed).
+  - `5d9bda47` (after two read-only reviews of the day's public commits: the project's compliance gate, `tristle-rebny-compliance`, and a code review; both are model output and evidence only; every claim was checked against the code, several by running it): (a) "No Fee": the reason said fee responsibility "is shown on each rental listing", which the split cards (the default desktop view) do not do (the fee badge is rendered in the grid and list cards only); it now says what the listing page does (it prints Move-In Costs, Tenant Pays and fee details the listing broker provided). The home page's "no fee" and a link's `amenities=no-fee` were dropped without a word; both are told now, from the same parse that sets the filters. "no  fee", a repeated phrase, "no broker fee" and "owner pays broker fee" left words in the text or never reached the parser; they are read whole. The documented way to enable the filter left the typed phrases dead; the phrases follow the filter now. (b) Pets: "No Pets" with a cross, published by Mallan, is the risk the compliance review names (assistance animals: 42 U.S.C. 3604(c) and (f)(3)(B), NY Executive Law 296(5), NYC Admin Code 8-107(5), NYC CCHR guidance; the review's sources were not re-read here). An answer that says there are no pets reads "Not allowed per the listing"; nothing on the public site is marked with a tick or a cross; the listing page adds "Assistance animals are not pets. Ask the listing broker about a reasonable accommodation." (wording for Maya or counsel to approve). An explicit no stands unless another answer positively lets a pet in (`No,Other` was pet-friendly under that label); the DB path reads the raw value like the other readers. (c) `sort=exclusives` fell through to the Trestle fetch when no Mallan-authored listing matched (the code said "skip Trestle" and did not); it is short-circuited like `exclusive=mallan`.
+  - `8e6a21c6`, `bf4e2314`, `9e08ef3c`: documentation only (this file and the PR description): the checkpoint of the five public commits above; the correction of the stub blocker's options (a guard in the canonical helper does not close it, because `classifyDbListing` and the display gates test the flag themselves); the Release Truth finding; Maya's definition of a sponsor unit ("sponsor can be for new development/ new construction as well as coop units still under the original owners control") and where the data is.
+  - `e269eee5` (Maya, 2026-10-10: "truth cotality has been failing", then her authorization of "the narrowly scoped Release Truth timing correction" and "a normal, non-force push"): Release Truth's wait for the other required checks was about 12 minutes and `pr-check` takes 18.0 to 23.9, so every healthy push expired it and it passed only on a re-run. The wait is now 90 attempts of about 32 seconds (about 48 minutes) under a 60-minute job ceiling, it audits the commit of its own run (`--sha` together with `--pr`: given `--pr` alone the validator asks GitHub for the PR head at every attempt), a failed required check still ends it at once, and an expired wait still fails the job and posts the failure status. `tests/runtime/release-safety-release-truth.test.ts` pinned the old numbers (a workflow-only change would have turned `pr-check` red) and follows; `tests/runtime/release-safety-wait-budget.test.ts` (11 tests) compares the numbers in the shipped workflow with the measured run time of `pr-check`, and pins what the wait keeps. 14 seeded defects are caught. Proof: every check passed on the first attempt of `e269eee5`, `1803ad60` and `3aff9efb`, with no re-run.
+  - `1803ad60` (the documented defect "third-party listings labelled and gated as Mallan's own": the writer): `POST /api/idx/ensure-listing` creates the stub of a Cotality listing RLS-eligible, like every row the sync writes, and refuses to create one under an `SL-` / `RL-` id (the second half of the identity rule). The real public converter, run on a stub-shaped row: with the old flag it read "Exclusive listing by Mallan Real Estate Inc.", no disclaimer, and an agent card carrying the other firm's agent's name, email and phone; with the new value it reads "Listing courtesy of <office>", with the disclaimer and no agent card, and the display gates bind it. `tests/runtime/ensure-listing-provenance.test.ts` (15 tests) runs the real route and feeds the row to the real readers; 11 seeded defects are caught. NOT changed: the rows already written (a production data change: a read-only count first, then Maya's separate authorization) and the readers (frozen files).
+  - `3aff9efb` (three documented convergence items): comps take their statuses from the canonical module (`lib/comps/status.ts`: the allowed six are live `StandardStatus` members, display labels are understood, anything else is refused with a 400 by both comps routes and before any query, where the old table wrote unknown strings into the Cotality filter unescaped; the query text for the CRM defaults is unchanged); the three paths of `/api/open-houses` use one label function (`lib/open-houses/property-type-label.ts`) and the fallback fetch selects `PropertySubType`; the lease-expiring notification no longer claims "no-fee rentals" and the dead `include_no_fee` flag is gone. 75 new tests, 22 seeded defects caught.
+  - `4a8e5dc7`: documentation only (this file and the PR description): the checkpoint of `e269eee5`, `1803ad60` and `3aff9efb`, with the Release Truth proof, the writer fix, the count query and the media proxy finding.
+  - `99cb6351` (found by the independent check on the preview of the exact head): an answer about the building no longer overrules the unit's own "no pets" in the shared pet reading (`lib/search/pet-policy.ts`). `BuildingYes,No` (the building takes pets, this unit's listing says no) was listed as pet-friendly by the Trestle post-filter, the DB path and the search projection; `main` did not list it. On the live feed (the first 200 rentals and the first 200 sales the preview returned, 2026-10-10) `main`'s rule lists 231 of the 400, this branch listed 352 (121 more: `BuildingYes,No` 119, and two longer lists of building answers with the unit's `No`), and the correction lists 227: it differs from `main` on 4 listings (`BuildingDogsOk,BuildingYes,No` three times, `BuildingCatsOk,BuildingYes,No` once) that `main` listed only because its substring test found "dogsok" or "catsok" inside an answer about the building. 18 new cases (118 in the file; 337 with the readers, the projection and the DB-path suites, run in a minimal tree); 7 mutants of the changed lines, 6 killed and the seventh identical on every live member. How the RLS data rules read a record that says both is still UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED (the rule text was not supplied): this restores what `main` did, it does not decide the rule. The pet flags already stored by the search projection were written by `main`'s rule, so they differ from the corrected rule on those same 4 of 400 listings: a backfill after a deploy (a production write, listed under the report-only findings) would change about 1% of them.
+  - `dc363fb7` (the report-only finding (h) of the previous checkpoint): the stub that `POST /api/idx/ensure-listing` creates keeps its address under the provider's key names (`StreetNumber`, `StreetName`, `UnitNumber`, `PostalCode`, `Latitude`, `Longitude`), which the public converter and the slug read, as well as the lowercase keys it always had (`lib/listings/stub-address.ts`). Through the real converter, for "67 E 82ND STREET", unit 4D, ZIP 10028: before, an empty street number, street name and postal code, no unit, no position and `/listing/listing-rls20103476`; after, "67", "E 82nd Street", "4D", "10028", the position and `/listing/67-e-82nd-street-apt-4d-manhattan-ny-10028/rls20103476`. A street the feed did not allow to be shown stays out of the page data and the URL (tested on the real converter, with a real street sent with the address display flag false), and the withheld-address placeholder is never stored as a street. 31 tests, 18 mutants killed. NOT changed: the city of a stub (the CRM sends none; its URL says "manhattan" where the feed row's says "new-york-city" until the sync loads the real row).
+
+### Decisions that are Maya's (found 2026-10-09; the three she made on 2026-10-09 are in the commits above, the rest are open)
+
+- **The rest of the statistical-data disclaimer** (UCBA Art. VIII Sec. 4). Done: the wording is one module and the pitch packet and `/api/market` use it. The wording itself is the repo's extraction of the UCBA (`data/UCBA-2026-Requirements.md`); the PDF was not supplied. UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED if it differs. Not done, each needing a decision: (a) which period a snapshot of the current inventory covers (the portals' market card, the market-report generator, the CRM reports and CMA, the building pages): the only always-true reading is start = end = the as-of day, taken from the data and not from the render; (b) the neighborhood pages' static hand-entered numbers ("January 2025 through December 2025"): recompute them from the RLS or call them estimates; (c) the lease-tracker outreach footer and the CRM portals print "Data last updated: <today>" (the render date); (d) the CRM reports, the CMA and the sales / rental pitch-packet panels need a CRM twin of the module loaded in `index.html` and `dashboard.html` and `index-built.html` rebuilt. The public IDX listing disclaimers (`IDXDisclaimer.tsx`, the search page, the listings routes) are not statistics and are frozen.
+- **Third-party listings that are labelled and gated as Mallan's own: the compliance review's blocker, older than this branch** (the flag tests named below are on frozen `main` too, except where said; each was read at the live head, none was run against data). **Status 2026-10-10: the writer is corrected in `1803ad60`** (a stub is created RLS-eligible and cannot be created under an `SL-` / `RL-` id; the commit message has the real-converter before and after); the rows already written and the readers are unchanged, and the count below decides what happens to them. *The writer, as it was.* `POST /api/idx/ensure-listing` (`app/api/idx/ensure-listing/route.ts`, not a frozen file) returns the row, writing nothing, when the Cotality id is already in `listings` (by `listing_id` or `mls_id`). Otherwise it creates a stub of that listing with `rls_eligible: false` (its comment: "External IDX listing, not our exclusive"), `idx_display_yn` true unless the status is terminal, `internet_entire_listing_display_yn` and `internet_address_display_yn` from the request body (fail-closed), and the other firm's agent name, email, phone and company in the agent columns. The CRM Search calls it for every Cotality listing before "Schedule showing" and "Send to client" (`public/crm/js/search/pagination.js`; `public/crm/js/core/api-client.js` sends `internet_display_yn` and `address_display_yn` from the search result). `lib/idx/sync.ts` never writes `rls_eligible` on a Listing (`mapTrestleToPrisma` returns none; the two `rls_eligible: true` lines are the search-projection input), so the flag stays `false` when the real row arrives. *The readers.* 68 non-test source files mention `rls_eligible`, and the schema comment says `false` = "website-only (commercial, off-RLS)". The readers that decide what the public sees: (1) the label: `classifyDbListing` (`lib/idx/db-to-public-dto.ts`) tests the flag itself and returns `website-only` before it asks the canonical helper, and `buildSourceAndCompliance` then gives a stub `_source: 'exclusive'`, "Exclusive listing by Mallan Real Estate Inc.", `disclaimerRequired: false` and an `_assignedAgent` card built from the agent columns, which for a stub are the other firm's agent's name, email and phone (the code's own comment says a non-Mallan agent's contact data is never surfaced); `listingAttribution` calls `isMallanLocalListing` (`lib/listings/mallan-source-identity.ts`: an `SL-` / `RL-` id or `rls_eligible === false`; its premise, "Mallan-authored local rows are `false`; feed rows are true/null", is what the writer breaks); (2) the display gates: `filterDisplayableDbListings` returns before the IDX-display, internet-display, owner-opt-out and participant-only gates; the public search query admits a `rls_eligible: false` row on an allowed status, a price above zero and an address alone (`buildPublicListingDbSearch`); the listing page skips its displayable check (`app/listing/[...slug]/page.tsx`); the address gate has a `{ rls_eligible: false }` arm (`lib/search/listing-access-decision.ts`) and the DTO does not suppress the address; (3) the campaign gate: the two IDX display flags do not bind (`lib/compliance/campaign-distribution-gate.ts`); (4) the exclusives: `exclusive=mallan` has admitted `rls_eligible: false` rows since before this branch, and since `9175011f` (mine) `sort=exclusives` and the Featured exclusives feed (`fetchExclusiveListings`) admit them too, through `mallanAuthoredWhere`: on `main` the first used `agent_id` and the second had no ownership condition at all. Whether any stub is Active and public today is UNVERIFIED: production data was not read, and a stub exists only for a Cotality id the sync had not loaded. The review reports (not re-verified here) that every CRM mint path uses `SL-` / `RL-` ids, so the `rls_eligible === false` arm adds only the stubs; legacy rows are UNVERIFIED. `9175011f` removed the `agent_id` path but kept that arm because Maya's question named it, and its tests pin it (`tests/runtime/public-provenance-identity.test.ts`, `lib/idx/__tests__/c1-classification.test.ts`). *Options.* The defect is the flag's value, so the fix is to the value: (B) the writer: `ensure-listing` stops writing `false` (the schema default `true` applies), so a new stub falls under the RLS display gates like every feed row, reads "Listing courtesy of" the office the CRM sent (or "REBNY RLS"), carries the data sentence and shows no agent card; it already writes `idx_display_yn` and the two internet flags, so what has to be checked is the send flows (`listing-sends`, `listing-campaigns`), which pass a stub today because the campaign gate exempts `rls_eligible=false` rows and would block one whose search result did not say `internet_display_yn` is true (fail-closed, the gate's intent); the showing routes (`app/api/crm/showings`) do not mention the flag; (D) the existing stubs keep `false`: a data correction after a read-only count that Maya authorizes (`rls_eligible = false` and an id that is not `SL-%` / `RL-%`, with their status); (C) the sync writes `rls_eligible: true` on every Cotality update: a stub heals only when its listing next changes upstream; (E) an explicit provenance marker (schema): `rls_eligible` keeps meaning "outside RLS" and a new column says who authored the row; larger, needs a migration. (A) CORRECTION: the previous version of this document recommended a guard in the canonical helper (`rls_eligible === false` counts only when the id is not a Cotality id; `app/api/cron/feed-reconcile/route.ts` tests `startsWith "RLS"` for feed rows) and said every consumer of the helper follows. That does not close it: `classifyDbListing` and the gates test the flag themselves, so the DTO would still say `exclusive` with the other firm's agent card and every gate would still be skipped; closing it on the read side means changing each reader above, several in frozen files (the helper, `listing-access-decision.ts`, `db-to-public-dto.ts`), and keeping them in step. Recommended: B is done (`1803ad60`); the read-only count (below, through the Vercel-managed Neon console only), then D for what the count finds, or the reader changes if Maya prefers them to a data write. Until it is decided, the compliance gate's verdict on the day's public commits is FAIL (PASS WITH CONDITIONS for pets and "No Fee", the conditions answered by `5d9bda47` except where listed below), and a deploy needs the gate to pass again.
+  ```sql
+  -- read-only: rows still flagged "Mallan's own website-only listing" that do not carry one of Mallan's own ids (what ensure-listing wrote before the writer was corrected)
+  SELECT
+    count(*)                                                                         AS flagged_not_mallan_id,
+    count(*) FILTER (WHERE status IN ('Active', 'ComingSoon', 'ActiveUnderContract')) AS displayable_now,
+    count(*) FILTER (WHERE status IN ('Active', 'ComingSoon', 'ActiveUnderContract')
+                       AND (idx_display_yn IS NOT TRUE OR internet_entire_listing_display_yn IS NOT TRUE
+                            OR owner_opt_out IS TRUE OR participant_only IS TRUE))   AS displayable_but_fail_the_gates,
+    count(*) FILTER (WHERE last_synced_from_trestle IS NULL)                         AS never_synced_stub
+  FROM listings
+  WHERE rls_eligible = false
+    AND listing_id NOT LIKE 'SL-%'
+    AND listing_id NOT LIKE 'RL-%';
+
+  -- and the newest 25 of them, to see whose listings they are
+  SELECT listing_id, status, list_office_name, list_agent_full_name, last_synced_from_trestle IS NULL AS never_synced, modification_timestamp
+  FROM listings
+  WHERE rls_eligible = false
+    AND listing_id NOT LIKE 'SL-%'
+    AND listing_id NOT LIKE 'RL-%'
+  ORDER BY modification_timestamp DESC
+  LIMIT 25;
+  ```
+- **Wording on the public site that is mine, for Maya or counsel to approve.** "Not allowed per the listing" and "Assistance animals are not pets. Ask the listing broker about a reasonable accommodation." (the listing page's Pet Policy); "Not searchable yet. Fee and move-in cost details that the listing broker provides are shown on the listing page." (the "No Fee" box and the search page notice). The search page's own FARE notice says fee responsibility ("tenant pays / no-fee / landlord pays") "is displayed on each listing card and detail page", and no "landlord pays" label exists; it is older than this branch and was not changed. Neither the Master nor this document says whether REBNY requires or forbids showing `PetsAllowed`: UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED.
+- **FM-2: publishing the Add forms' tour and video boxes.** Only the "Unbranded Tour URL" box reaches a Cotality field; the other five are saved under their own ids and the public site does not read them (a video typed into a Mallan exclusive never reaches its card). A change was built and tested (121 tests, 125 mutants: 121 killed, 4 equivalent) and is not pushed, because it needs these decisions. Its design: a module `public/crm/js/forms/tour-links.js` that both collectors call after the box they always sent; the three Unbranded boxes keep their own fields; "Video Tour URL" and then "Video URL" take the first free unbranded field (the second, then the third, then the first, because the edit load restores the Unbranded Tour URL box from `VirtualTourURLUnbranded`); the two video boxes take a YouTube or Vimeo address only; only http(s) addresses are sent; a blank box is sent as `''` so that removing a link clears it (the update route stores `{ ...stored raw_data, ...body }`); the Branded Tour box is not published; nothing is rewritten for stored listings (a backfill would be a production write). The decisions: (a) may agent-typed links go public at all (Master Plan 21.9: media passes an ordered gate - identity, source, rights, accuracy - and nothing gates a link an agent types any more than a photo they upload); (b) the Branded Tour box (UCBA Art. I Sec. 5(C) prefers the unbranded tour; the rule text was not supplied); (c) links already stored would go public the next time a listing is saved; (d) it is a CRM front-end behavior change.
+- **Branded tour links on the public site** (`1f331876`). A branded link shows publicly when no unbranded link of its kind exists, and a link that is not a video host counts as a 3D tour and is shown in an iframe as it is, so an agent-branded property page could be embedded on mallan.nyc. UCBA Art. I Sec. 5(C) prefers the unbranded link; whether a branded one may show at all is not decided here. UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED.
+- **Internal notes and the non-Fair-Housing categories.** The helper that scans the internal-note boxes (`saleAdminComments`, `commSaleNotes`, ...) also applies the price-speculation and exclusive-language categories of `prohibited-terms.json`. The forms send every box on every save, so an edit of the price can be refused for a phrase in an internal note (already true on create). Whether internal notes should only be held to the Fair Housing categories is the product's call.
+- **PetsAllowed: readings that rest on Maya's answer or on rule text not supplied.** `NoDogs` counts as pet-friendly (cats may be allowed; Maya's answer of 2026-10-09). A record that holds a no-pets answer and others: the no stands unless another answer positively lets a pet in (`BuildingNo,CatsOk` and `No,Yes` are pet-friendly; `No,Other`, `No,Call`, `No,SeeRemarks` and `No,NoDogs` are not: my rule, after the code review). An answer about the building does not overrule the unit's own no (`99cb6351`): `BuildingYes,No` is not pet-friendly. It is the commonest mixed record in the live feed (44 of the first 200 rentals and 75 of the first 200 sales that the preview returned on 2026-10-10) and `main` did not list it; since `c1feefdc` (2026-10-09) this branch would have listed 121 more of those 400 listings than `main` (it has not been deployed). UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED if the RLS data rules read either differently (the rule text was not supplied; `lib/compliance/rebny-field-tables.ts` records "If BuildingPetsAllowed = BuildingNo then PetsAllowed must = No"). The labels are Mallan's paraphrase of the provider's values ("Pets Allowed" for `Yes` and `BuildingYes`, which also folds the building scope into a unit-level claim); the Master says to display the provider's own display values, which needs a live Lookup probe. "dog friendly" / "dog" in the search box are the generic pet-friendly filter, so a `NoDogs` listing matches a dog search; separate dog and cat criteria would fix it.
+- **How a record that says both is shown** (`BuildingYes,No`: the building takes pets, this unit's listing says no). The listing page prints both statements, "Pets Allowed, Not allowed per the listing", which reads as a contradiction, and the record is now the commonest mixed one (44 of the first 200 rentals, 75 of the first 200 sales). Proposal, not implemented because the wording is Maya's or counsel's: say which scope each statement is about ("Building: Pets Allowed. This unit: Not allowed per the listing."). The search filter no longer lists such a unit.
+- **Preview database (Maya's boundary: the Master, section 27.21, lists Preview Neon branch creation and Vercel environment mutation).** The Vercel Preview environment of `mallan-nyc` has no `DATABASE_URL` (see the preview proof below), so a preview cannot prove any path that reads the database. To prove the listing page, the exclusives, the stubs or the CRM before a deploy, the Preview topology needs a database; nothing was changed. The alternatives are the test suites on the real converter (done) and the same requests on production after a deploy (not done).
+- **Scope approval for the paging of the Trestle path under the pet filter** (frozen `app/api/listings/route.ts`; see (j) of the report-only findings below). The fix is the treatment the bounds, borough and neighbourhood post-filters already have: four times the fetch headroom and the filtered length as the total, a few lines and tests.
+- **"No Fee" stays disabled until a live field is found.** No live Cotality field says who pays the broker fee (`ListingTerms` has no `NoFee`, the live `OwnerPays` lists utilities, the committed `$metadata` snapshot has no broker-fee field, and the repo's `compensationScanner` blocks "no fee" in public remarks, so a text search is no substitute). To enable it: name the live field in the 'no-fee' entry of `AMENITY_FIELD_MAP` and remove its `unavailable` reason; the checkbox, the typed phrases and the autocomplete follow. UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED for the field.
+- **Public search phrases "sponsor unit", "no board approval", "no board": they are not to be disabled; they need the right data.** Maya, 2026-10-10: "sponsor can be for new development/ new construction as well as coop units still under the original owners control". Found 2026-10-09 while surveying "No Fee"; not changed: the files are frozen, no change was asked for, and the data is unmeasured. *What is wrong today.* `lib/search/nyc-dictionary.ts` turns all three phrases into `ownershipTypes=Sponsor Unit`. A sponsor unit is not an ownership type: it exists in condominiums and in co-ops, in new development and in units still held by the original owner, and "no board" also describes townhouses and houses (`app/buy/international/page.tsx`). The DB path (`lib/search/public-listing-db.ts`) has an ownership branch for `Condominium`, `StockCooperative` and `Condop` only and returns false for anything else, so no listing matches; the Trestle path (`lib/search/public-listing-trestle.ts`) drops the unmapped value, so every listing matches, and approximates "new development" with remarks text (`contains(PublicRemarks,'new development')`, `'new construction'`, `'sponsor unit'`). `lib/search/__tests__/nyc-dictionary.test.ts` and `natural-language-parser.test.ts` pin the phrases to `Sponsor Unit`. *Where the data is* (read in the repo and in the committed live metadata, `data/cotality-enums.live.json`, the `$metadata` of 2026-10-01). (1) The exact flag is the REBNY field `SponsorUnitYN` (`lib/compliance/rebny-field-tables.ts` SPONSOR-001 and SPONSOR-002; `lib/search/crm-idx-mapper.ts` calls it "the canonical source-of-truth for 'Is this a sponsor sale?'"). It is not a `Property` field: it sits inside `CustomProperty.CustomFields`, a JSON string of the live `CustomProperty` entity, and the repo records that the search route cannot get it (the `$expand` answered HTTP 400, `app/api/idx/search/route.ts`; `public/crm/js/init/init-disable-dead-controls.js` disables the CRM Search control for that reason), so for feed rows it is unknown. UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED for any other way to read it. (2) Live `Property` fields that carry related facts and that the sync already requests (`IDX_PLUS_SELECT_FIELDS`): `NewConstructionYN`; `PropertyCondition` (`NewConstruction`, `UnderConstruction`, `ToBeBuilt`, `NeverOccupied`); `DevelopmentStatus` (`NewConstruction`, `UnderConstruction`); `BuilderName`, `BuilderModel`; `SpecialListingConditions` (live members `BuilderOwned`, `BoardApprovalNotRequired`, `BoardApprovalRequired`); `DocumentsAvailable` (`OfferingPlan`). The sync stores all of them except `DocumentsAvailable` in the `features` column (`raw_data` keeps only the curated `RAW_DATA_KEEP_FIELDS`, which has `PropertyCondition` and `CommonInterest` of these); `DocumentsAvailable` is stored nowhere, so an offering-plan signal is not available to the database path. (3) No live enum member says "sponsor", and nothing identifies a co-op unit still held by its original owner. The Master lists "sponsor/new-development" as an ownership form for forms and documents (§11.4) and the NYS Attorney General's Schedule A as the private sponsor-unit universe (§4.5.4); it also says Mallan does not present itself as the sponsor. `app/api/listings/route.ts` says `NewConstructionYN` is "not available on IDX Plus `$select`" while the sync's `$select` lists it: either the comment is stale or the feed returns it empty, so what the feed returns for NYC listings has to be measured, not assumed. *Proposed, after the measurement.* One read-only query, below, which Maya runs. Then three honest facets in place of the one wrong one: "No board approval" from `SpecialListingConditions` `BoardApprovalNotRequired`, worded as the listing's own statement; "New development / new construction" from `NewConstructionYN`, `PropertyCondition` or `DevelopmentStatus`; "Sponsor unit" only from `SponsorUnitYN` if it can be read, otherwise disabled with the reason, like "No Fee". The bare phrase "no board" stops meaning sponsor. It touches frozen public-search files, so it needs Maya's go-ahead.
+  ```sql
+  -- read-only: how many displayable listings carry each signal that could stand for "sponsor", "new development" or "no board approval"
+  SELECT
+    count(*)                                                                                        AS displayable,
+    count(*) FILTER (WHERE features->>'NewConstructionYN' = 'true')                                 AS new_construction_yn,
+    count(*) FILTER (WHERE features->>'PropertyCondition' ~* 'NewConstruction|UnderConstruction|ToBeBuilt') AS condition_new,
+    count(*) FILTER (WHERE features->>'DevelopmentStatus' ~* 'NewConstruction|UnderConstruction')   AS dev_status_new,
+    count(*) FILTER (WHERE features->>'SpecialListingConditions' ILIKE '%BuilderOwned%')            AS builder_owned,
+    count(*) FILTER (WHERE features->>'SpecialListingConditions' ILIKE '%BoardApprovalNotRequired%') AS board_approval_not_required,
+    count(*) FILTER (WHERE features->>'SpecialListingConditions' ILIKE '%BoardApprovalRequired%')    AS board_approval_required,
+    count(*) FILTER (WHERE features->>'SponsorUnitYN' = 'true')                                     AS sponsor_flag
+  FROM listings
+  WHERE status IN ('Active', 'ComingSoon', 'ActiveUnderContract')
+    AND rls_eligible IS NOT FALSE;
+  ```
+- **Found and not changed (report-only).** (a) The CRM grid column PETS (`public/crm/js/render/grid-column-defs.js`, frozen) prints "--" for every row, like LAST ASK, LIKED and PICKED. (b) `listing_search_projection.amenity_keys` and `feature_flags` are written but no search reads them; rows written before `c1feefdc` keep their old pet flag until their listing is next re-projected, and a backfill is a production data write. (c) The building pages list the `PetsAllowed` answers of every unit they hold, so a building can read "Not allowed per the listing, Cats Ok"; the building-level answers are the `Building*` members (the CRM building lookup already uses only those). (d) `lib/lifecycle/engine.ts`: the lease-expiring automation told the agent it sent "no-fee rentals" and set `include_no_fee: true`, though nothing filters on it; closed in `3aff9efb` (the claim and the flag are gone; nothing reads any `include_*` flag of the rule). (e) `app/components/FareActFeeBadge.tsx` labels any mention of "broker fee" in the move-in costs or the tenant-pays text that is not "no (broker) fee" as "Tenant pays broker fee", so "Landlord pays broker fee" reads wrongly (read in the code; the review says the same). (f) The review lists copies of the "is Mallan's own" predicate that are not the canonical helper (the listing page, `lib/featured/featured-ordering.ts`, `lib/open-houses/upcoming-open-houses.ts`, `lib/listings/exclusive-agent-assignment.ts`, `ActiveListingsTabs.tsx`, some case-insensitive); it also reports that `buildPublicListingDbSearch` takes only the status from the display gate, dropping the return-copy exclusion, and `trestleExcludeMallanReturnCopiesClause` has no caller (the second is confirmed). (g) The disabled "No Fee" box shows on the Buy tab too. (h) CLOSED in `dc363fb7`: a stub that `ensure-listing` creates kept its address under keys the public converter does not read (`full`, `unit`, `zip`), so the page rendered the neighbourhood and the borough but an empty street number, street name and postal code until the sync loaded the real row (found by running the converter on a stub-shaped row; with or without `1803ad60`). (i) The canonical status module stores "Cancelled" where live Cotality's `StandardStatus` has "Canceled", and "Sold", "Leased" and "Rented" are not `StandardStatus` members; a filter built from a canonical value for such a listing would match nothing (frozen file; not traced beyond the comps). (j) The Trestle path of `app/api/listings/route.ts` (frozen; the fallback when the database does not answer) reports `total` and `hasMore` from the unfiltered OData count: the live preview answered `amenities=pet-friendly&limit=24` with `total` 996, `hasMore` true and `totalFetched` 49 (it fetches `ceil((limit + skip) x 1.2 + 20)` records and filters them afterwards), while in the first 200 rentals only 129 are pet-friendly under the corrected rule (64.5%) and in the first 200 sales 98 (49%, against a `total` of 9,136). A page comes back short, while `hasMore` stays true, whenever the filter keeps too little of what was fetched: the route fetches only `ceil((limit + skip) x 1.2 + 20)` records, so a page of 200 needs 77% of them to pass, and the corrected rule keeps 64.5% of those rentals and 49% of those sales. Measured on the preview of the final head (`760adec0`, the corrected rule), `amenities=pet-friendly&limit=200` returned 181 rentals (`total` 995) and 125 sales (`total` 9,136), both with `hasMore` true and `totalFetched` 260 (= ceil(200 x 1.2 + 20)). The database path, the normal one, filters in SQL and counts correctly. Needs Maya's scope approval (decisions above). (k) When the database does not answer, that route still labels the response `_compliance.source: "idx+exclusive"` although the exclusives query failed (it is a warning in the log), so Mallan's own listings drop out of the results without a signal in the response; seen on the preview, which has no database (frozen; report-only). (l) The converter publishes the postal code of a listing whose address may not be shown: it suppresses the street, the unit, the position and the street in the URL, not the ZIP (read in `lib/idx/db-to-public-dto.ts`, and seen on a stub). A feed row takes the same path, and a stub now does too. Whether the RLS rules allow the ZIP of a withheld address is not established (frozen converter; report-only).
+- **Release Truth: fixed in `e269eee5` and verified, without a re-run, on seven heads in a row (`e269eee5`, `1803ad60`, `3aff9efb`, `4a8e5dc7`, `99cb6351`, `dc363fb7`, `760adec0`); one related gap is open.** (Maya, 2026-10-09: "release truth failed, prs failed"; 2026-10-10: "truth cotality has been failing".) It was a workflow defect, not a Cotality or a code failure. The step "Wait for PR release dependencies to settle" of `.github/workflows/release-truth.yml` asked `scripts/validate-release-status.js` up to 60 times at about 12.2 seconds (about 12 minutes) while `pr-check` ran 18.0 to 23.9 minutes on 11 of the 12 heads measured, and the step then posted a `release-truth` failure status. Vercel's preview finished in about 2.5 minutes, so it was not the cause. Eleven healthy heads in a row (`a900a939` through `9e08ef3c`) failed on attempt 1 and passed on the re-run; `9175011f` failed for a real reason (red Guardrails and Target Platform Build; the validator exits 1 on `DEPLOY_FAIL`). Nothing Cotality-related was failing: the scheduled `Trestle live audit` and `Live Site Smoke (cron)` runs of 8 to 10 October all passed, and the main ruleset requires `pr-check` only (the workflow header calls Release Truth an advisory). The fix, authorized by Maya on 2026-10-10 as a narrowly scoped timing correction: 90 attempts of about 32 seconds, a 60-minute ceiling, and the validator called with the commit of the run. Proof, with no re-run anywhere: all six checks passed on their first attempt on `e269eee5` (Release Truth 23.8 minutes, `pr-check` 23.2), `1803ad60` (23.7 and 23.4) and `3aff9efb` (18.3 and 17.7). The four heads after that passed the same way: Release Truth 23.7, 18.8, 18.7 and 23.4 minutes, `pr-check` 23.4, 18.4, 18.3 and 23.1 (`4a8e5dc7`, `99cb6351`, `dc363fb7`, `760adec0`). The related gap, not changed because it is outside the timing correction: the aggregator `scripts/release-truth-check.js` passes only `--pr` to the deploy validator (`releaseArgs`), so after the wait it asks GitHub for the PR head again; a newer push that lands during a run can still make that run publish a verdict for its own commit computed from the newer head. The fix is small (pass `--sha` through: one workflow line, one script line, and the test that pins the workflow's `args`); it waits for Maya's yes.
+- **`/api/media/proxy` errors in production: verified, not caused by this PR or by Release Truth; cause not yet established.** Read through the Vercel integration (read-only) on 2026-10-10: the `mallan-nyc` project's runtime errors of the last 24 hours are two groups, both on `/api/media/proxy`: `[Media Proxy] Error: This operation was aborted` (27 occurrences, 21 users) and `[Media Proxy] Error: [IDX Auth] Token request failed (500)` (4 occurrences, 4 users). Production is the `main` deployment of commit `3656a423` (`dpl_FfuTY78Y…`, READY), so this is the frozen code, not this branch; the route's behaviour is identical on `main` and on the branch (only comment wording differs). The log lines come in bursts for one listing's gallery: about 16 aborts within 40 seconds at 23:08 UTC on 2026-10-09 (region sfo1) and about 6 at 18:42 UTC (iad1), together with warnings `Non-image response: application/octet-stream` for `https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/1103557105/{25,30,31}/…` (the same media key). The route aborts its upstream fetch after 10 seconds (`AbortController`, `app/api/media/proxy/route.ts`), answers 502 on an abort, and answers 502 for any 200 whose `Content-Type` does not start with `image/` (deliberately: it stops an HTML error page that Cotality answers with 200 from poisoning the CDN for 7 days). What is NOT known: whether the `application/octet-stream` bodies are real JPEGs served with the wrong type or error bodies, and whether the aborts are Cotality latency under a burst of about 30 parallel photo requests (the route allows 30 in flight) or a slow token request (the token is fetched before the timer starts). No production behaviour was changed. Proposed, not done: log the status, `Content-Length` and the first bytes of a non-image answer before deciding whether to accept a JPEG/PNG/WebP signature under `application/octet-stream`; a retry with backoff for an abort; and count both so the next report can say how many photos a visitor actually loses. The repository's own comment (`lib/idx/db-to-public-dto.ts`) says 99.67% of listings are mirrored to R2 and served without this route, so the route carries the rest; which listings use it was not measured.
+- **Independent proof on the preview of the exact head, and what it cannot prove** (read-only requests through the Vercel integration, 2026-10-10; its fetch tool creates or reuses a temporary authentication-bypass link for the protected preview). The preview of `3aff9efb` (`dpl_C32rVXzo...`, READY, target preview) answers `/api/release-identity` with commit `3aff9efb1982e8e4388ed4264000bb83b0973324`, the code under test (the branch has moved on since by `99cb6351` and `dc363fb7`: the first is proven on the preview of the final head, below; the second, which needs the database, by its tests and runs). On live Cotality data, through the Trestle path: the disabled "No Fee" chip is dropped (`amenities=no-fee` returns the unfiltered set, 996 and 995 in two reads a few minutes apart); `amenities=pet-friendly` removes the listings whose answer is `BuildingNo,No` (the unfiltered first 24 rentals hold two, the filtered 24 hold none and two later listings come in) and kept seven `BuildingYes,No`, the finding corrected in `99cb6351`; the open-house route labels the one live Mallan listing it returns (two dates) "Condo", as its description says. **The preview has no `DATABASE_URL`** (runtime log of the deployment: `Environment variable not found: DATABASE_URL` from `prisma.listing.findUnique()` and `findMany()`), so every path that reads the database fails there: the database-first search falls back to the Trestle path, the exclusives fetch fails, and the listing page answers HTTP 500 for `/listing/67-e-82nd-street-new-york-city-ny-10028/rls20103476` (the code propagates an infrastructure error instead of a 404, deliberately). Those paths, and the CRM, cannot be proven on a preview as configured; nothing was changed (decisions above). The preview of the final head (`760adec0`, `dpl_BKuqNARS...`) answers `/api/release-identity` with that commit, and with the corrected pet rule `amenities=pet-friendly&limit=200` returns 181 rentals and 125 sales, none of them `BuildingYes,No` or `BuildingNo,No` (every returned answer is pet-friendly under `main`'s rule, the earlier rule and the corrected one), so the finding corrected in `99cb6351` is closed on live data; the page is short in both cases (see (j)).
+- **`pr-check` and Docker Hub.** `pr-check` pulls the `postgres:15` service image from Docker Hub without logging in (`.github/workflows/pr-check.yml`); for `43cbeec7` the pull was refused six times (`toomanyrequests`) before the seventh run passed. Not changed: the workflow and its secrets are not mine to edit. Options: pull the image from a mirror, authenticate to Docker Hub, or leave it and retry.
+- **Words the Add forms still send that live Cotality does not have** (named, with reasons, in `tests/runtime/crm-form-emitted-live-values.test.ts`, which fails when a new one appears): `StructureType` Loft / WalkUp / Commercial (Loft and WalkUp are live `ArchitecturalStyle` members); `PropertySubType` SingleFamilyTownhouse / MultiFamilyTownhouse (the live member is `Townhouse`); `PropertyType` Commercial (Mallan's own classification, which `lib/compliance/rls-eligibility.ts` and public search depend on; the live members are `CommercialSale` / `CommercialLease`); `Permission` OwnerOptOut (both forms; the live `Permission` list has no such member, and the owner opt-out is derived from the word by `lib/compliance/normalizer.ts`); `MlsStatus` Draft / Sold / Cancelled (the Sale form's workflow words). The Rental form also still sends `RentingAllowedYN`, `SyndicateYN` and `YearRenovated`, which the Sale form stopped sending on 2026-05-30.
+- **Rules removed in `ba6320df` that stay removed.** 17 of the 19 stay out: 12 require a key that is not a Cotality field (`COOP-001` NumberOfShares, `RENTAL-002` LeaseType, `TAXABATE-001`, `FLIPTAX-001`, `FURNISHED-001`, `COOWN-001`, `BLDGPETS-001`, `UNITPETS-001`, `ALTSTREET-001`, `CEILING-001`, `CEILING-002`, `OUTDOOR-001`), and 5 require live fields but are triggered by keys no form sends (`BUYER-NONRLS-001`, `COBUYER-RLS-001`, `COBUYER-NONRLS-001`, `GARAGE-001`, `PRICECHANGE-001`). `SPONSOR-001` / `SPONSOR-002` (an NYC fact the provider carries in `CustomProperty.CustomFields`) are back. Whether any of the 17 should return, with a box, is the product's call.
+- **CRM Search controls left disabled** (no single live member stands for them): `ArchitecturalStyle` Brownstone, `ExteriorFeatures` Terrace, `LaundryFeatures` Common ("Laundry in Building": `CommonArea`, `CommonOnFloor` and the `Building*` laundry members are all candidates), `BusinessType` FlexibleSpace / Investment (they are `PropertySubType` members), `BuildingPetsAllowed` (the data is in the `Building*` members of `PetsAllowed`), and `SponsorUnit` (disabled by `43cbeec7`): the flag is `SponsorUnitYN` inside `CustomProperty.CustomFields`, which the frozen search route never receives (the repo records that `$expand=CustomProperty` answered HTTP 400), so the box could only answer "no results". What would make it work is a join by `ListingKey`: the committed `$metadata` snapshot (`artifacts/metadata.xml` on `main`, refreshed 2026-06-04) shows `CustomProperty` as an entity set keyed by `ListingKey` with a `CustomFields` string and no `SponsorUnit` field anywhere. What `CustomFields` holds for a listing is not in `$metadata`, the mapper reads `SponsorUnitYN` as `true` / `"true"` / `"Yes"` / `1` or `false` / `"false"` / `"No"` / `0` and not as the string `"0"` the review reports, and live Cotality was not reachable: UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED.
+- **The Rental building amenities with no unambiguous live member** (ten; Conference Room is the live member `ConferenceRoom` and is sent as one) stay in the form's own list, as the Sale form's do: Pool, Roof Deck, Courtyard/Garden, Business Center, Parking Garage, Valet Parking, Live-In Super, On-Site Manager, Wheelchair Access, Spa.
+
+### What a deploy changes (nothing here is deployed)
+
+- The retention, DOM-reset and archive crons treat a stale "Canceled" row as terminal (the archive family only with `ARCHIVE_ENABLED`), and the sync resets a listing's days on market when it returns from "Canceled" after 30 or more days (`computeDomTransition`), as the UCBA allows; the sync's `$select` grows by the two branded tour fields.
+- The alert and investor emails change wording; the seller pitch packet (JSON, printable packet, both emails) and `/api/market` carry the new disclaimer; a rental listing's page shows rental market statistics.
+- The CRM detail gallery and the client reports show only photos as photos (a video, a tour, an agent or office photo is no longer one), and the detail panel's video and 3D-tour sections fill from the media rows; a report preview asks for a listing's pictures once; the CRM Search "Sponsor Unit" box is disabled; creating or editing a listing is refused (400, "<key> must be text") for a list or an object under any free-text key.
+- Creating or editing a listing is refused for Fair Housing wording in five more boxes and for a remark that is not text; an edit writes more of the public `features` copy; a listing saved from now on stores `Street` / `E` in its address atoms, so its public URL reads that way (the public page redirects an older URL with a 308).
+- The public site no longer decides "Mallan's own listing" from `agent_id` / `owner_client_id`: a listing the sync stamped with an `agent_id` shows the REBNY data sentence and disclaimer and no assigned-agent card, `sort=exclusives` and the exclusives list return Mallan-authored listings only (and `sort=exclusives` no longer falls through to the Trestle fetch), and `/api/listings` labels a response by the listings in it. A third-party stub with `rls_eligible=false` is still labelled Mallan's own and still skips the display gates (the first decision above), and since `9175011f` `sort=exclusives` and the Featured exclusives feed admit it too.
+- Pet-friendly search keeps every live answer except `No` and `BuildingNo`, and an explicit no stands against answers that say nothing and against an answer about the building (`BuildingYes,No` is not listed); the listing page prints a Pet Policy section for every answer worth showing ("Pets Allowed", "Not allowed per the listing", "No Dogs" ...) with no tick or cross and a note that assistance animals are not pets; the Rental Details row, the compare table and the building pages use the same words.
+- "No Fee" is a disabled box with the reason; "no fee" / "no broker fee" / "owner pays" and their usual spellings filter nothing, and the search page says so (also for a link or a home-page search that names it); `amenities=toString` no longer throws.
+- A stub that `/api/idx/ensure-listing` creates from now on is a feed row: it reads "Listing courtesy of <office>" with the disclaimer, shows no agent card, and the display gates bind it; the route refuses an `SL-` / `RL-` id for a new row. Rows written before stay as they are until they are corrected (the count decides; a data change needs Maya's authorization).
+- The comps routes answer 400 for a status a comp search does not ask for (stored criteria that use only the four statuses the CRM offers are unaffected); open-house cards read "Townhouse", "House" or "Multi-Family" from the property subtype on the two Cotality paths and "Rental" for a lease on the database path; the lease-expiring notification no longer says "no-fee rentals".
+- Release Truth waits up to about 48 minutes for the other checks instead of about 12 (workflow only; it needs no deploy).
+- Before any deploy: the compliance gate returned FAIL for these public commits (the first decision above); it must pass again.
+- No schema change, cron schedule, environment variable or data write.
+
+## Convergence progress — PR #647 (checkpoint 2026-10-02)
+
+| fact | value at this checkpoint |
+|---|---|
+| PR | #647, OPEN, DRAFT, unmerged; mergeable (`CLEAN`) |
+| base | `main` at `3656a42333f2be5e837015e0165387ea96fe99b6`, frozen |
+| head | `85f99a1bee8d39c3629b418c8c0ff7938908d969` (convergence milestone 20) |
+| commits | 25 Git commits representing 20 numbered convergence milestones |
+| CI on the head | all green: `pr-check` (the only required check), `build`, `validate`, `geo-validate`, `guardrails`, `target-platform-build`, `claude-review`, `release-truth`, Vercel, Vercel Preview Comments |
+| proof | `release-truth`: `PREVIEW_PROVEN` (PR checks + preview deployment green). Production is NOT proven |
+
+Read the live PR for the current head, commit count and checks; this documentation commit itself moves the head past `85f99a1b`.
+
+Milestones 10-19 are a second kind of work: Maya's instruction (2026-10-01) that cleanup includes
+the old system's *references*, not only its files and runtime readers — "OLD TECHNICAL SYSTEM = 0 IN
+THE ACTIVE REPOSITORY," including comments, tests, docs, scripts, generated artifacts and Claude's own
+instruction/memory files, none of which get special protection for being Claude-authored. It ran as a
+whole-repository sweep: one read-only investigator per area, five independent contrarian challenges per
+proposal (dependency, business-capability, authority, compliance/security, frozen-tool), adjudication of
+every disputed item, then one coordinator applying only what survived — never more than one writer
+touching the branch at a time. See "Legacy-reference sweep — batches 10-19" below for what it covered,
+classified, and left open, and "Final adversarial sweep" for the closing check fresh agents ran against
+the result.
+
+## Completed — convergence milestones 1–8
+
+1. **`47a144c6` — dead old provider authority removed.** 60 files that nothing live read: the retired `rls:validate` and `validate:form-rls` validators with their `pr-check` steps; the RLS alias, form-binding, internal-only and overlay lists and their tooling; the REBNY field registries (`FIELD_REGISTRY`, `SEARCH_CONTROL_MAP`, `MASTER_REGISTRY`) and their generators; the Trestle dictionary snapshot; `compliance/fields.json`, `compliance/lookups.json`, `reso-rls-renames.json`; the CSV sync tools; `reso:drift` and `reso:schema-audit`; dead duplicate code and orphan probe scripts. 15 files that pointed at them were edited.
+2. **`bb90a20c` — execution sequence corrected to replace-in-place.** This section's steps 5–6; the earlier seam/shadow wording is gone.
+3. **`ef3f07b3` — Property `$select` reduced to live Cotality-supported fields** (component 1). In `lib/idx/trestle-mapper.ts`, 72 names from the REBNY RLS field list that are not fields of the live Property resource, plus `ListTeamMlsId` and `BuyerTeamMlsId` (live, never requested), left the category arrays; `IDX_PLUS_EXCLUDED_FIELDS` and the duplicate `ALL_RLS_FIELDS` were deleted, leaving one list, `IDX_PLUS_SELECT_FIELDS`. Cotality still receives the same 339 fields. `idx-validate` section 3 and its only input, `config/idx/property-field-coverage-policy.json`, were deleted.
+4. **`57127e51` — RESO→RLS rename layer removed** (part of component 2). `RESO_TO_RLS_RENAMES` (19 entries, none a valid mapping under the live contract) and `normalizeRenames()` in `lib/idx/trestle-mapper.ts`, the two rename loops in `lib/idx/mapping.ts`, and idx-validate's rename count. No output change.
+5. **Cotality MCP in the Vercel runtime with a bounded live resource query** — the milestone began at `9993e1b8` and includes its follow-up commits through `53c58d97` (six Git commits). `9993e1b8` added the read-only contract MCP endpoint `/api/mcp/cotality`, which uses the existing Vercel IDX credentials through `lib/idx/auth.ts`; `3216810e` added a preview-only live self-test and `ff7f229e` removed it after the live proof; `4d25acf3` exposed the bounded live resource query and `b7703d0c` fixed its tool definition (a missing closing brace); `53c58d97` pins its boundary in `tests/runtime/cotality-vercel-mcp.test.ts`. No environment mutation, schema change, provider write or production deployment.
+6. **`3f362ede` — Batch 1a dead-system cleanup.** Files with no importer, script, workflow, test or page: dead CI (`baseline-verify.yml`, `dispatch-check.yml`, the geocode workflow and its inputs), the orphan `app/HomeClient.tsx`, one-off scripts (including one carrying a raw production database URL and one that printed password hashes), the fabricated `data/open-houses.json` and the unread `data/featured-config.json`, dead code (`lib/commission.ts`, a copy of the public listing gate, the `backend/` FastAPI stub, `docker-compose.yml`), CRM files no page loads, and obsolete docs.
+7. **`6fc97e16` — Batch 1b-1 RLS/RESO probe and registry cleanup.** The `scripts/reso/` probe kit and its nine `reso:*` npm scripts (`scripts/reso/route-catalog.js` stays), `scripts/status-snapshot.js`, `scripts/probe-trestle-fields.ts` with `trestle:probe`, unread RESO evidence artifacts, `data/RLS-FIELD-REGISTRY.md` (its one unique fact, the published quotas, moved to Master §0.8, labelled not re-verified live), `data/RLS-Syndication-Research.md`, and the stale CRM manifest tooling.
+8. **`0e0cc29d` — one live Cotality enum/field contract replaces `artifacts/metadata.xml` and both RLS CSVs** (its commit labels it Batch 1b-3). `data/cotality-enums.live.json` carries every entity with its fields and declared types, and every enum (17 entities, 183 enums, regenerated live 2026-10-01; 22 enums had drifted since the 2026-07-05 copy). It is a committed copy generated from live `$metadata` by `scripts/cotality/pull-enums.mjs` and drift-checked against live by `cotality:verify`; live Cotality remains the authority (§3). The 11 tests that read `artifacts/metadata.xml` were re-pointed to it with zero differences in the identifiers they check. `scripts/idx-validate.js` sections 6 and 39 were re-pointed from the RLS CSVs (both emit pass/info/warning only), and `tests/runtime/sale-form-canonical-enum-compliance.test.ts` now checks the frozen sale form against live Cotality, which exposed the `PetsAllowed` defect below. Removed: `artifacts/metadata.xml`, `data/rebny-rls-property-fields.csv`, `data/rebny-rls-property-lookup.csv`, `scripts/get-metadata.js`.
+
+**Batch 1b-2.** No separate Batch 1b-2 convergence commit exists in Git history. Where that work went is not recorded here unless evidence later proves it. (A draft for it existed in a prior session's scratchpad, unpushed; it is superseded by milestone 10 below, which carries its three durable invariants into the Master without the abandoned implementation.)
+
+9. **`d7214176` — Batch 1c: seven API routes that nothing calls removed.** A tokenless duplicate unsubscribe (`/api/search-alerts/unsubscribe`; any caller could disable alerts for any email, and it never set `Lead.last_unsubscribe_at`, issue BIZ-012 — `/api/unsubscribe` is the only path since), four dead CRM calculator server copies under `/api/crm/tools/`, and `/api/crm/automation/{adjust-tier,status}`. Route catalog 288 → 281.
+
+## Legacy-reference sweep — batches 10-19 (Maya's instruction, 2026-10-01)
+
+Scope: every tracked folder — app/**, lib/**, public/crm/** (non-frozen), tests/**, data/**,
+artifacts/**, compliance/**, scripts/**, .github/** and root config, docs/** (current and dated),
+and Claude's own files (`CLAUDE.md`, `AGENTS.md`, `memory/**`, `docs/superpowers/**`). Every legacy
+RLS/RESO/Trestle/CoreLogic/metadata.xml hit was classified into exactly one of four classes:
+`CURRENT_COMPLIANCE`, `LIVE_COTALITY_TRANSPORT_PROVENANCE`, `TEMPORARY_FROZEN_DEPENDENCY`, or
+`OBSOLETE`. 1,596 proposals were investigated; 1,555 survived five independent contrarian challenges
+and adjudication and were pushed (41 rejected — see below).
+
+10. **`98f8d99c`** — three Search invariants (deterministic ordering with a unique tie-break; a Saved
+    Search may not activate on criteria the canonical engine can't execute faithfully; closed-comp
+    recency on the verified Cotality `CloseDate`) added to Master §5.6/§5.8/§6.4, rewritten without the
+    abandoned implementation. The unwired `lib/search/canonical/` package (19 files + 2 tests) and one
+    dead audit doc removed. Master header/§24/§27.18 and this file's §3/§7 had stale RLS/Trestle
+    wording resolved by milestones 1-8 removed.
+11. **`edea8110`** — `CLAUDE.md`, `AGENTS.md` and five `memory/**` records cleaned of old-system
+    language. **Caught twice during review, not by the automated pipeline:** the first drafts folded
+    the standing **PR 5B** hold (`refactor/05-listing-search-projection`, the public reader swap from
+    `listings.idx_display_yn` to `listing_search_projection.idx_display_yn` — still not done) into a
+    pointer to this file's §7/§9/§11, which do not name it; both hold lists, and the
+    `memory/REFACTOR-2026-04-25.md` stub that is their only detailed record, now name it explicitly.
+    21 more stale files deleted; 7 rejected to protect two open compliance-audit records and a live
+    identifier a frozen route calls.
+12. **`a9abc517`** — comment/JSDoc/log-string rewrites across `lib/idx/`, `lib/compliance/`,
+    `lib/search/`; 2 dead files deleted.
+13. **`78953d02`** — compliance docs rewritten to live Cotality terms, correcting several errors the
+    old wording would have reintroduced: a FARE Act field under a name (`MoveInCostsAmountTotal`) the
+    live feed doesn't use; a false "PII Not Stored" claim; two fields wrongly marked displayable that
+    are HIDDEN/stripped elsewhere; a stale RESO Data Dictionary list presented as current; two scripts
+    silently dropped from a `ResourceRecordKey` enforcement list. 4 dead generated rule files deleted
+    (one is a duplicate status dictionary — relevant to the Open item below).
+14. **`1e852568`** — comment/JSDoc/log-string rewrites across `app/**`. Two of the rewritten routes
+    (`/api/idx/search`, `/api/buildings/search`) are called over the network by frozen CRM tools; their
+    response-shape code was diffed line by line before pushing — only local identifiers and log/error
+    text changed, no JSON field.
+15. **`29b2272c`** — 5 dead CRM JS duplicates deleted from non-frozen `public/crm/**`; remaining wording
+    rewritten.
+16. **`2d990b67`** — wording rewritten across `tests/**`; 5 stale standalone diagnostics deleted
+    (validating HTML files that no longer exist). Every rename touching a real production export keeps
+    that export's name in the test and renames only the test's own local mock/variable.
+17. **`69134727`** — wording rewritten across `scripts/**`; an 8-script one-off past-deals pipeline
+    deleted (zero live readers beyond each other).
+18. **`f0bef244`** — wording rewritten in `.github/**` and root config. One proposed deletion (a
+    scheduled live-audit workflow whose audit steps have never run) was rejected: GitHub's scheduler
+    still invokes the file daily, and the only repository record of the pending fix (provisioning its
+    secrets) lives in `memory/AUDITOR-LOG.md`.
+19. **`1b478289`** — wording rewritten across current and dated docs; 37 dated audits/reports/plans
+    with zero live readers deleted. Six rejections caught real risk: three deletions were blocked
+    because a frozen tool cites the targeted doc by name as its own rationale; two "RLS enforcement"
+    mislabels were live REBNY/UCBA write-path gates, not obsolete terminology.
+20. **`85f99a1b`** — a live Fair Housing compliance gap fixed, found by the final adversarial sweep
+    below, not by the sweep's own pipeline. `lib/compliance/rebny-validator.ts`'s `validateListing()`
+    — live in four CRM routes (listing create, listing update, the validate endpoint, the compliance
+    audit endpoint) — read its Fair Housing prohibited-term list from `rls-rules.json`'s stale,
+    35-entry embedded copy instead of the canonical `data/compliance/prohibited-terms.json` (116
+    entries) the rest of the codebase already consolidated to after a prior incident (#460/#461).
+    Sampled terms the stale copy missed and the canonical list has: "no cityfheps", "55+", "must pass
+    background check", "section 8 not accepted" — all source-of-income or age discrimination under
+    Fair Housing / NYC HRL. Fixed the same way the canonical consumers already do it
+    (`lib/compliance/rls-enforcement.ts`, `scripts/ci/guardrails.mjs`): derive the flat term array
+    from `categories`, falling back to `flatList` only if absent. The validator's other two
+    `rls-rules.json` reads (field table, NYC borough/county map) are untouched — that is the
+    already-tracked Open item below.
+21. **`a9289ab9`** — `lib/compliance/rebny-validator.ts`'s remaining `rls-rules.json`
+    dependency (the field-requirement table and NYC borough/county map; its third dependency, the
+    Fair Housing term list, was already fixed at milestone 20) replaced with
+    `lib/compliance/rebny-field-tables.ts` — the same live-Cotality-verified table
+    `lib/compliance/rls-enforcement.ts`'s write-path gate already reads. `conditionMatches()`
+    (previously private to `rls-enforcement.ts`) is now exported and reused instead of a second,
+    independent condition-string parser; the NYC borough/county/FIPS map (five boroughs) is now a
+    local constant, verified byte-for-byte against the deleted file before removal.
+    `lib/compliance/rls-rules.json` deleted (confirmed sole importer, `git grep` repo-wide); the
+    now-dangling `/rls-rules\.json$/` exclusion in `scripts/ci/guardrails.mjs`'s prohibited-term
+    scanner removed with it. `validateListing()` had zero existing tests; added coverage for
+    required fields, the Concessions conditional (verified against REBNY's own public Compliance
+    page / LMP.RLS Data Rules sheet — see below), NYC borough/TaxLot/county checks, and Fair Housing
+    screening. This closes the Open item "replace or remove the provider-rule dependencies of
+    `lib/compliance/rebny-validator.ts`" (item 4 of Maya's 2026-10-02 checkpoint list).
+
+    Two findings surfaced by this same investigation are deliberately NOT fixed here and are
+    recorded separately: a frozen-tool Concessions sale/rental display mismatch (see "Known held
+    defect" below) and the owner-opt-out derivation in `lib/idx/trestle-mapper.ts` being provably
+    inert against live Cotality (same section). Four additional, live-Cotality-confirmed but
+    currently-unmodeled Concessions sub-fields (`ConcessionsBuyerBrokerFee`,
+    `ConcessionsClosingCosts`, `ConcessionsOtherCosts`, `ConcessionsPropertyImprovementCosts`)
+    are added to Open below.
+
+**Legacy-reference census at this checkpoint** (scanner: RLS/RESO/Trestle/CoreLogic/metadata.xml
+patterns, whole tracked tree): before the sweep, 800 files / 13,798 matching lines. After milestone 19,
+631 files / 10,594 lines, of which 3,251 (7 files) are inside the seven frozen tools, 1,519 (117 files)
+are inside other frozen or protected paths, and 5,824 (507 files) are outside any freeze — each of
+those 507 files was read and classified by an investigator (census recorded in this sweep's own
+working files, not duplicated here); what remains in them is `CURRENT_COMPLIANCE`,
+`LIVE_COTALITY_TRANSPORT_PROVENANCE`, a rejection with a stated reason, or deferred to one of the
+component-level Open items below (a cross-file rename or consolidation this reference sweep did not
+attempt). See "Final adversarial sweep" for the independent check run against this claim.
+
+## Open — remaining convergence work
+
+- converge the remaining raw mapper implementations into one (`lib/idx/trestle-mapper.ts`, `lib/idx/mapping.ts`, `lib/search/crm-idx-mapper.ts`). Stage A (behavioral characterization, `tools/push-647-mapper-exception.js`) is in progress: `lib/idx/__tests__/raw-mapper-characterization.test.ts` pins current (legacy, not-yet-target) behavior, and `docs/audits/raw-mapper-property-contract-resolution-2026-10-02.md` resolves every field against the live Cotality contract and Master Plan Section 0 first -- 16 PROVEN_DEFECTs confirmed, including that Master Plan Section 0.2 already decides building identity (`TaxBlock`+`TaxLot`, not `BuildingKeyNumeric`, which `lib/buildings/upsert.ts` currently keys on) and Section 0.6 forbids the `StandardStatus`/`MlsStatus` fallback-substitution all three mappers currently do; borough/geography derivation is routed to the existing geography Open item below instead of resolved inside the raw mapper. A separate, dedicated pass (Media is a different Cotality resource from Property and must not be flattened into one mapper shape or inferred from Property fields) produced `docs/audits/raw-mapper-media-contract-resolution-2026-10-02.md`, twice self-corrected the same day against live Cotality ROW data (not just `$metadata`/code/synthetic inputs) after Maya caught the first two drafts over-claiming: the dominant live floor-plan pattern is `MediaCategory='FloorPlan'` + `MediaClassification='DOCUMENT'`, so a `DOCUMENT` match does NOT prove something is a generic document; and `classifyMediaItem` is a gallery-display projection (5 classes by design: photo/floorplan/video/virtualTour/unknown) kept separate from Mallan's canonical storage, which already preserves raw `MediaCategory`/`MediaClassification` verbatim in `listing_media.media_category`/`.media_classification` -- so `Document`/`Addendum`/`Other` resolving to `'unknown'` there is not automatically a defect. Confirmed gaps use a 4-way taxonomy (PROVEN_LIVE_FAILURE / PROVEN_DEAD_CODE_CONTRACT_MISMATCH / PROVEN_RESOURCE_GAP / VALID_ZERO_POPULATION_CASE / LEGACY_UNVERIFIED): `classifyMediaItem` has no real priority tiering between `MediaCategory`/`MediaClassification`/URL text, and is missing the no-space virtual-tour check (a real gap within its own 5-class scope) that its sibling `classifyTrestleMediaCategory` already has; zero of ~12 current Media call sites filter on `ResourceName`, and that resource is confirmed to actually contain 62 `Building`-attached rows today (not theoretical); the dead `crm-idx-mapper.ts` classifier is a dead-code contract mismatch, not a live failure (zero production callers). No single canonical classifier is recommended -- a stated Mallan product decision is still needed for each zero-population RLS category. A true captured-live-row fixture (vs. field-combination reproduction against real code) remains an open item pending either a live-row-query capability or Maya supplying the exact JSON. OpenHouse and CustomProperty findings were split into their own separate resource-contract documents (`docs/audits/raw-mapper-openhouse-contract-resolution-2026-10-02.md`, `docs/audits/raw-mapper-customproperty-contract-resolution-2026-10-02.md`), each finding confirmed live (2 OpenHouse PROVEN_RESOURCE_GAPs: a public-search filter omitting `OpenHouseType='Public'` entirely, and a separate filter missing 2 of 3 real public enum values; CustomProperty's `$expand` is never enabled in production). Also found, outside this PR's scope since `main` is frozen: `main`'s current `trestle-mapper.ts` has independently grown the identical flat-`pick()` AdditionalFee bug already flagged in `mapping.ts`;
+- converge duplicate status logic. Done for the instance the final adversarial sweep named (`3aff9efb`): `lib/comps/fetch-comps.ts` no longer keeps its own `STATUS_MAP`; its statuses come from the canonical module through `lib/comps/status.ts`. The sweep said today's default criteria "happen to map correctly", and the defaults did; the table also wrote any other string into the Cotality `$filter` unescaped (the criteria are agent-editable and the PATCH route checked only that `building` and `area` exist), which is closed: an unsupported status is a 400. Still open: a search for further copies of status strings outside `lib/compliance/status.ts` (none was looked for beyond the sweep's instance), and the canonical module's own spelling "Cancelled" against live Cotality's `Canceled` (frozen file; not traced beyond the comps, which do not ask for cancelled listings);
+- converge duplicate property/listing classification. Done for the instance the sweep named (`3aff9efb`): the three paths of `app/api/open-houses/route.ts` call one label function, `openHouseTypeLabel` (`lib/open-houses/property-type-label.ts`), which is the canonical mapping with the fallback the cards always had ("Rental" for a lease, "Residential" otherwise), and the fallback fetch of the property selects `PropertySubType`. Still open: other private copies of the mapping (none was looked for beyond the sweep's instance) and the display rule for `SingleFamilyResidence`, which `lib/idx/public-dto.ts` and `lib/search/crm-idx-mapper.ts` record as unresolved;
+- remove the `data/listings.json` runtime fallback (`app/api/listings/[id]/route.ts`);
+- remove `public/crm/js/core/reso-field-map.js` and the `data-rls` provider bindings once their consumers are safely replaced. Those consumers are the frozen forms and the `index-built.html` bundle, so this waits until those tools are unfrozen for their Cotality conversion;
+- replace the old RLS geography artifacts (`data/rls/geo/neighborhood-aliases.json`, `data/rls/geo/coverage-report.json`, `data/rls/geo/rls-neighborhoods.v1.geojson`, `data/rls/neighborhoods.v1.json`) with Mallan's own geography. Live today: 5 scripts build them (`scripts/build-rls-aliases.js`, `scripts/build-rls-geo-derived.js`, `scripts/build-rls-geojson.js`, `scripts/fetch-rls-neighborhoods.js`) and `lib/search/crm-idx-filter.ts` reads them at runtime (frozen, public search);
+- complete Batch 1d: obsolete rule and compliance-copy cleanup;
+- fix two dangling citations to deleted files, held by the freeze: `lib/idx/trestle-mapper.ts` (×2) and `lib/media/crm-media.ts` (×1) each cite a provider CSV/XML path this convergence already deleted, for a fact that is still true live (re-verified against `data/cotality-enums.live.json`). `push-647.js` correctly refuses the edit today; fix when these files are unfrozen — see "Frozen during the current cleanup";
+- zero-reference proof for the old provider authority (step 6) — see "Legacy-reference census" above and "Final adversarial sweep" below for where that proof currently stands.
+- the Add forms' remaining non-live words and keys, the kept-disabled CRM Search controls, the frozen public-search files that still name non-live values, the public listing DTO's use of `agent_id`, the branded tour links, the internal notes and the non-Fair-Housing categories, the rules that stay removed, FM-2 and the rest of the statistical-data disclaimer are listed, with their reasons, under "Decisions that are Maya's" in the 2026-10-09 checkpoint above;
+- model four Concessions sub-fields confirmed live on Cotality but currently unmodeled in `lib/compliance/rebny-field-tables.ts` (non-mandatory, closed-listing-only per REBNY's public LMP.RLS Data Rules sheet): `ConcessionsBuyerBrokerFee`, `ConcessionsClosingCosts`, `ConcessionsOtherCosts`, `ConcessionsPropertyImprovementCosts`.
+
+## Known held defect — Sale Redesign `PetsAllowed` — RESOLVED 2026-10-09
+
+**RESOLVED** by `dd86fd0c`. The Sale and Rental Add forms and both Tools viewers now carry the live `PetsAllowed` members for the unit-level pet policy (`Yes`, `CatsOk`, `DogsOk`, `BreedRestrictions`, `SizeLimit`, `NumberLimit`, `No`); the rule table lists the same; a listing saved with the old `Unit*` spellings still loads. `tests/runtime/crm-pets-allowed-live.test.ts` pins it and `tests/runtime/sale-form-canonical-enum-compliance.test.ts` now requires a live value there (the former ratchet that let the `Unit*` values stand is gone).
+
+Still open, in frozen public search and Maya's to decide (see "Decisions that are Maya's" above): `lib/search/types.ts` ("pet-friendly") lists the non-live `UnitYes` and not `Yes` (a substring test matches a pet policy, not that list, and it reads the live `NoPetRestrictions`, `NoBreedRestrictions` and `NoSizeLimit` as "no pets"), and the listing page counts the live answer `No` as a policy that allows pets.
+
+## Known held defect — Concessions shown only for rentals (frozen tool)
+
+- REBNY's own public Compliance page (`rebny.com/compliance/`) links the LMP.RLS Data Rules sheet,
+  which defines `Concessions`/`ConcessionsAmount`/`ConcessionsComments` as applying to sale AND
+  lease listings, unconditionally for `Concessions` — confirmed by fetching that sheet directly
+  (Google Sheets `gviz` CSV export of its "Property" tab), not inferred from Mallan's own frontend.
+- `lib/compliance/rebny-field-tables.ts` already encodes this correctly (`Concessions` is in
+  `requiredFields.agentSubmitted` unconditionally; the `CONCESSIONS-001` conditional rule requires
+  `ConcessionsAmount`/`ConcessionsComments` when `Concessions='Yes'`, for any transaction type) —
+  no backend fix was needed, confirmed at milestone 21.
+- The defect is in the frozen frontend: `public/crm/js/search/search-engine.js` hides the
+  concessions section when `tab === 'sale'` and shows it only when `tab === 'rent'`;
+  `public/crm/js/search/field-dictionaries.js` defines `concessions`/`concessionsDetail` only
+  inside `rentalFieldDictionary.feesDeposits` — the sale field dictionary has no concession fields
+  at all. Both are frozen (`index-built.html` bundle inputs).
+- Not modified during this cleanup phase (frozen tool). Correct it when `index-built.html` is
+  unfrozen for its Cotality conversion.
+
+## Known held defect — owner opt-out derivation inert against live Cotality — RESOLVED 2026-10-02
+
+**RESOLVED** via the narrowly-scoped mapper-exception tool (`tools/push-647-mapper-exception.js`),
+commits `7b6e901d`, `7a35e772`, `c9ade49a` on this branch. Per the "Authority separation rule"
+above: REBNY names Owner Opt-Out as a real compliance state, but live Cotality's `Permission` (18
+values) and `MlsStatus` (26 values) have no member for it — the UNVERIFIED question below is now
+answered: there is no Cotality field that represents it, by design (REBNY's 2026 process submits
+the signed form through the Exclusive Agent's LMP, upstream of the IDX Plus feed entirely — it
+blocks the listing from RLS itself, so it structurally cannot flow downstream as a `Permission`
+value). `owner_opt_out` is therefore Mallan-local authority, full stop, not a fallback.
+
+Changes: `lib/compliance/gates.ts::isOwnerOptOut`, `lib/idx/trestle-mapper.ts::derivePermissionGates`
+and `lib/idx/media-sync.ts::isPropertyComplianceBlocked` no longer attempt the dead value-match (
+`derivePermissionGates`'s `PermissionGates` return type no longer has an `ownerOptOut` field at
+all); `lib/compliance/rls-enforcement.ts` keeps its `Permission`-value check (a legitimate
+Mallan-internal CRM form sentinel on the agent-submitted payload) and drops only the `MlsStatus`
+arm. `Permission='Private'` (Participant Only, Gate 2) is untouched everywhere — it is independently
+verified live and was never the bug.
+
+Persistence boundary: the four real writers of `owner_opt_out` (`lib/idx/sync.ts` ×2,
+`app/api/crm/listings/reset-sync/route.ts`, `scripts/recover-stale-property-listings.ts`) now omit
+it from every UPDATE and apply the new `lib/idx/trestle-mapper.ts::applyLocalOwnerOptOutGate` to
+force `idx_display_yn=false` when the existing stored row already has `owner_opt_out=true` — so
+this cleanup does not let a Cotality resync silently clear a CRM-set opt-out. CREATE is unaffected
+(schema default `false`, nothing to preserve). `scripts/build-recovery-manifest.ts` now treats
+`owner_opt_out` as local authority rather than a second `derivePermissionGates` output.
+
+Original evidence preserved below for provenance.
+
+- `docs/audits/listing-media-reader-ownership-2026-08-13.md` §21.3 already measured, with a live
+  `$count` query on 2026-08-14, that 591,131/591,131 (100%) of Property rows in Mallan's feed have
+  `Permission eq 'IDX'` — the per-row REBNY gates (including owner-opt-out) were defense-in-depth
+  that was presently inert because REBNY's upstream pre-filter already withholds non-IDX listings
+  before they reach the feed. That finding sat unapplied until this fix.
+- Not modified: Permission's live-confirmed Multi-Enum (comma-separated) type means every exact-
+  equality check on it, including the surviving `Permission==='Private'`, is latently incorrect for
+  a combined value. Current `Private` population is reportedly 0, so it is not biting yet — flagged
+  as a separate, not-yet-authorized follow-up, not bundled into this fix.
+
+## Frozen during the current cleanup
+
+> **UPDATE 2026-10-09:** this section is the 2026-10-01 state. Maya authorized edits to the seven stand-alone tools for the convergence work on 2026-10-03, and what was done since is listed in "Convergence progress — PR #647 (checkpoint 2026-10-09)" above. The public-search freeze below still holds, except for the files her media request of 2026-10-08 and the mapper-convergence authorization named; each is recorded, with the words it rests on, in the allowlist of `tools/push-647-mapper-exception.js`.
+
+Maya (2026-10-01): all seven stand-alone tools below remain stand-alone; Search must be canonical,
+pulled live from the Cotality API. There are many existing versions of each; none is correct and none
+is from the live Cotality API. These are not modified by the cleanup — mutation is refused at the tool
+level (`tools/push-647.js`'s frozen list) as well as by convention:
+
+1. **Sale Redesign** — `public/crm/SALE-FORM-REDESIGN.html`. Needs conversion to Cotality; a fixed
+   version exists but needs tweaking. The closest-to-correct starting point of all seven.
+2. **Rental Redesign** — `public/crm/RENTAL-FORM-REDESIGN.html`. Needs conversion; other versions
+   exist but none is fixed.
+3. **Sales Tools** — `public/crm/SALE-FORM-WITH-TOOLS.html`. Needs conversion.
+4. **Rental Tools** — `public/crm/RENTAL-FORM-WITH-TOOLS.html`. Needs conversion.
+5. **Tenant Deal** — `public/crm/TENANT-DEAL-FORM.html`. Mallan-created, for commission payment
+   representing tenants; connected as a tab in Rental Redesign.
+6. **Buyer Deal** — `public/crm/BUYER-DEAL-FORM.html`. Mallan-created, for commission payment
+   representing buyers; connected as a tab in Sale Redesign.
+7. **`public/crm/index-built.html`** and its Search/CMA bundle inputs. Needs conversion; it holds:
+   (A) Sales basic search, (B) Rental basic search, (C) Sales advanced search, (D) Rental advanced
+   search, (E) CMA, (F) Building search — all converted together as one unit, since none has its own
+   separate engine today. Search has fields Mallan created that are mostly commercial or private-
+   listing fields, not provider fields.
+
+**Public search is frozen too** (not one of the seven stand-alone tools, but the same freeze): `app/search/**`
+and the public-facing components, library modules and data files it depends on — `lib/idx/**`,
+`lib/search/**`, `lib/listings/**`, `lib/media/**`, `lib/geo/**`, `lib/buildings/**`,
+`data/*-neighborhoods.json`, `data/listings.json`, and the relevant `lib/compliance/**` display gates.
+The exact frozen set (all eight areas) is the JSON array `tools/push-647-frozen.json` in the
+`mallan-ops` workspace; `push-647.js` refuses any edit, deletion or write to a path on it.
+
+The final adversarial sweep (below) found three CRM-facing files that are hard runtime dependencies
+of two frozen tools (`index-built.html`, `BUYER-DEAL-FORM.html` both call `GET /api/idx/search`) but
+were missing from `tools/push-647-frozen.json` — `app/api/idx/search/route.ts`,
+`lib/search/crm-idx-filter.ts`, `lib/search/crm-idx-mapper.ts` — and `lib/search/crm-idx-mapper.ts`
+was simultaneously named in this file's own Open list as something the raw-mapper-unification work
+plans to change. Added to the frozen file list (tool-config fix only, no repository change) so that
+work does not silently touch a frozen tool's dependency.
+
+**Two more files are TEMPORARY FROZEN DEPENDENCY for a single stale comment each**, found by the same
+sweep: `lib/idx/trestle-mapper.ts` (×2) and `lib/media/crm-media.ts` (×1) each cite a provider
+CSV/XML path this convergence deleted, describing a fact that is still true live. See "Open" above.
+
+Current goal, in order: clean the underlying repository → old technical system = zero → no stale
+instruction capable of recreating it → adversarial proof → only then unfreeze and convert the seven
+stand-alone tools and public search to the live Cotality API.
+
+## Final adversarial sweep
+
+Per Maya's instruction (2026-10-01): after the legacy-reference sweep (milestones 10-19), six fresh
+agents that did not participate in it, with no assumption it succeeded, were run against head
+`1b478289` to try to prove it failed — one per angle: surviving provider authority; stale Trestle
+architecture / old provider snapshot still read; duplicate mapper/status/classification; duplicate
+Search executor / dead fallback / forgotten frozen dependency; current docs teaching deleted
+architecture / deleted paths still referenced; Claude instructions capable of resurrecting the old
+system. Each worked independently, read-only, citing file:line evidence for every claim, and was
+instructed to report "nothing found" honestly rather than manufacture a finding.
+
+**Confirmed and already closed (milestone 20, above):**
+- `lib/compliance/rebny-validator.ts` ran the live Fair Housing screen on a stale 35-term list instead
+  of the canonical 116-term `data/compliance/prohibited-terms.json` — fixed.
+
+**Confirmed, held by the freeze (recorded under "Frozen during the current cleanup" above):**
+- `lib/idx/trestle-mapper.ts` (×2) and `lib/media/crm-media.ts` (×1) cite deleted provider CSV/XML
+  paths for facts that are still true live; both files are frozen (public search), so `push-647.js`
+  refused the edit when attempted.
+
+**Confirmed, recorded as new detail under the existing "converge duplicate status logic" / "converge
+duplicate property/listing classification" Open items (above) rather than fixed — fixing either
+changes runtime behavior, which this reference-only sweep does not do:**
+- `app/api/open-houses/route.ts`'s local `mapPropertyType()` duplicates and diverges from the
+  canonical `mapPropertyTypeToDisplay` for two of its three data paths.
+- `lib/comps/fetch-comps.ts`'s local `STATUS_MAP` duplicates `lib/compliance/status.ts`'s
+  `normalizeStatus()`, against that module's own documented single-source rule.
+
+**Confirmed, fixed in the local push-647 tool config (no repository change):**
+- `app/api/idx/search/route.ts`, `lib/search/crm-idx-filter.ts`, `lib/search/crm-idx-mapper.ts` are
+  hard dependencies of two frozen tools and were missing from the frozen-file list; added.
+
+**Noted, judged low-risk, no action:**
+- `POST /api/crm/saved-searches/[id]/execute` exposes a live, reachable, state-mutating HTTP endpoint
+  for a DB-projection search engine with zero first-party callers (the saved-search UI re-runs
+  criteria through the live-Cotality `/api/idx/search` engine instead; the underlying engine itself is
+  not dead — `app/api/cron/search-alerts/route.ts` legitimately calls it for email alerting).
+- `scripts/validate-standalone.js` (`npm run validate:standalone`) is an untracked, older,
+  parallel schema-diff tool alongside the new `cotality:verify` live-enum pipeline. It reads a local
+  `trestle-metadata.xml` that is not committed anywhere in the tree, and its own error path demands a
+  fresh live download before use — it cannot present a stale snapshot as current truth, so it is not a
+  survivor of the `artifacts/metadata.xml` removal, just a second tool.
+- `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` cites `.claude/skills/rebny-compliance/SKILL.md` by
+  path and section number; no such file is tracked in this repository. This does not point at any
+  RLS/RESO/Trestle legacy material or an alternate authority (the cited skill, where it exists on an
+  operator's machine, is itself the `rebny-compliance` skill that points everything back to the Master
+  and live Cotality — same chain, different location), so it is not a resurrection risk; it is a
+  documentation-pointer mismatch a human can tidy or leave.
+
+**Everything else the six agents checked came back clean:** no second RESO/Cotality field or enum
+registry exists; no live code path reads a provider CSV/XML snapshot as field-truth authority; no
+RESO→RLS or RLS→Cotality rename table exists outside what is already tracked; no current (non-dated)
+documentation teaches a reader to use any deleted file/registry/command as if it still exists; no
+Claude-facing file (`CLAUDE.md`, `AGENTS.md`, `memory/**`, `docs/superpowers/**`) can direct a future
+agent back to the old system or to an authority other than the Master plus this file.
+
+This closes the adversarial check Maya required before the old-system cleanup is considered closed,
+with the findings above disposed of as shown — two fixed, two deferred to the already-tracked
+component-consolidation Open items, one frozen-list gap closed in tooling, three noted as no-risk.
+
+## Maya's checkpoint synthesis (2026-10-02)
+
+Reviewing milestones 1-20 and the adversarial sweep, Maya recorded the following as the current
+stage, confirmed against live evidence (`data/rls/geo/` is a real, untouched 4-file directory —
+`neighborhood-aliases.json`, `coverage-report.json`, `rls-neighborhoods.v1.geojson`,
+`data/rls/neighborhoods.v1.json` — with 5 scripts building it and `lib/search/crm-idx-filter.ts`
+reading it live):
+
+- Dead-code / stale-doc / obsolete-reference cleanup (milestones 1-20): **~85-90% complete.**
+- Core runtime/provider convergence (the structural duplication underneath the references): **~35-45%
+  complete** — the remaining items are harder architectural work, not bulk cleanup.
+- Weighted across the whole "clean old system before unfreezing the seven tools" phase: **~65-70%
+  complete.**
+
+The concrete remaining core work, in Maya's stated order:
+1. the three raw mappers (`lib/idx/trestle-mapper.ts`, `lib/idx/mapping.ts`,
+   `lib/search/crm-idx-mapper.ts`) become one;
+2. duplicate status logic becomes one (named instance: `lib/comps/fetch-comps.ts`'s `STATUS_MAP`);
+3. duplicate property/listing classification becomes one (named instance: `app/api/open-houses/route.ts`'s
+   local `mapPropertyType()`);
+4. `lib/compliance/rebny-validator.ts`'s remaining dependency on `rls-rules.json`'s old provider-derived
+   field table and borough/county map is replaced or removed (its third dependency, the Fair Housing
+   term list, was fixed at milestone 20);
+5. the `data/listings.json` runtime fallback (`app/api/listings/[id]/route.ts`) is removed;
+6. the frozen `public/crm/js/core/reso-field-map.js` is removed during the standalone-tool conversion
+   (not before — it is a `data-rls`-bound dependency of the frozen forms today);
+7. the old RLS geography artifacts (`data/rls/geo/**`, `data/rls/neighborhoods.v1.json`) are replaced
+   by Mallan's own geography;
+8. zero-reference proof for the old provider authority is completed.
+
+"Once those are gone, the repository will be much closer to the state Maya actually wants: not merely
+cleaner, but with the old technical system unable to reassert itself."
+
+Everything below this point in §11 is history.
 
 **HISTORY (superseded 2026-09-29): `mode: control-update` (2026-09-25); no packet is active and no Master amendment is authorized. The ledger row 19 packet
 `GOVERNANCE-MASTER-AMENDMENT-PATH-2026-09-24` (a bounded, base-authorized Master-amendment path with negative tests) is COMPLETE: #642
@@ -891,7 +1431,7 @@ occurrences, re-read 2026-09-22). The two files disagree on the protocol.
 
 **Correction 2026-09-22 — the OPS-026 reservation is WITHDRAWN.** It was recorded here as
 unused because it was absent from the registry on `main`. That check was too narrow:
-`docs/operations/site-audit-handoff-2026-07-01.md` records `OPS-026` as an issue that was
+the dated 2026-07-01 site-audit handoff (retired in the #647 cleanup; Git history) records `OPS-026` as an issue that was
 *withdrawn* in the 2026-07-01 registry consolidation. A withdrawn ID is still a used ID, and
 reusing it would conflate two unrelated issues in every search and closure record. The
 one-way-door defect therefore carries no registry ID until a separately authorized
