@@ -3,8 +3,9 @@
  * The listing page's Pet Policy section, RENDERED from a database row (the real route function, as tests/runtime/return-copy-redirect-route-boundary.test.ts drives it).
  *
  * Found 2026-10-09 by running the old page code on all 31 live PetsAllowed members: the page ran every answer through a helper that strips a trailing "Yes" / "No", so Yes, BuildingYes, No and BuildingNo
- * printed no Pet Policy section at all and NoDogs printed "Dogs Ok". The page now reads the answer through lib/search/pet-policy.ts (petPolicyView): the section says what the answer says, with a check
- * for an answer that lets pets in and a cross for No / BuildingNo, and is absent when there is no answer worth showing.
+ * printed no Pet Policy section at all and NoDogs printed "Dogs Ok". The page now reads the answer through lib/search/pet-policy.ts (petPolicyView): the section says what the answer says (an answer
+ * that says there are no pets reads "Not allowed per the listing"), marks nothing with a tick or a cross, says assistance animals are not pets (the compliance review of 2026-10-09: an unqualified
+ * "No Pets" with a prohibition symbol is a statement Mallan would publish about a limitation), and is absent when there is no answer worth showing.
  *
  * The page function returns a React element tree; this test walks it (host elements only: it never calls a child component) and reads the section whose heading is "Pet Policy".
  */
@@ -134,13 +135,14 @@ const petSection = (tree: unknown): El | null => {
   });
   return found;
 };
-const CHECK = 'M5 13l4 4L19 7';
-const CROSS = 'M6 18L18 6M6 6l12 12';
-const iconOf = (section: El): string | null => {
-  let d: string | null = null;
-  walk(section, (el) => { if (el.type === 'path' && typeof el.props?.d === 'string' && !d) d = el.props.d; });
-  return d;
+/** every svg / path / img inside a node: the section marks nothing with a tick, a cross or another symbol */
+const symbolsIn = (node: unknown): string[] => {
+  const found: string[] = [];
+  walk(node, (el) => { if (el.type === 'svg' || el.type === 'path' || el.type === 'img') found.push(String(el.type)); });
+  return found;
 };
+const NOTE = 'Assistance animals are not pets. Ask the listing broker about a reasonable accommodation.';
+const NO_PETS = 'Not allowed per the listing';
 
 type PageFn = (p: unknown) => Promise<unknown>;
 const render = async (features: Record<string, unknown>, extra: Record<string, unknown> = {}) => {
@@ -159,25 +161,32 @@ beforeEach(() => { jest.clearAllMocks(); });
 
 describe('the Pet Policy section of the listing page, from the stored PetsAllowed answer', () => {
   it.each([
-    ['Yes', 'Pets Allowed', CHECK],
-    ['BuildingYes', 'Pets Allowed', CHECK],
-    ['No', 'No Pets', CROSS],
-    ['BuildingNo', 'No Pets', CROSS],
-    ['NoDogs', 'No Dogs', CHECK],
-    ['NoPetRestrictions', 'No Pet Restrictions', CHECK],
-    ['CatsOk,DogsOk', 'Cats Ok, Dogs Ok', CHECK],
-    ['SizeLimit', 'Size Limit', CHECK],
-  ])('%s: the section says %j with the right icon', async (answer, label, icon) => {
+    ['Yes', 'Pets Allowed'],
+    ['BuildingYes', 'Pets Allowed'],
+    ['No', NO_PETS],
+    ['BuildingNo', NO_PETS],
+    ['NoDogs', 'No Dogs'],
+    ['NoPetRestrictions', 'No Pet Restrictions'],
+    ['CatsOk,DogsOk', 'Cats Ok, Dogs Ok'],
+    ['SizeLimit', 'Size Limit'],
+    ['Call', 'Call'],
+    ['SeeRemarks', 'See Remarks'],
+  ])('%s: the section says %j, marks nothing with a symbol, and says assistance animals are not pets', async (answer, label) => {
     const section = petSection(await render({ PetsAllowed: answer }));
     expect(section).not.toBeNull();
-    expect(textOf(section)).toBe(`Pet Policy${label}`);
-    expect(iconOf(section as El)).toBe(icon);
+    expect(textOf(section)).toBe(`Pet Policy${label}${NOTE}`);
+    expect(symbolsIn(section)).toEqual([]);
   });
 
   it('a list stored in the features is read the same way as the comma-joined string', async () => {
     const section = petSection(await render({ PetsAllowed: ['Yes', 'CatsOk'] }));
-    expect(textOf(section)).toBe('Pet PolicyPets Allowed, Cats Ok');
-    expect(iconOf(section as El)).toBe(CHECK);
+    expect(textOf(section)).toBe(`Pet PolicyPets Allowed, Cats Ok${NOTE}`);
+  });
+
+  it('a record that holds both a no-pets answer and a pet answer says both, as the listing gave them, and marks nothing', async () => {
+    const section = petSection(await render({ PetsAllowed: 'BuildingNo,CatsOk' }));
+    expect(textOf(section)).toBe(`Pet Policy${NO_PETS}, Cats Ok${NOTE}`);
+    expect(symbolsIn(section)).toEqual([]);
   });
 
   it.each([[{}], [{ PetsAllowed: '' }], [{ PetsAllowed: 'Other' }], [{ PetsAllowed: 'None,Other' }]])('%j: there is no section to show', async (features) => {
@@ -187,11 +196,11 @@ describe('the Pet Policy section of the listing page, from the stored PetsAllowe
   it('the section is the same for a rental, and the Rental Details list carries the same words', async () => {
     const tree = await render({ PetsAllowed: 'BuildingNo' }, { listing_type: 'rent', property_type: 'Residential Lease', list_price: 5500 });
     const section = petSection(tree);
-    expect(textOf(section)).toBe('Pet PolicyNo Pets');
+    expect(textOf(section)).toBe(`Pet Policy${NO_PETS}${NOTE}`);
     let petsRow = '';
     walk(tree, (el) => {
       if (el.type === 'div' && kids(el).length === 2 && textOf(kids(el)[0]) === 'Pets') petsRow = textOf(kids(el)[1]);
     });
-    expect(petsRow).toBe('No Pets');
+    expect(petsRow).toBe(NO_PETS);
   });
 });

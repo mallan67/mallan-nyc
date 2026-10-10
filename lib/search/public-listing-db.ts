@@ -432,10 +432,9 @@ export function applyPublicListingPostFilters<T extends PublicPostFilterListing>
 
       if (amenityKey === "pet-friendly") {
         result = result.filter((listing) => {
-          const dtoVal = String(listing.petsAllowed || "");
           const feat = featuresById.get(listing.id) || {};
-          const featVal = String(feat.PetsAllowed || "");
-          return allowsPets(dtoVal || featVal);
+          // the raw value, as the Trestle path and the projection hand it to allowsPets: a string, or a list of strings (anything else is no answer)
+          return allowsPets(listing.petsAllowed || feat.PetsAllowed);
         });
       } else {
         result = result.filter((listing) => {

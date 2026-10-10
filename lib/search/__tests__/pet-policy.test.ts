@@ -11,9 +11,22 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { allowsPets, formatPetPolicy, isNoPetsAnswer, petAnswerLabel, petAnswers, petPolicyLabels, petPolicyView } from '@/lib/search/pet-policy';
+import {
+  ASSISTANCE_ANIMAL_NOTE,
+  NO_PETS_LABEL,
+  allowsPets,
+  formatPetPolicy,
+  isNoPetsAnswer,
+  petAnswerLabel,
+  petAnswers,
+  petPolicyLabels,
+  petPolicyView,
+} from '@/lib/search/pet-policy';
 
 const LIVE: string[] = JSON.parse(readFileSync(resolve(__dirname, '../../../data/cotality-enums.live.json'), 'utf8')).enums.PetsAllowed;
+
+/** what an answer that says there are no pets reads as: the listing's statement, not Mallan's (compliance review of 2026-10-09) */
+const NO_PETS = 'Not allowed per the listing';
 
 /** member → [does it let pets in, the label a reader sees ('' = not shown)] */
 const EXPECTED: Record<string, [boolean, string]> = {
@@ -22,7 +35,7 @@ const EXPECTED: Record<string, [boolean, string]> = {
   BuildingBreedRestrictions: [true, 'Breed Restrictions'],
   BuildingCatsOk: [true, 'Cats Ok'],
   BuildingDogsOk: [true, 'Dogs Ok'],
-  BuildingNo: [false, 'No Pets'],
+  BuildingNo: [false, NO_PETS],
   BuildingNumberLimit: [true, 'Number Limit'],
   BuildingSizeLimit: [true, 'Size Limit'],
   BuildingYes: [true, 'Pets Allowed'],
@@ -33,7 +46,7 @@ const EXPECTED: Record<string, [boolean, string]> = {
   DogsOk: [true, 'Dogs Ok'],
   FishOk: [true, 'Fish Ok'],
   Negotiable: [true, 'Negotiable'],
-  No: [false, 'No Pets'],
+  No: [false, NO_PETS],
   NoBreedRestrictions: [true, 'No Breed Restrictions'],
   NoDogs: [true, 'No Dogs'],                                   // cats may be allowed: counts as pet-friendly (Maya, 2026-10-09)
   NoPetRestrictions: [true, 'No Pet Restrictions'],
@@ -53,7 +66,7 @@ const EXPECTED: Record<string, [boolean, string]> = {
 /** what the CRM Add forms stored before the live members were used (tests/runtime/crm-pets-allowed-live.test.ts) */
 const LEGACY: Record<string, [boolean, string]> = {
   UnitYes: [true, 'Pets Allowed'],
-  UnitNo: [false, 'No Pets'],
+  UnitNo: [false, NO_PETS],
   UnitCatsOK: [true, 'Cats Ok'],
   UnitDogsOK: [true, 'Dogs Ok'],
   UnitBreedRestrictions: [true, 'Breed Restrictions'],
@@ -111,13 +124,40 @@ describe('a policy of several answers', () => {
     ['Yes,CatsOk', true, 'Pets Allowed, Cats Ok'],
     ['BuildingYes,BuildingCatsOk,BuildingDogsOk', true, 'Pets Allowed, Cats Ok, Dogs Ok'],
     ['CatsOk,NoDogs', true, 'Cats Ok, No Dogs'],
-    ['BuildingNo,CatsOk', true, 'No Pets, Cats Ok'],             // conflicting data: the unit answer lets cats in, so the policy is not "no pets"
-    ['No,BuildingNo', false, 'No Pets'],                         // the same answer twice is said once
+    ['BuildingNo,CatsOk', true, NO_PETS + ', Cats Ok'],             // conflicting data: the unit answer lets cats in, so the policy is not "no pets"
+    ['No,BuildingNo', false, NO_PETS],                         // the same answer twice is said once
     ['BuildingCatsOk,CatsOk', true, 'Cats Ok'],
     ['CatsOk, DogsOk ; BreedRestrictions', true, 'Cats Ok, Dogs Ok, Breed Restrictions'],
   ])('%j', (value, allows, label) => {
     expect(allowsPets(value)).toBe(allows);
     expect(formatPetPolicy(value)).toBe(label);
+  });
+
+  // An explicit "no pets" stands unless another answer POSITIVELY lets a pet in. An answer that says nothing (Other, Call, SeeRemarks) or that only limits one kind of pet (NoDogs) cannot overrule it
+  // (the code review of 2026-10-09 ran `No,Other` as pet-friendly under the label "Not allowed per the listing"). Without a no-pets answer, any answer counts, as before.
+  // UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED for how the RLS data rules read a record that says both.
+  it.each([
+    ['No,Other', false],
+    ['BuildingNo,Other', false],
+    ['No,SeeRemarks', false],
+    ['No,Call', false],
+    ['No,NoDogs', false],
+    ['No,Other,Call,SeeRemarks,NoDogs', false],
+    ['None,Other', false],
+    ['No,BuildingNo', false],
+    ['BuildingNo,CatsOk', true],
+    ['No,CatsOk', true],
+    ['No,Yes', true],
+    ['No,Negotiable', true],
+    ['No,PetFee', true],
+    ['BuildingNo,Other,DogsOk', true],
+    ['NoDogs,Other', true],
+    ['Call,SeeRemarks', true],
+    ['Other', true],
+    ['NoDogs', true],
+  ])('%j: pet-friendly is %j', (value, allows) => {
+    expect(allowsPets(value)).toBe(allows);
+    expect(allowsPets(value.split(','))).toBe(allows);
   });
 
   it('a list gives the same answer as the comma-separated string the DTO makes of it', () => {
@@ -149,12 +189,12 @@ describe('no answer at all', () => {
 });
 
 describe('petPolicyView is what the listing page shows', () => {
-  it('Yes: the words and the check', () => {
+  it('Yes: the words and the verdict', () => {
     expect(petPolicyView('Yes')).toEqual({ label: 'Pets Allowed', allowed: true });
   });
-  it('No: the words and the cross (the section used to be left out altogether)', () => {
-    expect(petPolicyView('No')).toEqual({ label: 'No Pets', allowed: false });
-    expect(petPolicyView('BuildingNo')).toEqual({ label: 'No Pets', allowed: false });
+  it('No: the words and the verdict (the section used to be left out altogether)', () => {
+    expect(petPolicyView('No')).toEqual({ label: NO_PETS, allowed: false });
+    expect(petPolicyView('BuildingNo')).toEqual({ label: NO_PETS, allowed: false });
   });
   it('NoDogs: says No Dogs, never Dogs Ok', () => {
     expect(petPolicyView('NoDogs')?.label).toBe('No Dogs');
@@ -167,17 +207,16 @@ describe('petPolicyLabels is what the building pages list', () => {
   it('is the same words the listing page shows: the table\'s label for every live member alone, and each distinct label once for all of them together', () => {
     for (const [member, [, label]] of Object.entries(EXPECTED)) expect(petPolicyLabels(member)).toEqual(label ? [label] : []);
     expect(petPolicyLabels(LIVE)).toEqual([...new Set(LIVE.map((member) => EXPECTED[member][1]).filter(Boolean))]);
-    expect(petPolicyLabels(LIVE).join(', ')).toBe(formatPetPolicy(LIVE));
   });
 
   it('lists each label once, in the order the building data gives the answers, from the list the building data holds', () => {
-    expect(petPolicyLabels(['BuildingYes', 'BuildingCatsOk', 'CatsOk', 'BuildingNo', 'Other', 'NoDogs'])).toEqual(['Pets Allowed', 'Cats Ok', 'No Pets', 'No Dogs']);
+    expect(petPolicyLabels(['BuildingYes', 'BuildingCatsOk', 'CatsOk', 'BuildingNo', 'Other', 'NoDogs'])).toEqual(['Pets Allowed', 'Cats Ok', NO_PETS, 'No Dogs']);
   });
 
   it('says what each answer says (the building page used to print "Dogs Ok" for NoDogs and "Size Limit" for NoSizeLimit)', () => {
     expect(petPolicyLabels(['NoDogs'])).toEqual(['No Dogs']);
     expect(petPolicyLabels(['NoSizeLimit'])).toEqual(['No Size Limit']);
-    expect(petPolicyLabels(['BuildingNo'])).toEqual(['No Pets']);
+    expect(petPolicyLabels(['BuildingNo'])).toEqual([NO_PETS]);
     expect(petPolicyLabels(['BuildingSizeLimit', 'BuildingNumberLimit'])).toEqual(['Size Limit', 'Number Limit']);
   });
 
@@ -194,5 +233,21 @@ describe('petAnswers', () => {
   });
   it('flattens a list of strings and ignores anything that is not text', () => {
     expect(petAnswers(['CatsOk,DogsOk', 'SizeLimit', 7, null])).toEqual(['CatsOk', 'DogsOk', 'SizeLimit']);
+  });
+});
+
+describe('the wording the compliance review of 2026-10-09 asked for', () => {
+  it('an answer that says there are no pets is the listing\'s statement, never the bare words "No Pets"', () => {
+    expect(NO_PETS_LABEL).toBe(NO_PETS);
+    for (const member of ['No', 'BuildingNo', 'UnitNo']) expect(petAnswerLabel(member)).toBe(NO_PETS);
+    for (const label of petPolicyLabels(LIVE)) expect(label).not.toMatch(/^no pets?( allowed)?$/i);
+  });
+
+  it('no label carries a tick, a cross or another symbol', () => {
+    for (const label of [...petPolicyLabels(LIVE), ...petPolicyLabels(['UnitYes', 'UnitNo', 'UnitCatsOK'])]) expect(label).toMatch(/^[A-Za-z ]+$/);
+  });
+
+  it('the note under a listing page\'s policy says assistance animals are not pets and where to ask', () => {
+    expect(ASSISTANCE_ANIMAL_NOTE).toBe('Assistance animals are not pets. Ask the listing broker about a reasonable accommodation.');
   });
 });

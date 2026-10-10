@@ -108,3 +108,17 @@ describe('no public code decides "ours" from agent_id', () => {
     expect(code('lib/idx/db-to-public-dto.ts')).toContain("from '@/lib/listings/mallan-source-identity'");
   });
 });
+
+describe('sort=exclusives is short-circuited like exclusive=mallan: no Trestle fallback lists other brokers\' rows under the exclusives label', () => {
+  // The DB query narrows sort=exclusives to the Mallan-authored predicate and the route's own comment says "DB-only, skip Trestle", but nothing skipped it: a request with no Mallan-authored match fell
+  // through to the Trestle fetch and was labelled idx+exclusive (found by the code review of 2026-10-09).
+  const route = code('app/api/listings/route.ts');
+
+  it('the route reads sort=exclusives as an exclusives-only request', () => {
+    expect(route).toMatch(/const isMallanExclusiveOnly = searchParams\.get\('exclusive'\) === 'mallan' \|\| sortParam === 'exclusives';/);
+  });
+
+  it('both the zero-row answer and the DB-error answer of an exclusives-only request are empty responses, not a Trestle fetch', () => {
+    expect(route.match(/if \(isMallanExclusiveOnly\) \{/g)).toHaveLength(2);
+  });
+});

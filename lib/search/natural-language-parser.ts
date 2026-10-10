@@ -36,6 +36,8 @@ import type { LingoMatch } from './nyc-dictionary';
 /** Words the user typed that were read but are not searched, and why (a filter that is disabled because no live Cotality field backs it, such as "no fee"). */
 export interface UnavailablePhrase {
   phrase: string;
+  /** the disabled filter the phrase names, so a link can carry it and the search page can say it was not applied */
+  key: AmenityFilter;
   reason: string;
 }
 
@@ -274,8 +276,9 @@ export function parseNaturalLanguageSearch(query: string): ParsedSearch {
   for (const match of lingoResult.matches) {
     applyLingoMatch(filters, match);
     if (match.filterKey === LINGO_UNAVAILABLE) {
-      const reason = AMENITY_FIELD_MAP[match.filterValue as AmenityFilter]?.unavailable;
-      if (reason) unavailable.push({ phrase: match.matched, reason });
+      const key = match.filterValue as AmenityFilter;
+      const reason = AMENITY_FIELD_MAP[key]?.unavailable;
+      if (reason) unavailable.push({ phrase: match.matched, key, reason });
     }
   }
   remaining = lingoResult.remainder;

@@ -265,7 +265,11 @@ export async function GET(request: Request) {
     // advertising). The DB filter is applied in `buildPublicListingDbSearch`;
     // here we additionally short-circuit the Trestle fallback so external
     // listings can never reach the response on this path.
-    const isMallanExclusiveOnly = searchParams.get('exclusive') === 'mallan';
+    //
+    // `sort=exclusives` makes the same promise: the DB query narrows to the same Mallan-authored predicate (lib/search/public-listing-db.ts), and the case 'exclusives' below says "DB-only, skip
+    // Trestle". Nothing skipped it, so a request with no Mallan-authored match fell through to the Trestle fetch and listed other brokers' rows labelled idx+exclusive (found by the code review of
+    // 2026-10-09). It is short-circuited like exclusive=mallan.
+    const isMallanExclusiveOnly = searchParams.get('exclusive') === 'mallan' || sortParam === 'exclusives';
     // Numbered-address short-circuit (PR #107 + Codex follow-up).
     //
     // The search UI routes ALL plain free-text input through `address` (see

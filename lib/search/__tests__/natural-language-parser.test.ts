@@ -385,16 +385,35 @@ describe('parseNaturalLanguageSearch', () => {
     expect(result.neighborhood).toBe('East Village');
     expect(result.filters.beds).toBe(1);
     expect(result.remainingQuery).toBe('');
-    expect(result.unavailable).toEqual([{ phrase: 'no fee', reason: 'Not searchable yet. Broker-fee responsibility is shown on each rental listing.' }]);
+    expect(result.unavailable).toEqual([{ phrase: 'no fee', key: 'no-fee', reason: 'Not searchable yet. Fee and move-in cost details that the listing broker provides are shown on the listing page.' }]);
   });
 
-  it.each(['no broker fee', 'No Fee', 'owner pays'])('reads %j the same way: nothing left over to be a place name or a text search', (phrase) => {
+  it.each(['no broker fee', 'No Fee', 'owner pays', 'no fees', 'no-fee', 'nofee', 'no broker fees', 'no-broker-fee', 'landlord pays'])('reads %j the same way: nothing left over to be a place name or a text search', (phrase) => {
     const result = parseNaturalLanguageSearch(`studio chelsea ${phrase}`);
     expect(result.neighborhood).toBe('Chelsea');
     expect(result.filters.beds).toBe(0);
     expect(result.filters.amenities).toBeUndefined();
     expect(result.remainingQuery).toBe('');
     expect(result.unavailable).toHaveLength(1);
+  });
+
+  it.each(['no  fee studio chelsea', 'no fee no fee studio chelsea', 'No-Fee studio Chelsea', 'owner pays broker fee studio chelsea', 'landlord pays the fee studio chelsea', 'studio chelsea no broker-fee'])(
+    '%j leaves nothing over (code review of 2026-10-09: these leaked "no fee", "no-fee" or "broker fee" into the text)',
+    (query) => {
+      const result = parseNaturalLanguageSearch(query);
+      expect(result.remainingQuery).toBe('');
+      expect(result.neighborhood).toBe('Chelsea');
+      expect(result.filters.beds).toBe(0);
+      expect(result.unavailable).toHaveLength(1);
+      expect(result.unavailable[0].key).toBe('no-fee');
+    },
+  );
+
+  it('"owner pays heat" is read as far as "owner pays" and leaves "heat" (the live OwnerPays field lists utilities; there is no utilities filter on the public site)', () => {
+    const result = parseNaturalLanguageSearch('1br owner pays heat');
+    expect(result.unavailable.map((u) => u.phrase)).toEqual(['owner pays']);
+    expect(result.remainingQuery).toBe('heat');
+    expect(result.filters.beds).toBe(1);
   });
 
   it('a query without such a phrase reports nothing unavailable', () => {

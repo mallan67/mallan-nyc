@@ -57,9 +57,39 @@ describe('the Trestle path, the DB path and the search projection give one verdi
     expect(kept).toHaveLength(allowsPets(member) ? 1 : 0);
   });
 
-  it.each(LIVE)('%s: whenever the listing page shows a pet policy its tick agrees with the filter', (member) => {
+  // Records that hold several answers, with the verdict WRITTEN OUT here (not computed by the module under test): every reader must give it, whether the answers are one string or a list.
+  // An explicit no stands unless another answer positively lets a pet in (the code review of 2026-10-09 ran `No,Other` as pet-friendly). UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED
+  // for how the RLS data rules read a record that says both.
+  it.each([
+    ['No,Other', false],
+    ['BuildingNo,Other', false],
+    ['No,SeeRemarks', false],
+    ['No,Call', false],
+    ['No,NoDogs', false],
+    ['BuildingNo,CatsOk', true],
+    ['No,Yes', true],
+    ['NoDogs,Other', true],
+    ['Call,SeeRemarks', true],
+  ])('%j: every reader says pet-friendly is %j', (value, expected) => {
+    for (const held of [value, value.split(',')]) {
+      expect(filterPetFriendlyRaw([{ PetsAllowed: held }])).toHaveLength(expected ? 1 : 0);
+      expect(applyPublicListingPostFilters([{ id: 'x', petsAllowed: null }] as never, new Map([['x', { PetsAllowed: held }]]), PET_FRIENDLY)).toHaveLength(expected ? 1 : 0);
+      expect((extractProjectionAmenityKeys({ listing_id: 'X', features: { PetsAllowed: held } }) ?? []).includes('pet-friendly')).toBe(expected);
+      expect(extractProjectionFeatureFlags({ listing_id: 'X', features: { PetsAllowed: held } })?.is_pet_friendly).toBe(expected);
+    }
+    expect(applyPublicListingPostFilters([{ id: 'x', petsAllowed: value }] as never, new Map(), PET_FRIENDLY)).toHaveLength(expected ? 1 : 0);
+  });
+
+  it.each([[true], [5], [{}], [[['CatsOk']]], [['No', 5]]])('%j is no answer on every path (the DB path used to turn it into a string first, so it kept some of these)', (odd) => {
+    expect(filterPetFriendlyRaw([{ PetsAllowed: odd }])).toHaveLength(0);
+    expect(applyPublicListingPostFilters([{ id: 'x', petsAllowed: null }] as never, new Map([['x', { PetsAllowed: odd }]]), PET_FRIENDLY)).toHaveLength(0);
+    expect((extractProjectionAmenityKeys({ listing_id: 'X', features: { PetsAllowed: odd } }) ?? []).includes('pet-friendly')).toBe(false);
+  });
+
+  it.each(LIVE)('%s: whenever the listing page shows a pet policy, its verdict is the one the table of live members gives', (member) => {
+    const verdict = member !== 'No' && member !== 'BuildingNo';
     const view = petPolicyView(member);
-    if (view) expect(view.allowed).toBe(allowsPets(member));
+    if (view) expect(view.allowed).toBe(verdict);
   });
 
   it('exactly No and BuildingNo are left out of a Trestle pet-friendly search of every live member', () => {
@@ -123,7 +153,8 @@ describe('no reader keeps a reading of its own', () => {
     const page = code('app/listing/[...slug]/page.tsx');
     expect(page).toMatch(/const petView = petPolicyView\(listing\.petsAllowedDetail\);/);
     expect(page).toMatch(/const petPolicy = petView\?\.label \?\? '';/);
-    expect(page).toMatch(/const petsAllowed = petView\?\.allowed \?\? false;/);
+    expect(page).toMatch(/\{ASSISTANCE_ANIMAL_NOTE\}/);
+    expect(page).not.toMatch(/petsAllowed \?/);   // no tick or cross: the page marks nothing (compliance review of 2026-10-09)
     expect(code('lib/buildings/public-building-data.ts')).toMatch(/petPolicyLabels\(buildingInfo\.petsAllowed\)/);
     expect(code('app/components/CompareProperties.tsx')).toMatch(/formatPetPolicy\(l\.detail\?\.petsAllowed\)/);
   });

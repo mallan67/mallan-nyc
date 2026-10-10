@@ -55,7 +55,7 @@ import prisma from '@/lib/prisma';
 import { attachListingCacheTags, listingCacheTag } from '@/lib/cache/public-cache';
 import { unstable_cache } from 'next/cache';
 import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
-import { petPolicyView } from '@/lib/search/pet-policy';
+import { ASSISTANCE_ANIMAL_NOTE, petPolicyView } from '@/lib/search/pet-policy';
 // `classifyMediaItem`, `resolveDbListingMedia` and `toDtoMedia` are deliberately
 // NOT imported here any more. Composing media — resolving, proxying, classifying,
 // ordering, hero selection, dedupe and photo counting — is owned solely by
@@ -1173,12 +1173,12 @@ export default async function ListingPage({ params }: Props) {
   const appliancesList: string[] = listing.appliances
     ? parseCotalityList(listing.appliances).filter(a => APPLIANCE_SHOW.has(a.toLowerCase()))
     : [];
-  // Pet policy — one reading of Cotality's PetsAllowed answers (lib/search/pet-policy.ts, shared with the search filter): "Yes" is "Pets Allowed" with a check, "No" and "BuildingNo" are
-  // "No Pets" with a cross, "CatsOk,DogsOk" is "Cats Ok, Dogs Ok", "NoDogs" is "No Dogs". This block used to strip a trailing Yes / No from every answer, so Yes and No printed nothing
-  // at all, and NoDogs printed "Dogs Ok" (found 2026-10-09; the old code was run on every live member, not read).
+  // Pet policy — one reading of Cotality's PetsAllowed answers (lib/search/pet-policy.ts, shared with the search filter): "Yes" is "Pets Allowed", "No" and "BuildingNo" are "Not allowed per the
+  // listing", "CatsOk,DogsOk" is "Cats Ok, Dogs Ok", "NoDogs" is "No Dogs". This block used to strip a trailing Yes / No from every answer, so Yes and No printed nothing at all, and NoDogs printed
+  // "Dogs Ok" (found 2026-10-09; the old code was run on every live member, not read). Nothing is marked with a tick or a cross, and the section says assistance animals are not pets
+  // (compliance review of 2026-10-09; see the WORDING note in lib/search/pet-policy.ts).
   const petView = petPolicyView(listing.petsAllowedDetail);
   const petPolicy = petView?.label ?? '';
-  const petsAllowed = petView?.allowed ?? false;
 
   // ── Separate media by type ──
   // Canonical media split via the shared resolver. Photos ONLY feed the gallery
@@ -1692,14 +1692,10 @@ export default async function ListingPage({ params }: Props) {
               {petPolicy && (
                 <section className="py-6 border-t border-black/[0.06]">
                   <h2 className="font-display font-semibold text-lg mb-4 text-brand-dark">Pet Policy</h2>
-                  <div className={`inline-flex items-center gap-2.5 px-4 py-2.5 rounded-full text-[13px] font-medium ${petsAllowed ? 'text-brand-dark bg-black/[0.04]' : 'text-brand-dark bg-black/[0.04]'}`}>
-                    {petsAllowed ? (
-                      <svg className="w-4 h-4 text-brand-dark/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                    ) : (
-                      <svg className="w-4 h-4 text-brand-dark/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                    )}
+                  <div className="inline-flex items-center px-4 py-2.5 rounded-full text-[13px] font-medium text-brand-dark bg-black/[0.04]">
                     {petPolicy}
                   </div>
+                  <p className="mt-3 text-[12px] leading-relaxed text-brand-dark/70">{ASSISTANCE_ANIMAL_NOTE}</p>
                 </section>
               )}
 

@@ -21,6 +21,7 @@ import {
   getAllNeighborhoods,
   LINGO_UNAVAILABLE,
 } from '../nyc-dictionary';
+import { AMENITY_FIELD_MAP } from '../types';
 
 // ─── resolveNeighborhood ─────────────────────────────────────────────────────
 
@@ -450,10 +451,74 @@ describe('matchLingo', () => {
       expect(result.remainder).toBe('2br');
     });
 
-    it('sets no amenity filter for any of the three phrases', () => {
-      for (const phrase of ['no fee', 'no broker fee', 'owner pays']) {
+    it.each(['no fees', 'no-fee', 'nofee', 'no broker fees', 'no-broker-fee', 'landlord pays'])('reads %j the same way (no spelling falls through to a text search for words no listing holds)', (phrase) => {
+      const result = matchLingo(`${phrase} 2br`);
+      expect(result.matches).toHaveLength(1);
+      expect(result.matches[0].filterKey).toBe(LINGO_UNAVAILABLE);
+      expect(result.matches[0].label).toBe('No Fee');
+      expect(result.remainder).toBe('2br');
+    });
+
+    // A phrase that filters nothing must leave nothing over (code review of 2026-10-09): any separator, several spaces, and every occurrence.
+    it.each(['no  fee', 'no   fee', 'NO-FEE', 'no - fee', 'no-broker  fee', 'No Broker-Fee'])('reads %j however it is separated', (phrase) => {
+      const result = matchLingo(`${phrase} studio`);
+      expect(result.matches).toHaveLength(1);
+      expect(result.matches[0].filterKey).toBe(LINGO_UNAVAILABLE);
+      expect(result.remainder).toBe('studio');
+    });
+
+    it('removes every occurrence of the phrase, and reports it once', () => {
+      const result = matchLingo('no fee no fee studio no-fee');
+      expect(result.matches).toHaveLength(1);
+      expect(result.remainder).toBe('studio');
+    });
+
+    it.each(['owner pays fee', 'owner pays the fee', 'owner pays broker fee', 'owner pays the broker fee', 'landlord pays fee', 'landlord pays the fee', 'landlord pays broker fee', 'landlord pays the broker fee'])(
+      'reads %j whole (longest first), so the fee it names is not left over',
+      (phrase) => {
+        const result = matchLingo(`${phrase} studio`);
+        expect(result.matches).toHaveLength(1);
+        expect(result.matches[0].filterKey).toBe(LINGO_UNAVAILABLE);
+        expect(result.remainder).toBe('studio');
+      },
+    );
+
+    it('"owner pays heat" is read as far as "owner pays" and leaves "heat": the live OwnerPays field lists utilities, not the fee', () => {
+      const result = matchLingo('1br owner pays heat');
+      expect(result.matches).toHaveLength(1);
+      expect(result.remainder).toBe('1br heat');
+    });
+
+    it('the other lingo keeps its exact matching (only the phrases that filter nothing are separator-insensitive): "new development" is not "new-development", and only the first "coop" goes', () => {
+      expect(matchLingo('new development').matches).toHaveLength(1);
+      expect(matchLingo('new-development').matches).toHaveLength(0);
+      expect(matchLingo('coop coop').remainder).toBe('coop');
+    });
+
+    it('a phrase for a disabled filter is a real filter phrase again the moment the filter is enabled (one change, in lib/search/types.ts)', () => {
+      const entry = AMENITY_FIELD_MAP['no-fee'];
+      const saved = { ...entry };
+      try {
+        delete entry.unavailable;
+        entry.field = 'ListingTerms';
+        entry.values = ['SomeLiveMember'];
+        const result = matchLingo('no fee studio');
+        expect(result.matches).toHaveLength(1);
+        expect(result.matches[0].filterKey).toBe('amenities');
+        expect(result.matches[0].filterValue).toBe('no-fee');
+        expect(getSuggestions('no fee').find((r) => r.type === 'lingo' && r.label === 'No Fee')).toBeDefined();
+      } finally {
+        Object.assign(entry, saved);
+      }
+      expect(matchLingo('no fee studio').matches[0].filterKey).toBe(LINGO_UNAVAILABLE);
+      expect(getSuggestions('no fee').find((r) => r.type === 'lingo' && r.label === 'No Fee')).toBeUndefined();
+    });
+
+    it('sets no amenity filter for any of the phrases', () => {
+      for (const phrase of ['no fee', 'no fees', 'no-fee', 'nofee', 'no broker fee', 'no broker fees', 'no-broker-fee', 'owner pays', 'landlord pays']) {
         const result = matchLingo(phrase);
         expect(result.matches.filter((m) => m.filterKey === 'amenities')).toEqual([]);
+        expect(result.matches.filter((m) => m.filterKey === LINGO_UNAVAILABLE)).toHaveLength(1);
       }
     });
 

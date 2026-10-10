@@ -19,13 +19,13 @@ import { buildChips } from '@/app/components/SearchChips';
 import { parseNaturalLanguageSearch } from '@/lib/search/natural-language-parser';
 import { extractProjectionAmenityKeys } from '@/lib/search/listing-search-projection';
 import { applyPublicListingPostFilters } from '@/lib/search/public-listing-db';
-import { AMENITY_FIELD_MAP, isSearchableAmenity, searchableAmenities, type SearchFilters } from '@/lib/search/types';
+import { AMENITY_FIELD_MAP, isSearchableAmenity, searchableAmenities, unavailableAmenities, type SearchFilters } from '@/lib/search/types';
 
 const ROOT = resolve(__dirname, '../..');
 const read = (p: string) => readFileSync(resolve(ROOT, p), 'utf8');
 /** the file's code without its comments */
 const code = (p: string) => read(p).replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
-const REASON = 'Not searchable yet. Broker-fee responsibility is shown on each rental listing.';
+const REASON = 'Not searchable yet. Fee and move-in cost details that the listing broker provides are shown on the listing page.';
 const live: Record<string, string[]> = JSON.parse(read('data/cotality-enums.live.json')).enums;
 
 describe('the reason is true: there is no live field to filter on', () => {
@@ -149,13 +149,33 @@ describe('the filter panel shows it disabled, with the reason', () => {
 });
 
 describe('a typed phrase is read, removed from the text, and filters nothing', () => {
-  it.each(['no fee', 'No Broker Fee', 'owner pays', 'NO FEE'])('%j: no filter, nothing left over, and the reader is told why', (phrase) => {
+  it.each(['no fee', 'No Broker Fee', 'owner pays', 'NO FEE', 'no fees', 'No-Fee', 'nofee', 'no broker fees', 'no-broker-fee', 'landlord pays'])('%j: no filter, nothing left over, and the reader is told why', (phrase) => {
     const parsed = parseNaturalLanguageSearch(`2br chelsea ${phrase} doorman`);
     expect(parsed.filters.amenities).toEqual(['doorman']);
     expect(parsed.remainingQuery).toBe('');
     expect(parsed.neighborhood).toBe('Chelsea');
     expect(parsed.unavailable).toHaveLength(1);
+    expect(parsed.unavailable[0].key).toBe('no-fee');
     expect(parsed.unavailable[0].reason).toBe(REASON);
+  });
+
+  it('enabling the filter (one change in lib/search/types.ts) turns the typed phrases into a real filter again, and the notice goes', () => {
+    const entry = AMENITY_FIELD_MAP['no-fee'];
+    const saved = { ...entry };
+    try {
+      delete entry.unavailable;
+      entry.field = 'ListingTerms';
+      entry.values = ['SomeLiveMember'];
+      expect(isSearchableAmenity('no-fee')).toBe(true);
+      const parsed = parseNaturalLanguageSearch('studio chelsea no fee');
+      expect(parsed.filters.amenities).toEqual(['no-fee']);
+      expect(parsed.unavailable).toEqual([]);
+      expect(parsed.remainingQuery).toBe('');
+    } finally {
+      Object.assign(entry, saved);
+    }
+    expect(parseNaturalLanguageSearch('studio chelsea no fee').filters.amenities).toBeUndefined();
+    expect(parseNaturalLanguageSearch('studio chelsea no fee').unavailable).toHaveLength(1);
   });
 
   it('every example the home page rotates through is something the search can do', () => {
@@ -168,12 +188,54 @@ describe('a typed phrase is read, removed from the text, and filters nothing', (
   });
 });
 
+/** every spelling the dictionary reads, bare: the search page and the home page must send each of them to the parser (code review of 2026-10-09: "no broker fee" and "owner pays" were not sent) */
+const SPELLINGS = ['no fee', 'no  fee', 'No-Fee', 'no fees', 'nofee', 'no broker fee', 'no broker fees', 'No-Broker-Fee', 'no broker-fee', 'owner pays', 'owner pays the broker fee', 'landlord pays', 'landlord pays the fee'];
+
+describe('a link that names the disabled filter is told to the reader, not silently cleaned', () => {
+  it('unavailableAmenities names the disabled filters of a request, once each, with the label and the reason, and nothing else', () => {
+    expect(unavailableAmenities(['doorman', 'no-fee', 'no-fee', 'toString', 'nonsense'])).toEqual([{ key: 'no-fee', label: 'No Fee', reason: REASON }]);
+    expect(unavailableAmenities(['doorman', 'pet-friendly'])).toEqual([]);
+    expect(unavailableAmenities(undefined)).toEqual([]);
+    expect(unavailableAmenities([''])).toEqual([]);
+  });
+
+  it('what the home page sends is what the search page reads: the phrase becomes the disabled filter in the link, the filters drop it, and the notice names it', () => {
+    const parsed = parseNaturalLanguageSearch('studio chelsea no fee pet friendly');
+    const inLink = [...(parsed.filters.amenities ?? []), ...parsed.unavailable.map((u) => u.key)];
+    expect(inLink).toEqual(['pet-friendly', 'no-fee']);
+    expect(searchableAmenities(inLink)).toEqual(['pet-friendly']);
+    expect(unavailableAmenities(inLink).map((u) => u.label)).toEqual(['No Fee']);
+  });
+
+  it('the home page folds what its search read but did not apply into the link, and routes every spelling through the parser', () => {
+    const hero = code('app/components/HeroSearch.tsx');
+    expect(hero).toMatch(/amenities: \[\.\.\.\(parsed\.filters\.amenities \?\? \[\]\), \.\.\.parsed\.unavailable\.map\(\(u\) => u\.key\)\],/);
+    const signals = /const nlSignals = (\/.*\/i);/.exec(hero)?.[1];
+    expect(signals).toBeDefined();
+    const heroSignals = new Function(`return ${signals}`)() as RegExp;
+    // the bare phrase: a prefix such as "studio" would match the signals by itself and prove nothing
+    for (const phrase of SPELLINGS) expect(heroSignals.test(phrase)).toBe(true);
+  });
+
+  it('the search page routes every spelling through the parser too', () => {
+    const signals = /const nlSignals = (\/.*\/i);/.exec(code('app/search/page.tsx'))?.[1];
+    expect(signals).toBeDefined();
+    const pageSignals = new Function(`return ${signals}`)() as RegExp;
+    for (const phrase of SPELLINGS) expect(pageSignals.test(phrase)).toBe(true);
+  });
+});
+
 describe('the pages that read it', () => {
-  it('the search page drops a disabled or unknown filter from the URL, and tells the reader about a phrase it did not apply', () => {
+  it('the search page drops a disabled or unknown filter from the URL, and tells the reader about a phrase or a link filter it did not apply', () => {
     const page = code('app/search/page.tsx');
     expect(page).toMatch(/const amenityKeys = searchableAmenities\(csv\('amenities'\)\);/);
     expect(page).toMatch(/amenities: amenityKeys\.length \? amenityKeys : undefined/);
-    expect(page).toMatch(/parseNaturalLanguageSearch\(q\)\.unavailable/);
+    // the typed phrases come from the SAME parse as the filters, in the one branch that parses; every other branch of the resolved search says nothing was read
+    expect(page).toMatch(/const typed = resolvedSearch\.unavailable;/);
+    expect(page).toMatch(/unavailable: parsed\.unavailable,/);
+    expect(page.match(/unavailable: NO_UNAVAILABLE/g)).toHaveLength(5);
+    expect(page).toMatch(/unavailableAmenities\(amenitiesParam\.split\(','\)\)/);
+    expect(page).toMatch(/\.filter\(\(\{ key \}\) => !typed\.some\(\(t\) => t\.key === key\)\)/);
     expect(page).toMatch(/unavailableTerms\.length > 0/);
     expect(page).toMatch(/was not applied\. \$\{t\.reason\}/);
   });

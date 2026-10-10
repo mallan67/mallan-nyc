@@ -162,7 +162,9 @@ export const AMENITY_FIELD_MAP: Record<AmenityFilter, AmenityFieldConfig> = {
   // No Fee — DISABLED until a live field is found (Maya, 2026-10-09: "Disable until a live field is found"). The filter matched ListingTerms against 'NoFee' / 'OwnerPays'; neither is a member of
   // ListingTerms (data/cotality-enums.live.json), and the live OwnerPays is the list of UTILITIES the owner pays (Heat, Water ...), so it could only answer "no results". No live field says who pays the
   // broker fee; the committed $metadata has none either. To enable it, name that field in `field` / `values` and remove `unavailable`. UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED.
-  'no-fee':        { field: '', values: [], label: 'No Fee', group: 'Rental', unavailable: 'Not searchable yet. Broker-fee responsibility is shown on each rental listing.' },
+  // The reason is public text and says only what the listing page does: it shows the Move-In Costs, Tenant Pays and fee details a listing broker provided (an earlier wording said responsibility "is shown on each
+  // rental listing", which the split-view cards, the map and the building pages do not do: found by the compliance review of 2026-10-09).
+  'no-fee':        { field: '', values: [], label: 'No Fee', group: 'Rental', unavailable: 'Not searchable yet. Fee and move-in cost details that the listing broker provides are shown on the listing page.' },
 };
 
 /** True for an amenity key a search can apply: a key the map names (its own keys: "toString" is not one) whose filter is not disabled. */
@@ -174,6 +176,17 @@ export function isSearchableAmenity(key: string): key is AmenityFilter {
 export function searchableAmenities(keys: readonly string[] | null | undefined): AmenityFilter[] {
   const out: AmenityFilter[] = [];
   for (const key of keys ?? []) if (isSearchableAmenity(key) && !out.includes(key)) out.push(key);
+  return out;
+}
+
+/** The disabled filters among a request's amenity keys, each once, with the label and the reason to tell the reader (so a link that names one is not silently cleaned). */
+export function unavailableAmenities(keys: readonly string[] | null | undefined): Array<{ key: AmenityFilter; label: string; reason: string }> {
+  const out: Array<{ key: AmenityFilter; label: string; reason: string }> = [];
+  for (const key of keys ?? []) {
+    if (!Object.prototype.hasOwnProperty.call(AMENITY_FIELD_MAP, key)) continue;
+    const { label, unavailable } = AMENITY_FIELD_MAP[key as AmenityFilter];
+    if (unavailable && !out.some((o) => o.key === key)) out.push({ key: key as AmenityFilter, label, reason: unavailable });
+  }
   return out;
 }
 

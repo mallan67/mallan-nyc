@@ -16,7 +16,18 @@
  *
  * Listings saved by the CRM Add forms before 2026-10-09 may still hold the old `Unit*` spellings (UnitYes, UnitNo, UnitCatsOK, UnitDogsOK, UnitBreedRestrictions, UnitSizeLimit,
  * UnitNumberLimit): they are read the way the forms meant them.
+ *
+ * WORDING (compliance review of 2026-10-09): a public "No Pets" with a cross is a statement Mallan publishes about a limitation, and NYC's own guidance treats "no pets" / "no animals" policies as
+ * subject to reasonable accommodation for assistance animals (42 U.S.C. 3604(c), (f)(3)(B); NY Executive Law 296(5); NYC Admin Code 8-107(5); the firm's own Fair Housing scanner flags the phrase). So an
+ * answer that says there are no pets is shown as the listing's statement ("Not allowed per the listing"), nothing on the public site marks any answer with a tick or a cross, and the listing page
+ * adds ASSISTANCE_ANIMAL_NOTE under the policy. The wording is a default for Maya or counsel to approve. UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED for REBNY's own display rule.
  */
+
+/** What an answer that says there are no pets reads as: the listing's statement, not Mallan's. */
+export const NO_PETS_LABEL = "Not allowed per the listing";
+
+/** Said under the Pet Policy of a listing page (the first sentence is NYC CCHR's guidance on animals that are not pets; the second names where the request goes). */
+export const ASSISTANCE_ANIMAL_NOTE = "Assistance animals are not pets. Ask the listing broker about a reasonable accommodation.";
 
 /** Letters only, lower case: "Building Cats Ok", "BuildingCatsOk" and "buildingcatsok" are one answer. */
 function key(answer: string): string {
@@ -29,7 +40,7 @@ const NO_PETS = new Set(["no", "buildingno", "unitno", "none", "nopets", "notall
 /** Answers with a fixed reader-facing label (the live members that need one, their old Unit spellings, and the older free-text spellings). */
 const LABELS: Record<string, string> = {
   yes: "Pets Allowed", buildingyes: "Pets Allowed", unityes: "Pets Allowed", allowed: "Pets Allowed", permitted: "Pets Allowed",
-  no: "No Pets", buildingno: "No Pets", unitno: "No Pets", nopets: "No Pets", notallowed: "No Pets", petsnotallowed: "No Pets", nopetsallowed: "No Pets",
+  no: NO_PETS_LABEL, buildingno: NO_PETS_LABEL, unitno: NO_PETS_LABEL, nopets: NO_PETS_LABEL, notallowed: NO_PETS_LABEL, petsnotallowed: NO_PETS_LABEL, nopetsallowed: NO_PETS_LABEL,
   catsok: "Cats Ok", buildingcatsok: "Cats Ok", unitcatsok: "Cats Ok",
   dogsok: "Dogs Ok", buildingdogsok: "Dogs Ok", unitdogsok: "Dogs Ok",
   nodogs: "No Dogs",
@@ -55,13 +66,25 @@ export function isNoPetsAnswer(answer: string): boolean {
   return NO_PETS.has(key(answer));
 }
 
+/** Answers that say nothing about whether a pet may come in: they send the reader to the remarks or to the broker. Alone they count as pet-friendly (Maya: only No and BuildingNo mean no pets). */
+const NEUTRAL = new Set(["other", "call", "seeremarks"]);
+
+/** Answers that limit one kind of pet and so do not say a pet may come in. Alone they count as pet-friendly (cats may be allowed: Maya's answer on NoDogs). */
+const LIMITS_ONE_KIND = new Set(["nodogs"]);
+
 /**
- * True when the policy lets some pet in: at least one answer that is not a "no pets" answer. A policy with no answer at all (unknown) is not pet-friendly, as before.
- * `Yes,CatsOk`, `NoPetRestrictions`, `NoDogs`, `Call` and `SeeRemarks` are; `No` and `BuildingNo` are not; `BuildingNo,CatsOk` is (the cats answer).
+ * True when the policy lets some pet in. A policy with no answer at all (unknown) is not pet-friendly, as before.
+ * Without a "no pets" answer, any answer counts: `Yes,CatsOk`, `NoPetRestrictions`, `NoDogs`, `Call`, `SeeRemarks` and `Other` are pet-friendly.
+ * With one (`No`, `BuildingNo`), the no stands unless another answer POSITIVELY lets a pet in: `No,Other`, `No,Call`, `No,SeeRemarks` and `No,NoDogs` are not pet-friendly (an answer that says
+ * nothing, or that only limits one kind of pet, cannot overrule an explicit no: found by the code review of 2026-10-09, which ran `No,Other` as pet-friendly under a "Not allowed" label);
+ * `BuildingNo,CatsOk` and `No,Yes` are (the answer that lets a pet in, kept from the first version). UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED for how the RLS data rules read a
+ * record that says both.
  */
 export function allowsPets(raw: unknown): boolean {
-  const answers = petAnswers(raw);
-  return answers.length > 0 && answers.some((answer) => !isNoPetsAnswer(answer));
+  const keys = petAnswers(raw).map(key);
+  if (keys.length === 0) return false;
+  if (!keys.some((k) => NO_PETS.has(k))) return true;
+  return keys.some((k) => !NO_PETS.has(k) && !NEUTRAL.has(k) && !LIMITS_ONE_KIND.has(k));
 }
 
 /** The reader-facing label of one answer: "Yes" is "Pets Allowed", "BuildingNo" is "No Pets", "NoDogs" is "No Dogs", and any other member is its own words ("BuildingSizeLimit" is "Size Limit"). */
@@ -87,7 +110,10 @@ export function formatPetPolicy(raw: unknown): string {
   return petPolicyLabels(raw).join(", ");
 }
 
-/** What a listing page shows for a pet policy: the label line and whether the policy lets pets in; null when there is nothing to show (the section stays out). */
+/**
+ * What a listing page shows for a pet policy: the label line, and whether the policy lets pets in (the search verdict; the page marks nothing with a tick or a cross, see WORDING above);
+ * null when there is nothing to show (the section stays out).
+ */
 export function petPolicyView(raw: unknown): { label: string; allowed: boolean } | null {
   const label = formatPetPolicy(raw);
   if (!label) return null;
