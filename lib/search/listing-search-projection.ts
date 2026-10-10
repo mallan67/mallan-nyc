@@ -20,7 +20,7 @@
 
 import { Prisma } from "@prisma/client";
 
-import { AMENITY_FIELD_MAP, type AmenityFilter } from "@/lib/search/types";
+import { AMENITY_FIELD_MAP, isSearchableAmenity, type AmenityFilter } from "@/lib/search/types";
 import { allowsPets } from "@/lib/search/pet-policy";
 import { isMallanExclusiveListing } from "@/lib/listings/exclusive-agent-assignment";
 // The canonical all-status fallback policy. Imported rather than reimplemented
@@ -278,6 +278,7 @@ export function extractProjectionAmenityKeys(listing: ListingProjectionSource): 
 
   const matched: string[] = [];
   for (const amenityKey of Object.keys(AMENITY_FIELD_MAP) as AmenityFilter[]) {
+    if (!isSearchableAmenity(amenityKey)) continue; // a disabled filter (No Fee: no live field) is never stored as a listing's amenity
     const mapping = AMENITY_FIELD_MAP[amenityKey];
     const fields = mapping.field.split(",").map((f) => f.trim());
     const matchValues = mapping.values.map((v) => v.toLowerCase());

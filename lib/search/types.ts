@@ -109,7 +109,19 @@ export type AmenityFilter =
  * GolfSimulatorRoom, GreenBuilding, HealthClub, IndoorPool, KitchenFacilities,
  * PackageRoom, Sauna, ScreeningRoom, SpaHotTub, SteamRoom, Storage, YogaStudio
  */
-export const AMENITY_FIELD_MAP: Record<AmenityFilter, { field: string; values: string[]; label: string; group: string }> = {
+export interface AmenityFieldConfig {
+  field: string;
+  values: string[];
+  label: string;
+  group: string;
+  /**
+   * Set while the filter has no live Cotality field behind it: the filter panel shows the box disabled with this reason, no search applies the filter (isSearchableAmenity is false), and
+   * a typed phrase for it is read but filters nothing (lib/search/nyc-dictionary.ts). Remove it when `field` and `values` name live members.
+   */
+  unavailable?: string;
+}
+
+export const AMENITY_FIELD_MAP: Record<AmenityFilter, AmenityFieldConfig> = {
   // Lobby & Services
   'doorman':       { field: 'BuildingFeatures', values: ['Concierge'], label: 'Doorman', group: 'Lobby & Services' },
   // Building Amenities
@@ -147,8 +159,23 @@ export const AMENITY_FIELD_MAP: Record<AmenityFilter, { field: string; values: s
   'natural-light': { field: 'InteriorFeatures', values: ['NaturalLight'], label: 'Natural Light', group: 'Unit Features' },
   'renovated':     { field: 'InteriorFeatures', values: ['Renovated', 'GutRenovated', 'NewlyRenovated'], label: 'Renovated', group: 'Unit Features' },
   'quiet':         { field: 'InteriorFeatures', values: ['Quiet'], label: 'Quiet', group: 'Unit Features' },
-  'no-fee':        { field: 'ListingTerms', values: ['NoFee', 'OwnerPays'], label: 'No Fee', group: 'Rental' },
+  // No Fee — DISABLED until a live field is found (Maya, 2026-10-09: "Disable until a live field is found"). The filter matched ListingTerms against 'NoFee' / 'OwnerPays'; neither is a member of
+  // ListingTerms (data/cotality-enums.live.json), and the live OwnerPays is the list of UTILITIES the owner pays (Heat, Water ...), so it could only answer "no results". No live field says who pays the
+  // broker fee; the committed $metadata has none either. To enable it, name that field in `field` / `values` and remove `unavailable`. UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED.
+  'no-fee':        { field: '', values: [], label: 'No Fee', group: 'Rental', unavailable: 'Not searchable yet. Broker-fee responsibility is shown on each rental listing.' },
 };
+
+/** True for an amenity key a search can apply: a key the map names (its own keys: "toString" is not one) whose filter is not disabled. */
+export function isSearchableAmenity(key: string): key is AmenityFilter {
+  return Object.prototype.hasOwnProperty.call(AMENITY_FIELD_MAP, key) && !AMENITY_FIELD_MAP[key as AmenityFilter].unavailable;
+}
+
+/** The amenity keys of a request that a search can apply, in order, each once; anything else (a disabled filter, a word the map does not name) is dropped. */
+export function searchableAmenities(keys: readonly string[] | null | undefined): AmenityFilter[] {
+  const out: AmenityFilter[] = [];
+  for (const key of keys ?? []) if (isSearchableAmenity(key) && !out.includes(key)) out.push(key);
+  return out;
+}
 
 /** Tab configuration — maps UI tab to API params and available filter sections */
 export const TAB_CONFIG: Record<SearchTab, {

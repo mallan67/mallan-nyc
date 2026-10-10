@@ -73,7 +73,7 @@ export default function SearchFilterPanel({
     if (!acc[config.group]) acc[config.group] = [];
     acc[config.group].push({ key: key as AmenityFilter, ...config });
     return acc;
-  }, {} as Record<string, { key: AmenityFilter; label: string; group: string }[]>);
+  }, {} as Record<string, { key: AmenityFilter; label: string; group: string; unavailable?: string }[]>);
 
   if (!isOpen) return null;
 
@@ -415,7 +415,23 @@ export default function SearchFilterPanel({
                 <div key={group}>
                   <p className="text-xs font-medium text-brand-dark/60 uppercase tracking-wider mb-2">{group}</p>
                   <div className="grid grid-cols-2 gap-2">
-                    {amenities.map(({ key, label }) => (
+                    {amenities.map(({ key, label, unavailable }) => unavailable ? (
+                      // A filter with no live Cotality field behind it (No Fee, lib/search/types.ts): shown disabled with the reason, never staged or applied.
+                      <div key={key} className="col-span-2 text-sm">
+                        <label className="flex items-center gap-2 cursor-not-allowed opacity-60">
+                          <input
+                            type="checkbox"
+                            checked={false}
+                            readOnly
+                            disabled
+                            aria-describedby={`amenity-${key}-unavailable`}
+                            className="rounded border-gray-300"
+                          />
+                          <span className="text-brand-dark">{label}</span>
+                        </label>
+                        <p id={`amenity-${key}-unavailable`} className="ml-6 mt-0.5 text-xs text-brand-dark/60">{unavailable}</p>
+                      </div>
+                    ) : (
                       <label key={key} className="flex items-center gap-2 text-sm cursor-pointer">
                         <input
                           type="checkbox"

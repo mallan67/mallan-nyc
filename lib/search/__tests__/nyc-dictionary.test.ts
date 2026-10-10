@@ -19,6 +19,7 @@ import {
   getNeighborhoodsForBorough,
   getAllBoroughs,
   getAllNeighborhoods,
+  LINGO_UNAVAILABLE,
 } from '../nyc-dictionary';
 
 // ─── resolveNeighborhood ─────────────────────────────────────────────────────
@@ -424,17 +425,36 @@ describe('matchLingo', () => {
   });
 
   describe('rental terms', () => {
-    it('matches no fee', () => {
+    // No Fee is DISABLED until a live Cotality field is found (Maya, 2026-10-09): the phrases are still read and removed from the text, and filter nothing.
+    it('reads no fee, removes it from the text, and filters nothing', () => {
       const result = matchLingo('no fee apartment');
       expect(result.matches).toHaveLength(1);
       expect(result.matches[0].label).toBe('No Fee');
       expect(result.matches[0].type).toBe('rental');
+      expect(result.matches[0].filterKey).toBe(LINGO_UNAVAILABLE);
+      expect(result.remainder).toBe('apartment');
     });
 
-    it('matches no broker fee (longest-first)', () => {
+    it('reads no broker fee (longest-first) the same way', () => {
       const result = matchLingo('no broker fee');
       expect(result.matches).toHaveLength(1);
       expect(result.matches[0].label).toBe('No Fee');
+      expect(result.matches[0].filterKey).toBe(LINGO_UNAVAILABLE);
+      expect(result.remainder).toBe('');
+    });
+
+    it('reads owner pays the same way (the live OwnerPays field lists utilities, not the broker fee)', () => {
+      const result = matchLingo('owner pays 2br');
+      expect(result.matches).toHaveLength(1);
+      expect(result.matches[0].filterKey).toBe(LINGO_UNAVAILABLE);
+      expect(result.remainder).toBe('2br');
+    });
+
+    it('sets no amenity filter for any of the three phrases', () => {
+      for (const phrase of ['no fee', 'no broker fee', 'owner pays']) {
+        const result = matchLingo(phrase);
+        expect(result.matches.filter((m) => m.filterKey === 'amenities')).toEqual([]);
+      }
     });
 
     it('matches furnished', () => {
@@ -573,10 +593,11 @@ describe('getSuggestions', () => {
     expect(bk).toBeDefined();
   });
 
-  it('suggests lingo for "no fee" (via key match)', () => {
-    const results = getSuggestions('no fee');
-    const noFee = results.find(r => r.type === 'lingo' && r.label === 'No Fee');
-    expect(noFee).toBeDefined();
+  it('does not suggest "no fee": it filters nothing (No Fee is disabled until a live Cotality field is found)', () => {
+    for (const input of ['no fee', 'no broker', 'owner pays', 'fee']) {
+      const results = getSuggestions(input);
+      expect(results.find(r => r.type === 'lingo' && r.label === 'No Fee')).toBeUndefined();
+    }
   });
 
   it('suggests lingo for "junior" (via label match)', () => {

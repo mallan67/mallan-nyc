@@ -23,21 +23,30 @@
  *  11. Filler word cleanup
  */
 
-import type { SearchFilters, SearchTab, AmenityFilter } from './types';
+import { AMENITY_FIELD_MAP, type SearchFilters, type SearchTab, type AmenityFilter } from './types';
 import {
   resolveNeighborhood,
   resolveBorough,
   matchLingo,
   matchTransit,
+  LINGO_UNAVAILABLE,
 } from './nyc-dictionary';
 import type { LingoMatch } from './nyc-dictionary';
 
-interface ParsedSearch {
+/** Words the user typed that were read but are not searched, and why (a filter that is disabled because no live Cotality field backs it, such as "no fee"). */
+export interface UnavailablePhrase {
+  phrase: string;
+  reason: string;
+}
+
+export interface ParsedSearch {
   tab: SearchTab;
   filters: SearchFilters;
   neighborhood?: string;
   borough?: string;
   remainingQuery: string;
+  /** Phrases read but not searched; they set no filter and are not in remainingQuery. The search page shows each with its reason. */
+  unavailable: UnavailablePhrase[];
 }
 
 // ── Bedroom patterns ──
@@ -143,10 +152,7 @@ const AMENITY_MAP: Record<string, AmenityFilter> = {
   'gut renovated': 'renovated',
   'move-in ready': 'renovated',
   'move in ready': 'renovated',
-  // no-fee and no broker fee are handled by lingo (matchLingo) — kept here
-  // as fallback in case lingo doesn't catch them
-  'no fee': 'no-fee',
-  'no broker fee': 'no-fee',
+  // "no fee" / "no broker fee" / "owner pays" are read by lingo (matchLingo) and filter nothing: No Fee is disabled until a live Cotality field is found (lib/search/types.ts).
 };
 
 // ── Keyword patterns (matched as keywords for PublicRemarks text search) ──
@@ -221,8 +227,10 @@ function applyLingoMatch(filters: SearchFilters, match: LingoMatch): void {
       filters.yearBuilt = match.filterValue as 'pre-war' | 'post-war';
       break;
     case 'amenities':
-      // "no-fee" from lingo → add to amenities
       addAmenity(filters, match.filterValue as AmenityFilter);
+      break;
+    case LINGO_UNAVAILABLE:
+      // read, removed from the text, and applied to nothing (parseNaturalLanguageSearch reports it)
       break;
     case 'furnished':
       filters.furnished = true;
@@ -260,10 +268,15 @@ export function parseNaturalLanguageSearch(query: string): ParsedSearch {
   // ── 3. NYC Property Lingo (via dictionary) — BEFORE beds ──
   // Must run before bed parsing so "alcove studio" is matched as a layout type,
   // not as "studio" (0 beds). Also handles: jr4, flex 2/3, sponsor unit, condo,
-  // co-op, prewar/postwar, brownstone, townhouse, penthouse, no fee, furnished, walk-up.
+  // co-op, prewar/postwar, brownstone, townhouse, penthouse, furnished, walk-up. "no fee" is read here too but filters nothing (a disabled filter, reported in `unavailable`).
   const lingoResult = matchLingo(remaining);
+  const unavailable: UnavailablePhrase[] = [];
   for (const match of lingoResult.matches) {
     applyLingoMatch(filters, match);
+    if (match.filterKey === LINGO_UNAVAILABLE) {
+      const reason = AMENITY_FIELD_MAP[match.filterValue as AmenityFilter]?.unavailable;
+      if (reason) unavailable.push({ phrase: match.matched, reason });
+    }
   }
   remaining = lingoResult.remainder;
 
@@ -425,5 +438,6 @@ export function parseNaturalLanguageSearch(query: string): ParsedSearch {
     neighborhood: matchedNeighborhood,
     borough: matchedBorough,
     remainingQuery: remaining,
+    unavailable,
   };
 }

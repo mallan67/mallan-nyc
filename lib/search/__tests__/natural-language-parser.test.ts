@@ -23,9 +23,10 @@ describe('parseNaturalLanguageSearch', () => {
   it('wburg flex 2 w/d no fee', () => {
     const result = parseNaturalLanguageSearch('wburg flex 2 w/d no fee');
     expect(result.neighborhood).toBe('Williamsburg');
-    expect(result.filters.amenities).toEqual(
-      expect.arrayContaining(['washer-dryer', 'no-fee']),
-    );
+    // "no fee" is read but filters nothing (No Fee is disabled until a live Cotality field is found): the other amenity still applies
+    expect(result.filters.amenities).toEqual(['washer-dryer']);
+    expect(result.unavailable.map((u) => u.phrase)).toEqual(['no fee']);
+    expect(result.remainingQuery).toBe('');
     // flex 2 → propertySubTypes
     expect(result.filters.propertySubTypes).toEqual(
       expect.arrayContaining(['Flex 2']),
@@ -377,11 +378,27 @@ describe('parseNaturalLanguageSearch', () => {
     );
   });
 
-  it('parses "no fee"', () => {
+  it('reads "no fee" but does not filter on it, and says why (No Fee is disabled: no live Cotality field)', () => {
     const result = parseNaturalLanguageSearch('no fee 1br east village');
-    expect(result.filters.amenities).toEqual(
-      expect.arrayContaining(['no-fee']),
-    );
+    expect(result.filters.amenities ?? []).not.toContain('no-fee');
+    expect(result.filters.amenities).toBeUndefined();
+    expect(result.neighborhood).toBe('East Village');
+    expect(result.filters.beds).toBe(1);
+    expect(result.remainingQuery).toBe('');
+    expect(result.unavailable).toEqual([{ phrase: 'no fee', reason: 'Not searchable yet. Broker-fee responsibility is shown on each rental listing.' }]);
+  });
+
+  it.each(['no broker fee', 'No Fee', 'owner pays'])('reads %j the same way: nothing left over to be a place name or a text search', (phrase) => {
+    const result = parseNaturalLanguageSearch(`studio chelsea ${phrase}`);
+    expect(result.neighborhood).toBe('Chelsea');
+    expect(result.filters.beds).toBe(0);
+    expect(result.filters.amenities).toBeUndefined();
+    expect(result.remainingQuery).toBe('');
+    expect(result.unavailable).toHaveLength(1);
+  });
+
+  it('a query without such a phrase reports nothing unavailable', () => {
+    expect(parseNaturalLanguageSearch('2br UES doorman under 3M').unavailable).toEqual([]);
   });
 
   it('parses "balcony"', () => {

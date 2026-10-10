@@ -15,7 +15,7 @@ import NeighborhoodSelector from '@/app/components/NeighborhoodSelector';
 import type { SearchTab, ViewMode, SearchFilters } from '@/lib/search/types';
 import { getAllNeighborhoods } from '@/lib/neighborhoods/boroughs';
 import { parseNaturalLanguageSearch } from '@/lib/search/natural-language-parser';
-import { TAB_CONFIG } from '@/lib/search/types';
+import { TAB_CONFIG, searchableAmenities } from '@/lib/search/types';
 import nextDynamic from 'next/dynamic';
 import { trackSearch } from '@/lib/posthog';
 
@@ -328,6 +328,8 @@ function SearchClient() {
       const v = sp?.get(key);
       return v ? v.split(',') : undefined;
     };
+    // Only filters a search can apply: an old link with amenities=no-fee (disabled, lib/search/types.ts) or a word the map does not name is dropped, so no chip shows a filter that does nothing.
+    const amenityKeys = searchableAmenities(csv('amenities'));
     return {
       minPrice: sp?.get('minPrice') ? Number(sp.get('minPrice')) : undefined,
       maxPrice: sp?.get('maxPrice') ? Number(sp.get('maxPrice')) : undefined,
@@ -340,7 +342,7 @@ function SearchClient() {
       statuses: csv('statuses'),
       yearBuilt: (sp?.get('yearBuilt') as SearchFilters['yearBuilt']) || undefined,
       furnished: sp?.get('furnished') === 'true' || undefined,
-      amenities: csv('amenities') as SearchFilters['amenities'],
+      amenities: amenityKeys.length ? amenityKeys : undefined,
       openHouse: sp?.get('openHouse') === 'true' || undefined,
       openHouseDate: sp?.get('openHouseDate') || undefined,
       minSqft: sp?.get('minSqft') ? Number(sp.get('minSqft')) : undefined,
@@ -430,6 +432,12 @@ function SearchClient() {
 
     // Plain address/text search
     return { neighborhood: undefined, borough: undefined, address: q, nlFilters: undefined };
+  }, [searchQuery]);
+
+  // Words of the typed search that were read but are not searched, with the reason ("no fee": No Fee is disabled until a live Cotality field is found, lib/search/types.ts); shown under the chips.
+  const unavailableTerms = useMemo(() => {
+    const q = (searchQuery || '').trim();
+    return q ? parseNaturalLanguageSearch(q).unavailable : [];
   }, [searchQuery]);
 
   // ── Listings hook ──
@@ -1026,6 +1034,15 @@ function SearchClient() {
               total={loading ? undefined : total}
             />
           </div>
+        </div>
+      )}
+
+      {/* A typed phrase that was read but is not searched (No Fee: no live Cotality field behind it), with the reason. */}
+      {unavailableTerms.length > 0 && (
+        <div role="status" className="flex-shrink-0 bg-amber-50/60 border-b border-amber-200/50 px-4 md:px-6 py-1.5">
+          <p className="max-w-[1920px] mx-auto text-[11px] text-amber-900/90 leading-tight">
+            {unavailableTerms.map((t) => `“${t.phrase}” was not applied. ${t.reason}`).join(' ')}
+          </p>
         </div>
       )}
 

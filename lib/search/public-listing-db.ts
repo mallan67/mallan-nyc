@@ -4,7 +4,7 @@ import {
   buildSearchDisplayWhere,
   SEARCH_DISPLAY_GATE,
 } from "@/lib/search/listing-access-decision";
-import { AMENITY_FIELD_MAP, type AmenityFilter } from "@/lib/search/types";
+import { AMENITY_FIELD_MAP, isSearchableAmenity, type AmenityFilter } from "@/lib/search/types";
 import { allowsPets } from "@/lib/search/pet-policy";
 
 export interface PublicListingDbSearch {
@@ -418,11 +418,12 @@ export function applyPublicListingPostFilters<T extends PublicPostFilterListing>
   // fallback). PetsAllowed has its own logic because its values encode
   // negative cases ("No", "BuildingNo") that need positive recognition: allowsPets
   // (lib/search/pet-policy.ts), the one reading of a pet answer the public site uses.
+  // A key the map does not name, and a disabled filter (No Fee: no live field), is dropped and filters nothing; it used to match a ListingTerms value that does not exist and answer "no results".
   const amenitiesParam = params.get("amenities");
   if (amenitiesParam) {
     const requested = amenitiesParam
       .split(",")
-      .filter((a): a is AmenityFilter => a in AMENITY_FIELD_MAP);
+      .filter((a): a is AmenityFilter => isSearchableAmenity(a));
 
     for (const amenityKey of requested) {
       const mapping = AMENITY_FIELD_MAP[amenityKey];

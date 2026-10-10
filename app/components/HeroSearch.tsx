@@ -36,10 +36,10 @@ const DEFAULT_SUGGESTIONS: SearchSuggestion[] = [
   { type: 'neighborhood', label: 'Williamsburg', sublabel: 'Brooklyn', value: 'Williamsburg' },
 ];
 
-// Example queries shown as placeholder hints (rotate)
+// Example queries shown as placeholder hints (rotate). Each must be something the search can do: "no fee" is not (No Fee is disabled until a live Cotality field is found, lib/search/types.ts).
 const EXAMPLE_QUERIES = [
   '2br UES doorman under 3M',
-  'studio Chelsea no fee pet friendly',
+  'studio Chelsea pet friendly',
   'prewar coop Park Slope',
   'wburg 1bed w/d near the L',
   'sunny loft Tribeca with views',

@@ -283,6 +283,12 @@ const BOROUGH_ALIASES: Record<string, string> = {
 
 // ─── NYC Property Lingo Map ──────────────────────────────────────────────────
 
+/**
+ * The `filterKey` of a phrase that is read but not searched: matchLingo still finds it and removes it from the text (so "no fee" is not left over to be read as a place name or sent on as a text
+ * search), and the parser applies nothing for it. `filterValue` names the disabled filter; its reason is AMENITY_FIELD_MAP[filterValue].unavailable (lib/search/types.ts). Autocomplete does not offer it.
+ */
+export const LINGO_UNAVAILABLE = 'unavailable';
+
 interface LingoEntry {
   type: LingoMatch['type'];
   filterKey: string;
@@ -343,9 +349,11 @@ const LINGO_MAP: Record<string, LingoEntry> = {
   'post war': { type: 'year-built', filterKey: 'yearBuilt', filterValue: 'post-war', label: 'Post-War' },
 
   // ── Rental ──
-  'no fee': { type: 'rental', filterKey: 'amenities', filterValue: 'no-fee', label: 'No Fee' },
-  'no broker fee': { type: 'rental', filterKey: 'amenities', filterValue: 'no-fee', label: 'No Fee' },
-  'owner pays': { type: 'rental', filterKey: 'amenities', filterValue: 'no-fee', label: 'No Fee' },
+  // No Fee is DISABLED until a live Cotality field is found (Maya, 2026-10-09): these phrases were turned into a filter on ListingTerms NoFee / OwnerPays, which are not members, so every search with
+  // one of them answered "no results". They are still recognised and removed from the text, and filter nothing (LINGO_UNAVAILABLE).
+  'no fee': { type: 'rental', filterKey: LINGO_UNAVAILABLE, filterValue: 'no-fee', label: 'No Fee' },
+  'no broker fee': { type: 'rental', filterKey: LINGO_UNAVAILABLE, filterValue: 'no-fee', label: 'No Fee' },
+  'owner pays': { type: 'rental', filterKey: LINGO_UNAVAILABLE, filterValue: 'no-fee', label: 'No Fee' },
   'furnished': { type: 'rental', filterKey: 'furnished', filterValue: true, label: 'Furnished' },
   'walkup': { type: 'rental', filterKey: 'propertySubTypes', filterValue: 'Walk-Up', label: 'Walk-Up' },
   'walk-up': { type: 'rental', filterKey: 'propertySubTypes', filterValue: 'Walk-Up', label: 'Walk-Up' },
@@ -687,6 +695,7 @@ export function getSuggestions(input: string, limit: number = 10): DictionarySug
 
   // ── Lingo terms ──
   for (const [key, entry] of Object.entries(LINGO_MAP)) {
+    if (entry.filterKey === LINGO_UNAVAILABLE) continue; // a phrase that filters nothing is not offered
     if (key.startsWith(normalized) || key.includes(normalized) || entry.label.toLowerCase().includes(normalized)) {
       add({
         type: 'lingo',
