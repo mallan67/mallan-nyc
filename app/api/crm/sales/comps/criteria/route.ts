@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import type { CompCriteria } from "@/lib/comps";
+import { compStatusValues, UnsupportedCompStatusError } from "@/lib/comps/status";
 import type { Prisma } from "@prisma/client";
 import { safeJson } from "@/lib/api/safe-json";
 import {
@@ -34,6 +35,15 @@ export async function PATCH(req: NextRequest) {
   // Validate criteria structure
   if (!criteria.building || !criteria.area) {
     return NextResponse.json({ error: "criteria must include building and area" }, { status: 400 });
+  }
+
+  // The statuses become part of the query sent to Cotality: only the ones a comp search asks for are stored.
+  try {
+    compStatusValues(criteria.building.statuses);
+    compStatusValues(criteria.area.statuses);
+  } catch (err) {
+    if (err instanceof UnsupportedCompStatusError) return NextResponse.json({ error: err.message }, { status: 400 });
+    throw err;
   }
 
   const listing = await prisma.listing.findUnique({

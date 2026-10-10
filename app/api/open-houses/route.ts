@@ -8,7 +8,7 @@ import { NextResponse } from 'next/server';
 // the same composer (lib/media/db-media-composition.ts).
 import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
 import { getAccessToken } from '@/lib/idx/auth';
-import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
+import { openHouseTypeLabel } from '@/lib/open-houses/property-type-label';
 import prisma from '@/lib/prisma';
 import { evaluateDisplayGate } from '@/lib/compliance/gates';
 import { resolveListingAgentInfo, AGENT_TYPED_SELECT } from '@/lib/listings/agent-info-resolver';
@@ -256,7 +256,7 @@ async function fetchCotalityOpenHouses(): Promise<OpenHouseDTO[]> {
         beds: (prop.BedroomsTotal as number) || 0,
         baths: totalBaths,
         sqft: (prop.LivingArea as number) || 0,
-        type: mapPropertyType(prop.CommonInterest as string, prop.PropertyType as string),
+        type: openHouseTypeLabel(prop.CommonInterest, prop.PropertySubType, prop.PropertyType),
         // Canonical designation from the appointment signal (AppointmentRequiredYN / remarks), not
         // the raw OpenHouseType (already filtered to 'Public'). Preserves "By Appointment".
         openHouseType: resolvePublicOpenHouseType({
@@ -333,7 +333,7 @@ async function fetchCotalityOpenHousesFlat(mallanIds: string[]): Promise<OpenHou
       // suppression), StandardStatus/CloseDate (terminal-status gate).
       // MlsStatus removed (2026-10-03 Status residue cutover): evaluateDisplayGate's
       // readStatus() reads StandardStatus only -- MlsStatus was fetched but never consumed.
-      propParams.set('$select', 'ListingKey,ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListOfficeName,PublicRemarks,Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN,StandardStatus,CloseDate');
+      propParams.set('$select', 'ListingKey,ListPrice,StreetNumber,StreetDirPrefix,StreetName,StreetSuffix,StreetDirSuffix,UnitNumber,City,PostalCode,PropertyType,PropertySubType,CommonInterest,BedroomsTotal,BathroomsFull,BathroomsHalf,LivingArea,ListAgentFullName,ListOfficeName,PublicRemarks,Permission,InternetEntireListingDisplayYN,InternetAddressDisplayYN,StandardStatus,CloseDate');
       propParams.set('$top', String(listingKeys.length));
 
       const propRes = await fetch(`${base}/odata/Property?${propParams}`, {
@@ -382,7 +382,7 @@ async function fetchCotalityOpenHousesFlat(mallanIds: string[]): Promise<OpenHou
         beds: (prop.BedroomsTotal as number) || 0,
         baths: totalBaths,
         sqft: (prop.LivingArea as number) || 0,
-        type: mapPropertyType(prop.CommonInterest as string, prop.PropertyType as string),
+        type: openHouseTypeLabel(prop.CommonInterest, prop.PropertySubType, prop.PropertyType),
         // Canonical designation from the appointment signal (AppointmentRequiredYN / remarks), not
         // the raw OpenHouseType (already filtered to 'Public'). Preserves "By Appointment".
         openHouseType: resolvePublicOpenHouseType({
@@ -582,7 +582,7 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
         beds: l.bedrooms_total || 0,
         baths: totalBaths,
         sqft: l.living_area ? Number(l.living_area) : 0,
-        type: mapPropertyTypeToDisplay((l.features as Record<string, unknown>)?.CommonInterest as string | undefined, l.property_sub_type, l.property_type || 'Residential'),
+        type: openHouseTypeLabel((l.features as Record<string, unknown>)?.CommonInterest, l.property_sub_type, l.property_type),
         // Sale-form By-Appointment persists as type='openhouse' with a `[ByAppointment]` notes marker.
         openHouseType: resolvePublicOpenHouseType({ notes: s.notes }),
         // REBNY IDX/VOW Compliance Checklist (Dec 2021): agent direct contact
@@ -631,11 +631,3 @@ function formatCotalityTime(time: string | null | undefined): string {
   return time;
 }
 
-function mapPropertyType(commonInterest: string | null | undefined, propType: string | null | undefined): string {
-  switch (commonInterest) {
-    case 'Condominium': return 'Condo';
-    case 'StockCooperative': return 'Co-op';
-    case 'Condop': return 'Condop';
-    default: return propType === 'ResidentialLease' ? 'Rental' : 'Residential';
-  }
-}

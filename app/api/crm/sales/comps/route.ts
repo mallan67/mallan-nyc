@@ -11,6 +11,7 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { fetchComps, buildDefaultCriteria } from "@/lib/comps";
 import type { CompCriteria } from "@/lib/comps";
+import { compStatusValues, UnsupportedCompStatusError } from "@/lib/comps/status";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -74,6 +75,15 @@ export async function GET(req: NextRequest) {
       where: { listing_id: listingId },
       data: { comp_criteria: JSON.parse(JSON.stringify(criteria)) as Prisma.InputJsonValue },
     });
+  }
+
+  // Stored criteria are agent-editable: a status a comp search does not ask for is the agent's to fix; say so and send no query.
+  try {
+    compStatusValues(criteria.building?.statuses);
+    compStatusValues(criteria.area?.statuses);
+  } catch (err) {
+    if (err instanceof UnsupportedCompStatusError) return NextResponse.json({ error: err.message }, { status: 400 });
+    throw err;
   }
 
   const results = await fetchComps(
