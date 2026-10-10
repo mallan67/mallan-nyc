@@ -72,19 +72,28 @@ const NEUTRAL = new Set(["other", "call", "seeremarks"]);
 /** Answers that limit one kind of pet and so do not say a pet may come in. Alone they count as pet-friendly (cats may be allowed: Maya's answer on NoDogs). */
 const LIMITS_ONE_KIND = new Set(["nodogs"]);
 
+/** An answer about the building (`BuildingYes`, `BuildingCatsOk`, `BuildingNo` ...): the live PetsAllowed list carries these beside the unit's own answers (`Yes`, `CatsOk`, `No` ...). */
+function isBuildingAnswer(answerKey: string): boolean {
+  return answerKey.startsWith("building");
+}
+
 /**
  * True when the policy lets some pet in. A policy with no answer at all (unknown) is not pet-friendly, as before.
  * Without a "no pets" answer, any answer counts: `Yes,CatsOk`, `NoPetRestrictions`, `NoDogs`, `Call`, `SeeRemarks` and `Other` are pet-friendly.
  * With one (`No`, `BuildingNo`), the no stands unless another answer POSITIVELY lets a pet in: `No,Other`, `No,Call`, `No,SeeRemarks` and `No,NoDogs` are not pet-friendly (an answer that says
  * nothing, or that only limits one kind of pet, cannot overrule an explicit no: found by the code review of 2026-10-09, which ran `No,Other` as pet-friendly under a "Not allowed" label);
- * `BuildingNo,CatsOk` and `No,Yes` are (the answer that lets a pet in, kept from the first version). UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED for how the RLS data rules read a
- * record that says both.
+ * `BuildingNo,CatsOk` and `No,Yes` are (the answer that lets a pet in, kept from the first version).
+ * The unit's own no is not overruled by an answer about the building: `BuildingYes,No` and `BuildingYes,BuildingCatsOk,No` are not pet-friendly, because the building may take pets while this
+ * unit's listing says no. That pairing is common in the live feed (44 of the first 200 rentals and 75 of the first 200 sales that the preview of 3aff9efb returned on 2026-10-10 were `BuildingYes,No`),
+ * and `main` did not list it as pet-friendly (its substring test saw the "no"); counting the building's yes as the positive answer widened the filter without evidence. UNRESOLVED - LIVE
+ * COTALITY/REBNY CONTRACT EVIDENCE REQUIRED for how the RLS data rules read a record that says both.
  */
 export function allowsPets(raw: unknown): boolean {
   const keys = petAnswers(raw).map(key);
   if (keys.length === 0) return false;
   if (!keys.some((k) => NO_PETS.has(k))) return true;
-  return keys.some((k) => !NO_PETS.has(k) && !NEUTRAL.has(k) && !LIMITS_ONE_KIND.has(k));
+  const unitSaysNo = keys.some((k) => NO_PETS.has(k) && !isBuildingAnswer(k));
+  return keys.some((k) => !NO_PETS.has(k) && !NEUTRAL.has(k) && !LIMITS_ONE_KIND.has(k) && !(unitSaysNo && isBuildingAnswer(k)));
 }
 
 /** The reader-facing label of one answer: "Yes" is "Pets Allowed", "BuildingNo" is "No Pets", "NoDogs" is "No Dogs", and any other member is its own words ("BuildingSizeLimit" is "Size Limit"). */

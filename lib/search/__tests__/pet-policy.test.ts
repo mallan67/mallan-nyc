@@ -160,6 +160,39 @@ describe('a policy of several answers', () => {
     expect(allowsPets(value.split(','))).toBe(allows);
   });
 
+  // The unit's own no is not overruled by an answer about the building. The live feed puts both kinds in one list: of the first 200 rentals and the first 200 sales that the preview of 3aff9efb
+  // returned on 2026-10-10, 121 said `BuildingYes,No` (119) or a longer list of building answers with the unit's `No` (2): the building takes pets, this unit's listing says no. `main` did not list
+  // those as pet-friendly; counting the building's yes as the positive answer listed them. The rows with a unit-level positive, or a building-level pair that contradicts itself, are decided as above.
+  // UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED for how the RLS data rules read a record that says both.
+  it.each([
+    ['BuildingYes,No', false],
+    ['No,BuildingYes', false],
+    ['BuildingYes,UnitNo', false],
+    ['BuildingYes,Other,No', false],
+    ['BuildingYes,BuildingCatsOk,BuildingDogsOk,No', false],
+    ['BuildingDogsOk,BuildingYes,No', false],      // live string; main listed it only because its substring test found "dogsok" inside a building answer
+    ['BuildingCatsOk,BuildingYes,No', false],      // live string, the same
+    ['BuildingBreedRestrictions,BuildingYes,No', false],
+    ['BuildingSizeLimit,BuildingYes,No', false],
+    ['BuildingNo,No', false],
+    ['BuildingYes,No,CatsOk', true],               // the unit's own answers include a positive
+    ['BuildingYes,No,Yes', true],
+    ['BuildingNo,BuildingYes', true],              // one level contradicting itself: the positive stands, as for `No,Yes`
+    ['BuildingYes,Yes', true],
+    ['BuildingYes,NumberLimit,Yes', true],
+    ['BuildingSizeLimit,SizeLimit', true],
+    ['BuildingDogsOk,BuildingYes,CatsOk,DogsOk,Yes', true],
+  ])('%j: pet-friendly is %j (an answer about the building does not overrule the unit)', (value, allows) => {
+    expect(allowsPets(value)).toBe(allows);
+    expect(allowsPets(value.split(','))).toBe(allows);
+  });
+
+  it('a building that takes pets next to a unit that says no is shown as both statements, in the order given', () => {
+    expect(formatPetPolicy('BuildingYes,No')).toBe('Pets Allowed, ' + NO_PETS);
+    expect(formatPetPolicy('No,BuildingYes')).toBe(NO_PETS + ', Pets Allowed');
+    expect(petPolicyView('BuildingYes,No')).toEqual({ label: 'Pets Allowed, ' + NO_PETS, allowed: false });
+  });
+
   it('a list gives the same answer as the comma-separated string the DTO makes of it', () => {
     for (const [value] of [['Yes,CatsOk'], ['BuildingNo'], ['CatsOk,NoDogs'], ['SizeLimit,NumberLimit']] as const) {
       expect(allowsPets(value.split(','))).toBe(allowsPets(value));
