@@ -19,6 +19,7 @@ import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-pro
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
+import { stubAddressJson } from "@/lib/listings/stub-address";
 
 export async function POST(req: NextRequest) {
   const writeBlock = assertWriteAllowed();
@@ -82,21 +83,13 @@ export async function POST(req: NextRequest) {
 
   // 3. Create minimal record from IDX data provided by the frontend
   // address, agent_info, media, features, compliance are all Json columns
-  const addressStr = (body.address as string) || "";
   const isRental = body.listing_category === "rental" ||
     String(body.listing_type || "").toLowerCase().includes("rent") ||
     String(body.listing_type || "").toLowerCase().includes("lease");
 
-  const addressJson: Record<string, unknown> = {
-    full: addressStr,
-    unit: (body.unit as string) || "",
-    neighborhood: (body.neighborhood as string) || "",
-    borough: (body.borough as string) || "",
-    zip: (body.zip as string) || "",
-    latitude: body.latitude ?? null,
-    longitude: body.longitude ?? null,
-    cross_street: (body.cross_street as string) || "",
-  };
+  // Under the provider's own key names, which the public converter and the slug read, as well as the lowercase keys this route always wrote
+  // (lib/listings/stub-address.ts): without them a stub that passes the display gates renders with no street number, street name or postal code.
+  const addressJson = stubAddressJson(body);
 
   const agentInfoJson: Record<string, unknown> = {
     name: (body.agent_name as string) || "",
