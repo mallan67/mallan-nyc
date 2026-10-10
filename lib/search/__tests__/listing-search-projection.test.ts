@@ -1,3 +1,5 @@
+import { readFileSync } from "fs";
+import { resolve } from "path";
 import { Prisma } from "@prisma/client";
 
 import {
@@ -12,6 +14,9 @@ import {
   type ListingSearchProjectionUpsertPayload,
 } from "@/lib/search/listing-search-projection";
 import { isMallanExclusiveListing } from "@/lib/listings/exclusive-agent-assignment";
+
+/** every member of PetsAllowed in the committed mirror of the live Cotality metadata */
+const LIVE_PETS_ALLOWED: string[] = JSON.parse(readFileSync(resolve(__dirname, "../../../data/cotality-enums.live.json"), "utf8")).enums.PetsAllowed;
 
 const baseSale: ListingProjectionSource = {
   listing_id: "RLS20059088",
@@ -218,6 +223,22 @@ describe("extractProjectionAmenityKeys", () => {
     });
     expect(keys ?? []).not.toContain("pet-friendly");
   });
+
+  it("flags pet-friendly for every live PetsAllowed member except No and BuildingNo (NoPetRestrictions, NoBreedRestrictions, NoSizeLimit and NoDogs contain the letters \"no\")", () => {
+    const withoutPets = LIVE_PETS_ALLOWED.filter(
+      (member) => !(extractProjectionAmenityKeys({ listing_id: "X", features: { PetsAllowed: member } }) ?? []).includes("pet-friendly"),
+    );
+    expect(withoutPets.sort()).toEqual(["BuildingNo", "No"]);
+  });
+
+  it("reads a PetsAllowed list: any answer that lets a pet in is enough, BuildingNo alone is not", () => {
+    const keysFor = (PetsAllowed: unknown) => extractProjectionAmenityKeys({ listing_id: "X", features: { PetsAllowed } }) ?? [];
+    expect(keysFor(["BuildingNo", "CatsOk"])).toContain("pet-friendly");
+    expect(keysFor("Yes,CatsOk")).toContain("pet-friendly");
+    expect(keysFor(["BuildingNo"])).not.toContain("pet-friendly");
+    expect(keysFor("UnitYes")).toContain("pet-friendly");
+    expect(keysFor("UnitNo")).not.toContain("pet-friendly");
+  });
 });
 
 describe("extractProjectionFeatureFlags", () => {
@@ -244,6 +265,22 @@ describe("extractProjectionFeatureFlags", () => {
       features: { PetsAllowed: "No" },
     });
     expect(flags?.is_pet_friendly).toBe(false);
+  });
+
+  it("flags is_pet_friendly true for every live PetsAllowed member except No and BuildingNo", () => {
+    const notFriendly = LIVE_PETS_ALLOWED.filter(
+      (member) => extractProjectionFeatureFlags({ listing_id: "X", features: { PetsAllowed: member } })?.is_pet_friendly !== true,
+    );
+    expect(notFriendly.sort()).toEqual(["BuildingNo", "No"]);
+  });
+
+  it("flags is_pet_friendly from a PetsAllowed list and from the old Unit spellings", () => {
+    const flagFor = (PetsAllowed: unknown) => extractProjectionFeatureFlags({ listing_id: "X", features: { PetsAllowed } })?.is_pet_friendly;
+    expect(flagFor(["BuildingNo", "DogsOk"])).toBe(true);
+    expect(flagFor(["BuildingNo"])).toBe(false);
+    expect(flagFor("UnitDogsOK")).toBe(true);
+    expect(flagFor("UnitNo")).toBe(false);
+    expect(flagFor("")).toBe(false);
   });
 });
 

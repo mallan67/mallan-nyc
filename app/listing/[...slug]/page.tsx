@@ -55,6 +55,7 @@ import prisma from '@/lib/prisma';
 import { attachListingCacheTags, listingCacheTag } from '@/lib/cache/public-cache';
 import { unstable_cache } from 'next/cache';
 import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
+import { petPolicyView } from '@/lib/search/pet-policy';
 // `classifyMediaItem`, `resolveDbListingMedia` and `toDtoMedia` are deliberately
 // NOT imported here any more. Composing media — resolving, proxying, classifying,
 // ordering, hero selection, dedupe and photo counting — is owned solely by
@@ -1172,20 +1173,12 @@ export default async function ListingPage({ params }: Props) {
   const appliancesList: string[] = listing.appliances
     ? parseCotalityList(listing.appliances).filter(a => APPLIANCE_SHOW.has(a.toLowerCase()))
     : [];
-  // Pet policy — format raw values like "CatsOK,DogsOK" → "Cats Ok, Dogs Ok"
-  const rawPetValues = listing.petsAllowedDetail ? parseCotalityList(listing.petsAllowedDetail) : [];
-  const petPolicy = rawPetValues
-    .map(v => {
-      // Convert "Cats OK" / "Dogs OK" → "Cats Ok" / "Dogs Ok"
-      const lower = v.toLowerCase();
-      if (lower.includes('cat')) return 'Cats Ok';
-      if (lower.includes('dog')) return 'Dogs Ok';
-      if (lower === 'allowed' || lower === 'permitted') return 'Pets Allowed';
-      if (lower === 'restricted' || lower === 'conditional') return 'Pets Conditional';
-      return v;
-    })
-    .join(', ');
-  const petsAllowed = petPolicy && !petPolicy.toLowerCase().includes('no pets') && !petPolicy.toLowerCase().includes('not allowed');
+  // Pet policy — one reading of Cotality's PetsAllowed answers (lib/search/pet-policy.ts, shared with the search filter): "Yes" is "Pets Allowed" with a check, "No" and "BuildingNo" are
+  // "No Pets" with a cross, "CatsOk,DogsOk" is "Cats Ok, Dogs Ok", "NoDogs" is "No Dogs". This block used to strip a trailing Yes / No from every answer, so Yes and No printed nothing
+  // at all, and NoDogs printed "Dogs Ok" (found 2026-10-09; the old code was run on every live member, not read).
+  const petView = petPolicyView(listing.petsAllowedDetail);
+  const petPolicy = petView?.label ?? '';
+  const petsAllowed = petView?.allowed ?? false;
 
   // ── Separate media by type ──
   // Canonical media split via the shared resolver. Photos ONLY feed the gallery
@@ -1729,10 +1722,10 @@ export default async function ListingPage({ params }: Props) {
                         <span className="text-[13px] font-medium text-brand-dark">{new Date(listing.availabilityDate).toLocaleDateString()}</span>
                       </div>
                     )}
-                    {listing.petsAllowed && (
+                    {petPolicy && (
                       <div className="flex justify-between py-2.5 border-b border-black/5">
                         <span className="text-[13px] text-brand-dark/80">Pets</span>
-                        <span className="text-[13px] font-medium text-brand-dark">{listing.petsAllowed}</span>
+                        <span className="text-[13px] font-medium text-brand-dark">{petPolicy}</span>
                       </div>
                     )}
                     {listing.furnished && (

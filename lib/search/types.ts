@@ -132,8 +132,9 @@ export const AMENITY_FIELD_MAP: Record<AmenityFilter, { field: string; values: s
   'outdoor-space': { field: 'ExteriorFeatures', values: ['Balcony', 'BuildingBalcony', 'PrivateOutdoorSpaceOver60Sqft', 'PrivateOutdoorSpaceUnder60Sqft', 'PrivateYard', 'Garden'], label: 'Outdoor Space', group: 'Unit Features' },
   // Parking
   'garage':        { field: 'ParkingFeatures', values: ['Garage'], label: 'Garage/Parking', group: 'Parking' },
-  // Pets
-  'pet-friendly':  { field: 'PetsAllowed', values: ['UnitYes', 'CatsOk', 'DogsOk', 'NumberLimit', 'SizeLimit', 'BreedRestrictions'], label: 'Pet Friendly', group: 'Pets' },
+  // Pets — the MATCH is not this list: allowsPets (lib/search/pet-policy.ts) reads any answer that is not No / BuildingNo as pet-friendly (CatsOk, NoPetRestrictions, SeeRemarks ...).
+  // `values` names live PetsAllowed members that say pets are welcome (display and contract data). It listed 'UnitYes', which was never a live member (the live one is 'Yes').
+  'pet-friendly':  { field: 'PetsAllowed', values: ['Yes', 'BuildingYes', 'CatsOk', 'DogsOk', 'BuildingCatsOk', 'BuildingDogsOk', 'NumberLimit', 'SizeLimit', 'BreedRestrictions'], label: 'Pet Friendly', group: 'Pets' },
   // Views
   'park-views':    { field: 'View', values: ['Park', 'ParkGreenbelt'], label: 'Park Views', group: 'Views' },
   'river-views':   { field: 'View', values: ['River', 'Water'], label: 'River Views', group: 'Views' },

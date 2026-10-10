@@ -17,6 +17,7 @@ import {
   mallanAuthoredWhere,
 } from '@/lib/search/public-listing-db';
 import { buildPublicListingTrestleFilter } from '@/lib/search/public-listing-trestle';
+import { allowsPets } from '@/lib/search/pet-policy';
 import { toPublicListingSummaries } from '@/lib/idx/public-listing-summary';
 // Trestle access audit logger — REBNY requires 12-month retention on MLS data access
 const logTrestleAccess = async (data: Record<string, unknown>) => {
@@ -209,6 +210,15 @@ export function resolveAddressAlias(searchParams: URLSearchParams): void {
   const qParam = (searchParams.get('q') || '').trim();
   if (!qParam) return; // empty / whitespace-only q ignored
   searchParams.set('address', qParam);
+}
+
+/**
+ * The Trestle path's `amenities=pet-friendly` post-filter, on RAW records (PetsAllowed is in $select; the other amenity fields are not, so only this one is filterable here).
+ * Keeps the records whose PetsAllowed lets some pet in (lib/search/pet-policy.ts, the same reading as the DB path): any answer that is not No / BuildingNo, a list or a
+ * comma-joined string. A record with no answer is not kept. Exported for unit testing, like resolveAddressAlias.
+ */
+export function filterPetFriendlyRaw<T extends { PetsAllowed?: unknown }>(records: readonly T[]): T[] {
+  return records.filter((raw) => allowsPets(raw.PetsAllowed));
 }
 
 export async function GET(request: Request) {
@@ -819,11 +829,7 @@ export async function GET(request: Request) {
         if (amenitiesParam) {
           const amenityList = amenitiesParam.split(',');
           if (amenityList.includes('pet-friendly')) {
-            amenityFiltered = amenityFiltered.filter((raw) => {
-              const val = String(raw.PetsAllowed || '').toLowerCase();
-              if (!val) return false;
-              return !val.includes('no') || val.includes('catsok') || val.includes('dogsok');
-            });
+            amenityFiltered = filterPetFriendlyRaw(amenityFiltered);
           }
           // Note: doorman, gym, elevator, etc. cannot be filtered on Trestle path
           // because BuildingFeatures/InteriorFeatures are not in IDX Plus $select.

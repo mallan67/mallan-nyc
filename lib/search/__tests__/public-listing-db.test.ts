@@ -1,3 +1,5 @@
+import { readFileSync } from "fs";
+import { resolve } from "path";
 import {
   applyPublicListingPostFilters,
   buildPublicListingDbSearch,
@@ -271,6 +273,24 @@ describe("applyPublicListingPostFilters", () => {
       new URLSearchParams("amenities=dishwasher,renovated"),
     );
     expect(dishAndRenovated.map((l) => l.id)).toEqual(["b"]);
+  });
+
+  it("pet-friendly keeps every live PetsAllowed answer but No and BuildingNo (a substring \"no\" is also in NoPetRestrictions, NoBreedRestrictions, NoSizeLimit and NoDogs)", () => {
+    const live: string[] = JSON.parse(readFileSync(resolve(__dirname, "../../../data/cotality-enums.live.json"), "utf8")).enums.PetsAllowed;
+    const each = live.map((member) => ({ id: member, petsAllowed: member }));
+    const kept = applyPublicListingPostFilters(each as never, new Map(), new URLSearchParams("amenities=pet-friendly")).map((l) => l.id);
+    expect(live.filter((m) => !kept.includes(m)).sort()).toEqual(["BuildingNo", "No"]);
+    for (const member of ["NoPetRestrictions", "NoBreedRestrictions", "NoSizeLimit", "NoDogs"]) expect(kept).toContain(member);
+  });
+
+  it("pet-friendly reads the features JSON when the DTO has no answer, a list as the string the DTO makes of it, and the old Unit spellings", () => {
+    const rows = [{ id: "dto", petsAllowed: "BuildingNo" }, { id: "json-yes", petsAllowed: null }, { id: "json-no", petsAllowed: undefined }, { id: "legacy-yes", petsAllowed: "UnitYes" }, { id: "legacy-no", petsAllowed: "UnitNo" }, { id: "none", petsAllowed: null }];
+    const features = new Map<string, Record<string, unknown>>([
+      ["json-yes", { PetsAllowed: ["Yes", "CatsOk"] }],
+      ["json-no", { PetsAllowed: "BuildingNo" }],
+    ]);
+    const kept = applyPublicListingPostFilters(rows as never, features, new URLSearchParams("amenities=pet-friendly")).map((l) => l.id);
+    expect(kept).toEqual(["json-yes", "legacy-yes"]);
   });
 
   it("ANDs keyword search across PublicRemarks substring (case-insensitive)", () => {

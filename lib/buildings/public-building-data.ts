@@ -28,6 +28,7 @@ import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
 // path falls back to the source locator instead of crashing.
 import { r2PublicUrlForKeyRead } from '@/lib/images/r2';
 import { excludeMallanRlsReturnCopies } from '@/lib/listings/mallan-source-identity';
+import { petPolicyLabels } from '@/lib/search/pet-policy';
 
 import { isActiveDisplayStatus, Status } from '@/lib/compliance/status';
 import { readCotalityStandardStatus } from '@/lib/cotality/property';
@@ -285,22 +286,13 @@ function formatAmenities(buildingInfo: ReturnType<typeof extractBuildingInfo>) {
     else if (val === 'ConciergeFullTime' || val === 'ConciergePartTime' || val === 'ConciergeYes') amenitySet.add('Concierge');
   }
 
-  // Pet policy
-  const petPolicySet = new Set<string>();
-  for (const v of buildingInfo.petsAllowed) {
-    const lower = v.toLowerCase();
-    if (lower.includes('cat')) petPolicySet.add('Cats Ok');
-    else if (lower.includes('dog')) petPolicySet.add('Dogs Ok');
-    else if (lower === 'no') petPolicySet.add('No Pets');
-    else if (lower === 'yes' || lower.includes('buildingyes') || lower === 'building yes') petPolicySet.add('Pets Allowed');
-    else if (lower.includes('sizelimit')) petPolicySet.add('Size Limit');
-    else if (lower.includes('numberlimit')) petPolicySet.add('Number Limit');
-    else { const label = formatFeatureLabel(v); if (label) petPolicySet.add(label); }
-  }
+  // Pet policy — the shared reading of Cotality's PetsAllowed answers (lib/search/pet-policy.ts), the same words as the listing page. The substring tests that stood here read
+  // "NoDogs" as "Dogs Ok", "NoSizeLimit" as "Size Limit" and "BuildingNo" as "No" (found 2026-10-09).
+  const petPolicy = petPolicyLabels(buildingInfo.petsAllowed);
 
   return {
     amenities: [...amenitySet].sort(),
-    petPolicy: [...petPolicySet],
+    petPolicy,
     view: buildingInfo.view.map(formatFeatureLabel).filter(v => v && v !== 'None'),
     parking: {
       features: buildingInfo.parkingFeatures.map(formatFeatureLabel),

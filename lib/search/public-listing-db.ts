@@ -5,6 +5,7 @@ import {
   SEARCH_DISPLAY_GATE,
 } from "@/lib/search/listing-access-decision";
 import { AMENITY_FIELD_MAP, type AmenityFilter } from "@/lib/search/types";
+import { allowsPets } from "@/lib/search/pet-policy";
 
 export interface PublicListingDbSearch {
   where: Prisma.ListingWhereInput;
@@ -415,7 +416,8 @@ export function applyPublicListingPostFilters<T extends PublicPostFilterListing>
   // amenities — AND across requested keys; each key is OR-of-substring across
   // the configured fields (DTO camelCase first, features JSON PascalCase
   // fallback). PetsAllowed has its own logic because its values encode
-  // negative cases (e.g., "No") that need positive recognition.
+  // negative cases ("No", "BuildingNo") that need positive recognition: allowsPets
+  // (lib/search/pet-policy.ts), the one reading of a pet answer the public site uses.
   const amenitiesParam = params.get("amenities");
   if (amenitiesParam) {
     const requested = amenitiesParam
@@ -429,12 +431,10 @@ export function applyPublicListingPostFilters<T extends PublicPostFilterListing>
 
       if (amenityKey === "pet-friendly") {
         result = result.filter((listing) => {
-          const dtoVal = String(listing.petsAllowed || "").toLowerCase();
+          const dtoVal = String(listing.petsAllowed || "");
           const feat = featuresById.get(listing.id) || {};
-          const featVal = String(feat.PetsAllowed || "").toLowerCase();
-          const val = dtoVal || featVal;
-          if (!val) return false;
-          return !val.includes("no") || val.includes("catsok") || val.includes("dogsok");
+          const featVal = String(feat.PetsAllowed || "");
+          return allowsPets(dtoVal || featVal);
         });
       } else {
         result = result.filter((listing) => {

@@ -21,6 +21,7 @@
 import { Prisma } from "@prisma/client";
 
 import { AMENITY_FIELD_MAP, type AmenityFilter } from "@/lib/search/types";
+import { allowsPets } from "@/lib/search/pet-policy";
 import { isMallanExclusiveListing } from "@/lib/listings/exclusive-agent-assignment";
 // The canonical all-status fallback policy. Imported rather than reimplemented
 // so the projection cannot hold a second opinion about when the legacy media
@@ -285,7 +286,8 @@ export function extractProjectionAmenityKeys(listing: ListingProjectionSource): 
       const featValue = String(features[fieldName] || "").toLowerCase();
       if (!featValue) return false;
       if (amenityKey === "pet-friendly") {
-        return !featValue.includes("no") || featValue.includes("catsok") || featValue.includes("dogsok");
+        // allowsPets (lib/search/pet-policy.ts): any answer that is not No / BuildingNo. Not a substring test: "no" is inside NoPetRestrictions, NoBreedRestrictions, NoSizeLimit and NoDogs.
+        return allowsPets(features[fieldName]);
       }
       return matchValues.some((mv) => featValue.includes(mv));
     });
@@ -385,8 +387,7 @@ export function extractProjectionFeatureFlags(listing: ListingProjectionSource):
     const furnished = String(features.Furnished ?? "").toLowerCase();
     flags.is_furnished = furnished === "furnished";
 
-    const pets = String(features.PetsAllowed ?? "").toLowerCase();
-    flags.is_pet_friendly = !!pets && (!pets.includes("no") || pets.includes("catsok") || pets.includes("dogsok"));
+    flags.is_pet_friendly = allowsPets(features.PetsAllowed);
   }
 
   return Object.keys(flags).length > 0 ? flags : null;
