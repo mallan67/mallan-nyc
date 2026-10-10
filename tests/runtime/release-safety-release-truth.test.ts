@@ -338,9 +338,9 @@ describe('release-safety P2 — deploy-validator + workflow wiring pins (static)
 
   test('PR Release Truth waits boundedly and fails if dependencies never settle', () => {
     expect(workflow).toContain('Wait for PR release dependencies to settle');
-    expect(workflow).toContain('seq 1 60');
-    expect(workflow).toContain('validate-release-status.js --pr "$PR_NUMBER" --json');
-    expect(workflow).toContain('DEPLOY_PENDING|DEPLOY_UNKNOWN) sleep 10');
+    expect(workflow).toContain('seq 1 90');
+    expect(workflow).toContain('validate-release-status.js --sha "$TARGET_SHA" --pr "$PR_NUMBER" --json');
+    expect(workflow).toContain('DEPLOY_PENDING|DEPLOY_UNKNOWN) sleep 30');
     expect(workflow).toContain('dependency wait expired; exact-head proof incomplete');
     expect(workflow).toContain('exit 1');
   });

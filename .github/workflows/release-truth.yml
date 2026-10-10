@@ -43,7 +43,10 @@ jobs:
     # This is only a CEILING — the job ends as soon as proof completes (ordinarily
     # 6–8 min); GitHub does not sit idle for the rest. Non-armed / PR runs finish
     # well inside it.
-    timeout-minutes: 22
+    # 60 (was 22): a PR run first waits for pr-check, which takes 18-24 minutes on this repository, in the
+    # "Wait for PR release dependencies to settle" step below; a 22 minute ceiling would cut that wait off.
+    # Still only a CEILING: the job ends as soon as its proof completes.
+    timeout-minutes: 60
 
     env:
       DATABASE_URL: postgresql://stub:stub@localhost:5432/stub?schema=public
@@ -101,16 +104,22 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
         run: |
           set -euo pipefail
           final="DEPLOY_PENDING"
-          for attempt in $(seq 1 60); do
-            node scripts/validate-release-status.js --pr "$PR_NUMBER" --json > /tmp/release-deps.json
+          # pr-check takes 18-24 minutes here, so 60 attempts at about 12 seconds (12 minutes) always ran out first
+          # and posted a failure status until the job was re-run by hand. 90 attempts at about 32 seconds is
+          # about 48 minutes. A failed required check (DEPLOY_FAIL) still ends the wait at once.
+          # --sha pins the audit to the commit of THIS run: given --pr alone the validator asks GitHub for the
+          # PR head at every attempt, so a newer push would change what an older run is waiting for.
+          for attempt in $(seq 1 90); do
+            node scripts/validate-release-status.js --sha "$TARGET_SHA" --pr "$PR_NUMBER" --json > /tmp/release-deps.json
             final=$(node -e 'const d=require("/tmp/release-deps.json"); process.stdout.write(String(d.verdict||"DEPLOY_UNKNOWN"))')
             echo "release dependency verdict attempt $attempt: $final"
             case "$final" in
               DEPLOY_PREVIEW|DEPLOY_FAIL) break ;;
-              DEPLOY_PENDING|DEPLOY_UNKNOWN) sleep 10 ;;
+              DEPLOY_PENDING|DEPLOY_UNKNOWN) sleep 30 ;;
               *) echo "Unexpected deploy validator verdict: $final" >&2; exit 1 ;;
             esac
           done
