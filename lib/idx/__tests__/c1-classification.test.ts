@@ -76,45 +76,48 @@ const BASE: DbListing = {
   updated_at: '2026-05-05T16:21:52Z',
 };
 
+/** a row like BASE with these fields changed: classifyDbListing takes a row (it reads two fields of it), and a row may carry agent_id / owner_client_id */
+const row = (extra: Partial<DbListing>): DbListing => ({ ...BASE, ...extra });
+
 describe('classifyDbListing — provenance predicate', () => {
   it('classifies a third-party row (an RLS listing id, rls_eligible true) as third-party-idx', () => {
     expect(classifyDbListing(BASE)).toBe('third-party-idx');
   });
 
   it.each([['SL-0004'], ['RL-0001'], ['SL-9001']])('classifies the CRM listing id %s as mallan-exclusive, with no agent_id or owner_client_id at all', (listing_id) => {
-    expect(classifyDbListing({ ...BASE, listing_id })).toBe('mallan-exclusive');
+    expect(classifyDbListing(row({ listing_id }))).toBe('mallan-exclusive');
   });
 
   it('a third-party row that carries an agent_id is STILL third-party: syncAgentHistory stamps agent_id onto Cotality rows where a Mallan agent was the buyer side', () => {
-    expect(classifyDbListing({ ...BASE, agent_id: '42', owner_client_id: null })).toBe('third-party-idx');
+    expect(classifyDbListing(row({ agent_id: '42', owner_client_id: null }))).toBe('third-party-idx');
   });
 
   it('a third-party row that carries an owner_client_id is STILL third-party', () => {
-    expect(classifyDbListing({ ...BASE, agent_id: null, owner_client_id: '7' })).toBe('third-party-idx');
+    expect(classifyDbListing(row({ agent_id: null, owner_client_id: '7' }))).toBe('third-party-idx');
   });
 
   it('a third-party row that carries both is STILL third-party, whatever shape the ids come in (string or bigint)', () => {
-    expect(classifyDbListing({ ...BASE, agent_id: '42', owner_client_id: '7' })).toBe('third-party-idx');
-    expect(classifyDbListing({ ...BASE, agent_id: BigInt(42), owner_client_id: BigInt(7) })).toBe('third-party-idx');
+    expect(classifyDbListing(row({ agent_id: '42', owner_client_id: '7' }))).toBe('third-party-idx');
+    expect(classifyDbListing(row({ agent_id: BigInt(42), owner_client_id: BigInt(7) }))).toBe('third-party-idx');
   });
 
   it('a Mallan listing is still Mallan\'s whether or not the agent_id is set', () => {
-    expect(classifyDbListing({ ...BASE, listing_id: 'SL-0004', agent_id: null, owner_client_id: null })).toBe('mallan-exclusive');
-    expect(classifyDbListing({ ...BASE, listing_id: 'SL-0004', agent_id: '42', owner_client_id: '7' })).toBe('mallan-exclusive');
+    expect(classifyDbListing(row({ listing_id: 'SL-0004', agent_id: null, owner_client_id: null }))).toBe('mallan-exclusive');
+    expect(classifyDbListing(row({ listing_id: 'SL-0004', agent_id: '42', owner_client_id: '7' }))).toBe('mallan-exclusive');
   });
 
   it('only the listing id\'s PREFIX says it: the letters SL- or RL- elsewhere in an id, or no id at all, do not', () => {
     for (const listing_id of ['RLS-SL-1', 'XSL-0001', 'RLS20059088', '', 'SL0004']) {
-      expect(classifyDbListing({ ...BASE, listing_id })).toBe('third-party-idx');
+      expect(classifyDbListing(row({ listing_id }))).toBe('third-party-idx');
     }
-    expect(classifyDbListing({ ...BASE, listing_id: undefined as unknown as string })).toBe('third-party-idx');
+    expect(classifyDbListing(row({ listing_id: undefined as unknown as string }))).toBe('third-party-idx');
   });
 
   it('classifies website-only commercial rows ahead of everything else', () => {
-    expect(classifyDbListing({ ...BASE, rls_eligible: false })).toBe('website-only');
+    expect(classifyDbListing(row({ rls_eligible: false }))).toBe('website-only');
     // Even with a CRM id and ownership populated, website-only short-circuits — the row
     // bypasses RLS so the IDX-vs-exclusive distinction is moot.
-    expect(classifyDbListing({ ...BASE, listing_id: 'SL-0004', rls_eligible: false, agent_id: '42', owner_client_id: '7' })).toBe('website-only');
+    expect(classifyDbListing(row({ listing_id: 'SL-0004', rls_eligible: false, agent_id: '42', owner_client_id: '7' }))).toBe('website-only');
   });
 });
 
