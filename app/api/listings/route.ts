@@ -14,6 +14,7 @@ import { buildSearchDisplayWhere, SEARCH_DISPLAY_GATE, ADDRESS_DISCLOSED_GATE } 
 import {
   applyPublicListingPostFilters,
   buildPublicListingDbSearch,
+  mallanAuthoredWhere,
 } from '@/lib/search/public-listing-db';
 import { buildPublicListingTrestleFilter } from '@/lib/search/public-listing-trestle';
 import { toPublicListingSummaries } from '@/lib/idx/public-listing-summary';
@@ -79,7 +80,7 @@ function getNextWeekend(): { sat: string; mon: string } {
  * branches below, which already emit that label.
  */
 export function computeDbEnvelopeSource(
-  listings: ReadonlyArray<Pick<DbListing, 'agent_id' | 'owner_client_id' | 'rls_eligible'>>,
+  listings: ReadonlyArray<Pick<DbListing, 'listing_id' | 'rls_eligible'>>,
 ): 'db+idx' | 'db+exclusive' | 'db+mixed' {
   if (listings.length === 0) return 'db+exclusive';
   let hasThirdParty = false;
@@ -374,12 +375,12 @@ export async function GET(request: Request) {
                 list_office_mls_id: true, list_agent_mls_id: true,
                 co_list_office_mls_id: true, co_list_agent_mls_id: true,
                 // C1 fix (2026-05-13): provenance signals needed by the DTO
-                // to distinguish Mallan exclusives (agent_id / owner_client_id)
-                // from website-only commercial (rls_eligible=false) from
-                // third-party IDX/RLS (everything else). Without these the DTO
-                // hard-codes `_source: "exclusive"` for every row.
-                agent_id: true,
-                owner_client_id: true,
+                // to tell Mallan-authored listings (listing_id, selected above:
+                // the CRM's SL-/RL- prefix) from website-only commercial
+                // (rls_eligible=false) from third-party IDX/RLS (everything
+                // else). agent_id / owner_client_id are deliberately NOT
+                // selected: syncAgentHistory stamps agent_id onto third-party
+                // rows, and the DTO does not read either column.
                 rls_eligible: true,
                 idx_display_yn: true,
                 internet_entire_listing_display_yn: true,
@@ -433,11 +434,6 @@ export async function GET(request: Request) {
               id: l.id.toString(),
               list_price: l.list_price.toString(),
               living_area: l.living_area?.toString() ?? null,
-              // C1 fix: stringify BigInt FKs for JSON safety; the classifier
-              // only checks `!= null` so the value shape doesn't matter, but
-              // mixing BigInts into JSON.stringify throws at serialization.
-              agent_id: l.agent_id != null ? l.agent_id.toString() : null,
-              owner_client_id: l.owner_client_id != null ? l.owner_client_id.toString() : null,
             }));
 
             const displayable = filterDisplayableDbListings(serialized);
@@ -642,7 +638,8 @@ export async function GET(request: Request) {
           }
 
           // `exclusive=mallan` short-circuit. The DB filter
-          // (`buildPublicListingDbSearch` → `where.agent_id = { not: null }`)
+          // (`buildPublicListingDbSearch` → `mallanAuthoredWhere()`: an SL-/RL-
+          // listing id or rls_eligible=false, never agent_id)
           // returned 0 rows — meaning no Mallan-authored listings currently
           // exist. UCBA Art. III §2(A) + 19 NYCRR §175.25 require the page to
           // truthfully reflect this; falling through to the Trestle merge
@@ -1265,6 +1262,10 @@ export async function GET(request: Request) {
 // ── Local Exclusive Listings from Database ──
 // UCBA Art. I, Sec. 5: Only Active listings that have been submitted to RLS
 // may be displayed publicly. Draft/Incomplete listings are NOT shown.
+//
+// "Exclusive" means Mallan-AUTHORED: an SL-/RL- listing id or rls_eligible=false (mallanAuthoredWhere, the canonical signal of
+// lib/listings/mallan-source-identity.ts). The query used to take every displayable RLS-eligible row in the table (any firm's, synced
+// from Cotality) and the response called the result "Exclusive listings by Mallan Real Estate Inc.".
 
 import type { PublicListingDTO } from '@/lib/idx/public-dto';
 import type { Prisma } from '@prisma/client';
@@ -1315,7 +1316,8 @@ async function fetchExclusiveListings(
     }
 
     const dbListings = await prisma.listing.findMany({
-      where,
+      // AND-ed here, after every filter above has been set (the neighborhood branch assigns where.AND): an "exclusive" is a Mallan-AUTHORED listing, never any row of the table
+      where: { AND: [where, mallanAuthoredWhere()] },
       orderBy: { updated_at: 'desc' },
       take: 50,
       select: {
@@ -1345,10 +1347,9 @@ async function fetchExclusiveListings(
         list_agent_email: true, list_agent_direct_phone: true,
         list_office_mls_id: true, list_agent_mls_id: true,
         co_list_office_mls_id: true, co_list_agent_mls_id: true,
-        // C1 fix (2026-05-13): provenance signals for the DTO classifier.
-        // Mirrors the main DB-first select above.
-        agent_id: true,
-        owner_client_id: true,
+        // C1 fix (2026-05-13): provenance signals for the DTO classifier
+        // (listing_id, selected above, and rls_eligible). Mirrors the main
+        // DB-first select above: agent_id / owner_client_id are not selected.
         rls_eligible: true,
         idx_display_yn: true,
         internet_entire_listing_display_yn: true,
@@ -1393,10 +1394,6 @@ async function fetchExclusiveListings(
       id: l.id.toString(),
       list_price: l.list_price.toString(),
       living_area: l.living_area?.toString() ?? null,
-      // C1 fix: stringify BigInt FKs for JSON safety; see the main DB-first
-      // path above for the same shape.
-      agent_id: l.agent_id != null ? l.agent_id.toString() : null,
-      owner_client_id: l.owner_client_id != null ? l.owner_client_id.toString() : null,
     }));
 
     const displayable = filterDisplayableDbListings(serialized);

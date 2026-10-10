@@ -497,13 +497,16 @@ describe('Audit-fix PR A · Fix 3 — /buy?exclusive=mallan filter', () => {
     }
   });
 
-  it('exclusive=mallan + sort=exclusives still narrows by agent_id (the conditions compose)', () => {
+  it('exclusive=mallan + sort=exclusives narrows to Mallan-AUTHORED listings once, never by agent_id (the conditions compose)', () => {
+    // 2026-10-09: sort=exclusives used to set `agent_id: { not: null }`, which lists another firm's listing that the sync stamped with an agent_id
     const params = new URLSearchParams();
     params.set('type', 'sale');
     params.set('exclusive', 'mallan');
     params.set('sort', 'exclusives');
     const { where, orderBy } = buildPublicListingDbSearch(params);
-    expect(where.agent_id).toEqual({ not: null });
+    expect(where.agent_id).toBeUndefined();
+    const mallanOnly = (where.AND as Array<Record<string, unknown>>).filter((c) => Array.isArray(c.OR) && JSON.stringify(c.OR).includes('"startsWith":"SL-"'));
+    expect(mallanOnly).toHaveLength(1);
     expect(orderBy).toEqual({ modification_timestamp: 'desc' });
   });
 });

@@ -2520,8 +2520,9 @@ export async function syncAgentHistory(
 
       // 4. Dual-write the search projection (master refactor PR 5B).
       // Same sequential pattern as syncListings(); per-listing try/catch
-      // already wraps both writes. agent_id is set so the projection
-      // marks the row is_exclusive: true.
+      // already wraps both writes. agent_id is the agent-history roster link;
+      // the projection decides is_exclusive from the row's source fields
+      // (SL-/RL- listing_id, rls_eligible), never from agent_id.
       const projectionInput: ListingProjectionSource = {
         listing_id: mapped.listing_id,
         status: mapped.status,

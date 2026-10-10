@@ -60,9 +60,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 type CampaignMode = "preview" | "dry_run" | "test" | "live";
 const MODES: CampaignMode[] = ["preview", "dry_run", "test", "live"];
 
-// Fields dbListingToPublicDTO reads, plus the gate columns. `agent_id` and `owner_client_id` are deliberately NOT selected: the DTO reads them as "this is a Mallan exclusive", and
-// `syncAgentHistory` writes `agent_id` onto third-party Cotality rows too (list-side AND buyer-side matches), so handing them over would label another firm's listing as Mallan's.
-// Whose listing it is comes from the listing id and `rls_eligible` (lib/listings/mallan-source-identity.ts), the same way app/api/agents/[slug]/listings/route.ts does it.
+// Fields dbListingToPublicDTO reads, plus the gate columns. `agent_id` and `owner_client_id` are deliberately NOT selected: the DTO does not read them (whose listing it is comes from the listing id
+// and `rls_eligible`, lib/listings/mallan-source-identity.ts, the same way app/api/agents/[slug]/listings/route.ts does it), and `syncAgentHistory` writes `agent_id` onto third-party Cotality
+// rows too (list-side AND buyer-side matches), so there is nothing to gain by fetching them.
 const LISTING_SELECT = {
   id: true,
   listing_id: true,
@@ -188,13 +188,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  // Prisma returns BigInt PKs; the DTO wants a string id. The DTO would read agent_id / owner_client_id as "Mallan exclusive", which is not what they mean on a synced row (see
-  // LISTING_SELECT), so it gets neither: the listing's attribution below comes from where the listing comes from. The DTO is used for the address, price, media and URL.
+  // Prisma returns BigInt PKs; the DTO wants a string id. The listing's attribution below comes from where the listing comes from (the listing id and rls_eligible), as does the DTO's own
+  // provenance. The DTO is used for the address, price, media and URL.
   const dbListing = {
     ...row,
     id: String(row.id),
-    agent_id: null,
-    owner_client_id: null,
   } as unknown as DbListing;
 
   const dto = dbListingToPublicDTO(dbListing);

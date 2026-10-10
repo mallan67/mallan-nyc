@@ -54,6 +54,23 @@ function appendAnd(where: Prisma.ListingWhereInput, condition: Prisma.ListingWhe
   where.AND = [...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []), condition];
 }
 
+/**
+ * The listings Mallan itself AUTHORED: CRM-authored (SL-/RL- listing_id prefix) or website-only (rls_eligible=false). This is the canonical signal of
+ * lib/listings/mallan-source-identity.ts (isMallanLocalListing) as a Prisma `where`, and the ONE place the public queries take "ours" from. It is NOT
+ * `agent_id != null`: syncAgentHistory (lib/idx/sync.ts) stamps agent_id onto THIRD-PARTY Trestle rows where a Mallan agent was the BUYER side
+ * (buildAgentHistoricalFilter matches BuyerAgentMlsId, lib/idx/fetch.ts), so agent_id would mislabel another firm's listing as our exclusive, and the
+ * homepage Featured exclusives feed drops the generic bed/price filters, so the identity check MUST be airtight (UCBA Art. III Sec. 2(A,C), NY DOS 19 NYCRR Sec. 175.25).
+ */
+export function mallanAuthoredWhere(): Prisma.ListingWhereInput {
+  return {
+    OR: [
+      { listing_id: { startsWith: "SL-" } },
+      { listing_id: { startsWith: "RL-" } },
+      { rls_eligible: false },
+    ],
+  };
+}
+
 function appendAndMany(where: Prisma.ListingWhereInput, conditions: Prisma.ListingWhereInput[]): void {
   if (conditions.length === 0) return;
   where.AND = [...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []), ...conditions];
@@ -208,23 +225,12 @@ export function buildPublicListingDbSearch(params: URLSearchParams): PublicListi
   // surfacing other brokers' listings as if they were ours.
   //
   // A genuine Mallan exclusive is CRM-AUTHORED (SL-/RL- listing_id prefix) OR
-  // website-only (rls_eligible=false) — the SAME robust signal the agent page
-  // uses (PR #308, app/api/agents/[slug]/listings/route.ts:245-252). It is NOT
-  // `agent_id != null`: syncAgentHistory (lib/idx/sync.ts) stamps agent_id onto
-  // THIRD-PARTY Trestle rows where a Mallan agent was the BUYER side
-  // (buildAgentHistoricalFilter matches BuyerAgentMlsId, lib/idx/fetch.ts:427),
-  // so agent_id would mislabel third-party IDX listings as our exclusives — and
-  // the homepage Featured exclusives feed drops the generic bed/price filters,
-  // so the identity check here MUST be airtight.
-  if (params.get("exclusive") === "mallan") {
-    appendAnd(where, {
-      OR: [
-        { listing_id: { startsWith: "SL-" } },
-        { listing_id: { startsWith: "RL-" } },
-        { rls_eligible: false },
-      ],
-    });
-  }
+  // website-only (rls_eligible=false) — mallanAuthoredWhere() above, the SAME
+  // robust signal the agent page uses (PR #308). It is NOT `agent_id != null`
+  // (see mallanAuthoredWhere), and the homepage Featured exclusives feed drops
+  // the generic bed/price filters, so the identity check here MUST be airtight.
+  const mallanOnly = params.get("exclusive") === "mallan";
+  if (mallanOnly) appendAnd(where, mallanAuthoredWhere());
 
   const minPrice = intParam(params, "minPrice");
   const maxPrice = intParam(params, "maxPrice");
@@ -324,7 +330,9 @@ export function buildPublicListingDbSearch(params: URLSearchParams): PublicListi
       orderBy = { bedrooms_total: "desc" };
       break;
     case "exclusives":
-      where.agent_id = { not: null };
+      // "Exclusives" are Mallan-AUTHORED listings (mallanAuthoredWhere), not rows that carry an agent_id: syncAgentHistory stamps agent_id onto third-party
+      // rows, so `agent_id != null` listed other firms' listings under our label. (exclusive=mallan, above, has already applied it.)
+      if (!mallanOnly) appendAnd(where, mallanAuthoredWhere());
       orderBy = { modification_timestamp: "desc" };
       break;
     case "neighborhood":

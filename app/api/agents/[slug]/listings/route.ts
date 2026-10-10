@@ -290,12 +290,12 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
         rls_eligible: true,
         // NOTE: deliberately do NOT select agent_id / owner_client_id here.
         // syncAgentHistory writes agent_id onto Cotality-synced (third-party IDX)
-        // rows, so passing agent_id to classifyDbListing would mislabel those as
-        // Mallan exclusives and DROP the required RLS courtesy/disclaimer (UCBA
-        // Art. III §2(C)). Genuine Mallan exclusives are identified by the SL-/RL-
-        // listing_id prefix OR rls_eligible===false — both available without
-        // agent_id — so dbListingToPublicDTO still emits _source 'exclusive' for
-        // them. (Codex review, PR #308.)
+        // rows, and dbListingToPublicDTO does not read either column: classifyDbListing
+        // identifies a genuine Mallan exclusive by the SL-/RL- listing_id prefix OR
+        // rls_eligible===false (lib/listings/mallan-source-identity.ts), so the DTO
+        // still emits _source 'exclusive' for them and keeps the required RLS
+        // courtesy/disclaimer on third-party rows (UCBA Art. III §2(C)).
+        // (Codex review, PR #308.)
         listing_contract_date: true,
         modification_timestamp: true,
         created_at: true,
