@@ -77,25 +77,6 @@ function isBuildingAnswer(answerKey: string): boolean {
   return answerKey.startsWith("building");
 }
 
-/** The answers in a PetsAllowed value that are about the BUILDING: the `Building*` members. The others (`Yes`, `No`, `CatsOk` ...) are one apartment's own answers. */
-export function buildingPetAnswers(raw: unknown): string[] {
-  return petAnswers(raw).filter((answer) => isBuildingAnswer(key(answer)));
-}
-
-/**
- * The pet answers of a BUILDING, from the records of its listings: the Building* answers of the first record that has any (the building page takes every other list the same way, from the
- * first record with data). A listing's own answers describe one apartment; read as the building's they made a building page say "Pets Allowed, Not allowed per the listing" whenever the first
- * record read `BuildingYes,No`, and the CRM building lookup already reads only the Building* members (app/api/buildings/search/route.ts). When the records of one building disagree
- * (`BuildingYes` in one, `BuildingNo` in another) the first wins, as for every other list.
- */
-export function buildingPetAnswersOf(records: ReadonlyArray<Record<string, unknown>>): string[] {
-  for (const record of records) {
-    const answers = buildingPetAnswers(record.PetsAllowed);
-    if (answers.length > 0) return answers;
-  }
-  return [];
-}
-
 /**
  * True when the policy lets some pet in. A policy with no answer at all (unknown) is not pet-friendly, as before.
  * Without a "no pets" answer, any answer counts: `Yes,CatsOk`, `NoPetRestrictions`, `NoDogs`, `Call`, `SeeRemarks` and `Other` are pet-friendly.
