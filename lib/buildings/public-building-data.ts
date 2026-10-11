@@ -28,7 +28,7 @@ import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
 // path falls back to the source locator instead of crashing.
 import { r2PublicUrlForKeyRead } from '@/lib/images/r2';
 import { excludeMallanRlsReturnCopies } from '@/lib/listings/mallan-source-identity';
-import { petPolicyLabels } from '@/lib/search/pet-policy';
+import { buildingPetAnswersOf, petPolicyLabels } from '@/lib/search/pet-policy';
 
 import { isActiveDisplayStatus, Status } from '@/lib/compliance/status';
 import { readCotalityStandardStatus } from '@/lib/cotality/property';
@@ -200,7 +200,6 @@ function extractBuildingInfo(records: CotalityRecord[]) {
     setList('parkingFeatures', r.ParkingFeatures);
     setList('heating', r.Heating);
     setList('cooling', r.Cooling);
-    setList('petsAllowed', r.PetsAllowed);
     setList('view', r.View);
     setList('waterfrontFeatures', r.WaterfrontFeatures);
     setList('associationFeeIncludes', r.AssociationFeeIncludes);
@@ -214,6 +213,9 @@ function extractBuildingInfo(records: CotalityRecord[]) {
       if (green.length > 0) info.greenFeatures = green;
     }
   }
+  // The pet policy of the BUILDING is the Building* answers of PetsAllowed (lib/search/pet-policy.ts). A record's other answers (Yes, No, CatsOk ...) are one apartment's own: taken from the first
+  // record with data, as the other lists are, they made a building read "Pets Allowed, Not allowed per the listing" when that record said BuildingYes,No.
+  info.petsAllowed = buildingPetAnswersOf(records);
   return info;
 }
 
@@ -286,7 +288,8 @@ function formatAmenities(buildingInfo: ReturnType<typeof extractBuildingInfo>) {
     else if (val === 'ConciergeFullTime' || val === 'ConciergePartTime' || val === 'ConciergeYes') amenitySet.add('Concierge');
   }
 
-  // Pet policy — the shared reading of Cotality's PetsAllowed answers (lib/search/pet-policy.ts), the same words as the listing page. The substring tests that stood here read
+  // Pet policy — the shared reading of Cotality's PetsAllowed answers (lib/search/pet-policy.ts), the same words as the listing page, of the building's own answers (extractBuildingInfo keeps only
+  // the Building* ones). The substring tests that stood here read
   // "NoDogs" as "Dogs Ok", "NoSizeLimit" as "Size Limit" and "BuildingNo" as "No" (found 2026-10-09).
   const petPolicy = petPolicyLabels(buildingInfo.petsAllowed);
 
