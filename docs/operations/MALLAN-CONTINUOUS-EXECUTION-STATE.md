@@ -272,6 +272,20 @@ Read-only Vercel inventory on 2026-09-20 showed one Neon Marketplace resource at
 - the integration-owned `database_*` family spans Production / Preview / Development;
 - separate bare DB / Neon control variables coexist with that family.
 
+**Re-read 2026-10-11 in three classes** (read-only: no SQL, nothing decrypted, no connection created, no configuration changed).
+
+*Verified by this session.*
+- The code reads only the bare `DATABASE_URL` and `DATABASE_URL_UNPOOLED` (`prisma/schema.prisma`: `url` and `directUrl`), on `main` and on #647: no file reads a `database_*`, `POSTGRES_*` or `PG*` name, and `ASSISTANT_DATABASE_URL` has no reader outside the documents.
+- The Vercel project holds **107 entries / 81 unique keys**. The integration's list tool stops at 100 and showed 100; the complete list is one read-only call of the signed-in Vercel CLI, metadata only. Bare `DATABASE_URL` / `DATABASE_URL_UNPOOLED` exist for Production (manual, 2026-06-02) and Development (manual, 2026-03-19) and for no unscoped Preview. The integration-owned `database_*` family (2026-06-01) spans all three environments and nothing reads it. `ASSISTANT_DATABASE_URL` is unscoped for Production and, separately, for Preview + Development (2025-11-06).
+- **22** branch-scoped entries on the same five branches (2026-09-20: 24): all Preview-only, manual (no integration marker), branch exact. The dead-Git scope now holds 14 (13 `database_*` and one readable `VERCEL_TOKEN`; 16 on 2026-09-20, so two are gone, and this session removed nothing). No file outside the documents names any of the five branches, and no code, workflow or script in the repository writes or recreates a Vercel variable (searched for the CLI, REST and tool forms).
+- Runtime, from Vercel's logs. The preview of #647 (green, READY, `release-truth` "preview proven") logs `Environment variable not found: DATABASE_URL`. Production, in the 12 hours to 2026-10-11 04:10 UTC, logged 5 database failures: two `P1001` "Can't reach database server" at `ep-cold-waterfall-adno3ao2-pooler.c-2.us-east-1.aws.neon.tech:5432` and three connection-pool timeouts. Each was only a warning and each was followed by Trestle-only data, so no error view and no check shows them. That host is what the production runtime targets (observed, not yet reconciled to the Vercel-bound resource).
+
+*Reported by a second session through its own Vercel integration; not reproduced here* (this session's `get_storage_stores_by_id` answered 404 for the same id). The store `neon-green-school` / `store_K9l79ICRUTMsiRh2` is `available`, owned by the `mallan` team, backed by Neon project `hidden-mountain-87248164`, connected to one project (`mallan-nyc`) for Production, Preview and Development, with the variable prefix `database_`. That session ran no SQL, retrieved no credentials and changed nothing.
+
+*Unverified.* Which endpoint the Production bare URLs target (nothing was decrypted) and whether it is the bound resource's; whether that endpoint is reachable (5 failures in 12 hours say not always); the Neon branches (which exist, which are orphaned, what each override pointed to); the database contents. A deployment that succeeds proves none of these, and `release-truth` must not claim database connectivity because one did.
+
+*Order proposed 2026-10-11 and not yet followed:* establish the single Vercel-to-Neon authority, reconcile the environment mappings, prove database-backed operations independently, and only then remove obsolete configuration. An attempt on 2026-10-11 to delete the dead-Git scope by exact id through the signed-in Vercel CLI (used only for read-only calls before that) was **denied by the auto-mode classifier**; nothing was deleted and the deletion has not been retried.
+
 This is a **Vercel control-plane convergence defect**, not authorization to create another Neon project, branch database, credential family, or local operating path.
 
 # 4. Vercel environment state / convergence risk
@@ -472,6 +486,18 @@ Read-only Vercel inventory found **24 branch-scoped environment entries across 5
 | `feat/agent-permanent-delete-2026-09-01` | branch exists; draft PR #627 | `DATABASE_URL` + `DATABASE_URL_UNPOOLED` | keep until PR #627's evidentiary review is done; no provider cleanup first |
 | `fix/neon-p0-event-driven-wake-2026-08-16` | branch exists; draft PR #618 | `DATABASE_URL` + `DATABASE_URL_UNPOOLED` | keep until the evidentiary review of PR #618 and its provider work is done; no provider cleanup first |
 | `fix/cotality-neon-media-system-root-cause-2026-08-06` | **Git branch absent** | **16 branch-scoped variables**, including Vercel/Neon admin/control and duplicate `database_*` connection entries | strongest retirement candidate, but first prove no active deployment, workflow or reader still resolves this branch scope; remove the Vercel branch scope as one bounded cleanup, not by renaming individual variables |
+
+**Live disposition proposal 2026-10-11** (read-only; nothing was changed). Gates checked for each scope: the live ids equal the inventory exactly; every entry is Preview-only, branch-exact and manual (no integration marker); the project-wide list agrees with the branch filter.
+
+| Vercel branch scope | Git / Vercel state now | Entries | Proposed disposition |
+|---|---|---|---|
+| `fix/cotality-neon-media-system-root-cause-2026-08-06` | Git branch absent, PR #597 merged, no deployment kept, no workflow or code names it | 14 | strongest candidate: remove the scope as one bounded cleanup, by exact id, once authorized. The `VERCEL_TOKEN` entry is a readable copy of a token that also exists unscoped; removing the entry does not revoke the token (that is done in the Vercel account settings) |
+| `search/clean-foundation-2026-09-04` | branch exists, no PR, no deployment kept | 2 | remove after its evidentiary review (section 8), or earlier if Maya says so |
+| `search/browser-integration-2026-09-05` | branch exists, no PR, no deployment kept | 2 | the same |
+| `feat/agent-permanent-delete-2026-09-01` | branch exists, draft PR #627, last deployment 2026-09-05 | 2 | keep until PR #627's evidentiary review is done |
+| `fix/neon-p0-event-driven-wake-2026-08-16` | branch exists, draft PR #618, last deployment 2026-09-03 | 2 | keep until PR #618's review and its provider work are done |
+
+Not branch-scoped and not touched, for Phases D and E: the integration-owned `database_*` family; the Development bare `DATABASE_URL*` (the known defect: it targets Production); the unscoped Preview + Development `ASSISTANT_DATABASE_URL` (2025-11-06) and its Production twin, which have no reader in the code on `main` or #647 and still need the census Phase E requires; and the unscoped `VERCEL_TOKEN`, which code running in any Preview deployment can read.
 
 ### Renaming rules
 
@@ -768,7 +794,7 @@ field/value exists — only a live check (`trestle_get_picklist`, `trestle_looku
 | head | `dc363fb7dc3dab80d771b8b78a921fd1b48f16ef`, the last commit that changed code; the documentation commits after it change this file only |
 | commits | 162 Git commits up to and including `dc363fb7` (the 2026-10-02 checkpoint, below, counted 25); the documentation commits after it add no code |
 | CI on that head | all six checks (PR checks, Target Platform Build, CRM Validation, Guardrails, Claude review, Release Truth) passed on the FIRST attempt of every run, with no re-run, on `e269eee5`, `1803ad60`, `3aff9efb`, `4a8e5dc7` (documentation only), `99cb6351`, `dc363fb7` and `760adec0` (documentation only) (`pr-check` 23.2, 23.4, 17.7, 23.4, 18.4, 18.3 and 23.1 minutes; Release Truth 23.8, 23.7, 18.3, 23.7, 18.8, 18.7 and 23.4 minutes). Before `e269eee5`, Release Truth failed on its first attempt on eleven healthy heads in a row (`a900a939` through `9e08ef3c`) and passed only on a re-run, because its wait for `pr-check` (60 attempts, about 12 minutes) was shorter than `pr-check` (18.0 to 23.9 minutes): the workflow defect that `e269eee5` fixes (see the Release Truth item). `9175011f` is the one red head of the day: its Guardrails and Target Platform Build failed on seven type errors in the new classifier test (a Jest run in a scratch tree does not type-check; the targeted `tsc` is now run before every push), fixed by `df927eb7`. The `pr-check` of `43cbeec7` needed seven attempts: the first six died at "Initialize containers" because Docker Hub refused the unauthenticated pull of the `postgres:15` service image (`toomanyrequests`) before any step of the code ran |
-| proof | `release-truth`: preview proven on that head. Production is NOT proven |
+| proof | `release-truth`: "preview proven" means only that Vercel's deployment status for that head is `success`; it says nothing about a database connection (the preview of this head has none: no `DATABASE_URL`). Production is NOT proven |
 
 Read the live PR for the current head, commit count and checks; this documentation commit moves the head.
 
