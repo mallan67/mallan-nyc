@@ -382,10 +382,10 @@ describe('release-safety P2 — deploy-validator + workflow wiring pins (static)
     expect(releaseStatus).toContain('integration_id');
   });
 
-  test('PR events invoke the aggregator with --pr (the DEPLOY_PREVIEW path), status still on the head SHA', () => {
+  test('PR events pin the aggregator to the head SHA while retaining the DEPLOY_PREVIEW cap', () => {
     // The PR branch of Resolve target pairs the head SHA (checkout/status)
-    // with a --pr aggregator invocation on the SAME line:
-    expect(workflow).toMatch(/pull_request\.head\.sha \}\}"; args="--pr \$\{\{ github\.event\.pull_request\.number \}\}"/);
+    // with both --sha and --pr in the aggregator invocation on the SAME line:
+    expect(workflow).toMatch(/pull_request\.head\.sha \}\}"; args="--sha \$sha --pr \$\{\{ github\.event\.pull_request\.number \}\}"/);
   });
 
   test('release-truth-check.js accepts the P2 proof/evidence layers', () => {

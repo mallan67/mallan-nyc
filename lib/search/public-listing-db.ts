@@ -1,3 +1,4 @@
+import { mallanLocalListingWhere } from '@/lib/listings/mallan-source-identity';
 import { Prisma } from "@prisma/client";
 import { lookupNeighborhoodZips } from "@/lib/geo/neighborhood-zips";
 import {
@@ -56,20 +57,14 @@ function appendAnd(where: Prisma.ListingWhereInput, condition: Prisma.ListingWhe
 }
 
 /**
- * The listings Mallan itself AUTHORED: CRM-authored (SL-/RL- listing_id prefix) or website-only (rls_eligible=false). This is the canonical signal of
+ * The listings Mallan itself AUTHORED: CRM-authored (SL-/RL- listing_id prefix), including website-only inventory. This is the canonical signal of
  * lib/listings/mallan-source-identity.ts (isMallanLocalListing) as a Prisma `where`, and the ONE place the public queries take "ours" from. It is NOT
  * `agent_id != null`: syncAgentHistory (lib/idx/sync.ts) stamps agent_id onto THIRD-PARTY Trestle rows where a Mallan agent was the BUYER side
  * (buildAgentHistoricalFilter matches BuyerAgentMlsId, lib/idx/fetch.ts), so agent_id would mislabel another firm's listing as our exclusive, and the
  * homepage Featured exclusives feed drops the generic bed/price filters, so the identity check MUST be airtight (UCBA Art. III Sec. 2(A,C), NY DOS 19 NYCRR Sec. 175.25).
  */
 export function mallanAuthoredWhere(): Prisma.ListingWhereInput {
-  return {
-    OR: [
-      { listing_id: { startsWith: "SL-" } },
-      { listing_id: { startsWith: "RL-" } },
-      { rls_eligible: false },
-    ],
-  };
+  return mallanLocalListingWhere();
 }
 
 function appendAndMany(where: Prisma.ListingWhereInput, conditions: Prisma.ListingWhereInput[]): void {
@@ -192,8 +187,10 @@ function addressConditions(address: string | null): Prisma.ListingWhereInput[] {
 }
 
 export function buildPublicListingDbSearch(params: URLSearchParams): PublicListingDbSearch {
+  const displayWhere = buildSearchDisplayWhere();
   const where: Prisma.ListingWhereInput = {
-    status: buildSearchDisplayWhere().status,
+    status: displayWhere.status,
+    AND: displayWhere.AND,
     OR: [
       {
         rls_eligible: true,
@@ -201,9 +198,16 @@ export function buildPublicListingDbSearch(params: URLSearchParams): PublicListi
       },
       {
         rls_eligible: false,
+        AND: [mallanAuthoredWhere()],
         status: { in: ALLOWED_PUBLIC_STATUSES },
         list_price: { gt: 0 },
         address: { not: Prisma.DbNull },
+      },
+      {
+        // Legacy Cotality stubs keep their old flag until reconciled; they still obey every feed gate.
+        rls_eligible: false,
+        NOT: mallanAuthoredWhere(),
+        ...SEARCH_DISPLAY_GATE,
       },
     ],
   };
@@ -225,8 +229,8 @@ export function buildPublicListingDbSearch(params: URLSearchParams): PublicListi
   // (vercel.json:55-58). UCBA Art. III §2(A) + 19 NYCRR §175.25 forbid
   // surfacing other brokers' listings as if they were ours.
   //
-  // A genuine Mallan exclusive is CRM-AUTHORED (SL-/RL- listing_id prefix) OR
-  // website-only (rls_eligible=false) — mallanAuthoredWhere() above, the SAME
+  // A genuine Mallan exclusive has a canonical SL-/RL- listing_id, including
+  // website-only inventory — mallanAuthoredWhere() above, the SAME
   // robust signal the agent page uses (PR #308). It is NOT `agent_id != null`
   // (see mallanAuthoredWhere), and the homepage Featured exclusives feed drops
   // the generic bed/price filters, so the identity check here MUST be airtight.

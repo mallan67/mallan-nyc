@@ -4,7 +4,7 @@ import Link from 'next/link';
 // `redirect` (307) is deliberately NOT imported: every redirect this route
 // performs is a canonicalization, and canonicalization is permanent (308).
 import { notFound, permanentRedirect } from 'next/navigation';
-import { isMallanRlsReturnCopy } from '@/lib/listings/mallan-source-identity';
+import { isMallanRlsReturnCopy, isMallanWebsiteOnlyListing, isMallanLocalListing } from '@/lib/listings/mallan-source-identity';
 import { resolveReturnCopyCanonicalTarget } from '@/lib/listings/return-copy-canonical';
 import AgentAvatar from '@/app/components/AgentAvatar';
 import InquiryForm from '@/app/components/InquiryForm';
@@ -436,7 +436,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
 
     // Website-only listings (commercial, rls_eligible=false) bypass RLS gates.
     // RLS-backed detail pages fail closed on missing display permissions.
-    const isRlsBacked = dbListing.rls_eligible !== false;
+    const isRlsBacked = !isMallanWebsiteOnlyListing(dbListing);
     if (isRlsBacked && !isListingDisplayable(dbListing)) {
       return null;
     }
@@ -463,7 +463,6 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
           OR: [
             { listing_id: { startsWith: 'SL-' } },
             { listing_id: { startsWith: 'RL-' } },
-            { rls_eligible: false },
           ],
         },
         select: {
@@ -565,10 +564,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     // agent_id — never hardcoded to a person. Third-party IDX/RLS rows are not
     // SL-/RL-/website-only AND carry agent_id=null, so this never loads or
     // exposes another brokerage's agent data.
-    const isMallanExclusiveListing =
-      dbListing.listing_id?.startsWith('SL-') ||
-      dbListing.listing_id?.startsWith('RL-') ||
-      dbListing.rls_eligible === false;
+    const isMallanExclusiveListing = isMallanLocalListing(dbListing);
     const assignedAgentRecord =
       isMallanExclusiveListing && dbListing.agent_id != null
         ? await prisma.agent

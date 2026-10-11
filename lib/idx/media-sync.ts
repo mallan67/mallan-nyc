@@ -2135,7 +2135,6 @@ export function buildMallanOwnedListingWhere(): Prisma.ListingWhereInput {
       ...MALLAN_EXCLUSIVE_LISTING_ID_PREFIXES.map((p) => ({
         listing_id: { startsWith: p },
       })),
-      { rls_eligible: false },
     ],
   };
 }

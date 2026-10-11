@@ -1,3 +1,4 @@
+import { isMallanWebsiteOnlyListing } from '@/lib/listings/mallan-source-identity';
 /**
  * Public-eligibility predicate for a LOCAL (CRM) open house — the SINGLE source
  * of truth shared by `/api/open-houses` (feed exposure) and `/api/open-houses/rsvp`
@@ -28,7 +29,7 @@ export interface LocalOpenHouseListingGateInput {
 
 export function isLocalOpenHousePubliclyEligible(l: LocalOpenHouseListingGateInput): boolean {
   const gate =
-    l.rls_eligible === false
+    isMallanWebsiteOnlyListing(l)
       ? { displayable: OPEN_HOUSE_ELIGIBLE_STATUSES.includes(l.status) }
       : evaluateDisplayGate({
           status: l.status,

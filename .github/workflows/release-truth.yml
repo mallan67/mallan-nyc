@@ -69,13 +69,13 @@ jobs:
             sha="${{ inputs.sha }}"; args="--sha ${{ inputs.sha }}"; label="SHA ${{ inputs.sha }}"
           elif [ -n "${{ inputs.pr }}" ]; then
             sha=$(gh api "repos/${{ github.repository }}/pulls/${{ inputs.pr }}" --jq '.head.sha')
-            args="--pr ${{ inputs.pr }}"; label="PR #${{ inputs.pr }}"
+            args="--sha $sha --pr ${{ inputs.pr }}"; label="PR #${{ inputs.pr }}"
           elif [ "${{ github.event_name }}" = "pull_request" ]; then
             # P2: checkout + status publication use the PR HEAD sha, but the
-            # aggregator is invoked with --pr so the deploy validator takes
+            # aggregator is pinned with --sha and keeps --pr so the deploy validator takes
             # the DEPLOY_PREVIEW path (a PR's Vercel deployment is a preview;
             # PREVIEW_PROVEN is its cap — it can never become PROD_PROVEN).
-            sha="${{ github.event.pull_request.head.sha }}"; args="--pr ${{ github.event.pull_request.number }}"; label="PR #${{ github.event.pull_request.number }}"
+            sha="${{ github.event.pull_request.head.sha }}"; args="--sha $sha --pr ${{ github.event.pull_request.number }}"; label="PR #${{ github.event.pull_request.number }}"
           else
             sha="${{ github.sha }}"; args="--sha $sha"; label="SHA $sha"
           fi

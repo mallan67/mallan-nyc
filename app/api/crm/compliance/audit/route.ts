@@ -1,3 +1,4 @@
+import { isMallanWebsiteOnlyListing } from '@/lib/listings/mallan-source-identity';
 // POST /api/crm/compliance/audit
 // Bulk compliance audit — validates all active RLS-eligible listings server-side, and scans every active listing (website-only ones too) for Fair Housing wording, which applies to all advertising.
 // Returns per-listing findings with severity, category, fix steps.
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
 
     // The REBNY validator, the distribution gates, the photo and the stale checks are for RLS-eligible listings: a website-only listing (rls_eligible false) is not on RLS, and its IDX display is off by
     // design. Fair Housing applies to every advertisement, so the section at the end runs for both kinds.
-    const rlsEligible = listing.rls_eligible !== false;
+    const rlsEligible = !isMallanWebsiteOnlyListing(listing);
     const validation = rlsEligible ? validateListing(raw) : null;
 
     // Convert validation errors to findings

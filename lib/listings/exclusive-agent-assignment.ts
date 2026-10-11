@@ -2,8 +2,7 @@
  * Mallan-exclusive listing-agent assignment.
  *
  * When a listing is created/updated in the CRM as a Mallan EXCLUSIVE
- * (listing_id prefix `SL-`/`RL-`, or `rls_eligible === false` website-only,
- * i.e. a listing Mallan itself authored), the listing's agent identity must
+ * (listing_id prefix `SL-`/`RL-`, including website-only listings), the listing's agent identity must
  * be stamped onto the row so the public surfaces (FeaturedListings, the
  * listing detail contact card, attribution lines) can render the ACTUAL
  * listing agent + brokerage.
@@ -77,7 +76,7 @@ export interface AssigningAgentIdentity {
 export interface ExclusiveAssignmentListing {
   /** The listing_id (used to detect the SL-/RL- CRM prefix). */
   listing_id?: string | null;
-  /** false = website-only (commercial / off-RLS) — also Mallan-authored. */
+  /** Distribution setting only; never proves Mallan authorship. */
   rls_eligible?: boolean | null;
 }
 
@@ -102,15 +101,14 @@ export interface ExclusiveAgentAssignment {
 }
 
 /**
- * True when the listing is a Mallan-authored exclusive: either its
- * listing_id carries the `SL-`/`RL-` CRM prefix, or it is an explicit
- * website-only row (`rls_eligible === false`). These are the rows Mallan
+ * True when the listing is a Mallan-authored exclusive: its
+ * listing_id carries the `SL-`/`RL-` CRM prefix. RLS eligibility is a
+ * distribution setting, not proof of authorship. These are the rows Mallan
  * itself listed — the only rows that get a Mallan agent stamped.
  */
 export function isMallanExclusiveListing(listing: ExclusiveAssignmentListing): boolean {
   const id = String(listing.listing_id ?? '');
   if (CRM_PREFIXES.some((p) => id.startsWith(p))) return true;
-  if (listing.rls_eligible === false) return true;
   return false;
 }
 

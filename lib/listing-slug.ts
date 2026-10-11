@@ -1,3 +1,4 @@
+import { isMallanWebsiteOnlyListing } from '@/lib/listings/mallan-source-identity';
 /**
  * Address-based listing slug generation.
  *
@@ -436,7 +437,7 @@ export function buildListingSlugFromDbRow(row: {
   const str = (key: string): string =>
     typeof addr[key] === 'string' ? (addr[key] as string).trim() : '';
 
-  const isRlsBacked = row.rls_eligible !== false;
+  const isRlsBacked = !isMallanWebsiteOnlyListing(row);
   const suppressAddress = isRlsBacked && !isAddressDisplayable(row);
 
   return generateListingSlug({

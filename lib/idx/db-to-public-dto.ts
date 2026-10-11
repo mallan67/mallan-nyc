@@ -33,7 +33,7 @@ import {
 
 import { normalizeStreetCase } from './normalize-street-case';
 import { resolveListingAgentInfo } from '@/lib/listings/agent-info-resolver';
-import { isMallanLocalListing } from '@/lib/listings/mallan-source-identity';
+import { isMallanLocalListing, isMallanWebsiteOnlyListing } from '@/lib/listings/mallan-source-identity';
 
 /** Borough → County mapping (reverse of display-adapter) */
 const BOROUGH_TO_COUNTY: Record<string, string> = {
@@ -311,9 +311,9 @@ export type DbListingProvenance =
  * media authority and the search projection already use.
  */
 export function classifyDbListing(listing: Pick<DbListing, 'listing_id' | 'rls_eligible'>): DbListingProvenance {
-  // Website-only check first: commercial rows opt out of RLS entirely and
-  // are tagged exclusive (Mallan-owned) by definition.
-  if (listing.rls_eligible === false) return 'website-only';
+  // A website-only exemption requires canonical Mallan authorship and
+  // an explicit distribution opt-out; a legacy imported stub gets neither.
+  if (isMallanWebsiteOnlyListing(listing)) return 'website-only';
   // A Mallan-authored local listing: the CRM's SL-/RL- listing id.
   if (isMallanLocalListing(listing)) return 'mallan-exclusive';
   return 'third-party-idx';
@@ -327,10 +327,9 @@ export function filterDisplayableDbListings(listings: DbListing[]): DbListing[] 
   return listings.filter((l) => {
     // Gate 1: Must be an active/displayable status
     if (!DISPLAYABLE_STATUSES.includes(l.status)) return false;
-    // Website-only listings (commercial, rls_eligible=false) bypass RLS gates.
-    // `rls_eligible` is a real internal boolean, not a Trestle permission flag,
-    // so the literal `=== false` check is intentional here.
-    if (l.rls_eligible === false) return true;
+    // Only proven Mallan website-only inventory bypasses RLS gates.
+    // Imported stubs retain source permissions even if an old writer set false.
+    if (isMallanWebsiteOnlyListing(l)) return true;
     // Gate 2: IDX display must be enabled (fail-closed: null/undefined → deny)
     if (!affirmPermission(l.idx_display_yn)) return false;
     // Gate 3: Internet display must be enabled (fail-closed)
@@ -409,7 +408,7 @@ export function dbListingToPublicDTO(
   // SL-/RL- prefix — that exposed RLS-eligible opt-out addresses; reverted").
   // That correction was never carried across to this canonical builder, so the
   // two paths disagreed for the same listing. They now use the same rule.
-  const isRlsBacked = listing.rls_eligible !== false;
+  const isRlsBacked = !isMallanWebsiteOnlyListing(listing);
   const suppressAddress = isRlsBacked && !isAddressDisplayable(listing);
   const isComingSoon = listing.status === 'ComingSoon';
   const rawData = (listing.raw_data || {}) as Record<string, unknown>;

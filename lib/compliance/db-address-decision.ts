@@ -1,3 +1,4 @@
+import { isMallanWebsiteOnlyListing } from '@/lib/listings/mallan-source-identity';
 /**
  * ONE canonical public-address decision for DB-backed listing rows.
  *
@@ -32,23 +33,23 @@
  *
  * THE RULE
  * --------
- *   WEBSITE-ONLY (`rls_eligible === false`)
+ *   WEBSITE-ONLY (canonical Mallan id AND `rls_eligible === false`)
  *     Mallan's own non-RLS inventory. The IDX display booleans do not bind;
  *     the approved first-party policy applies.
  *
- *   RLS-BACKED (`rls_eligible !== false`) — INCLUDING RLS-eligible `SL-`/`RL-`
+ *   RLS-BACKED (every other row) — INCLUDING RLS-eligible `SL-`/`RL-`
  *     `internet_entire_listing_display_yn` AND `internet_address_display_yn`
  *     must BOTH permit. Null/undefined fails closed.
  *
- * A listing-id PREFIX is provenance, never permission. Only an explicit
- * `rls_eligible === false` exempts a row, so unknown provenance fails closed.
+ * A listing-id PREFIX is provenance, never permission. The explicit
+ * `rls_eligible === false` exemption also requires proven Mallan authorship.
  */
 
 import { isAddressDisplayable } from './gates';
 
 export interface DbAddressDecisionInput {
   listing_id: string;
-  /** `false` = website-only (non-RLS). Anything else is treated as RLS-backed. */
+  /** false exempts only a canonical Mallan-authored listing. */
   rls_eligible?: boolean | null;
   internet_entire_listing_display_yn?: boolean | null;
   internet_address_display_yn?: boolean | null;
@@ -63,11 +64,11 @@ export interface DbAddressDecision {
   isRlsBacked: boolean;
 }
 
-/** Is this row RLS redistribution inventory? Only an explicit `false` exempts. */
+/** Every row except a proven Mallan website-only listing is RLS-backed. */
 export function isRlsBackedRow(
-  input: Pick<DbAddressDecisionInput, 'rls_eligible'>,
+  input: Pick<DbAddressDecisionInput, 'rls_eligible'> & { listing_id?: string | null },
 ): boolean {
-  return input.rls_eligible !== false;
+  return !isMallanWebsiteOnlyListing(input);
 }
 
 /**

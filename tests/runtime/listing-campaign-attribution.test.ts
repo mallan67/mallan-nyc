@@ -92,7 +92,7 @@ describe('POST /api/crm/listing-campaigns (preview): the listing\'s own attribut
     ['a website-only listing (rls_eligible false)', { listing_id: 'SL-0004', mls_id: null, rls_eligible: false, idx_display_yn: false, internet_entire_listing_display_yn: null, list_office_name: null }],
     ['a Mallan listing converted from a prospect (SL- id, rls_eligible true, no office stored)', { listing_id: 'SL-0005', mls_id: null, rls_eligible: true, list_office_name: null }],
     ['a Mallan rental (RL- id)', { listing_id: 'RL-0002', mls_id: null, rls_eligible: true, listing_type: 'rental', list_office_name: null }],
-    ['a website-only listing whose id has no SL-/RL- prefix (rls_eligible false alone makes it Mallan\'s)', { listing_id: 'COM-7', mls_id: null, rls_eligible: false, list_office_name: null }],
+    ['a website-only commercial listing with a canonical Mallan id', { listing_id: 'SL-COM-7', mls_id: null, rls_eligible: false, list_office_name: null }],
   ])('%s: "Exclusive listing by Mallan Real Estate Inc." and no RLS data sentence (it is not RLS content)', async (_name, over) => {
     const html = await preview(row(over));
     expect(attributions(html)).toEqual([MALLAN_EXCLUSIVE_ATTRIBUTION]);

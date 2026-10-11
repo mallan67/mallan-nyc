@@ -114,7 +114,7 @@ describe('classifyDbListing — provenance predicate', () => {
   });
 
   it('classifies website-only commercial rows ahead of everything else', () => {
-    expect(classifyDbListing(row({ rls_eligible: false }))).toBe('website-only');
+    expect(classifyDbListing(row({ rls_eligible: false }))).toBe('third-party-idx');
     // Even with a CRM id and ownership populated, website-only short-circuits — the row
     // bypasses RLS so the IDX-vs-exclusive distinction is moot.
     expect(classifyDbListing(row({ listing_id: 'SL-0004', rls_eligible: false, agent_id: '42', owner_client_id: '7' }))).toBe('website-only');
@@ -174,6 +174,7 @@ describe('dbListingToPublicDTO — provenance-driven _source + _displayComplianc
   it('website-only commercial row emits _source=exclusive, disclaimerRequired=false', () => {
     const dto = dbListingToPublicDTO({
       ...BASE,
+      listing_id: 'SL-0004',
       rls_eligible: false,
     });
     expect(dto._source).toBe('exclusive');

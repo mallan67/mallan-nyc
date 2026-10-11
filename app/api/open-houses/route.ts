@@ -1,3 +1,4 @@
+import { isMallanWebsiteOnlyListing } from '@/lib/listings/mallan-source-identity';
 import { NextResponse } from 'next/server';
 // Canonical DB→public media composition. The local open-house card hero used to be
 // derived from the legacy `Listing.media` JSON alone (pickPrimaryPhotoUrl over
@@ -505,7 +506,7 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
         // definition) but IS displayable on Mallan's own surfaces, subject only to a displayable
         // status. Without this, a Mallan website-only exclusive's open house (e.g. SL-0007) is
         // dropped by the RLS internet-display gate. (2026-06-23)
-        const gate = l.rls_eligible === false
+        const gate = isMallanWebsiteOnlyListing(l)
           ? {
               // ComingSoon excluded — no public open houses on Coming Soon (UCBA Art. I §16).
               displayable: OPEN_HOUSE_ELIGIBLE_STATUSES.includes(l.status),

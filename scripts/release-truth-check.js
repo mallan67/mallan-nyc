@@ -154,7 +154,7 @@ if (!shouldSkip('migration')) {
 
 // Layer 4 — Deploy status (only when target is a PR or specific SHA)
 if (!shouldSkip('deploy') && (prNum || sha)) {
-  const releaseArgs = prNum ? ['--pr', prNum] : ['--sha', sha];
+  const releaseArgs = [...(sha ? ['--sha', sha] : []), ...(prNum ? ['--pr', prNum] : [])];
   const r = runJson(path.join(ROOT, 'scripts', 'validate-release-status.js'), releaseArgs);
   layers.deploy = {
     exit_code: r.code,

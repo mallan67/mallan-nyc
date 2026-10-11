@@ -36,7 +36,11 @@ describe('open-house resolver — scope constants (single source of truth)', () 
 
 describe('open-house resolver — isMallanOwnedLocalListing', () => {
   it('website-only exclusive (rls_eligible=false) is Mallan-owned', () => {
-    expect(isMallanOwnedLocalListing({ rls_eligible: false, listing_id: 'anything' })).toBe(true);
+    expect(isMallanOwnedLocalListing({ rls_eligible: false, listing_id: 'SL-0099' })).toBe(true);
+  });
+  it('a false eligibility flag on an imported row never grants local open-house ownership', () => {
+    expect(isMallanOwnedLocalListing({ rls_eligible: false, listing_id: 'RLS20105333' })).toBe(false);
+    expect(isMallanOwnedLocalListing({ rls_eligible: false, listing_id: 'unknown' })).toBe(false);
   });
   it('SL-/RL- prefixed CRM listing is Mallan-owned', () => {
     expect(isMallanOwnedLocalListing({ rls_eligible: true, listing_id: 'SL-0007' })).toBe(true);

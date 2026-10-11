@@ -47,7 +47,7 @@ describe('computeDbEnvelopeSource labels a response by the listings in it', () =
   });
 
   it('Mallan-authored rows (an SL-/RL- id, or website-only) are db+exclusive with or without an agent_id', () => {
-    expect(computeDbEnvelopeSource([mallan(), mallan({ listing_id: 'RL-0001', agent_id: '42' }), third({ listing_id: 'RLS9', rls_eligible: false })])).toBe('db+exclusive');
+    expect(computeDbEnvelopeSource([mallan(), mallan({ listing_id: 'RL-0001', agent_id: '42' }), mallan({ listing_id: 'SL-0009', rls_eligible: false })])).toBe('db+exclusive');
   });
 
   it('one of each is db+mixed, in either order', () => {

@@ -285,7 +285,7 @@ describe('buildExclusiveAgentAssignment (the four fields)', () => {
   });
 
   test('applies to website-only (rls_eligible === false) exclusives too', () => {
-    const out = buildExclusiveAgentAssignment(agent, { listing_id: 'WEB-1', rls_eligible: false });
+    const out = buildExclusiveAgentAssignment(agent, { listing_id: 'SL-WEB-1', rls_eligible: false });
     expect(out).not.toBeNull();
     expect(out!.agent_id).toBe(BigInt(7));
   });
@@ -310,7 +310,7 @@ describe('buildExclusiveAgentAssignment (the four fields)', () => {
   test('isMallanExclusiveListing recognizes SL-/RL- prefixes and website-only', () => {
     expect(isMallanExclusiveListing({ listing_id: 'SL-1' })).toBe(true);
     expect(isMallanExclusiveListing({ listing_id: 'RL-1' })).toBe(true);
-    expect(isMallanExclusiveListing({ listing_id: 'X', rls_eligible: false })).toBe(true);
+    expect(isMallanExclusiveListing({ listing_id: 'X', rls_eligible: false })).toBe(false);
     expect(isMallanExclusiveListing({ listing_id: 'RLS1', rls_eligible: true })).toBe(false);
   });
 });

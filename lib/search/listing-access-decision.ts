@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { excludeMallanRlsReturnCopies } from "@/lib/listings/mallan-source-identity";
+import { excludeMallanRlsReturnCopies, mallanWebsiteOnlyWhere } from "@/lib/listings/mallan-source-identity";
 import {
   ACTIVE_DISPLAY_VALUES,
   normalizeStatus,
@@ -39,13 +39,12 @@ export const SEARCH_DISPLAY_GATE: Prisma.ListingWhereInput = {
  *
  * THE RULE
  * --------
- *   WEBSITE-ONLY (`rls_eligible: false`) — not RLS inventory, so the IDX address
+ *   WEBSITE-ONLY (canonical Mallan id AND `rls_eligible: false`) — not RLS inventory, so the IDX address
  *     flag does not bind; Mallan's own first-party policy applies.
- *   RLS-BACKED (`rls_eligible: true`) — `internet_address_display_yn` must be true.
+ *   RLS-BACKED (every other row) — `internet_address_display_yn` must be true.
  *
  * `rls_eligible` is `Boolean @default(true)` (NON-NULL) in the Prisma schema, so
- * these two branches are exhaustive — no nullable-provenance semantics are
- * invented for this query.
+ * a false eligibility flag alone never exempts a feed stub.
  *
  * idx_display_yn, owner_opt_out, participant_only and entire-listing display are
  * already enforced for RLS-backed rows by `SEARCH_DISPLAY_GATE` in the base
@@ -54,7 +53,7 @@ export const SEARCH_DISPLAY_GATE: Prisma.ListingWhereInput = {
  */
 export const ADDRESS_DISCLOSED_GATE: Prisma.ListingWhereInput = {
   OR: [
-    { rls_eligible: false },
+    mallanWebsiteOnlyWhere(),
     { internet_address_display_yn: true },
   ],
 };

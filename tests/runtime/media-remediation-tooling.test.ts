@@ -559,7 +559,7 @@ describe('Cotality probe — keying, traversal, strict classification (retained)
   });
   it('Mallan-owned listings make ZERO Cotality calls and classify E (never U/D)', async () => {
     expect(needsCotalityProbe(auditRow({ listing_id: 'SL-0009' }))).toBe(false);
-    const rows = [auditRow({ listing_id: 'SL-0009' }), auditRow({ listing_id: 'C-1', rls_eligible: false })];
+    const rows = [auditRow({ listing_id: 'SL-0009' }), auditRow({ listing_id: 'SL-C-1', rls_eligible: false })];
     const cot = mockCotality({ pages: [{ rows: [cPhoto(1)] }] });
     const res = await runAudit({ listings: pagedReader(rows).reader, cotality: cot.reader, identity: TEST_IDENTITY, budgets: tightBudgets() });
     expect(cot.log).toHaveLength(0);
@@ -664,7 +664,6 @@ describe('ROUND 4 — retry queue re-evaluates Neon state before probing', () =>
     ['gained active relational media', { listing_media: [photoRow(1)] }],
     ['gained valid legacy media', { media: [{ url: 'https://x/a.jpg', mediaType: 'Photo', order: 0 }] }],
     ['became hidden', { idx_display_yn: false }],
-    ['became Mallan-owned', { rls_eligible: false }],
   ];
   for (const [label, patch] of transitions) {
     it('audit: a queued listing that ' + label + ' is re-resolved with ZERO Cotality calls', async () => {
@@ -678,6 +677,16 @@ describe('ROUND 4 — retry queue re-evaluates Neon state before probing', () =>
       expect(run2.inventory.find((r: { listingId: string }) => r.listingId === 'RLSQ').bucket).not.toBe('U');
     });
   }
+  it('a legacy false flag never converts a queued feed row into Mallan media', async () => {
+    const failing = mockCotality({ propertyError: 'transient' });
+    const run1 = await runAudit({ listings: pagedReader([auditRow({ listing_id: 'RLSQ' })]).reader, cotality: failing.reader, identity: TEST_IDENTITY, budgets: tightBudgets() });
+    expect(run1.checkpoint.retryableUnknown).toHaveLength(1);
+    const provider = mockCotality({ pages: [{ rows: [cPhoto(1)] }] });
+    const run2 = await runAudit({ listings: pagedReader([auditRow({ listing_id: 'RLSQ', rls_eligible: false })]).reader, cotality: provider.reader, identity: TEST_IDENTITY, budgets: tightBudgets(), checkpoint: run1.checkpoint });
+    expect(provider.log).toContain('property:RLSQ');
+    expect(run2.inventory.find((r: { listingId: string }) => r.listingId === 'RLSQ').ownership).toBe('third-party');
+    expect(run2.checkpoint.retryableUnknown).toHaveLength(0);
+  });
   it('audit: a queued listing MISSING from Neon is dropped (source-missing), not queued forever', async () => {
     const failing = mockCotality({ propertyError: 'transient' });
     const run1 = await runAudit({ listings: pagedReader([auditRow({ listing_id: 'RLSGONE' })]).reader, cotality: failing.reader, identity: TEST_IDENTITY, budgets: tightBudgets() });

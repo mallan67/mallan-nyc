@@ -59,7 +59,7 @@ const IDX_CTX: MediaFallbackContext = { listingId: 'RLS20103891', rlsEligible: t
 const IDX_CTX_BARE: MediaFallbackContext = { listingId: 'RLS20103891' };       // no rls_eligible either
 const CRM_SL_CTX: MediaFallbackContext = { listingId: 'SL-0004' };
 const CRM_RL_CTX: MediaFallbackContext = { listingId: 'RL-0007' };
-const WEBSITE_ONLY_CTX: MediaFallbackContext = { listingId: 'C-1001', rlsEligible: false };
+const WEBSITE_ONLY_CTX: MediaFallbackContext = { listingId: 'SL-C-1001', rlsEligible: false };
 
 // ════════════════════════════════════════════════════════════════════════════
 // isMallanOwnedListing — canonical signal, NEVER agent_id (Codex #2)

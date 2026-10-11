@@ -1,3 +1,4 @@
+import { isMallanWebsiteOnlyListing } from '@/lib/listings/mallan-source-identity';
 /**
  * Listing search projection — pure builder helpers.
  *
@@ -426,8 +427,8 @@ export function buildListingSearchProjectionFromListing(
     !!stringFrom(listing.commercial_sub_type) ||
     (propertySubType !== null && COMMERCIAL_SUB_TYPES.has(propertySubType));
   const isNewDevelopment = propertySubType !== null && NEW_DEVELOPMENT_SUB_TYPES.has(propertySubType);
-  // F13: a Mallan exclusive is identified by the SL-/RL- listing_id prefix OR
-  // rls_eligible === false (website-only) — NEVER by agent_id, which
+  // F13: a Mallan exclusive is identified by the canonical SL-/RL- listing_id.
+  // Eligibility is a distribution setting; agent_id is history, which
   // syncAgentHistory also stamps onto third-party IDX rows. Use the canonical
   // helper so this derivation cannot drift from the exclusive-attribution path.
   const isExclusive = isMallanExclusiveListing({
@@ -460,7 +461,7 @@ export function buildListingSearchProjectionFromListing(
     is_new_development: isNewDevelopment,
     is_exclusive: isExclusive,
     is_rental: isRental,
-    rls_eligible: listing.rls_eligible !== false,
+    rls_eligible: !isMallanWebsiteOnlyListing(listing),
     idx_display_yn: listing.idx_display_yn ?? null,
     internet_entire_listing_display_yn: listing.internet_entire_listing_display_yn ?? null,
     internet_address_display_yn: listing.internet_address_display_yn ?? null,

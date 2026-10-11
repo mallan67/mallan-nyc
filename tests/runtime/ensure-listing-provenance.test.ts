@@ -46,6 +46,8 @@ jest.mock('@/lib/search/listing-search-projection', () => ({
   dualWriteProjectionForListingId: async () => undefined,
 }));
 
+import { decideDbPublicAddress } from '@/lib/compliance/db-address-decision';
+import { listingCapabilities } from '@/lib/auth/listing-capabilities';
 import { isMallanLocalListing } from '@/lib/listings/mallan-source-identity';
 import { classifyDbListing, dbListingToPublicDTO, filterDisplayableDbListings } from '@/lib/idx/db-to-public-dto';
 import { listingAttribution, MALLAN_EXCLUSIVE_ATTRIBUTION } from '@/lib/idx/public-attribution';
@@ -212,3 +214,51 @@ describe('the id of a stub is a Cotality id, never one of Mallan\'s own', () => 
 
 // Module scope: without a top-level import/export TypeScript treats this file as a global script.
 export {};
+
+describe('legacy imported stubs with the old false eligibility flag', () => {
+  async function legacyRow(): Promise<Row> {
+    return { ...withDefaults(await createdRow()), rls_eligible: false };
+  }
+
+  it('keeps the other brokerage attribution and disclaimer, with no agent contact card', async () => {
+    const data = await legacyRow();
+    expect(isMallanLocalListing(data)).toBe(false);
+    expect(classifyDbListing(data as never)).toBe('third-party-idx');
+    const dto = dbListingToPublicDTO({ ...data, id: 1n, created_at: new Date(), updated_at: new Date() } as never);
+    expect(dto._source).toBe('db+idx');
+    expect(dto._displayCompliance?.attributionText).toBe('Listing courtesy of Other Realty LLC');
+    expect(dto._displayCompliance?.disclaimerRequired).toBe(true);
+    expect(dto).not.toHaveProperty('_assignedAgent');
+    expect(JSON.stringify(dto)).not.toContain('other.agent@example.com');
+    expect(JSON.stringify(dto)).not.toContain('2125550100');
+  });
+
+  it.each([
+    { idx_display_yn: false },
+    { internet_entire_listing_display_yn: false },
+    { owner_opt_out: true },
+    { participant_only: true },
+  ])('still enforces the public display restriction %j', async (restriction) => {
+    const data = await legacyRow();
+    expect(filterDisplayableDbListings([data as unknown as PublicRow])).toHaveLength(1);
+    expect(filterDisplayableDbListings([{ ...data, ...restriction } as unknown as PublicRow])).toHaveLength(0);
+  });
+
+  it('requires address and campaign permission despite the old flag', async () => {
+    const data = await legacyRow();
+    expect(decideDbPublicAddress({ ...data, listing_id: COTALITY_ID, internet_address_display_yn: false }).suppressAddress).toBe(true);
+    const blocked = evaluateCampaignDistributionGate({ ...data, listing_id: COTALITY_ID, idx_display_yn: false, internet_entire_listing_display_yn: false } as never);
+    expect(blocked.blocks).toEqual(expect.arrayContaining(['idx_display_yn', 'internet_entire_listing_display_yn']));
+  });
+
+  it('denies source edits, new uploads, public open houses and seller reports even to a broker', async () => {
+    const data = await legacyRow();
+    const capabilities = listingCapabilities({ userId: 1n, role: 'BROKER' }, { ...data, listing_id: COTALITY_ID });
+    expect(capabilities.sourceClass).toBe('third-party-rls');
+    expect(capabilities.mayManageMallanLocalListing).toBe(false);
+    expect(capabilities.mayUploadNewLocalMedia).toBe(false);
+    expect(capabilities.mayManageMallanPublicOpenHouse).toBe(false);
+    expect(capabilities.mayViewSellerReport).toBe(false);
+    expect(capabilities.mayScheduleClientShowing).toBe(true);
+  });
+});

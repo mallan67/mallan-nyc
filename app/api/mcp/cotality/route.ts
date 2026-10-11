@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { getAccessToken } from "@/lib/idx/auth";
 
 export const runtime = "nodejs";
@@ -7,6 +8,26 @@ export const maxDuration = 60;
 
 const DEFAULT_COTALITY_BASE = "https://api.cotality.com/trestle";
 const LEGACY_PROTOCOL_VERSION = "2025-11-25";
+const MAX_BATCH_SIZE = 10;
+
+/** Fail closed before parsing a request or acquiring Mallan's provider token. */
+function authorizeRequest(req: NextRequest): Response | null {
+  const expected = process.env.COTALITY_MCP_TOKEN;
+  if (!expected || expected.length < 32) {
+    return new Response("Not Found", { status: 404, headers: { "Cache-Control": "no-store" } });
+  }
+  const header = req.headers.get("authorization") || "";
+  const supplied = header.startsWith("Bearer ") ? header.slice(7) : "";
+  const expectedBytes = Buffer.from(expected);
+  const suppliedBytes = Buffer.from(supplied);
+  if (expectedBytes.length !== suppliedBytes.length || !timingSafeEqual(expectedBytes, suppliedBytes)) {
+    return new Response("Unauthorized", {
+      status: 401,
+      headers: { "Cache-Control": "no-store", "WWW-Authenticate": "Bearer" },
+    });
+  }
+  return null;
+}
 
 type JsonRpcId = string | number | null;
 type JsonRpcRequest = {
@@ -293,6 +314,9 @@ function failure(id: JsonRpcId | undefined, code: number, message: string) {
 }
 
 async function dispatch(message: JsonRpcRequest) {
+  if (!message || typeof message !== "object" || Array.isArray(message)) {
+    return failure(null, -32600, "Invalid Request");
+  }
   if (message.jsonrpc !== "2.0" || typeof message.method !== "string") {
     return failure(message.id, -32600, "Invalid Request");
   }
@@ -331,8 +355,13 @@ async function dispatch(message: JsonRpcRequest) {
     const args = (params.arguments && typeof params.arguments === "object")
       ? params.arguments as Record<string, unknown>
       : {};
+    // Do not log arguments, filters, upstream errors or credentials.
+    const auditName = tools.some((tool) => tool.name === name) ? name : "unknown";
+    const startedAt = Date.now();
+    let outcome = "error";
     try {
       const result = await callTool(name, args);
+      outcome = "success";
       return success(message.id, { ...result, _meta: serverInfoMeta() });
     } catch (error) {
       const messageText = error instanceof Error ? error.message : String(error);
@@ -341,6 +370,12 @@ async function dispatch(message: JsonRpcRequest) {
         content: [{ type: "text", text: messageText }],
         _meta: serverInfoMeta(),
       });
+    } finally {
+      console.info("[cotality-mcp]", JSON.stringify({
+        tool: auditName,
+        outcome,
+        durationMs: Date.now() - startedAt,
+      }));
     }
   }
 
@@ -349,6 +384,8 @@ async function dispatch(message: JsonRpcRequest) {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
+  const denied = authorizeRequest(req);
+  if (denied) return denied;
   let body: unknown;
   try {
     body = await req.json();
@@ -357,6 +394,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   if (Array.isArray(body)) {
+    if (body.length === 0 || body.length > MAX_BATCH_SIZE) {
+      return NextResponse.json(failure(null, -32600, "Batch must contain 1 to 10 requests"), {
+        status: body.length === 0 ? 400 : 413,
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
     const responses = (await Promise.all(body.map((item) => dispatch(item as JsonRpcRequest))))
       .filter(Boolean);
     if (responses.length === 0) return new Response(null, { status: 202 });
@@ -372,14 +415,18 @@ export async function POST(req: NextRequest): Promise<Response> {
   });
 }
 
-export async function GET(): Promise<Response> {
+export async function GET(req: NextRequest): Promise<Response> {
+  const denied = authorizeRequest(req);
+  if (denied) return denied;
   return new Response("Method Not Allowed", {
     status: 405,
     headers: { Allow: "POST" },
   });
 }
 
-export async function DELETE(): Promise<Response> {
+export async function DELETE(req: NextRequest): Promise<Response> {
+  const denied = authorizeRequest(req);
+  if (denied) return denied;
   return new Response("Method Not Allowed", {
     status: 405,
     headers: { Allow: "POST" },

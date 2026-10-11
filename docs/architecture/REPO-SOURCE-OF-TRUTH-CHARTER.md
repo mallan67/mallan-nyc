@@ -73,8 +73,11 @@ sync must not erase them.
 ### Three ownership concepts — never conflate
 
 1. **`isMallanExclusiveListing()`** — Mallan-AUTHORED local listing (`SL-`/`RL-`
-   prefix OR `rls_eligible === false`). Governs **data/media authority**. Do NOT
-   broaden it to include the RLS return-copy.
+   prefix). Governs **data/media authority**. `rls_eligible` is a distribution
+   setting, never proof of authorship: old imported stubs can carry `false`.
+   A website-only permission exemption requires BOTH a canonical Mallan id and
+   explicit `rls_eligible === false`. Do NOT broaden ownership to include the
+   RLS return-copy or an imported stub.
 2. **Mallan RLS return-copy** — a Cotality row whose VERIFIED LIST-SIDE identity
    is Mallan. Still **Cotality-source-owned**: its media stays Cotality-owned and
    must never be cloned into the `crm:` namespace. It is only barred from being

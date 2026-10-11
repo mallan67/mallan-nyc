@@ -51,7 +51,7 @@ describe('open-houses — Cotality feed gate uses REBNY fail-OPEN (idxPlusPreFil
 describe('open-houses — local path honors website-only (rls_eligible=false) bypass', () => {
   it('selects rls_eligible and bypasses the RLS gate for website-only Mallan exclusives', () => {
     expect(ROUTE).toMatch(/rls_eligible:\s*true,/);            // selected
-    expect(ROUTE).toMatch(/l\.rls_eligible === false[\s\S]*?OPEN_HOUSE_ELIGIBLE_STATUSES\.includes\(l\.status\)/);
+    expect(ROUTE).toMatch(/isMallanWebsiteOnlyListing\(l\)[\s\S]*?OPEN_HOUSE_ELIGIBLE_STATUSES\.includes\(l\.status\)/);
   });
 });
 

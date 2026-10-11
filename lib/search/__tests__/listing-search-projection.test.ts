@@ -158,6 +158,7 @@ describe("buildListingSearchProjectionFromListing", () => {
       internet_entire_listing_display_yn: false,
       internet_address_display_yn: false,
       participant_only: true,
+      listing_id: "SL-0004",
       rls_eligible: false,
     });
     expect(closed.idx_display_yn).toBe(false);
@@ -619,7 +620,7 @@ describe("is_exclusive derivation — canonical isMallanExclusiveListing() rule 
   it("flags a website-only (rls_eligible === false) manual listing as exclusive", () => {
     const row = buildListingSearchProjectionFromListing({
       ...baseSale,
-      listing_id: "WEBONLY-1", // no SL-/RL- prefix
+      listing_id: "SL-WEBONLY-1", // canonical Mallan-authored id
       rls_eligible: false,
       agent_id: null,
     });
@@ -648,7 +649,7 @@ describe("is_exclusive derivation — canonical isMallanExclusiveListing() rule 
       { ...baseSale, listing_id: "RLS20059088", rls_eligible: true, agent_id: BigInt(42) }, // third-party + agent → false
       { ...baseSale, listing_id: "SL-0004", agent_id: null }, // SL- → true
       { ...baseRental, listing_id: "RL-0012", agent_id: null }, // RL- → true
-      { ...baseSale, listing_id: "WEBONLY-1", rls_eligible: false, agent_id: null }, // website-only → true
+      { ...baseSale, listing_id: "SL-WEBONLY-1", rls_eligible: false, agent_id: null }, // website-only → true
       { ...baseSale, listing_id: "RLS20070001", rls_eligible: true, agent_id: null }, // third-party, no agent → false
     ];
     for (const fixture of fixtures) {
@@ -732,6 +733,7 @@ describe("buildProjectionUpsertPayload (PR 5B dual-write)", () => {
       internet_entire_listing_display_yn: false,
       internet_address_display_yn: false,
       participant_only: true,
+      listing_id: "SL-0004",
       rls_eligible: false,
     });
     const payload = buildProjectionUpsertPayload(projection);

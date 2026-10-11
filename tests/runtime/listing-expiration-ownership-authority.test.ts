@@ -38,7 +38,7 @@ function matchesOwnership(row: Row): boolean {
 
 const LOCAL_SL = { listing_id: 'SL-0004', rls_eligible: false, agent_id: 42n };
 const LOCAL_RL = { listing_id: 'RL-0011', rls_eligible: false, agent_id: 42n };
-const WEBSITE_ONLY = { listing_id: 'RLS20000777', rls_eligible: false, agent_id: 42n };
+const WEBSITE_ONLY = { listing_id: 'SL-00777', rls_eligible: false, agent_id: 42n };
 /** Third-party feed row where the Mallan agent was the BUYER-side agent. */
 const THIRD_PARTY = { listing_id: 'RLS20105333', rls_eligible: true, agent_id: 42n };
 /** Mallan's own listing returned through Cotality — still source-owned. */
@@ -50,6 +50,7 @@ describe('the canonical ownership predicate admits only Mallan-owned rows', () =
     ['B local RL-*', LOCAL_RL, true],
     ['C website-only (rls_eligible=false)', WEBSITE_ONLY, true],
     ['D third-party RLS', THIRD_PARTY, false],
+    ['legacy imported stub with a false flag', { ...THIRD_PARTY, rls_eligible: false }, false],
     ['F buyer-side association only', { ...THIRD_PARTY, agent_id: 42n }, false],
   ])('%s', (_label, row, expected) => {
     expect(matchesOwnership(row)).toBe(expected);

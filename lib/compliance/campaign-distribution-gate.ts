@@ -1,3 +1,4 @@
+import { isMallanWebsiteOnlyListing } from '@/lib/listings/mallan-source-identity';
 /**
  * Campaign distribution gate — ONE pure, testable decision.
  *
@@ -26,15 +27,15 @@
  *
  * THE BOUNDARY
  * ------------
- * WEBSITE-ONLY  (`rls_eligible === false`)
+ * WEBSITE-ONLY  (canonical Mallan id AND `rls_eligible === false`)
  *   Mallan's own non-RLS inventory. Not RLS redistribution content, so the two
  *   IDX display flags do not bind. Every other control still applies.
  *
- * RLS-BACKED    (`rls_eligible !== false`) — INCLUDING RLS-eligible SL-/RL-
+ * RLS-BACKED    (every other row) — INCLUDING RLS-eligible SL-/RL-
  *   Must satisfy `idx_display_yn` AND `internet_entire_listing_display_yn`.
  *
- * Only an EXPLICIT `false` exempts a listing. `null`/`undefined` is treated as
- * RLS-backed, so an unknown provenance fails closed.
+ * Only proven Mallan authorship together with an explicit `false` exempts a
+ * listing. Unknown provenance or eligibility remains RLS-backed.
  *
  * TERMINAL STATUS — deliberately stricter than the public display gate.
  * `isListingDisplayable()` carries closed-within-24-hours semantics that are
@@ -49,7 +50,7 @@ import { TERMINAL_STATUSES, normalizeStandardStatus } from '@/lib/idx/trestle-ma
 export interface CampaignGateInput {
   /** Listing id. Used for provenance labelling ONLY — never as a permission. */
   listing_id: string;
-  /** `false` = website-only (non-RLS). Anything else is treated as RLS-backed. */
+  /** false exempts only a canonical Mallan-authored listing. */
   rls_eligible?: boolean | null;
   idx_display_yn?: boolean | null;
   internet_entire_listing_display_yn?: boolean | null;
@@ -67,13 +68,13 @@ export interface CampaignGateResult {
 /**
  * Is this listing RLS redistribution inventory?
  *
- * Only an explicit `false` exempts. The listing-id prefix is NOT consulted:
- * an `SL-`/`RL-` listing that is RLS-eligible is RLS-backed.
+ * Only a canonical Mallan id together with explicit `false` exempts.
+ * An RLS-eligible SL-/RL- listing remains RLS-backed.
  */
 export function isRlsBackedForCampaign(
-  input: Pick<CampaignGateInput, 'rls_eligible'>,
+  input: Pick<CampaignGateInput, 'rls_eligible'> & { listing_id?: string | null },
 ): boolean {
-  return input.rls_eligible !== false;
+  return !isMallanWebsiteOnlyListing(input);
 }
 
 /** Evaluate every campaign distribution gate. Pure — no I/O, no side effects. */

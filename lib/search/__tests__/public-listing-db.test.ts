@@ -1,3 +1,4 @@
+import { excludeMallanRlsReturnCopies } from "@/lib/listings/mallan-source-identity";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import {
@@ -21,7 +22,15 @@ describe("buildPublicListingDbSearch", () => {
           participant_only: false,
           internet_entire_listing_display_yn: true,
         },
-        { rls_eligible: false },
+        { rls_eligible: false, AND: [mallanAuthoredWhere()] },
+        {
+          rls_eligible: false,
+          NOT: mallanAuthoredWhere(),
+          idx_display_yn: true,
+          owner_opt_out: false,
+          participant_only: false,
+          internet_entire_listing_display_yn: true,
+        },
       ],
     });
     expect(orderBy).toEqual({ list_price: "desc" });
@@ -85,9 +94,9 @@ describe("buildPublicListingDbSearch", () => {
 
   it("applies special public sorts with their required filters", () => {
     const exclusives = buildPublicListingDbSearch(new URLSearchParams("sort=exclusives"));
-    // "Exclusives" are Mallan-AUTHORED listings (SL-/RL- or website-only), never rows that merely carry an agent_id: syncAgentHistory stamps agent_id onto third-party rows
+    // "Exclusives" are Mallan-AUTHORED listings (canonical SL-/RL-, including website-only), never rows that merely carry an agent_id: syncAgentHistory stamps agent_id onto third-party rows
     expect(exclusives.where.agent_id).toBeUndefined();
-    expect(exclusives.where.AND).toEqual([mallanAuthoredWhere()]);
+    expect(exclusives.where.AND).toEqual(expect.arrayContaining([mallanAuthoredWhere()]));
     expect(exclusives.orderBy).toEqual({ modification_timestamp: "desc" });
 
     const newDev = buildPublicListingDbSearch(new URLSearchParams("sort=new-development"));
@@ -95,7 +104,7 @@ describe("buildPublicListingDbSearch", () => {
     expect(newDev.orderBy).toEqual({ modification_timestamp: "desc" });
   });
 
-  it("restricts exclusive=mallan to TRUE Mallan exclusives (SL-/RL- or website-only), never agent_id", () => {
+  it("restricts exclusive=mallan to TRUE Mallan exclusives (canonical SL-/RL-, including website-only), never agent_id", () => {
     // Requirement: the homepage exclusives feed must be provably Mallan-only.
     // syncAgentHistory stamps agent_id onto THIRD-PARTY (buyer-side) Cotality rows
     // (lib/idx/fetch.ts:427 matches BuyerAgentMlsId), so agent_id != null is unsafe.
@@ -103,14 +112,13 @@ describe("buildPublicListingDbSearch", () => {
       new URLSearchParams("type=sale&exclusive=mallan"),
     );
 
-    // Identity is an AND-ed OR over the robust CRM/website-only signal.
+    // Identity is an AND-ed OR over the canonical Mallan id.
     expect(where.AND).toEqual(
       expect.arrayContaining([
         {
           OR: [
             { listing_id: { startsWith: "SL-" } },
             { listing_id: { startsWith: "RL-" } },
-            { rls_eligible: false },
           ],
         },
       ]),
@@ -119,12 +127,11 @@ describe("buildPublicListingDbSearch", () => {
     expect(where.agent_id).toBeUndefined();
   });
 
-  it("mallanAuthoredWhere is exactly the canonical source rule: an SL- or RL- listing id, or rls_eligible=false", () => {
+  it("mallanAuthoredWhere is exactly the canonical source rule: a canonical SL- or RL- listing id", () => {
     expect(mallanAuthoredWhere()).toEqual({
       OR: [
         { listing_id: { startsWith: "SL-" } },
         { listing_id: { startsWith: "RL-" } },
-        { rls_eligible: false },
       ],
     });
     expect(mallanAuthoredWhere()).not.toBe(mallanAuthoredWhere());          // a fresh object every time: callers append it to their own where
@@ -138,7 +145,7 @@ describe("buildPublicListingDbSearch", () => {
 
   it("without exclusive=mallan or sort=exclusives, no Mallan-authored predicate is applied (the general feed is every listing)", () => {
     const { where } = buildPublicListingDbSearch(new URLSearchParams("type=sale&sort=newest"));
-    expect(JSON.stringify(where)).not.toContain('"startsWith":"SL-"');
+    expect(where.AND ?? []).not.toEqual(expect.arrayContaining([mallanAuthoredWhere()]));
   });
 
   it("keeps the general-feed minBeds floor (third-party studios excluded)", () => {
@@ -319,4 +326,9 @@ describe("applyPublicListingPostFilters", () => {
     // Falls back to listing.publicRemarks when the features map is empty.
     expect(result.map((l) => l.id)).toEqual(["b", "c"]);
   });
+});
+
+it('suppresses Mallan feed return-copies before DB count and pagination on the general listings route', () => {
+  const { where } = buildPublicListingDbSearch(new URLSearchParams("type=sale"));
+  expect(where.AND).toEqual(expect.arrayContaining([excludeMallanRlsReturnCopies()]));
 });

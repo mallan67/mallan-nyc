@@ -45,8 +45,8 @@ describe('exclusive=mallan query includes Active website-only Mallan exclusives'
 
   it('restricts to TRUE Mallan exclusives (SL-/RL-/website-only), NOT agent_id, and sale type', () => {
     // Updated 2026-06-23: agent_id is unsafe (syncAgentHistory stamps it onto
-    // third-party buyer-side Cotality rows). Identity is the CRM SL-/RL- prefix OR
-    // rls_eligible=false (PR #308). The website-only OR branch (below) is the
+    // third-party buyer-side Cotality rows). Identity is the canonical SL-/RL- id.
+    // Eligibility never proves authorship. The website-only OR branch (below) is the
     // separate DISPLAY gate and is unaffected.
     expect(where.agent_id).toBeUndefined();
     expect(where.AND).toEqual(
@@ -55,7 +55,6 @@ describe('exclusive=mallan query includes Active website-only Mallan exclusives'
           OR: [
             { listing_id: { startsWith: 'SL-' } },
             { listing_id: { startsWith: 'RL-' } },
-            { rls_eligible: false },
           ],
         },
       ]),

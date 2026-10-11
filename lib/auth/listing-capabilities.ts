@@ -40,7 +40,7 @@ import {
 /**
  * Which of the three charter concepts this row is.
  *
- * `mallan-local`           Mallan-AUTHORED (`SL-`/`RL-` or `rls_eligible=false`).
+ * `mallan-local`           Mallan-AUTHORED (canonical `SL-`/`RL-` listing id).
  *                          Mallan owns the data and the media. Editable.
  * `mallan-rls-return-copy` Mallan's own listing returned through Cotality.
  *                          Cotality-SOURCE-owned. Publicly suppressed, retained
