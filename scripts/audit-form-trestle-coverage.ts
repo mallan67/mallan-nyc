@@ -78,14 +78,22 @@ async function getToken(): Promise<string> {
       scope: 'api',
     }),
   });
-  if (!res.ok) throw new Error(`Token: ${res.status}`);
-  return ((await res.json()) as { access_token: string }).access_token;
+  if (!res.ok) throw new Error(`Cotality token request failed (${res.status})`);
+  const payload = (await res.json()) as { access_token?: unknown };
+  if (typeof payload.access_token !== 'string' || !payload.access_token.trim()) {
+    throw new Error('Cotality token response has no usable access_token');
+  }
+  return payload.access_token;
 }
 
 async function getMetadataXml(token: string): Promise<string> {
   const res = await fetch(`${TRESTLE_BASE}/odata/$metadata`, { headers: { authorization: `Bearer ${token}` } });
-  if (!res.ok) throw new Error(`Metadata: ${res.status}`);
-  return res.text();
+  if (!res.ok) throw new Error(`Cotality metadata request failed (${res.status})`);
+  const xml = await res.text();
+  if (!/<EntityType\s/.test(xml) || !/<Property\s/.test(xml)) {
+    throw new Error('Cotality metadata contains no readable entity fields; live audit is UNVERIFIED');
+  }
+  return xml;
 }
 
 // REBNY's per-resource ${name}.CustomFields blob carries 40+ extra fields
@@ -97,7 +105,7 @@ async function getCustomPropertyFieldsFromSample(token: string): Promise<Set<str
   // key sets in CustomFields, so union across a small sample.
   const url = `${TRESTLE_BASE}/odata/CustomProperty?$top=20`;
   const res = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
-  if (!res.ok) return fields;
+  if (!res.ok) throw new Error(`Cotality CustomProperty request failed (${res.status})`);
   const json = (await res.json()) as { value?: Array<Record<string, unknown>> };
   for (const row of json.value || []) {
     const cf = row.CustomFields;

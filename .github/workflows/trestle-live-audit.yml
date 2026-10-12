@@ -51,32 +51,21 @@ jobs:
       - name: Verify Trestle secrets are configured
         id: secrets
         run: |
-          # Without IDX_CLIENT_ID + IDX_CLIENT_SECRET in repo secrets, every
-          # downstream audit fails with "Missing IDX_CLIENT_ID..." in 0.5s and
-          # produces noise instead of signal. Detect once up front and skip
-          # cleanly so the workflow exits 0 (no daily false-alarm pages) and
-          # is_configured is false (downstream steps gate on it).
+          # Missing credentials leave the live contract UNVERIFIED. A run that
+          # performs no live checks must never report success.
           if [ -z "${IDX_CLIENT_ID}" ] || [ -z "${IDX_CLIENT_SECRET}" ]; then
             echo "is_configured=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Trestle audit skipped — IDX_CLIENT_ID and/or IDX_CLIENT_SECRET secrets are not set on this repo. Add them via 'gh secret set IDX_CLIENT_ID' and 'gh secret set IDX_CLIENT_SECRET' to enable the daily live-audit."
+            echo "::error::Cotality live audit UNVERIFIED — IDX_CLIENT_ID and/or IDX_CLIENT_SECRET repository secrets are not configured."
             {
-              echo "## Trestle live audit — SKIPPED"
+              echo "## Cotality live audit — UNVERIFIED"
               echo ""
-              echo "Repo secrets \`IDX_CLIENT_ID\` and/or \`IDX_CLIENT_SECRET\` are not configured."
-              echo ""
-              echo "To enable the audit, run locally:"
-              echo ""
-              echo '```sh'
-              echo 'gh secret set IDX_CLIENT_ID --repo ${{ github.repository }}'
-              echo 'gh secret set IDX_CLIENT_SECRET --repo ${{ github.repository }}'
-              echo '```'
-              echo ""
-              echo "These are the same Trestle/Cotality credentials present in your local \`.env.local\` and Vercel env."
+              echo "Required repository credentials are missing. No live audit ran; this run is not provider verification."
+              echo "Configure the authorized IDX_CLIENT_ID and IDX_CLIENT_SECRET repository secrets before rerunning."
             } >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "is_configured=true" >> "$GITHUB_OUTPUT"
-            echo "✓ Trestle credentials present"
+            exit 1
           fi
+          echo "is_configured=true" >> "$GITHUB_OUTPUT"
+          echo "Cotality credentials present; live checks still required."
 
       - name: Install dependencies
         if: steps.secrets.outputs.is_configured == 'true'
@@ -102,7 +91,7 @@ jobs:
 
       - name: Aggregate result
         id: aggregate
-        if: steps.secrets.outputs.is_configured == 'true'
+        if: ${{ always() }}
         run: |
           fail=0
           [ "${{ steps.audit-forms.outcome }}" != "success" ] && fail=$((fail+1))
@@ -110,7 +99,7 @@ jobs:
           [ "${{ steps.audit-resources.outcome }}" != "success" ] && fail=$((fail+1))
           echo "failed_audits=$fail" >> "$GITHUB_OUTPUT"
           if [ "$fail" -gt 0 ]; then
-            echo "::error::Trestle live audit detected drift in $fail audit(s)"
+            echo "::error::Cotality live verification incomplete — $fail audit(s) failed or did not run."
           fi
 
       - name: Ensure tracking labels exist
@@ -156,6 +145,12 @@ jobs:
           EOF
           )"
 
-      - name: Fail the workflow if any audit failed
-        if: ${{ steps.secrets.outputs.is_configured == 'true' && steps.aggregate.outputs.failed_audits != '0' }}
-        run: exit 1
+      - name: Require all live audits to pass
+        if: ${{ always() }}
+        env:
+          FAILED_AUDITS: ${{ steps.aggregate.outputs.failed_audits }}
+        run: |
+          if [ "$FAILED_AUDITS" != "0" ]; then
+            echo "::error::Cotality live verification is not complete. Failed, skipped, or missing audit results cannot pass."
+            exit 1
+          fi

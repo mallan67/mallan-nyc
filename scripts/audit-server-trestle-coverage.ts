@@ -125,7 +125,12 @@ async function getToken(): Promise<string> {
       grant_type: 'client_credentials', scope: 'api',
     }),
   });
-  return ((await res.json()) as { access_token: string }).access_token;
+  if (!res.ok) throw new Error(`Cotality token request failed (${res.status})`);
+  const payload = (await res.json()) as { access_token?: unknown };
+  if (typeof payload.access_token !== 'string' || !payload.access_token.trim()) {
+    throw new Error('Cotality token response has no usable access_token');
+  }
+  return payload.access_token;
 }
 
 async function getAllLiveFields(): Promise<{
@@ -134,7 +139,9 @@ async function getAllLiveFields(): Promise<{
   customFieldKeys: Set<string>;
 }> {
   const token = await getToken();
-  const xml = await (await fetch(`${TRESTLE_BASE}/odata/$metadata`, { headers: { authorization: `Bearer ${token}` } })).text();
+  const response = await fetch(`${TRESTLE_BASE}/odata/$metadata`, { headers: { authorization: `Bearer ${token}` } });
+  if (!response.ok) throw new Error(`Cotality metadata request failed (${response.status})`);
+  const xml = await response.text();
   const byResource = new Map<string, Set<string>>();
   const all = new Set<string>();
   const entityRegex = /<EntityType\s+Name\s*=\s*"([^"]+)"[\s\S]*?<\/EntityType>/g;
@@ -150,8 +157,12 @@ async function getAllLiveFields(): Promise<{
     }
     byResource.set(name, fields);
   }
+  if (byResource.size === 0 || all.size === 0) {
+    throw new Error('Cotality metadata contains no readable entity fields; live audit is UNVERIFIED');
+  }
   // Sample CustomFields too
   const cfRes = await fetch(`${TRESTLE_BASE}/odata/CustomProperty?$top=20`, { headers: { authorization: `Bearer ${token}` } });
+  if (!cfRes.ok) throw new Error(`Cotality CustomProperty request failed (${cfRes.status})`);
   const cf = ((await cfRes.json()) as { value?: Array<Record<string, unknown>> }).value || [];
   const customFieldKeys = new Set<string>();
   for (const row of cf) {
