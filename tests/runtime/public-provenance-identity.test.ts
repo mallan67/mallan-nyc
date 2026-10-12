@@ -19,6 +19,7 @@ jest.mock('@/lib/sentry-report', () => ({ __esModule: true, reportApiError: jest
 
 import { computeDbEnvelopeSource } from '@/app/api/listings/route';
 import { classifyDbListing } from '@/lib/idx/db-to-public-dto';
+import { excludeMallanRlsReturnCopies } from '@/lib/listings/mallan-source-identity';
 import { buildPublicListingDbSearch, mallanAuthoredWhere } from '@/lib/search/public-listing-db';
 
 const ROOT = resolve(__dirname, '../..');
@@ -67,7 +68,10 @@ describe('the sort=exclusives query is the Mallan-authored predicate, not agent_
   it('sort=exclusives carries mallanAuthoredWhere() and no agent_id filter', () => {
     const { where } = buildPublicListingDbSearch(new URLSearchParams('type=sale&sort=exclusives'));
     expect(where.agent_id).toBeUndefined();
-    expect(where.AND).toEqual([mallanAuthoredWhere()]);
+    // the return-copy suppression that every public query now carries before count and pagination, and the Mallan-authored predicate, once
+    const and = where.AND as Array<Record<string, unknown>>;
+    expect(and).toHaveLength(2);
+    expect(and).toEqual(expect.arrayContaining([excludeMallanRlsReturnCopies(), mallanAuthoredWhere()]));
   });
 });
 

@@ -551,12 +551,13 @@ describe("Mallan-owned rows are excluded from the reverse set", () => {
     expect(m.diagnostics.mallanOwnedExcluded).toBe(1);
   });
 
-  it("excludes a website-only row identified ONLY by rls_eligible=false", () => {
-    // The prefix and the flag are independent arms of the canonical helper; a
-    // guard that checked only the prefix would let this one through.
+  it("does NOT exclude a feed stub whose only Mallan signal is rls_eligible=false", () => {
+    // Authorship is the SL-/RL- id; the flag is distribution policy. An old stub writer set the flag on third-party Cotality ids, so such a row is
+    // reconciled with the provider like any other local row (here the provider no longer lists it).
     const m = manifestOf([], [mallanRow({ listing_id: "RLS999999", rls_eligible: false })]);
-    expect(m.entries).toHaveLength(0);
-    expect(m.diagnostics.mallanOwnedExcluded).toBe(1);
+    expect(m.entries).toHaveLength(1);
+    expect(m.entries[0]).toMatchObject({ listingId: "RLS999999", reasons: ["local_active_provider_terminal"] });
+    expect(m.diagnostics.mallanOwnedExcluded).toBe(0);
   });
 
   it("STILL emits local_active_provider_terminal for a genuinely drifted RLS row", () => {

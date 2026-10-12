@@ -67,18 +67,18 @@ describe('GET /api/cron/search-alerts: the email names each listing\'s broker', 
     expect(html.indexOf('Douglas Elliman')).toBeLessThan(html.indexOf('217 W 57th Street 2'));
   });
 
-  it('a listing Mallan authored is credited to Mallan (an SL-/RL- id, or rls_eligible false), whatever office its row carries; a synced listing is never "Exclusive listing by Mallan"', async () => {
+  it('a listing Mallan authored is credited to Mallan (an SL-/RL- id), whatever office its row carries; a synced listing, or a legacy stub that only carries rls_eligible false, is never "Exclusive listing by Mallan"', async () => {
     const html = await runAlert([
       listingRow(1, { listing_id: 'SL-0005', list_office_name: null }),                      // converted from a prospect: rls_eligible true, no office stored
       listingRow(2, { listing_id: 'RLS20093870', list_office_name: 'Compass' }),
-      listingRow(3, { listing_id: 'COM-7', rls_eligible: false, list_office_name: null }),   // website-only
+      listingRow(3, { listing_id: 'COM-7', rls_eligible: false, list_office_name: null }),   // a legacy stub: the flag alone does not make it Mallan's
       listingRow(4, { listing_id: 'RL-0002', list_office_name: 'Mallan Real Estate Inc.' }),
       listingRow(5, { listing_id: 'RLS20099999', list_office_name: null, agent_id: BigInt(5) }),   // a synced row the agent history stamped: still the other firm's, unknown office
     ]);
     expect([...html.matchAll(/(?:Listing courtesy of|Exclusive listing by)[^<\n]*/g)].map((m) => m[0].trim())).toEqual([
       'Exclusive listing by Mallan Real Estate Inc.',
       'Listing courtesy of Compass',
-      'Exclusive listing by Mallan Real Estate Inc.',
+      'Listing courtesy of REBNY RLS',
       'Exclusive listing by Mallan Real Estate Inc.',
       'Listing courtesy of REBNY RLS',
     ]);

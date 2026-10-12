@@ -2,7 +2,7 @@
 /**
  * listingAttribution (lib/idx/public-attribution.ts): what a listing's attribution line says, decided from WHERE THE LISTING COMES FROM.
  *
- * A listing Mallan authored (an `SL-`/`RL-` id, or `rls_eligible === false`) is credited to Mallan; any other listing is third-party RLS content and names its own office, with the REBNY data-provider
+ * A listing Mallan authored (an `SL-`/`RL-` id; `rls_eligible === false` alone proves nothing, an old stub writer set it on third-party ids) is credited to Mallan; any other listing is third-party RLS content and names its own office, with the REBNY data-provider
  * sentence. It never reads agent_id or owner_client_id: syncAgentHistory writes agent_id onto Cotality rows matched on the list side OR the buyer side (mallan-source-identity.ts).
  * The Mallan wording is the one buildSourceAndCompliance (db-to-public-dto.ts) gives the same listing (also asserted in tests/runtime/listing-campaign-attribution.test.ts).
  */
@@ -12,11 +12,18 @@ describe('listingAttribution', () => {
   it.each([
     ['an SL- sale listing', { listing_id: 'SL-0004', rls_eligible: true }],
     ['an RL- rental', { listing_id: 'RL-0002', rls_eligible: true }],
-    ['a website-only row (rls_eligible false) whatever its id', { listing_id: 'COM-7', rls_eligible: false }],
     ['an SL- row that is also website-only', { listing_id: 'SL-0009', rls_eligible: false }],
   ])('%s: credited to Mallan, no data-provider sentence', (_name, row) => {
     expect(listingAttribution(row, 'Compass')).toEqual({ attributionText: MALLAN_EXCLUSIVE_ATTRIBUTION, disclaimerRequired: false });
     expect(listingAttribution(row)).toEqual({ attributionText: MALLAN_EXCLUSIVE_ATTRIBUTION, disclaimerRequired: false });
+  });
+
+  it.each([
+    ['a row that carries only rls_eligible false and a non-canonical id', { listing_id: 'COM-7', rls_eligible: false }],
+    ['a feed id that carries rls_eligible false', { listing_id: 'RLS20093870', rls_eligible: false }],
+  ])('%s: still the other firm\'s listing (the flag is distribution policy, not authorship), with its office and the data-provider sentence', (_name, row) => {
+    expect(listingAttribution(row, 'Compass')).toEqual({ attributionText: 'Listing courtesy of Compass', disclaimerRequired: true });
+    expect(listingAttribution(row)).toEqual({ attributionText: `Listing courtesy of ${NEUTRAL_OFFICE_ATTRIBUTION}`, disclaimerRequired: true });
   });
 
   it.each([

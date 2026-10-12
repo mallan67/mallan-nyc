@@ -456,11 +456,11 @@ describe('Search-fix · Fix 6 — DTO propagates Latitude/Longitude', () => {
 // ─── Fix 3 — /buy?exclusive=mallan ───────────────────────────────────────
 
 describe('Audit-fix PR A · Fix 3 — /buy?exclusive=mallan filter', () => {
-  it('exclusive=mallan restricts to TRUE Mallan exclusives (SL-/RL-/website-only), NOT agent_id', () => {
+  it('exclusive=mallan restricts to TRUE Mallan exclusives (an SL-/RL- id, website-only included), NOT agent_id and NOT the eligibility flag', () => {
     // Updated 2026-06-23: agent_id is unsafe — syncAgentHistory stamps it onto
     // THIRD-PARTY buyer-side Cotality rows (lib/idx/fetch.ts:427 matches
-    // BuyerAgentMlsId). Identity is now the CRM SL-/RL- prefix OR rls_eligible=false
-    // (the PR #308 signal). The homepage Featured exclusives feed drops the generic
+    // BuyerAgentMlsId). Identity is the CRM SL-/RL- prefix alone: rls_eligible=false is
+    // distribution policy (an old stub writer set it on third-party ids). The homepage Featured exclusives feed drops the generic
     // bed/price filters, so this identity check must be airtight.
     const params = new URLSearchParams();
     params.set('type', 'sale');
@@ -473,7 +473,6 @@ describe('Audit-fix PR A · Fix 3 — /buy?exclusive=mallan filter', () => {
           OR: [
             { listing_id: { startsWith: 'SL-' } },
             { listing_id: { startsWith: 'RL-' } },
-            { rls_eligible: false },
           ],
         },
       ]),
@@ -505,7 +504,8 @@ describe('Audit-fix PR A · Fix 3 — /buy?exclusive=mallan filter', () => {
     params.set('sort', 'exclusives');
     const { where, orderBy } = buildPublicListingDbSearch(params);
     expect(where.agent_id).toBeUndefined();
-    const mallanOnly = (where.AND as Array<Record<string, unknown>>).filter((c) => Array.isArray(c.OR) && JSON.stringify(c.OR).includes('"startsWith":"SL-"'));
+    // the return-copy suppression is the other group that names SL-/RL-; it also names office ids, so it is not counted here
+    const mallanOnly = (where.AND as Array<Record<string, unknown>>).filter((c) => Array.isArray(c.OR) && JSON.stringify(c.OR).includes('"startsWith":"SL-"') && !JSON.stringify(c.OR).includes('list_office_mls_id'));
     expect(mallanOnly).toHaveLength(1);
     expect(orderBy).toEqual({ modification_timestamp: 'desc' });
   });

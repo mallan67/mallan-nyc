@@ -214,11 +214,11 @@ function makeOptions(overrides: Partial<RunMediaSyncOptions> = {}): RunMediaSync
 // ─── Source-fetch failure (cursor must NOT advance) ──────────────────────
 
 // R2-1 admission interplay: backlog fixture rows must carry the Phase-3
-// listing sub-select; rls_eligible:false makes them Mallan-owned (all_active
-// scope) so orchestration tests exercise the mirror machinery, not the
-// admission policy (which has its own dedicated suite).
+// listing sub-select; an SL- listing id with rls_eligible:false makes them Mallan-owned
+// (all_active scope; the flag alone proves nothing) so orchestration tests exercise the
+// mirror machinery, not the admission policy (which has its own dedicated suite).
 const MIRROR_TEST_LISTING = {
-  listing_id: "RLS-A", rls_eligible: false, status: "Active",
+  listing_id: "SL-A", rls_eligible: false, status: "Active",
   idx_display_yn: true, owner_opt_out: false, participant_only: false,
   internet_entire_listing_display_yn: true,
 };

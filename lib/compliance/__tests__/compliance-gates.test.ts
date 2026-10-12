@@ -820,15 +820,29 @@ describe('filterDisplayableDbListings — fail-closed on null permission flags',
     expect(result).toHaveLength(1);
   });
 
-  it('still includes website-only commercial (rls_eligible=false) regardless of permissions', () => {
+  it('still includes website-only commercial (an SL- id with rls_eligible=false) regardless of permissions', () => {
     const result = filterDisplayableDbListings([
       buildDbListing({
+        listing_id: 'SL-0100',
         rls_eligible: false,
         idx_display_yn: null as unknown as boolean,
         internet_entire_listing_display_yn: null as unknown as boolean,
       }),
     ]);
     expect(result).toHaveLength(1);
+  });
+
+  it('does not exempt a feed stub that only carries rls_eligible=false: its permission flags still bind', () => {
+    // an old stub writer set the flag on third-party Cotality ids; the flag is distribution policy, the SL-/RL- id is authorship
+    const result = filterDisplayableDbListings([
+      buildDbListing({
+        listing_id: 'RLS20093870',
+        rls_eligible: false,
+        idx_display_yn: null as unknown as boolean,
+        internet_entire_listing_display_yn: null as unknown as boolean,
+      }),
+    ]);
+    expect(result).toHaveLength(0);
   });
 });
 
