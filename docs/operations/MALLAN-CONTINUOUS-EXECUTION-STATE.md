@@ -1674,8 +1674,8 @@ executed OUTSIDE an authorized Git packet — see the governance incident above.
 
 | surface | query | projects returned |
 |---|---|---|
-| authenticated CLI (Maya's login) | `vercel project ls --scope mallan` | 5: `mallan-nyc`, `mayaallan`, `sabre-mcp-private`, `mallan-sabre-mcp`, `stocks-information-tracker` |
-| connected Vercel `list_projects`, agent session | `teamId=team_kZQh5NYLyrOKqffK0r9EXf4E`, `limit=50` | 2: `mallan-nyc`, `mayaallan` (`count: 2`) |
+| authenticated CLI (Maya's login) | `vercel project ls --scope mallan` | 5: `mallan-nyc`, a personal non-Mallan project, `sabre-mcp-private`, `mallan-sabre-mcp`, `stocks-information-tracker` |
+| connected Vercel `list_projects`, agent session | `teamId=team_kZQh5NYLyrOKqffK0r9EXf4E`, `limit=50` | 2: `mallan-nyc` and a personal non-Mallan project (`count: 2`) |
 | connected Vercel `list_projects`, reviewer session | same team ID | 1: `mallan-nyc` (`count: 1`) |
 
 `vercel teams ls` (CLI) shows one team, `mallan`. The cause of the differences is not established; the
@@ -1684,7 +1684,7 @@ is a hypothesis, not an explanation. `mallan-nyc-syyb` is absent from every obse
 
 Separately, the CLI `vercel integration list --all --scope mallan` returned five Marketplace resources, and
 `neon-green-school` is the only Neon resource in that CLI enumeration (the other four are Supabase:
-`supabase-indigo-kite` bound to `mayaallan`, three suspended and unbound). The connected Vercel tool exposes
+one bound to a personal non-Mallan project, three suspended and unbound). The connected Vercel tool exposes
 no equivalent Marketplace-resource census, so this is recorded as CLI evidence, not independently
 duplicated. Whether any of these lists is paginated beyond what was printed is not established.
 
