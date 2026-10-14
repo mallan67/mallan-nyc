@@ -591,11 +591,11 @@ It kept unsafe changes out of `main`, but it also kept correct changes out: from
 
 It adds no new gate. It also makes `pr-check` read-only (`permissions: contents: read`, checkout with `persist-credentials: false`), so pull-request code never receives repository write credentials.
 
-**The protection after #646 is INTERIM:**
-- every change arrives through a pull request;
+**The protection after #646 is INTERIM** (amended 2026-10-14 by Maya's explicit authorization; Master §27.18):
+- ordinary changes arrive through a short-lived pull request;
 - the required `pr-check` runs as it does today;
-- force-push and deletion of `main` are blocked;
-- Maya reviews and merges every pull request. Agents never merge, never enable auto-merge and never change branch protection or rulesets.
+- force-push and deletion of `main` are blocked by a separate ruleset (id 25125170) with no bypass actors;
+- the `Protect main` ruleset (id 19435006) permits repository-administrator bypass, so a completed, tested change set Maya has approved for release can go directly to `main`. Agents push or merge only after that approval, never enable auto-merge and never change branch protection or rulesets without her explicit authorization.
 
 **What the interim protection does not certify.** `pr-check` still runs `rls:validate` and `validate:form-rls`. They are validators of the retired provider authority: the REBNY RLS CSVs, the RESO field map and a RESO-to-RLS rename table. They are not provider authority and are not correct or canonical. They remain only until the first cleanup pull request removes them together with their old provider readers, writers and source files, and nothing requires or protects them.
 

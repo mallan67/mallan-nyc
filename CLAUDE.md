@@ -8,8 +8,9 @@
 
 > ## 🛑 AGENT STOP — provider + repository authority (read before ANY DB / Cotality / Vercel / deploy action)
 >
-> - **Work from GitHub, not Maya's Desktop.** The current GitHub branch/PR is repo truth. Do not create or
->   use Desktop worktrees, mirrors, scratch repos, or copied project folders.
+> - **GitHub is repo truth.** The current GitHub branch/PR is repo truth. There is exactly one authorized
+>   local working copy of this repository, a copy and never authority, at `C:\Users\MayaAllan\Desktop\mallan-nyc`.
+>   Do not create or use worktrees, mirrors, scratch repos, or copied project folders.
 > - **Canonical Production DB identity:** Vercel resource `neon-green-school` /
 >   `store_K9l79ICRUTMsiRh2` → Neon project `hidden-mountain-87248164` → branch `main`
 >   (`br-crimson-frog-adr7g9gt`) → endpoint `ep-cold-waterfall-adno3ao2`.
@@ -17,8 +18,8 @@
 >   guard; do not "clean" the stale identity out of safety code.
 > - **Do not assert `round-recipe-12208101` ownership/connectivity from old docs.** It is not visible in
 >   the currently accessible orgs; that means UNVERIFIED, not proof of absence.
-> - **Neon administration for mallan-nyc starts from Vercel:** `vercel integration open neon neon-green-school`
->   (SSO into the bound resource). Vercel manages the Marketplace binding; Neon manages objects inside the
+> - **Neon administration for mallan-nyc starts from Vercel:** `vercel integration open neon`
+>   (SSO into the bound resource; the CLI accepts the integration name only). Vercel manages the Marketplace binding; Neon manages objects inside the
 >   project. Reconcile any direct Neon read to the Vercel resource before using it as Mallan truth.
 > - **Dynamic facts must be re-read live.** Branch counts, env values, Preview provisioning, prune status,
 >   deployment state, and integration settings are not trustworthy merely because a repo doc says them.
@@ -36,13 +37,14 @@
 
 1. **NEON discipline** — READ `NEON.md` before any Prisma schema, migration, `prisma migrate deploy`, `prisma db push`, `vercel.json buildCommand`, `db-keepalive` cron, or new column / FK / index / table work. Failing to read it is how the 2026-04-19 silent-drift incident happened.
 2. **Source-of-truth charter** — READ `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` before creating, renaming, moving, or editing any file in search, CRM, featured/exclusives, neighborhoods/locations, media, listings, or IDX. No parallel `*-v2`/`*-new`/`*-final` files. No editing generated files (`public/crm/index-built.html` is built via `npm run crm:build`).
-3. **GitHub-only working-state rule** — Claude, ChatGPT and Codex perform repository work against the current GitHub branch/PR only. Do not mutate the repo from a local clone, Maya's Desktop, worktrees, project copies, or scratch folders. If Maya explicitly requests machine-local cleanup/evidence recovery, local files remain evidence only; repository mutations still happen through GitHub.
+3. **GitHub-only working-state rule** — Repository changes are published only through GitHub: a short-lived branch/PR, or a direct update to `main` that Maya approved (§B). The one authorized local working copy (see AGENT STOP) is a convenience copy, never authority. Do not create worktrees, mirrors, project copies, or scratch folders. If Maya explicitly requests machine-local cleanup/evidence recovery, local files remain evidence only.
 4. **Compliance-first** — see §D.
 5. **Fail-closed on rule conflict or missing canonical file** — see §E.
 6. **Proof-first on completion claims** — see §F.
-7. **Never start without explicit Maya approval:** PR 5B, external-inventory implementation, syndication exports / partner integrations, schema migrations, env-var changes, Neon settings, cron config, CRM frontend (`public/crm/**`), agents, skills, `.github/workflows/**`, manual cron triggers, reconciliation runs, admin merge bypass, force push to main. Provider mutations must be executed only through an authorized GitHub-controlled packet/workflow; direct Neon control-plane mutation is not an approved fallback.
+7. **Never start without explicit Maya approval:** PR 5B, external-inventory implementation, syndication exports / partner integrations, schema migrations, env-var changes, Neon settings, cron config, manual cron triggers, reconciliation runs, changes to branch protection or rulesets, force push to main. Code changes anywhere in the repository (including `public/crm/**`, agents, skills and `.github/workflows/**`) are cleanup scope under rule 10 and need no start approval; their release to `main` follows §B. Provider mutations must be executed only through an authorized GitHub-controlled packet/workflow; direct Neon control-plane mutation is not an approved fallback.
 8. **Never skip hooks** (`--no-verify`), never bypass signing (`--no-gpg-sign`), never amend a published commit.
 9. **`scripts/__pr147-soak-verify.mjs` stays UNTRACKED.** Do not commit it.
+10. **Repository-wide cleanup authority (Maya, 2026-10-14).** The entire Mallan repository is subject to cleanup, not only the CRM. Claude may autonomously identify, correct, consolidate and remove proven obsolete code, with no individual approval per file. "Proven" means the impact graph (Master §27.16) shows no live reader, writer or consumer and a test or live probe confirms behavior is unchanged. Present each completed, tested change set to Maya for approval before releasing unrelated product changes to `main`. Do not create duplicate systems (no `*-v2`/`*-new`/`*-final` files, no second authority document). Historical PRs and branches, including #647 and #630, are evidence only, never implementation authority, and are never merged wholesale.
 
 ---
 
@@ -58,7 +60,7 @@ Read:
 
 A historical audit, old PR, old branch, Desktop checkout, local worktree or chat transcript is evidence only and cannot grant scope.
 
-Changes reach `main` only through a pull request that passes the required `pr-check` and that Maya reviews and merges. The execution controller is retired and the protection is INTERIM (Master §27.15, §27.18): no Search, CMA, forms, CRM, listing or other product development merges until `main` is cleaned (Execution State §11). Agents never merge; only Maya does.
+Changes reach `main` in one of two ways (Master §27.18, amended 2026-10-14): (1) a short-lived pull request that passes the required `pr-check`, or (2) a direct update to `main` by the repository administrator, using the `Protect main` ruleset's admin bypass, for a completed, tested change set that Maya has approved for release. Force-push and deletion of `main` are blocked by a separate ruleset with no bypass. Agents prepare completed, tested change sets and present them to Maya; an agent pushes or merges to `main` only after Maya approves that release, and never enables auto-merge or edits rulesets without her explicit authorization. The execution controller is retired and the protection is INTERIM (Master §27.15, §27.18): unrelated Search, CMA, forms, CRM or listing feature development stays held until `main` is cleaned (Execution State §11); the cleanup itself proceeds autonomously (rule 10).
 
 
 ## C. Current holds (require explicit Maya approval before starting)
@@ -68,8 +70,8 @@ Changes reach `main` only through a pull request that passes the required `pr-ch
 | **PR 5B** — `refactor/05-listing-search-projection` (public reader swap from `listings.idx_display_yn` → `listing_search_projection.idx_display_yn`) | HELD | `memory/REFACTOR-2026-04-25.md` master plan + recurring Maya direction |
 | **External-inventory implementation** (OneKey / NY-State MLS / other non-REBNY feeds) | HELD | `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md`; spec at `docs/superpowers/specs/2026-04-30-external-inventory-listings-design.md` |
 | **Syndication exports / partner integrations** | HELD | `MALLAN_OFFICE_MLS_IDS=[]` in `lib/syndication/mallan-identity.ts`; Layer 1.PRE empty-config-guard blocks all rows (PR #162 + #163); no `/api/exports/*` route exists |
-| Schema migrations · env vars · Neon · cron config · CRM frontend (`public/crm/**`) · agents · skills · `.github/workflows/**` | HELD | Maya standing directive |
-| Manual cron triggers · reconciliation runs · admin merge bypass · force-push to main | HELD | Maya standing directive |
+| Schema migrations · env vars · Neon · cron config | HELD | Maya standing directive |
+| Manual cron triggers · reconciliation runs · ruleset changes · force-push to main | HELD | Maya standing directive (admin bypass of `main` only for an approved release, §B) |
 
 ---
 
@@ -136,7 +138,7 @@ npm run ops:health          # before major deploys (see NEON.md)
 
 Exit codes must be 0. Any `REGRESSIONS: N` where N > 0 from `ucba:audit` is a hard stop — fix the regression, do not edit the checklist to silence it.
 
-CI runs the same chain via `.github/workflows/pr-check.yml`. Don't merge with red checks; don't admin-bypass.
+CI runs the same chain via `.github/workflows/pr-check.yml`. Don't merge with red checks. Use admin bypass of `main` only for a release Maya approved (§B).
 
 ---
 

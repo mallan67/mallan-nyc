@@ -14,7 +14,7 @@
 >   2026-06-01. Current topology must be re-read through the Vercel-managed resource.
 > - **Direct Neon control is DELETED.** The old prune, cleanup and rotation paths were removed from
 >   lifecycle authority and may not mutate Neon directly.
-> - The Vercel-managed Neon entry path is `vercel integration open neon neon-green-school` (SSO).
+> - The Vercel-managed Neon entry path is `vercel integration open neon` (SSO).
 > - Do not change DB env, resource scope, Neon settings, branch lifecycle, or rotation without Maya approval.
 >
 **Status:** OPEN · REPORT-ONLY · No env vars changed. No projects altered. No automation modified. Sister doc: `docs/architecture/NEON-COST-CONTROL-POLICY.md`.
@@ -203,7 +203,7 @@ Any separate public-records project must remain operationally isolated. Mallan-n
 | Production endpoint identity | `ep-cold-waterfall-adno3ao2` |
 | Resource environment connection | All Environments at time of 2026-09-18 audit; re-read live before changing |
 | Branch history in Production project | **UNVERIFIED as lifetime history.** 2026-09-18 current/deleted response returned `main` only; historical repo evidence records 8 branches (2026-05-17) and ~40 (2026-06-01). |
-| Vercel SSO entry | `vercel integration open neon neon-green-school` |
+| Vercel SSO entry | `vercel integration open neon` |
 
 The old statement that Preview branches "live here" is superseded. Historical auto-created Preview branches are
 in the stale `morning-bread` project, not in current Production.
@@ -335,7 +335,7 @@ DIRECT-NEON PRUNE:
   ops:health does not use historical prune audit events as current branch proof.
 
 ACCESS:
-  vercel integration open neon neon-green-school
+  vercel integration open neon
   -> Vercel SSO into the bound Neon project.
 
 UNVERIFIED:
