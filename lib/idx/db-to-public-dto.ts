@@ -33,6 +33,8 @@ import {
 
 import { normalizeStreetCase } from './normalize-street-case';
 import { resolveListingAgentInfo } from '@/lib/listings/agent-info-resolver';
+import { isMallanLocalListing } from '@/lib/listings/mallan-source-identity';
+import { classifyTourUrl } from '@/lib/media/listing-media-resolver';
 
 /** Borough → County mapping (reverse of display-adapter) */
 const BOROUGH_TO_COUNTY: Record<string, string> = {
@@ -601,10 +603,25 @@ export function dbListingToPublicDTO(
     // Days on Market
     daysOnMarket: rawData.DaysOnMarket != null ? Number(rawData.DaysOnMarket) : undefined,
     cumulativeDaysOnMarket: rawData.CumulativeDaysOnMarket != null ? Number(rawData.CumulativeDaysOnMarket) : undefined,
-    // Virtual tour + video — host-split (YouTube/Vimeo → video; Matterport/3D → tour),
-    // unbranded preferred over branded (UCBA Art. I §5(C)). See tourUrlsForDto.
+    // Virtual tour + video: the authored Sale Form also stores two
+    // website-only input names (saleVideoUrl / saleVideoTourUrl).
+    // Previously those values persisted but were NEVER read for public video.
+    // Read them ONLY for Mallan-authored local SL-/RL- rows, NEVER for an RLS
+    // source-owned return-copy or unrelated third-party listing. Only absolute
+    // HTTPS video URLs pass; classification reuses the canonical media owner.
+    // Provider unbranded URLs win over local fallback; branded stays separate.
     ...tourUrlsForDto(
-      [rawData.VirtualTourURLUnbranded, rawData.VirtualTourURLUnbranded2, rawData.VirtualTourURLUnbranded3],
+      [
+        rawData.VirtualTourURLUnbranded,
+        rawData.VirtualTourURLUnbranded2,
+        rawData.VirtualTourURLUnbranded3,
+        ...(isMallanLocalListing(listing)
+          ? [rawData.saleVideoUrl, rawData.saleVideoTourUrl].filter(
+              (url) => typeof url === 'string' &&
+                /^https:\/\//i.test(url) && classifyTourUrl(url) === 'video',
+            )
+          : []),
+      ],
       rawData.VirtualTourURLBranded,
     ),
     // FARE Act fee transparency

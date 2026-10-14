@@ -128,3 +128,50 @@ describe('auth login full flow', () => {
     expect(setCookie).toMatch(/session_token=session-token-abc/);
   });
 });
+
+
+/**
+ * Server-auth redirects to /crm/login.html?id=SL-0004&redirect=%2Fcrm%2Fsale-listing.
+ * The LOGIN UI must preserve the ID on its permitted same-origin return route.
+ * Execute the exact production helper, not a reimplementation.
+ */
+describe('CRM existing-listing post-login deep link', () => {
+  const { readFileSync } = require('node:fs') as typeof import('node:fs');
+  const { resolve } = require('node:path') as typeof import('node:path');
+  const html = readFileSync(resolve(__dirname, '../../public/crm/login.html'), 'utf8');
+  const begin = html.indexOf('function getRedirectTarget() {');
+  const end = html.indexOf('function redirectAfterLogin() {', begin);
+  const source = html.slice(begin, end);
+  const targetFor = (search: string): string => {
+    const run = new Function('window', 'URLSearchParams', 'URL', source + '\nreturn getRedirectTarget();');
+    return run({ location: { origin: 'https://mallan.nyc', search } }, URLSearchParams, URL) as string;
+  };
+
+  it('keeps SL-0004 on the Sale editor through login', () => {
+    expect(targetFor('?id=SL-0004&redirect=%2Fcrm%2Fsale-listing'))
+      .toBe('/crm/sale-listing?id=SL-0004');
+  });
+  it('does not override an already explicit listing ID', () => {
+    expect(targetFor('?id=SL-0004&redirect=%2Fcrm%2Fsale-listing%3Fid%3DSL-0009'))
+      .toBe('/crm/sale-listing?id=SL-0009');
+  });
+  it('preserves Rental editor ID but never leaks it to the dashboard', () => {
+    expect(targetFor('?id=RL-0044&redirect=%2Fcrm%2Frental-listing'))
+      .toBe('/crm/rental-listing?id=RL-0044');
+    expect(targetFor('?id=SL-0004&redirect=%2Fcrm%2Fdashboard'))
+      .toBe('/crm/dashboard');
+  });
+  it('rejects external URLs, path tricks, and invalid identifier characters', () => {
+    expect(targetFor('?redirect=https%3A%2F%2Fevil.example')).toBe('/crm/dashboard');
+    expect(targetFor('?redirect=%2F%2Fevil.example')).toBe('/crm/dashboard');
+    expect(targetFor('?id=SL-0004%2Fedit&redirect=%2Fcrm%2Fsale-listing'))
+      .toBe('/crm/sale-listing');
+  });
+  it('does not turn a failed existing-record load into an empty create workflow', () => {
+    const form = readFileSync(resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'), 'utf8');
+    expect(form).toContain("function loginKeepingEditorId()");
+    expect(form).toContain("saleExistingEditGate");
+    expect(form).toContain("failEditLoad(message)");
+    expect(form).toContain("if (editGate) editGate.style.display = 'none'");
+  });
+});

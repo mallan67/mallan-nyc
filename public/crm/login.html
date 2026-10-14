@@ -398,8 +398,19 @@
         function getRedirectTarget() {
             var params = new URLSearchParams(window.location.search);
             var explicit = params.get('redirect');
-            // Only allow relative paths starting with /crm/ or /admin/
+            // Only same-origin CRM/admin paths may be used as post-login targets.
             if (explicit && /^\/(?:crm|admin)(?:\/|$|\?|#)/.test(explicit)) {
+                // CRM auth redirects may place ?id=SL-0004 on the LOGIN URL
+                // while redirect points to /crm/sale-listing without that ID.
+                // Preserve the editor's identity before leaving login so
+                // an existing record cannot accidentally open as "New".
+                var id = params.get('id');
+                if (id && /^[A-Za-z0-9_-]{1,100}$/.test(id) &&
+                    /^\/crm\/(?:sale|rental)-listing(?:[?#]|$)/.test(explicit)) {
+                    var dest = new URL(explicit, window.location.origin);
+                    if (!dest.searchParams.has('id')) dest.searchParams.set('id', id);
+                    return dest.pathname + dest.search + dest.hash;
+                }
                 return explicit;
             }
             return '/crm/dashboard';

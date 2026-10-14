@@ -35,18 +35,19 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "50") || 50, 1), 200);
   const offset = parseInt(searchParams.get("offset") || "0");
 
-  // Build where clause with ownership enforcement.
-  // CRM My Listings shows: (1) CRM-created listings (no mls_id — SL-/RL- prefix),
-  // and (2) closed/terminal Trestle-synced deals. Active/Pending Trestle listings
-  // are managed via REBNY RLS directly, not through the CRM.
-  const TRESTLE_CLOSED = ["Closed", "Sold", "Leased", "Rented"];
+  // My Listings is an EDITABLE MALLAN-AUTHORED list, not every brokerage's
+  // terminal RLS record. Include SL-/RL- regardless of mls_id, which may be
+  // populated after RLS reconciliation. Keep website-only authored rows.
+  // Incoming Cotality return-copies remain read-only in the history/search
+  // workspace; never put them behind this UI's "Edit Listing" button.
   const CRM_HIDDEN = ["Withdrawn", "Cancelled"];
-  const crmCreated = { mls_id: null, listing_id: { startsWith: "SL-" }, status: { notIn: CRM_HIDDEN } };
-  const crmCreatedRental = { mls_id: null, listing_id: { startsWith: "RL-" }, status: { notIn: CRM_HIDDEN } };
-  const trestleClosed = { mls_id: { not: null }, status: { in: TRESTLE_CLOSED } };
-
   const where: Record<string, unknown> = {
-    OR: [crmCreated, crmCreatedRental, trestleClosed],
+    OR: [
+      { listing_id: { startsWith: "SL-" } },
+      { listing_id: { startsWith: "RL-" } },
+      { rls_eligible: false, last_synced_from_trestle: null },
+    ],
+    status: { notIn: CRM_HIDDEN },
   };
 
   // Ownership: agent sees only their own, broker sees all
