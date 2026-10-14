@@ -105,7 +105,11 @@ function loadMyListingsFromAPI(callback) {
     MallanAPI.listings.list({ limit: 200 }).then(function(data) {
         var apiListings = data.listings || [];
         if (apiListings.length > 0) {
-            myManagementListings = apiListings.map(_mapApiListingToManage);
+            // This legacy manager has inline mutating controls. RLS return-copies
+            // remain visible in the canonical dashboard, never editable here.
+            myManagementListings = apiListings.filter(function(l) {
+                return l.source_managed !== true;
+            }).map(_mapApiListingToManage);
         }
         _manageListingsLoaded = true;
         _manageListingsLoading = false;

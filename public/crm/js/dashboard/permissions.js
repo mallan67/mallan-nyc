@@ -117,6 +117,11 @@ var Permissions = (function () {
     return can('upload_scoped_doc');
   }
   function canEditListing(listing) {
+    if (!listing || listing.source_managed === true || listing.can_edit === false) return false;
+    // The authenticated server's capability result takes precedence.
+    if (listing.can_edit === true) return true;
+    // Old responses lacking capability data fail closed for feed-owned rows.
+    if (listing.mls_id || listing.last_synced_from_trestle) return false;
     if (can('edit_all_listings')) return true;
     return can('edit_own_listing', listing);
   }

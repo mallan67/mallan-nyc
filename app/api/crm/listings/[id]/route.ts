@@ -86,6 +86,12 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   // the existing CRM-tier PII boundary in sanitizeForCRM is unchanged.
   sanitized.list_agent_full_name = listing.list_agent_full_name ?? null;
   sanitized.list_office_name = listing.list_office_name ?? null;
+  const caps = listingCapabilities(auth, listing);
+  const sourceManaged = Boolean(listing.mls_id || listing.last_synced_from_trestle) &&
+    !/^(SL-|RL-)/.test(listing.listing_id);
+  sanitized.source_class = sourceManaged ? "mallan-rls-return-copy" : caps.sourceClass;
+  sanitized.source_managed = sourceManaged;
+  sanitized.can_edit = !sourceManaged && caps.mayManageMallanLocalListing;
 
   return NextResponse.json(sanitized);
 }

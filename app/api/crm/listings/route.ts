@@ -17,6 +17,8 @@ import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { buildPublishContract } from "@/lib/crm/listing-publish-contract";
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
 import { composeDbPublicMedia } from "@/lib/media/db-media-composition";
+import { MALLAN_LIST_OFFICE_MLS_IDS } from "@/lib/listings/mallan-source-identity";
+import { listingCapabilities } from "@/lib/auth/listing-capabilities";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -35,18 +37,19 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "50") || 50, 1), 200);
   const offset = parseInt(searchParams.get("offset") || "0");
 
-  // Build where clause with ownership enforcement.
-  // CRM My Listings shows: (1) CRM-created listings (no mls_id — SL-/RL- prefix),
-  // and (2) closed/terminal Trestle-synced deals. Active/Pending Trestle listings
-  // are managed via REBNY RLS directly, not through the CRM.
-  const TRESTLE_CLOSED = ["Closed", "Sold", "Leased", "Rented"];
+  // My Listings is a brokerage LIST-SIDE view, not the citywide IDX universe.
+  // Mallan-authored SL-/RL- listings are editable; our Cotality return-copies
+  // are internally visible but remain provider-owned and read-only.
   const CRM_HIDDEN = ["Withdrawn", "Cancelled"];
   const crmCreated = { mls_id: null, listing_id: { startsWith: "SL-" }, status: { notIn: CRM_HIDDEN } };
   const crmCreatedRental = { mls_id: null, listing_id: { startsWith: "RL-" }, status: { notIn: CRM_HIDDEN } };
-  const trestleClosed = { mls_id: { not: null }, status: { in: TRESTLE_CLOSED } };
-
+  const mallanRlsListings = {
+    mls_id: { not: null },
+    list_office_mls_id: { in: [...MALLAN_LIST_OFFICE_MLS_IDS] },
+    status: { notIn: CRM_HIDDEN },
+  };
   const where: Record<string, unknown> = {
-    OR: [crmCreated, crmCreatedRental, trestleClosed],
+    OR: [crmCreated, crmCreatedRental, mallanRlsListings],
   };
 
   // Ownership: agent sees only their own, broker sees all
@@ -67,6 +70,8 @@ export async function GET(req: NextRequest) {
         id: true,
         listing_id: true,
         mls_id: true,
+        list_office_mls_id: true,
+        last_synced_from_trestle: true,
         agent_id: true,
         status: true,
         listing_type: true,
@@ -159,6 +164,9 @@ export async function GET(req: NextRequest) {
   // are destructured out so the response contract stays exactly as it was.
   const serialized = listings.map((l) => {
     const { listing_media, _count, ...rest } = l;
+    const caps = listingCapabilities(auth, l);
+    const sourceManaged = Boolean(l.mls_id || l.last_synced_from_trestle) &&
+      !/^(SL-|RL-)/.test(l.listing_id);
     const { media } = composeDbPublicMedia({
       listingId: l.listing_id,
       rlsEligible: l.rls_eligible,
@@ -175,6 +183,9 @@ export async function GET(req: NextRequest) {
       assigned_agent_id: l.agent_id?.toString() ?? null,
       list_price: l.list_price.toString(),
       living_area: l.living_area?.toString() ?? null,
+      source_class: sourceManaged ? "mallan-rls-return-copy" : caps.sourceClass,
+      source_managed: sourceManaged,
+      can_edit: !sourceManaged && caps.mayManageMallanLocalListing,
       media,
     };
   });
