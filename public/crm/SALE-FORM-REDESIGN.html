@@ -108,22 +108,37 @@ body { font-family: Manrope, sans-serif; }
 // NOTE: session_token is httpOnly — JS cannot read it via document.cookie.
 // Use MallanAPI.init() which calls /api/auth/me with credentials: 'include'.
 (function() {
+    // Carry the exact sale editor URL through an expired-session/login cycle.
+    // Bare /crm/login.html used to discard ?id=SL-XXXX, opening a NEW form.
+    function loginKeepingEditorId() {
+        var returnPath = window.location.pathname + window.location.search;
+        window.location.replace('/crm/login.html?redirect=' + encodeURIComponent(returnPath));
+    }
     if (typeof MallanAPI !== 'undefined') {
         MallanAPI.init().then(function(d) {
-            if (!d.authenticated) window.location.href = '/crm/login.html';
-        }).catch(function() {
-            window.location.href = '/crm/login.html';
-        });
+            if (!d.authenticated) loginKeepingEditorId();
+        }).catch(loginKeepingEditorId);
     } else {
-        window.location.href = '/crm/login.html';
+        loginKeepingEditorId();
     }
-    window.addEventListener('mallan:auth:unauthorized', function() {
-        window.location.href = '/crm/login.html';
-    });
+    window.addEventListener('mallan:auth:unauthorized', loginKeepingEditorId);
 })();
 </script>
 </head>
 <body class="bg-gray-50 min-h-screen">
+<!-- An existing-record edit may NEVER be mistaken for an empty create form. -->
+<div id="saleExistingEditGate" role="status" aria-live="polite" style="display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;background:rgba(248,250,252,.97);padding:24px;">
+  <div style="max-width:480px;background:#fff;border:1px solid #d1d5db;border-radius:12px;padding:28px;text-align:center;box-shadow:0 15px 50px rgba(0,0,0,.12);">
+    <h2 style="font-weight:700;font-size:20px;color:#111827;margin-bottom:12px;">Opening existing sale listing</h2>
+    <p id="saleExistingEditGateMessage" style="font-size:14px;color:#374151;">Loading the saved listing. Do not enter a new listing.</p>
+    <button id="saleExistingEditRetry" type="button" style="display:none;margin-top:16px;background:#b8860b;color:white;padding:10px 18px;border-radius:8px;" onclick="window.location.reload()">Retry loading this listing</button>
+  </div>
+</div>
+<script>
+  if (new URLSearchParams(window.location.search).has('id')) {
+    document.getElementById('saleExistingEditGate').style.display = 'flex';
+  }
+</script>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
 <!-- HEADER BAR                                                 -->
@@ -9110,11 +9125,19 @@ function _checkSaleEditMode() {
     _saleEditMode = true;
     _saleEditDbId = id;
 
-    // Show loading indicator
+    // Never allow an ID-bearing edit URL to behave as a new listing.
+    var editGate = document.getElementById('saleExistingEditGate');
+    var editGateMessage = document.getElementById('saleExistingEditGateMessage');
+    var editRetry = document.getElementById('saleExistingEditRetry');
+    function failEditLoad(message) {
+        if (editGateMessage) editGateMessage.textContent = 'Cannot load saved listing ' + id + ': ' + message + '. Do not create or save a new listing.';
+        if (editRetry) editRetry.style.display = 'inline-block';
+        if (editGate) editGate.style.display = 'flex';
+    }
     showToast('Loading listing...', 'info');
 
     if (typeof MallanAPI === 'undefined' || !MallanAPI.listings) {
-        showToast('API not available — cannot load listing', 'error');
+        failEditLoad('API not available');
         return;
     }
 
@@ -9147,6 +9170,12 @@ function _checkSaleEditMode() {
             clearTimeout(autoSaveTimer);
             window._saleAutoSaveReady = true;
         });
+        // Only release the blocking overlay once the correct record is loaded.
+        if (String(_saleEditListingId) !== String(id) && String(listing.id) !== String(id)) {
+            failEditLoad('returned a different listing');
+            return;
+        }
+        if (editGate) editGate.style.display = 'none';
         showToast('Listing loaded: ' + (_saleEditListingId || id), 'success');
 
         // Update header to show edit mode
@@ -9161,7 +9190,9 @@ function _checkSaleEditMode() {
             btn.textContent = btn.textContent.replace(/Submit|Create/gi, 'Update');
         });
     }).catch(function(err) {
-        showToast('Failed to load listing: ' + err.message, 'error');
+        var message = err && err.message ? err.message : 'unknown error';
+        failEditLoad(message);
+        showToast('Failed to load listing: ' + message, 'error');
     });
 }
 

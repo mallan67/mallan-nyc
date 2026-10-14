@@ -264,3 +264,19 @@ describe('PR-CRM.4 — pre-existing behavior is preserved', () => {
     expect(firstArg.where.status).toBe('Active');
   });
 });
+
+
+describe('CRM My Listings selects only Mallan-authored records (ORM behavior)', () => {
+  beforeEach(() => clearAll());
+  it('uses SL/RL and unsynced website-only predicates without mls_id null or unscoped terminal RLS', async () => {
+    await listingsGET(makeGetRequest('http://localhost/api/crm/listings?limit=50'));
+    const args = listingFindMany.mock.calls[0][0] as { where: { OR: Array<Record<string, unknown>>, status: unknown } };
+    expect(args.where.OR).toEqual([
+      { listing_id: { startsWith: 'SL-' } },
+      { listing_id: { startsWith: 'RL-' } },
+      { rls_eligible: false, last_synced_from_trestle: null },
+    ]);
+    expect(args.where.status).toEqual({ notIn: ['Withdrawn', 'Cancelled'] });
+    expect(listingCount.mock.calls[0][0]).toEqual({ where: args.where });
+  });
+});

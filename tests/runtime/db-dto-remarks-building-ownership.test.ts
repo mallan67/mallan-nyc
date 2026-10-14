@@ -127,3 +127,41 @@ describe('the live RLS20105333 shape survives both corrections', () => {
     expect(dto.buildingName).toBe('The Monroe');
   });
 });
+
+
+describe('Mallan-authored website video field to public Video tab', () => {
+  it('renders website Video URL that a sale form saved in saleVideoUrl', () => {
+    const dto = dbListingToPublicDTO(row({
+      listing_id: 'SL-0004', agent_id: 1n,
+      raw_data: { saleVideoUrl: 'https://youtu.be/bawq6mNSd30' },
+    }));
+    expect(dto.videoUrl).toBe('https://youtu.be/bawq6mNSd30');
+  });
+  it('uses canonical unbranded provider-style URL first when both supplied', () => {
+    const dto = dbListingToPublicDTO(row({
+      listing_id: 'SL-0004', agent_id: 1n,
+      raw_data: {
+        VirtualTourURLUnbranded: 'https://vimeo.com/123',
+        saleVideoUrl: 'https://youtu.be/bawq6mNSd30',
+      },
+    }));
+    expect(dto.videoUrl).toBe('https://vimeo.com/123');
+  });
+  it('third-party or returned Cotality row never uses Mallan-only video field', () => {
+    const dto = dbListingToPublicDTO(row({
+      listing_id: 'RLS20093870',
+      raw_data: { saleVideoUrl: 'https://youtu.be/bawq6mNSd30' },
+    }));
+    expect(dto.videoUrl).toBeUndefined();
+  });
+  it('does not publish non-HTTPS or non-video source as website video', () => {
+    expect(dbListingToPublicDTO(row({
+      listing_id: 'SL-0004',
+      raw_data: { saleVideoUrl: 'javascript:alert(1)' },
+    })).videoUrl).toBeUndefined();
+    expect(dbListingToPublicDTO(row({
+      listing_id: 'SL-0004',
+      raw_data: { saleVideoUrl: 'https://my.matterport.com/show/?m=foo' },
+    })).videoUrl).toBeUndefined();
+  });
+});
