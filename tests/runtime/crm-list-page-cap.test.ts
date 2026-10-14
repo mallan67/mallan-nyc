@@ -245,6 +245,23 @@ describe('PR-CRM.4 — listings GET enforces the [1, 200] cap at runtime', () =>
 // ═══════════════════════════════════════════════════════════════════════
 // Existing behavior preserved — auth + filter params still work
 // ═══════════════════════════════════════════════════════════════════════
+describe('CRM My Listings — runtime brokerage-office query boundary', () => {
+  beforeEach(() => clearAll());
+
+  it('filters synced listings by Mallan office and does not limit them to Closed', async () => {
+    await listingsGET(makeGetRequest('http://localhost/api/crm/listings?limit=50'));
+    const arg = listingFindMany.mock.calls[0][0] as { where: { OR: Array<Record<string, unknown>> } };
+    expect(arg.where.OR).toHaveLength(3);
+    expect(arg.where.OR[2]).toMatchObject({
+      mls_id: { not: null },
+      list_office_mls_id: { in: ['7041'] },
+      status: { notIn: expect.arrayContaining(['Withdrawn']) },
+    });
+    expect(arg.where.OR[2]).not.toHaveProperty('status.in');
+    expect(listingCount.mock.calls[0][0]).toEqual({ where: arg.where });
+  });
+});
+
 describe('PR-CRM.4 — pre-existing behavior is preserved', () => {
   beforeEach(() => clearAll());
 

@@ -9286,7 +9286,7 @@ var Panels = (function () {
 
     // Load from BOTH DB (all statuses including closed/expired) AND past deals
     Promise.all([
-      MallanAPI.listings.list({ limit: 500 }).catch(function () { return { listings: [] }; }),
+      MallanAPI.listings.list({ limit: 200 }),
       MallanAPI._fetch('/api/crm/past-deals?limit=200').catch(function () { return { deals: [] }; }),
     ]).then(function (r) {
       var dbListings = r[0].listings || [];
@@ -9334,6 +9334,7 @@ var Panels = (function () {
       // Compute per-listing flags
       var now = new Date();
       _myListingsData.forEach(function (l) {
+        l._sourceManaged = l.source_managed === true;
         var dom = l.cumulative_dom || l.days_on_market || 0;
         var hasPhotos = (l.photos && l.photos.length > 0) || (l.Media && l.Media.length > 0);
         l._isStale = dom > 60 && (l.status === 'Active' || l.status === 'active');
@@ -9486,7 +9487,7 @@ var Panels = (function () {
     }
 
     // REBNY weekly refresh alert
-    var needsRefresh = listings.filter(function (l) { return l._needsRefresh; });
+    var needsRefresh = listings.filter(function (l) { return l._needsRefresh && !l._sourceManaged; });
     if (needsRefresh.length > 0) {
       html += '<div class="p-3 border border-red-300 rounded-lg bg-red-50">' +
         '<p class="text-sm font-semibold text-red-800"><i class="fas fa-sync-alt mr-1"></i> ' + needsRefresh.length + ' listing' + (needsRefresh.length > 1 ? 's' : '') + ' need REBNY weekly refresh</p>' +
@@ -9601,7 +9602,8 @@ var Panels = (function () {
         }
 
         html += '<tr class="border-b hover:bg-gray-50 cursor-pointer" onclick="Router.navigate(\'/workspace/listing/' + E(lid) + '/overview\')">' +
-          '<td class="px-3 py-2"><p class="text-sm font-medium text-gray-900">' + E(addr) + '</p></td>' +
+          '<td class="px-3 py-2"><p class="text-sm font-medium text-gray-900">' + E(addr) + '</p>' +
+            (l._sourceManaged ? '<p class="text-xs text-amber-700">RLS-managed · ' + E(l.mls_id || l.listing_id || '') + ' — update with listing provider</p>' : '') + '</td>' +
           '<td class="px-3 py-2 text-xs text-gray-500">' + E(l._isRental ? 'Rental' : 'Sale') + '</td>' +
           '<td class="px-3 py-2 text-sm font-semibold">' + $(price) + '</td>' +
           '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'Active') + '</td>' +
@@ -9616,7 +9618,9 @@ var Panels = (function () {
             (l._fromPastDeals
               ? '<button class="btn btn-sm btn-outline" onclick="Panels._editPastDeal(\'' + E(l._pastDealId || l.id) + '\')" title="Edit Past Deal"><i class="fas fa-edit"></i></button>' +
                 '<button class="btn btn-sm btn-outline text-red-500 hover:text-red-700" onclick="Panels._deletePastDeal(\'' + E(l._pastDealId || l.id) + '\')" title="Delete Past Deal"><i class="fas fa-trash"></i></button>'
-              : '<button class="btn btn-sm btn-gold" onclick="openListingCampaign(\'' + E(l.listing_id || lid) + '\')" title="Eblast investors — create the investor / 1031 marketing email from this listing"><i class="fas fa-paper-plane mr-1"></i>Eblast Investors</button>' +
+              : l._sourceManaged
+                ? '<span class="text-xs text-amber-700 font-medium" title="Cotality source owned: edit in the RLS listing management provider">RLS-managed · view only</span>'
+                : '<button class="btn btn-sm btn-gold" onclick="openListingCampaign(\'' + E(l.listing_id || lid) + '\')" title="Eblast investors — create the investor / 1031 marketing email from this listing"><i class="fas fa-paper-plane mr-1"></i>Eblast Investors</button>' +
                 '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/' + (l._isRental ? 'rental' : 'sale') + '-listing?id=' + E(lid) + '\',\'_blank\')" title="Edit Listing"><i class="fas fa-edit"></i></button>' +
                 '<button class="btn btn-sm btn-outline" onclick="Panels._addOpenHouse(\'' + E(lid) + '\',\'' + E(addr) + '\')" title="Add Open House"><i class="fas fa-door-open"></i></button>' +
                 (!l.mls_id ? '<button class="btn btn-sm btn-outline text-red-500 hover:text-red-700" onclick="Panels._deleteListing(\'' + E(lid) + '\',\'' + E(addr) + '\')" title="Withdraw Listing"><i class="fas fa-trash"></i></button>' : '')) +
