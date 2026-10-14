@@ -30,6 +30,7 @@ import {
 } from '@/lib/listings/mallan-source-identity';
 import { buildAddressKeyFromDbRow } from '@/lib/listings/dedupe-crm-vs-idx';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
+import { tourUrlsForDto } from '@/lib/media/listing-media-resolver';
 
 /** The row shape this decision needs. `address` is the raw Prisma JSON column. */
 export interface ReturnCopyCandidateRow extends MallanSourceIdentityRow {
@@ -93,4 +94,81 @@ export function resolveReturnCopyCanonicalTarget(
   }
 
   return { kind: 'redirect', path, listingId };
+}
+
+/**
+ * Read-only publication refresh for a Mallan-authored listing with ONE
+ * independently verified list-office return-copy of the SAME PHYSICAL UNIT.
+ *
+ * This does not transfer ownership to Cotality, write to the returned record,
+ * or change the local listing's persisted business data. It only allows newer,
+ * public, unbranded description/video evidence from the owner's RLS submission
+ * to appear on the ONE Mallan canonical detail page while the CRM record is stale.
+ *
+ * No fuzzy names, broker-name guesses, address-only matches, or fallback to
+ * third-party inventory. Source display gates fail closed.
+ */
+export interface MallanPublicRefreshRow extends ReturnCopyCandidateRow {
+  modification_timestamp?: Date | string | null;
+  status?: string | null;
+  idx_display_yn?: boolean | null;
+  internet_entire_listing_display_yn?: boolean | null;
+  owner_opt_out?: boolean | null;
+  participant_only?: boolean | null;
+  raw_data?: unknown;
+}
+export interface MallanPublicRefresh {
+  sourceListingId: string;
+  publicRemarks?: string;
+  videoUrl?: string;
+  virtualTourURL?: string;
+}
+
+function safePublicRemarkText(input: unknown): string | undefined {
+  if (typeof input !== 'string' || !input.trim()) return undefined;
+  const value = input
+    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
+    .replace(/<br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/p\s*>/gi, '\n\n')
+    .replace(/<[^>]*>/g, '')
+    .trim();
+  return value || undefined;
+}
+
+/** All candidates must be same-unit, office-verified, Active and public-permitted. */
+export function reconcileMallanPublicReturnCopy(
+  local: MallanPublicRefreshRow,
+  candidates: ReadonlyArray<MallanPublicRefreshRow>,
+): MallanPublicRefresh | null {
+  if (!isMallanLocalListing(local) || local.rls_eligible === false) return null;
+  const key = buildAddressKeyFromDbRow(local);
+  if (!key) return null;
+  const matching = candidates.filter(
+    c => isMallanRlsReturnCopy(c) &&
+      c.status === 'Active' &&
+      c.idx_display_yn === true &&
+      c.internet_entire_listing_display_yn === true &&
+      c.owner_opt_out !== true &&
+      c.participant_only !== true &&
+      buildAddressKeyFromDbRow(c) === key,
+  );
+  // Multiple return copies for the same unit are an unresolved identity conflict.
+  if (matching.length !== 1) return null;
+  const source = matching[0];
+  const data = source.raw_data && typeof source.raw_data === 'object' && !Array.isArray(source.raw_data)
+    ? source.raw_data as Record<string, unknown> : {};
+  const tours = tourUrlsForDto(
+    [data.VirtualTourURLUnbranded, data.VirtualTourURLUnbranded2, data.VirtualTourURLUnbranded3],
+  );
+  const sourceTime = source.modification_timestamp ? new Date(source.modification_timestamp).getTime() : NaN;
+  const localTime = local.modification_timestamp ? new Date(local.modification_timestamp).getTime() : NaN;
+  const remarks = Number.isFinite(sourceTime) && Number.isFinite(localTime) && sourceTime > localTime
+    ? safePublicRemarkText(data.PublicRemarks) : undefined;
+  if (!remarks && !tours.videoUrl && !tours.virtualTourURL) return null;
+  return {
+    sourceListingId: String(source.listing_id),
+    ...(remarks ? { publicRemarks: remarks } : {}),
+    ...(tours.videoUrl ? { videoUrl: tours.videoUrl } : {}),
+    ...(tours.virtualTourURL ? { virtualTourURL: tours.virtualTourURL } : {}),
+  };
 }

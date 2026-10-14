@@ -5,7 +5,8 @@ import Link from 'next/link';
 // performs is a canonicalization, and canonicalization is permanent (308).
 import { notFound, permanentRedirect } from 'next/navigation';
 import { isMallanRlsReturnCopy } from '@/lib/listings/mallan-source-identity';
-import { resolveReturnCopyCanonicalTarget } from '@/lib/listings/return-copy-canonical';
+import { reconcileMallanPublicReturnCopy, resolveReturnCopyCanonicalTarget } from '@/lib/listings/return-copy-canonical';
+import { MALLAN_LIST_OFFICE_MLS_IDS, isMallanLocalListing } from '@/lib/listings/mallan-source-identity';
 import AgentAvatar from '@/app/components/AgentAvatar';
 import InquiryForm from '@/app/components/InquiryForm';
 import PriceWithCalculator from '@/app/components/PriceWithCalculator';
@@ -218,6 +219,7 @@ interface ListingFetchListing {
   listing: PublicListingDTO;
   tax: TrestleExtraFields;
   rawStreetName?: string;
+  relatedReturnCopyId?: string;
 }
 
 /**
@@ -610,6 +612,34 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     // SL-/RL- prefix — that exposed RLS-eligible opt-out addresses; reverted.)
     const suppressAddress = isRlsBacked && !canDisplayListingAddress(dbListing);
 
+    // An owner's current RLS submission may contain newer remarks and an unbranded
+    // video that the original Mallan SL-/RL- record has not yet received through
+    // its CRM form. The RLS row remains read-only and publicly suppressed.
+    // Recover ONLY its approved media/public remarks for a verified same-unit
+    // listing at our own official office. No live provider request here.
+    let publishedReturnCopy: ReturnType<typeof reconcileMallanPublicReturnCopy> = null;
+    const unit = String(addr.UnitNumber || '').trim();
+    if (isMallanLocalListing(dbListing) && dbListing.rls_eligible !== false &&
+        unit && dbListing.postal_code) {
+      const returned = await prisma.listing.findMany({
+        where: {
+          list_office_mls_id: { in: [...MALLAN_LIST_OFFICE_MLS_IDS] },
+          status: 'Active',
+          postal_code: dbListing.postal_code,
+          address: { path: ['UnitNumber'], equals: unit },
+        },
+        select: {
+          listing_id: true, rls_eligible: true, list_office_mls_id: true,
+          address: true, raw_data: true, modification_timestamp: true,
+          status: true, idx_display_yn: true,
+          internet_entire_listing_display_yn: true,
+          owner_opt_out: true, participant_only: true,
+        },
+        take: 50,
+      });
+      publishedReturnCopy = reconcileMallanPublicReturnCopy(dbListing, returned);
+    }
+
     // ── ONE PUBLIC DTO OWNER ────────────────────────────────────────────
     // The base public DTO now comes from the canonical builder instead of being
     // rebuilt here. The detail query already supplies exactly what it consumes:
@@ -631,6 +661,14 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
 
     const dto: PublicListingDTO = {
       ...baseDto,
+      // Verified, newer Mallan RLS return-copy: update the ONE public canonical
+      // page without creating a second listing or overwriting Mallan's DB row.
+      ...(publishedReturnCopy?.publicRemarks
+        ? { publicRemarks: publishedReturnCopy.publicRemarks } : {}),
+      ...(!baseDto.videoUrl && publishedReturnCopy?.videoUrl
+        ? { videoUrl: publishedReturnCopy.videoUrl } : {}),
+      ...(!baseDto.virtualTourURL && publishedReturnCopy?.virtualTourURL
+        ? { virtualTourURL: publishedReturnCopy.virtualTourURL } : {}),
       // DETAIL-ONLY enrichment. The page shows a richer Mallan-owned agent card
       // (photo, title, license type, public slug) than the shared builder emits.
       // Exposure stays gated by the CANONICAL base: if the base DTO withheld
@@ -646,6 +684,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
       listing: dto,
       tax: { taxBlock: null, taxLot: null },
       rawStreetName: addr.StreetName || '',
+      relatedReturnCopyId: publishedReturnCopy?.sourceListingId,
     };
   } catch (err) {
     // Infrastructure error (Prisma/Neon timeout, connection reset, compute-quota):
@@ -738,7 +777,12 @@ const fetchListing = cache(async function fetchListing(slug: string, keyOverride
   // unstable_cache does not cache a rejected promise, so a transient Neon failure still propagates
   // and is never frozen as a 404 — the invariant fetchFromDB's own contract depends on.
   const dataCacheId = derivedListingIdFromSlug(slug, keyOverride);
-  const result = dataCacheId
+  // Authored SL-/RL- pages can read a same-unit RLS return-copy whose updates
+  // carry the PROVIDER listing tag, not the local one. Do not persistently
+  // cache their normalized DTO under only the local id: a source-tag refresh
+  // must see the updated synchronized row. Full Route Cache stays event-driven.
+  const isAuthoredId = !!dataCacheId && /^(?:SL-|RL-)/i.test(dataCacheId);
+  const result = dataCacheId && !isAuthoredId
     ? await unstable_cache(
         () => fetchFromDB(slug, keyOverride),
         ['listing-detail-data-v1', dataCacheId],
@@ -761,6 +805,11 @@ const fetchListing = cache(async function fetchListing(slug: string, keyOverride
       streetName: result.listing.address?.streetName,
       postalCode: result.listing.address?.postalCode,
     });
+    if (result.relatedReturnCopyId) {
+      // Provider sync updates the return-copy tag; it must also evict this
+      // single Mallan canonical page when the source tour/remarks change.
+      await attachListingCacheTags(result.relatedReturnCopyId, {});
+    }
   } else if (result?.kind === 'redirect') {
     // PRESERVED, not added: the old fabricated DTO carried the return-copy's
     // listing_id into this call, so `listing:{id}` was already on the render's
