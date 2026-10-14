@@ -5,11 +5,11 @@
 
 ## Stats
 
-- **Total routes**: 288
+- **Total routes**: 287
 - **By auth class**:
   - `public`: 36
   - `broker`: 24
-  - `public (auth)`: 17
+  - `public (auth)`: 16
   - `agent/broker`: 145
   - `agent/broker (path)`: 2
   - `cron`: 24
@@ -29,7 +29,6 @@
 | `/api/analytics/intent` | POST | public | — | — | `app/api/analytics/intent/route.ts` |
 | `/api/auth/agent/register` | POST | broker | — | audit-event | `app/api/auth/agent/register/route.ts` |
 | `/api/auth/change-password` | POST | public (auth) | — | audit-event | `app/api/auth/change-password/route.ts` |
-| `/api/auth/dev-login` | GET,POST | public (auth) | — | — | `app/api/auth/dev-login/route.ts` |
 | `/api/auth/facebook/callback` | GET | public (auth) | — | — | `app/api/auth/facebook/callback/route.ts` |
 | `/api/auth/facebook` | GET | public (auth) | — | — | `app/api/auth/facebook/route.ts` |
 | `/api/auth/forgot-password` | POST | public (auth) | — | — | `app/api/auth/forgot-password/route.ts` |

@@ -716,7 +716,7 @@ function section12() {
       || file.includes('/search-alerts/') || file.includes('/guides/')
       || file.includes('/auth/login') || file.includes('/auth/logout')
       || file.includes('/auth/forgot-password') || file.includes('/auth/reset-password')
-      || file.includes('/auth/dev-login') || file.includes('/auth/invite/')
+      || file.includes('/auth/invite/')
       || file.includes('/auth/agent/register')
       || file.includes('/auth/verify-email')
       || file.includes('/identity/capture/')

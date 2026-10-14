@@ -67,16 +67,16 @@ export function checkRouteGuards(req: NextRequest, pathname: string): NextRespon
     }
   }
 
-  // Admin route protection
-  if (pathname.startsWith("/admin")) {
-    const hasSession = req.cookies.has(SESSION_COOKIE);
-    const pcAuth = req.cookies.get("pc_auth")?.value;
-    const pcValid = pcAuth === process.env.PRIVATE_COLLECTION_PASS;
-
-    if (!hasSession && !pcValid) {
+  // Admin route protection — fail closed. This is a presence check only; every admin page and
+  // API route validates the session itself (validateSession). The legacy `pc_auth` /
+  // PRIVATE_COLLECTION_PASS fallback was removed: with the variable unset, `undefined === undefined`
+  // made the old guard pass for every visitor. /admin/login stays reachable (no redirect loop).
+  if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/login")) {
+    if (!req.cookies.has(SESSION_COOKIE)) {
       const loginUrl = req.nextUrl.clone();
-      loginUrl.pathname = "/sign-in";
-      loginUrl.searchParams.set("from", pathname);
+      loginUrl.pathname = "/admin/login";
+      loginUrl.search = "";
+      loginUrl.searchParams.set("redirect", pathname);
       return NextResponse.redirect(loginUrl);
     }
   }

@@ -809,7 +809,6 @@ npm run db:seed
 | `DATABASE_URL_UNPOOLED` | Yes | PostgreSQL connection (unpooled, for Prisma migrations) |
 | `CRON_SECRET` | Yes | Bearer token for Vercel Cron job authentication |
 | `NEXT_PUBLIC_SITE_URL` | Yes | Public site URL (`https://mallan.nyc`) |
-| `PRIVATE_COLLECTION_PASS` | Yes | Legacy admin auth |
 | `IDX_ENABLED` | No | Enable Trestle/IDX fetch (`true`/`false`, default `false`) |
 | `TRESTLE_API_URL` | No | Trestle API base URL (`https://api.cotality.com/trestle`) |
 | `IDX_CLIENT_ID` | No | Trestle OAuth client ID |

@@ -201,9 +201,8 @@ During Coming Soon status:
 
 ### Cookie-Based Auth (Current)
 
-- Cookie name: `pc_auth`
-- Protected by: `PRIVATE_COLLECTION_PASS` environment variable
-- HttpOnly, Secure, SameSite=Strict
+- Cookie name: `session_token` (HttpOnly), validated against the sessions table by `lib/auth/session.ts`
+- The legacy `pc_auth` cookie and `PRIVATE_COLLECTION_PASS` variable were retired (2026-10-14)
 
 ---
 
