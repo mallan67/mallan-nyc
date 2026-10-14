@@ -275,7 +275,6 @@ console.log('\n═══ TEST 6: Data Files ═══\n');
 const DATA_FILES = [
   'data/rebny-rls-property-fields.csv',
   'data/rebny-rls-property-lookup.csv',
-  'data/rls-form-bindings.json',
   'data/RLS-FIELD-REGISTRY.md',
   'compliance/rules/active.json',
   'compliance/rules/rls-required.json',

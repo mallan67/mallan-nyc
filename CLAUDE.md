@@ -128,7 +128,6 @@ Guardrail docs: `docs/engineering/pr-verification-checklist.md` + `docs/engineer
 
 ```bash
 npm run type-check          # 0 TypeScript errors required
-npm run rls:validate        # 10-section REBNY RLS validator
 npm run compliance-check    # 93+ rules — BLOCKER+STRICT must be 0 failures
 npm run ucba:audit          # 145-rule UCBA — REGRESSIONS must be 0
 npm run idx:validate        # 32-section IDX Plus — 0 critical
@@ -188,11 +187,11 @@ Codex is a **static code-path reviewer only.** Codex reads the repo; it does **n
 
 **J.5 — Every Cotality field change must trace end-to-end** (each link confirmed, not assumed): live field exists → selected from Trestle → route-local select lists checked → mapped → `raw_data` preserved if needed → public DTO **DB path** checked → public DTO **Trestle-direct path** checked → rendered if public → form save/hydrate checked if CRM → legacy fallback zero-safe if numeric → tests added.
 
-**J.6 — Every generated-artifact PR (Class E) must prove:** the generator actually ran · source files unchanged unless explicitly in scope · generated "unknown" count is zero or explicitly accepted · `npm run test:rls` passes before merge. Note: **`test:rls` is NOT in PR CI today** (`.github/workflows/pr-check.yml` does not run it) — run it by hand and state the result, or state plainly that it was not run.
+**J.6 — Every generated-artifact PR (Class E) must prove:** the generator actually ran · source files unchanged unless explicitly in scope · generated "unknown" count is zero or explicitly accepted · the artifact is proven against the live source. (The `rls:validate` / `test:rls` binding validators were removed on 2026-10-14; they validated the retired REBNY CSV authority.)
 
 **J.7 — Status / compliance gates use explicit status semantics:** normalize draft-like statuses before comparing · Draft / Incomplete / empty must not be blocked by publish-only gates · public / display-ready statuses stay **fail-closed** · do not reuse a narrow helper for a broader compliance gate unless the status sets are **proven** equivalent.
 
-**J.8 — No "green checks" claim stands alone.** When reporting passing checks, state per check **what it proves and what it does not.** Example: "`rls:validate` green proves the static RLS binding rules pass; it does **not** prove any field is live on Cotality."
+**J.8 — No "green checks" claim stands alone.** When reporting passing checks, state per check **what it proves and what it does not.** Example: "`compliance-check` green proves the static compliance rules pass; it does **not** prove any field is live on Cotality."
 
 ---
 

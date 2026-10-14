@@ -263,7 +263,6 @@ npx prisma validate
 npm run type-check
 npm run compliance-check
 npm run ucba:audit
-npm run rls:validate
 
 # 5. Only THEN git commit + push the code PR
 ```

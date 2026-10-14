@@ -113,7 +113,6 @@ Must run when relevant:
 ```bash
 npm run compliance-check
 npm run ucba:audit
-npm run rls:validate
 npm run idx:validate
 ```
 

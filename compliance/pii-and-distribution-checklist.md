@@ -3,7 +3,7 @@
 > **Version:** 1.0.0
 > **Date:** 2026-03-01
 > **Applies to:** mallan-nyc repo (production)
-> **Enforcement:** `public/crm/scripts/validate-production.sh` (CRM validation) + `npm run rls:validate` (mallan-nyc)
+> **Enforcement:** `public/crm/scripts/validate-production.sh` (CRM validation) + `npm run compliance-check` (mallan-nyc)
 
 ---
 
@@ -62,7 +62,7 @@ All 6 gates are enforced at the API layer. UI may only DISPLAY gate status (read
 | RESO-to-RLS renames | 23 |
 | Picklist values | 2,066 across 117 lookups |
 | Field mapping source of truth | `data/rebny-rls-property-fields.csv` (mallan-nyc) |
-| Validator | `npm run rls:validate` — 10 sections, 0 UNKNOWN required |
+| Validator | `npm run compliance-check` |
 
 ---
 
@@ -114,7 +114,7 @@ All 6 gates are enforced at the API layer. UI may only DISPLAY gate status (read
 bash public/crm/scripts/validate-production.sh
 
 # In mallan-nyc:
-npm run rls:validate
+npm run compliance-check
 ```
 
 Both must pass before any commit or deployment.

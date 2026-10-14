@@ -3,7 +3,7 @@
 //
 // Pulls $metadata + sample records from Trestle, extracts the live field
 // list per resource, then diffs against data/rebny-rls-property-fields.csv
-// (the file the "rls:validate" script keys off).
+// (the retired CSV authority the removed rls:validate script keyed off).
 //
 // Output: which fields are on Trestle live but missing from our CSV (i.e.
 // new/changed since 2026-03-19), and which fields are in our CSV but no

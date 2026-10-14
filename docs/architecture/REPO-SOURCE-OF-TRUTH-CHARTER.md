@@ -358,7 +358,7 @@ The data flow has three distinct layers. Conflating them is how compliance bugs 
 2. **Runtime payload behavior must be verified per feed.** Do not assume generic RESO behavior equals this REBNY IDX Plus feed. Example: REBNY pre-filters non-displayable rows out of IDX Plus, leaving `InternetEntireListingDisplayYN` null on survivors. Other Cotality/Trestle deployments serving non-REBNY MLSes do not necessarily share that convention.
 3. **AVM and ConsumerComment are per-row opt-out flags** populated at the row level (~97% true / ~3% false). They are NOT pre-filtered. They remain fail-closed.
 4. **`InternetEntireListingDisplayYN` and `InternetAddressDisplayYN` are pre-filtered.** Null = displayable on this feed. Explicit false still blocks.
-5. Compliance changes must run `npm run ucba:audit`, `npm run rls:validate`, `npm run idx:validate`, and `npm run compliance-check`. All must pass.
+5. Compliance changes must run `npm run ucba:audit`, `npm run idx:validate`, and `npm run compliance-check`. All must pass.
 6. **Do not touch `lib/idx/sync.ts`** without explicit authorization. It is the writer; bugs here corrupt DB rows.
 
 ---
