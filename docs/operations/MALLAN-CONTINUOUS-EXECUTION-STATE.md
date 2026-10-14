@@ -597,7 +597,7 @@ It adds no new gate. It also makes `pr-check` read-only (`permissions: contents:
 - force-push and deletion of `main` are blocked by a separate ruleset (id 25125170) with no bypass actors;
 - the `Protect main` ruleset (id 19435006) permits repository-administrator bypass, so a completed, tested change set Maya has approved for release can go directly to `main`. Agents push or merge only after that approval, never enable auto-merge and never change branch protection or rulesets without her explicit authorization.
 
-**What the interim protection does not certify.** `pr-check` still runs `rls:validate` and `validate:form-rls`. They are validators of the retired provider authority: the REBNY RLS CSVs, the RESO field map and a RESO-to-RLS rename table. They are not provider authority and are not correct or canonical. They remain only until the first cleanup pull request removes them together with their old provider readers, writers and source files, and nothing requires or protects them.
+**What the interim protection does not certify.** `pr-check` no longer runs `rls:validate` or `validate:form-rls`: PR #661 (2026-10-14) removed them together with the readers, writers and data that existed only to feed them. They validated the retired provider authority (the REBNY RLS CSVs, the RESO field map and a RESO-to-RLS rename table), which is still imported by runtime code and is removed in steps 5 and 7 below. The provider-independent viewer masking and read-only checks they contained were kept as `tests/runtime/crm-viewer-masking-lockdown.test.ts`.
 
 Passing `pr-check` during the interim therefore does not certify provider correctness. `main` still contains obsolete provider implementation, which must be cleaned before permanent governance is designed. The architectural authority is unchanged (Master §21.2):
 
@@ -697,7 +697,7 @@ Do not create another status file because this one becomes inconvenient.
 1. #646 removes only the old execution wall (§7).
 2. Maya temporarily removes `authority-root` from `Protect main` so #646 can merge.
 3. Protection is explicitly INTERIM: pull request + current `pr-check` + Maya's review (§7).
-4. Clean current `main`. The first cleanup pull request removes `rls:validate` and `validate:form-rls` together with their old provider readers, writers and source files.
+4. **DONE in PR #661 (2026-10-14):** the first cleanup removed `rls:validate` and `validate:form-rls` together with the readers, writers and data used only by them. Still present because production code imports them: `data/rebny-rls-property-fields.csv` and `-lookup.csv`, `lib/compliance/*`, `lib/idx/trestle-mapper.ts` and `public/crm/js/core/reso-field-map.js` (step 5/7).
 5. Remove the old provider authority and duplicate/parallel systems.
 6. Verify the live Cotality contract.
 7. Build the single Cotality mapping from the cleaned `main`.

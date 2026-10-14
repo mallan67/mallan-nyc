@@ -3,7 +3,7 @@
 > **Version:** 1.0.0
 > **Date:** 2026-03-01
 > **Applies to:** mallan-nyc repo (production)
-> **Enforcement:** `public/crm/scripts/validate-production.sh` (CRM validation) + `npm run compliance-check` (mallan-nyc)
+> **Enforcement (what actually runs):** CRM static viewers: `tests/runtime/crm-viewer-masking-lockdown.test.ts` (in CI) · app routes and components: `npm run audit:pii` (part of `audit:display-compliance`, in CI) · `npm run compliance-check` (in CI). The hardcoded-PII and URL-parameter rules for the CRM mockups are checked only by `public/crm/scripts/validate-mockups.sh`, which is **not wired into CI**. (`validate-production.sh`, cited by earlier versions, does not exist.)
 
 ---
 
@@ -62,7 +62,7 @@ All 6 gates are enforced at the API layer. UI may only DISPLAY gate status (read
 | RESO-to-RLS renames | 23 |
 | Picklist values | 2,066 across 117 lookups |
 | Field mapping source of truth | `data/rebny-rls-property-fields.csv` (mallan-nyc) |
-| Validator | `npm run compliance-check` |
+| Validator | None. The retired `rls:validate` was removed 2026-10-14; field mapping is rebuilt from the live Cotality contract (Execution State §11, steps 6-7). |
 
 ---
 
@@ -110,10 +110,12 @@ All 6 gates are enforced at the API layer. UI may only DISPLAY gate status (read
 ## Verification Commands
 
 ```bash
-# CRM validation:
-bash public/crm/scripts/validate-production.sh
+# CRM mockup rules (hardcoded PII, URL parameters) - NOT in CI:
+bash public/crm/scripts/validate-mockups.sh
 
-# In mallan-nyc:
+# In mallan-nyc (all run in CI):
+npx jest --config tests/runtime/jest.config.js tests/runtime/crm-viewer-masking-lockdown.test.ts
+npm run audit:pii
 npm run compliance-check
 ```
 
