@@ -109,6 +109,7 @@ export function resolveReturnCopyCanonicalTarget(
  * third-party inventory. Source display gates fail closed.
  */
 export interface MallanPublicRefreshRow extends ReturnCopyCandidateRow {
+  address: unknown;
   modification_timestamp?: Date | string | null;
   status?: string | null;
   idx_display_yn?: boolean | null;
