@@ -441,7 +441,7 @@ describe('/api/crm/listings — the grid media array reads the canonical composi
     expect(media[0].url).toBe(LEGACY_URL);
   });
 
-  it('the grid response contract is unchanged and leaks no query-only fields', async () => {
+  it('the grid response leaks no query-only fields and states its own pagination', async () => {
     listingFindMany.mockResolvedValueOnce([
       gridListing({ listing_media: [activeRow()], count: 1, legacy: [] }),
     ]);
@@ -452,8 +452,33 @@ describe('/api/crm/listings — the grid media array reads the canonical composi
       total: number;
       limit: number;
       offset: number;
+      requestedLimit: number;
+      maxLimit: number;
+      limitClamped: boolean;
+      hasMore: boolean;
     };
-    expect(Object.keys(body).sort()).toEqual(['limit', 'listings', 'offset', 'total']);
+    // 2026-09-04: the envelope GREW by four pagination-truth fields, and the
+    // growth is deliberate. The route caps any page at MAX_PAGE_SIZE; before
+    // this, a caller asking for more was served the cap with no field able to
+    // reveal it, so a truncated page could be read as the complete result set.
+    // The cap itself is unchanged — it is now merely observable. The `listings`
+    // payload and every per-row assertion below are untouched.
+    expect(Object.keys(body).sort()).toEqual([
+      'hasMore',
+      'limit',
+      'limitClamped',
+      'listings',
+      'maxLimit',
+      'offset',
+      'requestedLimit',
+      'total',
+    ]);
+    // The pagination fields describe the SAME reachable dataset as `total`.
+    expect(body.total).toBe(1);
+    expect(body.listings).toHaveLength(1);
+    expect(body.hasMore).toBe(false);
+    expect(body.limit).toBeLessThanOrEqual(body.maxLimit);
+    expect(body.limitClamped).toBe(body.limit !== body.requestedLimit);
     const row = body.listings[0];
     // `listing_media` / `_count` are QUERY inputs — they must never reach the client.
     expect(row).not.toHaveProperty('listing_media');
