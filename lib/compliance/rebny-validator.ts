@@ -10,6 +10,11 @@
  */
 
 import rlsRulesData from './rls-rules.json';
+import {
+  getCotalityContract,
+  checkPayloadAgainstContract,
+  CotalityContractUnavailableError,
+} from '@/lib/idx/cotality-contract';
 
 // Types - matches actual rls-rules.json structure
 export interface RLSField {
@@ -105,7 +110,10 @@ const rules = normalizeFields(rawFields);
 /**
  * Main validation function for REBNY RLS compliance
  */
-export function validateListing(listing: ListingData): ValidationResult {
+export function validateListing(
+  listing: ListingData,
+  opts?: { skipRequired?: ReadonlySet<string>; fairHousingAsWarning?: boolean },
+): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
   const suggestions: string[] = [];
@@ -124,6 +132,10 @@ export function validateListing(listing: ListingData): ValidationResult {
     const hasValue = value !== undefined && value !== null && value !== '';
 
     // Check required fields
+    if (rule.required && !hasValue && opts?.skipRequired?.has(rule.field)) {
+      fieldResults.push({ field: rule.field, status: 'missing' });
+      continue;
+    }
     if (rule.required && !hasValue) {
       errors.push(`[REBNY] Required field missing: ${rule.field} - ${rule.description}`);
       fieldResults.push({
@@ -185,7 +197,10 @@ export function validateListing(listing: ListingData): ValidationResult {
   // 2. Fair Housing compliance check
   const fairHousingResult = validateFairHousing(listing);
   if (!fairHousingResult.valid) {
-    errors.push(...fairHousingResult.errors);
+    // Owner rule (2026-10-15): Fair Housing words are FLAGGED on a draft but do not
+    // block saving; the publish step re-runs this without the flag and blocks.
+    if (opts?.fairHousingAsWarning) warnings.push(...fairHousingResult.errors);
+    else errors.push(...fairHousingResult.errors);
     warnings.push(...fairHousingResult.warnings);
     fairHousingCompliant = false;
     nycDosCompliant = false;
@@ -842,3 +857,81 @@ export const rebnyValidator = {
   getRequiredFields,
   generatePublicRemarks,
 };
+
+/**
+ * Mallan-authored listings: build the view of the saved data the REBNY rules are
+ * checked against. Cotality-live names are mapped to the REBNY rule names, and
+ * fields the SERVER owns (status, source key, entry timestamp, activation/on-market
+ * dates, IDX/syndication defaults) are stamped here instead of being demanded from
+ * the agent. Every stamped value derives from the record; nothing is invented.
+ */
+export function buildMallanValidationView(
+  data: ListingData,
+  ctx: { listingId?: string | null; status?: string | null; createdAt?: Date | null; agentMlsId?: string | null; now?: Date },
+): { view: ListingData; skipRequired: Set<string> } {
+  const now = ctx.now ?? new Date();
+  const v: ListingData = { ...data };
+  const has = (k: string) => v[k] !== undefined && v[k] !== null && v[k] !== '';
+  const status = String(ctx.status || 'Draft');
+  const skip = new Set<string>();
+  if (!has('StandardStatus')) v.StandardStatus = status === 'Draft' ? 'Incomplete' : status;
+  if (!has('SourceSystemKey')) v.SourceSystemKey = ctx.listingId || 'pending-assignment';
+  if (!has('OriginalEntryTimestamp')) v.OriginalEntryTimestamp = (ctx.createdAt ?? now).toISOString();
+  if (!has('UnParsedAddress') && has('UnparsedAddress')) v.UnParsedAddress = v.UnparsedAddress;
+  if (!has('BathroomsTotal') && has('BathroomsFull')) {
+    const f = Number(v.BathroomsFull), h = Number(v.BathroomsHalf) || 0;
+    if (!isNaN(f)) v.BathroomsTotal = f + h * 0.5;
+  }
+  if (!has('IDXEntireListingDisplayYN')) v.IDXEntireListingDisplayYN = v.InternetEntireListingDisplayYN !== false;
+  if (!has('SyndicateYN')) v.SyndicateYN = Array.isArray(v.SyndicateTo) ? v.SyndicateTo.length > 0 : true;
+  if (!has('NewDevelopmentYN')) v.NewDevelopmentYN = v.saleBldgNewDevelopment === true || v.saleBldgNewDevelopment === 'true';
+  if (!has('BuildingTaxLot') && has('TaxLot')) v.BuildingTaxLot = v.TaxLot;
+  if (!has('ElevatorsTotal') && has('saleBldgNumElevators')) v.ElevatorsTotal = v.saleBldgNumElevators;
+  if (!has('CoBrokeAgreement') && has('saleCoBrokeAgreementType')) v.CoBrokeAgreement = v.saleCoBrokeAgreementType;
+  if (!has('ListAgentMlsId') && ctx.agentMlsId) v.ListAgentMlsId = ctx.agentMlsId;
+  if (!has('BuildingPetsAllowed') && Array.isArray(v.PetsAllowed)) {
+    const b = (v.PetsAllowed as string[]).filter((x) => /^Building/.test(x));
+    if (b.length) v.BuildingPetsAllowed = b;
+  }
+  if (!has('BuildingLaundryFeatures') && Array.isArray(v.LaundryFeatures)) {
+    const b = (v.LaundryFeatures as string[]).filter((x) => /^Building/.test(x));
+    if (b.length) v.BuildingLaundryFeatures = b;
+  }
+  // Status-dependent system dates: required only once the listing is live / coming soon.
+  const live = status === 'Active' || status === 'ActiveUnderContract';
+  if (!has('OnMarketDate') && live) v.OnMarketDate = now.toISOString().slice(0, 10);
+  if (!has('OnMarketDate')) skip.add('OnMarketDate');
+  if (status !== 'ComingSoon' && !has('ActivationDate')) {
+    if (live) v.ActivationDate = String(v.OnMarketDate || now.toISOString().slice(0, 10));
+    else skip.add('ActivationDate');
+  }
+  if (status !== 'Pending' && status !== 'Closed') skip.add('BuyerAgentMlsId');
+  return { view: v, skipRequired: skip };
+}
+
+/**
+ * Live Cotality verification (field names, types, picklist values) layered ON TOP of the
+ * REBNY rules above. Draft saves report problems as warnings (an agent can always save a
+ * draft); publishing requires them clean, and refuses with an explicit message when the
+ * live contract cannot be read (never silently passes).
+ */
+export async function verifyAgainstLiveCotality(
+  saved: Record<string, unknown>,
+  mode: 'draft' | 'publish',
+): Promise<{ errors: string[]; warnings: string[]; unavailable: boolean }> {
+  try {
+    const contract = await getCotalityContract();
+    const findings = checkPayloadAgainstContract(contract, saved).map((f) => `[Cotality live] ${f.detail}`);
+    return mode === 'publish'
+      ? { errors: findings, warnings: [], unavailable: false }
+      : { errors: [], warnings: findings, unavailable: false };
+  } catch (err) {
+    const message =
+      err instanceof CotalityContractUnavailableError
+        ? err.message
+        : 'Live Cotality contract check failed to run.';
+    return mode === 'publish'
+      ? { errors: [`[Cotality live] ${message} Publishing is refused until the live check can run.`], warnings: [], unavailable: true }
+      : { errors: [], warnings: [`[Cotality live] ${message} It will be verified when you publish.`], unavailable: true };
+  }
+}

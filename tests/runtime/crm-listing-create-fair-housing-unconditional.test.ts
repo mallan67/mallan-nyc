@@ -1,11 +1,8 @@
 /// <reference types="jest" />
 /**
- * P0b — Fair Housing scan must run on EVERY listing create, not only RLS-eligible ones.
- *
- * Gap: app/api/crm/listings/route.ts ran the content scan (inside assertRlsCompliantPayload) ONLY
- * inside `if (rlsEligible)`. Commercial / website-only / InHouse creates (rls_eligible=false) skipped
- * the Fair Housing scan entirely — but NYC HRL / Federal FHA advertising law applies to ALL
- * advertising regardless of RLS eligibility. This pins the unconditional scan.
+ * Fair Housing scan runs on EVERY listing create (RLS-eligible or not) - NYC HRL / Federal FHA
+ * advertising law applies to all advertising. Owner rule (2026-10-15): on a DRAFT save the words are
+ * FLAGGED (returned as warnings) and saving is NOT blocked; publishing (status route) blocks.
  */
 import { buildPrismaMock, makeRequest, readJson } from "./helpers";
 
@@ -21,7 +18,7 @@ jest.mock("@/lib/auth", () => ({
 import { POST } from "@/app/api/crm/listings/route";
 
 describe("POST /api/crm/listings — Fair Housing scan is unconditional (rls_eligible=false included)", () => {
-  it("commercial / website-only create (rls_eligible=false) with discriminatory PublicRemarks → 422 Fair Housing", async () => {
+  it("commercial / website-only create (rls_eligible=false) with discriminatory PublicRemarks → flagged, not blocked (no 422)", async () => {
     const req = makeRequest({
       method: "POST",
       body: {
@@ -32,12 +29,10 @@ describe("POST /api/crm/listings — Fair Housing scan is unconditional (rls_eli
       },
     });
     const res = await POST(req);
-    expect(res.status).toBe(422);
-    const json = await readJson<{ error: string }>(res);
-    expect(json.error).toMatch(/Fair Housing/i);
+    expect(res.status).not.toBe(422);
   });
 
-  it("alias bypass closed: a website-only create using the `description` alias is still scanned → 422", async () => {
+  it("alias bypass closed: a website-only create using the `description` alias is still scanned → flagged, not blocked", async () => {
     // normalizePayload maps `description` → PublicRemarks (and `privateRemarks` → PrivateRemarks).
     // Scanning raw PascalCase fields before normalization would miss these and persist the text.
     const req = makeRequest({
@@ -50,16 +45,14 @@ describe("POST /api/crm/listings — Fair Housing scan is unconditional (rls_eli
       },
     });
     const res = await POST(req);
-    expect(res.status).toBe(422);
-    const json = await readJson<{ error: string }>(res);
-    expect(json.error).toMatch(/Fair Housing/i);
+    expect(res.status).not.toBe(422);
   });
 
   it.each([
     ["showingInstructions", "No Section 8."],
     ["agentRemarks", "Adults only, no felonies."],
     ["webHeadline", "Active adult 55+ — no CityFHEPS."],
-  ])("un-aliased camelCase form field `%s` (persists in raw_data) is still scanned → 422", async (key, text) => {
+  ])("un-aliased camelCase form field `%s` (persists in raw_data) is still scanned → flagged, not blocked", async (key, text) => {
     // The CRM forms POST camelCase free-text fields the normalizer does NOT alias; they survive in
     // raw_data, so the gate must scan raw free-text keys too — not only the normalized PascalCase slots.
     const req = makeRequest({
@@ -67,9 +60,7 @@ describe("POST /api/crm/listings — Fair Housing scan is unconditional (rls_eli
       body: { listing_type: "rent", rls_eligible: false, [key]: text },
     });
     const res = await POST(req);
-    expect(res.status).toBe(422);
-    const json = await readJson<{ error: string }>(res);
-    expect(json.error).toMatch(/Fair Housing/i);
+    expect(res.status).not.toBe(422);
   });
 
   it("does NOT false-positive on a structured (non-free-text) field value", async () => {
@@ -100,5 +91,17 @@ describe("POST /api/crm/listings — Fair Housing scan is unconditional (rls_eli
     const scanIdx = src.indexOf("scanRecordForFairHousing(");
     expect(normIdx).toBeGreaterThan(0);
     expect(scanIdx).toBeGreaterThan(normIdx); // scan consumes normalized output
+  });
+});
+
+describe("publish blocks what a draft only flags", () => {
+  it("status route re-scans Fair Housing words at Draft -> Active/ComingSoon (website-only included)", () => {
+    const src = require("fs").readFileSync(
+      require("path").resolve(__dirname, "../../app/api/crm/listings/[id]/status/route.ts"),
+      "utf8",
+    );
+    expect(src).toMatch(/PUBLISH GATE/);
+    expect(src).toMatch(/scanRecordForFairHousing\(/);
+    expect(src).toMatch(/verifyAgainstLiveCotality\(existingRaw, "publish"\)/);
   });
 });

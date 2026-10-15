@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
-import { validateListing } from "@/lib/compliance/rebny-validator";
+import { validateListing, buildMallanValidationView, verifyAgainstLiveCotality } from "@/lib/compliance/rebny-validator";
 import { assertRlsCompliantPayload, scanRecordForFairHousing } from "@/lib/compliance/rls-enforcement";
 import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { normalizePayload, derivePermissionBooleans, buildPersistenceRecord } from "@/lib/compliance/normalizer";
@@ -271,28 +271,29 @@ export async function POST(req: NextRequest) {
   });
   const rlsEligible = eligibility.rlsEligible;
 
-  // Run REBNY RLS compliance validation (only for RLS-eligible listings)
+  // Mallan-exclusive agent assignment (Part C2). A CRM-created listing is ALWAYS
+  // a Mallan exclusive (SL-/RL- prefix, mls_id null), so the creating agent IS
+  // the listing agent. Identity is the AUTHENTICATED agent, never invented.
+  const assigningAgent = await prisma.agent.findUnique({
+    where: { id: auth.userId },
+    select: { id: true, full_name: true, first_name: true, last_name: true, email: true, phone: true, trestle_mls_id: true },
+  });
+
+  // REBNY RLS compliance check (RLS-eligible listings). A new listing begins as a DRAFT
+  // (owner rule 2026-10-15): the Draft is SAVED so the agent can keep working, and the
+  // outstanding REBNY items are returned (and stored in compliance) so they are verified
+  // and shown; PUBLISH (status route) is what is blocked until they are resolved.
+  // System-owned fields (StandardStatus, SourceSystemKey, OriginalEntryTimestamp, activation
+  // dates, IDX/syndication defaults) are stamped here, not demanded from the agent.
   let validation: { valid: boolean; errors: string[]; warnings: string[]; suggestions: string[]; compliance: unknown } = {
     valid: true, errors: [], warnings: [], suggestions: [], compliance: {},
   };
   if (rlsEligible) {
-    validation = validateListing(body);
-    if (!validation.valid) {
-      return NextResponse.json(
-        {
-          error: "Listing failed compliance validation",
-          validation: {
-            errors: validation.errors,
-            warnings: validation.warnings,
-            suggestions: validation.suggestions,
-            compliance: validation.compliance,
-          },
-        },
-        { status: 422 }
-      );
-    }
-
-    // RLS Enforcement Gate — hard gate on UCBA/RLS rules for write path
+    const { view, skipRequired } = buildMallanValidationView(body, {
+      status: normalizeStandardStatus(STATUS_INITIAL),
+      agentMlsId: assigningAgent?.trestle_mls_id ?? null,
+    });
+    validation = validateListing(view, { skipRequired, fairHousingAsWarning: true });
     const enforcement = assertRlsCompliantPayload(body, {
       listingType: listingType as "sale" | "rent",
       isNewDevelopment: body.NewDevelopmentYN === true,
@@ -301,30 +302,18 @@ export async function POST(req: NextRequest) {
       mixedUseSmallBuilding: eligibility.mixedUseSmallBuilding,
     });
     if (!enforcement.passed) {
-      return NextResponse.json(
-        {
-          error: "Listing blocked by RLS enforcement gate",
-          blockers: enforcement.blockers,
-          warnings: enforcement.warnings,
-        },
-        { status: 422 }
-      );
+      validation.valid = false;
+      validation.errors.push(...enforcement.blockers.map((x) => (typeof x === "string" ? x : JSON.stringify(x))));
     }
 
-    // D9: Coming Soon is one-time per address — cannot re-use for same property
+    // D9: Coming Soon is one-time per address - cannot re-use for same property
     if (body.MlsStatus === "ComingSoon" && body.StreetName) {
       const priorComingSoon = await prisma.listing.findFirst({
         where: {
           postal_code: (body.PostalCode as string) || undefined,
           status: { in: ["Active", "Withdrawn", "Expired", "Sold", "Rented", "Cancelled"] },
-          raw_data: {
-            path: ["_wasComingSoon"],
-            equals: true,
-          },
-          address: {
-            path: ["StreetName"],
-            equals: body.StreetName as string,
-          },
+          raw_data: { path: ["_wasComingSoon"], equals: true },
+          address: { path: ["StreetName"], equals: body.StreetName as string },
         },
         select: { id: true, listing_id: true },
       });
@@ -373,12 +362,15 @@ export async function POST(req: NextRequest) {
       fhRecord[`raw:${key}`] = value;
     }
   }
+  // Live Cotality verification (field names / picklist values): warnings on a Draft.
+  const liveDraft = await verifyAgainstLiveCotality(body, "draft");
+  validation.warnings.push(...liveDraft.warnings);
+
+  // Owner rule (2026-10-15): Fair Housing words are FLAGGED, not blocked, on a Draft save.
+  // The publish step (status route) re-scans and blocks Draft -> Active/ComingSoon.
   const fhViolations = scanRecordForFairHousing(fhRecord);
   if (fhViolations.length > 0) {
-    return NextResponse.json(
-      { error: "Listing blocked by Fair Housing content gate", blockers: fhViolations },
-      { status: 422 }
-    );
+    validation.warnings.push(...fhViolations.map((x) => "[Fair Housing] " + (typeof x === "string" ? x : JSON.stringify(x))));
   }
 
   // Derive permission booleans from Permissions string
@@ -392,6 +384,8 @@ export async function POST(req: NextRequest) {
     validation_result: validation.compliance,
     validated_at: new Date().toISOString(),
     warnings: validation.warnings,
+    valid: validation.valid,
+    errors: validation.errors,
     stripped_fields: stripped, // Track which removed fields were stripped
     rls_eligibility: {
       eligible: eligibility.rlsEligible,
@@ -403,18 +397,6 @@ export async function POST(req: NextRequest) {
 
   const now = new Date();
   const ipAddress = req.headers.get("x-forwarded-for") ?? undefined;
-
-  // Mallan-exclusive agent assignment (Part C2). A CRM-created listing is ALWAYS
-  // a Mallan exclusive (SL-/RL- prefix, mls_id null), so the creating agent IS
-  // the listing agent. Load that agent's identity so buildExclusiveAgentAssignment
-  // can stamp the named agent + "Mallan Real Estate Inc." onto the row — the
-  // attribution the public FeaturedListings + listing-detail contact card render
-  // (19 NYCRR §175.25 / UCBA Art. III §2(C)). Identity is the AUTHENTICATED agent,
-  // never invented; the helper fills only blank agent_info keys (manual wins).
-  const assigningAgent = await prisma.agent.findUnique({
-    where: { id: auth.userId },
-    select: { id: true, full_name: true, first_name: true, last_name: true, email: true, phone: true },
-  });
 
   // Wrap listing create + ID generation + audit log in a single transaction.
   // Advisory lock inside generateListingId prevents duplicate listing IDs.
@@ -428,11 +410,20 @@ export async function POST(req: NextRequest) {
     // exclusive) so this is never null; it blank-only-merges over whatever
     // agent keys the form already sent (manual wins) and resolves the two
     // promoted display columns (list_agent_full_name / list_office_name).
+    const sessionAgentInfo: Record<string, unknown> = { ...((persistence.agentInfo as Record<string, unknown>) ?? {}) };
+    if (assigningAgent?.trestle_mls_id) sessionAgentInfo.ListAgentMlsId = assigningAgent.trestle_mls_id;
+    if (assigningAgent) {
+      // Session wins over a forged/blank payload (identity is the authenticated agent).
+      const nm = (assigningAgent.full_name || [assigningAgent.first_name, assigningAgent.last_name].filter(Boolean).join(" ")).trim();
+      if (nm) sessionAgentInfo.ListAgentFullName = nm;
+      if (assigningAgent.email) sessionAgentInfo.ListAgentEmail = assigningAgent.email;
+      if (assigningAgent.phone) sessionAgentInfo.ListAgentDirectPhone = assigningAgent.phone;
+    }
     const exclusiveAssignment = assigningAgent
       ? buildExclusiveAgentAssignment(
           assigningAgent,
           { listing_id: listingId, rls_eligible: rlsEligible },
-          (persistence.agentInfo as Record<string, unknown>) ?? {},
+          sessionAgentInfo,
         )
       : null;
 
@@ -454,7 +445,7 @@ export async function POST(req: NextRequest) {
         list_price: persistence.topLevel.list_price ? Number(persistence.topLevel.list_price) : 0,
         bedrooms_total: persistence.topLevel.bedrooms_total ? Number(persistence.topLevel.bedrooms_total) : null,
         bathrooms_full: persistence.topLevel.bathrooms_full ? Number(persistence.topLevel.bathrooms_full) : null,
-        bathrooms_half: persistence.topLevel.bathrooms_half ? Number(persistence.topLevel.bathrooms_half) : null,
+        bathrooms_half: persistence.topLevel.bathrooms_half !== undefined && persistence.topLevel.bathrooms_half !== null && persistence.topLevel.bathrooms_half !== "" ? Number(persistence.topLevel.bathrooms_half) : null,
         living_area: persistence.topLevel.living_area ? Number(persistence.topLevel.living_area) : null,
         // CityRegion → borough (normalizer already resolved Borough→CityRegion alias)
         borough: (persistence.topLevel.borough as string) ?? null,
@@ -508,6 +499,13 @@ export async function POST(req: NextRequest) {
           persistence.topLevel.idx_display_yn !== false,
         internet_entire_listing_display_yn: persistence.topLevel.internet_entire_listing_display_yn !== false,
         internet_address_display_yn: persistence.topLevel.internet_address_display_yn !== false,
+        // Seller opt-outs: persisted to their typed columns (fail-closed: only a literal
+        // false/"false" opts out; the columns default to true).
+        internet_automated_valuation_display_yn: !(normalized.InternetAutomatedValuationDisplayYN === false || normalized.InternetAutomatedValuationDisplayYN === "false"),
+        internet_consumer_comment_yn: !(normalized.InternetConsumerCommentYN === false || normalized.InternetConsumerCommentYN === "false"),
+        expiration_date: typeof normalized.ExpirationDate === "string" && normalized.ExpirationDate.length > 0 && !isNaN(new Date(normalized.ExpirationDate).getTime())
+          ? new Date(normalized.ExpirationDate)
+          : null,
         // Permission booleans derived from Permissions enum (not hardcoded from body)
         participant_only: permBools.participant_only,
         owner_opt_out: permBools.owner_opt_out,
@@ -652,6 +650,7 @@ export async function POST(req: NextRequest) {
       eligibilityReason: publishContract.eligibilityReason,
       warnings: validation.warnings,
       suggestions: validation.suggestions,
+      validation: { valid: validation.valid, errors: validation.errors, warnings: validation.warnings },
     },
     { status: 201 }
   );
