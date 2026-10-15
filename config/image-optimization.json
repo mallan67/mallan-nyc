@@ -48,12 +48,16 @@
     "         2.6% short and the only alternative was 1920, a 2.4x byte",
     "         jump for no visible gain. 1280 covers it at 2.08x.",
     "",
-    "1920/2048/3840 remain ABSENT from the card ladder — no card needs",
-    "more than 1280. They stay in deviceSizes only for the full-bleed",
-    "non-card surfaces, and an e2e assertion pins that cards never",
-    "select one."
+    "1600 replaced 1920 on 2026-08-02. Holding 100vw through the real",
+    "md boundary means the largest card need is 767 x 2 = 1534 device",
+    "px. 1600 covers that at 1.04x; 1920 covers it at 1.25x and",
+    "downloads 25% more for no visible gain. 1600 is NOT a Next default,",
+    "so it also had to be added to deviceSizes below — cardImageWidths",
+    "alone is not the optimizer allowlist, and an unlisted width 400s.",
+    "1920/2048/3840 stay in deviceSizes for the full-bleed non-card",
+    "surfaces, and an e2e assertion pins that no card selects one."
   ],
-  "cardImageWidths": [384, 448, 640, 828, 1080, 1280],
+  "cardImageWidths": [384, 448, 640, 828, 1080, 1280, 1600],
 
   "$comment_cardImageQuality": [
     "85, not Next's default 75 (Maya directive 2026-08-01: premium",
@@ -84,7 +88,7 @@
     "the card ladder would silently degrade them — a regression outside",
     "this PR's audited scope."
   ],
-  "deviceSizes": [640, 828, 1080, 1200, 1280, 1920, 2048, 3840],
+  "deviceSizes": [640, 828, 1080, 1200, 1280, 1600, 1920, 2048, 3840],
 
   "$comment_imageSizes": [
     "Explicit. 384 and 448 are required by the card ladder (448 added",

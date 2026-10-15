@@ -1221,7 +1221,9 @@ function SearchClient() {
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {sortedListings.map((listing, i) => (
                   // 3-col at lg — first two rows are above the fold.
-                  <GridCard key={listing.id} listing={listing} isRental={isRental} onHover={setHighlightedId} priority={i < 6} />
+                  // `gridTight`: this layout renders ~326-416px at lg+,
+                  // materially narrower than the 2-col all-listings grid.
+                  <GridCard key={listing.id} listing={listing} isRental={isRental} onHover={setHighlightedId} priority={i < 6} sizeProfile="gridTight" />
                 ))}
               </div>
               {hasMore && (

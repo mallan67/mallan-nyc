@@ -8,6 +8,7 @@ import OpenHouseBanner from '@/app/components/OpenHouseBanner';
 import { CardPhotoNav, CardPhotoCounter } from '@/app/components/CardPhotoNav';
 import { type DisplayListing, listingHref, hasVirtualTour, hasVideo } from '@/lib/idx/display-adapter';
 import { useCardPhotoCarousel } from '@/lib/hooks/useCardPhotoCarousel';
+import type { CardSizeKey } from '@/lib/media/responsive-image';
 import { formatBathrooms } from '@/lib/format/bathrooms';
 import { shouldAutoCropWhiteBorder } from '@/lib/media/listing-card-media';
 
@@ -100,10 +101,18 @@ interface CardProps {
    * loader; every other card stays lazy. See `IDXImage`'s `priority`.
    */
   priority?: boolean;
+  /**
+   * Which measured size profile this card occupies. GridCard serves two
+   * different layouts — the 2-col all-listings grid and the 3-col grid
+   * view — which render at materially different widths (501px vs 326px
+   * at 1024). One profile could not cover both without over-declaring
+   * the narrower one by up to 1.67x, so the caller states which.
+   */
+  sizeProfile?: CardSizeKey;
 }
 
 /** Grid card — standard card with photo on top */
-export function GridCard({ listing, isRental, isHighlighted, onHover, priority = false }: CardProps) {
+export function GridCard({ listing, isRental, isHighlighted, onHover, priority = false, sizeProfile = 'grid' }: CardProps) {
   const carousel = useCardPhotoCarousel(listing.media);
 
   return (
@@ -150,7 +159,7 @@ export function GridCard({ listing, isRental, isHighlighted, onHover, priority =
             src={carousel.currentSrc}
             alt={`${listing.address.streetNumber} ${listing.address.streetName}`}
             aspect="card"
-            sizeProfile="grid"
+            sizeProfile={sizeProfile}
             priority={priority}
             className="group-hover:scale-105 transition-transform duration-700"
             onError={carousel.handlePhotoError}
