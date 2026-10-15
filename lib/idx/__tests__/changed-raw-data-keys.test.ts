@@ -125,7 +125,7 @@ describe("changedRawDataMaterialKeys — production material semantics, not stri
    *
    * Both premises are gone:
    *   - the stored-value consumer (the SQL eligibility predicate in the legacy,
-   *     unreachable `backfillEmptyMedia()`) was removed;
+   *     the retired legacy media-backfill helper) was removed;
    *   - 7B-1's complete fetch + requested-key pre-seeding now reconciles an
    *     emptied gallery, and 7B-2A moved invalidation out of the Listing-write
    *     branch — so PCT no longer has to force a write to keep the system safe.
