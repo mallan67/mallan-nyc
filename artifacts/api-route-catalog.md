@@ -5,12 +5,12 @@
 
 ## Stats
 
-- **Total routes**: 288
+- **Total routes**: 283
 - **By auth class**:
   - `public`: 36
   - `broker`: 24
   - `public (auth)`: 17
-  - `agent/broker`: 145
+  - `agent/broker`: 140
   - `agent/broker (path)`: 2
   - `cron`: 24
   - `portal`: 25
@@ -148,11 +148,6 @@
 | `/api/crm/notifications/preferences` | GET,PUT | agent/broker | — | — | `app/api/crm/notifications/preferences/route.ts` |
 | `/api/crm/notifications` | GET,POST,PATCH | agent/broker | — | — | `app/api/crm/notifications/route.ts` |
 | `/api/crm/offers/[id]/transmit` | POST | agent/broker | — | audit-event | `app/api/crm/offers/[id]/transmit/route.ts` |
-| `/api/crm/outlook/auth` | GET | agent/broker | — | — | `app/api/crm/outlook/auth/route.ts` |
-| `/api/crm/outlook/callback` | GET | agent/broker | — | — | `app/api/crm/outlook/callback/route.ts` |
-| `/api/crm/outlook/disconnect` | POST | agent/broker | — | — | `app/api/crm/outlook/disconnect/route.ts` |
-| `/api/crm/outlook/folders` | GET | agent/broker | — | — | `app/api/crm/outlook/folders/route.ts` |
-| `/api/crm/outlook/scan` | GET | agent/broker | — | — | `app/api/crm/outlook/scan/route.ts` |
 | `/api/crm/past-deals/[id]` | PATCH,DELETE | agent/broker | — | audit-event | `app/api/crm/past-deals/[id]/route.ts` |
 | `/api/crm/past-deals` | GET,POST | agent/broker | — | audit-event | `app/api/crm/past-deals/route.ts` |
 | `/api/crm/pipeline` | GET | agent/broker | — | — | `app/api/crm/pipeline/route.ts` |

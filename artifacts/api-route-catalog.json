@@ -1,11 +1,11 @@
 {
   "stats": {
-    "total_routes": 288,
+    "total_routes": 283,
     "by_auth_class": {
       "public": 36,
       "broker": 24,
       "public (auth)": 17,
-      "agent/broker": 145,
+      "agent/broker": 140,
       "agent/broker (path)": 2,
       "cron": 24,
       "portal": 25,
@@ -1994,76 +1994,6 @@
       "compliance_signals": [
         "audit-event"
       ],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
-      "route": "/api/crm/outlook/auth",
-      "file": "app/api/crm/outlook/auth/route.ts",
-      "methods": [
-        "GET"
-      ],
-      "auth_class": "agent/broker",
-      "auth_signals": [
-        "agent-or-broker"
-      ],
-      "compliance_signals": [],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
-      "route": "/api/crm/outlook/callback",
-      "file": "app/api/crm/outlook/callback/route.ts",
-      "methods": [
-        "GET"
-      ],
-      "auth_class": "agent/broker",
-      "auth_signals": [
-        "agent-or-broker"
-      ],
-      "compliance_signals": [],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
-      "route": "/api/crm/outlook/disconnect",
-      "file": "app/api/crm/outlook/disconnect/route.ts",
-      "methods": [
-        "POST"
-      ],
-      "auth_class": "agent/broker",
-      "auth_signals": [
-        "agent-or-broker"
-      ],
-      "compliance_signals": [],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
-      "route": "/api/crm/outlook/folders",
-      "file": "app/api/crm/outlook/folders/route.ts",
-      "methods": [
-        "GET"
-      ],
-      "auth_class": "agent/broker",
-      "auth_signals": [
-        "agent-or-broker"
-      ],
-      "compliance_signals": [],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
-      "route": "/api/crm/outlook/scan",
-      "file": "app/api/crm/outlook/scan/route.ts",
-      "methods": [
-        "GET"
-      ],
-      "auth_class": "agent/broker",
-      "auth_signals": [
-        "agent-or-broker"
-      ],
-      "compliance_signals": [],
       "distribution_gate_signals": [],
       "gate_enforced": false
     },
