@@ -90,7 +90,10 @@ const extractRoleBlock = (src: string) => {
 const extractServerOverride = (src: string) => {
   const at = src.indexOf("if (VIEWER_MODE && typeof MallanAPI !== 'undefined')");
   if (at < 0) throw new Error("server override block not found");
-  return sliceBlock(src, at);
+  // the block settles the listing-fetch gate, whose helpers are defined just above it
+  const gate = src.indexOf("// Listing-fetch gate.");
+  const helpers = gate >= 0 && gate < at ? src.slice(gate, at) : "";
+  return helpers + sliceBlock(src, at);
 };
 
 function loadViewer(v: Viewer, query: string) {
