@@ -854,6 +854,8 @@ These are statements the owner has made about what Mallan is and how it must beh
 
 **Rental form behavior (owner specification).** When the form starts it fills in the name of the agent who started it. When a building address is entered, the form fills in the type of building and all the information associated with that address; if the building is a co-op, the co-op form loads. Every field saves automatically, and a form saved as a draft and reopened shows the information in place. A listing begins as a draft so that every REBNY-required field is satisfied before it is anything else. In the description, Fair Housing words are flagged and highlighted; flagging does not stop the form from saving.
 
+**Floor.** In the unit section, the building floor field is the floor the unit is on, and the agent types the floor number.
+
 **Co-agents** may be Mallan agents or REBNY members, and the form lists both.
 
 **Building search** uses every building attribute that Cotality makes available.
