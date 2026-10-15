@@ -43,6 +43,16 @@ describe("Outlook Graph integration is gone", () => {
     expect(hits).toEqual([]);
   });
 
+  it("active capability inventories do not list the scanner as a live feature", () => {
+    for (const rel of ["MASTER-PROJECT-TREE-v3.3.md", "README.md", "CLAUDE.md", "AGENTS.md"]) {
+      if (!existsSync(path.join(ROOT, rel))) continue;
+      const stale = read(rel)
+        .split(String.fromCharCode(10))
+        .filter((l) => /Outlook Scanner|Microsoft Graph/i.test(l) && !/retired/i.test(l));
+      expect({ file: rel, stale }).toEqual({ file: rel, stale: [] });
+    }
+  });
+
   it("the CRM dashboard no longer registers or lists the Outlook Scanner", () => {
     for (const rel of ["public/crm/js/dashboard/app.js", "public/crm/js/dashboard/panels.js"]) {
       const src = read(rel);

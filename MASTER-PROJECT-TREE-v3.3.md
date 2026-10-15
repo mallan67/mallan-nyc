@@ -138,7 +138,7 @@
 - Session 1-7: Broker Dashboard, Agent Roster, sidebar, referrals, commission, hash routing
 - Session 8 (2026-03-17): Old CRM removed (MALLAN-NYC-CRM-FINAL2.html + 40 orphaned JS files)
 - **Email Importer:** Couple detection, partner toggle, all roles + combos (Landlord+Seller)
-- **Outlook Scanner:** Microsoft Graph OAuth, folder browser, StreetEasy lead parser, bulk import
+- **Outlook Scanner: RETIRED** (Maya, 2026-10-14; removal in PR #662, open, pending merge). The Microsoft Graph OAuth flow, folder browser, StreetEasy lead parser and bulk import were removed; Microsoft 365 SMTP delivery, the generic Import Contacts panel and existing CRM records are unchanged.
 - **Multi-Person Clients:** Secondary person fields (spouse/partner/co-owner) on Lead model, one card per unit
 - **Landlord Dual Addresses:** property_address (rental unit) + home_address (owner's personal)
 - **Client Workspace:** Notes endpoint, edit/delete notes, delete client, add person button, partner in header
