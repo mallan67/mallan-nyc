@@ -92,7 +92,7 @@
 - **Confirmed (live):** SEO-001…011 (production HTTP/DOM captures + full-population Cotality join) · QUAL-001/002/003/005 (Playwright) · COMP-001 + PASS register (live sweeps) · PROD-001/002/003 (Vercel MCP + curl) · OPS-002/003 (live logs + live diff) · QUAL-006…009 (validator exit codes captured).
 - **Confirmed (static)** — code verifiably does this; production consequence not yet observed: OPS-007 (endpoint code vs writer actions; live all-null response not captured) · OPS-008/009/011/012/013/014 · BIZ-005 (no dispatcher exists in code — magnitude MEASURED live 2026-07-02: zero email/sms rows; see H-002) · BIZ-006 (canonical — filter code paths on BOTH the DB and Cotality-fallback runtimes; **Evidence Score 3/10, verify first**; needs a live filtered-search transcript on both paths to graduate; BIZ-008 superseded by it) · BIZ-007 (filter code paths; needs one live filtered-search transcript to graduate) · BIZ-009…014 · PROD-004/005/007 · COMP-002/003. (OPS-006 removed from this class 2026-07-02 — Fixed/RW-004.)
 - **Confirmed (live, read-only DB + EXPLAIN on an isolated branch forked from production):** OPS-023 (both symptoms separately verified; see the OPS-023 row for the canonical description).
-- **Needs Verification (hypotheses):** OPS-001 contact errors (Hypothesis **H-004** — the earlier H-001 was **DISPROVED live 2026-07-02**) · PROD-006 (the *wide SELECT* is Confirmed-static; "leak" is only a future-refactor RISK — no live exposure observed; treat as hardening) · PROD-008 (`ALLOW_DEV_LOGIN` env state unknown until checked — Hypothesis H-003).
+- **Needs Verification (hypotheses):** OPS-001 contact errors (Hypothesis **H-004** — the earlier H-001 was **DISPROVED live 2026-07-02**) · PROD-006 (the *wide SELECT* is Confirmed-static; "leak" is only a future-refactor RISK — no live exposure observed; treat as hardening). PROD-008 / H-003 no longer needs verification: the `dev-login` route is deleted in PR #663 (open, pending merge).
 - **Verified live 2026-07-02 (read-only DB session + Neon configuration API):** H-001 disproof · H-002 resolution · RW-004 guard baseline · OPS-016 Neon facts · OPS-017 schema drift. OPS-006 graduated to Fixed — Regression Watch (RW-004).
 - **Verified live 2026-07-25 (read-only pg_stat, PR #569):** OPS-010 + OPS-010A graduated from Confirmed-static to **live-measured** — `audit_events` append-only (89,867 rows) + rate 199→566/day; `sync_errors`=0; `listing_media` soft-deleted 28,664; cumulative tuple updates listing_media 3.40M / listings 1.40M; ~118 KB WAL/light cycle. Evidence: `docs/operations/neon-write-amplification-forensic-2026-07-25.md`.
 
@@ -135,7 +135,7 @@ does, not what production is doing.
 | PROD-005 | 12 cron mutation endpoints IF env ever unset | Static analysis | Claude | security-agent |
 | PROD-006 | None today (hardening); agent PII of all listings if a future refactor regresses | Static analysis | Claude | security-agent |
 | PROD-007 | Public form abuse ceiling; tracking-data integrity | Static analysis | Claude | security-agent |
-| PROD-008 / H-003 | Broker impersonation IF env is set (else none) | Static analysis | Audit (env check) | security-agent |
+| PROD-008 / H-003 | None once PR #663 merges (route deleted). Until then: broker impersonation only if `ALLOW_DEV_LOGIN=true` and `NODE_ENV` is not production, unreachable on Vercel | Static analysis | Deletion in PR #663 (pending merge) | security-agent |
 | QUAL-001 | Every page load (console error); all non-English visitors (dead widget) | Live smoke | Claude | Audit |
 | QUAL-002/003 | Homepage credibility; screen-reader users on galleries | Live smoke | Maya (photos) + Claude | Audit |
 | QUAL-006 | (Verified Fixed 2026-07-03 via #471) was: CI baseline integrity | Validator | Claude (fixed) | Audit (verified on main) |
@@ -203,11 +203,11 @@ Fixed and merged — held open until the defined clean window is observed. Do no
   runtime logs (Maya approval — production write) is the only way to confirm the funnel works TODAY;
   organic traffic would also resolve it.
 
-### Hypothesis H-003 — `ALLOW_DEV_LOGIN` is unset in all Vercel environments (→ PROD-008)
-- **Observed:** gated broker-impersonation route exists (`app/api/auth/dev-login/route.ts:25,79`).
-- **Missing:** env listing for prod + preview.
-- **Confidence:** Unknown.
-- **Next verification:** `vercel env ls` (names only, no values).
+### Hypothesis H-003 — `ALLOW_DEV_LOGIN` is unset in all Vercel environments (→ PROD-008) — **MOOT: route deleted in PR #663 (open, pending merge)**
+- **Observed:** the gated broker-impersonation route exists on `main` (`app/api/auth/dev-login/route.ts:25,79`) until PR #663 merges. The Vercel env listing (names only) does not contain `ALLOW_DEV_LOGIN`.
+- **Missing:** the merge of PR #663 and a production check that `/api/auth/dev-login` returns 404.
+- **Confidence:** the hypothesis no longer matters once the route is gone.
+- **Next verification:** after PR #663 deploys, `GET /api/auth/dev-login` on production returns 404.
 
 ---
 
@@ -230,7 +230,7 @@ Fixed and merged — held open until the defined clean window is observed. Do no
 | **9/10** | **OPS-018 S1 reclaim check** — ✓ surface ✓ source ✓ live DB re-measurement (2026-07-02) ✓ environment ✓ timestamps ✓ disposition recorded ✓ blast scoped · ✗ multi-day synthetic-storage trend series | re-measure post-drain |
 | **7/10** | **OPS-010A** — ✓ surface (media-sync/idx-sync upsert paths) ✓ source (`upsertListingMedia` in `lib/idx/media-sync.ts`; full-row UPDATE in `lib/idx/sync.ts`) ✓ log-derived live measurement (38.4K no-op media rewrites/day × 6 days, frozen-cursor week) ✓ DB query result (pg_stat cumulative tuple updates: listing_media 1.82M, listings 838K — 2026-06-12 operator audit) ✓ frequency/timestamps ✓ environment (prod) ✓ blast quantified (residual = `raw_data_only` + delivery-refresh AFTER base suppression; the "every synced row" figure is the pre-suppression 2026-06-12 baseline) | ✗ request/response capture · ◐ fresh steady-state re-measurement — PR #569 **MERGED 2026-07-26 (`2fecd4f3`); prod deploy `dpl_5N2e` READY**; the bounded production capture is **COMPLETE** (3 natural cycles 2026-07-26, `neon-write-amplification-capture-2026-07-26.md`: raw_data_only = PhotosChangeTimestamp; media = material + delivery-refresh) — BUT a **multi-DAY WAL/history trend series is still missing** · ✗ single no-op-write repro with WAL delta. Close via: live capture + WAL/history trend pre/post fix (evidence: neon-write-amplification-forensic-2026-07-25.md) |
 | **6/10** | **OPS-015** — ✓ surface (`/api/cron/db-keepalive`) ✓ source (`NEON.md:52,321` + `vercel.json` `*/15`) ✓ runtime log (500s incl. 2026-07-01 18:00Z) ✓ frequency/timestamps ✓ environment (prod) ✓ user impact quantified (none user-facing) | ✗ idle-window DB measurement · ✗ suspend/cold-start timing repro · ✗ 60s uptime-monitor interval independently re-confirmed this cycle · ✗ compute-size console check. Decision item — close the ✗ fields before any retirement change |
-| **3/10** | PROD-006 (hardening risk — no live artifact possible until a regression exists), PROD-008/H-003 | most live fields N/A or unchecked |
+| **3/10** | PROD-006 (hardening risk — no live artifact possible until a regression exists) | most live fields N/A or unchecked |
 
 New items MUST be scored on entry; scores are updated (with date) whenever a verification step runs.
 
@@ -344,11 +344,11 @@ exist and are CRON_SECRET-protected (timing-safe); no unauthenticated cron handl
 | PROD-005 | 12 cron routes fail **open** if `CRON_SECRET` unset (`'Bearer ' + (process.env.CRON_SECRET \|\| '')` pattern, e.g. `app/api/cron/lead-scoring/route.ts:10-11`; 11 other crons guard-first fail-closed). Conditional on env — normalize to guarded form | **P2** | Open | Claude | Backend audit 2026-07-01 (API-003) |
 | PROD-006 | Public listings route selects `raw_data` + `list_agent_email`/`list_agent_direct_phone` + gate flags into the response-bound object (`app/api/listings/route.ts:357-378,1248-1265`); safety rests entirely on DTO stripping (applied today). Fragile — narrow the SELECT | **P2** | Open | Claude | Backend audit 2026-07-01 (API-004) |
 | PROD-007 | Abuse-surface gaps: per-instance in-memory rate-limit Maps on `buildings/search` + `crm/neighborhoods/cotality` (ineffective on serverless); `tracking/listing-view` public POST with no rate limit (token-gated, silent 204); no captcha on any public lead form (IP-only limits) | **P3** | Open | Claude | Backend audit 2026-07-01 (API-005) |
-| PROD-008 | `auth/dev-login` broker-impersonation route gated only by `NODE_ENV`+`ALLOW_DEV_LOGIN` (`app/api/auth/dev-login/route.ts:25,79`) — verify `ALLOW_DEV_LOGIN` is unset in ALL Vercel envs (prod/preview) | **P2** | Needs env verification | Audit | Backend audit 2026-07-01 (API-006) |
+| PROD-008 | `auth/dev-login` broker-impersonation route gated only by `NODE_ENV`+`ALLOW_DEV_LOGIN` (`app/api/auth/dev-login/route.ts:25,79`) — **route DELETED in PR #663 (open, pending merge)**, together with its login-page button, the CRM dev page and its test; nothing remains to verify once merged | **P2** | Fix prepared — PR #663 open; becomes Verified Fixed only after it reaches `main` and production returns 404 | Audit | Backend audit 2026-07-01 (API-006) |
 
 Verified clean (backend): raw-SQL injection review — all 6 raw-SQL routes parameterized; `health/env` leaks no values (boolean presence, broker-gated); media proxy SSRF-allowlisted; public agent directory strips phone/email; portal IDOR posture post-#458/#459 solid (ownership enforced on every reviewed id-param route; buyer identity masked to sellers).
 
-**Verification criteria:** PROD-004 middleware matcher live + a deliberately helperless test route under /api/crm returns 401; PROD-005 all 23 crons use guard-first pattern (grep = 0 fail-open); PROD-008 `vercel env ls` shows no ALLOW_DEV_LOGIN; PROD-001 7-day `get_runtime_errors` with 0 hits in the 25006 class.
+**Verification criteria:** PROD-004 middleware matcher live + a deliberately helperless test route under /api/crm returns 401; PROD-005 all 23 crons use guard-first pattern (grep = 0 fail-open); PROD-008 `GET /api/auth/dev-login` returns 404 on production after PR #663 deploys; PROD-001 7-day `get_runtime_errors` with 0 hits in the 25006 class.
 
 ---
 
@@ -403,6 +403,7 @@ lint 0 err/11 warn. (Snapshot re-run 2026-07-03: 9/9 gates exit 0 — see change
 
 | Date (UTC) | Change |
 |---|---|
+| 2026-10-14 | **PROD-008 / H-003: fix prepared in PR #663 (open, pending merge).** The `dev-login` route, its login-page button, `public/crm/dev.html` and its test are deleted, which makes the env-state hypothesis moot. Issue row, operational row, needs-verification summary, hypothesis, evidence scores, verification criteria and the health dashboard are updated together. Becomes Verified Fixed only after merge and a production 404. |
 | 2026-07-28 | **OPS-023 registered** (`listing_media` R2-backlog lifecycle + attempt-sentinel overflow, P2, Open). Companion partial index `listing_media_r2_backlog_id_idx` deployed to production 2026-07-28T02:45:22.752Z and documented in PR #581. |
 | 2026-07-01 | Backlog created from full-coverage SEO/UI/compliance audit. All items Open unless verified in-audit. |
 | 2026-07-01 | Comprehensive backend+ops+business+validator audit appended: BIZ-005…014, OPS-006…014, PROD-004…008, QUAL-006…009; BIZ-001/BIZ-004 statuses updated; PROD-001 refreshed with live Vercel 7d/24h evidence. |
