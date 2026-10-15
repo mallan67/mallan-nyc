@@ -1352,3 +1352,164 @@ database chain (B) continues as a read-only investigation.**
 **5. No failure is closed without proof:** targeted grouped direct provider positive/negative queries -> typed mapping -> API validation -> create/save/reload/edit/save/reload -> provider/CRM/public/portal/Search/Building/CMA/media/marketing/compliance -> exact preview browser -> independently verified Production after Maya's explicit approval. Do not merge, deploy, migrate or delete source records from this documentation update.
 
 **Missing evidence:** Claude's complete 110-field scratchpad ledger and raw per-agent evidence are not available from the uploaded transcript; both registered Desktop Commander machines are offline. Results above faithfully retain all explicitly stated substantive outcomes and independent live validations, without falsely declaring the unavailable rows tested or fixed.
+
+
+---
+
+## 2026-10-15 HANDOFF: completed field findings, unit-floor rule, and correction history
+
+**This section is the corrected, durable handoff. Read it before repeating earlier audits.** Prior October 15 notes stay as historical evidence; their superseded field classifications are NOT current authority. Master Plan is the only product/system authority. Claude's reports and independently accepted provider reads are evidence only. NO application code, schema, environment or production changes in this checkpoint.
+
+### Settled user definitions and current owner requirements
+
+**SL-** is a Mallan-created SALE Listing; **RL-** is a Mallan-created RENTAL Listing. The Mallan Listing is the one editable canonical listing and keeps its owner_client_id; Cotality RLS records and Mallan own provider return-copies are read-only, source-attributed and must reconcile without duplicate public inventory. rls_eligible=false ALONE does NOT establish Mallan authorship (read-only production writer/row reconciliation still required).
+
+**Unit floor is floor occupied by the apartment.** On the 8th floor enter **8**. `Property.EntryLevel` is the provider field; independently LIVE verified `UnitNumber='8B',EntryLevel=8`, `8S=8`, `21B=21`. Claude 1000 listing probe: 950 populated; 588/630 common floor-prefixed numbers agree (93%). Source outliers are data-quality exceptions, not permission to change the meaning. F2 has `rentalFloor` already tagged EntryLevel at line 1799 but currently type=text and writes a string at line 5839: use integer validation and typed storage. Property.StoriesTotal is BUILDING stories, not unit floor.
+
+**Unit square footage** is `Property.LivingArea`; F2 `rentalSqFt` at line 1795 is already tagged LivingArea and numeric. Preserve separation from building StoriesTotal and NumberOfUnitsTotal.
+
+**Form already has UNIT and BUILDING sections.** Rental Form F2 Tab 2 is Unit Essentials/Additional Rooms/Features. A distinct Building Information panel has address lookup and building fields. A Building Amenities card also appears in the Unit Features presentation. Claude has NOT checked whether card and Building panel bind one source; don't delete a screen or create two database copies based on where card renders. Ensure one canonical building data source, used in any UI panels.
+
+**SponsorUnitYN** means sponsor/developer's original unit sale; it is NOT the tax abatement. **TaxAbatementYN** is the municipal building tax concession; TaxAbatementComments may state 421A/J51, TaxAbatementExpirationYear carries an end year (not a guaranteed 5/10/15/25-year duration). **MaximumFinancingPercent** is how much financing the building permits. Show it in Mallan's Building/property financing section while retaining its ACTUAL Cotality source as CustomProperty.CustomFields, not a fictitious top-level Property field. Meaning of `0.00` is NOT verified.
+
+**Rental form owner spec in OPEN PR #665 (docs, not implementation):** first agent auto-populates, building address fills building type and related facts, co-op selects co-op form, every field autosaves, private Draft reopened restores all data, REBNY-required fields satisfied before public activation, and Fair Housing prohibited wording is highlighted/flagged WITHOUT blocking PRIVATE Draft save. Publication/marketing/SEO must reject discriminatory content and Draft must not be anonymous/direct-link readable.
+
+### What was COMPLETED by Claude and what remains
+
+**FULL Property pull completed** per Claude: 596,199 records in 597 pages, no throttling; quota minimum 6,035; no raw Property rows retained, only aggregates. 580,876 Closed / 5,107 Pending / 10,216 Active. 376,797 Rentals / 219,402 Sales. TaxBlock 100% present, TaxLot 45.5%, ParcelNumber 64.4%, BuildingName 37.5%. Building names absent on 54,638 of 69,250 tax lots. 13,338 of 67,746 addresses have multiple tax-lot formats; 996 lots multiple names, 1,344 spelling variants, 3,388 lots span more than one address; 8,121 buildings have sale AND rentals; 22,292 unnamed listings might adopt name after verifiable identity. **No single tax lot, name or address is a proven universal Building ID**. Existing canonical identity plus address/verified parcel corroboration and collision handling is required. `Building` resource returns LIVE 403.
+
+**All 110 field names investigated by Claude's three agents, but not fixed.** Slice 1: 37 fields = 12 proven live, 3 likely, 12 Building/403 only, 10 without equivalent. Slice 3: 36 = 21 proven, 10 likely, 2 Building/403 only, 3 without equivalent. Slice 2 finished, but breakdown and all 110 original per-control raw proofs NOT included in the uploaded conversation. Many old 'no equivalent' outcomes were superseded by the subsequent CustomFields inspection. Never claim 110 controls corrected.
+
+**CustomFields sampling history preserved:** Claude first reported 2,400 sampled JSON records/50 observed keys, later 2,000 sampled rows/49 observed keys, with successful Property expand `CustomProperty($select=CustomFields)` on 100/100 in CLAUDE's environment. Earlier `lib/idx/fetch.ts` comments warn a different expand shape gave HTTP400; preserve Claude's exact successful request before implementation. Independently in this ChatGPT session, 7 non-contiguous CustomProperty windows of 100 rows each (offsets 0,1000,10000,30000,100000,250000,450000) yielded **57 distinct JSON keys**. Different populations explain different sample counts. These are positive direct-source evidence, NOT the complete 110-row HTML field ledger, NOT 57 guaranteed globally populated fields.
+
+**Sponsor, tax and financing** (Claude deep 2,000 sample): 296 sponsor flags versus 31 tax-abatement flags (independent), sponsor language appears in 59% of flagged remarks vs 1.2% unflagged; no key for registered sponsor name. TaxAbatementYN present on 31/1,992, examples 421A/J51, expiry 2027/2039/2043 and placeholder 1900; no reliable duration key. MaximumFinancingPercent populated on 1,408 rows; condos commonly 90%/80%, co-ops 80%/75%/50%; MaximumFinancingAmount 94/96 zeros. None makes 0 percent mean 'not stated' without proof.
+
+### Exact 57 CustomProperty JSON fields independently observed in live Cotality
+
+**Actual provider path for every row:** `Property.ListingKey` -> numeric `CustomProperty.ListingKeyNumeric` -> parse JSON STRING `CustomProperty.CustomFields` -> named JSON key. SAME-LISTING sample: ListingKey 1193202364, BuildingTaxLot='7501', Property.TaxLot='1008' (different). `n/700` is appearance within the seven selected 100-row windows, NOT a provider-wide prevalence rate; all entries are SOURCE FOUND, not WORKFLOW FIXED.
+
+| Cotality JSON key: CustomProperty.CustomFields.<name> | Observed rows in 700-window sample | Real example value(s) | Correct conclusion / downstream constraint |
+| --- | --- | --- | --- |
+| AlternateStreetDirPrefix | 5/700 | E/W | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| AlternateStreetName | 18/700 | 21st/83rd/1st | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| AlternateStreetNumber | 18/700 | 222/1/1476-1478 | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| AlternateStreetSuffix | 16/700 | Street/Avenue/Plaza | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| AreaOverFAR | 1/700 | 0.00 | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| AreaUnderFAR | 1/700 | 0.00 | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| AttendanceType | 589/700 | DoormanFullTime/DoormanPartTime/Concierge | Building doorman/concierge attendance multivalue |
+| BathroomCondition | 171/700 | Excellent/Good/Fair | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| BonusRemarks | 1/700 | None | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| BonusYN | 131/700 | 0 | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| BuildingParkingTotal | 11/700 | 200/0/49 | Building parking count, not unit garage count |
+| BuildingRules | 82/700 | PiedATerreAllowed/CorporateOwnerAllowed | Association rules, may be multivalue |
+| BuildingSmokeFreeYN | 103/700 | 1/0 | Smoke-free means no smoking; current 'Smoking Allowed' label inverted |
+| BuildingStaffType | 57/700 | SuperLiveIn/ResidentManagerFullTime | Super/resident manager, building fact |
+| BuildingTaxLot | 700/700 | 7501/0044/0060 | BUILDING tax lot; same source listing has this 7501 versus Property.TaxLot 1008 |
+| BuyerAgentRLSParticipantYN | 239/700 | 1/0 | Buyer-side permission; NOT listing ParticipantOnly display right |
+| CapitalReservesTotal | 4/700 | 0.00/1.00/3.00 | Previously reported missing; now found 4/700 |
+| CapitalReservesYN | 279/700 | 0/1 | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| CeilingHeightFeet | 43/700 | 11/10/9 | Previously reported missing; now source verified |
+| CeilingHeightInches | 8/700 | 132/0/7 | Sometimes value 132; do not sum feet/inches naively |
+| CeilingHeightUnits | 35/700 | Feet | Required to interpret height units |
+| CertificateOfOccupancyYN | 458/700 | 1/0 | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| ClosetsTotal | 153/700 | 0 | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| CoBuyerAgentRLSParticipantYN | 7/700 | 1/0 | Co-buyer-side flag; NOT listing ParticipantOnly |
+| ComingSoonTimestamp | 6/700 | 2026-06-23T00:00:00.000 | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| CommercialUnitsYN | 22/700 | 0/1 | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| ElevatorsTotal | 648/700 | 0/1/2 | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| FlipTax | 429/700 | 0.00/2.00/1.00 | Transfer cost: verify policy/type/payor and particular transaction |
+| FlipTaxRemarks | 268/700 | SELLER PAYS/ASK EXCL BROKER | Fee payor/remarks; do not ignore |
+| FlipTaxType | 142/700 | Percent/Dollars/SeeRemarks | Percent versus dollars is materially distinct |
+| FurnishedListPrice | 186/700 | 949999.00/10000.00 | Potential sale/rental contexts; check PropertyType |
+| FurnishedMaxLeaseMonths | 28/700 | 24/12/3 | Furnished listing lease max months |
+| FurnishedMinLeaseMonths | 28/700 | 12/1/13 | Furnished listing lease min months |
+| GuarantorsAcceptedYN | 20/700 | 0 | Rental policy when applicable; absence is unknown |
+| KitchenCondition | 297/700 | Excellent/Good/Fair | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| LandmarkStatusYN | 453/700 | 0/1 | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| ListingKey | 700/700 | 1193206398/1193204929 | JSON listing key should match Property.ListingKey |
+| ManagingAgencyListingYN | 93/700 | 0/1 | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| MaximumFinancingAmount | 59/700 | 0.00 | Money amount field sparse/mostly 0; zero meaning NOT established |
+| MaximumFinancingPercent | 427/700 | 90.00/100.00/80.00 | Building maximum permitted financing PERCENT, not purchase price |
+| MaximumFinancingRemarks | 380/700 | See Maximum Financing Percent | Free-text policy context for financing |
+| MaxLeaseMonths | 293/700 | 24/14/12 | Listing maximum lease term in months |
+| NumberOfProfessionalUnitsTotal | 3/700 | 0 | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| PercentOfCommonElements | 433/700 | 0.00/3.00/50.00 | UNIT's percentage of common elements |
+| PrivateOutdoorSpaceSize | 155/700 | GreaterThan60SqFt/LessThan60SqFt | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| RoofRightsYN | 96/700 | 0/1 | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| SpecialAssessmentExpirationDateTime | 1/700 | 2017-12-31T19:06:00.000 | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| SponsorUnitYN | 571/700 | 0/1 | Unit sponsor/developer inventory; independent of city tax abatement |
+| TaxAbatementComments | 12/700 | 421A/421a/421A 25yr | Actual tax program (421A, J51), not duration |
+| TaxAbatementExpirationYear | 12/700 | 2035/2027/2039 | End year; placeholder year 1900 reported; no proven duration key |
+| TaxAbatementYN | 500/700 | 0/1 | City tax concession flag, independent of sponsor |
+| TaxDeductionAmount | 59/700 | 0.00/39691.50 | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| TaxDeductionPercent | 326/700 | 78.00/0.00/33.00 | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| TaxDeductionRemarks | 39/700 | ASK EXCL BROKER | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+| TaxMonthlyAmount | 340/700 | 42.00/8265.00/0.00 | Period-specific property/unit tax amount |
+| UnitLine | 244/700 | B/FS/A | Unit line, NOT unit floor |
+| ViewRemarks | 311/700 | See remarks/City | LIVE provider key exists; preserve raw, null and type, then verify exact form/search/business semantics |
+
+**Additional Claude-reported custom fields not independently in our 700-row selection:** `ArchitectName` and a separately named `TaxAbatement` key reported in one earlier run. No automatic 'absent' verdict from our smaller windows; import Claude's exact raw rows before assigning full mapping. `TaxAbatementYN` and TaxAbatementComments/ExpirationYear were independently observed. No unauthorized inference of a sponsor's legal registration.
+
+### Other verified provider fields and correct consumer meaning
+
+| Canonical feature | Exact provider source | Outcome / right fix |
+| --- | --- | --- |
+| Mallan editable listing | SL- = Mallan Sale Listing; RL- = Mallan Rental Listing | MALLAN canonical identity, linked owner_client_id, only Mallan authoring; read-only provider returned copy reconciled |
+| Real provider IDs | Property.ListingId; Property.ListingKey | ListingId RLS... and ListingKey numeric-looking string are DISTINCT, never swap |
+| All CustomFields JSON keys | Property.ListingKey -> CustomProperty.ListingKeyNumeric -> JSON CustomProperty.CustomFields | Actual same-rental join successful; do not classify missing due to absence on Property top-level |
+| Unit floor | Property.EntryLevel | If 8th floor, enter 8; F2 rentalFloor:1799 tagged EntryLevel but input type=text; must enforce whole number |
+| Unit square footage | Property.LivingArea | F2 rentalSqFt:1795 numeric field; unit area, not building square footage |
+| Building stories / number of units | Property.StoriesTotal; Property.NumberOfUnitsTotal | Number of building stories, units, not unit floor. Existing NumFloors/NumUnits search aliases need true tested mapping |
+| Unit internal levels | Property.Levels; Property.Stories | Not which building floor the unit occupies; EntryLevel remains unit-floor field |
+| Address | Property.UnparsedAddress, structured Street/PostalCode/TaxBlock | Old UnParsedAddress capitalization wrong; normalize address but preserve raw |
+| Latest change type | Property.MajorChangeType | Old LastChangeType wrongly named; LIVE NewListing |
+| Ownership | Property.PropertyType, Property.PropertySubType, Property.CommonInterest | Sale vs lease; Co-op/Condo ownership via CommonInterest, not guessed subtype |
+| Pricing | Property.ListPrice; ClosePrice; CloseDate | Active ResidentialLease ListPrice=rent; Closed ResidentialLease ClosePrice=contract rent, not property sale price |
+| Auction | Property.SpecialListingConditions | LIVE auction flagged 'Auction,Standard', one listing RLS10946165; auction start/end/types remain Mallan-only if needed |
+| Patio/outdoor | Property.PatioAndPorchFeatures | Actual BuildingTerrace enum; no proof PatioDescription free text is supplied |
+| Fee information | CustomProperty.AdditionalFee, AdditionalFeeYN, AdditionalFeeDescription, AdditionalFeeFrequency | Real select works; these are separate CustomProperty COLUMNS, not JSON; NYC written fee rules separate |
+| Open houses | OpenHouse.ListingKey, OpenHouseDate, OpenHouseType | Separate resource; count derived from sessions, not invented Property.OpenHouseCount |
+| Media | Property.ListingKey -> Media.ResourceRecordKey; MediaCategory, MediaClassification, Order, permission | LIVE same key 1180084811 Photo and FloorPlan BOTH Order=1. Sort within category, rights before render |
+| Virtual tours | Property.VirtualTourURLBranded, VirtualTourURLUnbranded and allowed Media | Correct URL fields; avoid invented VideoURL and do not assume branded/public license |
+| Agent and office | Property.ListAgentKey/CoListAgentKey/ListOfficeKey -> Member/Office | MLS IDs are separate from opaque keys. Mallan OfficeMlsId=7041 confirmed |
+| Building endpoint | Building (403) | Unavailable on this entitlement, but building fields exist in Property and CustomProperty; no false BuildingKey |
+
+### Chronological correction history: what was wrong, why, and what the adopted outcome is
+
+| ID | OLD conclusion (retain as history) | NEW evidence and correct conclusion | Fix status |
+| --- | --- | --- | --- |
+| 01 | Said there was no unit floor field; guessed ListingFloorNumber=ListingKey | UNIT floor means EntryLevel. User says eighth floor => 8; Claude 588/630 conventional units align; LIVE 8B/8S/21B align | Correct meaning adopted; F2 text input validation still broken |
+| 02 | Said unit and building sections missing/mixed solely based on IDs | F2 ALREADY has separate Unit Tab 2 and Building Information panel/address lookup; Building Amenities CARD also appears in Unit Features | Two UI surfaces may share one canonical building fact; do not delete card or create duplicate storage until writers traced |
+| 03 | Claimed field names missing because not top-level Property | Claude 2000-row 49-key JSON investigation; independent 700 rows at seven offsets found 57 valid CustomFields keys | All 57 rows above SOURCE FOUND; their application mappings NOT YET FIXED |
+| 04 | Declared ceiling heights and CapitalReservesTotal unavailable | CustomFields.CeilingHeightFeet/Inches/Units and CapitalReservesTotal independently observed (4/700 total) | Old no-match verdict overturned, unit/format must be checked |
+| 05 | Mapped BuildingTaxLot to TaxLot | SAME rental ListingKey=1193202364 gives CustomFields.BuildingTaxLot 7501 and Property.TaxLot 1008 | Not the same field. Preserve BUILDING lot versus UNIT lot |
+| 06 | Grouped SponsorUnit with TaxAbatement | Independent concepts: sponsor/developer unit versus city tax concession. Claude observed 296 sponsor and 31 abatement in its sample | No sponsorship/registration inferred from flag; no correlation rule |
+| 07 | Guessed tax benefit 5/10/15/25-year term from flag | TaxAbatementComments includes 421A/J51, ExpirationYear end year, but length not reliable without start date | No invented concession duration |
+| 08 | Called MaximumFinancingAmount real maximum financing policy | MaximumFinancingPercent is BUILDING allowed percent (Claude: 1408 populated); amount often 0 (94/96); 0 percent's meaning UNVERIFIED | UI building/property financing section; source remains CustomFields.Percent |
+| 09 | Claimed TaxLot 100% based on a 300-listing sample | Claude FINISHED full 596199 /597 pages: TaxBlock 100%, TaxLot 45.5%, ParcelNumber 64.4%, BuildingName 37.5% | Old small-sample claim superseded, building identity needs corroboration |
+| 10 | Claimed BuildingName, tax lot or address alone uniquely identify building | Full-pull collisions: 13338/67746 addresses multiple lot formats, 996 lots multiple names, 1344 spelling variants, 3388 lots multiple addresses | Use existing canonical Building with normalized address+parcel/block+lot, detect collisions, no new model |
+| 11 | Treated smoking allowed label as equivalent to BuildingSmokeFreeYN Yes | Smoking Allowed Yes is the inverse of smoke-free Yes. F2 lines 998-1000 currently wrong | Correct label/polarity/tri-state across UI and persistence |
+| 12 | Matched CoListAgent2MLSID to CoListAgent2Key | MLS ID and provider Key are different; correct Member/Office joining | Never use same value or invent second co-agent identity |
+| 13 | Treated closed lease ClosePrice as property sale | For ResidentialLease Closed, ClosePrice is rental close/lease rent. LIVE e.g. 9400 Oct13 | Rental CMA and historical rent need type-correct semantics |
+| 14 | Assumed top-level LeaseTerm and RentIncludes available | 0 non-null on ~1006 active rentals, but CustomFields.MaxLeaseMonths populated in Claude broader sample | Don't fabricate; Map legitimate lease-term sources and owner-entered values separately |
+| 15 | Declared media order unique across all categories | LIVE same ResourceRecordKey FloorPlan and Photo both Order=1 | Category filter + per-category ordering + display permissions |
+| 16 | Marked found provider fields as fixed app controls | Search still drops checkboxes, sponsor search misses JSON join and '1'/'0', CMA still 500, Forms 5-6 fake photos/drafts | Always state SOURCE FOUND vs MAPPING IMPLEMENTED vs WORKFLOW VERIFIED |
+| 17 | Allowed Fair Housing warning-only on public publication | Owner approves highlighted warnings and private Draft saving; REBNY/Fair Housing public visibility and eblast must block invalid words | Fix edit/publication gate and direct-URL Draft authorization; no unsafe publish |
+| 18 | Confused absent provider value with false/zero | 0.00 MaximumFinancingPercent not proven to mean 'not stated'; 1900 tax-benefit expiry can be placeholder; null not false | Tri-state and explicit provider quality flags |
+| 19 | Treated old field-match answers as completed fixes | All 110 names INVESTIGATED, not implemented; slice2 category/110 raw per-control ledger absent from shared paste | Keep Claude scratchpad evidence, import exact original rows; do not declare 110 fixed |
+
+### Implementation paths and end-to-end closure
+
+1. SOURCE: `lib/idx/fetch.ts`, `lib/idx/trestle-mapper.ts` -> exact authorized Property, CustomProperty JSON and separately joined Media/Member/Office/OpenHouse reads. Retain original source keys, permissions and enum values. In `lib/search/crm-idx-mapper.ts`, string JSON flags '1'/'0' MUST be parsed, not just boolean 1/0. `app/api/idx/search/route.ts` currently does not include CustomProperty by default; post-page SponsorUnit filter falsifies population. Probe exact accepted expansion from Claude's evidence first, or verified separate batch read.
+
+2. ONE Search pipe: maintained `public/crm/js/search/search-engine.js` -> `public/crm/js/core/api-client.js` -> `lib/search/crm-idx-filter.ts` -> `app/api/idx/search/route.ts` -> `lib/search/crm-idx-mapper.ts`. Stop dropping checkboxFilters; never issue invalid enum contains; preserve multi-borough/neighborhood meaning, exact count and full-universe sorting before paging. Maintain separate public vs authorized CRM data rights.
+
+3. CMA: repair invalid `Listing.contract_closed` in `lib/cma/engine.ts`, use SAME corrected authorized Search engine, actual ClosePrice/CloseDate and rental vs sale semantics. Filter documented anomalies without replacing missing values with zeros.
+
+4. Seven standalone applications: F1 Sale Redesign, F2 Rental Redesign, F3 Sale Tools, F4 Rental Tools, F5 Tenant Deal, F6 Buyer Deal, F7 generated professional CRM Search (`public/crm/index-built.html` built from maintained sources). For F2: EntryLevel integer, LivingArea unit sqft, unit/Building sections retain their separate scopes; building address autofill + co-op, starting agent, autosave/draft. For F3/F4: correct source broker, media, financial terms and read-only third-party. F5/F6: one canonical Party/Listing/Deal/Member identity, real submit/draft/commission receipts, no fake cards.
+
+5. Public/CRM COMPLIANCE: private Draft edit may save flagged Fair Housing words, but **public publication, syndication, email/eBlast, SEO** must be blocked until valid; direct-link Draft never anonymous. Respect each Media row permission and owner opt-outs. Source code currently validates but ignores `validation.valid` during PATCH; fix must include ALL writers/readers.
+
+6. Stop repeat loops: for every completed correction, append **provider request + real row + exact HTML control + before-value + after-value + canonical write + reload/edit/reload proof + negative test + downstream forms/Search/CMA/public/media/marketing/compliance test + PR/commit + verified preview + production proof after approval**. Mark `SOURCE FOUND` separate from `CODE FIXED` and `BROWSER/PRODUCTION VERIFIED`. No migration/deployment/merge/branch deletion authorized by this checkpoint.
+
+**Claude's preserved inputs:** active scratchpad under `C:/Users/MAYAAL~1/AppData/Local/Temp/claude/C--Users-MayaAllan-mallan-ops/27fa35f1-5c66-4ecc-9cd4-d892fc9ad7ea/scratchpad/fieldreport/` and original 110-field evidence; user pasted completion stats above. These raw local files are not available to the ChatGPT connector; the Desktop Commander machines are offline. PR #665 contains Master's owner/rental/floor definitions, PR #666 this execution handoff. None merged. Do not create another Master or audit.
