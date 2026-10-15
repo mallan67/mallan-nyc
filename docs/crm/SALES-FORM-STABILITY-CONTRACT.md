@@ -499,7 +499,6 @@ npm run type-check
 npm run crm:test
 npx jest tests/runtime/sales-333-e-46th.test.ts
 npx jest tests/runtime/listing-slug-id-suffix.test.ts
-npm run rls:validate
 npm run compliance-check
 npm run ucba:audit
 ```

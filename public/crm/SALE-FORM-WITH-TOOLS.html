@@ -4899,7 +4899,7 @@ function generateAgentInfoSheet() {
         '</div>' +
         '<script>function emailAgentSheet(){var s="Agent Info Sheet - "+document.querySelector(".agent-card h2").textContent;' +
         'var b="Please find the attached agent info sheet for "+s+".";' +
-        'window.location.href="mailto:?subject="+encodeURIComponent(s)+"&body="+encodeURIComponent(b);}</script>' +
+        'window.location.href="mailto:?subject="+encodeURIComponent(s)+"&body="+encodeURIComponent(b);}<\/script>' +
         '</body></html>';
 
     var win = window.open('', '_blank');
@@ -4922,8 +4922,35 @@ var VIEWER_MODE = true; // Always viewer — this file has no form mode
 var _isLocal = (location.hostname === 'localhost' || location.hostname === '127.0.0.1');
 
 // ── Try API fetch first, fall back to cached data ──
+// Listing-fetch gate. The boot sequence waits for the listing request to settle, so a listing that is not in
+// the built-in cache is not declared "not available" before the API has answered. The wait is bounded.
+var VIEWER_FETCH_SETTLED = false;
+var VIEWER_FETCH_STARTED = false; // set once the listing request has actually been issued
+var VIEWER_BOOTED = false; // the re-trigger below assumes the boot sequence has run; boot loads from the cache itself
+var VIEWER_FETCH_WAITERS = [];
+var VIEWER_FETCH_TIMEOUT_MS = window.VIEWER_FETCH_TIMEOUT_MS || 10000;
+function viewerFetchSettled() {
+    VIEWER_FETCH_SETTLED = true;
+    VIEWER_FETCH_WAITERS.splice(0).forEach(function (fn) { try { fn(); } catch (e) { console.error(e); } });
+}
+function whenViewerListingResolved(cb) {
+    if (VIEWER_FETCH_SETTLED || VIEWER_LISTINGS[VIEWER_LISTING_ID] || typeof MallanAPI === 'undefined') { cb(); return; }
+    var done = false;
+    var once = function () { if (done) return; done = true; cb(); };
+    VIEWER_FETCH_WAITERS.push(once);
+    setTimeout(once, VIEWER_FETCH_TIMEOUT_MS); // never hang: afterwards the loader fails closed
+    // The listing request is queued behind MallanAPI.onReady, which only fires once init() completes, and init() is
+    // otherwise first called from initLoggedInAgent() inside the boot sequence that is waiting on this gate. Start it
+    // here to break that cycle. If init finishes without ever issuing the listing request (login check failed), settle
+    // now so the loader fails closed immediately instead of after the timeout.
+    if (!MallanAPI.isReady && typeof MallanAPI.init === 'function') {
+        Promise.resolve(MallanAPI.init()).then(function () { if (!VIEWER_FETCH_STARTED) viewerFetchSettled(); }, viewerFetchSettled);
+    }
+}
+
 if (VIEWER_MODE && typeof MallanAPI !== 'undefined') {
     MallanAPI.onReady(function() {
+        VIEWER_FETCH_STARTED = true;
         // Override URL param with server-validated role (prevents ?role=broker bypass)
         try {
             var ctx = MallanAPI.getContext ? MallanAPI.getContext() : null;
@@ -4958,11 +4985,11 @@ if (VIEWER_MODE && typeof MallanAPI !== 'undefined') {
                 _raw: apiData,
             };
             // Re-trigger viewer load with API data
-            if (typeof loadSaleListingData === 'function') loadSaleListingData(VIEWER_LISTING_ID);
+            if (VIEWER_BOOTED && typeof loadSaleListingData === 'function') loadSaleListingData(VIEWER_LISTING_ID);
             console.log('[Viewer] Loaded listing from API:', VIEWER_LISTING_ID);
         }).catch(function(err) {
             console.warn('[Viewer] API fetch failed, using cached data:', err.message);
-        });
+        }).then(viewerFetchSettled);
     });
 }
 
@@ -5379,6 +5406,7 @@ function applySaleRoleMasking() {
     }
 
     // Add role class to body for CSS-level masking
+    Array.from(document.body.classList).filter(function (c) { return c.indexOf('role-') === 0; }).forEach(function (c) { document.body.classList.remove(c); });
     document.body.classList.add('role-' + role);
 }
 
@@ -5421,7 +5449,7 @@ function initLoggedInAgent() {
                 }
             } else {
                 // Not authenticated — redirect to login
-                window.location.href = '/crm/login.html;
+                window.location.href = '/crm/login.html';
                 return;
             }
         });
@@ -5429,7 +5457,7 @@ function initLoggedInAgent() {
 }
 // Handle 401 events from API calls
 window.addEventListener('mallan:auth:unauthorized', function() {
-    window.location.href = '/crm/login.html;
+    window.location.href = '/crm/login.html';
 });
 
 function cancelSaleForm() { /* No-op — viewer only */ }
@@ -6674,6 +6702,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Show skeleton loading while data loads
     document.body.classList.add('skeleton-loading');
 
+    whenViewerListingResolved(function () { bootSaleViewer(); });
+});
+
+// Boot the viewer once the listing is resolved (or the wait timed out and the loader will fail closed).
+function bootSaleViewer() {
+    VIEWER_BOOTED = true;
     neutralizeSaleFormSystems();
     initLoggedInAgent();
 
@@ -6702,7 +6736,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 200);
 
     console.log('[SaleViewer] Initialized. Listing:', VIEWER_LISTING_ID, 'Role:', VIEWER_ROLE);
-});
+}
 
 // ══════════════════════════════════════════════════════
 // COMMISSION REQUEST — Auto-populate & Calculate

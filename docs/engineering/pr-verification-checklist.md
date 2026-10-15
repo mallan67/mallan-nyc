@@ -219,7 +219,6 @@ Every PR body MUST include a structured proof matrix showing which validation ga
 | `npx jest <relevant-test-files>` | <N of M PASS> |
 | `npm run compliance-check` | <93 PASS / 0 fail> |
 | `npm run ucba:audit` | <46 PASS / 0 regressions> (if rules touched) |
-| `npm run rls:validate` | <pass / N issues> (if RLS surface touched) |
 | `npm run idx:validate` | <1278 pass / 0 critical> (if IDX surface touched) |
 | `npm run ops:health` | <HEALTHY / WARNING / CRITICAL> (if DB-affecting) |
 | Playwright e2e | <N of M PASS> (if UI surface touched) |

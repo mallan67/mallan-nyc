@@ -234,7 +234,7 @@ The implementation plan must produce unit tests in mallan-nyc CI that:
 - Feed it a synthetic record with a known public-records-shaped field set
 - Assert that the sanitizer emits no field whose name begins with `public_records_` and no field whose `source_type` is `public_record`
 
-These tests must run in the standard `npm run ci` chain alongside `ucba:audit`, `rls:validate`, `compliance-check`, `idx:validate`, and `crm:test`.
+These tests must run in the standard `npm run ci` chain alongside `ucba:audit`, `compliance-check`, `idx:validate`, and `crm:test`.
 
 ---
 

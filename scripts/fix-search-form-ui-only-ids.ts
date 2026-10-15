@@ -10,7 +10,7 @@ import path from 'node:path';
 
 const FILE = path.join(process.cwd(), 'public/crm/index-built.html');
 
-// IDs reported by `npm run rls:validate` as UNKNOWN. Source:
+// IDs reported as UNKNOWN by the (since removed) RLS binding validator. Source:
 // validation output 2026-04-27.
 const UI_ONLY_IDS = [
   // Custom price-range inputs (translate to ge/le compound filters)

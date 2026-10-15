@@ -53,7 +53,7 @@ When sources disagree about whether a field exists, what it is named, or whether
 |---|---|
 | **Canonical** | `.claude/skills/rebny-compliance/SKILL.md` §2 (the 6 distribution gates); `lib/idx/trestle-mapper.ts` (the writer-side implementation — `TERMINAL_STATUSES`, `normalizeStandardStatus`, `computeGateColumns` post-PR-#165) |
 | **Backup** | `data/RLS-FIELD-REGISTRY.md`; `data/UCBA-2026-Requirements.md`; `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` (the canonical incident report) |
-| **Validator** | `npm run rls:validate` (10-section validator: fields, renames, gates, masking, coverage); `npm run compliance-check` |
+| **Validator** | `npm run compliance-check` |
 | **When to read** | Any IDX / listing-display / feed / projection / search-result change |
 | **Fail-closed** | The 6 gates (Owner Opt-Out, Participant Only, Internet Entire Display, Address Display, Terminal Status §2.05, Coming Soon badge) are non-negotiable. If a field is null and you don't know whether it's REBNY-pre-filtered or per-row opt-out, STOP — wrong assumption corrupted 7,594 rows in 2026-04-30. |
 
@@ -123,7 +123,7 @@ When sources disagree about whether a field exists, what it is named, or whether
 |---|---|
 | **Canonical** | `app/components/Footer.tsx:25-29,104,215` (license + brokerage + phone + address — every public page); `app/components/IDXDisclaimer.tsx`; `app/layout.tsx` JSON-LD identifier `10991205323`; `lib/compliance/dto.ts` (`sanitizeForPublic` strips listing-agent PII) |
 | **Backup** | `.claude/skills/rebny-compliance/SKILL.md` §6 (NY DOS); `data/UCBA-2026-Requirements.md` (REBNY courtesy rules); `app/listing/[...slug]/page.tsx` (per-listing "Listing Courtesy of Mallan Real Estate Inc." block) |
-| **Validator** | `npm run compliance-check` (NY DOS section); `npm run rls:validate` |
+| **Validator** | `npm run compliance-check` (NY DOS section) |
 | **When to read** | Any new public surface that displays a listing, agent, or brokerage name; any new email/SMS template; any new lead-capture form |
 | **Fail-closed** | Brokerage name + office address OR phone + license type (Salesperson/Broker) on every advertisement. NY DOS §175.25. Agent name NEVER appears without brokerage name. REBNY courtesy line on every IDX-displayed listing. Buyer/tenant portals MUST mask listing-agent PII (company only). |
 
@@ -203,7 +203,7 @@ When sources disagree about whether a field exists, what it is named, or whether
 |---|---|
 | **Canonical** | `public/crm/SALE-FORM-REDESIGN.html` + `public/crm/RENTAL-FORM-REDESIGN.html` (CRM internal — actual RLS submission is via RealPlus/LMP, not mallan.nyc); `lib/compliance/rls-enforcement.ts:assertRlsCompliantPayload` (write-time fail-closed gate) |
 | **Backup** | `lib/compliance/rebny-validator.ts` (10-section validator); `data/rebny-rls-property-fields.csv` (902 IDX Plus fields); `data/rebny-rls-property-lookup.csv` (2,066 picklist values) |
-| **Validator** | `npm run rls:validate`; `npm run crm:test` (172/172 smoke); CRM POST returns HTTP 422 on `!passed` (see `app/api/crm/listings/route.ts:191-207`) |
+| **Validator** | `npm run crm:test` (172/172 smoke); CRM POST returns HTTP 422 on `!passed` (see `app/api/crm/listings/route.ts:191-207`) |
 | **When to read** | Any field added/removed/renamed on the sale or rental form; any picklist value change; any new mandatory-field rule; any new content-restriction scanner pattern |
 | **Fail-closed** | All 6 distribution gates evaluated at CRM-write time. Fair Housing scanner runs on all free-text fields. Sale form has 18 commercial sub-types + 5 ownership types with "mallan.nyc only" warning banner for commercial. Rental form must include all FARE Act fee fields. Currently 1 warning: rental form missing `ComingSoon` enum value in `MlsStatus` picklist (`docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` C1). |
 
