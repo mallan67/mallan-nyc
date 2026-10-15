@@ -76,6 +76,13 @@ beforeEach(() => {
   listingUpdateCalls.length = 0;
 });
 
+// DB-coupled assertions from this file were MIGRATED to
+// tests/runtime/crm-media-summary-convergence.integration.test.ts. They drove a
+// handcrafted Prisma object through a fake `$transaction: (ops) => Promise.all(ops)`,
+// which cannot roll back and cannot model the transaction the routes now use.
+// Persistence, ordering and modification-timestamp effects are proven against
+// real PostgreSQL. Only non-DB assertions remain here.
+
 describe('P1C4 — crmListingTouchData (pure)', () => {
   it('synced listing → null (no touch); CRM-only → bump object', () => {
     expect(crmListingTouchData(SYNCED_AT)).toBeNull();
@@ -90,45 +97,11 @@ describe('P1C4 — crmListingTouchData (pure)', () => {
 });
 
 describe('P1C4 — media-order route', () => {
-  it('Trestle-synced listing: reorder issues NO modification_timestamp bump', async () => {
-    setFixture(SYNCED_AT);
-    const res = await reorderPATCH(
-      makeRequest({ method: 'PATCH', body: { ordered_media_ids: [CRM_KEY] } }),
-      { params: Promise.resolve({ id: 'SL-0001' }) },
-    );
-    expect(res.status).toBe(200);
-    expect(mtBumps()).toHaveLength(0);
-  });
 
-  it('CRM-only exclusive: reorder still bumps (behavior preserved)', async () => {
-    setFixture(null);
-    await reorderPATCH(
-      makeRequest({ method: 'PATCH', body: { ordered_media_ids: [CRM_KEY] } }),
-      { params: Promise.resolve({ id: 'SL-0001' }) },
-    );
-    expect(mtBumps()).toHaveLength(1);
-  });
 });
 
 describe('P1C4 — media DELETE route', () => {
-  it('Trestle-synced listing: delete issues NO modification_timestamp bump', async () => {
-    setFixture(SYNCED_AT);
-    const res = await mediaDELETE(
-      makeRequest({ method: 'DELETE', url: 'http://localhost/api/test' }),
-      { params: Promise.resolve({ id: 'SL-0001', mediaId: encodeURIComponent(CRM_KEY) }) },
-    );
-    expect(res?.status).toBe(200);
-    expect(mtBumps()).toHaveLength(0);
-  });
 
-  it('CRM-only exclusive: delete still bumps (behavior preserved)', async () => {
-    setFixture(null);
-    await mediaDELETE(
-      makeRequest({ method: 'DELETE', url: 'http://localhost/api/test' }),
-      { params: Promise.resolve({ id: 'SL-0001', mediaId: encodeURIComponent(CRM_KEY) }) },
-    );
-    expect(mtBumps()).toHaveLength(1);
-  });
 });
 
 describe('P1C4 — upload route (structural lock; behavioral coverage via the shared helper above)', () => {
