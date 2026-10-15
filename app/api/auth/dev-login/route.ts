@@ -54,7 +54,13 @@ async function _devLogin(req: NextRequest): Promise<DevLoginResult> {
     });
     if (!agent) return { ok: false, error: "No active broker found", status: 404 };
 
-    const token = await createSession("agent", agent.id, agent.role);
+    // Development-only broker session. The route already 404s unless
+    // NODE_ENV !== "production" && ALLOW_DEV_LOGIN === "true"; createSession
+    // re-checks both defensively, so this exception cannot exist in production
+    // even if this route were reached another way.
+    const token = await createSession("agent", agent.id, agent.role, undefined, undefined, {
+      kind: "dev_login",
+    });
 
     await prisma.agent.update({ where: { id: agent.id }, data: { last_login: new Date() } });
     console.warn("[DEV-LOGIN] Dev login used at", new Date().toISOString(), "from", req.headers.get("x-forwarded-for") || "local");

@@ -38,9 +38,79 @@ const REFRESH_THRESHOLD_MS = 60 * 60 * 1000;
 // audit event) and surfaced read-only by
 // scripts/ethics-training-status-report.ts for broker follow-up.
 
+/**
+ * Exact-match test for the PRINCIPAL broker role.
+ *
+ * NY licence classes are distinct professional identities: BROKER,
+ * ASSOCIATE_BROKER and SALESPERSON. ASSOCIATE_BROKER is NOT a principal broker
+ * and is deliberately not matched here. The comparison is exact and is never a
+ * substring test — "Licensed Associate Real Estate Broker" contains the word
+ * "broker" and must never be classified as a principal.
+ *
+ * Lowercase `broker` is the retired legacy value that
+ * app/api/auth/login/route.ts still accepts, so it is treated as principal for
+ * fail-closed parity with the MFA branch there.
+ */
+export function isPrincipalBrokerRole(role: string): boolean {
+  return role === "BROKER" || role === "broker";
+}
+
+/**
+ * Evidence that a principal-broker session is legitimate.
+ *
+ *  - `mfa_verified` — the broker completed the OTP challenge.
+ *  - `dev_login`    — the explicitly gated development-only login tool.
+ *
+ * There is no third value, and the ABSENCE of assurance is not a permitted
+ * state for a broker session.
+ */
+export type BrokerSessionAssurance =
+  | { kind: "mfa_verified" }
+  | { kind: "dev_login" };
+
+/** Thrown when a principal-broker session is requested without valid assurance. */
+export class BrokerSessionAssuranceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BrokerSessionAssuranceError";
+  }
+}
+
+/**
+ * Enforce the broker-session invariant. Throws unless the caller supplied
+ * assurance that broker MFA occurred, or the explicitly gated dev-login path.
+ * The dev-login branch re-checks the environment here so the exception cannot
+ * exist in production even if a caller passes the assurance value.
+ */
+function assertBrokerSessionAssurance(assurance?: BrokerSessionAssurance): void {
+  if (!assurance) {
+    throw new BrokerSessionAssuranceError(
+      "A principal BROKER session requires verified broker MFA. Refusing to " +
+        "create an unverified broker session.",
+    );
+  }
+
+  if (assurance.kind === "mfa_verified") return;
+
+  if (assurance.kind === "dev_login") {
+    const devAllowed =
+      process.env.NODE_ENV !== "production" &&
+      process.env.ALLOW_DEV_LOGIN === "true";
+    if (!devAllowed) {
+      throw new BrokerSessionAssuranceError(
+        "dev-login broker sessions are permitted only outside production with " +
+          "ALLOW_DEV_LOGIN set to exactly \"true\".",
+      );
+    }
+    return;
+  }
+
+  throw new BrokerSessionAssuranceError("Unrecognised broker session assurance.");
+}
+
 /** Resolve the correct TTL for a user type + role combination */
 function getSessionDurationMs(userType: string, role: string): number {
-  if (role === "BROKER" || role === "broker") return SESSION_TTL_MS.broker;
+  if (isPrincipalBrokerRole(role)) return SESSION_TTL_MS.broker;
   if (userType === "agent") return SESSION_TTL_MS.agent;
   if (userType === "lead") return SESSION_TTL_MS.client;
   return SESSION_TTL_MS.default;
@@ -63,10 +133,20 @@ export async function createSession(
   userId: bigint,
   role: string,
   ipAddress?: string,
-  userAgent?: string
+  userAgent?: string,
+  assurance?: BrokerSessionAssurance
 ): Promise<string> {
   // Ethics/CE tracking lives in the DB and admin panel but does NOT
   // block session creation. Compliance is enforced at listing submission.
+
+  // ── Principal-broker session gate — FAIL CLOSED ──
+  // `prisma.session.create` below is the ONLY session writer in app/ or lib/,
+  // so enforcing here means a future caller that forgets a broker check cannot
+  // mint a broker session by accident: it throws instead. Leads are never
+  // licensees, so the gate is scoped to agents.
+  if (userType === "agent" && isPrincipalBrokerRole(role)) {
+    assertBrokerSessionAssurance(assurance);
+  }
 
   const token = randomUUID();
   const durationMs = getSessionDurationMs(userType, role);

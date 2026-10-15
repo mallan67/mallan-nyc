@@ -14,6 +14,10 @@ function ResetPasswordForm() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  // Principal brokers are NOT signed in by a reset — the API returns
+  // requires_signin and withholds the session cookie, so the page must send
+  // them to sign-in rather than a dashboard they cannot reach.
+  const [requiresSignin, setRequiresSignin] = useState(false);
 
   if (!token) {
     return (
@@ -67,7 +71,13 @@ function ResetPasswordForm() {
 
       setSuccess(true);
       const isAgent = data.user?.userType === 'agent';
+      const mustSignIn = data.requires_signin === true;
+      setRequiresSignin(mustSignIn);
       setTimeout(() => {
+        if (mustSignIn) {
+          router.push('/sign-in');
+          return;
+        }
         router.push(isAgent ? '/crm/dashboard' : '/portal');
       }, 2000);
     } catch {
@@ -87,7 +97,9 @@ function ResetPasswordForm() {
         </div>
         <h1 className="text-2xl font-display font-semibold mb-2">Password Reset</h1>
         <p className="text-brand-dark/90 mb-4">
-          Your password has been updated. Redirecting to your portal...
+          {requiresSignin
+            ? 'Your password has been updated. For security, please sign in with your new password and verification code. Redirecting to sign in...'
+            : 'Your password has been updated. Redirecting to your portal...'}
         </p>
         <div className="w-full bg-black/5 rounded-full h-1.5">
           <div className="bg-brand-gold h-1.5 rounded-full animate-pulse" style={{ width: '60%' }} />
