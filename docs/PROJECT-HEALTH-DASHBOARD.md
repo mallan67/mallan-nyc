@@ -148,7 +148,7 @@ migrated as they are verified. Registry IDs → [`docs/PLATFORM-ISSUE-REGISTRY.m
 | Redis (locks/queues) | ⚪ | — | `createCronHandler` references a Redis lock but is dead code (OPS-007); live Redis usage uninventoried | code sweep + env check |
 | R2 storage (media) | ⚪ | — | cost audit 2026-06-12 exists; orphan/consistency unverified this cycle | R2 inventory vs listing_media |
 | DNS / SSL / domains | 🟢 | 2026-07-01 | https/www/apex redirects verified live; cert valid (PROD-003) | curl probes |
-| Env vars / secrets hygiene | 🟡 | 2026-07-01 | no secret values leaked via routes (backend audit); ALLOW_DEV_LOGIN state UNKNOWN (PROD-008); CRON_SECRET fail-open pattern ×12 (PROD-005) | `vercel env ls` (names only) |
+| Env vars / secrets hygiene | 🟡 | 2026-07-01 | no secret values leaked via routes (backend audit); `dev-login` route deleted in PR #663, pending merge (PROD-008); CRON_SECRET fail-open pattern ×12 (PROD-005) | `vercel env ls` (names only) |
 | Rollback readiness | 🟡 | 2026-07-03 | Vercel: 4 rollback-candidate prod deployments (app-level OK). **Neon rollback state is UNVERIFIED** — the branch was gone on 2026-07-03 (OPS-022) and that remains a BLOCKER for the 5K execute, but the reading is dated and the path it came from is prohibited | Vercel MCP; Neon branch state needs the authorized Vercel-managed resource |
 
 ### 2 · Runtime (284 API routes · 23 crons)

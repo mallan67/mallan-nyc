@@ -58,7 +58,7 @@ Access-Control-Max-Age: 86400
 
 ## 3. Edge Middleware Security Stack
 
-The Next.js edge middleware (`middleware.ts`) runs on ALL matched routes in this order:
+The Next.js middleware (`proxy.ts`, guards in `lib/middleware/route-guards.ts`) runs on ALL matched routes in this order:
 
 | Step | Check | Action |
 |------|-------|--------|
@@ -69,7 +69,7 @@ The Next.js edge middleware (`middleware.ts`) runs on ALL matched routes in this
 | 4 | IDX sync rate limit | 1 per 5 min per IP (429) |
 | 5 | `/api/crm/*` protection | Require cookie OR Bearer (401) |
 | 6 | `/api/portal/*` protection | Require cookie OR Bearer (401) |
-| 7 | `/admin` protection | Require session OR pc_auth (redirect to login) |
+| 7 | `/admin` protection | Require a session cookie (presence); otherwise redirect to `/admin/login`. Fails closed. The legacy `pc_auth` / `PRIVATE_COLLECTION_PASS` fallback was removed 2026-10-14. |
 | 8 | Security headers | CORS on API responses, noindex on admin/CRM |
 
 ### Important: Edge vs Route Handler Auth
@@ -121,7 +121,6 @@ All CRM files check authentication on load and redirect to `login.html` if not a
 
 | File | Gate Location |
 |------|--------------|
-| `MALLAN-NYC-CRM-FINAL2.html` | `MallanAPI.init()` → if `!authenticated` → redirect |
 | `index-built.html` (search) | `agent-context.js` → `MallanAPI.init()` → redirect |
 | `SALE-FORM-WITH-TOOLS.html` | `initLoggedInAgent()` → redirect |
 | `RENTAL-FORM-WITH-TOOLS.html` | `initLoggedInAgent()` → redirect |

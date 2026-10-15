@@ -14,7 +14,7 @@
  *   }
  *
  * which collapsed every non-2xx response — including a 401 from an
- * expired `pc_auth` cookie — into an empty array. A signed-in user whose
+ * expired session cookie — into an empty array. A signed-in user whose
  * session quietly lapsed would see "0 listings / 0 showings /
  * 0 preferences / 0 family" with no toast, no redirect, no retry. Looked
  * identical to data loss; was actually session expiry.

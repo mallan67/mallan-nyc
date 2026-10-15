@@ -1,10 +1,10 @@
 {
   "stats": {
-    "total_routes": 288,
+    "total_routes": 287,
     "by_auth_class": {
       "public": 36,
       "broker": 24,
-      "public (auth)": 17,
+      "public (auth)": 16,
       "agent/broker": 145,
       "agent/broker (path)": 2,
       "cron": 24,
@@ -112,19 +112,6 @@
       "compliance_signals": [
         "audit-event"
       ],
-      "distribution_gate_signals": [],
-      "gate_enforced": false
-    },
-    {
-      "route": "/api/auth/dev-login",
-      "file": "app/api/auth/dev-login/route.ts",
-      "methods": [
-        "GET",
-        "POST"
-      ],
-      "auth_class": "public (auth)",
-      "auth_signals": [],
-      "compliance_signals": [],
       "distribution_gate_signals": [],
       "gate_enforced": false
     },

@@ -6,7 +6,7 @@
  *
  *   All 5 fetchers in app/portal/buyer/page.tsx (mirrored in tenant /
  *   seller / landlord) do `if (!res.ok) throw new Error()` and silently
- *   `setState([])` in `catch`. When pc_auth expires mid-session, every
+ *   `setState([])` in `catch`. When the session cookie expires mid-session, every
  *   endpoint returns 401, the user sees "0 listings / 0 showings /
  *   0 preferences / 0 family" with no toast, no redirect, no retry —
  *   looks like data loss.
