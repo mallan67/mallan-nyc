@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { checkBot } from "@/lib/middleware/bot-blocker";
 import { checkRateLimits } from "@/lib/middleware/rate-limiter";
 import { checkCsrf } from "@/lib/middleware/csrf";
-import { checkRouteGuards } from "@/lib/middleware/route-guards";
+import { checkRouteGuards, isProtectedCrmPage, verifyCrmPageSession } from "@/lib/middleware/route-guards";
 import { applySecurityHeaders } from "@/lib/middleware/security-headers";
 
 export const config = {
@@ -67,6 +67,13 @@ export default async function middleware(req: NextRequest) {
   const guardBlock = checkRouteGuards(req, pathname);
   if (guardBlock) return guardBlock;
 
+  // Only CRM HTML navigations need a canonical session lookup. APIs keep
+  // their own authorization; public pages and assets never touch Neon here.
+  if (isProtectedCrmPage(pathname)) {
+    const crmBlock = await verifyCrmPageSession(req, pathname);
+    if (crmBlock) return crmBlock;
+  }
+
   // ── 5. Static-compatible security headers ──
   // No per-request CSP nonce: reading it in the root layout (headers()) forced
   // EVERY public page to render dynamically, disabling ISR/CDN caching and
@@ -75,6 +82,7 @@ export default async function middleware(req: NextRequest) {
   // in PR #511 — it broke script loading under Next 16.2/Turbopack; there is no
   // SRI on scripts today. See lib/middleware/security-headers.ts.)
   const response = NextResponse.next();
+  if (isProtectedCrmPage(pathname)) response.headers.set("Cache-Control", "private, no-store");
 
   // CORS headers for allowed origins
   if (pathname.startsWith("/api") && isAllowedOrigin(origin)) {
