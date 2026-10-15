@@ -25,7 +25,7 @@ Mallan agents currently have **no system of record** for any of this inventory. 
 2. Off-market opportunities surfaced through agent relationships have nowhere to live in the CRM.
 3. Manual entry into the existing `ExternalListing` table (per-client clipboard) doesn't fit — that model is buyer-owned, not brokerage-wide inventory.
 
-Competitor RealPlus (verified via screenshots 2026-04-30) handles this via a parallel inventory inside their broker-only tool, with a mandatory `*THIS LISTING DID NOT ORIGINATE FROM THE RLS; PLEASE VERIFY ALL INFO*` disclaimer on every non-RLS row. The B2B-only deployment dramatically lowers the legal/compliance exposure that public republication would carry.
+A competitor platform (verified via screenshots 2026-04-30) handles this via a parallel inventory inside their broker-only tool, with a mandatory `*THIS LISTING DID NOT ORIGINATE FROM THE RLS; PLEASE VERIFY ALL INFO*` disclaimer on every non-RLS row. The B2B-only deployment dramatically lowers the legal/compliance exposure that public republication would carry.
 
 ## 2. Goals & non-goals
 
@@ -529,7 +529,7 @@ export function externalInventoryPortalDTO(
 
 | Rule | How this design preserves it |
 |---|---|
-| UCBA Art. I §4 — RLS only accepts Exclusive Listings | External inventory never enters RLS. Submission to RLS is via RealPlus (not mallan.nyc), unchanged. |
+| UCBA Art. I §4 — RLS only accepts Exclusive Listings | External inventory never enters RLS. Submission to RLS happens outside mallan.nyc, unchanged. |
 | UCBA Art. I §5(D) — no "Off-Market" language | Source enum value `agent_pocket` is internal-only; never rendered on public-facing or client-facing surface. |
 | UCBA Art. III §2(C) — attribution | Disclaimer says "did NOT originate from RLS/REBNY" — no false attribution. |
 | UCBA Art. III §3 — no solicitation of existing listings | Expired RLS listings detected manually only; auto-promotion banned. |
@@ -651,7 +651,7 @@ Per spec self-review requirements (user-specified 2026-04-30):
 
 > **Are legal/ToS risks documented?**
 >
-> Yes. §1 acknowledges the RealPlus B2B-only pattern as the reference posture. §3 notes the Phase 3 scraper requires written legal review of StreetEasy/Zillow ToS exposure as a gating criterion. §9.5 cross-references each REBNY/UCBA/NY DOS rule and explains how the design preserves it. Photo licensing per source is called out (§11). Owner-contact licensing is governed by the publishing platform's terms (cited in the disclaimer text §6.1).
+> Yes. §1 acknowledges that competitor's B2B-only pattern as the reference posture. §3 notes the Phase 3 scraper requires written legal review of StreetEasy/Zillow ToS exposure as a gating criterion. §9.5 cross-references each REBNY/UCBA/NY DOS rule and explains how the design preserves it. Photo licensing per source is called out (§11). Owner-contact licensing is governed by the publishing platform's terms (cited in the disclaimer text §6.1).
 
 > **Are client-share gates auditable?**
 >

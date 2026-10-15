@@ -207,7 +207,9 @@ describe('canonical URL — buildListingUrls returns separated /address/id form'
     // Must NOT contain hybrid suffix `-sl-0004` in the address slug
     expect(urls.publicUrl).not.toMatch(/-sl-0004\//);
     expect(urls.publicUrl).not.toMatch(/-sl-0004$/);  // would mean trailing hybrid
-    expect(urls.realPlusUrl).toBe(urls.publicUrl);
+    // ONE URL contract: the retired second URL was a duplicate of publicUrl
+    // gated on Active. Assert no second URL property can reappear.
+    expect(Object.keys(urls)).toEqual(['publicUrl']);
   });
 
   test('buildCanonicalListingPath strips hybrid suffix → /address/id', () => {
@@ -251,7 +253,7 @@ describe('canonical URL — buildListingUrls returns separated /address/id form'
     }
   });
 
-  test('realPlusUrl never equals generic /listing/sl-XXXX', () => {
+  test('publicUrl never equals generic /listing/sl-XXXX', () => {
     const urls = buildListingUrls({
       listing_id: 'SL-0004',
       status: 'Active',
@@ -269,8 +271,8 @@ describe('canonical URL — buildListingUrls returns separated /address/id form'
       rls_eligible: false,
       internet_address_display_yn: true,
     });
-    expect(urls.realPlusUrl).not.toBe('https://www.mallan.nyc/listing/sl-0004');
-    expect(urls.realPlusUrl).not.toBe('https://www.mallan.nyc/listing/listing-sl-0004');
+    expect(urls.publicUrl).not.toBe('https://www.mallan.nyc/listing/sl-0004');
+    expect(urls.publicUrl).not.toBe('https://www.mallan.nyc/listing/listing-sl-0004');
   });
 });
 
@@ -411,7 +413,7 @@ describe('sale form hardening (source-pin) — Maya audit follow-ups', () => {
   test('Fix 1: address composite fallback includes StreetDirPrefix', () => {
     // The composite fallback in _populateSaleFormFromApi must include
     // StreetDirPrefix or "333 E 46th St" reloads as "333 46th St" (the
-    // exact bug that broke RealPlus lookup).
+    // exact bug that broke public URL lookup).
     expect(FORM).toMatch(
       /addr\.StreetNumber[\s\S]{0,200}?addr\.StreetDirPrefix[\s\S]{0,200}?addr\.StreetName[\s\S]{0,200}?addr\.StreetSuffix/,
     );

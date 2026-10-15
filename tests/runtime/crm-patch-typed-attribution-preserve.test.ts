@@ -27,7 +27,7 @@ jest.mock('@/lib/auth', () => ({
 }));
 jest.mock('@/lib/auth/readonly-guard', () => ({ __esModule: true, assertWriteAllowed: () => null }));
 jest.mock('@/lib/search/listing-search-projection', () => ({ __esModule: true, dualWriteProjectionForListingId: async () => undefined }));
-jest.mock('@/lib/crm/listing-urls', () => ({ __esModule: true, buildListingUrls: () => ({ publicUrl: '/listing/x', realPlusUrl: 'https://realplus/x' }) }));
+jest.mock('@/lib/crm/listing-urls', () => ({ __esModule: true, buildListingUrls: () => ({ publicUrl: '/listing/x' }) }));
 
 // Existing typed attribution on the row; agent_info JSON is empty (post-Phase-C).
 function baseRow(overrides: Record<string, unknown> = {}) {
