@@ -64,7 +64,7 @@ export default async function middleware(req: NextRequest) {
   if (csrfBlock) return csrfBlock;
 
   // ── 4. Route guards (auth, dev pages, CRM source files) ──
-  const guardBlock = checkRouteGuards(req, pathname);
+  const guardBlock = await checkRouteGuards(req, pathname);
   if (guardBlock) return guardBlock;
 
   // ── 5. Static-compatible security headers ──

@@ -6,10 +6,30 @@ const isProd =
   process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
 
 /**
+ * Ask the canonical session endpoint whether the request's cookie is a live
+ * session. Reuses validateSession() via /api/auth/me so the proxy holds no
+ * second copy of session rules. Fails closed on any error or timeout.
+ */
+async function hasLiveSession(req: NextRequest): Promise<boolean> {
+  try {
+    const res = await fetch(new URL("/api/auth/me", req.nextUrl.origin), {
+      headers: { cookie: req.headers.get("cookie") ?? "" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return false;
+    const body = (await res.json()) as { authenticated?: boolean };
+    return body.authenticated === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Route-level access guards: block dev pages in prod, protect CRM/portal/admin paths.
  * Returns a redirect or 401/404 response if blocked, null otherwise.
  */
-export function checkRouteGuards(req: NextRequest, pathname: string): NextResponse | null {
+export async function checkRouteGuards(req: NextRequest, pathname: string): Promise<NextResponse | null> {
   // Block development/debug pages in production
   if (isProd && (pathname.startsWith("/style-preview") || pathname.startsWith("/demo"))) {
     return new NextResponse("Not Found", { status: 404 });
@@ -39,11 +59,15 @@ export function checkRouteGuards(req: NextRequest, pathname: string): NextRespon
     !pathname.startsWith("/crm/images/") &&
     !pathname.endsWith(".ico")
   ) {
-    if (!req.cookies.has(SESSION_COOKIE)) {
+    // The cookie must be a live session, not merely present: a forged or
+    // expired value is sent to login and its cookie is cleared.
+    if (!req.cookies.has(SESSION_COOKIE) || !(await hasLiveSession(req))) {
       const loginUrl = req.nextUrl.clone();
       loginUrl.pathname = "/crm/login.html";
       loginUrl.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(loginUrl);
+      const redirect = NextResponse.redirect(loginUrl);
+      if (req.cookies.has(SESSION_COOKIE)) redirect.cookies.delete(SESSION_COOKIE);
+      return redirect;
     }
   }
 
