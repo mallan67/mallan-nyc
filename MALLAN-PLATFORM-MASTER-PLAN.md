@@ -852,6 +852,8 @@ These are statements the owner has made about what Mallan is and how it must beh
 
 **Rentals use rental fields.** Some fields exist for both sale and rental, such as the closed status, but a sale price must never appear as a rental figure or the reverse. A rental form is fixed line by line against rental semantics.
 
+**Rental form behavior (owner specification).** When the form starts it fills in the name of the agent who started it. When a building address is entered, the form fills in the type of building and all the information associated with that address; if the building is a co-op, the co-op form loads. Every field saves automatically, and a form saved as a draft and reopened shows the information in place. A listing begins as a draft so that every REBNY-required field is satisfied before it is anything else. In the description, Fair Housing words are flagged and highlighted; flagging does not stop the form from saving.
+
 **Co-agents** may be Mallan agents or REBNY members, and the form lists both.
 
 **Building search** uses every building attribute that Cotality makes available.
