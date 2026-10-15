@@ -7546,10 +7546,18 @@ function collectSaleFormData() {
     // /api/auth/me as `mlsId` → hidden saleUpdatingAgentMlsId. The prior code
     // wrote the INTERNAL Agent.id (saleUpdatingAgent) here, which is NOT a
     // Cotality identifier and left CRM exclusives un-matchable by ListAgentMlsId.
-    data.ListAgentMlsId = data.saleUpdatingAgentMlsId || '';
-    data.ListAgentFullName = data.saleUpdatingAgentName || '';
-    data.ListAgentEmail = data.saleUpdatingAgentEmail || '';
-    data.ListAgentDirectPhone = data.saleUpdatingAgentPhone || '';
+    // The saleUpdatingAgent* inputs are hidden inputs that live OUTSIDE the .flex-1
+    // container swept above, so they are read by id (they were always "" before).
+    var _agentVal = function(id) { var el = document.getElementById(id); return el ? String(el.value || '') : ''; };
+    data.saleUpdatingAgentMlsId = _agentVal('saleUpdatingAgentMlsId');
+    data.saleUpdatingAgentName = _agentVal('saleUpdatingAgentName');
+    data.saleUpdatingAgentEmail = _agentVal('saleUpdatingAgentEmail');
+    data.saleUpdatingAgentPhone = _agentVal('saleUpdatingAgentPhone');
+    data.saleUpdatingAgentCompanyName = _agentVal('saleUpdatingAgentCompanyName');
+    data.ListAgentMlsId = data.saleUpdatingAgentMlsId;
+    data.ListAgentFullName = data.saleUpdatingAgentName;
+    data.ListAgentEmail = data.saleUpdatingAgentEmail;
+    data.ListAgentDirectPhone = data.saleUpdatingAgentPhone;
     // CRM-owned Mallan rows use the canonical office NAME. Office MLS id/key are
     // intentionally left blank until verified from a trusted canonical source
     // (REBNY/Cotality/RealPlus) — never the "mallan" slug, never the REBNY

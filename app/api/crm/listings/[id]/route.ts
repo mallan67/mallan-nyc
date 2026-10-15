@@ -8,7 +8,7 @@ import {
   isAuthError,
   logAuditEvent,
 } from "@/lib/auth";
-import { validateListing } from "@/lib/compliance/rebny-validator";
+import { validateListing, buildMallanValidationView, verifyAgainstLiveCotality } from "@/lib/compliance/rebny-validator";
 import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
 import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
@@ -222,8 +222,26 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     }
   }
 
-  // Re-validate merged data
-  const validation = validateListing(merged);
+  // Re-validate merged data against the stamped REBNY view (system-owned fields supplied by
+  // the server). Fair Housing words are FLAGGED here (owner rule 2026-10-15), never block a
+  // save; the status route blocks publishing while they remain.
+  const listingAgentRow = listing.agent_id
+    ? await prisma.agent.findUnique({
+        where: { id: listing.agent_id },
+        select: { id: true, full_name: true, first_name: true, last_name: true, email: true, phone: true, trestle_mls_id: true },
+      })
+    : null;
+  const { view: validationView, skipRequired } = buildMallanValidationView(merged, {
+    listingId: listing.listing_id,
+    status: listing.status,
+    createdAt: listing.created_at,
+    agentMlsId: listing.list_agent_mls_id || listingAgentRow?.trestle_mls_id || null,
+  });
+  const validation = effectiveRlsEligible
+    ? validateListing(validationView, { skipRequired, fairHousingAsWarning: true })
+    : { valid: true, errors: [] as string[], warnings: [] as string[], suggestions: [] as string[], compliance: {} };
+  const liveDraft = await verifyAgainstLiveCotality(merged, "draft");
+  validation.warnings.push(...liveDraft.warnings);
 
   // Build Prisma update data from known columns
   const update: Prisma.ListingUpdateInput = {
@@ -244,8 +262,22 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.ListPrice !== undefined) update.list_price = Number(body.ListPrice);
   if (body.BedroomsTotal !== undefined) update.bedrooms_total = Number(body.BedroomsTotal);
   if (body.BathroomsFull !== undefined) update.bathrooms_full = Number(body.BathroomsFull);
-  if (body.BathroomsHalf !== undefined) update.bathrooms_half = Number(body.BathroomsHalf);
-  if (body.LivingArea !== undefined) update.living_area = Number(body.LivingArea);
+  if (body.BathroomsHalf !== undefined && body.BathroomsHalf !== null && body.BathroomsHalf !== "") update.bathrooms_half = Number(body.BathroomsHalf);
+  // A blank/0 area in the payload means "not entered", never "erase the saved area".
+  if (body.LivingArea !== undefined && Number(body.LivingArea) > 0) update.living_area = Number(body.LivingArea);
+  if (body.ExpirationDate !== undefined) {
+    update.expiration_date =
+      typeof body.ExpirationDate === "string" && body.ExpirationDate.length > 0 && !isNaN(new Date(body.ExpirationDate).getTime())
+        ? new Date(body.ExpirationDate)
+        : null;
+  }
+  // Seller opt-outs: typed columns (fail-closed: only a literal false/"false" opts out).
+  if (body.InternetAutomatedValuationDisplayYN !== undefined) {
+    update.internet_automated_valuation_display_yn = !(body.InternetAutomatedValuationDisplayYN === false || body.InternetAutomatedValuationDisplayYN === "false");
+  }
+  if (body.InternetConsumerCommentYN !== undefined) {
+    update.internet_consumer_comment_yn = !(body.InternetConsumerCommentYN === false || body.InternetConsumerCommentYN === "false");
+  }
   // borough/neighborhood column mirroring — accept canonical (Borough/Neighborhood)
   // OR the alias keys (CityRegion/SubdivisionName) the CRM sale form actually
   // emits in collectSaleFormData (see normalizer.ts aliasToCanonical: the form
@@ -438,11 +470,13 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   seed("CoListAgentMlsId", resolvedCurrent.coListAgentMlsId);
 
   // Did THIS PATCH explicitly change any agent attribution field?
-  const agentFieldsChanged = agentKeys.some((k) => body[k] !== undefined);
+  const isSet = (v: unknown) => v !== undefined && v !== null && String(v).trim() !== "";
+  const agentFieldsChanged = agentKeys.some((k) => isSet(body[k]));
   const updatedAgentInfo = { ...seededAgentInfo };
   for (const k of agentKeys) {
-    if (body[k] !== undefined) updatedAgentInfo[k] = body[k];
+    if (isSet(body[k])) updatedAgentInfo[k] = body[k];
   }
+  if (!isSet(updatedAgentInfo.ListAgentMlsId) && listingAgentRow?.trestle_mls_id) updatedAgentInfo.ListAgentMlsId = listingAgentRow.trestle_mls_id;
 
   // Mallan-exclusive agent assignment (Part C2). Re-stamp the listing-agent
   // attribution on every edit so the public contact card stays populated. Keyed
@@ -452,12 +486,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // !== false), in which case we never stamp a non-Mallan agent's PII and just
   // persist the manual agent_info merge. The helper fills blank keys only
   // (manual typed values win).
-  const listingAgent = listing.agent_id
-    ? await prisma.agent.findUnique({
-        where: { id: listing.agent_id },
-        select: { id: true, full_name: true, first_name: true, last_name: true, email: true, phone: true },
-      })
-    : null;
+  const listingAgent = listingAgentRow;
   const exclusiveAssignment = listingAgent
     ? buildExclusiveAgentAssignment(
         listingAgent,
@@ -488,6 +517,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     validated_at: new Date().toISOString(),
     warnings: validation.warnings,
     valid: validation.valid,
+    errors: validation.errors,
     rls_eligibility: {
       eligible: eligibility.rlsEligible,
       reason: eligibility.reason,

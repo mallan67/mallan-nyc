@@ -433,6 +433,11 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
 
     if (!dbListing) return null;
 
+    // A Draft (or CRM "Incomplete") listing is not published: it must never be publicly
+    // viewable, whatever its display flags say (owner rule 2026-10-15: new listings begin
+    // as Draft until the REBNY-required data is verified and the agent publishes).
+    if (/^(draft|incomplete)$/i.test(String(dbListing.status ?? '').trim())) return null;
+
     // Website-only listings (commercial, rls_eligible=false) bypass RLS gates.
     // RLS-backed detail pages fail closed on missing display permissions.
     const isRlsBacked = dbListing.rls_eligible !== false;

@@ -10,7 +10,9 @@ import {
   logAuditEvent,
 } from "@/lib/auth";
 import { computeDomTransition } from "@/lib/compliance/dom-tracker";
-import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
+import { assertRlsCompliantPayload, scanRecordForFairHousing } from "@/lib/compliance/rls-enforcement";
+import { validateListing, buildMallanValidationView, verifyAgainstLiveCotality } from "@/lib/compliance/rebny-validator";
+import type { Prisma } from "@prisma/client";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { addBusinessDays, addCalendarDays } from "@/lib/compliance/business-days";
 import { createNotification } from "@/lib/notifications/engine";
@@ -23,19 +25,30 @@ import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capab
 
 // REBNY RLS status state machine
 // Valid transitions map: current → allowed next statuses
+// Vocabulary = Cotality StandardStatus (Active, ActiveUnderContract, Canceled, Closed,
+// ComingSoon, Expired, Hold, Pending, Withdrawn) plus the Mallan-only "Draft". The legacy
+// spellings Sold / Rented (= Closed) and the app-wide "Cancelled" (= Cotality "Canceled")
+// are still accepted so existing rows and callers keep working; "Canceled" is folded to
+// the app-wide stored spelling. "Incomplete" is a system state, never a user choice.
 const STATUS_TRANSITIONS: Record<string, string[]> = {
   Draft: ["Active", "ComingSoon"],
-  ComingSoon: ["Active", "Withdrawn"],
-  Active: ["ActiveUnderContract", "Pending", "Hold", "Withdrawn", "Expired"],
-  ActiveUnderContract: ["Active", "Pending", "Hold", "Withdrawn"],
-  Pending: ["Sold", "Rented", "Active", "Withdrawn"],
-  Hold: ["Active", "Draft"],
-  Sold: [], // Terminal
+  ComingSoon: ["Active", "Withdrawn", "Cancelled"],
+  Active: ["ActiveUnderContract", "Pending", "Hold", "Withdrawn", "Expired", "Cancelled"],
+  ActiveUnderContract: ["Active", "Pending", "Hold", "Withdrawn", "Cancelled"],
+  Pending: ["Closed", "Sold", "Rented", "Active", "Withdrawn", "Cancelled"],
+  Hold: ["Active", "Draft", "Withdrawn", "Cancelled"],
+  Closed: [], // Terminal
+  Sold: [], // Terminal (legacy spelling of Closed)
   Rented: [], // Terminal
   Withdrawn: ["Active", "Draft"],
   Expired: ["Active", "Draft"],
   Cancelled: [], // Terminal
 };
+// Cotality StandardStatus value for each stored status (Cotality-shaped raw fields).
+const COTALITY_STANDARD_STATUS: Record<string, string> = {
+  Draft: "Incomplete", Sold: "Closed", Rented: "Closed", Cancelled: "Canceled",
+};
+const toStoredStatus = (v: string) => (v === "Canceled" ? "Cancelled" : v);
 
 export async function PATCH(
   req: NextRequest,
@@ -85,7 +98,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const newStatus = body.status;
+  const newStatus = typeof body.status === "string" ? toStoredStatus(body.status.trim()) : body.status;
   if (!newStatus) {
     return NextResponse.json(
       { error: "Missing 'status' field" },
@@ -118,9 +131,9 @@ export async function PATCH(
     );
   }
 
-  // Terminal statuses (Sold/Rented) require broker approval
+  // Terminal statuses (Closed/Sold/Rented) require broker approval
   if (
-    (newStatus === "Sold" || newStatus === "Rented") &&
+    (newStatus === "Closed" || newStatus === "Sold" || newStatus === "Rented") &&
     auth.role !== "BROKER"
   ) {
     return NextResponse.json(
@@ -131,7 +144,7 @@ export async function PATCH(
 
   // C12: ClosePrice required when transitioning to Sold/Rented
   const existingRaw = (listing.raw_data as Record<string, unknown>) ?? {};
-  if (newStatus === "Sold" || newStatus === "Rented") {
+  if (newStatus === "Closed" || newStatus === "Sold" || newStatus === "Rented") {
     if (!existingRaw.ClosePrice) {
       return NextResponse.json(
         {
@@ -184,6 +197,42 @@ export async function PATCH(
           warnings: enforcement.warnings,
         },
         { status: 422 }
+      );
+    }
+  }
+
+  // PUBLISH GATE (Draft -> Active/ComingSoon). A new listing begins as a Draft so the
+  // REBNY-required data can be verified; it cannot be published while required items are
+  // missing or Fair Housing words remain in the public remarks. (Website-only listings are
+  // not on RLS: only the Fair Housing scan applies.)
+  if (currentStatus === "Draft" && (newStatus === "Active" || newStatus === "ComingSoon")) {
+    const agentRow = listing.agent_id
+      ? await prisma.agent.findUnique({ where: { id: listing.agent_id }, select: { trestle_mls_id: true } })
+      : null;
+    const { view, skipRequired } = buildMallanValidationView(
+      { ...existingRaw, ListAgentFullName: existingRaw.ListAgentFullName ?? listing.list_agent_full_name },
+      {
+        listingId: listing.listing_id,
+        status: newStatus,
+        createdAt: listing.created_at,
+        agentMlsId: listing.list_agent_mls_id || agentRow?.trestle_mls_id || null,
+      },
+    );
+    const gate = listing.rls_eligible
+      ? validateListing(view, { skipRequired })
+      : null;
+    const fhOnly = listing.rls_eligible
+      ? []
+      : scanRecordForFairHousing({
+          PublicRemarks: existingRaw.PublicRemarks as string | undefined,
+          ShowingInstructions: existingRaw.ShowingInstructions as string | undefined,
+        }).map((x) => "[Fair Housing] " + (typeof x === "string" ? x : JSON.stringify(x)));
+    const liveCheck = await verifyAgainstLiveCotality(existingRaw, "publish");
+    const gateErrors = [...(gate ? gate.errors : fhOnly), ...liveCheck.errors];
+    if (gateErrors.length > 0) {
+      return NextResponse.json(
+        { error: "Cannot publish: " + gateErrors.length + " item(s) still need attention.", blockers: gateErrors },
+        { status: 422 },
       );
     }
   }
@@ -263,7 +312,12 @@ export async function PATCH(
       cumulative_days_on_market: domUpdate.cumulative_days_on_market,
       idx_display_yn: newGateColumns.idx_display_yn,
       ...terminalSincePatch,
-      ...(updatedRaw ? { raw_data: updatedRaw } : {}),
+      // Keep the Cotality-shaped status fields in raw_data valid and in step with the column.
+      raw_data: {
+        ...(updatedRaw ?? existingRaw),
+        MlsStatus: COTALITY_STANDARD_STATUS[newStatus] ?? newStatus,
+        StandardStatus: COTALITY_STANDARD_STATUS[newStatus] ?? newStatus,
+      } as Prisma.InputJsonValue,
     },
   });
 
