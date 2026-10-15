@@ -836,6 +836,32 @@ If not, it is not automatically part of Mallan's scope.
 
 # 2. SIMPLE BROKERAGE / AGENT OPERATING MODEL
 
+## 0.15 Owner clarifications — standing definitions and rules
+
+These are statements the owner has made about what Mallan is and how it must behave. They are recorded once, here, so they are not re-derived or lost between sessions. They are the owner's words applied to this system. They are not provider facts; provider facts are read live from Cotality (§0.1) and are never copied here.
+
+**Cotality API, live, is the only provider authority.** Fields, picklists, counts and listings are established by a live Cotality query, never by an old CSV, a stored rule file, a snapshot, a prior report or memory. Any agent, test or report that does not show live Cotality results is stopped and discarded. Old provider-dependent code is removed, not repaired or preserved.
+
+**Listing identifiers.** `SL-` is a Mallan-created sale listing and `RL-` is a Mallan-created rental listing. An external Cotality listing keeps its own provider identifier. Ownership is not inferred from `rls_eligible` or from an agent assignment; the rule that replaces those inferences is adopted only after a read-only count of existing rows that rely on them.
+
+**The seven standalone forms stay standalone.** Sale redesign, Rental redesign, Sales tools, Rental tools, Rental deal, Buy deal, and the CRM search application (`index-built.html`). None may carry its own Cotality mapping, identity rule, search engine, status rule or compliance implementation; all consume the one shared contract. The Rental deal and Buy deal forms are Mallan-created for commission and representation, and are intended to be connected as a tab of the Rental redesign and Sale redesign forms respectively. That connection does not exist today: no tab, link or embed joins them, and the deal forms are opened only from the dashboard. They are hybrid: property, listing, building and authorized agent and office information comes from Cotality; representation, client, commission terms, calculations and payments are Mallan-owned and are never sent to Cotality.
+
+**Search.** The backend agent search (CRM) is separate from the public consumer search, and the backend search is the one being corrected. It covers basic and advanced sale search, basic and advanced rental search, the CMA, and building search, and each uses every applicable Cotality field. Mallan-created commercial and private-listing fields are the only non-Cotality search fields. Neighborhood identity comes from the provider's own values, not from a Mallan map of polygons.
+
+**CMA.** The CMA is a valuation tool, not only a list of comparables. It finds comparables by building, area, specific unit, price, square feet and every other search attribute, and it uses sale evidence for sales and rental evidence for rentals.
+
+**Rentals use rental fields.** Some fields exist for both sale and rental, such as the closed status, but a sale price must never appear as a rental figure or the reverse. A rental form is fixed line by line against rental semantics.
+
+**Rental form behavior (owner specification).** When the form starts it fills in the name of the agent who started it. When a building address is entered, the form fills in the type of building and all the information associated with that address; if the building is a co-op, the co-op form loads. Every field saves automatically, and a form saved as a draft and reopened shows the information in place. A listing begins as a draft so that every REBNY-required field is satisfied before it is anything else. In the description, Fair Housing words are flagged and highlighted; flagging does not stop the form from saving.
+
+**Floor.** In the unit section, the building floor field is the floor the unit is on, and the agent types the floor number.
+
+**Sale and Rental Tools (viewers).** The Tools forms are read-only: they have no edit option. They load the listing agent's listing with the full information, presented as a readable professional page (section 7.1), not as a disabled edit form. When a listing is sent to a client as a report or email, the agent can choose to remove the listing agent's contact details; the client-facing output then shows only the courtesy line: the agent, the company and RLS.
+
+**Co-agents** may be Mallan agents or REBNY members, and the form lists both.
+
+**Building search** uses every building attribute that Cotality makes available.
+
 ## 2.0 Mallan's actual operating model
 
 Mallan is intentionally a lean brokerage. The software must model the firm that exists rather than invent a corporate hierarchy.
