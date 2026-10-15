@@ -147,6 +147,9 @@ jobs:
       - name: CRM tests
         run: npm run crm:test
 
+      - name: CRM mockup validation (PII strings, viewer safety, URL parameters)
+        run: bash public/crm/scripts/validate-mockups.sh
+
       - name: CI compliance check
         run: node scripts/ci-compliance-check.js
 

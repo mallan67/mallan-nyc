@@ -187,7 +187,7 @@ Codex is a **static code-path reviewer only.** Codex reads the repo; it does **n
 
 **J.5 — Every Cotality field change must trace end-to-end** (each link confirmed, not assumed): live field exists → selected from Trestle → route-local select lists checked → mapped → `raw_data` preserved if needed → public DTO **DB path** checked → public DTO **Trestle-direct path** checked → rendered if public → form save/hydrate checked if CRM → legacy fallback zero-safe if numeric → tests added.
 
-**J.6 — Every generated-artifact PR (Class E) must prove:** the generator actually ran · source files unchanged unless explicitly in scope · generated "unknown" count is zero or explicitly accepted · the artifact is proven against the live source. (The `rls:validate` / `test:rls` binding validators were removed on 2026-10-14; they validated the retired REBNY CSV authority.)
+**J.6 — Every generated-artifact PR (Class E) must prove:** the generator actually ran · source files unchanged unless explicitly in scope · generated "unknown" count is zero or explicitly accepted · the artifact is proven against the live source. (The `rls:validate` / `test:rls` binding validators are removed by PR #661; they validated the retired REBNY CSV authority.)
 
 **J.7 — Status / compliance gates use explicit status semantics:** normalize draft-like statuses before comparing · Draft / Incomplete / empty must not be blocked by publish-only gates · public / display-ready statuses stay **fail-closed** · do not reuse a narrow helper for a broader compliance gate unless the status sets are **proven** equivalent.
 

@@ -4899,7 +4899,7 @@ function generateAgentInfoSheet() {
         '</div>' +
         '<script>function emailAgentSheet(){var s="Agent Info Sheet - "+document.querySelector(".agent-card h2").textContent;' +
         'var b="Please find the attached agent info sheet for "+s+".";' +
-        'window.location.href="mailto:?subject="+encodeURIComponent(s)+"&body="+encodeURIComponent(b);}</script>' +
+        'window.location.href="mailto:?subject="+encodeURIComponent(s)+"&body="+encodeURIComponent(b);}<\/script>' +
         '</body></html>';
 
     var win = window.open('', '_blank');
@@ -5421,7 +5421,7 @@ function initLoggedInAgent() {
                 }
             } else {
                 // Not authenticated — redirect to login
-                window.location.href = '/crm/login.html;
+                window.location.href = '/crm/login.html';
                 return;
             }
         });
@@ -5429,7 +5429,7 @@ function initLoggedInAgent() {
 }
 // Handle 401 events from API calls
 window.addEventListener('mallan:auth:unauthorized', function() {
-    window.location.href = '/crm/login.html;
+    window.location.href = '/crm/login.html';
 });
 
 function cancelSaleForm() { /* No-op — viewer only */ }
