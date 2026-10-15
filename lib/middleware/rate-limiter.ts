@@ -8,8 +8,8 @@ import redis from "@/lib/redis";
  * Primary: Upstash Redis (durable, shared across regions/cold starts)
  * Fallback: In-memory Maps (if Redis env vars are missing or Redis is down)
  *
- * Authenticated users bypass all rate limiting.
- * Unauthenticated: page (300/min), API (60/min), login (10/min), IDX sync (1/5min)
+ * Sensitive endpoints are rate-limited regardless of cookie presence.
+ * Login: 10/min; IDX sync: 1/5min. Ordinary page/API reads are not limited here.
  * Scraping detection: 20 listing pages in 30s = 1hr block (REBNY IDX compliance)
  *
  * No progressive penalty escalation — blocks are fixed duration, never escalate.
@@ -192,11 +192,8 @@ async function rateLimitCheck(
  * Returns a 429 response if rate limited, null otherwise.
  */
 export async function checkRateLimits(req: NextRequest, pathname: string): Promise<NextResponse | null> {
-  // Authenticated users bypass all rate limiting
-  if (req.cookies.get("session_token")?.value) {
-    return null;
-  }
-
+  // A raw cookie is not proof of authentication. Apply sensitive-endpoint
+  // limits uniformly; ordinary page/API reads are not limited here.
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     req.headers.get("x-real-ip") ||
