@@ -856,6 +856,8 @@ These are statements the owner has made about what Mallan is and how it must beh
 
 **Floor.** In the unit section, the building floor field is the floor the unit is on, and the agent types the floor number.
 
+**Sale and Rental Tools (viewers).** The Tools forms are read-only: they have no edit option. They load the listing agent's listing with the full information, presented as a readable professional page (section 7.1), not as a disabled edit form. When a listing is sent to a client as a report or email, the agent can choose to remove the listing agent's contact details; the client-facing output then shows only the courtesy line: the agent, the company and RLS.
+
 **Co-agents** may be Mallan agents or REBNY members, and the form lists both.
 
 **Building search** uses every building attribute that Cotality makes available.
