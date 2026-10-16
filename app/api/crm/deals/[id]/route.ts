@@ -69,6 +69,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (data.contract_closed !== undefined) {
     update.contract_closed = data.contract_closed ? new Date(data.contract_closed) : null;
   }
+  // draft <-> submitted only; a deal that has moved on (approved, rejected, closed) keeps its status
+  if (data.status !== undefined && (deal.status === "draft" || deal.status === "submitted")) update.status = data.status;
 
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });

@@ -75,11 +75,12 @@ export async function createDeal(data: {
   gross_commission_usd?: number | null;
   contract_signed?: Date | null;
   contract_closed?: Date | null;
+  status?: "draft" | "submitted";
 }) {
   const deal = await prisma.deal.create({
     data: {
       ...data,
-      status: "submitted",
+      status: data.status ?? "submitted",
     },
   });
   return serializeBigInts(deal);

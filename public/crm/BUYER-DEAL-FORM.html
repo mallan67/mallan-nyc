@@ -1913,8 +1913,9 @@ function showToast(message, type) {
 }
 window.alert = function(msg) { showToast(String(msg)); };
 
+// Save Draft saves the deal (a new deal starts as status draft): it used to show "Draft saved successfully" and save nothing.
 function manualSaveDraft(type) {
-    showToast('Draft saved successfully');
+    submitBuyerDeal(true);
 }
 
 // PR-CRM.1 (2026-05-16) — wire BUYER-DEAL-FORM header-submit to /api/crm/deals.
@@ -1945,7 +1946,7 @@ function manualSaveDraft(type) {
 //   6. The separate, in-tab `submitBuyerCommissionRequest()` (which
 //      already wires to the backend for the Commission tab) is
 //      untouched.
-function submitBuyerDeal() {
+function submitBuyerDeal(asDraft) {
     var status = (document.getElementById('buyerDealStatus') || {}).value;
     var addr = (document.getElementById('buyerStreetAddress') || {}).value;
     var client = (document.getElementById('buyerClientName') || {}).value;
@@ -1997,7 +1998,8 @@ function submitBuyerDeal() {
 
     var payload = {
         representation_code: 'buyer',
-        property_address: propertyAddress
+        property_address: propertyAddress,
+        status: asDraft === true ? 'draft' : 'submitted'
     };
     if (priceUsd !== null && priceUsd > 0) payload.price_usd = priceUsd;
     if (commTotalPct !== null) payload.commission_rate_percent = commTotalPct;

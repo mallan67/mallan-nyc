@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
       gross_commission_usd: data.gross_commission_usd ?? null,
       contract_signed: data.contract_signed ? new Date(data.contract_signed) : null,
       contract_closed: data.contract_closed ? new Date(data.contract_closed) : null,
+      status: data.status,
     });
 
     await logAuditEvent(

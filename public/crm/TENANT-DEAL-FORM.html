@@ -1473,7 +1473,8 @@ function showToast(message, type) {
 }
 window.alert = function(msg) { showToast(String(msg)); };
 
-function manualSaveDraft() { showToast('Draft saved successfully'); }
+// Save Draft saves the deal (a new deal starts as status draft): it used to show "Draft saved successfully" and save nothing.
+function manualSaveDraft() { submitTenantDeal(true); }
 
 // PR-CRM.1 (2026-05-16) — wire TENANT-DEAL-FORM header-submit to /api/crm/deals.
 //
@@ -1486,7 +1487,7 @@ function manualSaveDraft() { showToast('Draft saved successfully'); }
 //   - commission basis is months / percent / flat (commTenantBasis)
 //   - the separate, in-tab `submitTenantCommissionRequest()` already
 //     wires to the backend for the Commission tab and is untouched
-function submitTenantDeal() {
+function submitTenantDeal(asDraft) {
     var addr = (document.getElementById('tenantStreetAddress') || {}).value;
     var client = (document.getElementById('tenantClientName') || {}).value;
     if (!addr) { alert('Please search for a listing or enter a property address.'); return; }
@@ -1551,7 +1552,8 @@ function submitTenantDeal() {
 
     var payload = {
         representation_code: 'tenant',
-        property_address: propertyAddress
+        property_address: propertyAddress,
+        status: asDraft === true ? 'draft' : 'submitted'
     };
     if (monthlyRent !== null && monthlyRent > 0) payload.price_usd = monthlyRent;
     if (commRatePct !== null && commRatePct >= 0 && commRatePct <= 100) payload.commission_rate_percent = commRatePct;

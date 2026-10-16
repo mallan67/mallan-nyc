@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const createDealSchema = z.object({
   representation_code: z.enum(["buyer", "tenant"]).optional(),
+  // A form's Save Draft sends "draft"; its Submit sends nothing (a new deal is "submitted"). approved / rejected / closed are never set from a form.
+  status: z.enum(["draft", "submitted"]).optional(),
   property_address: z.string().optional(),
   price_usd: z.coerce.number().positive().optional(),
   commission_rate_percent: z.coerce.number().min(0).max(100).optional(),
