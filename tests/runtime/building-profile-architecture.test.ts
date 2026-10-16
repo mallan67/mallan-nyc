@@ -3,7 +3,7 @@
  * Building architecture stabilization (2026-05-31). Classifies building-section
  * fields: Cotality auto-fill (A), Mallan Building Profile internal (B), unit
  * Cotality suggestions (C). Enforces:
- *  - internal/manual building-profile fields carry NO data-rls-field and are
+ *  - internal/manual building-profile fields carry NO data-concept and are
  *    not labeled "RLS/RESO/IDX/Trestle" (phantom fields are not Cotality);
  *  - Management company / building staff / board contacts persist + reload;
  *  - a Cotality building lookup never overwrites manual profile policy/contacts;
@@ -31,7 +31,7 @@ function extractFn(src: string, name: string): string {
   throw new Error(`unbalanced: ${name}`);
 }
 
-// Internal Mallan Building Profile fields (bucket B) — must be data-rls-ignore.
+// Internal Mallan Building Profile fields (bucket B) — must be data-concept-disposition.
 const INTERNAL_IDS = [
   'saleBldgMgmtCompany', 'saleBldgMgmtPhone', 'saleBldgMgmtEmail', 'saleBldgMgmtAddress',
   'saleBldgSuperName', 'saleBldgSuperPhone', 'saleBldgSuperEmail',
@@ -51,18 +51,18 @@ describe('Cotality authority — building phantoms vs real', () => {
   });
 });
 
-describe('Bucket-B internal fields carry NO data-rls-field', () => {
+describe('Bucket-B internal fields carry NO data-concept', () => {
   INTERNAL_IDS.forEach((id) => {
-    it(`${id} is internal (no data-rls-field)`, () => {
+    it(`${id} is internal (no data-concept)`, () => {
       const m = FORM.match(new RegExp(`id="${id}"[^>]*>`));
       expect(m).not.toBeNull();
-      expect(m![0]).not.toMatch(/data-rls-field=/);
+      expect(m![0]).not.toMatch(/data-concept=/);
     });
   });
-  it('phantom multi-groups are not data-rls-field', () => {
-    expect(FORM).not.toMatch(/data-rls-field="BuildingLaundryFeatures"/);
-    expect(FORM).not.toMatch(/data-rls-field="BuildingPetsAllowed"/);
-    expect(FORM).not.toMatch(/data-rls-field="AttendanceType"/);
+  it('phantom multi-groups are not data-concept', () => {
+    expect(FORM).not.toMatch(/data-concept="BuildingLaundryFeatures"/);
+    expect(FORM).not.toMatch(/data-concept="BuildingPetsAllowed"/);
+    expect(FORM).not.toMatch(/data-concept="AttendanceType"/);
   });
 });
 

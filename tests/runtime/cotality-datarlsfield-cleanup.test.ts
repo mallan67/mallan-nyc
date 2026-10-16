@@ -1,9 +1,9 @@
 /// <reference types="jest" />
 /**
- * Group 5 (Cotality-clean 2026-05-30) — no `data-rls-field` attribute may claim a
+ * Group 5 (Cotality-clean 2026-05-30) — no `data-concept` attribute may claim a
  * field absent from live Cotality `$metadata`. Phantom claims were converted to the
- * `data-rls-ignore`/`data-removed-field` internal marker. The one legitimate
- * `data-rls-field="BuildingFeatures"` (a real Cotality Multi enum, also used as the
+ * `data-concept-disposition`/`data-removed-field` internal marker. The one legitimate
+ * `data-concept="BuildingFeatures"` (a real Cotality Multi enum, also used as the
  * collector selector) is retained.
  */
 import { readFileSync } from 'fs';
@@ -18,12 +18,12 @@ const PHANTOM = [
   'TaxAbatementYN', 'TaxAbatementComments', 'MaximumFinancingPercent',
 ];
 
-describe('Group 5 — data-rls-field no longer claims phantom Cotality fields', () => {
-  it.each(PHANTOM)('data-rls-field="%s" removed (now data-removed-field/ignore)', (f) => {
-    expect(formHtml).not.toMatch(new RegExp('data-rls-field="' + f + '"'));
+describe('Group 5 — data-concept no longer claims phantom Cotality fields', () => {
+  it.each(PHANTOM)('data-concept="%s" removed (now data-removed-field/ignore)', (f) => {
+    expect(formHtml).not.toMatch(new RegExp('data-concept="' + f + '"'));
   });
 
-  it('legit data-rls-field="BuildingFeatures" (real Cotality Multi enum + collector selector) retained', () => {
-    expect(formHtml).toMatch(/data-rls-field="BuildingFeatures"/);
+  it('legit data-concept="BuildingFeatures" (real Cotality Multi enum + collector selector) retained', () => {
+    expect(formHtml).toMatch(/data-concept="BuildingFeatures"/);
   });
 });

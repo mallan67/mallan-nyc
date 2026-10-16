@@ -50,10 +50,10 @@ describe('Rental BuildingFeatures: the live members', () => {
 
   it.each(['RENTAL-FORM-REDESIGN', 'RENTAL-FORM-WITH-TOOLS'])('%s: only the 19 amenity boxes claim BuildingFeatures; the boxes that are not building features claim nothing', (file) => {
     const doc = docOf(file);
-    const claiming = [...doc.querySelectorAll('[data-rls-field="BuildingFeatures"]')].map((e) => e.id).sort();
+    const claiming = [...doc.querySelectorAll('[data-concept="BuildingFeatures"]')].map((e) => e.id).sort();
     expect(claiming).toEqual(Object.keys(AMENITIES).sort());
-    for (const id of NOT_FEATURES) expect({ id, claim: doc.getElementById(id)?.getAttribute('data-rls-field') ?? null }).toEqual({ id, claim: null });
-    expect(doc.querySelector('input[name="rentalBoardApproval"][value="Yes"]')!.hasAttribute('data-rls-field')).toBe(false);
+    for (const id of NOT_FEATURES) expect({ id, claim: doc.getElementById(id)?.getAttribute('data-concept') ?? null }).toEqual({ id, claim: null });
+    expect(doc.querySelector('input[name="rentalBoardApproval"][value="Yes"]')!.hasAttribute('data-concept')).toBe(false);
   });
 
   describe('the Add form', () => {
@@ -147,8 +147,8 @@ describe('Rental BuildingFeatures: the live members', () => {
 describe('Rental OwnerPays: the broker-fee concession is not the utilities field', () => {
   it.each(['RENTAL-FORM-REDESIGN', 'RENTAL-FORM-WITH-TOOLS'])('%s: the Owner Pays box claims no Cotality field', (file) => {
     const doc = docOf(file);
-    expect(doc.getElementById('rentalOwnerPays')!.hasAttribute('data-rls-field')).toBe(false);
-    expect(doc.querySelector('[data-rls-field="OwnerPays"]')).toBeNull();
+    expect(doc.getElementById('rentalOwnerPays')!.hasAttribute('data-concept')).toBe(false);
+    expect(doc.querySelector('[data-concept="OwnerPays"]')).toBeNull();
   });
 
   it('the collector does not send OwnerPays, the box is saved under its own id, and it comes back ticked', async () => {

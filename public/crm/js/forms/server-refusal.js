@@ -34,7 +34,7 @@
     { re: /^\[NYC\] YearBuilt \d/, name: 'YearBuilt' }
   ];
 
-  // A field the pages hold in a box that does not carry its Cotality name in data-rls-field (the box is the form's own, or carries a name the field no longer has): the box the agent fills for it.
+  // A field the pages hold in a box that does not carry its Cotality name in data-concept (the box is the form's own, or carries a name the field no longer has): the box the agent fills for it.
   // The first selector that finds a control on the page wins, so one table serves the Sale and the Rental form.
   var BOX_FOR = {
     ListPrice: '#salePrice, #rentalMonthlyRent',                                   // a rental's price is its monthly rent
@@ -74,8 +74,8 @@
   function controlFor(field) {
     var doc = global.document;
     if (!doc || !doc.querySelector) return null;
-    var all = doc.querySelectorAll('[data-rls-field]');
-    for (var i = 0; i < all.length; i++) if (all[i].getAttribute('data-rls-field') === field) return all[i];
+    var all = doc.querySelectorAll('[data-concept]');
+    for (var i = 0; i < all.length; i++) if (all[i].getAttribute('data-concept') === field) return all[i];
     var raw = RAW_FIELD.exec(field);
     if (raw) { var key = raw[1].replace(/["\\]/g, ''); return doc.querySelector('[id="' + key + '"], [name="' + key + '"]'); }
     return BOX_FOR[field] ? doc.querySelector(BOX_FOR[field]) : null;

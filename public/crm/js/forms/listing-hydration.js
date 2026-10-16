@@ -746,7 +746,7 @@
     Object.keys(BUILDING_FEATURES_LABEL_TO_CANONICAL).forEach(function (label) { inverse[label] = BUILDING_FEATURES_LABEL_TO_CANONICAL[label]; });
     var boxes = [];
     if (kind === 'sale') SALE_BUILDING_FEATURE_IDS.forEach(function (id) { var el = byId(id); if (el) boxes.push(el); });
-    else document.querySelectorAll('#rentalBuildingModal input[data-rls-field="BuildingFeatures"]').forEach(function (el) { boxes.push(el); });
+    else document.querySelectorAll('#rentalBuildingModal input[data-concept="BuildingFeatures"]').forEach(function (el) { boxes.push(el); });
     boxes.forEach(function (el) {
       var label = el.parentElement ? el.parentElement.textContent.trim() : el.value;
       var canon = inverse[label];

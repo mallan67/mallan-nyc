@@ -70,7 +70,7 @@ All 6 gates are enforced at the API layer. UI may only DISPLAY gate status (read
 | No `type="submit"` buttons | No submission capability |
 | No `setInterval` for autosave | No background saves |
 | `VIEWER_MODE = true` always | No form-mode code path |
-| `data-rls-viewer="true"` on body | CI `crm-validate` identifies viewers (frozen Sales/Rental Tools forms) |
+| `data-viewer-policy="read-only"` on body | CI `crm-validate` identifies viewers (frozen Sales/Rental Tools forms) |
 | Agent info masked for buyer/tenant | API-layer + CSS defense-in-depth |
 
 ---

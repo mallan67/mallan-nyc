@@ -1098,7 +1098,7 @@ function section28() {
     // Count checkboxes WITH data-field vs WITHOUT
     const allCheckboxes = (indexBuilt.match(/<input[^>]*type=["']checkbox["'][^>]*>/gi) || []);
     const withDataField = allCheckboxes.filter(cb => /data-field/i.test(cb));
-    const withoutDataField = allCheckboxes.filter(cb => !/data-field/i.test(cb) && !/data-rls-ignore/i.test(cb));
+    const withoutDataField = allCheckboxes.filter(cb => !/data-field/i.test(cb) && !/data-concept-disposition/i.test(cb));
     const searchCheckboxes = withoutDataField.filter(cb =>
       !/consent|agree|terms|privacy|cookie|sidebar|modal|toggle|select-all|portal|setting|notify|pref|rsvp|status-|mls-status|comp-|grid-|form-|manage-|oh-/i.test(cb)); // exclude non-search checkboxes
 

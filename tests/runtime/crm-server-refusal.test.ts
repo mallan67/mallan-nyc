@@ -22,15 +22,15 @@ const SOURCE = fs.readFileSync(path.join(__dirname, '../../public/crm/js/forms/s
 
 const HTML = `
   <div class="mt-3"><label class="field-label">Living Area Units <span class="text-red-500">*</span></label>
-    <select id="units" data-rls-field="LivingAreaUnits"><option>SquareFeet</option></select></div>
+    <select id="units" data-concept="LivingAreaUnits"><option>SquareFeet</option></select></div>
   <div id="conditionsBlock" class="mt-4"><label class="field-label">Special Listing Conditions <span class="text-red-500">*</span></label>
-    <label><input type="checkbox" name="g" id="std" value="Standard" data-rls-field="SpecialListingConditions"> Standard</label>
+    <label><input type="checkbox" name="g" id="std" value="Standard" data-concept="SpecialListingConditions"> Standard</label>
     <label><input type="checkbox" name="g" id="std2" value="Estate"> Estate</label></div>
   <div class="mt-3"><span class="hint">Pick the closest</span><label class="field-label">Condition <span class="text-red-500">*</span></label>
-    <select id="cond" data-rls-field="PropertyCondition"><option>Excellent</option></select></div>
-  <div id="bare"><input id="fireplaces" data-rls-field="FireplacesTotal"></div>
-  <div id="plainGroup"><label id="plainLabel"><input type="checkbox" id="plainBox" value="x" data-rls-field="WaterfrontFeatures"> x</label></div>
-  <div class="mt-3"><label class="field-label">Public Remarks</label><textarea id="pubRemarks" data-rls-field="PublicRemarks"></textarea></div>
+    <select id="cond" data-concept="PropertyCondition"><option>Excellent</option></select></div>
+  <div id="bare"><input id="fireplaces" data-concept="FireplacesTotal"></div>
+  <div id="plainGroup"><label id="plainLabel"><input type="checkbox" id="plainBox" value="x" data-concept="WaterfrontFeatures"> x</label></div>
+  <div class="mt-3"><label class="field-label">Public Remarks</label><textarea id="pubRemarks" data-concept="PublicRemarks"></textarea></div>
   <div class="mt-3"><label class="field-label">Broker Comments</label><textarea id="saleBrokerComments"></textarea></div>
   <div class="mt-3"><label class="field-label">Web Headline</label><input name="webHeadline"></div>`;
 
@@ -224,18 +224,18 @@ describe.each([
 // under another name (the price of a rental is its monthly rent, the tax lot box carried a name the field no longer has, ...) were named by their Cotality words, and the Rental description as "Public Remarks"
 // though its card says "Listing Description".
 const BOXES_HTML = `
-  <div class="mt-3"><label class="field-label">Lot Number</label><input id="bldgTaxLot" data-rls-ignore="true"></div>
-  <div class="mt-3"><label class="field-label">Monthly Rent</label><input id="rentalMonthlyRent" data-rls-ignore="true"></div>
-  <div class="mt-3"><label class="field-label">Exclusive Start</label><input id="saleExclusiveStart" type="date" data-rls-ignore="true"></div>
+  <div class="mt-3"><label class="field-label">Lot Number</label><input id="bldgTaxLot" data-concept-disposition="mallan-internal"></div>
+  <div class="mt-3"><label class="field-label">Monthly Rent</label><input id="rentalMonthlyRent" data-concept-disposition="mallan-internal"></div>
+  <div class="mt-3"><label class="field-label">Exclusive Start</label><input id="saleExclusiveStart" type="date" data-concept-disposition="mallan-internal"></div>
   <div id="typeBlock"><label class="field-label">Property Type</label>
     <label><input type="radio" name="rentalPropertyType" value="Condo"> Condo</label><label><input type="radio" name="rentalPropertyType" value="Coop"> Co-op</label></div>
   <div id="viewsBlock"><label class="field-label">Views</label>
     <label><input type="checkbox" name="saleViewList" id="viewOcean" value="Ocean"> Ocean</label><label><input type="checkbox" name="saleViewList" id="viewStreet" value="Street"> Street</label></div>
-  <div class="form-card"><div class="form-card-header"><i class="fas fa-pen-fancy"></i> Listing Description</div><textarea id="alone" data-rls-field="ShowingInstructions"></textarea></div>
-  <div class="form-card"><div class="form-card-header">Two Notes</div><textarea id="noteA" data-rls-field="MlsNoteA"></textarea><textarea id="noteB" data-rls-field="MlsNoteB"></textarea></div>`;
+  <div class="form-card"><div class="form-card-header"><i class="fas fa-pen-fancy"></i> Listing Description</div><textarea id="alone" data-concept="ShowingInstructions"></textarea></div>
+  <div class="form-card"><div class="form-card-header">Two Notes</div><textarea id="noteA" data-concept="MlsNoteA"></textarea><textarea id="noteB" data-concept="MlsNoteB"></textarea></div>`;
 
-// a box that carries a Cotality name in data-rls-field, held beside the table's: the sub type
-const CARRIER = '<div class="mt-3"><label class="field-label">Unit Type</label><select id="carrier" data-rls-field="PropertySubType"><option>Apartment</option></select></div>';
+// a box that carries a Cotality name in data-concept, held beside the table's: the sub type
+const CARRIER = '<div class="mt-3"><label class="field-label">Unit Type</label><select id="carrier" data-concept="PropertySubType"><option>Apartment</option></select></div>';
 
 function boxesPage(extra = '') {
   const dom = new JSDOM(`<!doctype html><html><body>${HTML}${BOXES_HTML}${extra}</body></html>`, { runScripts: 'outside-only' });

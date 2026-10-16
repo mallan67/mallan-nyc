@@ -1,0 +1,201 @@
+{
+  "_meta": {
+    "purpose": "Concept-based compliance layer. Each rule is a REBNY UCBA 2026 requirement (cited to the article) or an owner policy (cited to its source). Provider field names are NOT defined here: a rule is bound to a live Cotality field only where the live contract exposes one, and `npm run compliance:validate` checks every binding against data/cotality-enums.live.json (regenerate with `npm run cotality:pull`).",
+    "authority": [
+      "REBNY UCBA 2026 (the article cited on each rule)",
+      "Live Cotality API (field names, types, picklist values)",
+      "Owner policy (Maya, 2026-10-15) where a rule is not a UCBA article"
+    ],
+    "bindingStatus": {
+      "bound": "Every field listed exists in the live Cotality contract and is checked.",
+      "notExposed": "The live Cotality feed does not expose a field for this concept. The rule is enforced inside Mallan (CRM/visibility) and is not tied to a provider field.",
+      "awaitingOwner": "A live field was found but the live feed does not populate or filter it; the owner must decide the binding before this is enforced from provider data."
+    }
+  },
+
+  "dispositions": {
+    "mallan-internal": "Form control that carries a Mallan-only value (not a Cotality field).",
+    "viewer-read-only": "Page is a read-only viewer; it submits nothing."
+  },
+
+  "localConcepts": {
+    "auction_yn": "Mallan-local auction listing toggle",
+    "auction_type": "Mallan-local auction type",
+    "auction_start_date": "Mallan-local auction start",
+    "auction_end_date": "Mallan-local auction end",
+    "auction_terms_url": "Mallan-local auction terms link"
+  },
+
+  "customFieldKeys": {
+    "verifiedLive": "2026-10-15",
+    "note": "Keys inside Property.CustomProperty[].CustomFields (a JSON string). They are reached through Property and are not in $metadata, so they are listed here and re-verified against live data.",
+    "keys": [
+      "ArchitectName", "AreaOverFAR", "AreaUnderFAR", "AttendanceType", "BathroomCondition",
+      "BuildingParkingTotal", "BuildingRules", "BuildingSmokeFreeYN", "BuildingStaffType",
+      "BuildingTaxLot", "CapitalReservesTotal", "CapitalReservesYN", "CeilingHeightFeet",
+      "CeilingHeightInches", "CertificateOfOccupancyYN", "ClosetsTotal", "ComingSoonTimestamp",
+      "CommercialUnitsYN", "ElevatorsTotal", "FlipTax", "FlipTaxRemarks", "FlipTaxType",
+      "FurnishedListPrice", "FurnishedMaxLeaseMonths", "FurnishedMinLeaseMonths",
+      "GuarantorsAcceptedYN", "KitchenCondition", "LandmarkStatusYN", "ListingKey",
+      "ManagingAgencyListingYN", "MaxLeaseMonths", "MaximumFinancingAmount",
+      "MaximumFinancingPercent", "MaximumFinancingRemarks", "NumberOfProfessionalUnitsTotal",
+      "PercentOfCommonElements", "PrivateOutdoorSpaceSize", "SpecialAssessmentExpirationDateTime",
+      "SponsorUnitYN", "TaxAbatementComments", "TaxAbatementExpirationYear", "TaxAbatementYN",
+      "TaxDeductionAmount", "TaxDeductionPercent", "TaxDeductionRemarks", "TaxMonthlyAmount",
+      "UnitLine", "ViewRemarks"
+    ]
+  },
+
+  "locationBindings": {
+    "verifiedLive": "2026-10-15",
+    "borough":      { "field": "CityRegion",      "liveValues": ["Manhattan", "Brooklyn", "Queens", "Bronx", "StatenIsland"] },
+    "neighborhood": { "field": "SubdivisionName", "liveExamples": ["West Village", "Cobble Hill", "Upper West Side"] },
+    "city":         { "field": "City",            "liveValues": ["New York City"] },
+    "county":       { "field": "CountyOrParish",  "liveValues": ["New York", "Kings", "Queens", "Bronx", "Richmond"] },
+    "note": "MLSAreaMajor and MLSAreaMinor are empty in the live feed. Latitude and Longitude exist in the schema but are empty in the live feed."
+  },
+
+  "removedProviderFields": {
+    "note": "NAR-settlement compensation fields. UCBA Art. IV Sec. 2: the RLS does not collect or display offers of compensation. These must not be bound to any form control.",
+    "fields": [
+      "BuyerBrokerageCompensation", "BuyerBrokerageCompensationType",
+      "SubAgencyCompensation", "SubAgencyCompensationType"
+    ]
+  },
+
+  "rules": [
+    {
+      "id": "owner-opt-out",
+      "ucba": "Art. I Sec. 5(A); Exhibit B",
+      "rule": "A listing the owner opted out of public display (signed form within 48 hours) gets no Public Dissemination at any time. One-to-one, non-automated calls and emails are the only exception.",
+      "binding": { "status": "notExposed", "detail": "The RLS feed omits opted-out listings; no per-listing opt-out field is exposed." }
+    },
+    {
+      "id": "participant-only",
+      "ucba": "Art. I Definition W; Exhibit A (Participant Only Listing)",
+      "rule": "A Participant Only listing is visible only to REBNY members or to a group the agent selects and sends it to privately. It is never publicly disseminated or advertised.",
+      "binding": { "status": "notExposed", "detail": "Mallan-side visibility state. Live Permission lookup has values such as AgentOnly, FirmOnly, OfficeOnly, Private; which one the RLS uses for Participant Only has not been confirmed." }
+    },
+    {
+      "id": "coming-soon",
+      "ucba": "Art. I Sec. 16(A)-(F); Exhibit G",
+      "rule": "Owner authorization (Exhibit G); 14-day maximum; required label \"Coming Soon. No Showings or Open House until [Start Showing Date]\"; no showings; no negotiation or counteroffer facilitation; once per address and owner unless off-market 60 days; sales only. The Showing Start Date cannot be changed (Exhibit G 1(b)); days on market start when the listing becomes Active (Exhibit G 1(c)).",
+      "binding": { "status": "bound", "fields": ["StandardStatus", "ActivationDate"], "customFields": ["ComingSoonTimestamp"] }
+    },
+    {
+      "id": "no-personal-info-in-public-content",
+      "ucba": "Art. I Sec. 5(C); Exhibit A footnote",
+      "rule": "No personal or contact information in descriptions, media or comments. The agent's name and contact details appear only in the mandatory fields.",
+      "binding": { "status": "bound", "fields": ["PublicRemarks"] }
+    },
+    {
+      "id": "no-off-market-wording",
+      "ucba": "Art. I Sec. 5(D)",
+      "rule": "\"Off-Market\" may not be advertised through public dissemination.",
+      "binding": { "status": "bound", "fields": ["PublicRemarks"] }
+    },
+    {
+      "id": "no-compensation-in-description",
+      "ucba": "Art. I Sec. 5(E); Art. IV Sec. 2",
+      "rule": "No compensation information in descriptions; the RLS does not collect or display offers of compensation.",
+      "binding": { "status": "bound", "fields": ["PublicRemarks"] }
+    },
+    {
+      "id": "status-price-24h",
+      "ucba": "Art. I Sec. 6; Art. I Sec. 7; Exhibit C Sec. 4.2",
+      "rule": "Status and price changes are entered in the RLS simultaneously or within 24 hours (excluding weekends and postal holidays). The closing price is entered within 24 hours of closing. Closed listings are removed or marked closed on the Exclusive Broker website within 24 hours.",
+      "binding": { "status": "bound", "fields": ["StandardStatus", "ListPrice", "ClosePrice", "CloseDate"] }
+    },
+    {
+      "id": "withdrawal-constraint",
+      "ucba": "Art. I Sec. 9",
+      "rule": "An Exclusive Listing may be withdrawn from the RLS at the Owner's request before the expiration date, but if it remains displayed publicly (any public website or portal) it may not be withdrawn from the RLS.",
+      "binding": { "status": "bound", "fields": ["StandardStatus"] }
+    },
+    {
+      "id": "days-on-market",
+      "ucba": "Art. I Sec. 11",
+      "rule": "Days on market start at RLS transmission; reset when closed and after 30 consecutive days Withdrawn or Cancelled; no circumvention.",
+      "binding": { "status": "bound", "fields": ["DaysOnMarket", "CumulativeDaysOnMarket"] }
+    },
+    {
+      "id": "listing-broker-attribution",
+      "ucba": "Art. III Sec. 2(C)",
+      "rule": "Listings advertised through IDX or VOW carry \"Listing Courtesy of [name]\", reasonably prominent and not in a font smaller than the median on the page.",
+      "binding": { "status": "bound", "fields": ["ListOfficeName"] }
+    },
+    {
+      "id": "party-identity",
+      "ucba": "Art. III Sec. 2(A)(iii)",
+      "rule": "Seller and buyer identity is not disseminated until the sale has closed.",
+      "binding": { "status": "notExposed", "detail": "Mallan-side CRM data; not a Cotality field." }
+    },
+    {
+      "id": "restricted-fields",
+      "ucba": "Art. VIII Sec. 2",
+      "rule": "Restricted fields, names, addresses and credentials are kept confidential. The article does not define which fields are restricted; Mallan classifies the two private-remarks fields as restricted.",
+      "binding": { "status": "bound", "fields": ["PrivateRemarks", "PrivateOfficeRemarks"] }
+    },
+    {
+      "id": "expiration-date-hidden",
+      "ucba": "Exhibit A (Exclusive Listing Expiration Date, Hidden Field)",
+      "rule": "The exclusive listing expiration date is a hidden field.",
+      "binding": { "status": "bound", "fields": ["ExpirationDate"] }
+    },
+    {
+      "id": "commission-negotiable-disclosure",
+      "ucba": "Art. I Sec. 17",
+      "rule": "Participants disclose in conspicuous language that broker commissions are not set by law and are fully negotiable: in the listing agreement, in the buyer agreement, and in pre-closing disclosure documents, unless they are government-specified forms; for a government form, a separate disclosure with that wording is included.",
+      "binding": { "status": "notExposed", "detail": "Mallan-side form and agreement text." }
+    },
+    {
+      "id": "statistics-disclaimer",
+      "ucba": "Art. VIII Sec. 4",
+      "rule": "Statistics carry the required disclaimer and are not reproduced.",
+      "binding": { "status": "notExposed", "detail": "Mallan-side display text." }
+    },
+    {
+      "id": "fair-housing-content",
+      "ucba": "Exhibit C (Listing Data Compliance Policy), Fair Housing and NYC Human Rights Law Title 8",
+      "rule": "Listing content may not contain Fair Housing or NYC HRL violations. Flagged wording is highlighted but never blocks saving a draft.",
+      "binding": { "status": "bound", "fields": ["PublicRemarks"] }
+    },
+    {
+      "id": "address-display-gate",
+      "ucba": "Art. VIII Sec. 2 (addresses); Exhibit A (Listing Full Address)",
+      "rule": "An address the broker withheld from public display is not shown on public search or in client listing reports.",
+      "binding": {
+        "status": "awaitingOwner",
+        "fields": ["InternetAddressDisplayYN"],
+        "detail": "Live 2026-10-15: InternetAddressDisplayYN is in the Property schema, but the RLS provider rejects filtering on it (400, field not permitted) and it is null on every sampled active row. No replacement field was found. Owner decision needed before this gate is enforced from provider data."
+      }
+    },
+    {
+      "id": "entire-listing-display-gate",
+      "ucba": "Exhibit A (IDX Entire Listing Display)",
+      "rule": "A listing the broker excluded from IDX display is not shown publicly.",
+      "binding": { "status": "bound", "fields": ["InternetEntireListingDisplayYN"], "detail": "Live 2026-10-15: true on all 10,219 active rows (the feed is pre-filtered)." }
+    },
+    {
+      "id": "syndication-display-gate",
+      "ucba": "Exhibit A (Syndication Display)",
+      "rule": "A listing is syndicated only to the destinations the broker allows.",
+      "binding": { "status": "bound", "fields": ["SyndicateTo"] }
+    }
+  ],
+
+  "ownerPolicies": [
+    {
+      "id": "public-distribution-masking",
+      "source": "Maya, 2026-10-15",
+      "rule": "Listing-agent contact information is masked on listings distributed publicly (public search) and in client listing reports/emails, where only the courtesy line (agent / company / RLS) is shown. Agents see the full listing, including contact information, in the CRM backend.",
+      "ucbaBacked": false
+    },
+    {
+      "id": "no-generic-viewer-lockdown",
+      "source": "Maya, 2026-10-15",
+      "rule": "Read-only viewer pages are an application-security control, not a UCBA rule.",
+      "ucbaBacked": false
+    }
+  ]
+}

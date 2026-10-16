@@ -41,13 +41,13 @@ describe('the markup: only the box that is sent claims a tour field', () => {
   it.each(PAGES)('%s', (file, p) => {
     const doc: Document = new JSDOM(read(file)).window.document;
     // the Unbranded Tour URL box is the one that is sent as VirtualTourURLUnbranded, and the one input of the page that claims any tour field
-    expect(doc.getElementById(`${p}VirtualTourUnbranded`)!.getAttribute('data-rls-field')).toBe('VirtualTourURLUnbranded');
-    const claims = [...doc.querySelectorAll('[data-rls-field]')].filter((e) => /^VirtualTour/.test(String(e.getAttribute('data-rls-field')))).map((e) => `${e.id}=${e.getAttribute('data-rls-field')}`);
+    expect(doc.getElementById(`${p}VirtualTourUnbranded`)!.getAttribute('data-concept')).toBe('VirtualTourURLUnbranded');
+    const claims = [...doc.querySelectorAll('[data-concept]')].filter((e) => /^VirtualTour/.test(String(e.getAttribute('data-concept')))).map((e) => `${e.id}=${e.getAttribute('data-concept')}`);
     expect(claims).toEqual([`${p}VirtualTourUnbranded=VirtualTourURLUnbranded`]);
     for (const id of OWN_ID_BOXES(p)) {
       const box = doc.getElementById(id)!;
       expect(box).not.toBeNull();
-      expect(box.hasAttribute('data-rls-field')).toBe(false);
+      expect(box.hasAttribute('data-concept')).toBe(false);
       const help = String(box.parentElement!.querySelector('p')?.textContent ?? '');
       expect(help).toMatch(/Not sent to a Cotality field/);
       expect(help).not.toMatch(/RLS\/RESO\/IDX/);

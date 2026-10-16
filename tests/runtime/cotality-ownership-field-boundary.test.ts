@@ -70,12 +70,12 @@ describe('raw field separation', () => {
 
   it('Rental form no longer exposes the non-RLS OwnershipType control', () => {
     expect(files.rental).not.toContain('id="rentalOwnershipType"');
-    expect(files.rental).not.toContain('data-rls-field="OwnershipType"');
+    expect(files.rental).not.toContain('data-concept="OwnershipType"');
   });
 
   it('Mallan classification radios are not falsely tagged as raw PropertyType', () => {
-    expect(files.sale).not.toMatch(/name="salePropertyType"[^>]*data-rls-field="PropertyType"/);
-    expect(files.rental).not.toMatch(/name="rentalPropertyType"[^>]*data-rls-field="PropertyType"/);
+    expect(files.sale).not.toMatch(/name="salePropertyType"[^>]*data-concept="PropertyType"/);
+    expect(files.rental).not.toMatch(/name="rentalPropertyType"[^>]*data-concept="PropertyType"/);
   });
 });
 

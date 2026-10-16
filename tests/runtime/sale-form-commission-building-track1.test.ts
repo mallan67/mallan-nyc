@@ -76,12 +76,12 @@ describe('Commission collision fix', () => {
 
 describe('Building — phantom fields reclassified internal (match Cotality)', () => {
   it('saleBldgNumElevators is no longer tagged as Cotality ElevatorsTotal', () => {
-    expect(formHtml).toMatch(/id="saleBldgNumElevators"[^>]*data-rls-ignore="true"[^>]*data-removed-field="ElevatorsTotal"/);
-    expect(formHtml).not.toMatch(/id="saleBldgNumElevators"[^>]*data-rls-field="ElevatorsTotal"/);
+    expect(formHtml).toMatch(/id="saleBldgNumElevators"[^>]*data-concept-disposition="mallan-internal"[^>]*data-removed-field="ElevatorsTotal"/);
+    expect(formHtml).not.toMatch(/id="saleBldgNumElevators"[^>]*data-concept="ElevatorsTotal"/);
   });
   it('saleBldgNewDevelopment is no longer tagged as Cotality (was duplicating NewConstructionYN)', () => {
-    expect(formHtml).toMatch(/id="saleBldgNewDevelopment"[^>]*data-rls-ignore="true"[^>]*data-removed-field="NewDevelopmentYN"/);
-    expect(formHtml).not.toMatch(/id="saleBldgNewDevelopment"[^>]*data-rls-field="NewConstructionYN"/);
+    expect(formHtml).toMatch(/id="saleBldgNewDevelopment"[^>]*data-concept-disposition="mallan-internal"[^>]*data-removed-field="NewDevelopmentYN"/);
+    expect(formHtml).not.toMatch(/id="saleBldgNewDevelopment"[^>]*data-concept="NewConstructionYN"/);
   });
   it('collect no longer emits ElevatorsTotal; NewConstructionYN (real) still emitted; NewDevelopmentYN is sent only as the agent\'s building answer (2026-10-09: the create gate reads it for Coming Soon)', () => {
     const collect = extractFn(formHtml, 'collectSaleFormData');

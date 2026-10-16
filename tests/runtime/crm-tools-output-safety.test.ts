@@ -614,7 +614,7 @@ describe('RENTAL-FORM-WITH-TOOLS: nothing is made up', () => {
       // a ticked box that carries no label of its own is not an amenity
       const modal = f.d.getElementById('rentalBuildingModal') as HTMLElement;
       const bare = f.d.createElement('div');
-      bare.innerHTML = '<input type="checkbox" data-rls-field="BuildingFeatures" checked>';
+      bare.innerHTML = '<input type="checkbox" data-concept="BuildingFeatures" checked>';
       modal.appendChild(bare);
       (f.d.getElementById('rentalDoorman') as HTMLInputElement).checked = true;     // a box of the form outside the building modal is not a building amenity
       const data = f.w.collectRentalPrintData();
