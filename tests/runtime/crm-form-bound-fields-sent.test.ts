@@ -16,7 +16,7 @@ jest.setTimeout(900000);
 const PAGES: Array<[AddForm, string]> = [['SALE-FORM-REDESIGN', 'collectSaleFormData'], ['RENTAL-FORM-REDESIGN', 'collectRentalFormData']];
 
 /** The collector builds these from several controls (the address line is split into number / name / suffix, the building's postal code and borough come from the address, ...). */
-const COLLECTOR_OWNED = new Set(['StreetName', 'StreetNumber', 'UnitNumber', 'PostalCode', 'CityRegion', 'SubdivisionName', 'PublicRemarks', 'ListTeamKey']);
+const COLLECTOR_OWNED = new Set(['StreetName', 'StreetNumber', 'UnitNumber', 'PostalCode', 'CityRegion', 'SubdivisionName', 'PublicRemarks', 'ListTeamMlsId']);
 /** A unit or a frequency is sent with the amount it belongs to, never alone (the create gate refuses a unit alone: crm-form-create-gate.test.ts). */
 const NEEDS_AMOUNT = new Set(['LivingAreaUnits', 'BuildingAreaUnits', 'LotSizeUnits', 'FoundationAreaUnits', 'LandLeaseAmountFrequency', 'AdditionalFeeFrequency', 'AssociationFeeFrequency', 'LeaseAmountFrequency']);
 /** The amenity boxes: a box with a live BuildingFeatures member sends it, the others are kept in the form's own list (crm-form-live-members.test.ts). */

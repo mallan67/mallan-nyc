@@ -1370,11 +1370,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
             <div class="form-card-header"><i class="fas fa-pen"></i> Listing Description</div>
             <label class="field-label">Listing Description <span class="text-red-500">*</span></label>
             <div class="mb-2 flex items-center justify-between">
-                <div class="flex gap-2">
-                    <button type="button" class="px-3 py-1 border rounded text-xs hover:bg-gray-50" title="Bold" aria-label="Bold"><i class="fas fa-bold"></i></button>
-                    <button type="button" class="px-3 py-1 border rounded text-xs hover:bg-gray-50" title="Italic" aria-label="Italic"><i class="fas fa-italic"></i></button>
-                    <button type="button" class="px-3 py-1 border rounded text-xs hover:bg-gray-50" title="List" aria-label="List"><i class="fas fa-list-ul"></i></button>
-                </div>
+                <div></div><!-- the description is plain text (it goes to the MLS as PublicRemarks): no bold / italic / list buttons -->
                 <div class="flex items-center gap-3">
                     <span class="text-[10px] text-gray-400"><i class="fas fa-shield-alt mr-1"></i> UCBA + Fair Housing scan active</span>
                     <span id="saleDescCharCount" class="text-xs text-gray-500">0 / 5,000 characters</span>
@@ -1487,13 +1483,13 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <!-- RLS/RESO/IDX: ListTeamName (Optional — PUB distribution) -->
-                    <label class="field-label">Listing Team Name <span class="text-xs text-gray-400">(RLS/RESO/IDX: ListTeamName)</span></label>
+                    <label class="field-label">Listing Team Name</label>
                     <input type="text" id="saleListTeamName" placeholder="e.g., The Allan Team" class="field-input" data-concept="ListTeamName">
                 </div>
                 <div>
                     <!-- RLS/RESO/IDX: ListTeamMlsId (Optional — PUB distribution) -->
-                    <label class="field-label">Listing Team MLS ID <span class="text-xs text-gray-400">(RLS/RESO/IDX: ListTeamMlsId)</span></label>
-                    <input type="text" id="saleListTeamMlsId" placeholder="Team MLS ID" class="field-input" data-concept="ListTeamKey">
+                    <label class="field-label">Listing Team MLS ID</label>
+                    <input type="text" id="saleListTeamMlsId" placeholder="Team MLS ID" class="field-input" data-concept="ListTeamMlsId">
                 </div>
             </div>
             <p class="text-xs text-gray-500 mt-3"><i class="fas fa-info-circle mr-1"></i> Optional. Register teams with REBNY: email RLSsupport@rebny.com with team name, members, broker of record, and office info.</p>

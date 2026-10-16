@@ -17,7 +17,7 @@
   // timestamps the page does not ask the agent for.
   var SKIP = {
     StreetName: 1, StreetNumber: 1, UnitNumber: 1, PostalCode: 1, CityRegion: 1, SubdivisionName: 1, PublicRemarks: 1,
-    ListTeamKey: 1, PhotosChangeTimestamp: 1
+    ListTeamMlsId: 1, PhotosChangeTimestamp: 1
   };
 
   // A Yes/No field the page asks with a longer list: what each answer says about the Yes/No question. An answer with no Yes/No meaning ("Case by Case") sends nothing.
