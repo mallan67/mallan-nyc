@@ -85,6 +85,24 @@
                         </div>
                     </div>
 
+                <!-- ANY COTALITY FIELD: every Cotality Property / CustomProperty / CustomFields field, built from the live contract (js/search/search-field-catalog.js) -->
+                <div id="cotalityFieldFilterCard" class="bg-white rounded-xl shadow-sm border mb-4 overflow-hidden">
+                    <button type="button" class="w-full px-4 py-2.5 flex items-center justify-between text-left bg-gray-50/80" onclick="document.getElementById('cotalityFieldFilterBody').classList.toggle('hidden')">
+                        <span class="text-xs font-bold text-gray-700"><i class="fas fa-sliders-h mr-1.5 text-[11px]"></i> Search any Cotality field</span>
+                        <span id="cotalityFieldFilterCount" class="text-[11px] text-gray-500">No field filters</span>
+                    </button>
+                    <div id="cotalityFieldFilterBody" class="hidden px-4 py-3">
+                        <p id="cotalityFieldTotal" class="text-[11px] text-gray-500 mb-2"></p>
+                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                            <input id="cotalityFieldInput" list="cotalityFieldList" placeholder="Type a Cotality field, e.g. FireplaceYN, TaxMonthlyAmount" class="field-input text-xs flex-1 min-w-[16rem]" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();CotalityFieldFilters.addFromInput();}">
+                            <datalist id="cotalityFieldList"></datalist>
+                            <button type="button" class="px-3 py-1.5 bg-gray-800 text-white rounded-lg text-xs font-semibold hover:bg-gray-700" onclick="CotalityFieldFilters.addFromInput()"><i class="fas fa-plus mr-1"></i> Add filter</button>
+                        </div>
+                        <div id="cotalityFieldFilterRows"></div>
+                        <p id="cotalityFieldFilterNotes" class="text-[11px] text-red-600 mt-1"></p>
+                    </div>
+                </div>
+
                 <!-- ============================================== -->
                 <!-- BASIC SEARCH MODE - SALES LAYOUT -->
                 <!-- ============================================== -->

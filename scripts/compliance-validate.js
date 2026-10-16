@@ -56,6 +56,8 @@ const property = (contract.entities && contract.entities.Property) || {};
 const enums = contract.enums || {};
 const propertyFields = new Set(Object.keys(property));
 const customKeys = new Set((registry.customFieldKeys && registry.customFieldKeys.keys) || []);
+// The typed CustomProperty entity (e.g. ApplicationFee, AdditionalFee*) is reached through Property.CustomProperty; its fields are live Cotality fields too.
+for (const f of Object.keys((contract.entities && contract.entities.CustomProperty) || {})) customKeys.add(f);
 const localConcepts = new Set(Object.keys(registry.localConcepts || {}));
 const ruleIds = new Set((registry.rules || []).map(r => r.id));
 const dispositions = new Set(Object.keys(registry.dispositions || {}));
@@ -199,6 +201,40 @@ function checkForm(rel) {
   record(unknown.length || pickMisses.length || badDisposition || removedBound ? 'INFO' : 'PASS', rel,
     `${total} bindings, ${bindings.size} distinct concepts, ${pickChecked} picklists checked against live enums, ${disposed} controls marked mallan-internal`);
 }
+
+// ── 3. Search coverage: every live Cotality field must be searchable ─────
+(function checkSearchCoverage() {
+  const read = (rel) => { try { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); } catch (e) { record('FAIL', `search coverage: read ${rel}`, e.message); return null; } };
+  const filterable = readJson('data/cotality-filterable.live.json');
+  const catalogSrc = read('public/crm/js/search/search-field-catalog.js');
+  const indexHtml = read('public/crm/index.html');
+  const searchHtml = read('public/crm/html/search-form-and-results.html');
+  if (!filterable || !catalogSrc) return;
+
+  const expected = new Set(propertyFields);
+  for (const f of Object.keys((contract.entities && contract.entities.CustomProperty) || {})) if (f !== 'CustomFields') expected.add(f);
+  for (const k of ((registry.customFieldKeys && registry.customFieldKeys.keys) || [])) expected.add(k);
+
+  const start = catalogSrc.indexOf('window.COTALITY_SEARCH_FIELDS = ') + 'window.COTALITY_SEARCH_FIELDS = '.length;
+  let catalog = [];
+  try { catalog = JSON.parse(catalogSrc.slice(start).replace(/;\s*$/, '')); } catch (e) { record('FAIL', 'search coverage', 'search-field-catalog.js is not readable: ' + e.message); return; }
+  const inCatalog = new Set(catalog.map(c => c.n));
+  const missing = [...expected].filter(n => !inCatalog.has(n));
+  const extra = [...inCatalog].filter(n => !expected.has(n));
+  if (missing.length) record('FAIL', 'search coverage', `${missing.length} live Cotality field(s) cannot be searched (run npm run cotality:search-catalog): ${missing.slice(0, 12).join(', ')}`);
+  if (extra.length) record('FAIL', 'search coverage', `${extra.length} searchable field(s) are not in the live contract: ${extra.slice(0, 12).join(', ')}`);
+
+  const probed = new Set([...(filterable.filterable || []), ...(filterable.provider_blocked || []), ...Object.keys(filterable.other_failures || {})]);
+  const unprobed = [...propertyFields].filter(n => !probed.has(n));
+  if (unprobed.length) record('FAIL', 'search coverage', `${unprobed.length} Property field(s) were never probed for filtering (run npm run cotality:probe): ${unprobed.slice(0, 12).join(', ')}`);
+
+  if (indexHtml && !(indexHtml.includes('js/search/search-field-catalog.js') && indexHtml.includes('js/search/field-filters.js'))) record('FAIL', 'search coverage', 'index.html does not load the search field catalog and filter builder');
+  if (searchHtml && !searchHtml.includes('id="cotalityFieldFilterRows"')) record('FAIL', 'search coverage', 'the search page has no "Search any Cotality field" builder');
+
+  if (!missing.length && !extra.length && !unprobed.length) {
+    record('PASS', 'search coverage', `${catalog.length} Cotality fields searchable: ${catalog.filter(c => c.s).length} filtered by Cotality, ${catalog.filter(c => !c.s).length} on the fetched results (${(filterable.provider_blocked || []).length} Property fields are provider-blocked)`);
+  }
+})();
 
 for (const f of FORMS) checkForm(f);
 

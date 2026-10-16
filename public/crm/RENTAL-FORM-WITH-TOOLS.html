@@ -968,7 +968,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <!-- RLS: PetsAllowed — REQUIRED, Multi-Select Picklist (7 values) — Unit-level -->
                 <div class="col-span-2">
                     <label class="field-label mb-2">Unit Pet Policy <span class="text-red-500">*</span></label>
-                    <p class="text-[10px] text-gray-500 mb-2">RLS: PetsAllowed — Locked if building says "No Pets".</p>
+                    <p class="text-[10px] text-gray-500 mb-2">Cotality: PetsAllowed — Locked if building says "No Pets".</p>
                     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2" id="rentalPetsAllowedGroup">
                         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="Yes" class="w-4 h-4 rental-unit-pets-cb" data-concept="PetsAllowed"> Yes</label>
                         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="CatsOk" class="w-4 h-4 rental-unit-pets-cb"> Cats OK</label>
@@ -1060,12 +1060,12 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <div>
                     <label class="field-label">Move-In Costs</label>
                     <input type="text" id="rentalMoveInCosts" placeholder="e.g., Application Fee, Move-In Fee, Credit Check" class="field-input" data-concept="MoveInCosts">
-                    <p class="text-[10px] text-gray-400 mt-1">RLS: MoveInCosts — comma-separated list of move-in cost types</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Cotality: MoveInCosts — comma-separated list of move-in cost types</p>
                 </div>
                 <div>
                     <label class="field-label">Move-In Cost Amount ($)</label>
                     <input type="number" id="rentalMoveInCostsAmount" placeholder="$0.00" step="0.01" class="field-input" data-concept="MoveInCostsAmount">
-                    <p class="text-[10px] text-gray-400 mt-1">RLS: MoveInCostsAmount — dollar amount</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Cotality: MoveInCostsAmount — dollar amount</p>
                 </div>
             </div>
             <div class="mb-4">
@@ -1076,7 +1076,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <div>
                     <label class="field-label">Ongoing Fees</label>
                     <input type="text" id="rentalOngoingFees" placeholder="e.g., Storage, Parking, Gym, Pet" class="field-input" data-concept="OngoingFees">
-                    <p class="text-[10px] text-gray-400 mt-1">RLS: OngoingFees — recurring fees beyond rent</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Cotality: OngoingFees — recurring fees beyond rent</p>
                 </div>
                 <div>
                     <label class="field-label">Fee Frequency</label>
@@ -1095,12 +1095,12 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <div>
                     <label class="field-label">Tenant Pays</label>
                     <input type="text" id="rentalTenantPays" placeholder="e.g., Electric, Gas, Water, Cable, Internet" class="field-input" data-concept="TenantPays">
-                    <p class="text-[10px] text-gray-400 mt-1">RLS: TenantPays — utilities/services paid by tenant</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Cotality: TenantPays — utilities/services paid by tenant</p>
                 </div>
                 <div>
                     <label class="field-label">Tenant Pays Description</label>
                     <input type="text" id="rentalTenantPaysDescription" placeholder="Additional details about what tenant pays..." class="field-input" data-concept="TenantPaysDescription">
-                    <p class="text-[10px] text-gray-400 mt-1">RLS: TenantPaysDescription</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Cotality: TenantPaysDescription</p>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1221,7 +1221,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 </div>
                 <div>
                     <label class="field-label">Lease Type</label>
-                    <select id="rentalLeaseType" class="field-input" data-concept="AvailableLeaseType">
+                    <select id="rentalLeaseType" class="field-input" data-concept-disposition="mallan-internal">
                         <option value="">Select Type</option>
                         <option value="NonStabilizedLease">Non-Stabilized Lease</option>
                         <option value="StabilizedLease">Stabilized Lease</option>
@@ -1785,17 +1785,12 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <option value="Triplex">Triplex</option>
                 <option value="Quadruplex">Quadruplex</option>
                 <option value="Loft">Loft</option>
-                <option value="GardenApartment">Garden Apartment</option>
-                <option value="SingleFamilyTownhouse">Single Family Townhouse</option>
-                <option value="MultiFamilyTownhouse">Multi-Family Townhouse</option>
+                <option value="Townhouse">Townhouse</option>
                 <option value="SingleFamilyResidence">Single Family Residence</option>
                 <option value="MixedUse">Mixed Use</option>
                 <option value="MultiFamily">Multi-Family</option>
                 <option value="Office">Office</option>
                 <option value="Retail">Retail</option>
-                <option value="UnitDuplex">Unit Duplex</option>
-                <option value="UnitTriplex">Unit Triplex</option>
-                <option value="UnitQuadruplex">Unit Quadruplex</option>
                 <option value="DeededParking">Deeded Parking</option>
                 <option value="Timeshare">Timeshare</option>
                 <option value="UnimprovedLand">Unimproved Land</option>
@@ -2155,7 +2150,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
         </div>
         <div>
             <label class="field-label"># Professional Units</label>
-            <input type="number" id="rentalTHProfUnits" placeholder="0" class="field-input" data-concept-disposition="mallan-internal" data-removed-field="NumberOfProfessionalUnitsTotal">
+            <input type="number" id="rentalTHProfUnits" placeholder="0" class="field-input" data-concept="NumberOfProfessionalUnitsTotal">
         </div>
         <div>
             <label class="field-label"># Retail Units</label>
@@ -2297,11 +2292,11 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
         </div>
         <div>
             <label class="field-label">Area Over FAR (sq ft)</label>
-            <input type="number" id="rentalTHOverFAR" placeholder="0" class="field-input" data-concept-disposition="mallan-internal" data-removed-field="AreaOverFAR">
+            <input type="number" id="rentalTHOverFAR" placeholder="0" class="field-input" data-concept="AreaOverFAR">
         </div>
         <div>
             <label class="field-label">Area Under FAR (sq ft)</label>
-            <input type="number" id="rentalTHUnderFAR" placeholder="0" class="field-input" data-concept-disposition="mallan-internal" data-removed-field="AreaUnderFAR">
+            <input type="number" id="rentalTHUnderFAR" placeholder="0" class="field-input" data-concept="AreaUnderFAR">
         </div>
     </div>
 </div>
@@ -2586,7 +2581,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 </label>
                 <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-500"><i class="fas fa-lock text-[10px] mr-1"></i>Not Activated</span>
             </div>
-            <p class="text-xs text-gray-400">RLS: InternetEntireListingDisplayYN (controls VOW + IDX + Web)</p>
+            <p class="text-xs text-gray-400">Cotality: InternetEntireListingDisplayYN (controls VOW + IDX + Web)</p>
             <p class="text-xs text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>VOW feed not yet activated. When active, unchecking removes listing from all internet display.</p>
         </div>
         <!-- RLS: SyndicateYN — defaults to TRUE (syndicate by default per RLS rules) -->
@@ -3535,24 +3530,16 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                                     <option value="ArtDeco">Art Deco</option>
                                     <option value="ArtNouveau">Art Nouveau</option>
                                     <option value="BeauxArts">Beaux-Arts</option>
-                                    <option value="Brownstone">Brownstone</option>
                                     <option value="Brutalist">Brutalist</option>
                                     <option value="CastIron">Cast Iron</option>
                                     <option value="Colonial">Colonial</option>
-                                    <option value="ContemporaryClassicism">Contemporary Classicism</option>
                                     <option value="ContemporaryModern">Contemporary Modern</option>
-                                    <option value="Eclectic">Eclectic</option>
                                     <option value="Federal">Federal</option>
                                     <option value="GothicRevival">Gothic Revival</option>
                                     <option value="GreekRevival">Greek Revival</option>
                                     <option value="International">International</option>
                                     <option value="Italianate">Italianate</option>
-                                    <option value="NeoColonial">Neo-Colonial</option>
-                                    <option value="NeoGeorgian">Neo-Georgian</option>
-                                    <option value="NeoGrec">Neo-Grec</option>
-                                    <option value="PostModernism">Post-Modernism</option>
                                     <option value="QueenAnne">Queen Anne</option>
-                                    <option value="ReniassanceRevival">Renaissance Revival</option>
                                     <option value="Romanesque">Romanesque</option>
                                     <option value="SecondEmpire">Second Empire</option>
                                 </select>
@@ -3604,7 +3591,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <!-- RLS: AttendanceType — REQUIRED, Multi-Select Picklist (16 values) -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-concierge-bell"></i> Building Attendance Type <span class="text-red-500">*</span></div>
-                        <p class="text-[10px] text-gray-500 mb-3">RLS: AttendanceType — Select all that apply. At least one required.</p>
+                        <p class="text-[10px] text-gray-500 mb-3">Cotality: AttendanceType — Select all that apply. At least one required.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-3" id="rentalAttendanceTypeGroup">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="DoormanFullTime" class="w-4 h-4 rental-attendance-cb" data-concept="AttendanceType"> Doorman (Full-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="DoormanPartTime" class="w-4 h-4 rental-attendance-cb"> Doorman (Part-Time)</label>
@@ -5298,8 +5285,8 @@ function getResoPropertyFields(crmValue) {
         'Coop':                     { PropertyType: 'ResidentialLease', CommonInterest: 'StockCooperative', PropertySubType: 'Apartment' },
         'Condop':                   { PropertyType: 'ResidentialLease', CommonInterest: 'Condop',          PropertySubType: 'Apartment' },
         'RentalBuilding':           { PropertyType: 'ResidentialLease', CommonInterest: 'RentalBuilding',  PropertySubType: 'Apartment' },
-        'SingleFamilyTownhouse':    { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'SingleFamilyTownhouse' },
-        'MultiFamilyTownhouse':     { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'MultiFamilyTownhouse' },
+        'SingleFamilyTownhouse':    { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'Townhouse' },
+        'MultiFamilyTownhouse':     { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'Townhouse' },
         'SingleFamily':             { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'SingleFamilyResidence' },
         'MultiFamily':              { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'MultiFamily' },
         'MixedUse':                 { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'MixedUse' },

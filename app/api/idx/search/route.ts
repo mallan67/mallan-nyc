@@ -19,6 +19,7 @@ import { generateAttributionText } from "@/lib/idx/mapping";
 import { logFetchAttempt } from "@/lib/idx/logger";
 import { upsertBuildingFromSearchResult } from "@/lib/buildings/upsert";
 import { buildCrmIdxODataFilter } from "@/lib/search/crm-idx-filter";
+import { applyPostFilters, buildFieldFilters, selectFieldsForPostFilters } from "@/lib/search/field-filters";
 import { mapTrestleToCrmListing } from "@/lib/search/crm-idx-mapper";
 
 // ── Fields we actually need (validated against IDX Plus feed 2026-03-04) ──
@@ -153,8 +154,15 @@ export async function GET(req: NextRequest) {
     // buildCrmIdxODataFilter(params) and only OData-safe fields are forwarded.
     const filter = buildCrmIdxODataFilter(params);
 
-    // Cache key from filter + pagination
-    const cacheKey = `idx:${filter}:${limit}:${skip}`;
+    // Any Cotality field (lib/search/field-filters.ts): the ones Cotality lets us filter on are already inside `filter`; the others
+    // (provider-blocked Property fields, CustomProperty fields, CustomFields keys) are applied to the fetched page below.
+    const fieldFilters = buildFieldFilters(params.get("fieldFilters"));
+    const postFilters = fieldFilters.postFilters;
+    const needsCustomProperty = postFilters.some((p) => p.source !== "property");
+    const select = [...new Set([...SEARCH_SELECT_FIELDS, ...selectFieldsForPostFilters(postFilters)])];
+
+    // Cache key from filter + pagination (+ the page filters, which are not part of `filter`)
+    const cacheKey = `idx:${filter}:${limit}:${skip}:${params.get("fieldFilters") || ""}`;
     const cached = getCached(cacheKey);
     if (cached) {
       logger.complete("success");
@@ -176,7 +184,8 @@ export async function GET(req: NextRequest) {
     const useInlineMedia = false;
     const result = await fetchFromTrestle({
       filter,
-      select: SEARCH_SELECT_FIELDS,
+      select,
+      expandCustomProperty: needsCustomProperty,
       top: limit,
       skip,
       orderby: sort || "ModificationTimestamp desc",
@@ -194,7 +203,8 @@ export async function GET(req: NextRequest) {
     // where we must NOT show it. All 6 gates are now enforced uniformly.
     const displayable: Record<string, unknown>[] = [];
     const gateBlockedReasons: Record<string, number> = {};
-    for (const record of result.records) {
+    const fetchedRecords = applyPostFilters(result.records, postFilters);
+    for (const record of fetchedRecords) {
       const gate = checkDistributionGates(record);
       if (gate.displayable) {
         displayable.push(record);
@@ -206,7 +216,7 @@ export async function GET(req: NextRequest) {
 
     // Silent building upsert — populate building DB from search results
     const seenBuildingKeys = new Set<number>();
-    for (const record of result.records) {
+    for (const record of fetchedRecords) {
       const bk = record.BuildingKeyNumeric;
       if (bk != null && !seenBuildingKeys.has(Number(bk))) {
         seenBuildingKeys.add(Number(bk));
@@ -351,6 +361,9 @@ export async function GET(req: NextRequest) {
         mediaStrategy: useInlineMedia ? "expand" : "lazy",
         mediaBackfilled,
         sponsorFiltered,
+        // fieldFilters: `rejected` lists filters that named no Cotality field or carried a value Cotality does not have; `pageFiltered` counts
+        // records dropped by filters Cotality cannot evaluate (they apply to the fetched page only).
+        fieldFilters: { rejected: fieldFilters.rejected, pageFilters: postFilters.length, pageFiltered: result.records.length - fetchedRecords.length },
       },
     };
 

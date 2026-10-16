@@ -284,6 +284,8 @@
                 // BuildingFeatures/etc. set. Stored as a JSON string to
                 // preserve the inner shape unchanged across save/load.
                 checkbox_filters: c.checkboxFilters ? JSON.stringify(c.checkboxFilters) : undefined,
+                // Search on any Cotality field: [{ f, op, v }], stored as a JSON string like checkbox_filters.
+                field_filters: c.fieldFilters && c.fieldFilters.length ? JSON.stringify(c.fieldFilters) : undefined,
                 // Agent / office pickers: the entries the search used ({id|text, label} per filter); restored with no network call.
                 agent_office: c.agentOffice || undefined,
             };
@@ -497,6 +499,12 @@
             // AccessibilityFeatures/ExteriorFeatures/PetsAllowedYN/etc.
             // Stored as JSON string. For each (field, [values]) pair, find
             // and check the matching data-field/data-value checkbox.
+            if (criteria.field_filters && window.CotalityFieldFilters) {
+                try {
+                    window.CotalityFieldFilters.set(typeof criteria.field_filters === 'string' ? JSON.parse(criteria.field_filters) : criteria.field_filters);
+                } catch (e) { console.warn('[CRM Search] The saved search carries field filters that could not be read; they were not applied.'); }
+            }
+
             if (criteria.checkbox_filters) {
                 try {
                     var cbFilters = typeof criteria.checkbox_filters === 'string'

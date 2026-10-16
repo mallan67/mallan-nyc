@@ -1,4 +1,5 @@
 import neighborhoodAliases from "@/data/rls/geo/neighborhood-aliases.json";
+import { buildFieldFilters } from "@/lib/search/field-filters";
 
 /**
  * Expand a canonical neighborhood name into all SubdivisionName variants
@@ -373,6 +374,10 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
       parts.push(`(${orParts.join(" or ")})`);
     }
   }
+
+  // Any Cotality field: fieldFilters carries validated { f, op, v } entries (lib/search/field-filters.ts). Only the ones Cotality lets us
+  // filter on become OData clauses here; the rest are applied to the fetched page by the search route.
+  parts.push(...buildFieldFilters(params.get("fieldFilters")).clauses);
 
   return parts.join(" and ");
 }

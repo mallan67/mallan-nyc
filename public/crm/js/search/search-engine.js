@@ -383,6 +383,7 @@
                 var _cbJson = JSON.stringify(criteria.checkboxFilters);
                 if (_cbJson !== '{}') params.checkboxFilters = _cbJson;
             }
+            if (criteria.fieldFilters && criteria.fieldFilters.length) params.fieldFilters = JSON.stringify(criteria.fieldFilters);
             // ── Codex Risk P0 fix: transit/grid panels are disabled at
             //    container level (init-disable-dead-controls.js) AND
             //    the underlying REBNY IDX feed does not populate
@@ -411,6 +412,7 @@
             if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = true;
             MallanAPI.idx.search(params).then(function(result) {
                 if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
+                if (window.CotalityFieldFilters) window.CotalityFieldFilters.report(result && result._meta);
                 console.log('[Search] Trestle returned:', result ? (result.listings ? result.listings.length + ' listings' : 'no listings array') : 'null');
                 if (!result || !result.listings || result.listings.length === 0) {
                     // Server returned 0. Trestle is the source of truth for IDX
@@ -1177,6 +1179,12 @@
                 }
             }
 
+            // Search on any Cotality field (js/search/field-filters.js): [{ f, op, v }]
+            if (window.CotalityFieldFilters) {
+                var _fieldFilters = window.CotalityFieldFilters.get();
+                if (_fieldFilters.length > 0) criteria.fieldFilters = _fieldFilters;
+            }
+
             return criteria;
         }
 
@@ -1191,6 +1199,7 @@
         }
 
         function clearSearchForm() {
+            if (window.CotalityFieldFilters) window.CotalityFieldFilters.clear();
             // Reset all select elements in basic form (unified — one form for all tabs)
             var forms = ['searchBasicMode'];
             forms.forEach(function(formId) {

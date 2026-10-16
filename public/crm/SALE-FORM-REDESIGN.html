@@ -323,12 +323,12 @@ body { font-family: Manrope, sans-serif; }
                 <div class="sm:col-span-2">
                     <label class="field-label">Street Address <span class="text-red-500">*</span></label>
                     <input type="text" id="saleStreetAddress" placeholder="e.g., 200 East 66th Street" oninput="updateListingHeaderBar('sale')" onblur="saleAddressBlurLookup()" class="field-input" data-concept="StreetName">
-                    <p class="text-[10px] text-gray-400">RLS: UnparsedAddress — auto-parsed into StreetNumber, StreetName, StreetSuffix, StreetDirPrefix</p>
+                    <p class="text-[10px] text-gray-400">Cotality: UnparsedAddress — auto-parsed into StreetNumber, StreetName, StreetSuffix, StreetDirPrefix</p>
                 </div>
                 <div>
                     <label class="field-label">Unit / Apt</label>
                     <input type="text" id="saleUnitNumber" placeholder="e.g., 15A" oninput="updateListingHeaderBar('sale')" class="field-input" data-concept="UnitNumber">
-                    <p class="text-[10px] text-gray-400">RLS: UnitNumber</p>
+                    <p class="text-[10px] text-gray-400">Cotality: UnitNumber</p>
                 </div>
                 <div>
                     <label class="field-label">Borough <span class="text-red-500">*</span></label>
@@ -340,7 +340,7 @@ body { font-family: Manrope, sans-serif; }
                         <option value="Bronx">Bronx</option>
                         <option value="StatenIsland">Staten Island</option>
                     </select>
-                    <p class="text-[10px] text-gray-400">RLS: CityRegion</p>
+                    <p class="text-[10px] text-gray-400">Cotality: CityRegion</p>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3">
@@ -351,7 +351,7 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label">Postal City <span class="text-red-500">*</span></label>
                     <input type="text" id="salePostalCity" placeholder="e.g., New York" class="field-input" data-concept="PostalCity">
-                    <p class="text-[10px] text-gray-400">RLS: PostalCity — USPS city (may differ from borough)</p>
+                    <p class="text-[10px] text-gray-400">Cotality: PostalCity — USPS city (may differ from borough)</p>
                 </div>
                 <div>
                     <label class="field-label">Neighborhood</label>
@@ -360,7 +360,7 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label">County</label>
                     <input type="text" id="saleCountyOrParish" placeholder="Auto from borough" class="field-input bg-gray-50" readonly data-concept="CountyOrParish">
-                    <p class="text-[10px] text-gray-400">RLS: CountyOrParish — auto-derived</p>
+                    <p class="text-[10px] text-gray-400">Cotality: CountyOrParish — auto-derived</p>
                 </div>
             </div>
             <!-- RLS auto-set hidden fields -->
@@ -698,7 +698,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div id="saleTaxMonthlyField">
                     <label class="field-label">RE Taxes (Monthly)</label>
-                    <input type="number" id="saleTaxMonthly" placeholder="$0.00" step="0.01" class="field-input" data-concept-disposition="mallan-internal" data-removed-field="TaxMonthlyAmount" oninput="syncSaleAnnualFromMonthly()">
+                    <input type="number" id="saleTaxMonthly" placeholder="$0.00" step="0.01" class="field-input" data-concept="TaxMonthlyAmount" oninput="syncSaleAnnualFromMonthly()">
                     <p class="text-[10px] text-gray-500 mt-1">Auto-calculated if blank</p>
                 </div>
             </div>
@@ -1089,7 +1089,7 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label">Exclusive Expires <span class="text-[10px] text-amber-600">(Hidden)</span></label>
                     <div class="relative"><input type="date" id="saleExclusiveExpires" class="field-input" required data-concept="ExpirationDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
-                    <p class="text-[10px] text-gray-400">RLS: ExpirationDate — Confidential. Max 10 years from today.</p>
+                    <p class="text-[10px] text-gray-400">Cotality: ExpirationDate — Confidential. Max 10 years from today.</p>
                 </div>
                 <div>
                     <label class="field-label">First Co-Broke <span class="text-red-500 sale-req-star hidden">*</span></label>
@@ -1157,7 +1157,7 @@ body { font-family: Manrope, sans-serif; }
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                     <label class="field-label">% Common Elements</label>
-                    <input type="number" id="salePercentCommon" placeholder="0.00" step="0.01" max="100" class="field-input" data-concept-disposition="mallan-internal" data-removed-field="PercentOfCommonElements">
+                    <input type="number" id="salePercentCommon" placeholder="0.00" step="0.01" max="100" class="field-input" data-concept="PercentOfCommonElements">
                 </div>
                 <div>
                     <label class="field-label">Living Area (Sq Ft) <span class="text-red-500 sale-req-star hidden">*</span></label>
@@ -1193,7 +1193,7 @@ body { font-family: Manrope, sans-serif; }
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                     <label class="field-label">Tax Deduction %</label>
-                    <input type="number" id="saleTaxDeduction" placeholder="0" class="field-input" data-concept-disposition="mallan-internal" data-removed-field="TaxDeductionPercent">
+                    <input type="number" id="saleTaxDeduction" placeholder="0" class="field-input" data-concept="TaxDeductionPercent">
                 </div>
             </div>
         </div>
@@ -1204,7 +1204,7 @@ body { font-family: Manrope, sans-serif; }
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
                 <div>
                     <label class="field-label">Flip Tax Amount <span class="text-red-500 sale-req-star hidden">*</span></label>
-                    <input type="number" id="saleFlipTaxAmount" placeholder="$0.00" step="0.01" class="field-input" required data-concept-disposition="mallan-internal" data-removed-field="FlipTax">
+                    <input type="number" id="saleFlipTaxAmount" placeholder="$0.00" step="0.01" class="field-input" required data-concept="FlipTax">
                 </div>
                 <div>
                     <label class="field-label">Flip Tax Type</label>
@@ -1311,7 +1311,7 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label mb-1">Guarantors</label>
                     <div class="flex gap-4">
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleGuarantors" value="Yes" class="w-4 h-4" data-concept-disposition="mallan-internal" data-removed-field="GuarantorsAcceptedYN"> Yes</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleGuarantors" value="Yes" class="w-4 h-4" data-concept="GuarantorsAcceptedYN"> Yes</label>
                         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleGuarantors" value="No" class="w-4 h-4"> No</label>
                     </div>
                 </div>
@@ -2668,7 +2668,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label"># Professional Units</label>
-                    <input type="number" id="saleTHProfUnits" placeholder="0" class="field-input" data-concept-disposition="mallan-internal" data-removed-field="NumberOfProfessionalUnitsTotal">
+                    <input type="number" id="saleTHProfUnits" placeholder="0" class="field-input" data-concept="NumberOfProfessionalUnitsTotal">
                 </div>
                 <div>
                     <label class="field-label"># Retail Units</label>
@@ -2684,7 +2684,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label">Commercial Units?</label>
-                    <select id="saleTHCommercialYN" class="field-input" data-concept-disposition="mallan-internal" data-removed-field="CommercialUnitsYN">
+                    <select id="saleTHCommercialYN" class="field-input" data-concept="CommercialUnitsYN">
                         <option value="">Select</option>
                         <option value="Yes">Yes</option>
                         <option value="No">No</option>
@@ -2750,7 +2750,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label">Landmark Status</label>
-                    <select id="saleTHLandmark" class="field-input" data-concept-disposition="mallan-internal" data-removed-field="LandmarkStatusYN">
+                    <select id="saleTHLandmark" class="field-input" data-concept="LandmarkStatusYN">
                         <option value="">Select</option>
                         <option value="Yes">Yes</option>
                         <option value="No">No</option>
@@ -2874,11 +2874,11 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label">Area Over FAR (sq ft)</label>
-                    <input type="number" id="saleTHOverFAR" placeholder="0" class="field-input" data-concept-disposition="mallan-internal" data-removed-field="AreaOverFAR">
+                    <input type="number" id="saleTHOverFAR" placeholder="0" class="field-input" data-concept="AreaOverFAR">
                 </div>
                 <div>
                     <label class="field-label">Area Under FAR (sq ft)</label>
-                    <input type="number" id="saleTHUnderFAR" placeholder="0" class="field-input" data-concept-disposition="mallan-internal" data-removed-field="AreaUnderFAR">
+                    <input type="number" id="saleTHUnderFAR" placeholder="0" class="field-input" data-concept="AreaUnderFAR">
                 </div>
             </div>
         </div>
@@ -3290,7 +3290,7 @@ body { font-family: Manrope, sans-serif; }
                     </label>
                     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-500"><i class="fas fa-lock text-[10px]"></i> Not Activated</span>
                 </div>
-                <p class="text-xs text-gray-400">RLS: InternetEntireListingDisplayYN (controls VOW + IDX + Web)</p>
+                <p class="text-xs text-gray-400">Cotality: InternetEntireListingDisplayYN (controls VOW + IDX + Web)</p>
                 <p class="text-xs text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>VOW feed not yet activated. When active, unchecking removes listing from all internet display.</p>
             </div>
 
@@ -3966,7 +3966,7 @@ body { font-family: Manrope, sans-serif; }
                         <div>
                             <label class="field-label">Photo Sort Order <span class="text-xs text-gray-400 font-normal">(Integer)</span></label>
                             <input type="number" id="salePhotoSortOrder" placeholder="1" min="1" step="1" class="field-input" data-concept="PhotosChangeTimestamp">
-                            <p class="text-[10px] text-gray-400 mt-1">RLS: PhotosChangeTimestamp — Controls display order of photos. First photo (1) = primary/hero image.</p>
+                            <p class="text-[10px] text-gray-400 mt-1">Cotality: PhotosChangeTimestamp — Controls display order of photos. First photo (1) = primary/hero image.</p>
                         </div>
                     </div>
                 </div>
@@ -4310,7 +4310,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="form-card-header"><i class="fas fa-certificate"></i> Building Status</div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
-                                <input type="checkbox" id="saleBldgLandmark" class="w-4 h-4" data-concept-disposition="mallan-internal" data-removed-field="LandmarkStatusYN"> Landmark Building
+                                <input type="checkbox" id="saleBldgLandmark" class="w-4 h-4" data-concept="LandmarkStatusYN"> Landmark Building
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
                                 <input type="checkbox" id="saleBldgHistoric" class="w-4 h-4" data-concept-disposition="mallan-internal"> Historic District
@@ -4328,7 +4328,7 @@ body { font-family: Manrope, sans-serif; }
                                 <input type="checkbox" id="saleBldgConversion" class="w-4 h-4" data-concept-disposition="mallan-internal"> Conversion
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
-                                <input type="checkbox" id="saleBldgSponsorUnits" class="w-4 h-4" data-concept-disposition="mallan-internal" data-removed-field="SponsorUnitYN"> Has Sponsor Units
+                                <input type="checkbox" id="saleBldgSponsorUnits" class="w-4 h-4" data-concept="SponsorUnitYN"> Has Sponsor Units
                             </label>
                         </div>
                     </div>
@@ -4347,7 +4347,7 @@ body { font-family: Manrope, sans-serif; }
                         <p class="text-[10px] text-gray-500 mb-3">Mallan Building Profile — internal (not in Cotality; not submitted to RLS/IDX). Select all that apply.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-3" id="saleAttendanceTypeGroup">
                             <!-- Doorman -->
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoormanFullTime" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)" data-concept-disposition="mallan-internal" data-removed-field="AttendanceType"> Doorman (Full-Time)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoormanFullTime" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)" data-concept="AttendanceType"> Doorman (Full-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoormanPartTime" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)"> Doorman (Part-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoormanYes" class="w-4 h-4 sale-attendance-cb" onchange="handleSaleAttendanceChange(this)"> Doorman (Yes)</label>
                             <!-- Concierge -->
@@ -4442,7 +4442,7 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div>
                                 <label class="field-label">Number of Elevators</label>
-                                <input type="number" id="saleBldgNumElevators" placeholder="2" class="field-input" data-concept-disposition="mallan-internal" data-removed-field="ElevatorsTotal">
+                                <input type="number" id="saleBldgNumElevators" placeholder="2" class="field-input" data-concept="ElevatorsTotal">
                             </div>
                         </div>
                         <!-- Mallan Building Profile — internal (NOT Cotality; BuildingHeating is not a Cotality field). Multi-select. -->
@@ -4550,11 +4550,11 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div>
                                 <label class="field-label">Capital Reserves</label>
-                                <input type="text" id="saleBldgCapitalReserves" placeholder="$2,000,000" class="field-input" data-concept-disposition="mallan-internal" data-removed-field="CapitalReservesTotal">
+                                <input type="text" id="saleBldgCapitalReserves" placeholder="$2,000,000" class="field-input" data-concept="CapitalReservesTotal">
                             </div>
                             <div>
                                 <label class="flex items-center gap-2 cursor-pointer text-sm mt-6">
-                                    <input type="checkbox" id="saleBldgCapitalReservesYN" class="w-4 h-4" data-concept-disposition="mallan-internal" data-removed-field="CapitalReservesYN"> Has Capital Reserves
+                                    <input type="checkbox" id="saleBldgCapitalReservesYN" class="w-4 h-4" data-concept="CapitalReservesYN"> Has Capital Reserves
                                 </label>
                             </div>
                         </div>
@@ -4570,7 +4570,7 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div>
                                 <label class="field-label">Tax Lot</label>
-                                <input type="text" id="saleBldgTaxLot" placeholder="56" class="field-input" data-concept-disposition="mallan-internal" data-removed-field="BuildingTaxLot">
+                                <input type="text" id="saleBldgTaxLot" placeholder="56" class="field-input" data-concept="BuildingTaxLot">
                             </div>
                             <div>
                                 <label class="field-label">Annual RE Taxes</label>
@@ -4585,7 +4585,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-3">
                             <div>
                                 <label class="field-label">Has Tax Abatement</label>
-                                <select id="saleBldgTaxAbatementYN" class="field-input" onchange="document.getElementById('saleBldgTaxAbatementDetails').style.display = this.value === 'Yes' ? 'grid' : 'none'" data-concept-disposition="mallan-internal" data-removed-field="TaxAbatementYN">
+                                <select id="saleBldgTaxAbatementYN" class="field-input" onchange="document.getElementById('saleBldgTaxAbatementDetails').style.display = this.value === 'Yes' ? 'grid' : 'none'" data-concept="TaxAbatementYN">
                                     <option value="">Select</option>
                                     <option value="Yes">Yes</option>
                                     <option value="No">No</option>
@@ -4599,7 +4599,7 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div class="sm:col-span-2">
                                 <label class="field-label">Abatement Comments</label>
-                                <input type="text" id="saleBldgTaxAbatementComments" placeholder="e.g., 421-a expires 2035, saves $1,200/mo" class="field-input" data-concept-disposition="mallan-internal" data-removed-field="TaxAbatementComments">
+                                <input type="text" id="saleBldgTaxAbatementComments" placeholder="e.g., 421-a expires 2035, saves $1,200/mo" class="field-input" data-concept="TaxAbatementComments">
                             </div>
                         </div>
                     </div>
@@ -4741,7 +4741,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
                                 <label class="field-label">Max Financing Allowed</label>
-                                <input type="text" id="saleBldgMaxFinancing" placeholder="80%" class="field-input" data-concept-disposition="mallan-internal" data-removed-field="MaximumFinancingPercent">
+                                <input type="text" id="saleBldgMaxFinancing" placeholder="80%" class="field-input" data-concept="MaximumFinancingPercent">
                             </div>
                             <div>
                                 <label class="field-label">Min Down Payment</label>
@@ -8492,8 +8492,8 @@ function getResoPropertyFields(crmValue) {
         'Condo':                    { PropertyType: 'Residential', PropertySubType: 'Apartment' },
         'Coop':                     { PropertyType: 'Residential', PropertySubType: 'Apartment' },
         'Condop':                   { PropertyType: 'Residential', PropertySubType: 'Apartment' },
-        'SingleFamilyTownhouse':    { PropertyType: 'Residential', PropertySubType: 'SingleFamilyTownhouse' },
-        'MultiFamilyTownhouse':     { PropertyType: 'Residential', PropertySubType: 'MultiFamilyTownhouse' },
+        'SingleFamilyTownhouse':    { PropertyType: 'Residential', PropertySubType: 'Townhouse' },
+        'MultiFamilyTownhouse':     { PropertyType: 'Residential', PropertySubType: 'Townhouse' },
         'SingleFamily':             { PropertyType: 'Residential', PropertySubType: 'SingleFamilyResidence' },
         'MultiFamily':              { PropertyType: 'Residential', PropertySubType: 'MultiFamily' },
         'MixedUse':                 { PropertyType: 'Residential', PropertySubType: 'MixedUse' },

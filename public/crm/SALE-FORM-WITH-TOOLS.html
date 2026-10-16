@@ -2114,7 +2114,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
         <!-- RLS: PetsAllowed — REQUIRED, Multi-Select Picklist (7 values) — Unit-level -->
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-paw"></i> Unit Pet Policy <span class="text-red-500">*</span></div>
-            <p class="text-[10px] text-gray-500 mb-3">RLS: PetsAllowed — Unit-level pet policy. Locked if building says "No Pets".</p>
+            <p class="text-[10px] text-gray-500 mb-3">Cotality: PetsAllowed — Unit-level pet policy. Locked if building says "No Pets".</p>
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3" id="salePetsAllowedGroup">
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="Yes" class="w-4 h-4 sale-unit-pets-cb" data-concept="PetsAllowed"> Yes (All Pets)</label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="CatsOk" class="w-4 h-4 sale-unit-pets-cb"> Cats OK</label>
@@ -2554,7 +2554,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 </div>
                 <div>
                     <label class="field-label"># Professional Units</label>
-                    <input type="number" id="saleTHProfUnits" placeholder="0" class="field-input" data-concept-disposition="mallan-internal" data-removed-field="NumberOfProfessionalUnitsTotal">
+                    <input type="number" id="saleTHProfUnits" placeholder="0" class="field-input" data-concept="NumberOfProfessionalUnitsTotal">
                 </div>
                 <div>
                     <label class="field-label"># Retail Units</label>
@@ -2760,11 +2760,11 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 </div>
                 <div>
                     <label class="field-label">Area Over FAR (sq ft)</label>
-                    <input type="number" id="saleTHOverFAR" placeholder="0" class="field-input" data-concept-disposition="mallan-internal" data-removed-field="AreaOverFAR">
+                    <input type="number" id="saleTHOverFAR" placeholder="0" class="field-input" data-concept="AreaOverFAR">
                 </div>
                 <div>
                     <label class="field-label">Area Under FAR (sq ft)</label>
-                    <input type="number" id="saleTHUnderFAR" placeholder="0" class="field-input" data-concept-disposition="mallan-internal" data-removed-field="AreaUnderFAR">
+                    <input type="number" id="saleTHUnderFAR" placeholder="0" class="field-input" data-concept="AreaUnderFAR">
                 </div>
             </div>
         </div>
@@ -3165,7 +3165,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     </label>
                     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-500"><i class="fas fa-lock text-[10px]"></i> Not Activated</span>
                 </div>
-                <p class="text-xs text-gray-400">RLS: InternetEntireListingDisplayYN (controls VOW + IDX + Web)</p>
+                <p class="text-xs text-gray-400">Cotality: InternetEntireListingDisplayYN (controls VOW + IDX + Web)</p>
                 <p class="text-xs text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>VOW feed not yet activated. When active, unchecking removes listing from all internet display.</p>
             </div>
 
@@ -4215,7 +4215,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <!-- RLS: AttendanceType — REQUIRED, Multi-Select Picklist (16 values) -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-concierge-bell"></i> Building Attendance Type <span class="text-red-500">*</span></div>
-                        <p class="text-[10px] text-gray-500 mb-3">RLS: AttendanceType — Select all that apply. At least one required.</p>
+                        <p class="text-[10px] text-gray-500 mb-3">Cotality: AttendanceType — Select all that apply. At least one required.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-3" id="saleAttendanceTypeGroup">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoormanFullTime" class="w-4 h-4 sale-attendance-cb" data-concept="AttendanceType"> Doorman (Full-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleAttendanceType" value="DoormanPartTime" class="w-4 h-4 sale-attendance-cb"> Doorman (Part-Time)</label>
@@ -6402,8 +6402,8 @@ function getResoPropertyFields(crmValue, formType) {
         'Condo':                    { PropertyType: 'Residential', CommonInterest: 'Condominium',  PropertySubType: 'Apartment' },
         'Coop':                     { PropertyType: 'Residential', CommonInterest: 'StockCooperative',  PropertySubType: 'Apartment' },
         'Condop':                   { PropertyType: 'Residential', CommonInterest: 'Condop',       PropertySubType: 'Apartment' },
-        'SingleFamilyTownhouse':    { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'SingleFamilyTownhouse' },
-        'MultiFamilyTownhouse':     { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'MultiFamilyTownhouse' },
+        'SingleFamilyTownhouse':    { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'Townhouse' },
+        'MultiFamilyTownhouse':     { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'Townhouse' },
         'SingleFamily':             { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'SingleFamilyResidence' },
         'MultiFamily':              { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'MultiFamily' },
         'MixedUse':                 { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'MixedUse' },

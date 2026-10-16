@@ -673,6 +673,8 @@ var MallanAPI = (function () {
       if (params.contractDateFrom) qs.push('contractDateFrom=' + encodeURIComponent(params.contractDateFrom));
       if (params.contractDateTo) qs.push('contractDateTo=' + encodeURIComponent(params.contractDateTo));
       if (params.checkboxFilters) qs.push('checkboxFilters=' + encodeURIComponent(params.checkboxFilters));
+      // Search on any Cotality field: a JSON list of { f, op, v } (lib/search/field-filters.ts validates it against the live contract).
+      if (params.fieldFilters) qs.push('fieldFilters=' + encodeURIComponent(params.fieldFilters));
       // Agent / office filters (primary and co-list sides are separate): each value is a comma-separated list of MLS IDs and/or typed names.
       ['listAgent', 'coListAgent', 'anyAgent', 'listOffice', 'coListOffice'].forEach(function (key) {
         if (params[key]) qs.push(key + '=' + encodeURIComponent(params[key]));
