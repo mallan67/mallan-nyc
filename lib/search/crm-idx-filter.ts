@@ -329,7 +329,7 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
         if (!rawValues || rawValues.length === 0) continue;
         // A checkbox can carry several comma-joined values (the "Exclusive" box does). Cotality compares these fields as enumerations, so a
         // joined string is rejected (HTTP 400): split it into one comparison per value, mapping legacy saved values to live members.
-        const values = [...new Set(rawValues.flatMap((v) => String(v).split(",")).map((v) => v.trim()).filter(Boolean).map((v) => legacyCriterionValue(htmlField, v)).filter((v) => v !== "Any"))];   // "Any" is the form's stand-in for several members, not a Cotality value (the page sends those as fieldFilters)
+        const values = [...new Set(rawValues.flatMap((v) => String(v).split(",")).map((v) => v.trim()).filter(Boolean).map((v) => legacyCriterionValue(htmlField, v)).filter((v) => v !== "Any" && !v.startsWith("not:")))];   // "Any" is the form's stand-in for several members, not a Cotality value (the page sends those as fieldFilters)
         if (values.length === 0) continue;
         const cotalityField = crmCheckboxToCotalityField[htmlField] || htmlField;
         if (!odataSafe.has(cotalityField)) continue;

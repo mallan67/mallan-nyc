@@ -88,7 +88,7 @@
                 // "No Pied-A-Terre", "No Guarantors", "No Live/Work",
                 // "No Washer/Dryer Install", and "Smoking" (compound
                 // data-value + data-not).
-                'input[data-not]',
+                'input[data-not]:not([data-field="BuildingRules"][data-not="GuarantorsAccepted"]):not([data-field="BuildingRules"][data-value="BuildingSmokingAllowed"])',
 
                 // ── P1: Sub-status checkboxes ──
                 // OfferOut, OfferAccepted, ContractOut, AllContractSigned,

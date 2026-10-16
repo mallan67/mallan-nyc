@@ -582,6 +582,18 @@ describe('the other controls the checkbox path could not send are filters on the
       expect(mirror.enums[field]).toContain(value);
     }
   });
+  it('"No ..." is searched only where Cotality has an explicit No: guarantors and smoking; a missing value is never a No', () => {
+    expect(rows('BuildingRules', 'GuarantorsAccepted')).toEqual([{ f: 'GuarantorsAcceptedYN', op: 'eq', v: true }]);
+    expect(rows('BuildingRules', 'not:GuarantorsAccepted')).toEqual([{ f: 'GuarantorsAcceptedYN', op: 'eq', v: false }]);
+    expect(rows('BuildingRules', 'BuildingSmokingAllowed')).toEqual([{ f: 'BuildingSmokeFreeYN', op: 'eq', v: false }]);
+    // no explicit No exists for these: nothing is sent (not even as the positive), and the boxes stay disabled
+    for (const rule of ['CorporateOwnerAllowed', 'PiedATerreAllowed', 'LiveWorkAllowed', 'CopurchasersAllowed']) expect(rows('BuildingRules', 'not:' + rule)).toEqual([]);
+    const noBoxes = [...d.querySelectorAll('input[data-not]')] as HTMLInputElement[];
+    for (const b of noBoxes) {
+      const verified = (b.getAttribute('data-field') === 'BuildingRules' && b.getAttribute('data-not') === 'GuarantorsAccepted') || b.getAttribute('data-value') === 'BuildingSmokingAllowed';
+      expect({ not: b.getAttribute('data-not'), disabled: b.disabled }).toEqual({ not: b.getAttribute('data-not'), disabled: !verified });
+    }
+  });
   it('every bridged row is accepted by the server-side builder', () => {
     const all = [['YearBuilt', 'lte:1946'], ['StoriesTotal', 'lte:6'], ['MaximumFinancingPercent', 'gt:0'], ['AttendanceType', 'Any'], ['BuildingRules', 'PiedATerreAllowed'], ['BuildingPetsAllowed', 'BuildingYes,BuildingCatsOK'],
       ['BuildingLaundryFeatures', 'Any'], ['BuildingPoolFeatures', 'Any'], ['BuildingSecurityFeatures', 'Any'], ['Furnished', 'Furnished'], ['Concessions', 'Yes'], ['SponsorUnit', 'true']];

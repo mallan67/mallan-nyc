@@ -158,7 +158,6 @@ var CotalityFieldFilters = (function () {
       var ATTENDANCE_ANY = { DoormanYes: ["DoormanYes", "DoormanFullTime", "DoormanPartTime"], ConciergeYes: ["ConciergeYes", "ConciergeFullTime", "ConciergePartTime"],
         VideoDoormanYes: ["VideoDoormanYes", "VideoDoormanFullTime", "VideoDoormanPartTime"], ElevatorAttendanceYes: ["ElevatorAttendanceYes", "ElevatorAttendanceFullTime", "ElevatorAttendancePartTime"],
         LobbyAttendantYes: ["LobbyAttendantYes", "LobbyAttendantFullTime", "LobbyAttendantPartTime"] };
-      var SIMPLE_IN = { BuildingRules: "BuildingRules" };                       // CustomFields text; value is a member of the list
       Object.keys(cb || {}).forEach(function (key) {
         var vals = flat(cb[key]); var handled = false;
         if (key === "AttendanceType") {
@@ -168,8 +167,18 @@ var CotalityFieldFilters = (function () {
             else want = want.concat(ATTENDANCE_ANY[v] || [v]);
           });
           if (want.length) { out.push({ f: "AttendanceType", op: "in", v: want.filter(function (x, i) { return want.indexOf(x) === i; }) }); handled = true; }
-        } else if (SIMPLE_IN[key]) {
-          out.push({ f: SIMPLE_IN[key], op: "in", v: vals }); handled = true;
+        } else if (key === "BuildingRules") {
+          // Cotality has an explicit Yes/No for two of these: GuarantorsAcceptedYN and BuildingSmokeFreeYN (CustomFields "1" / "0"; live 2026-10-16 most rows have neither, and a missing
+          // value is NOT a No). The other building rules are a list of what is allowed with no "not allowed" member, so "No ..." (not:X) on them is not searchable and stays disabled.
+          var rules = [];
+          vals.forEach(function (v) {
+            if (v === "GuarantorsAccepted") out.push({ f: "GuarantorsAcceptedYN", op: "eq", v: true });
+            else if (v === "not:GuarantorsAccepted") out.push({ f: "GuarantorsAcceptedYN", op: "eq", v: false });
+            else if (v === "BuildingSmokingAllowed") out.push({ f: "BuildingSmokeFreeYN", op: "eq", v: false });
+            else if (v.indexOf("not:") !== 0) rules.push(v);
+          });
+          if (rules.length) out.push({ f: "BuildingRules", op: "in", v: rules });
+          handled = true;
         } else if (key === "Furnished" || key === "Concessions") {
           var ms = vals.map(function (v) { return member(key, v); }).filter(Boolean);
           if (ms.length) { out.push({ f: key, op: "in", v: ms }); handled = true; }

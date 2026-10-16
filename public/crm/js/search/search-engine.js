@@ -1171,6 +1171,8 @@
                     var _field = _cb.getAttribute('data-field');
                     if (_handledFields[_field]) continue;
                     var _val = _cb.getAttribute('data-value') || _cb.value;
+                    // a "No ..." box names what must be false: it is carried as not:X (only the ones Cotality has an explicit No for are searchable, see CotalityFieldFilters.bridge)
+                    if ((!_val || _val === 'on') && _cb.getAttribute('data-not')) _val = 'not:' + _cb.getAttribute('data-not');
                     if (!_val) continue;
                     if (!_checkboxFilters[_field]) _checkboxFilters[_field] = [];
                     if (_checkboxFilters[_field].indexOf(_val) === -1) {
