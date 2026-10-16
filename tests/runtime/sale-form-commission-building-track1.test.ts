@@ -75,9 +75,9 @@ describe('Commission collision fix', () => {
 });
 
 describe('Building — phantom fields reclassified internal (match Cotality)', () => {
-  it('saleBldgNumElevators is no longer tagged as Cotality ElevatorsTotal', () => {
-    expect(formHtml).toMatch(/id="saleBldgNumElevators"[^>]*data-concept-disposition="mallan-internal"[^>]*data-removed-field="ElevatorsTotal"/);
-    expect(formHtml).not.toMatch(/id="saleBldgNumElevators"[^>]*data-concept="ElevatorsTotal"/);
+  it('saleBldgNumElevators is Cotality ElevatorsTotal (a live CustomFields key, served on every listing) and is sent as that', () => {
+    expect(formHtml).toMatch(/id="saleBldgNumElevators"[^>]*data-concept="ElevatorsTotal"/);
+    expect(formHtml).not.toMatch(/id="saleBldgNumElevators"[^>]*data-removed-field/);
   });
   it('saleBldgNewDevelopment is no longer tagged as Cotality (was duplicating NewConstructionYN)', () => {
     expect(formHtml).toMatch(/id="saleBldgNewDevelopment"[^>]*data-concept-disposition="mallan-internal"[^>]*data-removed-field="NewDevelopmentYN"/);

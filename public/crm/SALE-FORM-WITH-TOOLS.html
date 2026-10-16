@@ -694,7 +694,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <span class="text-sm font-semibold text-gray-700">Display estimated sale price for comparable property</span>
                     <div class="flex items-center gap-3">
                         <label class="flex items-center gap-1 cursor-pointer text-sm"><input type="radio" name="saleInternetAVMDisplayYN" value="Yes" class="w-4 h-4" checked data-concept="InternetAutomatedValuationDisplayYN"> Y</label>
-                        <label class="flex items-center gap-1 cursor-pointer text-sm"><input type="radio" name="saleInternetAVMDisplayYN" value="No" class="w-4 h-4"> N</label>
+                        <label class="flex items-center gap-1 cursor-pointer text-sm"><input type="radio" name="saleInternetAVMDisplayYN" value="No" class="w-4 h-4" data-concept="InternetAutomatedValuationDisplayYN"> N</label>
                     </div>
                 </div>
                 <p class="text-[10px] text-gray-500">RLS/RESO/IDX: InternetAutomatedValuationDisplayYN — Controls whether Zillow/Redfin can show AVM estimates</p>
@@ -773,8 +773,8 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                             <div class="mt-3 pt-3 border-t">
                                 <label class="block text-xs font-medium text-gray-600 mb-2">Land Lease Building</label>
                                 <div class="flex gap-4">
-                                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleLandLease" value="No" class="w-4 h-4" checked data-concept="LandLeaseAmount"> No</label>
-                                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleLandLease" value="Yes" class="w-4 h-4"> Yes</label>
+                                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleLandLease" value="No" class="w-4 h-4" checked data-concept="LandLeaseYN"> No</label>
+                                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleLandLease" value="Yes" class="w-4 h-4" data-concept="LandLeaseYN"> Yes</label>
                                 </div>
                             </div>
                         </div>
@@ -1210,7 +1210,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <label class="field-label mb-1">Guarantors</label>
                     <div class="flex gap-4">
                         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleGuarantors" value="Yes" class="w-4 h-4" data-concept="GuarantorsAcceptedYN"> Yes</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleGuarantors" value="No" class="w-4 h-4"> No</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleGuarantors" value="No" class="w-4 h-4" data-concept="GuarantorsAcceptedYN"> No</label>
                     </div>
                 </div>
                 <div>
@@ -1295,7 +1295,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-link"></i> Listing URL</div>
             <label class="field-label">Listing URL</label>
-            <input type="text" id="saleListingUrl" placeholder="Auto-generated from address" readonly class="field-input bg-gray-50 text-gray-600" data-concept="ListingURL">
+            <input type="text" id="saleListingUrl" placeholder="Auto-generated from address" readonly class="field-input bg-gray-50 text-gray-600" data-concept-disposition="mallan-internal">
             <p class="text-xs text-gray-400 mt-1">Auto-populated from property address. This is how the listing will appear on the website.</p>
         </div>
 
@@ -1722,16 +1722,16 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
             <div class="form-card-header"><i class="fas fa-layer-group"></i> Number of Floors In The Unit</div>
             <div class="flex flex-wrap gap-6">
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleNumFloors" value="Single" class="w-4 h-4" checked data-concept="StoriesTotal"> Single Floor
+                    <input type="radio" name="saleNumFloors" value="SingleLevelUnit" class="w-4 h-4" checked data-concept="Levels"> Single Floor
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleNumFloors" value="Duplex" class="w-4 h-4"> Duplex
+                    <input type="radio" name="saleNumFloors" value="BiLevel" class="w-4 h-4" data-concept="Levels"> Duplex
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleNumFloors" value="Triplex" class="w-4 h-4"> Triplex
+                    <input type="radio" name="saleNumFloors" value="TriLevel" class="w-4 h-4" data-concept="Levels"> Triplex
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleNumFloors" value="Quadruplex" class="w-4 h-4"> Quadruplex
+                    <input type="radio" name="saleNumFloors" value="QuadLevel" class="w-4 h-4" data-concept="Levels"> Quadruplex
                 </label>
             </div>
         </div>
@@ -1846,7 +1846,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <div>
                     <!-- REBNY I15: UnitNumber (Floor + Line = Apt #, e.g., 26B) -->
                     <label class="field-label">Line in Building</label>
-                    <input type="text" id="saleLineInBuilding" placeholder="e.g., B" class="field-input" data-concept="UnitNumber">
+                    <input type="text" id="saleLineInBuilding" placeholder="e.g., B" class="field-input" data-concept-disposition="mallan-internal">
                 </div>
             </div>
         </div>
@@ -1857,10 +1857,10 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
             <label class="field-label">Garage Spaces Assigned <span class="text-red-500">*</span></label>
             <div class="flex items-center gap-6 mb-3">
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleGarageSpaces" value="Yes" class="w-4 h-4" data-concept="GarageSpaces"> Yes
+                    <input type="radio" name="saleGarageSpaces" value="Yes" class="w-4 h-4" data-concept-disposition="mallan-internal"> Yes
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleGarageSpaces" value="No" class="w-4 h-4" checked> No
+                    <input type="radio" name="saleGarageSpaces" value="No" class="w-4 h-4" checked data-concept-disposition="mallan-internal"> No
                 </label>
             </div>
             <div class="max-w-xs">
@@ -2023,10 +2023,10 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <input type="radio" name="saleCurrentUse" value="MedicalDental" class="w-4 h-4" data-concept="CurrentUse"> Medical/Dental
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleCurrentUse" value="Investment" class="w-4 h-4"> Investment
+                    <input type="radio" name="saleCurrentUse" value="Investment" class="w-4 h-4" data-concept="CurrentUse"> Investment
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleCurrentUse" value="Professional" class="w-4 h-4"> Professional
+                    <input type="radio" name="saleCurrentUse" value="Office" class="w-4 h-4" data-concept="CurrentUse"> Professional
                 </label>
             </div>
         </div>
@@ -2092,7 +2092,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <input type="radio" name="saleHasViews" value="Yes" class="w-4 h-4" data-concept="ViewYN"> Yes
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleHasViews" value="No" class="w-4 h-4"> No
+                    <input type="radio" name="saleHasViews" value="No" class="w-4 h-4" data-concept="ViewYN"> No
                 </label>
             </div>
             <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -2487,7 +2487,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <input type="radio" name="fireplace" value="Yes" class="w-4 h-4" data-concept="FireplaceYN"> Yes
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="fireplace" value="No" class="w-4 h-4" checked> No
+                    <input type="radio" name="fireplace" value="No" class="w-4 h-4" checked data-concept="FireplaceYN"> No
                 </label>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -4135,6 +4135,31 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                                 </select>
                             </div>
                             <div>
+                                <label class="field-label">Architectural Style</label>
+                                <select id="saleBldgArchitecturalStyle" class="field-input" data-concept="ArchitecturalStyle">
+                                    <option value="">Select</option>
+                                    <option value="Prewar">Prewar</option>
+                                    <option value="ArtDeco">Art Deco</option>
+                                    <option value="ArtNouveau">Art Nouveau</option>
+                                    <option value="BeauxArts">Beaux-Arts</option>
+                                    <option value="Brutalist">Brutalist</option>
+                                    <option value="CastIron">Cast Iron</option>
+                                    <option value="Colonial">Colonial</option>
+                                    <option value="ContemporaryModern">Contemporary Modern</option>
+                                    <option value="Federal">Federal</option>
+                                    <option value="GardenApartment">Garden Apartment</option>
+                                    <option value="GothicRevival">Gothic Revival</option>
+                                    <option value="GreekRevival">Greek Revival</option>
+                                    <option value="International">International</option>
+                                    <option value="Italianate">Italianate</option>
+                                    <option value="Loft">Loft</option>
+                                    <option value="QueenAnne">Queen Anne</option>
+                                    <option value="Romanesque">Romanesque</option>
+                                    <option value="SecondEmpire">Second Empire</option>
+                                    <option value="WalkUp">Walk-Up</option>
+                                </select>
+                            </div>
+                            <div>
                                 <label class="field-label">Building Class</label>
                                 <select id="saleBldgClass" class="field-input" data-concept-disposition="mallan-internal">
                                     <option value="">Select Class</option>
@@ -4184,10 +4209,10 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                                 <input type="checkbox" id="saleBldgLandmark" class="w-4 h-4" data-concept="LandmarkStatusYN"> Landmark Building
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
-                                <input type="checkbox" id="saleBldgHistoric" class="w-4 h-4" data-concept="BuildingFeatures"> Historic District
+                                <input type="checkbox" id="saleBldgHistoric" class="w-4 h-4" data-concept-disposition="mallan-internal"> Historic District
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
-                                <input type="checkbox" id="saleBldgLEED" class="w-4 h-4" data-concept="BuildingFeatures"> LEED Certified
+                                <input type="checkbox" id="saleBldgLEED" class="w-4 h-4" data-concept-disposition="mallan-internal"> LEED Certified
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
                                 <input type="checkbox" id="saleBldgNewConstruction" class="w-4 h-4" data-concept="NewConstructionYN"> New Construction
@@ -4196,7 +4221,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                                 <input type="checkbox" id="saleBldgNewDevelopment" class="w-4 h-4" data-concept="NewConstructionYN"> New Development
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
-                                <input type="checkbox" id="saleBldgConversion" class="w-4 h-4" data-concept="BuildingFeatures"> Conversion
+                                <input type="checkbox" id="saleBldgConversion" class="w-4 h-4" data-concept-disposition="mallan-internal"> Conversion
                             </label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm">
                                 <input type="checkbox" id="saleBldgSponsorUnits" class="w-4 h-4" data-concept="SponsorUnitYN"> Has Sponsor Units
@@ -4433,7 +4458,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                             </div>
                             <div>
                                 <label class="field-label">Tax Lot</label>
-                                <input type="text" id="saleBldgTaxLot" placeholder="56" class="field-input" data-concept="BuildingTaxLot">
+                                <input type="text" id="saleBldgTaxLot" placeholder="56" class="field-input" data-concept="TaxLot">
                             </div>
                             <div>
                                 <label class="field-label">Annual RE Taxes</label>
@@ -4496,7 +4521,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         <div class="form-card-header"><i class="fas fa-align-left"></i> Building Description</div>
                         <div class="mb-4">
                             <label class="field-label">Building Description</label>
-                            <textarea id="saleBldgDescription" rows="6" placeholder="Describe the building, its history, architecture, and notable features..." class="field-input" oninput="checkDescriptionCompliance('saleBldgDescription','saleBldgDescriptionFlags')" data-concept="PublicRemarks"></textarea>
+                            <textarea id="saleBldgDescription" rows="6" placeholder="Describe the building, its history, architecture, and notable features..." class="field-input" oninput="checkDescriptionCompliance('saleBldgDescription','saleBldgDescriptionFlags')" data-concept-disposition="mallan-internal"></textarea>
                         </div>
                         <div id="saleBldgDescriptionFlags" class="hidden mt-2 mb-3"></div>
                         <div>
@@ -4551,7 +4576,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-clipboard-list"></i> General Policies</div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgWasherDryerAllowed" class="w-4 h-4" data-concept="LaundryFeatures"> Washer/Dryer Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgWasherDryerAllowed" class="w-4 h-4" data-concept="LaundryFeatures" value="BuildingWasherDryerInstallAllowed"> Washer/Dryer Allowed</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgPiedATerre" class="w-4 h-4" data-concept-disposition="mallan-internal"> Pied-a-Terre Allowed</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgParentsAllowed" class="w-4 h-4" data-concept-disposition="mallan-internal"> Parents Buying Allowed</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgCoBuyersAllowed" class="w-4 h-4" data-concept-disposition="mallan-internal"> Co-Buyers Allowed</label>
@@ -6402,8 +6427,8 @@ function getResoPropertyFields(crmValue, formType) {
         'Condo':                    { PropertyType: 'Residential', CommonInterest: 'Condominium',  PropertySubType: 'Apartment' },
         'Coop':                     { PropertyType: 'Residential', CommonInterest: 'StockCooperative',  PropertySubType: 'Apartment' },
         'Condop':                   { PropertyType: 'Residential', CommonInterest: 'Condop',       PropertySubType: 'Apartment' },
-        'SingleFamilyTownhouse':    { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'Townhouse' },
-        'MultiFamilyTownhouse':     { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'Townhouse' },
+        'SingleFamilyTownhouse':    { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'SingleFamilyResidence' },
+        'MultiFamilyTownhouse':     { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'MultiFamily' },
         'SingleFamily':             { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'SingleFamilyResidence' },
         'MultiFamily':              { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'MultiFamily' },
         'MixedUse':                 { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'MixedUse' },

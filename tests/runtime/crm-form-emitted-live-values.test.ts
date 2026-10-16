@@ -25,6 +25,10 @@ jest.setTimeout(900000);
 
 const live: { entities: Record<string, Record<string, string>>; enums: Record<string, string[]> } = JSON.parse(readFileSync(resolve(__dirname, '../../data/cotality-enums.live.json'), 'utf8'));
 
+/** Cotality serves more than the Property columns: the typed CustomProperty fields and the CustomFields keys (SponsorUnitYN, FlipTax, ElevatorsTotal ...) are reached through Property. */
+const customKeys = new Set<string>(JSON.parse(readFileSync(resolve(__dirname, '../../compliance/rules/compliance-concepts.json'), 'utf8')).customFieldKeys.keys);
+const isLiveKey = (k: string) => k in live.entities.Property || (k in live.entities.CustomProperty && k !== 'CustomFields') || customKeys.has(k);
+
 /** the names the normalizer renames (REBNY_FIELD_TABLES.aliasToCanonical) that a collector still sends: they are held to the live list of the name they become */
 const RENAMED: Record<string, string> = { Permissions: 'Permission' };
 /**
@@ -39,7 +43,6 @@ function membersOf(field: string): string[] | null {
 }
 
 const WORKFLOW = 'a word of Mallan\'s own listing workflow, not a Cotality status: the status route (not this field) decides the stored status';
-const SUBTYPE = 'UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED: the live PropertySubType list has Townhouse (no single / multi family split); which member each option stands for is the product\'s call';
 const COMMERCIAL = 'Mallan\'s own classification word: lib/compliance/rls-eligibility.ts treats PropertyType "Commercial" as website-only (not RLS-eligible) and public search reads it; the live members are CommercialSale / CommercialLease, so changing the word means changing those rules with it';
 const PERMISSION = 'UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED: the live Permission list has no OwnerOptOut; the owner opt-out is derived from this word by lib/compliance/normalizer.ts (derivePermissionBooleans)';
 
@@ -47,12 +50,10 @@ const PERMISSION = 'UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED:
 const KNOWN_GAPS: Record<string, Record<string, string>> = {
   'SALE-FORM-REDESIGN': {
     'MlsStatus = Draft': WORKFLOW, 'MlsStatus = Sold': WORKFLOW, 'MlsStatus = Cancelled': WORKFLOW,
-    'PropertySubType = SingleFamilyTownhouse': SUBTYPE, 'PropertySubType = MultiFamilyTownhouse': SUBTYPE,
     'PropertyType = Commercial': COMMERCIAL,
     'Permission = OwnerOptOut': PERMISSION,
   },
   'RENTAL-FORM-REDESIGN': {
-    'PropertySubType = SingleFamilyTownhouse': SUBTYPE, 'PropertySubType = MultiFamilyTownhouse': SUBTYPE,
     'PropertyType = Commercial': COMMERCIAL,
     'Permission = OwnerOptOut': PERMISSION,                // sent as Permissions, which the normalizer renames to Permission; the first version of this audit skipped the key, so the Rental gap was missing
   },
@@ -68,13 +69,11 @@ const NYC_FACT = 'an NYC fact the rule table classifies (rebny-field-tables.ts h
 /** form -> key -> why the collector still sends it */
 const KNOWN_NON_PROPERTY_KEYS: Record<string, Record<string, string>> = {
   'SALE-FORM-REDESIGN': {
-    AttendanceType: BUILDING_PROFILE, BathroomsTotal: BUILDING_PROFILE, BuildingLaundryFeatures: BUILDING_PROFILE, BuildingPetsAllowed: BUILDING_PROFILE, FlipTax: BUILDING_PROFILE,
-    SponsorUnitYN: BUILDING_PROFILE, TaxAbatementComments: BUILDING_PROFILE, TaxAbatementYN: BUILDING_PROFILE, CoBrokeAgreement: MALLAN_OWN, NewDevelopmentYN: NYC_FACT,
+    BathroomsTotal: BUILDING_PROFILE, BuildingLaundryFeatures: BUILDING_PROFILE, BuildingPetsAllowed: BUILDING_PROFILE, CoBrokeAgreement: MALLAN_OWN, NewDevelopmentYN: NYC_FACT,
   },
   'RENTAL-FORM-REDESIGN': {
-    AttendanceType: BUILDING_PROFILE, BathroomsTotal: BUILDING_PROFILE, BuildingLaundryFeatures: BUILDING_PROFILE, BuildingPetsAllowed: BUILDING_PROFILE, ElevatorsTotal: BUILDING_PROFILE,
-    NewDevelopmentYN: BUILDING_PROFILE, TaxAbatementComments: BUILDING_PROFILE, TaxAbatementYN: BUILDING_PROFILE, CoBrokeAgreement: MALLAN_OWN,
-    AdditionalFee: FARE_LEGACY, AdditionalFeeDescription: FARE_LEGACY, AdditionalFeeFrequency: FARE_LEGACY, AdditionalFeeYN: FARE_LEGACY, FeeFrequency: FARE_LEGACY,
+    BathroomsTotal: BUILDING_PROFILE, BuildingLaundryFeatures: BUILDING_PROFILE, BuildingPetsAllowed: BUILDING_PROFILE, NewDevelopmentYN: BUILDING_PROFILE, CoBrokeAgreement: MALLAN_OWN,
+    FeeFrequency: FARE_LEGACY,
     IDXEntireListingDisplayYN: ALIASED, Permissions: ALIASED,
     RentingAllowedYN: PHANTOM_RENTAL, SyndicateYN: PHANTOM_RENTAL, YearRenovated: PHANTOM_RENTAL, FirstShowingDate: MALLAN_OWN, NetMonthlyRent: MALLAN_OWN,
   },
@@ -172,7 +171,7 @@ describe('the provider-style keys the collectors send are fields of the live Pro
   it.each(PAGES)('%s', (form, collector) => {
     const keys = collectorKeys(form, collector);
     expect(keys.length).toBeGreaterThan(80);                                         // (the function was read)
-    const notProperty = keys.filter((k) => !(k in live.entities.Property));
+    const notProperty = keys.filter((k) => !isLiveKey(k));
     const known = KNOWN_NON_PROPERTY_KEYS[form];
     expect({ newlyFound: notProperty.filter((k) => !(k in known)) }).toEqual({ newlyFound: [] });
     expect({ noLongerSent: Object.keys(known).filter((k) => !notProperty.includes(k)).sort() }).toEqual({ noLongerSent: [] });

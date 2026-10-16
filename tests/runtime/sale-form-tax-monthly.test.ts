@@ -22,11 +22,11 @@ describe('sale form — two-way monthly <-> annual RE tax', () => {
     expect(FORM).toMatch(/id="saleRETaxes"[^>]*oninput="autoCalcTaxMonthly\(\)"/);
   });
 
-  it('monthly input is wired to back-fill annual (oninput=syncSaleAnnualFromMonthly) and stays unstored', () => {
+  it('monthly input is wired to back-fill annual (oninput=syncSaleAnnualFromMonthly) and is sent as the live TaxMonthlyAmount', () => {
     const tag = FORM.slice(FORM.indexOf('id="saleTaxMonthly"') - 30, FORM.indexOf('id="saleTaxMonthly"') + 220);
     expect(tag).toContain('oninput="syncSaleAnnualFromMonthly()"');
-    expect(tag).toContain('data-concept-disposition="mallan-internal"');        // monthly is NOT a stored Cotality field
-    expect(tag).toContain('data-removed-field="TaxMonthlyAmount"');
+    expect(tag).toContain('data-concept="TaxMonthlyAmount"');                   // a live CustomFields key (populated on most listings): the monthly amount is sent as it
+    expect(tag).not.toContain('data-removed-field');
   });
 
   it('autoCalcTaxMonthly derives monthly = annual / 12', () => {

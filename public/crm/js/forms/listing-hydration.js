@@ -97,6 +97,7 @@
     // ── Building ──
     { rls: 'BuildingName', form: 'saleBldgName', type: 'text', src: 'raw' },
     { rls: 'StructureType', form: 'saleBldgType', type: 'text', src: 'raw' },
+    { rls: 'ArchitecturalStyle', form: 'saleBldgArchitecturalStyle', type: 'text', src: 'raw' },
     { rls: 'YearBuilt', form: 'saleBldgYearBuilt', type: 'number', src: 'raw' },
     { rls: 'saleBldgYearRenovated', form: 'saleBldgYearRenovated', type: 'number', src: 'raw', fallbackRls: 'YearRenovated' }, // internal; YearRenovated not in Cotality
     { rls: 'StoriesTotal', form: 'saleBldgTotalFloors', type: 'number', src: 'raw' },
@@ -428,7 +429,7 @@
     { rls: 'saleBoardInterview', name: 'saleBoardInterview', src: 'raw' },
     { rls: 'saleCertOccupancy', name: 'saleCertOccupancy', src: 'raw' },
     { rls: 'saleCoPurchasing', name: 'saleCoPurchasing', src: 'raw' },
-    { rls: 'saleCurrentUse', name: 'saleCurrentUse', src: 'raw' },
+    { rls: 'saleCurrentUse', name: 'saleCurrentUse', src: 'raw', valueMap: { Professional: 'Office', Healthcare: 'MedicalDental' } },
     { rls: 'saleDirectDeal', name: 'saleDirectDeal', src: 'raw' },
     { rls: 'saleFilmLocation', name: 'saleFilmLocation', src: 'raw' },
     { rls: 'saleFirstRefusal', name: 'saleFirstRefusal', src: 'raw' },
@@ -448,7 +449,7 @@
     { rls: 'saleLight', name: 'saleLight', src: 'raw' },
     { rls: 'saleLiveWorkAllowed', name: 'saleLiveWorkAllowed', src: 'raw' },
     { rls: 'saleMeetAndGreet', name: 'saleMeetAndGreet', src: 'raw' },
-    { rls: 'saleNumFloors', name: 'saleNumFloors', src: 'raw' },
+    { rls: 'saleNumFloors', name: 'saleNumFloors', src: 'raw', valueMap: { Single: 'SingleLevelUnit', Duplex: 'BiLevel', Triplex: 'TriLevel', Quadruplex: 'QuadLevel' } },
     { rls: 'saleOfficeRetailOwnership', name: 'saleOfficeRetailOwnership', src: 'raw' },
     { rls: 'saleParentsBuying', name: 'saleParentsBuying', src: 'raw' },
     { rls: 'salePiedATerre', name: 'salePiedATerre', src: 'raw' },
@@ -506,6 +507,7 @@
     // Building modal
     { rls: 'BuildingName', form: 'bldgName', type: 'text', src: 'raw' },
     { rls: 'StructureType', form: 'bldgType', type: 'text', src: 'raw' },
+    { rls: 'ArchitecturalStyle', form: 'bldgArchitecturalStyle', type: 'text', src: 'raw' },
     { rls: 'YearBuilt', form: 'bldgYearBuilt', type: 'number', src: 'raw' },
     { rls: 'YearRenovated', form: 'bldgYearRenovated', type: 'number', src: 'raw' },
     { rls: 'StoriesTotal', form: 'bldgTotalFloors', type: 'number', src: 'raw' },

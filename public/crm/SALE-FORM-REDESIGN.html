@@ -115,6 +115,8 @@ body { font-family: Manrope, sans-serif; }
 <script src="js/forms/fair-housing.js"></script>
 <script src="js/forms/server-refusal.js"></script>
 <script src="js/forms/building-lookup.js"></script>
+<script src="js/forms/concept-kinds.js"></script>
+<script src="js/forms/concept-emit.js"></script>
 <script src="js/forms/listing-hydration.js"></script>
 <script src="js/forms/listing-open-houses.js"></script>
 <script>
@@ -729,7 +731,7 @@ body { font-family: Manrope, sans-serif; }
                     <span class="text-sm font-semibold text-gray-700">Display estimated sale price for comparable property</span>
                     <div class="flex items-center gap-3">
                         <label class="flex items-center gap-1 cursor-pointer text-sm"><input type="radio" name="saleInternetAVMDisplayYN" value="Yes" class="w-4 h-4" checked data-concept="InternetAutomatedValuationDisplayYN"> Y</label>
-                        <label class="flex items-center gap-1 cursor-pointer text-sm"><input type="radio" name="saleInternetAVMDisplayYN" value="No" class="w-4 h-4"> N</label>
+                        <label class="flex items-center gap-1 cursor-pointer text-sm"><input type="radio" name="saleInternetAVMDisplayYN" value="No" class="w-4 h-4" data-concept="InternetAutomatedValuationDisplayYN"> N</label>
                     </div>
                 </div>
                 <p class="text-[10px] text-gray-500">RLS/RESO/IDX: InternetAutomatedValuationDisplayYN — Controls whether Zillow/Redfin can show AVM estimates</p>
@@ -851,8 +853,8 @@ body { font-family: Manrope, sans-serif; }
                             <div class="mt-3 pt-3 border-t">
                                 <label class="block text-xs font-medium text-gray-600 mb-2">Land Lease Building</label>
                                 <div class="flex gap-4">
-                                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleLandLease" value="No" class="w-4 h-4" checked data-concept="LandLeaseAmount"> No</label>
-                                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleLandLease" value="Yes" class="w-4 h-4"> Yes</label>
+                                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleLandLease" value="No" class="w-4 h-4" checked data-concept="LandLeaseYN"> No</label>
+                                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleLandLease" value="Yes" class="w-4 h-4" data-concept="LandLeaseYN"> Yes</label>
                                 </div>
                             </div>
                         </div>
@@ -1312,7 +1314,7 @@ body { font-family: Manrope, sans-serif; }
                     <label class="field-label mb-1">Guarantors</label>
                     <div class="flex gap-4">
                         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleGuarantors" value="Yes" class="w-4 h-4" data-concept="GuarantorsAcceptedYN"> Yes</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleGuarantors" value="No" class="w-4 h-4"> No</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="saleGuarantors" value="No" class="w-4 h-4" data-concept="GuarantorsAcceptedYN"> No</label>
                     </div>
                 </div>
                 <div>
@@ -1404,7 +1406,7 @@ body { font-family: Manrope, sans-serif; }
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-link"></i> Listing URL</div>
             <label class="field-label">Listing URL</label>
-            <input type="text" id="saleListingUrl" placeholder="Auto-generated from address" readonly class="field-input bg-gray-50 text-gray-600" data-concept="ListingURL">
+            <input type="text" id="saleListingUrl" placeholder="Auto-generated from address" readonly class="field-input bg-gray-50 text-gray-600" data-concept-disposition="mallan-internal">
             <p class="text-xs text-gray-400 mt-1">Auto-populated from property address. This is how the listing will appear on the website.</p>
         </div>
 
@@ -1829,16 +1831,16 @@ body { font-family: Manrope, sans-serif; }
             <div class="form-card-header"><i class="fas fa-layer-group"></i> Number of Floors In The Unit</div>
             <div class="flex flex-wrap gap-6">
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleNumFloors" value="Single" class="w-4 h-4" checked data-concept="StoriesTotal"> Single Floor
+                    <input type="radio" name="saleNumFloors" value="SingleLevelUnit" class="w-4 h-4" checked data-concept="Levels"> Single Floor
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleNumFloors" value="Duplex" class="w-4 h-4"> Duplex
+                    <input type="radio" name="saleNumFloors" value="BiLevel" class="w-4 h-4" data-concept="Levels"> Duplex
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleNumFloors" value="Triplex" class="w-4 h-4"> Triplex
+                    <input type="radio" name="saleNumFloors" value="TriLevel" class="w-4 h-4" data-concept="Levels"> Triplex
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleNumFloors" value="Quadruplex" class="w-4 h-4"> Quadruplex
+                    <input type="radio" name="saleNumFloors" value="QuadLevel" class="w-4 h-4" data-concept="Levels"> Quadruplex
                 </label>
             </div>
         </div>
@@ -1954,7 +1956,7 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <!-- REBNY I15: UnitNumber (Floor + Line = Apt #, e.g., 26B) -->
                     <label class="field-label">Line in Building</label>
-                    <input type="text" id="saleLineInBuilding" placeholder="e.g., B" class="field-input" data-concept="UnitNumber">
+                    <input type="text" id="saleLineInBuilding" placeholder="e.g., B" class="field-input" data-concept-disposition="mallan-internal">
                 </div>
             </div>
         </div>
@@ -1965,10 +1967,10 @@ body { font-family: Manrope, sans-serif; }
             <label class="field-label">Garage Spaces Assigned <span class="text-red-500">*</span></label>
             <div class="flex items-center gap-6 mb-3">
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleGarageSpaces" value="Yes" class="w-4 h-4" data-concept="GarageSpaces"> Yes
+                    <input type="radio" name="saleGarageSpaces" value="Yes" class="w-4 h-4" data-concept-disposition="mallan-internal"> Yes
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleGarageSpaces" value="No" class="w-4 h-4" checked> No
+                    <input type="radio" name="saleGarageSpaces" value="No" class="w-4 h-4" checked data-concept-disposition="mallan-internal"> No
                 </label>
             </div>
             <div class="max-w-xs">
@@ -2131,10 +2133,10 @@ body { font-family: Manrope, sans-serif; }
                     <input type="radio" name="saleCurrentUse" value="MedicalDental" class="w-4 h-4" data-concept="CurrentUse"> Medical/Dental
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleCurrentUse" value="Investment" class="w-4 h-4"> Investment
+                    <input type="radio" name="saleCurrentUse" value="Investment" class="w-4 h-4" data-concept="CurrentUse"> Investment
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleCurrentUse" value="Professional" class="w-4 h-4"> Professional
+                    <input type="radio" name="saleCurrentUse" value="Office" class="w-4 h-4" data-concept="CurrentUse"> Professional
                 </label>
             </div>
         </div>
@@ -2200,7 +2202,7 @@ body { font-family: Manrope, sans-serif; }
                     <input type="radio" name="saleHasViews" value="Yes" class="w-4 h-4" data-concept="ViewYN"> Yes
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleHasViews" value="No" class="w-4 h-4"> No
+                    <input type="radio" name="saleHasViews" value="No" class="w-4 h-4" data-concept="ViewYN"> No
                 </label>
             </div>
             <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -2598,7 +2600,7 @@ body { font-family: Manrope, sans-serif; }
                     <input type="radio" name="fireplace" value="Yes" class="w-4 h-4" data-concept="FireplaceYN"> Yes
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="fireplace" value="No" class="w-4 h-4" checked> No
+                    <input type="radio" name="fireplace" value="No" class="w-4 h-4" checked data-concept="FireplaceYN"> No
                 </label>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -3965,7 +3967,7 @@ body { font-family: Manrope, sans-serif; }
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="field-label">Photo Sort Order <span class="text-xs text-gray-400 font-normal">(Integer)</span></label>
-                            <input type="number" id="salePhotoSortOrder" placeholder="1" min="1" step="1" class="field-input" data-concept="PhotosChangeTimestamp">
+                            <input type="number" id="salePhotoSortOrder" placeholder="1" min="1" step="1" class="field-input" data-concept-disposition="mallan-internal">
                             <p class="text-[10px] text-gray-400 mt-1">Cotality: PhotosChangeTimestamp — Controls display order of photos. First photo (1) = primary/hero image.</p>
                         </div>
                     </div>
@@ -4261,6 +4263,31 @@ body { font-family: Manrope, sans-serif; }
                                     <option value="Triplex">Triplex</option>
                                     <option value="Apartment">Apartment</option>
                                     <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="field-label">Architectural Style</label>
+                                <select id="saleBldgArchitecturalStyle" class="field-input" data-concept="ArchitecturalStyle">
+                                    <option value="">Select</option>
+                                    <option value="Prewar">Prewar</option>
+                                    <option value="ArtDeco">Art Deco</option>
+                                    <option value="ArtNouveau">Art Nouveau</option>
+                                    <option value="BeauxArts">Beaux-Arts</option>
+                                    <option value="Brutalist">Brutalist</option>
+                                    <option value="CastIron">Cast Iron</option>
+                                    <option value="Colonial">Colonial</option>
+                                    <option value="ContemporaryModern">Contemporary Modern</option>
+                                    <option value="Federal">Federal</option>
+                                    <option value="GardenApartment">Garden Apartment</option>
+                                    <option value="GothicRevival">Gothic Revival</option>
+                                    <option value="GreekRevival">Greek Revival</option>
+                                    <option value="International">International</option>
+                                    <option value="Italianate">Italianate</option>
+                                    <option value="Loft">Loft</option>
+                                    <option value="QueenAnne">Queen Anne</option>
+                                    <option value="Romanesque">Romanesque</option>
+                                    <option value="SecondEmpire">Second Empire</option>
+                                    <option value="WalkUp">Walk-Up</option>
                                 </select>
                             </div>
                             <div>
@@ -4570,7 +4597,7 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div>
                                 <label class="field-label">Tax Lot</label>
-                                <input type="text" id="saleBldgTaxLot" placeholder="56" class="field-input" data-concept="BuildingTaxLot">
+                                <input type="text" id="saleBldgTaxLot" placeholder="56" class="field-input" data-concept="TaxLot">
                             </div>
                             <div>
                                 <label class="field-label">Annual RE Taxes</label>
@@ -4633,7 +4660,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="form-card-header"><i class="fas fa-align-left"></i> Building Description</div>
                         <div class="mb-4">
                             <label class="field-label">Building Description</label>
-                            <textarea id="saleBldgDescription" rows="6" placeholder="Describe the building, its history, architecture, and notable features..." class="field-input" oninput="checkDescriptionCompliance('saleBldgDescription','saleBldgDescriptionFlags')" data-concept="PublicRemarks"></textarea>
+                            <textarea id="saleBldgDescription" rows="6" placeholder="Describe the building, its history, architecture, and notable features..." class="field-input" oninput="checkDescriptionCompliance('saleBldgDescription','saleBldgDescriptionFlags')" data-concept-disposition="mallan-internal"></textarea>
                         </div>
                         <div id="saleBldgDescriptionFlags" class="hidden mt-2 mb-3"></div>
                         <div>
@@ -4688,7 +4715,7 @@ body { font-family: Manrope, sans-serif; }
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-clipboard-list"></i> General Policies</div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgWasherDryerAllowed" class="w-4 h-4" data-concept="LaundryFeatures"> Washer/Dryer Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgWasherDryerAllowed" class="w-4 h-4" data-concept="LaundryFeatures" value="BuildingWasherDryerInstallAllowed"> Washer/Dryer Allowed</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgPiedATerre" class="w-4 h-4" data-concept-disposition="mallan-internal"> Pied-a-Terre Allowed</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgParentsAllowed" class="w-4 h-4" data-concept-disposition="mallan-internal"> Parents Buying Allowed</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="saleBldgCoBuyersAllowed" class="w-4 h-4" data-concept-disposition="mallan-internal"> Co-Buyers Allowed</label>
@@ -7414,6 +7441,7 @@ function collectSaleFormData() {
     // Map building-level RLS fields from modal
     data.BuildingName = data.saleBldgName || '';
     data.StructureType = data.saleBldgType || data.saleStructureType || '';
+    data.ArchitecturalStyle = data.saleBldgArchitecturalStyle || '';          // the building's style (live ArchitecturalStyle: Prewar, Loft, WalkUp ...); the unit's Loft is PropertySubType
     data.StoriesTotal = parseInt(data.saleBldgTotalFloors || '0') || null;
     data.NumberOfUnitsTotal = parseInt(data.saleBldgTotalUnits || '0') || null;
     data.CrossStreet = data.saleBldgCrossStreet1 || '';
@@ -7756,7 +7784,9 @@ function collectSaleFormData() {
         data.auction_end_date = null;
         data.auction_terms_url = null;
     }
-
+
+    // every control tagged data-concept="X" sends X (js/forms/concept-emit.js); what is set above is kept
+    if (typeof emitConceptValues === 'function') emitConceptValues(data);
     return data;
 }
 
@@ -7894,7 +7924,7 @@ function submitSalesListing() {
         createdAt: new Date().toISOString(),
         listingCompany: document.getElementById('saleListingCompany')?.value || '',
         listingAgent: document.getElementById('saleListingAgent')?.value || '',
-        numFloors: document.querySelector('input[name="saleNumFloors"]:checked')?.value || 'Single',
+        numFloors: document.querySelector('input[name="saleNumFloors"]:checked')?.value || 'SingleLevelUnit',
         unitType: document.querySelector('input[name="saleUnitType2"]:checked')?.value || 'Residential',
         status: 'Draft',
         // RLS Address Fields
@@ -8492,8 +8522,8 @@ function getResoPropertyFields(crmValue) {
         'Condo':                    { PropertyType: 'Residential', PropertySubType: 'Apartment' },
         'Coop':                     { PropertyType: 'Residential', PropertySubType: 'Apartment' },
         'Condop':                   { PropertyType: 'Residential', PropertySubType: 'Apartment' },
-        'SingleFamilyTownhouse':    { PropertyType: 'Residential', PropertySubType: 'Townhouse' },
-        'MultiFamilyTownhouse':     { PropertyType: 'Residential', PropertySubType: 'Townhouse' },
+        'SingleFamilyTownhouse':    { PropertyType: 'Residential', PropertySubType: 'SingleFamilyResidence' },
+        'MultiFamilyTownhouse':     { PropertyType: 'Residential', PropertySubType: 'MultiFamily' },
         'SingleFamily':             { PropertyType: 'Residential', PropertySubType: 'SingleFamilyResidence' },
         'MultiFamily':              { PropertyType: 'Residential', PropertySubType: 'MultiFamily' },
         'MixedUse':                 { PropertyType: 'Residential', PropertySubType: 'MixedUse' },
@@ -8812,7 +8842,7 @@ function updateSalePreview() {
 
     // Card 3: Unit Info
     const floors = checked('saleNumFloors');
-    setText('salePreviewFloors', floors || 'Single');
+    setText('salePreviewFloors', ({ SingleLevelUnit: 'Single Floor', BiLevel: 'Duplex', TriLevel: 'Triplex', QuadLevel: 'Quadruplex' })[floors] || 'Single Floor');
     setText('salePreviewRooms', val('saleTotalRooms'));
     setText('salePreviewBeds', val('saleBedrooms'));
     setText('salePreviewBaths', val('saleFullBaths'));
@@ -9198,6 +9228,7 @@ var SALE_FIELD_MAP = [
   // ── Building ──
   { rls: 'BuildingName', form: 'saleBldgName', type: 'text', src: 'raw' },
   { rls: 'StructureType', form: 'saleBldgType', type: 'text', src: 'raw' },
+  { rls: 'ArchitecturalStyle', form: 'saleBldgArchitecturalStyle', type: 'text', src: 'raw' },
   { rls: 'YearBuilt', form: 'saleBldgYearBuilt', type: 'number', src: 'raw' },
   { rls: 'saleBldgYearRenovated', form: 'saleBldgYearRenovated', type: 'number', src: 'raw', fallbackRls: 'YearRenovated' }, // internal; YearRenovated not in Cotality
   { rls: 'StoriesTotal', form: 'saleBldgTotalFloors', type: 'number', src: 'raw' },
@@ -9562,7 +9593,7 @@ var SALE_RADIO_MAP = [
   { rls: 'saleBoardInterview', name: 'saleBoardInterview', src: 'raw' },
   { rls: 'saleCertOccupancy', name: 'saleCertOccupancy', src: 'raw' },
   { rls: 'saleCoPurchasing', name: 'saleCoPurchasing', src: 'raw' },
-  { rls: 'saleCurrentUse', name: 'saleCurrentUse', src: 'raw' },
+  { rls: 'saleCurrentUse', name: 'saleCurrentUse', src: 'raw', valueMap: { Professional: 'Office', Healthcare: 'MedicalDental' } },
   { rls: 'saleDirectDeal', name: 'saleDirectDeal', src: 'raw' },
   { rls: 'saleFilmLocation', name: 'saleFilmLocation', src: 'raw' },
   { rls: 'saleFirstRefusal', name: 'saleFirstRefusal', src: 'raw' },
@@ -9582,7 +9613,7 @@ var SALE_RADIO_MAP = [
   { rls: 'saleLight', name: 'saleLight', src: 'raw' },
   { rls: 'saleLiveWorkAllowed', name: 'saleLiveWorkAllowed', src: 'raw' },
   { rls: 'saleMeetAndGreet', name: 'saleMeetAndGreet', src: 'raw' },
-  { rls: 'saleNumFloors', name: 'saleNumFloors', src: 'raw' },
+  { rls: 'saleNumFloors', name: 'saleNumFloors', src: 'raw', valueMap: { Single: 'SingleLevelUnit', Duplex: 'BiLevel', Triplex: 'TriLevel', Quadruplex: 'QuadLevel' } },
   { rls: 'saleOfficeRetailOwnership', name: 'saleOfficeRetailOwnership', src: 'raw' },
   { rls: 'saleParentsBuying', name: 'saleParentsBuying', src: 'raw' },
   { rls: 'salePiedATerre', name: 'salePiedATerre', src: 'raw' },

@@ -37,7 +37,7 @@ const INTERNAL_IDS = [
   'saleBldgSuperName', 'saleBldgSuperPhone', 'saleBldgSuperEmail',
   'saleBldgManagerName', 'saleBldgManagerPhone', 'saleBldgManagerEmail',
   'saleBldgBoardPresident', 'saleBldgBoardEmail',
-  'saleBldgMaxFinancing', 'saleBldgMinDownPayment', 'saleBldgDTIRatio', 'saleBldgPostCloseLiquidity',
+  'saleBldgMinDownPayment', 'saleBldgDTIRatio', 'saleBldgPostCloseLiquidity',
   'saleBldgBoardApproval', 'saleBldgBoardInterview',
 ];
 
@@ -62,7 +62,10 @@ describe('Bucket-B internal fields carry NO data-concept', () => {
   it('phantom multi-groups are not data-concept', () => {
     expect(FORM).not.toMatch(/data-concept="BuildingLaundryFeatures"/);
     expect(FORM).not.toMatch(/data-concept="BuildingPetsAllowed"/);
-    expect(FORM).not.toMatch(/data-concept="AttendanceType"/);
+  });
+  it('AttendanceType and the maximum financing percent are live CustomFields keys: the building profile claims them', () => {
+    expect(FORM).toMatch(/data-concept="AttendanceType"/);
+    expect(FORM).toMatch(/id="saleBldgMaxFinancing"[^>]*data-concept="MaximumFinancingPercent"/);
   });
 });
 

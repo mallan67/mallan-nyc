@@ -629,7 +629,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                             <span class="text-sm text-gray-700">Y</span>
                         </label>
                         <label class="flex items-center gap-1 cursor-pointer">
-                            <input type="radio" name="rentalInternetAVMDisplayYN" value="No" class="w-4 h-4">
+                            <input type="radio" name="rentalInternetAVMDisplayYN" value="No" class="w-4 h-4" data-concept="InternetAutomatedValuationDisplayYN">
                             <span class="text-sm text-gray-700">N</span>
                         </label>
                     </div>
@@ -962,7 +962,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <label class="field-label mb-2">Guarantors Allowed</label>
                     <div class="flex gap-4">
                         <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalGuarantors" value="Yes" class="w-4 h-4" data-concept="GuarantorsAcceptedYN"> Yes</label>
-                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalGuarantors" value="No" class="w-4 h-4"> No</label>
+                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalGuarantors" value="No" class="w-4 h-4" data-concept="GuarantorsAcceptedYN"> No</label>
                     </div>
                 </div>
                 <!-- RLS: PetsAllowed — REQUIRED, Multi-Select Picklist (7 values) — Unit-level -->
@@ -983,7 +983,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <label class="field-label mb-2">Smoking Allowed</label>
                     <div class="flex gap-4">
                         <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalSmoking" value="Yes" class="w-4 h-4" data-concept="BuildingSmokeFreeYN"> Yes</label>
-                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalSmoking" value="No" class="w-4 h-4"> No</label>
+                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalSmoking" value="No" class="w-4 h-4" data-concept="BuildingSmokeFreeYN"> No</label>
                     </div>
                 </div>
                 <div>
@@ -1239,7 +1239,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <label class="field-label mb-2">Lease Renewal Option</label>
                     <div class="flex gap-4">
                         <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalLeaseRenewalOptionYN" value="Yes" class="w-4 h-4" data-concept="LeaseRenewalOptionYN"> Yes</label>
-                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalLeaseRenewalOptionYN" value="No" class="w-4 h-4" checked> No</label>
+                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalLeaseRenewalOptionYN" value="No" class="w-4 h-4" checked data-concept="LeaseRenewalOptionYN"> No</label>
                     </div>
                 </div>
             </div>
@@ -1286,7 +1286,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
             <div class="form-card-header"><i class="fas fa-link"></i> Listing URL & Display</div>
             <div class="mb-4">
                 <label class="field-label">Listing URL</label>
-                <input type="text" id="rentalListingUrl" placeholder="Auto-generated from address" class="field-input" readonly data-concept="ListingURL">
+                <input type="text" id="rentalListingUrl" placeholder="Auto-generated from address" class="field-input" readonly data-concept-disposition="mallan-internal">
                 <p class="text-[10px] text-gray-400 mt-1">Auto-populated from property address</p>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1771,7 +1771,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
         </div>
         <div>
             <label class="field-label">Unit Line</label>
-            <input type="text" id="rentalLine" class="field-input" placeholder="A" data-concept="UnitNumber">
+            <input type="text" id="rentalLine" class="field-input" placeholder="A" data-concept-disposition="mallan-internal">
         </div>
         <div>
             <label class="field-label">Unit Type</label>
@@ -1785,7 +1785,6 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <option value="Triplex">Triplex</option>
                 <option value="Quadruplex">Quadruplex</option>
                 <option value="Loft">Loft</option>
-                <option value="Townhouse">Townhouse</option>
                 <option value="SingleFamilyResidence">Single Family Residence</option>
                 <option value="MixedUse">Mixed Use</option>
                 <option value="MultiFamily">Multi-Family</option>
@@ -1868,22 +1867,22 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
         <div>
             <p class="field-label mb-2">Exposure</p>
             <div class="grid grid-cols-2 gap-2">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalExpNorth" class="w-4 h-4" data-concept="Exposures"> North</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalExpSouth" class="w-4 h-4" data-concept="Exposures"> South</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalExpEast" class="w-4 h-4" data-concept="Exposures"> East</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalExpWest" class="w-4 h-4" data-concept="Exposures"> West</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalExpNorth" class="w-4 h-4" data-concept="Exposures" value="North"> North</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalExpSouth" class="w-4 h-4" data-concept="Exposures" value="South"> South</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalExpEast" class="w-4 h-4" data-concept="Exposures" value="East"> East</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalExpWest" class="w-4 h-4" data-concept="Exposures" value="West"> West</label>
             </div>
         </div>
         <div>
             <p class="field-label mb-2">Views</p>
             <div class="grid grid-cols-2 gap-2">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalViewCity" class="w-4 h-4" data-concept="View"> City</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalViewWater" class="w-4 h-4" data-concept="View"> Water</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalViewRiver" class="w-4 h-4" data-concept="View"> River</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalViewPark" class="w-4 h-4" data-concept="View"> Park</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalViewGarden" class="w-4 h-4" data-concept="View"> Garden</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalViewSkyline" class="w-4 h-4" data-concept="View"> Skyline</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalViewPanoramic" class="w-4 h-4" data-concept="View"> Panoramic</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalViewCity" class="w-4 h-4" data-concept="View" value="City"> City</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalViewWater" class="w-4 h-4" data-concept="View" value="Water"> Water</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalViewRiver" class="w-4 h-4" data-concept="View" value="River"> River</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalViewPark" class="w-4 h-4" data-concept="View" value="ParkGreenbelt"> Park</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalViewGarden" class="w-4 h-4" data-concept="View" value="Garden"> Garden</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalViewSkyline" class="w-4 h-4" data-concept="View" value="Skyline"> Skyline</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalViewPanoramic" class="w-4 h-4" data-concept="View" value="Panoramic"> Panoramic</label>
             </div>
         </div>
     </div>
@@ -1916,11 +1915,11 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
         <div class="sm:col-span-2">
             <p class="field-label mb-2">Kitchen Features</p>
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDishwasher" class="w-4 h-4" data-concept="InteriorFeatures"> Dishwasher</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalGraniteCounters" class="w-4 h-4" data-concept="InteriorFeatures"> Granite Counters</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalStainlessAppl" class="w-4 h-4" data-concept="Appliances"> Stainless Appliances</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalMicrowave" class="w-4 h-4" data-concept="Appliances"> Microwave</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalGasStove" class="w-4 h-4" data-concept="Appliances"> Gas Stove</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDishwasher" class="w-4 h-4" data-concept="InteriorFeatures" value="Dishwasher"> Dishwasher</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalGraniteCounters" class="w-4 h-4" data-concept="InteriorFeatures" value="GraniteCounters"> Granite Counters</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalStainlessAppl" class="w-4 h-4" data-concept="Appliances" value="StainlessSteelAppliances"> Stainless Appliances</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalMicrowave" class="w-4 h-4" data-concept="Appliances" value="Microwave"> Microwave</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalGasStove" class="w-4 h-4" data-concept="Appliances" value="GasRange"> Gas Stove</label>
             </div>
         </div>
     </div>
@@ -1929,43 +1928,43 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
 <div class="form-card">
     <div class="form-card-header"><i class="fas fa-couch"></i> Living Room</div>
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalLivingRoom" class="w-4 h-4" data-concept="InteriorFeatures"> Living Room</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalFormalLiving" class="w-4 h-4" data-concept="InteriorFeatures"> Formal Living</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalGreatRoom" class="w-4 h-4" data-concept="InteriorFeatures"> Great Room</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalLivingRoom" class="w-4 h-4" data-concept-disposition="mallan-internal"> Living Room</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalFormalLiving" class="w-4 h-4" data-concept="InteriorFeatures" value="SeparateFormalLivingRoom"> Formal Living</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalGreatRoom" class="w-4 h-4" data-concept="InteriorFeatures" value="GreatRoom"> Great Room</label>
     </div>
 </div>
 
 <div class="form-card">
     <div class="form-card-header"><i class="fas fa-wine-glass-alt"></i> Dining</div>
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDiningRoom" class="w-4 h-4" data-concept="InteriorFeatures"> Dining Room</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalFormalDining" class="w-4 h-4" data-concept="InteriorFeatures"> Formal Dining</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDiningArea" class="w-4 h-4" data-concept="InteriorFeatures"> Dining Area</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalBreakfastNook" class="w-4 h-4" data-concept="InteriorFeatures"> Breakfast Nook</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDiningRoom" class="w-4 h-4" data-concept-disposition="mallan-internal"> Dining Room</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalFormalDining" class="w-4 h-4" data-concept="InteriorFeatures" value="SeparateFormalDiningRoom"> Formal Dining</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDiningArea" class="w-4 h-4" data-concept="InteriorFeatures" value="DiningArea"> Dining Area</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalBreakfastNook" class="w-4 h-4" data-concept="InteriorFeatures" value="BreakfastArea"> Breakfast Nook</label>
     </div>
 </div>
 
 <div class="form-card">
     <div class="form-card-header"><i class="fas fa-th-large"></i> Additional Rooms</div>
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDen" class="w-4 h-4" data-concept="InteriorFeatures"> Den</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalHomeOffice" class="w-4 h-4" data-concept="InteriorFeatures"> Home Office</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalLibrary" class="w-4 h-4" data-concept="InteriorFeatures"> Library</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalMaidsRoom" class="w-4 h-4" data-concept="InteriorFeatures"> Maid's Room</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalNursery" class="w-4 h-4" data-concept="InteriorFeatures"> Nursery</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalRecRoom" class="w-4 h-4" data-concept="InteriorFeatures"> Recreation Room</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalMediaRoom" class="w-4 h-4" data-concept="InteriorFeatures"> Media Room</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalSunroom" class="w-4 h-4" data-concept="InteriorFeatures"> Sunroom</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDen" class="w-4 h-4" data-concept="InteriorFeatures" value="Den"> Den</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalHomeOffice" class="w-4 h-4" data-concept="InteriorFeatures" value="HomeOffice"> Home Office</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalLibrary" class="w-4 h-4" data-concept="InteriorFeatures" value="Library"> Library</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalMaidsRoom" class="w-4 h-4" data-concept-disposition="mallan-internal"> Maid's Room</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalNursery" class="w-4 h-4" data-concept-disposition="mallan-internal"> Nursery</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalRecRoom" class="w-4 h-4" data-concept-disposition="mallan-internal"> Recreation Room</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalMediaRoom" class="w-4 h-4" data-concept-disposition="mallan-internal"> Media Room</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalSunroom" class="w-4 h-4" data-concept="InteriorFeatures" value="SunRoom"> Sunroom</label>
     </div>
 </div>
 
 <div class="form-card">
     <div class="form-card-header"><i class="fas fa-box"></i> Storage & Utility</div>
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalWalkInCloset" class="w-4 h-4" data-concept="InteriorFeatures"> Walk-in Closet</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalStorageRoom" class="w-4 h-4" data-concept="InteriorFeatures"> Storage Room</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalLaundryRoom" class="w-4 h-4" data-concept="InteriorFeatures"> Laundry Room</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalMudroom" class="w-4 h-4" data-concept="InteriorFeatures"> Mudroom</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalWalkInCloset" class="w-4 h-4" data-concept="InteriorFeatures" value="WalkInClosets"> Walk-in Closet</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalStorageRoom" class="w-4 h-4" data-concept="InteriorFeatures" value="Storage"> Storage Room</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalLaundryRoom" class="w-4 h-4" data-concept-disposition="mallan-internal"> Laundry Room</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalMudroom" class="w-4 h-4" data-concept="InteriorFeatures" value="MudRoom"> Mudroom</label>
     </div>
 </div>
 
@@ -1985,7 +1984,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDoorman" class="w-4 h-4"> Doorman</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalElevator" class="w-4 h-4"> Elevator</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalGym" class="w-4 h-4"> Gym/Fitness</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalBldgLaundry" class="w-4 h-4" data-concept="LaundryFeatures"> Laundry (Building)</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalBldgLaundry" class="w-4 h-4" data-concept-disposition="mallan-internal"> Laundry (Building)</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalBikeRoom" class="w-4 h-4"> Bike Room</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalStorage" class="w-4 h-4"> Storage</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalRoofDeck" class="w-4 h-4"> Roof Deck</label>
@@ -2000,26 +1999,26 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
 <div class="form-card">
     <div class="form-card-header"><i class="fas fa-star"></i> In-Unit Features</div>
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalWasherDryer" class="w-4 h-4" data-concept="InteriorFeatures"> Washer/Dryer in Unit</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalCentralAC" class="w-4 h-4" data-concept="InteriorFeatures"> Central AC</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalHardwood" class="w-4 h-4" data-concept="InteriorFeatures"> Hardwood Floors</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalHighCeilings" class="w-4 h-4" data-concept="InteriorFeatures"> High Ceilings</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalFireplace" class="w-4 h-4" data-concept="InteriorFeatures"> Fireplace</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalExposedBrick" class="w-4 h-4" data-concept="InteriorFeatures"> Exposed Brick</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalPrewar" class="w-4 h-4" data-concept="InteriorFeatures"> Pre-War Details</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalSmartHome" class="w-4 h-4" data-concept="InteriorFeatures"> Smart Home</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalWasherDryer" class="w-4 h-4" data-concept="LaundryFeatures" value="InUnit"> Washer/Dryer in Unit</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalCentralAC" class="w-4 h-4" data-concept-disposition="mallan-internal"> Central AC</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalHardwood" class="w-4 h-4" data-concept-disposition="mallan-internal"> Hardwood Floors</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalHighCeilings" class="w-4 h-4" data-concept="InteriorFeatures" value="HighCeilings"> High Ceilings</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalFireplace" class="w-4 h-4" data-concept="InteriorFeatures" value="Fireplace"> Fireplace</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalExposedBrick" class="w-4 h-4" data-concept="InteriorFeatures" value="BrickWalls"> Exposed Brick</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalPrewar" class="w-4 h-4" data-concept-disposition="mallan-internal"> Pre-War Details</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalSmartHome" class="w-4 h-4" data-concept="InteriorFeatures" value="SmartHome"> Smart Home</label>
     </div>
 </div>
 
 <div class="form-card">
     <div class="form-card-header"><i class="fas fa-tree"></i> Private Outdoor Space</div>
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalBalcony" class="w-4 h-4" data-concept="ExteriorFeatures"> Balcony</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalTerrace" class="w-4 h-4" data-concept="ExteriorFeatures"> Terrace</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalPatio" class="w-4 h-4" data-concept="ExteriorFeatures"> Patio</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalPrivateRoof" class="w-4 h-4" data-concept="ExteriorFeatures"> Private Roof Deck</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalPrivateGarden" class="w-4 h-4" data-concept="ExteriorFeatures"> Private Garden</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalBackyard" class="w-4 h-4" data-concept="ExteriorFeatures"> Backyard</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalBalcony" class="w-4 h-4" data-concept="ExteriorFeatures" value="Balcony"> Balcony</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalTerrace" class="w-4 h-4" data-concept-disposition="mallan-internal"> Terrace</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalPatio" class="w-4 h-4" data-concept="ExteriorFeatures" value="Patio"> Patio</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalPrivateRoof" class="w-4 h-4" data-concept="ExteriorFeatures" value="Deck"> Private Roof Deck</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalPrivateGarden" class="w-4 h-4" data-concept="ExteriorFeatures" value="Garden"> Private Garden</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalBackyard" class="w-4 h-4" data-concept="ExteriorFeatures" value="PrivateYard"> Backyard</label>
     </div>
 </div>
 
@@ -2028,7 +2027,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
     <div class="form-card-header"><i class="fas fa-fire"></i> Heating</div>
     <div class="flex gap-4 mb-3">
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalHeatingYN" value="Yes" class="w-4 h-4" data-concept="HeatingYN"> Yes</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalHeatingYN" value="No" class="w-4 h-4"> No</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalHeatingYN" value="No" class="w-4 h-4" data-concept="HeatingYN"> No</label>
     </div>
     <p class="text-xs text-gray-500 mb-2">Heating Type (RESO multi-select)</p>
     <div id="rentalHeatingTypes" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
@@ -2083,7 +2082,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
     <div class="form-card-header"><i class="fas fa-snowflake"></i> Cooling</div>
     <div class="flex gap-4 mb-3">
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalCoolingYN" value="Yes" class="w-4 h-4" data-concept="CoolingYN"> Yes</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalCoolingYN" value="No" class="w-4 h-4"> No</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalCoolingYN" value="No" class="w-4 h-4" data-concept="CoolingYN"> No</label>
     </div>
     <p class="text-xs text-gray-500 mb-2">Cooling Type (RESO multi-select)</p>
     <div id="rentalCoolingTypes" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
@@ -3535,13 +3534,16 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                                     <option value="Colonial">Colonial</option>
                                     <option value="ContemporaryModern">Contemporary Modern</option>
                                     <option value="Federal">Federal</option>
+                                    <option value="GardenApartment">Garden Apartment</option>
                                     <option value="GothicRevival">Gothic Revival</option>
                                     <option value="GreekRevival">Greek Revival</option>
                                     <option value="International">International</option>
                                     <option value="Italianate">Italianate</option>
+                                    <option value="Loft">Loft</option>
                                     <option value="QueenAnne">Queen Anne</option>
                                     <option value="Romanesque">Romanesque</option>
                                     <option value="SecondEmpire">Second Empire</option>
+                                    <option value="WalkUp">Walk-Up</option>
                                 </select>
                             </div>
                             <div>
@@ -3835,7 +3837,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                             </div>
                             <div>
                                 <label class="field-label">Tax Lot</label>
-                                <input type="text" id="bldgTaxLot" placeholder="56" class="field-input" data-concept="BuildingTaxLot">
+                                <input type="text" id="bldgTaxLot" placeholder="56" class="field-input" data-concept="TaxLot">
                             </div>
                             <div>
                                 <label class="field-label">Annual RE Taxes</label>
@@ -3925,7 +3927,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         <div class="form-card-header"><i class="fas fa-align-left"></i> Building Description</div>
                         <div class="mb-4">
                             <label class="field-label">Building Description</label>
-                            <textarea id="bldgDescription" rows="6" placeholder="Describe the building, its history, architecture, and notable features..." class="field-input" oninput="checkDescriptionCompliance('bldgDescription','bldgDescriptionFlags')" data-concept="PublicRemarks"></textarea>
+                            <textarea id="bldgDescription" rows="6" placeholder="Describe the building, its history, architecture, and notable features..." class="field-input" oninput="checkDescriptionCompliance('bldgDescription','bldgDescriptionFlags')" data-concept-disposition="mallan-internal"></textarea>
                         </div>
                         <div id="bldgDescriptionFlags" class="hidden mt-2 mb-3"></div>
                         <div>
@@ -3980,7 +3982,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-clipboard-list"></i> General Policies</div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgWasherDryerAllowed" class="w-4 h-4" data-concept="LaundryFeatures"> Washer/Dryer Allowed</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgWasherDryerAllowed" class="w-4 h-4" data-concept="LaundryFeatures" value="BuildingWasherDryerInstallAllowed"> Washer/Dryer Allowed</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgPiedATerre" class="w-4 h-4" data-concept-disposition="mallan-internal"> Pied-a-Terre Allowed</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgParentsAllowed" class="w-4 h-4"> Parents Buying Allowed</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgCoBuyersAllowed" class="w-4 h-4"> Co-Buyers Allowed</label>
@@ -4061,7 +4063,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
                                 <label class="field-label">Max Financing Allowed</label>
-                                <input type="text" id="bldgMaxFinancing" placeholder="80%" class="field-input" data-concept="MaximumFinancingAmount">
+                                <input type="text" id="bldgMaxFinancing" placeholder="80%" class="field-input" data-concept="MaximumFinancingPercent">
                             </div>
                             <div>
                                 <label class="field-label">Min Down Payment</label>
@@ -5285,8 +5287,8 @@ function getResoPropertyFields(crmValue) {
         'Coop':                     { PropertyType: 'ResidentialLease', CommonInterest: 'StockCooperative', PropertySubType: 'Apartment' },
         'Condop':                   { PropertyType: 'ResidentialLease', CommonInterest: 'Condop',          PropertySubType: 'Apartment' },
         'RentalBuilding':           { PropertyType: 'ResidentialLease', CommonInterest: 'RentalBuilding',  PropertySubType: 'Apartment' },
-        'SingleFamilyTownhouse':    { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'Townhouse' },
-        'MultiFamilyTownhouse':     { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'Townhouse' },
+        'SingleFamilyTownhouse':    { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'SingleFamilyResidence' },
+        'MultiFamilyTownhouse':     { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'MultiFamily' },
         'SingleFamily':             { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'SingleFamilyResidence' },
         'MultiFamily':              { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'MultiFamily' },
         'MixedUse':                 { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'MixedUse' },
