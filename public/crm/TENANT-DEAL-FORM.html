@@ -955,6 +955,8 @@ function normalizeTenantCotalityListing(l) {
         listingBrokerage: String(l.company || ''),
         listingAgentPhone: String(l.agentPhone || ''),
         listingAgentEmail: String(l.agentEmail || ''),
+        // Property.ListAgentMlsId (the agent's MLS ID, not ListAgentKey)
+        listingAgentMlsId: String(l.listAgentMlsId || ''),
         rent: Number(l.price) || 0,
         ownership: l.ownership == null ? null : String(l.ownership),
         propertySubType: String(l.propertySubType || ''),
@@ -1057,7 +1059,7 @@ function selectListingForTenantDeal(index) {
     setVal('tenantListingBrokerageName', listing.listingBrokerage);
     setVal('tenantListingAgentPhone', listing.listingAgentPhone);
     setVal('tenantListingAgentEmail', listing.listingAgentEmail);
-    setVal('tenantListingAgentMlsId', '');
+    setVal('tenantListingAgentMlsId', listing.listingAgentMlsId);
     setVal('tenantListRent', listing.rent);
 
     setVal('tenantPropertySubType', listing.propertySubType);

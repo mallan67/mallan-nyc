@@ -1345,6 +1345,8 @@ function normalizeBuyerCotalityListing(l) {
         listingBrokerage: String(l.company || ''),
         listingAgentPhone: String(l.agentPhone || ''),
         listingAgentEmail: String(l.agentEmail || ''),
+        // Property.ListAgentMlsId (the agent's MLS ID, not ListAgentKey)
+        listingAgentMlsId: String(l.listAgentMlsId || ''),
         price: Number(l.price) || 0,
         maintCC: Number(l.maintCC) || 0,
         ownership: l.ownership == null ? null : String(l.ownership),
@@ -1450,7 +1452,7 @@ function selectListingForBuyerDeal(index) {
     setVal('buyerListingBrokerageName', listing.listingBrokerage);
     setVal('buyerListingAgentPhone', listing.listingAgentPhone);
     setVal('buyerListingAgentEmail', listing.listingAgentEmail);
-    setVal('buyerListingAgentMlsId', '');
+    setVal('buyerListingAgentMlsId', listing.listingAgentMlsId);
 
     setVal('buyerListPrice', listing.price);
     setVal('buyerMaintCC', listing.maintCC);
