@@ -1148,7 +1148,7 @@ describe.each(PAGES)('$form: another building replaces what the lookup wrote for
       expect([val(f, `${p.bld}Name`), val(f, `${p.bld}YearBuilt`), val(f, `${p.bld}ParkingSpaces`)]).toEqual(['The Plaza Tower', '1961', '12']);
       expect(['Elevator', 'Gym', 'Pool', 'Parking'].map((b) => checked(f, `${p.bld}${b}`))).toEqual([true, true, true, true]);
       expect(attendance(f, p)).toEqual(['DoormanYes', 'ConciergeYes']);
-      if (p.prefix === 'sale') expect([val(f, 'saleMaintCC'), val(f, 'saleMaintCCFreq')]).toEqual(['3000', 'Monthly']);
+      if (p.prefix === 'sale') expect([val(f, 'saleMaintCC'), val(f, 'saleMaintCCFreq')]).toEqual(['', 'Monthly']);                 // Maintenance is the agent's to enter: the building's fee is not prefilled
       await resolveAddress(f, p, '333 East 46th Street Apt 4');
       expect(val(f, `${p.prefix}StreetAddress`)).toBe('333 E 46th St');
       expect(val(f, `${p.prefix}UnitNumber`)).toBe('4');                                             // the new address's unit, not the last one's
@@ -1159,7 +1159,7 @@ describe.each(PAGES)('$form: another building replaces what the lookup wrote for
       expect(attendance(f, p)).toEqual([]);
       expect(chosenType(f, p)).toBe('Condo');
       expect(f.d.getElementById(`${p.prefix}IdxDetectedBuilding`)!.textContent).toBe('');
-      if (p.prefix === 'sale') expect([val(f, 'saleMaintCC'), val(f, 'saleMaintCCFreq')]).toEqual(['1200', 'Quarterly']);
+      if (p.prefix === 'sale') expect([val(f, 'saleMaintCC'), val(f, 'saleMaintCCFreq')]).toEqual(['', 'Monthly']);
     } finally { f.close(); }
   });
 
@@ -1535,11 +1535,11 @@ describe.each(PAGES)('$form: a value a select has no option for does not blank t
   });
 
   if (p.prefix === 'sale') {
-    it('a fee frequency the select does not have leaves the frequency alone', async () => {
+    it('a building fee and a fee frequency the select does not have leave Maintenance and its frequency alone', async () => {
       const f = await bootAddForm(p.form, { buildings: [{ ...COOP, association_fee: 900, association_fee_frequency: 'SeeRemarks' }], settle: 600 });
       try {
         await resolveAddress(f, p, '200 East 66th Street');
-        expect([val(f, 'saleMaintCC'), val(f, 'saleMaintCCFreq')]).toEqual(['900', 'Monthly']);
+        expect([val(f, 'saleMaintCC'), val(f, 'saleMaintCCFreq')]).toEqual(['', 'Monthly']);
       } finally { f.close(); }
     });
   }
