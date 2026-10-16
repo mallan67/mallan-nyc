@@ -87,7 +87,6 @@ describe('RENTAL-FORM-WITH-TOOLS: a synced listing', () => {
     const b = await open('RENTAL-FORM-WITH-TOOLS', record('rent', {}, { BuildingFeatures: ['Historic District', 'LEED Certified', 'Board Approval Required', 'Elevators'] }));
     try {
       for (const id of ['bldgHistoric', 'bldgLEED', 'bldgBoardApproval']) expect({ id, on: (b.d.getElementById(id) as HTMLInputElement).checked }).toEqual({ id, on: true });
-      expect((b.d.getElementById('bldgLEED') as HTMLInputElement).checked).toBe(false);
     } finally { b.close(); }
   });
 

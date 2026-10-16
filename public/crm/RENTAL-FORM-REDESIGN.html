@@ -6230,6 +6230,9 @@ function collectRentalFormData() {
     delete data.rentalCooling;
     data.Heating = _rentalGroup('rentalHeating');
     data.Cooling = _rentalGroup('rentalCooling');
+    delete data.rentalRentIncludes;
+    var _rentIncludes = _rentalGroup('rentalRentIncludes');
+    if (_rentIncludes.length) data.RentIncludes = _rentIncludes;
     ['rentalCommSubtype', 'rentalBusinessType', 'rentalTHDocsAvailable', 'bldgHeating', 'bldgCooling', 'bldgDocsAvailable'].forEach(function(name) {
         data[name] = _rentalGroup(name);
     });

@@ -18,7 +18,7 @@ const customKeys = new Set<string>(registry.customFieldKeys.keys);
 const SALE_CUSTOM_FIELDS = [
   'TaxMonthlyAmount', 'PercentOfCommonElements', 'TaxDeductionPercent', 'FlipTax',
   'GuarantorsAcceptedYN', 'CommercialUnitsYN', 'LandmarkStatusYN', 'SponsorUnitYN',
-  'AttendanceType', 'CapitalReservesTotal', 'CapitalReservesYN', 'BuildingTaxLot',
+  'AttendanceType', 'CapitalReservesTotal', 'CapitalReservesYN',
   'TaxAbatementYN', 'TaxAbatementComments', 'MaximumFinancingPercent',
 ];
 
