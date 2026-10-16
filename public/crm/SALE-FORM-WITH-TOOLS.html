@@ -404,19 +404,15 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         <!-- RLS Listing Agreement Types -->
                         <label class="flex items-center gap-2 cursor-pointer text-sm">
                             <input type="radio" name="saleListingType" value="ExclusiveRightToSell" class="w-4 h-4" checked onchange="handleSaleListingTypeChange(this.value)" data-concept-disposition="mallan-internal"> <span class="font-semibold">Exclusive Right to Sell</span>
-                            <span class="text-[9px] text-gray-400">(ExclusiveRightToSell)</span>
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer text-sm">
                             <input type="radio" name="saleListingType" value="ExclusiveAgency" class="w-4 h-4" onchange="handleSaleListingTypeChange(this.value)"> Exclusive Agency
-                            <span class="text-[9px] text-gray-400">(ExclusiveAgency)</span>
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer text-sm">
                             <input type="radio" name="saleListingType" value="ExclusiveRightWithException" class="w-4 h-4" onchange="handleSaleListingTypeChange(this.value)"> Exclusive w/ Exception
-                            <span class="text-[9px] text-gray-400">(ExclusiveRightWithException)</span>
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer text-sm">
                             <input type="radio" name="saleListingType" value="CoExclusiveAgency" class="w-4 h-4" onchange="handleSaleListingTypeChange(this.value)"> Co-Exclusive
-                            <span class="text-[9px] text-gray-400">(CoExclusiveAgency)</span>
                         </label>
                         <!-- Non-RLS / Permission-based -->
                         <div class="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5">
@@ -427,11 +423,9 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         </div>
                         <label class="flex items-center gap-2 cursor-pointer text-sm">
                             <input type="radio" name="saleListingType" value="OwnerOptOut" class="w-4 h-4" onchange="handleSaleListingTypeChange(this.value)"> Owner Opt-Out
-                            <span class="text-[9px] text-gray-400">(Permissions=OwnerOptOut)</span>
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer text-sm">
                             <input type="radio" name="saleListingType" value="ParticipantOnly" class="w-4 h-4" onchange="handleSaleListingTypeChange(this.value)"> Participant Only
-                            <span class="text-[9px] text-gray-400">(Permissions=Private)</span>
                         </label>
                     </div>
 
@@ -444,22 +438,22 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                             </div>
                             <div class="p-5 space-y-4 text-sm">
                                 <div class="border-l-4 border-blue-500 pl-3">
-                                    <p class="font-bold text-gray-900">Exclusive Right to Sell <span class="text-[10px] text-gray-400 font-normal">(ExclusiveRightToSell)</span></p>
+                                    <p class="font-bold text-gray-900">Exclusive Right to Sell</p>
                                     <p class="text-gray-600 mt-1">The broker earns commission <strong>no matter who sells the property</strong> — even if the owner finds the buyer themselves. This is the most common and most protective listing agreement.</p>
                                     <p class="text-amber-700 text-xs mt-1"><i class="fas fa-check-circle mr-1"></i>Full RLS distribution. Full commission protection.</p>
                                 </div>
                                 <div class="border-l-4 border-amber-500 pl-3">
-                                    <p class="font-bold text-gray-900">Exclusive Agency <span class="text-[10px] text-gray-400 font-normal">(ExclusiveAgency)</span></p>
+                                    <p class="font-bold text-gray-900">Exclusive Agency</p>
                                     <p class="text-gray-600 mt-1">One broker is the exclusive agent, <strong>but if the owner sells the property themselves (no broker involved), they do NOT owe commission.</strong> The broker only earns commission if the sale goes through the brokerage.</p>
                                     <p class="text-amber-700 text-xs mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>RLS eligible, but less commission protection for the agent.</p>
                                 </div>
                                 <div class="border-l-4 border-purple-500 pl-3">
-                                    <p class="font-bold text-gray-900">Exclusive Right w/ Exception <span class="text-[10px] text-gray-400 font-normal">(ExclusiveRightWithException)</span></p>
+                                    <p class="font-bold text-gray-900">Exclusive Right w/ Exception</p>
                                     <p class="text-gray-600 mt-1">Same as Exclusive Right to Sell, <strong>except for specific named exceptions</strong> listed in the agreement (e.g., "If buyer is John Smith, no commission owed"). Commission is owed on all other sales.</p>
                                     <p class="text-purple-700 text-xs mt-1"><i class="fas fa-file-contract mr-1"></i>RLS eligible. Document the exceptions in the listing agreement.</p>
                                 </div>
                                 <div class="border-l-4 border-teal-500 pl-3">
-                                    <p class="font-bold text-gray-900">Co-Exclusive <span class="text-[10px] text-gray-400 font-normal">(CoExclusiveAgency)</span></p>
+                                    <p class="font-bold text-gray-900">Co-Exclusive</p>
                                     <p class="text-gray-600 mt-1"><strong>Two listing agents share the exclusive right.</strong> Either listing agent can sell the property. Commission is owed regardless of who finds the buyer. The co-brokering terms must be in writing.</p>
                                     <p class="text-teal-700 text-xs mt-1"><i class="fas fa-handshake mr-1"></i>RLS eligible. Both listing agents and their offices are named on the listing.</p>
                                 </div>
@@ -471,11 +465,11 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                                 </div>
                                 <hr class="border-gray-200">
                                 <div class="border-l-4 border-gray-400 pl-3">
-                                    <p class="font-bold text-gray-900">Owner Opt-Out <span class="text-[10px] text-gray-400 font-normal">(Permissions=OwnerOptOut)</span></p>
+                                    <p class="font-bold text-gray-900">Owner Opt-Out</p>
                                     <p class="text-gray-600 mt-1">Owner has signed Exhibit B opting out of public distribution. Listing goes to RLS <strong>but is hidden from all public channels</strong> (IDX, syndication, portals). Only visible to RLS Participants directly.</p>
                                 </div>
                                 <div class="border-l-4 border-gray-400 pl-3">
-                                    <p class="font-bold text-gray-900">Participant Only <span class="text-[10px] text-gray-400 font-normal">(Permissions=Private)</span></p>
+                                    <p class="font-bold text-gray-900">Participant Only</p>
                                     <p class="text-gray-600 mt-1">Similar to Owner Opt-Out but <strong>set by the broker</strong> (not the owner). Listing is on RLS but not displayed publicly. Visible only to authorized RLS Participants.</p>
                                 </div>
                             </div>
@@ -692,11 +686,11 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <div class="flex items-center justify-between mb-1">
                     <span class="text-sm font-semibold text-gray-700">Display estimated sale price for comparable property</span>
                     <div class="flex items-center gap-3">
-                        <label class="flex items-center gap-1 cursor-pointer text-sm"><input type="radio" name="saleInternetAVMDisplayYN" value="Yes" class="w-4 h-4" checked data-concept="InternetAutomatedValuationDisplayYN"> Y</label>
-                        <label class="flex items-center gap-1 cursor-pointer text-sm"><input type="radio" name="saleInternetAVMDisplayYN" value="No" class="w-4 h-4" data-concept="InternetAutomatedValuationDisplayYN"> N</label>
+                        <label class="flex items-center gap-1 cursor-pointer text-sm"><input type="radio" name="saleInternetAVMDisplayYN" value="Yes" class="w-4 h-4" checked data-concept="InternetAutomatedValuationDisplayYN"> Yes</label>
+                        <label class="flex items-center gap-1 cursor-pointer text-sm"><input type="radio" name="saleInternetAVMDisplayYN" value="No" class="w-4 h-4" data-concept="InternetAutomatedValuationDisplayYN"> No</label>
                     </div>
                 </div>
-                <p class="text-[10px] text-gray-500">RLS/RESO/IDX: InternetAutomatedValuationDisplayYN — Controls whether Zillow/Redfin can show AVM estimates</p>
+                <p class="text-[10px] text-gray-500">Controls whether Zillow, Redfin and similar sites can show their automated value estimate</p>
             </div>
         </div>
 
@@ -1105,30 +1099,25 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 </div>
                 <div>
                     <label class="field-label">Flip Tax Type</label>
-                    <select id="saleFlipTaxType" class="field-input">
+                    <select id="saleFlipTaxType" class="field-input" data-concept="FlipTaxType">
                         <option value="">Select Type</option>
-                        <option value="Percentage">Percentage</option>
-                        <option value="FixedAmount">Fixed Amount</option>
-                        <option value="PerShare">Per Share</option>
+                        <option value="Percent">Percentage</option>
+                        <option value="Dollars">Fixed Amount</option>
+                        <option value="SeeRemarks">See Remarks</option>
                     </select>
                 </div>
                 <div>
                     <label class="field-label">Paid By</label>
-                    <select id="saleFlipTaxPaidBy" class="field-input">
+                    <select id="saleFlipTaxPaidBy" class="field-input" data-concept-disposition="mallan-internal">
                         <option value="">Select...</option>
                         <option value="Seller">Seller</option>
                         <option value="Buyer">Buyer</option>
                         <option value="Split">Split</option>
                     </select>
                 </div>
-                <div class="flex items-end">
-                    <button class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 w-full">
-                        <i class="fas fa-building mr-2"></i> Copy Building Flip Tax
-                    </button>
-                </div>
             </div>
             <label class="field-label">Flip Tax Remarks</label>
-            <textarea id="saleFlipTaxRemarks" rows="2" placeholder="Additional flip tax information..." class="field-input"></textarea>
+            <textarea id="saleFlipTaxRemarks" rows="2" placeholder="Additional flip tax information..." class="field-input" data-concept="FlipTaxRemarks"></textarea>
         </div>
 
         <!-- Building Requirements -->
@@ -1174,8 +1163,8 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 </div>
                 <div class="flex items-center gap-3">
                     <span class="text-sm font-medium text-gray-700 whitespace-nowrap">Cert of Occupancy</span>
-                    <label class="flex items-center gap-1 cursor-pointer text-sm"><input type="radio" name="saleCertOccupancy" value="Yes" class="w-4 h-4" data-concept-disposition="mallan-internal"> Yes</label>
-                    <label class="flex items-center gap-1 cursor-pointer text-sm"><input type="radio" name="saleCertOccupancy" value="No" class="w-4 h-4"> No</label>
+                    <label class="flex items-center gap-1 cursor-pointer text-sm"><input type="radio" name="saleCertOccupancy" value="Yes" class="w-4 h-4" data-concept="CertificateOfOccupancyYN"> Yes</label>
+                    <label class="flex items-center gap-1 cursor-pointer text-sm"><input type="radio" name="saleCertOccupancy" value="No" class="w-4 h-4" data-concept="CertificateOfOccupancyYN"> No</label>
                 </div>
             </div>
         </div>
@@ -1254,7 +1243,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                 <div>
                     <!-- RLS/RESO/IDX: Concessions (REQ) -->
-                    <label class="field-label">Concessions <span class="text-xs text-gray-400">(RLS/RESO/IDX: Concessions)</span></label>
+                    <label class="field-label">Concessions</label>
                     <select id="saleConcessions" class="field-input" data-concept="Concessions">
                         <option value="">Select</option>
                         <option value="Yes">Yes</option>
@@ -1264,12 +1253,12 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 </div>
                 <div>
                     <!-- RLS/RESO/IDX: ConcessionsAmount (Conditional: if Concessions=Yes) -->
-                    <label class="field-label">Concession Amount <span class="text-xs text-gray-400">(RLS/RESO/IDX: ConcessionsAmount)</span></label>
+                    <label class="field-label">Concession Amount</label>
                     <input type="number" id="saleConcessionAmount" placeholder="$0" class="field-input" data-concept="ConcessionsAmount">
                 </div>
                 <div>
                     <!-- RLS/RESO/IDX: ConcessionsComments (Conditional: if Concessions=Yes) -->
-                    <label class="field-label">Concession Comments <span class="text-xs text-gray-400">(RLS/RESO/IDX: ConcessionsComments)</span></label>
+                    <label class="field-label">Concession Comments</label>
                     <input type="text" id="saleConcessionComments" placeholder="Describe concessions..." class="field-input" data-concept="ConcessionsComments">
                 </div>
             </div>
