@@ -336,8 +336,10 @@
     // collection in collect, no entry here). See audit §2.
     { rls: 'saleBldgHeating', name: 'saleBldgHeating', fallbackRls: 'BuildingHeating' }, // internal; BuildingHeating not in Cotality
     { rls: 'saleBldgCooling', name: 'saleBldgCooling', fallbackRls: 'BuildingCooling' }, // internal; BuildingCooling not in Cotality
-    { rls: 'saleBldgDocsAvailable', name: 'saleBldgDocsAvailable' },
-    { rls: 'saleTHDocsAvailable', name: 'saleTHDocsAvailable' },
+    // saved before the live Cotality names were used: the box the old word stood for is ticked
+    { rls: 'saleBldgDocsAvailable', name: 'saleBldgDocsAvailable', valueMap: { FinancialStatement: 'Financials', OwnerOptOutAuthorization: 'OwnerOptOut', ResaleBoardPackageTemplate: 'ResalePackage' } },
+    // saved before the live Cotality names were used: the box the old word stood for is ticked
+    { rls: 'saleTHDocsAvailable', name: 'saleTHDocsAvailable', valueMap: { FinancialStatement: 'Financials', OwnerOptOutAuthorization: 'OwnerOptOut', ResaleBoardPackageTemplate: 'ResalePackage' } },
     { rls: 'saleBusinessType', name: 'saleBusinessType' },
     // ── Class C (2026-05-28) ──
     // 17 newly-named checkbox groups, previously unnamed <input>s. The HTML
