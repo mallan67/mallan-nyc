@@ -156,7 +156,7 @@ function getMapperFields() {
   const select = allRls;
   const reqMatch = mapper.match(/REQUIRED_RLS_FIELDS\s*=\s*\[\s*([\s\S]*?)\]/);
   const required = new Set();
-  if (reqMatch) { for (const n of (reqMatch[1].match(/"([^"]+)"/g) || [])) required.add(n.replace(/"/g, '')); }
+  if (reqMatch) { const listBody = reqMatch[1].replace(/^\s*\/\/.*$/gm, ''); for (const n of (listBody.match(/"([^"]+)"/g) || [])) required.add(n.replace(/"/g, '')); }
   return { allRls, select, required, blocks, content: mapper };
 }
 
@@ -562,7 +562,7 @@ function section11() {
 function section12() {
   const s = startSection(12, 'RBAC / Authorization on Mutations', 'Auth & Security');
   const routes = findFiles('app/api', '.ts').filter(f => f.endsWith('route.ts'));
-  const authPatterns = /requireAgentOrBroker|requireBroker|requireAuth|requireSession|getSession|CRON_SECRET|requireWorkspace|requirePortalRole|requirePortalAuth/;
+  const authPatterns = /requireAgentOrBroker|requireBroker|requireAuth|requireSession|getSession|CRON_SECRET|authorizeRequest|requireWorkspace|requirePortalRole|requirePortalAuth/;
   for (const file of routes) {
     const content = readFile(file);
     if (!content) continue;
