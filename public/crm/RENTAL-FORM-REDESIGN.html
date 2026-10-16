@@ -1035,8 +1035,8 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label mb-2">Smoking Allowed</label>
                     <div class="flex gap-4">
-                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalSmoking" value="Yes" class="w-4 h-4" data-concept="BuildingSmokeFreeYN"> Yes</label>
-                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalSmoking" value="No" class="w-4 h-4" data-concept="BuildingSmokeFreeYN"> No</label>
+                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalSmoking" value="Yes" class="w-4 h-4" data-concept-disposition="mallan-internal"> Yes</label>
+                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalSmoking" value="No" class="w-4 h-4" data-concept-disposition="mallan-internal"> No</label>
                     </div>
                 </div>
                 <div>
@@ -1289,10 +1289,10 @@ body { font-family: Manrope, sans-serif; }
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                     <label class="field-label">Lease Term</label>
-                    <select id="rentalLeaseTerm" class="field-input" data-concept-disposition="mallan-internal">
+                    <select id="rentalLeaseTerm" class="field-input" data-concept="LeaseTerm">
                         <option value="">Select Term</option>
-                        <option value="ShortTerm">Short Term</option>
-                        <option value="Summer">Summer</option>
+                        <option value="ShortTermLease">Short Term</option>
+                        <option value="Seasonal">Summer / Seasonal</option>
                         <option value="MonthToMonth">Month To Month</option>
                         <option value="SixMonths">Six Months</option>
                         <option value="LongTerm">Long Term (1+ Year)</option>
@@ -1308,7 +1308,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label">Min Lease (Months)</label>
-                    <input type="number" id="rentalMinLease" placeholder="12" class="field-input" data-concept="LeaseTerm">
+                    <input type="number" id="rentalMinLease" placeholder="12" class="field-input" data-concept-disposition="mallan-internal">
                 </div>
                 <div>
                     <label class="field-label">Max Lease (Months)</label>
@@ -6394,6 +6394,15 @@ function collectRentalFormData() {
 
     // the unit's feature boxes (exposure, flooring, windows, outdoor space ...) also go to the Cotality fields they belong to (js/forms/unit-feature-fields.js)
     if (window.MallanUnitFeatureFields) MallanUnitFeatureFields.apply(data, 'rental');
+
+    // Smoking Allowed asks the opposite of BuildingSmokeFreeYN: Yes (smoking allowed) is smoke-free = false, No is smoke-free = true; no answer sends nothing
+    if (data.rentalSmoking === 'Yes') data.BuildingSmokeFreeYN = false;
+    else if (data.rentalSmoking === 'No') data.BuildingSmokeFreeYN = true;
+    // LeaseTerm is a live enumeration (MonthToMonth, ThreeMonths, SixMonths, NineMonths, TwelveMonths, TwentyFourMonths ...): the Lease Term list holds its members; a minimum lease of 1 / 3 / 6 / 9 / 12 / 24 / 36 months
+    // says the same when the list is empty, and any other number of months has no member and is not sent
+    var _termByMonths = { 1: 'MonthToMonth', 3: 'ThreeMonths', 6: 'SixMonths', 9: 'NineMonths', 12: 'TwelveMonths', 24: 'TwentyFourMonths', 36: 'ThirtySixMonths' };
+    var _leaseTerm = data.rentalLeaseTerm || _termByMonths[parseInt(data.rentalMinLease, 10)] || '';
+    if (_leaseTerm) data.LeaseTerm = _leaseTerm;
 
     // every control tagged data-concept="X" sends X (js/forms/concept-emit.js); what is set above is kept
     if (typeof emitConceptValues === 'function') emitConceptValues(data);

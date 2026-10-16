@@ -60,3 +60,32 @@ describe.each(['RENTAL-FORM-REDESIGN', 'RENTAL-FORM-WITH-TOOLS'])('%s', (name) =
     }
   });
 });
+
+describe.each(['RENTAL-FORM-REDESIGN', 'RENTAL-FORM-WITH-TOOLS'])('%s: lease term and smoking say what Cotality means', (name) => {
+  const html = readFileSync(resolve(ROOT, `public/crm/${name}.html`), 'utf8');
+  const doc = new JSDOM(html).window.document;
+
+  it('every Lease Term choice is a live LeaseTerm member, and the list is the one control bound to LeaseTerm', () => {
+    const select = doc.getElementById('rentalLeaseTerm') as HTMLSelectElement;
+    expect(select.getAttribute('data-concept')).toBe('LeaseTerm');
+    const members: string[] = live.enums.LeaseTerm;
+    for (const o of [...select.options].filter((x) => x.value)) expect({ value: o.value, live: members.includes(o.value) }).toEqual({ value: o.value, live: true });
+    expect([...doc.querySelectorAll('[data-concept="LeaseTerm"]')].map((e) => e.id)).toEqual(['rentalLeaseTerm']);       // Min Lease (a number of months) is not sent as a LeaseTerm
+  });
+
+  it('Smoking Allowed is not bound to BuildingSmokeFreeYN as it stands: it asks the opposite question', () => {
+    expect(doc.querySelector('[data-concept="BuildingSmokeFreeYN"]')).toBeNull();
+    expect([...doc.querySelectorAll('input[name="rentalSmoking"]')].every((i) => i.getAttribute('data-concept-disposition') === 'mallan-internal')).toBe(true);
+  });
+});
+
+describe('RENTAL-FORM-REDESIGN save payload', () => {
+  const html = readFileSync(resolve(ROOT, 'public/crm/RENTAL-FORM-REDESIGN.html'), 'utf8');
+  it('inverts Smoking Allowed into BuildingSmokeFreeYN and maps a minimum lease to a live LeaseTerm member', () => {
+    expect(html).toContain("if (data.rentalSmoking === 'Yes') data.BuildingSmokeFreeYN = false;");
+    expect(html).toContain("else if (data.rentalSmoking === 'No') data.BuildingSmokeFreeYN = true;");
+    const mapped = [...html.matchAll(/(\d+): '([A-Za-z]+)'/g)].filter((m) => ['MonthToMonth', 'ThreeMonths', 'SixMonths', 'NineMonths', 'TwelveMonths', 'TwentyFourMonths', 'ThirtySixMonths'].includes(m[2])).map((m) => m[2]);
+    expect(new Set(mapped).size).toBe(7);
+    for (const m of new Set(mapped)) expect(live.enums.LeaseTerm).toContain(m);
+  });
+});

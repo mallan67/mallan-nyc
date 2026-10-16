@@ -1012,8 +1012,8 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <div>
                     <label class="field-label mb-2">Smoking Allowed</label>
                     <div class="flex gap-4">
-                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalSmoking" value="Yes" class="w-4 h-4" data-concept="BuildingSmokeFreeYN"> Yes</label>
-                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalSmoking" value="No" class="w-4 h-4" data-concept="BuildingSmokeFreeYN"> No</label>
+                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalSmoking" value="Yes" class="w-4 h-4" data-concept-disposition="mallan-internal"> Yes</label>
+                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalSmoking" value="No" class="w-4 h-4" data-concept-disposition="mallan-internal"> No</label>
                     </div>
                 </div>
                 <div>
@@ -1240,10 +1240,10 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                     <label class="field-label">Lease Term</label>
-                    <select id="rentalLeaseTerm" class="field-input" data-concept-disposition="mallan-internal">
+                    <select id="rentalLeaseTerm" class="field-input" data-concept="LeaseTerm">
                         <option value="">Select Term</option>
-                        <option value="ShortTerm">Short Term</option>
-                        <option value="Summer">Summer</option>
+                        <option value="ShortTermLease">Short Term</option>
+                        <option value="Seasonal">Summer / Seasonal</option>
                         <option value="MonthToMonth">Month To Month</option>
                         <option value="SixMonths">Six Months</option>
                         <option value="LongTerm">Long Term (1+ Year)</option>
@@ -1259,7 +1259,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 </div>
                 <div>
                     <label class="field-label">Min Lease (Months)</label>
-                    <input type="number" id="rentalMinLease" placeholder="12" class="field-input" data-concept="LeaseTerm">
+                    <input type="number" id="rentalMinLease" placeholder="12" class="field-input" data-concept-disposition="mallan-internal">
                 </div>
                 <div>
                     <label class="field-label">Max Lease (Months)</label>

@@ -473,6 +473,8 @@
     { rls: 'SecurityDeposit', form: 'rentalSecurityDeposit', type: 'number', src: 'raw' },
     // Rental fields Cotality carries (live names): a provider record fills them as well as the form's own saved values
     { rls: 'ApplicationFee', form: 'rentalApplicationFee', type: 'number', src: 'raw' },
+    // a listing saved while the list held ShortTerm / Summer: the live members those two answers stand for
+    { rls: 'rentalLeaseTerm', form: 'rentalLeaseTerm', type: 'text', src: 'raw', valueMap: { ShortTerm: 'ShortTermLease', Summer: 'Seasonal' } },
     { rls: 'LastMonthRentReqYN', form: 'rentalLastMonthRentReq', type: 'bool', src: 'raw' },
     { rls: 'RentControlYN', form: 'rentalRentControl', type: 'bool', src: 'raw' },
     { rls: 'SponsorUnitYN', form: 'rentalSponsorUnit', type: 'bool', src: 'raw' },   // the listed unit, not the building
