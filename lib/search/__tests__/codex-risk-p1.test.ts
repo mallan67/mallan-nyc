@@ -8,11 +8,11 @@ function readFile(rel: string): string {
 }
 
 describe("Codex Risk Cleanup P1 static guards", () => {
-  it("CRM search does not collect or locally filter Open House, transit, or grid criteria", () => {
+  it("CRM search collects Open House dates for the server (OpenHouse resource) but does not filter on them locally, and collects no transit or grid criteria", () => {
     const src = readFile("public/crm/js/search/search-engine.js");
 
-    expect(src).not.toMatch(/criteria\.openHouseDateFrom\s*=/);
-    expect(src).not.toMatch(/criteria\.openHouseDateTo\s*=/);
+    expect(src).toMatch(/criteria\.openHouseDateFrom\s*=/);
+    expect(src).toMatch(/criteria\.openHouseDateTo\s*=/);
     expect(src).not.toMatch(/criteria\._transitLines\s*=/);
     expect(src).not.toMatch(/criteria\._transitBounds\s*=/);
     expect(src).not.toMatch(/criteria\._gridBounds\s*=/);

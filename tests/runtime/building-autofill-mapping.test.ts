@@ -53,14 +53,14 @@ describe('fetchBuildingsFromAPI applies type mapping', () => {
 
   it('sets type and model from mapped value', () => {
     const fnStart = formHtml.indexOf('async function fetchBuildingsFromAPI');
-    const fnBody = formHtml.slice(fnStart, fnStart + 3500);
+    const fnBody = formHtml.slice(fnStart, fnStart + 6000);
     expect(fnBody).toContain('type: formType');
     expect(fnBody).toContain('model: formType');
   });
 
   it('preserves raw commonInterestRaw for reference', () => {
     const fnStart = formHtml.indexOf('async function fetchBuildingsFromAPI');
-    const fnBody = formHtml.slice(fnStart, fnStart + 3500);
+    const fnBody = formHtml.slice(fnStart, fnStart + 6000);
     expect(fnBody).toContain('commonInterestRaw: ci');
   });
 });

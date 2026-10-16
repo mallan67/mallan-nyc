@@ -58,22 +58,13 @@ describe("Codex Risk P0 — static frontend source guards", () => {
   describe("Fix #4 — unsupported criteria not silently submitted", () => {
     const src = readFile("public/crm/js/search/search-engine.js");
 
-    it("buildIdxSearchParams does not forward openHouseDateFrom/To", () => {
-      // Old behavior: `params.openHouseDateFrom = criteria.openHouseDateFrom;`
-      // New behavior: the assignment is removed; if criteria contains
-      // these keys we emit a console.warn instead of submitting them.
-      expect(src).not.toMatch(/params\.openHouseDateFrom\s*=\s*criteria\.openHouseDateFrom/);
-      expect(src).not.toMatch(/params\.openHouseDateTo\s*=\s*criteria\.openHouseDateTo/);
+    it("buildIdxSearchParams forwards openHouseDateFrom/To (the route answers them from Cotality's OpenHouse resource)", () => {
+      expect(src).toMatch(/params\.openHouseDateFrom\s*=\s*criteria\.openHouseDateFrom/);
+      expect(src).toMatch(/params\.openHouseDateTo\s*=\s*criteria\.openHouseDateTo/);
     });
 
-    it("buildIdxSearchParams emits a console.warn when stripping openHouseDate criteria", () => {
-      // Defensive trap: agents will know in dev/staging that the
-      // criteria they sent was dropped. Production users see the toast
-      // surface from performSearch() instead, but the warn is the
-      // operational signal for ops/QA.
-      expect(src).toMatch(
-        /Stripped unsupported openHouseDate/i,
-      );
+    it("open house criteria are no longer stripped with a warning", () => {
+      expect(src).not.toMatch(/Stripped unsupported openHouseDate/i);
     });
 
     it("buildIdxSearchParams does not forward _transitBounds or _gridBounds (no Lat/Lng on REBNY feed)", () => {

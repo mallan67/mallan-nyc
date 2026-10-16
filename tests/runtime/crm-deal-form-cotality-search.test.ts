@@ -39,8 +39,11 @@ describe('Buyer/Tenant deal forms consume canonical Cotality search', () => {
   });
 
   it('never shows fabricated MLS ids or mock photos', () => {
-    expect(buyer).toContain("setVal('buyerListingAgentMlsId', '')");
-    expect(tenant).toContain("setVal('tenantListingAgentMlsId', '')");
+    // the agent's MLS ID is Property.ListAgentMlsId as Cotality returned it (empty when it returned none), never made up
+    expect(buyer).toContain("setVal('buyerListingAgentMlsId', listing.listingAgentMlsId)");
+    expect(tenant).toContain("setVal('tenantListingAgentMlsId', listing.listingAgentMlsId)");
+    expect(buyer).toContain("listingAgentMlsId: String(l.listAgentMlsId || '')");
+    expect(tenant).toContain("listingAgentMlsId: String(l.listAgentMlsId || '')");
     expect(buyer).toContain('No mock photos are shown');
     expect(tenant).toContain('No mock photos are shown');
     expect(buyer).not.toContain('var count = listing.photos || 6');

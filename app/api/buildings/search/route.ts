@@ -1,4 +1,5 @@
 // Cotality ref: docs/architecture/COTALITY-COMPLETE-REFERENCE.md §18 (CRM Building Lookup)
+import { classifyBuilding } from '@/lib/buildings/classify-building';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAgentOrBroker, isAuthError } from '@/lib/auth';
@@ -31,7 +32,7 @@ const DIR_PREFIX_MAP: Record<string, string> = {
   northeast: 'NE', northwest: 'NW', southeast: 'SE', southwest: 'SW',
 };
 
-const STREET_SUFFIX_RE = /\s+(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Pl|Place|Ct|Court|Ln|Lane|Way|Terrace|Ter)\.?\s*$/i;
+const STREET_SUFFIX_RE = /\s+(St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Pl|Place|Ct|Court|Ln|Lane|Way|Terrace|Ter|Alley|Aly|Mews|Row|Walk|Plaza|Plz|Parkway|Pkwy|Square|Sq|Circle|Cir|Slip|Path|Loop)\.?\s*$/i;     // Cotality keeps the suffix in StreetSuffix, apart from StreetName ("MacDougal" + "Alley")
 const ORDINAL_RE = /(\d+)(st|nd|rd|th)\b/gi;
 
 function stripSuffix(v: string): string { return v.replace(STREET_SUFFIX_RE, '').trim(); }
@@ -762,8 +763,8 @@ export async function GET(request: NextRequest) {
 
         const SELECT = [
           'ListingId', 'BuildingName', 'YearBuilt', 'StoriesTotal',
-          'NumberOfUnitsInCommunity', 'CommonInterest', 'OwnershipType',
-          'PropertyType', 'PropertySubType', 'StructureType',
+          'NumberOfUnitsInCommunity', 'NumberOfUnitsTotal', 'CommonInterest', 'OwnershipType',
+          'PropertyType', 'PropertySubType', 'StructureType', 'StandardStatus',
           'StreetNumber', 'StreetName', 'StreetSuffix', 'StreetDirPrefix',
           'PostalCode', 'UnitNumber', 'SubdivisionName',
           'City', 'StateOrProvince',
@@ -839,6 +840,10 @@ export async function GET(request: NextRequest) {
         if (res.ok) {
           const data = await res.json();
           const records: CotalityRecord[] = data.value || [];
+          // Every Cotality listing of a building is evidence for its type: the building is classified from all of them after the loop (lib/buildings/classify-building.ts),
+          // not from the first one seen (a condop's listings are tagged StockCooperative on most units and Condop on the rest).
+          const evidence = new Map<object, CotalityRecord[]>();
+          const addEvidence = (b: object, rec: CotalityRecord) => { const list = evidence.get(b); if (list) list.push(rec); else evidence.set(b, [rec]); };
           diag.cotality.resultCount = records.length;
           diag.cotality.firstThreeAddresses = records.slice(0, 3).map(formatAddress);
 
@@ -875,6 +880,7 @@ export async function GET(request: NextRequest) {
               // Re-register so any newly-known key (BK / fuller address) also
               // resolves to this object on a later row.
               registerBuilding(buildingByKey, buildingByAddrOnly, existing, _bkKey, _addrKey, _aoKey);
+              addEvidence(existing, r);
               continue;
             }
 
@@ -949,6 +955,35 @@ export async function GET(request: NextRequest) {
               ...buildingExtras(r),
             });
             registerBuilding(buildingByKey, buildingByAddrOnly, buildings[buildings.length - 1], _bkKey, _addrKey, _aoKey);
+            addEvidence(buildings[buildings.length - 1], r);
+          }
+          // The display query above returns the 20 highest-priced listings: too few to say what a building is. The type is read from every listing of the building, asked for
+          // with only the fields that decide it.
+          const lean = new Map<string, CotalityRecord[]>();
+          if (evidence.size > 0) {
+            try {
+              const evParams = new URLSearchParams({
+                $filter: filter,
+                $select: 'StandardStatus,CommonInterest,PropertySubType,StructureType,NumberOfUnitsTotal,StreetNumber,StreetName,StreetDirPrefix,CityRegion,PostalCode',
+                $orderby: 'ModificationTimestamp desc',
+                $top: '200',
+              });
+              const evRes = await fetch(`${COTALITY_URL}/odata/Property?${evParams}`, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, next: { revalidate: 3600 } });
+              if (evRes.ok) {
+                for (const rec of ((await evRes.json()).value || []) as CotalityRecord[]) {
+                  const k = addressIdentityKey(rec);
+                  const list = lean.get(k); if (list) list.push(rec); else lean.set(k, [rec]);
+                }
+              }
+            } catch { /* the 20 listings already fetched are the evidence */ }
+          }
+          for (const [b, recs] of evidence) {
+            const all = lean.get(addressIdentityKey(recs[0]));
+            const c = classifyBuilding(all && all.length > 0 ? all : recs);
+            const target = b as Record<string, unknown>;
+            if (c.commonInterest) target.common_interest = c.commonInterest;
+            target.building_kind = c.kind;
+            target.ownership_votes = c.votes;
           }
         } else {
           diag.errorClass = 'cotality_non_200';

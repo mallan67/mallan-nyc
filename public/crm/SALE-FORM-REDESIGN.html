@@ -5064,6 +5064,12 @@ function _commonInterestToFormType(ci) {
     return Object.prototype.hasOwnProperty.call(map, ci) ? map[ci] : '';       // "constructor" is not a CommonInterest
 }
 
+// The kinds the server derives from a building's structure (no ownership tag), as the form's property types. These are suggestions: only an ownership tag locks the type.
+function _buildingKindToFormType(kind) {
+    var map = { SingleFamilyTownhouse: 'SingleFamilyTownhouse', MultiFamilyTownhouse: 'MultiFamilyTownhouse', MultiFamily: 'MultiFamily', MixedUse: 'MixedUse', SingleFamily: 'SingleFamily' };
+    return Object.prototype.hasOwnProperty.call(map, kind) ? map[kind] : '';
+}
+
 // Fetch buildings from API by address query
 async function fetchBuildingsFromAPI(query) {
     if (!query || query.length < 3) return [];
@@ -5095,7 +5101,8 @@ async function fetchBuildingsFromAPI(query) {
         buildings = _textRecords(buildings);
         return buildings.map(function(b) {
             var ci = b.common_interest == null ? '' : b.common_interest;
-            var formType = _commonInterestToFormType(ci);
+            // the ownership tag, else what the building is (townhouse, multi-family, mixed use, single family): the server read it from all of the building's Cotality listings
+            var formType = _commonInterestToFormType(ci) || _buildingKindToFormType(b.building_kind);
             var rawAddr = b.address || b.street_address || '';
             var bldgName = b.name || b.building_name || '';
             // the building's address is its address: a name that happens to contain the street number ("Beekman Tower 55") is a name, not the address

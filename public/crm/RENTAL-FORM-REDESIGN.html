@@ -4339,6 +4339,12 @@ function _rentalRawClassificationToFormType(commonInterest, propertySubType) {
     return own(bySubType, propertySubType);
 }
 
+// What a building is when Cotality carries no ownership tag for it: the kinds the server derives from its structure, as the form's property types (suggestions: only an ownership tag locks).
+function _rentalBuildingKindToFormType(kind) {
+    var map = { SingleFamilyTownhouse: 'SingleFamilyTownhouse', MultiFamilyTownhouse: 'MultiFamilyTownhouse', MultiFamily: 'MultiFamily', MixedUse: 'MixedUse', SingleFamily: 'SingleFamily' };
+    return Object.prototype.hasOwnProperty.call(map, kind) ? map[kind] : '';
+}
+
 // Fetch buildings from API by address query. This is the Sale form's lookup: every field the API returned is kept (the building's tax block / lot, association, amenities,
 // pet and laundry policy, ... are read from the full object when a building is chosen), the API's hint is shown when it has one, and only the display fields and the
 // form's classification are added. The classification is read from the building's Cotality CommonInterest; a building that has none is classified from its sub-type.
@@ -4372,7 +4378,8 @@ async function fetchBuildingsFromAPI(query) {
         buildings = _textRecords(buildings);
         return buildings.map(function(b) {
             var ci = b.common_interest == null ? '' : b.common_interest;
-            var formType = _rentalRawClassificationToFormType(b.common_interest || '', b.property_sub_type || '');
+            // the ownership tag, else the sub-type, else what the server read from all of the building's Cotality listings (townhouse, multi-family, mixed use, single family)
+            var formType = _rentalRawClassificationToFormType(b.common_interest || '', b.property_sub_type || '') || _rentalBuildingKindToFormType(b.building_kind);
             var rawAddr = b.address || b.street_address || '';
             var bldgName = b.name || b.building_name || '';
             // the building's address is its address: a name that happens to contain the street number ("Beekman Tower 55") is a name, not the address

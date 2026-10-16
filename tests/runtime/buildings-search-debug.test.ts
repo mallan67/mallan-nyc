@@ -10,6 +10,11 @@ import { parseAddressQuery } from '@/app/api/buildings/search/route';
 // ── parseAddressQuery unit tests ──
 
 describe('parseAddressQuery', () => {
+  it('drops a suffix Cotality keeps apart from StreetName: "9 MacDougal Alley" asks for MacDougal (live: StreetName MacDougal, StreetSuffix Alley)', () => {
+    expect(parseAddressQuery('9 MacDougal Alley')).toEqual({ streetNumber: '9', streetName: 'macdougal' });
+    expect(parseAddressQuery('40 Gay Street')).toEqual({ streetNumber: '40', streetName: 'gay' });
+  });
+
   it('parses "333 East 46th Street"', () => {
     const result = parseAddressQuery('333 East 46th Street');
     expect(result).toEqual({
