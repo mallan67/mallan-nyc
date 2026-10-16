@@ -501,7 +501,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         <input type="radio" name="rentalCoBrokeAgreement" value="Ucba" class="w-4 h-4" checked data-concept-disposition="mallan-internal" data-removed-field="CoBrokeAgreement"> UCBA (Universal Co-Brokerage)
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer text-sm">
-                        <input type="radio" name="rentalCoBrokeAgreement" value="Rundba" class="w-4 h-4"> RUNDBA
+                        <input type="radio" name="rentalCoBrokeAgreement" value="Rundba" class="w-4 h-4"> REBNY Universal New Development Brokerage Agreement (RUNDBA)
                     </label>
                 </div>
             </div>
@@ -1753,7 +1753,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
             <label class="field-label">Bedrooms <span class="text-red-500">*</span></label>
             <select id="rentalBedrooms" class="field-input" required data-concept="BedroomsTotal">
                 <option value="custom">Custom</option>
-                <option value="Studio">Studio</option>
+                <option value="0">Studio / 0 bedrooms</option>
                 <option value="1">1</option><option value="2">2</option><option value="3">3</option>
                 <option value="4">4</option><option value="5">5</option><option value="6+">6+</option>
             </select>
@@ -1805,12 +1805,12 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
         </div>
         <div>
             <label class="field-label">Unit Type</label>
-            <select id="rentalUnitType" class="field-input" data-concept="PropertySubType">
+            <select id="rentalUnitType" class="field-input" data-concept-disposition="mallan-internal">
                 <option value="">Select Type</option>
                 <option value="Apartment">Apartment</option>
-                <option value="Apartment">Penthouse (Apartment)</option>
-                <option value="Apartment">Studio (Apartment)</option>
-                <option value="Apartment">Alcove Studio (Apartment)</option>
+                <option value="Penthouse">Penthouse (Apartment)</option>
+                <option value="Studio">Studio (Apartment)</option>
+                <option value="AlcoveStudio">Alcove Studio (Apartment)</option>
                 <option value="Duplex">Duplex</option>
                 <option value="Triplex">Triplex</option>
                 <option value="Quadruplex">Quadruplex</option>

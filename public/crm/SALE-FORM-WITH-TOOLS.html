@@ -525,7 +525,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <select id="saleCoBrokeAgreementType" class="field-input max-w-md" required data-concept-disposition="mallan-internal" data-removed-field="CoBrokeAgreement">
                     <option value="">-- Select CoBroke Agreement Type --</option>
                     <option value="Ucba">REBNY Universal Co-broke (UCBA)</option>
-                    <option value="Rundba">RUNDBA</option>
+                    <option value="Rundba">REBNY Universal New Development Brokerage Agreement (RUNDBA)</option>
                 </select>
             </div>
             <!-- Commission Negotiability -->
@@ -636,7 +636,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <input type="number" id="salePrice" placeholder="$0" class="field-input" required data-concept="ListPrice">
                 </div>
                 <div id="saleMaintCCField">
-                    <label class="field-label">Maint/CC <span class="text-red-500 sale-req-star hidden">*</span></label>
+                    <label class="field-label"><span id="saleMaintCCLabelText">Maint/CC</span> <span class="text-red-500 sale-req-star hidden">*</span></label>
                     <input type="number" id="saleMaintCC" placeholder="$0.00" step="0.01" class="field-input" data-concept="AssociationFee">
                 </div>
                 <div id="saleMaintCCFreqField">
@@ -998,8 +998,12 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
-                    <label class="field-label">Available for Showing</label>
-                    <div class="relative"><input type="date" id="saleFirstShowingDate" class="field-input" data-concept="OnMarketDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
+                    <label class="field-label">Activation Date</label>
+                    <div class="relative"><input type="datetime-local" id="saleFirstShowingDate" class="field-input" data-concept="ActivationDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
+                </div>
+                <div>
+                    <label class="field-label">First Showing Date</label>
+                    <div class="relative"><input type="date" id="saleStartShowingDate" class="field-input" data-concept="StartShowingDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
                 </div>
                 <div>
                     <label class="field-label">Availability Comments</label>
@@ -1830,7 +1834,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <div>
                     <!-- REBNY I15: UnitNumber (Floor + Line = Apt #, e.g., 26B) -->
                     <label class="field-label">Line in Building</label>
-                    <input type="text" id="saleLineInBuilding" placeholder="e.g., B" class="field-input" data-concept-disposition="mallan-internal">
+                    <input type="text" id="saleLineInBuilding" placeholder="e.g., B" class="field-input" data-concept="UnitLine">
                 </div>
             </div>
         </div>
@@ -6172,6 +6176,9 @@ function applySalesFieldRules() {
     const buildingStatus = document.querySelector('input[name="saleBuildingStatus"]:checked')?.value || 'Resale';
     // Toggle Office/Retail building type sub-selector
     toggleOfficeRetailBuildingType('sale');
+    // The monthly charge is Maintenance in a co-op (its tax is included, so no RE Taxes box) and Common Charges in a condo (RE Taxes are separate)
+    var _feeLabel = document.getElementById('saleMaintCCLabelText');
+    if (_feeLabel) _feeLabel.textContent = propertyType === 'Coop' ? 'Maintenance' : propertyType === 'Condo' ? 'Common Charges' : 'Maint/CC';
     // Resolve the listing subtype
     const subtype = resolveListingSubtype(propertyType, commercialOwnership, buildingStatus);
     // Apply visibility rules

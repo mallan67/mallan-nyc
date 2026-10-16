@@ -562,7 +562,7 @@ body { font-family: Manrope, sans-serif; }
                 <select id="saleCoBrokeAgreementType" class="field-input max-w-md" required data-concept-disposition="mallan-internal" data-removed-field="CoBrokeAgreement">
                     <option value="">-- Select CoBroke Agreement Type --</option>
                     <option value="Ucba">REBNY Universal Co-broke (UCBA)</option>
-                    <option value="Rundba">RUNDBA</option>
+                    <option value="Rundba">REBNY Universal New Development Brokerage Agreement (RUNDBA)</option>
                 </select>
             </div>
             <!-- Commission Negotiability -->
@@ -670,7 +670,7 @@ body { font-family: Manrope, sans-serif; }
                     <input type="number" id="salePrice" placeholder="$0" class="field-input" required data-concept="ListPrice">
                 </div>
                 <div id="saleMaintCCField">
-                    <label class="field-label">Maint/CC <span class="text-red-500 sale-req-star hidden">*</span></label>
+                    <label class="field-label"><span id="saleMaintCCLabelText">Maint/CC</span> <span class="text-red-500 sale-req-star hidden">*</span></label>
                     <input type="number" id="saleMaintCC" placeholder="$0.00" step="0.01" class="field-input" data-concept="AssociationFee">
                 </div>
                 <div id="saleMaintCCFreqField">
@@ -1103,9 +1103,16 @@ body { font-family: Manrope, sans-serif; }
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
-                    <label class="field-label">First Showing Date</label>
+                    <label class="field-label">Activation Date</label>
                     <div class="relative"><input type="datetime-local" id="saleFirstShowingDate" class="field-input" data-concept="ActivationDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
-                    <p class="text-[10px] text-gray-400">RLS: FirstShowingDate — Date/time of first allowed showing.</p>
+                    <p class="text-[10px] text-gray-400">The date the listing goes active.</p>
+
+                </div>
+                <div>
+                    <label class="field-label">First Showing Date</label>
+                    <div class="relative"><input type="date" id="saleStartShowingDate" class="field-input" data-concept="StartShowingDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
+                    <p class="text-[10px] text-gray-400">The first date showings are allowed.</p>
+
                 </div>
                 <div>
                     <label class="field-label">Availability Comments</label>
@@ -1942,7 +1949,7 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <!-- REBNY I15: UnitNumber (Floor + Line = Apt #, e.g., 26B) -->
                     <label class="field-label">Line in Building</label>
-                    <input type="text" id="saleLineInBuilding" placeholder="e.g., B" class="field-input" data-concept-disposition="mallan-internal">
+                    <input type="text" id="saleLineInBuilding" placeholder="e.g., B" class="field-input" data-concept="UnitLine">
                 </div>
             </div>
         </div>
@@ -5504,32 +5511,7 @@ function populateBuildingFromIDX(prefix, building) {
     setIfPresent(prefix + 'BldgTaxLot', pick('tax_lot', 'taxLot'));
     setIfPresent(prefix + 'BldgAnnualTaxes', pick('tax_annual_amount', 'taxAnnualAmount'));
     setIfPresent(prefix + 'BldgAssociationName', pick('association_name', 'associationName'));
-    // AssociationFee / AssociationFeeFrequency are real Cotality fields returned
-    // by /api/buildings/search (association_fee / association_fee_frequency) and
-    // live on the main Financials tab (#saleMaintCC / #saleMaintCCFreq →
-    // data-concept AssociationFee / AssociationFeeFrequency). They were never
-    // auto-filled on building lookup. Fill them ONLY when empty so a building's
-    // common charge/frequency populates without clobbering an agent-entered
-    // unit value. (Track 1 building auto-fill.)
-    var _assocFee = pick('association_fee', 'associationFee');
-    var _maintEl = document.getElementById('saleMaintCC');
-    var _filledMaint = false;
-    if (_maintEl && !(_maintEl.value || '').trim() && _assocFee !== null && _assocFee !== undefined && _assocFee !== '') {
-        _maintEl.value = _assocFee;
-        _filledMaint = true;
-    }
-    // Fee Frequency defaults to "Monthly" (a non-empty <option selected>), so an
-    // only-when-empty guard would NEVER apply a building's Weekly/Quarterly/etc.
-    // value — it would silently save the Monthly default (Codex review on #296).
-    // Tie the frequency to the fee: set it from the building ONLY when we just
-    // auto-filled the maintenance amount (i.e. the agent hadn't entered their
-    // own). If the agent typed a maintenance value we touch neither — building
-    // auto-fill is all-or-nothing for the fee/frequency pair.
-    var _assocFreq = pick('association_fee_frequency', 'associationFeeFrequency');
-    var _freqEl = document.getElementById('saleMaintCCFreq');
-    if (_freqEl && _filledMaint && _assocFreq) {
-        setValue(_freqEl, _assocFreq);
-    }
+    // The building's association fee is not copied here: a listing of the building is one unit's charge (Maintenance / Common Charges depend on the unit), so the agent enters this unit's amount.
 
     // ── 6. Subletting / pet / Wd policy ──────────────────────────────
     checkIf(prefix + 'BldgSublettingAllowed', pick('renting_allowed_yn', 'rentingAllowedYN'));
@@ -7042,6 +7024,9 @@ function applySalesFieldRules() {
     const buildingStatus = document.querySelector('input[name="saleBuildingStatus"]:checked')?.value || 'Resale';
     // Toggle Office/Retail building type sub-selector
     toggleOfficeRetailBuildingType('sale');
+    // The monthly charge is Maintenance in a co-op (its tax is included, so no RE Taxes box) and Common Charges in a condo (RE Taxes are separate)
+    var _feeLabel = document.getElementById('saleMaintCCLabelText');
+    if (_feeLabel) _feeLabel.textContent = propertyType === 'Coop' ? 'Maintenance' : propertyType === 'Condo' ? 'Common Charges' : 'Maint/CC';
     // Resolve the listing subtype
     const subtype = resolveListingSubtype(propertyType, commercialOwnership, buildingStatus);
     // Apply visibility rules

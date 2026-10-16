@@ -501,7 +501,7 @@ body { font-family: Manrope, sans-serif; }
                         <input type="radio" name="rentalCoBrokeAgreement" value="Ucba" class="w-4 h-4" checked data-concept-disposition="mallan-internal" data-removed-field="CoBrokeAgreement"> UCBA (Universal Co-Brokerage)
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer text-sm">
-                        <input type="radio" name="rentalCoBrokeAgreement" value="Rundba" class="w-4 h-4"> RUNDBA
+                        <input type="radio" name="rentalCoBrokeAgreement" value="Rundba" class="w-4 h-4"> REBNY Universal New Development Brokerage Agreement (RUNDBA)
                     </label>
                 </div>
             </div>
@@ -1091,9 +1091,16 @@ body { font-family: Manrope, sans-serif; }
                     </div>
                 </div>
                 <div>
-                    <label class="field-label">First Showing Date</label>
+                    <label class="field-label">Activation Date</label>
                     <div class="relative"><input type="datetime-local" id="rentalFirstShowingDate" class="field-input" data-concept="ActivationDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
-                    <p class="text-[10px] text-gray-400">RLS: FirstShowingDate — Date/time of first allowed showing.</p>
+                    <p class="text-[10px] text-gray-400">The date the listing goes active.</p>
+
+                </div>
+                <div>
+                    <label class="field-label">First Showing Date</label>
+                    <div class="relative"><input type="date" id="rentalStartShowingDate" class="field-input" data-concept="StartShowingDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
+                    <p class="text-[10px] text-gray-400">The first date showings are allowed.</p>
+
                 </div>
                 <div id="rentalOffMarketDateField" style="display:none;">
                     <label class="field-label">Off Market Date</label>
@@ -1830,7 +1837,7 @@ body { font-family: Manrope, sans-serif; }
             <label class="field-label">Bedrooms <span class="text-red-500">*</span></label>
             <select id="rentalBedrooms" class="field-input" required data-concept="BedroomsTotal">
                 <option value="custom">Custom</option>
-                <option value="Apartment">Studio (Apartment)</option>
+                <option value="0">Studio / 0 bedrooms</option>
                 <option value="1">1</option><option value="2">2</option><option value="3">3</option>
                 <option value="4">4</option><option value="5">5</option><option value="6+">6+</option>
             </select>
@@ -1882,12 +1889,12 @@ body { font-family: Manrope, sans-serif; }
         </div>
         <div>
             <label class="field-label">Unit Type</label>
-            <select id="rentalUnitType" class="field-input" data-concept="PropertySubType">
+            <select id="rentalUnitType" class="field-input" data-concept-disposition="mallan-internal" onchange="applyRentalUnitTypeChoice()">
                 <option value="">Select Type</option>
                 <option value="Apartment">Apartment</option>
-                <option value="Apartment">Penthouse (Apartment)</option>
-                <option value="Apartment">Studio (Apartment)</option>
-                <option value="Apartment">Alcove Studio (Apartment)</option>
+                <option value="Penthouse">Penthouse (Apartment)</option>
+                <option value="Studio">Studio (Apartment)</option>
+                <option value="AlcoveStudio">Alcove Studio (Apartment)</option>
                 <option value="Duplex">Duplex</option>
                 <option value="Triplex">Triplex</option>
                 <option value="Quadruplex">Quadruplex</option>
@@ -6103,7 +6110,8 @@ function collectRentalFormData() {
     // Map key fields to RLS names — using CORRECT element IDs
     data.ListPrice = parseFloat(data.rentalMonthlyRent || '0') || 0;
     data.NetMonthlyRent = _numberOrNull(data.rentalMonthlyRent, false);
-    data.BedroomsTotal = data.rentalBedrooms === 'Apartment' ? 0 : _numberOrNull(data.rentalBedrooms, true);       // the list's "Studio (Apartment)" is 0 bedrooms, and its first entry, "Custom", is no answer
+    data.BedroomsTotal = data.rentalBedrooms === 'Apartment' ? 0 : _numberOrNull(data.rentalBedrooms, true);     // (a listing saved when the list said "Studio (Apartment)" holds "Apartment")
+    if ((data.rentalUnitType === 'Studio' || data.rentalUnitType === 'AlcoveStudio') && data.BedroomsTotal === null) data.BedroomsTotal = 0;       // the list's "Studio (Apartment)" is 0 bedrooms, and its first entry, "Custom", is no answer
     data.BathroomsFull = _numberOrNull(data.rentalFullBathrooms, true);
     data.BathroomsHalf = _numberOrNull(data.rentalHalfBathrooms, true);
     data.BathroomsTotal = (data.BathroomsFull === null && data.BathroomsHalf === null) ? null : (data.BathroomsFull || 0) + ((data.BathroomsHalf || 0) * 0.5);
@@ -6196,7 +6204,9 @@ function collectRentalFormData() {
     // Map building-level RLS fields from modal
     data.BuildingName = data.bldgName || '';
     data.StructureType = data.bldgType || data.rentalStructureType || '';
-    data.ArchitecturalStyle = data.bldgArchitecturalStyle || '';               // the building's style (live ArchitecturalStyle: Prewar, Loft, WalkUp ...); the unit's Loft is PropertySubType
+    data.ArchitecturalStyle = data.bldgArchitecturalStyle || '';
+    // the unit's Penthouse is a live ArchitecturalStyle member, next to the building's own style
+    if (data.rentalUnitType === 'Penthouse') data.ArchitecturalStyle = [].concat(data.ArchitecturalStyle || [], ['Penthouse']).filter(function (v, i, a) { return v && a.indexOf(v) === i; });               // the building's style (live ArchitecturalStyle: Prewar, Loft, WalkUp ...); the unit's Loft is PropertySubType
     data.StoriesTotal = parseInt(data.bldgTotalFloors || '0') || null;
     data.NumberOfUnitsTotal = parseInt(data.bldgTotalUnits || '0') || null;
     data.CrossStreet = data.bldgCrossStreet1 || '';
@@ -6469,6 +6479,15 @@ async function _rentalAfterSave(result) {
     if (result.warnings && result.warnings.length > 0) {
         console.warn('[Submit] Warnings:', result.warnings);
     }
+}
+
+// A studio has no bedrooms: choosing Studio or Alcove Studio sets Bedrooms to 0 (the agent can still change it)
+function applyRentalUnitTypeChoice() {
+    var t = document.getElementById('rentalUnitType');
+    var beds = document.getElementById('rentalBedrooms');
+    if (!t || !beds || (t.value !== 'Studio' && t.value !== 'AlcoveStudio')) return;
+    beds.value = '0';
+    beds.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 function submitRentalListing() {
