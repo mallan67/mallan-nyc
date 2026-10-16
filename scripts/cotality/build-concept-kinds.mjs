@@ -14,7 +14,8 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (p) => JSON.parse(readFileSync(resolve(root, p), 'utf8'));
 const contract = read('data/cotality-enums.live.json');
-const customKeys = read('compliance/rules/compliance-concepts.json').customFieldKeys.keys;
+const customFields = read('compliance/rules/compliance-concepts.json').customFieldKeys;
+const customKeys = customFields.keys;
 
 const kindOf = (type) => {
   if (type === 'Edm.Boolean') return 'b';
@@ -25,7 +26,8 @@ const kindOf = (type) => {
   if (/^Edm\.(Decimal|Double|Single)$/.test(type)) return 'n';
   return /\.Multi\.|^Collection\(/.test(type) ? 'm' : 'e';
 };
-const customKind = (n) => (/YN$/.test(n) ? 'b' : /Timestamp$|DateTime$/.test(n) ? 't' : /(Total|Months|Feet|Inches|Year)$/.test(n) ? 'i' : /(Amount|Percent|Size|FAR)$/.test(n) ? 'n' : 's');
+const LIVE_KIND = { number: 'n', boolean: 'b', datetime: 't', string: 's' };
+const customKind = (n) => (customFields.kinds?.[n] ? LIVE_KIND[customFields.kinds[n]] : null) ?? (/YN$/.test(n) ? 'b' : /Timestamp$|DateTime$/.test(n) ? 't' : /(Total|Months|Feet|Inches|Year)$/.test(n) ? 'i' : /(Amount|Percent|Size|FAR)$/.test(n) ? 'n' : 's');
 
 const kinds = {};
 for (const [n, t] of Object.entries(contract.entities.Property)) kinds[n] = kindOf(t);

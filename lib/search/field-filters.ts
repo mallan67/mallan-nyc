@@ -48,6 +48,7 @@ const CUSTOM_PROPERTY: Record<string, string> = (contract as { entities: { Custo
 const ENUMS: Record<string, string[]> = (contract as { enums: Record<string, string[]> }).enums;
 const FILTERABLE = new Set<string>((filterableDoc as { filterable: string[] }).filterable);
 const CUSTOM_FIELDS_KEYS = new Set<string>((concepts as { customFieldKeys: { keys: string[] } }).customFieldKeys.keys);
+const CUSTOM_FIELDS_KINDS: Record<string, string> = (concepts as { customFieldKeys: { kinds?: Record<string, string> } }).customFieldKeys.kinds ?? {};
 
 const NUMBER_TYPES = new Set(["Edm.Int16", "Edm.Int32", "Edm.Int64", "Edm.Decimal", "Edm.Double", "Edm.Single"]);
 
@@ -95,6 +96,9 @@ export function searchableField(name: string): SearchableField | null {
 // CustomFields is a JSON string: the key names are live, the JSON value types follow the key's name convention
 // (…YN boolean; …Total/Amount/Percent/Months/Feet/Inches/Year numeric; …Timestamp/DateTime a date-time; the rest text).
 function customFieldsKind(name: string): FieldKind {
+  // read from live evidence (compliance-concepts.json customFieldKeys.kinds): Cotality sends every CustomFields value as text
+  const known = CUSTOM_FIELDS_KINDS[name];
+  if (known === "number" || known === "boolean" || known === "datetime" || known === "string") return known;
   if (/YN$/.test(name)) return "boolean";
   if (/Timestamp$|DateTime$/.test(name)) return "datetime";
   if (/(Total|Amount|Percent|Months|Feet|Inches|Year|Size|FAR)$/.test(name)) return "number";
@@ -149,9 +153,10 @@ function asNumber(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+// CustomFields values arrive as text: a Yes/No field is "1" or "0" (live 2026-10-16); Mallan's own listings store true / false.
 function asBoolean(v: unknown): boolean | null {
-  if (v === true || v === "true" || v === "Yes" || v === 1) return true;
-  if (v === false || v === "false" || v === "No" || v === 0) return false;
+  if (v === true || v === "true" || v === "Yes" || v === 1 || v === "1") return true;
+  if (v === false || v === "false" || v === "No" || v === 0 || v === "0") return false;
   return null;
 }
 

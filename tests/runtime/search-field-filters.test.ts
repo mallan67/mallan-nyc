@@ -138,6 +138,20 @@ describe('buildFieldFilters', () => {
     expect(matchesPostFilter(rec({ SponsorUnitYN: false }), yn)).toBe(false);
   });
 
+  it('reads CustomFields the way Cotality sends them: every value is text, a Yes/No field is "1" or "0" (live 2026-10-16)', () => {
+    const rec = (cf: object) => ({ CustomProperty: [{ CustomFields: JSON.stringify(cf) }] });
+    const tax = run([{ f: 'TaxMonthlyAmount', op: 'ge', v: 800 }]).postFilters[0];
+    expect(matchesPostFilter(rec({ TaxMonthlyAmount: '840.00' }), tax)).toBe(true);
+    expect(matchesPostFilter(rec({ TaxMonthlyAmount: '400.00' }), tax)).toBe(false);
+    const sponsor = run([{ f: 'SponsorUnitYN', op: 'eq', v: true }]).postFilters[0];
+    expect(matchesPostFilter(rec({ SponsorUnitYN: '1' }), sponsor)).toBe(true);
+    expect(matchesPostFilter(rec({ SponsorUnitYN: '0' }), sponsor)).toBe(false);
+    const common = run([{ f: 'PercentOfCommonElements', op: 'between', v: [1, 50] }]);   // numeric, from live evidence, not from the field's name
+    expect(common.rejected).toEqual([]);
+    expect(matchesPostFilter(rec({ PercentOfCommonElements: '1.00' }), common.postFilters[0])).toBe(true);
+    expect(matchesPostFilter(rec({ PercentOfCommonElements: '0.00' }), common.postFilters[0])).toBe(false);
+  });
+
   it('caps the number of filters and tolerates garbage', () => {
     expect(buildFieldFilters('not json').rejected).toHaveLength(1);
     expect(buildFieldFilters('{}').rejected).toHaveLength(1);

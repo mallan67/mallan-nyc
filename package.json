@@ -37,6 +37,7 @@
     "smoke:sales:prod": "tsx tools/smoke/sales-production-smoke.ts",
     "repo:hygiene": "node scripts/ci/repo-hygiene.mjs",
     "compliance:validate": "node scripts/compliance-validate.js",
+    "demo:crm": "node --env-file-if-exists=.env.local scripts/local/crm-demo-server.cjs",
     "ucba:audit": "node scripts/ucba-compliance-audit.js",
     "ucba:audit:json": "node scripts/ucba-compliance-audit.js --json",
     "ucba:audit:fails": "node scripts/ucba-compliance-audit.js --fails",

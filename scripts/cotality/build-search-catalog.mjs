@@ -17,7 +17,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (p) => JSON.parse(readFileSync(resolve(root, p), 'utf8'));
 const contract = read('data/cotality-enums.live.json');
 const filterable = new Set(read('data/cotality-filterable.live.json').filterable);
-const customKeys = read('compliance/rules/compliance-concepts.json').customFieldKeys.keys;
+const customFields = read('compliance/rules/compliance-concepts.json').customFieldKeys;
+const customKeys = customFields.keys;
 
 const NUMBER_TYPES = new Set(['Edm.Int16', 'Edm.Int32', 'Edm.Int64', 'Edm.Decimal', 'Edm.Double', 'Edm.Single']);
 const kindOfType = (t) =>
@@ -28,7 +29,7 @@ const enumKey = (name, type) => {
   return contract.enums[name] ? name : contract.enums[typeName] ? typeName : null;
 };
 const usedEnums = new Set();
-const customFieldsKind = (n) => (/YN$/.test(n) ? 'boolean' : /Timestamp$|DateTime$/.test(n) ? 'datetime' : /(Total|Amount|Percent|Months|Feet|Inches|Year|Size|FAR)$/.test(n) ? 'number' : 'string');
+const customFieldsKind = (n) => customFields.kinds?.[n] ?? (/YN$/.test(n) ? 'boolean' : /Timestamp$|DateTime$/.test(n) ? 'datetime' : /(Total|Amount|Percent|Months|Feet|Inches|Year|Size|FAR)$/.test(n) ? 'number' : 'string');
 
 const out = [];
 const P = contract.entities.Property;

@@ -13,7 +13,7 @@ jest.mock('@/lib/idx/fetch', () => ({ fetchFromTrestle: (o: unknown) => fetchMoc
 jest.mock('@/lib/idx/logger', () => ({ logFetchAttempt: () => ({ complete: () => undefined }) }));
 jest.mock('@/lib/buildings/upsert', () => ({ upsertBuildingFromSearchResult: async () => undefined }));
 
-import { GET } from '@/app/api/idx/search/route';
+import { GET, POST_FILTER_SCAN_CAP } from '@/app/api/idx/search/route';
 import filterableDoc from '@/data/cotality-filterable.live.json';
 
 const baseRecord = (n: number, extra: Record<string, unknown> = {}) => ({
@@ -42,7 +42,8 @@ describe('/api/idx/search fieldFilters', () => {
     const opts = fetchMock.mock.calls[0][0];
     expect(opts.filter).toContain('FireplaceYN eq true');
     expect(opts.expandCustomProperty).toBe(false);
-    expect(r.body._meta.fieldFilters).toEqual({ rejected: [], pageFilters: 0, pageFiltered: 0 });
+    expect(r.body._meta.fieldFilters).toEqual({ rejected: [], pageFilters: 0, scanned: 1, pageFiltered: 0 });
+    expect(opts.maxTotal).toBe(50);                                 // no page-level filter: exactly the page asked for
   });
 
   it('filters the fetched page for a CustomFields key, expands CustomProperty, and counts what it dropped', async () => {
@@ -55,7 +56,19 @@ describe('/api/idx/search fieldFilters', () => {
     expect(fetchMock.mock.calls[0][0].expandCustomProperty).toBe(true);
     expect(fetchMock.mock.calls[0][0].filter).not.toContain('TaxMonthlyAmount');
     expect(r.body.listings).toHaveLength(1);
-    expect(r.body._meta.fieldFilters).toMatchObject({ pageFilters: 1, pageFiltered: 2 });
+    expect(r.body._meta.fieldFilters).toMatchObject({ pageFilters: 1, scanned: 3, pageFiltered: 2 });
+  });
+
+  it('reads several pages of Cotality results when a filter Cotality cannot evaluate is on, and keeps only the first `limit` matches', async () => {
+    const cf = (o: object) => [{ CustomFields: JSON.stringify(o) }];
+    const records = Array.from({ length: 30 }, (_, i) => baseRecord(i + 1, { CustomProperty: cf({ SponsorUnitYN: i % 3 === 0 ? '1' : '0' }) }));   // Cotality sends "1" / "0"
+    fetchMock.mockResolvedValue({ records, hasMore: false, totalFetched: 30, odataCount: 30 });
+    const r = await call({ type: 'sale', limit: '4', fieldFilters: JSON.stringify([{ f: 'SponsorUnitYN', op: 'eq', v: true }]) });
+    const opts = fetchMock.mock.calls[0][0];
+    expect(opts.top).toBe(200);
+    expect(opts.maxTotal).toBe(POST_FILTER_SCAN_CAP);
+    expect(r.body.listings).toHaveLength(4);                         // 10 of the 30 match; the first 4 are returned
+    expect(r.body._meta.fieldFilters).toMatchObject({ scanned: 30, pageFiltered: 20 });
   });
 
   it('selects a provider-blocked Property field so the page can be filtered on it', async () => {

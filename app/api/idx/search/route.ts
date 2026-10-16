@@ -26,6 +26,9 @@ import { mapTrestleToCrmListing } from "@/lib/search/crm-idx-mapper";
 // Fields NOT on IDX Plus removed: SourceSystemModificationTimestamp, ComingSoonDate,
 // BathroomsTotal, FloorNumber, Media, IDXEntireListingDisplayYN, ParticipantOnlyYN, IDXParticipationYN
 // Use BathroomsTotalInteger instead of BathroomsTotal; photos via PhotosCount (Media needs $expand)
+/** How many Cotality results a search reads when a filter Cotality cannot evaluate is on (5 pages of 200). */
+export const POST_FILTER_SCAN_CAP = 1000;
+
 export const SEARCH_SELECT_FIELDS = [
   // Address
   "StreetNumber", "StreetName", "StreetDirPrefix", "StreetDirSuffix",
@@ -159,6 +162,9 @@ export async function GET(req: NextRequest) {
     const fieldFilters = buildFieldFilters(params.get("fieldFilters"));
     const postFilters = fieldFilters.postFilters;
     const needsCustomProperty = postFilters.some((p) => p.source !== "property");
+    // A filter Cotality cannot evaluate is applied here, so the route reads several pages of Cotality results (up to POST_FILTER_SCAN_CAP) and
+    // keeps the first `limit` that pass; with none, it reads exactly the page asked for.
+    const scanning = postFilters.length > 0;
     const select = [...new Set([...SEARCH_SELECT_FIELDS, ...selectFieldsForPostFilters(postFilters)])];
 
     // Cache key from filter + pagination (+ the page filters, which are not part of `filter`)
@@ -186,10 +192,10 @@ export async function GET(req: NextRequest) {
       filter,
       select,
       expandCustomProperty: needsCustomProperty,
-      top: limit,
+      top: scanning ? 200 : limit,
       skip,
       orderby: sort || "ModificationTimestamp desc",
-      maxTotal: limit,
+      maxTotal: scanning ? Math.max(limit, POST_FILTER_SCAN_CAP) : limit,
       count: true,
       expandMedia: useInlineMedia,
     });
@@ -203,7 +209,7 @@ export async function GET(req: NextRequest) {
     // where we must NOT show it. All 6 gates are now enforced uniformly.
     const displayable: Record<string, unknown>[] = [];
     const gateBlockedReasons: Record<string, number> = {};
-    const fetchedRecords = applyPostFilters(result.records, postFilters);
+    const fetchedRecords = applyPostFilters(result.records, postFilters).slice(0, limit);
     for (const record of fetchedRecords) {
       const gate = checkDistributionGates(record);
       if (gate.displayable) {
@@ -331,7 +337,7 @@ export async function GET(req: NextRequest) {
     // in-memory, or wait for REBNY to expose SponsorUnitYN as a
     // top-level OData-filterable property.
     let finalListings = listings;
-    let finalTotal: number = result.odataCount ?? listings.length;
+    let finalTotal: number = scanning ? listings.length : (result.odataCount ?? listings.length);
     let sponsorFiltered = 0;
     if (params.get("sponsorUnit") === "true") {
       finalListings = listings.filter(
@@ -363,7 +369,13 @@ export async function GET(req: NextRequest) {
         sponsorFiltered,
         // fieldFilters: `rejected` lists filters that named no Cotality field or carried a value Cotality does not have; `pageFiltered` counts
         // records dropped by filters Cotality cannot evaluate (they apply to the fetched page only).
-        fieldFilters: { rejected: fieldFilters.rejected, pageFilters: postFilters.length, pageFiltered: result.records.length - fetchedRecords.length },
+        fieldFilters: {
+          rejected: fieldFilters.rejected,
+          pageFilters: postFilters.length,
+          // listings read from Cotality, and how many of them the page-level filters kept (when they are on, the total below is the matches among the listings read)
+          scanned: result.records.length,
+          pageFiltered: scanning ? result.records.length - applyPostFilters(result.records, postFilters).length : 0,
+        },
       },
     };
 
