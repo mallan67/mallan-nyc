@@ -40,13 +40,8 @@
                 // does NOT include these data-field values. The frontend
                 // collects them into criteria.checkboxFilters and the backend
                 // silently drops them.
-                'input[data-field="AttendanceType"]',
-                'input[data-field="Furnished"]',
                 'input[data-field="OwnerPays"]',
-                'input[data-field="Concessions"]',
-                'input[data-field="BuildingRules"]',
                 'input[data-field="RentingAllowedYN"]',
-                'input[data-field="MaximumFinancingPercent"]',
                 'input[data-field="ListOfficeMlsId"]',
                 'input[data-field="RLSParticipantOnly"]',
                 // InternetEntireListingDisplayYN is BOTH non-whitelisted AND
@@ -76,17 +71,17 @@
                 // literal equality — `Field eq 'lte:1946'` — which won't
                 // match any Trestle row. Affects: Pre-War, Post-War,
                 // Low-Rise (≤6 stories), Financing variants.
-                'input[data-field][data-value^="lte:"]',
-                'input[data-field][data-value^="gte:"]',
-                'input[data-field][data-value^="gt:"]',
-                'input[data-field][data-value^="eq:"]',
+                'input[data-field]:not([data-field="YearBuilt"]):not([data-field="StoriesTotal"]):not([data-field="MaximumFinancingPercent"])[data-value^="lte:"]',
+                'input[data-field]:not([data-field="YearBuilt"]):not([data-field="StoriesTotal"]):not([data-field="MaximumFinancingPercent"])[data-value^="gte:"]',
+                'input[data-field]:not([data-field="YearBuilt"]):not([data-field="StoriesTotal"]):not([data-field="MaximumFinancingPercent"])[data-value^="gt:"]',
+                'input[data-field]:not([data-field="YearBuilt"]):not([data-field="StoriesTotal"]):not([data-field="MaximumFinancingPercent"])[data-value^="eq:"]',
 
                 // ── "Any" compound placeholder ──
                 // Frontend uses data-value="Any" as a parent stand-in for
                 // multi-child enums (e.g., "Any Attended" → DoormanYes |
                 // ConciergeYes | ...). Backend has no expansion logic; sends
                 // literal "Any" which won't match any Trestle enum.
-                'input[data-field][data-value="Any"]',
+                'input[data-field]:not([data-field="AttendanceType"]):not([data-field="BuildingLaundryFeatures"]):not([data-field="BuildingPoolFeatures"]):not([data-field="BuildingSecurityFeatures"])[data-value="Any"]',
 
                 // ── data-not negations ──
                 // Frontend scanner reads only data-value, not data-not, so
@@ -127,13 +122,6 @@
                 'input[data-field="LaundryFeatures"][data-value="Common"]',
                 'input[data-field="BusinessType"][data-value="FlexibleSpace"]',
                 'input[data-field="BusinessType"][data-value="Investment"]',
-                // BuildingPetsAllowed maps to PetsAllowedYN, which live Cotality leaves empty (0 rows for true and for false); the pet data is in
-                // PetsAllowed (live members such as BuildingYes, BuildingCatsOk, BuildingDogsOk, BuildingNo).
-                'input[data-field="BuildingPetsAllowed"]',
-                // SponsorUnit: the flag lives only in SponsorUnitYN inside CustomProperty.CustomFields, and the search route never gets CustomProperty from Cotality (it does not ask: the repo records
-                // that the $expand answered HTTP 400, app/api/idx/search/route.ts and lib/idx/fetch.ts), so every row reaches the route's post-filter (listing.sponsorUnit === true) with the flag unknown
-                // and the box could only answer "no results". Re-enable it when the route learns the flag from a provider-contract join by ListingKey that live Cotality accepts (the route is on the frozen list).
-                'input[data-field="SponsorUnit"]',
             ];
 
             // ── P1: Container-level dead controls ──────────────────────

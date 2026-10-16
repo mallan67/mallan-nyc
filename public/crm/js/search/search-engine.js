@@ -358,26 +358,13 @@
                 var resoStatuses = criteria.statuses.map(function(s) { return statusMap[s] || s; }).filter(function(s, i, arr) { return arr.indexOf(s) === i; });
                 params.status = resoStatuses.join(',');
             }
-            // Bug A11 — SponsorUnit lives inside CustomProperty.CustomFields
-            // (REBNY-specific JSON-string field), NOT a top-level OData
-            // property. The generic checkboxFilters loop on the backend
-            // (lib/search/crm-idx-filter.ts:239-277) would silently drop
-            // it because "SponsorUnit" is not in the odataSafe whitelist.
-            // It used to be pulled out into a dedicated `sponsorUnit` param for
-            // the route's post-fetch filter on the mapper's listing.sponsorUnit,
-            // but the route never gets CustomProperty from Cotality, so that
-            // field is always unknown and the filter could only return nothing.
-            // The control is disabled (init-disable-dead-controls.js); criteria
-            // that still carry it (a saved search, a programmatic call) are
-            // stripped here with a warning, like the Open House dates below.
-            if (criteria.checkboxFilters && criteria.checkboxFilters.SponsorUnit) {
-                var _sp = criteria.checkboxFilters.SponsorUnit;
-                if (Array.isArray(_sp) && (_sp.indexOf('true') !== -1 || _sp.indexOf('Yes') !== -1)) {
-                    console.warn('[CRM Search] Stripped unsupported SponsorUnit criterion — the search route never receives the flag from Cotality, so the filter could only return nothing. See init-disable-dead-controls.js.');
-                }
-                // Remove from the JSON payload so the backend doesn't try to
-                // OData-filter on it.
-                delete criteria.checkboxFilters.SponsorUnit;
+            // Controls whose Cotality field is not one the plain checkbox path sends (sponsor unit, attendance, building rules, furnished, financing %,
+            // year built, stories, building pets / laundry / pool / security ...) become filters on the live field (CotalityFieldFilters.bridge, js/search/field-filters.js).
+            // A saved search or a programmatic call that still carries them goes the same way.
+            if (criteria.checkboxFilters && window.CotalityFieldFilters && window.CotalityFieldFilters.bridge) {
+                var _bridged = window.CotalityFieldFilters.bridge(criteria.checkboxFilters);
+                if (_bridged.rows.length) criteria.fieldFilters = (criteria.fieldFilters || []).concat(_bridged.rows);
+                criteria.checkboxFilters = _bridged.remaining;
             }
             if (criteria.checkboxFilters) {
                 var _cbJson = JSON.stringify(criteria.checkboxFilters);

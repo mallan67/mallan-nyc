@@ -16540,6 +16540,61 @@ var CotalityFieldFilters = (function () {
       rows = (Array.isArray(list) ? list : []).filter(function (r) { return r && index()[r.f]; }).map(function (r) { return { f: r.f, op: r.op, v: r.v }; });
       render();
     },
+    // Checkbox / select controls whose Cotality field is not one the older checkbox path sends (Furnished, attendance, building rules,
+    // sponsor unit, financing %, year built, stories, building pets / laundry / pool / security ...). Each is turned into a filter on the live field;
+    // what it returns is { rows, remaining }: rows go to fieldFilters, remaining stays in checkboxFilters. Values were checked against live
+    // Cotality 2026-10-16 (CustomFields text such as "DoormanFullTime,ConciergeFullTime"; Property enumerations by their live members).
+    bridge: function (cb) {
+      var out = []; var left = {};
+      var enums = window.COTALITY_SEARCH_ENUMS || {};
+      function member(enumKey, v) {                 // a live picklist member, matched without regard to case; null when there is none
+        var list = enums[enumKey] || []; var low = String(v).toLowerCase();
+        for (var i = 0; i < list.length; i++) if (list[i].toLowerCase() === low) return list[i];
+        return null;
+      }
+      function flat(vals) { var a = []; (vals || []).forEach(function (v) { String(v).split(",").forEach(function (x) { x = x.trim(); if (x && a.indexOf(x) === -1) a.push(x); }); }); return a; }
+      var ATTENDANCE_ANY = { DoormanYes: ["DoormanYes", "DoormanFullTime", "DoormanPartTime"], ConciergeYes: ["ConciergeYes", "ConciergeFullTime", "ConciergePartTime"],
+        VideoDoormanYes: ["VideoDoormanYes", "VideoDoormanFullTime", "VideoDoormanPartTime"], ElevatorAttendanceYes: ["ElevatorAttendanceYes", "ElevatorAttendanceFullTime", "ElevatorAttendancePartTime"],
+        LobbyAttendantYes: ["LobbyAttendantYes", "LobbyAttendantFullTime", "LobbyAttendantPartTime"] };
+      var SIMPLE_IN = { BuildingRules: "BuildingRules" };                       // CustomFields text; value is a member of the list
+      Object.keys(cb || {}).forEach(function (key) {
+        var vals = flat(cb[key]); var handled = false;
+        if (key === "AttendanceType") {
+          var want = [];
+          vals.forEach(function (v) {
+            if (v === "Any") Object.keys(ATTENDANCE_ANY).forEach(function (k) { want = want.concat(ATTENDANCE_ANY[k]); });
+            else want = want.concat(ATTENDANCE_ANY[v] || [v]);
+          });
+          if (want.length) { out.push({ f: "AttendanceType", op: "in", v: want.filter(function (x, i) { return want.indexOf(x) === i; }) }); handled = true; }
+        } else if (SIMPLE_IN[key]) {
+          out.push({ f: SIMPLE_IN[key], op: "in", v: vals }); handled = true;
+        } else if (key === "Furnished" || key === "Concessions") {
+          var ms = vals.map(function (v) { return member(key, v); }).filter(Boolean);
+          if (ms.length) { out.push({ f: key, op: "in", v: ms }); handled = true; }
+        } else if (key === "BuildingPetsAllowed") {
+          var pm = vals.map(function (v) { return member("PetsAllowed", v); }).filter(Boolean);
+          if (pm.length) { out.push({ f: "PetsAllowed", op: "in", v: pm }); handled = true; }
+        } else if (key === "BuildingLaundryFeatures" || key === "BuildingPoolFeatures") {
+          var target = key === "BuildingLaundryFeatures" ? "LaundryFeatures" : "PoolFeatures";
+          if (vals.indexOf("Any") !== -1) {
+            var bm = (enums[target] || []).filter(function (m) { return /^Building/.test(m) && m !== "BuildingNone"; });
+            if (bm.length) { out.push({ f: target, op: "in", v: bm }); handled = true; }
+          }
+        } else if (key === "BuildingSecurityFeatures") {
+          if (vals.indexOf("Any") !== -1) { out.push({ f: "SecurityFeatures", op: "notnull" }); handled = true; }
+        } else if (key === "SponsorUnit") {
+          if (vals.indexOf("true") !== -1 || vals.indexOf("Yes") !== -1) { out.push({ f: "SponsorUnitYN", op: "eq", v: true }); handled = true; }
+        } else if (key === "YearBuilt" || key === "StoriesTotal" || key === "MaximumFinancingPercent") {
+          var OPS = { lte: "le", gte: "ge", lt: "lt", gt: "gt", eq: "eq" }; var parsed = [];
+          vals.forEach(function (v) { var m = /^(lte|gte|lt|gt|eq):(-?\d+(?:\.\d+)?)$/.exec(v); if (m) parsed.push({ f: key, op: OPS[m[1]], v: Number(m[2]) }); });
+          // Pre-War and Post-War together mean every year: no filter. Otherwise the one range asked for.
+          if (parsed.length === 1) { out.push(parsed[0]); handled = true; }
+          else if (parsed.length > 1) handled = true;
+        }
+        if (!handled) left[key] = cb[key];
+      });
+      return { rows: out, remaining: left };
+    },
     clear: function () { rows = []; render(); },
     // Filters the server refused (named no Cotality field, or carried a value Cotality does not have).
     report: function (meta) {
@@ -16917,26 +16972,13 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
                 var resoStatuses = criteria.statuses.map(function(s) { return statusMap[s] || s; }).filter(function(s, i, arr) { return arr.indexOf(s) === i; });
                 params.status = resoStatuses.join(',');
             }
-            // Bug A11 — SponsorUnit lives inside CustomProperty.CustomFields
-            // (REBNY-specific JSON-string field), NOT a top-level OData
-            // property. The generic checkboxFilters loop on the backend
-            // (lib/search/crm-idx-filter.ts:239-277) would silently drop
-            // it because "SponsorUnit" is not in the odataSafe whitelist.
-            // It used to be pulled out into a dedicated `sponsorUnit` param for
-            // the route's post-fetch filter on the mapper's listing.sponsorUnit,
-            // but the route never gets CustomProperty from Cotality, so that
-            // field is always unknown and the filter could only return nothing.
-            // The control is disabled (init-disable-dead-controls.js); criteria
-            // that still carry it (a saved search, a programmatic call) are
-            // stripped here with a warning, like the Open House dates below.
-            if (criteria.checkboxFilters && criteria.checkboxFilters.SponsorUnit) {
-                var _sp = criteria.checkboxFilters.SponsorUnit;
-                if (Array.isArray(_sp) && (_sp.indexOf('true') !== -1 || _sp.indexOf('Yes') !== -1)) {
-                    console.warn('[CRM Search] Stripped unsupported SponsorUnit criterion — the search route never receives the flag from Cotality, so the filter could only return nothing. See init-disable-dead-controls.js.');
-                }
-                // Remove from the JSON payload so the backend doesn't try to
-                // OData-filter on it.
-                delete criteria.checkboxFilters.SponsorUnit;
+            // Controls whose Cotality field is not one the plain checkbox path sends (sponsor unit, attendance, building rules, furnished, financing %,
+            // year built, stories, building pets / laundry / pool / security ...) become filters on the live field (CotalityFieldFilters.bridge, js/search/field-filters.js).
+            // A saved search or a programmatic call that still carries them goes the same way.
+            if (criteria.checkboxFilters && window.CotalityFieldFilters && window.CotalityFieldFilters.bridge) {
+                var _bridged = window.CotalityFieldFilters.bridge(criteria.checkboxFilters);
+                if (_bridged.rows.length) criteria.fieldFilters = (criteria.fieldFilters || []).concat(_bridged.rows);
+                criteria.checkboxFilters = _bridged.remaining;
             }
             if (criteria.checkboxFilters) {
                 var _cbJson = JSON.stringify(criteria.checkboxFilters);
@@ -34349,13 +34391,8 @@ function emailCurrentCalc() {
                 // does NOT include these data-field values. The frontend
                 // collects them into criteria.checkboxFilters and the backend
                 // silently drops them.
-                'input[data-field="AttendanceType"]',
-                'input[data-field="Furnished"]',
                 'input[data-field="OwnerPays"]',
-                'input[data-field="Concessions"]',
-                'input[data-field="BuildingRules"]',
                 'input[data-field="RentingAllowedYN"]',
-                'input[data-field="MaximumFinancingPercent"]',
                 'input[data-field="ListOfficeMlsId"]',
                 'input[data-field="RLSParticipantOnly"]',
                 // InternetEntireListingDisplayYN is BOTH non-whitelisted AND
@@ -34385,17 +34422,17 @@ function emailCurrentCalc() {
                 // literal equality — `Field eq 'lte:1946'` — which won't
                 // match any Trestle row. Affects: Pre-War, Post-War,
                 // Low-Rise (≤6 stories), Financing variants.
-                'input[data-field][data-value^="lte:"]',
-                'input[data-field][data-value^="gte:"]',
-                'input[data-field][data-value^="gt:"]',
-                'input[data-field][data-value^="eq:"]',
+                'input[data-field]:not([data-field="YearBuilt"]):not([data-field="StoriesTotal"]):not([data-field="MaximumFinancingPercent"])[data-value^="lte:"]',
+                'input[data-field]:not([data-field="YearBuilt"]):not([data-field="StoriesTotal"]):not([data-field="MaximumFinancingPercent"])[data-value^="gte:"]',
+                'input[data-field]:not([data-field="YearBuilt"]):not([data-field="StoriesTotal"]):not([data-field="MaximumFinancingPercent"])[data-value^="gt:"]',
+                'input[data-field]:not([data-field="YearBuilt"]):not([data-field="StoriesTotal"]):not([data-field="MaximumFinancingPercent"])[data-value^="eq:"]',
 
                 // ── "Any" compound placeholder ──
                 // Frontend uses data-value="Any" as a parent stand-in for
                 // multi-child enums (e.g., "Any Attended" → DoormanYes |
                 // ConciergeYes | ...). Backend has no expansion logic; sends
                 // literal "Any" which won't match any Trestle enum.
-                'input[data-field][data-value="Any"]',
+                'input[data-field]:not([data-field="AttendanceType"]):not([data-field="BuildingLaundryFeatures"]):not([data-field="BuildingPoolFeatures"]):not([data-field="BuildingSecurityFeatures"])[data-value="Any"]',
 
                 // ── data-not negations ──
                 // Frontend scanner reads only data-value, not data-not, so
@@ -34436,13 +34473,6 @@ function emailCurrentCalc() {
                 'input[data-field="LaundryFeatures"][data-value="Common"]',
                 'input[data-field="BusinessType"][data-value="FlexibleSpace"]',
                 'input[data-field="BusinessType"][data-value="Investment"]',
-                // BuildingPetsAllowed maps to PetsAllowedYN, which live Cotality leaves empty (0 rows for true and for false); the pet data is in
-                // PetsAllowed (live members such as BuildingYes, BuildingCatsOk, BuildingDogsOk, BuildingNo).
-                'input[data-field="BuildingPetsAllowed"]',
-                // SponsorUnit: the flag lives only in SponsorUnitYN inside CustomProperty.CustomFields, and the search route never gets CustomProperty from Cotality (it does not ask: the repo records
-                // that the $expand answered HTTP 400, app/api/idx/search/route.ts and lib/idx/fetch.ts), so every row reaches the route's post-filter (listing.sponsorUnit === true) with the flag unknown
-                // and the box could only answer "no results". Re-enable it when the route learns the flag from a provider-contract join by ListingKey that live Cotality accepts (the route is on the frozen list).
-                'input[data-field="SponsorUnit"]',
             ];
 
             // ── P1: Container-level dead controls ──────────────────────

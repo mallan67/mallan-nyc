@@ -369,28 +369,12 @@ describe("buildCrmIdxODataFilter", () => {
     expect(f).not.toContain("ConstructionMaterials le 1946");
   });
 
-  it("DEAD: data-value=\"Any\" placeholder is sent literally, not expanded", () => {
-    // Frontend uses data-value="Any" as a placeholder for compound
-    // filters like "Any Doorman" or "Any Laundry" that should expand
-    // to multiple child enum values. The backend has no expansion
-    // logic — sends the literal "Any" through.
-    //
-    // Use a whitelisted field (LaundryFeatures via BuildingLaundryFeatures
-    // alias) to prove the literal-Any path. AttendanceType (the most
-    // common "Any" target) is non-whitelisted so it'd be dropped entirely
-    // — already covered by the dead-checkbox test above.
-    const checkboxFilters = JSON.stringify({
-      BuildingLaundryFeatures: ["Any"],
-    });
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ checkboxFilters }));
-
-    // Translates to LaundryFeatures eq 'Any' — a literal string equality
-    // that won't match any actual enum value (Cotality has values like
-    // "InUnit", "CommonArea", "WasherDryerInstallAllowed"). Returns 0.
-    expect(f).toContain("LaundryFeatures eq 'Any'");
-    // Verify no expansion occurred:
-    expect(f).not.toContain("InUnit");
-    expect(f).not.toContain("Common Area");
+  it("data-value=\"Any\" is the form's stand-in for several members: it is never sent to Cotality as a value", () => {
+    // The page turns these boxes into fieldFilters on the live field (CotalityFieldFilters.bridge). A client that still sends the placeholder in
+    // checkboxFilters must not make Cotality answer HTTP 400 for LaundryFeatures eq 'Any': the placeholder is dropped.
+    const f = buildCrmIdxODataFilter(new URLSearchParams({ checkboxFilters: JSON.stringify({ BuildingLaundryFeatures: ["Any"], BuildingSecurityFeatures: ["Any"] }) }));
+    expect(f).not.toContain("'Any'");
+    expect(f).not.toContain("LaundryFeatures");
   });
 
   it("DEAD: data-not negation pattern is not collected by the frontend scanner", () => {

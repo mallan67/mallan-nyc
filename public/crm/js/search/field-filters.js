@@ -142,6 +142,61 @@ var CotalityFieldFilters = (function () {
       rows = (Array.isArray(list) ? list : []).filter(function (r) { return r && index()[r.f]; }).map(function (r) { return { f: r.f, op: r.op, v: r.v }; });
       render();
     },
+    // Checkbox / select controls whose Cotality field is not one the older checkbox path sends (Furnished, attendance, building rules,
+    // sponsor unit, financing %, year built, stories, building pets / laundry / pool / security ...). Each is turned into a filter on the live field;
+    // what it returns is { rows, remaining }: rows go to fieldFilters, remaining stays in checkboxFilters. Values were checked against live
+    // Cotality 2026-10-16 (CustomFields text such as "DoormanFullTime,ConciergeFullTime"; Property enumerations by their live members).
+    bridge: function (cb) {
+      var out = []; var left = {};
+      var enums = window.COTALITY_SEARCH_ENUMS || {};
+      function member(enumKey, v) {                 // a live picklist member, matched without regard to case; null when there is none
+        var list = enums[enumKey] || []; var low = String(v).toLowerCase();
+        for (var i = 0; i < list.length; i++) if (list[i].toLowerCase() === low) return list[i];
+        return null;
+      }
+      function flat(vals) { var a = []; (vals || []).forEach(function (v) { String(v).split(",").forEach(function (x) { x = x.trim(); if (x && a.indexOf(x) === -1) a.push(x); }); }); return a; }
+      var ATTENDANCE_ANY = { DoormanYes: ["DoormanYes", "DoormanFullTime", "DoormanPartTime"], ConciergeYes: ["ConciergeYes", "ConciergeFullTime", "ConciergePartTime"],
+        VideoDoormanYes: ["VideoDoormanYes", "VideoDoormanFullTime", "VideoDoormanPartTime"], ElevatorAttendanceYes: ["ElevatorAttendanceYes", "ElevatorAttendanceFullTime", "ElevatorAttendancePartTime"],
+        LobbyAttendantYes: ["LobbyAttendantYes", "LobbyAttendantFullTime", "LobbyAttendantPartTime"] };
+      var SIMPLE_IN = { BuildingRules: "BuildingRules" };                       // CustomFields text; value is a member of the list
+      Object.keys(cb || {}).forEach(function (key) {
+        var vals = flat(cb[key]); var handled = false;
+        if (key === "AttendanceType") {
+          var want = [];
+          vals.forEach(function (v) {
+            if (v === "Any") Object.keys(ATTENDANCE_ANY).forEach(function (k) { want = want.concat(ATTENDANCE_ANY[k]); });
+            else want = want.concat(ATTENDANCE_ANY[v] || [v]);
+          });
+          if (want.length) { out.push({ f: "AttendanceType", op: "in", v: want.filter(function (x, i) { return want.indexOf(x) === i; }) }); handled = true; }
+        } else if (SIMPLE_IN[key]) {
+          out.push({ f: SIMPLE_IN[key], op: "in", v: vals }); handled = true;
+        } else if (key === "Furnished" || key === "Concessions") {
+          var ms = vals.map(function (v) { return member(key, v); }).filter(Boolean);
+          if (ms.length) { out.push({ f: key, op: "in", v: ms }); handled = true; }
+        } else if (key === "BuildingPetsAllowed") {
+          var pm = vals.map(function (v) { return member("PetsAllowed", v); }).filter(Boolean);
+          if (pm.length) { out.push({ f: "PetsAllowed", op: "in", v: pm }); handled = true; }
+        } else if (key === "BuildingLaundryFeatures" || key === "BuildingPoolFeatures") {
+          var target = key === "BuildingLaundryFeatures" ? "LaundryFeatures" : "PoolFeatures";
+          if (vals.indexOf("Any") !== -1) {
+            var bm = (enums[target] || []).filter(function (m) { return /^Building/.test(m) && m !== "BuildingNone"; });
+            if (bm.length) { out.push({ f: target, op: "in", v: bm }); handled = true; }
+          }
+        } else if (key === "BuildingSecurityFeatures") {
+          if (vals.indexOf("Any") !== -1) { out.push({ f: "SecurityFeatures", op: "notnull" }); handled = true; }
+        } else if (key === "SponsorUnit") {
+          if (vals.indexOf("true") !== -1 || vals.indexOf("Yes") !== -1) { out.push({ f: "SponsorUnitYN", op: "eq", v: true }); handled = true; }
+        } else if (key === "YearBuilt" || key === "StoriesTotal" || key === "MaximumFinancingPercent") {
+          var OPS = { lte: "le", gte: "ge", lt: "lt", gt: "gt", eq: "eq" }; var parsed = [];
+          vals.forEach(function (v) { var m = /^(lte|gte|lt|gt|eq):(-?\d+(?:\.\d+)?)$/.exec(v); if (m) parsed.push({ f: key, op: OPS[m[1]], v: Number(m[2]) }); });
+          // Pre-War and Post-War together mean every year: no filter. Otherwise the one range asked for.
+          if (parsed.length === 1) { out.push(parsed[0]); handled = true; }
+          else if (parsed.length > 1) handled = true;
+        }
+        if (!handled) left[key] = cb[key];
+      });
+      return { rows: out, remaining: left };
+    },
     clear: function () { rows = []; render(); },
     // Filters the server refused (named no Cotality field, or carried a value Cotality does not have).
     report: function (meta) {
