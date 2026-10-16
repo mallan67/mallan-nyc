@@ -387,8 +387,11 @@
         };
 
         // Server-side search: query Trestle API with criteria — this is the PRIMARY data source
-        function _serverSearch(criteria, localResults) {
+        function _serverSearch(criteria, localResults, opts) {
+            opts = opts || {};
+            window._lastServerCriteria = criteria;
             var params = window.buildIdxSearchParams(criteria);
+            if (opts.skip) params.skip = opts.skip;
 
             // ≤200: server sends inline photos via $expand=Media (fast, one request)
             // >200: server sends listings without photos, photo-loader.js lazy-loads
@@ -478,8 +481,24 @@
                 // serverListings has been merged into the global `listings`
                 // array above so existing-by-id lookups still work; we just
                 // stop polluting the rendered list.
-                searchResultsState.filteredListings = serverListings;
-                searchResultsState.currentPage = 1;
+                var _ffMeta = (result._meta && result._meta.fieldFilters) || {};
+                // What Cotality said about the size of the answer: with a filter Cotality cannot evaluate, the route reads up to a fixed number of rows and keeps
+                // the matches, so the total is not known; otherwise total is Cotality's own count.
+                searchResultsState.serverInfo = {
+                    total: typeof result.total === 'number' ? result.total : null,
+                    scanning: !!(_ffMeta.pageFilters > 0),
+                    scanned: _ffMeta.scanned || 0,
+                    hasMore: !!result.hasMore,
+                    nextSkip: (opts.skip || 0) + serverListings.length
+                };
+                if (opts.append) {
+                    var _have = {};
+                    (searchResultsState.filteredListings || []).forEach(function(l) { _have[l.id] = true; });
+                    searchResultsState.filteredListings = (searchResultsState.filteredListings || []).concat(serverListings.filter(function(l) { return !_have[l.id]; }));
+                } else {
+                    searchResultsState.filteredListings = serverListings;
+                    searchResultsState.currentPage = 1;
+                }
                 try {
                     if (typeof initializeSearchResults === 'function') initializeSearchResults();
                     if (typeof updateResultsCount === 'function') updateResultsCount();
@@ -1756,6 +1775,14 @@
             });
         }
 
+        // The next 200 of the same search (skip = rows already loaded). Not offered when a page-level filter is on: there the route scans and keeps matches.
+        function loadMoreResults() {
+            var info = searchResultsState.serverInfo;
+            if (!info || !info.hasMore || info.scanning || !window._lastServerCriteria) return;
+            _serverSearch(window._lastServerCriteria, [], { append: true, skip: info.nextSkip });
+        }
+        window.loadMoreResults = loadMoreResults;
+
         function updateResultsCount() {
             var filtered = searchResultsState.filteredListings || listings;
             var count = filtered.length;
@@ -1764,7 +1791,26 @@
 
             // Update all results count elements (top + bottom)
             var countEls = document.querySelectorAll('#resultsCount, #resultsCount2');
-            countEls.forEach(function(el) { el.textContent = count + ' Results'; });
+            var info = searchResultsState.serverInfo;
+            var label = count + ' Results';
+            if (info && !info.scanning && info.total != null && info.total > count) label = count + ' of ' + info.total.toLocaleString() + ' Results';
+            else if (info && info.scanning && info.hasMore) label = count + ' matches in the first ' + info.scanned.toLocaleString() + ' listings checked';
+            countEls.forEach(function(el) {
+                el.textContent = label;
+                var btnId = el.id + 'LoadMore';
+                var btn = document.getElementById(btnId);
+                var canLoadMore = !!(info && !info.scanning && info.hasMore);
+                if (canLoadMore && !btn && el.parentNode) {
+                    btn = document.createElement('button');
+                    btn.id = btnId;
+                    btn.type = 'button';
+                    btn.className = 'ml-2 px-2 py-1 text-xs border rounded hover:bg-gray-50';
+                    btn.textContent = 'Load next 200';
+                    btn.onclick = function() { loadMoreResults(); };
+                    el.parentNode.insertBefore(btn, el.nextSibling);
+                }
+                if (btn) btn.style.display = canLoadMore ? '' : 'none';
+            });
 
             // Update top pagination
             var totalPagesEl = document.getElementById('totalPages');

@@ -17,6 +17,7 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { buildCrmIdxODataFilter } from '@/lib/search/crm-idx-filter';
 import { buildFieldFilters } from '@/lib/search/field-filters';
+import { MALLAN_LIST_OFFICE_MLS_IDS } from '@/lib/listings/mallan-source-identity';
 import { resolveListingMedia } from '@/lib/media/listing-media-resolver';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -561,6 +562,9 @@ describe('the other controls the checkbox path could not send are filters on the
     expect(rows('Furnished', 'Unfurnished')).toEqual([{ f: 'Furnished', op: 'in', v: ['Unfurnished'] }]);
     expect(rows('Concessions', 'Yes')).toEqual([{ f: 'Concessions', op: 'in', v: ['Yes'] }]);
     expect(rows('Concessions', 'NotAMember')).toEqual([]);                  // a value Cotality does not have is not sent as a filter
+  });
+  it('"In-House (Company)" filters on the Mallan listing office id the app already verified', () => {
+    expect(rows('ListOfficeMlsId', 'OwnOffice')).toEqual([{ f: 'ListOfficeMlsId', op: 'eq', v: MALLAN_LIST_OFFICE_MLS_IDS[0] }]);
   });
   it('every bridged row is accepted by the server-side builder', () => {
     const all = [['YearBuilt', 'lte:1946'], ['StoriesTotal', 'lte:6'], ['MaximumFinancingPercent', 'gt:0'], ['AttendanceType', 'Any'], ['BuildingRules', 'PiedATerreAllowed'], ['BuildingPetsAllowed', 'BuildingYes,BuildingCatsOK'],

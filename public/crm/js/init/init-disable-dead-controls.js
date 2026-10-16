@@ -42,7 +42,6 @@
                 // silently drops them.
                 'input[data-field="OwnerPays"]',
                 'input[data-field="RentingAllowedYN"]',
-                'input[data-field="ListOfficeMlsId"]',
                 'input[data-field="RLSParticipantOnly"]',
                 // InternetEntireListingDisplayYN is BOTH non-whitelisted AND
                 // REBNY-policy-suppressed at the OData $filter level (Trestle

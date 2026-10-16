@@ -184,6 +184,9 @@ var CotalityFieldFilters = (function () {
           }
         } else if (key === "BuildingSecurityFeatures") {
           if (vals.indexOf("Any") !== -1) { out.push({ f: "SecurityFeatures", op: "notnull" }); handled = true; }
+        } else if (key === "ListOfficeMlsId") {
+          // "In-House (Company)": the listing office is Mallan's. 7041 is MALLAN_LIST_OFFICE_MLS_IDS in lib/listings/mallan-source-identity.ts (verified live; a test keeps the two equal).
+          if (vals.indexOf("OwnOffice") !== -1) { out.push({ f: "ListOfficeMlsId", op: "eq", v: "7041" }); handled = true; }
         } else if (key === "SponsorUnit") {
           if (vals.indexOf("true") !== -1 || vals.indexOf("Yes") !== -1) { out.push({ f: "SponsorUnitYN", op: "eq", v: true }); handled = true; }
         } else if (key === "YearBuilt" || key === "StoriesTotal" || key === "MaximumFinancingPercent") {
