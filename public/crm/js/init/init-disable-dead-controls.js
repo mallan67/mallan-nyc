@@ -116,7 +116,6 @@
                 // Six controls of the first version of this list were mapped to the live member that stands for them and enabled (Wheelchair Accessible -> WheelchairAccess, Loft and Walk-Up -> ArchitecturalStyle,
                 // Roof Deck -> BuildingRoofDeck, Gym -> FitnessCenter, Bike Room -> BikeStorage). The ones below have no single live member (Brownstone, Terrace, "Laundry in Building" has several candidates).
                 'input[data-field="ArchitecturalStyle"][data-value="Brownstone"]',
-                'input[data-field="ExteriorFeatures"][data-value="Terrace"]',
                 'input[data-field="LaundryFeatures"][data-value="Common"]',
                 'input[data-field="BusinessType"][data-value="FlexibleSpace"]',
                 'input[data-field="BusinessType"][data-value="Investment"]',
@@ -157,10 +156,10 @@
             // AND update the DEAD test.
             var DEAD_CONTAINERS = [
                 // Transit panels — 4 search modes (sale/rent/building/advanced)
-                { selector: '#saleTransitExpand', reason: 'Transit search not supported — REBNY IDX feed does not provide listing coordinates.' },
-                { selector: '#rentalTransitExpand', reason: 'Transit search not supported — REBNY IDX feed does not provide listing coordinates.' },
-                { selector: '#buildingTransitExpand', reason: 'Transit search not supported — REBNY IDX feed does not provide listing coordinates.' },
-                { selector: '#advancedTransitExpand', reason: 'Transit search not supported — REBNY IDX feed does not provide listing coordinates.' },
+                { selector: '#saleTransitExpand', reason: 'Transit search comes from Google Transit, not Cotality, and is not connected to search yet.' },
+                { selector: '#rentalTransitExpand', reason: 'Transit search comes from Google Transit, not Cotality, and is not connected to search yet.' },
+                { selector: '#buildingTransitExpand', reason: 'Transit search comes from Google Transit, not Cotality, and is not connected to search yet.' },
+                { selector: '#advancedTransitExpand', reason: 'Transit search comes from Google Transit, not Cotality, and is not connected to search yet.' },
                 // Manhattan grid — locate the parent of the 4 grid selects
                 // and disable the whole panel. Each grid prefix has 4
                 // selects (north/south/east/west); we disable the immediate
@@ -168,13 +167,9 @@
                 { idAnchor: 'adv-grid-north', reason: 'Manhattan grid search not supported — REBNY IDX feed does not provide listing coordinates.' },
                 { idAnchor: 'bldg-grid-north', reason: 'Manhattan grid search not supported — REBNY IDX feed does not provide listing coordinates.' },
                 // Open House DRP wrappers — backend has no OpenHouse expansion
-                { selector: '[data-drp="saleOpenHouse"]', reason: 'Open House date range not supported by the search backend.' },
-                { selector: '[data-drp="rentalOpenHouse"]', reason: 'Open House date range not supported by the search backend.' },
                 // Open House preset buttons next to the DRP wrappers — they
                 // stamp values onto the wrapper that the builder ignores.
                 // Use class selector for all four-per-side preset buttons.
-                { selector: '.oh-preset[data-oh="saleOpenHouse"]', reason: 'Open House date range not supported by the search backend.' },
-                { selector: '.oh-preset[data-oh="rentalOpenHouse"]', reason: 'Open House date range not supported by the search backend.' },
                 // Agent Search controls with no Cotality filter behind them (the working ones are the agent/office filters above).
                 { selector: '#agentSearchUnsupported', reason: 'Not connected to a Cotality filter. Use the agent and office filters above.' },
                 { selector: '#agentQuickFiltersUnsupported', reason: 'Not connected to a Cotality filter yet.' },

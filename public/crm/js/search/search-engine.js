@@ -225,8 +225,6 @@
 
         function _hasServerIgnoredCriteria(criteria) {
             return Boolean(criteria && (
-                criteria.openHouseDateFrom ||
-                criteria.openHouseDateTo ||
                 criteria._transitLines ||
                 criteria._transitBounds ||
                 criteria._gridBounds
@@ -311,6 +309,8 @@
             if (criteria.dateFrom) params.dateFrom = criteria.dateFrom;
             if (criteria.dateTo) params.dateTo = criteria.dateTo;
             if (criteria.dateActivityType) params.dateType = criteria.dateActivityType;
+            if (criteria.openHouseDateFrom) params.openHouseDateFrom = criteria.openHouseDateFrom;
+            if (criteria.openHouseDateTo) params.openHouseDateTo = criteria.openHouseDateTo;
             if (criteria.contractDateFrom) params.contractDateFrom = criteria.contractDateFrom;
             if (criteria.contractDateTo) params.contractDateTo = criteria.contractDateTo;
             if (criteria.soldDateFrom) params.closeDateFrom = criteria.soldDateFrom;
@@ -327,9 +327,6 @@
             // narrowing intent the backend will drop. The user-facing
             // toast on multi-borough advisory at performSearch() also
             // covers borough-multi; this block covers OH/transit/grid.
-            if (criteria.openHouseDateFrom || criteria.openHouseDateTo) {
-                console.warn('[CRM Search] Stripped unsupported openHouseDate criteria — backend has no OpenHouse handler. See init-disable-dead-controls.js.');
-            }
             // Note: criteria._transitBounds / criteria._gridBounds are
             // SET by transit-search.js / manhattan-grid.js only when
             // the user interacts with those panels, which P1 disabled.
@@ -403,6 +400,9 @@
             MallanAPI.idx.search(params).then(function(result) {
                 if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
                 if (window.CotalityFieldFilters) window.CotalityFieldFilters.report(result && result._meta);
+                if (result && result._meta && result._meta.openHouse && result._meta.openHouse.capped) {
+                    showToast('More than ' + result._meta.openHouse.listings + ' listings have an open house in these dates; showing the first ' + result._meta.openHouse.listings + '. Narrow the dates to see the rest.', 'warning');
+                }
                 console.log('[Search] Trestle returned:', result ? (result.listings ? result.listings.length + ' listings' : 'no listings array') : 'null');
                 if (!result || !result.listings || result.listings.length === 0) {
                     // Server returned 0. Trestle is the source of truth for IDX
@@ -1058,6 +1058,17 @@
                 if (sFrom) {
                     criteria.contractDateFrom = _mdyToISO(sFrom);
                     criteria.contractDateTo = _mdyToISO(sTo) || _mdyToISO(sFrom);
+                }
+            }
+
+            // Open House date range (Cotality's OpenHouse resource: Public, Active events in the range)
+            var ohDrp = document.querySelector('[data-drp="' + drpPrefix + 'OpenHouse"]');
+            if (ohDrp) {
+                var ohFrom = ohDrp.getAttribute('data-from');
+                var ohTo = ohDrp.getAttribute('data-to');
+                if (ohFrom) {
+                    criteria.openHouseDateFrom = _mdyToISO(ohFrom);
+                    criteria.openHouseDateTo = _mdyToISO(ohTo) || _mdyToISO(ohFrom);
                 }
             }
 

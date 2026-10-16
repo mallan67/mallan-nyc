@@ -670,6 +670,8 @@ var MallanAPI = (function () {
       // deliberately NOT forwarded: live Cotality cannot evaluate contains(PublicRemarks, ...) within the request timeout (it aborts).
       if (params.unit) qs.push('unit=' + encodeURIComponent(params.unit));
       if (params.managementCompany) qs.push('managementCompany=' + encodeURIComponent(params.managementCompany));
+      if (params.openHouseDateFrom) qs.push('openHouseDateFrom=' + encodeURIComponent(params.openHouseDateFrom));
+      if (params.openHouseDateTo) qs.push('openHouseDateTo=' + encodeURIComponent(params.openHouseDateTo));
       if (params.contractDateFrom) qs.push('contractDateFrom=' + encodeURIComponent(params.contractDateFrom));
       if (params.contractDateTo) qs.push('contractDateTo=' + encodeURIComponent(params.contractDateTo));
       if (params.checkboxFilters) qs.push('checkboxFilters=' + encodeURIComponent(params.checkboxFilters));

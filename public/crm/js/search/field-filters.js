@@ -184,6 +184,10 @@ var CotalityFieldFilters = (function () {
           }
         } else if (key === "BuildingSecurityFeatures") {
           if (vals.indexOf("Any") !== -1) { out.push({ f: "SecurityFeatures", op: "notnull" }); handled = true; }
+        } else if (key === "PatioAndPorchFeatures") {
+          // Terrace / porch / patio features of the unit (Terrace) and of the building (BuildingTerrace ...): live members of a field Cotality filters
+          var tm = vals.map(function (v) { return member("PatioAndPorchFeatures", v); }).filter(Boolean);
+          if (tm.length) { out.push({ f: "PatioAndPorchFeatures", op: "in", v: tm }); handled = true; }
         } else if (key === "RLSParticipantOnly") {
           // Participant Only: listings distributed to REBNY members only, never shown publicly. Live Cotality marks them Permission = Private (a live Permission member;
           // Cotality filters it). Checked 2026-10-16: 0 active listings are Private, all 10,203 are IDX.

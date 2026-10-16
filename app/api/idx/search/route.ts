@@ -19,6 +19,7 @@ import { generateAttributionText } from "@/lib/idx/mapping";
 import { logFetchAttempt } from "@/lib/idx/logger";
 import { upsertBuildingFromSearchResult } from "@/lib/buildings/upsert";
 import { buildCrmIdxODataFilter } from "@/lib/search/crm-idx-filter";
+import { fetchOpenHouseListingKeys, listingKeyClause } from "@/lib/search/open-house-keys";
 import { applyPostFilters, buildFieldFilters, selectFieldsForPostFilters } from "@/lib/search/field-filters";
 import { mapTrestleToCrmListing } from "@/lib/search/crm-idx-mapper";
 
@@ -155,7 +156,23 @@ export async function GET(req: NextRequest) {
 
     // Build OData filter. Generic checkboxFilters are parsed in
     // buildCrmIdxODataFilter(params) and only OData-safe fields are forwarded.
-    const filter = buildCrmIdxODataFilter(params);
+    let filter = buildCrmIdxODataFilter(params);
+
+    // Open House dates: Cotality's OpenHouse resource lists the Public, Active events in the range; Property is then asked for those listings.
+    let openHouseMeta: { listings: number; capped: boolean } | null = null;
+    if (params.get("openHouseDateFrom") || params.get("openHouseDateTo")) {
+      const oh = await fetchOpenHouseListingKeys(params.get("openHouseDateFrom"), params.get("openHouseDateTo"));
+      if (!oh.ok) {
+        logger.complete("error", oh.error || "open house lookup failed");
+        return NextResponse.json({ error: "Open house search failed: " + (oh.error || "unavailable"), code: "OPEN_HOUSE_LOOKUP" }, { status: 502, headers: { "Cache-Control": "private, no-store" } });
+      }
+      openHouseMeta = { listings: oh.keys.length, capped: oh.capped };
+      if (oh.keys.length === 0) {
+        logger.complete("success");
+        return NextResponse.json({ listings: [], total: 0, totalCount: 0, hasMore: false, skip, limit, attribution: generateAttributionText(), mediaMode: "lazy" as const, _meta: { source: "trestle", fetchedAt: new Date().toISOString(), filter, openHouse: openHouseMeta } }, { headers: { "Cache-Control": "private, no-store" } });
+      }
+      filter = filter ? `${filter} and ${listingKeyClause(oh.keys)}` : listingKeyClause(oh.keys);
+    }
 
     // Any Cotality field (lib/search/field-filters.ts): the ones Cotality lets us filter on are already inside `filter`; the others
     // (provider-blocked Property fields, CustomProperty fields, CustomFields keys) are applied to the fetched page below.
@@ -367,6 +384,7 @@ export async function GET(req: NextRequest) {
         mediaStrategy: useInlineMedia ? "expand" : "lazy",
         mediaBackfilled,
         sponsorFiltered,
+        openHouse: openHouseMeta,
         // fieldFilters: `rejected` lists filters that named no Cotality field or carried a value Cotality does not have; `pageFiltered` counts
         // records dropped by filters Cotality cannot evaluate (they apply to the fetched page only).
         fieldFilters: {

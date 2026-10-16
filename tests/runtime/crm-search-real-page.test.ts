@@ -393,7 +393,7 @@ describe('every enabled Search control sends only values live Cotality accepts',
   // that stands for them and enabled, see REMAPPED below. The ones left have no single live member: Brownstone and Terrace have none, "Laundry in Building" has several candidates, Flexible Space and
   // Investment are PropertySubType members, not BusinessType members.)
   const DISABLED = [
-    ['ArchitecturalStyle', 'Brownstone'], ['ExteriorFeatures', 'Terrace'], ['LaundryFeatures', 'Common'], ['BusinessType', 'FlexibleSpace'], ['BusinessType', 'Investment'],
+    ['ArchitecturalStyle', 'Brownstone'], ['LaundryFeatures', 'Common'], ['BusinessType', 'FlexibleSpace'], ['BusinessType', 'Investment'],
   ];
   // [the field and the live member the control sends now, the field and the value it used to send]
   const REMAPPED: Array<[string, string, string, string]> = [
@@ -570,6 +570,17 @@ describe('the other controls the checkbox path could not send are filters on the
     expect(mirror.enums.Permission).toContain('Private');
     expect(rows('RLSParticipantOnly', 'true')).toEqual([{ f: 'Permission', op: 'in', v: ['Private'] }]);
     expect(buildFieldFilters(JSON.stringify(rows('RLSParticipantOnly', 'true'))).clauses).toEqual(["Permission eq 'Private'"]);
+  });
+  it('Terrace is PatioAndPorchFeatures = Terrace (the unit\'s own), and each Outdoor Space label sends the live member it names', () => {
+    expect(mirror.enums.PatioAndPorchFeatures).toEqual(expect.arrayContaining(['Terrace', 'BuildingTerrace', 'Balcony']));
+    expect(rows('PatioAndPorchFeatures', 'Terrace')).toEqual([{ f: 'PatioAndPorchFeatures', op: 'in', v: ['Terrace'] }]);
+    const want: Record<string, [string, string]> = { Balcony: ['ExteriorFeatures', 'Balcony'], Terrace: ['PatioAndPorchFeatures', 'Terrace'], Patio: ['ExteriorFeatures', 'Patio'], 'Roof Deck': ['ExteriorFeatures', 'BuildingRoofDeck'], Garden: ['ExteriorFeatures', 'Garden'], Yard: ['ExteriorFeatures', 'PrivateYard'] };
+    const box = [...d.querySelectorAll('label')].filter((l) => (l.textContent || '').trim() in want && l.querySelector('input[data-field="PatioAndPorchFeatures"], input[data-field="ExteriorFeatures"]'));
+    for (const [label, [field, value]] of Object.entries(want)) {
+      const input = box.find((l) => (l.textContent || '').trim() === label)?.querySelector('input') as HTMLInputElement | undefined;
+      expect({ label, field: input?.getAttribute('data-field'), value: input?.getAttribute('data-value') }).toEqual({ label, field, value });
+      expect(mirror.enums[field]).toContain(value);
+    }
   });
   it('every bridged row is accepted by the server-side builder', () => {
     const all = [['YearBuilt', 'lte:1946'], ['StoriesTotal', 'lte:6'], ['MaximumFinancingPercent', 'gt:0'], ['AttendanceType', 'Any'], ['BuildingRules', 'PiedATerreAllowed'], ['BuildingPetsAllowed', 'BuildingYes,BuildingCatsOK'],
