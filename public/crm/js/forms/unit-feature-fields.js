@@ -44,6 +44,9 @@
     ['PrivateOutdoorSpace', 'Garden', EX, 'Garden'], ['PrivateOutdoorSpace', 'JulietBalcony', EX, 'JulietBalcony'], ['PrivateOutdoorSpace', 'GreenHouse', EX, 'Greenhouse']
   ];
 
+  // The three fireplace counts the Sale form asks for are the live FireplaceFeatures members Decorative, Gas and WoodBurning, and their sum is FireplacesTotal.
+  var FIREPLACES = [['DecorativeFireplaces', 'Decorative'], ['GasFireplaces', 'Gas'], ['WoodburningFireplaces', 'WoodBurning']];
+
   function listOf(v) { return Array.isArray(v) ? v : (v == null || v === '' ? [] : [v]); }
 
   // Adds, for each Cotality field, the live members the unit's answers stand for. A field the collector already filled keeps its members and gains these.
@@ -60,9 +63,17 @@
       add[field].forEach(function (m) { if (have.indexOf(m) === -1) have.push(m); });
       data[field] = have;
     });
+    var total = 0; var kinds = [];
+    FIREPLACES.forEach(function (row) { var n = parseInt(data[prefix + row[0]], 10); if (n > 0) { total += n; kinds.push(row[1]); } });
+    if (total > 0) {
+      data.FireplacesTotal = total;
+      var have = listOf(data.FireplaceFeatures).slice();
+      kinds.forEach(function (k) { if (have.indexOf(k) === -1) have.push(k); });
+      data.FireplaceFeatures = have;
+    }
     return data;
   }
 
-  global.MallanUnitFeatureFields = { MAP: MAP, apply: apply };
+  global.MallanUnitFeatureFields = { MAP: MAP, FIREPLACES: FIREPLACES, apply: apply };
   if (typeof module !== 'undefined' && module.exports) module.exports = global.MallanUnitFeatureFields;
 })(typeof window !== 'undefined' ? window : globalThis);

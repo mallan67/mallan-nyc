@@ -8,7 +8,7 @@ import { resolve } from 'path';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { JSDOM } = require('jsdom');
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const mapper = require('../../public/crm/js/forms/unit-feature-fields.js') as { MAP: string[][]; apply: (d: Record<string, unknown>, p: string) => Record<string, unknown> };
+const mapper = require('../../public/crm/js/forms/unit-feature-fields.js') as { MAP: string[][]; FIREPLACES: string[][]; apply: (d: Record<string, unknown>, p: string) => Record<string, unknown> };
 
 const ROOT = resolve(__dirname, '../..');
 const live = JSON.parse(readFileSync(resolve(ROOT, 'data/cotality-enums.live.json'), 'utf8'));
@@ -46,6 +46,23 @@ describe.each(['SALE-FORM-REDESIGN', 'RENTAL-FORM-REDESIGN'])('%s', (name) => {
       if (!boxes.some((b) => b.value === value)) missing.push(`${prefix}${suffix}=${value}`);
     }
     expect(missing).toEqual([]);
+  });
+});
+
+describe('fireplaces', () => {
+  it('the three kinds are live FireplaceFeatures members and FireplacesTotal is a live Property field', () => {
+    expect(live.entities.Property).toHaveProperty('FireplacesTotal');
+    for (const [, member] of mapper.FIREPLACES) expect(membersOf('FireplaceFeatures')).toContain(member);
+  });
+  it('the counts become FireplacesTotal and the kinds that have any', () => {
+    const d = mapper.apply({ saleDecorativeFireplaces: '1', saleGasFireplaces: '0', saleWoodburningFireplaces: '2' }, 'sale');
+    expect(d.FireplacesTotal).toBe(3);
+    expect(d.FireplaceFeatures).toEqual(['Decorative', 'WoodBurning']);
+  });
+  it('no count, nothing sent', () => {
+    const d = mapper.apply({ saleDecorativeFireplaces: '', saleGasFireplaces: '0' }, 'sale');
+    expect(d).not.toHaveProperty('FireplacesTotal');
+    expect(d).not.toHaveProperty('FireplaceFeatures');
   });
 });
 
