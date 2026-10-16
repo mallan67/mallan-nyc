@@ -469,7 +469,7 @@ describe(`${FORM}: the summary in the sidebar`, () => {
 });
 
 describe(`${FORM}: Bedrooms and Full Bathrooms start on "Custom", which is no answer`, () => {
-  const BEDROOMS = ['Apartment', '1', '2', '3', '4', '5', '6+'];                     // the Bedrooms list after "Custom": Studio (Apartment), then the numbers
+  const BEDROOMS = ['0', '1', '2', '3', '4', '5', '6+'];                     // the Bedrooms list after "Custom": "Studio / 0 bedrooms" (value 0), then the numbers
   const BATHS = ['1', '2', '3', '4', '5+'];
   const select = (f: BootedForm, id: string) => f.d.getElementById(id) as HTMLSelectElement;
   const missing = (f: BootedForm) => [...f.d.querySelectorAll('#rentalMissingFieldsList li')].map((li) => li.textContent);

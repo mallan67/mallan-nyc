@@ -54,7 +54,7 @@ describe('the markup: only the box that is sent claims a tour field', () => {
       expect(help).not.toMatch(/Video2?URL/);
     }
     // and the one that is sent still says which field it is
-    expect(String(doc.getElementById(`${p}VirtualTourUnbranded`)!.parentElement!.querySelector('p')?.textContent)).toMatch(/RLS\/RESO\/IDX: VirtualTourURLUnbranded$/);
+    expect(String(doc.getElementById(`${p}VirtualTourUnbranded`)!.parentElement!.querySelector('p')?.textContent)).toMatch(/Sent with the listing as the unbranded tour link\.$/);
   });
 });
 

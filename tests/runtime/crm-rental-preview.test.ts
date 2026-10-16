@@ -76,7 +76,7 @@ describe(`${FORM}: the Listing URL`, () => {
 });
 
 describe(`${FORM}: bedrooms and bathrooms`, () => {
-  const ROWS: [string, string, string][] = [['custom', '--', '-- Beds'], ['Apartment', 'Studio', 'Studio'], ['1', '1', '1 Beds'], ['2', '2', '2 Beds'], ['6+', '6+', '6+ Beds']];
+  const ROWS: [string, string, string][] = [['custom', '--', '-- Beds'], ['0', 'Studio', 'Studio'], ['1', '1', '1 Beds'], ['2', '2', '2 Beds'], ['6+', '6+', '6+ Beds']];
   it.each(ROWS)('Bedrooms %s is %s in the summary and the public page, and %s on the card', async (value, summary, card) => {
     const f = await boot();
     try {

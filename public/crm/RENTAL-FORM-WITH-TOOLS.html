@@ -460,7 +460,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                             </div>
                         </div>
                         <div class="border-t px-5 py-3 bg-gray-50 rounded-b-xl">
-                            <p class="text-[10px] text-gray-500"><i class="fas fa-info-circle mr-1"></i>Per UCBA: Only exclusive listings are eligible for RLS. The <strong>ListingAgreement</strong> field maps to RESO standard. In-House listings are internal only and are never submitted to REBNY.</p>
+                            <p class="text-[10px] text-gray-500"><i class="fas fa-info-circle mr-1"></i>Per UCBA: Only exclusive listings are eligible for RLS. The listing agreement types are the REBNY standard ones. In-House listings are internal only and are never submitted to REBNY.</p>
                         </div>
                     </div>
                 </div>
@@ -664,7 +664,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         </label>
                     </div>
                 </div>
-                <p class="text-xs text-gray-500">RLS/RESO/IDX: InternetAutomatedValuationDisplayYN — Controls whether sites like Zillow, Redfin can show their AVM estimates alongside this listing</p>
+                <p class="text-xs text-gray-500">Controls whether sites like Zillow, Redfin can show their AVM estimates alongside this listing</p>
             </div>
         </div>
 
@@ -732,7 +732,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         <!-- REBNY RLS Ownership Type — raw Cotality field key: CommonInterest -->
                         <div>
                             <label class="field-label mb-2">Ownership Type <span class="text-red-500">*</span></label>
-                            <p class="text-[10px] text-gray-500 mb-2">Provider field: CommonInterest · Current REBNY RLS entry values.</p>
+                            <p class="text-[10px] text-gray-500 mb-2">Current REBNY RLS entry values.</p>
                             <select id="rentalCommonInterest" class="field-input" data-concept="CommonInterest">
                                 <option value="">Select...</option>
                                 <option value="Condominium">Condo</option>
@@ -831,7 +831,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         </div>
                     </div>
                     <!-- Business Types -->
-                    <p class="text-xs font-bold text-gray-600 uppercase tracking-wide mb-2">Business Types <span class="text-gray-400 font-normal normal-case">(Trestle: BusinessType)</span></p>
+                    <p class="text-xs font-bold text-gray-600 uppercase tracking-wide mb-2">Business Types</p>
                     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
                         <div class="bg-white border rounded-lg p-3">
                             <p class="text-xs font-bold text-red-700 mb-2 uppercase"><i class="fas fa-heartbeat mr-1"></i> Healthcare</p>
@@ -998,7 +998,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <!-- RLS: PetsAllowed — REQUIRED, Multi-Select Picklist (7 values) — Unit-level -->
                 <div class="col-span-2">
                     <label class="field-label mb-2">Unit Pet Policy <span class="text-red-500">*</span></label>
-                    <p class="text-[10px] text-gray-500 mb-2">Cotality: PetsAllowed — Locked if building says "No Pets".</p>
+                    <p class="text-[10px] text-gray-500 mb-2">Locked if the building says "No Pets".</p>
                     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2" id="rentalPetsAllowedGroup">
                         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="Yes" class="w-4 h-4 rental-unit-pets-cb" data-concept="PetsAllowed"> Yes</label>
                         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="CatsOk" class="w-4 h-4 rental-unit-pets-cb"> Cats OK</label>
@@ -1085,17 +1085,17 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
         <!-- FARE Act Fee Fields (RLS/Trestle — LIVE March 2026) -->
         <div class="form-card border-l-4 border-l-blue-500" id="rentalFareActFieldsSection">
             <div class="form-card-header"><i class="fas fa-receipt"></i> Fee Disclosure <span class="text-xs font-normal text-purple-600 ml-2 normal-case">(FARE Act — NYC LL 119/2024)</span></div>
-            <p class="text-xs text-gray-500 mb-3">Required: All fees must be disclosed before showing. These fields are submitted to REBNY RLS via Trestle.</p>
+            <p class="text-xs text-gray-500 mb-3">Required: All fees must be disclosed before showing. These fields are submitted to REBNY RLS.</p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
                     <label class="field-label">Move-In Costs</label>
                     <input type="text" id="rentalMoveInCosts" placeholder="e.g., Application Fee, Move-In Fee, Credit Check" class="field-input" data-concept="MoveInCosts">
-                    <p class="text-[10px] text-gray-400 mt-1">Cotality: MoveInCosts — comma-separated list of move-in cost types</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Move-in cost types, separated by commas.</p>
                 </div>
                 <div>
                     <label class="field-label">Move-In Cost Amount ($)</label>
                     <input type="number" id="rentalMoveInCostsAmount" placeholder="$0.00" step="0.01" class="field-input" data-concept="MoveInCostsAmount">
-                    <p class="text-[10px] text-gray-400 mt-1">Cotality: MoveInCostsAmount — dollar amount</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Dollar amount.</p>
                 </div>
             </div>
             <div class="mb-4">
@@ -1106,11 +1106,11 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <div>
                     <label class="field-label">Ongoing Fees</label>
                     <input type="text" id="rentalOngoingFees" placeholder="e.g., Storage, Parking, Gym, Pet" class="field-input" data-concept="OngoingFees">
-                    <p class="text-[10px] text-gray-400 mt-1">Cotality: OngoingFees — recurring fees beyond rent</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Recurring fees beyond rent.</p>
                 </div>
                 <div>
                     <label class="field-label">Fee Frequency</label>
-                    <select id="rentalFeeFrequency" class="field-input" data-concept="AdditionalFeeFrequency">
+                    <select id="rentalFeeFrequency" class="field-input" data-concept-disposition="mallan-internal">
                         <option value="">Select</option>
                         <option value="Monthly">Monthly</option>
                         <option value="Quarterly">Quarterly</option>
@@ -1118,19 +1118,19 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         <option value="Annually">Annually</option>
                         <option value="OneTime">One Time</option>
                     </select>
-                    <p class="text-[10px] text-gray-400 mt-1">RLS: FeeFrequency — how often ongoing fees are charged</p>
+                    <p class="text-[10px] text-gray-400 mt-1">How often the ongoing fees are charged.</p>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
                     <label class="field-label">Tenant Pays</label>
                     <input type="text" id="rentalTenantPays" placeholder="e.g., Electric, Gas, Water, Cable, Internet" class="field-input" data-concept="TenantPays">
-                    <p class="text-[10px] text-gray-400 mt-1">Cotality: TenantPays — utilities/services paid by tenant</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Utilities and services the tenant pays.</p>
                 </div>
                 <div>
                     <label class="field-label">Tenant Pays Description</label>
                     <input type="text" id="rentalTenantPaysDescription" placeholder="Additional details about what tenant pays..." class="field-input" data-concept="TenantPaysDescription">
-                    <p class="text-[10px] text-gray-400 mt-1">Cotality: TenantPaysDescription</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Details of what the tenant pays.</p>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1160,7 +1160,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         <option value="Annually">Annually</option>
                         <option value="OneTime">One Time</option>
                     </select>
-                    <p class="text-[10px] text-gray-400 mt-1">RLS: AdditionalFeeFrequency</p>
+                    <p class="text-[10px] text-gray-400 mt-1">How often the additional fee is charged.</p>
                 </div>
             </div>
         </div>
@@ -1204,7 +1204,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
             <div class="form-card-header"><i class="fas fa-percentage"></i> Concessions</div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                 <div>
-                    <label class="field-label">Concessions <span class="text-xs text-gray-400">(RLS/RESO/IDX)</span></label>
+                    <label class="field-label">Concessions</label>
                     <select id="rentalConcessions" class="field-input" data-concept="Concessions">
                         <option value="">Select</option>
                         <option value="Yes">Yes</option>
@@ -1375,21 +1375,19 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         <input type="checkbox" name="rentalInternetEntireListingDisplayYN" id="rentalInternetEntireListingDisplayYN" class="w-4 h-4" checked data-concept="InternetEntireListingDisplayYN">
                         <span class="text-sm font-semibold text-gray-700">Display Entire Listing</span>
                     </label>
-                    <p class="text-[10px] text-gray-500">RLS/RESO/IDX: InternetEntireListingDisplayYN</p>
                 </div>
                 <div class="border rounded-lg p-4">
                     <label class="flex items-center gap-2 cursor-pointer mb-2">
                         <input type="checkbox" name="rentalInternetAddressDisplayYN" id="rentalInternetAddressDisplayYN" class="w-4 h-4" checked data-concept="InternetAddressDisplayYN">
                         <span class="text-sm font-semibold text-gray-700">Display Address</span>
                     </label>
-                    <p class="text-[10px] text-gray-500">RLS/RESO/IDX: InternetAddressDisplayYN</p>
                 </div>
                 <div class="border rounded-lg p-4">
                     <label class="flex items-center gap-2 cursor-pointer mb-2">
                         <input type="checkbox" id="rentalInternetConsumerCommentYN" class="w-4 h-4" data-concept="InternetConsumerCommentYN">
                         <span class="text-sm font-semibold text-gray-700">Allow Consumer Comments</span>
                     </label>
-                    <p class="text-[10px] text-gray-500">RLS/RESO/IDX: InternetConsumerCommentYN (VOW only)</p>
+                    <p class="text-[10px] text-gray-500">Applies to VOW feeds only.</p>
                 </div>
             </div>
         </div>
@@ -1398,11 +1396,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
             <div class="form-card-header"><i class="fas fa-pen-fancy"></i> Listing Description</div>
 
             <div class="mb-2 flex items-center justify-between">
-                <div class="flex gap-2">
-                    <button type="button" class="px-3 py-1 border rounded text-xs hover:bg-gray-50"><i class="fas fa-bold"></i></button>
-                    <button type="button" class="px-3 py-1 border rounded text-xs hover:bg-gray-50"><i class="fas fa-italic"></i></button>
-                    <button type="button" class="px-3 py-1 border rounded text-xs hover:bg-gray-50"><i class="fas fa-list"></i></button>
-                </div>
+                <div></div><!-- the description is plain text (it goes to the MLS as PublicRemarks): no bold / italic / list buttons -->
                 <div class="flex items-center gap-3">
                     <span class="text-[10px] text-gray-400"><i class="fas fa-shield-alt mr-1"></i> UCBA + Fair Housing scan active</span>
                     <span class="text-xs text-gray-500" id="rentalDescCharCount">0 / 5000 characters</span>
@@ -1525,7 +1519,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
             </div>
             <div class="mt-3 flex items-center gap-3">
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalBuyerAgentRLSParticipantYN" class="w-4 h-4" data-concept-disposition="mallan-internal" data-removed-field="BuyerAgentRLSParticipantYN"> Tenant's Agent is RLS Participant</label>
-                <span class="text-xs text-gray-500">(RLS/RESO/IDX: BuyerAgentRLSParticipantYN)</span>
+               
             </div>
         </div>
 
@@ -2059,7 +2053,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalHeatingYN" value="Yes" class="w-4 h-4" data-concept="HeatingYN"> Yes</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalHeatingYN" value="No" class="w-4 h-4" data-concept="HeatingYN"> No</label>
     </div>
-    <p class="text-xs text-gray-500 mb-2">Heating Type (RESO multi-select)</p>
+    <p class="text-xs text-gray-500 mb-2">Heating Type (select all that apply)</p>
     <div id="rentalHeatingTypes" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
         <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="rentalHeating" value="Steam" class="w-3 h-3" data-concept="Heating"> Steam</label>
         <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="rentalHeating" value="HotWater" class="w-3 h-3"> Hot Water</label>
@@ -2114,7 +2108,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalCoolingYN" value="Yes" class="w-4 h-4" data-concept="CoolingYN"> Yes</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalCoolingYN" value="No" class="w-4 h-4" data-concept="CoolingYN"> No</label>
     </div>
-    <p class="text-xs text-gray-500 mb-2">Cooling Type (RESO multi-select)</p>
+    <p class="text-xs text-gray-500 mb-2">Cooling Type (select all that apply)</p>
     <div id="rentalCoolingTypes" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
         <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="rentalCooling" value="CentralAir" class="w-3 h-3" data-concept="Cooling"> Central Air</label>
         <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="rentalCooling" value="Ductless" class="w-3 h-3"> Ductless</label>
@@ -2402,7 +2396,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalTHDocsAvailable" value="Lease" class="w-4 h-4"> Lease Form</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalTHDocsAvailable" value="ScheduleA" class="w-4 h-4"> Schedule A</label>
     </div>
-    <p class="text-[10px] text-gray-400 mt-2">RLS/RESO/IDX: DocumentsAvailable (multi-select)</p>
+    <p class="text-[10px] text-gray-400 mt-2">Select all that apply.</p>
 </div>
 
 <div class="flex justify-between pt-2">
@@ -2598,7 +2592,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 </label>
                 <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">ON</span>
             </div>
-            <p class="text-xs text-gray-500">RLS/RESO/IDX: IDXEntireListingDisplayYN — controls all licensed partner display</p>
+            <p class="text-xs text-gray-500">Controls display by all licensed partners.</p>
             <p class="text-[10px] text-red-500 mt-1"><i class="fas fa-exclamation-circle mr-1"></i>If unchecked, listing will NOT appear on any IDX-licensed partner sites.</p>
         </div>
         <!-- VOW Opt-Out (Not Activated) -->
@@ -2610,7 +2604,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 </label>
                 <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-500"><i class="fas fa-lock text-[10px] mr-1"></i>Not Activated</span>
             </div>
-            <p class="text-xs text-gray-400">Cotality: InternetEntireListingDisplayYN (controls VOW + IDX + Web)</p>
+            <p class="text-xs text-gray-400">Controls VOW, IDX and website display.</p>
             <p class="text-xs text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>VOW feed not yet activated. When active, unchecking removes listing from all internet display.</p>
         </div>
         <!-- RLS: SyndicateYN — defaults to TRUE (syndicate by default per RLS rules) -->
@@ -2621,7 +2615,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <span class="text-sm font-semibold text-gray-700">Syndicate to Third-Party Portals</span>
                 </label>
             </div>
-            <p class="text-xs text-gray-500">RLS: SyndicateYN — default: True (required by RLS rules)</p>
+            <p class="text-xs text-gray-500">Default: on (required by RLS rules).</p>
         </div>
     </div>
     <div id="rentalIdxWarning" class="warning-banner bg-red-50 border border-red-200 mt-4" style="display:none;">
@@ -3284,7 +3278,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <div>
                         <label class="field-label">Unbranded Tour URL <span class="text-[10px] text-gray-400 font-normal">(no watermark)</span></label>
                         <input type="url" id="rentalVirtualTourUnbranded" placeholder="https://my.matterport.com/show/?m=..." class="field-input" data-concept="VirtualTourURLUnbranded">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VirtualTourURLUnbranded</p>
+                        <p class="text-[10px] text-gray-400 mt-1">Sent with the listing as the unbranded tour link.</p>
                     </div>
                     <div>
                         <label class="field-label">Unbranded Tour URL 2</label>
@@ -3347,7 +3341,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <i class="fas fa-search mr-1"></i> Search
                 </button>
             </div>
-            <p class="text-xs text-amber-700 mt-2 viewer-hidden"><i class="fas fa-info-circle mr-1"></i> Building data from Trestle/REBNY RLS will auto-populate if available</p>
+            <p class="text-xs text-amber-700 mt-2 viewer-hidden"><i class="fas fa-info-circle mr-1"></i> Building data from Cotality will auto-populate if available</p>
             <div id="bldgSearchResults" class="mt-2 hidden"></div>
         </div>
 
@@ -3622,7 +3616,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <!-- RLS: AttendanceType — REQUIRED, Multi-Select Picklist (16 values) -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-concierge-bell"></i> Building Attendance Type <span class="text-red-500">*</span></div>
-                        <p class="text-[10px] text-gray-500 mb-3">Cotality: AttendanceType — Select all that apply. At least one required.</p>
+                        <p class="text-[10px] text-gray-500 mb-3">Select all that apply. At least one required.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-3" id="rentalAttendanceTypeGroup">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="DoormanFullTime" class="w-4 h-4 rental-attendance-cb" data-concept="AttendanceType"> Doorman (Full-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="DoormanPartTime" class="w-4 h-4 rental-attendance-cb"> Doorman (Part-Time)</label>
@@ -3645,7 +3639,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
 
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-user-shield"></i> Lobby Attendant</div>
-                        <p class="text-[10px] text-gray-500 mb-3">RLS Field: LobbyAttendant — Specify lobby attendant coverage type.</p>
+                        <p class="text-[10px] text-gray-500 mb-3">Specify the lobby attendant coverage.</p>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label class="field-label">Lobby Attendant</label>
@@ -3656,7 +3650,6 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                                     <option value="Virtual">Virtual</option>
                                     <option value="None">None</option>
                                 </select>
-                                <p class="text-[10px] text-gray-400 mt-1">RLS: LobbyAttendant</p>
                             </div>
                         </div>
                     </div>
@@ -3688,7 +3681,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
 
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-tshirt"></i> Building Laundry Features <span class="text-red-500">*</span></div>
-                        <p class="text-[10px] text-gray-500 mb-2">RLS: BuildingLaundryFeatures — Select all that apply. "None" deselects all others.</p>
+                        <p class="text-[10px] text-gray-500 mb-2">Select all that apply. "None" deselects all others.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="InUnit" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)" data-concept-disposition="mallan-internal"> In Unit</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="WasherDryerInstallAllowed" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> W/D Install Allowed</label>
@@ -3900,7 +3893,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="bldgDocsAvailable" value="Lease" class="w-4 h-4"> Lease Form</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="bldgDocsAvailable" value="ScheduleA" class="w-4 h-4"> Schedule A</label>
                         </div>
-                        <p class="text-[10px] text-gray-400 mt-2">RLS/RESO/IDX: DocumentsAvailable (multi-select)</p>
+                        <p class="text-[10px] text-gray-400 mt-2">Select all that apply.</p>
                     </div>
 
                     <div class="flex justify-between mt-4">
@@ -3945,7 +3938,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <!-- RLS: BuildingPetsAllowed — REQUIRED, Multi-Select Picklist (7 values) -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-paw"></i> Building Pet Policy <span class="text-red-500">*</span></div>
-                        <p class="text-[10px] text-gray-500 mb-3">RLS: BuildingPetsAllowed — Select all that apply. If "No Pets", unit-level PetsAllowed locks to "No".</p>
+                        <p class="text-[10px] text-gray-500 mb-3">Select all that apply. If "No Pets", the unit's pet policy locks to "No".</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4" id="rentalBuildingPetsAllowedGroup">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingPetsAllowed" value="BuildingYes" class="w-4 h-4 rental-bldg-pets-cb" data-concept-disposition="mallan-internal"> Yes (All Pets)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingPetsAllowed" value="BuildingCatsOK" class="w-4 h-4 rental-bldg-pets-cb"> Cats OK</label>

@@ -304,7 +304,7 @@ body { font-family: Manrope, sans-serif; }
         <!-- IDX Address Search -->
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-search-location"></i> Property Address — Building Lookup</div>
-            <p class="text-xs text-gray-500 mb-3">Search by address to auto-detect property type and populate building data from Trestle/RLS reference.</p>
+            <p class="text-xs text-gray-500 mb-3">Search by address to detect the property type and fill the building's details from Cotality.</p>
             <div class="mb-3 relative">
                 <input type="text" id="saleBuildingSearch"
                        placeholder="Start typing address (e.g., 200 East 66th, 15 Central Park West)..."
@@ -319,19 +319,19 @@ body { font-family: Manrope, sans-serif; }
                 <div class="text-xs">
                     <p class="font-semibold">Building Match Found</p>
                     <p>Property type: <strong id="saleIdxDetectedType">--</strong> | Building: <strong id="saleIdxDetectedBuilding">--</strong></p>
-                    <p class="mt-0.5 text-green-600">Building data populated from Trestle/RLS reference. Review and adjust if needed.</p>
+                    <p class="mt-0.5 text-green-600">Building details filled from Cotality. Review and adjust if needed.</p>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3">
                 <div class="sm:col-span-2">
                     <label class="field-label">Street Address <span class="text-red-500">*</span></label>
                     <input type="text" id="saleStreetAddress" placeholder="e.g., 200 East 66th Street" oninput="updateListingHeaderBar('sale')" onblur="saleAddressBlurLookup()" class="field-input" data-concept="StreetName">
-                    <p class="text-[10px] text-gray-400">Cotality: UnparsedAddress — auto-parsed into StreetNumber, StreetName, StreetSuffix, StreetDirPrefix</p>
+                    <p class="text-[10px] text-gray-400">The address is split into street number, direction, name and suffix automatically.</p>
                 </div>
                 <div>
                     <label class="field-label">Unit / Apt</label>
                     <input type="text" id="saleUnitNumber" placeholder="e.g., 15A" oninput="updateListingHeaderBar('sale')" class="field-input" data-concept="UnitNumber">
-                    <p class="text-[10px] text-gray-400">Cotality: UnitNumber</p>
+                    <p class="text-[10px] text-gray-400">Apartment or unit number.</p>
                 </div>
                 <div>
                     <label class="field-label">Borough <span class="text-red-500">*</span></label>
@@ -343,7 +343,7 @@ body { font-family: Manrope, sans-serif; }
                         <option value="Bronx">Bronx</option>
                         <option value="StatenIsland">Staten Island</option>
                     </select>
-                    <p class="text-[10px] text-gray-400">Cotality: CityRegion</p>
+                    <p class="text-[10px] text-gray-400">Borough.</p>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3">
@@ -354,7 +354,7 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label">Postal City <span class="text-red-500">*</span></label>
                     <input type="text" id="salePostalCity" placeholder="e.g., New York" class="field-input" data-concept="PostalCity">
-                    <p class="text-[10px] text-gray-400">Cotality: PostalCity — USPS city (may differ from borough)</p>
+                    <p class="text-[10px] text-gray-400">The post-office city (it may differ from the borough).</p>
                 </div>
                 <div>
                     <label class="field-label">Neighborhood</label>
@@ -363,7 +363,7 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label">County</label>
                     <input type="text" id="saleCountyOrParish" placeholder="Auto from borough" class="field-input bg-gray-50" readonly data-concept="CountyOrParish">
-                    <p class="text-[10px] text-gray-400">Cotality: CountyOrParish — auto-derived</p>
+                    <p class="text-[10px] text-gray-400">Filled in from the borough.</p>
                 </div>
             </div>
             <!-- RLS auto-set hidden fields -->
@@ -503,7 +503,7 @@ body { font-family: Manrope, sans-serif; }
                                 </div>
                             </div>
                             <div class="border-t px-5 py-3 bg-gray-50 rounded-b-xl">
-                                <p class="text-[10px] text-gray-500"><i class="fas fa-info-circle mr-1"></i>Per UCBA: Only exclusive listings are eligible for RLS. The <strong>ListingAgreement</strong> field maps to RESO standard. In-House listings are never submitted to REBNY. Internal Only stays in CRM; Web Only publishes on mallan.nyc only.</p>
+                                <p class="text-[10px] text-gray-500"><i class="fas fa-info-circle mr-1"></i>Per UCBA: Only exclusive listings are eligible for RLS. The listing agreement types are the REBNY standard ones. In-House listings are never submitted to REBNY. Internal Only stays in CRM; Web Only publishes on mallan.nyc only.</p>
                             </div>
                         </div>
                     </div>
@@ -858,7 +858,7 @@ body { font-family: Manrope, sans-serif; }
                     <!-- RLS: StructureType — REQUIRED, Single-Select Picklist (13 values) -->
                     <div class="mt-4 pt-3 border-t">
                         <label class="field-label mb-2">Structure Type <span class="text-red-500">*</span></label>
-                        <p class="text-[10px] text-gray-500 mb-2">RLS Field: StructureType — Auto-set from IDX/RLS building data or property type. Override if needed.</p>
+                        <p class="text-[10px] text-gray-500 mb-2">Set from the building's Cotality record or the property type. Change it if needed.</p>
                         <select id="saleStructureType" class="field-input" data-concept="StructureType">
                             <option value="">Select...</option>
                             <option value="Duplex">Duplex</option>
@@ -878,7 +878,7 @@ body { font-family: Manrope, sans-serif; }
                     <!-- REBNY RLS Ownership Type — raw Cotality field key: CommonInterest -->
                     <div class="mt-4 pt-3 border-t">
                         <label class="field-label mb-2">Ownership Type <span class="text-red-500">*</span></label>
-                        <p class="text-[10px] text-gray-500 mb-2">Provider field: CommonInterest · Current REBNY RLS entry values.</p>
+                        <p class="text-[10px] text-gray-500 mb-2">Current REBNY RLS entry values.</p>
                         <select id="saleCommonInterest" class="field-input" onchange="onSaleCommonInterestChange()" data-concept="CommonInterest" required>
                             <option value="">Select...</option>
                             <option value="Condominium">Condo</option>
@@ -892,7 +892,7 @@ body { font-family: Manrope, sans-serif; }
                     <!-- Cotality SpecialListingConditions (Multi enumeration; REBNY requires it for a Condo, Co-op or Condop) -->
                     <div class="mt-4 pt-3 border-t" id="saleSpecialListingConditionsBlock">
                         <label class="field-label mb-2">Special Listing Conditions <span class="text-red-500">*</span></label>
-                        <p class="text-[10px] text-gray-500 mb-2">Provider field: SpecialListingConditions · Choose every condition that applies. Required for a Condo, Co-op or Condop.</p>
+                        <p class="text-[10px] text-gray-500 mb-2">Choose every condition that applies. Required for a Condo, Co-op or Condop.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="AffordableHousingSubsidy" class="w-4 h-4" data-concept="SpecialListingConditions"> Affordable Housing Subsidy</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="AllowanceFlooring" class="w-4 h-4" data-concept="SpecialListingConditions"> Allowance (Flooring)</label>
@@ -1016,7 +1016,7 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                         </div>
                         <!-- Business Types -->
-                        <p class="text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-2">Business Types <span class="text-gray-400 font-normal normal-case">(Trestle: BusinessType)</span></p>
+                        <p class="text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-2">Business Types</p>
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-2">
                             <div class="bg-white border rounded-lg p-3">
                                 <p class="text-xs font-bold text-red-700 mb-2"><i class="fas fa-heartbeat mr-1"></i> Healthcare</p>
@@ -1086,7 +1086,7 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label">Exclusive Expires <span class="text-[10px] text-amber-600">(Hidden)</span></label>
                     <div class="relative"><input type="date" id="saleExclusiveExpires" class="field-input" required data-concept="ExpirationDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
-                    <p class="text-[10px] text-gray-400">Cotality: ExpirationDate — Confidential. Max 10 years from today.</p>
+                    <p class="text-[10px] text-gray-400">Confidential. Maximum 10 years from today.</p>
                 </div>
                 <div>
                     <label class="field-label">First Co-Broke <span class="text-red-500 sale-req-star hidden">*</span></label>
@@ -1424,8 +1424,8 @@ body { font-family: Manrope, sans-serif; }
                     </select>
                     <p class="text-xs text-gray-500 mt-1">
                         <i class="fas fa-link mr-1"></i>
-                        <span class="font-medium">Address & Apartment</span> = Full address (RLS/RESO/IDX: InternetEntireListingDisplayYN) |
-                        <span class="font-medium">Address</span> = Without unit (RLS/RESO/IDX: InternetAddressDisplayYN)
+                        <span class="font-medium">Address & Apartment</span> = Full address |
+                        <span class="font-medium">Address</span> = Without unit
                     </p>
                 </div>
                 <div>
@@ -1436,9 +1436,9 @@ body { font-family: Manrope, sans-serif; }
             </div>
         </div>
 
-        <!-- Internet Display Controls (RLS/RESO/IDX) -->
+        <!-- Internet Display Controls -->
         <div class="form-card">
-            <div class="form-card-header"><i class="fas fa-toggle-on"></i> Internet Display Controls (RLS/RESO/IDX)</div>
+            <div class="form-card-header"><i class="fas fa-toggle-on"></i> Internet Display Controls</div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <!-- InternetEntireListingDisplayYN -->
                 <div class="border rounded-lg p-4">
@@ -1452,7 +1452,6 @@ body { font-family: Manrope, sans-serif; }
                             <span class="hidden group-hover:block absolute right-0 top-5 z-10 w-64 bg-gray-800 text-white text-xs rounded-lg p-3 shadow-lg">When disabled, only a summary (price, beds, baths, neighborhood) will appear online. Full description, photos, and details will be hidden.</span>
                         </span>
                     </div>
-                    <p class="text-xs text-gray-500">RLS/RESO/IDX: InternetEntireListingDisplayYN</p>
                 </div>
                 <!-- InternetAddressDisplayYN -->
                 <div class="border rounded-lg p-4">
@@ -1466,7 +1465,6 @@ body { font-family: Manrope, sans-serif; }
                             <span class="hidden group-hover:block absolute right-0 top-5 z-10 w-64 bg-gray-800 text-white text-xs rounded-lg p-3 shadow-lg">When disabled, the listing will show the neighborhood and borough but not the exact street address.</span>
                         </span>
                     </div>
-                    <p class="text-xs text-gray-500">RLS/RESO/IDX: InternetAddressDisplayYN</p>
                 </div>
                 <!-- InternetConsumerCommentYN (VOW) -->
                 <div class="border rounded-lg p-4">
@@ -1480,7 +1478,7 @@ body { font-family: Manrope, sans-serif; }
                             <span class="hidden group-hover:block absolute right-0 top-5 z-10 w-64 bg-gray-800 text-white text-xs rounded-lg p-3 shadow-lg">When enabled, logged-in consumers on VOW sites can leave comments/reviews on this listing.</span>
                         </span>
                     </div>
-                    <p class="text-xs text-gray-500">RLS/RESO/IDX: InternetConsumerCommentYN (VOW feeds only)</p>
+                    <p class="text-xs text-gray-500">Applies to VOW feeds only.</p>
                 </div>
             </div>
         </div>
@@ -2400,7 +2398,7 @@ body { font-family: Manrope, sans-serif; }
         <!-- RLS: PetsAllowed — REQUIRED, Multi-Select Picklist (7 values) -->
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-paw"></i> Unit Pet Policy <span class="text-red-500">*</span></div>
-            <p class="text-[10px] text-gray-500 mb-3">RLS Field: PetsAllowed — Unit-level pet policy. If building policy is "No Pets", this locks to "No".</p>
+            <p class="text-[10px] text-gray-500 mb-3">Unit-level pet policy. If building policy is "No Pets", this locks to "No".</p>
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3" id="salePetsAllowedGroup">
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="Yes" class="w-4 h-4 sale-unit-pets-cb" onchange="handleSaleUnitPetsChange(this)" data-concept="PetsAllowed"> Yes (All Pets)</label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="CatsOk" class="w-4 h-4 sale-unit-pets-cb" onchange="handleSaleUnitPetsChange(this)"> Cats OK</label>
@@ -2977,7 +2975,7 @@ body { font-family: Manrope, sans-serif; }
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleTHDocsAvailable" value="ResalePackage" class="w-4 h-4"> Board Package Template</label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleTHDocsAvailable" value="ScheduleA" class="w-4 h-4"> Schedule A</label>
             </div>
-            <p class="text-[10px] text-gray-400 mt-2">Cotality: DocumentsAvailable (multi-select) — real building/listing field</p>
+            <p class="text-[10px] text-gray-400 mt-2">Select all that apply.</p>
         </div>
 
         <!-- Navigation -->
@@ -3001,10 +2999,6 @@ body { font-family: Manrope, sans-serif; }
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-align-left"></i> Description</div>
             <div class="relative">
-                <div class="absolute top-2 right-2 flex gap-1 z-10">
-                    <button type="button" class="px-1.5 py-0.5 text-xs bg-gray-200 rounded hover:bg-gray-300 font-bold">B</button>
-                    <button type="button" class="px-1.5 py-0.5 text-xs bg-gray-200 rounded hover:bg-gray-300 italic">I</button>
-                </div>
                 <textarea id="saleTHDescription" rows="8" class="field-input resize-y" placeholder="Enter property description. This will be used for all listing syndication channels." oninput="checkDescriptionCompliance('saleTHDescription','saleTHDescriptionFlags')" data-concept="PublicRemarks"></textarea>
             </div>
             <div id="saleTHDescriptionFlags" class="hidden mt-2"></div>
@@ -3018,10 +3012,6 @@ body { font-family: Manrope, sans-serif; }
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-table-cells-large"></i> Layout</div>
             <div class="relative">
-                <div class="absolute top-2 right-2 flex gap-1 z-10">
-                    <button type="button" class="px-1.5 py-0.5 text-xs bg-gray-200 rounded hover:bg-gray-300 font-bold">B</button>
-                    <button type="button" class="px-1.5 py-0.5 text-xs bg-gray-200 rounded hover:bg-gray-300 italic">I</button>
-                </div>
                 <textarea id="saleTHLayout" rows="8" class="field-input resize-y" placeholder="Describe the property layout, floor plan, room arrangement, and flow." oninput="checkDescriptionCompliance('saleTHLayout','saleTHLayoutFlags')" data-concept-disposition="mallan-internal"></textarea>
             </div>
             <div id="saleTHLayoutFlags" class="hidden mt-2"></div>
@@ -3031,10 +3021,6 @@ body { font-family: Manrope, sans-serif; }
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-hand-holding-dollar"></i> Financing</div>
             <div class="relative">
-                <div class="absolute top-2 right-2 flex gap-1 z-10">
-                    <button type="button" class="px-1.5 py-0.5 text-xs bg-gray-200 rounded hover:bg-gray-300 font-bold">B</button>
-                    <button type="button" class="px-1.5 py-0.5 text-xs bg-gray-200 rounded hover:bg-gray-300 italic">I</button>
-                </div>
                 <textarea id="saleTHFinancing" rows="8" class="field-input resize-y" placeholder="Describe financing terms, assumptions, seller financing options, or special conditions." oninput="checkDescriptionCompliance('saleTHFinancing','saleTHFinancingFlags')" data-concept-disposition="mallan-internal"></textarea>
             </div>
             <div id="saleTHFinancingFlags" class="hidden mt-2"></div>
@@ -3044,10 +3030,6 @@ body { font-family: Manrope, sans-serif; }
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-note-sticky"></i> Notes</div>
             <div class="relative">
-                <div class="absolute top-2 right-2 flex gap-1 z-10">
-                    <button type="button" class="px-1.5 py-0.5 text-xs bg-gray-200 rounded hover:bg-gray-300 font-bold">B</button>
-                    <button type="button" class="px-1.5 py-0.5 text-xs bg-gray-200 rounded hover:bg-gray-300 italic">I</button>
-                </div>
                 <textarea id="saleTHNotes" rows="8" class="field-input resize-y" placeholder="Internal notes, showing instructions, or additional remarks (not published)." oninput="checkDescriptionCompliance('saleTHNotes','saleTHNotesFlags')" data-concept-disposition="mallan-internal"></textarea>
             </div>
             <div id="saleTHNotesFlags" class="hidden mt-2"></div>
@@ -3285,7 +3267,7 @@ body { font-family: Manrope, sans-serif; }
                     </label>
                     <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-500"><i class="fas fa-lock text-[10px]"></i> Not Activated</span>
                 </div>
-                <p class="text-xs text-gray-400">Cotality: InternetEntireListingDisplayYN (controls VOW + IDX + Web)</p>
+                <p class="text-xs text-gray-400">Controls VOW, IDX and website display.</p>
                 <p class="text-xs text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>VOW feed not yet activated. When active, unchecking removes listing from all internet display.</p>
             </div>
 
@@ -3301,7 +3283,7 @@ body { font-family: Manrope, sans-serif; }
                         <span class="hidden group-hover:block absolute right-0 top-5 z-10 w-64 bg-gray-800 text-white text-xs rounded-lg p-3 shadow-lg">When checked, this listing will be sent to approved syndication portals (Zillow, StreetEasy, Realtor.com, etc.). Uncheck to block syndication. LMPs are required to default this to ON.</span>
                     </span>
                 </div>
-                <p class="text-xs text-gray-500">RLS: SyndicateYN — default: True (required by RLS rules)</p>
+                <p class="text-xs text-gray-500">Default: on (required by RLS rules).</p>
             </div>
         </div>
 
@@ -3939,7 +3921,7 @@ body { font-family: Manrope, sans-serif; }
                 <p class="text-xs text-amber-600 mt-2"><i class="fas fa-star mr-1"></i> <strong>Primary Photo:</strong> First photo = hero image on StreetEasy, Zillow, Realtor.com, and all syndicated sites. Drag to reorder.</p>
                 <!-- Photo quality guidelines -->
                 <div class="mt-2 p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-[10px] text-blue-700 space-y-1">
-                    <div class="font-bold text-blue-800"><i class="fas fa-info-circle mr-1"></i> Photo Requirements (Trestle / REBNY RLS)</div>
+                    <div class="font-bold text-blue-800"><i class="fas fa-info-circle mr-1"></i> Photo Requirements (REBNY RLS)</div>
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-0.5">
                         <span><strong>Min:</strong> 1024 x 768 px</span>
                         <span><strong>Rec:</strong> 2048 x 1365 px</span>
@@ -3950,7 +3932,7 @@ body { font-family: Manrope, sans-serif; }
                         <span><strong>Optimal:</strong> 22–27 photos</span>
                         <span><strong>Min rec:</strong> 10–15 photos</span>
                     </div>
-                    <div class="text-blue-600 mt-1">Each photo must be assigned a Room/Category (RESO ImageOf) and sort order. Photos under 1024x768 will be flagged for rejection.</div>
+                    <div class="text-blue-600 mt-1">Each photo must be assigned a Room/Category and sort order. Photos under 1024x768 will be flagged for rejection.</div>
                 </div>
                 <!-- RESO ImageOf category selector (shown per photo in preview) -->
                 <div id="salePhotoPreview" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4" style="cursor: grab;"></div>
@@ -3961,7 +3943,7 @@ body { font-family: Manrope, sans-serif; }
                         <div>
                             <label class="field-label">Photo Sort Order <span class="text-xs text-gray-400 font-normal">(Integer)</span></label>
                             <input type="number" id="salePhotoSortOrder" placeholder="1" min="1" step="1" class="field-input" data-concept-disposition="mallan-internal">
-                            <p class="text-[10px] text-gray-400 mt-1">Cotality: PhotosChangeTimestamp — Controls display order of photos. First photo (1) = primary/hero image.</p>
+                            <p class="text-[10px] text-gray-400 mt-1">Controls the display order of photos. The first photo (1) is the primary image.</p>
                         </div>
                     </div>
                 </div>
@@ -4010,7 +3992,7 @@ body { font-family: Manrope, sans-serif; }
                     <div>
                         <label class="field-label">Unbranded Tour URL <span class="text-[10px] text-gray-400 font-normal">(no watermark)</span></label>
                         <input type="url" id="saleVirtualTourUnbranded" placeholder="https://my.matterport.com/show/?m=..." class="field-input" data-concept="VirtualTourURLUnbranded">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VirtualTourURLUnbranded</p>
+                        <p class="text-[10px] text-gray-400 mt-1">Sent with the listing as the unbranded tour link.</p>
                     </div>
                     <div>
                         <label class="field-label">Unbranded Tour URL 2</label>
@@ -4638,7 +4620,7 @@ body { font-family: Manrope, sans-serif; }
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgDocsAvailable" value="ResalePackage" class="w-4 h-4"> Board Package Template</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBldgDocsAvailable" value="ScheduleA" class="w-4 h-4"> Schedule A</label>
                         </div>
-                        <p class="text-[10px] text-gray-400 mt-2">Cotality: DocumentsAvailable (multi-select) — real building/listing field</p>
+                        <p class="text-[10px] text-gray-400 mt-2">Select all that apply.</p>
                     </div>
 
                     <div class="flex justify-between mt-4">

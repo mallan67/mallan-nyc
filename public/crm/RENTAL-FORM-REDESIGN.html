@@ -296,12 +296,12 @@ body { font-family: Manrope, sans-serif; }
                 <div class="sm:col-span-2">
                     <label class="field-label">Street Address <span class="text-red-500">*</span></label>
                     <input type="text" id="rentalStreetAddress" placeholder="e.g., 200 East 66th Street" oninput="updateListingHeaderBar('rental')" onblur="rentalAddressBlurLookup()" class="field-input" required data-concept="StreetName">
-                    <p class="text-[10px] text-gray-400">Cotality: UnparsedAddress — auto-parsed into StreetNumber, StreetName, StreetSuffix, StreetDirPrefix</p>
+                    <p class="text-[10px] text-gray-400">The address is split into street number, direction, name and suffix automatically.</p>
                 </div>
                 <div>
                     <label class="field-label">Unit / Apt</label>
                     <input type="text" id="rentalUnitNumber" placeholder="e.g., 15A" oninput="updateListingHeaderBar('rental')" class="field-input" data-concept="UnitNumber">
-                    <p class="text-[10px] text-gray-400">Cotality: UnitNumber</p>
+                    <p class="text-[10px] text-gray-400">Apartment or unit number.</p>
                 </div>
                 <div>
                     <label class="field-label">Borough <span class="text-red-500">*</span></label>
@@ -313,7 +313,7 @@ body { font-family: Manrope, sans-serif; }
                         <option value="Bronx">Bronx</option>
                         <option value="StatenIsland">Staten Island</option>
                     </select>
-                    <p class="text-[10px] text-gray-400">Cotality: CityRegion</p>
+                    <p class="text-[10px] text-gray-400">Borough.</p>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3">
@@ -324,7 +324,7 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label">Postal City <span class="text-red-500">*</span></label>
                     <input type="text" id="rentalPostalCity" placeholder="e.g., New York" class="field-input" data-concept="PostalCity">
-                    <p class="text-[10px] text-gray-400">Cotality: PostalCity — USPS city (may differ from borough)</p>
+                    <p class="text-[10px] text-gray-400">The post-office city (it may differ from the borough).</p>
                 </div>
                 <div>
                     <label class="field-label">Neighborhood</label>
@@ -333,7 +333,7 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label">County</label>
                     <input type="text" id="rentalCountyOrParish" placeholder="Auto from borough" class="field-input bg-gray-50" readonly data-concept="CountyOrParish">
-                    <p class="text-[10px] text-gray-400">Cotality: CountyOrParish — auto-derived</p>
+                    <p class="text-[10px] text-gray-400">Filled in from the borough.</p>
                 </div>
             </div>
             <!-- RLS auto-set hidden fields -->
@@ -460,7 +460,7 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                         </div>
                         <div class="border-t px-5 py-3 bg-gray-50 rounded-b-xl">
-                            <p class="text-[10px] text-gray-500"><i class="fas fa-info-circle mr-1"></i>Per UCBA: Only exclusive listings are eligible for RLS. The <strong>ListingAgreement</strong> field maps to RESO standard. In-House listings are internal only and are never submitted to REBNY.</p>
+                            <p class="text-[10px] text-gray-500"><i class="fas fa-info-circle mr-1"></i>Per UCBA: Only exclusive listings are eligible for RLS. The listing agreement types are the REBNY standard ones. In-House listings are internal only and are never submitted to REBNY.</p>
                         </div>
                     </div>
                 </div>
@@ -664,7 +664,7 @@ body { font-family: Manrope, sans-serif; }
                         </label>
                     </div>
                 </div>
-                <p class="text-xs text-gray-500">RLS/RESO/IDX: InternetAutomatedValuationDisplayYN — Controls whether sites like Zillow, Redfin can show their AVM estimates alongside this listing</p>
+                <p class="text-xs text-gray-500">Controls whether sites like Zillow, Redfin can show their AVM estimates alongside this listing</p>
             </div>
         </div>
 
@@ -733,7 +733,7 @@ body { font-family: Manrope, sans-serif; }
                         <!-- RLS: StructureType — REQUIRED, Single-Select Picklist (13 values) -->
                         <div class="mt-4 pt-3 border-t">
                             <label class="field-label mb-2">Structure Type <span class="text-red-500">*</span></label>
-                            <p class="text-[10px] text-gray-500 mb-2">RLS Field: StructureType — Auto-set from IDX/RLS building data or property type. Override if needed.</p>
+                            <p class="text-[10px] text-gray-500 mb-2">Set from the building's Cotality record or the property type. Change it if needed.</p>
                             <select id="rentalStructureType" class="field-input" data-concept="StructureType">
                                 <option value="">Select...</option>
                                 <option value="Duplex">Duplex</option>
@@ -753,7 +753,7 @@ body { font-family: Manrope, sans-serif; }
                         <!-- REBNY RLS Ownership Type — raw Cotality field key: CommonInterest -->
                         <div class="mt-4 pt-3 border-t">
                             <label class="field-label mb-2">Ownership Type <span class="text-red-500">*</span></label>
-                            <p class="text-[10px] text-gray-500 mb-2">Provider field: CommonInterest · Current REBNY RLS entry values.</p>
+                            <p class="text-[10px] text-gray-500 mb-2">Current REBNY RLS entry values.</p>
                             <select id="rentalCommonInterest" class="field-input" onchange="onRentalCommonInterestChange()" data-concept="CommonInterest" required>
                                 <option value="">Select...</option>
                                 <option value="Condominium">Condo</option>
@@ -852,7 +852,7 @@ body { font-family: Manrope, sans-serif; }
                         </div>
                     </div>
                     <!-- Business Types -->
-                    <p class="text-xs font-bold text-gray-600 uppercase tracking-wide mb-2">Business Types <span class="text-gray-400 font-normal normal-case">(Trestle: BusinessType)</span></p>
+                    <p class="text-xs font-bold text-gray-600 uppercase tracking-wide mb-2">Business Types</p>
                     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
                         <div class="bg-white border rounded-lg p-3">
                             <p class="text-xs font-bold text-red-700 mb-2 uppercase"><i class="fas fa-heartbeat mr-1"></i> Healthcare</p>
@@ -1018,7 +1018,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label mb-2">Unit Pet Policy <span class="text-red-500">*</span></label>
-                    <p class="text-[10px] text-gray-500 mb-2">RLS Field: PetsAllowed — Unit-level policy. Locked if building says "No Pets".</p>
+                    <p class="text-[10px] text-gray-500 mb-2">Unit-level policy. Locked if the building says "No Pets".</p>
                     <div class="grid grid-cols-2 gap-2" id="rentalPetsAllowedGroup">
                         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="Yes" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)" data-concept="PetsAllowed"> Yes</label>
                         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="CatsOk" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Cats OK</label>
@@ -1062,7 +1062,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label">Available Date <span class="text-red-500">*</span></label>
-                    <p class="text-[10px] text-gray-500 mb-1">REBNY I40: First Showing Date / ActivationDate for rentals</p>
+                    <p class="text-[10px] text-gray-500 mb-1">Activation Date is when the listing goes active; First Showing Date is the first date showings are allowed.</p>
                     <div class="relative">
                         <input type="date" id="rentalAvailableDate" class="field-input" required data-concept="AvailabilityDate">
                         <i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
@@ -1081,7 +1081,7 @@ body { font-family: Manrope, sans-serif; }
                         <input type="date" id="rentalExclusiveExpires" class="field-input" data-concept="ExpirationDate">
                         <i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
                     </div>
-                    <p class="text-[10px] text-gray-400">Cotality: ExpirationDate — Confidential. Max 10 years from today.</p>
+                    <p class="text-[10px] text-gray-400">Confidential. Maximum 10 years from today.</p>
                 </div>
                 <div>
                     <label class="field-label">First Date To CoBroke</label>
@@ -1122,17 +1122,17 @@ body { font-family: Manrope, sans-serif; }
         <!-- FARE Act Fee Fields (RLS/Trestle — LIVE March 2026) -->
         <div class="form-card border-l-4 border-l-blue-500" id="rentalFareActFieldsSection">
             <div class="form-card-header"><i class="fas fa-receipt"></i> Fee Disclosure <span class="text-xs font-normal text-purple-600 ml-2 normal-case">(FARE Act — NYC LL 119/2024)</span></div>
-            <p class="text-xs text-gray-500 mb-3">Required: All fees must be disclosed before showing. These fields are submitted to REBNY RLS via Trestle.</p>
+            <p class="text-xs text-gray-500 mb-3">Required: All fees must be disclosed before showing. These fields are submitted to REBNY RLS.</p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
                     <label class="field-label">Move-In Costs</label>
                     <input type="text" id="rentalMoveInCosts" placeholder="e.g., Application Fee, Move-In Fee, Credit Check" class="field-input" data-concept="MoveInCosts">
-                    <p class="text-[10px] text-gray-400 mt-1">Cotality: MoveInCosts — comma-separated list of move-in cost types</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Move-in cost types, separated by commas.</p>
                 </div>
                 <div>
                     <label class="field-label">Move-In Cost Amount ($)</label>
                     <input type="number" id="rentalMoveInCostsAmount" placeholder="$0.00" step="0.01" class="field-input" data-concept="MoveInCostsAmount">
-                    <p class="text-[10px] text-gray-400 mt-1">Cotality: MoveInCostsAmount — dollar amount</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Dollar amount.</p>
                 </div>
             </div>
             <div class="mb-4">
@@ -1143,11 +1143,11 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label">Ongoing Fees</label>
                     <input type="text" id="rentalOngoingFees" placeholder="e.g., Storage, Parking, Gym, Pet" class="field-input" data-concept="OngoingFees">
-                    <p class="text-[10px] text-gray-400 mt-1">Cotality: OngoingFees — recurring fees beyond rent</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Recurring fees beyond rent.</p>
                 </div>
                 <div>
                     <label class="field-label">Fee Frequency</label>
-                    <select id="rentalFeeFrequency" class="field-input" data-concept="AdditionalFeeFrequency">
+                    <select id="rentalFeeFrequency" class="field-input" data-concept-disposition="mallan-internal">
                         <option value="">Select</option>
                         <option value="Monthly">Monthly</option>
                         <option value="BiMonthly">Bi-Monthly</option>
@@ -1161,19 +1161,19 @@ body { font-family: Manrope, sans-serif; }
                         <option value="Seasonal">Seasonal</option>
                         <option value="OneTime">One Time</option>
                     </select>
-                    <p class="text-[10px] text-gray-400 mt-1">RLS: FeeFrequency — how often ongoing fees are charged</p>
+                    <p class="text-[10px] text-gray-400 mt-1">How often the ongoing fees are charged.</p>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
                     <label class="field-label">Tenant Pays</label>
                     <input type="text" id="rentalTenantPays" placeholder="e.g., Electric, Gas, Water, Cable, Internet" class="field-input" data-concept="TenantPays">
-                    <p class="text-[10px] text-gray-400 mt-1">Cotality: TenantPays — utilities/services paid by tenant</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Utilities and services the tenant pays.</p>
                 </div>
                 <div>
                     <label class="field-label">Tenant Pays Description</label>
                     <input type="text" id="rentalTenantPaysDescription" placeholder="Additional details about what tenant pays..." class="field-input" data-concept="TenantPaysDescription">
-                    <p class="text-[10px] text-gray-400 mt-1">Cotality: TenantPaysDescription</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Details of what the tenant pays.</p>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1205,7 +1205,7 @@ body { font-family: Manrope, sans-serif; }
                         <option value="Seasonal">Seasonal</option>
                         <option value="OneTime">One Time</option>
                     </select>
-                    <p class="text-[10px] text-gray-400 mt-1">RLS: AdditionalFeeFrequency</p>
+                    <p class="text-[10px] text-gray-400 mt-1">How often the additional fee is charged.</p>
                 </div>
                 <div>
                     <label class="field-label">Additional Fee Description</label>
@@ -1253,7 +1253,7 @@ body { font-family: Manrope, sans-serif; }
             <div class="form-card-header"><i class="fas fa-percentage"></i> Concessions</div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                 <div>
-                    <label class="field-label">Concessions <span class="text-xs text-gray-400">(RLS/RESO/IDX)</span></label>
+                    <label class="field-label">Concessions</label>
                     <select id="rentalConcessions" class="field-input" data-concept="Concessions">
                         <option value="">Select</option>
                         <option value="Yes">Yes</option>
@@ -1424,21 +1424,19 @@ body { font-family: Manrope, sans-serif; }
                         <input type="checkbox" name="rentalInternetEntireListingDisplayYN" id="rentalInternetEntireListingDisplayYN" class="w-4 h-4" checked data-concept="InternetEntireListingDisplayYN">
                         <span class="text-sm font-semibold text-gray-700">Display Entire Listing</span>
                     </label>
-                    <p class="text-[10px] text-gray-500">RLS/RESO/IDX: InternetEntireListingDisplayYN</p>
                 </div>
                 <div class="border rounded-lg p-4">
                     <label class="flex items-center gap-2 cursor-pointer mb-2">
                         <input type="checkbox" name="rentalInternetAddressDisplayYN" id="rentalInternetAddressDisplayYN" class="w-4 h-4" checked data-concept="InternetAddressDisplayYN">
                         <span class="text-sm font-semibold text-gray-700">Display Address</span>
                     </label>
-                    <p class="text-[10px] text-gray-500">RLS/RESO/IDX: InternetAddressDisplayYN</p>
                 </div>
                 <div class="border rounded-lg p-4">
                     <label class="flex items-center gap-2 cursor-pointer mb-2">
                         <input type="checkbox" id="rentalInternetConsumerCommentYN" class="w-4 h-4" data-concept="InternetConsumerCommentYN">
                         <span class="text-sm font-semibold text-gray-700">Allow Consumer Comments</span>
                     </label>
-                    <p class="text-[10px] text-gray-500">RLS/RESO/IDX: InternetConsumerCommentYN (VOW only)</p>
+                    <p class="text-[10px] text-gray-500">Applies to VOW feeds only.</p>
                 </div>
             </div>
         </div>
@@ -1447,11 +1445,7 @@ body { font-family: Manrope, sans-serif; }
             <div class="form-card-header"><i class="fas fa-pen-fancy"></i> Listing Description</div>
 
             <div class="mb-2 flex items-center justify-between">
-                <div class="flex gap-2">
-                    <button type="button" class="px-3 py-1 border rounded text-xs hover:bg-gray-50"><i class="fas fa-bold"></i></button>
-                    <button type="button" class="px-3 py-1 border rounded text-xs hover:bg-gray-50"><i class="fas fa-italic"></i></button>
-                    <button type="button" class="px-3 py-1 border rounded text-xs hover:bg-gray-50"><i class="fas fa-list"></i></button>
-                </div>
+                <div></div><!-- the description is plain text (it goes to the MLS as PublicRemarks): no bold / italic / list buttons -->
                 <div class="flex items-center gap-3">
                     <span class="text-[10px] text-gray-400"><i class="fas fa-shield-alt mr-1"></i> UCBA + Fair Housing scan active</span>
                     <span class="text-xs text-gray-500" id="rentalDescCharCount">0 / 5000 characters</span>
@@ -1574,7 +1568,7 @@ body { font-family: Manrope, sans-serif; }
             </div>
             <div class="mt-3 flex items-center gap-3">
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalBuyerAgentRLSParticipantYN" class="w-4 h-4" data-concept-disposition="mallan-internal" data-removed-field="BuyerAgentRLSParticipantYN"> Tenant's Agent is RLS Participant</label>
-                <span class="text-xs text-gray-500">(RLS/RESO/IDX: BuyerAgentRLSParticipantYN)</span>
+               
             </div>
         </div>
 
@@ -2143,7 +2137,7 @@ body { font-family: Manrope, sans-serif; }
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalHeatingYN" value="Yes" class="w-4 h-4" data-concept="HeatingYN"> Yes</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalHeatingYN" value="No" class="w-4 h-4" data-concept="HeatingYN"> No</label>
     </div>
-    <p class="text-xs text-gray-500 mb-2">Heating Type (RESO multi-select)</p>
+    <p class="text-xs text-gray-500 mb-2">Heating Type (select all that apply)</p>
     <div id="rentalHeatingTypes" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
         <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="rentalHeating" value="Steam" class="w-3 h-3" data-concept="Heating"> Steam</label>
         <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="rentalHeating" value="HotWater" class="w-3 h-3"> Hot Water</label>
@@ -2198,7 +2192,7 @@ body { font-family: Manrope, sans-serif; }
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalCoolingYN" value="Yes" class="w-4 h-4" data-concept="CoolingYN"> Yes</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalCoolingYN" value="No" class="w-4 h-4" data-concept="CoolingYN"> No</label>
     </div>
-    <p class="text-xs text-gray-500 mb-2">Cooling Type (RESO multi-select)</p>
+    <p class="text-xs text-gray-500 mb-2">Cooling Type (select all that apply)</p>
     <div id="rentalCoolingTypes" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
         <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="rentalCooling" value="CentralAir" class="w-3 h-3" data-concept="Cooling"> Central Air</label>
         <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="rentalCooling" value="Ductless" class="w-3 h-3"> Ductless</label>
@@ -2486,7 +2480,7 @@ body { font-family: Manrope, sans-serif; }
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalTHDocsAvailable" value="Lease" class="w-4 h-4"> Lease Form</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalTHDocsAvailable" value="ScheduleA" class="w-4 h-4"> Schedule A</label>
     </div>
-    <p class="text-[10px] text-gray-400 mt-2">RLS/RESO/IDX: DocumentsAvailable (multi-select)</p>
+    <p class="text-[10px] text-gray-400 mt-2">Select all that apply.</p>
 </div>
 
 <div class="flex justify-between pt-2">
@@ -2693,7 +2687,7 @@ body { font-family: Manrope, sans-serif; }
                 </label>
                 <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">ON</span>
             </div>
-            <p class="text-xs text-gray-500">RLS/RESO/IDX: IDXEntireListingDisplayYN — controls all licensed partner display</p>
+            <p class="text-xs text-gray-500">Controls display by all licensed partners.</p>
             <p class="text-[10px] text-red-500 mt-1"><i class="fas fa-exclamation-circle mr-1"></i>If unchecked, listing will NOT appear on any IDX-licensed partner sites.</p>
         </div>
         <!-- VOW Opt-Out (Not Activated) -->
@@ -2705,7 +2699,7 @@ body { font-family: Manrope, sans-serif; }
                 </label>
                 <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-500"><i class="fas fa-lock text-[10px] mr-1"></i>Not Activated</span>
             </div>
-            <p class="text-xs text-gray-400">Cotality: InternetEntireListingDisplayYN (controls VOW + IDX + Web)</p>
+            <p class="text-xs text-gray-400">Controls VOW, IDX and website display.</p>
             <p class="text-xs text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>VOW feed not yet activated. When active, unchecking removes listing from all internet display.</p>
         </div>
         <!-- RLS: SyndicateYN — defaults to TRUE (syndicate by default per RLS rules) -->
@@ -2716,7 +2710,7 @@ body { font-family: Manrope, sans-serif; }
                     <span class="text-sm font-semibold text-gray-700">Syndicate to Third-Party Portals</span>
                 </label>
             </div>
-            <p class="text-xs text-gray-500">RLS: SyndicateYN — default: True (required by RLS rules)</p>
+            <p class="text-xs text-gray-500">Default: on (required by RLS rules).</p>
         </div>
     </div>
     <div id="rentalIdxWarning" class="warning-banner bg-red-50 border border-red-200 mt-4" style="display:none;">
@@ -3299,7 +3293,7 @@ body { font-family: Manrope, sans-serif; }
                 <p class="text-xs text-amber-600 mt-2"><i class="fas fa-star mr-1"></i> <strong>Primary Photo:</strong> First photo = hero image on StreetEasy, Zillow, Realtor.com, and all syndicated sites. Drag to reorder.</p>
                 <!-- Photo quality guidelines -->
                 <div class="mt-2 p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-[10px] text-blue-700 space-y-1">
-                    <div class="font-bold text-blue-800"><i class="fas fa-info-circle mr-1"></i> Photo Requirements (Trestle / REBNY RLS)</div>
+                    <div class="font-bold text-blue-800"><i class="fas fa-info-circle mr-1"></i> Photo Requirements (REBNY RLS)</div>
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-0.5">
                         <span><strong>Min:</strong> 1024 x 768 px</span>
                         <span><strong>Rec:</strong> 2048 x 1365 px</span>
@@ -3310,7 +3304,7 @@ body { font-family: Manrope, sans-serif; }
                         <span><strong>Optimal:</strong> 22–27 photos</span>
                         <span><strong>Min rec:</strong> 10–15 photos</span>
                     </div>
-                    <div class="text-blue-600 mt-1">Each photo must be assigned a Room/Category (RESO ImageOf) and sort order. Photos under 1024x768 will be flagged for rejection.</div>
+                    <div class="text-blue-600 mt-1">Each photo must be assigned a Room/Category and sort order. Photos under 1024x768 will be flagged for rejection.</div>
                 </div>
                 <div id="rentalPhotoPreview" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4" style="cursor: grab;"></div>
             </div>
@@ -3358,7 +3352,7 @@ body { font-family: Manrope, sans-serif; }
                     <div>
                         <label class="field-label">Unbranded Tour URL <span class="text-[10px] text-gray-400 font-normal">(no watermark)</span></label>
                         <input type="url" id="rentalVirtualTourUnbranded" placeholder="https://my.matterport.com/show/?m=..." class="field-input" data-concept="VirtualTourURLUnbranded">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VirtualTourURLUnbranded</p>
+                        <p class="text-[10px] text-gray-400 mt-1">Sent with the listing as the unbranded tour link.</p>
                     </div>
                     <div>
                         <label class="field-label">Unbranded Tour URL 2</label>
@@ -3422,7 +3416,7 @@ body { font-family: Manrope, sans-serif; }
                     <i class="fas fa-search mr-1"></i> Search
                 </button>
             </div>
-            <p class="text-xs text-amber-700 mt-2"><i class="fas fa-info-circle mr-1"></i> Building data from Trestle/REBNY RLS will auto-populate if available</p>
+            <p class="text-xs text-amber-700 mt-2"><i class="fas fa-info-circle mr-1"></i> Building data from Cotality will auto-populate if available</p>
             <div id="bldgSearchResults" class="mt-2 hidden"></div>
         </div>
 
@@ -3697,7 +3691,7 @@ body { font-family: Manrope, sans-serif; }
                     <!-- RLS: AttendanceType — REQUIRED, Multi-Select Picklist (16 values) -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-concierge-bell"></i> Building Attendance Type <span class="text-red-500">*</span></div>
-                        <p class="text-[10px] text-gray-500 mb-3">RLS Field: AttendanceType — Select all that apply. At least one required.</p>
+                        <p class="text-[10px] text-gray-500 mb-3">Select all that apply. At least one required.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-3" id="rentalAttendanceTypeGroup">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="DoormanFullTime" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)" data-concept="AttendanceType"> Doorman (Full-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="DoormanPartTime" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)"> Doorman (Part-Time)</label>
@@ -3721,7 +3715,7 @@ body { font-family: Manrope, sans-serif; }
                     <!-- RLS I7: LobbyAttendant — Dedicated lobby attendant field -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-user-shield"></i> Lobby Attendant</div>
-                        <p class="text-[10px] text-gray-500 mb-3">RLS Field: LobbyAttendant — Specify lobby attendant coverage type.</p>
+                        <p class="text-[10px] text-gray-500 mb-3">Specify the lobby attendant coverage.</p>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label class="field-label">Lobby Attendant</label>
@@ -3732,7 +3726,6 @@ body { font-family: Manrope, sans-serif; }
                                     <option value="Virtual">Virtual</option>
                                     <option value="None">None</option>
                                 </select>
-                                <p class="text-[10px] text-gray-400 mt-1">RLS: LobbyAttendant</p>
                             </div>
                         </div>
                     </div>
@@ -3766,7 +3759,7 @@ body { font-family: Manrope, sans-serif; }
                     <!-- RLS: BuildingLaundryFeatures — REQUIRED, Multi-Select Picklist (23 values) -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-tshirt"></i> Building Laundry Features <span class="text-red-500">*</span></div>
-                        <p class="text-[10px] text-gray-500 mb-2">RLS: BuildingLaundryFeatures — Select all that apply. "None" deselects all others.</p>
+                        <p class="text-[10px] text-gray-500 mb-2">Select all that apply. "None" deselects all others.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="InUnit" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)" data-concept-disposition="mallan-internal"> In Unit</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="WasherDryerInstallAllowed" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> W/D Install Allowed</label>
@@ -3978,7 +3971,7 @@ body { font-family: Manrope, sans-serif; }
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="bldgDocsAvailable" value="Lease" class="w-4 h-4"> Lease Form</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="bldgDocsAvailable" value="ScheduleA" class="w-4 h-4"> Schedule A</label>
                         </div>
-                        <p class="text-[10px] text-gray-400 mt-2">RLS/RESO/IDX: DocumentsAvailable (multi-select)</p>
+                        <p class="text-[10px] text-gray-400 mt-2">Select all that apply.</p>
                     </div>
 
                     <div class="flex justify-between mt-4">
@@ -4023,7 +4016,7 @@ body { font-family: Manrope, sans-serif; }
                     <!-- RLS: BuildingPetsAllowed — REQUIRED, Multi-Select Picklist (7 values) -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-paw"></i> Building Pet Policy <span class="text-red-500">*</span></div>
-                        <p class="text-[10px] text-gray-500 mb-3">RLS Field: BuildingPetsAllowed — Select all that apply. If "No Pets" is selected, unit-level PetsAllowed will be locked to "No".</p>
+                        <p class="text-[10px] text-gray-500 mb-3">Select all that apply. If "No Pets" is selected, the unit's pet policy is locked to "No".</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4" id="rentalBuildingPetsAllowedGroup">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingPetsAllowed" value="BuildingYes" class="w-4 h-4 rental-bldg-pets-cb" onchange="handleRentalBldgPetsChange(this)" data-concept-disposition="mallan-internal"> Yes (All Pets)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingPetsAllowed" value="BuildingCatsOK" class="w-4 h-4 rental-bldg-pets-cb" onchange="handleRentalBldgPetsChange(this)"> Cats OK</label>
@@ -7182,7 +7175,7 @@ function updateRentalPreview() {
     // The Preview says what the agent chose in the words of the form: the property type by its label, a list that starts on "Custom" (that is no answer) as nothing, "Studio (Apartment)" as a
     // studio, and a group of boxes by the labels of the ones that are ticked.
     const propTypeText = (function() { const el = document.querySelector('input[name="rentalPropertyType"]:checked'); const label = el && el.closest('label'); return label ? label.textContent.trim() : propType; })();
-    const countText = function(el) { return (!el || el.value === 'custom') ? '' : (el.value === 'Apartment' ? 'Studio' : el.value); };
+    const countText = function(el) { return (!el || el.value === 'custom') ? '' : ((el.value === 'Apartment' || (el === beds && el.value === '0')) ? 'Studio' : el.value); };      // (Bedrooms 0 is the Studio entry; "Apartment" is what a listing saved under the old list holds)
     const bedsText = countText(beds), bathsText = countText(baths);
     const checkedLabels = function(name) { return Array.from(document.querySelectorAll('input[name="' + name + '"]:checked')).map(function(cb) { const l = cb.closest('label'); return l ? l.textContent.trim() : cb.value; }); };
     const anyValue = function(ids) { return ids.some(function(id) { const el = document.getElementById(id); return !!(el && el.value); }); };           // (a URL box drops the blanks around what is typed: the browser does)
@@ -7810,6 +7803,7 @@ function populateRentalCommissionFields() {
 
     // Bed/Bath — handle "Custom" default selects
     var bed = selText('rentalBedrooms');
+    if (/^Studio/.test(bed)) bed = 'Studio';
     var fullBath = selText('rentalFullBathrooms');
     var halfBath = selText('rentalHalfBathrooms');
     if (bed || fullBath) {

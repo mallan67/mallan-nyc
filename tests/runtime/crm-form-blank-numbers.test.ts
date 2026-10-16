@@ -91,9 +91,9 @@ describe.each(FORMS)('$form: a number box the agent left blank', (p) => {
 });
 
 describe('RENTAL-FORM-REDESIGN: the bedroom and bathroom lists', () => {
-  // The lists start on "Custom" (no answer); "Studio (Apartment)" is 0 bedrooms; "6+", "5+" and "3+" are 6, 5 and 3.
+  // The lists start on "Custom" (no answer); the Studio entry ("Studio / 0 bedrooms") is 0 bedrooms; "6+", "5+" and "3+" are 6, 5 and 3.
   const LISTS: [string, string, [string, number | null][]][] = [
-    ['BedroomsTotal', 'rentalBedrooms', [['custom', null], ['', null], ['Apartment', 0], ['1', 1], ['2', 2], ['6+', 6]]],
+    ['BedroomsTotal', 'rentalBedrooms', [['custom', null], ['', null], ['0', 0], ['1', 1], ['2', 2], ['6+', 6]]],
     ['BathroomsFull', 'rentalFullBathrooms', [['custom', null], ['', null], ['1', 1], ['4', 4], ['5+', 5]]],
     ['BathroomsHalf', 'rentalHalfBathrooms', [['custom', null], ['', null], ['0', 0], ['1', 1], ['3+', 3]]],
   ];
