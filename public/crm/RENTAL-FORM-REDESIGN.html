@@ -92,6 +92,7 @@ body { font-family: Manrope, sans-serif; }
 <script src="js/forms/fair-housing.js"></script>
 <script src="js/forms/server-refusal.js"></script>
 <script src="js/forms/building-lookup.js"></script>
+<script src="js/forms/unit-feature-fields.js"></script>
 <script src="js/forms/concept-kinds.js"></script>
 <script src="js/forms/concept-emit.js"></script>
 <script src="js/forms/listing-hydration.js"></script>
@@ -6387,6 +6388,9 @@ function collectRentalFormData() {
     data.AdditionalFee = _numberOrNull(data.rentalAdditionalFee, false);
     data.AdditionalFeeDescription = data.rentalAdditionalFeeDescription || '';
     data.AdditionalFeeFrequency = data.rentalAdditionalFeeFrequency || '';
+
+    // the unit's feature boxes (exposure, flooring, windows, outdoor space ...) also go to the Cotality fields they belong to (js/forms/unit-feature-fields.js)
+    if (window.MallanUnitFeatureFields) MallanUnitFeatureFields.apply(data, 'rental');
 
     // every control tagged data-concept="X" sends X (js/forms/concept-emit.js); what is set above is kept
     if (typeof emitConceptValues === 'function') emitConceptValues(data);
