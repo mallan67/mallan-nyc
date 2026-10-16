@@ -117,15 +117,14 @@ describe('Building auto-fill — AssociationFee/Frequency from the Cotality look
     return els;
   }
 
-  it('fills fee AND overrides the Monthly default with the building frequency (Codex #296)', () => {
-    // #saleMaintCCFreq starts at its real HTML default "Monthly"; a Quarterly
-    // building must override it (the only-when-empty guard used to skip it).
+  it('leaves Maintenance blank for the agent: the building lookup no longer prefills the fee or its frequency', () => {
+    // Maintenance / common charges / operating expenses are entered by the agent for the unit (owner rule 2026-10-16); the building association fee is not the unit's.
     const els = runPopulate(
       { association_fee: 1500, association_fee_frequency: 'Quarterly' },
       { saleMaintCC: { value: '' }, saleMaintCCFreq: { value: 'Monthly' } },
     );
-    expect(els.saleMaintCC.value).toBe(1500);
-    expect(els.saleMaintCCFreq.value).toBe('Quarterly');
+    expect(els.saleMaintCC.value).toBe('');
+    expect(els.saleMaintCCFreq.value).toBe('Monthly');
   });
 
   it('does NOT clobber an agent-entered maintenance value (fee+freq left untouched)', () => {

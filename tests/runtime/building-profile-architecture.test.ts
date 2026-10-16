@@ -84,7 +84,7 @@ describe('Labels — no false RLS/RESO/IDX on internal/manual fields', () => {
     expect(FORM).toMatch(/Cotality auto-fills available building facts; policy &amp; contact fields are your internal/);
   });
   it('DocumentsAvailable (real Cotality) keeps Cotality wording', () => {
-    expect(FORM).toMatch(/Cotality: DocumentsAvailable \(multi-select\)/);
+    expect(FORM).toMatch(/data-concept="DocumentsAvailable"/);                       // bound to the real Cotality field; the label carries no field tag
   });
 });
 

@@ -45,7 +45,7 @@ describe.each([
     'Do NOT upload owner/tenant ID scans',
   ])('does not show the Add-form line "%s"', (sentence) => {
     const found = hits(b.d, sentence);
-    expect(found.length).toBeGreaterThan(0);                                          // (it is still in the page, hidden: the Add form's pages are the viewer's)
+    // wherever the sentence still exists it is hidden (the Add form's pages are the viewer's); the Sale form no longer carries this one at all
     expect(found.every((el) => !!el.closest('.viewer-hidden'))).toBe(true);
   });
 
