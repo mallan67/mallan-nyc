@@ -8316,14 +8316,14 @@ function toggleSection(header) {
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Exposure</p>
                                     <div class="grid grid-cols-2 gap-1.5 text-sm">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="North"> North</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="South"> South</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="East"> East</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="West"> West</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="Northeast"> NE</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="Northwest"> NW</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="Southeast"> SE</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="DirectionFaces" data-value="Southwest"> SW</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="Exposures" data-value="North"> North</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="Exposures" data-value="South"> South</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="Exposures" data-value="East"> East</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="Exposures" data-value="West"> West</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="Exposures" data-value="Northeast"> NE</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="Exposures" data-value="Northwest"> NW</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="Exposures" data-value="Southeast"> SE</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="Exposures" data-value="Southwest"> SW</label>
                                     </div>
                                 </div>
                                 <!-- Floor Number -->
@@ -24147,9 +24147,11 @@ function parseBudgetValue(td) {
                         : criteria.checkbox_filters;
                     var cbScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById('searchBasicMode');
                     if (cbScope && cbFilters && typeof cbFilters === 'object') {
-                        Object.keys(cbFilters).forEach(function(field) {
-                            var values = cbFilters[field];
+                        Object.keys(cbFilters).forEach(function(rawField) {
+                            var values = cbFilters[rawField];
                             if (!Array.isArray(values)) return;
+                            // searches saved before the exposure boxes moved to Exposures name DirectionFaces
+                            var field = rawField === 'DirectionFaces' ? 'Exposures' : rawField;
                             // First clear existing checks for this field
                             cbScope.querySelectorAll('input[data-field="' + field + '"]').forEach(function(cb) { cb.checked = false; });
                             values.forEach(function(v) {
@@ -24171,7 +24173,7 @@ function parseBudgetValue(td) {
         var _LEGACY_DIRECTION_FACES = { N: 'North', S: 'South', E: 'East', W: 'West', NE: 'Northeast', NW: 'Northwest', SE: 'Southeast', SW: 'Southwest' };
         function _legacyCriterionValue(field, v) {
             if (field === 'ListingAgreement' && v === 'CoExclusive') return 'CoExclusiveAgency';
-            if (field === 'DirectionFaces' && _LEGACY_DIRECTION_FACES[v]) return _LEGACY_DIRECTION_FACES[v];
+            if ((field === 'DirectionFaces' || field === 'Exposures') && _LEGACY_DIRECTION_FACES[v]) return _LEGACY_DIRECTION_FACES[v];
             return v;
         }
 

@@ -97,7 +97,7 @@ const LEGACY_DIRECTION_FACES: Record<string, string> = {
 
 function legacyCriterionValue(field: string, value: string): string {
   if (field === "ListingAgreement" && value === "CoExclusive") return "CoExclusiveAgency";
-  if (field === "DirectionFaces" && LEGACY_DIRECTION_FACES[value]) return LEGACY_DIRECTION_FACES[value];
+  if ((field === "DirectionFaces" || field === "Exposures") && LEGACY_DIRECTION_FACES[value]) return LEGACY_DIRECTION_FACES[value];
   return value;
 }
 
@@ -316,10 +316,12 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
         LeaseType: "AvailableLeaseType",
         ConstructionType: "ConstructionMaterials",
         NewConstruction: "NewConstructionYN",
+        // The exposure boxes (and saved searches that name DirectionFaces) search Exposures: live NYC listings carry Exposures and leave DirectionFaces empty
+        DirectionFaces: "Exposures",
       };
       const odataSafe = new Set([
         "ListingAgreement", "LandLeaseYN", "CoolingYN", "GarageYN",
-        "DirectionFaces", "NewConstructionYN",
+        "DirectionFaces", "Exposures", "NewConstructionYN",
         "StructureType", "ArchitecturalStyle", "BusinessType",
         "PetsAllowedYN", "ConstructionMaterials",
         "View", "AccessibilityFeatures", "ExteriorFeatures",

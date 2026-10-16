@@ -512,9 +512,11 @@
                         : criteria.checkbox_filters;
                     var cbScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById('searchBasicMode');
                     if (cbScope && cbFilters && typeof cbFilters === 'object') {
-                        Object.keys(cbFilters).forEach(function(field) {
-                            var values = cbFilters[field];
+                        Object.keys(cbFilters).forEach(function(rawField) {
+                            var values = cbFilters[rawField];
                             if (!Array.isArray(values)) return;
+                            // searches saved before the exposure boxes moved to Exposures name DirectionFaces
+                            var field = rawField === 'DirectionFaces' ? 'Exposures' : rawField;
                             // First clear existing checks for this field
                             cbScope.querySelectorAll('input[data-field="' + field + '"]').forEach(function(cb) { cb.checked = false; });
                             values.forEach(function(v) {
@@ -536,7 +538,7 @@
         var _LEGACY_DIRECTION_FACES = { N: 'North', S: 'South', E: 'East', W: 'West', NE: 'Northeast', NW: 'Northwest', SE: 'Southeast', SW: 'Southwest' };
         function _legacyCriterionValue(field, v) {
             if (field === 'ListingAgreement' && v === 'CoExclusive') return 'CoExclusiveAgency';
-            if (field === 'DirectionFaces' && _LEGACY_DIRECTION_FACES[v]) return _LEGACY_DIRECTION_FACES[v];
+            if ((field === 'DirectionFaces' || field === 'Exposures') && _LEGACY_DIRECTION_FACES[v]) return _LEGACY_DIRECTION_FACES[v];
             return v;
         }
 

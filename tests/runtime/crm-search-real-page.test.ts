@@ -481,20 +481,21 @@ describe('every enabled Search control sends only values live Cotality accepts',
     }
   });
 
-  it('DirectionFaces sends the live members and the Park view sends ParkGreenbelt', () => {
-    const live = mirror.enums.DirectionFaces.filter((v) => v !== 'Unknown').sort();
-    expect(enabledControls().filter((c) => c.field === 'DirectionFaces').map((c) => c.value).sort()).toEqual(live);
+  it('Exposure sends the live Exposures members (live NYC listings carry Exposures, not DirectionFaces) and the Park view sends ParkGreenbelt', () => {
+    const live = mirror.enums.Exposures.filter((v) => v !== 'Unknown').sort();
+    expect(enabledControls().filter((c) => c.field === 'Exposures').map((c) => c.value).sort()).toEqual(live);
+    expect(enabledControls().filter((c) => c.field === 'DirectionFaces')).toEqual([]);
     expect(enabledControls().filter((c) => c.field === 'View' && /Park/.test(c.value)).map((c) => c.value)).toEqual(['ParkGreenbelt']);
   });
 
-  it('saved searches that hold the old DirectionFaces codes still restore and still reach Cotality as live members', () => {
+  it('saved searches that hold the old DirectionFaces codes still restore (onto the Exposure boxes) and still reach Cotality as live Exposures members', () => {
     w.toggleSearchMode('advanced');
     w.clearSearchForm();
     w._criteriaToFormFields({ listing_type: 'sale', _search_tab: 'sale', checkbox_filters: JSON.stringify({ DirectionFaces: ['N', 'SE'] }) });
-    const ticked = [...d.querySelectorAll('#searchAdvancedMode input[data-field="DirectionFaces"]:checked')].map((c) => c.getAttribute('data-value')).sort();
+    const ticked = [...d.querySelectorAll('#searchAdvancedMode input[data-field="Exposures"]:checked')].map((c) => c.getAttribute('data-value')).sort();
     expect(ticked).toEqual(['North', 'Southeast']);
     expect(buildCrmIdxODataFilter(new URLSearchParams({ status: '*', checkboxFilters: JSON.stringify({ DirectionFaces: ['N', 'SE'] }) }))).toContain(
-      "(DirectionFaces eq 'North' or DirectionFaces eq 'Southeast')",
+      "(Exposures eq 'North' or Exposures eq 'Southeast')",
     );
   });
 });

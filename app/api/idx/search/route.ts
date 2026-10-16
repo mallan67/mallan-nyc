@@ -82,7 +82,7 @@ export const SEARCH_SELECT_FIELDS = [
   // ── Searchable checkbox fields (wired to CRM search form data-field checkboxes) ──
   // These are returned so local filterListings() can match against them.
   "ListingAgreement", "LandLeaseYN", "CoolingYN", "GarageYN",
-  "DirectionFaces", "View", "OwnerPays",
+  "DirectionFaces", "Exposures", "View", "OwnerPays",
   // PropertyCondition: prohibited for public IDX per REBNY — removed
   // Concessions: not selected (declared on the live Cotality Property entity; add only after a live probe — Master §0.9)
   "ArchitecturalStyle", "StructureType", "BusinessType",

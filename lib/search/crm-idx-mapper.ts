@@ -309,6 +309,7 @@ export function mapTrestleToCrmListing(
     CoolingYN: raw.CoolingYN === true || raw.CoolingYN === "true",
     GarageYN: raw.GarageYN === true || raw.GarageYN === "true",
     DirectionFaces: raw.DirectionFaces ? String(raw.DirectionFaces) : null,
+    Exposures: Array.isArray(raw.Exposures) ? raw.Exposures.join(",") : raw.Exposures ? String(raw.Exposures) : null,
     View: raw.View ? String(raw.View) : null,
     OwnerPays: raw.OwnerPays ? String(raw.OwnerPays) : null,
     ArchitecturalStyle: raw.ArchitecturalStyle ? String(raw.ArchitecturalStyle) : null,
