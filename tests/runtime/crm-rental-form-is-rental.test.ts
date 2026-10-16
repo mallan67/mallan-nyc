@@ -47,15 +47,15 @@ describe.each(['RENTAL-FORM-REDESIGN', 'RENTAL-FORM-WITH-TOOLS'])('%s', (name) =
   });
 
   it('has no sale-only block', () => {
-    for (const id of ['bldgMaxFinancing', 'bldgMinDownPayment', 'bldgDTIRatio', 'bldgPostCloseLiquidity', 'bldgFlipTax', 'bldgFlipTaxAmount', 'bldgFlipTaxPaidBy', 'bldgSponsorUnits',
+    for (const id of ['bldgMaxFinancing', 'bldgMinDownPayment', 'bldgDTIRatio', 'bldgPostCloseLiquidity', 'bldgFlipTax', 'bldgFlipTaxAmount', 'bldgFlipTaxPaidBy',
       'bldgParentsAllowed', 'bldgCoBuyersAllowed', 'bldgCorpOwnAllowed', 'bldgGiftsAllowed', 'bldgTotalShares', 'bldgUnderlying', 'bldgAvgMaint']) {
       expect({ id, present: !!doc.getElementById(id) }).toEqual({ id, present: false });
     }
-    for (const concept of ['FlipTax', 'MaximumFinancingPercent', 'SponsorUnitYN']) expect(doc.querySelector(`[data-concept="${concept}"]`)).toBeNull();
+    for (const concept of ['FlipTax', 'MaximumFinancingPercent']) expect(doc.querySelector(`[data-concept="${concept}"]`)).toBeNull();
   });
 
   it('asks the rental questions Cotality has fields for', () => {
-    for (const concept of ['ApplicationFee', 'LastMonthRentReqYN', 'RentControlYN', 'RentIncludes', 'MaximumPetWeight', 'MaximumNumberOfPets', 'PetDeposit', 'PetsComments', 'SecurityDeposit']) {
+    for (const concept of ['ApplicationFee', 'LastMonthRentReqYN', 'RentControlYN', 'SponsorUnitYN', 'RentIncludes', 'MaximumPetWeight', 'MaximumNumberOfPets', 'PetDeposit', 'PetsComments', 'SecurityDeposit']) {
       expect({ concept, bound: !!doc.querySelector(`[data-concept="${concept}"]`) }).toEqual({ concept, bound: true });
     }
   });

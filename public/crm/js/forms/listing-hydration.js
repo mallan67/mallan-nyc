@@ -469,6 +469,15 @@
     { rls: 'LivingAreaUnits', form: 'rentalLivingAreaUnits', type: 'text', src: 'raw' },
     { rls: 'RoomsTotal', form: 'rentalTotalRooms', type: 'number', src: 'raw' },
     { rls: 'SecurityDeposit', form: 'rentalSecurityDeposit', type: 'number', src: 'raw' },
+    // Rental fields Cotality carries (live names): a provider record fills them as well as the form's own saved values
+    { rls: 'ApplicationFee', form: 'rentalApplicationFee', type: 'number', src: 'raw' },
+    { rls: 'LastMonthRentReqYN', form: 'rentalLastMonthRentReq', type: 'bool', src: 'raw' },
+    { rls: 'RentControlYN', form: 'rentalRentControl', type: 'bool', src: 'raw' },
+    { rls: 'SponsorUnitYN', form: 'rentalSponsorUnit', type: 'bool', src: 'raw' },   // the listed unit, not the building
+    { rls: 'MaximumPetWeight', form: 'bldgPetWeightLimit', type: 'number', src: 'raw' },
+    { rls: 'MaximumNumberOfPets', form: 'bldgPetMaxCount', type: 'number', src: 'raw' },
+    { rls: 'PetDeposit', form: 'bldgPetDeposit', type: 'number', src: 'raw' },
+    { rls: 'PetsComments', form: 'bldgPetNotes', type: 'text', src: 'raw' },
     { rls: 'EntryLevel', form: 'rentalFloor', type: 'text', src: 'raw' },
     { rls: 'Concessions', form: 'rentalConcessions', type: 'text', src: 'raw' },
     { rls: 'Furnished', form: 'rentalFurnished', type: 'text', src: 'raw' },
@@ -580,6 +589,13 @@
 
   // ── Small helpers (all display-only) ───────────────────────────────────────────────────────────────────────────────────────────
   function isBlank(v) { return v === undefined || v === null || v === ''; }
+  // A Yes / No from the provider: Cotality sends CustomFields Yes / No keys as the text "1" / "0", Property fields as true / false. Anything else
+  // (empty, missing, unknown text) is neither: undefined, so the control is left as it is.
+  function yesNo(v) {
+    if (v === true || v === 'true' || v === '1' || v === 1) return true;
+    if (v === false || v === 'false' || v === '0' || v === 0) return false;
+    return undefined;
+  }
   // A Multi enumeration as a list. The forms save it as an array; Cotality serves it as a comma-separated string ("Yes,CatsOk", "Park,Ocean"), and a synced listing keeps its facts that way (and
   // in its features bucket, not in raw_data: View and BuildingFeatures are not in the raw_data keep list). An array is a list; a non-blank string is its comma-separated members; anything else is none.
   function listOf(v) {
@@ -685,7 +701,7 @@
     var type = (el.getAttribute('type') || '').toLowerCase();
     // A checkbox shows a yes / no whatever the table row says about it.
     if (type === 'checkbox') {
-      setChecked(el, f.type === 'checked' ? val !== false : (val === true || val === 'true'));
+      setChecked(el, f.type === 'checked' ? val !== false : yesNo(val) === true);
       touched[f.form] = true;
       return;
     }
@@ -819,8 +835,8 @@
         if (type === 'checkbox') {
           if (!el.id) return;                       // a group member: groups are arrays, handled by the tables
           var on = raw[el.id];
-          if (on === true || on === 'true') setChecked(el, true);
-          else if (on === false || on === 'false') setChecked(el, false);
+          var yn = yesNo(on);
+          if (yn !== undefined) setChecked(el, yn);
           return;
         }
         var val = raw[key];
