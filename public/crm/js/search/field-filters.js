@@ -184,6 +184,10 @@ var CotalityFieldFilters = (function () {
           }
         } else if (key === "BuildingSecurityFeatures") {
           if (vals.indexOf("Any") !== -1) { out.push({ f: "SecurityFeatures", op: "notnull" }); handled = true; }
+        } else if (key === "RLSParticipantOnly") {
+          // Participant Only: listings distributed to REBNY members only, never shown publicly. Live Cotality marks them Permission = Private (a live Permission member;
+          // Cotality filters it). Checked 2026-10-16: 0 active listings are Private, all 10,203 are IDX.
+          if (vals.indexOf("true") !== -1 && member("Permission", "Private")) { out.push({ f: "Permission", op: "in", v: ["Private"] }); handled = true; }
         } else if (key === "ListOfficeMlsId") {
           // "In-House (Company)": the listing office is Mallan's. 7041 is MALLAN_LIST_OFFICE_MLS_IDS in lib/listings/mallan-source-identity.ts (verified live; a test keeps the two equal).
           if (vals.indexOf("OwnOffice") !== -1) { out.push({ f: "ListOfficeMlsId", op: "eq", v: "7041" }); handled = true; }

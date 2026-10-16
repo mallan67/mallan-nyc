@@ -3881,7 +3881,7 @@ function toggleSection(header) {
                                     <input type="checkbox" class="w-3 h-3" data-field="InternetEntireListingDisplayYN" data-value="false"> RLS: Private Owner Opt-Out
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="RLSParticipantOnly" data-value="true"> RLS: Private Participant Only
+                                    <input type="checkbox" class="w-3 h-3" data-field="RLSParticipantOnly" data-value="true"> Participant Only (REBNY members only, not shown publicly)
                                 </label>
                             </div>
                         </div>
@@ -4701,7 +4701,7 @@ function toggleSection(header) {
                                     <input type="checkbox" class="w-3 h-3" data-field="InternetEntireListingDisplayYN" data-value="false"> RLS: Private Owner Opt-Out
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="RLSParticipantOnly" data-value="true"> RLS: Private Participant Only
+                                    <input type="checkbox" class="w-3 h-3" data-field="RLSParticipantOnly" data-value="true"> Participant Only (REBNY members only, not shown publicly)
                                 </label>
                             </div>
                         </div>
@@ -7537,7 +7537,7 @@ function toggleSection(header) {
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="ExclusiveRightWithException"> Exclusive w/ Exception</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ListingAgreement" data-value="CoExclusiveAgency"> Co-Exclusive</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="InternetEntireListingDisplayYN" data-value="false"> RLS: Private Owner Opt-Out</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="RLSParticipantOnly" data-value="true"> RLS: Private Participant Only</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="RLSParticipantOnly" data-value="true"> Participant Only (REBNY members only, not shown publicly)</label>
                                     </div>
                                 </div>
                                 <!-- Attended Lobby -->
@@ -16582,6 +16582,10 @@ var CotalityFieldFilters = (function () {
           }
         } else if (key === "BuildingSecurityFeatures") {
           if (vals.indexOf("Any") !== -1) { out.push({ f: "SecurityFeatures", op: "notnull" }); handled = true; }
+        } else if (key === "RLSParticipantOnly") {
+          // Participant Only: listings distributed to REBNY members only, never shown publicly. Live Cotality marks them Permission = Private (a live Permission member;
+          // Cotality filters it). Checked 2026-10-16: 0 active listings are Private, all 10,203 are IDX.
+          if (vals.indexOf("true") !== -1 && member("Permission", "Private")) { out.push({ f: "Permission", op: "in", v: ["Private"] }); handled = true; }
         } else if (key === "ListOfficeMlsId") {
           // "In-House (Company)": the listing office is Mallan's. 7041 is MALLAN_LIST_OFFICE_MLS_IDS in lib/listings/mallan-source-identity.ts (verified live; a test keeps the two equal).
           if (vals.indexOf("OwnOffice") !== -1) { out.push({ f: "ListOfficeMlsId", op: "eq", v: "7041" }); handled = true; }
@@ -34442,7 +34446,6 @@ function emailCurrentCalc() {
                 // silently drops them.
                 'input[data-field="OwnerPays"]',
                 'input[data-field="RentingAllowedYN"]',
-                'input[data-field="RLSParticipantOnly"]',
                 // InternetEntireListingDisplayYN is BOTH non-whitelisted AND
                 // REBNY-policy-suppressed at the OData $filter level (Trestle
                 // returns HTTP 400 — see Bug A8 round-2 diagnostic). It can

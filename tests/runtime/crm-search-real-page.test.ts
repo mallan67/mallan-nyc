@@ -566,6 +566,11 @@ describe('the other controls the checkbox path could not send are filters on the
   it('"In-House (Company)" filters on the Mallan listing office id the app already verified', () => {
     expect(rows('ListOfficeMlsId', 'OwnOffice')).toEqual([{ f: 'ListOfficeMlsId', op: 'eq', v: MALLAN_LIST_OFFICE_MLS_IDS[0] }]);
   });
+  it('Participant Only (REBNY members only, never public) filters on Permission = Private, a live member Cotality filters', () => {
+    expect(mirror.enums.Permission).toContain('Private');
+    expect(rows('RLSParticipantOnly', 'true')).toEqual([{ f: 'Permission', op: 'in', v: ['Private'] }]);
+    expect(buildFieldFilters(JSON.stringify(rows('RLSParticipantOnly', 'true'))).clauses).toEqual(["Permission eq 'Private'"]);
+  });
   it('every bridged row is accepted by the server-side builder', () => {
     const all = [['YearBuilt', 'lte:1946'], ['StoriesTotal', 'lte:6'], ['MaximumFinancingPercent', 'gt:0'], ['AttendanceType', 'Any'], ['BuildingRules', 'PiedATerreAllowed'], ['BuildingPetsAllowed', 'BuildingYes,BuildingCatsOK'],
       ['BuildingLaundryFeatures', 'Any'], ['BuildingPoolFeatures', 'Any'], ['BuildingSecurityFeatures', 'Any'], ['Furnished', 'Furnished'], ['Concessions', 'Yes'], ['SponsorUnit', 'true']];

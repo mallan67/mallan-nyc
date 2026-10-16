@@ -42,7 +42,6 @@
                 // silently drops them.
                 'input[data-field="OwnerPays"]',
                 'input[data-field="RentingAllowedYN"]',
-                'input[data-field="RLSParticipantOnly"]',
                 // InternetEntireListingDisplayYN is BOTH non-whitelisted AND
                 // REBNY-policy-suppressed at the OData $filter level (Trestle
                 // returns HTTP 400 — see Bug A8 round-2 diagnostic). It can
