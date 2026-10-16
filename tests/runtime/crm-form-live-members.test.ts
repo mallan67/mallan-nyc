@@ -37,7 +37,7 @@ const AMENITIES: Record<string, [string, string | null]> = {
   bldgWheelchairAccess: ['Wheelchair Access', null], bldgSpa: ['Spa', null],
 };
 /** The boxes of the same window (and of the Features tab) that are NOT building features: they are the form's own and must not claim the field. */
-const NOT_FEATURES = ['bldgHistoric', 'bldgLEED', 'bldgConversion', 'bldgParentsAllowed', 'bldgCoBuyersAllowed', 'bldgCorpOwnAllowed', 'bldgGiftsAllowed', 'bldgBoardApproval',
+const NOT_FEATURES = ['bldgHistoric', 'bldgLEED', 'bldgConversion', 'bldgBoardApproval',
   'rentalDoorman', 'rentalElevator', 'rentalGym', 'rentalBikeRoom', 'rentalStorage', 'rentalRoofDeck', 'rentalLiveInSuper', 'rentalParking', 'rentalPool', 'rentalConcierge', 'rentalValet'];
 const MEMBERS = Object.values(AMENITIES).map(([, m]) => m).filter((m): m is string => !!m).sort();
 const LABELS_KEPT = Object.values(AMENITIES).filter(([, m]) => !m).map(([label]) => label).sort();
@@ -65,17 +65,17 @@ describe('Rental BuildingFeatures: the live members', () => {
     it('sends the live member of each amenity that has one, keeps the others in its own list, and sends a box that is not a building feature nowhere', async () => {
       const f = await bootAddForm('RENTAL-FORM-REDESIGN' as AddForm, { settle: 300 });
       try {
-        tick(f, [...Object.keys(AMENITIES), 'bldgHistoric', 'bldgParentsAllowed', 'bldgBoardApproval']);
+        tick(f, [...Object.keys(AMENITIES), 'bldgHistoric', 'bldgLEED', 'bldgBoardApproval']);
         const data = f.w.collectRentalFormData();
         expect([...data.BuildingFeatures].sort()).toEqual(MEMBERS);
         for (const m of data.BuildingFeatures) expect(live.enums.BuildingFeatures).toContain(m);
         expect([...data.rentalBuildingFeaturesInternal].sort()).toEqual(LABELS_KEPT);
-        for (const word of ['Historic District', 'Parents Buying Allowed', 'Board Approval Required']) {
+        for (const word of ['Historic District', 'LEED Certified', 'Board Approval Required']) {
           expect(data.BuildingFeatures).not.toContain(word);
           expect(data.rentalBuildingFeaturesInternal).not.toContain(word);
         }
         // the three boxes that are not building features are saved under their own ids
-        expect([data.bldgHistoric, data.bldgParentsAllowed, data.bldgBoardApproval]).toEqual([true, true, true]);
+        expect([data.bldgHistoric, data.bldgLEED, data.bldgBoardApproval]).toEqual([true, true, true]);
       } finally { f.close(); }
     });
 

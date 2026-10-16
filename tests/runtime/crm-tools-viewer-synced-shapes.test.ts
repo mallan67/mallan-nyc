@@ -84,9 +84,9 @@ describe('RENTAL-FORM-WITH-TOOLS: a synced listing', () => {
   });
 
   it('a listing saved before the other building boxes stopped being sent as BuildingFeatures labels still shows them ticked, when it holds no value under the box\'s own id', async () => {
-    const b = await open('RENTAL-FORM-WITH-TOOLS', record('rent', {}, { BuildingFeatures: ['Historic District', 'Parents Buying Allowed', 'Board Approval Required', 'Elevators'] }));
+    const b = await open('RENTAL-FORM-WITH-TOOLS', record('rent', {}, { BuildingFeatures: ['Historic District', 'LEED Certified', 'Board Approval Required', 'Elevators'] }));
     try {
-      for (const id of ['bldgHistoric', 'bldgParentsAllowed', 'bldgBoardApproval']) expect({ id, on: (b.d.getElementById(id) as HTMLInputElement).checked }).toEqual({ id, on: true });
+      for (const id of ['bldgHistoric', 'bldgLEED', 'bldgBoardApproval']) expect({ id, on: (b.d.getElementById(id) as HTMLInputElement).checked }).toEqual({ id, on: true });
       expect((b.d.getElementById('bldgLEED') as HTMLInputElement).checked).toBe(false);
     } finally { b.close(); }
   });

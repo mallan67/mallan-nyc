@@ -379,7 +379,7 @@
   };
 
   // The Rental building window's boxes that are not building features (the form's own answers); an earlier version of the page sent their labels as BuildingFeatures.
-  var RENTAL_LABEL_ONLY_BOX_IDS = ['bldgHistoric', 'bldgLEED', 'bldgConversion', 'bldgParentsAllowed', 'bldgCoBuyersAllowed', 'bldgCorpOwnAllowed', 'bldgGiftsAllowed', 'bldgBoardApproval'];
+  var RENTAL_LABEL_ONLY_BOX_IDS = ['bldgHistoric', 'bldgLEED', 'bldgConversion', 'bldgBoardApproval'];
 
   var SALE_BUILDING_FEATURE_IDS = [
     'saleBldgElevator', 'saleBldgGym', 'saleBldgPool', 'saleBldgRoofDeck',
@@ -553,6 +553,7 @@
     { rls: 'BuildingLaundryFeatures', name: 'rentalBuildingLaundryFeatures' },
     // Heating and Cooling are live Cotality Property fields; the other groups are the form's own (saved under the group's name)
     { rls: 'Heating', name: 'rentalHeating' },
+    { rls: 'RentIncludes', name: 'rentalRentIncludes' },
     { rls: 'Cooling', name: 'rentalCooling' },
     { rls: 'rentalCommSubtype', name: 'rentalCommSubtype' },
     { rls: 'rentalBusinessType', name: 'rentalBusinessType' },

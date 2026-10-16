@@ -612,6 +612,34 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                     <label class="field-label">Security Deposit</label>
                     <input type="number" id="rentalSecurityDeposit" placeholder="$0" class="field-input" data-concept="SecurityDeposit">
                 </div>
+                <div>
+                    <label class="field-label">Application Fee</label>
+                    <input type="number" id="rentalApplicationFee" placeholder="$0" step="0.01" class="field-input" data-concept="ApplicationFee">
+                </div>
+                <div class="flex items-end pb-2">
+                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalLastMonthRentReq" class="w-4 h-4" data-concept="LastMonthRentReqYN"> Last month's rent required</label>
+                </div>
+                <div class="flex items-end pb-2">
+                    <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalRentControl" class="w-4 h-4" data-concept="RentControlYN"> Rent controlled</label>
+                </div>
+                <div class="sm:col-span-2 lg:col-span-3">
+                    <label class="field-label">Rent Includes</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="rentalRentIncludesGroup">
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalRentIncludes" value="AllUtilities" class="w-4 h-4" data-concept="RentIncludes"> All Utilities</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalRentIncludes" value="Electricity" class="w-4 h-4" data-concept="RentIncludes"> Electricity</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalRentIncludes" value="Gas" class="w-4 h-4" data-concept="RentIncludes"> Gas</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalRentIncludes" value="Heat" class="w-4 h-4" data-concept="RentIncludes"> Heat</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalRentIncludes" value="HotWater" class="w-4 h-4" data-concept="RentIncludes"> Hot Water</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalRentIncludes" value="Water" class="w-4 h-4" data-concept="RentIncludes"> Water</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalRentIncludes" value="Sewer" class="w-4 h-4" data-concept="RentIncludes"> Sewer</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalRentIncludes" value="TrashCollection" class="w-4 h-4" data-concept="RentIncludes"> Trash Collection</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalRentIncludes" value="Internet" class="w-4 h-4" data-concept="RentIncludes"> Internet</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalRentIncludes" value="CableTv" class="w-4 h-4" data-concept="RentIncludes"> Cable TV</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalRentIncludes" value="AirConditioning" class="w-4 h-4" data-concept="RentIncludes"> Air Conditioning</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalRentIncludes" value="LaundryFacilities" class="w-4 h-4" data-concept="RentIncludes"> Laundry Facilities</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalRentIncludes" value="Parking" class="w-4 h-4" data-concept="RentIncludes"> Parking</label>
+                    </div>
+                </div>
                 <div id="rentalRentedPriceField" style="display:none;">
                     <label class="field-label">Rented Price <span class="text-red-500">*</span></label>
                     <input type="number" id="rentalRentedPrice" placeholder="$0" class="field-input" data-concept-disposition="mallan-internal">
@@ -2366,9 +2394,9 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
     <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalTHDocsAvailable" value="BuildingRules" class="w-4 h-4" data-concept="DocumentsAvailable"> Building Rules</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalTHDocsAvailable" value="BylawsAndAmendments" class="w-4 h-4"> Bylaws & Amendments</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalTHDocsAvailable" value="FinancialStatement" class="w-4 h-4"> Financial Statement</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalTHDocsAvailable" value="Financials" class="w-4 h-4"> Financial Statement</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalTHDocsAvailable" value="OfferingPlan" class="w-4 h-4"> Offering Plan</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalTHDocsAvailable" value="ResaleBoardPackageTemplate" class="w-4 h-4"> Board Package Template</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalTHDocsAvailable" value="Lease" class="w-4 h-4"> Lease Form</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalTHDocsAvailable" value="ScheduleA" class="w-4 h-4"> Schedule A</label>
     </div>
     <p class="text-[10px] text-gray-400 mt-2">RLS/RESO/IDX: DocumentsAvailable (multi-select)</p>
@@ -3577,7 +3605,6 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgNewConstruction" class="w-4 h-4" data-concept="NewConstructionYN"> New Construction</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgNewDevelopment" class="w-4 h-4" data-concept="NewConstructionYN"> New Development</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgConversion" class="w-4 h-4"> Conversion</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgSponsorUnits" class="w-4 h-4" data-concept="SponsorUnitYN"> Has Sponsor Units</label>
                         </div>
                     </div>
 
@@ -3799,14 +3826,6 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                                 <input type="text" id="bldgAssociationName" placeholder="Building Corp Name" class="field-input" data-concept="AssociationName">
                             </div>
                             <div>
-                                <label class="field-label">Total Shares (Co-op)</label>
-                                <input type="number" id="bldgTotalShares" placeholder="100000" class="field-input" data-concept-disposition="mallan-internal">
-                            </div>
-                            <div>
-                                <label class="field-label">Underlying Mortgage</label>
-                                <input type="text" id="bldgUnderlying" placeholder="$5,000,000" class="field-input" data-concept-disposition="mallan-internal">
-                            </div>
-                            <div>
                                 <label class="field-label">Capital Reserves</label>
                                 <input type="text" id="bldgCapitalReserves" placeholder="$2,000,000" class="field-input" data-concept="CapitalReservesTotal">
                             </div>
@@ -3818,10 +3837,6 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                             <div>
                                 <label class="field-label">Reserve Fund</label>
                                 <input type="text" id="bldgReserveFund" placeholder="$2,000,000" class="field-input" data-concept="CapitalReservesTotal">
-                            </div>
-                            <div>
-                                <label class="field-label">Common Charges/Maint (Avg)</label>
-                                <input type="text" id="bldgAvgMaint" placeholder="$1,500/mo" class="field-input" data-concept-disposition="mallan-internal">
                             </div>
                         </div>
                     </div>
@@ -3870,35 +3885,6 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         </div>
                     </div>
 
-                    <div class="form-card">
-                        <div class="form-card-header"><i class="fas fa-exchange-alt"></i> Flip Tax Information</div>
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div>
-                                <label class="field-label">Flip Tax</label>
-                                <select id="bldgFlipTax" class="field-input" data-concept="FlipTax">
-                                    <option value="">Select</option>
-                                    <option value="None">None</option>
-                                    <option value="Percentage">Percentage</option>
-                                    <option value="PerShare">Per Share</option>
-                                    <option value="Flat">Flat Fee</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="field-label">Flip Tax Amount</label>
-                                <input type="text" id="bldgFlipTaxAmount" placeholder="2% or $25/share" class="field-input" data-concept="FlipTax">
-                            </div>
-                            <div>
-                                <label class="field-label">Paid By</label>
-                                <select id="bldgFlipTaxPaidBy" class="field-input" data-concept-disposition="mallan-internal">
-                                    <option value="">Select</option>
-                                    <option value="Seller">Seller</option>
-                                    <option value="Buyer">Buyer</option>
-                                    <option value="Split">Split</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- RLS/RESO/IDX: DocumentsAvailable — building docs available upon request -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-folder-open"></i> Documents Available (Upon Request)</div>
@@ -3906,9 +3892,9 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="bldgDocsAvailable" value="BuildingRules" class="w-4 h-4" data-concept="DocumentsAvailable"> Building Rules</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="bldgDocsAvailable" value="BylawsAndAmendments" class="w-4 h-4"> Bylaws & Amendments</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="bldgDocsAvailable" value="FinancialStatement" class="w-4 h-4"> Financial Statement</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="bldgDocsAvailable" value="Financials" class="w-4 h-4"> Financial Statement</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="bldgDocsAvailable" value="OfferingPlan" class="w-4 h-4"> Offering Plan</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="bldgDocsAvailable" value="ResaleBoardPackageTemplate" class="w-4 h-4"> Board Package Template</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="bldgDocsAvailable" value="Lease" class="w-4 h-4"> Lease Form</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="bldgDocsAvailable" value="ScheduleA" class="w-4 h-4"> Schedule A</label>
                         </div>
                         <p class="text-[10px] text-gray-400 mt-2">RLS/RESO/IDX: DocumentsAvailable (multi-select)</p>
@@ -3948,7 +3934,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <div class="flex flex-wrap gap-2 mb-6">
                     <button id="bldgSubTab2_1" onclick="showBldgSubTab(2,1)" class="sub-tab-pill active">General</button>
                     <button id="bldgSubTab2_2" onclick="showBldgSubTab(2,2)" class="sub-tab-pill">Rental Policies</button>
-                    <button id="bldgSubTab2_3" onclick="showBldgSubTab(2,3)" class="sub-tab-pill">Purchase Policies</button>
+                    <button id="bldgSubTab2_3" onclick="showBldgSubTab(2,3)" class="sub-tab-pill">Board Process</button>
                 </div>
 
                 <!-- Sub-tab 2.1: General -->
@@ -3969,11 +3955,19 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label class="field-label">Weight Limit (lbs)</label>
-                                <input type="number" id="bldgPetWeightLimit" placeholder="25" class="field-input" data-concept-disposition="mallan-internal">
+                                <input type="number" id="bldgPetWeightLimit" placeholder="25" class="field-input" data-concept="MaximumPetWeight">
+                            </div>
+                            <div>
+                                <label class="field-label">Maximum Number of Pets</label>
+                                <input type="number" id="bldgPetMaxCount" placeholder="2" class="field-input" data-concept="MaximumNumberOfPets">
+                            </div>
+                            <div>
+                                <label class="field-label">Pet Deposit ($)</label>
+                                <input type="number" id="bldgPetDeposit" placeholder="0" step="0.01" class="field-input" data-concept="PetDeposit">
                             </div>
                             <div>
                                 <label class="field-label">Pet Policy Notes</label>
-                                <input type="text" id="bldgPetNotes" placeholder="Breed restrictions, etc." class="field-input" data-concept-disposition="mallan-internal">
+                                <input type="text" id="bldgPetNotes" placeholder="Breed restrictions, etc." class="field-input" data-concept="PetsComments">
                             </div>
                         </div>
                     </div>
@@ -3983,10 +3977,6 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgWasherDryerAllowed" class="w-4 h-4" data-concept="LaundryFeatures" value="BuildingWasherDryerInstallAllowed"> Washer/Dryer Allowed</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgPiedATerre" class="w-4 h-4" data-concept-disposition="mallan-internal"> Pied-a-Terre Allowed</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgParentsAllowed" class="w-4 h-4"> Parents Buying Allowed</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgCoBuyersAllowed" class="w-4 h-4"> Co-Buyers Allowed</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgCorpOwnAllowed" class="w-4 h-4"> Corp/LLC Purchase Allowed</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgGiftsAllowed" class="w-4 h-4"> Gifts Allowed for Down Payment</label>
                         </div>
                     </div>
 
@@ -4051,34 +4041,12 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
 
                     <div class="flex justify-between mt-4">
                         <button onclick="showBldgSubTab(2,1)" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50"><i class="fas fa-arrow-left mr-1"></i> Back: General</button>
-                        <button onclick="showBldgSubTab(2,3)" class="px-4 py-2 bg-[#B8860B] text-white rounded-lg text-sm hover:bg-[#9A7209]">Next: Purchase Policies <i class="fas fa-arrow-right ml-1"></i></button>
+                        <button onclick="showBldgSubTab(2,3)" class="px-4 py-2 bg-[#B8860B] text-white rounded-lg text-sm hover:bg-[#9A7209]">Next: Board Process <i class="fas fa-arrow-right ml-1"></i></button>
                     </div>
                 </div>
 
-                <!-- Sub-tab 2.3: Purchase Policies -->
+                <!-- Sub-tab 2.3: Board Process -->
                 <div id="bldgSubTabContent2_3" class="bldg-sub-tab-content" style="display: none;">
-                    <div class="form-card">
-                        <div class="form-card-header"><i class="fas fa-hand-holding-usd"></i> Purchase Requirements (Co-op)</div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <div>
-                                <label class="field-label">Max Financing Allowed</label>
-                                <input type="text" id="bldgMaxFinancing" placeholder="80%" class="field-input" data-concept="MaximumFinancingPercent">
-                            </div>
-                            <div>
-                                <label class="field-label">Min Down Payment</label>
-                                <input type="text" id="bldgMinDownPayment" placeholder="20%" class="field-input" data-concept-disposition="mallan-internal">
-                            </div>
-                            <div>
-                                <label class="field-label">DTI Ratio Requirement</label>
-                                <input type="text" id="bldgDTIRatio" placeholder="25%" class="field-input" data-concept-disposition="mallan-internal">
-                            </div>
-                            <div>
-                                <label class="field-label">Post-Close Liquidity</label>
-                                <input type="text" id="bldgPostCloseLiquidity" placeholder="2 years maintenance" class="field-input" data-concept-disposition="mallan-internal">
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-users"></i> Board Process</div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
