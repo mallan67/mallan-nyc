@@ -132,11 +132,10 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
 <script src="js/forms/listing-hydration.js"></script>
 <script src="js/forms/listing-open-houses.js"></script>
 <script>
+// The page is served by the application it calls, so API requests go to the same origin (whatever host that is: localhost, a preview, production).
+// Pointing a page at another origin is an explicit choice: set window.MALLAN_API_BASE before this script.
 (function() {
-    var origin = window.location.origin;
-    if (origin.indexOf('mallan.nyc') === -1) {
-        MallanAPI.configure({ baseUrl: 'https://mallan.nyc' });
-    }
+    if (typeof MallanAPI !== 'undefined' && window.MALLAN_API_BASE) MallanAPI.configure({ baseUrl: String(window.MALLAN_API_BASE) });
 })();
 </script>
 </head>
@@ -1199,7 +1198,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 </div>
                 <div>
                     <label class="field-label">Concession Remarks</label>
-                    <input type="text" id="rentalConcessionRemarks" placeholder="Additional concession details..." class="field-input" data-concept-disposition="mallan-internal">
+                    <input type="text" id="rentalConcessionRemarks" placeholder="Additional concession details..." class="field-input" data-concept="ConcessionsComments">
                 </div>
             </div>
         </div>
