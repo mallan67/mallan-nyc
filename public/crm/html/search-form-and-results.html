@@ -98,88 +98,88 @@
                             <div class="text-xs space-y-1">
                                 <!-- Active -->
                                 <label class="flex items-center gap-1.5 cursor-pointer font-semibold text-blue-600">
-                                    <input type="checkbox" checked class="w-3 h-3" data-field="MlsStatus" data-value="Active">
+                                    <input type="checkbox" checked class="w-3 h-3" data-field="StandardStatus" data-value="Active">
                                     <span>Active</span>
                                 </label>
                                 <!-- Back On Market -->
                                 <label class="flex items-center gap-1.5 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Active" data-sub-status="BackOnMarket">
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Active" data-sub-status="BackOnMarket">
                                     <span>Back On Market</span>
                                 </label>
                                 <!-- Coming Soon -->
                                 <label class="flex items-center gap-1.5 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="ComingSoon">
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="ComingSoon">
                                     <span>Coming Soon</span>
                                 </label>
                                 <!-- Future -->
                                 <label class="flex items-center gap-1.5 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Incomplete" data-sub-status="Future">
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Incomplete" data-sub-status="Future">
                                     <span>Future</span>
                                 </label>
                                 <!-- Offer -->
                                 <div>
                                     <div class="flex items-center gap-1 cursor-pointer font-semibold text-orange-600" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
                                         <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="Offer" onclick="event.stopPropagation()">
+                                        <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="Offer" onclick="event.stopPropagation()">
                                         <span>Offer</span>
                                     </div>
                                     <div class="ml-5 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="OfferOut"> Offer Out</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="OfferThruUs"> Offer Thru Us</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="OfferAccepted"> Offer Accepted</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="OfferAcceptedThruUs"> Offer Accepted Thru Us</label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="OfferOut"> Offer Out</label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="OfferThruUs"> Offer Thru Us</label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="OfferAccepted"> Offer Accepted</label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="OfferAcceptedThruUs"> Offer Accepted Thru Us</label>
                                     </div>
                                 </div>
                                 <!-- Contract -->
                                 <div>
                                     <div class="flex items-center gap-1 cursor-pointer font-semibold text-purple-600" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
                                         <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="Contract" onclick="event.stopPropagation()">
+                                        <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="Contract" onclick="event.stopPropagation()">
                                         <span>Contract</span>
                                     </div>
                                     <div class="ml-5 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ContractOut"> Contract Out</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ContractOutThruUs"> Contract Out Thru Us</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="AllContractSigned"> All Contract Signed</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ContractSigned"> Contract Signed</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ContractSignedThruUs"> Contract Signed Thru Us</label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="ContractOut"> Contract Out</label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="ContractOutThruUs"> Contract Out Thru Us</label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="AllContractSigned"> All Contract Signed</label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="ContractSigned"> Contract Signed</label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="ContractSignedThruUs"> Contract Signed Thru Us</label>
                                     </div>
                                 </div>
                                 <!-- Board Approved -->
                                 <label class="flex items-center gap-1.5 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="BoardApproved">
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="BoardApproved">
                                     <span>Board Approved</span>
                                 </label>
                                 <!-- Sold -->
                                 <div>
                                     <div class="flex items-center gap-1 cursor-pointer font-semibold text-green-600" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
                                         <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="Sold" onclick="event.stopPropagation()">
+                                        <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed" data-sub-status="Sold" onclick="event.stopPropagation()">
                                         <span>Sold</span>
                                     </div>
                                     <div class="ml-5 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed"> All Sold</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="Sold"> Sold</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="SoldThruUs"> Sold Thru Us</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="ACRISVerified"> ACRIS Verified</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="Financed"> Financed</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="NoFinancing"> No Financing</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="NominalSales"> Nominal Sales</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="OtherACRIS"> Other ACRIS</label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed"> All Sold</label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed" data-sub-status="Sold"> Sold</label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed" data-sub-status="SoldThruUs"> Sold Thru Us</label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed" data-sub-status="ACRISVerified"> ACRIS Verified</label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed" data-sub-status="Financed"> Financed</label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed" data-sub-status="NoFinancing"> No Financing</label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed" data-sub-status="NominalSales"> Nominal Sales</label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed" data-sub-status="OtherACRIS"> Other ACRIS</label>
                                     </div>
                                 </div>
                                 <!-- Not Active -->
                                 <div>
                                     <div class="flex items-center gap-1 cursor-pointer font-semibold text-gray-500" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
                                         <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Withdrawn,Canceled,Expired,Hold" onclick="event.stopPropagation()">
+                                        <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Withdrawn,Canceled,Expired,Hold" onclick="event.stopPropagation()">
                                         <span>Not Active</span>
                                     </div>
                                     <div class="ml-5 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Withdrawn,Canceled,Expired,Hold"> All Not Active</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Withdrawn"> Permanently Off</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Hold"> Temporarily Off</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Expired"> Expired</label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Withdrawn,Canceled,Expired,Hold"> All Not Active</label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Withdrawn"> Permanently Off</label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Hold"> Temporarily Off</label>
+                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Expired"> Expired</label>
                                     </div>
                                 </div>
                                 <!-- Listed for Rent -->
@@ -970,67 +970,67 @@
                             <p class="text-xs font-semibold text-gray-700 mb-2">Status</p>
                             <div class="space-y-1 text-xs max-h-64 overflow-y-auto">
                                 <label class="flex items-center gap-2 cursor-pointer font-semibold text-blue-600">
-                                    <input type="checkbox" checked class="w-3 h-3" data-field="MlsStatus" data-value="Active"> All Active
+                                    <input type="checkbox" checked class="w-3 h-3" data-field="StandardStatus" data-value="Active"> All Active
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Active"> Active
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Active"> Active
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Active" data-sub-status="BackOnMarket"> Back On Market
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Active" data-sub-status="BackOnMarket"> Back On Market
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer text-orange-600">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ApplicationIn"> Application In
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="ApplicationIn"> Application In
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ApplicationAccepted"> Application Accepted
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="ApplicationAccepted"> Application Accepted
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="LeaseOut"> Lease Out
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="LeaseOut"> Lease Out
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="LeaseOutThruUs"> Lease Out Thru Us
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="LeaseOutThruUs"> Lease Out Thru Us
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="AppAcceptedThruUs"> App Accepted Thru Us
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="AppAcceptedThruUs"> App Accepted Thru Us
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="AppInThruUs"> App In Thru Us
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="AppInThruUs"> App In Thru Us
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer text-purple-600">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="AllLeaseSigned"> All Lease Signed
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="AllLeaseSigned"> All Lease Signed
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="LeaseSigned"> Lease Signed
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="LeaseSigned"> Lease Signed
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="LeaseSignedThruUs"> Lease Signed Thru Us
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="LeaseSignedThruUs"> Lease Signed Thru Us
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="BoardApproved"> Board Approved
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="BoardApproved"> Board Approved
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer font-semibold text-green-600">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed"> All Rented
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed"> All Rented
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="Rented"> Rented
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed" data-sub-status="Rented"> Rented
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="RentedThruUs"> Rented Thru Us
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed" data-sub-status="RentedThruUs"> Rented Thru Us
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer font-semibold text-gray-500">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Withdrawn,Canceled,Expired,Hold"> All Not Active
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Withdrawn,Canceled,Expired,Hold"> All Not Active
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Withdrawn"> Withdrawn
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Withdrawn"> Withdrawn
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Hold"> Hold
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Hold"> Hold
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Expired"> Expired
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Expired"> Expired
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Incomplete" data-sub-status="Future"> Future
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Incomplete" data-sub-status="Future"> Future
                                 </label>
                                 <div class="border-t pt-1 mt-1">
                                     <label class="flex items-center gap-2 cursor-pointer font-semibold text-gray-600">
@@ -4047,88 +4047,88 @@
                             <div id="saleStatusOptions" class="text-xs space-y-1">
                                 <!-- Active -->
                                 <label class="flex items-center gap-2 cursor-pointer font-semibold text-blue-600">
-                                    <input type="checkbox" checked class="w-3 h-3" data-field="MlsStatus" data-value="Active">
+                                    <input type="checkbox" checked class="w-3 h-3" data-field="StandardStatus" data-value="Active">
                                     <span>Active</span>
                                 </label>
                                 <!-- Back On Market -->
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Active" data-sub-status="BackOnMarket">
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Active" data-sub-status="BackOnMarket">
                                     <span>Back On Market</span>
                                 </label>
                                 <!-- Coming Soon -->
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="ComingSoon">
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="ComingSoon">
                                     <span>Coming Soon</span>
                                 </label>
                                 <!-- Future -->
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Incomplete" data-sub-status="Future">
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Incomplete" data-sub-status="Future">
                                     <span>Future</span>
                                 </label>
                                 <!-- Offer -->
                                 <div>
                                     <div class="flex items-center gap-2 cursor-pointer font-semibold text-orange-600" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
                                         <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="Offer" onclick="event.stopPropagation()">
+                                        <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="Offer" onclick="event.stopPropagation()">
                                         <span>Offer</span>
                                     </div>
                                     <div class="ml-6 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="OfferOut"> Offer Out</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="OfferThruUs"> Offer Thru Us</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="OfferAccepted"> Offer Accepted</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="OfferAcceptedThruUs"> Offer Accepted Thru Us</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="OfferOut"> Offer Out</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="OfferThruUs"> Offer Thru Us</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="OfferAccepted"> Offer Accepted</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="OfferAcceptedThruUs"> Offer Accepted Thru Us</label>
                                     </div>
                                 </div>
                                 <!-- Contract -->
                                 <div>
                                     <div class="flex items-center gap-2 cursor-pointer font-semibold text-purple-600" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
                                         <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="Contract" onclick="event.stopPropagation()">
+                                        <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="Contract" onclick="event.stopPropagation()">
                                         <span>Contract</span>
                                     </div>
                                     <div class="ml-6 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ContractOut"> Contract Out</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ContractOutThruUs"> Contract Out Thru Us</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="AllContractSigned"> All Contract Signed</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ContractSigned"> Contract Signed</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ContractSignedThruUs"> Contract Signed Thru Us</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="ContractOut"> Contract Out</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="ContractOutThruUs"> Contract Out Thru Us</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="AllContractSigned"> All Contract Signed</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="ContractSigned"> Contract Signed</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="ContractSignedThruUs"> Contract Signed Thru Us</label>
                                     </div>
                                 </div>
                                 <!-- Board Approved -->
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="BoardApproved">
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="BoardApproved">
                                     <span>Board Approved</span>
                                 </label>
                                 <!-- Sold -->
                                 <div>
                                     <div class="flex items-center gap-2 cursor-pointer font-semibold text-green-600" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
                                         <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="Sold" onclick="event.stopPropagation()">
+                                        <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed" data-sub-status="Sold" onclick="event.stopPropagation()">
                                         <span>Sold</span>
                                     </div>
                                     <div class="ml-6 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed"> All Sold</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="Sold"> Sold</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="SoldThruUs"> Sold Thru Us</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="ACRISVerified"> ACRIS Verified</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="Financed"> Financed</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="NoFinancing"> No Financing</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="NominalSales"> Nominal Sales</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="OtherACRIS"> Other ACRIS</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed"> All Sold</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed" data-sub-status="Sold"> Sold</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed" data-sub-status="SoldThruUs"> Sold Thru Us</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed" data-sub-status="ACRISVerified"> ACRIS Verified</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed" data-sub-status="Financed"> Financed</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed" data-sub-status="NoFinancing"> No Financing</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed" data-sub-status="NominalSales"> Nominal Sales</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed" data-sub-status="OtherACRIS"> Other ACRIS</label>
                                     </div>
                                 </div>
                                 <!-- Not Active -->
                                 <div>
                                     <div class="flex items-center gap-2 cursor-pointer font-semibold text-gray-500" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
                                         <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Withdrawn,Canceled,Expired,Hold" onclick="event.stopPropagation()">
+                                        <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Withdrawn,Canceled,Expired,Hold" onclick="event.stopPropagation()">
                                         <span>Not Active</span>
                                     </div>
                                     <div class="ml-6 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Withdrawn,Canceled,Expired,Hold"> All Not Active</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Withdrawn"> Permanently Off</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Hold"> Temporarily Off</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Expired"> Expired</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Withdrawn,Canceled,Expired,Hold"> All Not Active</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Withdrawn"> Permanently Off</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Hold"> Temporarily Off</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Expired"> Expired</label>
                                     </div>
                                 </div>
                                 <!-- Listed for Rent -->
@@ -4143,76 +4143,76 @@
                             <div id="rentalStatusOptions" class="text-xs space-y-1" style="display: none;">
                                 <!-- Active -->
                                 <label class="flex items-center gap-2 cursor-pointer font-semibold text-blue-600">
-                                    <input type="checkbox" checked class="w-3 h-3" data-field="MlsStatus" data-value="Active">
+                                    <input type="checkbox" checked class="w-3 h-3" data-field="StandardStatus" data-value="Active">
                                     <span>Active</span>
                                 </label>
                                 <!-- Back On Market -->
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Active" data-sub-status="BackOnMarket">
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Active" data-sub-status="BackOnMarket">
                                     <span>Back On Market</span>
                                 </label>
                                 <!-- Application -->
                                 <div>
                                     <div class="flex items-center gap-2 cursor-pointer font-semibold text-orange-600" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
                                         <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="Application" onclick="event.stopPropagation()">
+                                        <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="Application" onclick="event.stopPropagation()">
                                         <span>Application</span>
                                     </div>
                                     <div class="ml-6 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ApplicationIn"> Application In</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="AppInThruUs"> App In Thru Us</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ApplicationAccepted"> Application Accepted</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="AppAcceptedThruUs"> App Accepted Thru Us</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="LeaseOut"> Lease Out</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="LeaseOutThruUs"> Lease Out Thru Us</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="ApplicationIn"> Application In</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="AppInThruUs"> App In Thru Us</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="ApplicationAccepted"> Application Accepted</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="AppAcceptedThruUs"> App Accepted Thru Us</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="LeaseOut"> Lease Out</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="LeaseOutThruUs"> Lease Out Thru Us</label>
                                     </div>
                                 </div>
                                 <!-- All Lease Signed -->
                                 <div>
                                     <div class="flex items-center gap-2 cursor-pointer font-semibold text-purple-600" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
                                         <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="LeaseSigned" onclick="event.stopPropagation()">
+                                        <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="LeaseSigned" onclick="event.stopPropagation()">
                                         <span>All Lease Signed</span>
                                     </div>
                                     <div class="ml-6 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="LeaseSigned"> Lease Signed</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="LeaseSignedThruUs"> Lease Signed Thru Us</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="LeaseSigned"> Lease Signed</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="LeaseSignedThruUs"> Lease Signed Thru Us</label>
                                     </div>
                                 </div>
                                 <!-- Board Approved -->
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="BoardApproved">
+                                    <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Pending" data-sub-status="BoardApproved">
                                     <span>Board Approved</span>
                                 </label>
                                 <!-- All Rented -->
                                 <div>
                                     <div class="flex items-center gap-2 cursor-pointer font-semibold text-green-600" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
                                         <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="Rented" onclick="event.stopPropagation()">
+                                        <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed" data-sub-status="Rented" onclick="event.stopPropagation()">
                                         <span>All Rented</span>
                                     </div>
                                     <div class="ml-6 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="Rented"> Rented</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="RentedThruUs"> Rented Thru Us</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed" data-sub-status="Rented"> Rented</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Closed" data-sub-status="RentedThruUs"> Rented Thru Us</label>
                                     </div>
                                 </div>
                                 <!-- All Not Active -->
                                 <div>
                                     <div class="flex items-center gap-2 cursor-pointer font-semibold text-gray-500" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
                                         <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Withdrawn,Canceled,Expired,Hold" onclick="event.stopPropagation()">
+                                        <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Withdrawn,Canceled,Expired,Hold" onclick="event.stopPropagation()">
                                         <span>All Not Active</span>
                                     </div>
                                     <div class="ml-6 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Withdrawn"> Withdrawn</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Hold"> Hold</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Expired"> Expired</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Withdrawn"> Withdrawn</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Hold"> Hold</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Expired"> Expired</label>
                                     </div>
                                 </div>
                                 <!-- Future -->
                                 <div>
                                     <label class="flex items-center gap-2 cursor-pointer font-semibold text-gray-600">
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Incomplete" data-sub-status="Future">
+                                        <input type="checkbox" class="w-3 h-3" data-field="StandardStatus" data-value="Incomplete" data-sub-status="Future">
                                         <span>Future</span>
                                     </label>
                                 </div>

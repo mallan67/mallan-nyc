@@ -19,6 +19,7 @@
   },
 
   "localConcepts": {
+    "workflow-status": "Mallan workflow status list on the Sale and Rental forms (Draft, Offer Out, Contract Signed ...). The form maps each step to the status it stands for; the step itself is not a Cotality value.",
     "auction_yn": "Mallan-local auction listing toggle",
     "auction_type": "Mallan-local auction type",
     "auction_start_date": "Mallan-local auction start",

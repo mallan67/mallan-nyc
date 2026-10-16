@@ -571,7 +571,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
             <!-- Status -->
             <div class="mb-5">
                 <label class="field-label mb-1">Status <span class="text-red-500">*</span></label>
-                <select id="saleStatus" class="field-input max-w-md" required onchange="validateStatusChange('sale'); handleSaleComingSoon(); updateSaleStatusFields()" data-concept="MlsStatus">
+                <select id="saleStatus" class="field-input max-w-md" required onchange="validateStatusChange('sale'); handleSaleComingSoon(); updateSaleStatusFields()" data-concept="workflow-status">
                     <option value="Draft" selected>Draft</option>
                     <option value="Future">Future</option>
                     <option value="ComingSoon">Coming Soon</option>
@@ -619,7 +619,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         <p class="text-xs font-medium text-gray-700" id="saleStatusChangeTimestamp">--</p>
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
-                        <p class="text-[10px] text-gray-500 uppercase">RESO MlsStatus</p>
+                        <p class="text-[10px] text-gray-500 uppercase">Canonical Status</p>
                         <p class="text-xs font-medium text-blue-700" id="saleResoMlsStatus">--</p>
                     </div>
                 </div>
@@ -803,6 +803,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="BankruptcyProperty" class="w-4 h-4" data-concept="SpecialListingConditions"> Bankruptcy Property</label>
                                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="BoardApprovalNotRequired" class="w-4 h-4" data-concept="SpecialListingConditions"> Board Approval Not Required</label>
                                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="BoardApprovalRequired" class="w-4 h-4" data-concept="SpecialListingConditions"> Board Approval Required</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="BuildToSuit" class="w-4 h-4" data-concept="SpecialListingConditions"> Build To Suit</label>
                                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="BuilderOwned" class="w-4 h-4" data-concept="SpecialListingConditions"> Builder Owned</label>
                                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="Conservatorship" class="w-4 h-4" data-concept="SpecialListingConditions"> Conservatorship</label>
                                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleSpecialListingConditions" value="CorporateListing" class="w-4 h-4" data-concept="SpecialListingConditions"> Corporate Listing</label>

@@ -715,7 +715,7 @@ function renderClientPortalResults(listings) {
 
 var mockAuditEntries = [
     { id: 'A-001', action: 'listing_created', timestamp: '2026-02-10T09:00:00', agent: 'Demo Agent', listingId: 'ML-S006', details: { address: '45 E 89th St #10A', status: 'Coming Soon' } },
-    { id: 'A-002', action: 'status_change', timestamp: '2026-02-10T09:01:00', agent: 'Demo Agent', listingId: 'ML-S006', details: { from: 'Draft', to: 'Coming Soon', conceptField: 'MlsStatus' } },
+    { id: 'A-002', action: 'status_change', timestamp: '2026-02-10T09:01:00', agent: 'Demo Agent', listingId: 'ML-S006', details: { from: 'Draft', to: 'Coming Soon', conceptField: 'workflow-status' } },
     { id: 'A-003', action: 'listing_search', timestamp: '2026-02-11T10:15:00', agent: 'Demo Agent', clientId: 'CL-001', details: { criteria: 'UES 2BR <$2M', results: 12 } },
     { id: 'A-004', action: 'listing_email', timestamp: '2026-02-11T10:20:00', agent: 'Demo Agent', clientId: 'CL-001', listingId: 1, details: { recipient: 'sarah.chen@email.com', count: 3 } },
     { id: 'A-005', action: 'showing_scheduled', timestamp: '2026-02-12T14:00:00', agent: 'Demo Agent', listingId: 1, clientId: 'CL-001', details: { date: '2026-02-14', time: '2:00 PM' } },
@@ -728,7 +728,7 @@ var mockAuditEntries = [
     { id: 'A-012', action: 'fare_act_disclosure', timestamp: '2026-02-15T10:00:00', agent: 'System', listingId: 'ML-R001', details: { brokerFeePaidBy: 'Owner', applicationFee: 20 } },
     { id: 'A-013', action: 'portal_access', timestamp: '2026-02-15T11:00:00', agent: 'System', clientId: 'CL-001', details: { page: 'search_results', listings_viewed: 8 } },
     { id: 'A-014', action: 'client_feedback', timestamp: '2026-02-15T11:05:00', agent: 'System', clientId: 'CL-001', listingId: 1, details: { feedback: 'love', address: '400 E 90th St #17C' } },
-    { id: 'A-015', action: 'status_change', timestamp: '2026-02-15T14:00:00', agent: 'Demo Agent', listingId: 'ML-S004', details: { from: 'Active', to: 'Contract Signed', conceptField: 'MlsStatus' } },
+    { id: 'A-015', action: 'status_change', timestamp: '2026-02-15T14:00:00', agent: 'Demo Agent', listingId: 'ML-S004', details: { from: 'Active', to: 'Contract Signed', conceptField: 'workflow-status' } },
     { id: 'A-016', action: 'compliance_alert', timestamp: '2026-02-16T08:00:00', agent: 'System', listingId: 'ML-S006', details: { rule: 'D2', message: 'Coming Soon Day 6 \u2014 8 days remaining' } },
     { id: 'A-017', action: 'search_shared', timestamp: '2026-02-16T09:30:00', agent: 'Demo Agent', clientId: 'CL-002', details: { searchName: 'Tribeca Loft 1500+ SF', matchCount: 1 } },
     { id: 'A-018', action: 'document_uploaded', timestamp: '2026-02-16T10:00:00', agent: 'Demo Agent', details: { document: 'Exhibit G \u2014 Coming Soon Addendum', listing: 'ML-S006', ucbaRule: 'D10' } },
@@ -935,7 +935,7 @@ var searchHistoryResoMap = {
     minBeds: 'BedroomsTotal',
     maxPrice: 'ListPrice',
     minPrice: 'ListPrice',
-    status: 'MlsStatus',
+    status: 'StandardStatus',
     minSqft: 'LivingArea',
     ownership: 'CommonInterest',
     listingCategory: 'PropertyType',
@@ -982,7 +982,7 @@ function renderAgentPerformanceMetrics() {
     var html = '<div class="grid grid-cols-2 lg:grid-cols-4 gap-3">';
 
     var metrics = [
-        { label: 'Active Listings', value: active.length, icon: 'fa-home', color: '#3b82f6', concept: 'MlsStatus' },
+        { label: 'Active Listings', value: active.length, icon: 'fa-home', color: '#3b82f6', concept: 'StandardStatus' },
         { label: 'Pipeline Value', value: '$' + (pipelineValue / 1000000).toFixed(1) + 'M', icon: 'fa-chart-line', color: '#10b981', concept: 'ListPrice' },
         { label: 'Avg DOM', value: avgDOM + 'd', icon: 'fa-clock', color: '#f59e0b', concept: 'DaysOnMarket' },
         { label: 'Closed YTD', value: closed.length + ' ($' + (closedValue / 1000000).toFixed(1) + 'M)', icon: 'fa-check-circle', color: '#8b5cf6', concept: 'ClosePrice' }
@@ -1195,7 +1195,7 @@ function REBNYComplianceDoctor(options) {
             'ACTIVE', 'PENDING', 'CLOSED', 'COMING_SOON', 'COMINGSOON',
             'WITHDRAWN', 'EXPIRED', 'CANCELED', 'HOLD', 'INCOMPLETE'
         ];
-        var statusElements = document.querySelectorAll('[data-concept="MlsStatus"]');
+        var statusElements = document.querySelectorAll('[data-concept="StandardStatus"]');
         var invalidCount = 0;
         var totalChecked = 0;
         var invalidValues = [];
@@ -1207,7 +1207,7 @@ function REBNYComplianceDoctor(options) {
             val = val.trim().toUpperCase();
             if (validStatuses.indexOf(val) === -1) { invalidCount++; invalidValues.push(val); }
         });
-        var statusCheckboxes = document.querySelectorAll('input[data-field="MlsStatus"]');
+        var statusCheckboxes = document.querySelectorAll('input[data-field="StandardStatus"]');
         statusCheckboxes.forEach(function(cb) {
             var rawVal = (cb.getAttribute('data-value') || '');
             var vals = rawVal.split(',');
@@ -1299,7 +1299,7 @@ function REBNYComplianceDoctor(options) {
     (function test6_RequiredFields() {
         var requiredResoFields = [
             'UnparsedAddress', 'ListPrice', 'BedroomsTotal', 'BathroomsTotalInteger',
-            'MlsStatus', 'PropertyType', 'ListAgentFullName', 'ListOfficeName',
+            'StandardStatus', 'PropertyType', 'ListAgentFullName', 'ListOfficeName',
             'ListingId', 'OnMarketDate'
         ];
         var missingFields = [];
@@ -1534,7 +1534,7 @@ function REBNYWiringTest(options) {
 
     // ── W1: Field Parity Test ──────────────────────────────────────────
     (function() {
-        var ALLOWED = ['SourceSystemKey','ListPrice','MlsStatus','PropertyType','PropertySubType','BedroomsTotal','BathroomsTotalInteger','LivingArea','YearBuilt','UnparsedAddress','City','StateOrProvince','PostalCode','Latitude','Longitude','ListAgentFullName','ListOfficeName','ListingAgreement','InternetEntireListingDisplayYN','InternetAddressDisplayYN','OwnerOptOut','ParticipantOnly','IDXEntireListingDisplayYN','SyndicateTo','ComingSoonTimestamp','ActivationDate','PublicRemarks','PrivateRemarks','ShowingInstructions','ListAgentEmail','ListAgentDirectPhone','MaintenanceFee','TaxAnnualAmount','CommonCharges','neighborhood','borough','photoCount','daysOnMarket','pricePerSqft','updatedDate','listedDate','buildingName','lotSize','stories','units','parkingFeatures','garageSpaces','listingCategory','CommonInterest','Ownership','PetsAllowed','LaundryFeatures','Amenities','CoolingYN','HeatingYN','FireplacesTotal','WaterfrontYN','ViewYN','TaxBlock','TaxLot','Zoning','FloorNumber','UnitNumber','Concessions','FinancialDataSource','AssociationFee','RentIncludes','NumberOfUnitsTotal','StoriesTotal','LotSizeArea','GarageYN','AssociationFee+TaxAnnualAmount','RoomsTotal','BathroomsFull','SubdivisionName','OnMarketDate','DaysOnMarket','CumulativeDaysOnMarket','OpenHouseDate','AssociationName','SecurityFeatures','PropertyCondition','PurchaseContractDate','BuyerFinancing','BuildingAreaTotal','PreviousListPrice','OriginalListPrice','PriceChangeTimestamp','ListAgentDirectPhone','PatioAndPorchFeatures','NewConstructionYN','SourceSystemModificationTimestamp','ListingId','EntryLevel','CrossStreet','Exposures','WalkScore','BathroomsHalf','BuildingName','CloseDate','ClosePrice','PhotosCount','VirtualTourURLBranded','View','Flooring','Cooling','Heating','ParkingFeatures','ParkingTotal','PetsAllowedYN','AssociationAmenities','InteriorFeatures'];
+        var ALLOWED = ['ActivationDate','AssociationAmenities','AssociationFee','AssociationName','BathroomsFull','BathroomsHalf','BathroomsTotalInteger','BedroomsTotal','BuildingAreaTotal','BuildingName','BuyerFinancing','City','CityRegion','CloseDate','ClosePrice','ComingSoonTimestamp','CommonInterest','Cooling','CountyOrParish','CrossStreet','CumulativeDaysOnMarket','DaysOnMarket','EntryLevel','Exposures','FireplaceYN','FireplacesTotal','Flooring','Heating','InteriorFeatures','InternetAddressDisplayYN','InternetEntireListingDisplayYN','Latitude','LaundryFeatures','ListAgentDirectPhone','ListAgentEmail','ListAgentFullName','ListOfficeName','ListPrice','ListingAgreement','ListingId','LivingArea','Longitude','MediaURL','ModificationTimestamp','NewConstructionYN','OnMarketDate','OpenHouseDate','OriginalListPrice','ParkingFeatures','ParkingTotal','PatioAndPorchFeatures','PetsAllowed','PetsAllowedYN','PhotosCount','PostalCode','PreviousListPrice','PriceChangeTimestamp','PrivateRemarks','PropertyCondition','PropertySubType','PropertyType','PublicRemarks','PurchaseContractDate','RoomsTotal','SecurityFeatures','SourceSystemKey','SponsorUnitYN','StandardStatus','StoriesTotal','SubdivisionName','SyndicateTo','TaxAnnualAmount','UnitNumber','UnparsedAddress','View','VirtualTourURLBranded','WalkScore','YearBuilt'];  // live Cotality Property / CustomFields / OpenHouse / Media names the app emits as data-concept
         var resoEls = document.querySelectorAll('[data-concept]');
         var unknown = [], seen = {};
         resoEls.forEach(function(el) {
@@ -1559,13 +1559,13 @@ function REBNYWiringTest(options) {
     (function() {
         var issues = [];
         var VS = ['Active','Pending','Closed','ComingSoon','Coming Soon','COMING_SOON','COMINGSOON','Withdrawn','Expired','Canceled','Hold','Incomplete','ActiveUnderContract','ACTIVE','PENDING','CLOSED','WITHDRAWN','EXPIRED','CANCELED','HOLD','INCOMPLETE','ACTIVE_UNDER_CONTRACT'];
-        document.querySelectorAll('[data-concept="MlsStatus"][data-concept-value]').forEach(function(el) {
+        document.querySelectorAll('[data-concept="StandardStatus"][data-concept-value]').forEach(function(el) {
             var val = el.getAttribute('data-concept-value');
             if (!val) return;
             val.split(',').forEach(function(v) { v = v.trim(); if (v && VS.indexOf(v) === -1) issues.push('Status:"' + v + '"'); });
         });
-        var VB = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
-        document.querySelectorAll('[data-concept="borough"][data-concept-value]').forEach(function(el) {
+        var VB = ['Manhattan','Brooklyn','Queens','Bronx','StatenIsland','Staten Island'];  // live CityRegion values, plus the display name the app renders
+        document.querySelectorAll('[data-concept="CityRegion"][data-concept-value]').forEach(function(el) {
             var v = el.getAttribute('data-concept-value'); if (v && VB.indexOf(v) === -1) issues.push('Borough:"' + v + '"');
         });
         if (typeof listings !== 'undefined') {
@@ -2441,7 +2441,7 @@ function SourceIntegrityTests(options) {
     (function() {
         if (typeof listings === 'undefined') { addResult('SRC-02', 'Enum Token Validity', 'FAIL', 'listings undefined'); return; }
         var VS = ['Active','Pending','Closed','ComingSoon','Coming Soon','Withdrawn','Expired','Canceled','Hold','Incomplete','ActiveUnderContract','ACTIVE','PENDING','CLOSED','COMING_SOON','COMINGSOON','WITHDRAWN','EXPIRED','CANCELED','HOLD','INCOMPLETE','ACTIVE_UNDER_CONTRACT'];
-        var VB = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
+        var VB = ['Manhattan','Brooklyn','Queens','Bronx','StatenIsland','Staten Island'];
         var VC = ['sale','rental','Sale','Rental'];
         var violations = [];
         listings.forEach(function(l) {

@@ -386,12 +386,12 @@
                 // First uncheck all status checkboxes in the active form
                 var activeForm = document.getElementById(tab === 'rent' ? 'searchBasicModeRental' : 'searchBasicMode');
                 if (activeForm) {
-                    activeForm.querySelectorAll('[data-field="MlsStatus"]').forEach(function(cb) { cb.checked = false; });
+                    activeForm.querySelectorAll('[data-field="StandardStatus"]').forEach(function(cb) { cb.checked = false; });
                 }
                 // Then check the saved ones
                 criteria.status.forEach(function(s) {
                     var resoVal = statusReverseMap[s] || s;
-                    var cb = activeForm ? activeForm.querySelector('[data-field="MlsStatus"][data-value="' + resoVal + '"]') : null;
+                    var cb = activeForm ? activeForm.querySelector('[data-field="StandardStatus"][data-value="' + resoVal + '"]') : null;
                     if (cb) cb.checked = true;
                 });
             }

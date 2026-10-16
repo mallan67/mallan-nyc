@@ -301,7 +301,7 @@ function comingSoonCountdown(listing) {
 
     // Action buttons
     html += '<div class="flex items-center gap-2 mt-2">';
-    html += '<button onclick="manageStatusApply(\'Active\')" class="px-2.5 py-1 bg-green-600 text-white rounded text-[10px] font-semibold hover:bg-green-700" data-concept="MlsStatus" data-concept-value="Active"><i class="fas fa-check mr-1"></i>Activate Now</button>';
+    html += '<button onclick="manageStatusApply(\'Active\')" class="px-2.5 py-1 bg-green-600 text-white rounded text-[10px] font-semibold hover:bg-green-700" data-concept="StandardStatus" data-concept-value="Active"><i class="fas fa-check mr-1"></i>Activate Now</button>';
     html += '<button onclick="manageStatusApply(\'Temp Off Market\')" class="px-2.5 py-1 bg-gray-500 text-white rounded text-[10px] font-semibold hover:bg-gray-600" title="UCBA D11: Withdraw/TOM"><i class="fas fa-pause mr-1"></i>Withdraw/TOM</button>';
     html += '</div>';
 
@@ -352,7 +352,7 @@ function renderManageCards(listings) {
                 html += '<span class="px-1.5 py-0.5 bg-blue-600/80 text-white text-[9px] font-bold rounded backdrop-blur-sm" title="Uploaded to REBNY RLS via Trestle">RLS</span>';
             }
             if (media.idxDisplayYN) {
-                html += '<span class="px-1.5 py-0.5 bg-green-600/80 text-white text-[9px] font-bold rounded backdrop-blur-sm" title="IDX display enabled" data-concept="IDXEntireListingDisplayYN" data-concept-value="true">IDX</span>';
+                html += '<span class="px-1.5 py-0.5 bg-green-600/80 text-white text-[9px] font-bold rounded backdrop-blur-sm" title="IDX display enabled" data-concept="InternetEntireListingDisplayYN" data-concept-value="true">IDX</span>';
             }
             if (media.webDisplayed) {
                 html += '<span class="px-1.5 py-0.5 bg-amber-600/80 text-white text-[9px] font-bold rounded backdrop-blur-sm" title="Displayed on mallan.nyc">Web</span>';
@@ -1007,7 +1007,7 @@ function manageQuickStatus(id) {
         var isCurrent = listing.status === s;
         var validation = manageValidateTransition(listing, s);
         var isBlocked = !validation.valid && !isCurrent;
-        html += '<button onclick="' + (isBlocked ? '' : 'manageStatusApply(\\\'' + s + '\\\')') + '" class="w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between ' + (isCurrent ? 'bg-blue-50 border border-blue-200' : isBlocked ? 'opacity-40 cursor-not-allowed border border-transparent' : 'hover:bg-gray-50 border border-transparent') + '"' + ' data-concept="MlsStatus" data-concept-value="' + s + '"' + (isBlocked ? ' title="' + validation.blocks.join('; ').replace(/"/g, '&quot;') + '"' : '') + '>';
+        html += '<button onclick="' + (isBlocked ? '' : 'manageStatusApply(\\\'' + s + '\\\')') + '" class="w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between ' + (isCurrent ? 'bg-blue-50 border border-blue-200' : isBlocked ? 'opacity-40 cursor-not-allowed border border-transparent' : 'hover:bg-gray-50 border border-transparent') + '"' + ' data-concept="StandardStatus" data-concept-value="' + s + '"' + (isBlocked ? ' title="' + validation.blocks.join('; ').replace(/"/g, '&quot;') + '"' : '') + '>';
         html += '<span class="px-2 py-0.5 ' + sc.bg + ' ' + sc.text + ' rounded text-xs font-semibold">' + s + '</span>';
         if (isCurrent) html += '<i class="fas fa-check text-blue-600 text-xs"></i>';
         if (isBlocked) html += '<i class="fas fa-ban text-gray-400 text-xs ml-1"></i>';

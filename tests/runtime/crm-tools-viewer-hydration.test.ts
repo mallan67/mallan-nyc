@@ -82,7 +82,7 @@ const GROUP_DRIFT: Record<'sale' | 'rental', { lacking: string[]; differ: string
     differ: ['radio:saleListingType'], // the Add form splits In-House into InHouseInternal / InHouseWebOnly; the viewer still offers InHouse
     viewerOnly: ['radio:saleCommissionType'], // the older payer radios the Add form replaced with saleBuyerAgentPays
   },
-  rental: { lacking: [], differ: [], viewerOnly: ['radio:rentalPets'] }, // the older pets radios; the Add form stores PetsAllowed as a checkbox group
+  rental: { lacking: [], differ: [], viewerOnly: [] },
 };
 
 describe.each([

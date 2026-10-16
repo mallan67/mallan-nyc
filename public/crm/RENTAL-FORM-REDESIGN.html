@@ -529,7 +529,7 @@ body { font-family: Manrope, sans-serif; }
             <!-- Status -->
             <div class="mb-5">
                 <label class="field-label mb-1">Status <span class="text-red-500">*</span></label>
-                <select id="rentalStatus" class="field-input max-w-md" required onchange="validateStatusChange('rental'); updateRentalStatusFields()" data-concept="MlsStatus">
+                <select id="rentalStatus" class="field-input max-w-md" required onchange="validateStatusChange('rental'); updateRentalStatusFields()" data-concept="workflow-status">
                     <option value="Draft" selected>Draft</option>
                     <option value="Future">Future</option>
                     <option value="Active">Active</option>
@@ -578,7 +578,7 @@ body { font-family: Manrope, sans-serif; }
                         <p class="text-xs font-medium text-gray-700" id="rentalStatusChangeTimestamp">--</p>
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
-                        <p class="text-[10px] text-gray-500 uppercase">RESO MlsStatus</p>
+                        <p class="text-[10px] text-gray-500 uppercase">Canonical Status</p>
                         <p class="text-xs font-medium text-blue-700" id="rentalResoMlsStatus">Draft</p>
                     </div>
                 </div>
@@ -2192,26 +2192,6 @@ body { font-family: Manrope, sans-serif; }
         <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="rentalCooling" value="VariesByUnit" class="w-3 h-3"> Varies by Unit</label>
         <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="rentalCooling" value="None" class="w-3 h-3"> None</label>
         <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="rentalCooling" value="Other" class="w-3 h-3"> Other</label>
-    </div>
-</div>
-
-<!-- Policies -->
-<div class="form-card">
-    <div class="form-card-header"><i class="fas fa-paw"></i> Policies</div>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <div>
-            <p class="field-label mb-2">Pets Policy</p>
-            <p class="text-xs text-gray-500">Unit-level pet policy is set in Tab 1 → Unit Info using RLS field <code>PetsAllowed</code>. Building-level pet policy is set in the Building modal using RLS field <code>BuildingPetsAllowed</code>.</p>
-        </div>
-        <div>
-            <p class="field-label mb-2">Guarantors</p>
-            <div class="space-y-2">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalGuarantorsPolicy" value="Allowed" class="w-4 h-4" data-concept-disposition="mallan-internal"> Allowed</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalGuarantorsPolicy" value="Required" class="w-4 h-4"> Required</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalGuarantorsPolicy" value="NotAllowed" class="w-4 h-4"> Not Allowed</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalGuarantorsPolicy" value="CaseByCase" class="w-4 h-4"> Case by Case</label>
-            </div>
-        </div>
     </div>
 </div>
 

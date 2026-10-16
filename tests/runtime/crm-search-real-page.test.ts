@@ -383,7 +383,7 @@ describe('MallanAPI.idx.search forwards the filters the server supports and Cota
 describe('every enabled Search control sends only values live Cotality accepts', () => {
   // Controls handled by other parameters (status, ownership, property subtype). (Sponsor Unit was here, as a post-fetch filter; the control is disabled now, see below, and if it is ever enabled again this
   // test must see it: a control the server never sends is a silent partial filter.)
-  const HANDLED_ELSEWHERE = new Set(['MlsStatus', 'CommonInterest', 'PropertySubType']);
+  const HANDLED_ELSEWHERE = new Set(['StandardStatus', 'CommonInterest', 'PropertySubType']);
   // Enabled controls whose field the server never sends to Cotality: they only narrow the rows the server already returned, so they are a
   // silent partial filter. This is the visible backlog and it may only shrink: wire a new control to a live Cotality field instead of adding to it.
   const CLIENT_ONLY_BACKLOG = ['BathroomCondition', 'BuildingSmokeFreeYN', 'KitchenCondition', 'PetsAllowed', 'PoolFeatures', 'PriceChangeDirection', 'PriceChangeTimestamp', 'PropertyCondition'];

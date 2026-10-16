@@ -876,7 +876,7 @@
                 criteria.propertySubType = propertySubTypeChecked.join(',');
             }
 
-            // Status checkboxes (MlsStatus) — collect all checked statuses
+            // Status checkboxes (StandardStatus) — collect all checked statuses
             // Determine which container has the status checkboxes
             var statusContainer = activeBasicForm;
             var advancedMode = document.getElementById('searchAdvancedMode');
@@ -893,7 +893,7 @@
                 }
             }
             if (statusContainer) {
-                var statusChecks = statusContainer.querySelectorAll('[data-field="MlsStatus"]:checked');
+                var statusChecks = statusContainer.querySelectorAll('[data-field="StandardStatus"]:checked');
                 if (statusChecks.length > 0) {
                     criteria.statuses = [];
                     statusChecks.forEach(function(cb) {
@@ -1135,7 +1135,7 @@
             // Collects ALL checked checkboxes with data-field/data-value
             // that aren't already handled above.
             // ═══════════════════════════════════════════════════════════
-            var _handledFields = { 'MlsStatus': 1, 'CommonInterest': 1, 'PropertySubType': 1 };
+            var _handledFields = { 'StandardStatus': 1, 'CommonInterest': 1, 'PropertySubType': 1 };
 
             // Determine container: advanced mode if visible, else active basic form
             var _scanContainer = activeBasicForm;
@@ -1234,14 +1234,14 @@
                 advMode.querySelectorAll('input[type="text"], input[type="number"]').forEach(function(inp) { inp.value = ''; });
             }
             // Re-check the "Active" checkbox by default (sale basic form)
-            var activeCheck = document.querySelector('#searchBasicMode [data-field="MlsStatus"][data-value="Active"]');
+            var activeCheck = document.querySelector('#searchBasicMode [data-field="StandardStatus"][data-value="Active"]');
             if (activeCheck) activeCheck.checked = true;
             // (rental form unified — no separate re-check needed)
             // Re-check the "Active" checkbox in advanced mode (sale status)
-            var advSaleActive = document.querySelector('#saleStatusOptions [data-field="MlsStatus"][data-value="Active"]');
+            var advSaleActive = document.querySelector('#saleStatusOptions [data-field="StandardStatus"][data-value="Active"]');
             if (advSaleActive) advSaleActive.checked = true;
             // Re-check the "Active" checkbox in advanced mode (rental status)
-            var advRentalActive = document.querySelector('#rentalStatusOptions [data-field="MlsStatus"][data-value="Active"]');
+            var advRentalActive = document.querySelector('#rentalStatusOptions [data-field="StandardStatus"][data-value="Active"]');
             if (advRentalActive) advRentalActive.checked = true;
             // Clear neighborhood tags and internal selection state
             if (typeof clearAllNeighborhoods === 'function') clearAllNeighborhoods();
@@ -1287,7 +1287,7 @@
             form.querySelectorAll('select').forEach(function(s) { if (s.selectedIndex > 0) count++; });
             form.querySelectorAll('input[type="text"], input[type="number"]').forEach(function(i) { if (i.value.trim()) count++; });
             form.querySelectorAll('input[type="checkbox"]:checked').forEach(function(cb) {
-                if (cb.getAttribute('data-field') === 'MlsStatus' && cb.getAttribute('data-value') === 'Active') return;
+                if (cb.getAttribute('data-field') === 'StandardStatus' && cb.getAttribute('data-value') === 'Active') return;
                 count++;
             });
             form.querySelectorAll('.drp-wrapper[data-from]').forEach(function(w) {
@@ -1580,13 +1580,13 @@
                     if (!nMatch) return false;
                 }
 
-                // Status filter — check both StandardStatus (listing.status) and MlsStatus sub-statuses
+                // Status filter — check StandardStatus (listing.status) and the Mallan CRM sub-statuses
                 if (criteria.statuses && criteria.statuses.length > 0) {
                     var statusMatch = criteria.statuses.some(function(s) {
                         var sl = s.toLowerCase();
                         // Match against main status (ACTIVE, PENDING, CLOSED, etc.)
                         if (listing.status && listing.status.toLowerCase() === sl) return true;
-                        // Match against MlsStatus sub-status (OfferOut, ContractSigned, BoardApproved, etc.)
+                        // Match against the Mallan CRM sub-status (OfferOut, ContractSigned, BoardApproved, etc.)
                         if (listing.mlsStatus && listing.mlsStatus.toLowerCase().indexOf(sl) !== -1) return true;
                         return false;
                     });

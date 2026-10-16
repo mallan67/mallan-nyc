@@ -42,7 +42,9 @@
     TaxLot: '#saleBldgTaxLot, #bldgTaxLot',
     PropertyType: 'input[name="salePropertyType"], input[name="rentalPropertyType"]',
     PropertySubType: 'input[name="salePropertyType"], input[name="rentalPropertyType"]',
-    View: 'input[name="saleViewList"]'
+    View: 'input[name="saleViewList"]',
+    StandardStatus: '#saleStatus, #rentalStatus',                                  // the status list holds Mallan workflow steps; the field they stand for is StandardStatus
+    StandardStatus: '#saleStatus, #rentalStatus'
   };
 
   function validatorField(line) {

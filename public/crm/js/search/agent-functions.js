@@ -76,7 +76,7 @@
             var tsEl = document.getElementById(formType + 'StatusChangeTimestamp');
             if (tsEl) tsEl.textContent = timestamp;
 
-            // Update RESO MlsStatus display
+            // Update the canonical status display
             var statusEl = document.getElementById(formType + 'Status');
             var resoEl = document.getElementById(formType + 'ResoMlsStatus');
             if (statusEl && resoEl && typeof getResoMlsStatus === 'function') {

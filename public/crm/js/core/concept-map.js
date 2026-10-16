@@ -49,7 +49,7 @@
             view:           'View',
 
             // ── Classification ──
-            status:         'MlsStatus',
+            status:         'StandardStatus',
             ownership:      'CommonInterest',
             propertyType:   'PropertyType',
             propertySubType:'PropertySubType',
