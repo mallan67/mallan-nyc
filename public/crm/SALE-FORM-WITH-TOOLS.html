@@ -719,7 +719,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                             <!-- Residential -->
                             <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Residential</p>
                             <div class="grid grid-cols-3 gap-1.5 mb-3">
-                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="salePropertyType" value="Condo" class="w-4 h-4" checked onchange="applySalesFieldRules()" data-concept="PropertyType"> Condo</label>
+                                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="salePropertyType" value="Condo" class="w-4 h-4" checked onchange="applySalesFieldRules()"> Condo</label>
                                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="salePropertyType" value="Coop" class="w-4 h-4" onchange="applySalesFieldRules()"> Co-op</label>
                                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="salePropertyType" value="Condop" class="w-4 h-4" onchange="applySalesFieldRules()"> Condop</label>
                                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="salePropertyType" value="SingleFamilyTownhouse" class="w-4 h-4" onchange="applySalesFieldRules()"> Single Family TH</label>
@@ -2020,7 +2020,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
             <div class="form-card-header"><i class="fas fa-briefcase"></i> Current Use</div>
             <div class="flex flex-wrap gap-6">
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleCurrentUse" value="Healthcare" class="w-4 h-4" data-concept="CurrentUse"> Healthcare
+                    <input type="radio" name="saleCurrentUse" value="MedicalDental" class="w-4 h-4" data-concept="CurrentUse"> Medical/Dental
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
                     <input type="radio" name="saleCurrentUse" value="Investment" class="w-4 h-4"> Investment
@@ -2315,7 +2315,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
             <label class="field-label">Washer/Dryer Allowed <span class="text-red-500">*</span></label>
             <div class="flex items-center gap-6 mb-3">
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="saleWasherDryerAllowed" value="Yes" class="w-4 h-4" data-concept="LaundryFeatures"> Yes
+                    <input type="radio" name="saleWasherDryerAllowed" value="Yes" class="w-4 h-4" data-concept-disposition="mallan-internal"> Yes
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
                     <input type="radio" name="saleWasherDryerAllowed" value="No" class="w-4 h-4" checked> No
@@ -2484,7 +2484,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
             <label class="field-label">Fireplace <span class="text-red-500">*</span></label>
             <div class="flex gap-6 mb-3">
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="radio" name="fireplace" value="Yes" class="w-4 h-4" data-concept="InteriorFeatures"> Yes
+                    <input type="radio" name="fireplace" value="Yes" class="w-4 h-4" data-concept="FireplaceYN"> Yes
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm">
                     <input type="radio" name="fireplace" value="No" class="w-4 h-4" checked> No
@@ -2588,8 +2588,6 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                         <option value="SitePlanApproved">Site Plan Approved</option>
                         <option value="FinishedLots">Finished Lots</option>
                         <option value="Completed">Completed</option>
-                        <option value="NeverBuilt">Never Built</option>
-                        <option value="PartiallyBuilt">Partially Built</option>
                         <option value="SeeRemarks">See Remarks</option>
                         <option value="Other">Other</option>
                     </select>
@@ -4125,7 +4123,6 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                                     <option value="HighRise">High-Rise</option>
                                     <option value="HotelMotel">Hotel/Motel</option>
                                     <option value="House">House (Single Family)</option>
-                                    <option value="Loft">Loft</option>
                                     <option value="ManufacturedHouse">Manufactured House</option>
                                     <option value="MixedUse">Mixed Use</option>
                                     <option value="MultiFamily">Multi-Family</option>
@@ -4133,9 +4130,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                                     <option value="Quadruplex">Quadruplex</option>
                                     <option value="Townhouse">Townhouse</option>
                                     <option value="Triplex">Triplex</option>
-                                    <option value="WalkUp">Walk-Up</option>
                                     <option value="Apartment">Apartment</option>
-                                    <option value="Commercial">Commercial</option>
                                     <option value="Other">Other</option>
                                 </select>
                             </div>

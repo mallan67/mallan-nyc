@@ -655,7 +655,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                             <label class="field-label mb-2">Property Type <span class="text-red-500">*</span></label>
                             <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Residential</p>
                             <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 mb-3">
-                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="Condo" class="w-4 h-4" onchange="applyRentalFieldRules()" data-concept="PropertyType"> Condo</label>
+                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="Condo" class="w-4 h-4" onchange="applyRentalFieldRules()"> Condo</label>
                                 <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="Coop" class="w-4 h-4" onchange="applyRentalFieldRules()"> Co-op</label>
                                 <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="Condop" class="w-4 h-4" onchange="applyRentalFieldRules()"> Condop</label>
                                 <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="SingleFamilyTownhouse" class="w-4 h-4" onchange="applyRentalFieldRules()"> Single Family TH</label>
@@ -2180,7 +2180,6 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                 <option value="RawLand">Raw Land</option><option value="RoughGrade">Rough Grade</option>
                 <option value="SitePlanFiled">Site Plan Filed</option><option value="SitePlanApproved">Site Plan Approved</option>
                 <option value="FinishedLots">Finished Lots</option><option value="Completed">Completed</option>
-                <option value="NeverBuilt">Never Built</option><option value="PartiallyBuilt">Partially Built</option>
                 <option value="SeeRemarks">See Remarks</option><option value="Other">Other</option>
             </select>
         </div>
@@ -3497,7 +3496,6 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                                     <option value="HighRise">High-Rise</option>
                                     <option value="HotelMotel">Hotel/Motel</option>
                                     <option value="House">House (Single Family)</option>
-                                    <option value="Loft">Loft</option>
                                     <option value="ManufacturedHouse">Manufactured House</option>
                                     <option value="MixedUse">Mixed Use</option>
                                     <option value="MultiFamily">Multi-Family</option>
@@ -3505,9 +3503,7 @@ body.skeleton-loading::before { visibility: visible; content: 'Loading listing..
                                     <option value="Quadruplex">Quadruplex</option>
                                     <option value="Townhouse">Townhouse</option>
                                     <option value="Triplex">Triplex</option>
-                                    <option value="WalkUp">Walk-Up</option>
                                     <option value="Apartment">Apartment</option>
-                                    <option value="Commercial">Commercial</option>
                                     <option value="Other">Other</option>
                                 </select>
                             </div>

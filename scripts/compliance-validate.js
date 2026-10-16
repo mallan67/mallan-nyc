@@ -153,7 +153,8 @@ function checkForm(rel) {
     if (name === 'select') currentSelect = a['data-concept'] || null;
     if (name === 'option' && currentSelect) {
       const entry = bindings.get(currentSelect);
-      if (entry && a.value) entry.values.add(a.value);
+      // hidden/disabled options are not offered to the agent (a hidden option only lets an old stored value display)
+      if (entry && a.value && a.hidden === undefined && a.disabled === undefined) entry.values.add(a.value);
       continue;
     }
 

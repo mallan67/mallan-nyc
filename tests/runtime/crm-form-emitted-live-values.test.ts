@@ -39,7 +39,6 @@ function membersOf(field: string): string[] | null {
 }
 
 const WORKFLOW = 'a word of Mallan\'s own listing workflow, not a Cotality status: the status route (not this field) decides the stored status';
-const STRUCTURE = 'UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED: the live StructureType list has no such member (Loft and WalkUp are live ArchitecturalStyle members; "Commercial" has none); whether these options move to another field or go is the product\'s call';
 const SUBTYPE = 'UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED: the live PropertySubType list has Townhouse (no single / multi family split); which member each option stands for is the product\'s call';
 const COMMERCIAL = 'Mallan\'s own classification word: lib/compliance/rls-eligibility.ts treats PropertyType "Commercial" as website-only (not RLS-eligible) and public search reads it; the live members are CommercialSale / CommercialLease, so changing the word means changing those rules with it';
 const PERMISSION = 'UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED: the live Permission list has no OwnerOptOut; the owner opt-out is derived from this word by lib/compliance/normalizer.ts (derivePermissionBooleans)';
@@ -48,13 +47,11 @@ const PERMISSION = 'UNRESOLVED - LIVE COTALITY/REBNY CONTRACT EVIDENCE REQUIRED:
 const KNOWN_GAPS: Record<string, Record<string, string>> = {
   'SALE-FORM-REDESIGN': {
     'MlsStatus = Draft': WORKFLOW, 'MlsStatus = Sold': WORKFLOW, 'MlsStatus = Cancelled': WORKFLOW,
-    'StructureType = Loft': STRUCTURE, 'StructureType = WalkUp': STRUCTURE, 'StructureType = Commercial': STRUCTURE,
     'PropertySubType = SingleFamilyTownhouse': SUBTYPE, 'PropertySubType = MultiFamilyTownhouse': SUBTYPE,
     'PropertyType = Commercial': COMMERCIAL,
     'Permission = OwnerOptOut': PERMISSION,
   },
   'RENTAL-FORM-REDESIGN': {
-    'StructureType = Loft': STRUCTURE, 'StructureType = WalkUp': STRUCTURE, 'StructureType = Commercial': STRUCTURE,
     'PropertySubType = SingleFamilyTownhouse': SUBTYPE, 'PropertySubType = MultiFamilyTownhouse': SUBTYPE,
     'PropertyType = Commercial': COMMERCIAL,
     'Permission = OwnerOptOut': PERMISSION,                // sent as Permissions, which the normalizer renames to Permission; the first version of this audit skipped the key, so the Rental gap was missing
